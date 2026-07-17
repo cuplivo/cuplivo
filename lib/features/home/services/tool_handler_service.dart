@@ -11,7 +11,7 @@ import '../../../core/providers/memory_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/tts_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
-import '../../../core/services/mcp/mcp_tool_service.dart';
+import '../../../core/services/mcp/mcp_content_flattener.dart';
 import '../../../core/services/search/search_tool_service.dart';
 import 'ask_user_interaction_service.dart';
 import 'local_tools_service.dart';
@@ -317,12 +317,13 @@ class ToolHandlerService {
     if (!supportsTools) return [];
 
     final mcp = contextProvider.read<McpProvider>();
-    final toolSvc = contextProvider.read<McpToolService>();
-    final tools = toolSvc.listAvailableToolsForAssistant(
-      mcp,
-      contextProvider.read<AssistantProvider>(),
-      assistant?.id,
-    );
+    final assistants = contextProvider.read<AssistantProvider>();
+    final assistantId = assistant?.id;
+    final a = (assistantId != null)
+        ? assistants.getById(assistantId)
+        : assistants.currentAssistant;
+    final selected = (a?.mcpServerIds ?? const <String>[]).toSet();
+    final tools = mcp.getEnabledToolsForServers(selected);
 
     if (tools.isEmpty) return [];
 
@@ -382,7 +383,6 @@ class ToolHandlerService {
     AskUserInteractionService? askUserService,
   }) {
     final mcp = contextProvider.read<McpProvider>();
-    final toolSvc = contextProvider.read<McpToolService>();
     // Capture AssistantProvider reference before async gap to avoid
     // use_build_context_synchronously warning
     final assistantProvider = contextProvider.read<AssistantProvider>();
@@ -476,14 +476,40 @@ class ToolHandlerService {
         }
 
         // MCP tools
-        final text = await toolSvc.callToolTextForAssistant(
-          mcp,
-          assistantProvider,
-          assistantId: assistant?.id,
-          toolName: name,
-          arguments: args,
-        );
-        return text;
+        final assistantId = assistant?.id;
+        final a = (assistantId != null)
+            ? assistantProvider.getById(assistantId)
+            : assistantProvider.currentAssistant;
+        final selected = (a?.mcpServerIds ?? const <String>[]).toSet();
+        String? resultText;
+        McpServerConfig? usedServer;
+        for (final s in mcp.connectedServers.where(
+          (s) => selected.contains(s.id),
+        )) {
+          final has = s.tools.any((t) => t.enabled && t.name == name);
+          if (!has) continue;
+          usedServer = s;
+          final res = await mcp.callTool(s.id, name, args);
+          if (res != null) {
+            resultText = await McpContentFlattener.flatten(res);
+          }
+          break;
+        }
+        if (resultText == null && usedServer != null) {
+          final errMsg = mcp.errorFor(usedServer.id) ?? 'Unknown error';
+          final schema = usedServer.tools
+              .firstWhere((t) => t.name == name)
+              .schema;
+          return _toolError(
+            error: 'invalid_arguments',
+            message: errMsg,
+            tool: name,
+            instruction: schema != null && schema.isNotEmpty
+                ? 'Revise arguments to satisfy parametersSchema, then call the same tool again.'
+                : null,
+          );
+        }
+        return resultText ?? '';
       } catch (e) {
         // Catch unexpected exceptions and return error JSON to LLM
         // This prevents tool failures from terminating the chat flow

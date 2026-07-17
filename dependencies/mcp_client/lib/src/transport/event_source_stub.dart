@@ -14,6 +14,7 @@ abstract class EventSource {
     Function(dynamic)? onMessage,
     Function(dynamic)? onError,
     Function(String?)? onEndpoint,
+    Function()? onClose,
   });
 
   /// Close the connection

@@ -171,6 +171,9 @@ class SseHeartbeatClientTransport implements ClientTransport {
       onHeartbeat: (latency) {
         _handleHeartbeatResponse(latency);
       },
+      onClose: () {
+        _handleClose();
+      },
     );
 
     // Wait for endpoint
@@ -381,6 +384,12 @@ class SseHeartbeatClientTransport implements ClientTransport {
     }
   }
 
+  void _handleClose() {
+    if (!_closeCompleter.isCompleted) {
+      _closeCompleter.complete();
+    }
+  }
+
   /// Get current connection health
   ConnectionHealth get connectionHealth => _currentHealth;
 
@@ -533,6 +542,7 @@ class HeartbeatEventSource {
     Function(dynamic)? onMessage,
     Function(dynamic)? onError,
     Function(Duration)? onHeartbeat,
+    Function()? onClose,
   }) async {
     _logger.debug('HeartbeatEventSource connecting to: $url');
     if (_isConnected) {
@@ -657,8 +667,8 @@ class HeartbeatEventSource {
         onDone: () {
           _logger.debug('Heartbeat EventSource stream closed');
           _isConnected = false;
-          if (onError != null) {
-            onError('Heartbeat connection closed');
+          if (onClose != null) {
+            onClose();
           }
         },
       );

@@ -105,6 +105,9 @@ class SseAuthClientTransport implements ClientTransport {
         onAuthFailure: (statusCode, body) {
           transport._handleAuthFailure(statusCode, body);
         },
+        onClose: () {
+          transport._handleClose();
+        },
       );
 
       // Wait for endpoint
@@ -224,6 +227,9 @@ class SseAuthClientTransport implements ClientTransport {
       onAuthFailure: (statusCode, body) {
         _handleAuthFailure(statusCode, body);
       },
+      onClose: () {
+        _handleClose();
+      },
     );
 
     // Update message endpoint
@@ -250,6 +256,12 @@ class SseAuthClientTransport implements ClientTransport {
     // Add auth failure to message stream for higher-level handling
     if (!_messageController.isClosed) {
       _messageController.addError(McpError(errorMessage));
+    }
+  }
+
+  void _handleClose() {
+    if (!_closeCompleter.isCompleted) {
+      _closeCompleter.complete();
     }
   }
 
@@ -419,6 +431,7 @@ class AuthenticatedEventSource implements EventSource {
     Function(dynamic)? onError,
     Function(String?)? onEndpoint,
     Function(int, String)? onAuthFailure,
+    Function()? onClose,
   }) async {
     _logger.debug('AuthenticatedEventSource connecting to: $url');
     if (_isConnected) {
@@ -550,8 +563,8 @@ class AuthenticatedEventSource implements EventSource {
         onDone: () {
           _logger.debug('Authenticated EventSource stream closed');
           _isConnected = false;
-          if (onError != null) {
-            onError('Authenticated connection closed');
+          if (onClose != null) {
+            onClose();
           }
         },
       );

@@ -299,6 +299,9 @@ class SseClientTransport implements ClientTransport {
             endpointCompleter.complete(endpoint);
           }
         },
+        onClose: () {
+          transport._handleClose();
+        },
       );
 
       // Wait for endpoint
@@ -357,6 +360,12 @@ class SseClientTransport implements ClientTransport {
   void _handleError(dynamic error) {
     if (!_closeCompleter.isCompleted) {
       _closeCompleter.completeError(error);
+    }
+  }
+
+  void _handleClose() {
+    if (!_closeCompleter.isCompleted) {
+      _closeCompleter.complete();
     }
   }
 

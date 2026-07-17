@@ -8,7 +8,6 @@ import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/mcp_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
-import 'package:Cuplivo/core/services/mcp/mcp_tool_service.dart';
 import 'package:Cuplivo/core/services/search/search_tool_service.dart';
 import 'package:Cuplivo/features/home/services/message_builder_service.dart';
 import 'package:Cuplivo/features/home/services/tool_handler_service.dart';
@@ -70,9 +69,6 @@ void main() {
               create: (_) => AssistantProvider(),
             ),
             ChangeNotifierProvider<McpProvider>(create: (_) => McpProvider()),
-            ChangeNotifierProvider<McpToolService>(
-              create: (_) => McpToolService(),
-            ),
           ],
           child: Builder(
             builder: (context) {

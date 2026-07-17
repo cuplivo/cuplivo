@@ -33,6 +33,7 @@ class EventSource implements stub.EventSource {
     Function(dynamic)? onMessage,
     Function(dynamic)? onError,
     Function(String?)? onEndpoint,
+    Function()? onClose,
   }) async {
     _logger.debug('EventSource connecting (web)');
     if (_isConnected) {
@@ -96,6 +97,7 @@ class EventSource implements stub.EventSource {
             onDone: () {
               _logger.debug('EventSource stream closed');
               _isConnected = false;
+              if (onClose != null) onClose();
             },
           );
     } catch (e) {

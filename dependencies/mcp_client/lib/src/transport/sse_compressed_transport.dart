@@ -122,6 +122,9 @@ class SseCompressedClientTransport implements ClientTransport {
           transport._negotiatedCompression = compression;
           _logger.debug('Compression negotiated: ${compression.encoding}');
         },
+        onClose: () {
+          transport._handleClose();
+        },
       );
 
       // Wait for endpoint
@@ -182,6 +185,12 @@ class SseCompressedClientTransport implements ClientTransport {
   void _handleError(dynamic error) {
     if (!_closeCompleter.isCompleted) {
       _closeCompleter.completeError(error);
+    }
+  }
+
+  void _handleClose() {
+    if (!_closeCompleter.isCompleted) {
+      _closeCompleter.complete();
     }
   }
 
@@ -368,6 +377,7 @@ class CompressedEventSource {
     Function(dynamic)? onMessage,
     Function(dynamic)? onError,
     Function(CompressionType)? onCompressionNegotiated,
+    Function()? onClose,
   }) async {
     _logger.debug('CompressedEventSource connecting to: $url');
     if (_isConnected) {
@@ -512,8 +522,8 @@ class CompressedEventSource {
         onDone: () {
           _logger.debug('Compressed EventSource stream closed');
           _isConnected = false;
-          if (onError != null) {
-            onError('Compressed connection closed');
+          if (onClose != null) {
+            onClose();
           }
         },
       );

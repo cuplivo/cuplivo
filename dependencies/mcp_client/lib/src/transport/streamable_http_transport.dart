@@ -482,6 +482,10 @@ class StreamableHttpClientTransport implements ClientTransport {
           _logger.error('GET stream error: $error');
           _getStreamActive = false;
         },
+        onClose: () {
+          _logger.debug('GET SSE stream closed');
+          _getStreamActive = false;
+        },
       );
     } catch (e) {
       _logger.error('Failed to establish GET stream: $e');

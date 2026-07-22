@@ -2175,6 +2175,15 @@ class BehaviorStartupSettingsPage extends StatelessWidget {
                     context.read<SettingsProvider>().setShowAppUpdates(v),
               ),
               _iosDivider(context),
+              _iosSwitchRow(
+                context,
+                icon: Lucide.Lightbulb,
+                label: l10n.displaySettingsPageShowTipsTitle,
+                value: sp.showTips,
+                onChanged: (v) =>
+                    context.read<SettingsProvider>().setShowTips(v),
+              ),
+              _iosDivider(context),
               _iosNavRow(
                 context,
                 icon: Lucide.ChevronRight,

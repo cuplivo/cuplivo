@@ -4709,6 +4709,78 @@ abstract class AppLocalizations {
   /// **'Link copied'**
   String get sideDrawerLinkCopied;
 
+  /// No description provided for @sideDrawerTipTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tip'**
+  String get sideDrawerTipTitle;
+
+  /// No description provided for @sideDrawerTip1.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap \"Multi-select\" in the model selector to enter Multi-AI comparison mode and get multiple answers at once.'**
+  String get sideDrawerTip1;
+
+  /// No description provided for @sideDrawerTip2.
+  ///
+  /// In en, this message translates to:
+  /// **'Bing\'s web search quality is poor — try Tavily or an external Exa MCP instead.'**
+  String get sideDrawerTip2;
+
+  /// No description provided for @sideDrawerTip3.
+  ///
+  /// In en, this message translates to:
+  /// **'\"Assistants\" are Cuplivo\'s basic configuration unit — create one for each prompt + model + tool combo to avoid switching back and forth.'**
+  String get sideDrawerTip3;
+
+  /// No description provided for @sideDrawerTip4.
+  ///
+  /// In en, this message translates to:
+  /// **'Cuplivo is built with Flutter and supports Android, iOS, Windows, macOS, and Linux.'**
+  String get sideDrawerTip4;
+
+  /// No description provided for @sideDrawerTip5.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync across devices manually — back up on one device, restore on the other, and choose \"Smart Merge\".'**
+  String get sideDrawerTip5;
+
+  /// No description provided for @sideDrawerTip6.
+  ///
+  /// In en, this message translates to:
+  /// **'Running into issues? File an issue on GitHub, or join our QQ group / Discord channel from the About page.'**
+  String get sideDrawerTip6;
+
+  /// No description provided for @sideDrawerTip7.
+  ///
+  /// In en, this message translates to:
+  /// **'How to configure assistant options in 2026? Turn off Temperature, Top-p, Context message count, and Max tokens. Compress the prompt when context gets too long.'**
+  String get sideDrawerTip7;
+
+  /// No description provided for @sideDrawerTip8.
+  ///
+  /// In en, this message translates to:
+  /// **'Want the assistant to start the conversation? Go to the assistant\'s \"Prompt\" → \"Preset messages\" and add an assistant message.'**
+  String get sideDrawerTip8;
+
+  /// No description provided for @sideDrawerTip9.
+  ///
+  /// In en, this message translates to:
+  /// **'Accidentally tapped \"Clear context\"? Clear it again to restore.'**
+  String get sideDrawerTip9;
+
+  /// No description provided for @sideDrawerTip10.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure your title summary model: switch to a cheaper one, disable thinking, and try adding emojis?'**
+  String get sideDrawerTip10;
+
+  /// No description provided for @sideDrawerTip11.
+  ///
+  /// In en, this message translates to:
+  /// **'To ensure cache hits, avoid adding variables (especially time or battery level) to the system prompt.'**
+  String get sideDrawerTip11;
+
   /// No description provided for @sideDrawerPinnedLabel.
   ///
   /// In en, this message translates to:
@@ -7483,6 +7555,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show app update notifications'**
   String get displaySettingsPageShowUpdatesSubtitle;
+
+  /// No description provided for @displaySettingsPageShowTipsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Tips'**
+  String get displaySettingsPageShowTipsTitle;
+
+  /// No description provided for @displaySettingsPageShowTipsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show usage tips in the sidebar'**
+  String get displaySettingsPageShowTipsSubtitle;
 
   /// No description provided for @displaySettingsPageMessageNavButtonsTitle.
   ///

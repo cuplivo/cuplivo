@@ -102,6 +102,14 @@
 - **UI**: File size shown as gradient overlay at bottom of each 64×64 thumbnail, with `Lucide.ImageDown` icon. Tappable → opens dialog. `_imageSizes` cache maintained alongside `_images` to avoid repeated disk reads.
 - **Compression progress**: Dialog buttons show loading spinner while compressing. Single "压缩" or "全部压缩" (后者仅在 totalImageCount > 1 时可用).
 
+## Sidebar Tip Card
+
+- **Tip**: A short usage hint displayed at the top of the conversations list in the sidebar, in the same slot as the update banner. When an update is available, the update banner takes priority; otherwise a Tip is shown (if enabled).
+- **Rotation**: Sequential, persisted via `tip_index_v1` in SharedPreferences. Index advances by 1 on each app cold start (post-frame callback in `main.dart`). User can manually advance via the refresh button on the card.
+- **Content**: Finite list of 11 l10n-backed tips (`sideDrawerTip1`–`sideDrawerTip11`). Shipped with the app; no remote fetching.
+- **Toggle**: `showTips` in `SettingsProvider` (key `display_show_tips_v1`, default `true`). Located below "Show Updates" in display settings.
+- **Widget**: `TipCard` in `lib/features/home/widgets/tip_card.dart`. Same visual style as the update banner (Material rounded-12, `Lucide.Lightbulb` icon, bold title, body text, trailing `Lucide.RefreshCw` button).
+
 ## Skill System
 
 ### Core Concept

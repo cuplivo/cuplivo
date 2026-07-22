@@ -4559,6 +4559,42 @@ abstract class AppLocalizations {
   /// **'Deleted \"{title}\"'**
   String sideDrawerDeleteSnackbar(String title);
 
+  /// No description provided for @sideDrawerMenuBatchSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Multiple'**
+  String get sideDrawerMenuBatchSelect;
+
+  /// No description provided for @sideDrawerBatchSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String sideDrawerBatchSelectedCount(int count);
+
+  /// No description provided for @sideDrawerBatchDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {count} conversations?'**
+  String sideDrawerBatchDeleteConfirm(int count);
+
+  /// No description provided for @sideDrawerBatchDeleteSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted {count} conversations'**
+  String sideDrawerBatchDeleteSuccess(int count);
+
+  /// No description provided for @sideDrawerSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select All'**
+  String get sideDrawerSelectAll;
+
+  /// No description provided for @sideDrawerDeselectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Deselect All'**
+  String get sideDrawerDeselectAll;
+
   /// No description provided for @sideDrawerRenameHint.
   ///
   /// In en, this message translates to:

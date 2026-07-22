@@ -2340,6 +2340,30 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get sideDrawerMenuBatchSelect => '批量选择';
+
+  @override
+  String sideDrawerBatchSelectedCount(int count) {
+    return '已选 $count 项';
+  }
+
+  @override
+  String sideDrawerBatchDeleteConfirm(int count) {
+    return '删除 $count 个会话？';
+  }
+
+  @override
+  String sideDrawerBatchDeleteSuccess(int count) {
+    return '已删除 $count 个会话';
+  }
+
+  @override
+  String get sideDrawerSelectAll => '全选';
+
+  @override
+  String get sideDrawerDeselectAll => '取消全选';
+
+  @override
   String get sideDrawerRenameHint => '输入新名称';
 
   @override
@@ -8074,6 +8098,30 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
+  String get sideDrawerMenuBatchSelect => '批量选择';
+
+  @override
+  String sideDrawerBatchSelectedCount(int count) {
+    return '已选 $count 项';
+  }
+
+  @override
+  String sideDrawerBatchDeleteConfirm(int count) {
+    return '删除 $count 个会话？';
+  }
+
+  @override
+  String sideDrawerBatchDeleteSuccess(int count) {
+    return '已删除 $count 个会话';
+  }
+
+  @override
+  String get sideDrawerSelectAll => '全选';
+
+  @override
+  String get sideDrawerDeselectAll => '取消全选';
+
+  @override
   String get sideDrawerRenameHint => '输入新名称';
 
   @override
@@ -13805,6 +13853,30 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String sideDrawerDeleteSnackbar(String title) {
     return '已刪除「$title」';
   }
+
+  @override
+  String get sideDrawerMenuBatchSelect => '批量選擇';
+
+  @override
+  String sideDrawerBatchSelectedCount(int count) {
+    return '已選 $count 項';
+  }
+
+  @override
+  String sideDrawerBatchDeleteConfirm(int count) {
+    return '刪除 $count 個會話？';
+  }
+
+  @override
+  String sideDrawerBatchDeleteSuccess(int count) {
+    return '已刪除 $count 個會話';
+  }
+
+  @override
+  String get sideDrawerSelectAll => '全選';
+
+  @override
+  String get sideDrawerDeselectAll => '取消全選';
 
   @override
   String get sideDrawerRenameHint => '輸入新名稱';

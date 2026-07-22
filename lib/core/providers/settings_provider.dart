@@ -157,6 +157,7 @@ class SettingsProvider extends ChangeNotifier {
   static const String _displayHapticsOnCardTapKey =
       'display_haptics_on_card_tap_v1';
   static const String _displayShowAppUpdatesKey = 'display_show_app_updates_v1';
+  static const String _displayShowTipsKey = 'display_show_tips_v1';
   static const String _displayKeepSidebarOpenOnAssistantTapKey =
       'display_keep_sidebar_open_on_assistant_tap_v1';
   static const String _displayKeepSidebarOpenOnTopicTapKey =
@@ -988,6 +989,7 @@ class SettingsProvider extends ChangeNotifier {
     // Apply global haptics to service layer
     Haptics.setEnabled(_hapticsGlobalEnabled);
     _showAppUpdates = prefs.getBool(_displayShowAppUpdatesKey) ?? true;
+    _showTips = prefs.getBool(_displayShowTipsKey) ?? true;
     _keepSidebarOpenOnAssistantTap =
         prefs.getBool(_displayKeepSidebarOpenOnAssistantTapKey) ?? false;
     _keepSidebarOpenOnTopicTap =
@@ -4080,6 +4082,17 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     await prefs.setBool(_displayShowAppUpdatesKey, v);
   }
 
+  // Display: show tips in sidebar
+  bool _showTips = true;
+  bool get showTips => _showTips;
+  Future<void> setShowTips(bool v) async {
+    if (_showTips == v) return;
+    _showTips = v;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_displayShowTipsKey, v);
+  }
+
   // Display: keep sidebar open when selecting assistant (mobile)
   bool _keepSidebarOpenOnAssistantTap = false;
   bool get keepSidebarOpenOnAssistantTap => _keepSidebarOpenOnAssistantTap;
@@ -4328,6 +4341,7 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     copy._hapticsOnListItemTap = _hapticsOnListItemTap;
     copy._hapticsOnCardTap = _hapticsOnCardTap;
     copy._showAppUpdates = _showAppUpdates;
+    copy._showTips = _showTips;
     copy._keepSidebarOpenOnAssistantTap = _keepSidebarOpenOnAssistantTap;
     copy._keepSidebarOpenOnTopicTap = _keepSidebarOpenOnTopicTap;
     copy._keepAssistantListExpandedOnSidebarClose =

@@ -2421,6 +2421,46 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sideDrawerLinkCopied => '已复制下载链接';
 
   @override
+  String get sideDrawerTipTitle => '小贴士';
+
+  @override
+  String get sideDrawerTip1 => '点击模型选择栏中的\"多选\"进入多 AI 对比模式，一次获取多个答案';
+
+  @override
+  String get sideDrawerTip2 => '必应的联网搜索质量较差，可以使用 Tavily 或外接 Exa MCP';
+
+  @override
+  String get sideDrawerTip3 =>
+      '\"助手\"是 Cuplivo 的基本配置单位，您可以为每一套提示词 + 模型 + 工具配置一个助手，避免来回切换';
+
+  @override
+  String get sideDrawerTip4 =>
+      'Cuplivo 基于 Flutter 构建，对 Android、iOS、Windows、macOS、Linux 均有支持';
+
+  @override
+  String get sideDrawerTip5 => 'Cuplivo 可以手动进行多端同步，只需在一端进行备份，另一端进行恢复，选择智能合并即可';
+
+  @override
+  String get sideDrawerTip6 =>
+      '遇到问题？前往 GitHub 提 issue，或到关于界面加入 QQ 群或 Discord 频道反馈';
+
+  @override
+  String get sideDrawerTip7 =>
+      '2026 年如何配置助手选项？关闭温度、Top-p、上下文消息数量、最大 Token 数，上下文太长的时候就压缩提示词';
+
+  @override
+  String get sideDrawerTip8 => '想让助手主动开场？去助手\"提示词\"里\"预设对话信息\"，添加一条助手消息';
+
+  @override
+  String get sideDrawerTip9 => '若误点了\"清空上下文\"，再清空一次就恢复了';
+
+  @override
+  String get sideDrawerTip10 => '配置一下标题总结模型吧：换个便宜的，关闭思考，试试添加 Emoji？';
+
+  @override
+  String get sideDrawerTip11 => '为了保证缓存命中，不建议在系统提示词中添加变量（尤其是时间、电池电量）';
+
+  @override
   String get sideDrawerPinnedLabel => '置顶';
 
   @override
@@ -3871,6 +3911,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get displaySettingsPageShowUpdatesSubtitle => '显示应用更新通知';
+
+  @override
+  String get displaySettingsPageShowTipsTitle => '显示小贴士';
+
+  @override
+  String get displaySettingsPageShowTipsSubtitle => '在侧边栏显示使用小贴士';
 
   @override
   String get displaySettingsPageMessageNavButtonsTitle => '消息导航按钮';
@@ -8155,6 +8201,46 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get sideDrawerLinkCopied => '已复制下载链接';
 
   @override
+  String get sideDrawerTipTitle => '小贴士';
+
+  @override
+  String get sideDrawerTip1 => '点击模型选择栏中的\"多选\"进入多 AI 对比模式，一次获取多个答案';
+
+  @override
+  String get sideDrawerTip2 => '必应的联网搜索质量较差，可以使用 Tavily 或外接 Exa MCP';
+
+  @override
+  String get sideDrawerTip3 =>
+      '\"助手\"是 Cuplivo 的基本配置单位，您可以为每一套提示词 + 模型 + 工具配置一个助手，避免来回切换';
+
+  @override
+  String get sideDrawerTip4 =>
+      'Cuplivo 基于 Flutter 构建，对 Android、iOS、Windows、macOS、Linux 均有支持';
+
+  @override
+  String get sideDrawerTip5 => 'Cuplivo 可以手动进行多端同步，只需在一端进行备份，另一端进行恢复，选择智能合并即可';
+
+  @override
+  String get sideDrawerTip6 =>
+      '遇到问题？前往 GitHub 提 issue，或到关于界面加入 QQ 群或 Discord 频道反馈';
+
+  @override
+  String get sideDrawerTip7 =>
+      '2026 年如何配置助手选项？关闭温度、Top-p、上下文消息数量、最大 Token 数，上下文太长的时候就压缩提示词';
+
+  @override
+  String get sideDrawerTip8 => '想让助手主动开场？去助手\"提示词\"里\"预设对话信息\"，添加一条助手消息';
+
+  @override
+  String get sideDrawerTip9 => '若误点了\"清空上下文\"，再清空一次就恢复了';
+
+  @override
+  String get sideDrawerTip10 => '配置一下标题总结模型吧：换个便宜的，关闭思考，试试添加 Emoji？';
+
+  @override
+  String get sideDrawerTip11 => '为了保证缓存命中，不建议在系统提示词中添加变量（尤其是时间、电池电量）';
+
+  @override
   String get sideDrawerPinnedLabel => '置顶';
 
   @override
@@ -9605,6 +9691,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get displaySettingsPageShowUpdatesSubtitle => '显示应用更新通知';
+
+  @override
+  String get displaySettingsPageShowTipsTitle => '显示小贴士';
+
+  @override
+  String get displaySettingsPageShowTipsSubtitle => '在侧边栏显示使用小贴士';
 
   @override
   String get displaySettingsPageMessageNavButtonsTitle => '消息导航按钮';
@@ -13888,6 +13980,46 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get sideDrawerLinkCopied => '已複製下載連結';
 
   @override
+  String get sideDrawerTipTitle => '小提醒';
+
+  @override
+  String get sideDrawerTip1 => '點擊模型選擇欄中的「多選」進入多 AI 對比模式，一次取得多個答案';
+
+  @override
+  String get sideDrawerTip2 => '必應的聯網搜尋品質較差，可以使用 Tavily 或外接 Exa MCP';
+
+  @override
+  String get sideDrawerTip3 =>
+      '「助手」是 Cuplivo 的基本設定單位，您可以為每一套提示詞 + 模型 + 工具設定一個助手，避免來回切換';
+
+  @override
+  String get sideDrawerTip4 =>
+      'Cuplivo 基於 Flutter 建構，對 Android、iOS、Windows、macOS、Linux 均有支援';
+
+  @override
+  String get sideDrawerTip5 => 'Cuplivo 可以手動進行多端同步，只需在一端進行備份，另一端進行還原，選擇智慧合併即可';
+
+  @override
+  String get sideDrawerTip6 =>
+      '遇到問題？前往 GitHub 提 issue，或到關於介面加入 QQ 群或 Discord 頻道回饋';
+
+  @override
+  String get sideDrawerTip7 =>
+      '2026 年如何設定助手選項？關閉溫度、Top-p、上下文訊息數量、最大 Token 數，上下文太長的時候就壓縮提示詞';
+
+  @override
+  String get sideDrawerTip8 => '想讓助手主動開場？去助手「提示詞」裡「預設對話訊息」，新增一條助手訊息';
+
+  @override
+  String get sideDrawerTip9 => '若誤點了「清空上下文」，再清空一次就恢復了';
+
+  @override
+  String get sideDrawerTip10 => '設定一下標題總結模型吧：換個便宜的，關閉思考，試試新增 Emoji？';
+
+  @override
+  String get sideDrawerTip11 => '為了保證快取命中，不建議在系統提示詞中新增變數（尤其是時間、電池電量）';
+
+  @override
   String get sideDrawerPinnedLabel => '置頂';
 
   @override
@@ -15337,6 +15469,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get displaySettingsPageShowUpdatesSubtitle => '顯示應用程式更新通知';
+
+  @override
+  String get displaySettingsPageShowTipsTitle => '顯示小提醒';
+
+  @override
+  String get displaySettingsPageShowTipsSubtitle => '在側邊欄顯示使用小提醒';
 
   @override
   String get displaySettingsPageMessageNavButtonsTitle => '訊息導航按鈕';

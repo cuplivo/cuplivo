@@ -53,6 +53,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 final RouteObserver<ModalRoute<dynamic>> routeObserver =
     RouteObserver<ModalRoute<dynamic>>();
 bool _didCheckUpdates = false; // one-time update check flag
+bool _didAdvanceTip = false;
 
 Future<void> main() async {
   await runZoned(
@@ -214,6 +215,16 @@ class MyApp extends StatelessWidget {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               try {
                 context.read<UpdateProvider>().checkForUpdates();
+              } catch (_) {}
+            });
+          }
+          if (!_didAdvanceTip) {
+            _didAdvanceTip = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) async {
+              try {
+                final prefs = await SharedPreferences.getInstance();
+                final idx = prefs.getInt('tip_index_v1') ?? 0;
+                await prefs.setInt('tip_index_v1', (idx + 1) % 11);
               } catch (_) {}
             });
           }

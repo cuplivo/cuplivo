@@ -2510,6 +2510,53 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sideDrawerLinkCopied => 'Link copied';
 
   @override
+  String get sideDrawerTipTitle => 'Tip';
+
+  @override
+  String get sideDrawerTip1 =>
+      'Tap \"Multi-select\" in the model selector to enter Multi-AI comparison mode and get multiple answers at once.';
+
+  @override
+  String get sideDrawerTip2 =>
+      'Bing\'s web search quality is poor — try Tavily or an external Exa MCP instead.';
+
+  @override
+  String get sideDrawerTip3 =>
+      '\"Assistants\" are Cuplivo\'s basic configuration unit — create one for each prompt + model + tool combo to avoid switching back and forth.';
+
+  @override
+  String get sideDrawerTip4 =>
+      'Cuplivo is built with Flutter and supports Android, iOS, Windows, macOS, and Linux.';
+
+  @override
+  String get sideDrawerTip5 =>
+      'Sync across devices manually — back up on one device, restore on the other, and choose \"Smart Merge\".';
+
+  @override
+  String get sideDrawerTip6 =>
+      'Running into issues? File an issue on GitHub, or join our QQ group / Discord channel from the About page.';
+
+  @override
+  String get sideDrawerTip7 =>
+      'How to configure assistant options in 2026? Turn off Temperature, Top-p, Context message count, and Max tokens. Compress the prompt when context gets too long.';
+
+  @override
+  String get sideDrawerTip8 =>
+      'Want the assistant to start the conversation? Go to the assistant\'s \"Prompt\" → \"Preset messages\" and add an assistant message.';
+
+  @override
+  String get sideDrawerTip9 =>
+      'Accidentally tapped \"Clear context\"? Clear it again to restore.';
+
+  @override
+  String get sideDrawerTip10 =>
+      'Configure your title summary model: switch to a cheaper one, disable thinking, and try adding emojis?';
+
+  @override
+  String get sideDrawerTip11 =>
+      'To ensure cache hits, avoid adding variables (especially time or battery level) to the system prompt.';
+
+  @override
   String get sideDrawerPinnedLabel => 'Pinned';
 
   @override
@@ -4024,6 +4071,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get displaySettingsPageShowUpdatesSubtitle =>
       'Show app update notifications';
+
+  @override
+  String get displaySettingsPageShowTipsTitle => 'Show Tips';
+
+  @override
+  String get displaySettingsPageShowTipsSubtitle =>
+      'Show usage tips in the sidebar';
 
   @override
   String get displaySettingsPageMessageNavButtonsTitle =>

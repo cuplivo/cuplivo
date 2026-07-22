@@ -17,6 +17,7 @@ class LocalToolNames {
   static const String askUser = 'ask_user_input_v0';
   static const String calculate = 'calculate';
   static const String loadSkill = 'load_skill';
+  static const String readSkillFile = 'read_skill_file';
 }
 
 class LocalToolsService {
@@ -176,6 +177,29 @@ class LocalToolsService {
           },
         },
       });
+      tools.add(const {
+        'type': 'function',
+        'function': {
+          'name': LocalToolNames.readSkillFile,
+          'description':
+              'Read an auxiliary file from a skill directory. Use this after load_skill shows available files and you need to read a specific one.',
+          'parameters': {
+            'type': 'object',
+            'properties': {
+              'name': {
+                'type': 'string',
+                'description': 'The name of the skill',
+              },
+              'path': {
+                'type': 'string',
+                'description':
+                    'Relative path to the file within the skill directory (forward slashes only)',
+              },
+            },
+            'required': ['name', 'path'],
+          },
+        },
+      });
     }
     return tools;
   }
@@ -191,6 +215,9 @@ class LocalToolsService {
     // load_skill is gated by skillIds, not localToolIds
     if (name == LocalToolNames.loadSkill) {
       return _handleLoadSkill(args, assistant);
+    }
+    if (name == LocalToolNames.readSkillFile) {
+      return _handleReadSkillFile(args, assistant);
     }
 
     if (!assistant.localToolIds.contains(name)) {
@@ -348,6 +375,59 @@ class LocalToolsService {
             'Skill "$name" was not found on disk. It may have been deleted.',
       });
     }
-    return body;
+
+    final sb = StringBuffer();
+    sb.writeln('<skill name="$name">');
+    sb.writeln('  <instructions>');
+    sb.writeln(body);
+    sb.writeln('  </instructions>');
+
+    final files = await SkillManager.listSkillFiles(name);
+    if (files.isNotEmpty) {
+      sb.writeln('  <files>');
+      for (final f in files) {
+        sb.writeln('    <file path="${f.path}" size="${f.size}"/>');
+      }
+      sb.writeln('  </files>');
+    }
+
+    sb.write('</skill>');
+    return sb.toString();
+  }
+
+  static Future<String?> _handleReadSkillFile(
+    Map<String, dynamic> args,
+    Assistant assistant,
+  ) async {
+    final name = (args['name'] ?? '').toString().trim();
+    final path = (args['path'] ?? '').toString().trim();
+    if (name.isEmpty || path.isEmpty) {
+      return jsonEncode({
+        'error': 'missing_params',
+        'message': 'Both "name" and "path" parameters are required.',
+      });
+    }
+    if (!assistant.skillIds.contains(name)) {
+      return jsonEncode({
+        'error': 'skill_not_found',
+        'message': 'Skill "$name" is not enabled for this assistant.',
+      });
+    }
+
+    final result = await SkillManager.readSkillFile(name, path);
+    if (result == null) {
+      return jsonEncode({
+        'error': 'file_not_found',
+        'message':
+            'File "$path" not found in skill "$name", or path is invalid.',
+      });
+    }
+    if (result.isBinary) {
+      return jsonEncode({
+        'error': 'binary_file',
+        'message': 'File "$path" is binary and cannot be displayed.',
+      });
+    }
+    return result.content;
   }
 }

@@ -5660,9 +5660,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get skillsTitle => '技能';
 
   @override
-  String get skillsAddTooltip => '添加技能';
-
-  @override
   String get skillsImportManualTitle => '手动添加';
 
   @override
@@ -5670,6 +5667,31 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get skillsImportFileLabel => '从文件导入';
+
+  @override
+  String get skillsImportChoiceTitle => '导入技能';
+
+  @override
+  String get skillsImportFromFile => '从文件导入';
+
+  @override
+  String get skillsImportFromGitHub => '从 GitHub URL 导入';
+
+  @override
+  String get skillsGitHubImportTitle => '从 GitHub 导入';
+
+  @override
+  String get skillsGitHubUrlHint =>
+      'https://github.com/owner/repo[/tree/branch[/path]]';
+
+  @override
+  String get skillsGitHubUrlInvalid => '无效的 GitHub URL。';
+
+  @override
+  String get skillsGitHubDownloadFailed => '下载仓库失败。仓库可能不存在或为私有。';
+
+  @override
+  String get skillsGitHubSelectTitle => '选择要导入的技能';
 
   @override
   String get skillsEmptyMessage => '暂无技能。从文件导入或手动创建一个。';
@@ -5688,9 +5710,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get skillsTab => '技能';
-
-  @override
   String skillsFrontmatterNameMismatch(String frontmatterName, String dirName) {
     return '前置元数据中的名称 \"$frontmatterName\" 必须与目录名 \"$dirName\" 一致。';
   }
@@ -5700,9 +5719,7 @@ class AppLocalizationsZh extends AppLocalizations {
       'SKILL.md 必须包含有效的 YAML 前置元数据且包含 name 字段。';
 
   @override
-  String skillsNotFound(String name) {
-    return '未找到技能：$name';
-  }
+  String get skillsNameInvalid => '技能名称无效。仅允许小写字母、数字和连字符（不能包含空格、斜杠或点号）。';
 
   @override
   String get skillsFrontmatterNameMissing => 'SKILL.md 前置元数据必须包含 name 字段。';
@@ -11394,9 +11411,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get skillsTitle => '技能';
 
   @override
-  String get skillsAddTooltip => '添加技能';
-
-  @override
   String get skillsImportManualTitle => '手动添加';
 
   @override
@@ -11404,6 +11418,31 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get skillsImportFileLabel => '从文件导入';
+
+  @override
+  String get skillsImportChoiceTitle => '导入技能';
+
+  @override
+  String get skillsImportFromFile => '从文件导入';
+
+  @override
+  String get skillsImportFromGitHub => '从 GitHub URL 导入';
+
+  @override
+  String get skillsGitHubImportTitle => '从 GitHub 导入';
+
+  @override
+  String get skillsGitHubUrlHint =>
+      'https://github.com/owner/repo[/tree/branch[/path]]';
+
+  @override
+  String get skillsGitHubUrlInvalid => '无效的 GitHub URL。';
+
+  @override
+  String get skillsGitHubDownloadFailed => '下载仓库失败。仓库可能不存在或为私有。';
+
+  @override
+  String get skillsGitHubSelectTitle => '选择要导入的技能';
 
   @override
   String get skillsEmptyMessage => '暂无技能。从文件导入或手动创建一个。';
@@ -11422,9 +11461,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get skillsTab => '技能';
-
-  @override
   String skillsFrontmatterNameMismatch(String frontmatterName, String dirName) {
     return '前置元数据中的名称 \"$frontmatterName\" 必须与目录名 \"$dirName\" 一致。';
   }
@@ -11434,9 +11470,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       'SKILL.md 必须包含有效的 YAML 前置元数据且包含 name 字段。';
 
   @override
-  String skillsNotFound(String name) {
-    return '未找到技能：$name';
-  }
+  String get skillsNameInvalid => '技能名称无效。仅允许小写字母、数字和连字符（不能包含空格、斜杠或点号）。';
 
   @override
   String get skillsFrontmatterNameMissing => 'SKILL.md 前置元数据必须包含 name 字段。';
@@ -17128,9 +17162,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get skillsTitle => '技能';
 
   @override
-  String get skillsAddTooltip => '新增技能';
-
-  @override
   String get skillsImportManualTitle => '手動新增';
 
   @override
@@ -17138,6 +17169,31 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get skillsImportFileLabel => '從檔案匯入';
+
+  @override
+  String get skillsImportChoiceTitle => '匯入技能';
+
+  @override
+  String get skillsImportFromFile => '從檔案匯入';
+
+  @override
+  String get skillsImportFromGitHub => '從 GitHub URL 匯入';
+
+  @override
+  String get skillsGitHubImportTitle => '從 GitHub 匯入';
+
+  @override
+  String get skillsGitHubUrlHint =>
+      'https://github.com/owner/repo[/tree/branch[/path]]';
+
+  @override
+  String get skillsGitHubUrlInvalid => '無效的 GitHub URL。';
+
+  @override
+  String get skillsGitHubDownloadFailed => '下載儲存庫失敗。儲存庫可能不存在或為私有。';
+
+  @override
+  String get skillsGitHubSelectTitle => '選擇要匯入的技能';
 
   @override
   String get skillsEmptyMessage => '暫無技能。從檔案匯入或手動建立一個。';
@@ -17156,9 +17212,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get skillsTab => '技能';
-
-  @override
   String skillsFrontmatterNameMismatch(String frontmatterName, String dirName) {
     return '前置元資料中的名稱 \"$frontmatterName\" 必須與目錄名稱 \"$dirName\" 一致。';
   }
@@ -17168,9 +17221,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       'SKILL.md 必須包含有效的 YAML 前置元資料且包含 name 欄位。';
 
   @override
-  String skillsNotFound(String name) {
-    return '找不到技能：$name';
-  }
+  String get skillsNameInvalid => '技能名稱無效。僅允許小寫字母、數字和連字號（不能包含空格、斜線或點號）。';
 
   @override
   String get skillsFrontmatterNameMissing => 'SKILL.md 前置元資料必須包含 name 欄位。';

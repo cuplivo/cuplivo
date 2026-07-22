@@ -34,6 +34,7 @@ import '../../../utils/sandbox_path_resolver.dart';
 import '../../../utils/avatar_cache.dart';
 import 'dart:ui' as ui;
 import '../../../shared/widgets/ios_tactile.dart';
+import '../../../shared/widgets/ios_checkbox.dart';
 import '../../../core/services/haptics.dart';
 import '../../../desktop/desktop_context_menu.dart';
 import '../../../desktop/menu_anchor.dart';
@@ -124,6 +125,10 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
   String? _selectedResultConversationId;
   String? _hoveredResultConversationId;
   bool _globalSearchHasRun = false;
+
+  // Batch selection state
+  bool _selectMode = false;
+  final Set<String> _selectedIds = {};
 
   @override
   void initState() {
@@ -277,6 +282,13 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                   }
                 }
               }
+            },
+          ),
+          DesktopContextMenuItem(
+            icon: Lucide.CheckSquare,
+            label: l10n.sideDrawerMenuBatchSelect,
+            onTap: () {
+              _enterSelectMode(preSelectId: chat.id);
             },
           ),
           DesktopContextMenuItem(
@@ -473,6 +485,13 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                       },
                     ),
                     row(
+                      icon: Lucide.CheckSquare,
+                      label: l10n.sideDrawerMenuBatchSelect,
+                      action: () async {
+                        _enterSelectMode(preSelectId: chat.id);
+                      },
+                    ),
+                    row(
                       icon: Lucide.Trash,
                       label: l10n.sideDrawerMenuDelete,
                       color: Colors.redAccent,
@@ -595,6 +614,155 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
         closeDrawer: closeDrawer,
       );
     }
+  }
+
+  void _enterSelectMode({String? preSelectId}) {
+    setState(() {
+      _selectMode = true;
+      _selectedIds.clear();
+      if (preSelectId != null) _selectedIds.add(preSelectId);
+    });
+  }
+
+  void _exitSelectMode() {
+    setState(() {
+      _selectMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleSelect(String id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _toggleSelectAll(List<ChatItem> pinned, List<_ChatGroup> groups) {
+    setState(() {
+      final allIds = [
+        ...pinned.map((c) => c.id),
+        ...groups.expand((g) => g.items.map((c) => c.id)),
+      ];
+      final allSelected =
+          allIds.isNotEmpty && allIds.every(_selectedIds.contains);
+      if (allSelected) {
+        _selectedIds.clear();
+      } else {
+        _selectedIds.addAll(allIds);
+      }
+    });
+  }
+
+  Future<void> _batchDelete() async {
+    final l10n = AppLocalizations.of(context)!;
+    final chatService = context.read<ChatService>();
+    final count = _selectedIds.length;
+    if (count == 0) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.sideDrawerMenuDelete),
+        content: Text(l10n.sideDrawerBatchDeleteConfirm(count)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.sideDrawerCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              l10n.sideDrawerMenuDelete,
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final deletingCurrent = _selectedIds.contains(
+      chatService.currentConversationId,
+    );
+    final ap = context.read<AssistantProvider>();
+    final currentAid = ap.currentAssistantId;
+    String? nextId;
+    if (currentAid != null) {
+      final candidates =
+          chatService
+              .getAllConversations()
+              .where(
+                (c) =>
+                    c.assistantId == currentAid && !_selectedIds.contains(c.id),
+              )
+              .toList()
+            ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      if (candidates.isNotEmpty) nextId = candidates.first.id;
+    }
+    for (final id in _selectedIds.toList()) {
+      await chatService.deleteConversation(id);
+    }
+    if (!mounted) return;
+    showAppSnackBar(
+      context,
+      message: l10n.sideDrawerBatchDeleteSuccess(count),
+      type: NotificationType.success,
+      duration: const Duration(seconds: 3),
+    );
+    _handlePostDeleteNavigation(
+      chatService: chatService,
+      deletingCurrent: deletingCurrent,
+      nextConversationId: nextId,
+    );
+    _exitSelectMode();
+  }
+
+  Future<void> _batchMove() async {
+    final chatService = context.read<ChatService>();
+    if (_selectedIds.isEmpty) return;
+    final movingCurrent = _selectedIds.contains(
+      chatService.currentConversationId,
+    );
+    String? nextId;
+    if (movingCurrent) {
+      final ap = context.read<AssistantProvider>();
+      final currentAid = ap.currentAssistantId;
+      if (currentAid != null) {
+        final candidates =
+            chatService
+                .getAllConversations()
+                .where(
+                  (c) =>
+                      c.assistantId == currentAid &&
+                      !_selectedIds.contains(c.id),
+                )
+                .toList()
+              ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+        if (candidates.isNotEmpty) nextId = candidates.first.id;
+      }
+    }
+    final targetId = await showAssistantMoveSelector(context);
+    if (!mounted || targetId == null) return;
+    for (final id in _selectedIds.toList()) {
+      await chatService.moveConversationToAssistant(
+        conversationId: id,
+        assistantId: targetId,
+      );
+    }
+    if (!mounted) return;
+    if (movingCurrent || chatService.currentConversationId == null) {
+      final closeDrawer = !context
+          .read<SettingsProvider>()
+          .keepSidebarOpenOnTopicTap;
+      if (nextId != null) {
+        widget.onSelectConversation?.call(nextId, closeDrawer: closeDrawer);
+      } else {
+        widget.onNewConversation?.call(closeDrawer: closeDrawer);
+      }
+    }
+    _exitSelectMode();
   }
 
   Future<void> _renameChat(BuildContext context, ChatItem chat) async {
@@ -3341,6 +3509,74 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       );
     }
 
+    if (_selectMode) {
+      final l10n = AppLocalizations.of(context)!;
+      final allIds = [
+        ...pinnedList.map((c) => c.id),
+        ...groups.expand((g) => g.items.map((c) => c.id)),
+      ];
+      final allSelected =
+          allIds.isNotEmpty && allIds.every(_selectedIds.contains);
+      children.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+          child: Row(
+            children: [
+              IosIconButton(
+                icon: allSelected ? Lucide.X : Lucide.checkCheck,
+                size: 18,
+                color: cs.primary,
+                semanticLabel: allSelected
+                    ? l10n.sideDrawerDeselectAll
+                    : l10n.sideDrawerSelectAll,
+                onTap: () => _toggleSelectAll(pinnedList, groups),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  l10n.sideDrawerBatchSelectedCount(_selectedIds.length),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: AppFontWeights.medium,
+                    color: cs.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
+              IosIconButton(
+                icon: Lucide.Shuffle,
+                size: 18,
+                color: _selectedIds.isEmpty
+                    ? cs.onSurface.withValues(alpha: 0.3)
+                    : cs.primary,
+                semanticLabel: l10n.sideDrawerMenuMoveTo,
+                enabled: _selectedIds.isNotEmpty,
+                onTap: _batchMove,
+              ),
+              const SizedBox(width: 4),
+              IosIconButton(
+                icon: Lucide.Trash2,
+                size: 18,
+                color: _selectedIds.isEmpty
+                    ? cs.onSurface.withValues(alpha: 0.3)
+                    : Colors.redAccent,
+                semanticLabel: l10n.sideDrawerMenuDelete,
+                enabled: _selectedIds.isNotEmpty,
+                onTap: _batchDelete,
+              ),
+              const SizedBox(width: 4),
+              IosIconButton(
+                icon: Lucide.X,
+                size: 18,
+                color: cs.onSurface.withValues(alpha: 0.6),
+                semanticLabel: l10n.sideDrawerCancel,
+                onTap: _exitSelectMode,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     children.add(
       PageTransitionSwitcher(
         duration: const Duration(milliseconds: 260),
@@ -3396,6 +3632,9 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                           loading: widget.loadingConversationIds.contains(
                             pinnedList[i].id,
                           ),
+                          selectMode: _selectMode,
+                          isSelected: _selectedIds.contains(pinnedList[i].id),
+                          onToggleSelect: () => _toggleSelect(pinnedList[i].id),
                           onTap: () {
                             final closeDrawer = !context
                                 .read<SettingsProvider>()
@@ -3461,6 +3700,10 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                           loading: widget.loadingConversationIds.contains(
                             group.items[j].id,
                           ),
+                          selectMode: _selectMode,
+                          isSelected: _selectedIds.contains(group.items[j].id),
+                          onToggleSelect: () =>
+                              _toggleSelect(group.items[j].id),
                           onTap: () {
                             final closeDrawer = !context
                                 .read<SettingsProvider>()
@@ -3520,6 +3763,9 @@ class _ChatTile extends StatefulWidget {
     this.onSecondaryTap,
     this.selected = false,
     this.loading = false,
+    this.selectMode = false,
+    this.isSelected = false,
+    this.onToggleSelect,
   });
 
   final ChatItem chat;
@@ -3529,6 +3775,9 @@ class _ChatTile extends StatefulWidget {
   final void Function(Offset globalPosition)? onSecondaryTap;
   final bool selected;
   final bool loading;
+  final bool selectMode;
+  final bool isSelected;
+  final VoidCallback? onToggleSelect;
 
   @override
   State<_ChatTile> createState() => _ChatTileState();
@@ -3546,9 +3795,11 @@ class _ChatTileState extends State<_ChatTile> {
     final cs = Theme.of(context).colorScheme;
     final embedded =
         context.findAncestorWidgetOfExactType<SideDrawer>()?.embedded ?? false;
+    final bool inSelect = widget.selectMode;
     final Color tileColor;
-    if (embedded) {
-      // In tablet embedded mode, keep selected highlight, others transparent
+    if (inSelect && widget.isSelected) {
+      tileColor = cs.primary.withValues(alpha: 0.12);
+    } else if (embedded) {
       tileColor = widget.selected
           ? cs.primary.withValues(alpha: 0.16)
           : Colors.transparent;
@@ -3557,7 +3808,8 @@ class _ChatTileState extends State<_ChatTile> {
           ? cs.primary.withValues(alpha: 0.12)
           : cs.surface;
     }
-    final base = _isDesktop && !widget.selected && _hovered
+    final base =
+        _isDesktop && !widget.selected && !widget.isSelected && _hovered
         ? (embedded
               ? cs.primary.withValues(alpha: 0.08)
               : cs.surface.withValues(alpha: 0.9))
@@ -3566,15 +3818,19 @@ class _ChatTileState extends State<_ChatTile> {
     return Padding(
       padding: EdgeInsets.only(bottom: vGap),
       child: GestureDetector(
-        onSecondaryTapDown: (details) {
-          if (_isDesktop) {
-            widget.onSecondaryTap?.call(details.globalPosition);
-          }
-        },
-        onLongPress: () {
-          if (_isDesktop) return;
-          widget.onLongPress?.call();
-        },
+        onSecondaryTapDown: inSelect
+            ? null
+            : (details) {
+                if (_isDesktop) {
+                  widget.onSecondaryTap?.call(details.globalPosition);
+                }
+              },
+        onLongPress: inSelect
+            ? null
+            : () {
+                if (_isDesktop) return;
+                widget.onLongPress?.call();
+              },
         child: MouseRegion(
           onEnter: (_) {
             if (_isDesktop) setState(() => _hovered = true);
@@ -3589,8 +3845,10 @@ class _ChatTileState extends State<_ChatTile> {
             baseColor: base,
             borderRadius: BorderRadius.circular(16),
             haptics: false,
-            onTap: widget.onTap,
-            onLongPress: _isDesktop ? null : widget.onLongPress,
+            onTap: inSelect ? widget.onToggleSelect : widget.onTap,
+            onLongPress: inSelect
+                ? null
+                : (_isDesktop ? null : widget.onLongPress),
             padding: EdgeInsets.fromLTRB(
               _isDesktop ? 14 : 14,
               _isDesktop ? 9 : 10,
@@ -3599,6 +3857,23 @@ class _ChatTileState extends State<_ChatTile> {
             ),
             child: Row(
               children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: inSelect ? 28 : 0,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 140),
+                    opacity: inSelect ? 1.0 : 0.0,
+                    child: IosCheckbox(
+                      value: widget.isSelected,
+                      size: 20,
+                      hitTestSize: 22,
+                      borderWidth: 1.6,
+                      activeColor: cs.primary,
+                      borderColor: cs.onSurface.withValues(alpha: 0.35),
+                      onChanged: (_) => widget.onToggleSelect?.call(),
+                    ),
+                  ),
+                ),
                 Expanded(
                   child: Text(
                     widget.chat.title,
@@ -3611,7 +3886,7 @@ class _ChatTileState extends State<_ChatTile> {
                     ),
                   ),
                 ),
-                if (widget.loading) ...[
+                if (widget.loading && !inSelect) ...[
                   const SizedBox(width: 8),
                   _LoadingDot(),
                 ],

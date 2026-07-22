@@ -2426,6 +2426,30 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get sideDrawerMenuBatchSelect => 'Select Multiple';
+
+  @override
+  String sideDrawerBatchSelectedCount(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String sideDrawerBatchDeleteConfirm(int count) {
+    return 'Delete $count conversations?';
+  }
+
+  @override
+  String sideDrawerBatchDeleteSuccess(int count) {
+    return 'Deleted $count conversations';
+  }
+
+  @override
+  String get sideDrawerSelectAll => 'Select All';
+
+  @override
+  String get sideDrawerDeselectAll => 'Deselect All';
+
+  @override
   String get sideDrawerRenameHint => 'Enter new name';
 
   @override

@@ -2788,13 +2788,53 @@ class _MarkdownTableBlock extends StatelessWidget {
           table: table,
           bodyBg: bodyBg,
           borderColor: borderColor,
-          compact: useCompactTable,
+          compact: true,
         );
 
         if (!useCompactTable) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: tableSurface,
+          final l10n = AppLocalizations.of(context)!;
+          return Container(
+            key: const ValueKey('markdown-table-block-desktop'),
+            width: double.infinity,
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              color: Color.alphaBlend(
+                cs.primary.withValues(alpha: isDark ? 0.045 : 0.018),
+                cs.surface,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            foregroundDecoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: borderColor, width: 0.8),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _MarkdownTableToolbar(
+                  label: l10n.markdownTableLabel,
+                  backgroundColor: headerBg,
+                  copyLabel: l10n.shareProviderSheetCopyButton,
+                  exportLabel: l10n.markdownTableExportCsvTooltip,
+                  imageActionLabel: l10n.messageExportSheetExportImage,
+                  showCopyMenu: true,
+                  tsvCopyLabel: l10n.markdownTableCopyTsvLabel,
+                  onCopyTsv: () => _copyAsTsv(context),
+                  onCopy: () => _copyMarkdown(context),
+                  onCopyImage: () => _copyImage(context),
+                  onExport: () => _exportCsv(context),
+                  onExportImage: () => _exportImage(context),
+                  onImageAction: () => _exportImage(context),
+                ),
+                GestureDetector(
+                  key: const ValueKey('markdown-table-body-desktop'),
+                  behavior: HitTestBehavior.opaque,
+                  child: tableSurface,
+                ),
+              ],
+            ),
           );
         }
 
@@ -2965,6 +3005,17 @@ class _MarkdownTableBlock extends StatelessWidget {
   Future<void> _copyMarkdown(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
     await Clipboard.setData(ClipboardData(text: rows.toMarkdown()));
+    if (!context.mounted) return;
+    showAppSnackBar(
+      context,
+      message: l10n.markdownTableCopiedMarkdownSnackbar,
+      type: NotificationType.success,
+    );
+  }
+
+  Future<void> _copyAsTsv(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    await Clipboard.setData(ClipboardData(text: rows.toTsv()));
     if (!context.mounted) return;
     showAppSnackBar(
       context,
@@ -3282,6 +3333,9 @@ class _MarkdownTableToolbar extends StatelessWidget {
     required this.onExport,
     required this.onExportImage,
     required this.onImageAction,
+    this.showCopyMenu = false,
+    this.tsvCopyLabel,
+    this.onCopyTsv,
   });
 
   final String label;
@@ -3294,6 +3348,9 @@ class _MarkdownTableToolbar extends StatelessWidget {
   final VoidCallback onExport;
   final VoidCallback onExportImage;
   final VoidCallback onImageAction;
+  final bool showCopyMenu;
+  final String? tsvCopyLabel;
+  final VoidCallback? onCopyTsv;
 
   @override
   Widget build(BuildContext context) {
@@ -3327,19 +3384,7 @@ class _MarkdownTableToolbar extends StatelessWidget {
               ),
             ),
           ),
-          Tooltip(
-            message: copyLabel,
-            child: IosIconButton(
-              icon: Lucide.Copy,
-              semanticLabel: copyLabel,
-              onTap: onCopy,
-              onLongPress: onCopyImage,
-              size: 15,
-              minSize: 32,
-              padding: const EdgeInsets.all(7),
-              color: cs.onSurfaceVariant.withValues(alpha: 0.68),
-            ),
-          ),
+          _copyButton(context),
           Tooltip(
             message: imageActionLabel,
             child: IosIconButton(
@@ -3367,6 +3412,43 @@ class _MarkdownTableToolbar extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _copyButton(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final showMenu = showCopyMenu && tsvCopyLabel != null && onCopyTsv != null;
+    final button = IosIconButton(
+      icon: Lucide.Copy,
+      semanticLabel: copyLabel,
+      onTap: showMenu ? null : onCopy,
+      onLongPress: onCopyImage,
+      size: 15,
+      minSize: 32,
+      padding: const EdgeInsets.all(7),
+      color: cs.onSurfaceVariant.withValues(alpha: 0.68),
+    );
+
+    if (!showMenu) {
+      return Tooltip(message: copyLabel, child: button);
+    }
+
+    return PopupMenuButton<String>(
+      tooltip: copyLabel,
+      onSelected: (value) {
+        switch (value) {
+          case 'markdown':
+            onCopy();
+          case 'tsv':
+            onCopyTsv!();
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(value: 'markdown', child: Text(copyLabel)),
+        PopupMenuItem(value: 'tsv', child: Text(tsvCopyLabel!)),
+      ],
+      offset: const Offset(0, 36),
+      child: button,
     );
   }
 }
@@ -3423,6 +3505,10 @@ class _MarkdownTableData {
   );
 
   String toMarkdown() => _rowsToMarkdown(
+    rows.map((row) => row.cells.map((c) => c.text).toList()).toList(),
+  );
+
+  String toTsv() => _rowsToTsv(
     rows.map((row) => row.cells.map((c) => c.text).toList()).toList(),
   );
 }
@@ -3494,6 +3580,20 @@ String _markdownTableCell(String value) {
 
 String _csvCell(String value) {
   if (!value.contains(',') &&
+      !value.contains('"') &&
+      !value.contains('\n') &&
+      !value.contains('\r')) {
+    return value;
+  }
+  return '"${value.replaceAll('"', '""')}"';
+}
+
+String _rowsToTsv(List<List<String>> rows) {
+  return rows.map((row) => row.map(_tsvCell).join('\t')).join('\r\n');
+}
+
+String _tsvCell(String value) {
+  if (!value.contains('\t') &&
       !value.contains('"') &&
       !value.contains('\n') &&
       !value.contains('\r')) {

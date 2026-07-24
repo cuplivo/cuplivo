@@ -1329,6 +1329,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get markdownTableCopiedMarkdownSnackbar => '已复制表格';
 
   @override
+  String get markdownTableCopyTsvLabel => '复制为 TSV（粘贴到 Excel）';
+
+  @override
   String codeBlockCollapsedLines(int n) {
     return '… 已折叠 $n 行';
   }
@@ -7063,6 +7066,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get markdownTableCopiedMarkdownSnackbar => '已复制表格';
 
   @override
+  String get markdownTableCopyTsvLabel => '复制为 TSV（粘贴到 Excel）';
+
+  @override
   String codeBlockCollapsedLines(int n) {
     return '… 已折叠 $n 行';
   }
@@ -12795,6 +12801,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get markdownTableCopiedMarkdownSnackbar => '已複製表格';
+
+  @override
+  String get markdownTableCopyTsvLabel => '複製為 TSV（貼上到 Excel）';
 
   @override
   String codeBlockCollapsedLines(int n) {

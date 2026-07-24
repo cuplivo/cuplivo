@@ -1376,6 +1376,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get markdownTableCopiedMarkdownSnackbar => 'Table copied.';
 
   @override
+  String get markdownTableCopyTsvLabel => 'Copy as TSV (paste into Excel)';
+
+  @override
   String codeBlockCollapsedLines(int n) {
     return '… $n lines folded';
   }

@@ -563,6 +563,7 @@
   "markdownTableDefaultFileNameStem": "table",
   "markdownTableCopiedCsvSnackbar": "CSV copied. Long press Copy to copy as image.",
   "markdownTableCopiedMarkdownSnackbar": "Table copied.",
+  "markdownTableCopyTsvLabel": "Copy as TSV (paste into Excel)",
   "codeBlockCollapsedLines": "… {n} lines folded",
   "@codeBlockCollapsedLines": {
     "placeholders": {

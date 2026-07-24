@@ -44,6 +44,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:system_fonts/system_fonts.dart';
 import 'dart:io'
     show Platform; // kept for global override usage inside provider
+import 'desktop/windows_paste_fix.dart';
 import 'core/services/android_background.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/proactive_care_alarm_service.dart';
@@ -58,6 +59,11 @@ Future<void> main() async {
   await runZoned(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+
+      // Windows clipboard history (Win+V) sends malformed Ctrl+V key sequences.
+      // Workaround Flutter engine bug flutter#143997 until upstream is fixed.
+      WindowsPasteFix.instance.inject();
+
       FlutterLogger.installGlobalHandlers();
       try {
         final prefs = await SharedPreferences.getInstance();

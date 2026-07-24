@@ -5901,9 +5901,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get skillsTitle => 'Skills';
 
   @override
-  String get skillsAddTooltip => 'Add Skill';
-
-  @override
   String get skillsImportManualTitle => 'Add Manually';
 
   @override
@@ -5912,6 +5909,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get skillsImportFileLabel => 'Import from File';
+
+  @override
+  String get skillsImportChoiceTitle => 'Import Skill';
+
+  @override
+  String get skillsImportFromFile => 'From File';
+
+  @override
+  String get skillsImportFromGitHub => 'From GitHub URL';
+
+  @override
+  String get skillsGitHubImportTitle => 'Import from GitHub';
+
+  @override
+  String get skillsGitHubUrlHint =>
+      'https://github.com/owner/repo[/tree/branch[/path]]';
+
+  @override
+  String get skillsGitHubUrlInvalid => 'Invalid GitHub URL.';
+
+  @override
+  String get skillsGitHubDownloadFailed =>
+      'Failed to download repository. It may not exist or is private.';
+
+  @override
+  String get skillsGitHubSelectTitle => 'Select skills to import';
 
   @override
   String get skillsEmptyMessage =>
@@ -5931,9 +5954,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get skillsTab => 'Skills';
-
-  @override
   String skillsFrontmatterNameMismatch(String frontmatterName, String dirName) {
     return 'Frontmatter name \"$frontmatterName\" must match directory name \"$dirName\".';
   }
@@ -5943,9 +5963,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'SKILL.md must contain valid YAML frontmatter with a name field.';
 
   @override
-  String skillsNotFound(String name) {
-    return 'Skill not found: $name';
-  }
+  String get skillsNameInvalid =>
+      'Skill name is invalid. Use lowercase letters, digits, and hyphens only (no spaces, slashes, or dots).';
 
   @override
   String get skillsFrontmatterNameMissing =>

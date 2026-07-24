@@ -12,7 +12,7 @@
 
 1. **AgentSkills 规范是文件系统原生的**：spec 定义的 `scripts/`、`references/`、`assets/` 目录结构无法无损压平为 JSON。选择文件系统就是选择与规范对齐，非 JSON blob 能模拟。
 2. **RikkaHub 的先例验证**：同领域项目 RikkaHub 采用纯文件系统方案，路径安全（`SkillPaths` 防 `../` 遍历）、原子写入（staging→rename→backup→rollback）等模式可直接移植。
-3. **v1 小投入为 v2 预留能力**：辅助文件（scripts/references/assets）v1 不使用但全量落盘，v2 仅需在 `load_skill` 工具中增加文件清单返回逻辑，无需迁移数据和重新导入。
+3. **辅助文件全量落盘，按需读取**：辅助文件（scripts/references/assets）全量落盘。`load_skill` 返回文件清单，`read_skill_file` 按需读取单个文件。无需迁移数据和重新导入。此为最终形态，无后续版本。
 4. **补丁式备份接入**：现有 `_packZipSync` 加一行 `_addDirectoryToZip` 即可覆盖，增量 mtime 过滤自动生效。无需在 `_exportSettingsJson` 中开新序列化通道。
 5. **Assistant 绑定侵入最小**：只在 `Assistant` 模型加一个 `skillIds` 字段（与 `localToolIds` 同构），无新 table 或 DataStore。
 
@@ -22,6 +22,6 @@
 
 ## Consequences
 
-- **正向**：规范对齐、导入体验自然、v1→v2 前向兼容、备份增量无缝
+- **正向**：规范对齐、导入体验自然、辅助文件按需读取、备份增量无缝
 - **反向**：新增 `lib/features/skills/` 模块 + `SkillManager` + `SkillPaths`
 - **风险**：路径安全校验必须到位，否则目录遍历攻击可经 ZIP 条目进入 filesDir。已有 `_extractZipSync` 的 `..` 剥离作为第二防线

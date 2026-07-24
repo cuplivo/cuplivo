@@ -2309,10 +2309,17 @@
     "description": "多AI卡片底部添加模型按钮的提示"
   },
   "skillsTitle": "技能",
-  "skillsAddTooltip": "添加技能",
   "skillsImportManualTitle": "手动添加",
   "skillsImportManualHint": "粘贴完整的 SKILL.md 内容（包含 YAML 前置元数据）",
   "skillsImportFileLabel": "从文件导入",
+  "skillsImportChoiceTitle": "导入技能",
+  "skillsImportFromFile": "从文件导入",
+  "skillsImportFromGitHub": "从 GitHub URL 导入",
+  "skillsGitHubImportTitle": "从 GitHub 导入",
+  "skillsGitHubUrlHint": "https://github.com/owner/repo[/tree/branch[/path]]",
+  "skillsGitHubUrlInvalid": "无效的 GitHub URL。",
+  "skillsGitHubDownloadFailed": "下载仓库失败。仓库可能不存在或为私有。",
+  "skillsGitHubSelectTitle": "选择要导入的技能",
   "skillsEmptyMessage": "暂无技能。从文件导入或手动创建一个。",
   "skillsDeleteConfirmTitle": "删除技能",
   "skillsDeleteConfirmMessage": "确定删除 \"{name}\"？此操作不可撤销。",
@@ -2331,7 +2338,6 @@
       }
     }
   },
-  "skillsTab": "技能",
   "skillsFrontmatterNameMismatch": "前置元数据中的名称 \"{frontmatterName}\" 必须与目录名 \"{dirName}\" 一致。",
   "@skillsFrontmatterNameMismatch": {
     "placeholders": {
@@ -2344,14 +2350,7 @@
     }
   },
   "skillsInvalidFrontmatter": "SKILL.md 必须包含有效的 YAML 前置元数据且包含 name 字段。",
-  "skillsNotFound": "未找到技能：{name}",
-  "@skillsNotFound": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
+  "skillsNameInvalid": "技能名称无效。仅允许小写字母、数字和连字符（不能包含空格、斜杠或点号）。",
   "skillsFrontmatterNameMissing": "SKILL.md 前置元数据必须包含 name 字段。",
   "skillsSaveFailed": "保存技能失败：{detail}",
   "@skillsSaveFailed": {

@@ -10814,12 +10814,6 @@ abstract class AppLocalizations {
   /// **'Skills'**
   String get skillsTitle;
 
-  /// No description provided for @skillsAddTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Add Skill'**
-  String get skillsAddTooltip;
-
   /// No description provided for @skillsImportManualTitle.
   ///
   /// In en, this message translates to:
@@ -10837,6 +10831,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Import from File'**
   String get skillsImportFileLabel;
+
+  /// No description provided for @skillsImportChoiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Skill'**
+  String get skillsImportChoiceTitle;
+
+  /// No description provided for @skillsImportFromFile.
+  ///
+  /// In en, this message translates to:
+  /// **'From File'**
+  String get skillsImportFromFile;
+
+  /// No description provided for @skillsImportFromGitHub.
+  ///
+  /// In en, this message translates to:
+  /// **'From GitHub URL'**
+  String get skillsImportFromGitHub;
+
+  /// No description provided for @skillsGitHubImportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from GitHub'**
+  String get skillsGitHubImportTitle;
+
+  /// No description provided for @skillsGitHubUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://github.com/owner/repo[/tree/branch[/path]]'**
+  String get skillsGitHubUrlHint;
+
+  /// No description provided for @skillsGitHubUrlInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid GitHub URL.'**
+  String get skillsGitHubUrlInvalid;
+
+  /// No description provided for @skillsGitHubDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to download repository. It may not exist or is private.'**
+  String get skillsGitHubDownloadFailed;
+
+  /// No description provided for @skillsGitHubSelectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select skills to import'**
+  String get skillsGitHubSelectTitle;
 
   /// No description provided for @skillsEmptyMessage.
   ///
@@ -10862,12 +10904,6 @@ abstract class AppLocalizations {
   /// **'Imported {count} skill(s)'**
   String skillsImportSuccess(int count);
 
-  /// No description provided for @skillsTab.
-  ///
-  /// In en, this message translates to:
-  /// **'Skills'**
-  String get skillsTab;
-
   /// No description provided for @skillsFrontmatterNameMismatch.
   ///
   /// In en, this message translates to:
@@ -10880,11 +10916,11 @@ abstract class AppLocalizations {
   /// **'SKILL.md must contain valid YAML frontmatter with a name field.'**
   String get skillsInvalidFrontmatter;
 
-  /// No description provided for @skillsNotFound.
+  /// No description provided for @skillsNameInvalid.
   ///
   /// In en, this message translates to:
-  /// **'Skill not found: {name}'**
-  String skillsNotFound(String name);
+  /// **'Skill name is invalid. Use lowercase letters, digits, and hyphens only (no spaces, slashes, or dots).'**
+  String get skillsNameInvalid;
 
   /// No description provided for @skillsFrontmatterNameMissing.
   ///

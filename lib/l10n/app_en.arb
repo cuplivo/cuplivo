@@ -2762,10 +2762,17 @@
     "description": "Tooltip for the add model button in multi-AI card footer"
   },
   "skillsTitle": "Skills",
-  "skillsAddTooltip": "Add Skill",
   "skillsImportManualTitle": "Add Manually",
   "skillsImportManualHint": "Paste the complete SKILL.md content (including YAML frontmatter)",
   "skillsImportFileLabel": "Import from File",
+  "skillsImportChoiceTitle": "Import Skill",
+  "skillsImportFromFile": "From File",
+  "skillsImportFromGitHub": "From GitHub URL",
+  "skillsGitHubImportTitle": "Import from GitHub",
+  "skillsGitHubUrlHint": "https://github.com/owner/repo[/tree/branch[/path]]",
+  "skillsGitHubUrlInvalid": "Invalid GitHub URL.",
+  "skillsGitHubDownloadFailed": "Failed to download repository. It may not exist or is private.",
+  "skillsGitHubSelectTitle": "Select skills to import",
   "skillsEmptyMessage": "No skills yet. Import from a file or create one manually.",
   "skillsDeleteConfirmTitle": "Delete Skill",
   "skillsDeleteConfirmMessage": "Delete \"{name}\"? This cannot be undone.",
@@ -2784,7 +2791,6 @@
       }
     }
   },
-  "skillsTab": "Skills",
   "skillsFrontmatterNameMismatch": "Frontmatter name \"{frontmatterName}\" must match directory name \"{dirName}\".",
   "@skillsFrontmatterNameMismatch": {
     "placeholders": {
@@ -2797,14 +2803,7 @@
     }
   },
   "skillsInvalidFrontmatter": "SKILL.md must contain valid YAML frontmatter with a name field.",
-  "skillsNotFound": "Skill not found: {name}",
-  "@skillsNotFound": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
+  "skillsNameInvalid": "Skill name is invalid. Use lowercase letters, digits, and hyphens only (no spaces, slashes, or dots).",
   "skillsFrontmatterNameMissing": "SKILL.md frontmatter must contain a name field.",
   "skillsSaveFailed": "Failed to save skill: {detail}",
   "@skillsSaveFailed": {

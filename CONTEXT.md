@@ -106,8 +106,8 @@
 
 ### Core Concept
 
-- **Skill**: A directory at `<appData>/skills/<name>/SKILL.md` containing a specialized instruction set + optional auxiliary files (scripts/, references/, assets/). The directory name IS the skill's identity — it must match the `name` field in YAML frontmatter and follow AgentSkills naming rules (lowercase letters, digits, hyphens; ≤64 chars; no leading/trailing/consecutive hyphens).
-- **`SkillManager`**: The facade that owns all skill CRUD. Reads SKILL.md from disk lazily — no memory cache. Atomic write pattern: staging dir → rename target→backup → rename staging→target → cleanup. Path safety: rejects names containing `/`, `..`, leading/trailing dots, and whitespace.
+- **Skill**: A directory at `<appData>/skills/<name>/SKILL.md` containing a specialized instruction set + optional auxiliary files (scripts/, references/, assets/). The directory name IS the skill's identity — it must match the `name` field in YAML frontmatter and follow AgentSkills naming rules (lowercase letters, digits, hyphens; ≤64 chars; no leading/trailing/consecutive hyphens). Auxiliary files are readable by the model via `read_skill_file`.
+- **`SkillManager`**: The facade that owns all skill CRUD. Reads SKILL.md from disk lazily — no memory cache. Atomic write pattern: staging dir → rename target→backup → rename staging→target → cleanup. Path safety: rejects names containing `/`, `..`, leading/trailing dots, and whitespace. Frontmatter parsing uses the `yaml` package (not a hand-rolled line parser).
 - **`AppDirectories.getSkillsDirectory()`**: Returns `<appData>/skills/`. Each skill lives in its own subdirectory matching the skill name.
 
 ### Lifecycle
@@ -115,7 +115,7 @@
 - **Import** (three channels, all funnel to `SkillManager.saveSkill()`):
   - Manual paste: User pastes complete SKILL.md (YAML frontmatter + body) into a text box. Real-time frontmatter parsing + name validation.
   - File picker: System file picker selects a single `.md` file or `.zip` archive. ZIPs are scanned for all `SKILL.md` files (any nesting depth), each validated and imported independently.
-  - GitHub URL: v1 not implemented; user can download ZIP and use file picker. If added later, uses GitHub Contents API + `saveSkillFilesAtomically()`.
+  - GitHub URL: User pastes a `github.com/{owner}/{repo}[/tree/{branch}[/sub/path]]` URL. App downloads the repo archive ZIP from `github.com/{owner}/{repo}/archive/refs/heads/{branch}.zip` (no API rate limit, no auth for public repos), then reuses the same ZIP import pipeline (scan for all `SKILL.md` at any depth, multi-select dialog if >1 found). If a subpath is specified, the scan is scoped to that subdirectory. Private/missing repos return 404 → localized "not found or private" error. GitHub only — no GitLab/generic git hosts.
 - **Update**: Re-import with the same name overwrites the directory. Atomic write handles crash safety.
 - **Delete**: `SkillManager.deleteSkill(name)` removes the directory. Removes from all assistants' `skillIds` (orphan cleanup).
 - **Export**: Included in backup via `_packZipSync` — `skills/` directory packed independently of `includeFiles`, always included. Incremental backup uses mtime ≥ since filtering (same mechanism as upload/avatars/images/fonts).
@@ -134,11 +134,24 @@
 
 ### Tool Layer
 
-- **`load_skill`**: A built-in tool exposed to the model (gated by `assistant.skillIds`). Named to mirror `read_memory` (memory 'tool' mode). Parameter `{ name: string }` (required). Returns the SKILL.md Markdown body as plain text. Optional parameters can be added later by extending `properties` without changing `required`.
+- **`load_skill`**: A built-in tool exposed to the model (gated by `assistant.skillIds`). Named to mirror `read_memory` (memory 'tool' mode). Parameter `{ name: string }` (required). Returns XML:
+  ```xml
+  <skill name="pdf-processing">
+    <instructions>
+      [SKILL.md Markdown body]
+    </instructions>
+    <files>
+      <file path="scripts/extract.py" size="2150"/>
+      <file path="references/api-docs.md" size="8602"/>
+    </files>
+  </skill>
+  ```
+  Skills with no auxiliary files omit the `<files>` element. Progressive disclosure level 2: the model sees the file tree only after choosing to load the skill.
+- **`read_skill_file`**: A built-in tool exposed to the model (gated by same `assistant.skillIds` as `load_skill`). Parameters `{ name: string, path: string }` (both required). Returns the content of an auxiliary file within a skill directory. Security boundaries: rejects paths containing `..`, absolute paths, and backslashes (forward-slash relative paths only). Binary files → error message. Content capped at 64 KB with `[truncated]` suffix. Progressive disclosure level 3: the model reads specific files on demand after seeing the listing in `load_skill`.
 
 ### Assistant Binding
 
-- **`assistant.skillIds`**: `List<String>` on the `Assistant` model, stored in SQLite as JSON (`skillIdsJson` TEXT column, same pattern as `localToolIdsJson`). Only skills in this list are injected into the assistant's `<available_skills>` and have their `load_skill` tool definition exposed.
+- **`assistant.skillIds`**: `List<String>` on the `Assistant` model, stored in SQLite as JSON (`skillIdsJson` TEXT column, same pattern as `localToolIdsJson`). Only skills in this list are injected into the assistant's `<available_skills>` and have their `load_skill`/`read_skill_file` tool definitions exposed.
 
 ### Backup Integration
 

@@ -2752,6 +2752,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mcpServerEditSheetSseRetryHint => 'If SSE fails, try a few times';
 
   @override
+  String get mcpServerEditSheetHeartbeatLabel => 'Heartbeat Interval';
+
+  @override
+  String get mcpServerEditSheetHeartbeatHint =>
+      'If you encounter frequent 429 (rate limit) errors, try increasing this interval.';
+
+  @override
   String get mcpServerEditSheetUrlLabel => 'Server URL';
 
   @override

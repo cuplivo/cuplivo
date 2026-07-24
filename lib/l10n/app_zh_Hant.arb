@@ -922,6 +922,8 @@
   "mcpServerEditSheetNameLabel": "名稱",
   "mcpServerEditSheetTransportLabel": "傳輸類型",
   "mcpServerEditSheetSseRetryHint": "如果SSE連線失敗，請多試幾次",
+  "mcpServerEditSheetHeartbeatLabel": "心跳間隔",
+  "mcpServerEditSheetHeartbeatHint": "若頻繁遇到 429 (限流) 錯誤，建議延長心跳間隔。",
   "mcpServerEditSheetUrlLabel": "伺服器地址",
   "mcpServerEditSheetCustomHeadersTitle": "自訂請求標頭",
   "mcpServerEditSheetHeaderNameLabel": "請求標頭名稱",

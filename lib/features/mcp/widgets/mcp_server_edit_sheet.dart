@@ -56,6 +56,7 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
   McpTransportType _transport = McpTransportType.http;
   final _urlCtrl = TextEditingController();
   final List<_HeaderEntry> _headers = [];
+  int _heartbeatIntervalSeconds = 12;
 
   @override
   void initState() {
@@ -68,6 +69,7 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
       _nameCtrl.text = server.name;
       _transport = server.transport;
       _urlCtrl.text = server.url;
+      _heartbeatIntervalSeconds = server.heartbeatIntervalSeconds ?? 12;
       server.headers.forEach((k, v) {
         _headers.add(
           _HeaderEntry(
@@ -212,6 +214,20 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
     );
   }
 
+  static const _heartbeatOptions = [12, 30, 60, 120, 300];
+
+  Widget _heartbeatPicker() {
+    final labels = _heartbeatOptions.map((s) => '${s}s').toList();
+    final idx = _heartbeatOptions.indexOf(_heartbeatIntervalSeconds);
+    final selected = idx >= 0 ? idx : 0;
+    return _SegChoiceBar(
+      labels: labels,
+      selectedIndex: selected,
+      onSelected: (i) =>
+          setState(() => _heartbeatIntervalSeconds = _heartbeatOptions[i]),
+    );
+  }
+
   Widget _basicForm() {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
@@ -287,6 +303,23 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
             hint: _transport == McpTransportType.sse
                 ? 'http://localhost:3000/sse'
                 : 'http://localhost:3000',
+          ),
+          const SizedBox(height: 16),
+          Text(
+            l10n.mcpServerEditSheetHeartbeatLabel,
+            style: TextStyle(fontSize: 13, fontWeight: AppFontWeights.semibold),
+          ),
+          const SizedBox(height: 6),
+          _heartbeatPicker(),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              l10n.mcpServerEditSheetHeartbeatHint,
+              style: TextStyle(
+                fontSize: 12,
+                color: cs.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -398,6 +431,8 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
           transport: _transport,
           url: url,
           headers: headers,
+          heartbeatIntervalSeconds: _heartbeatIntervalSeconds,
+          clearHeartbeatIntervalSeconds: _heartbeatIntervalSeconds == 12,
         ),
       );
     } else {
@@ -407,6 +442,9 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
         transport: _transport,
         url: url,
         headers: headers,
+        heartbeatIntervalSeconds: _heartbeatIntervalSeconds == 12
+            ? null
+            : _heartbeatIntervalSeconds,
       );
     }
     if (mounted) Navigator.of(context).pop();

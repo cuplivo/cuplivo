@@ -7856,6 +7856,18 @@ abstract class AppLocalizations {
   /// **'Color Palettes'**
   String get themeSettingsPageColorPalettesSection;
 
+  /// No description provided for @themeSettingsPageCustomDynamicTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Dynamic'**
+  String get themeSettingsPageCustomDynamicTitle;
+
+  /// No description provided for @themeSettingsPageSeedColorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Seed Color'**
+  String get themeSettingsPageSeedColorLabel;
+
   /// No description provided for @ttsServicesPageBackButton.
   ///
   /// In en, this message translates to:

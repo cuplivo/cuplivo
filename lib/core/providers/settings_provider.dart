@@ -24,6 +24,7 @@ import '../../utils/avatar_cache.dart';
 import '../utils/openai_model_compat.dart';
 import '../../utils/provider_grouping_logic.dart';
 import '../../utils/brand_assets.dart';
+import '../../theme/palettes.dart';
 
 // Desktop: topic list position
 enum DesktopTopicPosition { left, right }
@@ -105,6 +106,7 @@ class SettingsProvider extends ChangeNotifier {
   static const String _compressPromptKey = 'compress_prompt_v1';
   static const String _themePaletteKey = 'theme_palette_v1';
   static const String _useDynamicColorKey = 'use_dynamic_color_v1';
+  static const String _dynamicColorSeedKey = 'dynamic_color_seed_v1';
   static const String _thinkingBudgetKey = 'thinking_budget_v1';
   static const String _titleGenerationThinkingEnabledKey =
       'title_generation_thinking_enabled_v1';
@@ -357,6 +359,8 @@ class SettingsProvider extends ChangeNotifier {
   String get themePaletteId => _themePaletteId;
   bool _useDynamicColor = true; // when supported on Android
   bool get useDynamicColor => _useDynamicColor;
+  int? _dynamicColorSeed;
+  int? get dynamicColorSeed => _dynamicColorSeed;
   bool _dynamicColorSupported = false; // runtime capability, not persisted
   bool get dynamicColorSupported => _dynamicColorSupported;
 
@@ -666,6 +670,7 @@ class SettingsProvider extends ChangeNotifier {
     }
     _themePaletteId = prefs.getString(_themePaletteKey) ?? 'default';
     _useDynamicColor = prefs.getBool(_useDynamicColorKey) ?? true;
+    _dynamicColorSeed = prefs.getInt(_dynamicColorSeedKey);
     var providerConfigsLoaded = false;
     final cfgStr = prefs.getString(_providerConfigsKey);
     if (cfgStr != null && cfgStr.isNotEmpty) {
@@ -2291,9 +2296,15 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setThemePalette(String id) async {
     if (_themePaletteId == id) return;
     _themePaletteId = id;
+    if (id == ThemePalettes.customDynamicId && _useDynamicColor) {
+      _useDynamicColor = false;
+    }
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_themePaletteKey, id);
+    if (id == ThemePalettes.customDynamicId) {
+      await prefs.setBool(_useDynamicColorKey, false);
+    }
   }
 
   Future<void> setUseDynamicColor(bool v) async {
@@ -2302,6 +2313,18 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_useDynamicColorKey, v);
+  }
+
+  Future<void> setDynamicColorSeed(int? seed) async {
+    if (_dynamicColorSeed == seed) return;
+    _dynamicColorSeed = seed;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    if (seed != null) {
+      await prefs.setInt(_dynamicColorSeedKey, seed);
+    } else {
+      await prefs.remove(_dynamicColorSeedKey);
+    }
   }
 
   Future<void> setUsePureBackground(bool v) async {

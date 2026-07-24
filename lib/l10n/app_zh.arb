@@ -1415,6 +1415,8 @@
   "themeSettingsPageUsePureBackgroundTitle": "纯色背景",
   "themeSettingsPageUsePureBackgroundSubtitle": "仅气泡与强调色随主题变化",
   "themeSettingsPageColorPalettesSection": "配色方案",
+  "themeSettingsPageCustomDynamicTitle": "自定义动态色",
+  "themeSettingsPageSeedColorLabel": "种子颜色",
   "ttsServicesPageBackButton": "返回",
   "ttsServicesPageTitle": "语音服务",
   "ttsServicesPageSettingsTooltip": "TTS 设置",

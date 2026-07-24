@@ -399,16 +399,27 @@ class _ThemeDots extends StatelessWidget {
   Widget build(BuildContext context) {
     final sp = context.watch<SettingsProvider>();
     final selected = sp.themePaletteId;
+    final regularPalettes = ThemePalettes.all
+        .where((p) => p.id != ThemePalettes.customDynamicId)
+        .toList();
     return Wrap(
       spacing: 10,
       runSpacing: 10,
       children: [
-        for (final p in ThemePalettes.all)
+        for (final p in regularPalettes)
           _ThemeDot(
             color: p.light.primary,
             selected: selected == p.id,
             onTap: () => context.read<SettingsProvider>().setThemePalette(p.id),
           ),
+        _CustomDynamicDot(
+          selected: selected == ThemePalettes.customDynamicId,
+          onTap: () {
+            final settings = context.read<SettingsProvider>();
+            settings.setThemePalette(ThemePalettes.customDynamicId);
+            _showDesktopHuePicker(context, settings, settings.dynamicColorSeed);
+          },
+        ),
       ],
     );
   }
@@ -466,6 +477,125 @@ class _ThemeDotState extends State<_ThemeDot> {
       ),
     );
   }
+}
+
+class _CustomDynamicDot extends StatefulWidget {
+  const _CustomDynamicDot({required this.selected, required this.onTap});
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  State<_CustomDynamicDot> createState() => _CustomDynamicDotState();
+}
+
+class _CustomDynamicDotState extends State<_CustomDynamicDot> {
+  bool _hover = false;
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final settings = context.watch<SettingsProvider>();
+    final seed = settings.dynamicColorSeed;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOutCubic,
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: seed != null
+                ? null
+                : const SweepGradient(
+                    colors: [
+                      Color(0xFFFF0000),
+                      Color(0xFFFFFF00),
+                      Color(0xFF00FF00),
+                      Color(0xFF00FFFF),
+                      Color(0xFF0000FF),
+                      Color(0xFFFF00FF),
+                      Color(0xFFFF0000),
+                    ],
+                  ),
+            color: seed != null ? Color(seed) : null,
+            boxShadow: _hover
+                ? [
+                    BoxShadow(
+                      color: (seed != null ? Color(seed) : cs.onSurface)
+                          .withValues(alpha: 0.45),
+                      blurRadius: 14,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : [],
+            border: Border.all(
+              color: widget.selected
+                  ? cs.onSurface.withValues(alpha: 0.85)
+                  : Colors.white,
+              width: widget.selected ? 2 : 2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _showDesktopHuePicker(
+  BuildContext context,
+  SettingsProvider settings,
+  int? currentSeed,
+) async {
+  final l10n = AppLocalizations.of(context)!;
+  double hue = currentSeed != null
+      ? HSVColor.fromColor(Color(currentSeed)).hue
+      : 260.0;
+
+  await showDialog(
+    context: context,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Text(l10n.themeSettingsPageSeedColorLabel),
+            content: SizedBox(
+              width: 280,
+              child: HueSlider(
+                hue: hue,
+                onChanged: (v) {
+                  setDialogState(() => hue = v);
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(l10n.backupPageCancel),
+              ),
+              TextButton(
+                onPressed: () {
+                  final seedColor = HSVColor.fromAHSV(
+                    1.0,
+                    hue,
+                    0.85,
+                    0.90,
+                  ).toColor();
+                  settings.setDynamicColorSeed(seedColor.toARGB32());
+                  settings.setThemePalette(ThemePalettes.customDynamicId);
+                  Navigator.of(dialogContext).pop();
+                },
+                child: Text(l10n.assistantEditEmojiDialogSave),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
 }
 
 class _ToggleRowPureBackground extends StatelessWidget {

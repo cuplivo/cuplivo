@@ -10,6 +10,7 @@ import '../icons/lucide_adapter.dart' as lucide;
 import '../l10n/app_localizations.dart';
 import '../theme/app_font_weights.dart';
 import '../theme/palettes.dart';
+import 'widgets/hue_slider.dart';
 import '../core/providers/settings_provider.dart';
 import '../core/providers/model_provider.dart';
 import '../core/services/logging/flutter_logger.dart';

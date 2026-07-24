@@ -1770,6 +1770,8 @@
   "themeSettingsPageUsePureBackgroundTitle": "Pure Background",
   "themeSettingsPageUsePureBackgroundSubtitle": "Bubbles and accents follow theme.",
   "themeSettingsPageColorPalettesSection": "Color Palettes",
+  "themeSettingsPageCustomDynamicTitle": "Custom Dynamic",
+  "themeSettingsPageSeedColorLabel": "Seed Color",
   "ttsServicesPageBackButton": "Back",
   "ttsServicesPageTitle": "Text-to-Speech",
   "ttsServicesPageSettingsTooltip": "TTS settings",

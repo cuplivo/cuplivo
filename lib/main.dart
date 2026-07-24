@@ -317,15 +317,36 @@ class MyApp extends StatelessWidget {
 
               final useDyn = isAndroid && settings.useDynamicColor;
               final palette = ThemePalettes.byId(settings.themePaletteId);
+              final isCustomDyn =
+                  settings.themePaletteId == ThemePalettes.customDynamicId;
+
+              ColorScheme? lightDynOverride;
+              ColorScheme? darkDynOverride;
+              if (isCustomDyn) {
+                final seed = settings.dynamicColorSeed;
+                if (seed != null) {
+                  lightDynOverride = ColorScheme.fromSeed(
+                    seedColor: Color(seed),
+                    brightness: Brightness.light,
+                  );
+                  darkDynOverride = ColorScheme.fromSeed(
+                    seedColor: Color(seed),
+                    brightness: Brightness.dark,
+                  );
+                }
+              } else if (useDyn) {
+                lightDynOverride = lightDynamic;
+                darkDynOverride = darkDynamic;
+              }
 
               final light = buildLightThemeForScheme(
                 palette.light,
-                dynamicScheme: useDyn ? lightDynamic : null,
+                dynamicScheme: lightDynOverride,
                 pureBackground: settings.usePureBackground,
               );
               final dark = buildDarkThemeForScheme(
                 palette.dark,
-                dynamicScheme: useDyn ? darkDynamic : null,
+                dynamicScheme: darkDynOverride,
                 pureBackground: settings.usePureBackground,
               );
               // Resolve effective app font family (system/Google/local alias)

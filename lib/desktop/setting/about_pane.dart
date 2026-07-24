@@ -172,8 +172,7 @@ class _DesktopAboutPaneState extends State<DesktopAboutPane> {
                   _DeskNavRowSvg(
                     svgAsset: 'assets/icons/github.svg',
                     label: l10n.aboutPageGithub,
-                    onTap: () =>
-                        _openUrl('https://github.com/cuplivo/cuplivo'),
+                    onTap: () => _openUrl('https://github.com/cuplivo/cuplivo'),
                   ),
                   const _DeskRowDivider(),
                   _DeskNavRow(

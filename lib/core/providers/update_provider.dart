@@ -137,9 +137,10 @@ class UpdateProvider extends ChangeNotifier {
       final url = Uri.parse(
         'https://api.github.com/repos/cuplivo/cuplivo/releases/latest',
       );
-      final resp = await http.get(url, headers: {
-        'Accept': 'application/vnd.github+json',
-      });
+      final resp = await http.get(
+        url,
+        headers: {'Accept': 'application/vnd.github+json'},
+      );
       if (resp.statusCode != 200) {
         throw Exception('HTTP ${resp.statusCode}');
       }

@@ -29,6 +29,7 @@ class ThemePalettes {
   static const String terracottaId = 'terracotta';
   static const String monochromeId = 'monochrome';
   static const String docThemeId = 'doc_theme';
+  static const String customDynamicId = 'custom_dynamic';
 
   static const ThemePalette defaultPalette = ThemePalette(
     id: defaultId,
@@ -630,7 +631,15 @@ class ThemePalettes {
       surfaceTint: Color(0xFF00B96B),
     ),
   );
-  static const List<ThemePalette> all = <ThemePalette>[
+  static final ThemePalette customDynamicPalette = ThemePalette(
+    id: customDynamicId,
+    zhName: '自定义动态色',
+    enName: 'Custom Dynamic',
+    light: ThemePalettes.defaultPalette.light,
+    dark: ThemePalettes.defaultPalette.dark,
+  );
+
+  static final List<ThemePalette> all = <ThemePalette>[
     defaultPalette,
     blue,
     green,
@@ -640,6 +649,7 @@ class ThemePalettes {
     terracotta,
     monochrome,
     docTheme,
+    customDynamicPalette,
   ];
 
   static ThemePalette byId(String id) {

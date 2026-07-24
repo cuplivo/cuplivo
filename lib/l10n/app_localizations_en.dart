@@ -4233,6 +4233,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeSettingsPageColorPalettesSection => 'Color Palettes';
 
   @override
+  String get themeSettingsPageCustomDynamicTitle => 'Custom Dynamic';
+
+  @override
+  String get themeSettingsPageSeedColorLabel => 'Seed Color';
+
+  @override
   String get ttsServicesPageBackButton => 'Back';
 
   @override

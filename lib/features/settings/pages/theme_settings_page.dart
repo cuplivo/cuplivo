@@ -7,6 +7,7 @@ import '../../../theme/palettes.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../core/services/haptics.dart';
+import '../../../desktop/widgets/hue_slider.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
 
 class ThemeSettingsPage extends StatelessWidget {
@@ -83,14 +84,18 @@ class ThemeSettingsPage extends StatelessWidget {
           _iosSectionCard(
             children: [
               for (int i = 0; i < ThemePalettes.all.length; i++) ...[
-                _paletteRow(
-                  context,
-                  palette: ThemePalettes.all[i],
-                  selected: settings.themePaletteId == ThemePalettes.all[i].id,
-                  onTap: () => context.read<SettingsProvider>().setThemePalette(
-                    ThemePalettes.all[i].id,
+                if (ThemePalettes.all[i].id == ThemePalettes.customDynamicId)
+                  _customDynamicRow(context)
+                else
+                  _paletteRow(
+                    context,
+                    palette: ThemePalettes.all[i],
+                    selected:
+                        settings.themePaletteId == ThemePalettes.all[i].id,
+                    onTap: () => context
+                        .read<SettingsProvider>()
+                        .setThemePalette(ThemePalettes.all[i].id),
                   ),
-                ),
                 if (i != ThemePalettes.all.length - 1) _iosDivider(context),
               ],
             ],
@@ -346,6 +351,164 @@ Widget _paletteRow(
             ],
           ),
         ),
+      );
+    },
+  );
+}
+
+Widget _customDynamicRow(BuildContext context) {
+  final cs = Theme.of(context).colorScheme;
+  final settings = context.watch<SettingsProvider>();
+  final l10n = AppLocalizations.of(context)!;
+  final selected = settings.themePaletteId == ThemePalettes.customDynamicId;
+  final seed = settings.dynamicColorSeed;
+  final dotColor = seed != null
+      ? Color(seed)
+      : cs.onSurface.withValues(alpha: 0.3);
+
+  return _TactileRow(
+    onTap: () {
+      final sp = context.read<SettingsProvider>();
+      sp.setThemePalette(ThemePalettes.customDynamicId);
+      _showHuePickerSheet(context, sp, seed);
+    },
+    builder: (pressed) {
+      final baseColor = cs.onSurface.withValues(alpha: 0.9);
+      return _AnimatedPressColor(
+        pressed: pressed,
+        base: baseColor,
+        builder: (c) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: seed != null
+                      ? null
+                      : const SweepGradient(
+                          colors: [
+                            Color(0xFFFF0000),
+                            Color(0xFFFFFF00),
+                            Color(0xFF00FF00),
+                            Color(0xFF00FFFF),
+                            Color(0xFF0000FF),
+                            Color(0xFFFF00FF),
+                            Color(0xFFFF0000),
+                          ],
+                        ),
+                  color: seed != null ? dotColor : null,
+                  boxShadow: Theme.of(context).brightness == Brightness.dark
+                      ? []
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  l10n.themeSettingsPageCustomDynamicTitle,
+                  style: TextStyle(fontSize: 15, color: c),
+                ),
+              ),
+              if (selected)
+                Icon(Lucide.Check, size: 18, color: cs.primary)
+              else
+                const SizedBox(width: 18, height: 18),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+Future<void> _showHuePickerSheet(
+  BuildContext context,
+  SettingsProvider settings,
+  int? currentSeed,
+) async {
+  final l10n = AppLocalizations.of(context)!;
+  double hue = currentSeed != null
+      ? HSVColor.fromColor(Color(currentSeed)).hue
+      : 260.0;
+
+  await showModalBottomSheet(
+    context: context,
+    builder: (sheetContext) {
+      return StatefulBuilder(
+        builder: (context, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 20,
+              bottom: MediaQuery.of(context).padding.bottom + 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.themeSettingsPageSeedColorLabel,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Center(
+                  child: SizedBox(
+                    width: 260,
+                    child: HueSlider(
+                      hue: hue,
+                      onChanged: (v) {
+                        setSheetState(() => hue = v);
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final seedColor = HSVColor.fromAHSV(
+                        1.0,
+                        hue,
+                        0.85,
+                        0.90,
+                      ).toColor();
+                      settings.setDynamicColorSeed(seedColor.toARGB32());
+                      settings.setThemePalette(ThemePalettes.customDynamicId);
+                      Navigator.of(sheetContext).pop();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: Text(
+                      l10n.assistantEditEmojiDialogSave,
+                      style: const TextStyle(fontSize: 15),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       );
     },
   );

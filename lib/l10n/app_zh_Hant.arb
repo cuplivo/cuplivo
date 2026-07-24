@@ -1405,6 +1405,8 @@
   "themeSettingsPageUsePureBackgroundSubtitle": "僅氣泡與強調色隨主題變化",
   "themeSettingsPageUseDynamicColorSubtitle": "基於系統配色（Android 12+）",
   "themeSettingsPageColorPalettesSection": "配色方案",
+  "themeSettingsPageCustomDynamicTitle": "自訂動態色",
+  "themeSettingsPageSeedColorLabel": "種子顏色",
   "ttsServicesPageBackButton": "返回",
   "ttsServicesPageTitle": "語音服務",
   "ttsServicesPageSettingsTooltip": "TTS 設定",

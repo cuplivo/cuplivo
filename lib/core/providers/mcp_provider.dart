@@ -118,6 +118,7 @@ class McpServerConfig {
   final List<String> args;
   final Map<String, String> env;
   final String? workingDirectory;
+  final int? heartbeatIntervalSeconds; // null = use default (12s)
 
   McpServerConfig({
     required this.id,
@@ -131,6 +132,7 @@ class McpServerConfig {
     this.args = const [],
     this.env = const {},
     this.workingDirectory,
+    this.heartbeatIntervalSeconds,
   });
 
   McpServerConfig copyWith({
@@ -146,6 +148,8 @@ class McpServerConfig {
     Map<String, String>? env,
     String? workingDirectory,
     bool clearWorkingDirectory = false,
+    int? heartbeatIntervalSeconds,
+    bool clearHeartbeatIntervalSeconds = false,
   }) => McpServerConfig(
     id: id ?? this.id,
     enabled: enabled ?? this.enabled,
@@ -160,6 +164,9 @@ class McpServerConfig {
     workingDirectory: clearWorkingDirectory
         ? null
         : (workingDirectory ?? this.workingDirectory),
+    heartbeatIntervalSeconds: clearHeartbeatIntervalSeconds
+        ? null
+        : (heartbeatIntervalSeconds ?? this.heartbeatIntervalSeconds),
   );
 
   Map<String, dynamic> toJson() => {
@@ -179,6 +186,8 @@ class McpServerConfig {
     if (transport == McpTransportType.stdio) 'env': env,
     if (transport == McpTransportType.stdio && workingDirectory != null)
       'workingDirectory': workingDirectory,
+    if (heartbeatIntervalSeconds != null)
+      'heartbeatIntervalSeconds': heartbeatIntervalSeconds,
   };
 
   factory McpServerConfig.fromJson(Map<String, dynamic> json) {
@@ -197,6 +206,7 @@ class McpServerConfig {
             )
             .toList() ??
         const <McpToolConfig>[];
+    final heartbeatIntervalSeconds = json['heartbeatIntervalSeconds'] as int?;
     if (t == McpTransportType.stdio) {
       final argsAny = json['args'];
       final envAny = json['env'];
@@ -214,6 +224,7 @@ class McpServerConfig {
             ? envAny.map((k, v) => MapEntry(k.toString(), v.toString()))
             : const <String, String>{},
         workingDirectory: (json['workingDirectory'] as String?)?.trim(),
+        heartbeatIntervalSeconds: heartbeatIntervalSeconds,
       );
     } else if (t == McpTransportType.inmemory) {
       return McpServerConfig(
@@ -222,6 +233,7 @@ class McpServerConfig {
         name: json['name'] as String? ?? '',
         transport: McpTransportType.inmemory,
         tools: tools,
+        heartbeatIntervalSeconds: heartbeatIntervalSeconds,
       );
     } else {
       return McpServerConfig(
@@ -236,6 +248,7 @@ class McpServerConfig {
               (k, v) => MapEntry(k.toString(), v.toString()),
             )) ??
             const {},
+        heartbeatIntervalSeconds: heartbeatIntervalSeconds,
       );
     }
   }
@@ -628,6 +641,7 @@ class McpProvider extends ChangeNotifier {
     List<String> args = const <String>[],
     Map<String, String> env = const <String, String>{},
     String? workingDirectory,
+    int? heartbeatIntervalSeconds,
   }) async {
     final id = const Uuid().v4();
     final cfg = McpServerConfig(
@@ -643,6 +657,7 @@ class McpProvider extends ChangeNotifier {
       workingDirectory: (workingDirectory?.trim().isNotEmpty ?? false)
           ? workingDirectory!.trim()
           : null,
+      heartbeatIntervalSeconds: heartbeatIntervalSeconds,
     );
     _servers = [..._servers, cfg];
     _status[id] = McpStatus.idle;
@@ -786,7 +801,10 @@ class McpProvider extends ChangeNotifier {
         _errors.remove(id);
         notifyListeners();
         await refreshTools(id);
-        _startHeartbeat(id);
+        _startHeartbeat(
+          id,
+          interval: Duration(seconds: server.heartbeatIntervalSeconds ?? 12),
+        );
         return;
       }
 
@@ -852,7 +870,10 @@ class McpProvider extends ChangeNotifier {
       // debugPrint('[MCP/Tools] refresh done for id=$id');
 
       // Start/refresh heartbeat for this connection
-      _startHeartbeat(id);
+      _startHeartbeat(
+        id,
+        interval: Duration(seconds: server.heartbeatIntervalSeconds ?? 12),
+      );
     } catch (e) {
       // debugPrint('[MCP/Error] connect failed for id=$id (${server.name})');
       // _logMcpException('connect', serverId: id, error: e, stack: st);

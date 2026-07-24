@@ -5171,6 +5171,18 @@ abstract class AppLocalizations {
   /// **'If SSE fails, try a few times'**
   String get mcpServerEditSheetSseRetryHint;
 
+  /// No description provided for @mcpServerEditSheetHeartbeatLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Heartbeat Interval'**
+  String get mcpServerEditSheetHeartbeatLabel;
+
+  /// No description provided for @mcpServerEditSheetHeartbeatHint.
+  ///
+  /// In en, this message translates to:
+  /// **'If you encounter frequent 429 (rate limit) errors, try increasing this interval.'**
+  String get mcpServerEditSheetHeartbeatHint;
+
   /// No description provided for @mcpServerEditSheetUrlLabel.
   ///
   /// In en, this message translates to:

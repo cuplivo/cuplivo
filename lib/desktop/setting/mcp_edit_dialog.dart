@@ -52,6 +52,7 @@ class _DesktopMcpEditDialogState extends State<_DesktopMcpEditDialog>
   McpTransportType _transport = McpTransportType.http;
   final _urlCtrl = TextEditingController();
   final List<_HeaderEntry> _headers = [];
+  int _heartbeatIntervalSeconds = 12;
   // STDIO fields (desktop only)
   final _cmdCtrl = TextEditingController();
   final _argsCtrl = TextEditingController(); // space-separated args
@@ -67,6 +68,7 @@ class _DesktopMcpEditDialogState extends State<_DesktopMcpEditDialog>
       _nameCtrl.text = server.name;
       _transport = server.transport;
       _urlCtrl.text = server.url;
+      _heartbeatIntervalSeconds = server.heartbeatIntervalSeconds ?? 12;
       server.headers.forEach((k, v) {
         _headers.add(
           _HeaderEntry(
@@ -168,6 +170,8 @@ class _DesktopMcpEditDialogState extends State<_DesktopMcpEditDialog>
             env: env,
             workingDirectory: clearing ? null : cwd,
             clearWorkingDirectory: clearing,
+            heartbeatIntervalSeconds: _heartbeatIntervalSeconds,
+            clearHeartbeatIntervalSeconds: _heartbeatIntervalSeconds == 12,
           ),
         );
       } else {
@@ -179,6 +183,9 @@ class _DesktopMcpEditDialogState extends State<_DesktopMcpEditDialog>
           args: args,
           env: env,
           workingDirectory: cwd.isEmpty ? null : cwd,
+          heartbeatIntervalSeconds: _heartbeatIntervalSeconds == 12
+              ? null
+              : _heartbeatIntervalSeconds,
         );
       }
     } else {
@@ -200,6 +207,8 @@ class _DesktopMcpEditDialogState extends State<_DesktopMcpEditDialog>
             transport: _transport,
             url: url,
             headers: headers,
+            heartbeatIntervalSeconds: _heartbeatIntervalSeconds,
+            clearHeartbeatIntervalSeconds: _heartbeatIntervalSeconds == 12,
           ),
         );
       } else {
@@ -209,6 +218,9 @@ class _DesktopMcpEditDialogState extends State<_DesktopMcpEditDialog>
           transport: _transport,
           url: url,
           headers: headers,
+          heartbeatIntervalSeconds: _heartbeatIntervalSeconds == 12
+              ? null
+              : _heartbeatIntervalSeconds,
         );
       }
     }
@@ -378,6 +390,25 @@ class _DesktopMcpEditDialogState extends State<_DesktopMcpEditDialog>
                 : 'http://localhost:3000',
             bold: true,
           ),
+        if (!isBuiltin) ...[
+          const SizedBox(height: 16),
+          Text(
+            l10n.mcpServerEditSheetHeartbeatLabel,
+            style: TextStyle(fontSize: 13, fontWeight: AppFontWeights.semibold),
+          ),
+          const SizedBox(height: 6),
+          _heartbeatPicker(),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              l10n.mcpServerEditSheetHeartbeatHint,
+              style: TextStyle(
+                fontSize: 12,
+                color: cs.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
+        ],
         if (!isBuiltin && _transport == McpTransportType.stdio) ...[
           _labeledField(
             label: l10n.mcpServerEditSheetStdioCommandLabel,
@@ -714,6 +745,20 @@ class _DesktopMcpEditDialogState extends State<_DesktopMcpEditDialog>
     // Simple whitespace split; users can provide quoted args as a single token for now.
     // For advanced quoting, consider a shell-like parser later.
     return text.split(RegExp(r"\s+")).where((e) => e.isNotEmpty).toList();
+  }
+
+  static const _heartbeatOptions = [12, 30, 60, 120, 300];
+
+  Widget _heartbeatPicker() {
+    final labels = _heartbeatOptions.map((s) => '${s}s').toList();
+    final idx = _heartbeatOptions.indexOf(_heartbeatIntervalSeconds);
+    final selected = idx >= 0 ? idx : 0;
+    return _SegChoiceBar(
+      labels: labels,
+      selectedIndex: selected,
+      onSelected: (i) =>
+          setState(() => _heartbeatIntervalSeconds = _heartbeatOptions[i]),
+    );
   }
 
   @override

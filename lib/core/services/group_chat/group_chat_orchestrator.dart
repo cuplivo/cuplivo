@@ -328,32 +328,12 @@ class GroupChatOrchestrator extends ChangeNotifier {
     _cancelRequested.remove(groupId);
     final assistantOut = <GroupChatMessage>[];
 
-    final userMessage = await groupChatService.addMessage(
-      GroupChatMessage(
-        groupId: groupId,
-        role: 'user',
-        content: text,
-        speakerAssistantId: null,
-      ),
-    );
-
-    var directorSession = await directorStore.ensure(groupId);
-    directorSession = await directorStore.put(
-      directorSession.copyWith(
-        status: DirectorSession.statusDirecting,
-        triggerUserMessageId: userMessage.id,
-        clearErrorText: true,
-        state: <String, dynamic>{
-          ...directorSession.state,
-          'assistantCountThisTurn': 0,
-          'lastSpeakerId': null,
-        },
-        updatedAt: DateTime.now(),
-      ),
-    );
-
+    // Claim the group immediately so a second tap cannot pass isRunning
+    // while addMessage / director setup is still in flight.
     _setPhase(groupId, GroupChatPhase.directing);
+    debugPrint('[GroupChat] phase=directing (claimed) group=$groupId');
 
+    GroupChatMessage? userMessage;
     var endedBy = 'end_round';
     String? errorCode;
     String? errorMessage;
@@ -362,10 +342,41 @@ class GroupChatOrchestrator extends ChangeNotifier {
     final maxAssistants = settings.maxAssistantMessagesPerUserTurn <= 0
         ? GroupChatSettings.defaultMaxAssistantMessagesPerUserTurn
         : settings.maxAssistantMessagesPerUserTurn;
+    // Hoisted so finally can always flush the latest director transcript.
+    var directorMessages = <Map<String, dynamic>>[];
+    var directorMessagesTouched = false;
 
     try {
+      userMessage = await groupChatService.addMessage(
+        GroupChatMessage(
+          groupId: groupId,
+          role: 'user',
+          content: text,
+          speakerAssistantId: null,
+        ),
+      );
+      debugPrint(
+        '[GroupChat] user message saved id=${userMessage.id} '
+        'order=${userMessage.messageOrder} group=$groupId',
+      );
+
+      var directorSession = await directorStore.ensure(groupId);
+      directorSession = await directorStore.put(
+        directorSession.copyWith(
+          status: DirectorSession.statusDirecting,
+          triggerUserMessageId: userMessage.id,
+          clearErrorText: true,
+          state: <String, dynamic>{
+            ...directorSession.state,
+            'assistantCountThisTurn': 0,
+            'lastSpeakerId': null,
+          },
+          updatedAt: DateTime.now(),
+        ),
+      );
+
       // Build / refresh director messages for this user turn.
-      var directorMessages = List<Map<String, dynamic>>.from(
+      directorMessages = List<Map<String, dynamic>>.from(
         directorSession.messages.map((e) => Map<String, dynamic>.from(e)),
       );
 
@@ -387,6 +398,7 @@ class GroupChatOrchestrator extends ChangeNotifier {
           assistantNames: nameMap,
         );
       }
+      directorMessagesTouched = true;
 
       if (settings.persistDirectorTranscript) {
         directorSession = await directorStore.put(
@@ -405,6 +417,9 @@ class GroupChatOrchestrator extends ChangeNotifier {
           max: maxAssistants,
         )) {
           endedBy = 'max_messages';
+          debugPrint(
+            '[GroupChat] hit max assistants=$maxAssistants group=$groupId',
+          );
           break;
         }
 
@@ -433,8 +448,11 @@ class GroupChatOrchestrator extends ChangeNotifier {
                 directorMessages.map((e) => Map<String, dynamic>.from(e)),
               )..add(<String, dynamic>{
                 'role': 'assistant',
-                'content': '[tool] end_round',
+                'content': decision.reason == null || decision.reason!.isEmpty
+                    ? '[tool] end_round'
+                    : '[tool] end_round reason=${decision.reason}',
               });
+          directorMessagesTouched = true;
           break;
         }
 
@@ -452,8 +470,17 @@ class GroupChatOrchestrator extends ChangeNotifier {
         )) {
           // Treat illegal consecutive pick as end_round to avoid loops.
           debugPrint(
-            '[GroupChatOrchestrator] consecutive speaker blocked: $speakerId',
+            '[GroupChat] consecutive speaker blocked: $speakerId group=$groupId',
           );
+          directorMessages =
+              List<Map<String, dynamic>>.from(
+                directorMessages.map((e) => Map<String, dynamic>.from(e)),
+              )..add(<String, dynamic>{
+                'role': 'assistant',
+                'content':
+                    '[tool] end_round (blocked consecutive speaker $speakerId)',
+              });
+          directorMessagesTouched = true;
           endedBy = 'end_round';
           break;
         }
@@ -463,8 +490,11 @@ class GroupChatOrchestrator extends ChangeNotifier {
               directorMessages.map((e) => Map<String, dynamic>.from(e)),
             )..add(<String, dynamic>{
               'role': 'assistant',
-              'content': '[tool] select_speaker:$speakerId',
+              'content': decision.reason == null || decision.reason!.isEmpty
+                  ? '[tool] select_speaker:$speakerId'
+                  : '[tool] select_speaker:$speakerId reason=${decision.reason}',
             });
+        directorMessagesTouched = true;
 
         _setPhase(groupId, GroupChatPhase.memberSpeaking);
         await directorStore.updateStatus(
@@ -487,12 +517,17 @@ class GroupChatOrchestrator extends ChangeNotifier {
         assistantOut.add(memberMsg);
         assistantCount += 1;
         lastSpeakerId = speakerId;
+        debugPrint(
+          '[GroupChat] member done speaker=$speakerId '
+          'len=${memberMsg.content.length} count=$assistantCount group=$groupId',
+        );
 
         directorMessages = DirectorPromptBuilder.appendPublicMessageAndAsk(
           directorMessages,
           publicMessage: memberMsg,
           assistantNames: nameMap,
         );
+        directorMessagesTouched = true;
 
         if (settings.persistDirectorTranscript) {
           await directorStore.put(
@@ -523,11 +558,17 @@ class GroupChatOrchestrator extends ChangeNotifier {
           '[GroupChat] turn error group=$groupId code=${e.code} msg=${e.message}',
         );
         _setPhase(groupId, GroupChatPhase.error);
-        await directorStore.updateStatus(
-          groupId,
-          DirectorSession.statusError,
-          errorText: e.toString(),
-        );
+        try {
+          await directorStore.updateStatus(
+            groupId,
+            DirectorSession.statusError,
+            errorText: e.toString(),
+          );
+        } catch (storeErr) {
+          debugPrint(
+            '[GroupChat] director status error write failed: $storeErr',
+          );
+        }
       }
     } catch (e, st) {
       debugPrint('[GroupChat] turn failed group=$groupId: $e\n$st');
@@ -535,34 +576,84 @@ class GroupChatOrchestrator extends ChangeNotifier {
       errorCode = GroupChatErrorCode.directorFailed;
       errorMessage = e.toString();
       _setPhase(groupId, GroupChatPhase.error);
-      await directorStore.updateStatus(
-        groupId,
-        DirectorSession.statusError,
-        errorText: e.toString(),
-      );
+      try {
+        await directorStore.updateStatus(
+          groupId,
+          DirectorSession.statusError,
+          errorText: e.toString(),
+        );
+      } catch (storeErr) {
+        debugPrint('[GroupChat] director status error write failed: $storeErr');
+      }
     } finally {
       _activeRequestIdByGroup.remove(groupId);
       _cancelRequested.remove(groupId);
+
+      // Always flush latest director transcript (end_round / errors / max).
+      if (settings.persistDirectorTranscript && directorMessagesTouched) {
+        try {
+          final existing = await directorStore.ensure(groupId);
+          await directorStore.put(
+            existing.copyWith(
+              messages: directorMessages,
+              state: <String, dynamic>{
+                ...existing.state,
+                'assistantCountThisTurn': assistantCount,
+                'lastSpeakerId': lastSpeakerId,
+                'lastEndedBy': endedBy,
+                if (errorCode != null) 'lastErrorCode': errorCode,
+              },
+              updatedAt: DateTime.now(),
+            ),
+          );
+          debugPrint(
+            '[GroupChat] director transcript flushed msgs=${directorMessages.length} '
+            'endedBy=$endedBy group=$groupId',
+          );
+        } catch (e) {
+          debugPrint('[GroupChat] director transcript flush failed: $e');
+        }
+      }
+
       if (errorCode == null || errorCode == GroupChatErrorCode.cancelled) {
         _setPhase(groupId, GroupChatPhase.idle);
-        await directorStore.updateStatus(
-          groupId,
-          DirectorSession.statusIdle,
-          clearError: true,
-          state: <String, dynamic>{
-            'assistantCountThisTurn': assistantCount,
-            'lastSpeakerId': lastSpeakerId,
-            'lastEndedBy': endedBy,
-          },
-        );
+        try {
+          await directorStore.updateStatus(
+            groupId,
+            DirectorSession.statusIdle,
+            clearError: true,
+            state: <String, dynamic>{
+              'assistantCountThisTurn': assistantCount,
+              'lastSpeakerId': lastSpeakerId,
+              'lastEndedBy': endedBy,
+            },
+          );
+        } catch (e) {
+          debugPrint('[GroupChat] director idle status write failed: $e');
+        }
       }
       notifyListeners();
     }
 
+    debugPrint(
+      '[GroupChat] turn done group=$groupId endedBy=$endedBy '
+      'assistants=${assistantOut.length} errorCode=$errorCode',
+    );
+
+    final savedUser = userMessage;
+    if (savedUser == null) {
+      // Failed before the user row was written — surface as a thrown error so
+      // the UI uses the pre-flight SnackBar path (no "reply failed" phrasing).
+      throw GroupChatOrchestratorException(
+        errorCode ?? GroupChatErrorCode.directorFailed,
+        errorMessage ?? 'Failed before user message was saved',
+      );
+    }
+
     return GroupChatTurnResult(
       groupId: groupId,
-      userMessage: userMessage,
-      assistantMessages: assistantOut,
+      userMessage: savedUser,
+      assistantMessages: List<GroupChatMessage>.of(assistantOut),
       endedBy: endedBy,
       errorCode: errorCode,
       errorMessage: errorMessage,

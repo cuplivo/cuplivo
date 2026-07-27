@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/director_session.dart';
@@ -633,6 +635,96 @@ void main() {
       expect(seenExtra, isNotNull);
       expect(seenExtra!['tool_choice'], 'required');
     });
+
+    test('end_round flushes director transcript including tool note', () async {
+      final group = await mem.createGroup(
+        title: 'T',
+        assistantIds: ['a1', 'a2'],
+        settings: const GroupChatSettings(
+          directorModelProvider: 'P',
+          directorModelId: 'tool-model',
+          persistDirectorTranscript: true,
+        ),
+      );
+
+      final orch = GroupChatOrchestrator(
+        groupChatService: mem,
+        resolveAssistant: (id) => assistants[id],
+        resolveSettings: () => settings,
+        sendMessageStream: (req) async* {
+          if (req.tools != null && req.tools!.isNotEmpty) {
+            final handler = req.onToolCall;
+            if (handler != null) {
+              await handler('end_round', {'reason': 'done'});
+            }
+            yield ChatStreamChunk(content: '', isDone: true, totalTokens: 0);
+            return;
+          }
+          yield ChatStreamChunk(content: '', isDone: true, totalTokens: 0);
+        },
+      );
+
+      await orch.sendUserMessage(groupId: group.id, content: 'Hi');
+      final session = await mem.getDirectorSession(group.id);
+      expect(session, isNotNull);
+      expect(session!.messages, isNotEmpty);
+      final joined = session.messages
+          .map((m) => (m['content'] ?? '').toString())
+          .join('\n');
+      expect(joined, contains('[tool] end_round'));
+      expect(session.state['lastEndedBy'], 'end_round');
+    });
+
+    test('alreadyRunning rejects concurrent second send after claim', () async {
+      final group = await mem.createGroup(
+        title: 'T',
+        assistantIds: ['a1', 'a2'],
+        settings: const GroupChatSettings(
+          directorModelProvider: 'P',
+          directorModelId: 'tool-model',
+        ),
+      );
+
+      final gate = Completer<void>();
+      final orch = GroupChatOrchestrator(
+        groupChatService: mem,
+        resolveAssistant: (id) => assistants[id],
+        resolveSettings: () => settings,
+        sendMessageStream: (req) async* {
+          if (req.tools != null && req.tools!.isNotEmpty) {
+            // Hold director open so second send collides with isRunning.
+            await gate.future;
+            final handler = req.onToolCall;
+            if (handler != null) {
+              await handler('end_round', {});
+            }
+            yield ChatStreamChunk(content: '', isDone: true, totalTokens: 0);
+            return;
+          }
+          yield ChatStreamChunk(content: '', isDone: true, totalTokens: 0);
+        },
+      );
+
+      final first = orch.sendUserMessage(groupId: group.id, content: 'one');
+      // Let the first turn claim the phase.
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(orch.isRunning(group.id), isTrue);
+
+      await expectLater(
+        orch.sendUserMessage(groupId: group.id, content: 'two'),
+        throwsA(
+          isA<GroupChatOrchestratorException>().having(
+            (e) => e.code,
+            'code',
+            GroupChatErrorCode.alreadyRunning,
+          ),
+        ),
+      );
+
+      gate.complete();
+      final result = await first;
+      expect(result.isSuccess, isTrue);
+    });
   });
 }
 
@@ -708,6 +800,10 @@ class _MemoryGroupChatService extends GroupChatService {
       directors[groupId];
 
   @override
+  Future<DirectorSession?> reloadDirectorSession(String groupId) async =>
+      directors[groupId];
+
+  @override
   Future<DirectorSession> ensureDirectorSession(String groupId) async {
     final existing = directors[groupId];
     if (existing != null) return existing;
@@ -716,7 +812,13 @@ class _MemoryGroupChatService extends GroupChatService {
 
   @override
   Future<DirectorSession> putDirectorSession(DirectorSession session) async {
-    final updated = session.copyWith(updatedAt: DateTime.now());
+    final updated = session.copyWith(
+      updatedAt: DateTime.now(),
+      messages: List<Map<String, dynamic>>.from(
+        session.messages.map((e) => Map<String, dynamic>.from(e)),
+      ),
+      state: Map<String, dynamic>.from(session.state),
+    );
     directors[updated.groupId] = updated;
     return updated;
   }

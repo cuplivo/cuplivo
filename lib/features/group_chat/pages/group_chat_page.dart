@@ -113,8 +113,9 @@ class _GroupChatPageState extends State<GroupChatPage> {
     final members = await svc.getMembers(widget.groupId);
     if (!mounted) return;
     setState(() {
-      _messages = messages;
-      _members = members;
+      // Own growable copies so ListView state never holds unmodifiable views.
+      _messages = List<GroupChatMessage>.of(messages);
+      _members = List<GroupChatMember>.of(members);
       _loading = false;
     });
     _scrollToBottom(animate: false);
@@ -135,10 +136,13 @@ class _GroupChatPageState extends State<GroupChatPage> {
         : (_scrollController.position.maxScrollExtent -
                   _scrollController.position.pixels) <
               80;
+    final generating = svc.isGroupGenerating(widget.groupId);
     setState(() {
-      _messages = messages;
-      _members = members;
-      if (svc.isGroupGenerating(widget.groupId)) {
+      _messages = List<GroupChatMessage>.of(messages);
+      _members = List<GroupChatMember>.of(members);
+      // Keep true while generating; only clear when orchestrator is idle and
+      // our send Future already completed (otherwise whenComplete owns it).
+      if (generating) {
         _sending = true;
       }
     });
@@ -151,8 +155,8 @@ class _GroupChatPageState extends State<GroupChatPage> {
     final members = await svc.getMembers(widget.groupId);
     if (!mounted) return;
     setState(() {
-      _messages = messages;
-      _members = members;
+      _messages = List<GroupChatMessage>.of(messages);
+      _members = List<GroupChatMember>.of(members);
     });
   }
 
@@ -495,14 +499,37 @@ class _GroupMessageBubble extends StatelessWidget {
                       width: 0.6,
                     ),
                   ),
-                  child: SelectableText(
-                    message.content,
-                    style: TextStyle(
-                      fontSize: 15,
-                      height: 1.35,
-                      color: cs.onSurface,
-                    ),
-                  ),
+                  child: message.isStreaming && message.content.trim().isEmpty
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.6,
+                                color: cs.primary.withValues(alpha: 0.7),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '…',
+                              style: TextStyle(
+                                fontSize: 15,
+                                height: 1.35,
+                                color: cs.onSurface.withValues(alpha: 0.55),
+                              ),
+                            ),
+                          ],
+                        )
+                      : SelectableText(
+                          message.content,
+                          style: TextStyle(
+                            fontSize: 15,
+                            height: 1.35,
+                            color: cs.onSurface,
+                          ),
+                        ),
                 ),
               ],
             ),

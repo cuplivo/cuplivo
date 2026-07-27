@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
+import 'package:Cuplivo/core/models/director_session.dart';
 import 'package:Cuplivo/core/models/group_chat_message.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/chat/group_chat_service.dart';
@@ -147,6 +148,39 @@ void main() {
       await svc.deleteMessage(group.id, msg.id);
       timeline = await svc.getMessages(group.id);
       expect(timeline, isEmpty);
+    });
+
+    test('reloadDirectorSession returns latest persisted session', () async {
+      final svc = await createGroupService();
+      final group = await svc.createGroup(
+        title: 'Director reload',
+        assistantIds: const ['a1', 'a2'],
+      );
+
+      final created = await svc.putDirectorSession(
+        DirectorSession(
+          groupId: group.id,
+          status: DirectorSession.statusDone,
+          messages: const [
+            {'role': 'system', 'content': 'sys'},
+            {'role': 'user', 'content': 'hi'},
+            {'role': 'assistant', 'content': '[tool] end_round'},
+          ],
+          state: const {
+            'assistantCountThisTurn': 0,
+            'lastEndedBy': 'end_round',
+          },
+        ),
+      );
+      expect(created.messages, hasLength(3));
+
+      // Simulate stale/empty cache then force DB read.
+      await svc.reload();
+      final reloaded = await svc.reloadDirectorSession(group.id);
+      expect(reloaded, isNotNull);
+      expect(reloaded!.status, DirectorSession.statusDone);
+      expect(reloaded.messages, hasLength(3));
+      expect(reloaded.state['lastEndedBy'], 'end_round');
     });
   });
 }

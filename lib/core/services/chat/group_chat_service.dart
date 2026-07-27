@@ -319,8 +319,42 @@ class GroupChatService extends ChangeNotifier {
     final repo = _repo;
     if (repo == null) return null;
     final session = await repo.getDirectorSession(groupId);
-    if (session != null) _directorByGroup[groupId] = session;
-    return session;
+    if (session != null) {
+      // Defensive growable copies — UI/debug pages must not mutate repo shapes.
+      _directorByGroup[groupId] = session.copyWith(
+        messages: List<Map<String, dynamic>>.from(
+          session.messages.map(Map<String, dynamic>.from),
+        ),
+        state: Map<String, dynamic>.from(session.state),
+      );
+    }
+    return _directorByGroup[groupId];
+  }
+
+  /// Force-reload director session from SQLite (bypasses memory cache).
+  Future<DirectorSession?> reloadDirectorSession(String groupId) async {
+    await ensureLoaded();
+    final repo = _repo;
+    if (repo == null) return null;
+    final session = await repo.getDirectorSession(groupId);
+    if (session == null) {
+      _directorByGroup.remove(groupId);
+      notifyListeners();
+      return null;
+    }
+    final copied = session.copyWith(
+      messages: List<Map<String, dynamic>>.from(
+        session.messages.map(Map<String, dynamic>.from),
+      ),
+      state: Map<String, dynamic>.from(session.state),
+    );
+    _directorByGroup[groupId] = copied;
+    debugPrint(
+      '[GroupChat] reloadDirectorSession group=$groupId '
+      'status=${copied.status} msgs=${copied.messages.length}',
+    );
+    notifyListeners();
+    return copied;
   }
 
   Future<DirectorSession> putDirectorSession(DirectorSession session) async {
@@ -329,7 +363,13 @@ class GroupChatService extends ChangeNotifier {
     if (repo == null) {
       throw StateError('GroupChatService: database not ready');
     }
-    final updated = session.copyWith(updatedAt: DateTime.now());
+    final updated = session.copyWith(
+      updatedAt: DateTime.now(),
+      messages: List<Map<String, dynamic>>.from(
+        session.messages.map(Map<String, dynamic>.from),
+      ),
+      state: Map<String, dynamic>.from(session.state),
+    );
     await repo.putDirectorSession(updated);
     _directorByGroup[updated.groupId] = updated;
     notifyListeners();

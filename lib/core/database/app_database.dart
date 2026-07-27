@@ -240,6 +240,119 @@ class DeletionMarkerRows extends Table {
   Set<Column<Object>> get primaryKey => {id, type, origin};
 }
 
+// --- Group chat (multi-assistant) parallel tables ---
+// Named chat_group_* to avoid collision with message.group_id (version group).
+
+@TableIndex(name: 'idx_chat_groups_updated_at', columns: {#updatedAt})
+class ChatGroupRows extends Table {
+  TextColumn get id => text()();
+  TextColumn get title => text()();
+  TextColumn get avatar => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  BoolColumn get isPinned => boolean().withDefault(const Constant(false))();
+  TextColumn get settingsJson => text().withDefault(const Constant('{}'))();
+  TextColumn get summary => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@TableIndex(name: 'idx_chat_group_members_group', columns: {#groupId})
+class ChatGroupMemberRows extends Table {
+  TextColumn get id => text()();
+  TextColumn get groupId =>
+      text().references(ChatGroupRows, #id, onDelete: KeyAction.cascade)();
+
+  /// 'user' | 'assistant'
+  TextColumn get kind => text()();
+  TextColumn get assistantId => text().nullable()();
+  IntColumn get sortOrder => integer()();
+  BoolColumn get isEnabled => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@TableIndex(
+  name: 'idx_chat_group_messages_group_order',
+  columns: {#groupId, #messageOrder},
+)
+class ChatGroupMessageRows extends Table {
+  TextColumn get id => text()();
+  TextColumn get groupId =>
+      text().references(ChatGroupRows, #id, onDelete: KeyAction.cascade)();
+
+  /// null = user speaker
+  TextColumn get speakerAssistantId => text().nullable()();
+
+  /// 'user' | 'assistant'
+  TextColumn get role => text()();
+  TextColumn get content => text()();
+  DateTimeColumn get timestamp => dateTime()();
+  IntColumn get messageOrder => integer()();
+  TextColumn get modelId => text().nullable()();
+  TextColumn get providerId => text().nullable()();
+  TextColumn get reasoningText => text().nullable()();
+  DateTimeColumn get reasoningStartAt => dateTime().nullable()();
+  DateTimeColumn get reasoningFinishedAt => dateTime().nullable()();
+  TextColumn get reasoningSegmentsJson => text().nullable()();
+  BoolColumn get isStreaming => boolean().withDefault(const Constant(false))();
+  IntColumn get totalTokens => integer().nullable()();
+  IntColumn get promptTokens => integer().nullable()();
+  IntColumn get completionTokens => integer().nullable()();
+  IntColumn get cachedTokens => integer().nullable()();
+  IntColumn get durationMs => integer().nullable()();
+  IntColumn get version => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class ChatGroupToolEventRows extends Table {
+  TextColumn get messageId => text().references(
+    ChatGroupMessageRows,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  TextColumn get eventsJson => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {messageId};
+}
+
+class ChatGroupGeminiThoughtSignatureRows extends Table {
+  TextColumn get messageId => text().references(
+    ChatGroupMessageRows,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  TextColumn get signature => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {messageId};
+}
+
+@TableIndex(name: 'idx_director_sessions_group', columns: {#groupId})
+class DirectorSessionRows extends Table {
+  TextColumn get id => text()();
+  TextColumn get groupId =>
+      text().references(ChatGroupRows, #id, onDelete: KeyAction.cascade)();
+
+  /// idle | directing | member_speaking | done | error
+  TextColumn get status => text()();
+  TextColumn get messagesJson => text().withDefault(const Constant('[]'))();
+  TextColumn get triggerUserMessageId => text().nullable()();
+  TextColumn get stateJson => text().withDefault(const Constant('{}'))();
+  TextColumn get errorText => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     ConversationRows,
@@ -252,6 +365,12 @@ class DeletionMarkerRows extends Table {
     ChatStorageMetaRows,
     DeletedRecordRows,
     DeletionMarkerRows,
+    ChatGroupRows,
+    ChatGroupMemberRows,
+    ChatGroupMessageRows,
+    ChatGroupToolEventRows,
+    ChatGroupGeminiThoughtSignatureRows,
+    DirectorSessionRows,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -288,7 +407,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -383,6 +502,14 @@ class AppDatabase extends _$AppDatabase {
         } catch (_) {
           // Tables may already exist (migration replay / partial retry).
         }
+      }
+      if (from < 12) {
+        await migrator.createTable(chatGroupRows);
+        await migrator.createTable(chatGroupMemberRows);
+        await migrator.createTable(chatGroupMessageRows);
+        await migrator.createTable(chatGroupToolEventRows);
+        await migrator.createTable(chatGroupGeminiThoughtSignatureRows);
+        await migrator.createTable(directorSessionRows);
       }
     },
   );

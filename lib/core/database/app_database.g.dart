@@ -6313,6 +6313,3241 @@ class DeletionMarkerRowsCompanion extends UpdateCompanion<DeletionMarkerRow> {
   }
 }
 
+class $ChatGroupRowsTable extends ChatGroupRows
+    with TableInfo<$ChatGroupRowsTable, ChatGroupRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ChatGroupRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _avatarMeta = const VerificationMeta('avatar');
+  @override
+  late final GeneratedColumn<String> avatar = GeneratedColumn<String>(
+    'avatar',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isPinnedMeta = const VerificationMeta(
+    'isPinned',
+  );
+  @override
+  late final GeneratedColumn<bool> isPinned = GeneratedColumn<bool>(
+    'is_pinned',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_pinned" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _settingsJsonMeta = const VerificationMeta(
+    'settingsJson',
+  );
+  @override
+  late final GeneratedColumn<String> settingsJson = GeneratedColumn<String>(
+    'settings_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _summaryMeta = const VerificationMeta(
+    'summary',
+  );
+  @override
+  late final GeneratedColumn<String> summary = GeneratedColumn<String>(
+    'summary',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    title,
+    avatar,
+    createdAt,
+    updatedAt,
+    isPinned,
+    settingsJson,
+    summary,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'chat_group_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ChatGroupRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('avatar')) {
+      context.handle(
+        _avatarMeta,
+        avatar.isAcceptableOrUnknown(data['avatar']!, _avatarMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('is_pinned')) {
+      context.handle(
+        _isPinnedMeta,
+        isPinned.isAcceptableOrUnknown(data['is_pinned']!, _isPinnedMeta),
+      );
+    }
+    if (data.containsKey('settings_json')) {
+      context.handle(
+        _settingsJsonMeta,
+        settingsJson.isAcceptableOrUnknown(
+          data['settings_json']!,
+          _settingsJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('summary')) {
+      context.handle(
+        _summaryMeta,
+        summary.isAcceptableOrUnknown(data['summary']!, _summaryMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ChatGroupRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ChatGroupRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      avatar: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}avatar'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      isPinned: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_pinned'],
+      )!,
+      settingsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}settings_json'],
+      )!,
+      summary: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}summary'],
+      ),
+    );
+  }
+
+  @override
+  $ChatGroupRowsTable createAlias(String alias) {
+    return $ChatGroupRowsTable(attachedDatabase, alias);
+  }
+}
+
+class ChatGroupRow extends DataClass implements Insertable<ChatGroupRow> {
+  final String id;
+  final String title;
+  final String? avatar;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isPinned;
+  final String settingsJson;
+  final String? summary;
+  const ChatGroupRow({
+    required this.id,
+    required this.title,
+    this.avatar,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.isPinned,
+    required this.settingsJson,
+    this.summary,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || avatar != null) {
+      map['avatar'] = Variable<String>(avatar);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['is_pinned'] = Variable<bool>(isPinned);
+    map['settings_json'] = Variable<String>(settingsJson);
+    if (!nullToAbsent || summary != null) {
+      map['summary'] = Variable<String>(summary);
+    }
+    return map;
+  }
+
+  ChatGroupRowsCompanion toCompanion(bool nullToAbsent) {
+    return ChatGroupRowsCompanion(
+      id: Value(id),
+      title: Value(title),
+      avatar: avatar == null && nullToAbsent
+          ? const Value.absent()
+          : Value(avatar),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      isPinned: Value(isPinned),
+      settingsJson: Value(settingsJson),
+      summary: summary == null && nullToAbsent
+          ? const Value.absent()
+          : Value(summary),
+    );
+  }
+
+  factory ChatGroupRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ChatGroupRow(
+      id: serializer.fromJson<String>(json['id']),
+      title: serializer.fromJson<String>(json['title']),
+      avatar: serializer.fromJson<String?>(json['avatar']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      isPinned: serializer.fromJson<bool>(json['isPinned']),
+      settingsJson: serializer.fromJson<String>(json['settingsJson']),
+      summary: serializer.fromJson<String?>(json['summary']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'title': serializer.toJson<String>(title),
+      'avatar': serializer.toJson<String?>(avatar),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'isPinned': serializer.toJson<bool>(isPinned),
+      'settingsJson': serializer.toJson<String>(settingsJson),
+      'summary': serializer.toJson<String?>(summary),
+    };
+  }
+
+  ChatGroupRow copyWith({
+    String? id,
+    String? title,
+    Value<String?> avatar = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isPinned,
+    String? settingsJson,
+    Value<String?> summary = const Value.absent(),
+  }) => ChatGroupRow(
+    id: id ?? this.id,
+    title: title ?? this.title,
+    avatar: avatar.present ? avatar.value : this.avatar,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    isPinned: isPinned ?? this.isPinned,
+    settingsJson: settingsJson ?? this.settingsJson,
+    summary: summary.present ? summary.value : this.summary,
+  );
+  ChatGroupRow copyWithCompanion(ChatGroupRowsCompanion data) {
+    return ChatGroupRow(
+      id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
+      avatar: data.avatar.present ? data.avatar.value : this.avatar,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      isPinned: data.isPinned.present ? data.isPinned.value : this.isPinned,
+      settingsJson: data.settingsJson.present
+          ? data.settingsJson.value
+          : this.settingsJson,
+      summary: data.summary.present ? data.summary.value : this.summary,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChatGroupRow(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('avatar: $avatar, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isPinned: $isPinned, ')
+          ..write('settingsJson: $settingsJson, ')
+          ..write('summary: $summary')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    title,
+    avatar,
+    createdAt,
+    updatedAt,
+    isPinned,
+    settingsJson,
+    summary,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ChatGroupRow &&
+          other.id == this.id &&
+          other.title == this.title &&
+          other.avatar == this.avatar &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.isPinned == this.isPinned &&
+          other.settingsJson == this.settingsJson &&
+          other.summary == this.summary);
+}
+
+class ChatGroupRowsCompanion extends UpdateCompanion<ChatGroupRow> {
+  final Value<String> id;
+  final Value<String> title;
+  final Value<String?> avatar;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<bool> isPinned;
+  final Value<String> settingsJson;
+  final Value<String?> summary;
+  final Value<int> rowid;
+  const ChatGroupRowsCompanion({
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.avatar = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isPinned = const Value.absent(),
+    this.settingsJson = const Value.absent(),
+    this.summary = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ChatGroupRowsCompanion.insert({
+    required String id,
+    required String title,
+    this.avatar = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.isPinned = const Value.absent(),
+    this.settingsJson = const Value.absent(),
+    this.summary = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       title = Value(title),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ChatGroupRow> custom({
+    Expression<String>? id,
+    Expression<String>? title,
+    Expression<String>? avatar,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? isPinned,
+    Expression<String>? settingsJson,
+    Expression<String>? summary,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (title != null) 'title': title,
+      if (avatar != null) 'avatar': avatar,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (isPinned != null) 'is_pinned': isPinned,
+      if (settingsJson != null) 'settings_json': settingsJson,
+      if (summary != null) 'summary': summary,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ChatGroupRowsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? title,
+    Value<String?>? avatar,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<bool>? isPinned,
+    Value<String>? settingsJson,
+    Value<String?>? summary,
+    Value<int>? rowid,
+  }) {
+    return ChatGroupRowsCompanion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      avatar: avatar ?? this.avatar,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isPinned: isPinned ?? this.isPinned,
+      settingsJson: settingsJson ?? this.settingsJson,
+      summary: summary ?? this.summary,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (avatar.present) {
+      map['avatar'] = Variable<String>(avatar.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (isPinned.present) {
+      map['is_pinned'] = Variable<bool>(isPinned.value);
+    }
+    if (settingsJson.present) {
+      map['settings_json'] = Variable<String>(settingsJson.value);
+    }
+    if (summary.present) {
+      map['summary'] = Variable<String>(summary.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChatGroupRowsCompanion(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('avatar: $avatar, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isPinned: $isPinned, ')
+          ..write('settingsJson: $settingsJson, ')
+          ..write('summary: $summary, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ChatGroupMemberRowsTable extends ChatGroupMemberRows
+    with TableInfo<$ChatGroupMemberRowsTable, ChatGroupMemberRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ChatGroupMemberRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _groupIdMeta = const VerificationMeta(
+    'groupId',
+  );
+  @override
+  late final GeneratedColumn<String> groupId = GeneratedColumn<String>(
+    'group_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES chat_group_rows (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _assistantIdMeta = const VerificationMeta(
+    'assistantId',
+  );
+  @override
+  late final GeneratedColumn<String> assistantId = GeneratedColumn<String>(
+    'assistant_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isEnabledMeta = const VerificationMeta(
+    'isEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> isEnabled = GeneratedColumn<bool>(
+    'is_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    groupId,
+    kind,
+    assistantId,
+    sortOrder,
+    isEnabled,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'chat_group_member_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ChatGroupMemberRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('group_id')) {
+      context.handle(
+        _groupIdMeta,
+        groupId.isAcceptableOrUnknown(data['group_id']!, _groupIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_groupIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('assistant_id')) {
+      context.handle(
+        _assistantIdMeta,
+        assistantId.isAcceptableOrUnknown(
+          data['assistant_id']!,
+          _assistantIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sortOrderMeta);
+    }
+    if (data.containsKey('is_enabled')) {
+      context.handle(
+        _isEnabledMeta,
+        isEnabled.isAcceptableOrUnknown(data['is_enabled']!, _isEnabledMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ChatGroupMemberRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ChatGroupMemberRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      groupId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}group_id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      assistantId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}assistant_id'],
+      ),
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      isEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_enabled'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ChatGroupMemberRowsTable createAlias(String alias) {
+    return $ChatGroupMemberRowsTable(attachedDatabase, alias);
+  }
+}
+
+class ChatGroupMemberRow extends DataClass
+    implements Insertable<ChatGroupMemberRow> {
+  final String id;
+  final String groupId;
+
+  /// 'user' | 'assistant'
+  final String kind;
+  final String? assistantId;
+  final int sortOrder;
+  final bool isEnabled;
+  final DateTime createdAt;
+  const ChatGroupMemberRow({
+    required this.id,
+    required this.groupId,
+    required this.kind,
+    this.assistantId,
+    required this.sortOrder,
+    required this.isEnabled,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['group_id'] = Variable<String>(groupId);
+    map['kind'] = Variable<String>(kind);
+    if (!nullToAbsent || assistantId != null) {
+      map['assistant_id'] = Variable<String>(assistantId);
+    }
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['is_enabled'] = Variable<bool>(isEnabled);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  ChatGroupMemberRowsCompanion toCompanion(bool nullToAbsent) {
+    return ChatGroupMemberRowsCompanion(
+      id: Value(id),
+      groupId: Value(groupId),
+      kind: Value(kind),
+      assistantId: assistantId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(assistantId),
+      sortOrder: Value(sortOrder),
+      isEnabled: Value(isEnabled),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ChatGroupMemberRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ChatGroupMemberRow(
+      id: serializer.fromJson<String>(json['id']),
+      groupId: serializer.fromJson<String>(json['groupId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      assistantId: serializer.fromJson<String?>(json['assistantId']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      isEnabled: serializer.fromJson<bool>(json['isEnabled']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'groupId': serializer.toJson<String>(groupId),
+      'kind': serializer.toJson<String>(kind),
+      'assistantId': serializer.toJson<String?>(assistantId),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'isEnabled': serializer.toJson<bool>(isEnabled),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  ChatGroupMemberRow copyWith({
+    String? id,
+    String? groupId,
+    String? kind,
+    Value<String?> assistantId = const Value.absent(),
+    int? sortOrder,
+    bool? isEnabled,
+    DateTime? createdAt,
+  }) => ChatGroupMemberRow(
+    id: id ?? this.id,
+    groupId: groupId ?? this.groupId,
+    kind: kind ?? this.kind,
+    assistantId: assistantId.present ? assistantId.value : this.assistantId,
+    sortOrder: sortOrder ?? this.sortOrder,
+    isEnabled: isEnabled ?? this.isEnabled,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  ChatGroupMemberRow copyWithCompanion(ChatGroupMemberRowsCompanion data) {
+    return ChatGroupMemberRow(
+      id: data.id.present ? data.id.value : this.id,
+      groupId: data.groupId.present ? data.groupId.value : this.groupId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      assistantId: data.assistantId.present
+          ? data.assistantId.value
+          : this.assistantId,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      isEnabled: data.isEnabled.present ? data.isEnabled.value : this.isEnabled,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChatGroupMemberRow(')
+          ..write('id: $id, ')
+          ..write('groupId: $groupId, ')
+          ..write('kind: $kind, ')
+          ..write('assistantId: $assistantId, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('isEnabled: $isEnabled, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    groupId,
+    kind,
+    assistantId,
+    sortOrder,
+    isEnabled,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ChatGroupMemberRow &&
+          other.id == this.id &&
+          other.groupId == this.groupId &&
+          other.kind == this.kind &&
+          other.assistantId == this.assistantId &&
+          other.sortOrder == this.sortOrder &&
+          other.isEnabled == this.isEnabled &&
+          other.createdAt == this.createdAt);
+}
+
+class ChatGroupMemberRowsCompanion extends UpdateCompanion<ChatGroupMemberRow> {
+  final Value<String> id;
+  final Value<String> groupId;
+  final Value<String> kind;
+  final Value<String?> assistantId;
+  final Value<int> sortOrder;
+  final Value<bool> isEnabled;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const ChatGroupMemberRowsCompanion({
+    this.id = const Value.absent(),
+    this.groupId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.assistantId = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.isEnabled = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ChatGroupMemberRowsCompanion.insert({
+    required String id,
+    required String groupId,
+    required String kind,
+    this.assistantId = const Value.absent(),
+    required int sortOrder,
+    this.isEnabled = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       groupId = Value(groupId),
+       kind = Value(kind),
+       sortOrder = Value(sortOrder),
+       createdAt = Value(createdAt);
+  static Insertable<ChatGroupMemberRow> custom({
+    Expression<String>? id,
+    Expression<String>? groupId,
+    Expression<String>? kind,
+    Expression<String>? assistantId,
+    Expression<int>? sortOrder,
+    Expression<bool>? isEnabled,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (groupId != null) 'group_id': groupId,
+      if (kind != null) 'kind': kind,
+      if (assistantId != null) 'assistant_id': assistantId,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (isEnabled != null) 'is_enabled': isEnabled,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ChatGroupMemberRowsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? groupId,
+    Value<String>? kind,
+    Value<String?>? assistantId,
+    Value<int>? sortOrder,
+    Value<bool>? isEnabled,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return ChatGroupMemberRowsCompanion(
+      id: id ?? this.id,
+      groupId: groupId ?? this.groupId,
+      kind: kind ?? this.kind,
+      assistantId: assistantId ?? this.assistantId,
+      sortOrder: sortOrder ?? this.sortOrder,
+      isEnabled: isEnabled ?? this.isEnabled,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (groupId.present) {
+      map['group_id'] = Variable<String>(groupId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (assistantId.present) {
+      map['assistant_id'] = Variable<String>(assistantId.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (isEnabled.present) {
+      map['is_enabled'] = Variable<bool>(isEnabled.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChatGroupMemberRowsCompanion(')
+          ..write('id: $id, ')
+          ..write('groupId: $groupId, ')
+          ..write('kind: $kind, ')
+          ..write('assistantId: $assistantId, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('isEnabled: $isEnabled, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ChatGroupMessageRowsTable extends ChatGroupMessageRows
+    with TableInfo<$ChatGroupMessageRowsTable, ChatGroupMessageRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ChatGroupMessageRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _groupIdMeta = const VerificationMeta(
+    'groupId',
+  );
+  @override
+  late final GeneratedColumn<String> groupId = GeneratedColumn<String>(
+    'group_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES chat_group_rows (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _speakerAssistantIdMeta =
+      const VerificationMeta('speakerAssistantId');
+  @override
+  late final GeneratedColumn<String> speakerAssistantId =
+      GeneratedColumn<String>(
+        'speaker_assistant_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+    'role',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentMeta = const VerificationMeta(
+    'content',
+  );
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+    'content',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _timestampMeta = const VerificationMeta(
+    'timestamp',
+  );
+  @override
+  late final GeneratedColumn<DateTime> timestamp = GeneratedColumn<DateTime>(
+    'timestamp',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _messageOrderMeta = const VerificationMeta(
+    'messageOrder',
+  );
+  @override
+  late final GeneratedColumn<int> messageOrder = GeneratedColumn<int>(
+    'message_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _modelIdMeta = const VerificationMeta(
+    'modelId',
+  );
+  @override
+  late final GeneratedColumn<String> modelId = GeneratedColumn<String>(
+    'model_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _providerIdMeta = const VerificationMeta(
+    'providerId',
+  );
+  @override
+  late final GeneratedColumn<String> providerId = GeneratedColumn<String>(
+    'provider_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reasoningTextMeta = const VerificationMeta(
+    'reasoningText',
+  );
+  @override
+  late final GeneratedColumn<String> reasoningText = GeneratedColumn<String>(
+    'reasoning_text',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reasoningStartAtMeta = const VerificationMeta(
+    'reasoningStartAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> reasoningStartAt =
+      GeneratedColumn<DateTime>(
+        'reasoning_start_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _reasoningFinishedAtMeta =
+      const VerificationMeta('reasoningFinishedAt');
+  @override
+  late final GeneratedColumn<DateTime> reasoningFinishedAt =
+      GeneratedColumn<DateTime>(
+        'reasoning_finished_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _reasoningSegmentsJsonMeta =
+      const VerificationMeta('reasoningSegmentsJson');
+  @override
+  late final GeneratedColumn<String> reasoningSegmentsJson =
+      GeneratedColumn<String>(
+        'reasoning_segments_json',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _isStreamingMeta = const VerificationMeta(
+    'isStreaming',
+  );
+  @override
+  late final GeneratedColumn<bool> isStreaming = GeneratedColumn<bool>(
+    'is_streaming',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_streaming" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _totalTokensMeta = const VerificationMeta(
+    'totalTokens',
+  );
+  @override
+  late final GeneratedColumn<int> totalTokens = GeneratedColumn<int>(
+    'total_tokens',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _promptTokensMeta = const VerificationMeta(
+    'promptTokens',
+  );
+  @override
+  late final GeneratedColumn<int> promptTokens = GeneratedColumn<int>(
+    'prompt_tokens',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _completionTokensMeta = const VerificationMeta(
+    'completionTokens',
+  );
+  @override
+  late final GeneratedColumn<int> completionTokens = GeneratedColumn<int>(
+    'completion_tokens',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cachedTokensMeta = const VerificationMeta(
+    'cachedTokens',
+  );
+  @override
+  late final GeneratedColumn<int> cachedTokens = GeneratedColumn<int>(
+    'cached_tokens',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _durationMsMeta = const VerificationMeta(
+    'durationMs',
+  );
+  @override
+  late final GeneratedColumn<int> durationMs = GeneratedColumn<int>(
+    'duration_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    groupId,
+    speakerAssistantId,
+    role,
+    content,
+    timestamp,
+    messageOrder,
+    modelId,
+    providerId,
+    reasoningText,
+    reasoningStartAt,
+    reasoningFinishedAt,
+    reasoningSegmentsJson,
+    isStreaming,
+    totalTokens,
+    promptTokens,
+    completionTokens,
+    cachedTokens,
+    durationMs,
+    version,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'chat_group_message_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ChatGroupMessageRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('group_id')) {
+      context.handle(
+        _groupIdMeta,
+        groupId.isAcceptableOrUnknown(data['group_id']!, _groupIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_groupIdMeta);
+    }
+    if (data.containsKey('speaker_assistant_id')) {
+      context.handle(
+        _speakerAssistantIdMeta,
+        speakerAssistantId.isAcceptableOrUnknown(
+          data['speaker_assistant_id']!,
+          _speakerAssistantIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+        _roleMeta,
+        role.isAcceptableOrUnknown(data['role']!, _roleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_roleMeta);
+    }
+    if (data.containsKey('content')) {
+      context.handle(
+        _contentMeta,
+        content.isAcceptableOrUnknown(data['content']!, _contentMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('timestamp')) {
+      context.handle(
+        _timestampMeta,
+        timestamp.isAcceptableOrUnknown(data['timestamp']!, _timestampMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_timestampMeta);
+    }
+    if (data.containsKey('message_order')) {
+      context.handle(
+        _messageOrderMeta,
+        messageOrder.isAcceptableOrUnknown(
+          data['message_order']!,
+          _messageOrderMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_messageOrderMeta);
+    }
+    if (data.containsKey('model_id')) {
+      context.handle(
+        _modelIdMeta,
+        modelId.isAcceptableOrUnknown(data['model_id']!, _modelIdMeta),
+      );
+    }
+    if (data.containsKey('provider_id')) {
+      context.handle(
+        _providerIdMeta,
+        providerId.isAcceptableOrUnknown(data['provider_id']!, _providerIdMeta),
+      );
+    }
+    if (data.containsKey('reasoning_text')) {
+      context.handle(
+        _reasoningTextMeta,
+        reasoningText.isAcceptableOrUnknown(
+          data['reasoning_text']!,
+          _reasoningTextMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reasoning_start_at')) {
+      context.handle(
+        _reasoningStartAtMeta,
+        reasoningStartAt.isAcceptableOrUnknown(
+          data['reasoning_start_at']!,
+          _reasoningStartAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reasoning_finished_at')) {
+      context.handle(
+        _reasoningFinishedAtMeta,
+        reasoningFinishedAt.isAcceptableOrUnknown(
+          data['reasoning_finished_at']!,
+          _reasoningFinishedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reasoning_segments_json')) {
+      context.handle(
+        _reasoningSegmentsJsonMeta,
+        reasoningSegmentsJson.isAcceptableOrUnknown(
+          data['reasoning_segments_json']!,
+          _reasoningSegmentsJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_streaming')) {
+      context.handle(
+        _isStreamingMeta,
+        isStreaming.isAcceptableOrUnknown(
+          data['is_streaming']!,
+          _isStreamingMeta,
+        ),
+      );
+    }
+    if (data.containsKey('total_tokens')) {
+      context.handle(
+        _totalTokensMeta,
+        totalTokens.isAcceptableOrUnknown(
+          data['total_tokens']!,
+          _totalTokensMeta,
+        ),
+      );
+    }
+    if (data.containsKey('prompt_tokens')) {
+      context.handle(
+        _promptTokensMeta,
+        promptTokens.isAcceptableOrUnknown(
+          data['prompt_tokens']!,
+          _promptTokensMeta,
+        ),
+      );
+    }
+    if (data.containsKey('completion_tokens')) {
+      context.handle(
+        _completionTokensMeta,
+        completionTokens.isAcceptableOrUnknown(
+          data['completion_tokens']!,
+          _completionTokensMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cached_tokens')) {
+      context.handle(
+        _cachedTokensMeta,
+        cachedTokens.isAcceptableOrUnknown(
+          data['cached_tokens']!,
+          _cachedTokensMeta,
+        ),
+      );
+    }
+    if (data.containsKey('duration_ms')) {
+      context.handle(
+        _durationMsMeta,
+        durationMs.isAcceptableOrUnknown(data['duration_ms']!, _durationMsMeta),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ChatGroupMessageRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ChatGroupMessageRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      groupId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}group_id'],
+      )!,
+      speakerAssistantId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}speaker_assistant_id'],
+      ),
+      role: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}role'],
+      )!,
+      content: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content'],
+      )!,
+      timestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}timestamp'],
+      )!,
+      messageOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}message_order'],
+      )!,
+      modelId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}model_id'],
+      ),
+      providerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}provider_id'],
+      ),
+      reasoningText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reasoning_text'],
+      ),
+      reasoningStartAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}reasoning_start_at'],
+      ),
+      reasoningFinishedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}reasoning_finished_at'],
+      ),
+      reasoningSegmentsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reasoning_segments_json'],
+      ),
+      isStreaming: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_streaming'],
+      )!,
+      totalTokens: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_tokens'],
+      ),
+      promptTokens: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}prompt_tokens'],
+      ),
+      completionTokens: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}completion_tokens'],
+      ),
+      cachedTokens: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cached_tokens'],
+      ),
+      durationMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_ms'],
+      ),
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+    );
+  }
+
+  @override
+  $ChatGroupMessageRowsTable createAlias(String alias) {
+    return $ChatGroupMessageRowsTable(attachedDatabase, alias);
+  }
+}
+
+class ChatGroupMessageRow extends DataClass
+    implements Insertable<ChatGroupMessageRow> {
+  final String id;
+  final String groupId;
+
+  /// null = user speaker
+  final String? speakerAssistantId;
+
+  /// 'user' | 'assistant'
+  final String role;
+  final String content;
+  final DateTime timestamp;
+  final int messageOrder;
+  final String? modelId;
+  final String? providerId;
+  final String? reasoningText;
+  final DateTime? reasoningStartAt;
+  final DateTime? reasoningFinishedAt;
+  final String? reasoningSegmentsJson;
+  final bool isStreaming;
+  final int? totalTokens;
+  final int? promptTokens;
+  final int? completionTokens;
+  final int? cachedTokens;
+  final int? durationMs;
+  final int version;
+  const ChatGroupMessageRow({
+    required this.id,
+    required this.groupId,
+    this.speakerAssistantId,
+    required this.role,
+    required this.content,
+    required this.timestamp,
+    required this.messageOrder,
+    this.modelId,
+    this.providerId,
+    this.reasoningText,
+    this.reasoningStartAt,
+    this.reasoningFinishedAt,
+    this.reasoningSegmentsJson,
+    required this.isStreaming,
+    this.totalTokens,
+    this.promptTokens,
+    this.completionTokens,
+    this.cachedTokens,
+    this.durationMs,
+    required this.version,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['group_id'] = Variable<String>(groupId);
+    if (!nullToAbsent || speakerAssistantId != null) {
+      map['speaker_assistant_id'] = Variable<String>(speakerAssistantId);
+    }
+    map['role'] = Variable<String>(role);
+    map['content'] = Variable<String>(content);
+    map['timestamp'] = Variable<DateTime>(timestamp);
+    map['message_order'] = Variable<int>(messageOrder);
+    if (!nullToAbsent || modelId != null) {
+      map['model_id'] = Variable<String>(modelId);
+    }
+    if (!nullToAbsent || providerId != null) {
+      map['provider_id'] = Variable<String>(providerId);
+    }
+    if (!nullToAbsent || reasoningText != null) {
+      map['reasoning_text'] = Variable<String>(reasoningText);
+    }
+    if (!nullToAbsent || reasoningStartAt != null) {
+      map['reasoning_start_at'] = Variable<DateTime>(reasoningStartAt);
+    }
+    if (!nullToAbsent || reasoningFinishedAt != null) {
+      map['reasoning_finished_at'] = Variable<DateTime>(reasoningFinishedAt);
+    }
+    if (!nullToAbsent || reasoningSegmentsJson != null) {
+      map['reasoning_segments_json'] = Variable<String>(reasoningSegmentsJson);
+    }
+    map['is_streaming'] = Variable<bool>(isStreaming);
+    if (!nullToAbsent || totalTokens != null) {
+      map['total_tokens'] = Variable<int>(totalTokens);
+    }
+    if (!nullToAbsent || promptTokens != null) {
+      map['prompt_tokens'] = Variable<int>(promptTokens);
+    }
+    if (!nullToAbsent || completionTokens != null) {
+      map['completion_tokens'] = Variable<int>(completionTokens);
+    }
+    if (!nullToAbsent || cachedTokens != null) {
+      map['cached_tokens'] = Variable<int>(cachedTokens);
+    }
+    if (!nullToAbsent || durationMs != null) {
+      map['duration_ms'] = Variable<int>(durationMs);
+    }
+    map['version'] = Variable<int>(version);
+    return map;
+  }
+
+  ChatGroupMessageRowsCompanion toCompanion(bool nullToAbsent) {
+    return ChatGroupMessageRowsCompanion(
+      id: Value(id),
+      groupId: Value(groupId),
+      speakerAssistantId: speakerAssistantId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(speakerAssistantId),
+      role: Value(role),
+      content: Value(content),
+      timestamp: Value(timestamp),
+      messageOrder: Value(messageOrder),
+      modelId: modelId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(modelId),
+      providerId: providerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(providerId),
+      reasoningText: reasoningText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reasoningText),
+      reasoningStartAt: reasoningStartAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reasoningStartAt),
+      reasoningFinishedAt: reasoningFinishedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reasoningFinishedAt),
+      reasoningSegmentsJson: reasoningSegmentsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reasoningSegmentsJson),
+      isStreaming: Value(isStreaming),
+      totalTokens: totalTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(totalTokens),
+      promptTokens: promptTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(promptTokens),
+      completionTokens: completionTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completionTokens),
+      cachedTokens: cachedTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cachedTokens),
+      durationMs: durationMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMs),
+      version: Value(version),
+    );
+  }
+
+  factory ChatGroupMessageRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ChatGroupMessageRow(
+      id: serializer.fromJson<String>(json['id']),
+      groupId: serializer.fromJson<String>(json['groupId']),
+      speakerAssistantId: serializer.fromJson<String?>(
+        json['speakerAssistantId'],
+      ),
+      role: serializer.fromJson<String>(json['role']),
+      content: serializer.fromJson<String>(json['content']),
+      timestamp: serializer.fromJson<DateTime>(json['timestamp']),
+      messageOrder: serializer.fromJson<int>(json['messageOrder']),
+      modelId: serializer.fromJson<String?>(json['modelId']),
+      providerId: serializer.fromJson<String?>(json['providerId']),
+      reasoningText: serializer.fromJson<String?>(json['reasoningText']),
+      reasoningStartAt: serializer.fromJson<DateTime?>(
+        json['reasoningStartAt'],
+      ),
+      reasoningFinishedAt: serializer.fromJson<DateTime?>(
+        json['reasoningFinishedAt'],
+      ),
+      reasoningSegmentsJson: serializer.fromJson<String?>(
+        json['reasoningSegmentsJson'],
+      ),
+      isStreaming: serializer.fromJson<bool>(json['isStreaming']),
+      totalTokens: serializer.fromJson<int?>(json['totalTokens']),
+      promptTokens: serializer.fromJson<int?>(json['promptTokens']),
+      completionTokens: serializer.fromJson<int?>(json['completionTokens']),
+      cachedTokens: serializer.fromJson<int?>(json['cachedTokens']),
+      durationMs: serializer.fromJson<int?>(json['durationMs']),
+      version: serializer.fromJson<int>(json['version']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'groupId': serializer.toJson<String>(groupId),
+      'speakerAssistantId': serializer.toJson<String?>(speakerAssistantId),
+      'role': serializer.toJson<String>(role),
+      'content': serializer.toJson<String>(content),
+      'timestamp': serializer.toJson<DateTime>(timestamp),
+      'messageOrder': serializer.toJson<int>(messageOrder),
+      'modelId': serializer.toJson<String?>(modelId),
+      'providerId': serializer.toJson<String?>(providerId),
+      'reasoningText': serializer.toJson<String?>(reasoningText),
+      'reasoningStartAt': serializer.toJson<DateTime?>(reasoningStartAt),
+      'reasoningFinishedAt': serializer.toJson<DateTime?>(reasoningFinishedAt),
+      'reasoningSegmentsJson': serializer.toJson<String?>(
+        reasoningSegmentsJson,
+      ),
+      'isStreaming': serializer.toJson<bool>(isStreaming),
+      'totalTokens': serializer.toJson<int?>(totalTokens),
+      'promptTokens': serializer.toJson<int?>(promptTokens),
+      'completionTokens': serializer.toJson<int?>(completionTokens),
+      'cachedTokens': serializer.toJson<int?>(cachedTokens),
+      'durationMs': serializer.toJson<int?>(durationMs),
+      'version': serializer.toJson<int>(version),
+    };
+  }
+
+  ChatGroupMessageRow copyWith({
+    String? id,
+    String? groupId,
+    Value<String?> speakerAssistantId = const Value.absent(),
+    String? role,
+    String? content,
+    DateTime? timestamp,
+    int? messageOrder,
+    Value<String?> modelId = const Value.absent(),
+    Value<String?> providerId = const Value.absent(),
+    Value<String?> reasoningText = const Value.absent(),
+    Value<DateTime?> reasoningStartAt = const Value.absent(),
+    Value<DateTime?> reasoningFinishedAt = const Value.absent(),
+    Value<String?> reasoningSegmentsJson = const Value.absent(),
+    bool? isStreaming,
+    Value<int?> totalTokens = const Value.absent(),
+    Value<int?> promptTokens = const Value.absent(),
+    Value<int?> completionTokens = const Value.absent(),
+    Value<int?> cachedTokens = const Value.absent(),
+    Value<int?> durationMs = const Value.absent(),
+    int? version,
+  }) => ChatGroupMessageRow(
+    id: id ?? this.id,
+    groupId: groupId ?? this.groupId,
+    speakerAssistantId: speakerAssistantId.present
+        ? speakerAssistantId.value
+        : this.speakerAssistantId,
+    role: role ?? this.role,
+    content: content ?? this.content,
+    timestamp: timestamp ?? this.timestamp,
+    messageOrder: messageOrder ?? this.messageOrder,
+    modelId: modelId.present ? modelId.value : this.modelId,
+    providerId: providerId.present ? providerId.value : this.providerId,
+    reasoningText: reasoningText.present
+        ? reasoningText.value
+        : this.reasoningText,
+    reasoningStartAt: reasoningStartAt.present
+        ? reasoningStartAt.value
+        : this.reasoningStartAt,
+    reasoningFinishedAt: reasoningFinishedAt.present
+        ? reasoningFinishedAt.value
+        : this.reasoningFinishedAt,
+    reasoningSegmentsJson: reasoningSegmentsJson.present
+        ? reasoningSegmentsJson.value
+        : this.reasoningSegmentsJson,
+    isStreaming: isStreaming ?? this.isStreaming,
+    totalTokens: totalTokens.present ? totalTokens.value : this.totalTokens,
+    promptTokens: promptTokens.present ? promptTokens.value : this.promptTokens,
+    completionTokens: completionTokens.present
+        ? completionTokens.value
+        : this.completionTokens,
+    cachedTokens: cachedTokens.present ? cachedTokens.value : this.cachedTokens,
+    durationMs: durationMs.present ? durationMs.value : this.durationMs,
+    version: version ?? this.version,
+  );
+  ChatGroupMessageRow copyWithCompanion(ChatGroupMessageRowsCompanion data) {
+    return ChatGroupMessageRow(
+      id: data.id.present ? data.id.value : this.id,
+      groupId: data.groupId.present ? data.groupId.value : this.groupId,
+      speakerAssistantId: data.speakerAssistantId.present
+          ? data.speakerAssistantId.value
+          : this.speakerAssistantId,
+      role: data.role.present ? data.role.value : this.role,
+      content: data.content.present ? data.content.value : this.content,
+      timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
+      messageOrder: data.messageOrder.present
+          ? data.messageOrder.value
+          : this.messageOrder,
+      modelId: data.modelId.present ? data.modelId.value : this.modelId,
+      providerId: data.providerId.present
+          ? data.providerId.value
+          : this.providerId,
+      reasoningText: data.reasoningText.present
+          ? data.reasoningText.value
+          : this.reasoningText,
+      reasoningStartAt: data.reasoningStartAt.present
+          ? data.reasoningStartAt.value
+          : this.reasoningStartAt,
+      reasoningFinishedAt: data.reasoningFinishedAt.present
+          ? data.reasoningFinishedAt.value
+          : this.reasoningFinishedAt,
+      reasoningSegmentsJson: data.reasoningSegmentsJson.present
+          ? data.reasoningSegmentsJson.value
+          : this.reasoningSegmentsJson,
+      isStreaming: data.isStreaming.present
+          ? data.isStreaming.value
+          : this.isStreaming,
+      totalTokens: data.totalTokens.present
+          ? data.totalTokens.value
+          : this.totalTokens,
+      promptTokens: data.promptTokens.present
+          ? data.promptTokens.value
+          : this.promptTokens,
+      completionTokens: data.completionTokens.present
+          ? data.completionTokens.value
+          : this.completionTokens,
+      cachedTokens: data.cachedTokens.present
+          ? data.cachedTokens.value
+          : this.cachedTokens,
+      durationMs: data.durationMs.present
+          ? data.durationMs.value
+          : this.durationMs,
+      version: data.version.present ? data.version.value : this.version,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChatGroupMessageRow(')
+          ..write('id: $id, ')
+          ..write('groupId: $groupId, ')
+          ..write('speakerAssistantId: $speakerAssistantId, ')
+          ..write('role: $role, ')
+          ..write('content: $content, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('messageOrder: $messageOrder, ')
+          ..write('modelId: $modelId, ')
+          ..write('providerId: $providerId, ')
+          ..write('reasoningText: $reasoningText, ')
+          ..write('reasoningStartAt: $reasoningStartAt, ')
+          ..write('reasoningFinishedAt: $reasoningFinishedAt, ')
+          ..write('reasoningSegmentsJson: $reasoningSegmentsJson, ')
+          ..write('isStreaming: $isStreaming, ')
+          ..write('totalTokens: $totalTokens, ')
+          ..write('promptTokens: $promptTokens, ')
+          ..write('completionTokens: $completionTokens, ')
+          ..write('cachedTokens: $cachedTokens, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('version: $version')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    groupId,
+    speakerAssistantId,
+    role,
+    content,
+    timestamp,
+    messageOrder,
+    modelId,
+    providerId,
+    reasoningText,
+    reasoningStartAt,
+    reasoningFinishedAt,
+    reasoningSegmentsJson,
+    isStreaming,
+    totalTokens,
+    promptTokens,
+    completionTokens,
+    cachedTokens,
+    durationMs,
+    version,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ChatGroupMessageRow &&
+          other.id == this.id &&
+          other.groupId == this.groupId &&
+          other.speakerAssistantId == this.speakerAssistantId &&
+          other.role == this.role &&
+          other.content == this.content &&
+          other.timestamp == this.timestamp &&
+          other.messageOrder == this.messageOrder &&
+          other.modelId == this.modelId &&
+          other.providerId == this.providerId &&
+          other.reasoningText == this.reasoningText &&
+          other.reasoningStartAt == this.reasoningStartAt &&
+          other.reasoningFinishedAt == this.reasoningFinishedAt &&
+          other.reasoningSegmentsJson == this.reasoningSegmentsJson &&
+          other.isStreaming == this.isStreaming &&
+          other.totalTokens == this.totalTokens &&
+          other.promptTokens == this.promptTokens &&
+          other.completionTokens == this.completionTokens &&
+          other.cachedTokens == this.cachedTokens &&
+          other.durationMs == this.durationMs &&
+          other.version == this.version);
+}
+
+class ChatGroupMessageRowsCompanion
+    extends UpdateCompanion<ChatGroupMessageRow> {
+  final Value<String> id;
+  final Value<String> groupId;
+  final Value<String?> speakerAssistantId;
+  final Value<String> role;
+  final Value<String> content;
+  final Value<DateTime> timestamp;
+  final Value<int> messageOrder;
+  final Value<String?> modelId;
+  final Value<String?> providerId;
+  final Value<String?> reasoningText;
+  final Value<DateTime?> reasoningStartAt;
+  final Value<DateTime?> reasoningFinishedAt;
+  final Value<String?> reasoningSegmentsJson;
+  final Value<bool> isStreaming;
+  final Value<int?> totalTokens;
+  final Value<int?> promptTokens;
+  final Value<int?> completionTokens;
+  final Value<int?> cachedTokens;
+  final Value<int?> durationMs;
+  final Value<int> version;
+  final Value<int> rowid;
+  const ChatGroupMessageRowsCompanion({
+    this.id = const Value.absent(),
+    this.groupId = const Value.absent(),
+    this.speakerAssistantId = const Value.absent(),
+    this.role = const Value.absent(),
+    this.content = const Value.absent(),
+    this.timestamp = const Value.absent(),
+    this.messageOrder = const Value.absent(),
+    this.modelId = const Value.absent(),
+    this.providerId = const Value.absent(),
+    this.reasoningText = const Value.absent(),
+    this.reasoningStartAt = const Value.absent(),
+    this.reasoningFinishedAt = const Value.absent(),
+    this.reasoningSegmentsJson = const Value.absent(),
+    this.isStreaming = const Value.absent(),
+    this.totalTokens = const Value.absent(),
+    this.promptTokens = const Value.absent(),
+    this.completionTokens = const Value.absent(),
+    this.cachedTokens = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.version = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ChatGroupMessageRowsCompanion.insert({
+    required String id,
+    required String groupId,
+    this.speakerAssistantId = const Value.absent(),
+    required String role,
+    required String content,
+    required DateTime timestamp,
+    required int messageOrder,
+    this.modelId = const Value.absent(),
+    this.providerId = const Value.absent(),
+    this.reasoningText = const Value.absent(),
+    this.reasoningStartAt = const Value.absent(),
+    this.reasoningFinishedAt = const Value.absent(),
+    this.reasoningSegmentsJson = const Value.absent(),
+    this.isStreaming = const Value.absent(),
+    this.totalTokens = const Value.absent(),
+    this.promptTokens = const Value.absent(),
+    this.completionTokens = const Value.absent(),
+    this.cachedTokens = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.version = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       groupId = Value(groupId),
+       role = Value(role),
+       content = Value(content),
+       timestamp = Value(timestamp),
+       messageOrder = Value(messageOrder);
+  static Insertable<ChatGroupMessageRow> custom({
+    Expression<String>? id,
+    Expression<String>? groupId,
+    Expression<String>? speakerAssistantId,
+    Expression<String>? role,
+    Expression<String>? content,
+    Expression<DateTime>? timestamp,
+    Expression<int>? messageOrder,
+    Expression<String>? modelId,
+    Expression<String>? providerId,
+    Expression<String>? reasoningText,
+    Expression<DateTime>? reasoningStartAt,
+    Expression<DateTime>? reasoningFinishedAt,
+    Expression<String>? reasoningSegmentsJson,
+    Expression<bool>? isStreaming,
+    Expression<int>? totalTokens,
+    Expression<int>? promptTokens,
+    Expression<int>? completionTokens,
+    Expression<int>? cachedTokens,
+    Expression<int>? durationMs,
+    Expression<int>? version,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (groupId != null) 'group_id': groupId,
+      if (speakerAssistantId != null)
+        'speaker_assistant_id': speakerAssistantId,
+      if (role != null) 'role': role,
+      if (content != null) 'content': content,
+      if (timestamp != null) 'timestamp': timestamp,
+      if (messageOrder != null) 'message_order': messageOrder,
+      if (modelId != null) 'model_id': modelId,
+      if (providerId != null) 'provider_id': providerId,
+      if (reasoningText != null) 'reasoning_text': reasoningText,
+      if (reasoningStartAt != null) 'reasoning_start_at': reasoningStartAt,
+      if (reasoningFinishedAt != null)
+        'reasoning_finished_at': reasoningFinishedAt,
+      if (reasoningSegmentsJson != null)
+        'reasoning_segments_json': reasoningSegmentsJson,
+      if (isStreaming != null) 'is_streaming': isStreaming,
+      if (totalTokens != null) 'total_tokens': totalTokens,
+      if (promptTokens != null) 'prompt_tokens': promptTokens,
+      if (completionTokens != null) 'completion_tokens': completionTokens,
+      if (cachedTokens != null) 'cached_tokens': cachedTokens,
+      if (durationMs != null) 'duration_ms': durationMs,
+      if (version != null) 'version': version,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ChatGroupMessageRowsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? groupId,
+    Value<String?>? speakerAssistantId,
+    Value<String>? role,
+    Value<String>? content,
+    Value<DateTime>? timestamp,
+    Value<int>? messageOrder,
+    Value<String?>? modelId,
+    Value<String?>? providerId,
+    Value<String?>? reasoningText,
+    Value<DateTime?>? reasoningStartAt,
+    Value<DateTime?>? reasoningFinishedAt,
+    Value<String?>? reasoningSegmentsJson,
+    Value<bool>? isStreaming,
+    Value<int?>? totalTokens,
+    Value<int?>? promptTokens,
+    Value<int?>? completionTokens,
+    Value<int?>? cachedTokens,
+    Value<int?>? durationMs,
+    Value<int>? version,
+    Value<int>? rowid,
+  }) {
+    return ChatGroupMessageRowsCompanion(
+      id: id ?? this.id,
+      groupId: groupId ?? this.groupId,
+      speakerAssistantId: speakerAssistantId ?? this.speakerAssistantId,
+      role: role ?? this.role,
+      content: content ?? this.content,
+      timestamp: timestamp ?? this.timestamp,
+      messageOrder: messageOrder ?? this.messageOrder,
+      modelId: modelId ?? this.modelId,
+      providerId: providerId ?? this.providerId,
+      reasoningText: reasoningText ?? this.reasoningText,
+      reasoningStartAt: reasoningStartAt ?? this.reasoningStartAt,
+      reasoningFinishedAt: reasoningFinishedAt ?? this.reasoningFinishedAt,
+      reasoningSegmentsJson:
+          reasoningSegmentsJson ?? this.reasoningSegmentsJson,
+      isStreaming: isStreaming ?? this.isStreaming,
+      totalTokens: totalTokens ?? this.totalTokens,
+      promptTokens: promptTokens ?? this.promptTokens,
+      completionTokens: completionTokens ?? this.completionTokens,
+      cachedTokens: cachedTokens ?? this.cachedTokens,
+      durationMs: durationMs ?? this.durationMs,
+      version: version ?? this.version,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (groupId.present) {
+      map['group_id'] = Variable<String>(groupId.value);
+    }
+    if (speakerAssistantId.present) {
+      map['speaker_assistant_id'] = Variable<String>(speakerAssistantId.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (timestamp.present) {
+      map['timestamp'] = Variable<DateTime>(timestamp.value);
+    }
+    if (messageOrder.present) {
+      map['message_order'] = Variable<int>(messageOrder.value);
+    }
+    if (modelId.present) {
+      map['model_id'] = Variable<String>(modelId.value);
+    }
+    if (providerId.present) {
+      map['provider_id'] = Variable<String>(providerId.value);
+    }
+    if (reasoningText.present) {
+      map['reasoning_text'] = Variable<String>(reasoningText.value);
+    }
+    if (reasoningStartAt.present) {
+      map['reasoning_start_at'] = Variable<DateTime>(reasoningStartAt.value);
+    }
+    if (reasoningFinishedAt.present) {
+      map['reasoning_finished_at'] = Variable<DateTime>(
+        reasoningFinishedAt.value,
+      );
+    }
+    if (reasoningSegmentsJson.present) {
+      map['reasoning_segments_json'] = Variable<String>(
+        reasoningSegmentsJson.value,
+      );
+    }
+    if (isStreaming.present) {
+      map['is_streaming'] = Variable<bool>(isStreaming.value);
+    }
+    if (totalTokens.present) {
+      map['total_tokens'] = Variable<int>(totalTokens.value);
+    }
+    if (promptTokens.present) {
+      map['prompt_tokens'] = Variable<int>(promptTokens.value);
+    }
+    if (completionTokens.present) {
+      map['completion_tokens'] = Variable<int>(completionTokens.value);
+    }
+    if (cachedTokens.present) {
+      map['cached_tokens'] = Variable<int>(cachedTokens.value);
+    }
+    if (durationMs.present) {
+      map['duration_ms'] = Variable<int>(durationMs.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChatGroupMessageRowsCompanion(')
+          ..write('id: $id, ')
+          ..write('groupId: $groupId, ')
+          ..write('speakerAssistantId: $speakerAssistantId, ')
+          ..write('role: $role, ')
+          ..write('content: $content, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('messageOrder: $messageOrder, ')
+          ..write('modelId: $modelId, ')
+          ..write('providerId: $providerId, ')
+          ..write('reasoningText: $reasoningText, ')
+          ..write('reasoningStartAt: $reasoningStartAt, ')
+          ..write('reasoningFinishedAt: $reasoningFinishedAt, ')
+          ..write('reasoningSegmentsJson: $reasoningSegmentsJson, ')
+          ..write('isStreaming: $isStreaming, ')
+          ..write('totalTokens: $totalTokens, ')
+          ..write('promptTokens: $promptTokens, ')
+          ..write('completionTokens: $completionTokens, ')
+          ..write('cachedTokens: $cachedTokens, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('version: $version, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ChatGroupToolEventRowsTable extends ChatGroupToolEventRows
+    with TableInfo<$ChatGroupToolEventRowsTable, ChatGroupToolEventRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ChatGroupToolEventRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _messageIdMeta = const VerificationMeta(
+    'messageId',
+  );
+  @override
+  late final GeneratedColumn<String> messageId = GeneratedColumn<String>(
+    'message_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES chat_group_message_rows (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _eventsJsonMeta = const VerificationMeta(
+    'eventsJson',
+  );
+  @override
+  late final GeneratedColumn<String> eventsJson = GeneratedColumn<String>(
+    'events_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [messageId, eventsJson];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'chat_group_tool_event_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ChatGroupToolEventRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('message_id')) {
+      context.handle(
+        _messageIdMeta,
+        messageId.isAcceptableOrUnknown(data['message_id']!, _messageIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_messageIdMeta);
+    }
+    if (data.containsKey('events_json')) {
+      context.handle(
+        _eventsJsonMeta,
+        eventsJson.isAcceptableOrUnknown(data['events_json']!, _eventsJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_eventsJsonMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {messageId};
+  @override
+  ChatGroupToolEventRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ChatGroupToolEventRow(
+      messageId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}message_id'],
+      )!,
+      eventsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}events_json'],
+      )!,
+    );
+  }
+
+  @override
+  $ChatGroupToolEventRowsTable createAlias(String alias) {
+    return $ChatGroupToolEventRowsTable(attachedDatabase, alias);
+  }
+}
+
+class ChatGroupToolEventRow extends DataClass
+    implements Insertable<ChatGroupToolEventRow> {
+  final String messageId;
+  final String eventsJson;
+  const ChatGroupToolEventRow({
+    required this.messageId,
+    required this.eventsJson,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['message_id'] = Variable<String>(messageId);
+    map['events_json'] = Variable<String>(eventsJson);
+    return map;
+  }
+
+  ChatGroupToolEventRowsCompanion toCompanion(bool nullToAbsent) {
+    return ChatGroupToolEventRowsCompanion(
+      messageId: Value(messageId),
+      eventsJson: Value(eventsJson),
+    );
+  }
+
+  factory ChatGroupToolEventRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ChatGroupToolEventRow(
+      messageId: serializer.fromJson<String>(json['messageId']),
+      eventsJson: serializer.fromJson<String>(json['eventsJson']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'messageId': serializer.toJson<String>(messageId),
+      'eventsJson': serializer.toJson<String>(eventsJson),
+    };
+  }
+
+  ChatGroupToolEventRow copyWith({String? messageId, String? eventsJson}) =>
+      ChatGroupToolEventRow(
+        messageId: messageId ?? this.messageId,
+        eventsJson: eventsJson ?? this.eventsJson,
+      );
+  ChatGroupToolEventRow copyWithCompanion(
+    ChatGroupToolEventRowsCompanion data,
+  ) {
+    return ChatGroupToolEventRow(
+      messageId: data.messageId.present ? data.messageId.value : this.messageId,
+      eventsJson: data.eventsJson.present
+          ? data.eventsJson.value
+          : this.eventsJson,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChatGroupToolEventRow(')
+          ..write('messageId: $messageId, ')
+          ..write('eventsJson: $eventsJson')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(messageId, eventsJson);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ChatGroupToolEventRow &&
+          other.messageId == this.messageId &&
+          other.eventsJson == this.eventsJson);
+}
+
+class ChatGroupToolEventRowsCompanion
+    extends UpdateCompanion<ChatGroupToolEventRow> {
+  final Value<String> messageId;
+  final Value<String> eventsJson;
+  final Value<int> rowid;
+  const ChatGroupToolEventRowsCompanion({
+    this.messageId = const Value.absent(),
+    this.eventsJson = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ChatGroupToolEventRowsCompanion.insert({
+    required String messageId,
+    required String eventsJson,
+    this.rowid = const Value.absent(),
+  }) : messageId = Value(messageId),
+       eventsJson = Value(eventsJson);
+  static Insertable<ChatGroupToolEventRow> custom({
+    Expression<String>? messageId,
+    Expression<String>? eventsJson,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (messageId != null) 'message_id': messageId,
+      if (eventsJson != null) 'events_json': eventsJson,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ChatGroupToolEventRowsCompanion copyWith({
+    Value<String>? messageId,
+    Value<String>? eventsJson,
+    Value<int>? rowid,
+  }) {
+    return ChatGroupToolEventRowsCompanion(
+      messageId: messageId ?? this.messageId,
+      eventsJson: eventsJson ?? this.eventsJson,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (messageId.present) {
+      map['message_id'] = Variable<String>(messageId.value);
+    }
+    if (eventsJson.present) {
+      map['events_json'] = Variable<String>(eventsJson.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChatGroupToolEventRowsCompanion(')
+          ..write('messageId: $messageId, ')
+          ..write('eventsJson: $eventsJson, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ChatGroupGeminiThoughtSignatureRowsTable
+    extends ChatGroupGeminiThoughtSignatureRows
+    with
+        TableInfo<
+          $ChatGroupGeminiThoughtSignatureRowsTable,
+          ChatGroupGeminiThoughtSignatureRow
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ChatGroupGeminiThoughtSignatureRowsTable(
+    this.attachedDatabase, [
+    this._alias,
+  ]);
+  static const VerificationMeta _messageIdMeta = const VerificationMeta(
+    'messageId',
+  );
+  @override
+  late final GeneratedColumn<String> messageId = GeneratedColumn<String>(
+    'message_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES chat_group_message_rows (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _signatureMeta = const VerificationMeta(
+    'signature',
+  );
+  @override
+  late final GeneratedColumn<String> signature = GeneratedColumn<String>(
+    'signature',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [messageId, signature];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'chat_group_gemini_thought_signature_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ChatGroupGeminiThoughtSignatureRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('message_id')) {
+      context.handle(
+        _messageIdMeta,
+        messageId.isAcceptableOrUnknown(data['message_id']!, _messageIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_messageIdMeta);
+    }
+    if (data.containsKey('signature')) {
+      context.handle(
+        _signatureMeta,
+        signature.isAcceptableOrUnknown(data['signature']!, _signatureMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_signatureMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {messageId};
+  @override
+  ChatGroupGeminiThoughtSignatureRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ChatGroupGeminiThoughtSignatureRow(
+      messageId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}message_id'],
+      )!,
+      signature: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}signature'],
+      )!,
+    );
+  }
+
+  @override
+  $ChatGroupGeminiThoughtSignatureRowsTable createAlias(String alias) {
+    return $ChatGroupGeminiThoughtSignatureRowsTable(attachedDatabase, alias);
+  }
+}
+
+class ChatGroupGeminiThoughtSignatureRow extends DataClass
+    implements Insertable<ChatGroupGeminiThoughtSignatureRow> {
+  final String messageId;
+  final String signature;
+  const ChatGroupGeminiThoughtSignatureRow({
+    required this.messageId,
+    required this.signature,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['message_id'] = Variable<String>(messageId);
+    map['signature'] = Variable<String>(signature);
+    return map;
+  }
+
+  ChatGroupGeminiThoughtSignatureRowsCompanion toCompanion(bool nullToAbsent) {
+    return ChatGroupGeminiThoughtSignatureRowsCompanion(
+      messageId: Value(messageId),
+      signature: Value(signature),
+    );
+  }
+
+  factory ChatGroupGeminiThoughtSignatureRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ChatGroupGeminiThoughtSignatureRow(
+      messageId: serializer.fromJson<String>(json['messageId']),
+      signature: serializer.fromJson<String>(json['signature']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'messageId': serializer.toJson<String>(messageId),
+      'signature': serializer.toJson<String>(signature),
+    };
+  }
+
+  ChatGroupGeminiThoughtSignatureRow copyWith({
+    String? messageId,
+    String? signature,
+  }) => ChatGroupGeminiThoughtSignatureRow(
+    messageId: messageId ?? this.messageId,
+    signature: signature ?? this.signature,
+  );
+  ChatGroupGeminiThoughtSignatureRow copyWithCompanion(
+    ChatGroupGeminiThoughtSignatureRowsCompanion data,
+  ) {
+    return ChatGroupGeminiThoughtSignatureRow(
+      messageId: data.messageId.present ? data.messageId.value : this.messageId,
+      signature: data.signature.present ? data.signature.value : this.signature,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChatGroupGeminiThoughtSignatureRow(')
+          ..write('messageId: $messageId, ')
+          ..write('signature: $signature')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(messageId, signature);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ChatGroupGeminiThoughtSignatureRow &&
+          other.messageId == this.messageId &&
+          other.signature == this.signature);
+}
+
+class ChatGroupGeminiThoughtSignatureRowsCompanion
+    extends UpdateCompanion<ChatGroupGeminiThoughtSignatureRow> {
+  final Value<String> messageId;
+  final Value<String> signature;
+  final Value<int> rowid;
+  const ChatGroupGeminiThoughtSignatureRowsCompanion({
+    this.messageId = const Value.absent(),
+    this.signature = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ChatGroupGeminiThoughtSignatureRowsCompanion.insert({
+    required String messageId,
+    required String signature,
+    this.rowid = const Value.absent(),
+  }) : messageId = Value(messageId),
+       signature = Value(signature);
+  static Insertable<ChatGroupGeminiThoughtSignatureRow> custom({
+    Expression<String>? messageId,
+    Expression<String>? signature,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (messageId != null) 'message_id': messageId,
+      if (signature != null) 'signature': signature,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ChatGroupGeminiThoughtSignatureRowsCompanion copyWith({
+    Value<String>? messageId,
+    Value<String>? signature,
+    Value<int>? rowid,
+  }) {
+    return ChatGroupGeminiThoughtSignatureRowsCompanion(
+      messageId: messageId ?? this.messageId,
+      signature: signature ?? this.signature,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (messageId.present) {
+      map['message_id'] = Variable<String>(messageId.value);
+    }
+    if (signature.present) {
+      map['signature'] = Variable<String>(signature.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChatGroupGeminiThoughtSignatureRowsCompanion(')
+          ..write('messageId: $messageId, ')
+          ..write('signature: $signature, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DirectorSessionRowsTable extends DirectorSessionRows
+    with TableInfo<$DirectorSessionRowsTable, DirectorSessionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DirectorSessionRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _groupIdMeta = const VerificationMeta(
+    'groupId',
+  );
+  @override
+  late final GeneratedColumn<String> groupId = GeneratedColumn<String>(
+    'group_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES chat_group_rows (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _messagesJsonMeta = const VerificationMeta(
+    'messagesJson',
+  );
+  @override
+  late final GeneratedColumn<String> messagesJson = GeneratedColumn<String>(
+    'messages_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  static const VerificationMeta _triggerUserMessageIdMeta =
+      const VerificationMeta('triggerUserMessageId');
+  @override
+  late final GeneratedColumn<String> triggerUserMessageId =
+      GeneratedColumn<String>(
+        'trigger_user_message_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _stateJsonMeta = const VerificationMeta(
+    'stateJson',
+  );
+  @override
+  late final GeneratedColumn<String> stateJson = GeneratedColumn<String>(
+    'state_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _errorTextMeta = const VerificationMeta(
+    'errorText',
+  );
+  @override
+  late final GeneratedColumn<String> errorText = GeneratedColumn<String>(
+    'error_text',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    groupId,
+    status,
+    messagesJson,
+    triggerUserMessageId,
+    stateJson,
+    errorText,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'director_session_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DirectorSessionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('group_id')) {
+      context.handle(
+        _groupIdMeta,
+        groupId.isAcceptableOrUnknown(data['group_id']!, _groupIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_groupIdMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('messages_json')) {
+      context.handle(
+        _messagesJsonMeta,
+        messagesJson.isAcceptableOrUnknown(
+          data['messages_json']!,
+          _messagesJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('trigger_user_message_id')) {
+      context.handle(
+        _triggerUserMessageIdMeta,
+        triggerUserMessageId.isAcceptableOrUnknown(
+          data['trigger_user_message_id']!,
+          _triggerUserMessageIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('state_json')) {
+      context.handle(
+        _stateJsonMeta,
+        stateJson.isAcceptableOrUnknown(data['state_json']!, _stateJsonMeta),
+      );
+    }
+    if (data.containsKey('error_text')) {
+      context.handle(
+        _errorTextMeta,
+        errorText.isAcceptableOrUnknown(data['error_text']!, _errorTextMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DirectorSessionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DirectorSessionRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      groupId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}group_id'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      messagesJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}messages_json'],
+      )!,
+      triggerUserMessageId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}trigger_user_message_id'],
+      ),
+      stateJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state_json'],
+      )!,
+      errorText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}error_text'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DirectorSessionRowsTable createAlias(String alias) {
+    return $DirectorSessionRowsTable(attachedDatabase, alias);
+  }
+}
+
+class DirectorSessionRow extends DataClass
+    implements Insertable<DirectorSessionRow> {
+  final String id;
+  final String groupId;
+
+  /// idle | directing | member_speaking | done | error
+  final String status;
+  final String messagesJson;
+  final String? triggerUserMessageId;
+  final String stateJson;
+  final String? errorText;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const DirectorSessionRow({
+    required this.id,
+    required this.groupId,
+    required this.status,
+    required this.messagesJson,
+    this.triggerUserMessageId,
+    required this.stateJson,
+    this.errorText,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['group_id'] = Variable<String>(groupId);
+    map['status'] = Variable<String>(status);
+    map['messages_json'] = Variable<String>(messagesJson);
+    if (!nullToAbsent || triggerUserMessageId != null) {
+      map['trigger_user_message_id'] = Variable<String>(triggerUserMessageId);
+    }
+    map['state_json'] = Variable<String>(stateJson);
+    if (!nullToAbsent || errorText != null) {
+      map['error_text'] = Variable<String>(errorText);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  DirectorSessionRowsCompanion toCompanion(bool nullToAbsent) {
+    return DirectorSessionRowsCompanion(
+      id: Value(id),
+      groupId: Value(groupId),
+      status: Value(status),
+      messagesJson: Value(messagesJson),
+      triggerUserMessageId: triggerUserMessageId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(triggerUserMessageId),
+      stateJson: Value(stateJson),
+      errorText: errorText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errorText),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory DirectorSessionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DirectorSessionRow(
+      id: serializer.fromJson<String>(json['id']),
+      groupId: serializer.fromJson<String>(json['groupId']),
+      status: serializer.fromJson<String>(json['status']),
+      messagesJson: serializer.fromJson<String>(json['messagesJson']),
+      triggerUserMessageId: serializer.fromJson<String?>(
+        json['triggerUserMessageId'],
+      ),
+      stateJson: serializer.fromJson<String>(json['stateJson']),
+      errorText: serializer.fromJson<String?>(json['errorText']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'groupId': serializer.toJson<String>(groupId),
+      'status': serializer.toJson<String>(status),
+      'messagesJson': serializer.toJson<String>(messagesJson),
+      'triggerUserMessageId': serializer.toJson<String?>(triggerUserMessageId),
+      'stateJson': serializer.toJson<String>(stateJson),
+      'errorText': serializer.toJson<String?>(errorText),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  DirectorSessionRow copyWith({
+    String? id,
+    String? groupId,
+    String? status,
+    String? messagesJson,
+    Value<String?> triggerUserMessageId = const Value.absent(),
+    String? stateJson,
+    Value<String?> errorText = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => DirectorSessionRow(
+    id: id ?? this.id,
+    groupId: groupId ?? this.groupId,
+    status: status ?? this.status,
+    messagesJson: messagesJson ?? this.messagesJson,
+    triggerUserMessageId: triggerUserMessageId.present
+        ? triggerUserMessageId.value
+        : this.triggerUserMessageId,
+    stateJson: stateJson ?? this.stateJson,
+    errorText: errorText.present ? errorText.value : this.errorText,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  DirectorSessionRow copyWithCompanion(DirectorSessionRowsCompanion data) {
+    return DirectorSessionRow(
+      id: data.id.present ? data.id.value : this.id,
+      groupId: data.groupId.present ? data.groupId.value : this.groupId,
+      status: data.status.present ? data.status.value : this.status,
+      messagesJson: data.messagesJson.present
+          ? data.messagesJson.value
+          : this.messagesJson,
+      triggerUserMessageId: data.triggerUserMessageId.present
+          ? data.triggerUserMessageId.value
+          : this.triggerUserMessageId,
+      stateJson: data.stateJson.present ? data.stateJson.value : this.stateJson,
+      errorText: data.errorText.present ? data.errorText.value : this.errorText,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DirectorSessionRow(')
+          ..write('id: $id, ')
+          ..write('groupId: $groupId, ')
+          ..write('status: $status, ')
+          ..write('messagesJson: $messagesJson, ')
+          ..write('triggerUserMessageId: $triggerUserMessageId, ')
+          ..write('stateJson: $stateJson, ')
+          ..write('errorText: $errorText, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    groupId,
+    status,
+    messagesJson,
+    triggerUserMessageId,
+    stateJson,
+    errorText,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DirectorSessionRow &&
+          other.id == this.id &&
+          other.groupId == this.groupId &&
+          other.status == this.status &&
+          other.messagesJson == this.messagesJson &&
+          other.triggerUserMessageId == this.triggerUserMessageId &&
+          other.stateJson == this.stateJson &&
+          other.errorText == this.errorText &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class DirectorSessionRowsCompanion extends UpdateCompanion<DirectorSessionRow> {
+  final Value<String> id;
+  final Value<String> groupId;
+  final Value<String> status;
+  final Value<String> messagesJson;
+  final Value<String?> triggerUserMessageId;
+  final Value<String> stateJson;
+  final Value<String?> errorText;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const DirectorSessionRowsCompanion({
+    this.id = const Value.absent(),
+    this.groupId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.messagesJson = const Value.absent(),
+    this.triggerUserMessageId = const Value.absent(),
+    this.stateJson = const Value.absent(),
+    this.errorText = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DirectorSessionRowsCompanion.insert({
+    required String id,
+    required String groupId,
+    required String status,
+    this.messagesJson = const Value.absent(),
+    this.triggerUserMessageId = const Value.absent(),
+    this.stateJson = const Value.absent(),
+    this.errorText = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       groupId = Value(groupId),
+       status = Value(status),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<DirectorSessionRow> custom({
+    Expression<String>? id,
+    Expression<String>? groupId,
+    Expression<String>? status,
+    Expression<String>? messagesJson,
+    Expression<String>? triggerUserMessageId,
+    Expression<String>? stateJson,
+    Expression<String>? errorText,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (groupId != null) 'group_id': groupId,
+      if (status != null) 'status': status,
+      if (messagesJson != null) 'messages_json': messagesJson,
+      if (triggerUserMessageId != null)
+        'trigger_user_message_id': triggerUserMessageId,
+      if (stateJson != null) 'state_json': stateJson,
+      if (errorText != null) 'error_text': errorText,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DirectorSessionRowsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? groupId,
+    Value<String>? status,
+    Value<String>? messagesJson,
+    Value<String?>? triggerUserMessageId,
+    Value<String>? stateJson,
+    Value<String?>? errorText,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return DirectorSessionRowsCompanion(
+      id: id ?? this.id,
+      groupId: groupId ?? this.groupId,
+      status: status ?? this.status,
+      messagesJson: messagesJson ?? this.messagesJson,
+      triggerUserMessageId: triggerUserMessageId ?? this.triggerUserMessageId,
+      stateJson: stateJson ?? this.stateJson,
+      errorText: errorText ?? this.errorText,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (groupId.present) {
+      map['group_id'] = Variable<String>(groupId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (messagesJson.present) {
+      map['messages_json'] = Variable<String>(messagesJson.value);
+    }
+    if (triggerUserMessageId.present) {
+      map['trigger_user_message_id'] = Variable<String>(
+        triggerUserMessageId.value,
+      );
+    }
+    if (stateJson.present) {
+      map['state_json'] = Variable<String>(stateJson.value);
+    }
+    if (errorText.present) {
+      map['error_text'] = Variable<String>(errorText.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DirectorSessionRowsCompanion(')
+          ..write('id: $id, ')
+          ..write('groupId: $groupId, ')
+          ..write('status: $status, ')
+          ..write('messagesJson: $messagesJson, ')
+          ..write('triggerUserMessageId: $triggerUserMessageId, ')
+          ..write('stateJson: $stateJson, ')
+          ..write('errorText: $errorText, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -6333,6 +9568,18 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $DeletedRecordRowsTable(this);
   late final $DeletionMarkerRowsTable deletionMarkerRows =
       $DeletionMarkerRowsTable(this);
+  late final $ChatGroupRowsTable chatGroupRows = $ChatGroupRowsTable(this);
+  late final $ChatGroupMemberRowsTable chatGroupMemberRows =
+      $ChatGroupMemberRowsTable(this);
+  late final $ChatGroupMessageRowsTable chatGroupMessageRows =
+      $ChatGroupMessageRowsTable(this);
+  late final $ChatGroupToolEventRowsTable chatGroupToolEventRows =
+      $ChatGroupToolEventRowsTable(this);
+  late final $ChatGroupGeminiThoughtSignatureRowsTable
+  chatGroupGeminiThoughtSignatureRows =
+      $ChatGroupGeminiThoughtSignatureRowsTable(this);
+  late final $DirectorSessionRowsTable directorSessionRows =
+      $DirectorSessionRowsTable(this);
   late final Index idxConversationsUpdatedAt = Index(
     'idx_conversations_updated_at',
     'CREATE INDEX idx_conversations_updated_at ON conversation_rows (updated_at)',
@@ -6357,6 +9604,22 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_messages_subgroup',
     'CREATE INDEX idx_messages_subgroup ON message_rows (subgroup_id)',
   );
+  late final Index idxChatGroupsUpdatedAt = Index(
+    'idx_chat_groups_updated_at',
+    'CREATE INDEX idx_chat_groups_updated_at ON chat_group_rows (updated_at)',
+  );
+  late final Index idxChatGroupMembersGroup = Index(
+    'idx_chat_group_members_group',
+    'CREATE INDEX idx_chat_group_members_group ON chat_group_member_rows (group_id)',
+  );
+  late final Index idxChatGroupMessagesGroupOrder = Index(
+    'idx_chat_group_messages_group_order',
+    'CREATE INDEX idx_chat_group_messages_group_order ON chat_group_message_rows (group_id, message_order)',
+  );
+  late final Index idxDirectorSessionsGroup = Index(
+    'idx_director_sessions_group',
+    'CREATE INDEX idx_director_sessions_group ON director_session_rows (group_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6372,12 +9635,22 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     chatStorageMetaRows,
     deletedRecordRows,
     deletionMarkerRows,
+    chatGroupRows,
+    chatGroupMemberRows,
+    chatGroupMessageRows,
+    chatGroupToolEventRows,
+    chatGroupGeminiThoughtSignatureRows,
+    directorSessionRows,
     idxConversationsUpdatedAt,
     idxConversationsAssistant,
     idxMessagesConversationOrder,
     idxMessagesConversationTimestamp,
     idxMessagesGroup,
     idxMessagesSubgroup,
+    idxChatGroupsUpdatedAt,
+    idxChatGroupMembersGroup,
+    idxChatGroupMessagesGroupOrder,
+    idxDirectorSessionsGroup,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -6412,6 +9685,48 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       result: [
         TableUpdate('gemini_thought_signature_rows', kind: UpdateKind.delete),
       ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'chat_group_rows',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('chat_group_member_rows', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'chat_group_rows',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('chat_group_message_rows', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'chat_group_message_rows',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate('chat_group_tool_event_rows', kind: UpdateKind.delete),
+      ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'chat_group_message_rows',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate(
+          'chat_group_gemini_thought_signature_rows',
+          kind: UpdateKind.delete,
+        ),
+      ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'chat_group_rows',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('director_session_rows', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -10441,6 +13756,2839 @@ typedef $$DeletionMarkerRowsTableProcessedTableManager =
       DeletionMarkerRow,
       PrefetchHooks Function()
     >;
+typedef $$ChatGroupRowsTableCreateCompanionBuilder =
+    ChatGroupRowsCompanion Function({
+      required String id,
+      required String title,
+      Value<String?> avatar,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<bool> isPinned,
+      Value<String> settingsJson,
+      Value<String?> summary,
+      Value<int> rowid,
+    });
+typedef $$ChatGroupRowsTableUpdateCompanionBuilder =
+    ChatGroupRowsCompanion Function({
+      Value<String> id,
+      Value<String> title,
+      Value<String?> avatar,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isPinned,
+      Value<String> settingsJson,
+      Value<String?> summary,
+      Value<int> rowid,
+    });
+
+final class $$ChatGroupRowsTableReferences
+    extends BaseReferences<_$AppDatabase, $ChatGroupRowsTable, ChatGroupRow> {
+  $$ChatGroupRowsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $ChatGroupMemberRowsTable,
+    List<ChatGroupMemberRow>
+  >
+  _chatGroupMemberRowsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.chatGroupMemberRows,
+        aliasName: 'chat_group_rows__id__chat_group_member_rows__group_id',
+      );
+
+  $$ChatGroupMemberRowsTableProcessedTableManager get chatGroupMemberRowsRefs {
+    final manager = $$ChatGroupMemberRowsTableTableManager(
+      $_db,
+      $_db.chatGroupMemberRows,
+    ).filter((f) => f.groupId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _chatGroupMemberRowsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $ChatGroupMessageRowsTable,
+    List<ChatGroupMessageRow>
+  >
+  _chatGroupMessageRowsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.chatGroupMessageRows,
+        aliasName: 'chat_group_rows__id__chat_group_message_rows__group_id',
+      );
+
+  $$ChatGroupMessageRowsTableProcessedTableManager
+  get chatGroupMessageRowsRefs {
+    final manager = $$ChatGroupMessageRowsTableTableManager(
+      $_db,
+      $_db.chatGroupMessageRows,
+    ).filter((f) => f.groupId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _chatGroupMessageRowsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $DirectorSessionRowsTable,
+    List<DirectorSessionRow>
+  >
+  _directorSessionRowsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.directorSessionRows,
+        aliasName: 'chat_group_rows__id__director_session_rows__group_id',
+      );
+
+  $$DirectorSessionRowsTableProcessedTableManager get directorSessionRowsRefs {
+    final manager = $$DirectorSessionRowsTableTableManager(
+      $_db,
+      $_db.directorSessionRows,
+    ).filter((f) => f.groupId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _directorSessionRowsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$ChatGroupRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $ChatGroupRowsTable> {
+  $$ChatGroupRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get avatar => $composableBuilder(
+    column: $table.avatar,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isPinned => $composableBuilder(
+    column: $table.isPinned,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get settingsJson => $composableBuilder(
+    column: $table.settingsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get summary => $composableBuilder(
+    column: $table.summary,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> chatGroupMemberRowsRefs(
+    Expression<bool> Function($$ChatGroupMemberRowsTableFilterComposer f) f,
+  ) {
+    final $$ChatGroupMemberRowsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.chatGroupMemberRows,
+      getReferencedColumn: (t) => t.groupId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChatGroupMemberRowsTableFilterComposer(
+            $db: $db,
+            $table: $db.chatGroupMemberRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> chatGroupMessageRowsRefs(
+    Expression<bool> Function($$ChatGroupMessageRowsTableFilterComposer f) f,
+  ) {
+    final $$ChatGroupMessageRowsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.chatGroupMessageRows,
+      getReferencedColumn: (t) => t.groupId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChatGroupMessageRowsTableFilterComposer(
+            $db: $db,
+            $table: $db.chatGroupMessageRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> directorSessionRowsRefs(
+    Expression<bool> Function($$DirectorSessionRowsTableFilterComposer f) f,
+  ) {
+    final $$DirectorSessionRowsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.directorSessionRows,
+      getReferencedColumn: (t) => t.groupId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DirectorSessionRowsTableFilterComposer(
+            $db: $db,
+            $table: $db.directorSessionRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$ChatGroupRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ChatGroupRowsTable> {
+  $$ChatGroupRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get avatar => $composableBuilder(
+    column: $table.avatar,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isPinned => $composableBuilder(
+    column: $table.isPinned,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get settingsJson => $composableBuilder(
+    column: $table.settingsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get summary => $composableBuilder(
+    column: $table.summary,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ChatGroupRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ChatGroupRowsTable> {
+  $$ChatGroupRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get avatar =>
+      $composableBuilder(column: $table.avatar, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isPinned =>
+      $composableBuilder(column: $table.isPinned, builder: (column) => column);
+
+  GeneratedColumn<String> get settingsJson => $composableBuilder(
+    column: $table.settingsJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get summary =>
+      $composableBuilder(column: $table.summary, builder: (column) => column);
+
+  Expression<T> chatGroupMemberRowsRefs<T extends Object>(
+    Expression<T> Function($$ChatGroupMemberRowsTableAnnotationComposer a) f,
+  ) {
+    final $$ChatGroupMemberRowsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.chatGroupMemberRows,
+          getReferencedColumn: (t) => t.groupId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ChatGroupMemberRowsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.chatGroupMemberRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> chatGroupMessageRowsRefs<T extends Object>(
+    Expression<T> Function($$ChatGroupMessageRowsTableAnnotationComposer a) f,
+  ) {
+    final $$ChatGroupMessageRowsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.chatGroupMessageRows,
+          getReferencedColumn: (t) => t.groupId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ChatGroupMessageRowsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.chatGroupMessageRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> directorSessionRowsRefs<T extends Object>(
+    Expression<T> Function($$DirectorSessionRowsTableAnnotationComposer a) f,
+  ) {
+    final $$DirectorSessionRowsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.directorSessionRows,
+          getReferencedColumn: (t) => t.groupId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$DirectorSessionRowsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.directorSessionRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$ChatGroupRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ChatGroupRowsTable,
+          ChatGroupRow,
+          $$ChatGroupRowsTableFilterComposer,
+          $$ChatGroupRowsTableOrderingComposer,
+          $$ChatGroupRowsTableAnnotationComposer,
+          $$ChatGroupRowsTableCreateCompanionBuilder,
+          $$ChatGroupRowsTableUpdateCompanionBuilder,
+          (ChatGroupRow, $$ChatGroupRowsTableReferences),
+          ChatGroupRow,
+          PrefetchHooks Function({
+            bool chatGroupMemberRowsRefs,
+            bool chatGroupMessageRowsRefs,
+            bool directorSessionRowsRefs,
+          })
+        > {
+  $$ChatGroupRowsTableTableManager(_$AppDatabase db, $ChatGroupRowsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ChatGroupRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ChatGroupRowsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ChatGroupRowsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> avatar = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isPinned = const Value.absent(),
+                Value<String> settingsJson = const Value.absent(),
+                Value<String?> summary = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ChatGroupRowsCompanion(
+                id: id,
+                title: title,
+                avatar: avatar,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isPinned: isPinned,
+                settingsJson: settingsJson,
+                summary: summary,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String title,
+                Value<String?> avatar = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<bool> isPinned = const Value.absent(),
+                Value<String> settingsJson = const Value.absent(),
+                Value<String?> summary = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ChatGroupRowsCompanion.insert(
+                id: id,
+                title: title,
+                avatar: avatar,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isPinned: isPinned,
+                settingsJson: settingsJson,
+                summary: summary,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ChatGroupRowsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                chatGroupMemberRowsRefs = false,
+                chatGroupMessageRowsRefs = false,
+                directorSessionRowsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (chatGroupMemberRowsRefs) db.chatGroupMemberRows,
+                    if (chatGroupMessageRowsRefs) db.chatGroupMessageRows,
+                    if (directorSessionRowsRefs) db.directorSessionRows,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (chatGroupMemberRowsRefs)
+                        await $_getPrefetchedData<
+                          ChatGroupRow,
+                          $ChatGroupRowsTable,
+                          ChatGroupMemberRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ChatGroupRowsTableReferences
+                              ._chatGroupMemberRowsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ChatGroupRowsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).chatGroupMemberRowsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.groupId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (chatGroupMessageRowsRefs)
+                        await $_getPrefetchedData<
+                          ChatGroupRow,
+                          $ChatGroupRowsTable,
+                          ChatGroupMessageRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ChatGroupRowsTableReferences
+                              ._chatGroupMessageRowsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ChatGroupRowsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).chatGroupMessageRowsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.groupId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (directorSessionRowsRefs)
+                        await $_getPrefetchedData<
+                          ChatGroupRow,
+                          $ChatGroupRowsTable,
+                          DirectorSessionRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ChatGroupRowsTableReferences
+                              ._directorSessionRowsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ChatGroupRowsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).directorSessionRowsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.groupId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$ChatGroupRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ChatGroupRowsTable,
+      ChatGroupRow,
+      $$ChatGroupRowsTableFilterComposer,
+      $$ChatGroupRowsTableOrderingComposer,
+      $$ChatGroupRowsTableAnnotationComposer,
+      $$ChatGroupRowsTableCreateCompanionBuilder,
+      $$ChatGroupRowsTableUpdateCompanionBuilder,
+      (ChatGroupRow, $$ChatGroupRowsTableReferences),
+      ChatGroupRow,
+      PrefetchHooks Function({
+        bool chatGroupMemberRowsRefs,
+        bool chatGroupMessageRowsRefs,
+        bool directorSessionRowsRefs,
+      })
+    >;
+typedef $$ChatGroupMemberRowsTableCreateCompanionBuilder =
+    ChatGroupMemberRowsCompanion Function({
+      required String id,
+      required String groupId,
+      required String kind,
+      Value<String?> assistantId,
+      required int sortOrder,
+      Value<bool> isEnabled,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$ChatGroupMemberRowsTableUpdateCompanionBuilder =
+    ChatGroupMemberRowsCompanion Function({
+      Value<String> id,
+      Value<String> groupId,
+      Value<String> kind,
+      Value<String?> assistantId,
+      Value<int> sortOrder,
+      Value<bool> isEnabled,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$ChatGroupMemberRowsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ChatGroupMemberRowsTable,
+          ChatGroupMemberRow
+        > {
+  $$ChatGroupMemberRowsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ChatGroupRowsTable _groupIdTable(_$AppDatabase db) => db.chatGroupRows
+      .createAlias('chat_group_member_rows__group_id__chat_group_rows__id');
+
+  $$ChatGroupRowsTableProcessedTableManager get groupId {
+    final $_column = $_itemColumn<String>('group_id')!;
+
+    final manager = $$ChatGroupRowsTableTableManager(
+      $_db,
+      $_db.chatGroupRows,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_groupIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ChatGroupMemberRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $ChatGroupMemberRowsTable> {
+  $$ChatGroupMemberRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get assistantId => $composableBuilder(
+    column: $table.assistantId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isEnabled => $composableBuilder(
+    column: $table.isEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ChatGroupRowsTableFilterComposer get groupId {
+    final $$ChatGroupRowsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.chatGroupRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChatGroupRowsTableFilterComposer(
+            $db: $db,
+            $table: $db.chatGroupRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ChatGroupMemberRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ChatGroupMemberRowsTable> {
+  $$ChatGroupMemberRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get assistantId => $composableBuilder(
+    column: $table.assistantId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isEnabled => $composableBuilder(
+    column: $table.isEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ChatGroupRowsTableOrderingComposer get groupId {
+    final $$ChatGroupRowsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.chatGroupRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChatGroupRowsTableOrderingComposer(
+            $db: $db,
+            $table: $db.chatGroupRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ChatGroupMemberRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ChatGroupMemberRowsTable> {
+  $$ChatGroupMemberRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get assistantId => $composableBuilder(
+    column: $table.assistantId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<bool> get isEnabled =>
+      $composableBuilder(column: $table.isEnabled, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$ChatGroupRowsTableAnnotationComposer get groupId {
+    final $$ChatGroupRowsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.chatGroupRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChatGroupRowsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.chatGroupRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ChatGroupMemberRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ChatGroupMemberRowsTable,
+          ChatGroupMemberRow,
+          $$ChatGroupMemberRowsTableFilterComposer,
+          $$ChatGroupMemberRowsTableOrderingComposer,
+          $$ChatGroupMemberRowsTableAnnotationComposer,
+          $$ChatGroupMemberRowsTableCreateCompanionBuilder,
+          $$ChatGroupMemberRowsTableUpdateCompanionBuilder,
+          (ChatGroupMemberRow, $$ChatGroupMemberRowsTableReferences),
+          ChatGroupMemberRow,
+          PrefetchHooks Function({bool groupId})
+        > {
+  $$ChatGroupMemberRowsTableTableManager(
+    _$AppDatabase db,
+    $ChatGroupMemberRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ChatGroupMemberRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ChatGroupMemberRowsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ChatGroupMemberRowsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> groupId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String?> assistantId = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<bool> isEnabled = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ChatGroupMemberRowsCompanion(
+                id: id,
+                groupId: groupId,
+                kind: kind,
+                assistantId: assistantId,
+                sortOrder: sortOrder,
+                isEnabled: isEnabled,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String groupId,
+                required String kind,
+                Value<String?> assistantId = const Value.absent(),
+                required int sortOrder,
+                Value<bool> isEnabled = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ChatGroupMemberRowsCompanion.insert(
+                id: id,
+                groupId: groupId,
+                kind: kind,
+                assistantId: assistantId,
+                sortOrder: sortOrder,
+                isEnabled: isEnabled,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ChatGroupMemberRowsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({groupId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (groupId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.groupId,
+                                referencedTable:
+                                    $$ChatGroupMemberRowsTableReferences
+                                        ._groupIdTable(db),
+                                referencedColumn:
+                                    $$ChatGroupMemberRowsTableReferences
+                                        ._groupIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ChatGroupMemberRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ChatGroupMemberRowsTable,
+      ChatGroupMemberRow,
+      $$ChatGroupMemberRowsTableFilterComposer,
+      $$ChatGroupMemberRowsTableOrderingComposer,
+      $$ChatGroupMemberRowsTableAnnotationComposer,
+      $$ChatGroupMemberRowsTableCreateCompanionBuilder,
+      $$ChatGroupMemberRowsTableUpdateCompanionBuilder,
+      (ChatGroupMemberRow, $$ChatGroupMemberRowsTableReferences),
+      ChatGroupMemberRow,
+      PrefetchHooks Function({bool groupId})
+    >;
+typedef $$ChatGroupMessageRowsTableCreateCompanionBuilder =
+    ChatGroupMessageRowsCompanion Function({
+      required String id,
+      required String groupId,
+      Value<String?> speakerAssistantId,
+      required String role,
+      required String content,
+      required DateTime timestamp,
+      required int messageOrder,
+      Value<String?> modelId,
+      Value<String?> providerId,
+      Value<String?> reasoningText,
+      Value<DateTime?> reasoningStartAt,
+      Value<DateTime?> reasoningFinishedAt,
+      Value<String?> reasoningSegmentsJson,
+      Value<bool> isStreaming,
+      Value<int?> totalTokens,
+      Value<int?> promptTokens,
+      Value<int?> completionTokens,
+      Value<int?> cachedTokens,
+      Value<int?> durationMs,
+      Value<int> version,
+      Value<int> rowid,
+    });
+typedef $$ChatGroupMessageRowsTableUpdateCompanionBuilder =
+    ChatGroupMessageRowsCompanion Function({
+      Value<String> id,
+      Value<String> groupId,
+      Value<String?> speakerAssistantId,
+      Value<String> role,
+      Value<String> content,
+      Value<DateTime> timestamp,
+      Value<int> messageOrder,
+      Value<String?> modelId,
+      Value<String?> providerId,
+      Value<String?> reasoningText,
+      Value<DateTime?> reasoningStartAt,
+      Value<DateTime?> reasoningFinishedAt,
+      Value<String?> reasoningSegmentsJson,
+      Value<bool> isStreaming,
+      Value<int?> totalTokens,
+      Value<int?> promptTokens,
+      Value<int?> completionTokens,
+      Value<int?> cachedTokens,
+      Value<int?> durationMs,
+      Value<int> version,
+      Value<int> rowid,
+    });
+
+final class $$ChatGroupMessageRowsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ChatGroupMessageRowsTable,
+          ChatGroupMessageRow
+        > {
+  $$ChatGroupMessageRowsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ChatGroupRowsTable _groupIdTable(_$AppDatabase db) => db.chatGroupRows
+      .createAlias('chat_group_message_rows__group_id__chat_group_rows__id');
+
+  $$ChatGroupRowsTableProcessedTableManager get groupId {
+    final $_column = $_itemColumn<String>('group_id')!;
+
+    final manager = $$ChatGroupRowsTableTableManager(
+      $_db,
+      $_db.chatGroupRows,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_groupIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $ChatGroupToolEventRowsTable,
+    List<ChatGroupToolEventRow>
+  >
+  _chatGroupToolEventRowsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.chatGroupToolEventRows,
+    aliasName:
+        'chat_group_message_rows__id__chat_group_tool_event_rows__message_id',
+  );
+
+  $$ChatGroupToolEventRowsTableProcessedTableManager
+  get chatGroupToolEventRowsRefs {
+    final manager = $$ChatGroupToolEventRowsTableTableManager(
+      $_db,
+      $_db.chatGroupToolEventRows,
+    ).filter((f) => f.messageId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _chatGroupToolEventRowsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $ChatGroupGeminiThoughtSignatureRowsTable,
+    List<ChatGroupGeminiThoughtSignatureRow>
+  >
+  _chatGroupGeminiThoughtSignatureRowsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.chatGroupGeminiThoughtSignatureRows,
+    aliasName:
+        'chat_group_message_rows__id__chat_group_gemini_thought_signature_rows__message_id',
+  );
+
+  $$ChatGroupGeminiThoughtSignatureRowsTableProcessedTableManager
+  get chatGroupGeminiThoughtSignatureRowsRefs {
+    final manager = $$ChatGroupGeminiThoughtSignatureRowsTableTableManager(
+      $_db,
+      $_db.chatGroupGeminiThoughtSignatureRows,
+    ).filter((f) => f.messageId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _chatGroupGeminiThoughtSignatureRowsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$ChatGroupMessageRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $ChatGroupMessageRowsTable> {
+  $$ChatGroupMessageRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get speakerAssistantId => $composableBuilder(
+    column: $table.speakerAssistantId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get timestamp => $composableBuilder(
+    column: $table.timestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get messageOrder => $composableBuilder(
+    column: $table.messageOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get modelId => $composableBuilder(
+    column: $table.modelId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get providerId => $composableBuilder(
+    column: $table.providerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reasoningText => $composableBuilder(
+    column: $table.reasoningText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get reasoningStartAt => $composableBuilder(
+    column: $table.reasoningStartAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get reasoningFinishedAt => $composableBuilder(
+    column: $table.reasoningFinishedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reasoningSegmentsJson => $composableBuilder(
+    column: $table.reasoningSegmentsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isStreaming => $composableBuilder(
+    column: $table.isStreaming,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalTokens => $composableBuilder(
+    column: $table.totalTokens,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get promptTokens => $composableBuilder(
+    column: $table.promptTokens,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get completionTokens => $composableBuilder(
+    column: $table.completionTokens,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get cachedTokens => $composableBuilder(
+    column: $table.cachedTokens,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ChatGroupRowsTableFilterComposer get groupId {
+    final $$ChatGroupRowsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.chatGroupRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChatGroupRowsTableFilterComposer(
+            $db: $db,
+            $table: $db.chatGroupRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> chatGroupToolEventRowsRefs(
+    Expression<bool> Function($$ChatGroupToolEventRowsTableFilterComposer f) f,
+  ) {
+    final $$ChatGroupToolEventRowsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.chatGroupToolEventRows,
+          getReferencedColumn: (t) => t.messageId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ChatGroupToolEventRowsTableFilterComposer(
+                $db: $db,
+                $table: $db.chatGroupToolEventRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> chatGroupGeminiThoughtSignatureRowsRefs(
+    Expression<bool> Function(
+      $$ChatGroupGeminiThoughtSignatureRowsTableFilterComposer f,
+    )
+    f,
+  ) {
+    final $$ChatGroupGeminiThoughtSignatureRowsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.chatGroupGeminiThoughtSignatureRows,
+          getReferencedColumn: (t) => t.messageId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ChatGroupGeminiThoughtSignatureRowsTableFilterComposer(
+                $db: $db,
+                $table: $db.chatGroupGeminiThoughtSignatureRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$ChatGroupMessageRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ChatGroupMessageRowsTable> {
+  $$ChatGroupMessageRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get speakerAssistantId => $composableBuilder(
+    column: $table.speakerAssistantId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get timestamp => $composableBuilder(
+    column: $table.timestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get messageOrder => $composableBuilder(
+    column: $table.messageOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get modelId => $composableBuilder(
+    column: $table.modelId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get providerId => $composableBuilder(
+    column: $table.providerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reasoningText => $composableBuilder(
+    column: $table.reasoningText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get reasoningStartAt => $composableBuilder(
+    column: $table.reasoningStartAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get reasoningFinishedAt => $composableBuilder(
+    column: $table.reasoningFinishedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reasoningSegmentsJson => $composableBuilder(
+    column: $table.reasoningSegmentsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isStreaming => $composableBuilder(
+    column: $table.isStreaming,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalTokens => $composableBuilder(
+    column: $table.totalTokens,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get promptTokens => $composableBuilder(
+    column: $table.promptTokens,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get completionTokens => $composableBuilder(
+    column: $table.completionTokens,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get cachedTokens => $composableBuilder(
+    column: $table.cachedTokens,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ChatGroupRowsTableOrderingComposer get groupId {
+    final $$ChatGroupRowsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.chatGroupRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChatGroupRowsTableOrderingComposer(
+            $db: $db,
+            $table: $db.chatGroupRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ChatGroupMessageRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ChatGroupMessageRowsTable> {
+  $$ChatGroupMessageRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get speakerAssistantId => $composableBuilder(
+    column: $table.speakerAssistantId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get timestamp =>
+      $composableBuilder(column: $table.timestamp, builder: (column) => column);
+
+  GeneratedColumn<int> get messageOrder => $composableBuilder(
+    column: $table.messageOrder,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get modelId =>
+      $composableBuilder(column: $table.modelId, builder: (column) => column);
+
+  GeneratedColumn<String> get providerId => $composableBuilder(
+    column: $table.providerId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reasoningText => $composableBuilder(
+    column: $table.reasoningText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get reasoningStartAt => $composableBuilder(
+    column: $table.reasoningStartAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get reasoningFinishedAt => $composableBuilder(
+    column: $table.reasoningFinishedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reasoningSegmentsJson => $composableBuilder(
+    column: $table.reasoningSegmentsJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isStreaming => $composableBuilder(
+    column: $table.isStreaming,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get totalTokens => $composableBuilder(
+    column: $table.totalTokens,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get promptTokens => $composableBuilder(
+    column: $table.promptTokens,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get completionTokens => $composableBuilder(
+    column: $table.completionTokens,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get cachedTokens => $composableBuilder(
+    column: $table.cachedTokens,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  $$ChatGroupRowsTableAnnotationComposer get groupId {
+    final $$ChatGroupRowsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.chatGroupRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChatGroupRowsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.chatGroupRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> chatGroupToolEventRowsRefs<T extends Object>(
+    Expression<T> Function($$ChatGroupToolEventRowsTableAnnotationComposer a) f,
+  ) {
+    final $$ChatGroupToolEventRowsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.chatGroupToolEventRows,
+          getReferencedColumn: (t) => t.messageId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ChatGroupToolEventRowsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.chatGroupToolEventRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> chatGroupGeminiThoughtSignatureRowsRefs<T extends Object>(
+    Expression<T> Function(
+      $$ChatGroupGeminiThoughtSignatureRowsTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$ChatGroupGeminiThoughtSignatureRowsTableAnnotationComposer
+    composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.chatGroupGeminiThoughtSignatureRows,
+      getReferencedColumn: (t) => t.messageId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChatGroupGeminiThoughtSignatureRowsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.chatGroupGeminiThoughtSignatureRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$ChatGroupMessageRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ChatGroupMessageRowsTable,
+          ChatGroupMessageRow,
+          $$ChatGroupMessageRowsTableFilterComposer,
+          $$ChatGroupMessageRowsTableOrderingComposer,
+          $$ChatGroupMessageRowsTableAnnotationComposer,
+          $$ChatGroupMessageRowsTableCreateCompanionBuilder,
+          $$ChatGroupMessageRowsTableUpdateCompanionBuilder,
+          (ChatGroupMessageRow, $$ChatGroupMessageRowsTableReferences),
+          ChatGroupMessageRow,
+          PrefetchHooks Function({
+            bool groupId,
+            bool chatGroupToolEventRowsRefs,
+            bool chatGroupGeminiThoughtSignatureRowsRefs,
+          })
+        > {
+  $$ChatGroupMessageRowsTableTableManager(
+    _$AppDatabase db,
+    $ChatGroupMessageRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ChatGroupMessageRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ChatGroupMessageRowsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ChatGroupMessageRowsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> groupId = const Value.absent(),
+                Value<String?> speakerAssistantId = const Value.absent(),
+                Value<String> role = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<DateTime> timestamp = const Value.absent(),
+                Value<int> messageOrder = const Value.absent(),
+                Value<String?> modelId = const Value.absent(),
+                Value<String?> providerId = const Value.absent(),
+                Value<String?> reasoningText = const Value.absent(),
+                Value<DateTime?> reasoningStartAt = const Value.absent(),
+                Value<DateTime?> reasoningFinishedAt = const Value.absent(),
+                Value<String?> reasoningSegmentsJson = const Value.absent(),
+                Value<bool> isStreaming = const Value.absent(),
+                Value<int?> totalTokens = const Value.absent(),
+                Value<int?> promptTokens = const Value.absent(),
+                Value<int?> completionTokens = const Value.absent(),
+                Value<int?> cachedTokens = const Value.absent(),
+                Value<int?> durationMs = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ChatGroupMessageRowsCompanion(
+                id: id,
+                groupId: groupId,
+                speakerAssistantId: speakerAssistantId,
+                role: role,
+                content: content,
+                timestamp: timestamp,
+                messageOrder: messageOrder,
+                modelId: modelId,
+                providerId: providerId,
+                reasoningText: reasoningText,
+                reasoningStartAt: reasoningStartAt,
+                reasoningFinishedAt: reasoningFinishedAt,
+                reasoningSegmentsJson: reasoningSegmentsJson,
+                isStreaming: isStreaming,
+                totalTokens: totalTokens,
+                promptTokens: promptTokens,
+                completionTokens: completionTokens,
+                cachedTokens: cachedTokens,
+                durationMs: durationMs,
+                version: version,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String groupId,
+                Value<String?> speakerAssistantId = const Value.absent(),
+                required String role,
+                required String content,
+                required DateTime timestamp,
+                required int messageOrder,
+                Value<String?> modelId = const Value.absent(),
+                Value<String?> providerId = const Value.absent(),
+                Value<String?> reasoningText = const Value.absent(),
+                Value<DateTime?> reasoningStartAt = const Value.absent(),
+                Value<DateTime?> reasoningFinishedAt = const Value.absent(),
+                Value<String?> reasoningSegmentsJson = const Value.absent(),
+                Value<bool> isStreaming = const Value.absent(),
+                Value<int?> totalTokens = const Value.absent(),
+                Value<int?> promptTokens = const Value.absent(),
+                Value<int?> completionTokens = const Value.absent(),
+                Value<int?> cachedTokens = const Value.absent(),
+                Value<int?> durationMs = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ChatGroupMessageRowsCompanion.insert(
+                id: id,
+                groupId: groupId,
+                speakerAssistantId: speakerAssistantId,
+                role: role,
+                content: content,
+                timestamp: timestamp,
+                messageOrder: messageOrder,
+                modelId: modelId,
+                providerId: providerId,
+                reasoningText: reasoningText,
+                reasoningStartAt: reasoningStartAt,
+                reasoningFinishedAt: reasoningFinishedAt,
+                reasoningSegmentsJson: reasoningSegmentsJson,
+                isStreaming: isStreaming,
+                totalTokens: totalTokens,
+                promptTokens: promptTokens,
+                completionTokens: completionTokens,
+                cachedTokens: cachedTokens,
+                durationMs: durationMs,
+                version: version,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ChatGroupMessageRowsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                groupId = false,
+                chatGroupToolEventRowsRefs = false,
+                chatGroupGeminiThoughtSignatureRowsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (chatGroupToolEventRowsRefs) db.chatGroupToolEventRows,
+                    if (chatGroupGeminiThoughtSignatureRowsRefs)
+                      db.chatGroupGeminiThoughtSignatureRows,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (groupId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.groupId,
+                                    referencedTable:
+                                        $$ChatGroupMessageRowsTableReferences
+                                            ._groupIdTable(db),
+                                    referencedColumn:
+                                        $$ChatGroupMessageRowsTableReferences
+                                            ._groupIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (chatGroupToolEventRowsRefs)
+                        await $_getPrefetchedData<
+                          ChatGroupMessageRow,
+                          $ChatGroupMessageRowsTable,
+                          ChatGroupToolEventRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ChatGroupMessageRowsTableReferences
+                              ._chatGroupToolEventRowsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ChatGroupMessageRowsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).chatGroupToolEventRowsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.messageId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (chatGroupGeminiThoughtSignatureRowsRefs)
+                        await $_getPrefetchedData<
+                          ChatGroupMessageRow,
+                          $ChatGroupMessageRowsTable,
+                          ChatGroupGeminiThoughtSignatureRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ChatGroupMessageRowsTableReferences
+                              ._chatGroupGeminiThoughtSignatureRowsRefsTable(
+                                db,
+                              ),
+                          managerFromTypedResult: (p0) =>
+                              $$ChatGroupMessageRowsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).chatGroupGeminiThoughtSignatureRowsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.messageId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$ChatGroupMessageRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ChatGroupMessageRowsTable,
+      ChatGroupMessageRow,
+      $$ChatGroupMessageRowsTableFilterComposer,
+      $$ChatGroupMessageRowsTableOrderingComposer,
+      $$ChatGroupMessageRowsTableAnnotationComposer,
+      $$ChatGroupMessageRowsTableCreateCompanionBuilder,
+      $$ChatGroupMessageRowsTableUpdateCompanionBuilder,
+      (ChatGroupMessageRow, $$ChatGroupMessageRowsTableReferences),
+      ChatGroupMessageRow,
+      PrefetchHooks Function({
+        bool groupId,
+        bool chatGroupToolEventRowsRefs,
+        bool chatGroupGeminiThoughtSignatureRowsRefs,
+      })
+    >;
+typedef $$ChatGroupToolEventRowsTableCreateCompanionBuilder =
+    ChatGroupToolEventRowsCompanion Function({
+      required String messageId,
+      required String eventsJson,
+      Value<int> rowid,
+    });
+typedef $$ChatGroupToolEventRowsTableUpdateCompanionBuilder =
+    ChatGroupToolEventRowsCompanion Function({
+      Value<String> messageId,
+      Value<String> eventsJson,
+      Value<int> rowid,
+    });
+
+final class $$ChatGroupToolEventRowsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ChatGroupToolEventRowsTable,
+          ChatGroupToolEventRow
+        > {
+  $$ChatGroupToolEventRowsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ChatGroupMessageRowsTable _messageIdTable(_$AppDatabase db) =>
+      db.chatGroupMessageRows.createAlias(
+        'chat_group_tool_event_rows__message_id__chat_group_message_rows__id',
+      );
+
+  $$ChatGroupMessageRowsTableProcessedTableManager get messageId {
+    final $_column = $_itemColumn<String>('message_id')!;
+
+    final manager = $$ChatGroupMessageRowsTableTableManager(
+      $_db,
+      $_db.chatGroupMessageRows,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_messageIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ChatGroupToolEventRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $ChatGroupToolEventRowsTable> {
+  $$ChatGroupToolEventRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get eventsJson => $composableBuilder(
+    column: $table.eventsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ChatGroupMessageRowsTableFilterComposer get messageId {
+    final $$ChatGroupMessageRowsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.messageId,
+      referencedTable: $db.chatGroupMessageRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChatGroupMessageRowsTableFilterComposer(
+            $db: $db,
+            $table: $db.chatGroupMessageRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ChatGroupToolEventRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ChatGroupToolEventRowsTable> {
+  $$ChatGroupToolEventRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get eventsJson => $composableBuilder(
+    column: $table.eventsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ChatGroupMessageRowsTableOrderingComposer get messageId {
+    final $$ChatGroupMessageRowsTableOrderingComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.messageId,
+          referencedTable: $db.chatGroupMessageRows,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ChatGroupMessageRowsTableOrderingComposer(
+                $db: $db,
+                $table: $db.chatGroupMessageRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$ChatGroupToolEventRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ChatGroupToolEventRowsTable> {
+  $$ChatGroupToolEventRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get eventsJson => $composableBuilder(
+    column: $table.eventsJson,
+    builder: (column) => column,
+  );
+
+  $$ChatGroupMessageRowsTableAnnotationComposer get messageId {
+    final $$ChatGroupMessageRowsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.messageId,
+          referencedTable: $db.chatGroupMessageRows,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ChatGroupMessageRowsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.chatGroupMessageRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$ChatGroupToolEventRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ChatGroupToolEventRowsTable,
+          ChatGroupToolEventRow,
+          $$ChatGroupToolEventRowsTableFilterComposer,
+          $$ChatGroupToolEventRowsTableOrderingComposer,
+          $$ChatGroupToolEventRowsTableAnnotationComposer,
+          $$ChatGroupToolEventRowsTableCreateCompanionBuilder,
+          $$ChatGroupToolEventRowsTableUpdateCompanionBuilder,
+          (ChatGroupToolEventRow, $$ChatGroupToolEventRowsTableReferences),
+          ChatGroupToolEventRow,
+          PrefetchHooks Function({bool messageId})
+        > {
+  $$ChatGroupToolEventRowsTableTableManager(
+    _$AppDatabase db,
+    $ChatGroupToolEventRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ChatGroupToolEventRowsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$ChatGroupToolEventRowsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ChatGroupToolEventRowsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> messageId = const Value.absent(),
+                Value<String> eventsJson = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ChatGroupToolEventRowsCompanion(
+                messageId: messageId,
+                eventsJson: eventsJson,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String messageId,
+                required String eventsJson,
+                Value<int> rowid = const Value.absent(),
+              }) => ChatGroupToolEventRowsCompanion.insert(
+                messageId: messageId,
+                eventsJson: eventsJson,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ChatGroupToolEventRowsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({messageId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (messageId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.messageId,
+                                referencedTable:
+                                    $$ChatGroupToolEventRowsTableReferences
+                                        ._messageIdTable(db),
+                                referencedColumn:
+                                    $$ChatGroupToolEventRowsTableReferences
+                                        ._messageIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ChatGroupToolEventRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ChatGroupToolEventRowsTable,
+      ChatGroupToolEventRow,
+      $$ChatGroupToolEventRowsTableFilterComposer,
+      $$ChatGroupToolEventRowsTableOrderingComposer,
+      $$ChatGroupToolEventRowsTableAnnotationComposer,
+      $$ChatGroupToolEventRowsTableCreateCompanionBuilder,
+      $$ChatGroupToolEventRowsTableUpdateCompanionBuilder,
+      (ChatGroupToolEventRow, $$ChatGroupToolEventRowsTableReferences),
+      ChatGroupToolEventRow,
+      PrefetchHooks Function({bool messageId})
+    >;
+typedef $$ChatGroupGeminiThoughtSignatureRowsTableCreateCompanionBuilder =
+    ChatGroupGeminiThoughtSignatureRowsCompanion Function({
+      required String messageId,
+      required String signature,
+      Value<int> rowid,
+    });
+typedef $$ChatGroupGeminiThoughtSignatureRowsTableUpdateCompanionBuilder =
+    ChatGroupGeminiThoughtSignatureRowsCompanion Function({
+      Value<String> messageId,
+      Value<String> signature,
+      Value<int> rowid,
+    });
+
+final class $$ChatGroupGeminiThoughtSignatureRowsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ChatGroupGeminiThoughtSignatureRowsTable,
+          ChatGroupGeminiThoughtSignatureRow
+        > {
+  $$ChatGroupGeminiThoughtSignatureRowsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ChatGroupMessageRowsTable _messageIdTable(
+    _$AppDatabase db,
+  ) => db.chatGroupMessageRows.createAlias(
+    'chat_group_gemini_thought_signature_rows__message_id__chat_group_message_rows__id',
+  );
+
+  $$ChatGroupMessageRowsTableProcessedTableManager get messageId {
+    final $_column = $_itemColumn<String>('message_id')!;
+
+    final manager = $$ChatGroupMessageRowsTableTableManager(
+      $_db,
+      $_db.chatGroupMessageRows,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_messageIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ChatGroupGeminiThoughtSignatureRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $ChatGroupGeminiThoughtSignatureRowsTable> {
+  $$ChatGroupGeminiThoughtSignatureRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get signature => $composableBuilder(
+    column: $table.signature,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ChatGroupMessageRowsTableFilterComposer get messageId {
+    final $$ChatGroupMessageRowsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.messageId,
+      referencedTable: $db.chatGroupMessageRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChatGroupMessageRowsTableFilterComposer(
+            $db: $db,
+            $table: $db.chatGroupMessageRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ChatGroupGeminiThoughtSignatureRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ChatGroupGeminiThoughtSignatureRowsTable> {
+  $$ChatGroupGeminiThoughtSignatureRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get signature => $composableBuilder(
+    column: $table.signature,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ChatGroupMessageRowsTableOrderingComposer get messageId {
+    final $$ChatGroupMessageRowsTableOrderingComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.messageId,
+          referencedTable: $db.chatGroupMessageRows,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ChatGroupMessageRowsTableOrderingComposer(
+                $db: $db,
+                $table: $db.chatGroupMessageRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$ChatGroupGeminiThoughtSignatureRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ChatGroupGeminiThoughtSignatureRowsTable> {
+  $$ChatGroupGeminiThoughtSignatureRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get signature =>
+      $composableBuilder(column: $table.signature, builder: (column) => column);
+
+  $$ChatGroupMessageRowsTableAnnotationComposer get messageId {
+    final $$ChatGroupMessageRowsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.messageId,
+          referencedTable: $db.chatGroupMessageRows,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ChatGroupMessageRowsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.chatGroupMessageRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$ChatGroupGeminiThoughtSignatureRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ChatGroupGeminiThoughtSignatureRowsTable,
+          ChatGroupGeminiThoughtSignatureRow,
+          $$ChatGroupGeminiThoughtSignatureRowsTableFilterComposer,
+          $$ChatGroupGeminiThoughtSignatureRowsTableOrderingComposer,
+          $$ChatGroupGeminiThoughtSignatureRowsTableAnnotationComposer,
+          $$ChatGroupGeminiThoughtSignatureRowsTableCreateCompanionBuilder,
+          $$ChatGroupGeminiThoughtSignatureRowsTableUpdateCompanionBuilder,
+          (
+            ChatGroupGeminiThoughtSignatureRow,
+            $$ChatGroupGeminiThoughtSignatureRowsTableReferences,
+          ),
+          ChatGroupGeminiThoughtSignatureRow,
+          PrefetchHooks Function({bool messageId})
+        > {
+  $$ChatGroupGeminiThoughtSignatureRowsTableTableManager(
+    _$AppDatabase db,
+    $ChatGroupGeminiThoughtSignatureRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ChatGroupGeminiThoughtSignatureRowsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$ChatGroupGeminiThoughtSignatureRowsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ChatGroupGeminiThoughtSignatureRowsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> messageId = const Value.absent(),
+                Value<String> signature = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ChatGroupGeminiThoughtSignatureRowsCompanion(
+                messageId: messageId,
+                signature: signature,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String messageId,
+                required String signature,
+                Value<int> rowid = const Value.absent(),
+              }) => ChatGroupGeminiThoughtSignatureRowsCompanion.insert(
+                messageId: messageId,
+                signature: signature,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ChatGroupGeminiThoughtSignatureRowsTableReferences(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({messageId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (messageId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.messageId,
+                                referencedTable:
+                                    $$ChatGroupGeminiThoughtSignatureRowsTableReferences
+                                        ._messageIdTable(db),
+                                referencedColumn:
+                                    $$ChatGroupGeminiThoughtSignatureRowsTableReferences
+                                        ._messageIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ChatGroupGeminiThoughtSignatureRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ChatGroupGeminiThoughtSignatureRowsTable,
+      ChatGroupGeminiThoughtSignatureRow,
+      $$ChatGroupGeminiThoughtSignatureRowsTableFilterComposer,
+      $$ChatGroupGeminiThoughtSignatureRowsTableOrderingComposer,
+      $$ChatGroupGeminiThoughtSignatureRowsTableAnnotationComposer,
+      $$ChatGroupGeminiThoughtSignatureRowsTableCreateCompanionBuilder,
+      $$ChatGroupGeminiThoughtSignatureRowsTableUpdateCompanionBuilder,
+      (
+        ChatGroupGeminiThoughtSignatureRow,
+        $$ChatGroupGeminiThoughtSignatureRowsTableReferences,
+      ),
+      ChatGroupGeminiThoughtSignatureRow,
+      PrefetchHooks Function({bool messageId})
+    >;
+typedef $$DirectorSessionRowsTableCreateCompanionBuilder =
+    DirectorSessionRowsCompanion Function({
+      required String id,
+      required String groupId,
+      required String status,
+      Value<String> messagesJson,
+      Value<String?> triggerUserMessageId,
+      Value<String> stateJson,
+      Value<String?> errorText,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$DirectorSessionRowsTableUpdateCompanionBuilder =
+    DirectorSessionRowsCompanion Function({
+      Value<String> id,
+      Value<String> groupId,
+      Value<String> status,
+      Value<String> messagesJson,
+      Value<String?> triggerUserMessageId,
+      Value<String> stateJson,
+      Value<String?> errorText,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$DirectorSessionRowsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $DirectorSessionRowsTable,
+          DirectorSessionRow
+        > {
+  $$DirectorSessionRowsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ChatGroupRowsTable _groupIdTable(_$AppDatabase db) => db.chatGroupRows
+      .createAlias('director_session_rows__group_id__chat_group_rows__id');
+
+  $$ChatGroupRowsTableProcessedTableManager get groupId {
+    final $_column = $_itemColumn<String>('group_id')!;
+
+    final manager = $$ChatGroupRowsTableTableManager(
+      $_db,
+      $_db.chatGroupRows,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_groupIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$DirectorSessionRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $DirectorSessionRowsTable> {
+  $$DirectorSessionRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get messagesJson => $composableBuilder(
+    column: $table.messagesJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get triggerUserMessageId => $composableBuilder(
+    column: $table.triggerUserMessageId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get stateJson => $composableBuilder(
+    column: $table.stateJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get errorText => $composableBuilder(
+    column: $table.errorText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ChatGroupRowsTableFilterComposer get groupId {
+    final $$ChatGroupRowsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.chatGroupRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChatGroupRowsTableFilterComposer(
+            $db: $db,
+            $table: $db.chatGroupRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DirectorSessionRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $DirectorSessionRowsTable> {
+  $$DirectorSessionRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get messagesJson => $composableBuilder(
+    column: $table.messagesJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get triggerUserMessageId => $composableBuilder(
+    column: $table.triggerUserMessageId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stateJson => $composableBuilder(
+    column: $table.stateJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get errorText => $composableBuilder(
+    column: $table.errorText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ChatGroupRowsTableOrderingComposer get groupId {
+    final $$ChatGroupRowsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.chatGroupRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChatGroupRowsTableOrderingComposer(
+            $db: $db,
+            $table: $db.chatGroupRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DirectorSessionRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DirectorSessionRowsTable> {
+  $$DirectorSessionRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get messagesJson => $composableBuilder(
+    column: $table.messagesJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get triggerUserMessageId => $composableBuilder(
+    column: $table.triggerUserMessageId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get stateJson =>
+      $composableBuilder(column: $table.stateJson, builder: (column) => column);
+
+  GeneratedColumn<String> get errorText =>
+      $composableBuilder(column: $table.errorText, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$ChatGroupRowsTableAnnotationComposer get groupId {
+    final $$ChatGroupRowsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupId,
+      referencedTable: $db.chatGroupRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChatGroupRowsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.chatGroupRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DirectorSessionRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DirectorSessionRowsTable,
+          DirectorSessionRow,
+          $$DirectorSessionRowsTableFilterComposer,
+          $$DirectorSessionRowsTableOrderingComposer,
+          $$DirectorSessionRowsTableAnnotationComposer,
+          $$DirectorSessionRowsTableCreateCompanionBuilder,
+          $$DirectorSessionRowsTableUpdateCompanionBuilder,
+          (DirectorSessionRow, $$DirectorSessionRowsTableReferences),
+          DirectorSessionRow,
+          PrefetchHooks Function({bool groupId})
+        > {
+  $$DirectorSessionRowsTableTableManager(
+    _$AppDatabase db,
+    $DirectorSessionRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DirectorSessionRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DirectorSessionRowsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$DirectorSessionRowsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> groupId = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> messagesJson = const Value.absent(),
+                Value<String?> triggerUserMessageId = const Value.absent(),
+                Value<String> stateJson = const Value.absent(),
+                Value<String?> errorText = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DirectorSessionRowsCompanion(
+                id: id,
+                groupId: groupId,
+                status: status,
+                messagesJson: messagesJson,
+                triggerUserMessageId: triggerUserMessageId,
+                stateJson: stateJson,
+                errorText: errorText,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String groupId,
+                required String status,
+                Value<String> messagesJson = const Value.absent(),
+                Value<String?> triggerUserMessageId = const Value.absent(),
+                Value<String> stateJson = const Value.absent(),
+                Value<String?> errorText = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => DirectorSessionRowsCompanion.insert(
+                id: id,
+                groupId: groupId,
+                status: status,
+                messagesJson: messagesJson,
+                triggerUserMessageId: triggerUserMessageId,
+                stateJson: stateJson,
+                errorText: errorText,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$DirectorSessionRowsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({groupId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (groupId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.groupId,
+                                referencedTable:
+                                    $$DirectorSessionRowsTableReferences
+                                        ._groupIdTable(db),
+                                referencedColumn:
+                                    $$DirectorSessionRowsTableReferences
+                                        ._groupIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$DirectorSessionRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DirectorSessionRowsTable,
+      DirectorSessionRow,
+      $$DirectorSessionRowsTableFilterComposer,
+      $$DirectorSessionRowsTableOrderingComposer,
+      $$DirectorSessionRowsTableAnnotationComposer,
+      $$DirectorSessionRowsTableCreateCompanionBuilder,
+      $$DirectorSessionRowsTableUpdateCompanionBuilder,
+      (DirectorSessionRow, $$DirectorSessionRowsTableReferences),
+      DirectorSessionRow,
+      PrefetchHooks Function({bool groupId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -10472,4 +16620,23 @@ class $AppDatabaseManager {
       $$DeletedRecordRowsTableTableManager(_db, _db.deletedRecordRows);
   $$DeletionMarkerRowsTableTableManager get deletionMarkerRows =>
       $$DeletionMarkerRowsTableTableManager(_db, _db.deletionMarkerRows);
+  $$ChatGroupRowsTableTableManager get chatGroupRows =>
+      $$ChatGroupRowsTableTableManager(_db, _db.chatGroupRows);
+  $$ChatGroupMemberRowsTableTableManager get chatGroupMemberRows =>
+      $$ChatGroupMemberRowsTableTableManager(_db, _db.chatGroupMemberRows);
+  $$ChatGroupMessageRowsTableTableManager get chatGroupMessageRows =>
+      $$ChatGroupMessageRowsTableTableManager(_db, _db.chatGroupMessageRows);
+  $$ChatGroupToolEventRowsTableTableManager get chatGroupToolEventRows =>
+      $$ChatGroupToolEventRowsTableTableManager(
+        _db,
+        _db.chatGroupToolEventRows,
+      );
+  $$ChatGroupGeminiThoughtSignatureRowsTableTableManager
+  get chatGroupGeminiThoughtSignatureRows =>
+      $$ChatGroupGeminiThoughtSignatureRowsTableTableManager(
+        _db,
+        _db.chatGroupGeminiThoughtSignatureRows,
+      );
+  $$DirectorSessionRowsTableTableManager get directorSessionRows =>
+      $$DirectorSessionRowsTableTableManager(_db, _db.directorSessionRows);
 }

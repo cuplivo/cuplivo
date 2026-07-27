@@ -35,6 +35,7 @@ import 'core/providers/backup_reminder_provider.dart';
 import 'core/providers/hotkey_provider.dart';
 import 'core/services/chat/chat_service.dart';
 import 'core/services/trash_restore_coordinator.dart';
+import 'core/services/chat/group_chat_service.dart';
 import 'core/services/mcp/mcp_tool_service.dart';
 import 'core/services/logging/flutter_logger.dart';
 import 'features/home/services/ask_user_interaction_service.dart';
@@ -139,6 +140,10 @@ class MyApp extends StatelessWidget {
           },
         ),
         ChangeNotifierProvider(create: (_) => ChatService()),
+        ChangeNotifierProvider(
+          create: (ctx) =>
+              GroupChatService(chatService: ctx.read<ChatService>()),
+        ),
         ChangeNotifierProvider(create: (_) => McpToolService()),
         ChangeNotifierProvider(
           create: (ctx) => McpProvider(chatService: ctx.read<ChatService>()),

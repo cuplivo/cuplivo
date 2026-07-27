@@ -7,6 +7,11 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 import '../models/chat_message.dart';
 import '../models/conversation.dart';
 import '../models/assistant.dart';
+import '../models/director_session.dart';
+import '../models/group_chat.dart';
+import '../models/group_chat_member.dart';
+import '../models/group_chat_message.dart';
+import '../models/group_chat_settings.dart';
 import '../models/preset_message.dart';
 import 'app_database.dart';
 
@@ -715,9 +720,20 @@ class ChatDatabaseRepository {
   }
 
   Future<void> deleteConversation(String id) async {
-    await (_db.delete(
-      _db.conversationRows,
-    )..where((t) => t.id.equals(id))).go();
+    // tool_event_rows no longer cascades from message_rows; clean first.
+    final messageIds = await (_db.select(
+      _db.messageRows,
+    )..where((t) => t.conversationId.equals(id))).map((r) => r.id).get();
+    await _db.transaction(() async {
+      for (final messageId in messageIds) {
+        await (_db.delete(
+          _db.toolEventRows,
+        )..where((t) => t.messageId.equals(messageId))).go();
+      }
+      await (_db.delete(
+        _db.conversationRows,
+      )..where((t) => t.id.equals(id))).go();
+    });
   }
 
   Future<void> deleteMessage(String messageId) async {
@@ -725,14 +741,24 @@ class ChatDatabaseRepository {
       _db.messageRows,
     )..where((t) => t.id.equals(messageId))).getSingleOrNull();
     if (row == null) return;
-    await (_db.delete(
-      _db.messageRows,
-    )..where((t) => t.id.equals(messageId))).go();
+    await _db.transaction(() async {
+      await (_db.delete(
+        _db.toolEventRows,
+      )..where((t) => t.messageId.equals(messageId))).go();
+      await (_db.delete(
+        _db.messageRows,
+      )..where((t) => t.id.equals(messageId))).go();
+    });
     await _compactMessageOrder(row.conversationId);
   }
 
   Future<void> clearAllData() async {
     await _db.transaction(() async {
+      // Group-chat tables first (children before parents where needed).
+      await _db.delete(_db.directorSessionRows).go();
+      await _db.delete(_db.chatGroupMessageRows).go();
+      await _db.delete(_db.chatGroupMemberRows).go();
+      await _db.delete(_db.chatGroupRows).go();
       await _db.delete(_db.geminiThoughtSignatureRows).go();
       await _db.delete(_db.toolEventRows).go();
       await _db.delete(_db.assistantRows).go();
@@ -744,6 +770,517 @@ class ChatDatabaseRepository {
       await _db.delete(_db.deletedRecordRows).go();
       await _db.delete(_db.deletionMarkerRows).go();
     });
+  }
+
+  // ===== Group chat CRUD =====
+
+  Future<List<GroupChat>> getAllGroupChats({
+    bool includeMemberIds = true,
+    bool includeMessageIds = false,
+  }) async {
+    final rows =
+        await (_db.select(_db.chatGroupRows)..orderBy([
+              (t) => OrderingTerm(
+                expression: t.updatedAt,
+                mode: OrderingMode.desc,
+              ),
+            ]))
+            .get();
+    final out = <GroupChat>[];
+    for (final row in rows) {
+      out.add(
+        await _groupChatFromRow(
+          row,
+          includeMemberIds: includeMemberIds,
+          includeMessageIds: includeMessageIds,
+        ),
+      );
+    }
+    return out;
+  }
+
+  Future<GroupChat?> getGroupChat(
+    String id, {
+    bool includeMemberIds = true,
+    bool includeMessageIds = false,
+  }) async {
+    final row = await (_db.select(
+      _db.chatGroupRows,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (row == null) return null;
+    return _groupChatFromRow(
+      row,
+      includeMemberIds: includeMemberIds,
+      includeMessageIds: includeMessageIds,
+    );
+  }
+
+  Future<void> putGroupChat(GroupChat group) async {
+    await _db
+        .into(_db.chatGroupRows)
+        .insertOnConflictUpdate(_groupChatCompanion(group));
+  }
+
+  Future<void> deleteGroupChat(String id) async {
+    // Cascade removes members/messages/director sessions; tool events need manual cleanup.
+    final messageIds = await (_db.select(
+      _db.chatGroupMessageRows,
+    )..where((t) => t.groupId.equals(id))).map((r) => r.id).get();
+    await _db.transaction(() async {
+      for (final messageId in messageIds) {
+        await (_db.delete(
+          _db.toolEventRows,
+        )..where((t) => t.messageId.equals(messageId))).go();
+      }
+      await (_db.delete(_db.chatGroupRows)..where((t) => t.id.equals(id))).go();
+    });
+  }
+
+  Future<List<GroupChatMember>> getGroupMembers(String groupId) async {
+    final rows =
+        await (_db.select(_db.chatGroupMemberRows)
+              ..where((t) => t.groupId.equals(groupId))
+              ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
+            .get();
+    return rows.map(_groupMemberFromRow).toList(growable: false);
+  }
+
+  Future<void> putGroupMember(GroupChatMember member) async {
+    await _db
+        .into(_db.chatGroupMemberRows)
+        .insertOnConflictUpdate(_groupMemberCompanion(member));
+  }
+
+  Future<void> putGroupMembers(
+    String groupId,
+    List<GroupChatMember> members,
+  ) async {
+    await _db.transaction(() async {
+      await (_db.delete(
+        _db.chatGroupMemberRows,
+      )..where((t) => t.groupId.equals(groupId))).go();
+      for (var i = 0; i < members.length; i++) {
+        final m = members[i].groupId == groupId
+            ? members[i].copyWith(sortOrder: i)
+            : members[i].copyWith(groupId: groupId, sortOrder: i);
+        await _db
+            .into(_db.chatGroupMemberRows)
+            .insertOnConflictUpdate(_groupMemberCompanion(m));
+      }
+    });
+  }
+
+  Future<void> deleteGroupMember(String memberId) async {
+    await (_db.delete(
+      _db.chatGroupMemberRows,
+    )..where((t) => t.id.equals(memberId))).go();
+  }
+
+  Future<List<GroupChatMessage>> getGroupMessages(String groupId) async {
+    final rows =
+        await (_db.select(_db.chatGroupMessageRows)
+              ..where((t) => t.groupId.equals(groupId))
+              ..orderBy([(t) => OrderingTerm.asc(t.messageOrder)]))
+            .get();
+    return rows.map(_groupMessageFromRow).toList(growable: false);
+  }
+
+  Future<GroupChatMessage?> getGroupMessage(String messageId) async {
+    final row = await (_db.select(
+      _db.chatGroupMessageRows,
+    )..where((t) => t.id.equals(messageId))).getSingleOrNull();
+    return row == null ? null : _groupMessageFromRow(row);
+  }
+
+  Future<int> getGroupMessageCount(String groupId) async {
+    final count = _db.chatGroupMessageRows.id.count();
+    final row =
+        await (_db.selectOnly(_db.chatGroupMessageRows)
+              ..addColumns([count])
+              ..where(_db.chatGroupMessageRows.groupId.equals(groupId)))
+            .getSingle();
+    return row.read(count) ?? 0;
+  }
+
+  Future<void> putGroupMessage(GroupChatMessage message) async {
+    await _db
+        .into(_db.chatGroupMessageRows)
+        .insertOnConflictUpdate(_groupMessageCompanion(message));
+  }
+
+  /// Append a message, assigning the next [messageOrder] if caller left it at 0
+  /// and the group already has messages with higher orders. Prefer passing an
+  /// explicit order from the service layer.
+  Future<void> insertGroupMessage(GroupChatMessage message) async {
+    var order = message.messageOrder;
+    if (order < 0) order = 0;
+    final existingMax = await _maxGroupMessageOrder(message.groupId);
+    if (message.messageOrder == 0 && existingMax >= 0) {
+      // Only auto-assign when caller used default 0 and rows already exist.
+      final conflict =
+          await (_db.select(_db.chatGroupMessageRows)
+                ..where(
+                  (t) =>
+                      t.groupId.equals(message.groupId) &
+                      t.messageOrder.equals(0),
+                )
+                ..limit(1))
+              .getSingleOrNull();
+      if (conflict != null && conflict.id != message.id) {
+        order = existingMax + 1;
+      }
+    }
+    final toWrite = order == message.messageOrder
+        ? message
+        : message.copyWith(messageOrder: order);
+    await putGroupMessage(toWrite);
+  }
+
+  Future<int> _maxGroupMessageOrder(String groupId) async {
+    final orderCol = _db.chatGroupMessageRows.messageOrder.max();
+    final row =
+        await (_db.selectOnly(_db.chatGroupMessageRows)
+              ..addColumns([orderCol])
+              ..where(_db.chatGroupMessageRows.groupId.equals(groupId)))
+            .getSingle();
+    return row.read(orderCol) ?? -1;
+  }
+
+  Future<void> deleteGroupMessage(String messageId) async {
+    final row = await (_db.select(
+      _db.chatGroupMessageRows,
+    )..where((t) => t.id.equals(messageId))).getSingleOrNull();
+    if (row == null) return;
+    await _db.transaction(() async {
+      await (_db.delete(
+        _db.toolEventRows,
+      )..where((t) => t.messageId.equals(messageId))).go();
+      await (_db.delete(
+        _db.chatGroupMessageRows,
+      )..where((t) => t.id.equals(messageId))).go();
+    });
+    await _compactGroupMessageOrder(row.groupId);
+  }
+
+  Future<void> _compactGroupMessageOrder(String groupId) async {
+    final rows =
+        await (_db.select(_db.chatGroupMessageRows)
+              ..where((t) => t.groupId.equals(groupId))
+              ..orderBy([(t) => OrderingTerm.asc(t.messageOrder)]))
+            .get();
+    await _db.transaction(() async {
+      for (var i = 0; i < rows.length; i++) {
+        if (rows[i].messageOrder == i) continue;
+        await (_db.update(_db.chatGroupMessageRows)
+              ..where((t) => t.id.equals(rows[i].id)))
+            .write(ChatGroupMessageRowsCompanion(messageOrder: Value(i)));
+      }
+    });
+  }
+
+  Future<DirectorSession?> getDirectorSession(String groupId) async {
+    final row =
+        await (_db.select(_db.directorSessionRows)
+              ..where((t) => t.groupId.equals(groupId))
+              ..orderBy([
+                (t) => OrderingTerm(
+                  expression: t.updatedAt,
+                  mode: OrderingMode.desc,
+                ),
+              ])
+              ..limit(1))
+            .getSingleOrNull();
+    return row == null ? null : _directorSessionFromRow(row);
+  }
+
+  Future<DirectorSession?> getDirectorSessionById(String id) async {
+    final row = await (_db.select(
+      _db.directorSessionRows,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _directorSessionFromRow(row);
+  }
+
+  Future<void> putDirectorSession(DirectorSession session) async {
+    await _db
+        .into(_db.directorSessionRows)
+        .insertOnConflictUpdate(_directorSessionCompanion(session));
+  }
+
+  Future<void> deleteDirectorSession(String id) async {
+    await (_db.delete(
+      _db.directorSessionRows,
+    )..where((t) => t.id.equals(id))).go();
+  }
+
+  Future<void> deleteDirectorSessionForGroup(String groupId) async {
+    await (_db.delete(
+      _db.directorSessionRows,
+    )..where((t) => t.groupId.equals(groupId))).go();
+  }
+
+  /// Restore group-chat tables after clear (backup MVP path).
+  Future<void> putGroupChatRestoreBatch({
+    required List<GroupChat> groups,
+    required Map<String, List<GroupChatMember>> membersByGroup,
+    required Map<String, List<GroupChatMessage>> messagesByGroup,
+    required List<DirectorSession> directorSessions,
+    Map<String, List<Map<String, dynamic>>> toolEventsByMessageId =
+        const <String, List<Map<String, dynamic>>>{},
+  }) async {
+    if (groups.isEmpty &&
+        membersByGroup.values.every((l) => l.isEmpty) &&
+        messagesByGroup.values.every((l) => l.isEmpty) &&
+        directorSessions.isEmpty &&
+        toolEventsByMessageId.isEmpty) {
+      return;
+    }
+
+    await _db.transaction(() async {
+      await _db.batch((batch) {
+        for (final group in groups) {
+          batch.insert(
+            _db.chatGroupRows,
+            _groupChatCompanion(group),
+            mode: InsertMode.insertOrReplace,
+          );
+        }
+        for (final entry in membersByGroup.entries) {
+          for (var i = 0; i < entry.value.length; i++) {
+            final m = entry.value[i];
+            batch.insert(
+              _db.chatGroupMemberRows,
+              _groupMemberCompanion(
+                m.groupId == entry.key
+                    ? m.copyWith(sortOrder: i)
+                    : m.copyWith(groupId: entry.key, sortOrder: i),
+              ),
+              mode: InsertMode.insertOrReplace,
+            );
+          }
+        }
+        for (final entry in messagesByGroup.entries) {
+          final messages = entry.value;
+          for (var i = 0; i < messages.length; i++) {
+            final msg = messages[i].messageOrder == i
+                ? messages[i]
+                : messages[i].copyWith(messageOrder: i);
+            batch.insert(
+              _db.chatGroupMessageRows,
+              _groupMessageCompanion(msg),
+              mode: InsertMode.insertOrReplace,
+            );
+          }
+        }
+        for (final session in directorSessions) {
+          batch.insert(
+            _db.directorSessionRows,
+            _directorSessionCompanion(session),
+            mode: InsertMode.insertOrReplace,
+          );
+        }
+        for (final entry in toolEventsByMessageId.entries) {
+          batch.insert(
+            _db.toolEventRows,
+            ToolEventRowsCompanion.insert(
+              messageId: entry.key,
+              eventsJson: jsonEncode(entry.value),
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+        }
+      });
+    });
+  }
+
+  Future<GroupChat> _groupChatFromRow(
+    ChatGroupRow row, {
+    bool includeMemberIds = true,
+    bool includeMessageIds = false,
+  }) async {
+    List<String> memberIds = const [];
+    if (includeMemberIds) {
+      final members =
+          await (_db.select(_db.chatGroupMemberRows)
+                ..where((t) => t.groupId.equals(row.id))
+                ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
+              .get();
+      memberIds = members.map((m) => m.id).toList(growable: false);
+    }
+    List<String> messageIds = const [];
+    if (includeMessageIds) {
+      final messages =
+          await (_db.select(_db.chatGroupMessageRows)
+                ..where((t) => t.groupId.equals(row.id))
+                ..orderBy([(t) => OrderingTerm.asc(t.messageOrder)]))
+              .get();
+      messageIds = messages.map((m) => m.id).toList(growable: false);
+    }
+    return GroupChat(
+      id: row.id,
+      title: row.title,
+      avatar: row.avatar,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      isPinned: row.isPinned,
+      settings: _decodeGroupSettings(row.settingsJson),
+      summary: row.summary,
+      memberIds: List<String>.of(memberIds),
+      messageIds: List<String>.of(messageIds),
+    );
+  }
+
+  GroupChatSettings _decodeGroupSettings(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return GroupChatSettings.fromJson(
+          decoded.map((k, v) => MapEntry(k.toString(), v)),
+        );
+      }
+    } catch (_) {}
+    return GroupChatSettings.defaults;
+  }
+
+  ChatGroupRowsCompanion _groupChatCompanion(GroupChat group) {
+    return ChatGroupRowsCompanion.insert(
+      id: group.id,
+      title: group.title,
+      avatar: Value(group.avatar),
+      createdAt: group.createdAt,
+      updatedAt: group.updatedAt,
+      isPinned: Value(group.isPinned),
+      settingsJson: Value(jsonEncode(group.settings.toJson())),
+      summary: Value(group.summary),
+    );
+  }
+
+  GroupChatMember _groupMemberFromRow(ChatGroupMemberRow row) {
+    return GroupChatMember(
+      id: row.id,
+      groupId: row.groupId,
+      kind: row.kind,
+      assistantId: row.assistantId,
+      sortOrder: row.sortOrder,
+      isEnabled: row.isEnabled,
+      createdAt: row.createdAt,
+    );
+  }
+
+  ChatGroupMemberRowsCompanion _groupMemberCompanion(GroupChatMember member) {
+    return ChatGroupMemberRowsCompanion.insert(
+      id: member.id,
+      groupId: member.groupId,
+      kind: member.kind,
+      assistantId: Value(member.assistantId),
+      sortOrder: member.sortOrder,
+      isEnabled: Value(member.isEnabled),
+      createdAt: member.createdAt,
+    );
+  }
+
+  GroupChatMessage _groupMessageFromRow(ChatGroupMessageRow row) {
+    return GroupChatMessage(
+      id: row.id,
+      groupId: row.groupId,
+      speakerAssistantId: row.speakerAssistantId,
+      role: row.role,
+      content: row.content,
+      timestamp: row.timestamp,
+      messageOrder: row.messageOrder,
+      modelId: row.modelId,
+      providerId: row.providerId,
+      reasoningText: row.reasoningText,
+      reasoningStartAt: row.reasoningStartAt,
+      reasoningFinishedAt: row.reasoningFinishedAt,
+      reasoningSegmentsJson: row.reasoningSegmentsJson,
+      isStreaming: row.isStreaming,
+      totalTokens: row.totalTokens,
+      promptTokens: row.promptTokens,
+      completionTokens: row.completionTokens,
+      cachedTokens: row.cachedTokens,
+      durationMs: row.durationMs,
+      version: row.version,
+    );
+  }
+
+  ChatGroupMessageRowsCompanion _groupMessageCompanion(
+    GroupChatMessage message,
+  ) {
+    return ChatGroupMessageRowsCompanion.insert(
+      id: message.id,
+      groupId: message.groupId,
+      speakerAssistantId: Value(message.speakerAssistantId),
+      role: message.role,
+      content: message.content,
+      timestamp: message.timestamp,
+      messageOrder: message.messageOrder,
+      modelId: Value(message.modelId),
+      providerId: Value(message.providerId),
+      reasoningText: Value(message.reasoningText),
+      reasoningStartAt: Value(message.reasoningStartAt),
+      reasoningFinishedAt: Value(message.reasoningFinishedAt),
+      reasoningSegmentsJson: Value(message.reasoningSegmentsJson),
+      isStreaming: Value(message.isStreaming),
+      totalTokens: Value(message.totalTokens),
+      promptTokens: Value(message.promptTokens),
+      completionTokens: Value(message.completionTokens),
+      cachedTokens: Value(message.cachedTokens),
+      durationMs: Value(message.durationMs),
+      version: Value(message.version),
+    );
+  }
+
+  DirectorSession _directorSessionFromRow(DirectorSessionRow row) {
+    return DirectorSession(
+      id: row.id,
+      groupId: row.groupId,
+      status: row.status,
+      messages: _decodeMapList(row.messagesJson),
+      triggerUserMessageId: row.triggerUserMessageId,
+      state: _decodeStringDynamicMap(row.stateJson),
+      errorText: row.errorText,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    );
+  }
+
+  DirectorSessionRowsCompanion _directorSessionCompanion(
+    DirectorSession session,
+  ) {
+    return DirectorSessionRowsCompanion.insert(
+      id: session.id,
+      groupId: session.groupId,
+      status: session.status,
+      messagesJson: Value(jsonEncode(session.messages)),
+      triggerUserMessageId: Value(session.triggerUserMessageId),
+      stateJson: Value(jsonEncode(session.state)),
+      errorText: Value(session.errorText),
+      createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
+    );
+  }
+
+  List<Map<String, dynamic>> _decodeMapList(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const <Map<String, dynamic>>[];
+      return decoded
+          .whereType<Map>()
+          .map((e) => e.map((k, v) => MapEntry(k.toString(), v)))
+          .toList();
+    } catch (_) {
+      return const <Map<String, dynamic>>[];
+    }
+  }
+
+  Map<String, dynamic> _decodeStringDynamicMap(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return <String, dynamic>{};
+      return decoded.map((k, v) => MapEntry(k.toString(), v));
+    } catch (_) {
+      return <String, dynamic>{};
+    }
   }
 
   Future<List<Map<String, dynamic>>> getToolEvents(String messageId) async {

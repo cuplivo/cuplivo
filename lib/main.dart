@@ -160,6 +160,7 @@ class MyApp extends StatelessWidget {
           SettingsProvider,
           GroupChatOrchestrator
         >(
+          lazy: false,
           create: (ctx) {
             final gcs = ctx.read<GroupChatService>();
             final orch = GroupChatOrchestrator(

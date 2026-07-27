@@ -108,6 +108,7 @@ class ChatInputBar extends StatefulWidget {
         SettingsProvider.defaultChatInputBackgroundOpacityDark,
     this.multiAIModelCount,
     this.onMultiSelectModel,
+    this.hideChatCapabilityButtons = false,
   });
 
   final Future<ChatInputSubmissionResult> Function(ChatInputData)? onSend;
@@ -158,6 +159,9 @@ class ChatInputBar extends StatefulWidget {
   final bool backgroundImageActive;
   final double inputBackgroundOpacityLight;
   final double inputBackgroundOpacityDark;
+
+  /// Group chat: hide model / search / reasoning / MCP capability buttons.
+  final bool hideChatCapabilityButtons;
 
   @override
   State<ChatInputBar> createState() => _ChatInputBarState();
@@ -1286,201 +1290,206 @@ class _ChatInputBarState extends State<ChatInputBar>
     return LayoutBuilder(
       builder: (context, constraints) {
         final List<_OverflowAction> actions = [];
+        final hideCaps = widget.hideChatCapabilityButtons;
 
-        // Model select (always present; can be hidden if overflow)
-        final modelCount = widget.multiAIModelCount;
-        final isMultiAILocked = modelCount != null && modelCount >= 2;
-        actions.add(
-          _OverflowAction(
-            width: isMultiAILocked
-                ? modelButtonW + 32
-                : (widget.modelIcon != null)
-                ? modelButtonW
-                : normalButtonW,
-            builder: () => isMultiAILocked
-                ? _buildMultiAIBadge(context, modelCount)
-                : _CompactIconButton(
-                    tooltip: l10n.chatInputBarSelectModelTooltip,
-                    icon: Lucide.Boxes,
-                    modelIcon: true,
-                    onTap: lockTap(widget.onSelectModel),
-                    onLongPress: lockTap(widget.onLongPressSelectModel),
-                    child: widget.modelIcon,
-                  ),
-            menu: isMultiAILocked
-                ? DesktopContextMenuItem(
-                    icon: Lucide.Boxes,
-                    label: l10n.multiAIModelsBadge(modelCount),
-                    onTap: widget.onMultiSelectModel,
-                  )
-                : DesktopContextMenuItem(
-                    icon: Lucide.Boxes,
-                    label: l10n.chatInputBarSelectModelTooltip,
-                    onTap: lockTap(widget.onSelectModel),
-                  ),
-          ),
-        );
-
-        // Search button (stateful icon depending on provider config)
-        final settings = context.watch<SettingsProvider>();
-        final ap = context.watch<AssistantProvider>();
-        final a = ap.currentAssistant;
-        final currentProviderKey =
-            a?.chatModelProvider ?? settings.currentModelProvider;
-        final currentModelId = a?.chatModelId ?? settings.currentModelId;
-        final cfg = (currentProviderKey != null)
-            ? settings.getProviderConfig(currentProviderKey)
-            : null;
-        // Check built-in tools state using helper
-        final toolsState = BuiltInToolsHelper.getActiveTools(
-          cfg: cfg,
-          modelId: currentModelId,
-        );
-        final builtinSearchActive = toolsState.searchActive;
-        final appSearchEnabled = ap.currentSearchEnabled;
-        final brandAsset = (() {
-          if (!appSearchEnabled || builtinSearchActive) return null;
-          final services = settings.searchServices;
-          final sel = settings.searchServiceSelected.clamp(
-            0,
-            services.isNotEmpty ? services.length - 1 : 0,
+        if (!hideCaps) {
+          // Model select (always present; can be hidden if overflow)
+          final modelCount = widget.multiAIModelCount;
+          final isMultiAILocked = modelCount != null && modelCount >= 2;
+          actions.add(
+            _OverflowAction(
+              width: isMultiAILocked
+                  ? modelButtonW + 32
+                  : (widget.modelIcon != null)
+                  ? modelButtonW
+                  : normalButtonW,
+              builder: () => isMultiAILocked
+                  ? _buildMultiAIBadge(context, modelCount)
+                  : _CompactIconButton(
+                      tooltip: l10n.chatInputBarSelectModelTooltip,
+                      icon: Lucide.Boxes,
+                      modelIcon: true,
+                      onTap: lockTap(widget.onSelectModel),
+                      onLongPress: lockTap(widget.onLongPressSelectModel),
+                      child: widget.modelIcon,
+                    ),
+              menu: isMultiAILocked
+                  ? DesktopContextMenuItem(
+                      icon: Lucide.Boxes,
+                      label: l10n.multiAIModelsBadge(modelCount),
+                      onTap: widget.onMultiSelectModel,
+                    )
+                  : DesktopContextMenuItem(
+                      icon: Lucide.Boxes,
+                      label: l10n.chatInputBarSelectModelTooltip,
+                      onTap: lockTap(widget.onSelectModel),
+                    ),
+            ),
           );
-          final options = services.isNotEmpty
-              ? services[sel]
-              : SearchServiceOptions.defaultOption;
-          final svc = SearchService.getService(options);
-          return BrandAssets.assetForName(svc.name);
-        })();
 
-        // Search button
-        actions.add(
-          _OverflowAction(
-            width: normalButtonW,
-            builder: () {
-              // Not enabled at all -> default globe
-              if (!appSearchEnabled && !builtinSearchActive) {
+          // Search button (stateful icon depending on provider config)
+          final settings = context.watch<SettingsProvider>();
+          final ap = context.watch<AssistantProvider>();
+          final a = ap.currentAssistant;
+          final currentProviderKey =
+              a?.chatModelProvider ?? settings.currentModelProvider;
+          final currentModelId = a?.chatModelId ?? settings.currentModelId;
+          final cfg = (currentProviderKey != null)
+              ? settings.getProviderConfig(currentProviderKey)
+              : null;
+          // Check built-in tools state using helper
+          final toolsState = BuiltInToolsHelper.getActiveTools(
+            cfg: cfg,
+            modelId: currentModelId,
+          );
+          final builtinSearchActive = toolsState.searchActive;
+          final appSearchEnabled = ap.currentSearchEnabled;
+          final brandAsset = (() {
+            if (!appSearchEnabled || builtinSearchActive) return null;
+            final services = settings.searchServices;
+            final sel = settings.searchServiceSelected.clamp(
+              0,
+              services.isNotEmpty ? services.length - 1 : 0,
+            );
+            final options = services.isNotEmpty
+                ? services[sel]
+                : SearchServiceOptions.defaultOption;
+            final svc = SearchService.getService(options);
+            return BrandAssets.assetForName(svc.name);
+          })();
+
+          // Search button
+          actions.add(
+            _OverflowAction(
+              width: normalButtonW,
+              builder: () {
+                // Not enabled at all -> default globe
+                if (!appSearchEnabled && !builtinSearchActive) {
+                  return _CompactIconButton(
+                    tooltip: l10n.chatInputBarOnlineSearchTooltip,
+                    icon: Lucide.Globe,
+                    active: false,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                // Built-in search -> magnifier icon in theme color
+                if (builtinSearchActive) {
+                  return _CompactIconButton(
+                    tooltip: l10n.chatInputBarOnlineSearchTooltip,
+                    icon: Lucide.Search,
+                    active: true,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                // External provider search -> brand icon
                 return _CompactIconButton(
                   tooltip: l10n.chatInputBarOnlineSearchTooltip,
                   icon: Lucide.Globe,
-                  active: false,
-                  onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              // Built-in search -> magnifier icon in theme color
-              if (builtinSearchActive) {
-                return _CompactIconButton(
-                  tooltip: l10n.chatInputBarOnlineSearchTooltip,
-                  icon: Lucide.Search,
                   active: true,
                   onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              // External provider search -> brand icon
-              return _CompactIconButton(
-                tooltip: l10n.chatInputBarOnlineSearchTooltip,
-                icon: Lucide.Globe,
-                active: true,
-                onTap: lockTap(widget.onOpenSearch),
-                childBuilder: (c) {
-                  final asset = brandAsset;
-                  if (asset != null) {
-                    if (asset.endsWith('.svg')) {
-                      return SvgPicture.asset(
-                        asset,
-                        width: 20,
-                        height: 20,
-                        colorFilter: ColorFilter.mode(c, BlendMode.srcIn),
-                      );
+                  childBuilder: (c) {
+                    final asset = brandAsset;
+                    if (asset != null) {
+                      if (asset.endsWith('.svg')) {
+                        return SvgPicture.asset(
+                          asset,
+                          width: 20,
+                          height: 20,
+                          colorFilter: ColorFilter.mode(c, BlendMode.srcIn),
+                        );
+                      } else {
+                        return Image.asset(
+                          asset,
+                          width: 20,
+                          height: 20,
+                          color: c,
+                          colorBlendMode: BlendMode.srcIn,
+                        );
+                      }
                     } else {
-                      return Image.asset(
-                        asset,
-                        width: 20,
-                        height: 20,
-                        color: c,
-                        colorBlendMode: BlendMode.srcIn,
-                      );
+                      return Icon(Lucide.Globe, size: 20, color: c);
                     }
-                  } else {
-                    return Icon(Lucide.Globe, size: 20, color: c);
-                  }
-                },
-              );
-            },
-            menu: () {
-              // Prefer vector icon if brandAsset is svg, otherwise pick reasonable default
-              if (!appSearchEnabled && !builtinSearchActive) {
+                  },
+                );
+              },
+              menu: () {
+                // Prefer vector icon if brandAsset is svg, otherwise pick reasonable default
+                if (!appSearchEnabled && !builtinSearchActive) {
+                  return DesktopContextMenuItem(
+                    icon: Lucide.Globe,
+                    label: l10n.chatInputBarOnlineSearchTooltip,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                if (builtinSearchActive) {
+                  return DesktopContextMenuItem(
+                    icon: Lucide.Search,
+                    label: l10n.chatInputBarOnlineSearchTooltip,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                if (brandAsset != null && brandAsset.endsWith('.svg')) {
+                  return DesktopContextMenuItem(
+                    svgAsset: brandAsset,
+                    label: l10n.chatInputBarOnlineSearchTooltip,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
                 return DesktopContextMenuItem(
                   icon: Lucide.Globe,
                   label: l10n.chatInputBarOnlineSearchTooltip,
                   onTap: lockTap(widget.onOpenSearch),
                 );
-              }
-              if (builtinSearchActive) {
-                return DesktopContextMenuItem(
-                  icon: Lucide.Search,
-                  label: l10n.chatInputBarOnlineSearchTooltip,
-                  onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              if (brandAsset != null && brandAsset.endsWith('.svg')) {
-                return DesktopContextMenuItem(
-                  svgAsset: brandAsset,
-                  label: l10n.chatInputBarOnlineSearchTooltip,
-                  onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              return DesktopContextMenuItem(
-                icon: Lucide.Globe,
-                label: l10n.chatInputBarOnlineSearchTooltip,
-                onTap: lockTap(widget.onOpenSearch),
-              );
-            }(),
-          ),
-        );
+              }(),
+            ),
+          );
 
-        if (widget.supportsReasoning) {
-          actions.add(
-            _OverflowAction(
-              width: normalButtonW,
-              builder: () => _CompactIconButton(
-                tooltip: l10n.chatInputBarReasoningStrengthTooltip,
-                icon: Lucide.Brain,
-                active: widget.reasoningActive,
-                onTap: lockTap(widget.onConfigureReasoning),
-                childBuilder: (c) => ReasoningIcons.budgetIcon(
-                  widget.reasoningBudget,
-                  size: 20,
-                  color: c,
+          if (widget.supportsReasoning) {
+            actions.add(
+              _OverflowAction(
+                width: normalButtonW,
+                builder: () => _CompactIconButton(
+                  tooltip: l10n.chatInputBarReasoningStrengthTooltip,
+                  icon: Lucide.Brain,
+                  active: widget.reasoningActive,
+                  onTap: lockTap(widget.onConfigureReasoning),
+                  childBuilder: (c) => ReasoningIcons.budgetIcon(
+                    widget.reasoningBudget,
+                    size: 20,
+                    color: c,
+                  ),
+                ),
+                menu: DesktopContextMenuItem(
+                  svgAsset: ReasoningIcons.assetForBudget(
+                    widget.reasoningBudget,
+                  ),
+                  label: l10n.chatInputBarReasoningStrengthTooltip,
+                  onTap: lockTap(widget.onConfigureReasoning),
                 ),
               ),
-              menu: DesktopContextMenuItem(
-                svgAsset: ReasoningIcons.assetForBudget(widget.reasoningBudget),
-                label: l10n.chatInputBarReasoningStrengthTooltip,
-                onTap: lockTap(widget.onConfigureReasoning),
-              ),
-            ),
-          );
-        }
+            );
+          }
 
-        // MCP button
-        if (widget.showMcpButton) {
-          actions.add(
-            _OverflowAction(
-              width: normalButtonW,
-              builder: () => _CompactIconButton(
-                tooltip: l10n.chatInputBarMcpServersTooltip,
-                icon: Lucide.Hammer,
-                active: widget.mcpActive,
-                onTap: lockTap(widget.onOpenMcp),
-                onLongPress: lockTap(widget.onLongPressMcp),
+          // MCP button
+          if (widget.showMcpButton) {
+            actions.add(
+              _OverflowAction(
+                width: normalButtonW,
+                builder: () => _CompactIconButton(
+                  tooltip: l10n.chatInputBarMcpServersTooltip,
+                  icon: Lucide.Hammer,
+                  active: widget.mcpActive,
+                  onTap: lockTap(widget.onOpenMcp),
+                  onLongPress: lockTap(widget.onLongPressMcp),
+                ),
+                menu: DesktopContextMenuItem(
+                  icon: Lucide.Hammer,
+                  label: l10n.chatInputBarMcpServersTooltip,
+                  onTap: lockTap(widget.onOpenMcp),
+                ),
               ),
-              menu: DesktopContextMenuItem(
-                icon: Lucide.Hammer,
-                label: l10n.chatInputBarMcpServersTooltip,
-                onTap: lockTap(widget.onOpenMcp),
-              ),
-            ),
-          );
+            );
+          }
         }
 
         if (widget.showQuickPhraseButton && widget.onQuickPhrase != null) {

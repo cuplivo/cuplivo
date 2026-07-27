@@ -91,6 +91,9 @@ class _GroupChatPageState extends State<GroupChatPage> {
     setState(() {
       _messages = messages;
       _members = members;
+      if (svc.isGroupGenerating(widget.groupId)) {
+        _sending = true;
+      }
     });
     if (atBottom) _scrollToBottom();
   }
@@ -128,15 +131,53 @@ class _GroupChatPageState extends State<GroupChatPage> {
     if (text.isEmpty || _sending) {
       return ChatInputSubmissionResult.rejected;
     }
+    final svc = context.read<GroupChatService>();
+    final hasOrchestrator = svc.orchestrator != null;
     setState(() => _sending = true);
     try {
-      final svc = context.read<GroupChatService>();
-      // Phase 3: persist user message only.
-      // Phase 2 GroupChatOrchestrator (sendUserMessage) can replace this path
-      // once attached on GroupChatService without changing the page scaffold.
+      if (hasOrchestrator) {
+        // Director loop is silent in UI; member replies stream via service notify.
+        unawaited(
+          svc
+              .sendUserMessage(groupId: widget.groupId, content: text)
+              .then((result) async {
+                if (!mounted) return;
+                await _reloadMessages();
+                if (!mounted) return;
+                _scrollToBottom();
+                if (!result.isSuccess &&
+                    result.errorCode != null &&
+                    result.errorCode != 'groupChatCancelled') {
+                  showAppSnackBar(
+                    context,
+                    message: result.errorMessage ?? l10n.groupChatSendFailed,
+                    type: NotificationType.error,
+                  );
+                }
+              })
+              .catchError((Object e) {
+                if (!mounted) return;
+                showAppSnackBar(
+                  context,
+                  message: l10n.groupChatSendFailed,
+                  type: NotificationType.error,
+                );
+              })
+              .whenComplete(() {
+                if (mounted) setState(() => _sending = false);
+              }),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 60));
+        if (!mounted) return ChatInputSubmissionResult.sent;
+        await _reloadMessages();
+        _scrollToBottom();
+        return ChatInputSubmissionResult.sent;
+      }
+
       await svc.addMessage(
         GroupChatMessage(groupId: widget.groupId, role: 'user', content: text),
       );
+      if (!mounted) return ChatInputSubmissionResult.sent;
       await _reloadMessages();
       _scrollToBottom();
       return ChatInputSubmissionResult.sent;
@@ -150,7 +191,9 @@ class _GroupChatPageState extends State<GroupChatPage> {
       }
       return ChatInputSubmissionResult.rejected;
     } finally {
-      if (mounted) setState(() => _sending = false);
+      if (mounted && !hasOrchestrator) {
+        setState(() => _sending = false);
+      }
     }
   }
 
@@ -281,6 +324,15 @@ class _GroupChatPageState extends State<GroupChatPage> {
                 supportsReasoning: false,
                 showMcpButton: false,
                 onSend: _onSend,
+                onStop: _sending
+                    ? () {
+                        unawaited(
+                          context.read<GroupChatService>().cancelGeneration(
+                            widget.groupId,
+                          ),
+                        );
+                      }
+                    : null,
                 sendButtonTooltip: l10n.groupChatInputPlaceholder,
               ),
             ),

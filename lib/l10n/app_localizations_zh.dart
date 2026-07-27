@@ -6188,6 +6188,157 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatMessageWidgetSpeak => '朗读';
+
+  @override
+  String get groupChatMyGroups => '我的群聊';
+
+  @override
+  String get groupChatListTitle => '我的群聊';
+
+  @override
+  String get groupChatListEmpty => '还没有群聊';
+
+  @override
+  String get groupChatListEmptyHint => '创建群聊需至少选择 2 位助手';
+
+  @override
+  String get groupChatCreateTitle => '新建群聊';
+
+  @override
+  String get groupChatCreateButton => '创建';
+
+  @override
+  String get groupChatCreateNameLabel => '群名称';
+
+  @override
+  String get groupChatCreateNameHint => '输入群名称';
+
+  @override
+  String get groupChatCreateNameRequired => '请输入群名称';
+
+  @override
+  String get groupChatSelectMembersTitle => '选择成员';
+
+  @override
+  String get groupChatSelectMembersHint => '请至少选择 2 位助手';
+
+  @override
+  String groupChatSelectMembersConfirm(int count) {
+    return '添加（$count）';
+  }
+
+  @override
+  String get groupChatMembersMinError => '请至少选择 2 位助手';
+
+  @override
+  String groupChatMembersCount(int count) {
+    return '$count 人';
+  }
+
+  @override
+  String get groupChatOpenSettingsTooltip => '群设置';
+
+  @override
+  String get groupChatSettingsTitle => '群设置';
+
+  @override
+  String get groupChatSettingsNameLabel => '群名称';
+
+  @override
+  String get groupChatSettingsAvatarLabel => '群头像';
+
+  @override
+  String get groupChatSettingsMembersSection => '群成员';
+
+  @override
+  String get groupChatSettingsAddMemberTooltip => '添加成员';
+
+  @override
+  String get groupChatSettingsAdvanced => '高级设置';
+
+  @override
+  String get groupChatSettingsDelete => '删除群聊';
+
+  @override
+  String get groupChatSettingsDeleteConfirmTitle => '删除此群聊？';
+
+  @override
+  String get groupChatSettingsDeleteConfirmContent => '群内消息将被永久删除。';
+
+  @override
+  String get groupChatSettingsDeleteConfirmAction => '删除';
+
+  @override
+  String get groupChatSettingsCancel => '取消';
+
+  @override
+  String get groupChatSettingsSave => '保存';
+
+  @override
+  String get groupChatSettingsUserLabel => '我';
+
+  @override
+  String get groupChatSettingsRemoveMemberTooltip => '移除';
+
+  @override
+  String get groupChatSettingsCannotRemoveUser => '用户不可移除';
+
+  @override
+  String get groupChatSettingsNeedTwoAssistants => '请至少保留 2 位助手';
+
+  @override
+  String get groupChatAdvancedTitle => '高级设置';
+
+  @override
+  String get groupChatAdvancedDirectorModel => '导演模型';
+
+  @override
+  String get groupChatAdvancedDirectorModelHint => '必须支持工具调用';
+
+  @override
+  String get groupChatAdvancedDirectorModelDefault => '使用全局默认模型';
+
+  @override
+  String get groupChatAdvancedDirectorModelNoTool => '该模型不支持工具调用，请选择支持工具的模型。';
+
+  @override
+  String get groupChatAdvancedDirectorPrompt => '导演系统提示词';
+
+  @override
+  String get groupChatAdvancedDirectorPromptHint => '留空则使用内置默认提示词';
+
+  @override
+  String get groupChatAdvancedMaxAssistantMessages => '每轮助手消息上限';
+
+  @override
+  String get groupChatAdvancedAllowConsecutive => '允许同一助手连续发言';
+
+  @override
+  String get groupChatAdvancedPersistDirector => '持久化导演会话';
+
+  @override
+  String get groupChatAdvancedStripOtherReasoning => '成员上下文中隐藏他人思维链与工具';
+
+  @override
+  String get groupChatInputPlaceholder => '发消息到群…';
+
+  @override
+  String get groupChatSendFailed => '发送失败';
+
+  @override
+  String get groupChatCreateFailed => '创建群聊失败';
+
+  @override
+  String get groupChatDefaultTitle => '群聊';
+
+  @override
+  String get groupChatMessageEmpty => '打个招呼开始聊天吧';
+
+  @override
+  String get groupChatBackTooltip => '返回';
+
+  @override
+  String get groupChatMemberAlreadyInGroup => '已在群中';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -12374,6 +12525,157 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get chatMessageWidgetSpeak => '朗读';
+
+  @override
+  String get groupChatMyGroups => '我的群聊';
+
+  @override
+  String get groupChatListTitle => '我的群聊';
+
+  @override
+  String get groupChatListEmpty => '还没有群聊';
+
+  @override
+  String get groupChatListEmptyHint => '创建群聊需至少选择 2 位助手';
+
+  @override
+  String get groupChatCreateTitle => '新建群聊';
+
+  @override
+  String get groupChatCreateButton => '创建';
+
+  @override
+  String get groupChatCreateNameLabel => '群名称';
+
+  @override
+  String get groupChatCreateNameHint => '输入群名称';
+
+  @override
+  String get groupChatCreateNameRequired => '请输入群名称';
+
+  @override
+  String get groupChatSelectMembersTitle => '选择成员';
+
+  @override
+  String get groupChatSelectMembersHint => '请至少选择 2 位助手';
+
+  @override
+  String groupChatSelectMembersConfirm(int count) {
+    return '添加（$count）';
+  }
+
+  @override
+  String get groupChatMembersMinError => '请至少选择 2 位助手';
+
+  @override
+  String groupChatMembersCount(int count) {
+    return '$count 人';
+  }
+
+  @override
+  String get groupChatOpenSettingsTooltip => '群设置';
+
+  @override
+  String get groupChatSettingsTitle => '群设置';
+
+  @override
+  String get groupChatSettingsNameLabel => '群名称';
+
+  @override
+  String get groupChatSettingsAvatarLabel => '群头像';
+
+  @override
+  String get groupChatSettingsMembersSection => '群成员';
+
+  @override
+  String get groupChatSettingsAddMemberTooltip => '添加成员';
+
+  @override
+  String get groupChatSettingsAdvanced => '高级设置';
+
+  @override
+  String get groupChatSettingsDelete => '删除群聊';
+
+  @override
+  String get groupChatSettingsDeleteConfirmTitle => '删除此群聊？';
+
+  @override
+  String get groupChatSettingsDeleteConfirmContent => '群内消息将被永久删除。';
+
+  @override
+  String get groupChatSettingsDeleteConfirmAction => '删除';
+
+  @override
+  String get groupChatSettingsCancel => '取消';
+
+  @override
+  String get groupChatSettingsSave => '保存';
+
+  @override
+  String get groupChatSettingsUserLabel => '我';
+
+  @override
+  String get groupChatSettingsRemoveMemberTooltip => '移除';
+
+  @override
+  String get groupChatSettingsCannotRemoveUser => '用户不可移除';
+
+  @override
+  String get groupChatSettingsNeedTwoAssistants => '请至少保留 2 位助手';
+
+  @override
+  String get groupChatAdvancedTitle => '高级设置';
+
+  @override
+  String get groupChatAdvancedDirectorModel => '导演模型';
+
+  @override
+  String get groupChatAdvancedDirectorModelHint => '必须支持工具调用';
+
+  @override
+  String get groupChatAdvancedDirectorModelDefault => '使用全局默认模型';
+
+  @override
+  String get groupChatAdvancedDirectorModelNoTool => '该模型不支持工具调用，请选择支持工具的模型。';
+
+  @override
+  String get groupChatAdvancedDirectorPrompt => '导演系统提示词';
+
+  @override
+  String get groupChatAdvancedDirectorPromptHint => '留空则使用内置默认提示词';
+
+  @override
+  String get groupChatAdvancedMaxAssistantMessages => '每轮助手消息上限';
+
+  @override
+  String get groupChatAdvancedAllowConsecutive => '允许同一助手连续发言';
+
+  @override
+  String get groupChatAdvancedPersistDirector => '持久化导演会话';
+
+  @override
+  String get groupChatAdvancedStripOtherReasoning => '成员上下文中隐藏他人思维链与工具';
+
+  @override
+  String get groupChatInputPlaceholder => '发消息到群…';
+
+  @override
+  String get groupChatSendFailed => '发送失败';
+
+  @override
+  String get groupChatCreateFailed => '创建群聊失败';
+
+  @override
+  String get groupChatDefaultTitle => '群聊';
+
+  @override
+  String get groupChatMessageEmpty => '打个招呼开始聊天吧';
+
+  @override
+  String get groupChatBackTooltip => '返回';
+
+  @override
+  String get groupChatMemberAlreadyInGroup => '已在群中';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -18560,4 +18862,155 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get chatMessageWidgetSpeak => '朗讀';
+
+  @override
+  String get groupChatMyGroups => '我的群聊';
+
+  @override
+  String get groupChatListTitle => '我的群聊';
+
+  @override
+  String get groupChatListEmpty => '還沒有群聊';
+
+  @override
+  String get groupChatListEmptyHint => '建立群聊需至少選擇 2 位助手';
+
+  @override
+  String get groupChatCreateTitle => '新建群聊';
+
+  @override
+  String get groupChatCreateButton => '建立';
+
+  @override
+  String get groupChatCreateNameLabel => '群名稱';
+
+  @override
+  String get groupChatCreateNameHint => '輸入群名稱';
+
+  @override
+  String get groupChatCreateNameRequired => '請輸入群名稱';
+
+  @override
+  String get groupChatSelectMembersTitle => '選擇成員';
+
+  @override
+  String get groupChatSelectMembersHint => '請至少選擇 2 位助手';
+
+  @override
+  String groupChatSelectMembersConfirm(int count) {
+    return '新增（$count）';
+  }
+
+  @override
+  String get groupChatMembersMinError => '請至少選擇 2 位助手';
+
+  @override
+  String groupChatMembersCount(int count) {
+    return '$count 人';
+  }
+
+  @override
+  String get groupChatOpenSettingsTooltip => '群設定';
+
+  @override
+  String get groupChatSettingsTitle => '群設定';
+
+  @override
+  String get groupChatSettingsNameLabel => '群名稱';
+
+  @override
+  String get groupChatSettingsAvatarLabel => '群頭像';
+
+  @override
+  String get groupChatSettingsMembersSection => '群成員';
+
+  @override
+  String get groupChatSettingsAddMemberTooltip => '新增成員';
+
+  @override
+  String get groupChatSettingsAdvanced => '進階設定';
+
+  @override
+  String get groupChatSettingsDelete => '刪除群聊';
+
+  @override
+  String get groupChatSettingsDeleteConfirmTitle => '刪除此群聊？';
+
+  @override
+  String get groupChatSettingsDeleteConfirmContent => '群內訊息將被永久刪除。';
+
+  @override
+  String get groupChatSettingsDeleteConfirmAction => '刪除';
+
+  @override
+  String get groupChatSettingsCancel => '取消';
+
+  @override
+  String get groupChatSettingsSave => '儲存';
+
+  @override
+  String get groupChatSettingsUserLabel => '我';
+
+  @override
+  String get groupChatSettingsRemoveMemberTooltip => '移除';
+
+  @override
+  String get groupChatSettingsCannotRemoveUser => '使用者不可移除';
+
+  @override
+  String get groupChatSettingsNeedTwoAssistants => '請至少保留 2 位助手';
+
+  @override
+  String get groupChatAdvancedTitle => '進階設定';
+
+  @override
+  String get groupChatAdvancedDirectorModel => '導演模型';
+
+  @override
+  String get groupChatAdvancedDirectorModelHint => '必須支援工具呼叫';
+
+  @override
+  String get groupChatAdvancedDirectorModelDefault => '使用全域預設模型';
+
+  @override
+  String get groupChatAdvancedDirectorModelNoTool => '此模型不支援工具呼叫，請選擇支援工具的模型。';
+
+  @override
+  String get groupChatAdvancedDirectorPrompt => '導演系統提示詞';
+
+  @override
+  String get groupChatAdvancedDirectorPromptHint => '留空則使用內建預設提示詞';
+
+  @override
+  String get groupChatAdvancedMaxAssistantMessages => '每輪助手訊息上限';
+
+  @override
+  String get groupChatAdvancedAllowConsecutive => '允許同一助手連續發言';
+
+  @override
+  String get groupChatAdvancedPersistDirector => '持久化導演會話';
+
+  @override
+  String get groupChatAdvancedStripOtherReasoning => '成員上下文中隱藏他人思維鏈與工具';
+
+  @override
+  String get groupChatInputPlaceholder => '傳送訊息到群…';
+
+  @override
+  String get groupChatSendFailed => '傳送失敗';
+
+  @override
+  String get groupChatCreateFailed => '建立群聊失敗';
+
+  @override
+  String get groupChatDefaultTitle => '群聊';
+
+  @override
+  String get groupChatMessageEmpty => '打個招呼開始聊天吧';
+
+  @override
+  String get groupChatBackTooltip => '返回';
+
+  @override
+  String get groupChatMemberAlreadyInGroup => '已在群中';
 }

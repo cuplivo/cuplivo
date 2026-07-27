@@ -11773,6 +11773,300 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Speak'**
   String get chatMessageWidgetSpeak;
+
+  /// No description provided for @groupChatMyGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'My Group Chats'**
+  String get groupChatMyGroups;
+
+  /// No description provided for @groupChatListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'My Group Chats'**
+  String get groupChatListTitle;
+
+  /// No description provided for @groupChatListEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No group chats yet'**
+  String get groupChatListEmpty;
+
+  /// No description provided for @groupChatListEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a group with at least 2 assistants'**
+  String get groupChatListEmptyHint;
+
+  /// No description provided for @groupChatCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New Group Chat'**
+  String get groupChatCreateTitle;
+
+  /// No description provided for @groupChatCreateButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get groupChatCreateButton;
+
+  /// No description provided for @groupChatCreateNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name'**
+  String get groupChatCreateNameLabel;
+
+  /// No description provided for @groupChatCreateNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a group name'**
+  String get groupChatCreateNameHint;
+
+  /// No description provided for @groupChatCreateNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a group name'**
+  String get groupChatCreateNameRequired;
+
+  /// No description provided for @groupChatSelectMembersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select members'**
+  String get groupChatSelectMembersTitle;
+
+  /// No description provided for @groupChatSelectMembersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select at least 2 assistants'**
+  String get groupChatSelectMembersHint;
+
+  /// No description provided for @groupChatSelectMembersConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Add ({count})'**
+  String groupChatSelectMembersConfirm(int count);
+
+  /// No description provided for @groupChatMembersMinError.
+  ///
+  /// In en, this message translates to:
+  /// **'Select at least 2 assistants'**
+  String get groupChatMembersMinError;
+
+  /// No description provided for @groupChatMembersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} members'**
+  String groupChatMembersCount(int count);
+
+  /// No description provided for @groupChatOpenSettingsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Group settings'**
+  String get groupChatOpenSettingsTooltip;
+
+  /// No description provided for @groupChatSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Group settings'**
+  String get groupChatSettingsTitle;
+
+  /// No description provided for @groupChatSettingsNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name'**
+  String get groupChatSettingsNameLabel;
+
+  /// No description provided for @groupChatSettingsAvatarLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Group avatar'**
+  String get groupChatSettingsAvatarLabel;
+
+  /// No description provided for @groupChatSettingsMembersSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Members'**
+  String get groupChatSettingsMembersSection;
+
+  /// No description provided for @groupChatSettingsAddMemberTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add member'**
+  String get groupChatSettingsAddMemberTooltip;
+
+  /// No description provided for @groupChatSettingsAdvanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced settings'**
+  String get groupChatSettingsAdvanced;
+
+  /// No description provided for @groupChatSettingsDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group'**
+  String get groupChatSettingsDelete;
+
+  /// No description provided for @groupChatSettingsDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this group?'**
+  String get groupChatSettingsDeleteConfirmTitle;
+
+  /// No description provided for @groupChatSettingsDeleteConfirmContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages in this group will be permanently deleted.'**
+  String get groupChatSettingsDeleteConfirmContent;
+
+  /// No description provided for @groupChatSettingsDeleteConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get groupChatSettingsDeleteConfirmAction;
+
+  /// No description provided for @groupChatSettingsCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get groupChatSettingsCancel;
+
+  /// No description provided for @groupChatSettingsSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get groupChatSettingsSave;
+
+  /// No description provided for @groupChatSettingsUserLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Me'**
+  String get groupChatSettingsUserLabel;
+
+  /// No description provided for @groupChatSettingsRemoveMemberTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get groupChatSettingsRemoveMemberTooltip;
+
+  /// No description provided for @groupChatSettingsCannotRemoveUser.
+  ///
+  /// In en, this message translates to:
+  /// **'The user cannot be removed'**
+  String get groupChatSettingsCannotRemoveUser;
+
+  /// No description provided for @groupChatSettingsNeedTwoAssistants.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep at least 2 assistants'**
+  String get groupChatSettingsNeedTwoAssistants;
+
+  /// No description provided for @groupChatAdvancedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced settings'**
+  String get groupChatAdvancedTitle;
+
+  /// No description provided for @groupChatAdvancedDirectorModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Director model'**
+  String get groupChatAdvancedDirectorModel;
+
+  /// No description provided for @groupChatAdvancedDirectorModelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Must support tool calling'**
+  String get groupChatAdvancedDirectorModelHint;
+
+  /// No description provided for @groupChatAdvancedDirectorModelDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Use global default model'**
+  String get groupChatAdvancedDirectorModelDefault;
+
+  /// No description provided for @groupChatAdvancedDirectorModelNoTool.
+  ///
+  /// In en, this message translates to:
+  /// **'This model does not support tool calling. Please choose a model with tool support.'**
+  String get groupChatAdvancedDirectorModelNoTool;
+
+  /// No description provided for @groupChatAdvancedDirectorPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Director system prompt'**
+  String get groupChatAdvancedDirectorPrompt;
+
+  /// No description provided for @groupChatAdvancedDirectorPromptHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty to use the built-in default'**
+  String get groupChatAdvancedDirectorPromptHint;
+
+  /// No description provided for @groupChatAdvancedMaxAssistantMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Max assistant messages per turn'**
+  String get groupChatAdvancedMaxAssistantMessages;
+
+  /// No description provided for @groupChatAdvancedAllowConsecutive.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow same assistant consecutively'**
+  String get groupChatAdvancedAllowConsecutive;
+
+  /// No description provided for @groupChatAdvancedPersistDirector.
+  ///
+  /// In en, this message translates to:
+  /// **'Persist director transcript'**
+  String get groupChatAdvancedPersistDirector;
+
+  /// No description provided for @groupChatAdvancedStripOtherReasoning.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide others\' reasoning & tools in member context'**
+  String get groupChatAdvancedStripOtherReasoning;
+
+  /// No description provided for @groupChatInputPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Message the group…'**
+  String get groupChatInputPlaceholder;
+
+  /// No description provided for @groupChatSendFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to send message'**
+  String get groupChatSendFailed;
+
+  /// No description provided for @groupChatCreateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to create group'**
+  String get groupChatCreateFailed;
+
+  /// No description provided for @groupChatDefaultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Group Chat'**
+  String get groupChatDefaultTitle;
+
+  /// No description provided for @groupChatMessageEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Say hello to start the conversation'**
+  String get groupChatMessageEmpty;
+
+  /// No description provided for @groupChatBackTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get groupChatBackTooltip;
+
+  /// No description provided for @groupChatMemberAlreadyInGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Already in the group'**
+  String get groupChatMemberAlreadyInGroup;
 }
 
 class _AppLocalizationsDelegate

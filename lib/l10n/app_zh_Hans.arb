@@ -623,22 +623,34 @@
   "backupPageIncrementalPreviewNewConv": "新对话 {count} 个 · 新消息 {msgCount} 条",
   "@backupPageIncrementalPreviewNewConv": {
     "placeholders": {
-      "count": { "type": "int" },
-      "msgCount": { "type": "int" }
+      "count": {
+        "type": "int"
+      },
+      "msgCount": {
+        "type": "int"
+      }
     }
   },
   "backupPageIncrementalPreviewUpdatedConv": "更新旧对话 {count} 个 · 新消息 {msgCount} 条",
   "@backupPageIncrementalPreviewUpdatedConv": {
     "placeholders": {
-      "count": { "type": "int" },
-      "msgCount": { "type": "int" }
+      "count": {
+        "type": "int"
+      },
+      "msgCount": {
+        "type": "int"
+      }
     }
   },
   "backupPageIncrementalPreviewFiles": "新附件 {count} 个 ({size})",
   "@backupPageIncrementalPreviewFiles": {
     "placeholders": {
-      "count": { "type": "int" },
-      "size": { "type": "String" }
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
     }
   },
   "backupReminderSectionTitle": "备份提醒",
@@ -1458,9 +1470,15 @@
   "oneClickCompressResult": "压缩了 {count} 张图片，节省了 {saved} (-{pct}%)",
   "@oneClickCompressResult": {
     "placeholders": {
-      "count": { "type": "int" },
-      "saved": { "type": "String" },
-      "pct": { "type": "String" }
+      "count": {
+        "type": "int"
+      },
+      "saved": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "String"
+      }
     }
   },
   "oneClickCompressNone": "无需压缩",
@@ -2180,17 +2198,27 @@
   "@imageCompressionSingleResult": {
     "description": "SnackBar 单图压缩完成后的体积变化提示",
     "placeholders": {
-      "from": { "type": "String" },
-      "to": { "type": "String" },
-      "pct": { "type": "String" }
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "String"
+      }
     }
   },
   "imageCompressionBatchResult": "全部压缩完成，共节省 {saved} (-{pct}%)",
   "@imageCompressionBatchResult": {
     "description": "SnackBar 全部图片压缩完成后的节省提示",
     "placeholders": {
-      "saved": { "type": "String" },
-      "pct": { "type": "String" }
+      "saved": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "String"
+      }
     }
   },
   "messageMoreSheetMultiAI": "启动对比",
@@ -2205,7 +2233,9 @@
   "@multiAIModelsBadge": {
     "description": "Badge on model selector button showing active model count in multi-AI mode",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "modelSelectorMultiSelect": "多选",
@@ -2216,7 +2246,9 @@
   "@modelSelectorMultiConfirm": {
     "description": "Confirm button in multi-select mode of model selector",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "multiAIAdoptVersion": "采纳",
@@ -2244,7 +2276,9 @@
   "@multiAISelectedCount": {
     "description": "多选模式下显示已选模型数量",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "multiAIDropThread": "移除",
@@ -2499,5 +2533,68 @@
   "chatMessageWidgetCopyAsMarkdown": "复制为 Markdown",
   "chatMessageWidgetCopyAsPlainText": "复制为纯文本",
   "chatMessageWidgetQuote": "引用",
-  "chatMessageWidgetSpeak": "朗读"
+  "chatMessageWidgetSpeak": "朗读",
+  "groupChatMyGroups": "我的群聊",
+  "groupChatListTitle": "我的群聊",
+  "groupChatListEmpty": "还没有群聊",
+  "groupChatListEmptyHint": "创建群聊需至少选择 2 位助手",
+  "groupChatCreateTitle": "新建群聊",
+  "groupChatCreateButton": "创建",
+  "groupChatCreateNameLabel": "群名称",
+  "groupChatCreateNameHint": "输入群名称",
+  "groupChatCreateNameRequired": "请输入群名称",
+  "groupChatSelectMembersTitle": "选择成员",
+  "groupChatSelectMembersHint": "请至少选择 2 位助手",
+  "groupChatSelectMembersConfirm": "添加（{count}）",
+  "@groupChatSelectMembersConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "groupChatMembersMinError": "请至少选择 2 位助手",
+  "groupChatMembersCount": "{count} 人",
+  "@groupChatMembersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "groupChatOpenSettingsTooltip": "群设置",
+  "groupChatSettingsTitle": "群设置",
+  "groupChatSettingsNameLabel": "群名称",
+  "groupChatSettingsAvatarLabel": "群头像",
+  "groupChatSettingsMembersSection": "群成员",
+  "groupChatSettingsAddMemberTooltip": "添加成员",
+  "groupChatSettingsAdvanced": "高级设置",
+  "groupChatSettingsDelete": "删除群聊",
+  "groupChatSettingsDeleteConfirmTitle": "删除此群聊？",
+  "groupChatSettingsDeleteConfirmContent": "群内消息将被永久删除。",
+  "groupChatSettingsDeleteConfirmAction": "删除",
+  "groupChatSettingsCancel": "取消",
+  "groupChatSettingsSave": "保存",
+  "groupChatSettingsUserLabel": "我",
+  "groupChatSettingsRemoveMemberTooltip": "移除",
+  "groupChatSettingsCannotRemoveUser": "用户不可移除",
+  "groupChatSettingsNeedTwoAssistants": "请至少保留 2 位助手",
+  "groupChatAdvancedTitle": "高级设置",
+  "groupChatAdvancedDirectorModel": "导演模型",
+  "groupChatAdvancedDirectorModelHint": "必须支持工具调用",
+  "groupChatAdvancedDirectorModelDefault": "使用全局默认模型",
+  "groupChatAdvancedDirectorModelNoTool": "该模型不支持工具调用，请选择支持工具的模型。",
+  "groupChatAdvancedDirectorPrompt": "导演系统提示词",
+  "groupChatAdvancedDirectorPromptHint": "留空则使用内置默认提示词",
+  "groupChatAdvancedMaxAssistantMessages": "每轮助手消息上限",
+  "groupChatAdvancedAllowConsecutive": "允许同一助手连续发言",
+  "groupChatAdvancedPersistDirector": "持久化导演会话",
+  "groupChatAdvancedStripOtherReasoning": "成员上下文中隐藏他人思维链与工具",
+  "groupChatInputPlaceholder": "发消息到群…",
+  "groupChatSendFailed": "发送失败",
+  "groupChatCreateFailed": "创建群聊失败",
+  "groupChatDefaultTitle": "群聊",
+  "groupChatMessageEmpty": "打个招呼开始聊天吧",
+  "groupChatBackTooltip": "返回",
+  "groupChatMemberAlreadyInGroup": "已在群中"
 }

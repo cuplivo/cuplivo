@@ -38,6 +38,7 @@ import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/ios_checkbox.dart';
 import '../../../core/services/haptics.dart';
 import '../../../desktop/desktop_context_menu.dart';
+import '../../group_chat/group_chat_navigation.dart';
 import '../../../desktop/menu_anchor.dart';
 import '../../../shared/widgets/emoji_text.dart';
 import '../../../theme/app_font_weights.dart';
@@ -2106,6 +2107,70 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
 
                     if (!widget.globalSearchMode) ...[
                       SizedBox(height: _isDesktop ? 8 : 12),
+
+                      // 我的群聊入口（搜索栏下、助手区上）
+                      if (!topicsOnly)
+                        Builder(
+                          builder: (context) {
+                            final entryL10n = AppLocalizations.of(context)!;
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(2, 0, 2, 8),
+                              child: IosCardPress(
+                                baseColor: (() {
+                                  final embedded = widget.embedded;
+                                  final base = embedded
+                                      ? Colors.transparent
+                                      : cs.surface;
+                                  return base;
+                                })(),
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () {
+                                  Haptics.soft();
+                                  openGroupChatList(context);
+                                },
+                                padding: const EdgeInsets.fromLTRB(4, 8, 12, 8),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: cs.primary.withValues(
+                                          alpha: 0.12,
+                                        ),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Icon(
+                                        Lucide.MessagesSquare,
+                                        size: 16,
+                                        color: cs.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Text(
+                                        entryL10n.groupChatMyGroups,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: _isDesktop ? 14 : 15,
+                                          fontWeight: AppFontWeights.medium,
+                                          color: textBase,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(
+                                      Lucide.ChevronRight,
+                                      size: 18,
+                                      color: textBase.withValues(alpha: 0.45),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
 
                       // 桌面端：替换为 Tab（助手 / 话题）
                       if (useTabs)

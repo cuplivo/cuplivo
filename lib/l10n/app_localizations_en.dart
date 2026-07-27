@@ -6448,4 +6448,163 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatMessageWidgetSpeak => 'Speak';
+
+  @override
+  String get groupChatMyGroups => 'My Group Chats';
+
+  @override
+  String get groupChatListTitle => 'My Group Chats';
+
+  @override
+  String get groupChatListEmpty => 'No group chats yet';
+
+  @override
+  String get groupChatListEmptyHint =>
+      'Create a group with at least 2 assistants';
+
+  @override
+  String get groupChatCreateTitle => 'New Group Chat';
+
+  @override
+  String get groupChatCreateButton => 'Create';
+
+  @override
+  String get groupChatCreateNameLabel => 'Group name';
+
+  @override
+  String get groupChatCreateNameHint => 'Enter a group name';
+
+  @override
+  String get groupChatCreateNameRequired => 'Please enter a group name';
+
+  @override
+  String get groupChatSelectMembersTitle => 'Select members';
+
+  @override
+  String get groupChatSelectMembersHint => 'Select at least 2 assistants';
+
+  @override
+  String groupChatSelectMembersConfirm(int count) {
+    return 'Add ($count)';
+  }
+
+  @override
+  String get groupChatMembersMinError => 'Select at least 2 assistants';
+
+  @override
+  String groupChatMembersCount(int count) {
+    return '$count members';
+  }
+
+  @override
+  String get groupChatOpenSettingsTooltip => 'Group settings';
+
+  @override
+  String get groupChatSettingsTitle => 'Group settings';
+
+  @override
+  String get groupChatSettingsNameLabel => 'Group name';
+
+  @override
+  String get groupChatSettingsAvatarLabel => 'Group avatar';
+
+  @override
+  String get groupChatSettingsMembersSection => 'Members';
+
+  @override
+  String get groupChatSettingsAddMemberTooltip => 'Add member';
+
+  @override
+  String get groupChatSettingsAdvanced => 'Advanced settings';
+
+  @override
+  String get groupChatSettingsDelete => 'Delete group';
+
+  @override
+  String get groupChatSettingsDeleteConfirmTitle => 'Delete this group?';
+
+  @override
+  String get groupChatSettingsDeleteConfirmContent =>
+      'Messages in this group will be permanently deleted.';
+
+  @override
+  String get groupChatSettingsDeleteConfirmAction => 'Delete';
+
+  @override
+  String get groupChatSettingsCancel => 'Cancel';
+
+  @override
+  String get groupChatSettingsSave => 'Save';
+
+  @override
+  String get groupChatSettingsUserLabel => 'Me';
+
+  @override
+  String get groupChatSettingsRemoveMemberTooltip => 'Remove';
+
+  @override
+  String get groupChatSettingsCannotRemoveUser => 'The user cannot be removed';
+
+  @override
+  String get groupChatSettingsNeedTwoAssistants => 'Keep at least 2 assistants';
+
+  @override
+  String get groupChatAdvancedTitle => 'Advanced settings';
+
+  @override
+  String get groupChatAdvancedDirectorModel => 'Director model';
+
+  @override
+  String get groupChatAdvancedDirectorModelHint => 'Must support tool calling';
+
+  @override
+  String get groupChatAdvancedDirectorModelDefault =>
+      'Use global default model';
+
+  @override
+  String get groupChatAdvancedDirectorModelNoTool =>
+      'This model does not support tool calling. Please choose a model with tool support.';
+
+  @override
+  String get groupChatAdvancedDirectorPrompt => 'Director system prompt';
+
+  @override
+  String get groupChatAdvancedDirectorPromptHint =>
+      'Leave empty to use the built-in default';
+
+  @override
+  String get groupChatAdvancedMaxAssistantMessages =>
+      'Max assistant messages per turn';
+
+  @override
+  String get groupChatAdvancedAllowConsecutive =>
+      'Allow same assistant consecutively';
+
+  @override
+  String get groupChatAdvancedPersistDirector => 'Persist director transcript';
+
+  @override
+  String get groupChatAdvancedStripOtherReasoning =>
+      'Hide others\' reasoning & tools in member context';
+
+  @override
+  String get groupChatInputPlaceholder => 'Message the group…';
+
+  @override
+  String get groupChatSendFailed => 'Failed to send message';
+
+  @override
+  String get groupChatCreateFailed => 'Failed to create group';
+
+  @override
+  String get groupChatDefaultTitle => 'Group Chat';
+
+  @override
+  String get groupChatMessageEmpty => 'Say hello to start the conversation';
+
+  @override
+  String get groupChatBackTooltip => 'Back';
+
+  @override
+  String get groupChatMemberAlreadyInGroup => 'Already in the group';
 }

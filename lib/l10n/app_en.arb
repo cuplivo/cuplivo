@@ -1880,9 +1880,15 @@
   "@oneClickCompressResult": {
     "description": "SnackBar message after one-click compression showing savings",
     "placeholders": {
-      "count": { "type": "int" },
-      "saved": { "type": "String" },
-      "pct": { "type": "String" }
+      "count": {
+        "type": "int"
+      },
+      "saved": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "String"
+      }
     }
   },
   "oneClickCompressNone": "No compression needed",
@@ -3077,5 +3083,68 @@
   "chatMessageWidgetCopyAsMarkdown": "Copy as Markdown",
   "chatMessageWidgetCopyAsPlainText": "Copy as Plain Text",
   "chatMessageWidgetQuote": "Quote",
-  "chatMessageWidgetSpeak": "Speak"
+  "chatMessageWidgetSpeak": "Speak",
+  "groupChatMyGroups": "My Group Chats",
+  "groupChatListTitle": "My Group Chats",
+  "groupChatListEmpty": "No group chats yet",
+  "groupChatListEmptyHint": "Create a group with at least 2 assistants",
+  "groupChatCreateTitle": "New Group Chat",
+  "groupChatCreateButton": "Create",
+  "groupChatCreateNameLabel": "Group name",
+  "groupChatCreateNameHint": "Enter a group name",
+  "groupChatCreateNameRequired": "Please enter a group name",
+  "groupChatSelectMembersTitle": "Select members",
+  "groupChatSelectMembersHint": "Select at least 2 assistants",
+  "groupChatSelectMembersConfirm": "Add ({count})",
+  "@groupChatSelectMembersConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "groupChatMembersMinError": "Select at least 2 assistants",
+  "groupChatMembersCount": "{count} members",
+  "@groupChatMembersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "groupChatOpenSettingsTooltip": "Group settings",
+  "groupChatSettingsTitle": "Group settings",
+  "groupChatSettingsNameLabel": "Group name",
+  "groupChatSettingsAvatarLabel": "Group avatar",
+  "groupChatSettingsMembersSection": "Members",
+  "groupChatSettingsAddMemberTooltip": "Add member",
+  "groupChatSettingsAdvanced": "Advanced settings",
+  "groupChatSettingsDelete": "Delete group",
+  "groupChatSettingsDeleteConfirmTitle": "Delete this group?",
+  "groupChatSettingsDeleteConfirmContent": "Messages in this group will be permanently deleted.",
+  "groupChatSettingsDeleteConfirmAction": "Delete",
+  "groupChatSettingsCancel": "Cancel",
+  "groupChatSettingsSave": "Save",
+  "groupChatSettingsUserLabel": "Me",
+  "groupChatSettingsRemoveMemberTooltip": "Remove",
+  "groupChatSettingsCannotRemoveUser": "The user cannot be removed",
+  "groupChatSettingsNeedTwoAssistants": "Keep at least 2 assistants",
+  "groupChatAdvancedTitle": "Advanced settings",
+  "groupChatAdvancedDirectorModel": "Director model",
+  "groupChatAdvancedDirectorModelHint": "Must support tool calling",
+  "groupChatAdvancedDirectorModelDefault": "Use global default model",
+  "groupChatAdvancedDirectorModelNoTool": "This model does not support tool calling. Please choose a model with tool support.",
+  "groupChatAdvancedDirectorPrompt": "Director system prompt",
+  "groupChatAdvancedDirectorPromptHint": "Leave empty to use the built-in default",
+  "groupChatAdvancedMaxAssistantMessages": "Max assistant messages per turn",
+  "groupChatAdvancedAllowConsecutive": "Allow same assistant consecutively",
+  "groupChatAdvancedPersistDirector": "Persist director transcript",
+  "groupChatAdvancedStripOtherReasoning": "Hide others' reasoning & tools in member context",
+  "groupChatInputPlaceholder": "Message the group…",
+  "groupChatSendFailed": "Failed to send message",
+  "groupChatCreateFailed": "Failed to create group",
+  "groupChatDefaultTitle": "Group Chat",
+  "groupChatMessageEmpty": "Say hello to start the conversation",
+  "groupChatBackTooltip": "Back",
+  "groupChatMemberAlreadyInGroup": "Already in the group"
 }

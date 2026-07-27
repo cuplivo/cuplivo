@@ -1425,9 +1425,15 @@
   "oneClickCompressResult": "壓縮了 {count} 張圖片，節省了 {saved} (-{pct}%)",
   "@oneClickCompressResult": {
     "placeholders": {
-      "count": { "type": "int" },
-      "saved": { "type": "String" },
-      "pct": { "type": "String" }
+      "count": {
+        "type": "int"
+      },
+      "saved": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "String"
+      }
     }
   },
   "oneClickCompressNone": "無需壓縮",
@@ -2527,5 +2533,68 @@
   "chatMessageWidgetCopyAsMarkdown": "複製為 Markdown",
   "chatMessageWidgetCopyAsPlainText": "複製為純文字",
   "chatMessageWidgetQuote": "引用",
-  "chatMessageWidgetSpeak": "朗讀"
+  "chatMessageWidgetSpeak": "朗讀",
+  "groupChatMyGroups": "我的群聊",
+  "groupChatListTitle": "我的群聊",
+  "groupChatListEmpty": "還沒有群聊",
+  "groupChatListEmptyHint": "建立群聊需至少選擇 2 位助手",
+  "groupChatCreateTitle": "新建群聊",
+  "groupChatCreateButton": "建立",
+  "groupChatCreateNameLabel": "群名稱",
+  "groupChatCreateNameHint": "輸入群名稱",
+  "groupChatCreateNameRequired": "請輸入群名稱",
+  "groupChatSelectMembersTitle": "選擇成員",
+  "groupChatSelectMembersHint": "請至少選擇 2 位助手",
+  "groupChatSelectMembersConfirm": "新增（{count}）",
+  "@groupChatSelectMembersConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "groupChatMembersMinError": "請至少選擇 2 位助手",
+  "groupChatMembersCount": "{count} 人",
+  "@groupChatMembersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "groupChatOpenSettingsTooltip": "群設定",
+  "groupChatSettingsTitle": "群設定",
+  "groupChatSettingsNameLabel": "群名稱",
+  "groupChatSettingsAvatarLabel": "群頭像",
+  "groupChatSettingsMembersSection": "群成員",
+  "groupChatSettingsAddMemberTooltip": "新增成員",
+  "groupChatSettingsAdvanced": "進階設定",
+  "groupChatSettingsDelete": "刪除群聊",
+  "groupChatSettingsDeleteConfirmTitle": "刪除此群聊？",
+  "groupChatSettingsDeleteConfirmContent": "群內訊息將被永久刪除。",
+  "groupChatSettingsDeleteConfirmAction": "刪除",
+  "groupChatSettingsCancel": "取消",
+  "groupChatSettingsSave": "儲存",
+  "groupChatSettingsUserLabel": "我",
+  "groupChatSettingsRemoveMemberTooltip": "移除",
+  "groupChatSettingsCannotRemoveUser": "使用者不可移除",
+  "groupChatSettingsNeedTwoAssistants": "請至少保留 2 位助手",
+  "groupChatAdvancedTitle": "進階設定",
+  "groupChatAdvancedDirectorModel": "導演模型",
+  "groupChatAdvancedDirectorModelHint": "必須支援工具呼叫",
+  "groupChatAdvancedDirectorModelDefault": "使用全域預設模型",
+  "groupChatAdvancedDirectorModelNoTool": "此模型不支援工具呼叫，請選擇支援工具的模型。",
+  "groupChatAdvancedDirectorPrompt": "導演系統提示詞",
+  "groupChatAdvancedDirectorPromptHint": "留空則使用內建預設提示詞",
+  "groupChatAdvancedMaxAssistantMessages": "每輪助手訊息上限",
+  "groupChatAdvancedAllowConsecutive": "允許同一助手連續發言",
+  "groupChatAdvancedPersistDirector": "持久化導演會話",
+  "groupChatAdvancedStripOtherReasoning": "成員上下文中隱藏他人思維鏈與工具",
+  "groupChatInputPlaceholder": "傳送訊息到群…",
+  "groupChatSendFailed": "傳送失敗",
+  "groupChatCreateFailed": "建立群聊失敗",
+  "groupChatDefaultTitle": "群聊",
+  "groupChatMessageEmpty": "打個招呼開始聊天吧",
+  "groupChatBackTooltip": "返回",
+  "groupChatMemberAlreadyInGroup": "已在群中"
 }

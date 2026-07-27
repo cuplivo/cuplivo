@@ -3142,6 +3142,38 @@
   "groupChatAdvancedStripOtherReasoning": "Hide others' reasoning & tools in member context",
   "groupChatInputPlaceholder": "Message the group…",
   "groupChatSendFailed": "Failed to send message",
+  "groupChatReplyFailed": "Group chat reply failed: {reason}",
+  "@groupChatReplyFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "groupChatErrorNoDirectorModel": "No director model configured. Open group advanced settings and pick a model that supports tool calling.",
+  "groupChatErrorDirectorModelNoTools": "Director model does not support tool calling. Choose another model in group advanced settings.",
+  "groupChatErrorDirectorNoDecision": "Director did not select a speaker. Try again, or switch to a model that reliably supports tools.",
+  "groupChatErrorDirectorFailed": "Director call failed: {detail}",
+  "@groupChatErrorDirectorFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "groupChatErrorMemberNoModel": "A member assistant has no model configured.",
+  "groupChatErrorMemberFailed": "Member reply failed: {detail}",
+  "@groupChatErrorMemberFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "groupChatErrorMemberNotFound": "Selected member assistant was not found.",
+  "groupChatErrorNotEnoughMembers": "Need at least 2 enabled assistant members.",
+  "groupChatErrorGroupNotFound": "Group not found.",
+  "groupChatErrorAlreadyRunning": "This group is already generating a reply.",
   "groupChatCreateFailed": "Failed to create group",
   "groupChatDefaultTitle": "Group Chat",
   "groupChatMessageEmpty": "Say hello to start the conversation",

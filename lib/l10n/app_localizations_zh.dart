@@ -6326,6 +6326,46 @@ class AppLocalizationsZh extends AppLocalizations {
   String get groupChatSendFailed => '发送失败';
 
   @override
+  String groupChatReplyFailed(String reason) {
+    return '群聊回复失败：$reason';
+  }
+
+  @override
+  String get groupChatErrorNoDirectorModel => '未配置导演模型。请到群高级设置选择支持工具调用的模型。';
+
+  @override
+  String get groupChatErrorDirectorModelNoTools => '导演模型不支持工具调用。请在群高级设置中更换模型。';
+
+  @override
+  String get groupChatErrorDirectorNoDecision =>
+      '导演未做出发言选择。请重试，或更换为可靠支持工具调用的模型。';
+
+  @override
+  String groupChatErrorDirectorFailed(String detail) {
+    return '导演调用失败：$detail';
+  }
+
+  @override
+  String get groupChatErrorMemberNoModel => '有成员助手未配置模型。';
+
+  @override
+  String groupChatErrorMemberFailed(String detail) {
+    return '成员回复失败：$detail';
+  }
+
+  @override
+  String get groupChatErrorMemberNotFound => '选中的成员助手不存在。';
+
+  @override
+  String get groupChatErrorNotEnoughMembers => '至少需要 2 名启用的助手成员。';
+
+  @override
+  String get groupChatErrorGroupNotFound => '群聊不存在。';
+
+  @override
+  String get groupChatErrorAlreadyRunning => '该群正在生成回复。';
+
+  @override
   String get groupChatCreateFailed => '创建群聊失败';
 
   @override
@@ -12663,6 +12703,46 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get groupChatSendFailed => '发送失败';
 
   @override
+  String groupChatReplyFailed(String reason) {
+    return '群聊回复失败：$reason';
+  }
+
+  @override
+  String get groupChatErrorNoDirectorModel => '未配置导演模型。请到群高级设置选择支持工具调用的模型。';
+
+  @override
+  String get groupChatErrorDirectorModelNoTools => '导演模型不支持工具调用。请在群高级设置中更换模型。';
+
+  @override
+  String get groupChatErrorDirectorNoDecision =>
+      '导演未做出发言选择。请重试，或更换为可靠支持工具调用的模型。';
+
+  @override
+  String groupChatErrorDirectorFailed(String detail) {
+    return '导演调用失败：$detail';
+  }
+
+  @override
+  String get groupChatErrorMemberNoModel => '有成员助手未配置模型。';
+
+  @override
+  String groupChatErrorMemberFailed(String detail) {
+    return '成员回复失败：$detail';
+  }
+
+  @override
+  String get groupChatErrorMemberNotFound => '选中的成员助手不存在。';
+
+  @override
+  String get groupChatErrorNotEnoughMembers => '至少需要 2 名启用的助手成员。';
+
+  @override
+  String get groupChatErrorGroupNotFound => '群聊不存在。';
+
+  @override
+  String get groupChatErrorAlreadyRunning => '该群正在生成回复。';
+
+  @override
   String get groupChatCreateFailed => '创建群聊失败';
 
   @override
@@ -18998,6 +19078,46 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get groupChatSendFailed => '傳送失敗';
+
+  @override
+  String groupChatReplyFailed(String reason) {
+    return '群聊回覆失敗：$reason';
+  }
+
+  @override
+  String get groupChatErrorNoDirectorModel => '未設定導演模型。請到群進階設定選擇支援工具呼叫的模型。';
+
+  @override
+  String get groupChatErrorDirectorModelNoTools => '導演模型不支援工具呼叫。請在群進階設定中更換模型。';
+
+  @override
+  String get groupChatErrorDirectorNoDecision =>
+      '導演未作出發言選擇。請重試，或更換為可靠支援工具呼叫的模型。';
+
+  @override
+  String groupChatErrorDirectorFailed(String detail) {
+    return '導演呼叫失敗：$detail';
+  }
+
+  @override
+  String get groupChatErrorMemberNoModel => '有成員助手未設定模型。';
+
+  @override
+  String groupChatErrorMemberFailed(String detail) {
+    return '成員回覆失敗：$detail';
+  }
+
+  @override
+  String get groupChatErrorMemberNotFound => '選中的成員助手不存在。';
+
+  @override
+  String get groupChatErrorNotEnoughMembers => '至少需要 2 名啟用的助手成員。';
+
+  @override
+  String get groupChatErrorGroupNotFound => '群聊不存在。';
+
+  @override
+  String get groupChatErrorAlreadyRunning => '該群正在產生回覆。';
 
   @override
   String get groupChatCreateFailed => '建立群聊失敗';

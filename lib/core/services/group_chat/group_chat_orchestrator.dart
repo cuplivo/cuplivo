@@ -267,10 +267,19 @@ class GroupChatOrchestrator extends ChangeNotifier {
     }
 
     final directorConfig = appSettings.getProviderConfig(directorProvider);
+    debugPrint(
+      '[GroupChat] sendUserMessage group=$groupId '
+      'director=$directorProvider/$directorModelId '
+      'apiKeyEmpty=${directorConfig.apiKey.trim().isEmpty}',
+    );
     if (!modelSupportsToolCalling(
       config: directorConfig,
       modelId: directorModelId,
     )) {
+      debugPrint(
+        '[GroupChat] director model lacks tool ability: '
+        '$directorProvider/$directorModelId',
+      );
       throw GroupChatOrchestratorException(
         GroupChatErrorCode.directorModelNoTools,
         'Director model must support tool calling: $directorProvider/$directorModelId',
@@ -499,24 +508,29 @@ class GroupChatOrchestrator extends ChangeNotifier {
         }
       }
     } on GroupChatOrchestratorException catch (e) {
+      // User message is already persisted — never rethrow so UI can map
+      // [GroupChatTurnResult.errorCode] to a concrete SnackBar (not generic fail).
       if (e.code == GroupChatErrorCode.cancelled) {
         endedBy = 'cancel';
         errorCode = e.code;
         errorMessage = e.message;
+        debugPrint('[GroupChat] turn cancelled group=$groupId');
       } else {
         endedBy = 'error';
         errorCode = e.code;
         errorMessage = e.message;
+        debugPrint(
+          '[GroupChat] turn error group=$groupId code=${e.code} msg=${e.message}',
+        );
         _setPhase(groupId, GroupChatPhase.error);
         await directorStore.updateStatus(
           groupId,
           DirectorSession.statusError,
           errorText: e.toString(),
         );
-        rethrow;
       }
     } catch (e, st) {
-      debugPrint('[GroupChatOrchestrator] turn failed: $e\n$st');
+      debugPrint('[GroupChat] turn failed group=$groupId: $e\n$st');
       endedBy = 'error';
       errorCode = GroupChatErrorCode.directorFailed;
       errorMessage = e.toString();
@@ -525,11 +539,6 @@ class GroupChatOrchestrator extends ChangeNotifier {
         groupId,
         DirectorSession.statusError,
         errorText: e.toString(),
-      );
-      throw GroupChatOrchestratorException(
-        GroupChatErrorCode.directorFailed,
-        e.toString(),
-        e,
       );
     } finally {
       _activeRequestIdByGroup.remove(groupId);
@@ -593,6 +602,12 @@ class GroupChatOrchestrator extends ChangeNotifier {
       requestId: requestId,
       allowedAssistantIds: allowedAssistantIds,
     );
+    final forcedToolBody = directorForcedToolChoiceExtraBody(config);
+
+    debugPrint(
+      '[GroupChat] director start group=$groupId model=${config.id}/$modelId '
+      'tools=${tools.length} forcedToolChoice=$forcedToolBody',
+    );
 
     DirectorDecision? fromChunk;
 
@@ -607,12 +622,18 @@ class GroupChatOrchestrator extends ChangeNotifier {
           temperature: temperature,
           stream: true,
           requestId: requestId,
+          extraBody: forcedToolBody,
         ),
       )) {
+        // User cancel only — tool-handler cancelRequest after a decision must
+        // NOT be treated as cancelled (lastDecision path below handles it).
         _throwIfCancelled(groupId);
 
         if (toolService.lastDecision != null) {
           fromChunk = toolService.lastDecision;
+          debugPrint(
+            '[GroupChat] director decision via handler: ${fromChunk!.toJson()}',
+          );
           break;
         }
 
@@ -625,13 +646,22 @@ class GroupChatOrchestrator extends ChangeNotifier {
             if (d != null) {
               if (d.isSelectSpeaker &&
                   !allowedAssistantIds.contains(d.assistantId)) {
+                debugPrint(
+                  '[GroupChat] director tool ignored unknown speaker '
+                  '${d.assistantId}',
+                );
                 continue;
               }
               fromChunk = d;
               toolService.lastDecision = d;
+              debugPrint(
+                '[GroupChat] director decision via chunk: ${d.toJson()}',
+              );
               try {
                 ChatApiService.cancelRequest(requestId);
-              } catch (_) {}
+              } catch (e) {
+                debugPrint('[GroupChat] cancelRequest after decision: $e');
+              }
               break;
             }
           }
@@ -647,11 +677,16 @@ class GroupChatOrchestrator extends ChangeNotifier {
           'Cancelled',
         );
       }
-      // Dio cancel after decision is expected.
-      if (toolService.lastDecision != null) {
-        return toolService.lastDecision!;
+      // Dio / provider cancel after decision is expected (handler stops stream).
+      final decided = toolService.lastDecision ?? fromChunk;
+      if (decided != null) {
+        debugPrint(
+          '[GroupChat] director stream error after decision (ok): $e '
+          'decision=${decided.toJson()}',
+        );
+        return decided;
       }
-      debugPrint('[GroupChatOrchestrator] director stream error: $e');
+      debugPrint('[GroupChat] director stream error: $e');
       throw GroupChatOrchestratorException(
         GroupChatErrorCode.directorFailed,
         e.toString(),
@@ -665,6 +700,9 @@ class GroupChatOrchestrator extends ChangeNotifier {
 
     final decision = fromChunk ?? toolService.lastDecision;
     if (decision == null) {
+      debugPrint(
+        '[GroupChat] directorNoDecision group=$groupId model=${config.id}/$modelId',
+      );
       throw GroupChatOrchestratorException(
         GroupChatErrorCode.directorNoDecision,
         'Director did not call select_speaker or end_round',

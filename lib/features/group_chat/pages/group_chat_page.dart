@@ -10,6 +10,7 @@ import '../../../core/models/chat_input_data.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/services/chat/group_chat_service.dart';
+import '../../../core/services/group_chat/group_chat_orchestrator.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
@@ -20,6 +21,52 @@ import '../../home/widgets/assistant_entry_actions.dart';
 import '../../home/widgets/chat_input_bar.dart';
 import '../group_chat_navigation.dart';
 import '../widgets/group_avatar.dart';
+
+/// Map orchestrator error codes to localized user-facing text.
+///
+/// Used both as a full SnackBar message (pre-flight throws) and as the
+/// `{reason}` for [AppLocalizations.groupChatReplyFailed] after the user
+/// message has already been persisted.
+String localizeGroupChatError(
+  AppLocalizations l10n, {
+  String? code,
+  String? detail,
+}) {
+  final d = (detail ?? '').trim();
+  switch (code) {
+    case GroupChatErrorCode.noDirectorModel:
+      return l10n.groupChatErrorNoDirectorModel;
+    case GroupChatErrorCode.directorModelNoTools:
+      return l10n.groupChatErrorDirectorModelNoTools;
+    case GroupChatErrorCode.directorNoDecision:
+      return l10n.groupChatErrorDirectorNoDecision;
+    case GroupChatErrorCode.directorFailed:
+      return l10n.groupChatErrorDirectorFailed(
+        d.isEmpty ? l10n.groupChatSendFailed : d,
+      );
+    case GroupChatErrorCode.memberNoModel:
+      return l10n.groupChatErrorMemberNoModel;
+    case GroupChatErrorCode.memberFailed:
+      return l10n.groupChatErrorMemberFailed(
+        d.isEmpty ? l10n.groupChatSendFailed : d,
+      );
+    case GroupChatErrorCode.memberNotFound:
+      return l10n.groupChatErrorMemberNotFound;
+    case GroupChatErrorCode.notEnoughMembers:
+      return l10n.groupChatErrorNotEnoughMembers;
+    case GroupChatErrorCode.groupNotFound:
+      return l10n.groupChatErrorGroupNotFound;
+    case GroupChatErrorCode.alreadyRunning:
+      return l10n.groupChatErrorAlreadyRunning;
+    case GroupChatErrorCode.emptyContent:
+      return l10n.groupChatSendFailed;
+    case GroupChatErrorCode.cancelled:
+      return l10n.groupChatSendFailed;
+    default:
+      if (d.isNotEmpty) return d;
+      return l10n.groupChatSendFailed;
+  }
+}
 
 /// Group chat conversation page (one continuous timeline per group).
 class GroupChatPage extends StatefulWidget {
@@ -147,19 +194,37 @@ class _GroupChatPageState extends State<GroupChatPage> {
                 _scrollToBottom();
                 if (!result.isSuccess &&
                     result.errorCode != null &&
-                    result.errorCode != 'groupChatCancelled') {
+                    result.errorCode != GroupChatErrorCode.cancelled) {
+                  final reason = localizeGroupChatError(
+                    l10n,
+                    code: result.errorCode,
+                    detail: result.errorMessage,
+                  );
+                  // User message already landed — phrase as reply failure.
                   showAppSnackBar(
                     context,
-                    message: result.errorMessage ?? l10n.groupChatSendFailed,
+                    message: l10n.groupChatReplyFailed(reason),
                     type: NotificationType.error,
                   );
                 }
               })
               .catchError((Object e) {
                 if (!mounted) return;
+                final code = e is GroupChatOrchestratorException
+                    ? e.code
+                    : null;
+                final detail = e is GroupChatOrchestratorException
+                    ? e.message
+                    : e.toString();
+                final reason = localizeGroupChatError(
+                  l10n,
+                  code: code,
+                  detail: detail,
+                );
+                // Pre-flight failures (no user msg) still get a concrete reason.
                 showAppSnackBar(
                   context,
-                  message: l10n.groupChatSendFailed,
+                  message: reason,
                   type: NotificationType.error,
                 );
               })
@@ -183,9 +248,13 @@ class _GroupChatPageState extends State<GroupChatPage> {
       return ChatInputSubmissionResult.sent;
     } catch (e) {
       if (mounted) {
+        final code = e is GroupChatOrchestratorException ? e.code : null;
+        final detail = e is GroupChatOrchestratorException
+            ? e.message
+            : e.toString();
         showAppSnackBar(
           context,
-          message: l10n.groupChatSendFailed,
+          message: localizeGroupChatError(l10n, code: code, detail: detail),
           type: NotificationType.error,
         );
       }

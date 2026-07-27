@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import '../api/chat_api_service.dart';
 import '../../providers/model_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -164,14 +166,21 @@ class DirectorToolService {
       lastDecision = parsed;
       decisions.add(parsed);
       onDecided?.call(parsed);
+      debugPrint(
+        '[GroupChat] director tool decided: ${parsed.toJson()} rid=$requestId',
+      );
 
       final rid = (requestId ?? '').trim();
       if (rid.isNotEmpty) {
         // Stop provider-internal tool follow-up so the director never drafts body text.
+        // Cancel is intentional after a decision — orchestrator treats stream
+        // errors with lastDecision set as success, not directorFailed.
         Future.microtask(() {
           try {
             ChatApiService.cancelRequest(rid);
-          } catch (_) {}
+          } catch (e) {
+            debugPrint('[GroupChat] director cancelRequest after tool: $e');
+          }
         });
       }
 
@@ -183,9 +192,43 @@ class DirectorToolService {
   }
 }
 
+/// Force the director LLM to call a tool instead of free-form text.
+///
+/// Merged via [GroupChatStreamRequest.extraBody] (overrides provider default
+/// `tool_choice: auto`). OpenAI uses `"required"`; Claude / Vertex-Claude use
+/// `{type: any}`; Gemini uses `toolConfig.function_calling_config.mode=ANY`.
+Map<String, dynamic> directorForcedToolChoiceExtraBody(ProviderConfig config) {
+  final kind = ProviderConfig.classify(
+    config.id,
+    explicitType: config.providerType,
+  );
+  switch (kind) {
+    case ProviderKind.claude:
+      return <String, dynamic>{
+        'tool_choice': <String, dynamic>{'type': 'any'},
+      };
+    case ProviderKind.google:
+      // Vertex Claude path reads tool_choice; Gemini path reads toolConfig.
+      return <String, dynamic>{
+        'tool_choice': <String, dynamic>{'type': 'any'},
+        'toolConfig': <String, dynamic>{
+          'function_calling_config': <String, dynamic>{'mode': 'ANY'},
+        },
+      };
+    case ProviderKind.openai:
+      return <String, dynamic>{'tool_choice': 'required'};
+  }
+}
+
 /// Whether a model supports tool calling (director requirement — no JSON fallback).
 ///
 /// Mirrors [GenerationController.isToolModel] without needing a BuildContext.
+///
+/// Rules:
+/// 1. If modelOverrides has an explicit `abilities` list → require `'tool'`.
+/// 2. Else if overrides exist but omit abilities → fall through to [ModelRegistry.infer]
+///    (same as GenerationController; do not treat "has override map" as no-tool).
+/// 3. Else infer from model id.
 bool modelSupportsToolCalling({
   required ProviderConfig config,
   required String modelId,
@@ -200,10 +243,23 @@ bool modelSupportsToolCalling({
             .where((e) => e.isNotEmpty)
             .toList() ??
         const <String>[];
-    return abilities.contains('tool');
+    final ok = abilities.contains('tool');
+    if (!ok) {
+      debugPrint(
+        '[GroupChat] modelSupportsToolCalling=false via overrides '
+        'model=$mid abilities=$abilities',
+      );
+    }
+    return ok;
   }
   final inferred = ModelRegistry.infer(ModelInfo(id: mid, displayName: mid));
-  return inferred.abilities.contains(ModelAbility.tool);
+  final ok = inferred.abilities.contains(ModelAbility.tool);
+  if (!ok) {
+    debugPrint(
+      '[GroupChat] modelSupportsToolCalling=false via infer model=$mid',
+    );
+  }
+  return ok;
 }
 
 /// Resolve director provider/model from group settings with global fallback.

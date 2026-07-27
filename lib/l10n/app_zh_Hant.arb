@@ -2592,6 +2592,38 @@
   "groupChatAdvancedStripOtherReasoning": "成員上下文中隱藏他人思維鏈與工具",
   "groupChatInputPlaceholder": "傳送訊息到群…",
   "groupChatSendFailed": "傳送失敗",
+  "groupChatReplyFailed": "群聊回覆失敗：{reason}",
+  "@groupChatReplyFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "groupChatErrorNoDirectorModel": "未設定導演模型。請到群進階設定選擇支援工具呼叫的模型。",
+  "groupChatErrorDirectorModelNoTools": "導演模型不支援工具呼叫。請在群進階設定中更換模型。",
+  "groupChatErrorDirectorNoDecision": "導演未作出發言選擇。請重試，或更換為可靠支援工具呼叫的模型。",
+  "groupChatErrorDirectorFailed": "導演呼叫失敗：{detail}",
+  "@groupChatErrorDirectorFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "groupChatErrorMemberNoModel": "有成員助手未設定模型。",
+  "groupChatErrorMemberFailed": "成員回覆失敗：{detail}",
+  "@groupChatErrorMemberFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "groupChatErrorMemberNotFound": "選中的成員助手不存在。",
+  "groupChatErrorNotEnoughMembers": "至少需要 2 名啟用的助手成員。",
+  "groupChatErrorGroupNotFound": "群聊不存在。",
+  "groupChatErrorAlreadyRunning": "該群正在產生回覆。",
   "groupChatCreateFailed": "建立群聊失敗",
   "groupChatDefaultTitle": "群聊",
   "groupChatMessageEmpty": "打個招呼開始聊天吧",

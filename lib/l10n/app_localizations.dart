@@ -12038,6 +12038,72 @@ abstract class AppLocalizations {
   /// **'Failed to send message'**
   String get groupChatSendFailed;
 
+  /// No description provided for @groupChatReplyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Group chat reply failed: {reason}'**
+  String groupChatReplyFailed(String reason);
+
+  /// No description provided for @groupChatErrorNoDirectorModel.
+  ///
+  /// In en, this message translates to:
+  /// **'No director model configured. Open group advanced settings and pick a model that supports tool calling.'**
+  String get groupChatErrorNoDirectorModel;
+
+  /// No description provided for @groupChatErrorDirectorModelNoTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Director model does not support tool calling. Choose another model in group advanced settings.'**
+  String get groupChatErrorDirectorModelNoTools;
+
+  /// No description provided for @groupChatErrorDirectorNoDecision.
+  ///
+  /// In en, this message translates to:
+  /// **'Director did not select a speaker. Try again, or switch to a model that reliably supports tools.'**
+  String get groupChatErrorDirectorNoDecision;
+
+  /// No description provided for @groupChatErrorDirectorFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Director call failed: {detail}'**
+  String groupChatErrorDirectorFailed(String detail);
+
+  /// No description provided for @groupChatErrorMemberNoModel.
+  ///
+  /// In en, this message translates to:
+  /// **'A member assistant has no model configured.'**
+  String get groupChatErrorMemberNoModel;
+
+  /// No description provided for @groupChatErrorMemberFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Member reply failed: {detail}'**
+  String groupChatErrorMemberFailed(String detail);
+
+  /// No description provided for @groupChatErrorMemberNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected member assistant was not found.'**
+  String get groupChatErrorMemberNotFound;
+
+  /// No description provided for @groupChatErrorNotEnoughMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Need at least 2 enabled assistant members.'**
+  String get groupChatErrorNotEnoughMembers;
+
+  /// No description provided for @groupChatErrorGroupNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Group not found.'**
+  String get groupChatErrorGroupNotFound;
+
+  /// No description provided for @groupChatErrorAlreadyRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'This group is already generating a reply.'**
+  String get groupChatErrorAlreadyRunning;
+
   /// No description provided for @groupChatCreateFailed.
   ///
   /// In en, this message translates to:

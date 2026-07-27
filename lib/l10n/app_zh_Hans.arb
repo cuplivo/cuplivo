@@ -2592,6 +2592,38 @@
   "groupChatAdvancedStripOtherReasoning": "成员上下文中隐藏他人思维链与工具",
   "groupChatInputPlaceholder": "发消息到群…",
   "groupChatSendFailed": "发送失败",
+  "groupChatReplyFailed": "群聊回复失败：{reason}",
+  "@groupChatReplyFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "groupChatErrorNoDirectorModel": "未配置导演模型。请到群高级设置选择支持工具调用的模型。",
+  "groupChatErrorDirectorModelNoTools": "导演模型不支持工具调用。请在群高级设置中更换模型。",
+  "groupChatErrorDirectorNoDecision": "导演未做出发言选择。请重试，或更换为可靠支持工具调用的模型。",
+  "groupChatErrorDirectorFailed": "导演调用失败：{detail}",
+  "@groupChatErrorDirectorFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "groupChatErrorMemberNoModel": "有成员助手未配置模型。",
+  "groupChatErrorMemberFailed": "成员回复失败：{detail}",
+  "@groupChatErrorMemberFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "groupChatErrorMemberNotFound": "选中的成员助手不存在。",
+  "groupChatErrorNotEnoughMembers": "至少需要 2 名启用的助手成员。",
+  "groupChatErrorGroupNotFound": "群聊不存在。",
+  "groupChatErrorAlreadyRunning": "该群正在生成回复。",
   "groupChatCreateFailed": "创建群聊失败",
   "groupChatDefaultTitle": "群聊",
   "groupChatMessageEmpty": "打个招呼开始聊天吧",

@@ -6594,6 +6594,52 @@ class AppLocalizationsEn extends AppLocalizations {
   String get groupChatSendFailed => 'Failed to send message';
 
   @override
+  String groupChatReplyFailed(String reason) {
+    return 'Group chat reply failed: $reason';
+  }
+
+  @override
+  String get groupChatErrorNoDirectorModel =>
+      'No director model configured. Open group advanced settings and pick a model that supports tool calling.';
+
+  @override
+  String get groupChatErrorDirectorModelNoTools =>
+      'Director model does not support tool calling. Choose another model in group advanced settings.';
+
+  @override
+  String get groupChatErrorDirectorNoDecision =>
+      'Director did not select a speaker. Try again, or switch to a model that reliably supports tools.';
+
+  @override
+  String groupChatErrorDirectorFailed(String detail) {
+    return 'Director call failed: $detail';
+  }
+
+  @override
+  String get groupChatErrorMemberNoModel =>
+      'A member assistant has no model configured.';
+
+  @override
+  String groupChatErrorMemberFailed(String detail) {
+    return 'Member reply failed: $detail';
+  }
+
+  @override
+  String get groupChatErrorMemberNotFound =>
+      'Selected member assistant was not found.';
+
+  @override
+  String get groupChatErrorNotEnoughMembers =>
+      'Need at least 2 enabled assistant members.';
+
+  @override
+  String get groupChatErrorGroupNotFound => 'Group not found.';
+
+  @override
+  String get groupChatErrorAlreadyRunning =>
+      'This group is already generating a reply.';
+
+  @override
   String get groupChatCreateFailed => 'Failed to create group';
 
   @override

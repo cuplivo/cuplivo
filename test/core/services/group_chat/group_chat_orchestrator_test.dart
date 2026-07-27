@@ -199,6 +199,23 @@ void main() {
       );
     });
 
+    test('override map without abilities falls through to infer', () {
+      final cfg = ProviderConfig(
+        id: 'P',
+        enabled: true,
+        name: 'P',
+        apiKey: 'k',
+        baseUrl: 'https://example.com',
+        modelOverrides: {
+          'gpt-4o-mini': {'temperature': 0.5},
+        },
+      );
+      expect(
+        modelSupportsToolCalling(config: cfg, modelId: 'gpt-4o-mini'),
+        isTrue,
+      );
+    });
+
     test('empty model id is false', () {
       final cfg = ProviderConfig(
         id: 'P',
@@ -208,6 +225,34 @@ void main() {
         baseUrl: 'https://example.com',
       );
       expect(modelSupportsToolCalling(config: cfg, modelId: ''), isFalse);
+    });
+  });
+
+  group('directorForcedToolChoiceExtraBody', () {
+    test('openai uses required', () {
+      final cfg = ProviderConfig(
+        id: 'OpenAI',
+        enabled: true,
+        name: 'OpenAI',
+        apiKey: 'k',
+        baseUrl: 'https://api.openai.com/v1',
+      );
+      final body = directorForcedToolChoiceExtraBody(cfg);
+      expect(body['tool_choice'], 'required');
+    });
+
+    test('claude uses type any', () {
+      final cfg = ProviderConfig(
+        id: 'Anthropic',
+        enabled: true,
+        name: 'Claude',
+        apiKey: 'k',
+        baseUrl: 'https://api.anthropic.com',
+        providerType: ProviderKind.claude,
+      );
+      final body = directorForcedToolChoiceExtraBody(cfg);
+      expect(body['tool_choice'], isA<Map>());
+      expect((body['tool_choice'] as Map)['type'], 'any');
     });
   });
 
@@ -468,6 +513,125 @@ void main() {
           ),
         ),
       );
+    });
+
+    test(
+      'directorNoDecision returns TurnResult (no throw) and keeps user msg',
+      () async {
+        final group = await mem.createGroup(
+          title: 'T',
+          assistantIds: ['a1', 'a2'],
+          settings: const GroupChatSettings(
+            directorModelProvider: 'P',
+            directorModelId: 'tool-model',
+            maxAssistantMessagesPerUserTurn: 6,
+          ),
+        );
+
+        final orch = GroupChatOrchestrator(
+          groupChatService: mem,
+          resolveAssistant: (id) => assistants[id],
+          resolveSettings: () => settings,
+          sendMessageStream: (req) async* {
+            // Director stream finishes without calling tools.
+            yield ChatStreamChunk(
+              content: 'I will not call tools',
+              isDone: true,
+              totalTokens: 1,
+            );
+          },
+        );
+
+        final result = await orch.sendUserMessage(
+          groupId: group.id,
+          content: '你们好',
+        );
+        expect(result.isSuccess, isFalse);
+        expect(result.errorCode, GroupChatErrorCode.directorNoDecision);
+        expect(result.endedBy, 'error');
+        expect(result.assistantMessages, isEmpty);
+        final timeline = await mem.getMessages(group.id);
+        expect(timeline.where((m) => m.role == 'user').length, 1);
+        expect(timeline.where((m) => m.role == 'assistant'), isEmpty);
+      },
+    );
+
+    test('director stream cancel after tool decision still succeeds', () async {
+      final group = await mem.createGroup(
+        title: 'T',
+        assistantIds: ['a1', 'a2'],
+        settings: const GroupChatSettings(
+          directorModelProvider: 'P',
+          directorModelId: 'tool-model',
+          maxAssistantMessagesPerUserTurn: 1,
+        ),
+      );
+
+      var directorCalls = 0;
+      final orch = GroupChatOrchestrator(
+        groupChatService: mem,
+        resolveAssistant: (id) => assistants[id],
+        resolveSettings: () => settings,
+        sendMessageStream: (req) async* {
+          if (req.tools != null && req.tools!.isNotEmpty) {
+            directorCalls += 1;
+            final handler = req.onToolCall;
+            if (handler != null) {
+              await handler('select_speaker', {'assistant_id': 'a1'});
+            }
+            // Simulate provider cancel after intentional cancelRequest.
+            throw Exception('request cancelled');
+          }
+          yield ChatStreamChunk(
+            content: 'hello from member',
+            isDone: true,
+            totalTokens: 2,
+          );
+        },
+      );
+
+      final result = await orch.sendUserMessage(
+        groupId: group.id,
+        content: 'Hi',
+      );
+      expect(result.isSuccess, isTrue);
+      expect(result.assistantMessages.length, 1);
+      expect(result.assistantMessages.first.content, 'hello from member');
+      expect(directorCalls, greaterThanOrEqualTo(1));
+    });
+
+    test('forced tool_choice extraBody is passed to director stream', () async {
+      final group = await mem.createGroup(
+        title: 'T',
+        assistantIds: ['a1', 'a2'],
+        settings: const GroupChatSettings(
+          directorModelProvider: 'P',
+          directorModelId: 'tool-model',
+        ),
+      );
+
+      Map<String, dynamic>? seenExtra;
+      final orch = GroupChatOrchestrator(
+        groupChatService: mem,
+        resolveAssistant: (id) => assistants[id],
+        resolveSettings: () => settings,
+        sendMessageStream: (req) async* {
+          if (req.tools != null && req.tools!.isNotEmpty) {
+            seenExtra = req.extraBody;
+            final handler = req.onToolCall;
+            if (handler != null) {
+              await handler('end_round', {});
+            }
+            yield ChatStreamChunk(content: '', isDone: true, totalTokens: 0);
+            return;
+          }
+          yield ChatStreamChunk(content: '', isDone: true, totalTokens: 0);
+        },
+      );
+
+      await orch.sendUserMessage(groupId: group.id, content: 'Hi');
+      expect(seenExtra, isNotNull);
+      expect(seenExtra!['tool_choice'], 'required');
     });
   });
 }

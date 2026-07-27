@@ -710,6 +710,9 @@ class GroupChatOrchestrator extends ChangeNotifier {
           messages: messages,
           tools: tools,
           onToolCall: handler,
+          // 导演必须强制 tool_choice，与 thinking mode 互斥；
+          // 显式关闭 thinking 避免 API 400。
+          thinkingBudget: 0,
           temperature: temperature,
           stream: true,
           requestId: requestId,

@@ -6378,6 +6378,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get groupChatBackTooltip => '返回';
 
   @override
+  String get groupChatSettingsDirectorLog => '导演对话查看';
+
+  @override
+  String get groupChatDirectorLogTitle => '导演对话';
+
+  @override
+  String get groupChatDirectorLogEmpty => '暂无导演记录';
+
+  @override
+  String get groupChatDirectorLogCopyAll => '复制全文';
+
+  @override
+  String get groupChatDirectorLogCopied => '已复制导演日志';
+
+  @override
+  String get groupChatDirectorLogMetaSection => '会话信息';
+
+  @override
+  String get groupChatDirectorLogStateSection => '状态摘要';
+
+  @override
+  String groupChatDirectorLogMessagesSection(int count) {
+    return '对话消息（$count）';
+  }
+
+  @override
+  String get groupChatDirectorLogStatus => '状态';
+
+  @override
+  String get groupChatDirectorLogUpdatedAt => '更新时间';
+
+  @override
+  String get groupChatDirectorLogError => '错误';
+
+  @override
   String get groupChatMemberAlreadyInGroup => '已在群中';
 }
 
@@ -12753,6 +12788,41 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get groupChatBackTooltip => '返回';
+
+  @override
+  String get groupChatSettingsDirectorLog => '导演对话查看';
+
+  @override
+  String get groupChatDirectorLogTitle => '导演对话';
+
+  @override
+  String get groupChatDirectorLogEmpty => '暂无导演记录';
+
+  @override
+  String get groupChatDirectorLogCopyAll => '复制全文';
+
+  @override
+  String get groupChatDirectorLogCopied => '已复制导演日志';
+
+  @override
+  String get groupChatDirectorLogMetaSection => '会话信息';
+
+  @override
+  String get groupChatDirectorLogStateSection => '状态摘要';
+
+  @override
+  String groupChatDirectorLogMessagesSection(int count) {
+    return '对话消息（$count）';
+  }
+
+  @override
+  String get groupChatDirectorLogStatus => '状态';
+
+  @override
+  String get groupChatDirectorLogUpdatedAt => '更新时间';
+
+  @override
+  String get groupChatDirectorLogError => '错误';
 
   @override
   String get groupChatMemberAlreadyInGroup => '已在群中';
@@ -19132,5 +19202,40 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get groupChatBackTooltip => '返回';
 
   @override
-  String get groupChatMemberAlreadyInGroup => '已在群中';
+  String get groupChatSettingsDirectorLog => '導演對話查看';
+
+  @override
+  String get groupChatDirectorLogTitle => '導演對話';
+
+  @override
+  String get groupChatDirectorLogEmpty => '暫無導演記錄';
+
+  @override
+  String get groupChatDirectorLogCopyAll => '複製全文';
+
+  @override
+  String get groupChatDirectorLogCopied => '已複製導演日誌';
+
+  @override
+  String get groupChatDirectorLogMetaSection => '會話資訊';
+
+  @override
+  String get groupChatDirectorLogStateSection => '狀態摘要';
+
+  @override
+  String groupChatDirectorLogMessagesSection(int count) {
+    return '對話訊息（$count）';
+  }
+
+  @override
+  String get groupChatDirectorLogStatus => '狀態';
+
+  @override
+  String get groupChatDirectorLogUpdatedAt => '更新時間';
+
+  @override
+  String get groupChatDirectorLogError => '錯誤';
+
+  @override
+  String get groupChatMemberAlreadyInGroup => '已在群組中';
 }

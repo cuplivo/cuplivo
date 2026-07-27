@@ -3178,5 +3178,23 @@
   "groupChatDefaultTitle": "Group Chat",
   "groupChatMessageEmpty": "Say hello to start the conversation",
   "groupChatBackTooltip": "Back",
+  "groupChatSettingsDirectorLog": "View director conversation",
+  "groupChatDirectorLogTitle": "Director conversation",
+  "groupChatDirectorLogEmpty": "No director records yet",
+  "groupChatDirectorLogCopyAll": "Copy all",
+  "groupChatDirectorLogCopied": "Copied director log",
+  "groupChatDirectorLogMetaSection": "Session",
+  "groupChatDirectorLogStateSection": "State summary",
+  "groupChatDirectorLogMessagesSection": "Messages ({count})",
+  "@groupChatDirectorLogMessagesSection": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "groupChatDirectorLogStatus": "Status",
+  "groupChatDirectorLogUpdatedAt": "Updated",
+  "groupChatDirectorLogError": "Error",
   "groupChatMemberAlreadyInGroup": "Already in the group"
 }

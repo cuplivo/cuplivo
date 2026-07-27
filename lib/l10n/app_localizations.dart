@@ -12128,6 +12128,72 @@ abstract class AppLocalizations {
   /// **'Back'**
   String get groupChatBackTooltip;
 
+  /// No description provided for @groupChatSettingsDirectorLog.
+  ///
+  /// In en, this message translates to:
+  /// **'View director conversation'**
+  String get groupChatSettingsDirectorLog;
+
+  /// No description provided for @groupChatDirectorLogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Director conversation'**
+  String get groupChatDirectorLogTitle;
+
+  /// No description provided for @groupChatDirectorLogEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No director records yet'**
+  String get groupChatDirectorLogEmpty;
+
+  /// No description provided for @groupChatDirectorLogCopyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy all'**
+  String get groupChatDirectorLogCopyAll;
+
+  /// No description provided for @groupChatDirectorLogCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied director log'**
+  String get groupChatDirectorLogCopied;
+
+  /// No description provided for @groupChatDirectorLogMetaSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Session'**
+  String get groupChatDirectorLogMetaSection;
+
+  /// No description provided for @groupChatDirectorLogStateSection.
+  ///
+  /// In en, this message translates to:
+  /// **'State summary'**
+  String get groupChatDirectorLogStateSection;
+
+  /// No description provided for @groupChatDirectorLogMessagesSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages ({count})'**
+  String groupChatDirectorLogMessagesSection(int count);
+
+  /// No description provided for @groupChatDirectorLogStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get groupChatDirectorLogStatus;
+
+  /// No description provided for @groupChatDirectorLogUpdatedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated'**
+  String get groupChatDirectorLogUpdatedAt;
+
+  /// No description provided for @groupChatDirectorLogError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get groupChatDirectorLogError;
+
   /// No description provided for @groupChatMemberAlreadyInGroup.
   ///
   /// In en, this message translates to:

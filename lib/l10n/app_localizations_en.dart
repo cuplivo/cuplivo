@@ -6652,5 +6652,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get groupChatBackTooltip => 'Back';
 
   @override
+  String get groupChatSettingsDirectorLog => 'View director conversation';
+
+  @override
+  String get groupChatDirectorLogTitle => 'Director conversation';
+
+  @override
+  String get groupChatDirectorLogEmpty => 'No director records yet';
+
+  @override
+  String get groupChatDirectorLogCopyAll => 'Copy all';
+
+  @override
+  String get groupChatDirectorLogCopied => 'Copied director log';
+
+  @override
+  String get groupChatDirectorLogMetaSection => 'Session';
+
+  @override
+  String get groupChatDirectorLogStateSection => 'State summary';
+
+  @override
+  String groupChatDirectorLogMessagesSection(int count) {
+    return 'Messages ($count)';
+  }
+
+  @override
+  String get groupChatDirectorLogStatus => 'Status';
+
+  @override
+  String get groupChatDirectorLogUpdatedAt => 'Updated';
+
+  @override
+  String get groupChatDirectorLogError => 'Error';
+
+  @override
   String get groupChatMemberAlreadyInGroup => 'Already in the group';
 }

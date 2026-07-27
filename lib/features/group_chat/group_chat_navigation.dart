@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'pages/group_advanced_settings_page.dart';
 import 'pages/group_chat_list_page.dart';
 import 'pages/group_chat_page.dart';
+import 'pages/group_director_log_page.dart';
 import 'pages/group_settings_page.dart';
 
 bool get _isDesktopPlatform =>
@@ -80,5 +81,11 @@ Future<void> openGroupAdvancedSettings(
     MaterialPageRoute(
       builder: (_) => GroupAdvancedSettingsPage(groupId: groupId),
     ),
+  );
+}
+
+Future<void> openGroupDirectorLog(BuildContext context, String groupId) async {
+  await Navigator.of(context).push<void>(
+    MaterialPageRoute(builder: (_) => GroupDirectorLogPage(groupId: groupId)),
   );
 }

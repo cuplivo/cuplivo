@@ -318,6 +318,13 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
                 ),
                 const SizedBox(height: 12),
                 _SettingsNavTile(
+                  icon: Lucide.MessagesSquare,
+                  label: l10n.groupChatSettingsDirectorLog,
+                  onTap: () => openGroupDirectorLog(context, widget.groupId),
+                  isDark: isDark,
+                ),
+                const SizedBox(height: 12),
+                _SettingsNavTile(
                   icon: Lucide.Trash2,
                   label: l10n.groupChatSettingsDelete,
                   danger: true,

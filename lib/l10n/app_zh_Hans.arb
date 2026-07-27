@@ -2628,5 +2628,23 @@
   "groupChatDefaultTitle": "群聊",
   "groupChatMessageEmpty": "打个招呼开始聊天吧",
   "groupChatBackTooltip": "返回",
+  "groupChatSettingsDirectorLog": "导演对话查看",
+  "groupChatDirectorLogTitle": "导演对话",
+  "groupChatDirectorLogEmpty": "暂无导演记录",
+  "groupChatDirectorLogCopyAll": "复制全文",
+  "groupChatDirectorLogCopied": "已复制导演日志",
+  "groupChatDirectorLogMetaSection": "会话信息",
+  "groupChatDirectorLogStateSection": "状态摘要",
+  "groupChatDirectorLogMessagesSection": "对话消息（{count}）",
+  "@groupChatDirectorLogMessagesSection": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "groupChatDirectorLogStatus": "状态",
+  "groupChatDirectorLogUpdatedAt": "更新时间",
+  "groupChatDirectorLogError": "错误",
   "groupChatMemberAlreadyInGroup": "已在群中"
 }

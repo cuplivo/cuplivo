@@ -36,6 +36,7 @@ import 'core/providers/hotkey_provider.dart';
 import 'core/services/chat/chat_service.dart';
 import 'core/services/trash_restore_coordinator.dart';
 import 'core/services/chat/group_chat_service.dart';
+import 'core/services/group_chat/group_chat_orchestrator.dart';
 import 'core/services/mcp/mcp_tool_service.dart';
 import 'core/services/logging/flutter_logger.dart';
 import 'features/home/services/ask_user_interaction_service.dart';
@@ -153,6 +154,32 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (ctx) =>
               AssistantProvider(chatService: ctx.read<ChatService>()),
+        ),
+        ChangeNotifierProxyProvider2<
+          AssistantProvider,
+          SettingsProvider,
+          GroupChatOrchestrator
+        >(
+          create: (ctx) {
+            final gcs = ctx.read<GroupChatService>();
+            final orch = GroupChatOrchestrator(
+              groupChatService: gcs,
+              resolveAssistant: (id) =>
+                  ctx.read<AssistantProvider>().getById(id),
+              resolveSettings: () => ctx.read<SettingsProvider>(),
+              resolveUserNickname: () => ctx.read<UserProvider>().name,
+              toolEventsReader: (id) =>
+                  ctx.read<ChatService>().getToolEvents(id),
+              toolEventsWriter: (id, events) =>
+                  ctx.read<ChatService>().setToolEvents(id, events),
+            );
+            gcs.attachOrchestrator(orch);
+            return orch;
+          },
+          update: (ctx, assistants, settings, orch) {
+            // Keep one orchestrator instance; resolvers read latest providers.
+            return orch!;
+          },
         ),
         ChangeNotifierProvider(create: (_) => TagProvider()),
         ChangeNotifierProvider(create: (_) => TtsProvider()),

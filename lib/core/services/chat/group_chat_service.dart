@@ -6,16 +6,18 @@ import '../../models/group_chat.dart';
 import '../../models/group_chat_member.dart';
 import '../../models/group_chat_message.dart';
 import '../../models/group_chat_settings.dart';
+import '../group_chat/group_chat_orchestrator.dart';
 import 'chat_service.dart';
 
 /// Multi-assistant group chat facade (mirrors [ChatService] caching style, simplified).
 ///
 /// Depends on [ChatService] for the shared [ChatDatabaseRepository] / SQLite file.
-/// Orchestrator / director tool loop is Phase 2 — not implemented here.
+/// Optional [orchestrator] handles director tool loop + member speaking (Phase 2).
 class GroupChatService extends ChangeNotifier {
-  GroupChatService({this.chatService});
+  GroupChatService({this.chatService, this._orchestrator});
 
   final ChatService? chatService;
+  GroupChatOrchestrator? _orchestrator;
 
   final Map<String, GroupChat> _groupsCache = {};
   final Map<String, List<GroupChatMember>> _membersCache = {};
@@ -317,5 +319,34 @@ class GroupChatService extends ChangeNotifier {
     return putDirectorSession(session);
   }
 
-  // TODO(phase2): GroupChatOrchestrator — director tool loop + member speaking.
+  /// Attach / replace the Phase-2 orchestrator (typically from app bootstrap).
+  void attachOrchestrator(GroupChatOrchestrator orchestrator) {
+    _orchestrator = orchestrator;
+  }
+
+  GroupChatOrchestrator? get orchestrator => _orchestrator;
+
+  bool isGroupGenerating(String groupId) =>
+      _orchestrator?.isRunning(groupId) ?? false;
+
+  /// Cancel in-flight director / member streams for [groupId].
+  Future<void> cancelGeneration(String groupId) async {
+    await _orchestrator?.cancel(groupId);
+  }
+
+  /// Send a user message and run the director → member loop.
+  ///
+  /// Requires [attachOrchestrator] first. Throws [StateError] if missing.
+  Future<GroupChatTurnResult> sendUserMessage({
+    required String groupId,
+    required String content,
+  }) async {
+    final orch = _orchestrator;
+    if (orch == null) {
+      throw StateError(
+        'GroupChatService: orchestrator not attached (Phase 2 wiring)',
+      );
+    }
+    return orch.sendUserMessage(groupId: groupId, content: content);
+  }
 }

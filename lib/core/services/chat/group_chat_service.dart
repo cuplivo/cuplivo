@@ -132,7 +132,7 @@ class GroupChatService extends ChangeNotifier {
       memberIds: members.map((m) => m.id).toList(),
     );
     _groupsCache[group.id] = withIds;
-    _membersCache[group.id] = members;
+    _membersCache[group.id] = List<GroupChatMember>.of(members);
     notifyListeners();
     return withIds;
   }
@@ -166,7 +166,10 @@ class GroupChatService extends ChangeNotifier {
     if (cached != null) return List.unmodifiable(cached);
     final repo = _repo;
     if (repo == null) return const [];
-    final members = await repo.getGroupMembers(groupId);
+    // Repo returns growable:false; cache must stay growable for later mutate.
+    final members = List<GroupChatMember>.of(
+      await repo.getGroupMembers(groupId),
+    );
     _membersCache[groupId] = members;
     return List.unmodifiable(members);
   }
@@ -207,7 +210,12 @@ class GroupChatService extends ChangeNotifier {
     if (cached != null) return List.unmodifiable(cached);
     final repo = _repo;
     if (repo == null) return const [];
-    final messages = await repo.getGroupMessages(groupId);
+    // Repo returns growable:false; always store a growable copy so
+    // [addMessage]/[deleteMessage] can mutate without
+    // "Cannot add to a fixed-length list".
+    final messages = List<GroupChatMessage>.of(
+      await repo.getGroupMessages(groupId),
+    );
     _messagesCache[groupId] = messages;
     return List.unmodifiable(messages);
   }
@@ -217,7 +225,9 @@ class GroupChatService extends ChangeNotifier {
     await ensureLoaded();
     final repo = _repo;
     if (repo == null) return const [];
-    final messages = await repo.getGroupMessages(groupId);
+    final messages = List<GroupChatMessage>.of(
+      await repo.getGroupMessages(groupId),
+    );
     _messagesCache[groupId] = messages;
     notifyListeners();
     return List.unmodifiable(messages);
@@ -244,7 +254,10 @@ class GroupChatService extends ChangeNotifier {
     final toWrite = message.copyWith(messageOrder: order);
     await repo.putGroupMessage(toWrite);
 
-    final list = _messagesCache.putIfAbsent(message.groupId, () => []);
+    // Always mutate a growable list (defensive vs fixed-length repo results).
+    final list = List<GroupChatMessage>.of(
+      _messagesCache[message.groupId] ?? const <GroupChatMessage>[],
+    );
     final idx = list.indexWhere((m) => m.id == toWrite.id);
     if (idx >= 0) {
       list[idx] = toWrite;
@@ -252,6 +265,7 @@ class GroupChatService extends ChangeNotifier {
       list.add(toWrite);
       list.sort((a, b) => a.messageOrder.compareTo(b.messageOrder));
     }
+    _messagesCache[message.groupId] = list;
 
     final g = _groupsCache[message.groupId];
     if (g != null) {
@@ -268,10 +282,14 @@ class GroupChatService extends ChangeNotifier {
     final repo = _repo;
     if (repo == null) return;
     await repo.putGroupMessage(message);
-    final list = _messagesCache[message.groupId];
-    if (list != null) {
+    final cached = _messagesCache[message.groupId];
+    if (cached != null) {
+      final list = List<GroupChatMessage>.of(cached);
       final idx = list.indexWhere((m) => m.id == message.id);
-      if (idx >= 0) list[idx] = message;
+      if (idx >= 0) {
+        list[idx] = message;
+        _messagesCache[message.groupId] = list;
+      }
     }
     notifyListeners();
   }
@@ -281,9 +299,15 @@ class GroupChatService extends ChangeNotifier {
     final repo = _repo;
     if (repo == null) return;
     await repo.deleteGroupMessage(messageId);
-    _messagesCache[groupId]?.removeWhere((m) => m.id == messageId);
+    final cached = _messagesCache[groupId];
+    if (cached != null) {
+      _messagesCache[groupId] = List<GroupChatMessage>.of(cached)
+        ..removeWhere((m) => m.id == messageId);
+    }
     // Reload order after compact.
-    final messages = await repo.getGroupMessages(groupId);
+    final messages = List<GroupChatMessage>.of(
+      await repo.getGroupMessages(groupId),
+    );
     _messagesCache[groupId] = messages;
     notifyListeners();
   }

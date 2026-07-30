@@ -210,11 +210,7 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
     if (ok != true || !mounted) return;
     await context.read<GroupChatService>().deleteGroup(widget.groupId);
     if (!mounted) return;
-    // Close settings, then group chat page when possible.
-    Navigator.of(context).pop(); // settings
-    if (mounted && Navigator.of(context).canPop()) {
-      Navigator.of(context).pop(); // chat
-    }
+    closeGroupPage(context, count: 2);
   }
 
   @override
@@ -234,7 +230,8 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
             icon: Lucide.ArrowLeft,
             size: 22,
             minSize: 44,
-            onTap: () => Navigator.of(context).maybePop(),
+            onTap: () => closeGroupPage(context),
+            semanticLabel: l10n.groupChatBackTooltip,
           ),
         ),
         title: Text(l10n.groupChatSettingsTitle),

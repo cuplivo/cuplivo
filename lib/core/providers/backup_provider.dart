@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../models/backup.dart';
 import '../models/incremental_backup.dart';
 import '../services/chat/chat_service.dart';
+import '../services/chat/group_chat_service.dart';
 import '../services/backup/data_sync.dart';
 import '../services/trash_restore_coordinator.dart';
 
@@ -17,10 +18,12 @@ class BackupProvider extends ChangeNotifier {
 
   BackupProvider({
     required ChatService chatService,
+    required GroupChatService groupChatService,
     required TrashRestoreCoordinator trashRestoreCoordinator,
     WebDavConfig? initialConfig,
   }) : _dataSync = DataSync(
          chatService: chatService,
+         groupChatService: groupChatService,
          localIdResolver: trashRestoreCoordinator.getLocalIds,
        ),
        _cfg = initialConfig ?? const WebDavConfig();

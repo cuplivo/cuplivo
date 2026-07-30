@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_input_data.dart';
+import '../../../core/models/chat_context_message.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/models/instruction_injection.dart';
@@ -51,6 +52,8 @@ class MessageBuilderService {
     required this.contextProvider,
     this.ocrHandler,
     this.geminiThoughtSignatureHandler,
+    this.toolEventsForMessage,
+    this.latestPersistedMessage,
   });
 
   final ChatService chatService;
@@ -67,6 +70,12 @@ class MessageBuilderService {
   /// Handler to append Gemini thought signatures for API calls
   final String Function(ChatMessage message, String content)?
   geminiThoughtSignatureHandler;
+
+  /// Persistence adapters used by group chat while retaining the ordinary
+  /// message-building implementation.
+  final List<Map<String, dynamic>> Function(String messageId)?
+  toolEventsForMessage;
+  final ChatMessage? Function(ChatMessage message)? latestPersistedMessage;
 
   /// Cache for document text extraction to avoid re-reading files on every message
   /// Keyed by path, validated with (modified + size) to avoid stale reuse.
@@ -127,27 +136,55 @@ class MessageBuilderService {
     required Map<String, int> versionSelections,
     required Conversation? currentConversation,
     bool includeToolMessages = false,
+  }) => buildApiMessagesFromContext(
+    contextMessages: messages
+        .map(ChatContextMessage.full)
+        .toList(growable: false),
+    versionSelections: versionSelections,
+    currentConversation: currentConversation,
+    includeToolMessages: includeToolMessages,
+  );
+
+  /// Builds provider-neutral API messages from a policy-aware history.
+  ///
+  /// [ChatContextMessage.contentOnly] entries are intentionally prevented from
+  /// contributing reasoning, tool events, or vendor thought signatures.
+  List<Map<String, dynamic>> buildApiMessagesFromContext({
+    required List<ChatContextMessage> contextMessages,
+    required Map<String, int> versionSelections,
+    required Conversation? currentConversation,
+    bool includeToolMessages = false,
   }) {
     final tIndex = currentConversation?.truncateIndex ?? -1;
-    final List<ChatMessage> sourceAll =
-        (tIndex >= 0 && tIndex <= messages.length)
-        ? messages.sublist(tIndex)
-        : List.of(messages);
-    final List<ChatMessage> source = collapseVersions(
-      sourceAll,
+    final List<ChatContextMessage> sourceAll =
+        (tIndex >= 0 && tIndex <= contextMessages.length)
+        ? contextMessages.sublist(tIndex)
+        : List.of(contextMessages);
+    final entryByMessageId = <String, ChatContextMessage>{
+      for (final entry in sourceAll) entry.message.id: entry,
+    };
+    final selectedMessages = collapseVersions(
+      sourceAll.map((entry) => entry.message).toList(growable: false),
       versionSelections,
     );
+    final source = selectedMessages
+        .map((message) => entryByMessageId[message.id]!)
+        .toList(growable: false);
 
     final out = <Map<String, dynamic>>[];
 
-    for (final m in source) {
+    for (final entry in source) {
+      final m = entry.message;
       String? toolContinuationReasoningContent;
       dynamic reasoningDetails;
-      if (m.role == 'assistant') {
+      if (entry.includeArtifacts && m.role == 'assistant') {
         reasoningDetails = _reasoningDetailsForApi(m);
       }
-      if (includeToolMessages && m.role == 'assistant') {
-        final events = chatService.getToolEvents(m.id);
+      if (entry.includeArtifacts &&
+          includeToolMessages &&
+          m.role == 'assistant') {
+        final events =
+            toolEventsForMessage?.call(m.id) ?? chatService.getToolEvents(m.id);
         if (events.isNotEmpty) {
           // Tool-call history is only valid once every call has a result.
           final hasPendingToolEvent = events.any((e) => e['content'] == null);
@@ -213,7 +250,9 @@ class MessageBuilderService {
       }
 
       var content = m.content;
-      if (m.role == 'assistant' && geminiThoughtSignatureHandler != null) {
+      if (entry.includeArtifacts &&
+          m.role == 'assistant' &&
+          geminiThoughtSignatureHandler != null) {
         content = geminiThoughtSignatureHandler!(m, content);
       }
       if (content.isEmpty) continue;
@@ -239,6 +278,8 @@ class MessageBuilderService {
   }
 
   ChatMessage? _latestPersistedMessage(ChatMessage message) {
+    final adapted = latestPersistedMessage?.call(message);
+    if (adapted != null) return adapted;
     final persisted = chatService.getMessages(message.conversationId);
     for (final candidate in persisted) {
       if (candidate.id == message.id) return candidate;

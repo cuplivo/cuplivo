@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/widgets.dart';
 import '../../../core/models/assistant.dart';
+import '../../../core/models/chat_context_message.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/conversation.dart';
@@ -64,6 +65,184 @@ class PreparedGeneration {
   });
 }
 
+typedef SharedToolDefinitionsBuilder =
+    List<Map<String, dynamic>> Function(
+      SettingsProvider settings,
+      Assistant? assistant,
+      String providerKey,
+      String modelId,
+      bool hasBuiltInSearch,
+    );
+typedef SharedToolCallHandlerBuilder =
+    ToolCallHandler? Function(
+      SettingsProvider settings,
+      Assistant? assistant, {
+      ToolApprovalService? approvalService,
+      AskUserInteractionService? askUserService,
+    });
+
+/// Provider-neutral preparation shared by ordinary and group member chat.
+class ChatGenerationPreparationService {
+  const ChatGenerationPreparationService({
+    required this.messageBuilderService,
+    required this.buildToolDefinitions,
+    required this.buildToolCallHandler,
+  });
+
+  final MessageBuilderService messageBuilderService;
+  final SharedToolDefinitionsBuilder buildToolDefinitions;
+  final SharedToolCallHandlerBuilder buildToolCallHandler;
+
+  Future<PreparedGeneration> prepare({
+    required List<ChatMessage> messages,
+    List<ChatContextMessage>? contextMessages,
+    required Map<String, int> versionSelections,
+    required Conversation? currentConversation,
+    required SettingsProvider settings,
+    required Assistant? assistant,
+    required String? assistantId,
+    required String providerKey,
+    required String modelId,
+    ToolApprovalService? approvalService,
+    AskUserInteractionService? askUserService,
+    VoidCallback? onFileProcessingStarted,
+    VoidCallback? onFileProcessingFinished,
+  }) async {
+    final config = settings.getProviderConfig(providerKey);
+    final kind = ProviderConfig.classify(
+      providerKey,
+      explicitType: config.providerType,
+    );
+    final includeToolMessages = switch (kind) {
+      ProviderKind.openai || ProviderKind.claude || ProviderKind.google => true,
+    };
+
+    onFileProcessingStarted?.call();
+    try {
+      var effectiveContextMessages = contextMessages;
+      if (effectiveContextMessages != null &&
+          assistant != null &&
+          assistant.regexRules.isNotEmpty) {
+        effectiveContextMessages = effectiveContextMessages
+            .map((entry) {
+              final message = entry.message;
+              if (message.role != 'assistant' ||
+                  !entry.applyAssistantSendTransform ||
+                  message.content.isEmpty) {
+                return entry;
+              }
+              return ChatContextMessage(
+                message: message.copyWith(
+                  content: applyAssistantRegexes(
+                    message.content,
+                    assistant: assistant,
+                    scope: AssistantRegexScope.assistant,
+                    target: AssistantRegexTransformTarget.send,
+                  ),
+                ),
+                includeArtifacts: entry.includeArtifacts,
+                applyAssistantSendTransform: entry.applyAssistantSendTransform,
+              );
+            })
+            .toList(growable: false);
+      }
+
+      final apiMessages = effectiveContextMessages == null
+          ? messageBuilderService.buildApiMessages(
+              messages: messages,
+              versionSelections: versionSelections,
+              currentConversation: currentConversation,
+              includeToolMessages: includeToolMessages,
+            )
+          : messageBuilderService.buildApiMessagesFromContext(
+              contextMessages: effectiveContextMessages,
+              versionSelections: versionSelections,
+              currentConversation: currentConversation,
+              includeToolMessages: includeToolMessages,
+            );
+
+      if (contextMessages == null &&
+          assistant != null &&
+          assistant.regexRules.isNotEmpty) {
+        for (final message in apiMessages) {
+          if ((message['role'] ?? '').toString() != 'assistant') continue;
+          final raw = (message['content'] ?? '').toString();
+          if (raw.isEmpty) continue;
+          message['content'] = applyAssistantRegexes(
+            raw,
+            assistant: assistant,
+            scope: AssistantRegexScope.assistant,
+            target: AssistantRegexTransformTarget.send,
+          );
+        }
+      }
+
+      final lastUserImagePaths = await messageBuilderService
+          .processUserMessagesForApi(apiMessages, settings, assistant);
+
+      messageBuilderService.injectSystemPrompt(apiMessages, assistant, modelId);
+      await messageBuilderService.injectMemoryAndRecentChats(
+        apiMessages,
+        assistant,
+        currentConversationId: currentConversation?.id,
+      );
+
+      final hasBuiltInSearch = messageBuilderService.hasBuiltInSearch(
+        settings,
+        providerKey,
+        modelId,
+      );
+      messageBuilderService.injectSearchPrompt(
+        apiMessages,
+        settings,
+        assistant,
+        hasBuiltInSearch,
+      );
+      await messageBuilderService.injectInstructionPrompts(
+        apiMessages,
+        assistantId,
+      );
+      await messageBuilderService.injectWorldBookPrompts(
+        apiMessages,
+        assistantId,
+      );
+      await messageBuilderService.injectSkillListPrompt(
+        apiMessages,
+        assistantId,
+      );
+      messageBuilderService.injectTimeNote(apiMessages, assistant);
+      messageBuilderService.applyContextLimit(apiMessages, assistant);
+      await messageBuilderService.inlineLocalImages(apiMessages);
+
+      final toolDefs = buildToolDefinitions(
+        settings,
+        assistant,
+        providerKey,
+        modelId,
+        hasBuiltInSearch,
+      );
+      final onToolCall = toolDefs.isEmpty
+          ? null
+          : buildToolCallHandler(
+              settings,
+              assistant,
+              approvalService: approvalService,
+              askUserService: askUserService,
+            );
+
+      return PreparedGeneration(
+        apiMessages: apiMessages,
+        toolDefs: toolDefs,
+        onToolCall: onToolCall,
+        hasBuiltInSearch: hasBuiltInSearch,
+        lastUserImagePaths: lastUserImagePaths,
+      );
+    } finally {
+      onFileProcessingFinished?.call();
+    }
+  }
+}
+
 /// Service for handling message generation orchestration.
 ///
 /// This service coordinates:
@@ -112,6 +291,7 @@ class MessageGenerationService {
   /// Prepare API messages with all injections applied.
   Future<PreparedGeneration> prepareApiMessagesWithInjections({
     required List<ChatMessage> messages,
+    List<ChatContextMessage>? contextMessages,
     required Map<String, int> versionSelections,
     required Conversation? currentConversation,
     required SettingsProvider settings,
@@ -121,108 +301,25 @@ class MessageGenerationService {
     required String modelId,
     ToolApprovalService? approvalService,
     AskUserInteractionService? askUserService,
-  }) async {
-    final cfg = settings.getProviderConfig(providerKey);
-    final kind = ProviderConfig.classify(
-      providerKey,
-      explicitType: cfg.providerType,
-    );
-    final includeToolMessages = switch (kind) {
-      ProviderKind.openai || ProviderKind.claude || ProviderKind.google => true,
-    };
-
-    onFileProcessingStarted?.call();
-
-    // Build API messages
-    final apiMessages = messageBuilderService.buildApiMessages(
+  }) {
+    return ChatGenerationPreparationService(
+      messageBuilderService: messageBuilderService,
+      buildToolDefinitions: generationController.buildToolDefinitions,
+      buildToolCallHandler: generationController.buildToolCallHandler,
+    ).prepare(
       messages: messages,
+      contextMessages: contextMessages,
       versionSelections: versionSelections,
       currentConversation: currentConversation,
-      includeToolMessages: includeToolMessages,
-    );
-
-    // Apply assistant replace-only regexes at send-time (visual stays unchanged).
-    if (assistant != null && assistant.regexRules.isNotEmpty) {
-      for (int i = 0; i < apiMessages.length; i++) {
-        final role = (apiMessages[i]['role'] ?? '').toString();
-        if (role != 'assistant') continue;
-        final raw = (apiMessages[i]['content'] ?? '').toString();
-        if (raw.isEmpty) continue;
-        apiMessages[i]['content'] = applyAssistantRegexes(
-          raw,
-          assistant: assistant,
-          scope: AssistantRegexScope.assistant,
-          target: AssistantRegexTransformTarget.send,
-        );
-      }
-    }
-
-    // Process user messages (documents, OCR, templates)
-    final lastUserImagePaths = await messageBuilderService
-        .processUserMessagesForApi(apiMessages, settings, assistant);
-
-    // Signal processing finished
-    onFileProcessingFinished?.call();
-
-    // Inject prompts
-    messageBuilderService.injectSystemPrompt(apiMessages, assistant, modelId);
-    await messageBuilderService.injectMemoryAndRecentChats(
-      apiMessages,
-      assistant,
-      currentConversationId: currentConversation?.id,
-    );
-
-    final hasBuiltInSearch = messageBuilderService.hasBuiltInSearch(
-      settings,
-      providerKey,
-      modelId,
-    );
-    messageBuilderService.injectSearchPrompt(
-      apiMessages,
-      settings,
-      assistant,
-      hasBuiltInSearch,
-    );
-    await messageBuilderService.injectInstructionPrompts(
-      apiMessages,
-      assistantId,
-    );
-    await messageBuilderService.injectWorldBookPrompts(
-      apiMessages,
-      assistantId,
-    );
-    await messageBuilderService.injectSkillListPrompt(apiMessages, assistantId);
-
-    // Inject time note (at the end of system message, after all other injections)
-    messageBuilderService.injectTimeNote(apiMessages, assistant);
-
-    // Apply context limit and inline images
-    messageBuilderService.applyContextLimit(apiMessages, assistant);
-    await messageBuilderService.inlineLocalImages(apiMessages);
-
-    // Prepare tools
-    final toolDefs = generationController.buildToolDefinitions(
-      settings,
-      assistant,
-      providerKey,
-      modelId,
-      hasBuiltInSearch,
-    );
-    final onToolCall = toolDefs.isNotEmpty
-        ? generationController.buildToolCallHandler(
-            settings,
-            assistant,
-            approvalService: approvalService,
-            askUserService: askUserService,
-          )
-        : null;
-
-    return PreparedGeneration(
-      apiMessages: apiMessages,
-      toolDefs: toolDefs,
-      onToolCall: onToolCall,
-      hasBuiltInSearch: hasBuiltInSearch,
-      lastUserImagePaths: lastUserImagePaths,
+      settings: settings,
+      assistant: assistant,
+      assistantId: assistantId,
+      providerKey: providerKey,
+      modelId: modelId,
+      approvalService: approvalService,
+      askUserService: askUserService,
+      onFileProcessingStarted: onFileProcessingStarted,
+      onFileProcessingFinished: onFileProcessingFinished,
     );
   }
 

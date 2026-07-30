@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/chat_context_message.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
@@ -167,6 +168,87 @@ void main() {
   });
 
   group('MessageBuilderService.buildApiMessages', () {
+    test(
+      'content-only group entries cannot leak tools, reasoning, or signatures',
+      () {
+        final events = <String, List<Map<String, dynamic>>>{
+          'own': [
+            {
+              'id': 'own-tool',
+              'name': 'lookup',
+              'arguments': {'q': 'own'},
+              'content': 'own result',
+            },
+          ],
+          'other': [
+            {
+              'id': 'other-tool',
+              'name': 'secret',
+              'arguments': {'q': 'other'},
+              'content': 'private result',
+            },
+          ],
+        };
+        final service = MessageBuilderService(
+          chatService: _FakeChatService(const {}),
+          contextProvider: _FakeBuildContext(),
+          toolEventsForMessage: (id) => events[id] ?? const [],
+          geminiThoughtSignatureHandler: (message, content) =>
+              '$content\n<!-- gemini_thought_signatures:${message.id} -->',
+        );
+        final own = ChatMessage(
+          id: 'own',
+          role: 'assistant',
+          content: 'own answer',
+          conversationId: 'group-1',
+          reasoningText: 'own reasoning',
+          reasoningSegmentsJson:
+              '{"reasoningDetails":[{"signature":"own-openrouter"}]}',
+        );
+        final other = ChatMessage(
+          id: 'other',
+          role: 'assistant',
+          content: '[Bob]: other answer',
+          conversationId: 'group-1',
+          reasoningText: 'private reasoning',
+          reasoningSegmentsJson:
+              '{"reasoningDetails":[{"signature":"private-openrouter"}]}',
+        );
+
+        final apiMessages = service.buildApiMessagesFromContext(
+          contextMessages: [
+            ChatContextMessage.full(own),
+            ChatContextMessage.contentOnly(other),
+          ],
+          versionSelections: const {},
+          currentConversation: Conversation(id: 'group-1', title: 'Group'),
+          includeToolMessages: true,
+        );
+
+        expect(
+          apiMessages.where((message) => message['tool_calls'] is List),
+          hasLength(1),
+        );
+        expect(
+          apiMessages.where((message) => message['role'] == 'tool'),
+          hasLength(1),
+        );
+        final ownFinal = apiMessages.firstWhere(
+          (message) => (message['content'] as String).contains('own answer'),
+        );
+        final otherFinal = apiMessages.firstWhere(
+          (message) => message['content'] == '[Bob]: other answer',
+        );
+        expect(ownFinal['content'], contains('gemini_thought_signatures:own'));
+        expect(ownFinal['reasoning_details'], isNotNull);
+        expect(otherFinal.keys, unorderedEquals(['role', 'content']));
+        expect(apiMessages.toString(), isNot(contains('private reasoning')));
+        expect(apiMessages.toString(), isNot(contains('private-openrouter')));
+        expect(apiMessages.toString(), isNot(contains('private result')));
+        expect(apiMessages.toString(), isNot(contains('other-tool')));
+      },
+    );
+
     test('有工具调用时会把 reasoning_content 回填到 assistant tool 消息', () {
       final service = MessageBuilderService(
         chatService: _FakeChatService({

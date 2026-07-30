@@ -12,9 +12,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:Cuplivo/core/models/backup.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/director_session.dart';
+import 'package:Cuplivo/core/models/group_chat.dart';
+import 'package:Cuplivo/core/models/group_chat_member.dart';
+import 'package:Cuplivo/core/models/group_chat_message.dart';
 import 'package:Cuplivo/core/models/incremental_backup.dart';
 import 'package:Cuplivo/core/services/backup/data_sync.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/chat/group_chat_service.dart';
 
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.root);
@@ -457,6 +462,223 @@ void main() {
 
       await DataSync.cleanupTemporaryBackupFile(backupFile);
     });
+
+    test(
+      'round-trips complete group aggregates and sidecar artifacts',
+      () async {
+        final chatService = ChatService();
+        await chatService.init();
+        final groupService = GroupChatService(chatService: chatService);
+        await groupService.ensureLoaded();
+
+        final group = GroupChat(id: 'backup-group', title: 'Backup Group');
+        final members = [
+          GroupChatMember(
+            id: 'backup-user',
+            groupId: group.id,
+            kind: GroupChatMember.kindUser,
+          ),
+          GroupChatMember(
+            id: 'backup-a1',
+            groupId: group.id,
+            kind: GroupChatMember.kindAssistant,
+            assistantId: 'a1',
+            sortOrder: 1,
+          ),
+          GroupChatMember(
+            id: 'backup-a2',
+            groupId: group.id,
+            kind: GroupChatMember.kindAssistant,
+            assistantId: 'a2',
+            sortOrder: 2,
+          ),
+        ];
+        final message = GroupChatMessage(
+          id: 'backup-group-message',
+          groupId: group.id,
+          role: 'assistant',
+          speakerAssistantId: 'a1',
+          content: 'group answer',
+          reasoningText: 'private reasoning',
+        );
+        await chatService.repo.putGroupChatRestoreBatch(
+          groups: [group],
+          membersByGroup: {group.id: members},
+          messagesByGroup: {
+            group.id: [message],
+          },
+          directorSessions: [
+            DirectorSession(
+              id: 'backup-director',
+              groupId: group.id,
+              status: DirectorSession.statusDone,
+              messages: const [
+                {'role': 'assistant', 'content': 'decision'},
+              ],
+            ),
+          ],
+          toolEventsByMessageId: {
+            message.id: [
+              {
+                'id': 'tool-1',
+                'name': 'search',
+                'arguments': {'q': 'Cuplivo'},
+                'content': 'result',
+              },
+            ],
+          },
+          geminiThoughtSignaturesByMessageId: {message.id: 'signature-1'},
+        );
+        await groupService.reload();
+
+        final sync = DataSync(
+          chatService: chatService,
+          groupChatService: groupService,
+        );
+        final backupFile = await sync.prepareBackupFile(
+          const WebDavConfig(includeChats: true, includeFiles: false),
+        );
+
+        await chatService.clearAllData();
+        await groupService.reload();
+        expect(groupService.getAllGroups(), isEmpty);
+
+        await sync.restoreFromLocalFile(
+          backupFile,
+          const WebDavConfig(includeChats: true, includeFiles: false),
+        );
+
+        expect(groupService.getAllGroups().single.id, group.id);
+        expect(await groupService.getMembers(group.id), hasLength(3));
+        expect(
+          (await groupService.getMessages(group.id)).single.content,
+          'group answer',
+        );
+        expect(
+          await chatService.repo.getGroupToolEvents(message.id),
+          hasLength(1),
+        );
+        expect(
+          await chatService.repo.getGroupGeminiThoughtSignature(message.id),
+          'signature-1',
+        );
+        expect(
+          (await groupService.getDirectorSession(group.id))?.id,
+          'backup-director',
+        );
+
+        await DataSync.cleanupTemporaryBackupFile(backupFile);
+        await chatService.close();
+      },
+    );
+
+    test(
+      'incremental export includes the complete changed group aggregate',
+      () async {
+        final chatService = ChatService();
+        await chatService.init();
+        final since = DateTime.now().subtract(const Duration(days: 30));
+        final group = GroupChat(
+          id: 'changed-group',
+          title: 'Changed Group',
+          createdAt: since.subtract(const Duration(days: 30)),
+          updatedAt: since.add(const Duration(days: 1)),
+        );
+        final oldMessage = GroupChatMessage(
+          id: 'old-group-message',
+          groupId: group.id,
+          role: 'user',
+          content: 'older but required for a complete aggregate',
+          timestamp: since.subtract(const Duration(days: 20)),
+        );
+        await chatService.repo.putGroupChatRestoreBatch(
+          groups: [group],
+          membersByGroup: {
+            group.id: [
+              GroupChatMember(
+                id: 'changed-user',
+                groupId: group.id,
+                kind: GroupChatMember.kindUser,
+              ),
+            ],
+          },
+          messagesByGroup: {
+            group.id: [oldMessage],
+          },
+          directorSessions: const [],
+        );
+
+        final sync = DataSync(chatService: chatService);
+        final backupFile = await sync.prepareBackupFile(
+          const WebDavConfig(includeChats: true, includeFiles: false),
+          incremental: IncrementalBackupConfig(
+            since: since,
+            includeSettings: false,
+            includeFiles: false,
+          ),
+        );
+        final input = InputFileStream(backupFile.path);
+        Archive? archive;
+        try {
+          archive = ZipDecoder().decodeStream(input);
+          final chats = archive.findFile('chats.json');
+          final data =
+              jsonDecode(utf8.decode(chats!.readBytes() ?? const <int>[]))
+                  as Map<String, dynamic>;
+          expect((data['groups'] as List).single['id'], group.id);
+          expect((data['groupMembers'] as List), hasLength(1));
+          expect((data['groupMessages'] as List).single['id'], oldMessage.id);
+        } finally {
+          archive?.clearSync();
+          input.closeSync();
+        }
+
+        await DataSync.cleanupTemporaryBackupFile(backupFile);
+        await chatService.close();
+      },
+    );
+
+    test(
+      'legacy chats backup without group fields restores as empty groups',
+      () async {
+        final chatsFile = File('${root.path}/legacy_chats.json');
+        await chatsFile.writeAsString(
+          jsonEncode({
+            'version': 1,
+            'conversations': <Object?>[],
+            'messages': <Object?>[],
+            'toolEvents': <String, Object?>{},
+            'geminiThoughtSigs': <String, Object?>{},
+          }),
+        );
+        final zipFile = File('${root.path}/legacy_backup.zip');
+        final encoder = ZipFileEncoder();
+        encoder.create(zipFile.path);
+        encoder.addFileSync(chatsFile, 'chats.json');
+        encoder.closeSync();
+
+        final chatService = ChatService();
+        await chatService.init();
+        final groupService = GroupChatService(chatService: chatService);
+        await groupService.ensureLoaded();
+        await chatService.repo.putGroupChat(
+          GroupChat(id: 'local-group', title: 'Local Group'),
+        );
+        await groupService.reload();
+
+        final sync = DataSync(
+          chatService: chatService,
+          groupChatService: groupService,
+        );
+        await sync.restoreFromLocalFile(
+          zipFile,
+          const WebDavConfig(includeChats: true, includeFiles: false),
+        );
+
+        expect(groupService.getAllGroups(), isEmpty);
+        await chatService.close();
+      },
+    );
 
     test(
       'incremental: message-level filtering captures old conversation with new messages',

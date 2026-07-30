@@ -32,6 +32,10 @@ void main() {
     bool backgroundImageActive = false,
     double inputBackgroundOpacityLight = 0.8236,
     double inputBackgroundOpacityDark = 0.7396,
+    ChatInputCapabilities capabilities = ChatInputCapabilities.standard,
+    VoidCallback? onPickCamera,
+    VoidCallback? onPickPhotos,
+    VoidCallback? onUploadFiles,
   }) {
     return MultiProvider(
       providers: [
@@ -65,11 +69,49 @@ void main() {
             backgroundImageActive: backgroundImageActive,
             inputBackgroundOpacityLight: inputBackgroundOpacityLight,
             inputBackgroundOpacityDark: inputBackgroundOpacityDark,
+            capabilities: capabilities,
+            onPickCamera: onPickCamera,
+            onPickPhotos: onPickPhotos,
+            onUploadFiles: onUploadFiles,
           ),
         ),
       ),
     );
   }
+
+  testWidgets('text-only capabilities hide model and attachment actions', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+        capabilities: ChatInputCapabilities.textOnly,
+        onPickCamera: () {},
+        onPickPhotos: () {},
+        onUploadFiles: () {},
+        onSend: (_) async => ChatInputSubmissionResult.rejected,
+      ),
+    );
+
+    expect(find.byIcon(Lucide.Boxes), findsNothing);
+    expect(find.byIcon(Lucide.Camera), findsNothing);
+    expect(find.byIcon(Lucide.Image), findsNothing);
+    expect(find.byIcon(Lucide.Paperclip), findsNothing);
+    expect(find.byIcon(Lucide.ArrowUp), findsOneWidget);
+    mediaController.restoreInput(
+      const ChatInputData(text: 'text', imagePaths: ['/tmp/ignored.png']),
+    );
+    expect(mediaController.hasDraftMedia, isFalse);
+    expect(mediaController.snapshotInput('text').imagePaths, isEmpty);
+
+    controller.dispose();
+    focusNode.dispose();
+  });
 
   testWidgets('提交结果 queued 时会清空输入', (tester) async {
     final controller = TextEditingController(text: 'queued message');

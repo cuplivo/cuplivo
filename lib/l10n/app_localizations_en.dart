@@ -6584,10 +6584,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get groupChatAdvancedPersistDirector => 'Persist director transcript';
 
   @override
-  String get groupChatAdvancedStripOtherReasoning =>
-      'Hide others\' reasoning & tools in member context';
-
-  @override
   String get groupChatInputPlaceholder => 'Message the group…';
 
   @override

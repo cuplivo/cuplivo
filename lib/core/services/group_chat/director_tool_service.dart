@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../api/chat_api_service.dart';
-import '../../providers/model_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../chat/model_capability_service.dart';
 
 /// Outcome of one director tool call (select speaker or end round).
 class DirectorDecision {
@@ -220,44 +220,15 @@ Map<String, dynamic> directorForcedToolChoiceExtraBody(ProviderConfig config) {
   }
 }
 
-/// Whether a model supports tool calling (director requirement — no JSON fallback).
-///
-/// Mirrors [GenerationController.isToolModel] without needing a BuildContext.
-///
-/// Rules:
-/// 1. If modelOverrides has an explicit `abilities` list → require `'tool'`.
-/// 2. Else if overrides exist but omit abilities → fall through to [ModelRegistry.infer]
-///    (same as GenerationController; do not treat "has override map" as no-tool).
-/// 3. Else infer from model id.
 bool modelSupportsToolCalling({
   required ProviderConfig config,
   required String modelId,
 }) {
   final mid = modelId.trim();
   if (mid.isEmpty) return false;
-  final ov = config.modelOverrides[mid];
-  if (ov is Map && ov.containsKey('abilities')) {
-    final abilities =
-        (ov['abilities'] as List?)
-            ?.map((e) => e.toString().toLowerCase())
-            .where((e) => e.isNotEmpty)
-            .toList() ??
-        const <String>[];
-    final ok = abilities.contains('tool');
-    if (!ok) {
-      debugPrint(
-        '[GroupChat] modelSupportsToolCalling=false via overrides '
-        'model=$mid abilities=$abilities',
-      );
-    }
-    return ok;
-  }
-  final inferred = ModelRegistry.infer(ModelInfo(id: mid, displayName: mid));
-  final ok = inferred.abilities.contains(ModelAbility.tool);
+  final ok = ModelCapabilityService.supportsToolsForConfig(config, mid);
   if (!ok) {
-    debugPrint(
-      '[GroupChat] modelSupportsToolCalling=false via infer model=$mid',
-    );
+    debugPrint('[GroupChat] director model lacks tool ability: $mid');
   }
   return ok;
 }

@@ -6317,9 +6317,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get groupChatAdvancedPersistDirector => '持久化导演会话';
 
   @override
-  String get groupChatAdvancedStripOtherReasoning => '成员上下文中隐藏他人思维链与工具';
-
-  @override
   String get groupChatInputPlaceholder => '发消息到群…';
 
   @override
@@ -12729,9 +12726,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get groupChatAdvancedPersistDirector => '持久化导演会话';
 
   @override
-  String get groupChatAdvancedStripOtherReasoning => '成员上下文中隐藏他人思维链与工具';
-
-  @override
   String get groupChatInputPlaceholder => '发消息到群…';
 
   @override
@@ -19139,9 +19133,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get groupChatAdvancedPersistDirector => '持久化導演會話';
-
-  @override
-  String get groupChatAdvancedStripOtherReasoning => '成員上下文中隱藏他人思維鏈與工具';
 
   @override
   String get groupChatInputPlaceholder => '傳送訊息到群…';

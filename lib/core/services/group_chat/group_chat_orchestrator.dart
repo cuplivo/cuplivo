@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
@@ -12,11 +11,10 @@ import '../../models/group_chat_settings.dart';
 import '../../providers/settings_provider.dart';
 import '../api/chat_api_service.dart';
 import '../chat/group_chat_service.dart';
-import '../chat/prompt_transformer.dart';
+import '../chat/chat_stream_executor.dart';
 import 'director_prompt_builder.dart';
 import 'director_session_store.dart';
 import 'director_tool_service.dart';
-import 'group_history_builder.dart';
 
 /// Orchestrator phase for one group while a user turn is running.
 enum GroupChatPhase { idle, directing, memberSpeaking, done, error }
@@ -72,21 +70,46 @@ class GroupChatTurnResult {
   bool get isSuccess => errorCode == null;
 }
 
-/// Optional hooks so UI / home layer can supply full tool defs without coupling.
-typedef MemberToolsBuilder =
-    Future<({List<Map<String, dynamic>> toolDefs, ToolCallHandler? onToolCall})>
-    Function({
+class GroupMemberGenerationPreparation {
+  const GroupMemberGenerationPreparation({
+    required this.apiMessages,
+    required this.toolDefs,
+    required this.onToolCall,
+    required this.userMediaPaths,
+    this.extraHeaders,
+    this.extraBody,
+  });
+
+  final List<Map<String, dynamic>> apiMessages;
+  final List<Map<String, dynamic>> toolDefs;
+  final ToolCallHandler? onToolCall;
+  final List<String> userMediaPaths;
+  final Map<String, String>? extraHeaders;
+  final Map<String, dynamic>? extraBody;
+}
+
+typedef MemberGenerationPreparer =
+    Future<GroupMemberGenerationPreparation> Function({
+      required String groupId,
+      required List<GroupChatMessage> timeline,
       required Assistant assistant,
+      required Map<String, String> assistantNames,
       required String providerKey,
       required String modelId,
       required SettingsProvider settings,
     });
 
-typedef ToolEventsReader =
-    List<Map<String, dynamic>> Function(String messageId);
-
-typedef ToolEventsWriter =
-    Future<void> Function(String messageId, List<Map<String, dynamic>> events);
+typedef GroupMemberStreamRunner =
+    Future<GroupChatMessage> Function({
+      required GroupChatMessage placeholder,
+      required Assistant assistant,
+      required SettingsProvider settings,
+      required String providerKey,
+      required String modelId,
+      required GroupMemberGenerationPreparation prepared,
+      required GroupChatStreamFactory sendMessageStream,
+      required bool Function() isCancelled,
+    });
 
 /// Injectable stream factory for director / member LLM calls.
 typedef GroupChatStreamFactory =
@@ -98,6 +121,7 @@ class GroupChatStreamRequest {
     required this.config,
     required this.modelId,
     required this.messages,
+    this.userMediaPaths = const <String>[],
     this.tools,
     this.onToolCall,
     this.thinkingBudget,
@@ -108,11 +132,14 @@ class GroupChatStreamRequest {
     this.requestId,
     this.extraHeaders,
     this.extraBody,
+    this.allowImagesApiRouting = false,
+    this.ocrActive = false,
   });
 
   final ProviderConfig config;
   final String modelId;
   final List<Map<String, dynamic>> messages;
+  final List<String> userMediaPaths;
   final List<Map<String, dynamic>>? tools;
   final ToolCallHandler? onToolCall;
   final int? thinkingBudget;
@@ -123,23 +150,30 @@ class GroupChatStreamRequest {
   final String? requestId;
   final Map<String, String>? extraHeaders;
   final Map<String, dynamic>? extraBody;
+  final bool allowImagesApiRouting;
+  final bool ocrActive;
 }
 
 Stream<ChatStreamChunk> _defaultGroupChatStream(GroupChatStreamRequest r) {
-  return ChatApiService.sendMessageStream(
-    config: r.config,
-    modelId: r.modelId,
-    messages: r.messages,
-    tools: r.tools,
-    onToolCall: r.onToolCall,
-    thinkingBudget: r.thinkingBudget,
-    temperature: r.temperature,
-    topP: r.topP,
-    maxTokens: r.maxTokens,
-    stream: r.stream,
-    requestId: r.requestId,
-    extraHeaders: r.extraHeaders,
-    extraBody: r.extraBody,
+  return ChatStreamExecutor.open(
+    ChatStreamExecutionRequest(
+      config: r.config,
+      modelId: r.modelId,
+      messages: r.messages,
+      userMediaPaths: r.userMediaPaths,
+      tools: r.tools,
+      onToolCall: r.onToolCall,
+      thinkingBudget: r.thinkingBudget,
+      temperature: r.temperature,
+      topP: r.topP,
+      maxTokens: r.maxTokens,
+      stream: r.stream,
+      requestId: r.requestId,
+      extraHeaders: r.extraHeaders,
+      extraBody: r.extraBody,
+      allowImagesApiRouting: r.allowImagesApiRouting,
+      ocrActive: r.ocrActive,
+    ),
   );
 }
 
@@ -174,25 +208,20 @@ class GroupChatOrchestrator extends ChangeNotifier {
     required this.groupChatService,
     required this.resolveAssistant,
     required this.resolveSettings,
-    String Function()? resolveUserNickname,
+    required this.runMemberStream,
+    required this.prepareMemberGeneration,
     DirectorSessionStore? directorSessionStore,
-    this.memberToolsBuilder,
-    this.toolEventsReader,
-    this.toolEventsWriter,
     GroupChatStreamFactory? sendMessageStream,
-  }) : resolveUserNickname = resolveUserNickname ?? (() => ''),
-       directorStore =
+  }) : directorStore =
            directorSessionStore ?? DirectorSessionStore(groupChatService),
        sendMessageStream = sendMessageStream ?? _defaultGroupChatStream;
 
   final GroupChatService groupChatService;
   final Assistant? Function(String assistantId) resolveAssistant;
   final SettingsProvider Function() resolveSettings;
-  final String Function() resolveUserNickname;
+  final MemberGenerationPreparer prepareMemberGeneration;
+  final GroupMemberStreamRunner runMemberStream;
   final DirectorSessionStore directorStore;
-  final MemberToolsBuilder? memberToolsBuilder;
-  final ToolEventsReader? toolEventsReader;
-  final ToolEventsWriter? toolEventsWriter;
   final GroupChatStreamFactory sendMessageStream;
 
   final Map<String, GroupChatPhase> _phaseByGroup = {};
@@ -511,7 +540,6 @@ class GroupChatOrchestrator extends ChangeNotifier {
           groupId: groupId,
           speakerAssistantId: speakerId,
           assistantNames: nameMap,
-          stripOther: settings.stripOtherReasoningAndTools,
           appSettings: appSettings,
         );
         assistantOut.add(memberMsg);
@@ -809,7 +837,6 @@ class GroupChatOrchestrator extends ChangeNotifier {
     required String groupId,
     required String speakerAssistantId,
     required Map<String, String> assistantNames,
-    required bool stripOther,
     required SettingsProvider appSettings,
   }) async {
     final assistant = resolveAssistant(speakerAssistantId);
@@ -833,50 +860,30 @@ class GroupChatOrchestrator extends ChangeNotifier {
       );
     }
 
-    final config = appSettings.getProviderConfig(providerKey);
     final timeline = await groupChatService.getMessages(groupId);
-
-    final apiMessages = GroupHistoryBuilder.buildApiMessages(
-      messages: timeline,
-      speakerAssistantId: speakerAssistantId,
-      assistantNames: assistantNames,
-      stripOtherReasoningAndTools: stripOther,
-      toolEventsForMessage: toolEventsReader,
-    );
-
-    // Inject member system prompt (headless placeholders).
-    final sp = assistant.systemPrompt.trim();
-    if (sp.isNotEmpty) {
-      final vars = _headlessPlaceholders(
+    late final GroupMemberGenerationPreparation prepared;
+    try {
+      prepared = await prepareMemberGeneration(
+        groupId: groupId,
+        timeline: timeline,
         assistant: assistant,
+        assistantNames: assistantNames,
+        providerKey: providerKey,
         modelId: modelId,
-        userNickname: resolveUserNickname(),
+        settings: appSettings,
       );
-      apiMessages.insert(0, <String, dynamic>{
-        'role': 'system',
-        'content': PromptTransformer.replacePlaceholders(sp, vars),
-      });
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[GroupChatOrchestrator] member preparation failed: $error\n$stackTrace',
+      );
+      throw GroupChatOrchestratorException(
+        GroupChatErrorCode.memberFailed,
+        error.toString(),
+        error,
+      );
     }
 
-    List<Map<String, dynamic>> toolDefs = const [];
-    ToolCallHandler? onToolCall;
-    final toolsBuilder = memberToolsBuilder;
-    if (toolsBuilder != null) {
-      try {
-        final prepared = await toolsBuilder(
-          assistant: assistant,
-          providerKey: providerKey,
-          modelId: modelId,
-          settings: appSettings,
-        );
-        toolDefs = prepared.toolDefs;
-        onToolCall = prepared.onToolCall;
-      } catch (e) {
-        debugPrint('[GroupChatOrchestrator] member tools build failed: $e');
-      }
-    }
-
-    var placeholder = await groupChatService.addMessage(
+    final placeholder = await groupChatService.addMessage(
       GroupChatMessage(
         groupId: groupId,
         role: 'assistant',
@@ -891,217 +898,34 @@ class GroupChatOrchestrator extends ChangeNotifier {
     final requestId = placeholder.id;
     _activeRequestIdByGroup[groupId] = requestId;
 
-    final contentBuf = StringBuffer();
-    final reasoningBuf = StringBuffer();
-    DateTime? reasoningStart;
-    DateTime? reasoningFinished;
-    int? totalTokens;
-    int? promptTokens;
-    int? completionTokens;
-    int? cachedTokens;
-    final startedAt = DateTime.now();
-    final toolEvents = <Map<String, dynamic>>[];
-
-    // Throttle DB writes.
-    var lastFlush = DateTime.fromMillisecondsSinceEpoch(0);
-    Future<void> flush({bool force = false}) async {
-      final now = DateTime.now();
-      if (!force && now.difference(lastFlush).inMilliseconds < 80) return;
-      lastFlush = now;
-      placeholder = placeholder.copyWith(
-        content: contentBuf.toString(),
-        reasoningText: reasoningBuf.isEmpty ? null : reasoningBuf.toString(),
-        reasoningStartAt: reasoningStart,
-        reasoningFinishedAt: reasoningFinished,
-        totalTokens: totalTokens,
-        promptTokens: promptTokens,
-        completionTokens: completionTokens,
-        cachedTokens: cachedTokens,
-        isStreaming: true,
-      );
-      await groupChatService.updateMessage(placeholder);
-    }
-
     try {
-      await for (final chunk in sendMessageStream(
-        GroupChatStreamRequest(
-          config: config,
-          modelId: modelId,
-          messages: apiMessages,
-          tools: toolDefs.isEmpty ? null : toolDefs,
-          onToolCall: onToolCall,
-          thinkingBudget:
-              assistant.thinkingBudget ?? appSettings.thinkingBudget,
-          temperature: assistant.temperature,
-          topP: assistant.topP,
-          maxTokens: assistant.maxTokens,
-          stream: assistant.streamOutput,
-          requestId: requestId,
-        ),
-      )) {
-        _throwIfCancelled(groupId);
-
-        if (chunk.content.isNotEmpty) {
-          contentBuf.write(chunk.content);
-        }
-        final r = chunk.reasoning;
-        if (r != null && r.isNotEmpty) {
-          reasoningStart ??= DateTime.now();
-          reasoningBuf.write(r);
-        }
-
-        if (chunk.toolCalls != null && chunk.toolCalls!.isNotEmpty) {
-          for (final tc in chunk.toolCalls!) {
-            toolEvents.add(<String, dynamic>{
-              'id': tc.id,
-              'name': tc.name,
-              'arguments': tc.arguments,
-              'content': null,
-              if (tc.metadata != null) 'metadata': tc.metadata,
-            });
-          }
-          final writer = toolEventsWriter;
-          if (writer != null) {
-            try {
-              await writer(placeholder.id, List.of(toolEvents));
-            } catch (e) {
-              debugPrint('[GroupChatOrchestrator] setToolEvents failed: $e');
-            }
-          }
-        }
-        if (chunk.toolResults != null && chunk.toolResults!.isNotEmpty) {
-          for (final tr in chunk.toolResults!) {
-            final idx = toolEvents.indexWhere(
-              (e) => (e['id'] ?? '') == tr.id || (e['name'] ?? '') == tr.name,
-            );
-            if (idx >= 0) {
-              toolEvents[idx] = <String, dynamic>{
-                ...toolEvents[idx],
-                'content': tr.content,
-                if (tr.metadata != null) 'metadata': tr.metadata,
-              };
-            } else {
-              toolEvents.add(<String, dynamic>{
-                'id': tr.id,
-                'name': tr.name,
-                'arguments': tr.arguments,
-                'content': tr.content,
-                if (tr.metadata != null) 'metadata': tr.metadata,
-              });
-            }
-          }
-          final writer = toolEventsWriter;
-          if (writer != null) {
-            try {
-              await writer(placeholder.id, List.of(toolEvents));
-            } catch (e) {
-              debugPrint('[GroupChatOrchestrator] setToolEvents failed: $e');
-            }
-          }
-        }
-
-        final usage = chunk.usage;
-        if (usage != null) {
-          totalTokens = usage.totalTokens;
-          promptTokens = usage.promptTokens;
-          completionTokens = usage.completionTokens;
-          cachedTokens = usage.cachedTokens;
-        } else if (chunk.totalTokens > 0) {
-          totalTokens = chunk.totalTokens;
-        }
-
-        if (chunk.isDone) {
-          reasoningFinished = reasoningBuf.isEmpty
-              ? null
-              : (reasoningFinished ?? DateTime.now());
-        }
-
-        await flush();
-      }
-    } on GroupChatOrchestratorException {
-      placeholder = placeholder.copyWith(
-        content: contentBuf.toString(),
-        isStreaming: false,
-        durationMs: DateTime.now().difference(startedAt).inMilliseconds,
+      return await runMemberStream(
+        placeholder: placeholder,
+        assistant: assistant,
+        settings: appSettings,
+        providerKey: providerKey,
+        modelId: modelId,
+        prepared: prepared,
+        sendMessageStream: sendMessageStream,
+        isCancelled: () => _cancelRequested.contains(groupId),
       );
-      await groupChatService.updateMessage(placeholder);
-      rethrow;
-    } catch (e) {
+    } catch (error) {
       if (_cancelRequested.contains(groupId)) {
-        placeholder = placeholder.copyWith(
-          content: contentBuf.toString(),
-          isStreaming: false,
-          durationMs: DateTime.now().difference(startedAt).inMilliseconds,
-        );
-        await groupChatService.updateMessage(placeholder);
         throw GroupChatOrchestratorException(
           GroupChatErrorCode.cancelled,
           'Cancelled',
         );
       }
-      debugPrint('[GroupChatOrchestrator] member stream error: $e');
-      placeholder = placeholder.copyWith(
-        content: contentBuf.toString(),
-        isStreaming: false,
-        durationMs: DateTime.now().difference(startedAt).inMilliseconds,
-      );
-      await groupChatService.updateMessage(placeholder);
+      debugPrint('[GroupChatOrchestrator] member stream error: $error');
       throw GroupChatOrchestratorException(
         GroupChatErrorCode.memberFailed,
-        e.toString(),
-        e,
+        error.toString(),
+        error,
       );
     } finally {
       if (_activeRequestIdByGroup[groupId] == requestId) {
         _activeRequestIdByGroup.remove(groupId);
       }
     }
-
-    if (reasoningBuf.isNotEmpty) {
-      reasoningFinished ??= DateTime.now();
-    }
-
-    placeholder = placeholder.copyWith(
-      content: contentBuf.toString(),
-      reasoningText: reasoningBuf.isEmpty ? null : reasoningBuf.toString(),
-      reasoningStartAt: reasoningStart,
-      reasoningFinishedAt: reasoningFinished,
-      totalTokens: totalTokens,
-      promptTokens: promptTokens,
-      completionTokens: completionTokens,
-      cachedTokens: cachedTokens,
-      isStreaming: false,
-      durationMs: DateTime.now().difference(startedAt).inMilliseconds,
-    );
-    await groupChatService.updateMessage(placeholder);
-    return placeholder;
-  }
-
-  static Map<String, String> _headlessPlaceholders({
-    required Assistant assistant,
-    required String modelId,
-    required String userNickname,
-  }) {
-    final now = DateTime.now();
-    final date =
-        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-    final time =
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-    final os = Platform.operatingSystem;
-    final osv = Platform.operatingSystemVersion;
-    return <String, String>{
-      '{cur_date}': date,
-      '{cur_time}': time,
-      '{cur_datetime}': '$date $time',
-      '{model_id}': modelId,
-      '{model_name}': modelId,
-      '{locale}': Platform.localeName,
-      '{timezone}': now.timeZoneName,
-      '{system_version}': '$os $osv',
-      '{device_info}': os,
-      '{battery_level}': 'unknown',
-      '{nickname}': userNickname,
-      '{assistant_name}': assistant.name,
-    };
   }
 }

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/group_chat_settings.dart';
-import '../../../core/providers/model_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/chat/group_chat_service.dart';
+import '../../../core/services/chat/model_capability_service.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_switch.dart';
@@ -12,6 +12,7 @@ import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../model/widgets/model_select_sheet.dart';
+import '../group_chat_navigation.dart';
 
 /// Advanced group chat settings (director model/prompt, turn limits, etc.).
 class GroupAdvancedSettingsPage extends StatefulWidget {
@@ -55,23 +56,7 @@ class _GroupAdvancedSettingsPageState extends State<GroupAdvancedSettingsPage> {
     SettingsProvider settings,
     String providerKey,
     String modelId,
-  ) {
-    final cfg = settings.getProviderConfig(providerKey);
-    final ov = cfg.modelOverrides[modelId];
-    if (ov is Map && ov.containsKey('abilities')) {
-      final abilities =
-          (ov['abilities'] as List?)
-              ?.map((e) => e.toString().toLowerCase())
-              .where((e) => e.isNotEmpty)
-              .toList() ??
-          const [];
-      return abilities.contains('tool');
-    }
-    final inferred = ModelRegistry.infer(
-      ModelInfo(id: modelId, displayName: modelId),
-    );
-    return inferred.abilities.contains(ModelAbility.tool);
-  }
+  ) => ModelCapabilityService.supportsTools(settings, providerKey, modelId);
 
   Future<void> _pickDirectorModel() async {
     final l10n = AppLocalizations.of(context)!;
@@ -100,7 +85,10 @@ class _GroupAdvancedSettingsPageState extends State<GroupAdvancedSettingsPage> {
 
   Future<void> _clearDirectorModel() async {
     setState(() {
-      _settings = _settings.copyWith(clearDirectorModel: true);
+      _settings = _settings.copyWith(
+        directorModelProvider: null,
+        directorModelId: null,
+      );
     });
   }
 
@@ -131,7 +119,6 @@ class _GroupAdvancedSettingsPageState extends State<GroupAdvancedSettingsPage> {
 
     final next = _settings.copyWith(
       directorSystemPrompt: prompt.isEmpty ? null : prompt,
-      clearDirectorSystemPrompt: prompt.isEmpty,
       maxAssistantMessagesPerUserTurn: maxVal,
     );
 
@@ -142,7 +129,7 @@ class _GroupAdvancedSettingsPageState extends State<GroupAdvancedSettingsPage> {
       message: l10n.groupChatSettingsSave,
       type: NotificationType.success,
     );
-    Navigator.of(context).maybePop();
+    closeGroupPage(context);
   }
 
   String _directorModelLabel(SettingsProvider settings, AppLocalizations l10n) {
@@ -172,7 +159,8 @@ class _GroupAdvancedSettingsPageState extends State<GroupAdvancedSettingsPage> {
             icon: Lucide.ArrowLeft,
             size: 22,
             minSize: 44,
-            onTap: () => Navigator.of(context).maybePop(),
+            onTap: () => closeGroupPage(context),
+            semanticLabel: l10n.groupChatBackTooltip,
           ),
         ),
         title: Text(l10n.groupChatAdvancedTitle),
@@ -275,13 +263,6 @@ class _GroupAdvancedSettingsPageState extends State<GroupAdvancedSettingsPage> {
             value: _settings.persistDirectorTranscript,
             onChanged: (v) => setState(() {
               _settings = _settings.copyWith(persistDirectorTranscript: v);
-            }),
-          ),
-          _SwitchRow(
-            label: l10n.groupChatAdvancedStripOtherReasoning,
-            value: _settings.stripOtherReasoningAndTools,
-            onChanged: (v) => setState(() {
-              _settings = _settings.copyWith(stripOtherReasoningAndTools: v);
             }),
           ),
         ],

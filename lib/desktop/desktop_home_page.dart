@@ -17,6 +17,7 @@ import 'dart:async';
 import 'hotkeys/hotkey_event_bus.dart';
 import 'hotkeys/chat_action_bus.dart';
 import 'desktop_settings_navigation_bus.dart';
+import 'desktop_chat_pane_controller.dart';
 
 /// Desktop home screen: left compact rail + main content.
 /// Phase 1 focuses on structure and platform-appropriate interactions/hover.
@@ -35,6 +36,8 @@ class DesktopHomePage extends StatefulWidget {
 }
 
 class _DesktopHomePageState extends State<DesktopHomePage> {
+  final DesktopChatPaneController _chatPaneController =
+      DesktopChatPaneController();
   int _tabIndex = 0; // 0=Chat, 1=Translate, 2=Storage, 3=Settings
   bool _storageVisited = false;
   bool _globalSearchActive = false;
@@ -184,122 +187,125 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
 
     final isWindows = defaultTargetPlatform == TargetPlatform.windows;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final h = constraints.maxHeight;
-        final needsWidthPad = w < minWidth;
-        final needsHeightPad = h < minHeight;
+    return ChangeNotifierProvider<DesktopChatPaneController>.value(
+      value: _chatPaneController,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          final h = constraints.maxHeight;
+          final needsWidthPad = w < minWidth;
+          final needsHeightPad = h < minHeight;
 
-        Widget body = Row(
-          children: [
-            DesktopNavRail(
-              activeIndex: _tabIndex,
-              globalSearchActive: _globalSearchActive,
-              onTapChat: () {
-                setState(() {
-                  _tabIndex = 0;
+          Widget body = Row(
+            children: [
+              DesktopNavRail(
+                activeIndex: _tabIndex,
+                globalSearchActive: _globalSearchActive,
+                onTapChat: () {
+                  setState(() {
+                    _tabIndex = 0;
+                    _globalSearchActive = false;
+                  });
+                  ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
+                  // 切换到聊天页时聚焦输入框
+                  ChatActionBus.instance.fire(ChatAction.focusInput);
+                },
+                onTapGlobalSearch: () {
+                  setState(() {
+                    _tabIndex = 0;
+                    _globalSearchActive = true;
+                  });
+                  ChatActionBus.instance.fire(ChatAction.enterGlobalSearch);
+                },
+                onTapTranslate: () {
+                  setState(() {
+                    _tabIndex = 1;
+                    _globalSearchActive = false;
+                  });
+                  ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
+                },
+                onTapStorage: () => setState(() {
+                  _tabIndex = 2;
                   _globalSearchActive = false;
-                });
-                ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
-                // 切换到聊天页时聚焦输入框
-                ChatActionBus.instance.fire(ChatAction.focusInput);
-              },
-              onTapGlobalSearch: () {
-                setState(() {
-                  _tabIndex = 0;
-                  _globalSearchActive = true;
-                });
-                ChatActionBus.instance.fire(ChatAction.enterGlobalSearch);
-              },
-              onTapTranslate: () {
-                setState(() {
-                  _tabIndex = 1;
-                  _globalSearchActive = false;
-                });
-                ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
-              },
-              onTapStorage: () => setState(() {
-                _tabIndex = 2;
-                _globalSearchActive = false;
-                _storageVisited = true;
-                ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
-              }),
-              onTapSettings: () {
-                setState(() {
-                  _tabIndex = 3;
-                  _globalSearchActive = false;
-                });
-                ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
-              },
-            ),
-            Expanded(
-              // Keep all pages alive so ongoing chat streams are not canceled
-              // when switching tabs (Chat/Translate/Settings) on desktop.
-              child: IndexedStack(
-                index: _tabIndex,
-                children: [
-                  // Chat page remains mounted
-                  const DesktopChatPage(),
-                  // Translate page remains mounted
-                  const DesktopTranslatePage(key: ValueKey('translate_page')),
-                  _storageVisited
-                      ? const StorageSpacePage(
-                          key: ValueKey('storage_space_page'),
-                          embedded: true,
-                        )
-                      : const SizedBox.shrink(),
-                  DesktopSettingsPage(
-                    key: const ValueKey('settings_page'),
-                    initialProviderKey: widget.initialProviderKey,
-                  ),
-                ],
+                  _storageVisited = true;
+                  ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
+                }),
+                onTapSettings: () {
+                  setState(() {
+                    _tabIndex = 3;
+                    _globalSearchActive = false;
+                  });
+                  ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
+                },
               ),
-            ),
-          ],
-        );
+              Expanded(
+                // Keep all pages alive so ongoing chat streams are not canceled
+                // when switching tabs (Chat/Translate/Settings) on desktop.
+                child: IndexedStack(
+                  index: _tabIndex,
+                  children: [
+                    // Chat page remains mounted
+                    const DesktopChatPage(),
+                    // Translate page remains mounted
+                    const DesktopTranslatePage(key: ValueKey('translate_page')),
+                    _storageVisited
+                        ? const StorageSpacePage(
+                            key: ValueKey('storage_space_page'),
+                            embedded: true,
+                          )
+                        : const SizedBox.shrink(),
+                    DesktopSettingsPage(
+                      key: const ValueKey('settings_page'),
+                      initialProviderKey: widget.initialProviderKey,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
 
-        // Wrap with Windows custom title bar when on Windows platform.
-        final content = isWindows
-            ? Column(
-                children: [
-                  WindowTitleBar(
-                    leftChildren: [
-                      SizedBox(width: DesktopNavRail.width / 2 - 8 - 6 - 12),
-                      const _TitleBarLeading(),
-                    ],
-                  ),
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        body,
-                        // Inject the lazily-built settings page into the IndexedStack when needed
-                        // to pass initialProviderKey without dropping chat state.
-                        if (_tabIndex == 3) const SizedBox.shrink(),
+          // Wrap with Windows custom title bar when on Windows platform.
+          final content = isWindows
+              ? Column(
+                  children: [
+                    WindowTitleBar(
+                      leftChildren: [
+                        SizedBox(width: DesktopNavRail.width / 2 - 8 - 6 - 12),
+                        const _TitleBarLeading(),
                       ],
                     ),
-                  ),
-                ],
-              )
-            : body;
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          body,
+                          // Inject the lazily-built settings page into the IndexedStack when needed
+                          // to pass initialProviderKey without dropping chat state.
+                          if (_tabIndex == 3) const SizedBox.shrink(),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              : body;
 
-        // if (!needsWidthPad && !needsHeightPad) return content;
+          // if (!needsWidthPad && !needsHeightPad) return content;
 
-        // Center a constrained area if window is smaller than our minimum
-        return Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minWidth: minWidth,
-              minHeight: minHeight,
+          // Center a constrained area if window is smaller than our minimum
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: minWidth,
+                minHeight: minHeight,
+              ),
+              child: SizedBox(
+                width: needsWidthPad ? minWidth : w,
+                height: needsHeightPad ? minHeight : h,
+                child: content,
+              ),
             ),
-            child: SizedBox(
-              width: needsWidthPad ? minWidth : w,
-              height: needsHeightPad ? minHeight : h,
-              child: content,
-            ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -342,6 +348,7 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
     try {
       _locateSub?.cancel();
     } catch (_) {}
+    _chatPaneController.dispose();
     super.dispose();
   }
 }

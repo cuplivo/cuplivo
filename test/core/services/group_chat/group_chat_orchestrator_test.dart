@@ -13,108 +13,65 @@ import 'package:Cuplivo/core/services/chat/group_chat_service.dart';
 import 'package:Cuplivo/core/services/group_chat/director_prompt_builder.dart';
 import 'package:Cuplivo/core/services/group_chat/director_tool_service.dart';
 import 'package:Cuplivo/core/services/group_chat/group_chat_orchestrator.dart';
-import 'package:Cuplivo/core/services/group_chat/group_history_builder.dart';
+
+Future<GroupMemberGenerationPreparation> _prepareFakeMemberGeneration({
+  required String groupId,
+  required List<GroupChatMessage> timeline,
+  required Assistant assistant,
+  required Map<String, String> assistantNames,
+  required String providerKey,
+  required String modelId,
+  required SettingsProvider settings,
+}) async {
+  return GroupMemberGenerationPreparation(
+    apiMessages: timeline
+        .map(
+          (message) => <String, dynamic>{
+            'role': message.role,
+            'content': message.content,
+          },
+        )
+        .toList(growable: false),
+    toolDefs: const <Map<String, dynamic>>[],
+    onToolCall: null,
+    userMediaPaths: const <String>[],
+  );
+}
+
+Future<GroupChatMessage> _runFakeMemberStream({
+  required GroupChatMessage placeholder,
+  required Assistant assistant,
+  required SettingsProvider settings,
+  required String providerKey,
+  required String modelId,
+  required GroupMemberGenerationPreparation prepared,
+  required GroupChatStreamFactory sendMessageStream,
+  required bool Function() isCancelled,
+}) async {
+  final content = StringBuffer();
+  var tokens = 0;
+  await for (final chunk in sendMessageStream(
+    GroupChatStreamRequest(
+      config: settings.getProviderConfig(providerKey),
+      modelId: modelId,
+      messages: prepared.apiMessages,
+      tools: prepared.toolDefs.isEmpty ? null : prepared.toolDefs,
+      onToolCall: prepared.onToolCall,
+      requestId: placeholder.id,
+    ),
+  )) {
+    if (isCancelled()) throw StateError('cancelled');
+    content.write(chunk.content);
+    if (chunk.totalTokens > 0) tokens = chunk.totalTokens;
+  }
+  return placeholder.copyWith(
+    content: content.toString(),
+    totalTokens: tokens,
+    isStreaming: false,
+  );
+}
 
 void main() {
-  group('GroupHistoryBuilder', () {
-    test(
-      'user messages pass through; other speakers strip reasoning/tools',
-      () {
-        final user = GroupChatMessage(
-          groupId: 'g1',
-          role: 'user',
-          content: 'hello all',
-        );
-        final other = GroupChatMessage(
-          groupId: 'g1',
-          role: 'assistant',
-          content: 'hi from B',
-          speakerAssistantId: 'b',
-          reasoningText: 'secret chain',
-          messageOrder: 1,
-        );
-        final self = GroupChatMessage(
-          groupId: 'g1',
-          role: 'assistant',
-          content: 'hi from A',
-          speakerAssistantId: 'a',
-          reasoningText: 'my thoughts',
-          messageOrder: 2,
-        );
-
-        final api = GroupHistoryBuilder.buildApiMessages(
-          messages: [user, other, self],
-          speakerAssistantId: 'a',
-          assistantNames: const {'a': 'Alice', 'b': 'Bob'},
-          stripOtherReasoningAndTools: true,
-          toolEventsForMessage: (id) {
-            if (id == self.id) {
-              return [
-                {
-                  'id': 'call_1',
-                  'name': 'search_web',
-                  'arguments': {'q': 'x'},
-                  'content': 'result',
-                },
-              ];
-            }
-            if (id == other.id) {
-              return [
-                {
-                  'id': 'call_x',
-                  'name': 'should_not_appear',
-                  'arguments': {},
-                  'content': 'nope',
-                },
-              ];
-            }
-            return const [];
-          },
-        );
-
-        expect(api.length, greaterThanOrEqualTo(3));
-        expect(api.first['role'], 'user');
-        expect(api.first['content'], 'hello all');
-
-        final otherMsg = api.firstWhere(
-          (m) =>
-              m['role'] == 'assistant' &&
-              (m['content'] as String).contains('hi from B'),
-        );
-        expect(otherMsg['content'], '[Bob]: hi from B');
-        expect(otherMsg.containsKey('reasoning_content'), isFalse);
-        expect(otherMsg.containsKey('tool_calls'), isFalse);
-
-        final hasToolCalls = api.any(
-          (m) => m['role'] == 'assistant' && m['tool_calls'] is List,
-        );
-        expect(hasToolCalls, isTrue);
-        final toolRole = api.where((m) => m['role'] == 'tool').toList();
-        expect(toolRole, isNotEmpty);
-        expect(toolRole.first['name'], 'search_web');
-
-        final selfContent = api.lastWhere(
-          (m) =>
-              m['role'] == 'assistant' &&
-              (m['content'] as String).contains('hi from A'),
-        );
-        expect(selfContent['reasoning_content'], 'my thoughts');
-      },
-    );
-
-    test('does not inject turn-taking prompts', () {
-      final api = GroupHistoryBuilder.buildApiMessages(
-        messages: [
-          GroupChatMessage(groupId: 'g', role: 'user', content: 'ping'),
-        ],
-        speakerAssistantId: 'a',
-      );
-      final joined = api.map((e) => e['content']).join(' ');
-      expect(joined.toLowerCase().contains('your turn'), isFalse);
-      expect(joined.contains('轮到你'), isFalse);
-    });
-  });
-
   group('DirectorToolService', () {
     test('parses select_speaker and end_round', () {
       final select = DirectorToolService.parseToolCall('select_speaker', {
@@ -392,6 +349,8 @@ void main() {
           groupChatService: mem,
           resolveAssistant: (id) => assistants[id],
           resolveSettings: () => settings,
+          prepareMemberGeneration: _prepareFakeMemberGeneration,
+          runMemberStream: _runFakeMemberStream,
           sendMessageStream: (req) async* {
             if (req.tools != null && req.tools!.isNotEmpty) {
               final handler = req.onToolCall;
@@ -439,6 +398,8 @@ void main() {
           groupChatService: mem,
           resolveAssistant: (id) => assistants[id],
           resolveSettings: () => settings,
+          prepareMemberGeneration: _prepareFakeMemberGeneration,
+          runMemberStream: _runFakeMemberStream,
           sendMessageStream: (req) async* {
             if (req.tools != null && req.tools!.isNotEmpty) {
               directorCalls += 1;
@@ -500,6 +461,8 @@ void main() {
         groupChatService: mem,
         resolveAssistant: (id) => assistants[id],
         resolveSettings: () => settings,
+        prepareMemberGeneration: _prepareFakeMemberGeneration,
+        runMemberStream: _runFakeMemberStream,
         sendMessageStream: (req) async* {
           yield ChatStreamChunk(content: '', isDone: true, totalTokens: 0);
         },
@@ -534,6 +497,8 @@ void main() {
           groupChatService: mem,
           resolveAssistant: (id) => assistants[id],
           resolveSettings: () => settings,
+          prepareMemberGeneration: _prepareFakeMemberGeneration,
+          runMemberStream: _runFakeMemberStream,
           sendMessageStream: (req) async* {
             // Director stream finishes without calling tools.
             yield ChatStreamChunk(
@@ -574,6 +539,8 @@ void main() {
         groupChatService: mem,
         resolveAssistant: (id) => assistants[id],
         resolveSettings: () => settings,
+        prepareMemberGeneration: _prepareFakeMemberGeneration,
+        runMemberStream: _runFakeMemberStream,
         sendMessageStream: (req) async* {
           if (req.tools != null && req.tools!.isNotEmpty) {
             directorCalls += 1;
@@ -617,6 +584,8 @@ void main() {
         groupChatService: mem,
         resolveAssistant: (id) => assistants[id],
         resolveSettings: () => settings,
+        prepareMemberGeneration: _prepareFakeMemberGeneration,
+        runMemberStream: _runFakeMemberStream,
         sendMessageStream: (req) async* {
           if (req.tools != null && req.tools!.isNotEmpty) {
             seenExtra = req.extraBody;
@@ -651,6 +620,8 @@ void main() {
         groupChatService: mem,
         resolveAssistant: (id) => assistants[id],
         resolveSettings: () => settings,
+        prepareMemberGeneration: _prepareFakeMemberGeneration,
+        runMemberStream: _runFakeMemberStream,
         sendMessageStream: (req) async* {
           if (req.tools != null && req.tools!.isNotEmpty) {
             final handler = req.onToolCall;
@@ -690,6 +661,8 @@ void main() {
         groupChatService: mem,
         resolveAssistant: (id) => assistants[id],
         resolveSettings: () => settings,
+        prepareMemberGeneration: _prepareFakeMemberGeneration,
+        runMemberStream: _runFakeMemberStream,
         sendMessageStream: (req) async* {
           if (req.tools != null && req.tools!.isNotEmpty) {
             // Hold director open so second send collides with isRunning.
@@ -788,7 +761,10 @@ class _MemoryGroupChatService extends GroupChatService {
   }
 
   @override
-  Future<void> updateMessage(GroupChatMessage message) async {
+  Future<void> updateMessage(
+    GroupChatMessage message, {
+    bool notify = true,
+  }) async {
     final list = messages[message.groupId];
     if (list == null) return;
     final idx = list.indexWhere((m) => m.id == message.id);

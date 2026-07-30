@@ -1,26 +1,22 @@
-/// Parsed [ChatGroup.settingsJson] advanced options for multi-assistant group chat.
+/// Advanced options for a multi-assistant group chat.
 ///
-/// copyWith uses the plain `??` pattern (same as [Conversation] / [Assistant]).
-/// Nullable director model fields use [clearDirectorModel] to set null.
+/// Group chat deliberately does not participate in MultiAI, temporary-session,
+/// or proactive-care flows. Those boundaries are structural and are therefore
+/// not persisted as no-op "disable" flags.
 class GroupChatSettings {
   static const int defaultMaxAssistantMessagesPerUserTurn = 6;
+  static const Object sentinel = Object();
 
-  /// null → use global default model.
+  /// null → use the global default model.
   final String? directorModelProvider;
   final String? directorModelId;
 
-  /// Empty / null → built-in default director system prompt (orchestrator phase).
+  /// Empty / null → use the built-in director prompt.
   final String? directorSystemPrompt;
 
   final int maxAssistantMessagesPerUserTurn;
   final bool allowSameAssistantConsecutive;
   final bool persistDirectorTranscript;
-  final bool stripOtherReasoningAndTools;
-
-  /// Reserved: group chat disables MultiAI / proactive care / temporary sessions.
-  final bool disableMultiAi;
-  final bool disableProactiveCare;
-  final bool disableTemporarySession;
 
   const GroupChatSettings({
     this.directorModelProvider,
@@ -30,68 +26,50 @@ class GroupChatSettings {
         defaultMaxAssistantMessagesPerUserTurn,
     this.allowSameAssistantConsecutive = true,
     this.persistDirectorTranscript = true,
-    this.stripOtherReasoningAndTools = true,
-    this.disableMultiAi = true,
-    this.disableProactiveCare = true,
-    this.disableTemporarySession = true,
   });
 
   static const GroupChatSettings defaults = GroupChatSettings();
 
   GroupChatSettings copyWith({
-    String? directorModelProvider,
-    String? directorModelId,
-    String? directorSystemPrompt,
-    int? maxAssistantMessagesPerUserTurn,
-    bool? allowSameAssistantConsecutive,
-    bool? persistDirectorTranscript,
-    bool? stripOtherReasoningAndTools,
-    bool? disableMultiAi,
-    bool? disableProactiveCare,
-    bool? disableTemporarySession,
-    bool clearDirectorModel = false,
-    bool clearDirectorSystemPrompt = false,
+    Object? directorModelProvider = sentinel,
+    Object? directorModelId = sentinel,
+    Object? directorSystemPrompt = sentinel,
+    Object? maxAssistantMessagesPerUserTurn = sentinel,
+    Object? allowSameAssistantConsecutive = sentinel,
+    Object? persistDirectorTranscript = sentinel,
   }) {
     return GroupChatSettings(
-      directorModelProvider: clearDirectorModel
-          ? null
-          : (directorModelProvider ?? this.directorModelProvider),
-      directorModelId: clearDirectorModel
-          ? null
-          : (directorModelId ?? this.directorModelId),
-      directorSystemPrompt: clearDirectorSystemPrompt
-          ? null
-          : (directorSystemPrompt ?? this.directorSystemPrompt),
+      directorModelProvider: identical(directorModelProvider, sentinel)
+          ? this.directorModelProvider
+          : directorModelProvider as String?,
+      directorModelId: identical(directorModelId, sentinel)
+          ? this.directorModelId
+          : directorModelId as String?,
+      directorSystemPrompt: identical(directorSystemPrompt, sentinel)
+          ? this.directorSystemPrompt
+          : directorSystemPrompt as String?,
       maxAssistantMessagesPerUserTurn:
-          maxAssistantMessagesPerUserTurn ??
-          this.maxAssistantMessagesPerUserTurn,
+          identical(maxAssistantMessagesPerUserTurn, sentinel)
+          ? this.maxAssistantMessagesPerUserTurn
+          : maxAssistantMessagesPerUserTurn as int,
       allowSameAssistantConsecutive:
-          allowSameAssistantConsecutive ?? this.allowSameAssistantConsecutive,
-      persistDirectorTranscript:
-          persistDirectorTranscript ?? this.persistDirectorTranscript,
-      stripOtherReasoningAndTools:
-          stripOtherReasoningAndTools ?? this.stripOtherReasoningAndTools,
-      disableMultiAi: disableMultiAi ?? this.disableMultiAi,
-      disableProactiveCare: disableProactiveCare ?? this.disableProactiveCare,
-      disableTemporarySession:
-          disableTemporarySession ?? this.disableTemporarySession,
+          identical(allowSameAssistantConsecutive, sentinel)
+          ? this.allowSameAssistantConsecutive
+          : allowSameAssistantConsecutive as bool,
+      persistDirectorTranscript: identical(persistDirectorTranscript, sentinel)
+          ? this.persistDirectorTranscript
+          : persistDirectorTranscript as bool,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'directorModelProvider': directorModelProvider,
-      'directorModelId': directorModelId,
-      'directorSystemPrompt': directorSystemPrompt,
-      'maxAssistantMessagesPerUserTurn': maxAssistantMessagesPerUserTurn,
-      'allowSameAssistantConsecutive': allowSameAssistantConsecutive,
-      'persistDirectorTranscript': persistDirectorTranscript,
-      'stripOtherReasoningAndTools': stripOtherReasoningAndTools,
-      'disableMultiAi': disableMultiAi,
-      'disableProactiveCare': disableProactiveCare,
-      'disableTemporarySession': disableTemporarySession,
-    };
-  }
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'directorModelProvider': directorModelProvider,
+    'directorModelId': directorModelId,
+    'directorSystemPrompt': directorSystemPrompt,
+    'maxAssistantMessagesPerUserTurn': maxAssistantMessagesPerUserTurn,
+    'allowSameAssistantConsecutive': allowSameAssistantConsecutive,
+    'persistDirectorTranscript': persistDirectorTranscript,
+  };
 
   factory GroupChatSettings.fromJson(Map<String, dynamic>? json) {
     if (json == null || json.isEmpty) return defaults;
@@ -106,11 +84,6 @@ class GroupChatSettings {
           json['allowSameAssistantConsecutive'] as bool? ?? true,
       persistDirectorTranscript:
           json['persistDirectorTranscript'] as bool? ?? true,
-      stripOtherReasoningAndTools:
-          json['stripOtherReasoningAndTools'] as bool? ?? true,
-      disableMultiAi: json['disableMultiAi'] as bool? ?? true,
-      disableProactiveCare: json['disableProactiveCare'] as bool? ?? true,
-      disableTemporarySession: json['disableTemporarySession'] as bool? ?? true,
     );
   }
 }

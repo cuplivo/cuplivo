@@ -11,6 +11,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
+import '../group_chat_navigation.dart';
 
 /// Debug-only page: inspect the hidden director transcript for one group.
 ///
@@ -177,7 +178,8 @@ class _GroupDirectorLogPageState extends State<GroupDirectorLogPage> {
             icon: Lucide.ArrowLeft,
             size: 22,
             minSize: 44,
-            onTap: () => Navigator.of(context).maybePop(),
+            onTap: () => closeGroupPage(context),
+            semanticLabel: l10n.groupChatBackTooltip,
           ),
         ),
         title: Text(l10n.groupChatDirectorLogTitle),

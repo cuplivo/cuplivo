@@ -2,8 +2,8 @@ import 'package:uuid/uuid.dart';
 
 /// A message in a multi-assistant group chat timeline.
 ///
-/// [speakerAssistantId] is null for user messages. Tool events reuse
-/// `tool_event_rows` keyed by this message's UUID (globally unique).
+/// [speakerAssistantId] is null for user messages. Tool events and provider
+/// signatures live in group-specific sidecar tables keyed by this message id.
 ///
 /// copyWith uses the **sentinel** pattern (same as [ChatMessage]) so
 /// `copyWith(field: null)` clears nullable fields.

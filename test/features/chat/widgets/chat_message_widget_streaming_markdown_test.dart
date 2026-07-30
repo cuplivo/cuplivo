@@ -1,10 +1,12 @@
 import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/providers/tts_provider.dart';
 import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart';
 import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
 import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/shared/widgets/mermaid_image_cache.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -95,6 +97,54 @@ A-->B''',
       expect(find.text('Code'), findsOneWidget);
       expect(find.text('Generating image'), findsOneWidget);
       expect(_allRichTextPlainText(tester), isNot(contains('graph TD')));
+    },
+  );
+
+  testWidgets(
+    'group assistant override reuses markdown, identity, reasoning and tools without ordinary actions',
+    (tester) async {
+      final assistant = Assistant(id: 'a1', name: 'Alice', avatar: '🦊');
+      await tester.pumpWidget(
+        _buildHarness(
+          child: ChatMessageWidget(
+            message: ChatMessage(
+              id: 'group-message',
+              role: 'assistant',
+              content: '**bold group answer**',
+              conversationId: 'group-1',
+            ),
+            assistantOverride: assistant,
+            useAssistantAvatar: true,
+            useAssistantName: true,
+            assistantName: assistant.name,
+            assistantAvatar: assistant.avatar,
+            showModelIcon: false,
+            reasoningText: 'group reasoning',
+            reasoningExpanded: true,
+            toolParts: const [
+              ToolUIPart(
+                id: 'tool-1',
+                toolName: 'demo_tool',
+                arguments: {'q': 'test'},
+                content: 'tool result',
+              ),
+            ],
+            onMore: () {},
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Alice'), findsOneWidget);
+      expect(find.text('🦊'), findsOneWidget);
+      expect(find.text('bold group answer'), findsOneWidget);
+      expect(find.textContaining('group reasoning'), findsOneWidget);
+      expect(find.textContaining('demo_tool'), findsOneWidget);
+      expect(find.byIcon(Lucide.Copy), findsOneWidget);
+      expect(find.byIcon(Lucide.Ellipsis), findsOneWidget);
+      expect(find.byIcon(Lucide.RefreshCw), findsNothing);
+      expect(find.byIcon(Lucide.Volume2), findsNothing);
+      expect(find.byIcon(Lucide.Languages), findsNothing);
     },
   );
 }

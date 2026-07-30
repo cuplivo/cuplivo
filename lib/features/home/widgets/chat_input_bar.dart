@@ -35,6 +35,25 @@ import 'package:super_clipboard/super_clipboard.dart';
 import '../../../desktop/desktop_context_menu.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
 
+class ChatInputCapabilities {
+  const ChatInputCapabilities({
+    required this.showCapabilityActions,
+    required this.allowAttachments,
+  });
+
+  static const standard = ChatInputCapabilities(
+    showCapabilityActions: true,
+    allowAttachments: true,
+  );
+  static const textOnly = ChatInputCapabilities(
+    showCapabilityActions: false,
+    allowAttachments: false,
+  );
+
+  final bool showCapabilityActions;
+  final bool allowAttachments;
+}
+
 class ChatInputBarController {
   _ChatInputBarState? _state;
   void _bind(_ChatInputBarState s) => _state = s;
@@ -108,7 +127,7 @@ class ChatInputBar extends StatefulWidget {
         SettingsProvider.defaultChatInputBackgroundOpacityDark,
     this.multiAIModelCount,
     this.onMultiSelectModel,
-    this.hideChatCapabilityButtons = false,
+    this.capabilities = ChatInputCapabilities.standard,
   });
 
   final Future<ChatInputSubmissionResult> Function(ChatInputData)? onSend;
@@ -160,8 +179,7 @@ class ChatInputBar extends StatefulWidget {
   final double inputBackgroundOpacityLight;
   final double inputBackgroundOpacityDark;
 
-  /// Group chat: hide model / search / reasoning / MCP capability buttons.
-  final bool hideChatCapabilityButtons;
+  final ChatInputCapabilities capabilities;
 
   @override
   State<ChatInputBar> createState() => _ChatInputBarState();
@@ -310,7 +328,7 @@ class _ChatInputBarState extends State<ChatInputBar>
   void _onTextChanged(String _) => setState(() {});
 
   void _addImages(List<String> paths) {
-    if (paths.isEmpty) return;
+    if (!widget.capabilities.allowAttachments || paths.isEmpty) return;
     setState(() {
       _oneClickCompressDone = false;
       _confirmTimer?.cancel();
@@ -347,7 +365,7 @@ class _ChatInputBarState extends State<ChatInputBar>
   }
 
   void _addFiles(List<DocumentAttachment> docs) {
-    if (docs.isEmpty) return;
+    if (!widget.capabilities.allowAttachments || docs.isEmpty) return;
     setState(() => _docs.addAll(docs));
   }
 
@@ -359,22 +377,34 @@ class _ChatInputBarState extends State<ChatInputBar>
     setState(() {
       _images
         ..clear()
-        ..addAll(input.imagePaths);
+        ..addAll(
+          widget.capabilities.allowAttachments
+              ? input.imagePaths
+              : const <String>[],
+        );
       _imageSizes.clear();
       for (final p in _images) {
         _imageSizes[p] = _fileSize(p);
       }
       _docs
         ..clear()
-        ..addAll(input.documents);
+        ..addAll(
+          widget.capabilities.allowAttachments
+              ? input.documents
+              : const <DocumentAttachment>[],
+        );
     });
   }
 
   ChatInputData _snapshotInput(String text) {
     return ChatInputData(
       text: text.trim(),
-      imagePaths: List<String>.of(_images),
-      documents: List<DocumentAttachment>.of(_docs),
+      imagePaths: widget.capabilities.allowAttachments
+          ? List<String>.of(_images)
+          : const <String>[],
+      documents: widget.capabilities.allowAttachments
+          ? List<DocumentAttachment>.of(_docs)
+          : const <DocumentAttachment>[],
       allowImagesApiRouting: _allowImagesApiRouting,
     );
   }
@@ -1010,6 +1040,10 @@ class _ChatInputBarState extends State<ChatInputBar>
   }
 
   Future<void> _handlePasteFromClipboard() async {
+    if (!widget.capabilities.allowAttachments) {
+      await _pastePlainText();
+      return;
+    }
     // 1) Prefer reading via super_clipboard for better Windows support
     try {
       final clipboard = SystemClipboard.instance;
@@ -1179,6 +1213,10 @@ class _ChatInputBarState extends State<ChatInputBar>
     if (handledFiles) return;
 
     // 4) Last resort: paste text via Flutter Clipboard API
+    await _pastePlainText();
+  }
+
+  Future<void> _pastePlainText() async {
     try {
       final data = await Clipboard.getData(Clipboard.kTextPlain);
       final text = data?.text ?? '';
@@ -1290,7 +1328,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     return LayoutBuilder(
       builder: (context, constraints) {
         final List<_OverflowAction> actions = [];
-        final hideCaps = widget.hideChatCapabilityButtons;
+        final hideCaps = !widget.capabilities.showCapabilityActions;
 
         if (!hideCaps) {
           // Model select (always present; can be hidden if overflow)
@@ -1511,7 +1549,8 @@ class _ChatInputBarState extends State<ChatInputBar>
           );
         }
 
-        if (widget.onPickCamera != null) {
+        if (widget.capabilities.allowAttachments &&
+            widget.onPickCamera != null) {
           actions.add(
             _OverflowAction(
               width: normalButtonW,
@@ -1529,7 +1568,8 @@ class _ChatInputBarState extends State<ChatInputBar>
           );
         }
 
-        if (widget.onPickPhotos != null) {
+        if (widget.capabilities.allowAttachments &&
+            widget.onPickPhotos != null) {
           actions.add(
             _OverflowAction(
               width: normalButtonW,
@@ -1547,7 +1587,8 @@ class _ChatInputBarState extends State<ChatInputBar>
           );
         }
 
-        if (widget.onUploadFiles != null) {
+        if (widget.capabilities.allowAttachments &&
+            widget.onUploadFiles != null) {
           actions.add(
             _OverflowAction(
               width: normalButtonW,

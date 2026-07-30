@@ -8,6 +8,7 @@ import '../../../core/models/token_usage.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
+import '../../../core/services/chat/chat_stream_executor.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/ios_background_generation.dart';
 import '../../../l10n/app_localizations.dart';
@@ -1130,24 +1131,26 @@ class ChatActions {
       debugPrint(
         '[MultiAIDebug] CALLING ChatApiService.sendMessageStream modelId=${ctx.modelId} providerKey=${ctx.providerKey} apiMessages=${ctx.apiMessages.length}',
       );
-      final stream = ChatApiService.sendMessageStream(
-        config: ctx.config,
-        modelId: ctx.modelId,
-        messages: ctx.apiMessages,
-        userMediaPaths: ctx.userMediaPaths,
-        thinkingBudget:
-            assistant?.thinkingBudget ?? ctx.settings.thinkingBudget,
-        temperature: assistant?.temperature,
-        topP: assistant?.topP,
-        maxTokens: assistant?.maxTokens,
-        tools: ctx.toolDefs.isEmpty ? null : ctx.toolDefs,
-        onToolCall: ctx.onToolCall,
-        extraHeaders: ctx.extraHeaders,
-        extraBody: ctx.extraBody,
-        stream: ctx.streamOutput,
-        requestId: requestIdOverride ?? conversationId,
-        allowImagesApiRouting: ctx.allowImagesApiRouting,
-        ocrActive: ctx.ocrActive,
+      final stream = ChatStreamExecutor.open(
+        ChatStreamExecutionRequest(
+          config: ctx.config,
+          modelId: ctx.modelId,
+          messages: ctx.apiMessages,
+          userMediaPaths: ctx.userMediaPaths,
+          thinkingBudget:
+              assistant?.thinkingBudget ?? ctx.settings.thinkingBudget,
+          temperature: assistant?.temperature,
+          topP: assistant?.topP,
+          maxTokens: assistant?.maxTokens,
+          tools: ctx.toolDefs.isEmpty ? null : ctx.toolDefs,
+          onToolCall: ctx.onToolCall,
+          extraHeaders: ctx.extraHeaders,
+          extraBody: ctx.extraBody,
+          stream: ctx.streamOutput,
+          requestId: requestIdOverride ?? conversationId,
+          allowImagesApiRouting: ctx.allowImagesApiRouting,
+          ocrActive: ctx.ocrActive,
+        ),
       );
 
       final streamKey = streamKeyOverride ?? conversationId;

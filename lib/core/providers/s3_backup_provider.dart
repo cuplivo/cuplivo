@@ -10,6 +10,7 @@ import '../services/backup/data_sync.dart';
 import '../services/backup/s3_client.dart';
 import '../services/trash_restore_coordinator.dart';
 import '../services/chat/chat_service.dart';
+import '../services/chat/group_chat_service.dart';
 
 class S3BackupProvider extends ChangeNotifier {
   final DataSync _dataSync;
@@ -21,10 +22,12 @@ class S3BackupProvider extends ChangeNotifier {
 
   S3BackupProvider({
     required ChatService chatService,
+    required GroupChatService groupChatService,
     required TrashRestoreCoordinator trashRestoreCoordinator,
     S3Config? initialConfig,
   }) : _dataSync = DataSync(
          chatService: chatService,
+         groupChatService: groupChatService,
          localIdResolver: trashRestoreCoordinator.getLocalIds,
        ),
        _client = const S3BackupClient(),

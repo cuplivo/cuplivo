@@ -41,6 +41,8 @@ import 'core/services/mcp/mcp_tool_service.dart';
 import 'core/services/logging/flutter_logger.dart';
 import 'features/home/services/ask_user_interaction_service.dart';
 import 'features/home/services/tool_approval_service.dart';
+import 'features/group_chat/services/group_member_generation_service.dart';
+import 'features/group_chat/services/group_member_stream_service.dart';
 import 'utils/sandbox_path_resolver.dart';
 import 'features/skills/skill_manager.dart';
 import 'shared/widgets/app_overlays.dart';
@@ -155,33 +157,6 @@ class MyApp extends StatelessWidget {
           create: (ctx) =>
               AssistantProvider(chatService: ctx.read<ChatService>()),
         ),
-        ChangeNotifierProxyProvider2<
-          AssistantProvider,
-          SettingsProvider,
-          GroupChatOrchestrator
-        >(
-          lazy: false,
-          create: (ctx) {
-            final gcs = ctx.read<GroupChatService>();
-            final orch = GroupChatOrchestrator(
-              groupChatService: gcs,
-              resolveAssistant: (id) =>
-                  ctx.read<AssistantProvider>().getById(id),
-              resolveSettings: () => ctx.read<SettingsProvider>(),
-              resolveUserNickname: () => ctx.read<UserProvider>().name,
-              toolEventsReader: (id) =>
-                  ctx.read<ChatService>().getToolEvents(id),
-              toolEventsWriter: (id, events) =>
-                  ctx.read<ChatService>().setToolEvents(id, events),
-            );
-            gcs.attachOrchestrator(orch);
-            return orch;
-          },
-          update: (ctx, assistants, settings, orch) {
-            // Keep one orchestrator instance; resolvers read latest providers.
-            return orch!;
-          },
-        ),
         ChangeNotifierProvider(create: (_) => TagProvider()),
         ChangeNotifierProvider(create: (_) => TtsProvider()),
         ChangeNotifierProvider(create: (_) => UpdateProvider()),
@@ -200,6 +175,31 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (ctx) => MemoryProvider(chatService: ctx.read<ChatService>()),
         ),
+        ChangeNotifierProvider(
+          create: (ctx) => GroupMemberStreamService(
+            chatService: ctx.read<ChatService>(),
+            groupChatService: ctx.read<GroupChatService>(),
+            getSettings: () => ctx.read<SettingsProvider>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) {
+            final groupChatService = ctx.read<GroupChatService>();
+            final memberGeneration = GroupMemberGenerationService(
+              context: ctx,
+              chatService: ctx.read<ChatService>(),
+              groupChatService: groupChatService,
+            );
+            return GroupChatOrchestrator(
+              groupChatService: groupChatService,
+              resolveAssistant: (id) =>
+                  ctx.read<AssistantProvider>().getById(id),
+              resolveSettings: () => ctx.read<SettingsProvider>(),
+              prepareMemberGeneration: memberGeneration.prepare,
+              runMemberStream: ctx.read<GroupMemberStreamService>().run,
+            );
+          },
+        ),
         Provider(
           create: (ctx) => TrashRestoreCoordinator(
             chatService: ctx.read<ChatService>(),
@@ -216,6 +216,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (ctx) => BackupProvider(
             chatService: ctx.read<ChatService>(),
+            groupChatService: ctx.read<GroupChatService>(),
             trashRestoreCoordinator: ctx.read<TrashRestoreCoordinator>(),
             initialConfig: ctx.read<SettingsProvider>().webDavConfig,
           ),
@@ -223,6 +224,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (ctx) => S3BackupProvider(
             chatService: ctx.read<ChatService>(),
+            groupChatService: ctx.read<GroupChatService>(),
             trashRestoreCoordinator: ctx.read<TrashRestoreCoordinator>(),
             initialConfig: ctx.read<SettingsProvider>().s3Config,
           ),

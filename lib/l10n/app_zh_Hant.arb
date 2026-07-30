@@ -2589,7 +2589,6 @@
   "groupChatAdvancedMaxAssistantMessages": "每輪助手訊息上限",
   "groupChatAdvancedAllowConsecutive": "允許同一助手連續發言",
   "groupChatAdvancedPersistDirector": "持久化導演會話",
-  "groupChatAdvancedStripOtherReasoning": "成員上下文中隱藏他人思維鏈與工具",
   "groupChatInputPlaceholder": "傳送訊息到群…",
   "groupChatSendFailed": "傳送失敗",
   "groupChatReplyFailed": "群聊回覆失敗：{reason}",

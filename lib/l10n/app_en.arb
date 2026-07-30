@@ -3139,7 +3139,6 @@
   "groupChatAdvancedMaxAssistantMessages": "Max assistant messages per turn",
   "groupChatAdvancedAllowConsecutive": "Allow same assistant consecutively",
   "groupChatAdvancedPersistDirector": "Persist director transcript",
-  "groupChatAdvancedStripOtherReasoning": "Hide others' reasoning & tools in member context",
   "groupChatInputPlaceholder": "Message the group…",
   "groupChatSendFailed": "Failed to send message",
   "groupChatReplyFailed": "Group chat reply failed: {reason}",

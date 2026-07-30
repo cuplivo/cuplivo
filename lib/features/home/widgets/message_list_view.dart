@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:scrollview_observer/scrollview_observer.dart';
 
 import '../../../core/models/chat_message.dart';
+import '../../../core/models/assistant.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../l10n/app_localizations.dart';
@@ -51,6 +52,7 @@ typedef OnRecoveredAskUserAnswer =
       ToolUIPart part,
       AskUserResult result,
     );
+typedef AssistantForMessage = Assistant? Function(ChatMessage message);
 
 /// Data class for reasoning UI state
 class ReasoningUiState {
@@ -137,6 +139,8 @@ class MessageListView extends StatefulWidget {
     this.onLoadMoreAfter,
     this.hideMoreActions,
     this.headerWidget,
+    this.assistantForMessage,
+    this.forceAssistantIdentity = false,
   });
 
   final ScrollController scrollController;
@@ -219,6 +223,8 @@ class MessageListView extends StatefulWidget {
   /// An optional widget rendered as the first item in the list.
   /// When provided, [messages] indices are shifted by 1.
   final Widget? headerWidget;
+  final AssistantForMessage? assistantForMessage;
+  final bool forceAssistantIdentity;
 
   @override
   State<MessageListView> createState() => _MessageListViewState();
@@ -521,9 +527,15 @@ class _MessageListViewState extends State<MessageListView> {
     final r = widget.reasoning[message.id];
     final t = widget.translations[message.id];
     final chatScale = context.watch<SettingsProvider>().chatFontScale;
-    final assistant = context.watch<AssistantProvider>().currentAssistant;
-    final useAssistAvatar = assistant?.useAssistantAvatar == true;
-    final useAssistName = assistant?.useAssistantName == true;
+    final assistant =
+        widget.assistantForMessage?.call(message) ??
+        context.watch<AssistantProvider>().currentAssistant;
+    final useAssistAvatar =
+        assistant != null &&
+        (widget.forceAssistantIdentity || assistant.useAssistantAvatar);
+    final useAssistName =
+        assistant != null &&
+        (widget.forceAssistantIdentity || assistant.useAssistantName);
     final showDivider =
         widget.truncCollapsedIndex >= 0 && index == widget.truncCollapsedIndex;
     final gid = (message.groupId ?? message.id);
@@ -814,6 +826,7 @@ class _MessageListViewState extends State<MessageListView> {
           ? (assistant?.name ?? 'Assistant')
           : null,
       assistantAvatar: useAssistAvatar ? (assistant?.avatar ?? '') : null,
+      assistantOverride: assistant,
       showUserAvatar: context.watch<SettingsProvider>().showUserAvatar,
       showTokenStats: context.watch<SettingsProvider>().showTokenStats,
       hideStreamingIndicator:
@@ -841,22 +854,26 @@ class _MessageListViewState extends State<MessageListView> {
               t != null)
           ? () => widget.onToggleTranslation?.call(message.id)
           : null,
-      onRegenerate: message.role == 'assistant'
+      onRegenerate:
+          message.role == 'assistant' && widget.onRegenerateMessage != null
           ? () => widget.onRegenerateMessage?.call(message)
           : null,
-      onResend: message.role == 'user'
+      onResend: message.role == 'user' && widget.onResendMessage != null
           ? () => widget.onResendMessage?.call(message)
           : null,
-      onTranslate: message.role == 'assistant'
+      onTranslate:
+          message.role == 'assistant' && widget.onTranslateMessage != null
           ? () => widget.onTranslateMessage?.call(message)
           : null,
-      onSpeak: message.role == 'assistant'
+      onSpeak: message.role == 'assistant' && widget.onSpeakMessage != null
           ? () => widget.onSpeakMessage?.call(message)
           : null,
-      onEdit: (message.role == 'assistant' || message.role == 'user')
+      onEdit:
+          (message.role == 'assistant' || message.role == 'user') &&
+              widget.onEditMessage != null
           ? () => widget.onEditMessage?.call(message)
           : null,
-      onDelete: message.role == 'user'
+      onDelete: message.role == 'user' && widget.onDeleteMessage != null
           ? () => widget.onDeleteMessage?.call(message, widget.byGroup)
           : null,
       onMore: () async {

@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform;
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../desktop/desktop_chat_pane_controller.dart';
 import 'pages/group_advanced_settings_page.dart';
 import 'pages/group_chat_list_page.dart';
 import 'pages/group_chat_page.dart';
@@ -9,50 +11,16 @@ import 'pages/group_director_log_page.dart';
 import 'pages/group_settings_page.dart';
 
 bool get _isDesktopPlatform =>
-    defaultTargetPlatform == TargetPlatform.macOS ||
-    defaultTargetPlatform == TargetPlatform.windows ||
-    defaultTargetPlatform == TargetPlatform.linux;
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux);
 
-/// Open the group chat list (mobile: push; desktop: centered dialog shell).
+/// Open the group chat list in the platform's native navigation shell.
 Future<void> openGroupChatList(BuildContext context) async {
   if (_isDesktopPlatform) {
-    await showGeneralDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'group-chat-list',
-      barrierColor: Colors.black.withValues(alpha: 0.18),
-      pageBuilder: (ctx, _, __) {
-        final size = MediaQuery.sizeOf(ctx);
-        return Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: 520,
-              maxHeight: size.height * 0.86,
-              minWidth: 400,
-              minHeight: 360,
-            ),
-            child: Material(
-              color: Theme.of(ctx).colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
-              clipBehavior: Clip.antiAlias,
-              child: const GroupChatListPage(embeddedDialog: true),
-            ),
-          ),
-        );
-      },
-      transitionBuilder: (ctx, anim, _, child) {
-        final curved = CurvedAnimation(
-          parent: anim,
-          curve: Curves.easeOutCubic,
-        );
-        return FadeTransition(
-          opacity: curved,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.98, end: 1).animate(curved),
-            child: child,
-          ),
-        );
-      },
+    context.read<DesktopChatPaneController>().push(
+      const DesktopChatPaneDestination(DesktopChatPaneKind.groupList),
     );
     return;
   }
@@ -62,12 +30,30 @@ Future<void> openGroupChatList(BuildContext context) async {
 }
 
 Future<void> openGroupChatPage(BuildContext context, String groupId) async {
+  if (_isDesktopPlatform) {
+    context.read<DesktopChatPaneController>().push(
+      DesktopChatPaneDestination(
+        DesktopChatPaneKind.groupChat,
+        groupId: groupId,
+      ),
+    );
+    return;
+  }
   await Navigator.of(context).push<void>(
     MaterialPageRoute(builder: (_) => GroupChatPage(groupId: groupId)),
   );
 }
 
 Future<void> openGroupSettings(BuildContext context, String groupId) async {
+  if (_isDesktopPlatform) {
+    context.read<DesktopChatPaneController>().push(
+      DesktopChatPaneDestination(
+        DesktopChatPaneKind.groupSettings,
+        groupId: groupId,
+      ),
+    );
+    return;
+  }
   await Navigator.of(context).push<void>(
     MaterialPageRoute(builder: (_) => GroupSettingsPage(groupId: groupId)),
   );
@@ -77,6 +63,15 @@ Future<void> openGroupAdvancedSettings(
   BuildContext context,
   String groupId,
 ) async {
+  if (_isDesktopPlatform) {
+    context.read<DesktopChatPaneController>().push(
+      DesktopChatPaneDestination(
+        DesktopChatPaneKind.groupAdvancedSettings,
+        groupId: groupId,
+      ),
+    );
+    return;
+  }
   await Navigator.of(context).push<void>(
     MaterialPageRoute(
       builder: (_) => GroupAdvancedSettingsPage(groupId: groupId),
@@ -85,7 +80,27 @@ Future<void> openGroupAdvancedSettings(
 }
 
 Future<void> openGroupDirectorLog(BuildContext context, String groupId) async {
+  if (_isDesktopPlatform) {
+    context.read<DesktopChatPaneController>().push(
+      DesktopChatPaneDestination(
+        DesktopChatPaneKind.groupDirectorLog,
+        groupId: groupId,
+      ),
+    );
+    return;
+  }
   await Navigator.of(context).push<void>(
     MaterialPageRoute(builder: (_) => GroupDirectorLogPage(groupId: groupId)),
   );
+}
+
+void closeGroupPage(BuildContext context, {int count = 1}) {
+  if (_isDesktopPlatform) {
+    context.read<DesktopChatPaneController>().pop(count);
+    return;
+  }
+  final navigator = Navigator.of(context);
+  for (var i = 0; i < count && navigator.canPop(); i++) {
+    navigator.pop();
+  }
 }

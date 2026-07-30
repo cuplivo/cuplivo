@@ -12020,12 +12020,6 @@ abstract class AppLocalizations {
   /// **'Persist director transcript'**
   String get groupChatAdvancedPersistDirector;
 
-  /// No description provided for @groupChatAdvancedStripOtherReasoning.
-  ///
-  /// In en, this message translates to:
-  /// **'Hide others\' reasoning & tools in member context'**
-  String get groupChatAdvancedStripOtherReasoning;
-
   /// No description provided for @groupChatInputPlaceholder.
   ///
   /// In en, this message translates to:

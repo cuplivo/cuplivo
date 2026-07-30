@@ -14,10 +14,7 @@ import '../widgets/group_member_picker.dart';
 
 /// List of multi-assistant group chats.
 class GroupChatListPage extends StatefulWidget {
-  const GroupChatListPage({super.key, this.embeddedDialog = false});
-
-  /// When true (desktop dialog shell), close via [Navigator.pop] of the dialog.
-  final bool embeddedDialog;
+  const GroupChatListPage({super.key});
 
   @override
   State<GroupChatListPage> createState() => _GroupChatListPageState();
@@ -101,7 +98,7 @@ class _GroupChatListPageState extends State<GroupChatListPage> {
             icon: Lucide.ArrowLeft,
             size: 22,
             minSize: 44,
-            onTap: () => Navigator.of(context).maybePop(),
+            onTap: () => closeGroupPage(context),
             semanticLabel: l10n.groupChatBackTooltip,
           ),
         ),

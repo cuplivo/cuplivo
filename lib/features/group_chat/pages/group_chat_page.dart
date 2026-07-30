@@ -2,37 +2,35 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:scrollview_observer/scrollview_observer.dart';
 
-import '../../../core/models/assistant.dart';
+import '../../../core/models/chat_input_data.dart';
+import '../../../core/models/chat_message.dart';
 import '../../../core/models/group_chat_member.dart';
 import '../../../core/models/group_chat_message.dart';
-import '../../../core/models/chat_input_data.dart';
 import '../../../core/providers/assistant_provider.dart';
-import '../../../core/providers/user_provider.dart';
 import '../../../core/services/chat/group_chat_service.dart';
+import '../../../core/services/group_chat/group_chat_context_projector.dart';
 import '../../../core/services/group_chat/group_chat_orchestrator.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
-import '../../home/widgets/assistant_avatar.dart';
-import '../../home/widgets/assistant_entry_actions.dart';
+import '../../chat/widgets/message_more_sheet.dart';
 import '../../home/widgets/chat_input_bar.dart';
+import '../../home/widgets/message_list_view.dart';
+import '../controllers/group_chat_controller.dart';
 import '../group_chat_navigation.dart';
+import '../services/group_member_stream_service.dart';
 import '../widgets/group_avatar.dart';
 
-/// Map orchestrator error codes to localized user-facing text.
-///
-/// Used both as a full SnackBar message (pre-flight throws) and as the
-/// `{reason}` for [AppLocalizations.groupChatReplyFailed] after the user
-/// message has already been persisted.
 String localizeGroupChatError(
   AppLocalizations l10n, {
   String? code,
   String? detail,
 }) {
-  final d = (detail ?? '').trim();
+  final normalizedDetail = (detail ?? '').trim();
   switch (code) {
     case GroupChatErrorCode.noDirectorModel:
       return l10n.groupChatErrorNoDirectorModel;
@@ -42,13 +40,13 @@ String localizeGroupChatError(
       return l10n.groupChatErrorDirectorNoDecision;
     case GroupChatErrorCode.directorFailed:
       return l10n.groupChatErrorDirectorFailed(
-        d.isEmpty ? l10n.groupChatSendFailed : d,
+        normalizedDetail.isEmpty ? l10n.groupChatSendFailed : normalizedDetail,
       );
     case GroupChatErrorCode.memberNoModel:
       return l10n.groupChatErrorMemberNoModel;
     case GroupChatErrorCode.memberFailed:
       return l10n.groupChatErrorMemberFailed(
-        d.isEmpty ? l10n.groupChatSendFailed : d,
+        normalizedDetail.isEmpty ? l10n.groupChatSendFailed : normalizedDetail,
       );
     case GroupChatErrorCode.memberNotFound:
       return l10n.groupChatErrorMemberNotFound;
@@ -58,17 +56,13 @@ String localizeGroupChatError(
       return l10n.groupChatErrorGroupNotFound;
     case GroupChatErrorCode.alreadyRunning:
       return l10n.groupChatErrorAlreadyRunning;
-    case GroupChatErrorCode.emptyContent:
-      return l10n.groupChatSendFailed;
-    case GroupChatErrorCode.cancelled:
-      return l10n.groupChatSendFailed;
     default:
-      if (d.isNotEmpty) return d;
-      return l10n.groupChatSendFailed;
+      return normalizedDetail.isEmpty
+          ? l10n.groupChatSendFailed
+          : normalizedDetail;
   }
 }
 
-/// Group chat conversation page (one continuous timeline per group).
 class GroupChatPage extends StatefulWidget {
   const GroupChatPage({super.key, required this.groupId});
 
@@ -79,14 +73,14 @@ class GroupChatPage extends StatefulWidget {
 }
 
 class _GroupChatPageState extends State<GroupChatPage> {
-  final _inputController = TextEditingController();
-  final _scrollController = ScrollController();
-  final _inputFocus = FocusNode();
-  bool _loading = true;
-  bool _sending = false;
-  List<GroupChatMessage> _messages = const [];
-  List<GroupChatMember> _members = const [];
-  GroupChatService? _svc;
+  final TextEditingController _inputController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final FocusNode _inputFocus = FocusNode();
+  final ValueNotifier<bool> _isProcessingFiles = ValueNotifier<bool>(false);
+  late final ListObserverController _observerController =
+      ListObserverController(controller: _scrollController);
+
+  GroupChatController? _controller;
 
   @override
   void initState() {
@@ -96,73 +90,43 @@ class _GroupChatPageState extends State<GroupChatPage> {
 
   @override
   void dispose() {
-    _svc?.removeListener(_onServiceChanged);
+    _controller?.dispose();
     _inputController.dispose();
     _scrollController.dispose();
     _inputFocus.dispose();
+    _isProcessingFiles.dispose();
     super.dispose();
   }
 
   Future<void> _bootstrap() async {
-    final svc = context.read<GroupChatService>();
-    _svc = svc;
-    svc.addListener(_onServiceChanged);
-    await svc.ensureLoaded();
-    svc.setCurrentGroup(widget.groupId);
-    final messages = await svc.getMessages(widget.groupId);
-    final members = await svc.getMembers(widget.groupId);
+    final controller = GroupChatController(
+      groupId: widget.groupId,
+      groupChatService: context.read<GroupChatService>(),
+      orchestrator: context.read<GroupChatOrchestrator>(),
+      restoreMessageUiState: context
+          .read<GroupMemberStreamService>()
+          .restoreMessages,
+    );
+    _controller = controller..addListener(_onStateChanged);
+    await controller.initialize();
     if (!mounted) return;
-    setState(() {
-      // Own growable copies so ListView state never holds unmodifiable views.
-      _messages = List<GroupChatMessage>.of(messages);
-      _members = List<GroupChatMember>.of(members);
-      _loading = false;
-    });
     _scrollToBottom(animate: false);
   }
 
-  void _onServiceChanged() {
-    if (!mounted || _loading) return;
-    unawaited(_softRefresh());
-  }
-
-  Future<void> _softRefresh() async {
-    final svc = _svc ?? context.read<GroupChatService>();
-    final messages = await svc.getMessages(widget.groupId);
-    final members = await svc.getMembers(widget.groupId);
+  void _onStateChanged() {
     if (!mounted) return;
-    final atBottom = !_scrollController.hasClients
+    final wasNearBottom = !_scrollController.hasClients
         ? true
-        : (_scrollController.position.maxScrollExtent -
-                  _scrollController.position.pixels) <
+        : _scrollController.position.maxScrollExtent -
+                  _scrollController.position.pixels <
               80;
-    final generating = svc.isGroupGenerating(widget.groupId);
-    setState(() {
-      _messages = List<GroupChatMessage>.of(messages);
-      _members = List<GroupChatMember>.of(members);
-      // Keep true while generating; only clear when orchestrator is idle and
-      // our send Future already completed (otherwise whenComplete owns it).
-      if (generating) {
-        _sending = true;
-      }
-    });
-    if (atBottom) _scrollToBottom();
-  }
-
-  Future<void> _reloadMessages() async {
-    final svc = context.read<GroupChatService>();
-    final messages = await svc.reloadMessages(widget.groupId);
-    final members = await svc.getMembers(widget.groupId);
-    if (!mounted) return;
-    setState(() {
-      _messages = List<GroupChatMessage>.of(messages);
-      _members = List<GroupChatMember>.of(members);
-    });
+    setState(() {});
+    if (wasNearBottom) _scrollToBottom();
   }
 
   void _scrollToBottom({bool animate = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
+      if (!mounted || !_scrollController.hasClients) return;
       final target = _scrollController.position.maxScrollExtent;
       if (animate) {
         _scrollController.animateTo(
@@ -176,115 +140,105 @@ class _GroupChatPageState extends State<GroupChatPage> {
     });
   }
 
-  Future<ChatInputSubmissionResult> _onSend(ChatInputData data) async {
+  Future<ChatInputSubmissionResult> _onSend(ChatInputData input) async {
+    final text = input.text.trim();
+    final controller = _controller;
+    if (text.isEmpty || controller == null || controller.isSending) {
+      return ChatInputSubmissionResult.rejected;
+    }
     final l10n = AppLocalizations.of(context)!;
-    final text = data.text.trim();
-    if (text.isEmpty || _sending) {
-      return ChatInputSubmissionResult.rejected;
-    }
-    final svc = context.read<GroupChatService>();
-    final hasOrchestrator = svc.orchestrator != null;
-    setState(() => _sending = true);
-    try {
-      if (hasOrchestrator) {
-        // Director loop is silent in UI; member replies stream via service notify.
-        unawaited(
-          svc
-              .sendUserMessage(groupId: widget.groupId, content: text)
-              .then((result) async {
-                if (!mounted) return;
-                await _reloadMessages();
-                if (!mounted) return;
-                _scrollToBottom();
-                if (!result.isSuccess &&
-                    result.errorCode != null &&
-                    result.errorCode != GroupChatErrorCode.cancelled) {
-                  final reason = localizeGroupChatError(
-                    l10n,
-                    code: result.errorCode,
-                    detail: result.errorMessage,
-                  );
-                  // User message already landed — phrase as reply failure.
-                  showAppSnackBar(
-                    context,
-                    message: l10n.groupChatReplyFailed(reason),
-                    type: NotificationType.error,
-                  );
-                }
-              })
-              .catchError((Object e) {
-                if (!mounted) return;
-                final code = e is GroupChatOrchestratorException
-                    ? e.code
-                    : null;
-                final detail = e is GroupChatOrchestratorException
-                    ? e.message
-                    : e.toString();
-                final reason = localizeGroupChatError(
-                  l10n,
-                  code: code,
-                  detail: detail,
-                );
-                // Pre-flight failures (no user msg) still get a concrete reason.
-                showAppSnackBar(
-                  context,
-                  message: reason,
-                  type: NotificationType.error,
-                );
-              })
-              .whenComplete(() {
-                if (mounted) setState(() => _sending = false);
-              }),
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 60));
-        if (!mounted) return ChatInputSubmissionResult.sent;
-        await _reloadMessages();
-        _scrollToBottom();
-        return ChatInputSubmissionResult.sent;
-      }
+    unawaited(
+      controller
+          .send(text)
+          .then((result) {
+            if (!mounted ||
+                result.isSuccess ||
+                result.errorCode == GroupChatErrorCode.cancelled) {
+              return;
+            }
+            final reason = localizeGroupChatError(
+              l10n,
+              code: result.errorCode,
+              detail: result.errorMessage,
+            );
+            showAppSnackBar(
+              context,
+              message: l10n.groupChatReplyFailed(reason),
+              type: NotificationType.error,
+            );
+          })
+          .catchError((Object error) {
+            if (!mounted) return;
+            showAppSnackBar(
+              context,
+              message: localizeGroupChatError(
+                l10n,
+                code: error is GroupChatOrchestratorException
+                    ? error.code
+                    : null,
+                detail: error is GroupChatOrchestratorException
+                    ? error.message
+                    : error.toString(),
+              ),
+              type: NotificationType.error,
+            );
+          }),
+    );
+    return ChatInputSubmissionResult.sent;
+  }
 
-      await svc.addMessage(
-        GroupChatMessage(groupId: widget.groupId, role: 'user', content: text),
-      );
-      if (!mounted) return ChatInputSubmissionResult.sent;
-      await _reloadMessages();
-      _scrollToBottom();
-      return ChatInputSubmissionResult.sent;
-    } catch (e) {
-      if (mounted) {
-        final code = e is GroupChatOrchestratorException ? e.code : null;
-        final detail = e is GroupChatOrchestratorException
-            ? e.message
-            : e.toString();
-        showAppSnackBar(
-          context,
-          message: localizeGroupChatError(l10n, code: code, detail: detail),
-          type: NotificationType.error,
-        );
-      }
-      return ChatInputSubmissionResult.rejected;
-    } finally {
-      if (mounted && !hasOrchestrator) {
-        setState(() => _sending = false);
-      }
-    }
+  void _toggleReasoning(String messageId) {
+    final data = context
+        .read<GroupMemberStreamService>()
+        .streamController
+        .reasoning[messageId];
+    if (data == null) return;
+    setState(() => data.expanded = !data.expanded);
+  }
+
+  void _toggleReasoningSegment(String messageId, int index) {
+    final segments = context
+        .read<GroupMemberStreamService>()
+        .streamController
+        .reasoningSegments[messageId];
+    if (segments == null || index < 0 || index >= segments.length) return;
+    setState(() => segments[index].expanded = !segments[index].expanded);
   }
 
   int get _memberCount {
-    if (_members.isNotEmpty) return _members.length;
-    final g = context.read<GroupChatService>().getGroup(widget.groupId);
-    return g?.memberIds.length ?? 0;
+    final members = _controller?.members ?? const <GroupChatMember>[];
+    if (members.isNotEmpty) return members.length;
+    return context
+            .read<GroupChatService>()
+            .getGroup(widget.groupId)
+            ?.memberIds
+            .length ??
+        0;
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final cs = Theme.of(context).colorScheme;
-    final svc = context.watch<GroupChatService>();
-    final group = svc.getGroup(widget.groupId);
+    final colorScheme = Theme.of(context).colorScheme;
+    final service = context.read<GroupChatService>();
+    final assistants = context.watch<AssistantProvider>();
+    final streamService = context.watch<GroupMemberStreamService>();
+    final controller = _controller;
+    final messages = controller?.messages ?? const <GroupChatMessage>[];
+    final loading = controller?.isLoading ?? true;
+    final sending = controller?.isSending ?? false;
+    final group = service.getGroup(widget.groupId);
     final title = group?.title ?? l10n.groupChatDefaultTitle;
-    final ap = context.watch<AssistantProvider>();
-    final up = context.watch<UserProvider>();
+    final chatMessages = messages
+        .map(GroupChatContextProjector.toChatMessage)
+        .toList(growable: false);
+    final messagesById = <String, GroupChatMessage>{
+      for (final message in messages) message.id: message,
+    };
+    final byGroup = <String, List<ChatMessage>>{
+      for (final message in chatMessages) message.id: <ChatMessage>[message],
+    };
+    final stream = streamService.streamController;
 
     return Scaffold(
       appBar: AppBar(
@@ -294,7 +248,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
             icon: Lucide.ArrowLeft,
             size: 22,
             minSize: 44,
-            onTap: () => Navigator.of(context).maybePop(),
+            onTap: () => closeGroupPage(context),
             semanticLabel: l10n.groupChatBackTooltip,
           ),
         ),
@@ -318,12 +272,9 @@ class _GroupChatPageState extends State<GroupChatPage> {
                   ),
                   Text(
                     l10n.groupChatMembersCount(_memberCount),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
-                      color: cs.onSurface.withValues(alpha: 0.6),
-                      fontWeight: AppFontWeights.medium,
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                 ],
@@ -340,7 +291,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
               minSize: 44,
               onTap: () async {
                 await openGroupSettings(context, widget.groupId);
-                if (mounted) await _reloadMessages();
+                if (mounted) await controller?.reload();
               },
               semanticLabel: l10n.groupChatOpenSettingsTooltip,
             ),
@@ -351,34 +302,44 @@ class _GroupChatPageState extends State<GroupChatPage> {
       body: Column(
         children: [
           Expanded(
-            child: _loading
+            child: loading
                 ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-                : _messages.isEmpty
+                : chatMessages.isEmpty
                 ? Center(
                     child: Text(
                       l10n.groupChatMessageEmpty,
                       style: TextStyle(
-                        color: cs.onSurface.withValues(alpha: 0.55),
+                        color: colorScheme.onSurface.withValues(alpha: 0.55),
                       ),
                     ),
                   )
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      final m = _messages[index];
-                      return _GroupMessageBubble(
-                        message: m,
-                        assistant: m.speakerAssistantId == null
-                            ? null
-                            : ap.getById(m.speakerAssistantId!),
-                        userName: up.name,
-                        userAvatarType: up.avatarType,
-                        userAvatarValue: up.avatarValue,
-                        meLabel: l10n.groupChatSettingsUserLabel,
-                      );
+                : MessageListView(
+                    scrollController: _scrollController,
+                    observerController: _observerController,
+                    messages: chatMessages,
+                    byGroup: byGroup,
+                    versionSelections: const <String, int>{},
+                    reasoning: stream.reasoning,
+                    reasoningSegments: stream.reasoningSegments,
+                    contentSplits: stream.contentSplits,
+                    toolParts: stream.toolParts,
+                    translations: const <String, TranslationUiState>{},
+                    selecting: false,
+                    selectedItems: const <String>{},
+                    dividerPadding: EdgeInsets.zero,
+                    isProcessingFiles: _isProcessingFiles,
+                    streamingContentNotifier: stream.streamingContentNotifier,
+                    assistantForMessage: (message) {
+                      final groupMessage = messagesById[message.id];
+                      final assistantId = groupMessage?.speakerAssistantId;
+                      return assistantId == null
+                          ? null
+                          : assistants.getById(assistantId);
                     },
+                    forceAssistantIdentity: true,
+                    hideMoreActions: () => MessageMoreAction.values.toSet(),
+                    onToggleReasoning: _toggleReasoning,
+                    onToggleReasoningSegment: _toggleReasoningSegment,
                   ),
           ),
           SafeArea(
@@ -388,8 +349,8 @@ class _GroupChatPageState extends State<GroupChatPage> {
               child: ChatInputBar(
                 controller: _inputController,
                 focusNode: _inputFocus,
-                loading: _sending,
-                hideChatCapabilityButtons: true,
+                loading: sending,
+                capabilities: ChatInputCapabilities.textOnly,
                 showMoreButton: false,
                 showMiniMapButton: false,
                 showQuickPhraseButton: false,
@@ -397,200 +358,12 @@ class _GroupChatPageState extends State<GroupChatPage> {
                 supportsReasoning: false,
                 showMcpButton: false,
                 onSend: _onSend,
-                onStop: _sending
-                    ? () {
-                        unawaited(
-                          context.read<GroupChatService>().cancelGeneration(
-                            widget.groupId,
-                          ),
-                        );
-                      }
-                    : null,
+                onStop: sending ? () => unawaited(controller?.cancel()) : null,
                 sendButtonTooltip: l10n.groupChatInputPlaceholder,
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _GroupMessageBubble extends StatelessWidget {
-  const _GroupMessageBubble({
-    required this.message,
-    required this.assistant,
-    required this.userName,
-    required this.userAvatarType,
-    required this.userAvatarValue,
-    required this.meLabel,
-  });
-
-  final GroupChatMessage message;
-  final Assistant? assistant;
-  final String userName;
-  final String? userAvatarType;
-  final String? userAvatarValue;
-  final String meLabel;
-
-  bool get _isUser => message.role == 'user';
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final name = _isUser
-        ? (userName.trim().isEmpty ? meLabel : userName)
-        : (assistant?.name ?? '?');
-
-    final bubbleColor = _isUser
-        ? cs.primary.withValues(alpha: isDark ? 0.28 : 0.14)
-        : (isDark ? Colors.white10 : Colors.white.withValues(alpha: 0.96));
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_isUser)
-            _UserMiniAvatar(
-              name: name,
-              avatarType: userAvatarType,
-              avatarValue: userAvatarValue,
-              size: 34,
-            )
-          else
-            GestureDetector(
-              onTap: assistant == null
-                  ? null
-                  : () => AssistantEntryActions.openAssistantSettings(
-                      context,
-                      assistant!.id,
-                    ),
-              child: AssistantAvatar(assistant: assistant, size: 34),
-            ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: AppFontWeights.medium,
-                    color: cs.onSurface.withValues(alpha: 0.65),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: bubbleColor,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: cs.outlineVariant.withValues(
-                        alpha: isDark ? 0.12 : 0.08,
-                      ),
-                      width: 0.6,
-                    ),
-                  ),
-                  child: message.isStreaming && message.content.trim().isEmpty
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 1.6,
-                                color: cs.primary.withValues(alpha: 0.7),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '…',
-                              style: TextStyle(
-                                fontSize: 15,
-                                height: 1.35,
-                                color: cs.onSurface.withValues(alpha: 0.55),
-                              ),
-                            ),
-                          ],
-                        )
-                      : SelectableText(
-                          message.content,
-                          style: TextStyle(
-                            fontSize: 15,
-                            height: 1.35,
-                            color: cs.onSurface,
-                          ),
-                        ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _UserMiniAvatar extends StatelessWidget {
-  const _UserMiniAvatar({
-    required this.name,
-    required this.avatarType,
-    required this.avatarValue,
-    this.size = 34,
-  });
-
-  final String name;
-  final String? avatarType;
-  final String? avatarValue;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final type = avatarType;
-    final value = (avatarValue ?? '').trim();
-
-    if (type == 'emoji' && value.isNotEmpty) {
-      return Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: cs.primary.withValues(alpha: 0.12),
-          shape: BoxShape.circle,
-        ),
-        child: Text(
-          value.characters.take(1).toString(),
-          style: TextStyle(fontSize: size * 0.48),
-        ),
-      );
-    }
-    // Fallback initial; url/file handled lightly via GroupAvatar-like path would bloat — MVP letter.
-    final letter = name.trim().isNotEmpty ? name.characters.first : '?';
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: 0.15),
-        shape: BoxShape.circle,
-      ),
-      child: Text(
-        letter,
-        style: TextStyle(
-          color: cs.primary,
-          fontWeight: AppFontWeights.emphasis,
-          fontSize: size * 0.42,
-        ),
       ),
     );
   }

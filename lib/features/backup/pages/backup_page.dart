@@ -17,6 +17,7 @@ import '../../../core/providers/backup_reminder_provider.dart';
 import '../../../core/providers/s3_backup_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/services/chat/group_chat_service.dart';
 import '../../../core/services/trash_restore_coordinator.dart';
 import '../../../core/services/backup/data_sync.dart';
 import '../../../core/services/native_file_save.dart';
@@ -246,6 +247,7 @@ class _BackupPageState extends State<BackupPage> {
         ChangeNotifierProvider(
           create: (_) => BackupProvider(
             chatService: context.read<ChatService>(),
+            groupChatService: context.read<GroupChatService>(),
             trashRestoreCoordinator: coordinator,
             initialConfig: settings.webDavConfig,
           ),
@@ -253,6 +255,7 @@ class _BackupPageState extends State<BackupPage> {
         ChangeNotifierProvider(
           create: (_) => S3BackupProvider(
             chatService: context.read<ChatService>(),
+            groupChatService: context.read<GroupChatService>(),
             trashRestoreCoordinator: coordinator,
             initialConfig: settings.s3Config,
           ),

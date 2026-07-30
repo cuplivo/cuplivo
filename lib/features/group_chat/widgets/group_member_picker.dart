@@ -37,7 +37,7 @@ Future<List<String>?> showGroupMemberPicker(
     await showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'group-member-picker',
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
       barrierColor: Colors.black.withValues(alpha: 0.15),
       pageBuilder: (ctx, _, __) {
         return _GroupMemberPickerDialog(
@@ -102,131 +102,20 @@ class _GroupMemberPickerSheet extends StatefulWidget {
 }
 
 class _GroupMemberPickerSheetState extends State<_GroupMemberPickerSheet> {
-  late final Set<String> _selected = {...widget.initiallySelected};
-
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final cs = Theme.of(context).colorScheme;
     final maxHeight = MediaQuery.sizeOf(context).height * 0.85;
-    final canConfirm = _selected.length >= widget.minSelection;
-
     return SafeArea(
       top: false,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: maxHeight),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 10),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: cs.onSurface.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Column(
-                children: [
-                  Text(
-                    l10n.groupChatSelectMembersTitle,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: AppFontWeights.emphasis,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    l10n.groupChatSelectMembersHint,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: cs.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                itemCount: widget.assistants.length,
-                itemBuilder: (context, index) {
-                  final a = widget.assistants[index];
-                  final checked = _selected.contains(a.id);
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: IosCardPress(
-                      borderRadius: BorderRadius.circular(14),
-                      baseColor: checked
-                          ? cs.primary.withValues(alpha: 0.08)
-                          : cs.surface,
-                      onTap: () {
-                        Haptics.soft();
-                        setState(() {
-                          if (checked) {
-                            _selected.remove(a.id);
-                          } else {
-                            _selected.add(a.id);
-                          }
-                        });
-                      },
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      child: Row(
-                        children: [
-                          AssistantAvatar(assistant: a, size: 36),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              a.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: AppFontWeights.medium,
-                              ),
-                            ),
-                          ),
-                          IosCheckbox(
-                            value: checked,
-                            onChanged: (v) {
-                              setState(() {
-                                if (v) {
-                                  _selected.add(a.id);
-                                } else {
-                                  _selected.remove(a.id);
-                                }
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: canConfirm
-                      ? () => Navigator.of(context).pop(_selected.toList())
-                      : null,
-                  child: Text(
-                    l10n.groupChatSelectMembersConfirm(_selected.length),
-                  ),
-                ),
-              ),
-            ),
-          ],
+        child: _GroupMemberPickerContent(
+          assistants: widget.assistants,
+          initiallySelected: widget.initiallySelected,
+          minSelection: widget.minSelection,
+          onConfirm: (ids) => Navigator.of(context).pop(ids),
+          onCancel: () => Navigator.of(context).maybePop(),
+          desktop: false,
         ),
       ),
     );
@@ -254,14 +143,10 @@ class _GroupMemberPickerDialog extends StatefulWidget {
 }
 
 class _GroupMemberPickerDialogState extends State<_GroupMemberPickerDialog> {
-  late final Set<String> _selected = {...widget.initiallySelected};
-
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final canConfirm = _selected.length >= widget.minSelection;
 
     return Center(
       child: ConstrainedBox(
@@ -281,108 +166,177 @@ class _GroupMemberPickerDialogState extends State<_GroupMemberPickerDialog> {
             ),
           ),
           clipBehavior: Clip.antiAlias,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: _GroupMemberPickerContent(
+            assistants: widget.assistants,
+            initiallySelected: widget.initiallySelected,
+            minSelection: widget.minSelection,
+            onConfirm: widget.onConfirm,
+            onCancel: widget.onCancel,
+            desktop: true,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GroupMemberPickerContent extends StatefulWidget {
+  const _GroupMemberPickerContent({
+    required this.assistants,
+    required this.initiallySelected,
+    required this.minSelection,
+    required this.onConfirm,
+    required this.onCancel,
+    required this.desktop,
+  });
+
+  final List<Assistant> assistants;
+  final Set<String> initiallySelected;
+  final int minSelection;
+  final ValueChanged<List<String>> onConfirm;
+  final VoidCallback onCancel;
+  final bool desktop;
+
+  @override
+  State<_GroupMemberPickerContent> createState() =>
+      _GroupMemberPickerContentState();
+}
+
+class _GroupMemberPickerContentState extends State<_GroupMemberPickerContent> {
+  late final Set<String> _selected = {...widget.initiallySelected};
+
+  void _setSelected(String id, bool selected) {
+    Haptics.soft();
+    setState(() {
+      if (selected) {
+        _selected.add(id);
+      } else {
+        _selected.remove(id);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final canConfirm = _selected.length >= widget.minSelection;
+    final desktop = widget.desktop;
+
+    return Column(
+      mainAxisSize: desktop ? MainAxisSize.max : MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!desktop) ...[
+          const SizedBox(height: 10),
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: cs.onSurface.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+        ],
+        Padding(
+          padding: EdgeInsets.fromLTRB(16, desktop ? 10 : 12, 12, 4),
+          child: Row(
             children: [
-              SizedBox(
-                height: 48,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+              Expanded(
+                child: Text(
+                  l10n.groupChatSelectMembersTitle,
+                  textAlign: desktop ? TextAlign.start : TextAlign.center,
+                  style: TextStyle(
+                    fontSize: desktop ? 13.5 : 16,
+                    fontWeight: AppFontWeights.emphasis,
+                  ),
+                ),
+              ),
+              if (desktop)
+                IosIconButton(
+                  icon: Lucide.X,
+                  size: 18,
+                  onTap: widget.onCancel,
+                  semanticLabel: l10n.groupChatSettingsCancel,
+                ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Text(
+            l10n.groupChatSelectMembersHint,
+            textAlign: desktop ? TextAlign.start : TextAlign.center,
+            style: TextStyle(
+              fontSize: desktop ? 12 : 12.5,
+              color: cs.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+        ),
+        Flexible(
+          child: ListView.builder(
+            shrinkWrap: !desktop,
+            padding: EdgeInsets.fromLTRB(
+              desktop ? 10 : 12,
+              0,
+              desktop ? 10 : 12,
+              desktop ? 10 : 8,
+            ),
+            itemCount: widget.assistants.length,
+            itemBuilder: (context, index) {
+              final assistant = widget.assistants[index];
+              final checked = _selected.contains(assistant.id);
+              return Padding(
+                padding: EdgeInsets.only(bottom: desktop ? 4 : 6),
+                child: IosCardPress(
+                  borderRadius: BorderRadius.circular(desktop ? 12 : 14),
+                  baseColor: checked
+                      ? cs.primary.withValues(alpha: 0.08)
+                      : desktop
+                      ? Colors.transparent
+                      : cs.surface,
+                  onTap: () => _setSelected(assistant.id, !checked),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: desktop ? 10 : 12,
+                    vertical: desktop ? 8 : 10,
+                  ),
                   child: Row(
                     children: [
+                      AssistantAvatar(
+                        assistant: assistant,
+                        size: desktop ? 30 : 36,
+                      ),
+                      SizedBox(width: desktop ? 10 : 12),
                       Expanded(
                         child: Text(
-                          l10n.groupChatSelectMembersTitle,
+                          assistant.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: AppFontWeights.emphasis,
+                            fontSize: desktop ? null : 15,
+                            fontWeight: desktop ? null : AppFontWeights.medium,
                           ),
                         ),
                       ),
-                      IosIconButton(
-                        icon: Lucide.X,
-                        size: 18,
-                        onTap: widget.onCancel,
-                        semanticLabel: l10n.groupChatSettingsCancel,
+                      IosCheckbox(
+                        value: checked,
+                        onChanged: (value) => _setSelected(assistant.id, value),
                       ),
                     ],
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Text(
-                  l10n.groupChatSelectMembersHint,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: cs.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-                  itemCount: widget.assistants.length,
-                  itemBuilder: (context, index) {
-                    final a = widget.assistants[index];
-                    final checked = _selected.contains(a.id);
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: IosCardPress(
-                        borderRadius: BorderRadius.circular(12),
-                        baseColor: checked
-                            ? cs.primary.withValues(alpha: 0.08)
-                            : Colors.transparent,
-                        onTap: () {
-                          setState(() {
-                            if (checked) {
-                              _selected.remove(a.id);
-                            } else {
-                              _selected.add(a.id);
-                            }
-                          });
-                        },
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                        child: Row(
-                          children: [
-                            AssistantAvatar(assistant: a, size: 30),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                a.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            IosCheckbox(
-                              value: checked,
-                              onChanged: (v) {
-                                setState(() {
-                                  if (v) {
-                                    _selected.add(a.id);
-                                  } else {
-                                    _selected.remove(a.id);
-                                  }
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                child: Row(
+              );
+            },
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(16, 4, 16, desktop ? 12 : 16),
+          child: desktop
+              ? Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    const Spacer(),
                     TextButton(
                       onPressed: widget.onCancel,
                       child: Text(l10n.groupChatSettingsCancel),
@@ -397,12 +351,20 @@ class _GroupMemberPickerDialogState extends State<_GroupMemberPickerDialog> {
                       ),
                     ),
                   ],
+                )
+              : SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: canConfirm
+                        ? () => widget.onConfirm(_selected.toList())
+                        : null,
+                    child: Text(
+                      l10n.groupChatSelectMembersConfirm(_selected.length),
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          ),
         ),
-      ),
+      ],
     );
   }
 }

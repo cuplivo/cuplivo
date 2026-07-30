@@ -6,18 +6,15 @@ import '../../models/group_chat.dart';
 import '../../models/group_chat_member.dart';
 import '../../models/group_chat_message.dart';
 import '../../models/group_chat_settings.dart';
-import '../group_chat/group_chat_orchestrator.dart';
 import 'chat_service.dart';
 
 /// Multi-assistant group chat facade (mirrors [ChatService] caching style, simplified).
 ///
 /// Depends on [ChatService] for the shared [ChatDatabaseRepository] / SQLite file.
-/// Optional [orchestrator] handles director tool loop + member speaking (Phase 2).
 class GroupChatService extends ChangeNotifier {
-  GroupChatService({this.chatService, this._orchestrator});
+  GroupChatService({this.chatService});
 
   final ChatService? chatService;
-  GroupChatOrchestrator? _orchestrator;
 
   final Map<String, GroupChat> _groupsCache = {};
   final Map<String, List<GroupChatMember>> _membersCache = {};
@@ -36,22 +33,29 @@ class GroupChatService extends ChangeNotifier {
     return cs.repo;
   }
 
+  ChatDatabaseRepository get _readyRepo {
+    final repo = _repo;
+    if (repo == null) {
+      throw StateError('GroupChatService: database not ready');
+    }
+    return repo;
+  }
+
   Future<void> ensureLoaded() async {
     if (_loaded) return;
     final cs = chatService;
-    if (cs != null && !cs.initialized) {
+    if (cs == null) {
+      throw StateError('GroupChatService: ChatService is required');
+    }
+    if (!cs.initialized) {
       await cs.init();
     }
+    await _readyRepo.clearActiveGroupStreamingIds();
     await reload();
   }
 
   Future<void> reload() async {
-    final repo = _repo;
-    if (repo == null) {
-      _loaded = false;
-      notifyListeners();
-      return;
-    }
+    final repo = _readyRepo;
     final groups = await repo.getAllGroupChats(includeMemberIds: true);
     _groupsCache
       ..clear()
@@ -93,6 +97,10 @@ class GroupChatService extends ChangeNotifier {
       throw StateError('GroupChatService: database not ready');
     }
     final uniqueAssistants = assistantIds.toSet().toList();
+    final normalizedTitle = title.trim();
+    if (normalizedTitle.isEmpty) {
+      throw ArgumentError('Group chat title must not be empty');
+    }
     if (uniqueAssistants.length < 2) {
       throw ArgumentError(
         'Group chat requires at least 2 distinct assistant members',
@@ -101,7 +109,7 @@ class GroupChatService extends ChangeNotifier {
 
     final now = DateTime.now();
     final group = GroupChat(
-      title: title.trim().isEmpty ? 'Group Chat' : title.trim(),
+      title: normalizedTitle,
       avatar: avatar,
       createdAt: now,
       updatedAt: now,
@@ -139,8 +147,7 @@ class GroupChatService extends ChangeNotifier {
 
   Future<void> updateGroup(GroupChat group) async {
     await ensureLoaded();
-    final repo = _repo;
-    if (repo == null) return;
+    final repo = _readyRepo;
     final updated = group.copyWith(updatedAt: DateTime.now());
     await repo.putGroupChat(updated);
     _groupsCache[updated.id] = updated;
@@ -149,8 +156,7 @@ class GroupChatService extends ChangeNotifier {
 
   Future<void> deleteGroup(String id) async {
     await ensureLoaded();
-    final repo = _repo;
-    if (repo == null) return;
+    final repo = _readyRepo;
     await repo.deleteGroupChat(id);
     _groupsCache.remove(id);
     _membersCache.remove(id);
@@ -164,8 +170,7 @@ class GroupChatService extends ChangeNotifier {
     await ensureLoaded();
     final cached = _membersCache[groupId];
     if (cached != null) return List.unmodifiable(cached);
-    final repo = _repo;
-    if (repo == null) return const [];
+    final repo = _readyRepo;
     // Repo returns growable:false; cache must stay growable for later mutate.
     final members = List<GroupChatMember>.of(
       await repo.getGroupMembers(groupId),
@@ -176,8 +181,7 @@ class GroupChatService extends ChangeNotifier {
 
   Future<void> setMembers(String groupId, List<GroupChatMember> members) async {
     await ensureLoaded();
-    final repo = _repo;
-    if (repo == null) return;
+    final repo = _readyRepo;
 
     final hasUser = members.any((m) => m.kind == GroupChatMember.kindUser);
     final assistantCount = members
@@ -208,8 +212,7 @@ class GroupChatService extends ChangeNotifier {
     await ensureLoaded();
     final cached = _messagesCache[groupId];
     if (cached != null) return List.unmodifiable(cached);
-    final repo = _repo;
-    if (repo == null) return const [];
+    final repo = _readyRepo;
     // Repo returns growable:false; always store a growable copy so
     // [addMessage]/[deleteMessage] can mutate without
     // "Cannot add to a fixed-length list".
@@ -223,8 +226,7 @@ class GroupChatService extends ChangeNotifier {
   /// Force-reload messages from DB into cache.
   Future<List<GroupChatMessage>> reloadMessages(String groupId) async {
     await ensureLoaded();
-    final repo = _repo;
-    if (repo == null) return const [];
+    final repo = _readyRepo;
     final messages = List<GroupChatMessage>.of(
       await repo.getGroupMessages(groupId),
     );
@@ -277,10 +279,12 @@ class GroupChatService extends ChangeNotifier {
     return toWrite;
   }
 
-  Future<void> updateMessage(GroupChatMessage message) async {
+  Future<void> updateMessage(
+    GroupChatMessage message, {
+    bool notify = true,
+  }) async {
     await ensureLoaded();
-    final repo = _repo;
-    if (repo == null) return;
+    final repo = _readyRepo;
     await repo.putGroupMessage(message);
     final cached = _messagesCache[message.groupId];
     if (cached != null) {
@@ -291,13 +295,71 @@ class GroupChatService extends ChangeNotifier {
         _messagesCache[message.groupId] = list;
       }
     }
-    notifyListeners();
+    if (notify) notifyListeners();
+  }
+
+  List<Map<String, dynamic>> getToolEvents(String messageId) =>
+      _readyRepo.getGroupToolEventsSync(messageId);
+
+  Future<void> setToolEvents(
+    String messageId,
+    List<Map<String, dynamic>> events,
+  ) async {
+    await ensureLoaded();
+    final repo = _repo;
+    if (repo == null) {
+      throw StateError('GroupChatService: database not ready');
+    }
+    await repo.setGroupToolEvents(messageId, events);
+  }
+
+  Future<void> upsertToolEvent(
+    String messageId, {
+    required String id,
+    required String name,
+    required Map<String, dynamic> arguments,
+    String? content,
+    Map<String, dynamic>? metadata,
+  }) async {
+    final events = List<Map<String, dynamic>>.of(getToolEvents(messageId));
+    final index = events.indexWhere(
+      (event) =>
+          (id.isNotEmpty && event['id'] == id) ||
+          (id.isEmpty && event['name'] == name),
+    );
+    final value = <String, dynamic>{
+      'id': id,
+      'name': name,
+      'arguments': arguments,
+      'content': content,
+      if (metadata != null && metadata.isNotEmpty) 'metadata': metadata,
+    };
+    if (index < 0) {
+      events.add(value);
+    } else {
+      events[index] = value;
+    }
+    await setToolEvents(messageId, events);
+  }
+
+  String? getGeminiThoughtSignature(String messageId) =>
+      _readyRepo.getGroupGeminiThoughtSignatureSync(messageId);
+
+  Future<void> setGeminiThoughtSignature(
+    String messageId,
+    String signature,
+  ) async {
+    await ensureLoaded();
+    final repo = _repo;
+    if (repo == null) {
+      throw StateError('GroupChatService: database not ready');
+    }
+    await repo.setGroupGeminiThoughtSignature(messageId, signature);
   }
 
   Future<void> deleteMessage(String groupId, String messageId) async {
     await ensureLoaded();
-    final repo = _repo;
-    if (repo == null) return;
+    final repo = _readyRepo;
     await repo.deleteGroupMessage(messageId);
     final cached = _messagesCache[groupId];
     if (cached != null) {
@@ -316,8 +378,7 @@ class GroupChatService extends ChangeNotifier {
     await ensureLoaded();
     final cached = _directorByGroup[groupId];
     if (cached != null) return cached;
-    final repo = _repo;
-    if (repo == null) return null;
+    final repo = _readyRepo;
     final session = await repo.getDirectorSession(groupId);
     if (session != null) {
       // Defensive growable copies — UI/debug pages must not mutate repo shapes.
@@ -334,8 +395,7 @@ class GroupChatService extends ChangeNotifier {
   /// Force-reload director session from SQLite (bypasses memory cache).
   Future<DirectorSession?> reloadDirectorSession(String groupId) async {
     await ensureLoaded();
-    final repo = _repo;
-    if (repo == null) return null;
+    final repo = _readyRepo;
     final session = await repo.getDirectorSession(groupId);
     if (session == null) {
       _directorByGroup.remove(groupId);
@@ -372,6 +432,12 @@ class GroupChatService extends ChangeNotifier {
     );
     await repo.putDirectorSession(updated);
     _directorByGroup[updated.groupId] = updated;
+    final group = _groupsCache[updated.groupId];
+    if (group != null) {
+      final touched = group.copyWith(updatedAt: updated.updatedAt);
+      await repo.putGroupChat(touched);
+      _groupsCache[updated.groupId] = touched;
+    }
     notifyListeners();
     return updated;
   }
@@ -381,36 +447,5 @@ class GroupChatService extends ChangeNotifier {
     if (existing != null) return existing;
     final session = DirectorSession(groupId: groupId);
     return putDirectorSession(session);
-  }
-
-  /// Attach / replace the Phase-2 orchestrator (typically from app bootstrap).
-  void attachOrchestrator(GroupChatOrchestrator orchestrator) {
-    _orchestrator = orchestrator;
-  }
-
-  GroupChatOrchestrator? get orchestrator => _orchestrator;
-
-  bool isGroupGenerating(String groupId) =>
-      _orchestrator?.isRunning(groupId) ?? false;
-
-  /// Cancel in-flight director / member streams for [groupId].
-  Future<void> cancelGeneration(String groupId) async {
-    await _orchestrator?.cancel(groupId);
-  }
-
-  /// Send a user message and run the director → member loop.
-  ///
-  /// Requires [attachOrchestrator] first. Throws [StateError] if missing.
-  Future<GroupChatTurnResult> sendUserMessage({
-    required String groupId,
-    required String content,
-  }) async {
-    final orch = _orchestrator;
-    if (orch == null) {
-      throw StateError(
-        'GroupChatService: orchestrator not attached (Phase 2 wiring)',
-      );
-    }
-    return orch.sendUserMessage(groupId: groupId, content: content);
   }
 }

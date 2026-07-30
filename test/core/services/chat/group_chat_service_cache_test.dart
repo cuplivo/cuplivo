@@ -59,6 +59,13 @@ void main() {
     return group;
   }
 
+  test('fails explicitly when ChatService is not injected', () async {
+    final service = GroupChatService();
+    addTearDown(service.dispose);
+
+    await expectLater(service.ensureLoaded(), throwsStateError);
+  });
+
   group('GroupChatService message cache growable', () {
     test(
       'addMessage after getMessages does not throw fixed-length list error',

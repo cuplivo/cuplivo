@@ -25,14 +25,19 @@ export 'streaming_content_notifier.dart';
 /// by the home page to handle streaming generation without cluttering the UI code.
 class StreamController {
   StreamController({
-    required this._chatService,
+    required this.chatService,
     required this.onStateChanged,
     required this.getSettingsProvider,
     required this.getCurrentConversationId,
     this.onStreamTick,
+    this.setGeminiThoughtSignatureCallback,
+    this.getGeminiThoughtSignatureCallback,
   });
 
-  final ChatService _chatService;
+  final ChatService chatService;
+  final Future<void> Function(String messageId, String signature)?
+  setGeminiThoughtSignatureCallback;
+  final String? Function(String messageId)? getGeminiThoughtSignatureCallback;
 
   /// Callback when state changes (trigger setState in the widget).
   /// NOTE: This should only be used for non-streaming state changes.
@@ -257,7 +262,10 @@ class StreamController {
       if (sig.isNotEmpty) {
         if (_geminiThoughtSigs[messageId] != sig) {
           _geminiThoughtSigs[messageId] = sig;
-          unawaited(_chatService.setGeminiThoughtSignature(messageId, sig));
+          unawaited(
+            (setGeminiThoughtSignatureCallback ??
+                chatService.setGeminiThoughtSignature)(messageId, sig),
+          );
         }
       }
       content = content.replaceAll(_geminiThoughtSigRe, '').trimRight();
@@ -271,7 +279,9 @@ class StreamController {
     String content,
   ) {
     String? sig = _geminiThoughtSigs[message.id];
-    sig ??= _chatService.getGeminiThoughtSignature(message.id);
+    sig ??=
+        getGeminiThoughtSignatureCallback?.call(message.id) ??
+        chatService.getGeminiThoughtSignature(message.id);
     if (sig != null &&
         sig.isNotEmpty &&
         !content.contains('gemini_thought_signatures:')) {
@@ -1226,9 +1236,10 @@ class StreamController {
       forceCollapse: forceCollapse,
     );
     final splits = _contentSplits[messageId];
+    final reasoningDetails = _reasoningDetails[messageId];
     final segments =
         _reasoningSegments[messageId] ?? const <ReasoningSegmentData>[];
-    if (!changed && splits == null) return;
+    if (!changed && splits == null && reasoningDetails == null) return;
 
     // Persist reasoning data
     final r = _reasoning[messageId];
@@ -1241,7 +1252,7 @@ class StreamController {
     }
 
     // Persist reasoning segments
-    if (segments.isNotEmpty || splits != null) {
+    if (segments.isNotEmpty || splits != null || reasoningDetails != null) {
       await updateReasoningInDb(
         messageId,
         reasoningSegmentsJson: serializeReasoningSegmentsWithSplits(
@@ -1249,6 +1260,7 @@ class StreamController {
           contentSplitOffsets: splits?.offsets,
           reasoningCountAtSplit: splits?.reasoningCounts,
           toolCountAtSplit: splits?.toolCounts,
+          reasoningDetails: reasoningDetails,
         ),
       );
     }

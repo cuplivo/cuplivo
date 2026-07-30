@@ -15,15 +15,25 @@ import '../../models/assistant.dart';
 import '../../models/backup.dart';
 import '../../models/chat_message.dart';
 import '../../models/conversation.dart';
+import '../../models/director_session.dart';
+import '../../models/group_chat.dart';
+import '../../models/group_chat_member.dart';
+import '../../models/group_chat_message.dart';
 import '../../models/incremental_backup.dart';
 import '../chat/chat_service.dart';
+import '../chat/group_chat_service.dart';
 import '../deleted_records_store.dart';
 import '../../../utils/app_directories.dart';
 
 class DataSync {
   final ChatService chatService;
+  final GroupChatService? groupChatService;
   final Future<Set<String>> Function(String type)? _localIdResolver;
-  DataSync({required this.chatService, this._localIdResolver});
+  DataSync({
+    required this.chatService,
+    this.groupChatService,
+    this._localIdResolver,
+  });
 
   // ===== WebDAV helpers =====
   Uri _collectionUri(WebDavConfig cfg) {
@@ -892,7 +902,7 @@ class DataSync {
     final sink = file.openWrite();
 
     try {
-      sink.write('{"version":1,');
+      sink.write('{"version":2,');
 
       // --- conversations ---
       sink.write('"conversations":[');
@@ -940,6 +950,62 @@ class DataSync {
       // --- geminiThoughtSigs ---
       sink.write('"geminiThoughtSigs":');
       sink.write(jsonEncode(geminiThoughtSigs));
+
+      // Group-chat incremental backups contain complete aggregates for every
+      // group changed since the cutoff, so restore never creates partial
+      // member/message hierarchies.
+      var groups = await chatService.repo.getAllGroupChats(
+        includeMemberIds: true,
+        includeMessageIds: true,
+      );
+      if (incremental != null) {
+        groups = groups
+            .where((group) => incremental.sinceCheck(group.updatedAt))
+            .toList();
+      }
+      final groupIds = groups.map((group) => group.id).toSet();
+      final groupMembers = <GroupChatMember>[];
+      final groupMessages = <GroupChatMessage>[];
+      final groupToolEvents = <String, List<Map<String, dynamic>>>{};
+      final groupGeminiThoughtSigs = <String, String>{};
+      for (final group in groups) {
+        groupMembers.addAll(await chatService.repo.getGroupMembers(group.id));
+        final messages = await chatService.repo.getGroupMessages(group.id);
+        groupMessages.addAll(messages);
+        for (final message in messages) {
+          final events = await chatService.repo.getGroupToolEvents(message.id);
+          if (events.isNotEmpty) groupToolEvents[message.id] = events;
+          final signature = await chatService.repo
+              .getGroupGeminiThoughtSignature(message.id);
+          if (signature != null && signature.isNotEmpty) {
+            groupGeminiThoughtSigs[message.id] = signature;
+          }
+        }
+        await Future<void>.delayed(Duration.zero);
+      }
+      final directorSessions = (await chatService.repo.getAllDirectorSessions())
+          .where((session) => groupIds.contains(session.groupId));
+
+      sink.write(',"groups":');
+      sink.write(jsonEncode(groups.map((group) => group.toJson()).toList()));
+      sink.write(',"groupMembers":');
+      sink.write(
+        jsonEncode(groupMembers.map((member) => member.toJson()).toList()),
+      );
+      sink.write(',"groupMessages":');
+      sink.write(
+        jsonEncode(groupMessages.map((message) => message.toJson()).toList()),
+      );
+      sink.write(',"groupToolEvents":');
+      sink.write(jsonEncode(groupToolEvents));
+      sink.write(',"groupGeminiThoughtSigs":');
+      sink.write(jsonEncode(groupGeminiThoughtSigs));
+      sink.write(',"groupDirectorSessions":');
+      sink.write(
+        jsonEncode(
+          directorSessions.map((session) => session.toJson()).toList(),
+        ),
+      );
 
       sink.write('}');
     } finally {
@@ -1269,6 +1335,73 @@ class DataSync {
           final geminiThoughtSigs =
               ((obj['geminiThoughtSigs'] as Map?) ?? const <String, dynamic>{})
                   .map((k, v) => MapEntry(k.toString(), v.toString()));
+          final groups =
+              (obj['groups'] as List?)
+                  ?.whereType<Map>()
+                  .map(
+                    (entry) =>
+                        GroupChat.fromJson(entry.cast<String, dynamic>()),
+                  )
+                  .toList() ??
+              const <GroupChat>[];
+          final groupIds = groups.map((group) => group.id).toSet();
+          final groupMembers =
+              (obj['groupMembers'] as List?)
+                  ?.whereType<Map>()
+                  .map(
+                    (entry) =>
+                        GroupChatMember.fromJson(entry.cast<String, dynamic>()),
+                  )
+                  .where((member) => groupIds.contains(member.groupId))
+                  .toList() ??
+              const <GroupChatMember>[];
+          final groupMessages =
+              (obj['groupMessages'] as List?)
+                  ?.whereType<Map>()
+                  .map(
+                    (entry) => GroupChatMessage.fromJson(
+                      entry.cast<String, dynamic>(),
+                    ),
+                  )
+                  .where((message) => groupIds.contains(message.groupId))
+                  .toList() ??
+              const <GroupChatMessage>[];
+          final groupMessageIds = groupMessages
+              .map((message) => message.id)
+              .toSet();
+          final groupToolEvents =
+              ((obj['groupToolEvents'] as Map?) ?? const <String, dynamic>{})
+                  .map(
+                    (key, value) => MapEntry(
+                      key.toString(),
+                      (value as List)
+                          .cast<Map>()
+                          .map((entry) => entry.cast<String, dynamic>())
+                          .toList(),
+                    ),
+                  )
+                ..removeWhere(
+                  (messageId, _) => !groupMessageIds.contains(messageId),
+                );
+          final groupGeminiThoughtSigs =
+              ((obj['groupGeminiThoughtSigs'] as Map?) ??
+                      const <String, dynamic>{})
+                  .map(
+                    (key, value) => MapEntry(key.toString(), value.toString()),
+                  )
+                ..removeWhere(
+                  (messageId, _) => !groupMessageIds.contains(messageId),
+                );
+          final groupDirectorSessions =
+              (obj['groupDirectorSessions'] as List?)
+                  ?.whereType<Map>()
+                  .map(
+                    (entry) =>
+                        DirectorSession.fromJson(entry.cast<String, dynamic>()),
+                  )
+                  .where((session) => groupIds.contains(session.groupId))
+                  .toList() ??
+              const <DirectorSession>[];
 
           if (mode == RestoreMode.overwrite) {
             await chatService.clearAllData();
@@ -1364,7 +1497,34 @@ class DataSync {
               }
             }
           }
-        } catch (_) {}
+
+          final membersByGroup = <String, List<GroupChatMember>>{};
+          for (final member in groupMembers) {
+            (membersByGroup[member.groupId] ??= <GroupChatMember>[]).add(
+              member,
+            );
+          }
+          final messagesByGroup = <String, List<GroupChatMessage>>{};
+          for (final message in groupMessages) {
+            (messagesByGroup[message.groupId] ??= <GroupChatMessage>[]).add(
+              message,
+            );
+          }
+          await chatService.repo.putGroupChatRestoreBatch(
+            groups: groups,
+            membersByGroup: membersByGroup,
+            messagesByGroup: messagesByGroup,
+            directorSessions: groupDirectorSessions,
+            toolEventsByMessageId: groupToolEvents,
+            geminiThoughtSignaturesByMessageId: groupGeminiThoughtSigs,
+            replaceExistingAggregates: mode == RestoreMode.merge,
+          );
+          await groupChatService?.reload();
+        } catch (error, stackTrace) {
+          debugPrint('restoreData: failed to import chats.json: $error');
+          debugPrintStack(stackTrace: stackTrace);
+          rethrow;
+        }
       }
 
       // Restore deleted.json markers (merge mode only — overwrite wipes local)

@@ -720,20 +720,9 @@ class ChatDatabaseRepository {
   }
 
   Future<void> deleteConversation(String id) async {
-    // tool_event_rows no longer cascades from message_rows; clean first.
-    final messageIds = await (_db.select(
-      _db.messageRows,
-    )..where((t) => t.conversationId.equals(id))).map((r) => r.id).get();
-    await _db.transaction(() async {
-      for (final messageId in messageIds) {
-        await (_db.delete(
-          _db.toolEventRows,
-        )..where((t) => t.messageId.equals(messageId))).go();
-      }
-      await (_db.delete(
-        _db.conversationRows,
-      )..where((t) => t.id.equals(id))).go();
-    });
+    await (_db.delete(
+      _db.conversationRows,
+    )..where((t) => t.id.equals(id))).go();
   }
 
   Future<void> deleteMessage(String messageId) async {
@@ -741,14 +730,9 @@ class ChatDatabaseRepository {
       _db.messageRows,
     )..where((t) => t.id.equals(messageId))).getSingleOrNull();
     if (row == null) return;
-    await _db.transaction(() async {
-      await (_db.delete(
-        _db.toolEventRows,
-      )..where((t) => t.messageId.equals(messageId))).go();
-      await (_db.delete(
-        _db.messageRows,
-      )..where((t) => t.id.equals(messageId))).go();
-    });
+    await (_db.delete(
+      _db.messageRows,
+    )..where((t) => t.id.equals(messageId))).go();
     await _compactMessageOrder(row.conversationId);
   }
 
@@ -756,6 +740,8 @@ class ChatDatabaseRepository {
     await _db.transaction(() async {
       // Group-chat tables first (children before parents where needed).
       await _db.delete(_db.directorSessionRows).go();
+      await _db.delete(_db.chatGroupGeminiThoughtSignatureRows).go();
+      await _db.delete(_db.chatGroupToolEventRows).go();
       await _db.delete(_db.chatGroupMessageRows).go();
       await _db.delete(_db.chatGroupMemberRows).go();
       await _db.delete(_db.chatGroupRows).go();
@@ -822,18 +808,8 @@ class ChatDatabaseRepository {
   }
 
   Future<void> deleteGroupChat(String id) async {
-    // Cascade removes members/messages/director sessions; tool events need manual cleanup.
-    final messageIds = await (_db.select(
-      _db.chatGroupMessageRows,
-    )..where((t) => t.groupId.equals(id))).map((r) => r.id).get();
-    await _db.transaction(() async {
-      for (final messageId in messageIds) {
-        await (_db.delete(
-          _db.toolEventRows,
-        )..where((t) => t.messageId.equals(messageId))).go();
-      }
-      await (_db.delete(_db.chatGroupRows)..where((t) => t.id.equals(id))).go();
-    });
+    // Cascades remove members, messages, group artifacts, and director sessions.
+    await (_db.delete(_db.chatGroupRows)..where((t) => t.id.equals(id))).go();
   }
 
   Future<List<GroupChatMember>> getGroupMembers(String groupId) async {
@@ -902,10 +878,88 @@ class ChatDatabaseRepository {
     return row.read(count) ?? 0;
   }
 
+  Future<void> clearActiveGroupStreamingIds() async {
+    await (_db.update(_db.chatGroupMessageRows)
+          ..where((table) => table.isStreaming.equals(true)))
+        .write(const ChatGroupMessageRowsCompanion(isStreaming: Value(false)));
+  }
+
   Future<void> putGroupMessage(GroupChatMessage message) async {
     await _db
         .into(_db.chatGroupMessageRows)
         .insertOnConflictUpdate(_groupMessageCompanion(message));
+  }
+
+  List<Map<String, dynamic>> getGroupToolEventsSync(String messageId) {
+    final db = _syncDb;
+    if (db == null) return const <Map<String, dynamic>>[];
+    final rows = db.select(
+      'SELECT events_json FROM chat_group_tool_event_rows '
+      'WHERE message_id = ? LIMIT 1',
+      <Object?>[messageId],
+    );
+    if (rows.isEmpty) return const <Map<String, dynamic>>[];
+    return _decodeMapList(rows.first['events_json'] as String);
+  }
+
+  Future<List<Map<String, dynamic>>> getGroupToolEvents(
+    String messageId,
+  ) async {
+    final row = await (_db.select(
+      _db.chatGroupToolEventRows,
+    )..where((table) => table.messageId.equals(messageId))).getSingleOrNull();
+    return row == null
+        ? const <Map<String, dynamic>>[]
+        : _decodeMapList(row.eventsJson);
+  }
+
+  Future<void> setGroupToolEvents(
+    String messageId,
+    List<Map<String, dynamic>> events,
+  ) async {
+    await _db
+        .into(_db.chatGroupToolEventRows)
+        .insertOnConflictUpdate(
+          ChatGroupToolEventRowsCompanion.insert(
+            messageId: messageId,
+            eventsJson: jsonEncode(events),
+          ),
+        );
+  }
+
+  String? getGroupGeminiThoughtSignatureSync(String messageId) {
+    final db = _syncDb;
+    if (db == null) return null;
+    final rows = db.select(
+      'SELECT signature FROM chat_group_gemini_thought_signature_rows '
+      'WHERE message_id = ? LIMIT 1',
+      <Object?>[messageId],
+    );
+    if (rows.isEmpty) return null;
+    final value = (rows.first['signature'] as String?)?.trim();
+    return value == null || value.isEmpty ? null : value;
+  }
+
+  Future<String?> getGroupGeminiThoughtSignature(String messageId) async {
+    final row = await (_db.select(
+      _db.chatGroupGeminiThoughtSignatureRows,
+    )..where((table) => table.messageId.equals(messageId))).getSingleOrNull();
+    final value = row?.signature.trim();
+    return value == null || value.isEmpty ? null : value;
+  }
+
+  Future<void> setGroupGeminiThoughtSignature(
+    String messageId,
+    String signature,
+  ) async {
+    await _db
+        .into(_db.chatGroupGeminiThoughtSignatureRows)
+        .insertOnConflictUpdate(
+          ChatGroupGeminiThoughtSignatureRowsCompanion.insert(
+            messageId: messageId,
+            signature: signature,
+          ),
+        );
   }
 
   /// Append a message, assigning the next [messageOrder] if caller left it at 0
@@ -951,14 +1005,9 @@ class ChatDatabaseRepository {
       _db.chatGroupMessageRows,
     )..where((t) => t.id.equals(messageId))).getSingleOrNull();
     if (row == null) return;
-    await _db.transaction(() async {
-      await (_db.delete(
-        _db.toolEventRows,
-      )..where((t) => t.messageId.equals(messageId))).go();
-      await (_db.delete(
-        _db.chatGroupMessageRows,
-      )..where((t) => t.id.equals(messageId))).go();
-    });
+    await (_db.delete(
+      _db.chatGroupMessageRows,
+    )..where((t) => t.id.equals(messageId))).go();
     await _compactGroupMessageOrder(row.groupId);
   }
 
@@ -1000,6 +1049,13 @@ class ChatDatabaseRepository {
     return row == null ? null : _directorSessionFromRow(row);
   }
 
+  Future<List<DirectorSession>> getAllDirectorSessions() async {
+    final rows = await (_db.select(
+      _db.directorSessionRows,
+    )..orderBy([(t) => OrderingTerm.asc(t.createdAt)])).get();
+    return rows.map(_directorSessionFromRow).toList(growable: false);
+  }
+
   Future<void> putDirectorSession(DirectorSession session) async {
     await _db
         .into(_db.directorSessionRows)
@@ -1026,16 +1082,33 @@ class ChatDatabaseRepository {
     required List<DirectorSession> directorSessions,
     Map<String, List<Map<String, dynamic>>> toolEventsByMessageId =
         const <String, List<Map<String, dynamic>>>{},
+    Map<String, String> geminiThoughtSignaturesByMessageId =
+        const <String, String>{},
+    bool replaceExistingAggregates = false,
   }) async {
     if (groups.isEmpty &&
         membersByGroup.values.every((l) => l.isEmpty) &&
         messagesByGroup.values.every((l) => l.isEmpty) &&
         directorSessions.isEmpty &&
-        toolEventsByMessageId.isEmpty) {
+        toolEventsByMessageId.isEmpty &&
+        geminiThoughtSignaturesByMessageId.isEmpty) {
       return;
     }
 
     await _db.transaction(() async {
+      if (replaceExistingAggregates) {
+        for (final group in groups) {
+          await (_db.delete(
+            _db.directorSessionRows,
+          )..where((t) => t.groupId.equals(group.id))).go();
+          await (_db.delete(
+            _db.chatGroupMessageRows,
+          )..where((t) => t.groupId.equals(group.id))).go();
+          await (_db.delete(
+            _db.chatGroupMemberRows,
+          )..where((t) => t.groupId.equals(group.id))).go();
+        }
+      }
       await _db.batch((batch) {
         for (final group in groups) {
           batch.insert(
@@ -1080,10 +1153,20 @@ class ChatDatabaseRepository {
         }
         for (final entry in toolEventsByMessageId.entries) {
           batch.insert(
-            _db.toolEventRows,
-            ToolEventRowsCompanion.insert(
+            _db.chatGroupToolEventRows,
+            ChatGroupToolEventRowsCompanion.insert(
               messageId: entry.key,
               eventsJson: jsonEncode(entry.value),
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+        }
+        for (final entry in geminiThoughtSignaturesByMessageId.entries) {
+          batch.insert(
+            _db.chatGroupGeminiThoughtSignatureRows,
+            ChatGroupGeminiThoughtSignatureRowsCompanion.insert(
+              messageId: entry.key,
+              signature: entry.value,
             ),
             mode: InsertMode.insertOrReplace,
           );

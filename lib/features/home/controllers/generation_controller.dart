@@ -2,10 +2,11 @@ import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_message.dart';
-import '../../../core/providers/model_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
+import '../../../core/services/chat/assistant_request_options.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/services/chat/model_capability_service.dart';
 import '../../../utils/assistant_regex.dart';
 import '../../../core/models/assistant_regex.dart';
 import '../services/message_builder_service.dart';
@@ -72,40 +73,16 @@ class GenerationController {
 
   bool isReasoningModel(String providerKey, String modelId) {
     final settings = contextProvider.read<SettingsProvider>();
-    final cfg = settings.getProviderConfig(providerKey);
-    final ov = cfg.modelOverrides[modelId] as Map?;
-    if (ov != null && ov.containsKey('abilities')) {
-      final abilities =
-          (ov['abilities'] as List?)
-              ?.map((e) => e.toString().toLowerCase())
-              .where((e) => e.isNotEmpty)
-              .toList() ??
-          const [];
-      return abilities.contains('reasoning');
-    }
-    final inferred = ModelRegistry.infer(
-      ModelInfo(id: modelId, displayName: modelId),
+    return ModelCapabilityService.supportsReasoning(
+      settings,
+      providerKey,
+      modelId,
     );
-    return inferred.abilities.contains(ModelAbility.reasoning);
   }
 
   bool isToolModel(String providerKey, String modelId) {
     final settings = contextProvider.read<SettingsProvider>();
-    final cfg = settings.getProviderConfig(providerKey);
-    final ov = cfg.modelOverrides[modelId] as Map?;
-    if (ov != null && ov.containsKey('abilities')) {
-      final abilities =
-          (ov['abilities'] as List?)
-              ?.map((e) => e.toString().toLowerCase())
-              .where((e) => e.isNotEmpty)
-              .toList() ??
-          const [];
-      return abilities.contains('tool');
-    }
-    final inferred = ModelRegistry.infer(
-      ModelInfo(id: modelId, displayName: modelId),
-    );
-    return inferred.abilities.contains(ModelAbility.tool);
+    return ModelCapabilityService.supportsTools(settings, providerKey, modelId);
   }
 
   bool isReasoningEnabled(int? budget) {
@@ -159,28 +136,12 @@ class GenerationController {
 
   /// Build custom headers from assistant settings.
   Map<String, String>? buildCustomHeaders(Assistant? assistant) {
-    if ((assistant?.customHeaders.isNotEmpty ?? false)) {
-      final headers = <String, String>{
-        for (final e in assistant!.customHeaders)
-          if ((e['name'] ?? '').trim().isNotEmpty)
-            (e['name']!.trim()): (e['value'] ?? ''),
-      };
-      return headers.isEmpty ? null : headers;
-    }
-    return null;
+    return buildAssistantCustomHeaders(assistant);
   }
 
   /// Build custom body from assistant settings.
   Map<String, dynamic>? buildCustomBody(Assistant? assistant) {
-    if ((assistant?.customBody.isNotEmpty ?? false)) {
-      final body = <String, dynamic>{
-        for (final e in assistant!.customBody)
-          if ((e['key'] ?? '').trim().isNotEmpty)
-            (e['key']!.trim()): (e['value'] ?? ''),
-      };
-      return body.isEmpty ? null : body;
-    }
-    return null;
+    return buildAssistantCustomBody(assistant);
   }
 
   // ============================================================================

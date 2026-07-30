@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/native.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/models/director_session.dart';
@@ -12,11 +15,79 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('schemaVersion', () {
-    test('AppDatabase schemaVersion is 10', () {
+    test('AppDatabase schemaVersion is 12', () {
       final db = AppDatabase(NativeDatabase.memory());
-      expect(db.schemaVersion, 10);
+      expect(db.schemaVersion, 12);
       db.close();
     });
+
+    test(
+      'migrates v11 to v12 without changing ordinary artifact FKs',
+      () async {
+        final temp = await Directory.systemTemp.createTemp(
+          'cuplivo_group_migration_',
+        );
+        final file = File('${temp.path}/v11.sqlite');
+        final raw = sqlite.sqlite3.open(file.path);
+        raw.execute('PRAGMA foreign_keys = ON');
+        raw.execute(
+          'CREATE TABLE message_rows ('
+          'id TEXT NOT NULL PRIMARY KEY'
+          ')',
+        );
+        raw.execute(
+          'CREATE TABLE tool_event_rows ('
+          'message_id TEXT NOT NULL PRIMARY KEY '
+          'REFERENCES message_rows(id) ON DELETE CASCADE, '
+          'events_json TEXT NOT NULL DEFAULT "[]"'
+          ')',
+        );
+        raw.execute(
+          'CREATE TABLE gemini_thought_signature_rows ('
+          'message_id TEXT NOT NULL PRIMARY KEY '
+          'REFERENCES message_rows(id) ON DELETE CASCADE, '
+          'signature TEXT NOT NULL'
+          ')',
+        );
+        raw.execute('PRAGMA user_version = 11');
+        raw.close();
+
+        final db = AppDatabase(NativeDatabase(file));
+        try {
+          final version = await db
+              .customSelect('PRAGMA user_version')
+              .map((row) => row.read<int>('user_version'))
+              .getSingle();
+          expect(version, 12);
+
+          final tables = await db
+              .customSelect(
+                "SELECT name FROM sqlite_master WHERE type = 'table'",
+              )
+              .map((row) => row.read<String>('name'))
+              .get();
+          expect(tables, contains('chat_group_rows'));
+          expect(tables, contains('chat_group_tool_event_rows'));
+          expect(tables, contains('chat_group_gemini_thought_signature_rows'));
+
+          final ordinaryFk = await db
+              .customSelect('PRAGMA foreign_key_list(tool_event_rows)')
+              .map((row) => row.read<String>('table'))
+              .get();
+          final groupFk = await db
+              .customSelect(
+                'PRAGMA foreign_key_list(chat_group_tool_event_rows)',
+              )
+              .map((row) => row.read<String>('table'))
+              .get();
+          expect(ordinaryFk, contains('message_rows'));
+          expect(groupFk, contains('chat_group_message_rows'));
+        } finally {
+          await db.close();
+          await temp.delete(recursive: true);
+        }
+      },
+    );
   });
 
   group('ChatDatabaseRepository — Group chat', () {
@@ -150,6 +221,24 @@ void main() {
       expect(after.map((m) => m.messageOrder).toList(), [0, 1]);
     });
 
+    test('clears stale group streaming flags after interruption', () async {
+      await repo.putGroupChat(GroupChat(id: 'g1', title: 'G'));
+      await repo.putGroupMessage(
+        GroupChatMessage(
+          id: 'interrupted',
+          groupId: 'g1',
+          role: 'assistant',
+          speakerAssistantId: 'a1',
+          content: 'partial',
+          isStreaming: true,
+        ),
+      );
+
+      await repo.clearActiveGroupStreamingIds();
+
+      expect((await repo.getGroupMessage('interrupted'))?.isStreaming, isFalse);
+    });
+
     test('director session get/put', () async {
       await repo.putGroupChat(GroupChat(id: 'g1', title: 'G'));
       final session = DirectorSession(
@@ -177,7 +266,7 @@ void main() {
       expect(await repo.getDirectorSession('g1'), isNull);
     });
 
-    test('tool events can attach to group message ids (no FK)', () async {
+    test('group message artifacts use cascading group sidecars', () async {
       await repo.putGroupChat(GroupChat(id: 'g1', title: 'G'));
       await repo.putGroupMessage(
         GroupChatMessage(
@@ -190,7 +279,7 @@ void main() {
         ),
       );
 
-      await repo.setToolEvents('gmsg-tool', [
+      await repo.setGroupToolEvents('gmsg-tool', [
         {
           'id': 't1',
           'name': 'search',
@@ -199,12 +288,19 @@ void main() {
         },
       ]);
 
-      final events = await repo.getToolEvents('gmsg-tool');
+      await repo.setGroupGeminiThoughtSignature(
+        'gmsg-tool',
+        '<!-- gemini_thought_signatures:test -->',
+      );
+
+      final events = await repo.getGroupToolEvents('gmsg-tool');
       expect(events.length, 1);
       expect(events.first['name'], 'search');
+      expect(await repo.getGroupGeminiThoughtSignature('gmsg-tool'), isNotNull);
 
       await repo.deleteGroupMessage('gmsg-tool');
-      expect(await repo.getToolEvents('gmsg-tool'), isEmpty);
+      expect(await repo.getGroupToolEvents('gmsg-tool'), isEmpty);
+      expect(await repo.getGroupGeminiThoughtSignature('gmsg-tool'), isNull);
     });
 
     test('clearAllData removes group tables', () async {
@@ -275,16 +371,15 @@ void main() {
       expect((await repo.getDirectorSession('g1'))?.id, 'd1');
     });
 
-    test('GroupChatSettings JSON defaults and clear flags', () {
+    test('GroupChatSettings JSON defaults and nullable sentinel copyWith', () {
       final s = GroupChatSettings.fromJson({});
       expect(s.maxAssistantMessagesPerUserTurn, 6);
       expect(s.allowSameAssistantConsecutive, isTrue);
-      expect(s.disableMultiAi, isTrue);
 
       final cleared = const GroupChatSettings(
         directorModelId: 'x',
         directorModelProvider: 'p',
-      ).copyWith(clearDirectorModel: true);
+      ).copyWith(directorModelId: null, directorModelProvider: null);
       expect(cleared.directorModelId, isNull);
       expect(cleared.directorModelProvider, isNull);
     });

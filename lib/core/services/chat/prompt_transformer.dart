@@ -13,8 +13,9 @@ class PromptTransformer {
   }) {
     final now = DateTime.now();
     final normalizedLocaleOverride = localeOverride?.trim();
-    final locale = normalizedLocaleOverride?.isNotEmpty == true
-        ? normalizedLocaleOverride!
+    final locale =
+        normalizedLocaleOverride != null && normalizedLocaleOverride.isNotEmpty
+        ? normalizedLocaleOverride
         : (Localizations.maybeLocaleOf(context)?.toLanguageTag() ??
               Platform.localeName);
     final tz = now.timeZoneName;

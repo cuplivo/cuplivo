@@ -46,6 +46,7 @@ class GroupMemberGenerationService {
     final messageBuilder = MessageBuilderService(
       chatService: chatService,
       contextProvider: context,
+      localeOverride: settings.appLocaleForMaterialApp?.toLanguageTag(),
       toolEventsForMessage: groupChatService.getToolEvents,
       latestPersistedMessage: (message) => message,
       geminiThoughtSignatureHandler: (message, content) {

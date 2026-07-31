@@ -54,6 +54,7 @@ class MessageBuilderService {
     this.geminiThoughtSignatureHandler,
     this.toolEventsForMessage,
     this.latestPersistedMessage,
+    this.localeOverride,
   });
 
   final ChatService chatService;
@@ -76,6 +77,10 @@ class MessageBuilderService {
   final List<Map<String, dynamic>> Function(String messageId)?
   toolEventsForMessage;
   final ChatMessage? Function(ChatMessage message)? latestPersistedMessage;
+
+  /// Optional locale used when this builder runs outside the MaterialApp tree.
+  /// Ordinary chat leaves this unset and resolves the locale from its context.
+  final String? localeOverride;
 
   /// Cache for document text extraction to avoid re-reading files on every message
   /// Keyed by path, validated with (modified + size) to avoid stale reuse.
@@ -671,6 +676,7 @@ class MessageBuilderService {
         modelId: modelId,
         modelName: modelId,
         userNickname: contextProvider.read<UserProvider>().name,
+        localeOverride: localeOverride,
       );
       final sys = PromptTransformer.replacePlaceholders(
         assistant.systemPrompt,

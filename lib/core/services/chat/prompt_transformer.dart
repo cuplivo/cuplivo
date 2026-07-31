@@ -9,9 +9,14 @@ class PromptTransformer {
     required String? modelId,
     required String? modelName,
     required String userNickname,
+    String? localeOverride,
   }) {
     final now = DateTime.now();
-    final locale = Localizations.localeOf(context).toLanguageTag();
+    final normalizedLocaleOverride = localeOverride?.trim();
+    final locale = normalizedLocaleOverride?.isNotEmpty == true
+        ? normalizedLocaleOverride!
+        : (Localizations.maybeLocaleOf(context)?.toLanguageTag() ??
+              Platform.localeName);
     final tz = now.timeZoneName;
     final date =
         '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';

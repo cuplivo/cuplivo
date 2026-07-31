@@ -874,7 +874,9 @@ class GroupChatOrchestrator extends ChangeNotifier {
       );
     } catch (error, stackTrace) {
       debugPrint(
-        '[GroupChatOrchestrator] member preparation failed: $error\n$stackTrace',
+        '[GroupChatOrchestrator] member preparation failed '
+        'group=$groupId member=$speakerAssistantId '
+        'provider=$providerKey model=$modelId: $error\n$stackTrace',
       );
       throw GroupChatOrchestratorException(
         GroupChatErrorCode.memberFailed,
@@ -909,14 +911,18 @@ class GroupChatOrchestrator extends ChangeNotifier {
         sendMessageStream: sendMessageStream,
         isCancelled: () => _cancelRequested.contains(groupId),
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
       if (_cancelRequested.contains(groupId)) {
         throw GroupChatOrchestratorException(
           GroupChatErrorCode.cancelled,
           'Cancelled',
         );
       }
-      debugPrint('[GroupChatOrchestrator] member stream error: $error');
+      debugPrint(
+        '[GroupChatOrchestrator] member stream failed '
+        'group=$groupId member=$speakerAssistantId '
+        'provider=$providerKey model=$modelId: $error\n$stackTrace',
+      );
       throw GroupChatOrchestratorException(
         GroupChatErrorCode.memberFailed,
         error.toString(),

@@ -4199,6 +4199,36 @@ abstract class AppLocalizations {
   /// **'Render Web View'**
   String get messageMoreSheetRenderWebView;
 
+  /// No description provided for @messageMoreSheetReadingMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading Mode'**
+  String get messageMoreSheetReadingMode;
+
+  /// No description provided for @readingModePageCopyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy All'**
+  String get readingModePageCopyAll;
+
+  /// No description provided for @readingModeFontIncrease.
+  ///
+  /// In en, this message translates to:
+  /// **'Increase font size'**
+  String get readingModeFontIncrease;
+
+  /// No description provided for @readingModeFontDecrease.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrease font size'**
+  String get readingModeFontDecrease;
+
+  /// No description provided for @readingModeAssistantFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant'**
+  String get readingModeAssistantFallback;
+
   /// No description provided for @messageMoreSheetNotImplemented.
   ///
   /// In en, this message translates to:

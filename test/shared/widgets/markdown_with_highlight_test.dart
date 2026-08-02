@@ -263,6 +263,18 @@ Finder _findSoftHorizontalRule() {
   return find.byKey(const ValueKey('markdown-soft-horizontal-rule'));
 }
 
+double _headingFontSize(WidgetTester tester, String text) {
+  final styles = find.ancestor(
+    of: find.text(text),
+    matching: find.byType(DefaultTextStyle),
+  );
+  for (final element in styles.evaluate()) {
+    final style = (element.widget as DefaultTextStyle).style;
+    if (style.fontSize != null) return style.fontSize!;
+  }
+  fail('no heading DefaultTextStyle with an explicit fontSize for "$text"');
+}
+
 Widget _markdownHarness(
   String text, {
   double? width,
@@ -272,6 +284,7 @@ Widget _markdownHarness(
   ThemeData? theme,
   ThemeData? darkTheme,
   ThemeMode? themeMode,
+  TextStyle? baseStyle,
 }) {
   SharedPreferences.setMockInitialValues(preferences ?? {});
   return ChangeNotifierProvider(
@@ -288,6 +301,7 @@ Widget _markdownHarness(
                 text: text,
                 streaming: streaming,
                 onCitationTap: onCitationTap,
+                baseStyle: baseStyle,
               )
             : Align(
                 alignment: Alignment.topLeft,
@@ -297,6 +311,7 @@ Widget _markdownHarness(
                     text: text,
                     streaming: streaming,
                     onCitationTap: onCitationTap,
+                    baseStyle: baseStyle,
                   ),
                 ),
               ),
@@ -420,6 +435,32 @@ void main() {
       }
     },
   );
+
+  testWidgets('headings keep the tuned sizes at the default base font', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_markdownHarness('# H1\n\n## H2\n\n### H3'));
+
+    expect(_headingFontSize(tester, 'H1'), 24);
+    expect(_headingFontSize(tester, 'H2'), 20);
+    expect(_headingFontSize(tester, 'H3'), 18);
+  });
+
+  testWidgets('heading sizes scale proportionally with the base font', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _markdownHarness(
+        '# H1\n\n## H2\n\n### H3',
+        baseStyle: const TextStyle(fontSize: 18, height: 1.75),
+      ),
+    );
+
+    const scale = 18 / 15.5;
+    expect(_headingFontSize(tester, 'H1'), closeTo(24 * scale, 0.01));
+    expect(_headingFontSize(tester, 'H2'), closeTo(20 * scale, 0.01));
+    expect(_headingFontSize(tester, 'H3'), closeTo(18 * scale, 0.01));
+  });
 
   testWidgets(
     'MarkdownWithCodeHighlight keeps non-hr asterisks out of horizontal rules',

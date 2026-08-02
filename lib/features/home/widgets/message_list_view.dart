@@ -17,6 +17,7 @@ import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_checkbox.dart';
 import '../../../shared/widgets/ios_tactile.dart';
+import '../../chat/pages/reading_mode_page.dart';
 import '../../chat/widgets/chat_message_widget.dart';
 import '../../chat/widgets/message_more_sheet.dart';
 import '../controllers/stream_controller.dart' as stream_ctrl;
@@ -899,6 +900,13 @@ class _MessageListViewState extends State<MessageListView> {
           widget.onSelectMessages?.call(index, widget.messages);
         } else if (action == MessageMoreAction.multiAI) {
           widget.onMultiAI?.call(message);
+        } else if (action == MessageMoreAction.readingMode) {
+          if (!context.mounted) return;
+          _openReadingMode(
+            context,
+            message: message,
+            assistantName: assistant?.name,
+          );
         }
       },
       toolParts: message.role == 'assistant'
@@ -1017,6 +1025,19 @@ class _MessageListViewState extends State<MessageListView> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _openReadingMode(
+    BuildContext context, {
+    required ChatMessage message,
+    required String? assistantName,
+  }) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            ReadingModePage(message: message, assistantName: assistantName),
       ),
     );
   }

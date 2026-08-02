@@ -16,6 +16,7 @@ import '../../../utils/markdown_preview_html.dart';
 import '../../../utils/markdown_media_sanitizer.dart';
 import '../../../shared/pages/webview_page.dart';
 import '../../../desktop/html_preview_dialog.dart';
+import '../utils/message_visual_content.dart';
 import 'dart:convert';
 import 'package:Cuplivo/theme/app_font_weights.dart';
 
@@ -27,6 +28,7 @@ enum MessageMoreAction {
   share,
   selectMessages,
   multiAI,
+  readingMode,
 }
 
 Future<MessageMoreAction?> showMessageMoreSheet(
@@ -39,6 +41,7 @@ Future<MessageMoreAction?> showMessageMoreSheet(
       defaultTargetPlatform == TargetPlatform.macOS ||
       defaultTargetPlatform == TargetPlatform.windows ||
       defaultTargetPlatform == TargetPlatform.linux;
+  final canReadingMode = canUseReadingMode(message);
   if (!isDesktop) {
     final cs = Theme.of(context).colorScheme;
     return showModalBottomSheet<MessageMoreAction?>(
@@ -53,6 +56,7 @@ Future<MessageMoreAction?> showMessageMoreSheet(
         parentContext: context,
         canDeleteAllVersions: canDeleteAllVersions,
         hideActions: hideActions,
+        canReadingMode: canReadingMode,
       ),
     );
   }
@@ -104,6 +108,15 @@ Future<MessageMoreAction?> showMessageMoreSheet(
           };
         },
       ),
+      if (canReadingMode &&
+          !(hideActions?.contains(MessageMoreAction.readingMode) ?? false))
+        DesktopContextMenuItem(
+          icon: Lucide.BookOpen,
+          label: l10n.messageMoreSheetReadingMode,
+          onTap: () {
+            selected = MessageMoreAction.readingMode;
+          },
+        ),
       if (message.role != 'user' &&
           !(hideActions?.contains(MessageMoreAction.edit) ?? false))
         DesktopContextMenuItem(
@@ -179,11 +192,13 @@ class _MessageMoreSheet extends StatefulWidget {
     required this.parentContext,
     required this.canDeleteAllVersions,
     this.hideActions,
+    this.canReadingMode = false,
   });
   final ChatMessage message;
   final BuildContext parentContext;
   final bool canDeleteAllVersions;
   final Set<MessageMoreAction>? hideActions;
+  final bool canReadingMode;
 
   @override
   State<_MessageMoreSheet> createState() => _MessageMoreSheetState();
@@ -330,6 +345,17 @@ class _MessageMoreSheetState extends State<_MessageMoreSheet> {
                         }
                       },
                     ),
+                    if (widget.canReadingMode &&
+                        !_hid(MessageMoreAction.readingMode))
+                      _actionItem(
+                        icon: Lucide.BookOpen,
+                        label: l10n.messageMoreSheetReadingMode,
+                        onTap: () {
+                          Navigator.of(
+                            context,
+                          ).pop(MessageMoreAction.readingMode);
+                        },
+                      ),
                     if (widget.message.role != 'user' &&
                         !_hid(MessageMoreAction.edit))
                       _actionItem(

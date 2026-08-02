@@ -17,6 +17,7 @@ ChatMessage _message() {
 Future<void> _openMoreSheet(
   WidgetTester tester, {
   required bool canDeleteAllVersions,
+  ChatMessage? message,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -34,7 +35,7 @@ Future<void> _openMoreSheet(
               onPressed: () {
                 showMessageMoreSheet(
                   context,
-                  _message(),
+                  message ?? _message(),
                   canDeleteAllVersions: canDeleteAllVersions,
                 );
               },
@@ -65,5 +66,57 @@ void main() {
     expect(find.text('Select Messages'), findsOneWidget);
     expect(find.text('Delete This Version'), findsOneWidget);
     expect(find.text('Delete All Versions'), findsNothing);
+  });
+
+  testWidgets('长回答显示阅读模式入口', (tester) async {
+    final longMessage = ChatMessage(
+      role: 'assistant',
+      content: 'x' * 801,
+      conversationId: 'conversation-1',
+    );
+    await _openMoreSheet(
+      tester,
+      canDeleteAllVersions: false,
+      message: longMessage,
+    );
+
+    expect(find.text('Reading Mode'), findsOneWidget);
+  });
+
+  testWidgets('短回答不显示阅读模式入口', (tester) async {
+    await _openMoreSheet(tester, canDeleteAllVersions: false);
+
+    expect(find.text('Reading Mode'), findsNothing);
+  });
+
+  testWidgets('流式回答不显示阅读模式入口', (tester) async {
+    final streamingMessage = ChatMessage(
+      role: 'assistant',
+      content: 'x' * 801,
+      conversationId: 'conversation-1',
+      isStreaming: true,
+    );
+    await _openMoreSheet(
+      tester,
+      canDeleteAllVersions: false,
+      message: streamingMessage,
+    );
+
+    expect(find.text('Reading Mode'), findsNothing);
+  });
+
+  testWidgets('用户消息不显示阅读模式入口', (tester) async {
+    final userMessage = ChatMessage(
+      role: 'user',
+      content: 'x' * 801,
+      conversationId: 'conversation-1',
+    );
+    await _openMoreSheet(
+      tester,
+      canDeleteAllVersions: false,
+      message: userMessage,
+    );
+
+    expect(find.text('Reading Mode'), findsNothing);
   });
 }

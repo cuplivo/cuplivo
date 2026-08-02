@@ -183,6 +183,7 @@ class SettingsProvider extends ChangeNotifier {
       'display_enter_to_send_on_mobile_v1';
   static const String _desktopSendShortcutKey = 'desktop_send_shortcut_v1';
   static const String _displayChatFontScaleKey = 'display_chat_font_scale_v1';
+  static const String _readerFontSizeKey = 'reader_font_size_v1';
   static const String _displayAutoScrollEnabledKey =
       'display_auto_scroll_enabled_v1';
   static const String _displayAutoScrollIdleSecondsKey =
@@ -1075,6 +1076,7 @@ class SettingsProvider extends ChangeNotifier {
         _desktopSendShortcut = DesktopSendShortcut.enter;
     }
     _chatFontScale = prefs.getDouble(_displayChatFontScaleKey) ?? 1.0;
+    _readerFontSize = prefs.getInt(_readerFontSizeKey) ?? 18;
     _autoScrollEnabled = prefs.getBool(_displayAutoScrollEnabledKey) ?? true;
     _autoScrollIdleSeconds =
         prefs.getInt(_displayAutoScrollIdleSecondsKey) ?? 8;
@@ -3922,6 +3924,19 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     await prefs.setDouble(_displayChatFontScaleKey, _chatFontScale);
   }
 
+  // Reader mode: per-message full-screen reading font size (14 - 24, step 2, default 18).
+  // Independent of chatFontScale (a relative multiplier); this is an absolute size.
+  int _readerFontSize = 18;
+  int get readerFontSize => _readerFontSize;
+  Future<void> setReaderFontSize(int size) async {
+    final s = size.clamp(14, 24);
+    if (_readerFontSize == s) return;
+    _readerFontSize = s;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_readerFontSizeKey, _readerFontSize);
+  }
+
   // Display: auto-scroll back to bottom toggle
   bool _autoScrollEnabled = true;
   bool get autoScrollEnabled => _autoScrollEnabled;
@@ -4565,6 +4580,7 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     copy._desktopSendShortcut = _desktopSendShortcut;
     copy._desktopMessageNavButtonsMode = _desktopMessageNavButtonsMode;
     copy._chatFontScale = _chatFontScale;
+    copy._readerFontSize = _readerFontSize;
     copy._autoScrollEnabled = _autoScrollEnabled;
     copy._autoScrollIdleSeconds = _autoScrollIdleSeconds;
     copy._enableDollarLatex = _enableDollarLatex;

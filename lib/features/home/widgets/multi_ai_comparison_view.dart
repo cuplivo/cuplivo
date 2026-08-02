@@ -4,6 +4,7 @@ import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../utils/platform_utils.dart';
+import '../../chat/pages/reading_mode_page.dart';
 import '../../chat/widgets/chat_message_widget.dart'
     show ChatMessageWidget, ReasoningSegment;
 import '../../chat/widgets/message_more_sheet.dart'
@@ -434,6 +435,13 @@ class _SingleModelCardState extends State<_SingleModelCard> {
                 );
               } else if (action == MessageMoreAction.edit) {
                 await controller.editMessage(streamingMsg);
+              } else if (action == MessageMoreAction.readingMode) {
+                if (!context.mounted) return;
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ReadingModePage(message: streamingMsg),
+                  ),
+                );
               }
             },
           ),

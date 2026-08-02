@@ -4613,27 +4613,31 @@ class AtxHeadingMd extends BlockMd {
         } catch (_) {}
       }
     }
-    // Start from Material styles but tighten sizes for balance with body text
+    // Start from Material styles but tighten sizes for balance with body text.
+    // Sizes derive from the effective base font size (cfg.style.fontSize,
+    // 15.5 by default) so heading contrast survives larger bases such as the
+    // reading mode's 18px body; the 15.5 anchor keeps chat/export identical.
+    final baseSize = cfg.style?.fontSize ?? 15.5;
+    final scale = baseSize / 15.5;
     TextStyle base;
-    // Explicit sizes ensure visible contrast over the body (16.0)
     switch (level) {
       case 1:
-        base = TextStyle(fontSize: 24);
+        base = TextStyle(fontSize: 24 * scale);
         break;
       case 2:
-        base = TextStyle(fontSize: 20);
+        base = TextStyle(fontSize: 20 * scale);
         break;
       case 3:
-        base = TextStyle(fontSize: 18);
+        base = TextStyle(fontSize: 18 * scale);
         break;
       case 4:
-        base = TextStyle(fontSize: 16);
+        base = TextStyle(fontSize: 16 * scale);
         break;
       case 5:
-        base = TextStyle(fontSize: 15);
+        base = TextStyle(fontSize: 15 * scale);
         break;
       default:
-        base = TextStyle(fontSize: 14);
+        base = TextStyle(fontSize: 14 * scale);
     }
     final weight = switch (level) {
       1 => AppFontWeights.strong,

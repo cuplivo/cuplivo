@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../../models/api_keys.dart';
+import '../network/logging_http_client.dart';
 // Import statements for service implementations
 import 'providers/bing_search_service.dart';
 import 'providers/tavily_search_service.dart';
@@ -20,6 +22,13 @@ import 'providers/querit_search_service.dart';
 
 // Base interface for all search services
 abstract class SearchService<T extends SearchServiceOptions> {
+  /// HTTP client used for provider requests. Defaults to the shared
+  /// search-logging wrapper; tests may inject a mock.
+  final http.Client client;
+
+  SearchService({http.Client? client})
+    : client = client ?? LoggingHttpClient.of(LoggingCategory.search);
+
   String get name;
 
   Widget description(BuildContext context);

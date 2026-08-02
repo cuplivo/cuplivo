@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
@@ -29,7 +28,7 @@ class BraveSearchService extends SearchService<BraveOptions> {
       final url =
           'https://api.search.brave.com/res/v1/web/search?q=$encodedQuery&count=${commonOptions.resultSize}';
 
-      final response = await http
+      final response = await client
           .get(
             Uri.parse(url),
             headers: {

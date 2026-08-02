@@ -89,11 +89,13 @@ class ChatInputBar extends StatefulWidget {
     this.onUploadFiles,
     this.onToggleLearningMode,
     this.onOpenWorldBook,
+    this.onOpenSkills,
     this.onClearContext,
     this.onCompressContext,
     this.onLongPressLearning,
     this.learningModeActive = false,
     this.worldBookActive = false,
+    this.skillsActive = false,
     this.showMoreButton = true,
     this.showQuickPhraseButton = false,
     this.onQuickPhrase,
@@ -147,11 +149,13 @@ class ChatInputBar extends StatefulWidget {
   final VoidCallback? onUploadFiles;
   final VoidCallback? onToggleLearningMode;
   final VoidCallback? onOpenWorldBook;
+  final VoidCallback? onOpenSkills;
   final VoidCallback? onClearContext;
   final VoidCallback? onCompressContext;
   final VoidCallback? onLongPressLearning;
   final bool learningModeActive;
   final bool worldBookActive;
+  final bool skillsActive;
   final bool showMoreButton;
   final bool showQuickPhraseButton;
   final VoidCallback? onQuickPhrase;
@@ -1601,6 +1605,25 @@ class _ChatInputBarState extends State<ChatInputBar>
                 icon: Lucide.BookOpen,
                 label: l10n.worldBookTitle,
                 onTap: lockTap(widget.onOpenWorldBook),
+              ),
+            ),
+          );
+        }
+
+        if (widget.onOpenSkills != null) {
+          actions.add(
+            _OverflowAction(
+              width: normalButtonW,
+              builder: () => _CompactIconButton(
+                tooltip: l10n.skillsTitle,
+                icon: Lucide.Sparkles,
+                active: widget.skillsActive,
+                onTap: lockTap(widget.onOpenSkills),
+              ),
+              menu: DesktopContextMenuItem(
+                icon: Lucide.Sparkles,
+                label: l10n.skillsTitle,
+                onTap: lockTap(widget.onOpenSkills),
               ),
             ),
           );

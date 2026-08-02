@@ -143,6 +143,12 @@ class _DisplaySettingsBody extends StatelessWidget {
                   _RowDivider(),
                   _ToggleRowRequestLogging(),
                   _RowDivider(),
+                  _ToggleRowMcpLogging(),
+                  _RowDivider(),
+                  _ToggleRowTtsLogging(),
+                  _RowDivider(),
+                  _ToggleRowSearchLogging(),
+                  _RowDivider(),
                   _ToggleRowFlutterLogging(),
                 ],
               ),
@@ -2475,6 +2481,48 @@ class _ToggleRowRequestLogging extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ToggleRowMcpLogging extends StatelessWidget {
+  const _ToggleRowMcpLogging();
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final sp = context.watch<SettingsProvider>();
+    return IosLabeledSwitchRow(
+      title: l10n.logSettingsMcpEnabled,
+      value: sp.mcpLogEnabled,
+      onChanged: (v) => context.read<SettingsProvider>().setMcpLogEnabled(v),
+    );
+  }
+}
+
+class _ToggleRowTtsLogging extends StatelessWidget {
+  const _ToggleRowTtsLogging();
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final sp = context.watch<SettingsProvider>();
+    return IosLabeledSwitchRow(
+      title: l10n.logSettingsTtsEnabled,
+      value: sp.ttsLogEnabled,
+      onChanged: (v) => context.read<SettingsProvider>().setTtsLogEnabled(v),
+    );
+  }
+}
+
+class _ToggleRowSearchLogging extends StatelessWidget {
+  const _ToggleRowSearchLogging();
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final sp = context.watch<SettingsProvider>();
+    return IosLabeledSwitchRow(
+      title: l10n.logSettingsSearchEnabled,
+      value: sp.searchLogEnabled,
+      onChanged: (v) => context.read<SettingsProvider>().setSearchLogEnabled(v),
     );
   }
 }

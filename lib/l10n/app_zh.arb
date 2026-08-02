@@ -1983,6 +1983,14 @@
   "logSettingsTitle": "日志设置",
   "logSettingsSaveOutput": "保存响应输出",
   "logSettingsSaveOutputSubtitle": "记录响应体内容（可能占用较多存储空间）",
+  "logSettingsMcpEnabled": "MCP 请求日志打印",
+  "logSettingsTtsEnabled": "TTS 请求日志打印",
+  "logSettingsSearchEnabled": "搜索请求日志打印",
+  "logViewerFilterAll": "全部",
+  "logViewerFilterLlm": "LLM",
+  "logViewerFilterMcp": "MCP",
+  "logViewerFilterTts": "TTS",
+  "logViewerFilterSearch": "搜索",
   "logSettingsAutoDelete": "自动删除",
   "logSettingsAutoDeleteSubtitle": "删除超过指定天数的日志",
   "logSettingsAutoDeleteDisabled": "不启用",
@@ -2490,20 +2498,20 @@
   "@multiAIAddModelTooltip": {
     "description": "多AI卡片底部添加模型按钮的提示"
   },
-  "skillsTitle": "技能",
+  "skillsTitle": "skills",
   "skillsImportManualTitle": "手动添加",
   "skillsImportManualHint": "粘贴完整的 SKILL.md 内容（包含 YAML 前置元数据）",
   "skillsImportFileLabel": "从文件导入",
-  "skillsImportChoiceTitle": "导入技能",
+  "skillsImportChoiceTitle": "导入 skills",
   "skillsImportFromFile": "从文件导入",
   "skillsImportFromGitHub": "从 GitHub URL 导入",
   "skillsGitHubImportTitle": "从 GitHub 导入",
   "skillsGitHubUrlHint": "https://github.com/owner/repo[/tree/branch[/path]]",
   "skillsGitHubUrlInvalid": "无效的 GitHub URL。",
   "skillsGitHubDownloadFailed": "下载仓库失败。仓库可能不存在或为私有。",
-  "skillsGitHubSelectTitle": "选择要导入的技能",
-  "skillsEmptyMessage": "暂无技能。从文件导入或手动创建一个。",
-  "skillsDeleteConfirmTitle": "删除技能",
+  "skillsGitHubSelectTitle": "选择要导入的 skills",
+  "skillsEmptyMessage": "暂无 skills。从文件导入或手动创建一个。",
+  "skillsDeleteConfirmTitle": "删除 skills",
   "skillsDeleteConfirmMessage": "确定删除 \"{name}\"？此操作不可撤销。",
   "@skillsDeleteConfirmMessage": {
     "placeholders": {
@@ -2512,7 +2520,7 @@
       }
     }
   },
-  "skillsImportSuccess": "已导入 {count} 个技能",
+  "skillsImportSuccess": "已导入 {count} 个 skills",
   "@skillsImportSuccess": {
     "placeholders": {
       "count": {
@@ -2532,9 +2540,9 @@
     }
   },
   "skillsInvalidFrontmatter": "SKILL.md 必须包含有效的 YAML 前置元数据且包含 name 字段。",
-  "skillsNameInvalid": "技能名称无效。仅允许小写字母、数字和连字符（不能包含空格、斜杠或点号）。",
+  "skillsNameInvalid": "skills 名称无效。仅允许小写字母、数字和连字符（不能包含空格、斜杠或点号）。",
   "skillsFrontmatterNameMissing": "SKILL.md 前置元数据必须包含 name 字段。",
-  "skillsSaveFailed": "保存技能失败：{detail}",
+  "skillsSaveFailed": "保存 skills 失败：{detail}",
   "@skillsSaveFailed": {
     "placeholders": {
       "detail": {
@@ -2542,7 +2550,7 @@
       }
     }
   },
-  "skillsImportFailed": "导入 {count} 个技能失败",
+  "skillsImportFailed": "导入 {count} 个 skills 失败",
   "@skillsImportFailed": {
     "placeholders": {
       "count": {
@@ -2551,8 +2559,42 @@
     }
   },
   "skillsDeleteConfirmDeleteButton": "删除",
-  "assistantEditPageSkillsTab": "技能",
-  "settingsPageSkills": "技能",
+  "assistantEditPageSkillsTab": "skills",
+  "settingsPageSkills": "skills",
+  "skillsUncategorizedGroup": "未分类",
+  "skillsEditCategoryTitle": "编辑分类",
+  "skillsCategoryHint": "例如：编程、写作、研究",
+  "skillsCategoryClear": "无分类",
+  "skillsEnableAll": "全部启用",
+  "skillsEnabledCount": "已启用 {enabled}/{total}",
+  "@skillsEnabledCount": {
+    "placeholders": {
+      "enabled": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "skillsSelectAll": "全选",
+  "skillsDeselectAll": "全不选",
+  "skillsEnableImportedTitle": "启用 skills？",
+  "skillsEnableImportedMessage": "为“{assistantName}”启用 {count} 个已导入的 skills？",
+  "@skillsEnableImportedMessage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "assistantName": {
+        "type": "String"
+      }
+    }
+  },
+  "skillsEnableImportedAction": "启用",
+  "skillsEnableImportedDismiss": "暂不",
+  "skillsSheetManageAction": "管理 skills",
+  "skillsSheetImportAction": "导入 skills",
   "responseTruncated": "回答已被截断（{reason}），内容可能不完整",
   "@responseTruncated": {
     "placeholders": {

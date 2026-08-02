@@ -439,7 +439,7 @@ abstract final class StorageUsageService {
       if (flutterOn) await FlutterLogger.setEnabled(false);
     } catch (_) {}
     try {
-      if (requestOn) await RequestLogger.setEnabled(false);
+      if (requestOn) await RequestLogger.setAllEnabled(false);
     } catch (_) {}
 
     try {
@@ -451,7 +451,7 @@ abstract final class StorageUsageService {
         if (flutterOn) await FlutterLogger.setEnabled(true);
       } catch (_) {}
       try {
-        if (requestOn) await RequestLogger.setEnabled(true);
+        if (requestOn) await RequestLogger.setAllEnabled(true);
       } catch (_) {}
     }
   }

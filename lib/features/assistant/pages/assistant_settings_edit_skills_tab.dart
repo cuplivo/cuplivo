@@ -61,28 +61,125 @@ class _SkillsTabState extends State<_SkillsTab> {
       children: [
         _iosSectionCard(
           children: [
-            for (int i = 0; i < _skills.length; i++) ...[
-              if (i > 0) _iosDivider(context),
-              _SkillRow(
-                name: _skills[i].name,
-                description: _skills[i].description,
-                enabled: assistant.skillIds.contains(_skills[i].name),
-                onChanged: (value) {
-                  final ids = assistant.skillIds.toSet();
-                  if (value) {
-                    ids.add(_skills[i].name);
-                  } else {
-                    ids.remove(_skills[i].name);
-                  }
-                  context.read<AssistantProvider>().updateAssistant(
-                    assistant.copyWith(skillIds: ids.toList(growable: false)),
-                  );
-                },
+            _SkillsMasterRow(
+              enabledCount: _skills
+                  .where((s) => assistant.skillIds.contains(s.name))
+                  .length,
+              total: _skills.length,
+              allEnabled:
+                  _skills.isNotEmpty &&
+                  _skills.every((s) => assistant.skillIds.contains(s.name)),
+              onChanged: (value) {
+                final ids = value
+                    ? _skills.map((s) => s.name).toSet()
+                    : <String>{};
+                context.read<AssistantProvider>().updateAssistant(
+                  assistant.copyWith(skillIds: ids.toList(growable: false)),
+                );
+              },
+            ),
+            _iosDivider(context),
+            for (final (group, skills) in groupSkillsByCategory(_skills)) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+                child: Text(
+                  group ?? l10n.skillsUncategorizedGroup,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: AppFontWeights.semibold,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
               ),
+              for (int i = 0; i < skills.length; i++) ...[
+                if (i > 0) _iosDivider(context),
+                _SkillRow(
+                  name: skills[i].name,
+                  description: skills[i].description,
+                  enabled: assistant.skillIds.contains(skills[i].name),
+                  onChanged: (value) {
+                    final ids = assistant.skillIds.toSet();
+                    if (value) {
+                      ids.add(skills[i].name);
+                    } else {
+                      ids.remove(skills[i].name);
+                    }
+                    context.read<AssistantProvider>().updateAssistant(
+                      assistant.copyWith(skillIds: ids.toList(growable: false)),
+                    );
+                  },
+                ),
+              ],
             ],
           ],
         ),
       ],
+    );
+  }
+}
+
+class _SkillsMasterRow extends StatelessWidget {
+  const _SkillsMasterRow({
+    required this.enabledCount,
+    required this.total,
+    required this.allEnabled,
+    required this.onChanged,
+  });
+
+  final int enabledCount;
+  final int total;
+  final bool allEnabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    return _TactileRow(
+      onTap: () => onChanged(!allEnabled),
+      builder: (pressed) {
+        final baseColor = cs.onSurface.withValues(alpha: 0.9);
+        return _AnimatedPressColor(
+          pressed: pressed,
+          base: baseColor,
+          builder: (color) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 36,
+                    child: Icon(Lucide.Sparkles, size: 20, color: color),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.skillsEnableAll,
+                          style: TextStyle(fontSize: 15, color: color),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          l10n.skillsEnabledCount(enabledCount, total),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: cs.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IosSwitch(value: allEnabled, onChanged: onChanged),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

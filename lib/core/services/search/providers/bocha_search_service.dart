@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
@@ -40,7 +39,7 @@ class BochaSearchService extends SearchService<BochaOptions> {
           'exclude': serviceOptions.exclude,
       };
 
-      final response = await http
+      final response = await client
           .post(
             Uri.parse('https://api.bochaai.com/v1/web-search'),
             headers: {

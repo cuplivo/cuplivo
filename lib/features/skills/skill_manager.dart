@@ -8,12 +8,14 @@ import 'skill_paths.dart';
 class SkillMetadata {
   final String name;
   final String description;
+  final String? category;
   final String body;
 
   const SkillMetadata({
     required this.name,
     required this.description,
     required this.body,
+    this.category,
   });
 }
 
@@ -46,6 +48,25 @@ class SkillFileContent {
     required this.truncated,
     required this.size,
   });
+}
+
+/// Groups skills by their optional category, sorted A-Z with the
+/// uncategorized group (null/empty category) last.
+List<(String?, List<SkillMetadata>)> groupSkillsByCategory(
+  List<SkillMetadata> skills,
+) {
+  final groups = <String?, List<SkillMetadata>>{};
+  for (final skill in skills) {
+    (groups[skill.category] ??= []).add(skill);
+  }
+  final keys = groups.keys.toList()
+    ..sort((a, b) {
+      final aa = a ?? '';
+      final bb = b ?? '';
+      if (aa.isEmpty != bb.isEmpty) return aa.isEmpty ? 1 : -1;
+      return aa.toLowerCase().compareTo(bb.toLowerCase());
+    });
+  return [for (final key in keys) (key, groups[key]!)];
 }
 
 class SkillManager {
@@ -137,10 +158,12 @@ class SkillManager {
 
       final skillName = parsed.fields['name'] ?? name;
       final description = parsed.fields['description'] ?? '';
+      final category = parsed.fields['category']?.trim();
       skills.add(
         SkillMetadata(
           name: skillName,
           description: description,
+          category: (category == null || category.isEmpty) ? null : category,
           body: parsed.body,
         ),
       );
@@ -163,9 +186,11 @@ class SkillManager {
 
     final skillName = parsed.fields['name'] ?? name;
     final description = parsed.fields['description'] ?? '';
+    final category = parsed.fields['category']?.trim();
     return SkillMetadata(
       name: skillName,
       description: description,
+      category: (category == null || category.isEmpty) ? null : category,
       body: parsed.body,
     );
   }
@@ -296,6 +321,114 @@ class SkillManager {
     }
 
     return null;
+  }
+
+  /// Updates the optional `category` frontmatter field of an existing skill.
+  ///
+  /// A null or empty [category] removes the field (the skill then falls back
+  /// to the uncategorized group). Only SKILL.md is rewritten, in place, via a
+  /// same-directory temp file + atomic rename — auxiliary files in the skill
+  /// directory (references/, scripts/, images) are preserved.
+  static Future<SkillSaveError?> updateCategory(
+    String name,
+    String? category,
+  ) async {
+    final dirName = _dirNameFor(name);
+    if (dirName == null) {
+      return const SkillSaveError('name_invalid');
+    }
+
+    final root = await _getSkillsRoot();
+    final skillFilePath = SkillPaths.skillFilePath(root, dirName);
+    final content = await _readFileContent(skillFilePath);
+    if (content == null) {
+      return const SkillSaveError('io_error', {'detail': 'SKILL.md not found'});
+    }
+
+    final newCategory = category?.trim();
+    if (newCategory != null &&
+        (newCategory.contains('\n') || newCategory.contains('\r'))) {
+      return const SkillSaveError('io_error', {'detail': 'Invalid category'});
+    }
+
+    // Locate the frontmatter block in the original content and splice the
+    // rewritten block back in, preserving everything outside it (trailing
+    // newlines, body whitespace, CRLF line endings).
+    final start = content.indexOf('---');
+    if (start == -1 || content.substring(0, start).trim().isNotEmpty) {
+      return const SkillSaveError('invalid_frontmatter');
+    }
+    final end = content.indexOf('---', start + 3);
+    if (end == -1) {
+      return const SkillSaveError('invalid_frontmatter');
+    }
+
+    final raw = content.substring(start + 3, end);
+    final newRaw = _rewriteCategoryLine(raw, newCategory);
+    final newContent =
+        '${content.substring(0, start)}---$newRaw---'
+        '${content.substring(end + 3)}';
+
+    // Round-trip: YAML may silently mangle the value (e.g. `foo # bar`
+    // becomes the comment `foo`). Reject if it doesn't parse back.
+    final parsed = parseFrontmatter(newContent);
+    if (parsed == null) {
+      return const SkillSaveError('invalid_frontmatter');
+    }
+    final requested = (newCategory == null || newCategory.isEmpty)
+        ? null
+        : newCategory;
+    final parsedCategory = parsed.fields['category']?.trim();
+    if ((parsedCategory ?? '') != (requested ?? '')) {
+      return const SkillSaveError('invalid_frontmatter');
+    }
+
+    final tmpId = DateTime.now().microsecondsSinceEpoch;
+    final tmpFile = File('$skillFilePath.cat.$tmpId.tmp');
+    try {
+      await tmpFile.writeAsBytes(utf8.encode(newContent), flush: true);
+      await tmpFile.rename(skillFilePath);
+    } catch (e) {
+      try {
+        if (await tmpFile.exists()) {
+          await tmpFile.delete();
+        }
+      } catch (_) {}
+      return SkillSaveError('io_error', {
+        'detail': 'Failed to update SKILL.md: $e',
+      });
+    }
+    return null;
+  }
+
+  static String _rewriteCategoryLine(String raw, String? category) {
+    var text = raw;
+    if (text.endsWith('\n')) {
+      text = text.substring(0, text.length - 1);
+    }
+    final lines = text.split('\n');
+    final out = <String>[];
+    var replaced = false;
+    for (final line in lines) {
+      final trimmedStart = line.trimLeft();
+      if (trimmedStart.toLowerCase().startsWith('category:')) {
+        if (category == null || category.isEmpty) continue;
+        // Preserve the matched line's leading indentation and its \r so
+        // CRLF files stay CRLF.
+        final indent = line.substring(0, line.length - trimmedStart.length);
+        final carriageReturn = line.endsWith('\r') ? '\r' : '';
+        out.add('${indent}category: $category$carriageReturn');
+        replaced = true;
+      } else {
+        out.add(line);
+      }
+    }
+    if (!replaced && category != null && category.isNotEmpty) {
+      // Match the file's line-ending convention for the appended line.
+      final carriageReturn = lines.any((l) => l.endsWith('\r')) ? '\r' : '';
+      out.add('category: $category$carriageReturn');
+    }
+    return '${out.join('\n')}\n';
   }
 
   static Future<void> deleteSkill(String name) async {

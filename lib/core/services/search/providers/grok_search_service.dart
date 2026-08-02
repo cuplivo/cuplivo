@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../../l10n/app_localizations.dart';
+import '../../../../core/services/network/logging_http_client.dart';
 import '../search_service.dart';
 
 class GrokSearchService extends SearchService<GrokOptions> {
-  GrokSearchService({http.Client? client}) : _client = client ?? http.Client();
+  GrokSearchService({http.Client? client})
+    : _client = client ?? LoggingHttpClient.of(LoggingCategory.search);
 
   final http.Client _client;
 

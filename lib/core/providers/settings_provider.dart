@@ -239,6 +239,9 @@ class SettingsProvider extends ChangeNotifier {
       'mobile_assistant_detail_outline_enabled_v1';
   // Network request logging (debug)
   static const String _requestLogEnabledKey = 'request_log_enabled_v1';
+  static const String _mcpLogEnabledKey = 'mcp_log_enabled_v1';
+  static const String _ttsLogEnabledKey = 'tts_log_enabled_v1';
+  static const String _searchLogEnabledKey = 'search_log_enabled_v1';
   // Flutter runtime logging (debug)
   static const String _flutterLogEnabledKey = 'flutter_log_enabled_v1';
   // Log settings: save response output, auto-delete, max size
@@ -1040,6 +1043,21 @@ class SettingsProvider extends ChangeNotifier {
         false;
     _requestLogEnabled = prefs.getBool(_requestLogEnabledKey) ?? false;
     await RequestLogger.setEnabled(_requestLogEnabled);
+    _mcpLogEnabled = prefs.getBool(_mcpLogEnabledKey) ?? false;
+    await RequestLogger.setCategoryEnabled(
+      RequestLogger.catMcp,
+      _mcpLogEnabled,
+    );
+    _ttsLogEnabled = prefs.getBool(_ttsLogEnabledKey) ?? false;
+    await RequestLogger.setCategoryEnabled(
+      RequestLogger.catTts,
+      _ttsLogEnabled,
+    );
+    _searchLogEnabled = prefs.getBool(_searchLogEnabledKey) ?? false;
+    await RequestLogger.setCategoryEnabled(
+      RequestLogger.catSearch,
+      _searchLogEnabled,
+    );
     _flutterLogEnabled = prefs.getBool(_flutterLogEnabledKey) ?? false;
     await FlutterLogger.setEnabled(_flutterLogEnabled);
     _logSaveOutput = prefs.getBool(_logSaveOutputKey) ?? true;
@@ -4340,6 +4358,40 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     await RequestLogger.setEnabled(v);
   }
 
+  // Network: per-category request logging (MCP / TTS / Search), default off.
+  bool _mcpLogEnabled = false;
+  bool get mcpLogEnabled => _mcpLogEnabled;
+  Future<void> setMcpLogEnabled(bool v) async {
+    if (_mcpLogEnabled == v) return;
+    _mcpLogEnabled = v;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_mcpLogEnabledKey, v);
+    await RequestLogger.setCategoryEnabled(RequestLogger.catMcp, v);
+  }
+
+  bool _ttsLogEnabled = false;
+  bool get ttsLogEnabled => _ttsLogEnabled;
+  Future<void> setTtsLogEnabled(bool v) async {
+    if (_ttsLogEnabled == v) return;
+    _ttsLogEnabled = v;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_ttsLogEnabledKey, v);
+    await RequestLogger.setCategoryEnabled(RequestLogger.catTts, v);
+  }
+
+  bool _searchLogEnabled = false;
+  bool get searchLogEnabled => _searchLogEnabled;
+  Future<void> setSearchLogEnabled(bool v) async {
+    if (_searchLogEnabled == v) return;
+    _searchLogEnabled = v;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_searchLogEnabledKey, v);
+    await RequestLogger.setCategoryEnabled(RequestLogger.catSearch, v);
+  }
+
   // Flutter: runtime logging (debug)
   bool _flutterLogEnabled = false;
   bool get flutterLogEnabled => _flutterLogEnabled;
@@ -4563,6 +4615,9 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     copy._keepAssistantListExpandedOnSidebarClose =
         _keepAssistantListExpandedOnSidebarClose;
     copy._requestLogEnabled = _requestLogEnabled;
+    copy._mcpLogEnabled = _mcpLogEnabled;
+    copy._ttsLogEnabled = _ttsLogEnabled;
+    copy._searchLogEnabled = _searchLogEnabled;
     copy._flutterLogEnabled = _flutterLogEnabled;
     copy._logSaveOutput = _logSaveOutput;
     copy._logAutoDeleteDays = _logAutoDeleteDays;

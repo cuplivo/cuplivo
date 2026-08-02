@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
@@ -42,7 +41,7 @@ class PerplexitySearchService extends SearchService<PerplexityOptions> {
         body['max_tokens_per_page'] = serviceOptions.maxTokensPerPage;
       }
 
-      final response = await http
+      final response = await client
           .post(
             Uri.parse('https://api.perplexity.ai/search'),
             headers: {

@@ -60,6 +60,7 @@ class ChatInputSection extends StatelessWidget {
     this.onUploadFiles,
     this.onToggleLearningMode,
     this.onOpenWorldBook, // 新增世界书支持桌面端
+    this.onOpenSkills,
     this.onLongPressLearning,
     this.onClearContext,
     this.onCompressContext,
@@ -106,6 +107,7 @@ class ChatInputSection extends StatelessWidget {
   final VoidCallback? onUploadFiles;
   final VoidCallback? onToggleLearningMode;
   final VoidCallback? onOpenWorldBook;
+  final VoidCallback? onOpenSkills;
   final VoidCallback? onLongPressLearning;
   final VoidCallback? onClearContext;
   final VoidCallback? onCompressContext;
@@ -190,6 +192,7 @@ class ChatInputSection extends StatelessWidget {
       onUploadFiles: isTablet ? onUploadFiles : null,
       onToggleLearningMode: isTablet ? onToggleLearningMode : null,
       onOpenWorldBook: hasWorldBooks ? onOpenWorldBook : null,
+      onOpenSkills: isTablet ? onOpenSkills : null,
       onLongPressLearning: isTablet ? onLongPressLearning : null,
       learningModeActive: isTablet
           ? context
@@ -202,6 +205,14 @@ class ChatInputSection extends StatelessWidget {
                 .watch<WorldBookProvider>()
                 .activeBookIdsFor(assistantId)
                 .isNotEmpty
+          : false,
+      skillsActive: isTablet
+          ? (context
+                    .watch<AssistantProvider>()
+                    .currentAssistant
+                    ?.skillIds
+                    .isNotEmpty ??
+                false)
           : false,
       showMoreButton: !isTablet,
       onClearContext: isTablet ? onClearContext : null,

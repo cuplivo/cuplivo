@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:mcp_client/mcp_client.dart' as mcp;
 import '../services/mcp/kelivo_fetch/kelivo_fetch_server.dart';
 import '../services/mcp/stdio_command_resolver.dart';
+import '../services/network/mcp_log_bridge.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
@@ -1157,6 +1158,8 @@ class McpProvider extends ChangeNotifier {
         // Turn on library-internal verbose logs
         enableDebugLogging: false,
         requestTimeout: _requestTimeout,
+        logListener: McpLogBridge.onEvent,
+        logServerLabel: server.name,
       );
 
       // In-memory builtin server path
@@ -1353,7 +1356,7 @@ class McpProvider extends ChangeNotifier {
       try {
         // A lightweight call to verify liveness
         // listTools is relatively cheap and available
-        final fut = client.listTools();
+        final fut = client.listTools(logTags: {'reason': 'heartbeat'});
         // Add a soft timeout to avoid piling up
         await fut.timeout(const Duration(seconds: 6));
       } catch (e) {

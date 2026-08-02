@@ -33,6 +33,7 @@ import '../../../desktop/mcp_servers_popover.dart';
 import '../../../desktop/mini_map_popover.dart';
 import '../../../desktop/quick_phrase_popover.dart';
 import '../../../desktop/instruction_injection_popover.dart';
+import '../../../desktop/skills_popover.dart';
 import '../../../desktop/world_book_popover.dart';
 import '../../../desktop/document_processing_popover.dart';
 import '../../../icons/lucide_adapter.dart';
@@ -50,6 +51,9 @@ import '../../quick_phrase/widgets/quick_phrase_menu.dart';
 import '../widgets/chat_input_bar.dart';
 import '../widgets/mini_map_sheet.dart';
 import '../widgets/instruction_injection_sheet.dart';
+import '../../skills/pages/skills_page.dart';
+import '../../skills/skill_manager.dart';
+import '../../skills/widgets/skills_sheet.dart';
 import '../widgets/world_book_sheet.dart';
 import '../widgets/document_processing_sheet.dart';
 import '../widgets/learning_prompt_sheet.dart';
@@ -1436,6 +1440,7 @@ class _HomePageState extends State<HomePage>
       onUploadFiles: _controller.onPickFiles,
       onToggleLearningMode: _openInstructionInjectionPopover,
       onOpenWorldBook: _openWorldBookPopover,
+      onOpenSkills: _openSkillsPopover,
       onLongPressLearning: _showLearningPromptSheet,
       onClearContext: _controller.clearContext,
       onCompressContext: _handleDesktopCompressContext,
@@ -1652,6 +1657,29 @@ class _HomePageState extends State<HomePage>
       );
     } else {
       await showInstructionInjectionSheet(context, assistantId: assistantId);
+    }
+  }
+
+  Future<void> _openSkillsPopover() async {
+    final isDesktop = PlatformUtils.isDesktop;
+    final assistantId = context.read<AssistantProvider>().currentAssistantId;
+    final skills = await SkillManager.listSkills();
+    if (!mounted) return;
+
+    if (isDesktop) {
+      await showDesktopSkillsPopover(
+        context,
+        anchorKey: _inputBarKey,
+        skills: skills,
+        assistantId: assistantId,
+        onManageSkills: () {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const SkillsPage()));
+        },
+      );
+    } else {
+      await showSkillsSheet(context, assistantId: assistantId);
     }
   }
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:html/parser.dart' as parser;
 import '../../../../l10n/app_localizations.dart';
-import 'package:http/http.dart' as http;
 import '../search_service.dart';
 
 class BingSearchService extends SearchService<BingLocalOptions> {
@@ -28,7 +27,7 @@ class BingSearchService extends SearchService<BingLocalOptions> {
       final encodedQuery = Uri.encodeComponent(query);
       final url = 'https://www.bing.com/search?q=$encodedQuery';
 
-      final response = await http
+      final response = await client
           .get(
             Uri.parse(url),
             headers: {

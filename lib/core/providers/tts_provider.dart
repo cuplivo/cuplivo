@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/network/logging_http_client.dart';
 import '../services/tts/network_tts.dart';
 import '../services/tts/tts_playback_models.dart';
 import '../services/tts/tts_text_chunker.dart';
@@ -565,6 +566,7 @@ class TtsProvider extends ChangeNotifier {
       final res = await NetworkTtsService.synthesize(
         options: service,
         text: content,
+        client: LoggingHttpClient.of(LoggingCategory.tts),
       );
       try {
         await _player.stop();
@@ -638,6 +640,7 @@ class TtsProvider extends ChangeNotifier {
         options: service,
         text: _chunks[index].text,
         cancelled: () => session != _sessionId,
+        client: LoggingHttpClient.of(LoggingCategory.tts),
       );
     });
   }

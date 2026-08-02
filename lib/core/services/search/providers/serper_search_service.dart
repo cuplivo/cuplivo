@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../../l10n/app_localizations.dart';
+import '../../../../core/services/network/logging_http_client.dart';
 import '../search_service.dart';
 
 class SerperSearchService extends SearchService<SerperOptions> {
   SerperSearchService({http.Client? client})
-    : _client = client ?? http.Client();
+    : _client = client ?? LoggingHttpClient.of(LoggingCategory.search);
 
   static const String endpoint = 'https://google.serper.dev/search';
 

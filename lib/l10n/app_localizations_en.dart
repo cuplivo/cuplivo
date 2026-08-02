@@ -5712,6 +5712,30 @@ class AppLocalizationsEn extends AppLocalizations {
       'Log response body content (may use significant storage)';
 
   @override
+  String get logSettingsMcpEnabled => 'MCP Request Logging';
+
+  @override
+  String get logSettingsTtsEnabled => 'TTS Request Logging';
+
+  @override
+  String get logSettingsSearchEnabled => 'Search Request Logging';
+
+  @override
+  String get logViewerFilterAll => 'All';
+
+  @override
+  String get logViewerFilterLlm => 'LLM';
+
+  @override
+  String get logViewerFilterMcp => 'MCP';
+
+  @override
+  String get logViewerFilterTts => 'TTS';
+
+  @override
+  String get logViewerFilterSearch => 'Search';
+
+  @override
   String get logSettingsAutoDelete => 'Auto-delete';
 
   @override
@@ -6556,6 +6580,52 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsPageSkills => 'Skills';
+
+  @override
+  String get skillsUncategorizedGroup => 'Uncategorized';
+
+  @override
+  String get skillsEditCategoryTitle => 'Edit Category';
+
+  @override
+  String get skillsCategoryHint => 'e.g. coding, writing, research';
+
+  @override
+  String get skillsCategoryClear => 'No category';
+
+  @override
+  String get skillsEnableAll => 'Enable all';
+
+  @override
+  String skillsEnabledCount(int enabled, int total) {
+    return 'Enabled $enabled of $total';
+  }
+
+  @override
+  String get skillsSelectAll => 'Select all';
+
+  @override
+  String get skillsDeselectAll => 'Deselect all';
+
+  @override
+  String get skillsEnableImportedTitle => 'Enable skills?';
+
+  @override
+  String skillsEnableImportedMessage(int count, String assistantName) {
+    return 'Enable $count imported skill(s) for \"$assistantName\"?';
+  }
+
+  @override
+  String get skillsEnableImportedAction => 'Enable';
+
+  @override
+  String get skillsEnableImportedDismiss => 'Not now';
+
+  @override
+  String get skillsSheetManageAction => 'Manage skills';
+
+  @override
+  String get skillsSheetImportAction => 'Import skills';
 
   @override
   String responseTruncated(String reason) {

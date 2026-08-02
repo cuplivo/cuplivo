@@ -172,7 +172,7 @@ class DioHttpClient extends http.BaseClient {
     final reqHeaders = Map<String, String>.from(request.headers);
     reqHeaders.putIfAbsent('User-Agent', () => 'Kelivo');
 
-    if (RequestLogger.enabled) {
+    if (RequestLogger.llmEnabled) {
       RequestLogger.logLine('[REQ $reqId] $method $uri');
       if (reqHeaders.isNotEmpty) {
         RequestLogger.logLine(
@@ -212,7 +212,7 @@ class DioHttpClient extends http.BaseClient {
         headers[name] = values.join(',');
       });
 
-      if (RequestLogger.enabled) {
+      if (RequestLogger.llmEnabled) {
         RequestLogger.logLine('[RES $reqId] status=$statusCode');
         if (headers.isNotEmpty) {
           RequestLogger.logLine(
@@ -230,7 +230,7 @@ class DioHttpClient extends http.BaseClient {
         body.stream.listen(
           (chunk) {
             controller.add(chunk);
-            if (RequestLogger.enabled && RequestLogger.saveOutput) {
+            if (RequestLogger.llmEnabled && RequestLogger.saveOutput) {
               final s = RequestLogger.safeDecodeUtf8(chunk);
               if (s.isNotEmpty) {
                 RequestLogger.logLine(
@@ -240,7 +240,7 @@ class DioHttpClient extends http.BaseClient {
             }
           },
           onError: (e, st) {
-            if (RequestLogger.enabled) {
+            if (RequestLogger.llmEnabled) {
               RequestLogger.logLine(
                 '[RES $reqId] error=${RequestLogger.escape(e.toString())}',
               );
@@ -249,7 +249,7 @@ class DioHttpClient extends http.BaseClient {
             controller.close();
           },
           onDone: () {
-            if (RequestLogger.enabled) {
+            if (RequestLogger.llmEnabled) {
               RequestLogger.logLine('[RES $reqId] done');
             }
             controller.close();
@@ -280,14 +280,14 @@ class DioHttpClient extends http.BaseClient {
         reasonPhrase: resp.statusMessage,
       );
     } on DioException catch (e) {
-      if (RequestLogger.enabled) {
+      if (RequestLogger.llmEnabled) {
         RequestLogger.logLine(
           '[RES $reqId] dio_error=${RequestLogger.escape(e.toString())}',
         );
       }
       throw http.ClientException(e.toString(), uri);
     } catch (e) {
-      if (RequestLogger.enabled) {
+      if (RequestLogger.llmEnabled) {
         RequestLogger.logLine(
           '[RES $reqId] error=${RequestLogger.escape(e.toString())}',
         );

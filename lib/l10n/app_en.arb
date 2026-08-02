@@ -2437,6 +2437,14 @@
   "logSettingsTitle": "Log Settings",
   "logSettingsSaveOutput": "Save Response Output",
   "logSettingsSaveOutputSubtitle": "Log response body content (may use significant storage)",
+  "logSettingsMcpEnabled": "MCP Request Logging",
+  "logSettingsTtsEnabled": "TTS Request Logging",
+  "logSettingsSearchEnabled": "Search Request Logging",
+  "logViewerFilterAll": "All",
+  "logViewerFilterLlm": "LLM",
+  "logViewerFilterMcp": "MCP",
+  "logViewerFilterTts": "TTS",
+  "logViewerFilterSearch": "Search",
   "logSettingsAutoDelete": "Auto-delete",
   "logSettingsAutoDeleteSubtitle": "Delete logs older than specified days",
   "logSettingsAutoDeleteDisabled": "Disabled",
@@ -3103,6 +3111,40 @@
   "skillsDeleteConfirmDeleteButton": "Delete",
   "assistantEditPageSkillsTab": "Skills",
   "settingsPageSkills": "Skills",
+  "skillsUncategorizedGroup": "Uncategorized",
+  "skillsEditCategoryTitle": "Edit Category",
+  "skillsCategoryHint": "e.g. coding, writing, research",
+  "skillsCategoryClear": "No category",
+  "skillsEnableAll": "Enable all",
+  "skillsEnabledCount": "Enabled {enabled} of {total}",
+  "@skillsEnabledCount": {
+    "placeholders": {
+      "enabled": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "skillsSelectAll": "Select all",
+  "skillsDeselectAll": "Deselect all",
+  "skillsEnableImportedTitle": "Enable skills?",
+  "skillsEnableImportedMessage": "Enable {count} imported skill(s) for \"{assistantName}\"?",
+  "@skillsEnableImportedMessage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "assistantName": {
+        "type": "String"
+      }
+    }
+  },
+  "skillsEnableImportedAction": "Enable",
+  "skillsEnableImportedDismiss": "Not now",
+  "skillsSheetManageAction": "Manage skills",
+  "skillsSheetImportAction": "Import skills",
   "responseTruncated": "Response was truncated ({reason}). The content may be incomplete.",
   "@responseTruncated": {
     "placeholders": {

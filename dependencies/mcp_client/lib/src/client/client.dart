@@ -6,6 +6,7 @@ import '../models/models.dart';
 import '../protocol/protocol.dart';
 import '../transport/streamable_http_transport.dart';
 import '../transport/transport.dart';
+import 'mcp_log_event.dart';
 
 final Logger _logger = Logger('mcp_client.client');
 
@@ -22,6 +23,12 @@ class Client {
 
   /// Timeout for individual requests.
   final Duration requestTimeout;
+
+  /// Optional sink for structured JSON-RPC-layer log events.
+  final McpLogListener? logListener;
+
+  /// Human-readable server label for log events; falls back to [name].
+  final String logServerLabel;
 
   /// Protocol version this client implements
   final String protocolVersion = McpProtocol.defaultVersion;
@@ -47,6 +54,18 @@ class Client {
 
   /// Map of request completion handlers by ID
   final _requestCompleters = <int, Completer<dynamic>>{};
+
+  /// Method + tags per in-flight request id — kept so incoming
+  /// responses can be annotated in log events (JSON-RPC responses carry
+  /// no method). Client-initiated requests only.
+  final Map<dynamic, ({String method, Map<String, String>? tags})>
+  _pendingInfo = {};
+
+  /// Method per in-flight SERVER-initiated request id (sampling,
+  /// elicitation, roots). Separate namespace from [_pendingInfo]:
+  /// server ids come from the server's own counter (often 0,1,2...) and
+  /// would collide with client ids.
+  final Map<dynamic, String> _serverPendingInfo = {};
 
   /// Map of notification handlers by method
   final _notificationHandlers = <String, Function(Map<String, dynamic>)>{};
@@ -100,11 +119,34 @@ class Client {
     required this.version,
     this.capabilities = const ClientCapabilities(),
     this.requestTimeout = const Duration(seconds: 30),
-  }) {
+    this.logListener,
+    String? logServerLabel,
+  }) : logServerLabel = logServerLabel ?? name {
     // Default `roots/list` handler returns the locally registered roots.
     // Hosts may override with [onListRoots] for dynamic roots.
     _requestHandlers['roots/list'] =
         (_) async => {'roots': _roots.map((r) => r.toJson()).toList()};
+  }
+
+  void _emit({
+    required String direction,
+    required String kind,
+    dynamic id,
+    String? method,
+    Object? payload,
+    Map<String, String>? tags,
+  }) {
+    logListener?.call(
+      McpLogEvent(
+        server: logServerLabel,
+        direction: direction,
+        kind: kind,
+        id: id,
+        method: method,
+        payload: payload,
+        tags: tags,
+      ),
+    );
   }
 
   /// Connect the client to a transport
@@ -162,6 +204,7 @@ class Client {
             protocolVersion: protocolVersion,
           ),
         );
+        _emit(direction: 'receive', kind: 'lifecycle', payload: 'connected');
       }
     } catch (e) {
       _connecting = false;
@@ -355,7 +398,11 @@ class Client {
   }
 
   /// List available tools on the server
-  Future<List<Tool>> listTools() async {
+  ///
+  /// [logTags] — optional metadata attached to the emitted log event
+  /// (e.g. `{'reason': 'heartbeat'}` so consumers can suppress noisy
+  /// liveness checks).
+  Future<List<Tool>> listTools({Map<String, String>? logTags}) async {
     if (!_initialized) {
       throw McpError('Client is not initialized');
     }
@@ -364,7 +411,7 @@ class Client {
       throw McpError('Server does not support tools');
     }
 
-    final response = await _sendRequest('tools/list', {});
+    final response = await _sendRequest('tools/list', {}, logTags: logTags);
     final toolsList = response['tools'] as List<dynamic>;
     return toolsList.map((tool) => Tool.fromJson(tool)).toList();
   }
@@ -867,6 +914,9 @@ class Client {
       }
     }
     _requestCompleters.clear();
+    _pendingInfo.clear();
+    _serverPendingInfo.clear();
+    _emit(direction: 'receive', kind: 'lifecycle', payload: 'disconnected');
   }
 
   /// Handle incoming messages from the transport
@@ -907,6 +957,14 @@ class Client {
     if (method == null || id == null) {
       return;
     }
+    _serverPendingInfo[id] = method;
+    _emit(
+      direction: 'receive',
+      kind: 'request',
+      id: id,
+      method: method,
+      payload: request.params ?? const {},
+    );
     final handler = _requestHandlers[method];
     if (handler == null) {
       _sendErrorResult(
@@ -933,6 +991,14 @@ class Client {
     final transport = _transport;
     if (transport == null) return;
     transport.send({'jsonrpc': '2.0', 'id': id, 'result': result});
+    final method = _serverPendingInfo.remove(id);
+    _emit(
+      direction: 'send',
+      kind: 'response',
+      id: id,
+      method: method,
+      payload: result,
+    );
   }
 
   /// Send a JSON-RPC `error` response to the server.
@@ -953,6 +1019,18 @@ class Client {
         if (data != null) 'data': data,
       },
     });
+    final method = _serverPendingInfo.remove(id);
+    _emit(
+      direction: 'send',
+      kind: 'error-response',
+      id: id,
+      method: method,
+      payload: {
+        'code': code,
+        'message': message,
+        if (data != null) 'data': data,
+      },
+    );
   }
 
   /// Handle a JSON-RPC response
@@ -964,14 +1042,31 @@ class Client {
     }
 
     final completer = _requestCompleters.remove(id)!;
+    final pending = _pendingInfo.remove(id);
 
     if (response.error != null) {
       final code = response.error!['code'] as int;
       final message = response.error!['message'] as String;
       final error = McpError(message, code: code);
       _errorStreamController.add(error);
+      _emit(
+        direction: 'receive',
+        kind: 'error-response',
+        id: id,
+        method: pending?.method,
+        payload: response.error,
+        tags: pending?.tags,
+      );
       completer.completeError(error);
     } else {
+      _emit(
+        direction: 'receive',
+        kind: 'response',
+        id: id,
+        method: pending?.method,
+        payload: response.result,
+        tags: pending?.tags,
+      );
       completer.complete(response.result);
     }
   }
@@ -980,6 +1075,13 @@ class Client {
   void _handleNotification(JsonRpcMessage notification) {
     final method = notification.method;
     final params = notification.params ?? {};
+
+    _emit(
+      direction: 'receive',
+      kind: 'notification',
+      method: method,
+      payload: params,
+    );
 
     final handler = _notificationHandlers[method];
     if (handler != null) {
@@ -999,8 +1101,9 @@ class Client {
   /// Send a JSON-RPC request
   Future<dynamic> _sendRequest(
     String method,
-    Map<String, dynamic> params,
-  ) async {
+    Map<String, dynamic> params, {
+    Map<String, String>? logTags,
+  }) async {
     if (!isConnected) {
       throw McpError('Client is not connected to a transport');
     }
@@ -1008,6 +1111,7 @@ class Client {
     final id = _requestId++;
     final completer = Completer<dynamic>();
     _requestCompleters[id] = completer;
+    _pendingInfo[id] = (method: method, tags: logTags);
 
     // Create a deep copy of params to avoid potential modification issues
     final Map<String, dynamic> safeParams = Map<String, dynamic>.from(params);
@@ -1019,12 +1123,30 @@ class Client {
       'params': safeParams,
     };
 
+    _emit(
+      direction: 'send',
+      kind: 'request',
+      id: id,
+      method: method,
+      payload: safeParams,
+      tags: logTags,
+    );
+
     try {
       _transport!.send(request);
     } catch (e) {
       _requestCompleters.remove(id);
+      _pendingInfo.remove(id);
       final error = McpError('Failed to send request: $e');
       _errorStreamController.add(error);
+      _emit(
+        direction: 'receive',
+        kind: 'error-response',
+        id: id,
+        method: method,
+        payload: {'code': -32603, 'message': 'Failed to send request: $e'},
+        tags: logTags,
+      );
       throw error;
     }
 
@@ -1034,8 +1156,17 @@ class Client {
         requestTimeout,
         onTimeout: () {
           _requestCompleters.remove(id);
+          _pendingInfo.remove(id);
           final error = McpError('Request timed out: $method');
           _errorStreamController.add(error);
+          _emit(
+            direction: 'receive',
+            kind: 'error-response',
+            id: id,
+            method: method,
+            payload: {'code': -32603, 'message': 'Request timed out: $method'},
+            tags: logTags,
+          );
           throw error;
         },
       );
@@ -1051,7 +1182,11 @@ class Client {
   }
 
   /// Send a JSON-RPC notification
-  void _sendNotification(String method, Map<String, dynamic> params) {
+  void _sendNotification(
+    String method,
+    Map<String, dynamic> params, {
+    Map<String, String>? logTags,
+  }) {
     if (!isConnected) {
       throw McpError('Client is not connected to a transport');
     }
@@ -1063,6 +1198,13 @@ class Client {
     };
 
     _transport!.send(notification);
+    _emit(
+      direction: 'send',
+      kind: 'notification',
+      method: method,
+      payload: params,
+      tags: logTags,
+    );
   }
 }
 

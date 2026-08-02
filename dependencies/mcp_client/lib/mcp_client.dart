@@ -2,6 +2,7 @@ import 'package:meta/meta.dart';
 import 'package:logging/logging.dart';
 
 import 'src/client/client.dart';
+import 'src/client/mcp_log_event.dart';
 import 'src/transport/transport.dart';
 import 'src/transport/streamable_http_transport.dart';
 import 'src/transport/sse_auth_transport.dart';
@@ -14,6 +15,7 @@ import 'src/auth/oauth_client.dart';
 
 export 'src/models/models.dart';
 export 'src/client/client.dart';
+export 'src/client/mcp_log_event.dart';
 export 'src/transport/transport.dart';
 export 'src/transport/streamable_http_transport.dart';
 export 'src/transport/sse_auth_transport.dart';
@@ -50,6 +52,18 @@ class McpClientConfig {
   /// Whether to enable debug logging
   final bool enableDebugLogging;
 
+  /// Optional sink for structured JSON-RPC-layer log events
+  /// ([McpLogEvent]). The library only emits; consumers decide what to
+  /// write.
+  final McpLogListener? logListener;
+
+  /// Optional human-readable server label used in log events
+  /// ([McpLogEvent.server]). When null, [name] is used. Kept separate
+  /// from [name] so the app can keep a stable `clientInfo.name` on the
+  /// wire while labeling logs with a server identity the user
+  /// recognizes.
+  final String? logServerLabel;
+
   const McpClientConfig({
     required this.name,
     required this.version,
@@ -58,6 +72,8 @@ class McpClientConfig {
     this.retryDelay = const Duration(seconds: 2),
     this.requestTimeout = const Duration(seconds: 30),
     this.enableDebugLogging = false,
+    this.logListener,
+    this.logServerLabel,
   });
 
   /// Creates a copy of this config with the given fields replaced
@@ -69,6 +85,8 @@ class McpClientConfig {
     Duration? retryDelay,
     Duration? requestTimeout,
     bool? enableDebugLogging,
+    McpLogListener? logListener,
+    String? logServerLabel,
   }) {
     return McpClientConfig(
       name: name ?? this.name,
@@ -78,6 +96,8 @@ class McpClientConfig {
       retryDelay: retryDelay ?? this.retryDelay,
       requestTimeout: requestTimeout ?? this.requestTimeout,
       enableDebugLogging: enableDebugLogging ?? this.enableDebugLogging,
+      logListener: logListener ?? this.logListener,
+      logServerLabel: logServerLabel ?? this.logServerLabel,
     );
   }
 
@@ -91,7 +111,9 @@ class McpClientConfig {
           maxRetries == other.maxRetries &&
           retryDelay == other.retryDelay &&
           requestTimeout == other.requestTimeout &&
-          enableDebugLogging == other.enableDebugLogging;
+          enableDebugLogging == other.enableDebugLogging &&
+          logListener == other.logListener &&
+          logServerLabel == other.logServerLabel;
 
   @override
   int get hashCode => Object.hash(
@@ -102,6 +124,8 @@ class McpClientConfig {
     retryDelay,
     requestTimeout,
     enableDebugLogging,
+    logListener,
+    logServerLabel,
   );
 
   @override
@@ -113,7 +137,9 @@ class McpClientConfig {
       'maxRetries: $maxRetries, '
       'retryDelay: $retryDelay, '
       'requestTimeout: $requestTimeout, '
-      'enableDebugLogging: $enableDebugLogging)';
+      'enableDebugLogging: $enableDebugLogging, '
+      'logListener: $logListener, '
+      'logServerLabel: $logServerLabel)';
 }
 
 /// Configuration for transport connections
@@ -261,6 +287,8 @@ class McpClient {
       version: config.version,
       capabilities: config.capabilities,
       requestTimeout: config.requestTimeout,
+      logListener: config.logListener,
+      logServerLabel: config.logServerLabel,
     );
   }
 
@@ -451,12 +479,16 @@ class McpClient {
     required String version,
     bool enableDebugLogging = false,
     Duration? requestTimeout,
+    McpLogListener? logListener,
+    String? logServerLabel,
   }) {
     return McpClientConfig(
       name: name,
       version: version,
       enableDebugLogging: enableDebugLogging,
       requestTimeout: requestTimeout ?? const Duration(seconds: 30),
+      logListener: logListener,
+      logServerLabel: logServerLabel,
     );
   }
 

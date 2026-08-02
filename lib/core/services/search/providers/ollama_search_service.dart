@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
@@ -30,7 +29,7 @@ class OllamaSearchService extends SearchService<OllamaOptions> {
         'max_results': commonOptions.resultSize.clamp(1, 10),
       });
 
-      final response = await http
+      final response = await client
           .post(
             Uri.parse('https://ollama.com/api/web_search'),
             headers: {

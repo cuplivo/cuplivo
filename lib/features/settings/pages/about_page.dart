@@ -10,6 +10,7 @@ import '../../../icons/lucide_adapter.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../shared/widgets/ios_labeled_switch_row.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../shared/widgets/qq_group_join_sheet.dart';
 import '../../../core/services/haptics.dart';
@@ -188,6 +189,36 @@ class _AboutPageState extends State<AboutPage> {
                                       height: 1.25,
                                     ),
                                   ),
+                                ),
+                                const SizedBox(height: 12),
+                                IosLabeledSwitchRow(
+                                  title: l10n.logSettingsMcpEnabled,
+                                  value: dialogContext
+                                      .watch<SettingsProvider>()
+                                      .mcpLogEnabled,
+                                  onChanged: (v) => dialogContext
+                                      .read<SettingsProvider>()
+                                      .setMcpLogEnabled(v),
+                                ),
+                                const SizedBox(height: 12),
+                                IosLabeledSwitchRow(
+                                  title: l10n.logSettingsTtsEnabled,
+                                  value: dialogContext
+                                      .watch<SettingsProvider>()
+                                      .ttsLogEnabled,
+                                  onChanged: (v) => dialogContext
+                                      .read<SettingsProvider>()
+                                      .setTtsLogEnabled(v),
+                                ),
+                                const SizedBox(height: 12),
+                                IosLabeledSwitchRow(
+                                  title: l10n.logSettingsSearchEnabled,
+                                  value: dialogContext
+                                      .watch<SettingsProvider>()
+                                      .searchLogEnabled,
+                                  onChanged: (v) => dialogContext
+                                      .read<SettingsProvider>()
+                                      .setSearchLogEnabled(v),
                                 ),
                                 const SizedBox(height: 12),
                                 Material(

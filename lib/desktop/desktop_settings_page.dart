@@ -20,6 +20,7 @@ import '../core/services/model_override_resolver.dart';
 import '../core/services/provider_balance_service.dart';
 import 'model_fetch_dialog.dart' show showModelFetchDialog;
 import 'widgets/desktop_select_dropdown.dart';
+import '../shared/widgets/ios_labeled_switch_row.dart';
 import '../shared/widgets/ios_switch.dart';
 import '../shared/widgets/ios_checkbox.dart';
 import '../shared/widgets/custom_key_value_editor.dart';

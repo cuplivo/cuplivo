@@ -514,6 +514,11 @@ class _RequestLogFilePage extends StatefulWidget {
 class _RequestLogFilePageState extends State<_RequestLogFilePage> {
   bool _loading = true;
   List<RequestLogEntry> _requests = const <RequestLogEntry>[];
+  String? _categoryFilter;
+
+  List<RequestLogEntry> get _filtered => _categoryFilter == null
+      ? _requests
+      : _requests.where((e) => e.category == _categoryFilter).toList();
 
   @override
   void initState() {
@@ -570,8 +575,9 @@ class _RequestLogFilePageState extends State<_RequestLogFilePage> {
     final cs = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
 
-    final int errorCount = _requests.where((e) => e.hasError).length;
-    final int warnCount = _requests.where((e) => e.hasWarning).length;
+    final filtered = _filtered;
+    final int errorCount = filtered.where((e) => e.hasError).length;
+    final int warnCount = filtered.where((e) => e.hasWarning).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -617,19 +623,28 @@ class _RequestLogFilePageState extends State<_RequestLogFilePage> {
             )
           : ListView.builder(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-              itemCount: _requests.length + 1,
+              itemCount: filtered.length + 2,
               itemBuilder: (context, index) {
                 if (index == 0) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
+                    child: _RequestLogCategoryChips(
+                      selected: _categoryFilter,
+                      onSelected: (c) => setState(() => _categoryFilter = c),
+                    ),
+                  );
+                }
+                if (index == 1) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
                     child: _RequestLogSummaryBar(
-                      total: _requests.length,
+                      total: filtered.length,
                       errors: errorCount,
                       warnings: warnCount,
                     ),
                   );
                 }
-                final e = _requests[index - 1];
+                final e = filtered[index - 2];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: _RequestLogCard(
@@ -645,6 +660,101 @@ class _RequestLogFilePageState extends State<_RequestLogFilePage> {
                 );
               },
             ),
+    );
+  }
+}
+
+class _RequestLogCategoryChips extends StatelessWidget {
+  const _RequestLogCategoryChips({
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String? selected;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    final labels = <String?, String>{
+      null: l10n.logViewerFilterAll,
+      'llm': l10n.logViewerFilterLlm,
+      'mcp': l10n.logViewerFilterMcp,
+      'tts': l10n.logViewerFilterTts,
+      'search': l10n.logViewerFilterSearch,
+    };
+
+    final cats = <String?>[null, 'llm', 'mcp', 'tts', 'search'];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          for (var i = 0; i < cats.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            _CategoryChip(
+              label: labels[cats[i]]!,
+              selected: selected == cats[i],
+              onTap: () => onSelected(selected == cats[i] ? null : cats[i]),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    final Color bg = selected
+        ? cs.primary.withValues(alpha: isDark ? 0.85 : 0.90)
+        : isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : Colors.white;
+    final Color fg = selected
+        ? cs.onPrimary
+        : cs.onSurface.withValues(alpha: 0.82);
+
+    return IosCardPress(
+      baseColor: bg,
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? Colors.transparent
+                : cs.outlineVariant.withValues(alpha: isDark ? 0.26 : 0.38),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: AppFontWeights.semibold,
+            color: fg,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -786,7 +896,11 @@ class _RequestLogCard extends StatelessWidget {
     final Uri? uri = entry.uri;
     final String title = () {
       if (uri == null) {
-        return (entry.rawUrl ?? '').trim();
+        final raw = (entry.rawUrl ?? '').trim();
+        if (raw.isNotEmpty) return raw;
+        final method = entry.method;
+        if (method != null && method.isNotEmpty) return method.toUpperCase();
+        return '—';
       }
       final path = (uri.path.isEmpty ? '/' : uri.path);
       if (uri.query.isEmpty) {

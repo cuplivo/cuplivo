@@ -10526,6 +10526,54 @@ abstract class AppLocalizations {
   /// **'Log response body content (may use significant storage)'**
   String get logSettingsSaveOutputSubtitle;
 
+  /// No description provided for @logSettingsMcpEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'MCP Request Logging'**
+  String get logSettingsMcpEnabled;
+
+  /// No description provided for @logSettingsTtsEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'TTS Request Logging'**
+  String get logSettingsTtsEnabled;
+
+  /// No description provided for @logSettingsSearchEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Search Request Logging'**
+  String get logSettingsSearchEnabled;
+
+  /// No description provided for @logViewerFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get logViewerFilterAll;
+
+  /// No description provided for @logViewerFilterLlm.
+  ///
+  /// In en, this message translates to:
+  /// **'LLM'**
+  String get logViewerFilterLlm;
+
+  /// No description provided for @logViewerFilterMcp.
+  ///
+  /// In en, this message translates to:
+  /// **'MCP'**
+  String get logViewerFilterMcp;
+
+  /// No description provided for @logViewerFilterTts.
+  ///
+  /// In en, this message translates to:
+  /// **'TTS'**
+  String get logViewerFilterTts;
+
+  /// No description provided for @logViewerFilterSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get logViewerFilterSearch;
+
   /// No description provided for @logSettingsAutoDelete.
   ///
   /// In en, this message translates to:
@@ -11965,6 +12013,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Skills'**
   String get settingsPageSkills;
+
+  /// No description provided for @skillsUncategorizedGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncategorized'**
+  String get skillsUncategorizedGroup;
+
+  /// No description provided for @skillsEditCategoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Category'**
+  String get skillsEditCategoryTitle;
+
+  /// No description provided for @skillsCategoryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. coding, writing, research'**
+  String get skillsCategoryHint;
+
+  /// No description provided for @skillsCategoryClear.
+  ///
+  /// In en, this message translates to:
+  /// **'No category'**
+  String get skillsCategoryClear;
+
+  /// No description provided for @skillsEnableAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable all'**
+  String get skillsEnableAll;
+
+  /// No description provided for @skillsEnabledCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled {enabled} of {total}'**
+  String skillsEnabledCount(int enabled, int total);
+
+  /// No description provided for @skillsSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get skillsSelectAll;
+
+  /// No description provided for @skillsDeselectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Deselect all'**
+  String get skillsDeselectAll;
+
+  /// No description provided for @skillsEnableImportedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable skills?'**
+  String get skillsEnableImportedTitle;
+
+  /// No description provided for @skillsEnableImportedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable {count} imported skill(s) for \"{assistantName}\"?'**
+  String skillsEnableImportedMessage(int count, String assistantName);
+
+  /// No description provided for @skillsEnableImportedAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable'**
+  String get skillsEnableImportedAction;
+
+  /// No description provided for @skillsEnableImportedDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get skillsEnableImportedDismiss;
+
+  /// No description provided for @skillsSheetManageAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage skills'**
+  String get skillsSheetManageAction;
+
+  /// No description provided for @skillsSheetImportAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Import skills'**
+  String get skillsSheetImportAction;
 
   /// No description provided for @responseTruncated.
   ///

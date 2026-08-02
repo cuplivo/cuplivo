@@ -7,8 +7,31 @@ import '../../../utils/app_directories.dart';
 class RequestLogger {
   RequestLogger._();
 
-  static bool _enabled = false;
-  static bool get enabled => _enabled;
+  /// Log categories. Each is independently toggleable; the master
+  /// [enabled] getter reflects "any category on".
+  static const String catLlm = 'llm';
+  static const String catMcp = 'mcp';
+  static const String catTts = 'tts';
+  static const String catSearch = 'search';
+
+  static bool _suspended = false;
+  static final Map<String, bool> _categoryEnabled = {
+    catLlm: false,
+    catMcp: false,
+    catTts: false,
+    catSearch: false,
+  };
+
+  static bool get enabled =>
+      !_suspended && _categoryEnabled.values.any((v) => v);
+
+  /// LLM-category shortcut (HTTP-shaped request logging in
+  /// [DioHttpClient]).
+  static bool get llmEnabled => categoryEnabled(catLlm);
+
+  static bool categoryEnabled(String category) =>
+      !_suspended && (_categoryEnabled[category] ?? false);
+
   static bool _writeErrorReported = false;
 
   static bool saveOutput = true;
@@ -16,21 +39,37 @@ class RequestLogger {
   static int _nextRequestId = 0;
   static int nextRequestId() => ++_nextRequestId;
 
-  static Future<void> setEnabled(bool v) async {
-    if (_enabled == v) return;
-    _enabled = v;
-    if (!v) {
-      try {
-        await _sink?.flush();
-      } catch (_) {}
-      try {
-        await _sink?.close();
-      } catch (_) {}
-      _sink = null;
-      _sinkDate = null;
-    } else {
+  /// Legacy LLM-only toggle (kept for existing call sites).
+  static Future<void> setEnabled(bool v) => setCategoryEnabled(catLlm, v);
+
+  static Future<void> setCategoryEnabled(String category, bool v) async {
+    final cur = _categoryEnabled[category] ?? false;
+    if (cur == v) return;
+    _categoryEnabled[category] = v;
+    await _syncSinkState();
+  }
+
+  /// Temporarily suspend/unsuspend ALL categories. Used by storage
+  /// cleanup to silence logging while the logs directory is deleted.
+  static Future<void> setAllEnabled(bool v) async {
+    if (_suspended == !v) return;
+    _suspended = !v;
+    await _syncSinkState();
+  }
+
+  static Future<void> _syncSinkState() async {
+    if (enabled) {
       _writeErrorReported = false;
+      return;
     }
+    try {
+      await _sink?.flush();
+    } catch (_) {}
+    try {
+      await _sink?.close();
+    } catch (_) {}
+    _sink = null;
+    _sinkDate = null;
   }
 
   static IOSink? _sink;
@@ -91,12 +130,12 @@ class RequestLogger {
     return _sink!;
   }
 
-  static void logLine(String line) {
-    if (!_enabled) return;
+  static void logLine(String line, {String category = catLlm}) {
+    if (!categoryEnabled(category)) return;
     final now = DateTime.now();
     final text = '[${_formatTs(now)}] $line\n';
     _writeQueue = _writeQueue.then((_) async {
-      if (!_enabled) return;
+      if (!enabled) return;
       try {
         final sink = await _ensureSink();
         sink.write(text);

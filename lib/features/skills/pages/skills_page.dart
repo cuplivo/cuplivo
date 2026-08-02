@@ -131,6 +131,7 @@ class _SkillsPageState extends State<SkillsPage> {
       return;
     }
     await _refresh();
+    await _promptEnableImported([name]);
   }
 
   Future<void> _showImportChoice() async {
@@ -387,47 +388,72 @@ class _SkillsPageState extends State<SkillsPage> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
+            final allSelected = selected.length == skills.length;
             return AlertDialog(
               title: Text(l10n.skillsGitHubSelectTitle),
               content: SizedBox(
                 width: 400,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: skills.length,
-                  itemBuilder: (_, i) {
-                    final skill = skills[i];
-                    return ListTile(
-                      leading: IosCheckbox(
-                        value: selected.contains(i),
-                        onChanged: (v) {
-                          setDialogState(() {
-                            if (v) {
-                              selected.add(i);
-                            } else {
-                              selected.remove(i);
-                            }
-                          });
-                        },
-                      ),
-                      title: Text(skill.name),
-                      subtitle: skill.description.isNotEmpty
-                          ? Text(
-                              skill.description,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            )
-                          : null,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _TactileSelectAllRow(
+                      label: allSelected
+                          ? l10n.skillsDeselectAll
+                          : l10n.skillsSelectAll,
+                      checked: allSelected,
                       onTap: () {
                         setDialogState(() {
-                          if (selected.contains(i)) {
-                            selected.remove(i);
-                          } else {
-                            selected.add(i);
+                          selected.clear();
+                          if (!allSelected) {
+                            selected.addAll(
+                              List.generate(skills.length, (i) => i),
+                            );
                           }
                         });
                       },
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 4),
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: skills.length,
+                        itemBuilder: (_, i) {
+                          final skill = skills[i];
+                          return ListTile(
+                            leading: IosCheckbox(
+                              value: selected.contains(i),
+                              onChanged: (v) {
+                                setDialogState(() {
+                                  if (v) {
+                                    selected.add(i);
+                                  } else {
+                                    selected.remove(i);
+                                  }
+                                });
+                              },
+                            ),
+                            title: Text(skill.name),
+                            subtitle: skill.description.isNotEmpty
+                                ? Text(
+                                    skill.description,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  )
+                                : null,
+                            onTap: () {
+                              setDialogState(() {
+                                if (selected.contains(i)) {
+                                  selected.remove(i);
+                                } else {
+                                  selected.add(i);
+                                }
+                              });
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
               actions: [
@@ -451,9 +477,43 @@ class _SkillsPageState extends State<SkillsPage> {
     );
   }
 
+  Future<void> _promptEnableImported(List<String> names) async {
+    if (names.isEmpty || !mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    final assistant = context.read<AssistantProvider>().currentAssistant;
+    if (assistant == null) return;
+
+    final enabled = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.skillsEnableImportedTitle),
+        content: Text(
+          l10n.skillsEnableImportedMessage(names.length, assistant.name),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.skillsEnableImportedDismiss),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l10n.skillsEnableImportedAction),
+          ),
+        ],
+      ),
+    );
+    if (enabled != true || !mounted) return;
+
+    final ids = {...assistant.skillIds, ...names};
+    await context.read<AssistantProvider>().updateAssistant(
+      assistant.copyWith(skillIds: ids.toList(growable: false)),
+    );
+  }
+
   Future<void> _importDiscoveredSkills(List<_DiscoveredSkill> skills) async {
     int imported = 0;
     int failed = 0;
+    final importedNames = <String>[];
 
     for (final skill in skills) {
       final error = await SkillManager.saveSkillWithFiles(
@@ -464,6 +524,7 @@ class _SkillsPageState extends State<SkillsPage> {
         failed++;
       } else {
         imported++;
+        importedNames.add(skill.name);
       }
     }
 
@@ -480,6 +541,7 @@ class _SkillsPageState extends State<SkillsPage> {
       );
     }
     await _refresh();
+    await _promptEnableImported(importedNames);
   }
 
   Future<void> _importFromFile() async {
@@ -511,6 +573,7 @@ class _SkillsPageState extends State<SkillsPage> {
     } else {
       int imported = 0;
       int failed = 0;
+      final importedNames = <String>[];
       try {
         final content = await File(path).readAsString();
         final name = _extractNameFromFrontmatter(content);
@@ -525,6 +588,7 @@ class _SkillsPageState extends State<SkillsPage> {
             failed++;
           } else {
             imported++;
+            importedNames.add(name);
           }
         }
       } catch (_) {
@@ -544,6 +608,7 @@ class _SkillsPageState extends State<SkillsPage> {
         );
       }
       await _refresh();
+      await _promptEnableImported(importedNames);
     }
   }
 
@@ -588,7 +653,7 @@ class _SkillsPageState extends State<SkillsPage> {
         title: Text(l10n.skillsTitle),
         actions: [
           IconButton(
-            icon: const Icon(Lucide.Upload),
+            icon: const Icon(Lucide.Download),
             tooltip: l10n.skillsImportChoiceTitle,
             onPressed: _showImportChoice,
           ),
@@ -616,36 +681,279 @@ class _SkillsPageState extends State<SkillsPage> {
             )
           : RefreshIndicator(
               onRefresh: () async => _refresh(),
-              child: ListView.builder(
+              child: ListView(
                 padding: const EdgeInsets.all(16),
-                itemCount: _skills.length,
-                itemBuilder: (ctx, i) {
-                  final skill = _skills[i];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: Icon(Lucide.BookOpen, color: cs.primary),
-                      title: Text(
-                        skill.name,
-                        style: TextStyle(fontWeight: AppFontWeights.semibold),
-                      ),
-                      subtitle: skill.description.isNotEmpty
-                          ? Text(
-                              skill.description,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            )
-                          : null,
-                      trailing: IconButton(
-                        icon: const Icon(Lucide.Trash2),
-                        color: cs.error,
-                        onPressed: () => _deleteSkill(skill.name),
+                children: [
+                  for (final (group, skills) in groupSkillsByCategory(
+                    _skills,
+                  )) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
+                      child: Text(
+                        group ?? l10n.skillsUncategorizedGroup,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: AppFontWeights.semibold,
+                          color: cs.onSurface.withValues(alpha: 0.55),
+                        ),
                       ),
                     ),
-                  );
-                },
+                    for (final skill in skills)
+                      Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: Icon(Lucide.BookOpen, color: cs.primary),
+                          title: Text(
+                            skill.name,
+                            style: TextStyle(
+                              fontWeight: AppFontWeights.semibold,
+                            ),
+                          ),
+                          subtitle: skill.description.isNotEmpty
+                              ? Text(
+                                  skill.description,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                )
+                              : null,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 120,
+                                ),
+                                child: _CategoryTag(
+                                  category: skill.category,
+                                  label:
+                                      skill.category ??
+                                      l10n.skillsUncategorizedGroup,
+                                  onTap: () => _editCategory(skill),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Lucide.Trash2),
+                                color: cs.error,
+                                onPressed: () => _deleteSkill(skill.name),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ],
               ),
             ),
+    );
+  }
+
+  Future<void> _editCategory(SkillMetadata skill) async {
+    final l10n = AppLocalizations.of(context)!;
+    final controller = TextEditingController(text: skill.category ?? '');
+    final known =
+        _skills
+            .map((s) => s.category)
+            .whereType<String>()
+            .where((c) => c.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: Text(l10n.skillsEditCategoryTitle),
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: controller,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        hintText: l10n.skillsCategoryHint,
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                      ),
+                      style: const TextStyle(fontSize: 13),
+                      onChanged: (_) => setDialogState(() {}),
+                      onSubmitted: (_) =>
+                          Navigator.of(ctx).pop(controller.text.trim()),
+                    ),
+                    if (known.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final c in known)
+                            _CategorySuggestionPill(
+                              label: c,
+                              onTap: () {
+                                controller.text = c;
+                                setDialogState(() {});
+                              },
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(''),
+                  child: Text(l10n.skillsCategoryClear),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
+                ),
+                FilledButton(
+                  onPressed: () =>
+                      Navigator.of(ctx).pop(controller.text.trim()),
+                  child: Text(MaterialLocalizations.of(ctx).okButtonLabel),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == null || !mounted) return;
+    final newCategory = result.trim();
+    if (newCategory == (skill.category ?? '')) return;
+    final error = await SkillManager.updateCategory(
+      skill.name,
+      newCategory.isEmpty ? null : newCategory,
+    );
+    if (error != null) {
+      if (!mounted) return;
+      showAppSnackBar(context, message: _localizeSaveError(error, l10n));
+      return;
+    }
+    await _refresh();
+  }
+}
+
+class _CategoryTag extends StatelessWidget {
+  const _CategoryTag({
+    required this.category,
+    required this.label,
+    required this.onTap,
+  });
+  final String? category;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final hasCategory = category != null && category!.isNotEmpty;
+    final fg = hasCategory ? cs.primary : cs.onSurface.withValues(alpha: 0.45);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: hasCategory
+              ? cs.primary.withValues(alpha: 0.08)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: hasCategory
+                ? cs.primary.withValues(alpha: 0.3)
+                : cs.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              hasCategory ? Lucide.Folder : Lucide.FolderOpen,
+              size: 11,
+              color: fg,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, color: fg),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CategorySuggestionPill extends StatelessWidget {
+  const _CategorySuggestionPill({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: cs.primary.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
+        ),
+        child: Text(label, style: TextStyle(fontSize: 12, color: cs.primary)),
+      ),
+    );
+  }
+}
+
+class _TactileSelectAllRow extends StatelessWidget {
+  const _TactileSelectAllRow({
+    required this.label,
+    required this.checked,
+    required this.onTap,
+  });
+  final String label;
+  final bool checked;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        child: Row(
+          children: [
+            IosCheckbox(value: checked, onChanged: (_) => onTap()),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(fontSize: 14, color: cs.onSurface),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

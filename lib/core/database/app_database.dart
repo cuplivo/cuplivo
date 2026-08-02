@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../../utils/app_directories.dart';
 
@@ -355,16 +356,209 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  // Migrations follow the original per-version pattern only — no runtime
-  // self-heal. A locally corrupted dev DB is repaired by reinstalling, not
-  // by healing schema on every open.
+  // Migrations follow the original per-version pattern. Individual addColumn /
+  // createTable steps are wrapped in silent try/catch for idempotent replay,
+  // so a genuinely failed ALTER can leave user_version advanced while the
+  // column stays missing (real incidents on schema v8 and v12). The schema
+  // self-heal below repairs such gaps on every open; without it the gap is
+  // permanent because later upgrades skip the failed step's `from < N` block.
+  // See docs/adr/0017-schema-self-heal.md.
   int get schemaVersion => 14;
+
+  /// Whether [table] has a physical column named [column] (sqlite name).
+  Future<bool> _hasColumn(String table, String column) async {
+    final rows = await customSelect('PRAGMA table_info($table)').get();
+    for (final row in rows) {
+      final name =
+          row.readNullable<String>('name') ?? row.data['name']?.toString();
+      if (name == column) return true;
+    }
+    return false;
+  }
+
+  Future<bool> _hasTable(String table) async {
+    final rows = await customSelect(
+      "SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = ?",
+      variables: [Variable.withString(table)],
+    ).get();
+    return rows.isNotEmpty;
+  }
+
+  /// Add a column only when missing. Prefer this over bare addColumn+catch so
+  /// we never advance past a migration while leaving the schema incomplete.
+  Future<void> _ensureColumn(
+    String table,
+    String column,
+    String alterSql,
+  ) async {
+    if (!await _hasTable(table)) return;
+    if (await _hasColumn(table, column)) return;
+    debugPrint('schema heal: ADD COLUMN $table.$column');
+    await customStatement(alterSql);
+  }
+
+  Future<void> _ensureTable(
+    TableInfo<Table, dynamic> table,
+    String tableName,
+  ) async {
+    if (await _hasTable(tableName)) return;
+    final m = createMigrator();
+    try {
+      await m.createTable(table);
+      debugPrint('schema heal: CREATE TABLE $tableName');
+    } catch (e) {
+      // Heal runs on every open and is idempotent; a failure here is retried
+      // on the next launch, so do not fail startup over it.
+      debugPrint('schema heal: CREATE TABLE $tableName failed: $e');
+    }
+  }
+
+  /// Repair incomplete upgrades where user_version already advanced but some
+  /// ALTER TABLE / CREATE TABLE steps were skipped/failed (silent catch).
+  ///
+  /// Covers every column/table added by the v5–v13 migrations that are wrapped
+  /// in silent try/catch — missing these makes inserts crash with
+  /// "table X has no column named Y". Runs in beforeOpen (rescues existing
+  /// broken DBs whose user_version already passed the failed step) and at the
+  /// end of onUpgrade (rescues gaps created by the upgrade in this session).
+  ///
+  /// MIRROR CONSTRAINT: when adding a new column/table to a migration, update
+  /// this heal set and the regression tests in the same change. See AGENTS.md
+  /// §3.20.
+  Future<void> _healSchemaIfNeeded() async {
+    // --- assistant_rows (v5–v12) ---
+    await _ensureColumn(
+      'assistant_rows',
+      'memory_mode',
+      "ALTER TABLE assistant_rows ADD COLUMN memory_mode TEXT NOT NULL DEFAULT 'injection'",
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'docx_mode',
+      "ALTER TABLE assistant_rows ADD COLUMN docx_mode TEXT NOT NULL DEFAULT 'extract'",
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'pdf_mode',
+      "ALTER TABLE assistant_rows ADD COLUMN pdf_mode TEXT NOT NULL DEFAULT 'extract'",
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'other_office_mode',
+      "ALTER TABLE assistant_rows ADD COLUMN other_office_mode TEXT NOT NULL DEFAULT 'direct'",
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'enable_proactive_care',
+      'ALTER TABLE assistant_rows ADD COLUMN enable_proactive_care INTEGER NOT NULL DEFAULT 0',
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'proactive_care_next_message_at',
+      'ALTER TABLE assistant_rows ADD COLUMN proactive_care_next_message_at INTEGER NULL',
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'proactive_care_prompt',
+      "ALTER TABLE assistant_rows ADD COLUMN proactive_care_prompt TEXT NOT NULL DEFAULT ''",
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'proactive_care_decision_prompt',
+      "ALTER TABLE assistant_rows ADD COLUMN proactive_care_decision_prompt TEXT NOT NULL DEFAULT ''",
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'skill_ids_json',
+      "ALTER TABLE assistant_rows ADD COLUMN skill_ids_json TEXT NOT NULL DEFAULT '[]'",
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'enable_time_injection',
+      'ALTER TABLE assistant_rows ADD COLUMN enable_time_injection INTEGER NOT NULL DEFAULT 0',
+    );
+    // Handoff columns (schema v12) — missing these causes:
+    // SqliteException: table assistant_rows has no column named discoverable
+    await _ensureColumn(
+      'assistant_rows',
+      'discoverable',
+      'ALTER TABLE assistant_rows ADD COLUMN discoverable INTEGER NOT NULL DEFAULT 0',
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'handoff_id',
+      'ALTER TABLE assistant_rows ADD COLUMN handoff_id TEXT NULL',
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'handoff_description',
+      'ALTER TABLE assistant_rows ADD COLUMN handoff_description TEXT NULL',
+    );
+
+    // --- message_rows ---
+    await _ensureColumn(
+      'message_rows',
+      'subgroup_id',
+      'ALTER TABLE message_rows ADD COLUMN subgroup_id TEXT NULL',
+    );
+    await _ensureColumn(
+      'message_rows',
+      'is_preset',
+      'ALTER TABLE message_rows ADD COLUMN is_preset INTEGER NOT NULL DEFAULT 0',
+    );
+    await _ensureColumn(
+      'message_rows',
+      'speaker_assistant_id',
+      'ALTER TABLE message_rows ADD COLUMN speaker_assistant_id TEXT NULL',
+    );
+
+    // --- conversation_rows ---
+    await _ensureColumn(
+      'conversation_rows',
+      'parent_conversation_id',
+      'ALTER TABLE conversation_rows ADD COLUMN parent_conversation_id TEXT NULL',
+    );
+    await _ensureColumn(
+      'conversation_rows',
+      'conversation_kind',
+      "ALTER TABLE conversation_rows ADD COLUMN conversation_kind TEXT NOT NULL DEFAULT 'normal'",
+    );
+    await customStatement(
+      "UPDATE conversation_rows SET conversation_kind = 'normal' "
+      "WHERE conversation_kind IS NULL OR conversation_kind = ''",
+    );
+
+    // --- tables created by v11/v13 migrations ---
+    // NOTE: director_message_rows is deliberately NOT healed — schema v14
+    // dropped it (the Director session is ephemeral, never persisted).
+    await _ensureTable(groupChatRows, 'group_chat_rows');
+    await _ensureTable(groupChatMemberRows, 'group_chat_member_rows');
+    await _ensureTable(deletedRecordRows, 'deleted_record_rows');
+    await _ensureTable(deletionMarkerRows, 'deletion_marker_rows');
+
+    // Pending-cap columns on group_chat_rows if an older partial create existed.
+    await _ensureColumn(
+      'group_chat_rows',
+      'pending_cap_assistant_message_id',
+      'ALTER TABLE group_chat_rows ADD COLUMN pending_cap_assistant_message_id TEXT NULL',
+    );
+    await _ensureColumn(
+      'group_chat_rows',
+      'assistant_messages_this_round',
+      'ALTER TABLE group_chat_rows ADD COLUMN assistant_messages_this_round INTEGER NOT NULL DEFAULT 0',
+    );
+  }
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON;');
       await customStatement('PRAGMA busy_timeout = 5000;');
+      // Always self-heal: user_version may already be 14 while individual
+      // addColumn/createTable steps were skipped (silent catch) during an
+      // earlier upgrade. Idempotent and cheap (PRAGMA lookups only when the
+      // schema is intact).
+      await _healSchemaIfNeeded();
     },
     onUpgrade: (migrator, from, to) async {
       if (from < 2) {
@@ -506,6 +700,8 @@ class AppDatabase extends _$AppDatabase {
         // transcript); the v13 table is unused by the live flow.
         await customStatement('DROP TABLE IF EXISTS director_message_rows');
       }
+      // Final pass: heal any column/table that still did not land.
+      await _healSchemaIfNeeded();
     },
   );
 }

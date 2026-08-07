@@ -28,7 +28,7 @@ interface ConversationEntity {
   id: string
   assistant_id: string                     // 默认 "0950e2dc-9bd5-4801-afa3-aa887aa36b4e"
   title: string
-  nodes: string                            // JSON: List<回合节点>；每节点 = 一轮消息，内层 messages 为该轮 regenerate 的 alternatives，select_index 标当前版本
+  nodes: string                            // **恒为 "[]"（历史遗留字段）**；节点数据实际存于 message_node 表
   create_at: number                        // epoch millis
   update_at: number
   suggestions: string                      // JSON: string[]，默认 "[]"
@@ -40,13 +40,13 @@ interface ConversationEntity {
   folder_id: string
 }
 
-/** 回合节点（表名 message_node，conversation_id 外键 CASCADE，索引 conversation_id）——与 ConversationEntity.nodes 内的条目同构 */
+/** 回合节点（表名 message_node，conversation_id 外键 CASCADE，索引 conversation_id）——真实数据源 */
 interface MessageNodeEntity {
   id: string
   conversation_id: string
-  node_index: number
-  messages: string                         // JSON: List<UIMessage>，同一轮的 alternatives（regenerate 版本）
-  select_index: number                     // 当前展示的 alternative 下标；迁移只取该版
+  node_index: number                        // 回合序号，按序拼接成完整对话
+  messages: string                         // JSON: List<UIMessage>，同一回合的 alternatives（regenerate 版本）
+  select_index: number                     // 当前展示的 alternative 下标（camelCase: selectIndex）；迁移只取该版
 }
 
 /** 记忆（表名 MemoryEntity） */

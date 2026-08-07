@@ -6,7 +6,7 @@
 
 | 层 | 源 | 目标 | 策略 |
 |---|---|---|---|
-| 会话 | `ConversationEntity` + `nodes` | `chats.json.conversations` | 逐回合取 `select_index` 版本，未选版本丢弃入报告 |
+| 会话 | `ConversationEntity` + `message_node` | `chats.json.conversations` | 节点取自 **message_node 表**（`ConversationEntity.nodes` 恒为 `"[]"`，历史遗留）；逐回合取 `select_index` 版本，未选版本丢弃入报告 |
 | 消息 | `UIMessage`（parts） | `chats.json.messages` + `toolEvents` | parts → content 内联标记 + 推理字段 + 工具事件 |
 | 助手 | `Settings.assistants` | `assistants_v1` | 全量真实还原，UUID 保留；未定义 assistantId 兜底占位 |
 | 提供商 | `Settings.providers` | `provider_configs_v1` | 生成 providerKey = RikkaHub provider UUID，模型 UUID 解引用 |
@@ -16,13 +16,13 @@
 
 ## 会话层
 
-`ConversationEntity` → `Conversation`：
+`ConversationEntity` + `message_node` 表 → `Conversation`：
 
 | 源 | 目标 | 备注 |
 |---|---|---|
 | `id` | `id` | UUID 保留 |
 | `title` | `title` | |
-| `nodes`（`List<NodeTurn>`，每个含 `messages: List<UIMessage>` + `select_index`） | 线性化 | 每回合取 `messages[select_index]`，其余 alternatives 丢弃计数入报告 |
+| `message_node` 行（按 `node_index` 升序；`messages` JSON 为该回合 alternatives + `select_index`） | 线性化 | 每回合取 `messages[select_index]`（kotlinx camelCase），其余 alternatives 丢弃计数入报告；`ConversationEntity.nodes` 恒为 `"[]"`，仅作历史兜底 |
 | 首/末条消息 `createdAt` | `createdAt` / `updatedAt` | 避免 epoch→ISO 的时区猜测；无消息时用 `create_at`/`update_at` 兜底 |
 | 线性化消息 id 列表 | `messageIds` | |
 | `is_pinned` | `isPinned` | |

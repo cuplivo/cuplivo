@@ -462,11 +462,15 @@ export interface MessageNodeEntity {
   select_index: number;
 }
 
-/** ConversationEntity.nodes 内的节点条目（与 message_node 表同构） */
+/**
+ * 会话节点（真实结构，kotlinx camelCase 序列化）：
+ * 每个节点 = 一个回合，messages 为该回合 regenerate 的 alternatives，selectIndex 为当前版本。
+ * 存储位置：message_node 表（ConversationEntity.nodes 恒为 "[]"，历史遗留字段）。
+ */
 export interface NodeTurn {
   id: string;
   messages: UIMessage[];
-  select_index: number;
+  selectIndex: number;
 }
 
 export interface MemoryEntity {

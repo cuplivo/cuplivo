@@ -66,7 +66,7 @@ export function mapProviders(ctx: MigrateContext): ProvidersOutput {
   const configs: Record<string, ProviderConfig> = {};
   const order: string[] = [];
 
-  for (const p of settings.providers) {
+  for (const p of settings.providers ?? []) {
     configs[p.id] = mapProvider(p);
     order.push(p.id);
     ctx.providerKeyById.set(p.id, p.id);
@@ -92,7 +92,7 @@ export function mapProviders(ctx: MigrateContext): ProvidersOutput {
   };
 
   const pinned: ModelRef[] = [];
-  for (const uuid of settings.favoriteModels) {
+  for (const uuid of settings.favoriteModels ?? []) {
     const ref = resolveRef(uuid);
     if (ref) pinned.push(ref);
   }

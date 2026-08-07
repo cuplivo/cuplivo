@@ -16,9 +16,12 @@ const PROVIDER_ID = 'prov-1';
 const MODEL_ID = 'model-1';
 const AST_ID = 'ast-1';
 
-// ---------- 1. 构造 RikkaHub SQLite ----------
-function buildDb(): Uint8Array {
-  const db = new sqlite3.oo1.DB('/build.db', 'c');
+// ---------- 1. 构造 RikkaHub SQLite（真实结构：WAL 模式 + nodes 恒 "[]" + message_node 表） ----------
+let buildCounter = 0;
+function buildDb(): { db: Uint8Array; wal: Uint8Array | null } {
+  buildCounter++;
+  const db = new sqlite3.oo1.DB(`/build_${buildCounter}.db`, 'c');
+  db.exec('PRAGMA journal_mode=WAL');
   db.exec(`
     CREATE TABLE room_master_table (id INTEGER PRIMARY KEY, identity_hash TEXT);
     CREATE TABLE ConversationEntity (
@@ -26,6 +29,10 @@ function buildDb(): Uint8Array {
       create_at INTEGER, update_at INTEGER, suggestions TEXT, is_pinned INTEGER,
       custom_system_prompt TEXT, mode_injection_ids TEXT, lorebook_ids TEXT,
       workspace_cwd TEXT, folder_id TEXT
+    );
+    CREATE TABLE message_node (
+      id TEXT PRIMARY KEY, conversation_id TEXT, node_index INTEGER,
+      messages TEXT, select_index INTEGER
     );
     CREATE TABLE MemoryEntity (id INTEGER PRIMARY KEY, assistant_id TEXT, content TEXT);
     CREATE TABLE conversation_folder (id TEXT PRIMARY KEY, assistant_id TEXT, name TEXT, sort_index INTEGER, create_at INTEGER);
@@ -55,25 +62,29 @@ function buildDb(): Uint8Array {
     annotations: [], createdAt: '2026-01-01T10:00:04.000', finishedAt: '2026-01-01T10:00:05.000',
     modelId: MODEL_ID, usage: { promptTokens: 10, completionTokens: 20, cachedTokens: 0, totalTokens: 30 }, translation: null,
   };
+  const alt3 = { ...alt2, id: 'msg-3' };
 
-  const conv1Nodes = JSON.stringify([
-    { id: 'node-1', messages: [alt1, alt2], select_index: 1 },
-    { id: 'node-2', messages: [assistantMsg], select_index: 0 },
-  ]);
-  const conv2Nodes = JSON.stringify([
-    { id: 'node-1', messages: [{ ...alt2, id: 'msg-3' }], select_index: 0 },
-  ]);
-
+  // 真实结构：ConversationEntity.nodes 恒为 "[]"；节点存于 message_node 表
   db.exec(
-    `INSERT INTO ConversationEntity VALUES ('conv-1', '${AST_ID}', '测试会话', '${conv1Nodes}', 1767250000000, 1767250005000, '["建议1"]', 1, '', '[]', '[]', '', '')`,
+    `INSERT INTO ConversationEntity VALUES ('conv-1', '${AST_ID}', '测试会话', '[]', 1767250000000, 1767250005000, '["建议1"]', 1, '', '[]', '[]', '', '')`,
   );
   db.exec(
-    `INSERT INTO ConversationEntity VALUES ('conv-2', '${DEFAULT_ASSISTANT}', '默认助手会话', '${conv2Nodes}', 1767250000000, 1767250005000, '[]', 0, '你是我的写作搭档', '[]', '[]', '', '')`,
+    `INSERT INTO ConversationEntity VALUES ('conv-2', '${DEFAULT_ASSISTANT}', '默认助手会话', '[]', 1767250000000, 1767250005000, '[]', 0, '你是我的写作搭档', '[]', '[]', '', '')`,
+  );
+  db.exec(
+    `INSERT INTO message_node VALUES ('node-1', 'conv-1', 0, '${JSON.stringify([alt1, alt2])}', 1)`,
+  );
+  db.exec(
+    `INSERT INTO message_node VALUES ('node-2', 'conv-1', 1, '${JSON.stringify([assistantMsg])}', 0)`,
+  );
+  db.exec(
+    `INSERT INTO message_node VALUES ('node-3', 'conv-2', 0, '${JSON.stringify([alt3])}', 0)`,
   );
 
-  const bytes = sqlite3.capi.sqlite3_js_db_export(db.pointer);
+  const dbBytes = sqlite3.capi.sqlite3_js_db_export(db.pointer);
   db.close();
-  return bytes;
+  // 不导出 wal：export 已含未 checkpoint 数据；zip 不含 wal 时验证非 WAL 路径
+  return { db: dbBytes, wal: null };
 }
 
 // ---------- 2. 构造 settings.json ----------
@@ -166,10 +177,11 @@ function buildSettings(): string {
 }
 
 // ---------- 3. 组装 zip 并迁移 ----------
-const dbBytes = buildDb();
+const built = buildDb();
 const zip = new JSZip();
 zip.file('settings.json', buildSettings());
-zip.file('rikka_hub.db', dbBytes);
+zip.file('rikka_hub.db', built.db);
+if (built.wal) zip.file('rikka_hub-wal', built.wal);
 zip.file('upload/paste_123.png', new Uint8Array([0x89, 0x50, 0x4e, 0x47]));
 
 const result = await migrateRikkaHubToKelivo(zip, 'backup_20260101_120000.zip');
@@ -255,6 +267,21 @@ assert.ok(report.dropped.some((d) => d.category.includes('搜索服务')), '搜�
 assert.ok(report.dropped.some((d) => d.category.includes('TTS')), 'TTS 丢弃入报告');
 assert.ok(report.warnings.some((w) => w.includes('WebDAV')), '凭据警告');
 assert.ok(report.placeholderAssistants[0].assistantId === DEFAULT_ASSISTANT, '占位助手记录');
+
+// ---------- 6.5 故障 1 回归：settings 数组字段为非数组/缺失时不得崩溃 ----------
+const badSettings = JSON.parse(buildSettings());
+badSettings.providers = { 'prov-1': { id: 'prov-1' } };
+delete badSettings.assistants;
+const badZip = new JSZip();
+badZip.file('settings.json', JSON.stringify(badSettings));
+badZip.file('rikka_hub.db', buildDb().db);
+const badResult = await migrateRikkaHubToKelivo(badZip, 'bad.zip');
+assert.strictEqual(badResult.report.totals.conversations, 2, 'settings 异常时仍迁移 DB 会话');
+assert.strictEqual(badResult.report.totals.assistants, 0, 'assistants 缺失 → 0 个映射助手');
+assert.ok(
+  badResult.report.warnings.some((w) => w.includes('providers') && w.includes('不是数组')),
+  'providers 非数组警告',
+);
 
 // ---------- 7. 恢复工具（合成 Kelivo zip）----------
 const kelivoZip = new JSZip();

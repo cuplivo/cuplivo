@@ -98,16 +98,16 @@ export interface AssistantLayerOutput {
 export function mapAssistants(ctx: MigrateContext): AssistantLayerOutput {
   const { settings, report } = ctx;
   const assistants: KelivoAssistant[] = [];
-  const tagList = settings.assistantTags.map((t) => ({ id: t.id, name: t.name }));
+  const tagList = (settings.assistantTags ?? []).map((t) => ({ id: t.id, name: t.name }));
   const tagMap: Record<string, string> = {};
   const lorebookIdsByAssistant: Record<string, string[]> = {};
   const injectionIdsByAssistant: Record<string, string[]> = {};
 
-  for (const rh of settings.assistants) {
+  for (const rh of settings.assistants ?? []) {
     const k = mapAssistant(rh, ctx);
     assistants.push(k);
     ctx.kelivoAssistants.set(k.id, k);
-    if (rh.tags.length > 0) {
+    if (rh.tags && rh.tags.length > 0) {
       const first = rh.tags[0];
       if (tagList.some((t) => t.id === first)) {
         tagMap[k.id] = first;
@@ -116,8 +116,8 @@ export function mapAssistants(ctx: MigrateContext): AssistantLayerOutput {
         drop(report, '助手多标签（Kelivo 每助手仅支持 1 个，保留首个）', rh.tags.length - 1, [rh.name]);
       }
     }
-    if (rh.lorebookIds.length > 0) lorebookIdsByAssistant[k.id] = [...rh.lorebookIds];
-    if (rh.modeInjectionIds.length > 0) injectionIdsByAssistant[k.id] = [...rh.modeInjectionIds];
+    if (rh.lorebookIds && rh.lorebookIds.length > 0) lorebookIdsByAssistant[k.id] = [...rh.lorebookIds];
+    if (rh.modeInjectionIds && rh.modeInjectionIds.length > 0) injectionIdsByAssistant[k.id] = [...rh.modeInjectionIds];
   }
 
   report.totals.assistants = assistants.length;

@@ -230,10 +230,39 @@ function mapMessage(
   return message;
 }
 
+/** 容错解析节点：真实数据在 message_node 表（selectIndex camelCase）；nodes JSON 仅作历史兜底（兼容 select_index） */
 function parseNodes(raw: string): NodeTurn[] | null {
-  const nodes = tryParseOrNull<NodeTurn[]>(raw);
+  const nodes = tryParseOrNull<Array<{ id?: string; messages?: UIMessage[]; selectIndex?: number; select_index?: number }>>(raw);
   if (!Array.isArray(nodes)) return null;
-  return nodes.filter((n) => n && Array.isArray(n.messages));
+  return nodes
+    .filter((n) => n && Array.isArray(n.messages))
+    .map((n) => ({
+      id: n.id ?? '',
+      messages: (n.messages ?? []) as UIMessage[],
+      selectIndex: n.selectIndex ?? n.select_index ?? 0,
+    }));
+}
+
+/** 从 message_node 表加载全部会话节点（真实数据源），按 conversation_id + node_index 排序 */
+function loadNodesFromDb(ctx: MigrateContext): Map<string, NodeTurn[]> {
+  const map = new Map<string, NodeTurn[]>();
+  try {
+    const rows = ctx.source.db?.queryAll<{
+      conversation_id: string;
+      node_index: number;
+      messages: string;
+      select_index: number;
+    }>('SELECT conversation_id, node_index, messages, select_index FROM message_node ORDER BY conversation_id, node_index');
+    for (const row of rows ?? []) {
+      const turns = map.get(row.conversation_id) ?? [];
+      const messages = tryParseOrNull<UIMessage[]>(row.messages);
+      turns.push({ id: '', messages: messages ?? [], selectIndex: row.select_index });
+      map.set(row.conversation_id, turns);
+    }
+  } catch {
+    /* message_node 表可能不存在（旧版本），回退 nodes JSON */
+  }
+  return map;
 }
 
 export function mapDataLayer(ctx: MigrateContext): DataLayerOutput {
@@ -260,17 +289,18 @@ export function mapDataLayer(ctx: MigrateContext): DataLayerOutput {
   ensurePlaceholders(ctx, hints);
 
   let droppedAlternatives = 0;
+  const nodesByConv = loadNodesFromDb(ctx);
   for (const c of convs) {
     const convMessageIds: string[] = [];
     let firstTs: string | null = null;
     let lastTs: string | null = null;
 
-    const nodes = parseNodes(c.nodes);
+    const nodes = nodesByConv.get(c.id) ?? parseNodes(c.nodes) ?? [];
     if (!nodes || nodes.length === 0) {
-      drop(report, 'nodes 解析失败或为空（消息未迁移）', 1, [c.title || c.id]);
+      drop(report, '无节点数据（message_node 表与 nodes 均为空）', 1, [c.title || c.id]);
     }
-    for (const node of nodes ?? []) {
-      const sel = node.select_index ?? 0;
+    for (const node of nodes) {
+      const sel = node.selectIndex ?? 0;
       const alternatives = node.messages;
       const chosen = alternatives[sel] ?? alternatives[0];
       droppedAlternatives += alternatives.length - (chosen ? 1 : 0);

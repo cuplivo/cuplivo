@@ -42,6 +42,21 @@ export async function migrateRikkaHubToKelivo(zip: JSZip, sourceFileName: string
       placeholderCount: 0,
     };
 
+    // 防御：settings 数组字段若缺失/非数组（版本差异），归一化为空数组并警告
+    if (settings) {
+      for (const key of [
+        'providers', 'assistants', 'assistantTags', 'searchServices', 'mcpServers',
+        'ttsProviders', 'asrProviders', 'quickMessages', 'modeInjections', 'lorebooks',
+        'favoriteModels',
+      ] as const) {
+        const v = (settings as unknown as Record<string, unknown>)[key];
+        if (v !== undefined && !Array.isArray(v)) {
+          report.warnings.push(`settings.json 字段「${key}」不是数组（可能是旧版本格式），已忽略该层。`);
+          (settings as unknown as Record<string, unknown>)[key] = [];
+        }
+      }
+    }
+
     // 1. 模型层：providers → provider_configs_v1（同时填充 modelById）
     const providers = settings ? mapProviders(ctx) : { configs: {}, order: [], pinned: [], selected: null, titleModel: null };
 

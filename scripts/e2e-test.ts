@@ -6,8 +6,7 @@ import JSZip from 'jszip';
 import assert from 'node:assert/strict';
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { migrateRikkaHubToKelivo } from '../src/lib/migrate';
-import { recoverAssistants } from '../src/lib/kelivo/assistant-recovery';
-import { recoverConversations } from '../src/lib/kelivo/conversation-recovery';
+import { runRecovery, RECOVERY_ASSISTANT_NAME } from '../src/lib/kelivo/recovery';
 import type { SettingsJson } from '../src/lib/kelivo/types';
 
 const sqlite3 = await sqlite3InitModule({ print: () => {}, printErr: () => {} });
@@ -257,7 +256,7 @@ assert.ok(report.dropped.some((d) => d.category.includes('TTS')), 'TTS 丢弃入
 assert.ok(report.warnings.some((w) => w.includes('WebDAV')), '凭据警告');
 assert.ok(report.placeholderAssistants[0].assistantId === DEFAULT_ASSISTANT, '占位助手记录');
 
-// ---------- 7. 找回工具（合成 Kelivo zip）----------
+// ---------- 7. 恢复工具（合成 Kelivo zip）----------
 const kelivoZip = new JSZip();
 kelivoZip.file(
   'settings.json',
@@ -275,6 +274,7 @@ kelivoZip.file(
     conversations: [
       { id: 'c1', title: '会话1', assistantId: 'ast-missing', messageIds: ['m1'], createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00', isPinned: false, mcpServerIds: [], parentConversationId: null, truncateIndex: -1, versionSelections: {}, summary: null, lastSummarizedMessageCount: 0, chatSuggestions: [], conversationKind: 'normal' },
       { id: 'c2', title: '会话2', assistantId: 'ast-ok', messageIds: ['m2'], createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00', isPinned: false, mcpServerIds: [], parentConversationId: null, truncateIndex: -1, versionSelections: {}, summary: null, lastSummarizedMessageCount: 0, chatSuggestions: [], conversationKind: 'normal' },
+      { id: 'c3', title: '无主会话', assistantId: null, messageIds: [], createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00', isPinned: false, mcpServerIds: [], parentConversationId: null, truncateIndex: -1, versionSelections: {}, summary: null, lastSummarizedMessageCount: 0, chatSuggestions: [], conversationKind: 'normal' },
     ],
     messages: [
       { id: 'm1', role: 'user', content: 'hi', timestamp: '2026-01-01T00:00:00', conversationId: 'c1' },
@@ -289,19 +289,30 @@ kelivoZip.file(
   }),
 );
 
-const ar = await recoverAssistants(kelivoZip.clone(), 'kelivo_backup.zip');
-assert.strictEqual(ar.missingCount, 1, '找回 1 个缺失助手');
-assert.strictEqual(ar.createdCount, 1);
-const arSettings = JSON.parse(await ar.outputZip.file('settings.json')!.async('string'));
-assert.ok(JSON.parse(arSettings.assistants_v1).some((a: { id: string }) => a.id === 'ast-missing' && a.name === 'Found 01'), '占位助手 Found 01');
+const rec = await runRecovery(kelivoZip, 'kelivo_backup.zip');
+assert.strictEqual(rec.missingAssistants.length, 1, '找回 1 个缺失助手');
+assert.strictEqual(rec.placeholdersCreated, 2, '新建占位 2 个（ast-missing + 恢复的会话）');
+assert.strictEqual(rec.orphanMessages, 2, '2 条孤儿消息');
+assert.strictEqual(rec.shellsRestored, 1, '重建 1 个会话壳');
+assert.strictEqual(rec.mountedCount, 2, '挂载 2 个（会话壳 + 原 null 会话）');
 
-const cr = await recoverConversations(kelivoZip.clone(), 'kelivo_backup.zip');
-assert.strictEqual(cr.orphanCount, 2, '2 条孤儿消息');
-assert.strictEqual(cr.restoredCount, 1, '重建 1 个会话壳');
-assert.strictEqual(cr.restored[0].conversationId, 'ghost-1');
-assert.strictEqual(cr.restored[0].title, '孤儿消息');
-const crChats = JSON.parse(await cr.outputZip.file('chats.json')!.async('string'));
-assert.strictEqual(crChats.conversations.length, 3, '会话壳追加');
+const recSettings = JSON.parse(await rec.outputZip.file('settings.json')!.async('string'));
+const recAssistants = JSON.parse(recSettings.assistants_v1);
+assert.strictEqual(recAssistants.length, 3, '助手列表 3 个（已有 + Found 01 + 恢复的会话）');
+assert.ok(recAssistants.some((a: { id: string; name: string }) => a.id === 'ast-missing' && a.name === 'Found 01'), 'Found 01 占位');
+assert.ok(
+  recAssistants.some((a: { id: string; name: string }) => a.name === RECOVERY_ASSISTANT_NAME),
+  '恢复的会话助手存在',
+);
+
+const recChats = JSON.parse(await rec.outputZip.file('chats.json')!.async('string'));
+assert.strictEqual(recChats.conversations.length, 4, '会话总数 4（含会话壳）');
+const ghost = recChats.conversations.find((c: { id: string }) => c.id === 'ghost-1');
+assert.strictEqual(ghost.assistantId, rec.recoveryAssistantId, '会话壳挂载到恢复助手');
+assert.strictEqual(ghost.title, '孤儿消息');
+assert.deepStrictEqual(ghost.messageIds, ['m3', 'm4']);
+const c3 = recChats.conversations.find((c: { id: string }) => c.id === 'c3');
+assert.strictEqual(c3.assistantId, rec.recoveryAssistantId, '原 null 会话挂载到恢复助手');
 
 console.log('✅ e2e 全部通过');
 console.log(`  迁移: ${report.totals.conversations} 会话 / ${report.totals.messages} 消息 / ${report.totals.assistants} 助手 / ${report.totals.providers} 提供商`);

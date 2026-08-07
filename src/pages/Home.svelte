@@ -1,9 +1,7 @@
 <script lang="ts">
-  import type { View } from '../lib/view';
+  import { navigate } from '../lib/view.svelte';
 
-  let { onNavigate }: { onNavigate: (v: View) => void } = $props();
-
-  const tools: { id: View; title: string; desc: string; icon: string }[] = [
+  const tools: { id: 'migrate' | 'recover'; title: string; desc: string; icon: string }[] = [
     {
       id: 'migrate',
       title: '迁移',
@@ -11,16 +9,10 @@
       icon: '🔄',
     },
     {
-      id: 'assistant',
-      title: '助手找回',
-      desc: '扫描 chats.json 中缺失于助手列表的 assistantId，重建占位助手，恢复历史对话的访问。',
+      id: 'recover',
+      title: '恢复',
+      desc: '缺失助手重建占位、孤儿消息重建会话壳、null 会话挂载到恢复助手——一次扫描全部完成。',
       icon: '🧩',
-    },
-    {
-      id: 'conversation',
-      title: '对话找回',
-      desc: '会话条目损坏但消息幸存时，按 conversationId 重建会话壳。已删对话（deleted.json 墓碑）不可恢复。',
-      icon: '💬',
     },
   ];
 </script>
@@ -34,11 +26,11 @@
     </p>
   </section>
 
-  <section class="grid md:grid-cols-3 gap-4">
+  <section class="grid md:grid-cols-2 gap-4">
     {#each tools as tool}
       <button
         class="text-left bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md hover:border-blue-300 transition-all"
-        onclick={() => onNavigate(tool.id)}
+        onclick={() => navigate(tool.id)}
       >
         <div class="text-2xl mb-3">{tool.icon}</div>
         <div class="font-bold text-gray-900 mb-1">{tool.title}</div>

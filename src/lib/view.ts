@@ -1,1 +1,1 @@
-export type View = 'home' | 'migrate' | 'assistant' | 'conversation';
+export type View = 'home' | 'migrate' | 'recover';

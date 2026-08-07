@@ -1,0 +1,392 @@
+﻿/**
+ * Kelivo 澶囦唤鏍煎紡绫诲瀷瀹氫箟锛坈anonical锛屾潵婧愶細kelivo.md 璋冪爺鏂囨。锛? * - chats.json: v2.6.0 涓?version 2锛泇1.1.17 涓?version 1锛堝瓧娈靛瓙闆嗭級
+ * - settings.json: 鎵佸钩 `<鍔熻兘>_v<n>` prefs 蹇収锛岄泦鍚堢被鍨嬪潎涓?JSON 缂栫爜瀛楃涓? */
+
+/** ISO 8601 瀛楃涓诧紙濡?2026-07-03T12:34:56.123456锛?*/
+export type IsoDateTime = string;
+
+/** JSON 缂栫爜鐨勫瓧绗︿覆鍊硷紙瑙ｇ爜鍚庝负娉ㄩ噴鎵€杩扮粨鏋勶級 */
+export type JsonString = string;
+
+/** '<providerKey>::<modelId>' 澶嶅悎妯″瀷寮曠敤 */
+export type ModelRef = string;
+
+// ===== chats.json =====
+
+export interface ToolEvent {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+  content: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface Conversation {
+  id: string;
+  title: string;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
+  messageIds: string[];
+  isPinned: boolean;
+  mcpServerIds: string[];
+  assistantId: string | null;
+  parentConversationId: string | null;
+  truncateIndex: number;
+  versionSelections: Record<string, number>;
+  summary: string | null;
+  lastSummarizedMessageCount: number;
+  chatSuggestions: string[];
+  conversationKind: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: IsoDateTime;
+  modelId: string | null;
+  providerId: string | null;
+  totalTokens: number | null;
+  conversationId: string;
+  isStreaming: boolean;
+  reasoningText: string | null;
+  reasoningStartAt: IsoDateTime | null;
+  reasoningFinishedAt: IsoDateTime | null;
+  translation: string | null;
+  reasoningSegmentsJson: string | null;
+  groupId: string | null;
+  subgroupId: string | null;
+  version: number;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  cachedTokens: number | null;
+  durationMs: number | null;
+  isPreset: boolean;
+  speakerAssistantId: string | null;
+}
+
+export interface GroupChat {
+  id: string;
+  name: string;
+  avatar: string | null;
+  conversationId: string;
+  directorModelProvider: string | null;
+  directorModelId: string | null;
+  directorSystemPrompt: string;
+  maxAssistantMessagesPerRound: number;
+  assistantDetailInjectionMode: string;
+  assistantDetailInjectionN: number;
+  pendingCapAssistantMessageId: string | null;
+  assistantMessagesThisRound: number;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
+}
+
+export interface GroupChatMember {
+  groupChatId: string;
+  memberKey: string;
+  assistantId: string | null;
+  sortOrder: number;
+}
+
+export interface ChatsFileV2 {
+  version: 2;
+  conversations: Conversation[];
+  messages: ChatMessage[];
+  toolEvents: Record<string, ToolEvent[]>;
+  geminiThoughtSigs: Record<string, string>;
+  groupChats: GroupChat[];
+  groupMembers: GroupChatMember[];
+}
+
+/** v1.1.17锛氭棤 groupChats/groupMembers锛汣onversation 缂洪儴鍒嗗瓧娈碉紱ChatMessage 缂?subgroupId/isPreset/speakerAssistantId */
+export interface ChatsFileV1 {
+  version: 1;
+  conversations: Array<Partial<Conversation>>;
+  messages: Array<Partial<ChatMessage>>;
+  toolEvents: Record<string, ToolEvent[]>;
+  geminiThoughtSigs: Record<string, string>;
+}
+
+export type ChatsFile = ChatsFileV2 | ChatsFileV1;
+
+/** deleted.json锛氬垹闄ゅ纰戯紝鎸?entityType 鍒嗙粍锛屼粎鍚?id 涓?deletedAt锛堟棤鍐呭锛?*/
+export interface DeletedFile {
+  [entityType: string]: { id: string; deletedAt: IsoDateTime }[];
+}
+
+// ===== settings.json =====
+
+export interface AssistantRegex {
+  id: string;
+  name: string;
+  pattern: string;
+  replacement: string;
+  scopes: ('user' | 'assistant')[];
+  visualOnly: boolean;
+  replaceOnly: boolean;
+  enabled: boolean;
+}
+
+export interface Assistant {
+  id: string;
+  name: string;
+  avatar: string | null;
+  useAssistantAvatar: boolean;
+  useAssistantName: boolean;
+  chatModelProvider: string | null;
+  chatModelId: string | null;
+  temperature: number | null;
+  topP: number | null;
+  contextMessageSize: number;
+  limitContextMessages: boolean;
+  streamOutput: boolean;
+  thinkingBudget: number | null;
+  maxTokens: number | null;
+  systemPrompt: string;
+  messageTemplate: string;
+  searchEnabled: boolean;
+  mcpServerIds: string[];
+  localToolIds: string[];
+  skillIds: string[];
+  background: string | null;
+  customHeaders: { name: string; value: string }[];
+  customBody: { key: string; value: string }[];
+  enableMemory: boolean;
+  memoryMode: string;
+  enableRecentChatsReference: boolean;
+  recentChatsSummaryMessageCount: number;
+  memoryRecordPrompt: string;
+  presetMessages: { id: string; role: string; content: string }[];
+  regexRules: AssistantRegex[];
+  enableProactiveCare: boolean;
+  proactiveCareNextMessageAt: IsoDateTime | null;
+  proactiveCarePrompt: string;
+  proactiveCareDecisionPrompt: string;
+  docxMode: string;
+  pdfMode: string;
+  otherOfficeMode: string;
+  ocrMode: string;
+  enableTimeInjection: boolean;
+  discoverable: boolean;
+  handoffId: string | null;
+  handoffDescription: string | null;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
+}
+
+export interface ProviderConfig {
+  id: string;
+  enabled: boolean;
+  name: string;
+  apiKey: string;
+  baseUrl: string;
+  providerType?: string;
+  chatPath?: string;
+  useResponseApi?: boolean;
+  enableToolResultImages?: boolean;
+  vertexAI?: boolean;
+  location?: string;
+  projectId?: string;
+  serviceAccountJson?: string;
+  models: string[];
+  modelOverrides?: Record<
+    string,
+    {
+      apiModelId?: string;
+      name?: string;
+      type?: 'chat' | 'embedding';
+      input?: unknown[];
+      output?: unknown[];
+      abilities?: unknown[];
+      tools?: unknown;
+    }
+  >;
+  proxyEnabled?: boolean;
+  proxyType?: string;
+  proxyHost?: string;
+  proxyPort?: string;
+  proxyUsername?: string;
+  proxyPassword?: string;
+  avatarType?: 'emoji' | 'url' | 'file' | 'icon' | 'lobehub';
+  avatarValue?: string;
+  multiKeyEnabled?: boolean;
+  apiKeys?: unknown[];
+  keyManagement?: unknown;
+  aihubmixAppCodeEnabled?: boolean;
+  balanceEnabled?: boolean;
+  balanceApiPath?: string;
+  balanceResultPath?: string;
+  claudePromptCachingEnabled: boolean;
+  claudePromptCachingTtl?: '5m' | '1h';
+  customHeaders?: { name: string; value: string }[] | null;
+  customBody?: { key: string; value: string }[] | null;
+}
+
+export interface AssistantMemory {
+  id: number;
+  assistantId: string;
+  content: string;
+}
+
+export interface AssistantTag {
+  id: string;
+  name: string;
+}
+
+export interface WorldBookEntry {
+  id: string;
+  name: string;
+  enabled: boolean;
+  priority: number;
+  position:
+    | 'BEFORE_SYSTEM_PROMPT'
+    | 'AFTER_SYSTEM_PROMPT'
+    | 'TOP_OF_CHAT'
+    | 'BOTTOM_OF_CHAT'
+    | 'AT_DEPTH';
+  content: string;
+  injectDepth: number;
+  role: 'USER' | 'ASSISTANT';
+  keywords: string[];
+  useRegex: boolean;
+  caseSensitive: boolean;
+  scanDepth: number;
+  constantActive: boolean;
+}
+
+export interface WorldBook {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  entries: WorldBookEntry[];
+}
+
+export interface InstructionInjection {
+  id: string;
+  title: string;
+  prompt: string;
+  group: string;
+}
+
+export interface QuickPhrase {
+  id: string;
+  title: string;
+  content: string;
+  isGlobal: boolean;
+  assistantId?: string | null;
+}
+
+export interface McpToolConfig {
+  enabled: boolean;
+  name: string;
+  description?: string;
+  params: { name: string; required: boolean; type?: string; default?: unknown }[];
+  schema?: Record<string, unknown>;
+  needsApproval: boolean;
+}
+
+export interface McpServerConfig {
+  id: string;
+  enabled: boolean;
+  name: string;
+  transport: 'sse' | 'http' | 'stdio' | 'inmemory';
+  url: string;
+  tools: McpToolConfig[];
+  headers: Record<string, string>;
+  command?: string;
+  args: string[];
+  env: Record<string, string>;
+  workingDirectory?: string;
+  heartbeatIntervalSeconds?: number;
+  toolPrefix: string;
+  oauth?: Record<string, unknown>;
+  oauthToken?: Record<string, unknown>;
+}
+
+export interface SearchServiceOptions {
+  type: string;
+  id: string;
+  apiKeys: unknown[];
+  apiKey?: string;
+  keyManagement?: unknown;
+  [k: string]: unknown;
+}
+
+export interface TtsServiceOptions {
+  kind: string;
+  id: string;
+  enabled: boolean;
+  name: string;
+  apiKey?: string;
+  baseUrl?: string;
+  model?: string;
+  voice?: string;
+  [k: string]: unknown;
+}
+
+/** settings.json 椤跺眰锛氭墎骞抽敭鍊煎揩鐓э紝鍏ㄩ儴鍙€?*/
+export interface SettingsJson {
+  // 搴旂敤/涓婚
+  app_locale_v1?: string;
+  theme_mode_v1?: string;
+  theme_palette_v1?: string;
+  use_dynamic_color_v1?: boolean;
+  dynamic_color_seed_v1?: number;
+  // 鍔╂墜
+  assistants_v1?: JsonString;
+  current_assistant_id_v1?: string;
+  ocr_enabled_v1?: boolean;
+  // 渚涘簲鍟?妯″瀷
+  provider_configs_v1?: JsonString;
+  providers_order_v1?: string[];
+  pinned_models_v1?: string[];
+  selected_model_v1?: ModelRef;
+  title_model_v1?: ModelRef;
+  // 璁板繂/鏍囩/涓栫晫涔?鎸囦护娉ㄥ叆/蹇嵎鐭
+  assistant_memories_v1?: JsonString;
+  assistant_tags_v1?: JsonString;
+  assistant_tag_map_v1?: JsonString;
+  world_books_v1?: JsonString;
+  world_books_active_ids_by_assistant_v1?: JsonString;
+  instruction_injections_v1?: JsonString;
+  instruction_injections_active_ids_by_assistant_v1?: JsonString;
+  quick_phrases_v1?: JsonString;
+  // MCP/鎼滅储/TTS
+  mcp_servers_v1?: JsonString;
+  search_services_v1?: JsonString;
+  search_selected_v1?: number;
+  tts_services_v1?: JsonString;
+  tts_selected_v1?: number;
+  tts_speech_rate_v1?: number;
+  // 澶囦唤鎻愰啋
+  backup_reminder_enabled_v1?: boolean;
+  backup_reminder_interval_days_v1?: number;
+  backup_reminder_last_backup_at_v1?: IsoDateTime;
+  // 鏄剧ず锛堣縼绉绘椂鎸夐渶鍐欏叆鐨勫皯鏁板畨鍏ㄩ敭锛?  display_show_model_icon_v1?: boolean;
+  display_show_model_name_v1?: boolean;
+  display_show_token_stats_v1?: boolean;
+  display_show_model_timestamp_v1?: boolean;
+  display_show_user_timestamp_v1?: boolean;
+  display_enter_to_send_on_mobile_v1?: boolean;
+  display_auto_scroll_enabled_v1?: boolean;
+  display_enable_math_rendering_v1?: boolean;
+  display_auto_collapse_code_block_v1?: boolean;
+  display_mobile_code_block_wrap_v1?: boolean;
+  display_show_app_updates_v1?: boolean;
+  // 鍏朵綑閿€忎紶锛堜笉淇敼锛屼粎淇濈暀锛?  [k: string]: unknown;
+}
+
+/** Kelivo 澶囦唤 zip 椤跺眰鏉＄洰 */
+export const KELIVO_ZIP_ENTRIES = [
+  'settings.json',
+  'chats.json',
+  'deleted.json',
+  'skills/',
+  'upload/',
+  'avatars/',
+  'images/',
+  'fonts/',
+  'workspaces/',
+] as const;

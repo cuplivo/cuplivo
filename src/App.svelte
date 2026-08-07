@@ -5,8 +5,8 @@
   import { router, navigate } from './lib/view.svelte';
 
   const navItems: { id: 'migrate' | 'recover'; label: string }[] = [
-    { id: 'migrate', label: '杩佺Щ' },
-    { id: 'recover', label: '鎭㈠' },
+    { id: 'migrate', label: '迁移' },
+    { id: 'recover', label: '恢复' },
   ];
 </script>
 
@@ -41,5 +41,6 @@
   </main>
 
   <footer class="max-w-5xl mx-auto px-4 py-6 text-xs text-gray-400">
-    鎵€鏈夊鐞嗗潎鍦ㄦ祻瑙堝櫒鏈湴瀹屾垚锛屾暟鎹笉浼氫笂浼犮€?  </footer>
+    所有处理均在浏览器本地完成，数据不会上传。
+  </footer>
 </div>

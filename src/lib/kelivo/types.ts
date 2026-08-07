@@ -1,14 +1,16 @@
 ﻿/**
- * Kelivo 澶囦唤鏍煎紡绫诲瀷瀹氫箟锛坈anonical锛屾潵婧愶細kelivo.md 璋冪爺鏂囨。锛? * - chats.json: v2.6.0 涓?version 2锛泇1.1.17 涓?version 1锛堝瓧娈靛瓙闆嗭級
- * - settings.json: 鎵佸钩 `<鍔熻兘>_v<n>` prefs 蹇収锛岄泦鍚堢被鍨嬪潎涓?JSON 缂栫爜瀛楃涓? */
+ * Kelivo 备份格式类型定义（canonical，来源：kelivo.md 调研文档）
+ * - chats.json: v2.6.0 为 version 2；v1.1.17 为 version 1（字段子集）
+ * - settings.json: 扁平 `<功能>_v<n>` prefs 快照，集合类型均为 JSON 编码字符串
+ */
 
-/** ISO 8601 瀛楃涓诧紙濡?2026-07-03T12:34:56.123456锛?*/
+/** ISO 8601 字符串（如 2026-07-03T12:34:56.123456） */
 export type IsoDateTime = string;
 
-/** JSON 缂栫爜鐨勫瓧绗︿覆鍊硷紙瑙ｇ爜鍚庝负娉ㄩ噴鎵€杩扮粨鏋勶級 */
+/** JSON 编码的字符串值（解码后为注释所述结构） */
 export type JsonString = string;
 
-/** '<providerKey>::<modelId>' 澶嶅悎妯″瀷寮曠敤 */
+/** '<providerKey>::<modelId>' 复合模型引用 */
 export type ModelRef = string;
 
 // ===== chats.json =====
@@ -99,7 +101,7 @@ export interface ChatsFileV2 {
   groupMembers: GroupChatMember[];
 }
 
-/** v1.1.17锛氭棤 groupChats/groupMembers锛汣onversation 缂洪儴鍒嗗瓧娈碉紱ChatMessage 缂?subgroupId/isPreset/speakerAssistantId */
+/** v1.1.17：无 groupChats/groupMembers；Conversation 缺部分字段；ChatMessage 缺 subgroupId/isPreset/speakerAssistantId */
 export interface ChatsFileV1 {
   version: 1;
   conversations: Array<Partial<Conversation>>;
@@ -110,7 +112,7 @@ export interface ChatsFileV1 {
 
 export type ChatsFile = ChatsFileV2 | ChatsFileV1;
 
-/** deleted.json锛氬垹闄ゅ纰戯紝鎸?entityType 鍒嗙粍锛屼粎鍚?id 涓?deletedAt锛堟棤鍐呭锛?*/
+/** deleted.json：删除墓碑，按 entityType 分组，仅含 id 与 deletedAt（无内容） */
 export interface DeletedFile {
   [entityType: string]: { id: string; deletedAt: IsoDateTime }[];
 }
@@ -326,25 +328,25 @@ export interface TtsServiceOptions {
   [k: string]: unknown;
 }
 
-/** settings.json 椤跺眰锛氭墎骞抽敭鍊煎揩鐓э紝鍏ㄩ儴鍙€?*/
+/** settings.json 顶层：扁平键值快照，全部可选 */
 export interface SettingsJson {
-  // 搴旂敤/涓婚
+  // 应用/主题
   app_locale_v1?: string;
   theme_mode_v1?: string;
   theme_palette_v1?: string;
   use_dynamic_color_v1?: boolean;
   dynamic_color_seed_v1?: number;
-  // 鍔╂墜
+  // 助手
   assistants_v1?: JsonString;
   current_assistant_id_v1?: string;
   ocr_enabled_v1?: boolean;
-  // 渚涘簲鍟?妯″瀷
+  // 供应商/模型
   provider_configs_v1?: JsonString;
   providers_order_v1?: string[];
   pinned_models_v1?: string[];
   selected_model_v1?: ModelRef;
   title_model_v1?: ModelRef;
-  // 璁板繂/鏍囩/涓栫晫涔?鎸囦护娉ㄥ叆/蹇嵎鐭
+  // 记忆/标签/世界书/指令注入/快捷短语
   assistant_memories_v1?: JsonString;
   assistant_tags_v1?: JsonString;
   assistant_tag_map_v1?: JsonString;
@@ -353,18 +355,19 @@ export interface SettingsJson {
   instruction_injections_v1?: JsonString;
   instruction_injections_active_ids_by_assistant_v1?: JsonString;
   quick_phrases_v1?: JsonString;
-  // MCP/鎼滅储/TTS
+  // MCP/搜索/TTS
   mcp_servers_v1?: JsonString;
   search_services_v1?: JsonString;
   search_selected_v1?: number;
   tts_services_v1?: JsonString;
   tts_selected_v1?: number;
   tts_speech_rate_v1?: number;
-  // 澶囦唤鎻愰啋
+  // 备份提醒
   backup_reminder_enabled_v1?: boolean;
   backup_reminder_interval_days_v1?: number;
   backup_reminder_last_backup_at_v1?: IsoDateTime;
-  // 鏄剧ず锛堣縼绉绘椂鎸夐渶鍐欏叆鐨勫皯鏁板畨鍏ㄩ敭锛?  display_show_model_icon_v1?: boolean;
+  // 显示（迁移时按需写入的少数安全键）
+  display_show_model_icon_v1?: boolean;
   display_show_model_name_v1?: boolean;
   display_show_token_stats_v1?: boolean;
   display_show_model_timestamp_v1?: boolean;
@@ -375,10 +378,11 @@ export interface SettingsJson {
   display_auto_collapse_code_block_v1?: boolean;
   display_mobile_code_block_wrap_v1?: boolean;
   display_show_app_updates_v1?: boolean;
-  // 鍏朵綑閿€忎紶锛堜笉淇敼锛屼粎淇濈暀锛?  [k: string]: unknown;
+  // 其余键透传（不修改，仅保留）
+  [k: string]: unknown;
 }
 
-/** Kelivo 澶囦唤 zip 椤跺眰鏉＄洰 */
+/** Kelivo 备份 zip 顶层条目 */
 export const KELIVO_ZIP_ENTRIES = [
   'settings.json',
   'chats.json',

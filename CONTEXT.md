@@ -565,3 +565,21 @@
 ### Flagged Ambiguities
 
 - "显示公式" / "display formula" was used in issue #218 to mean block-level math as opposed to inline — resolved: the domain term is **Display math** (block-level TeX forms `$$...$$` and `\[...\]`); "inline math" is the flow-level counterpart.
+
+## Default Behavior (Out-of-the-Box Defaults)
+
+- **DeepSeek default**: DeepSeek is the first base provider (position 1) and enabled in the built-in provider list, and the global default chat model is seeded to `DeepSeek` / `deepseek-v4-flash` **once** — on the first load where no model was ever persisted (fresh installs and legacy installs that never chose a model). A sentinel (`default_model_seeded_v1`) is armed whenever a selection is persisted or the seed runs, so explicit user actions (`resetCurrentModel`, provider/model disable or delete) are never undone by a later launch. Persisted `providersOrder` / `currentModel` win on existing installs. The default assistant is NOT bound to DeepSeek explicitly (`chatModelProvider` stays null) — it resolves through the global default model, keeping a single source of truth.
+- **Temperature default off (默认关闭温度)**: New assistants (default assistant, sample assistant, `addAssistant()`) are created with temperature disabled (`null` → the parameter is omitted from the API payload, letting the provider sample by its own default). Toggling temperature on mid-session starts from 0.6. "关闭" means omit, never "temperature: 0".
+- **Context message limit default off**: New assistants default to `limitContextMessages: false` — full conversation history is sent without trimming. Deliberate consequence: nothing auto-guards token overrun (compression and clear-context are manual actions), so very long chats can hit provider context limits. Persisted assistants keep their stored value (`fromJson` fallback `true` untouched).
+- **Request logging default on (llm)**: The llm request-log category defaults to ON (new and missing-key installs); mcp/tts/search/flutter categories stay OFF (user opt-in). Log total is capped at 50 MB by default (oldest-first eviction, enforced at startup). Defaults apply to any install missing the key — including existing installs that never touched the toggles.
+- **Credential masking in logs (日志脱敏)**: Credential-bearing request headers (`authorization`, `proxy-authorization`, `x-api-key`, `x-goog-api-key`, `api-key`, case-insensitive) are masked in log output: the first 7 characters of the value are kept, then ` [N more]` where N = remaining length (e.g. `Authorization: Bearer [45 more]`). Bodies are logged unmasked — the troubleshooting value of the logs is preserved while credentials at rest are not.
+
+### Example Dialogue
+
+> **Dev:** "I enabled logging and my DeepSeek API key shows up in the log file!"
+> **Domain expert:** "It can't — credential-bearing headers are masked to `Bearer [45 more]` before they're written. The request bodies stay fully logged, so the request/response flow is still debuggable end-to-end. The 50 MB cap keeps the on-by-default logging from growing unbounded."
+
+### Flagged Ambiguities
+
+- "默认启动 DeepSeek" (issue #196) — resolved: default **selection**, not zero-config working. The base URL is seeded but the API key still comes from the user.
+- "关闭温度" — resolved: omit the sampling parameter, not send `temperature: 0`.

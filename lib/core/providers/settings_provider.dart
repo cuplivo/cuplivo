@@ -59,13 +59,13 @@ class SettingsProvider extends ChangeNotifier {
       'provider_ungrouped_position_v1'; // display index among groups
   static const String providerUngroupedGroupKey = '__ungrouped__';
   static const List<String> _builtInProviderKeysInOrder = [
+    'DeepSeek',
     'OpenAI',
     'SiliconFlow',
     'Gemini',
     'OpenRouter',
     'KelivoIN',
     'Tensdaq',
-    'DeepSeek',
     'AIhubmix',
     'Aliyun',
     'Zhipu AI',
@@ -91,6 +91,7 @@ class SettingsProvider extends ChangeNotifier {
   };
   static const String _pinnedModelsKey = 'pinned_models_v1';
   static const String _selectedModelKey = 'selected_model_v1';
+  static const String _defaultModelSeededKey = 'default_model_seeded_v1';
   static const String _titleModelKey = 'title_model_v1';
   static const String _titlePromptKey = 'title_prompt_v1';
   static const String _ocrModelKey = 'ocr_model_v1';
@@ -853,6 +854,20 @@ class SettingsProvider extends ChangeNotifier {
         _currentModelProvider = parts[0];
         _currentModelId = parts.sublist(1).join('::');
       }
+      // A persisted selection means the user has owned this choice at least
+      // once; arm the sentinel so a later reset is never re-seeded.
+      await prefs.setBool(_defaultModelSeededKey, true);
+    } else {
+      // One-time default: DeepSeek as the global default chat model.
+      // Seeded only on the first load where no model was ever persisted
+      // (guarded by a sentinel so explicit resets/deletes are never undone
+      // on later launches).
+      if (!(prefs.getBool(_defaultModelSeededKey) ?? false)) {
+        _currentModelProvider = 'DeepSeek';
+        _currentModelId = 'deepseek-v4-flash';
+        await prefs.setBool(_defaultModelSeededKey, true);
+        await prefs.setString(_selectedModelKey, 'DeepSeek::deepseek-v4-flash');
+      }
     }
     // load title model
     final titleSel = prefs.getString(_titleModelKey);
@@ -1037,7 +1052,7 @@ class SettingsProvider extends ChangeNotifier {
     _keepAssistantListExpandedOnSidebarClose =
         prefs.getBool(_displayKeepAssistantListExpandedOnSidebarCloseKey) ??
         false;
-    _requestLogEnabled = prefs.getBool(_requestLogEnabledKey) ?? false;
+    _requestLogEnabled = prefs.getBool(_requestLogEnabledKey) ?? true;
     await RequestLogger.setEnabled(_requestLogEnabled);
     _mcpLogEnabled = prefs.getBool(_mcpLogEnabledKey) ?? false;
     await RequestLogger.setCategoryEnabled(
@@ -1059,7 +1074,7 @@ class SettingsProvider extends ChangeNotifier {
     _logSaveOutput = prefs.getBool(_logSaveOutputKey) ?? true;
     RequestLogger.saveOutput = _logSaveOutput;
     _logAutoDeleteDays = prefs.getInt(_logAutoDeleteDaysKey) ?? 0;
-    _logMaxSizeMB = prefs.getInt(_logMaxSizeMBKey) ?? 0;
+    _logMaxSizeMB = prefs.getInt(_logMaxSizeMBKey) ?? 50;
     _trashCapMb = prefs.getInt(_trashCapMbKey) ?? 10;
     _appLaunchCount = prefs.getInt(_appLaunchCountKey) ?? 0;
     // Run log cleanup based on current settings
@@ -5177,6 +5192,7 @@ class ProviderConfig {
   static ProviderConfig defaultsFor(String key, {String? displayName}) {
     bool defaultEnabled(String k) {
       final s = k.toLowerCase();
+      if (s.contains('deepseek')) return true;
       if (s.contains('tensdaq')) return true;
       if (s.contains('openai')) return true;
       if (s.contains('gemini') || s.contains('google')) return true;

@@ -109,7 +109,7 @@ Do **not** store sensitive information, including:
     this.temperature,
     this.topP,
     this.contextMessageSize = 64,
-    this.limitContextMessages = true,
+    this.limitContextMessages = false,
     this.streamOutput = true,
     this.thinkingBudget,
     this.maxTokens,

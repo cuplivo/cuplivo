@@ -29,23 +29,28 @@ export async function loadRikkaHubSource(zip: JSZip, fileName: string, report: M
   let dbVersion: number | null = null;
   let walReplayed = false;
   const walBytes = dbBytes ? await readZipBytes(zip, 'rikka_hub-wal') : null;
-  const hasWal = !!walBytes && walBytes.length > 0;
   if (!dbBytes) {
     report.warnings.push('未找到 rikka_hub.db——数据库会话/消息无法迁移。');
   } else {
     try {
       const opened = await openRikkaHubDb({ dbName: 'rikka_hub.db', dbBytes, walBytes });
       db = opened.db;
-      walReplayed = hasWal && !opened.memoryFallback;
+      walReplayed = opened.walReplayed;
+
+      if (opened.walReplayed) {
+        report.warnings.push('rikka_hub.db 的 WAL 已回放，包含未 checkpoint 的近期数据。');
+      }
+      if (opened.walDegraded) {
+        report.warnings.push(`WAL 处理降级：${opened.walDegraded}`);
+      }
       if (opened.memoryFallback) {
         report.warnings.push(
           opened.diagnostics
-            ? `rikka_hub.db 以内存模式兜底打开（${opened.diagnostics}）——WAL 未回放，近期数据可能缺失。`
-            : 'rikka_hub.db 以内存模式兜底打开——WAL 未回放，近期数据可能缺失。',
+            ? `rikka_hub.db 以内存模式兜底打开（${opened.diagnostics}）。`
+            : 'rikka_hub.db 以内存模式兜底打开。',
         );
-      } else if (hasWal) {
-        report.warnings.push('rikka_hub.db 的 WAL 已回放，包含未 checkpoint 的近期数据。');
       }
+
       const master = db.queryOne<{ id: number; identity_hash: string }>(
         'SELECT id FROM room_master_table ORDER BY id LIMIT 1',
       );

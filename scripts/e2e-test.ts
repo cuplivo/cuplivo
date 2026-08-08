@@ -4,10 +4,13 @@
  */
 import JSZip from 'jszip';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { migrateRikkaHubToKelivo } from '../src/lib/migrate';
 import { runRecovery, RECOVERY_ASSISTANT_NAME } from '../src/lib/kelivo/recovery';
 import type { SettingsJson } from '../src/lib/kelivo/types';
+import { prepareRikkaHubDbBytes } from '../src/lib/rikkahub/wal';
+import { normalizePolymorphicType, toZipLocalPath } from '../src/lib/rikkahub/util';
 
 const sqlite3 = await sqlite3InitModule({ print: () => {}, printErr: () => {} });
 
@@ -129,13 +132,16 @@ function buildSettings(): string {
     ],
     assistants: [
       {
-        id: AST_ID, chatModelId: MODEL_ID, name: '写作助手', avatar: { type: 'Emoji', content: '✍️' }, useAssistantAvatar: true,
+        id: AST_ID, chatModelId: MODEL_ID, name: '写作助手',
+        avatar: { type: 'me.rerere.rikkahub.data.model.Avatar.Image', url: 'file:///data/user/0/me.rerere.rikkahub/files/upload/paste_123.png' },
+        useAssistantAvatar: true,
         tags: ['tag-1'], systemPrompt: '你是写作专家', temperature: 0.7, topP: null, contextMessageLimit: 32,
         streamOutput: true, enableMemory: true, useGlobalMemory: true, enableRecentChatsReference: true,
         messageTemplate: '{{ message }}', presetMessages: [], quickMessageIds: ['qm-1'],
         regexes: [{ id: 'rx-1', name: '缩写', enabled: true, findRegex: 'gpt', replaceString: 'GPT', affectingScope: ['USER'], visualOnly: false }],
         reasoningLevel: 'medium', maxTokens: null, customHeaders: [], customBodies: [], mcpServers: ['mcp-1'],
-        localTools: ['time_info'], enableWebSearch: true, workspaceId: null, background: null, backgroundOpacity: 1,
+        localTools: ['time_info'], enableWebSearch: true, workspaceId: null,
+        background: 'file:///data/user/0/me.rerere.rikkahub/files/upload/paste_123.png', backgroundOpacity: 1,
         useGradientBackground: false, modeInjectionIds: ['mi-1'], lorebookIds: ['lb-1'], enabledSkills: ['skill-a'],
         enableTimeReminder: true, allowConversationSystemPrompt: true, allowConversationPromptInjection: true,
       },
@@ -218,6 +224,8 @@ const ast = assistants.find((a: { id: string }) => a.id === AST_ID);
 assert.strictEqual(ast.name, '写作助手');
 assert.strictEqual(ast.chatModelId, 'gpt-4o', '助手模型解引用');
 assert.strictEqual(ast.chatModelProvider, PROVIDER_ID);
+assert.strictEqual(ast.avatar, 'upload/paste_123.png', 'FQCN Avatar.Image → zip 相对路径');
+assert.strictEqual(ast.background, 'upload/paste_123.png', 'background file:// → upload/');
 assert.strictEqual(ast.regexRules[0].pattern, 'gpt');
 assert.strictEqual(ast.skillIds[0], 'skill-a');
 assert.strictEqual(ast.mcpServerIds[0], 'mcp-1');
@@ -340,6 +348,56 @@ assert.strictEqual(ghost.title, '孤儿消息');
 assert.deepStrictEqual(ghost.messageIds, ['m3', 'm4']);
 const c3 = recChats.conversations.find((c: { id: string }) => c.id === 'c3');
 assert.strictEqual(c3.assistantId, rec.recoveryAssistantId, '原 null 会话挂载到恢复助手');
+
+// ---------- 8. 工具函数 + WAL 预处理 ----------
+assert.strictEqual(normalizePolymorphicType('me.rerere.rikkahub.data.model.Avatar.Image'), 'Image');
+assert.strictEqual(normalizePolymorphicType('Dummy'), 'Dummy');
+assert.strictEqual(
+  toZipLocalPath('file:///data/user/0/x/files/upload/a.png', (n) => (n === 'a.png' ? 'upload/a.png' : null)),
+  'upload/a.png',
+);
+assert.strictEqual(toZipLocalPath('https://cdn.example/x.png', () => null), 'https://cdn.example/x.png');
+
+// prepare 对非 WAL / 已折叠库幂等
+{
+  const plain = buildDb();
+  const prepPlain = prepareRikkaHubDbBytes(plain.db, null);
+  assert.ok(prepPlain.bytes.length > 0, 'prepare 非空');
+  assert.strictEqual(prepPlain.bytes[18], 1, 'prepare 后 journal 为 DELETE');
+}
+
+// ---------- 9. 真实备份 fixture（若存在）----------
+const fixturePaths = [
+  '/tmp/kelivo-helper-dev/rikkahub_backup/rikkahub_backup_20260808_153015.zip',
+  '/tmp/kelivo-helper-dev/rikkahub-procare-backup/rikkahub_backup_20260808_150406.zip',
+];
+for (const fp of fixturePaths) {
+  if (!fs.existsSync(fp)) {
+    console.log(`  skip fixture (missing): ${fp}`);
+    continue;
+  }
+  const buf = fs.readFileSync(fp);
+  const fzip = await JSZip.loadAsync(buf);
+  const dbB = await fzip.file('rikka_hub.db')!.async('uint8array');
+  const walB = fzip.file('rikka_hub-wal')
+    ? await fzip.file('rikka_hub-wal')!.async('uint8array')
+    : null;
+  const prep = prepareRikkaHubDbBytes(dbB, walB);
+  assert.ok(prep.walFramesApplied > 0 || prep.degradedReason, '真实备份 WAL 应回放或给出降级原因');
+  assert.strictEqual(prep.bytes[18], 1, 'fixture prepare → DELETE journal');
+
+  const fres = await migrateRikkaHubToKelivo(fzip, fp.split('/').pop()!);
+  assert.ok(fres.report.totals.conversations >= 200, `fixture 会话数 ${fres.report.totals.conversations}`);
+  assert.ok(fres.report.totals.messages >= 1000, `fixture 消息数 ${fres.report.totals.messages}`);
+  assert.equal(fres.report.warnings.some((w) => w.includes('CANTOPEN')), false, '无 CANTOPEN');
+  assert.ok(fres.report.source.walReplayed, 'fixture WAL 已回放');
+  const fAssistants = JSON.parse(fres.settingsFile.assistants_v1!);
+  const withAvatar = fAssistants.find((a: { avatar?: string }) => a.avatar && String(a.avatar).startsWith('upload/'));
+  assert.ok(withAvatar, '真实备份助手头像归一到 upload/');
+  console.log(
+    `  fixture OK: ${fp.split('/').pop()} → ${fres.report.totals.conversations} 会话 / ${fres.report.totals.messages} 消息 / WAL frames applied`,
+  );
+}
 
 console.log('✅ e2e 全部通过');
 console.log(`  迁移: ${report.totals.conversations} 会话 / ${report.totals.messages} 消息 / ${report.totals.assistants} 助手 / ${report.totals.providers} 提供商`);

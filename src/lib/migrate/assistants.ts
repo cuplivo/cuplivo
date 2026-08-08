@@ -1,16 +1,32 @@
 /** 助手层：RikkaHub Settings.assistants 全量真实还原 → Kelivo Assistant */
 import type { Assistant as KelivoAssistant } from '../kelivo/types';
 import type { Assistant as RhAssistant, Avatar, UIMessage } from '../rikkahub/types';
+import { normalizePolymorphicType, toZipLocalPath } from '../rikkahub/util';
+import { findFileByBasename } from '../zip';
 import type { MigrateContext } from './context';
 import { drop } from '../report';
 
 const DEFAULT_MEMORY_PROMPT =
   '你是一个记忆管理器。用户消息会被提供给你，请将重要信息整理为简洁的记忆条目。';
 
-export function mapAvatar(a: Avatar): string | null {
-  if (a.type === 'Dummy') return null;
-  if (a.type === 'Emoji') return a.content;
-  return a.url;
+export function mapAvatar(a: Avatar, ctx?: MigrateContext): string | null {
+  const t = normalizePolymorphicType(a.type);
+  if (t === 'Dummy') return null;
+  if (t === 'Emoji') {
+    const c = 'content' in a && typeof a.content === 'string' ? a.content : null;
+    return c;
+  }
+  if (t === 'Image' && 'url' in a && typeof a.url === 'string' && a.url) {
+    if (!ctx) return a.url;
+    return toZipLocalPath(a.url, (name) => findFileByBasename(ctx.source.zip, name));
+  }
+  // 未知 type：若有 url 则尝试当图片路径
+  if ('url' in a && typeof a.url === 'string') {
+    if (!ctx) return a.url;
+    return toZipLocalPath(a.url, (name) => findFileByBasename(ctx.source.zip, name));
+  }
+  if ('content' in a && typeof a.content === 'string') return a.content;
+  return null;
 }
 
 function textOf(um: UIMessage): string {
@@ -23,10 +39,13 @@ function textOf(um: UIMessage): string {
 export function mapAssistant(rh: RhAssistant, ctx: MigrateContext): KelivoAssistant {
   const model = rh.chatModelId ? ctx.modelById.get(rh.chatModelId) : undefined;
   const now = new Date().toISOString();
+  const bg = rh.background
+    ? toZipLocalPath(rh.background, (name) => findFileByBasename(ctx.source.zip, name))
+    : null;
   return {
     id: rh.id,
     name: rh.name,
-    avatar: mapAvatar(rh.avatar),
+    avatar: mapAvatar(rh.avatar, ctx),
     useAssistantAvatar: rh.useAssistantAvatar,
     useAssistantName: true,
     chatModelProvider: model?.providerKey ?? null,
@@ -44,7 +63,7 @@ export function mapAssistant(rh: RhAssistant, ctx: MigrateContext): KelivoAssist
     mcpServerIds: rh.mcpServers,
     localToolIds: [...rh.localTools],
     skillIds: [...rh.enabledSkills],
-    background: rh.background,
+    background: bg,
     customHeaders: rh.customHeaders.map((h) => ({ name: h.name, value: h.value })),
     customBody: rh.customBodies.map((b) => ({
       key: b.key,

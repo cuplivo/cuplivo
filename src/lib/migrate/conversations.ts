@@ -1,7 +1,7 @@
 /** 数据层：ConversationEntity + nodes → Kelivo conversations/messages/toolEvents */
 import type { ChatMessage, Conversation, ToolEvent, Assistant } from '../kelivo/types';
 import type { NodeTurn, UIMessage, UIMessagePart, ConversationEntity } from '../rikkahub/types';
-import { basename, isHttpUrl, isoFromEpochMillis, marker, tryParse, tryParseOrNull } from '../rikkahub/util';
+import { isoFromEpochMillis, marker, toZipLocalPath, tryParse, tryParseOrNull } from '../rikkahub/util';
 import { findFileByBasename } from '../zip';
 import type { MigrateContext } from './context';
 import { drop } from '../report';
@@ -114,20 +114,27 @@ function ensurePlaceholders(ctx: MigrateContext, hints: Map<string, PlaceholderH
 }
 
 function partToMarker(part: UIMessagePart, ctx: MigrateContext): string | null {
+  const resolve = (url: string) =>
+    toZipLocalPath(url, (name) => findFileByBasename(ctx.source.zip, name)) ?? url;
+
   if (part.type === 'image') {
-    if (isHttpUrl(part.url)) return marker('image', part.url);
-    const found = findFileByBasename(ctx.source.zip, basename(part.url));
-    const path = found ?? part.url;
-    return marker('image', path);
+    return marker('image', resolve(part.url));
   }
   if (part.type === 'document' || part.type === 'video' || part.type === 'audio') {
-    const name = part.type === 'document' ? part.fileName || basename(part.url) : basename(part.url);
+    const path = resolve(part.url);
+    const name =
+      part.type === 'document'
+        ? part.fileName || path.split('/').pop() || 'file'
+        : path.split('/').pop() || 'file';
     const mime =
-      part.type === 'document' ? part.mime || 'application/octet-stream' : undefined;
-    const found = findFileByBasename(ctx.source.zip, basename(part.url));
-    const path = found ?? part.url;
-    const m = mime ?? part.type === 'video' ? 'video/mp4' : part.type === 'audio' ? 'audio/mpeg' : 'application/octet-stream';
-    return marker('file', `${path}|${name}|${m}`);
+      part.type === 'document'
+        ? part.mime || 'application/octet-stream'
+        : part.type === 'video'
+          ? 'video/mp4'
+          : part.type === 'audio'
+            ? 'audio/mpeg'
+            : 'application/octet-stream';
+    return marker('file', `${path}|${name}|${mime}`);
   }
   return null;
 }

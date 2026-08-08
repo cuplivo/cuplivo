@@ -38,6 +38,31 @@ export function basename(p: string): string {
   return idx >= 0 ? p.slice(idx + 1) : p;
 }
 
+/**
+ * kotlinx.serialization 多态 type：可能是短名 `Image` 或 FQCN
+ * `me.rerere.rikkahub.data.model.Avatar.Image`
+ */
+export function normalizePolymorphicType(type: string | undefined | null): string {
+  if (!type) return '';
+  const parts = type.split('.');
+  return parts[parts.length - 1] || type;
+}
+
+/**
+ * 将 Android/iOS 绝对路径或 file:// URI 规范为 zip 内相对路径（优先 upload/）。
+ * http(s)/data: 原样返回。
+ */
+export function toZipLocalPath(
+  url: string | null | undefined,
+  findInZip: (name: string) => string | null,
+): string | null {
+  if (url == null || url === '') return null;
+  if (isHttpUrl(url) || /^data:/i.test(url)) return url;
+  const name = basename(url.replace(/^file:\/\//i, ''));
+  if (!name) return url;
+  return findInZip(name) ?? (name.includes('.') ? `upload/${name}` : url);
+}
+
 /** 判断字符串是否像本地文件路径（相对路径或绝对路径，非 URL / data URI） */
 export function isLocalPath(p: string): boolean {
   return !/^(https?:|data:|file:|content:)/i.test(p);

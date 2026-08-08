@@ -746,6 +746,33 @@ String _preprocessFences(
     return '$prefix\$\$\n$body\n\$\$$suffix';
   });
 
+  // Ensure \[...\] display math gets the same standalone-block treatment as
+  // $$...$$ (issue #218). Unlike $, \[ has no inline-literal ambiguity, so the
+  // normalization is unconditional — except on markdown table rows (a \n
+  // inside a cell would break the whole table; cells already render \[...\]
+  // via gpt_markdown's static LatexMathMultiLine) and for \\[-prefixed
+  // openers (row-break spacing args like \\[2pt] in aligned environments).
+  // $$...$$ spans are matched first and passed through untouched, so \[
+  // inside a $$ body is never re-normalized.
+  final inlineBracketDisplayMath = RegExp(
+    r'\$\$[\s\S]*?\$\$|(?<!\\)\\\[([\s\S]*?)\\\]',
+  );
+  out = out.replaceAllMapped(inlineBracketDisplayMath, (m) {
+    final body = m.group(1);
+    if (body == null) return m[0]!; // $$...$$ span: pass through untouched
+    final trimmed = body.trim();
+    if (trimmed.isEmpty) return m[0]!;
+    if (_isDollarMathOnMarkdownTableRow(out, m.start)) return m[0]!;
+    final prefix = m.start == 0 || out.substring(0, m.start).endsWith('\n\n')
+        ? ''
+        : '\n';
+    final suffix =
+        m.end == out.length || out.substring(m.end).startsWith('\n\n')
+        ? ''
+        : '\n';
+    return '$prefix\\[\n$trimmed\n\\]$suffix';
+  });
+
   // 2) Dedent opening fences: leading spaces before ```lang
   final dedentOpen = RegExp(r"^[ \t]+```([^\n`]*)\s*$", multiLine: true);
   out = out.replaceAllMapped(dedentOpen, (m) => "```${m[1]}");

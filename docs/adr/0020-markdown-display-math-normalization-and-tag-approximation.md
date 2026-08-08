@@ -1,0 +1,20 @@
+# Display math is normalized to standalone blocks; `\tag` is approximated, not rendered right-aligned
+
+`\[...\]` display math in non-standalone positions (list items, mid-paragraph) is repaired by the same mechanism that already fixes `$$...$$`: `_preprocessFences` rewrites it into newline-padded standalone blocks so the line-anchored `LatexBlockScrollableMd` matcher hits. This replaces the previous behavior where `\[` slipped past the matcher and `BackslashEscapeMd` rendered it as a bare `[` (issue #218).
+
+`\tag` formulas cannot be rendered correctly by flutter_math_fork 0.7.4 (the latest release): `\tag` expands to `\gdef\df@tag{...}` but `\gdef` is undefined there, so any formula containing `\tag` throws `ParseException` and falls back to raw plain text. Cuplivo rewrites `\tag{X}` → `\qquad\text{(X)}`, `\tag*{X}` → `\qquad\text{X}`, and strips `\notag`/`\nonumber` in `_normalizeMathTex`, so the equation renders with the number inline right after it — an approximation: the tag is NOT right-aligned at the margin like real LaTeX/KaTeX.
+
+## Considered Options
+
+1. **Normalize `\[...\]` symmetrically with `$$` (chosen).** Deterministic string-level rewrite, mirrors the proven `$$` path, testable without regex anchoring games. The enclosing markdown construct (e.g. the list item) is broken by the rewrite — accepted, identical to the existing `$$` behavior. Unconditional for `\[` (no `<12`-chars literal guard — that heuristic exists for `$$` because `$` doubles as a prose/literal symbol, a failure mode `\[` does not share); guarded against markdown table rows (a `\n` injected into a cell would break the whole table) and against `\\[2pt]` row-break spacing via a `(?<!\\)` lookbehind.
+2. **Loosen `LatexBlockScrollableMd`'s `expString` anchors (rejected).** `BlockMd` wraps every expString as `^\ *?...$`; nesting looser anchors inside that wrapper lets `\s` (which matches `\n`) cross paragraph boundaries unpredictably.
+3. **Re-enable gpt_markdown's `LatexMathMultiLine` (rejected).** It was deliberately removed in upstream commit `8e6a4312` ("improve LaTeX rendering and alignment") — its lazy dot-all pattern can swallow following blocks across blank lines, and its rendering path caused the alignment problems the custom scrollable renderers fixed.
+4. **Implement `\tag` properly by vendoring flutter_math_fork (deferred).** Correct right-aligned tags need `\gdef` support plus a consumer for `\df@tag` (upstream marks it `// TODO tag`). That means owning a fork of a third-party parser — disproportionate for chat display, where inline-after placement is acceptable.
+
+## Consequences
+
+- `\[...\]` and `$$...$$` now behave identically in every position: standalone paragraph renders as display math; anything else is promoted to a standalone block (breaking the enclosing list/paragraph, same as `$$`).
+- The `<12`-char guard remains `$$`-only. Short `$$...$$` in prose stays literal (pinned by the `$a$$b$$c$` CJK-prose regression tests from commit `2d08a5d3`); short `\[...\]` like `1. \[E=mc^2\]` renders as math.
+- `\tag` content renders as `(X)` in `\text` style immediately after the equation. Users comparing against real LaTeX output will notice the placement difference; the raw-text fallback (whole formula unreadable) is gone.
+- Future work: if upstream flutter_math_fork implements `\tag` (or Cuplivo vendors it), the `\tag` rewrite in `_normalizeMathTex` can be deleted — the approximation is deliberately isolated in one place.
+- Deliberately NOT covered: `equation`/`align` environments (flutter_math_fork has no such environments — "No such environment" → fallback), nested-brace `\tag{\alpha}`, unbraced `\tag 1`.

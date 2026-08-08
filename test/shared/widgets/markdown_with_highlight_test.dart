@@ -2177,6 +2177,99 @@ A-->B
   );
 
   testWidgets(
+    r'MarkdownWithCodeHighlight renders multiline \[...\] inside list items',
+    (tester) async {
+      await tester.pumpWidget(
+        _markdownHarness(r'''
+1. \[
+   \boxed{v=\frac{s}{t}}
+   \]
+'''),
+      );
+      await tester.pump();
+
+      expect(_findMathWidget(), findsOneWidget);
+      expect(find.textContaining(r'\['), findsNothing);
+      expect(find.textContaining(r'\boxed{v=\frac{s}{t}}'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    r'MarkdownWithCodeHighlight renders single-line \[...\] inside list items',
+    (tester) async {
+      await tester.pumpWidget(_markdownHarness(r'1. \[E=mc^2\]'));
+      await tester.pump();
+
+      expect(_findMathWidget(), findsOneWidget);
+      expect(find.textContaining(r'E=mc^2'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    r'MarkdownWithCodeHighlight renders \[...\] embedded in a paragraph',
+    (tester) async {
+      await tester.pumpWidget(_markdownHarness(r'公式：\[E=mc^2\]，很重要。'));
+      await tester.pump();
+
+      expect(_findMathWidget(), findsOneWidget);
+      expect(find.textContaining('公式：'), findsOneWidget);
+      expect(find.textContaining('，很重要。'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    r'MarkdownWithCodeHighlight keeps \[...\] inside table cells intact',
+    (tester) async {
+      _overrideMarkdownTablePlatform(TargetPlatform.android);
+      await tester.pumpWidget(
+        _markdownHarness(r'''
+| 名称 | 公式 |
+| --- | --- |
+| 动能 | \[E_k=\frac{1}{2}mv^2\] |
+'''),
+      );
+      await tester.pump();
+
+      // The table block must survive: cell-level \[...\] renders via
+      // gpt_markdown's static LatexMathMultiLine (a top-level \[...\] rewrite
+      // would inject \n into the row and break the table).
+      expect(
+        find.byKey(const ValueKey('markdown-table-block')),
+        findsOneWidget,
+      );
+      expect(_findMathWidget(), findsOneWidget);
+      expect(find.textContaining('名称', findRichText: true), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    r'MarkdownWithCodeHighlight does not treat \\[2pt] as display math',
+    (tester) async {
+      await tester.pumpWidget(_markdownHarness(r'行内 \\[2pt] 调整，公式 \[x\] 结束'));
+      await tester.pump();
+
+      expect(_findMathWidget(), findsOneWidget);
+      expect(find.textContaining('调整'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    r'MarkdownWithCodeHighlight keeps multiline $$ in list items working',
+    (tester) async {
+      await tester.pumpWidget(
+        _markdownHarness(r'''
+1. $$
+   \boxed{v=\frac{s}{t}}
+   $$
+'''),
+      );
+      await tester.pump();
+
+      expect(_findMathWidget(), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'MarkdownWithCodeHighlight follows GitHub-like dollar math boundaries',
     (tester) async {
       await tester.pumpWidget(

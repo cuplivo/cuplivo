@@ -753,25 +753,29 @@ String _preprocessFences(
   // via gpt_markdown's static LatexMathMultiLine) and for \\[-prefixed
   // openers (row-break spacing args like \\[2pt] in aligned environments).
   // $$...$$ spans are matched first and passed through untouched, so \[
-  // inside a $$ body is never re-normalized.
-  final inlineBracketDisplayMath = RegExp(
-    r'\$\$[\s\S]*?\$\$|(?<!\\)\\\[([\s\S]*?)\\\]',
-  );
-  out = out.replaceAllMapped(inlineBracketDisplayMath, (m) {
-    final body = m.group(1);
-    if (body == null) return m[0]!; // $$...$$ span: pass through untouched
-    final trimmed = body.trim();
-    if (trimmed.isEmpty) return m[0]!;
-    if (_isDollarMathOnMarkdownTableRow(out, m.start)) return m[0]!;
-    final prefix = m.start == 0 || out.substring(0, m.start).endsWith('\n\n')
-        ? ''
-        : '\n';
-    final suffix =
-        m.end == out.length || out.substring(m.end).startsWith('\n\n')
-        ? ''
-        : '\n';
-    return '$prefix\\[\n$trimmed\n\\]$suffix';
-  });
+  // inside a $$ body is never re-normalized. Gated on enableMath: with math
+  // rendering off no renderer exists, so the rewrite would only split
+  // paragraphs and lists for no benefit.
+  if (enableMath) {
+    final inlineBracketDisplayMath = RegExp(
+      r'\$\$[\s\S]*?\$\$|(?<!\\)\\\[([\s\S]*?)\\\]',
+    );
+    out = out.replaceAllMapped(inlineBracketDisplayMath, (m) {
+      final body = m.group(1);
+      if (body == null) return m[0]!; // $$...$$ span: pass through untouched
+      final trimmed = body.trim();
+      if (trimmed.isEmpty) return m[0]!;
+      if (_isDollarMathOnMarkdownTableRow(out, m.start)) return m[0]!;
+      final prefix = m.start == 0 || out.substring(0, m.start).endsWith('\n\n')
+          ? ''
+          : '\n';
+      final suffix =
+          m.end == out.length || out.substring(m.end).startsWith('\n\n')
+          ? ''
+          : '\n';
+      return '$prefix\\[\n$trimmed\n\\]$suffix';
+    });
+  }
 
   // 2) Dedent opening fences: leading spaces before ```lang
   final dedentOpen = RegExp(r"^[ \t]+```([^\n`]*)\s*$", multiLine: true);
@@ -1615,10 +1619,16 @@ String _normalizeMathTex(String tex) {
 // and \tag*{X} → \qquad\text{X} so the number renders inline right after the
 // equation — an approximation, NOT right-aligned at the margin like real
 // LaTeX (proper tags via a vendored flutter_math_fork are a deferred task).
-// \notag/\nonumber produce nothing by design → strip. Flat braces only:
-// nested \tag{\alpha} or unbraced \tag 1 stay untouched (raw-text fallback).
+// \notag/\nonumber produce nothing by design → strip. Only flat labels
+// without backslashes are rewritten: labels with nested braces or TeX
+// commands (e.g. \tag{\alpha} — \text cannot parse math commands) and
+// unbraced \tag 1 stay untouched (raw-text fallback keeps the original tex).
 String _rewriteTagCommands(String tex) {
-  final tag = RegExp(r'(?<!\\)\\tag(\*?)\{([^{}]*)\}|\\notag|\\nonumber');
+  final tag = RegExp(
+    r'(?<!\\)\\tag(\*?)\{([^{}\\]*)\}'
+    r'|(?<!\\)\\notag(?![a-zA-Z])'
+    r'|(?<!\\)\\nonumber(?![a-zA-Z])',
+  );
   return tex.replaceAllMapped(tag, (m) {
     final label = (m.group(2) ?? '').trim();
     if (label.isEmpty) return '';

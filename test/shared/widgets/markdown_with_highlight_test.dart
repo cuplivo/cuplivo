@@ -2363,6 +2363,39 @@ $$
   );
 
   testWidgets(
+    r'MarkdownWithCodeHighlight keeps \[...\] inline when math rendering is off',
+    (tester) async {
+      await tester.pumpWidget(
+        _markdownHarness(
+          r'公式：\[E=mc^2\]，很重要。',
+          preferences: const {'display_enable_math_rendering_v1': false},
+        ),
+      );
+      await tester.pump();
+
+      expect(_findMathWidget(), findsNothing);
+      expect(
+        find.textContaining('公式：[E=mc^2]，很重要。', findRichText: true),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    r'MarkdownWithCodeHighlight keeps \tag{\alpha} untouched for fallback',
+    (tester) async {
+      await tester.pumpWidget(_markdownHarness(r'$$\tag{\alpha} x = y$$'));
+      await tester.pump();
+
+      final mathWidgets = _mathWidgets(tester);
+      expect(mathWidgets, hasLength(1));
+      expect(mathWidgets.single.parseError, isNotNull);
+      // The fallback shows the ORIGINAL tex, not the rewritten approximation.
+      expect(find.textContaining(r'\tag{\alpha}'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'MarkdownWithCodeHighlight follows GitHub-like dollar math boundaries',
     (tester) async {
       await tester.pumpWidget(

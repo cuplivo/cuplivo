@@ -16,6 +16,7 @@ import {
   toKelivoLocalRef,
   toZipLocalPath,
 } from '../src/lib/rikkahub/util';
+import { mapLocalToolIds } from '../src/lib/migrate/assistants';
 
 const sqlite3 = await sqlite3InitModule({ print: () => {}, printErr: () => {} });
 
@@ -145,7 +146,7 @@ function buildSettings(): string {
         messageTemplate: '{{ message }}', presetMessages: [], quickMessageIds: ['qm-1'],
         regexes: [{ id: 'rx-1', name: '缩写', enabled: true, findRegex: 'gpt', replaceString: 'GPT', affectingScope: ['USER'], visualOnly: false }],
         reasoningLevel: 'medium', maxTokens: null, customHeaders: [], customBodies: [], mcpServers: ['mcp-1'],
-        localTools: ['time_info'], enableWebSearch: true, workspaceId: null,
+        localTools: [{ type: 'ask_user' }, 'time_info', { type: 'javascript_engine' }], enableWebSearch: true, workspaceId: null,
         background: 'file:///data/user/0/me.rerere.rikkahub/files/upload/paste_123.png', backgroundOpacity: 1,
         useGradientBackground: false, modeInjectionIds: ['mi-1'], lorebookIds: ['lb-1'], enabledSkills: ['skill-a'],
         enableTimeReminder: true, allowConversationSystemPrompt: true, allowConversationPromptInjection: true,
@@ -203,7 +204,7 @@ const chats = JSON.parse(await outZip.file('chats.json')!.async('string'));
 const settingsJson = JSON.parse(await outZip.file('settings.json')!.async('string')) as SettingsJson;
 
 // ---------- 4. 校验 chats.json ----------
-assert.strictEqual(chats.version, 2, 'chats.json version=2');
+assert.strictEqual(chats.version, 1, 'chats.json version=1（Kelivo/Cuplivo 仅接受 1）');
 assert.strictEqual(chats.conversations.length, 2, '2 个会话');
 assert.strictEqual(chats.messages.length, 3, '3 条消息（alt 丢弃 1 条）');
 const conv1 = chats.conversations.find((c: { id: string }) => c.id === 'conv-1');
@@ -231,6 +232,15 @@ assert.strictEqual(ast.chatModelId, 'gpt-4o', '助手模型解引用');
 assert.strictEqual(ast.chatModelProvider, PROVIDER_ID);
 assert.strictEqual(ast.avatar, '/avatars/paste_123.png', 'FQCN Avatar.Image → /avatars/ (Kelivo 可识别)');
 assert.strictEqual(ast.background, '/images/paste_123.png', 'background → /images/');
+assert.deepStrictEqual(
+  ast.localToolIds,
+  ['ask_user_input_v0', 'get_time_info'],
+  'localTools 对象/短名 → Kelivo string id；javascript_engine 丢弃',
+);
+assert.ok(
+  !ast.localToolIds.some((x: unknown) => typeof x !== 'string'),
+  'localToolIds 全为 string（Cuplivo jsonEncode 要求）',
+);
 assert.ok(outZip.file('avatars/paste_123.png'), '头像文件写入 avatars/');
 assert.ok(outZip.file('images/paste_123.png'), '背景文件写入 images/');
 assert.strictEqual(ast.regexRules[0].pattern, 'gpt');
@@ -312,7 +322,7 @@ kelivoZip.file(
 kelivoZip.file(
   'chats.json',
   JSON.stringify({
-    version: 2,
+    version: 1,
     conversations: [
       { id: 'c1', title: '会话1', assistantId: 'ast-missing', messageIds: ['m1'], createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00', isPinned: false, mcpServerIds: [], parentConversationId: null, truncateIndex: -1, versionSelections: {}, summary: null, lastSummarizedMessageCount: 0, chatSuggestions: [], conversationKind: 'normal' },
       { id: 'c2', title: '会话2', assistantId: 'ast-ok', messageIds: ['m2'], createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00', isPinned: false, mcpServerIds: [], parentConversationId: null, truncateIndex: -1, versionSelections: {}, summary: null, lastSummarizedMessageCount: 0, chatSuggestions: [], conversationKind: 'normal' },
@@ -367,6 +377,11 @@ assert.strictEqual(toZipLocalPath('https://cdn.example/x.png', () => null), 'htt
 assert.strictEqual(toKelivoLocalRef('upload/a.png'), '/upload/a.png');
 assert.strictEqual(toKelivoLocalRef('/avatars/a.png'), '/avatars/a.png');
 assert.strictEqual(toKelivoLocalRef('https://x/a.png'), 'https://x/a.png');
+assert.deepStrictEqual(
+  mapLocalToolIds([{ type: 'ask_user' }, 'time_info', { type: 'screen_time' }, 'ask_user_input_v0']),
+  ['ask_user_input_v0', 'get_time_info'],
+  'mapLocalToolIds 映射+去重+丢弃',
+);
 {
   const copies: [string, string][] = [];
   const ref = resolveKelivoAsset(
@@ -428,6 +443,12 @@ for (const fp of fixturePaths) {
   );
   assert.ok(withBg, '真实备份背景为 /images/...');
   assert.ok(fres.outputZip.file(String(withAvatar.avatar).replace(/^\//, '')), 'avatars/ 文件在输出 zip');
+  for (const a of fAssistants as { name: string; localToolIds?: unknown[] }[]) {
+    for (const id of a.localToolIds ?? []) {
+      assert.equal(typeof id, 'string', `${a.name} localToolIds 必须为 string，实际 ${typeof id}`);
+    }
+  }
+  assert.strictEqual(fres.chatsFile.version, 1, 'fixture chats.version=1');
   console.log(
     `  fixture OK: ${fp.split('/').pop()} → ${fres.report.totals.conversations} 会话 / ${fres.report.totals.messages} 消息 / avatar=${withAvatar.avatar}`,
   );

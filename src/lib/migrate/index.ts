@@ -87,7 +87,7 @@ export async function migrateRikkaHubToKelivo(zip: JSZip, sourceFileName: string
 
     // 5. chats.json v2
     const chatsFile: ChatsFileV2 = {
-      version: 2,
+      version: 1,
       conversations: data.conversations,
       messages: data.messages,
       toolEvents: data.toolEvents,

@@ -92,7 +92,8 @@ export interface GroupChatMember {
 }
 
 export interface ChatsFileV2 {
-  version: 2;
+  /** 与 Kelivo/Cuplivo _parseChatBackup 一致，仅接受 1 */
+  version: 1;
   conversations: Conversation[];
   messages: ChatMessage[];
   toolEvents: Record<string, ToolEvent[]>;

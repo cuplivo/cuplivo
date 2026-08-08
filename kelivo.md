@@ -17,7 +17,7 @@ Zip 根目录内容：
 | 条目 | 是否必选 | 说明 |
 |---|---|---|
 | `settings.json` | 全量必含 | SharedPreferences 全量快照（JSON 对象） |
-| `chats.json` | `includeChats` 时 | 聊天数据，顶层 `version: 2` |
+| `chats.json` | `includeChats` 时 | 聊天数据，顶层 `version: 1`（运行时仅接受 1） |
 | `deleted.json` | `includeChats` 时（失败可跳过） | 删除墓碑（tombstone），**v1.1.17 无此文件** |
 | `skills/` | 恒含（与 includeFiles 无关） | 技能目录，保留相对路径 |
 | `upload/` `avatars/` `images/` `fonts/` `workspaces/` | `includeFiles` 时 | 用户文件；`workspaces/` 排除任意以 `.` 开头的路径段（如 `.fetch_cache/`） |
@@ -41,7 +41,7 @@ Zip 根目录内容：
 type IsoDateTime = string;
 
 interface ChatsFileV2 {
-  version: 2;
+  version: 1;
   conversations: Conversation[];
   messages: ChatMessage[];
   /** 仅含 role === 'assistant' 且确有事件的消息 */

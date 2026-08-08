@@ -211,6 +211,7 @@ export interface Assistant {
   customHeaders: CustomHeader[];
   customBodies: CustomBody[];
   mcpServers: Uuid[];
+  /** kotlinx 多态：可能是短名 string，或 `{ type: 'ask_user' }` */
   localTools: LocalToolOption[];
   enableWebSearch: boolean;
   workspaceId: Uuid | null;
@@ -225,7 +226,10 @@ export interface Assistant {
   allowConversationPromptInjection: boolean;
 }
 
+/** RikkaHub LocalToolOption：短名或 FQCN/对象形式 */
 export type LocalToolOption =
+  | string
+  | { type: string }
   | 'javascript_engine'
   | 'time_info'
   | 'clipboard'

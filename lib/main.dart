@@ -23,6 +23,7 @@ import 'core/providers/codex_device_code_controller.dart';
 import 'core/providers/grok_device_code_controller.dart';
 import 'core/providers/mcp_provider.dart';
 import 'core/providers/filesystem_mounts_provider.dart';
+import 'features/linux_sandbox/providers/linux_sandbox_provider.dart';
 import 'core/providers/tts_provider.dart';
 import 'core/providers/assistant_provider.dart';
 import 'core/providers/group_chat_provider.dart';
@@ -228,6 +229,7 @@ class MyApp extends StatelessWidget {
             );
           },
         ),
+        ChangeNotifierProvider(create: (_) => LinuxSandboxProvider()),
         ChangeNotifierProvider(create: (_) => TagProvider()),
         ChangeNotifierProvider(create: (_) => TtsProvider()),
         ChangeNotifierProvider(create: (_) => UpdateProvider()),

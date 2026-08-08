@@ -51,6 +51,8 @@ import '../models/synthesize_task.dart' show synthesizeTasks;
 import '../services/message_pipeline.dart';
 import '../services/ask_user_interaction_service.dart';
 import '../services/tool_handler_service.dart';
+import '../../linux_sandbox/models/linux_sandbox.dart';
+import '../../linux_sandbox/providers/linux_sandbox_provider.dart';
 import '../../../shared/dialogs/tool_collision_dialog.dart';
 import '../services/ocr_service.dart';
 import '../services/translation_service.dart';
@@ -768,12 +770,19 @@ class HomePageController extends ChangeNotifier {
       if (!_context.mounted) return ChatInputSubmissionResult.rejected;
       // Check for MCP tool name collisions
       final mcp = _context.read<McpProvider>();
+      final sandboxProvider = _context.read<LinuxSandboxProvider>();
       final assistant = await _context
           .read<AssistantProvider>()
           .getLoadedCurrentAssistant();
+      LinuxSandbox? sandbox;
+      if (assistant?.sandboxEnabled == true && assistant?.sandboxId != null) {
+        await sandboxProvider.ensureLoaded();
+        sandbox = sandboxProvider.getById(assistant!.sandboxId!);
+      }
       final collisions = ToolHandlerService.detectToolNameCollisions(
         mcp: mcp,
         assistant: assistant,
+        sandbox: sandbox,
       );
       if (collisions.isNotEmpty) {
         if (!_context.mounted) return ChatInputSubmissionResult.rejected;

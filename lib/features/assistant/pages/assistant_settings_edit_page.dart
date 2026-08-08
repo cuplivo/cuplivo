@@ -37,12 +37,16 @@ import '../../../core/services/haptics.dart';
 import '../../../desktop/desktop_context_menu.dart';
 import '../../home/services/local_tools_service.dart';
 import '../../skills/skill_manager.dart';
+import '../../linux_sandbox/models/linux_sandbox.dart';
+import '../../linux_sandbox/pages/linux_sandbox_list_page.dart';
+import '../../linux_sandbox/providers/linux_sandbox_provider.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/emoji_picker_dialog.dart';
 import '../../../shared/widgets/emoji_text.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../shared/widgets/ios_tactile.dart';
+import '../../../shared/widgets/ios_tile_button.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../theme/design_tokens.dart';
@@ -63,6 +67,7 @@ part 'assistant_settings_edit_quick_phrase_tab.dart';
 part 'assistant_settings_edit_custom_request_tab.dart';
 part 'assistant_settings_edit_proactive_letter_tab.dart';
 part 'assistant_settings_edit_skills_tab.dart';
+part 'assistant_settings_edit_linux_sandbox_tab.dart';
 
 const int _contextMessageMin = Assistant.minContextMessageSize;
 const int _contextMessageMax = Assistant.maxContextMessageSize;
@@ -116,6 +121,12 @@ List<_AssistantEditTabSpec> _assistantEditTabSpecs(
       label: l10n.assistantEditPageSkillsTab,
       icon: Lucide.BookOpen,
       child: _SkillsTab(assistantId: assistantId),
+    ),
+    _AssistantEditTabSpec(
+      id: assistantEditTabLinuxSandbox,
+      label: l10n.assistantEditPageLinuxSandboxTab,
+      icon: Lucide.Box,
+      child: _LinuxSandboxTab(assistantId: assistantId),
     ),
     _AssistantEditTabSpec(
       id: assistantEditTabMcp,
@@ -1501,6 +1512,7 @@ enum _AssistantDesktopMenu {
   memory,
   localTools,
   skills,
+  linuxSandbox,
   mcp,
   quick,
   custom,
@@ -1623,6 +1635,10 @@ class _DesktopAssistantDialogShellState
                         return _LocalToolsTab(assistantId: widget.assistantId);
                       case _AssistantDesktopMenu.skills:
                         return _SkillsTab(assistantId: widget.assistantId);
+                      case _AssistantDesktopMenu.linuxSandbox:
+                        return _LinuxSandboxTab(
+                          assistantId: widget.assistantId,
+                        );
                       case _AssistantDesktopMenu.mcp:
                         return _McpTab(assistantId: widget.assistantId);
                       case _AssistantDesktopMenu.quick:
@@ -1668,6 +1684,10 @@ class _DesktopAssistantMenuState extends State<_DesktopAssistantMenu> {
       (_AssistantDesktopMenu.memory, l10n.assistantEditPageMemoryTab),
       (_AssistantDesktopMenu.localTools, l10n.assistantEditPageLocalToolsTab),
       (_AssistantDesktopMenu.skills, l10n.assistantEditPageSkillsTab),
+      (
+        _AssistantDesktopMenu.linuxSandbox,
+        l10n.assistantEditPageLinuxSandboxTab,
+      ),
       (_AssistantDesktopMenu.mcp, l10n.assistantEditPageMcpTab),
       (_AssistantDesktopMenu.quick, l10n.assistantEditPageQuickPhraseTab),
       (_AssistantDesktopMenu.custom, l10n.assistantEditPageCustomTab),

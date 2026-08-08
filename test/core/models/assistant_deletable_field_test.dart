@@ -59,6 +59,49 @@ Future<AssistantProvider> _createProviderWithLoadedAssistants(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  group('Assistant sandbox binding fields', () {
+    test('defaults sandboxEnabled false and sandboxId null', () {
+      final a = Assistant(id: 'a1', name: 'A');
+      expect(a.sandboxEnabled, isFalse);
+      expect(a.sandboxId, isNull);
+    });
+
+    test('toJson/fromJson round-trip sandbox fields', () {
+      final a = Assistant(
+        id: 'a1',
+        name: 'A',
+        sandboxEnabled: true,
+        sandboxId: 'sbx-9',
+      );
+      final json = a.toJson();
+      expect(json['sandboxEnabled'], isTrue);
+      expect(json['sandboxId'], 'sbx-9');
+      final restored = Assistant.fromJson(json);
+      expect(restored.sandboxEnabled, isTrue);
+      expect(restored.sandboxId, 'sbx-9');
+    });
+
+    test('clearSandboxId clears sandboxId like clearHandoffId', () {
+      final a = Assistant(
+        id: 'a1',
+        name: 'A',
+        sandboxEnabled: true,
+        sandboxId: 'sbx-1',
+        handoffId: 'h1',
+      );
+      final cleared = a.copyWith(clearSandboxId: true);
+      expect(cleared.sandboxId, isNull);
+      expect(cleared.sandboxEnabled, isTrue);
+      expect(cleared.handoffId, 'h1');
+
+      final noOp = a.copyWith(sandboxId: null);
+      expect(noOp.sandboxId, 'sbx-1');
+
+      final set = a.copyWith(sandboxId: 'sbx-2');
+      expect(set.sandboxId, 'sbx-2');
+    });
+  });
+
   group('Assistant deletable field migration', () {
     test('does not export deletable in assistant JSON', () {
       final assistant = Assistant(id: 'assistant-1', name: 'Assistant 1');

@@ -2809,5 +2809,99 @@
   "grokLoginSessionHint": "保持登入；存取權杖會在背景自動續期，無需重新登入。",
   "grokLoginSignedOutToast": "已登出",
   "grokLoginHelpText": "開啟 xAI 授權頁面，輸入驗證碼完成 Grok 授權。",
-  "grokLoginNetworkError": "網路錯誤，請重試"
+  "grokLoginNetworkError": "網路錯誤，請重試",
+  "settingsPageLinuxSandbox": "沙箱",
+  "linuxSandboxListTitle": "沙箱",
+  "linuxSandboxListEmpty": "尚無沙箱。建立一個後，即可為助手提供本機工作區。",
+  "linuxSandboxCreateTitle": "建立沙箱",
+  "linuxSandboxCreateNameLabel": "名稱",
+  "linuxSandboxCreateNameHint": "我的沙箱",
+  "linuxSandboxCreateNameRequired": "請輸入沙箱名稱。",
+  "linuxSandboxCreateAction": "建立",
+  "linuxSandboxCreateFailed": "建立沙箱失敗。",
+  "linuxSandboxDeleteFailed": "刪除沙箱失敗。",
+  "linuxSandboxCreateInstallSection": "安裝選項",
+  "linuxSandboxCreateBaseEnvTitle": "基礎環境",
+  "linuxSandboxCreateBaseEnvSubtitle": "空白工作區，提供檔案與 Shell 工具。",
+  "linuxSandboxCreatePythonTitle": "Python",
+  "linuxSandboxCreateJavaTitle": "Java",
+  "linuxSandboxCreateComingLater": "稍後提供",
+  "linuxSandboxDetailToolsSection": "工具",
+  "linuxSandboxToolReadName": "讀取",
+  "linuxSandboxToolReadDescription": "在沙箱內讀取檔案或列出目錄。",
+  "linuxSandboxToolWriteName": "寫入",
+  "linuxSandboxToolWriteDescription": "在沙箱內建立或覆寫文字檔案。",
+  "linuxSandboxToolEditName": "編輯",
+  "linuxSandboxToolEditDescription": "在沙箱內替換檔案中的文字。",
+  "linuxSandboxToolShellName": "Shell",
+  "linuxSandboxToolShellDescription": "以沙箱為工作目錄執行 Shell 命令。",
+  "linuxSandboxToolsCount": "{enabled}/{total} 個工具",
+  "@linuxSandboxToolsCount": {
+    "placeholders": {
+      "enabled": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "linuxSandboxBackupNote": "沙箱檔案僅保存在本機，不會包含在備份中。",
+  "linuxSandboxDeleteConfirmTitle": "刪除沙箱？",
+  "linuxSandboxDeleteConfirmMessage": "確定刪除「{name}」？已綁定的助手將解除綁定，本機檔案也會被刪除。",
+  "@linuxSandboxDeleteConfirmMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "linuxSandboxDeleteAction": "刪除",
+  "linuxSandboxBrowseTitle": "檔案",
+  "linuxSandboxBrowseEmpty": "此資料夾為空。",
+  "linuxSandboxBrowseUp": "上一層",
+  "linuxSandboxAndroidUnsupported": "此 Android 裝置架構不支援沙箱工具。你仍可在此管理沙箱。",
+  "linuxSandboxAndroidDownloadNote": "在 Android 上安裝基礎環境會下載 Ubuntu 根檔案系統（約 30–40 MB）並解壓到本機，需要網路連線。",
+  "linuxSandboxAndroidProotBanner": "Android 沙箱透過 PRoot 提供便利隔離——並非硬安全邊界。網路存取仍不受限制。",
+  "linuxSandboxInstallProgress": "正在安裝：{stage}",
+  "@linuxSandboxInstallProgress": {
+    "placeholders": {
+      "stage": {
+        "type": "String"
+      }
+    }
+  },
+  "linuxSandboxPlatformUnsupported": "沙箱工具目前可在 Windows、Linux 與 Android 上執行。你仍可在此管理沙箱。",
+  "linuxSandboxMissingMessage": "此沙箱已不存在。",
+  "linuxSandboxWindowsLocalJailBanner": "Windows 沙箱工具需要 WSL。請安裝或重新安裝基礎環境。",
+  "linuxSandboxWindowsWslBrokenHint": "WSL 基礎環境尚未就緒。請點選安裝/重新安裝基礎環境。可能需要批准 UAC 或重新啟動 Windows。",
+  "linuxSandboxWindowsWslInstallNote": "在 Windows 上，基礎環境透過 WSL 提供真正的 Linux（共用 Cuplivo-Sandbox 發行版）。安裝時可能跳出 UAC，並可能需要重新啟動後才能完成。",
+  "linuxSandboxWslRebootRequired": "WSL 已啟用，但需要重新啟動 Windows。重新啟動後開啟此沙箱並點選「安裝基礎環境」以完成設定。",
+  "linuxSandboxWslEnableFailed": "無法啟用 WSL。請從 Windows 功能安裝 WSL，或執行 wsl --install，然後重試安裝基礎環境。",
+  "linuxSandboxWslResumeAfterReboot": "重新啟動完成 — 請點選「安裝基礎環境」以完成 WSL 設定。",
+  "linuxSandboxWslDownloadingRootfs": "正在下載 Linux 根檔案系統",
+  "linuxSandboxWslImportingDistro": "正在匯入 WSL 發行版",
+  "linuxSandboxStatusDisabled": "已停用",
+  "linuxSandboxStatusNotReady": "未就緒",
+  "linuxSandboxStatusInstalling": "安裝中",
+  "linuxSandboxStatusReady": "就緒",
+  "linuxSandboxStatusBroken": "已損壞",
+  "linuxSandboxRuntimeModeLocalJail": "資料夾隔離",
+  "linuxSandboxRuntimeModeWsl": "WSL",
+  "linuxSandboxRuntimeModeNativeLinux": "原生 Linux",
+  "linuxSandboxRuntimeModeProot": "PRoot（Android）",
+  "linuxSandboxRuntimeModeUnknown": "未知",
+  "linuxSandboxInstallBaseEnvAction": "安裝基礎環境",
+  "linuxSandboxReinstallBaseEnvAction": "重新安裝基礎環境",
+  "linuxSandboxRetryWslAction": "安裝 WSL / 重新安裝基礎環境",
+  "linuxSandboxInstallFailed": "安裝基礎環境失敗。",
+  "linuxSandboxInstallSuccess": "基礎環境已就緒。",
+  "assistantEditPageLinuxSandboxTab": "沙箱",
+  "assistantEditLinuxSandboxEnable": "啟用沙箱",
+  "assistantEditLinuxSandboxEnableSubtitle": "允許此助手使用本機沙箱工作區。",
+  "assistantEditLinuxSandboxPick": "選擇沙箱",
+  "assistantEditLinuxSandboxNone": "尚無沙箱。請先在設定中建立。",
+  "assistantEditLinuxSandboxMissing": "所選沙箱已遺失。請另選一個，或關閉沙箱。",
+  "assistantEditLinuxSandboxNotReady": "所選沙箱尚未就緒。請先安裝基礎環境。",
+  "assistantEditLinuxSandboxManageCta": "管理沙箱"
 }

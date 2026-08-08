@@ -6,6 +6,7 @@ import '../../core/providers/assistant_provider.dart';
 import '../../core/providers/mcp_provider.dart';
 import '../../features/home/services/tool_handler_service.dart';
 import '../../features/home/services/local_tools_service.dart';
+import '../../features/linux_sandbox/models/linux_sandbox.dart';
 import '../../l10n/app_localizations.dart';
 import '../widgets/ios_tactile.dart';
 
@@ -193,6 +194,11 @@ class _ToolCollisionDialogBodyState extends State<_ToolCollisionDialogBody> {
               toolName == LocalToolNames.readSkillFile) {
             // Skill tools are gated by skillIds, not localToolIds
             modified = modified.copyWith(skillIds: const <String>[]);
+          } else if (LinuxSandboxToolNames.all.contains(toolName)) {
+            modified = modified.copyWith(
+              sandboxEnabled: false,
+              clearSandboxId: true,
+            );
           } else {
             // Local tools
             modified = modified.copyWith(

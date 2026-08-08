@@ -1127,6 +1127,7 @@ class DataSync {
               'pinned_models_v1', // Pinned models list
               'providers_order_v1', // Provider order list
               'mcp_servers_v1', // MCP server configurations
+              'linux_sandboxes_v1', // Linux sandbox configurations
               'provider_groups_v1', // provider group list
               'provider_group_map_v1', // providerKey -> groupId
               'provider_group_collapsed_v1', // groupId|__ungrouped__ -> bool
@@ -1169,6 +1170,17 @@ class DataSync {
                     );
                   } catch (_) {}
                 } else if (key == 'mcp_servers_v1' &&
+                    existing.containsKey(key)) {
+                  try {
+                    await prefs.restoreSingle(
+                      key,
+                      _mergeJsonListById(
+                        existing[key] as String,
+                        newValue as String,
+                      ),
+                    );
+                  } catch (_) {}
+                } else if (key == 'linux_sandboxes_v1' &&
                     existing.containsKey(key)) {
                   try {
                     await prefs.restoreSingle(

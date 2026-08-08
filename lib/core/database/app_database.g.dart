@@ -2729,6 +2729,32 @@ class $AssistantRowsTable extends AssistantRows
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _sandboxEnabledMeta = const VerificationMeta(
+    'sandboxEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> sandboxEnabled = GeneratedColumn<bool>(
+    'sandbox_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("sandbox_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _sandboxIdMeta = const VerificationMeta(
+    'sandboxId',
+  );
+  @override
+  late final GeneratedColumn<String> sandboxId = GeneratedColumn<String>(
+    'sandbox_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _sortOrderMeta = const VerificationMeta(
     'sortOrder',
   );
@@ -2806,6 +2832,8 @@ class $AssistantRowsTable extends AssistantRows
     discoverable,
     handoffId,
     handoffDescription,
+    sandboxEnabled,
+    sandboxId,
     sortOrder,
     createdAt,
     updatedAt,
@@ -3168,6 +3196,21 @@ class $AssistantRowsTable extends AssistantRows
         ),
       );
     }
+    if (data.containsKey('sandbox_enabled')) {
+      context.handle(
+        _sandboxEnabledMeta,
+        sandboxEnabled.isAcceptableOrUnknown(
+          data['sandbox_enabled']!,
+          _sandboxEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sandbox_id')) {
+      context.handle(
+        _sandboxIdMeta,
+        sandboxId.isAcceptableOrUnknown(data['sandbox_id']!, _sandboxIdMeta),
+      );
+    }
     if (data.containsKey('sort_order')) {
       context.handle(
         _sortOrderMeta,
@@ -3369,6 +3412,14 @@ class $AssistantRowsTable extends AssistantRows
         DriftSqlType.string,
         data['${effectivePrefix}handoff_description'],
       ),
+      sandboxEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}sandbox_enabled'],
+      )!,
+      sandboxId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sandbox_id'],
+      ),
       sortOrder: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sort_order'],
@@ -3433,6 +3484,8 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
   final bool discoverable;
   final String? handoffId;
   final String? handoffDescription;
+  final bool sandboxEnabled;
+  final String? sandboxId;
   final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -3479,6 +3532,8 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     required this.discoverable,
     this.handoffId,
     this.handoffDescription,
+    required this.sandboxEnabled,
+    this.sandboxId,
     required this.sortOrder,
     required this.createdAt,
     required this.updatedAt,
@@ -3558,6 +3613,10 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     if (!nullToAbsent || handoffDescription != null) {
       map['handoff_description'] = Variable<String>(handoffDescription);
     }
+    map['sandbox_enabled'] = Variable<bool>(sandboxEnabled);
+    if (!nullToAbsent || sandboxId != null) {
+      map['sandbox_id'] = Variable<String>(sandboxId);
+    }
     map['sort_order'] = Variable<int>(sortOrder);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -3629,6 +3688,10 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       handoffDescription: handoffDescription == null && nullToAbsent
           ? const Value.absent()
           : Value(handoffDescription),
+      sandboxEnabled: Value(sandboxEnabled),
+      sandboxId: sandboxId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sandboxId),
       sortOrder: Value(sortOrder),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -3707,6 +3770,8 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       handoffDescription: serializer.fromJson<String?>(
         json['handoffDescription'],
       ),
+      sandboxEnabled: serializer.fromJson<bool>(json['sandboxEnabled']),
+      sandboxId: serializer.fromJson<String?>(json['sandboxId']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -3766,6 +3831,8 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       'discoverable': serializer.toJson<bool>(discoverable),
       'handoffId': serializer.toJson<String?>(handoffId),
       'handoffDescription': serializer.toJson<String?>(handoffDescription),
+      'sandboxEnabled': serializer.toJson<bool>(sandboxEnabled),
+      'sandboxId': serializer.toJson<String?>(sandboxId),
       'sortOrder': serializer.toJson<int>(sortOrder),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -3815,6 +3882,8 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     bool? discoverable,
     Value<String?> handoffId = const Value.absent(),
     Value<String?> handoffDescription = const Value.absent(),
+    bool? sandboxEnabled,
+    Value<String?> sandboxId = const Value.absent(),
     int? sortOrder,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -3872,6 +3941,8 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     handoffDescription: handoffDescription.present
         ? handoffDescription.value
         : this.handoffDescription,
+    sandboxEnabled: sandboxEnabled ?? this.sandboxEnabled,
+    sandboxId: sandboxId.present ? sandboxId.value : this.sandboxId,
     sortOrder: sortOrder ?? this.sortOrder,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -3987,6 +4058,10 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       handoffDescription: data.handoffDescription.present
           ? data.handoffDescription.value
           : this.handoffDescription,
+      sandboxEnabled: data.sandboxEnabled.present
+          ? data.sandboxEnabled.value
+          : this.sandboxEnabled,
+      sandboxId: data.sandboxId.present ? data.sandboxId.value : this.sandboxId,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -4040,6 +4115,8 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
           ..write('discoverable: $discoverable, ')
           ..write('handoffId: $handoffId, ')
           ..write('handoffDescription: $handoffDescription, ')
+          ..write('sandboxEnabled: $sandboxEnabled, ')
+          ..write('sandboxId: $sandboxId, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -4091,6 +4168,8 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     discoverable,
     handoffId,
     handoffDescription,
+    sandboxEnabled,
+    sandboxId,
     sortOrder,
     createdAt,
     updatedAt,
@@ -4143,6 +4222,8 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
           other.discoverable == this.discoverable &&
           other.handoffId == this.handoffId &&
           other.handoffDescription == this.handoffDescription &&
+          other.sandboxEnabled == this.sandboxEnabled &&
+          other.sandboxId == this.sandboxId &&
           other.sortOrder == this.sortOrder &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -4191,6 +4272,8 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
   final Value<bool> discoverable;
   final Value<String?> handoffId;
   final Value<String?> handoffDescription;
+  final Value<bool> sandboxEnabled;
+  final Value<String?> sandboxId;
   final Value<int> sortOrder;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -4238,6 +4321,8 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     this.discoverable = const Value.absent(),
     this.handoffId = const Value.absent(),
     this.handoffDescription = const Value.absent(),
+    this.sandboxEnabled = const Value.absent(),
+    this.sandboxId = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -4286,6 +4371,8 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     this.discoverable = const Value.absent(),
     this.handoffId = const Value.absent(),
     this.handoffDescription = const Value.absent(),
+    this.sandboxEnabled = const Value.absent(),
+    this.sandboxId = const Value.absent(),
     required int sortOrder,
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -4338,6 +4425,8 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     Expression<bool>? discoverable,
     Expression<String>? handoffId,
     Expression<String>? handoffDescription,
+    Expression<bool>? sandboxEnabled,
+    Expression<String>? sandboxId,
     Expression<int>? sortOrder,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -4398,6 +4487,8 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
       if (discoverable != null) 'discoverable': discoverable,
       if (handoffId != null) 'handoff_id': handoffId,
       if (handoffDescription != null) 'handoff_description': handoffDescription,
+      if (sandboxEnabled != null) 'sandbox_enabled': sandboxEnabled,
+      if (sandboxId != null) 'sandbox_id': sandboxId,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -4448,6 +4539,8 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     Value<bool>? discoverable,
     Value<String?>? handoffId,
     Value<String?>? handoffDescription,
+    Value<bool>? sandboxEnabled,
+    Value<String?>? sandboxId,
     Value<int>? sortOrder,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -4500,6 +4593,8 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
       discoverable: discoverable ?? this.discoverable,
       handoffId: handoffId ?? this.handoffId,
       handoffDescription: handoffDescription ?? this.handoffDescription,
+      sandboxEnabled: sandboxEnabled ?? this.sandboxEnabled,
+      sandboxId: sandboxId ?? this.sandboxId,
       sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -4648,6 +4743,12 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     if (handoffDescription.present) {
       map['handoff_description'] = Variable<String>(handoffDescription.value);
     }
+    if (sandboxEnabled.present) {
+      map['sandbox_enabled'] = Variable<bool>(sandboxEnabled.value);
+    }
+    if (sandboxId.present) {
+      map['sandbox_id'] = Variable<String>(sandboxId.value);
+    }
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
@@ -4710,6 +4811,8 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
           ..write('discoverable: $discoverable, ')
           ..write('handoffId: $handoffId, ')
           ..write('handoffDescription: $handoffDescription, ')
+          ..write('sandboxEnabled: $sandboxEnabled, ')
+          ..write('sandboxId: $sandboxId, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -9735,6 +9838,8 @@ typedef $$AssistantRowsTableCreateCompanionBuilder =
       Value<bool> discoverable,
       Value<String?> handoffId,
       Value<String?> handoffDescription,
+      Value<bool> sandboxEnabled,
+      Value<String?> sandboxId,
       required int sortOrder,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -9784,6 +9889,8 @@ typedef $$AssistantRowsTableUpdateCompanionBuilder =
       Value<bool> discoverable,
       Value<String?> handoffId,
       Value<String?> handoffDescription,
+      Value<bool> sandboxEnabled,
+      Value<String?> sandboxId,
       Value<int> sortOrder,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -10006,6 +10113,16 @@ class $$AssistantRowsTableFilterComposer
 
   ColumnFilters<String> get handoffDescription => $composableBuilder(
     column: $table.handoffDescription,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get sandboxEnabled => $composableBuilder(
+    column: $table.sandboxEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sandboxId => $composableBuilder(
+    column: $table.sandboxId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10245,6 +10362,16 @@ class $$AssistantRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get sandboxEnabled => $composableBuilder(
+    column: $table.sandboxEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sandboxId => $composableBuilder(
+    column: $table.sandboxId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get sortOrder => $composableBuilder(
     column: $table.sortOrder,
     builder: (column) => ColumnOrderings(column),
@@ -10463,6 +10590,14 @@ class $$AssistantRowsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get sandboxEnabled => $composableBuilder(
+    column: $table.sandboxEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sandboxId =>
+      $composableBuilder(column: $table.sandboxId, builder: (column) => column);
+
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
 
@@ -10549,6 +10684,8 @@ class $$AssistantRowsTableTableManager
                 Value<bool> discoverable = const Value.absent(),
                 Value<String?> handoffId = const Value.absent(),
                 Value<String?> handoffDescription = const Value.absent(),
+                Value<bool> sandboxEnabled = const Value.absent(),
+                Value<String?> sandboxId = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -10596,6 +10733,8 @@ class $$AssistantRowsTableTableManager
                 discoverable: discoverable,
                 handoffId: handoffId,
                 handoffDescription: handoffDescription,
+                sandboxEnabled: sandboxEnabled,
+                sandboxId: sandboxId,
                 sortOrder: sortOrder,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -10648,6 +10787,8 @@ class $$AssistantRowsTableTableManager
                 Value<bool> discoverable = const Value.absent(),
                 Value<String?> handoffId = const Value.absent(),
                 Value<String?> handoffDescription = const Value.absent(),
+                Value<bool> sandboxEnabled = const Value.absent(),
+                Value<String?> sandboxId = const Value.absent(),
                 required int sortOrder,
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -10695,6 +10836,8 @@ class $$AssistantRowsTableTableManager
                 discoverable: discoverable,
                 handoffId: handoffId,
                 handoffDescription: handoffDescription,
+                sandboxEnabled: sandboxEnabled,
+                sandboxId: sandboxId,
                 sortOrder: sortOrder,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

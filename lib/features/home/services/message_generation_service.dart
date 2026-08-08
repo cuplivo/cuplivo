@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/widgets.dart';
+import 'package:provider/provider.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
@@ -13,6 +14,7 @@ import '../../../core/utils/openai_model_compat.dart';
 import '../../model/utils/ocr_model_capability.dart';
 import '../../../utils/assistant_regex.dart';
 import '../../../core/models/assistant_regex.dart';
+import '../../linux_sandbox/providers/linux_sandbox_provider.dart';
 import '../controllers/stream_controller.dart' as stream_ctrl;
 import '../controllers/generation_controller.dart';
 import 'ask_user_interaction_service.dart';
@@ -132,6 +134,14 @@ class MessageGenerationService {
       ProviderKind.openai || ProviderKind.claude || ProviderKind.google => true,
     };
 
+    // Capture before any await (use_build_context_synchronously).
+    LinuxSandboxProvider? sandboxProvider;
+    try {
+      sandboxProvider = contextProvider.read<LinuxSandboxProvider>();
+    } on ProviderNotFoundException {
+      sandboxProvider = null;
+    }
+
     onFileProcessingStarted?.call();
 
     // Build API messages
@@ -207,7 +217,10 @@ class MessageGenerationService {
     messageBuilderService.applyContextLimit(apiMessages, assistant);
     await messageBuilderService.inlineLocalImages(apiMessages);
 
-    // Prepare tools
+    // Prepare tools (await sandbox metadata so defs are not skipped cold-start)
+    if (sandboxProvider != null) {
+      await sandboxProvider.ensureLoaded();
+    }
     final toolDefs = generationController.buildToolDefinitions(
       settings,
       assistant,

@@ -12,6 +12,7 @@ import '../../../providers/settings_provider.dart';
 import '../../../../features/chat/utils/thinking_tag_parser.dart';
 import '../../../../features/home/services/message_builder_service.dart';
 import '../../../../features/home/services/tool_handler_service.dart';
+import '../../../../features/linux_sandbox/providers/linux_sandbox_provider.dart';
 import '../../api/chat_api_service.dart';
 import '../../chat/chat_service.dart';
 import '../../headless_generation_service.dart';
@@ -172,6 +173,13 @@ class KelivoSubagentMcpServerEngine {
       final ctx = _contextProvider();
       // ignore: use_build_context_synchronously
       final settings = ctx.read<SettingsProvider>();
+      LinuxSandboxProvider? sandboxProvider;
+      try {
+        // ignore: use_build_context_synchronously
+        sandboxProvider = ctx.read<LinuxSandboxProvider>();
+      } on ProviderNotFoundException {
+        sandboxProvider = null;
+      }
       final providerKey =
           target.chatModelProvider ?? settings.currentModelProvider ?? '';
       final modelId = target.chatModelId ?? settings.currentModelId ?? '';
@@ -214,6 +222,9 @@ class KelivoSubagentMcpServerEngine {
 
       // ignore: use_build_context_synchronously (root context)
       final toolHandler = ToolHandlerService(contextProvider: ctx);
+      if (sandboxProvider != null) {
+        await sandboxProvider.ensureLoaded();
+      }
       final toolDefs = toolHandler.buildToolDefinitions(
         settings,
         target,

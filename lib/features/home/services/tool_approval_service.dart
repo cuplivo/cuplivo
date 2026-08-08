@@ -14,7 +14,7 @@ class ToolApprovalResult {
       ToolApprovalResult(approved: false, denyReason: reason);
 }
 
-/// A pending approval request for an MCP tool call.
+/// A pending approval request for a tool call (MCP, sandbox, etc.).
 class ToolApprovalRequest {
   final String toolCallId;
   final String toolName;
@@ -29,7 +29,10 @@ class ToolApprovalRequest {
   });
 }
 
-/// Manages approval state for MCP tool calls that require user confirmation.
+/// Manages approval state for tool calls that require user confirmation.
+///
+/// Used by MCP tools, Linux sandbox tools, and any other tool path that
+/// gates execution behind an explicit approve/deny step.
 ///
 /// Flow:
 /// 1. [requestApproval] is called from the tool handler when a tool needs approval.

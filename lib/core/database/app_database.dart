@@ -158,6 +158,11 @@ class AssistantRows extends Table {
   TextColumn get handoffId => text().nullable()();
   TextColumn get handoffDescription => text().nullable()();
 
+  // --- Sandbox binding ---
+  BoolColumn get sandboxEnabled =>
+      boolean().withDefault(const Constant(false))();
+  TextColumn get sandboxId => text().nullable()();
+
   // --- Sort & Timestamp ---
   IntColumn get sortOrder => integer()();
   DateTimeColumn get createdAt => dateTime()();
@@ -365,7 +370,7 @@ class AppDatabase extends _$AppDatabase {
   // self-heal below repairs such gaps on every open; without it the gap is
   // permanent because later upgrades skip the failed step's `from < N` block.
   // See docs/adr/0017-schema-self-heal.md.
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   /// Whether [table] has a physical column named [column] (sqlite name).
   Future<bool> _hasColumn(String table, String column) async {
@@ -501,6 +506,17 @@ class AppDatabase extends _$AppDatabase {
       'assistant_rows',
       'handoff_description',
       'ALTER TABLE assistant_rows ADD COLUMN handoff_description TEXT NULL',
+    );
+    // Sandbox binding (schema v16)
+    await _ensureColumn(
+      'assistant_rows',
+      'sandbox_enabled',
+      'ALTER TABLE assistant_rows ADD COLUMN sandbox_enabled INTEGER NOT NULL DEFAULT 0',
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'sandbox_id',
+      'ALTER TABLE assistant_rows ADD COLUMN sandbox_id TEXT NULL',
     );
 
     // --- message_rows ---
@@ -711,6 +727,18 @@ class AppDatabase extends _$AppDatabase {
       if (from < 15) {
         try {
           await migrator.addColumn(assistantRows, assistantRows.ocrMode);
+        } catch (_) {
+          // The column may already exist (migration replay / partial retry).
+        }
+      }
+      if (from < 16) {
+        try {
+          await migrator.addColumn(assistantRows, assistantRows.sandboxEnabled);
+        } catch (_) {
+          // The column may already exist (migration replay / partial retry).
+        }
+        try {
+          await migrator.addColumn(assistantRows, assistantRows.sandboxId);
         } catch (_) {
           // The column may already exist (migration replay / partial retry).
         }

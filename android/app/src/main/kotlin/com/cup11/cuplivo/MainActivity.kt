@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.net.Uri
 import android.content.Intent
+import com.cup11.cuplivo.linux_sandbox.LinuxSandboxPlugin
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -19,6 +20,7 @@ class MainActivity : FlutterActivity() {
     private val fileSaveChannelName = "app.file_save"
     private var processTextChannel: MethodChannel? = null
     private var fileSaveChannel: MethodChannel? = null
+    private var linuxSandboxPlugin: LinuxSandboxPlugin? = null
     private var pendingProcessText: String? = null
     private var pendingSaveResult: MethodChannel.Result? = null
     private var pendingSaveSourcePath: String? = null
@@ -43,7 +45,16 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        val sandboxPlugin = LinuxSandboxPlugin()
+        sandboxPlugin.attachToEngine(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
+        linuxSandboxPlugin = sandboxPlugin
         pendingProcessText = extractProcessText(intent)
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        linuxSandboxPlugin?.detach()
+        linuxSandboxPlugin = null
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 
     override fun onNewIntent(intent: Intent) {

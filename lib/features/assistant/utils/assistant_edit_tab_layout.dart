@@ -5,6 +5,7 @@ const String assistantEditTabProactiveLetter = 'proactiveLetter';
 const String assistantEditTabMcp = 'mcp';
 const String assistantEditTabLocalTools = 'localTools';
 const String assistantEditTabSkills = 'skills';
+const String assistantEditTabLinuxSandbox = 'linuxSandbox';
 const String assistantEditTabQuickPhrase = 'quickPhrase';
 const String assistantEditTabCustom = 'custom';
 const String assistantEditTabRegex = 'regex';
@@ -20,6 +21,7 @@ const List<String> defaultAssistantEditTabIdsBase = [
   assistantEditTabLocalTools,
   assistantEditTabMcp,
   assistantEditTabSkills,
+  assistantEditTabLinuxSandbox,
 ];
 
 /// Default assistant edit tabs when proactive care is supported (Android).
@@ -34,6 +36,7 @@ const List<String> defaultAssistantEditTabIdsWithProactiveCare = [
   assistantEditTabLocalTools,
   assistantEditTabMcp,
   assistantEditTabSkills,
+  assistantEditTabLinuxSandbox,
 ];
 
 List<String> defaultAssistantEditTabIdsFor({

@@ -7253,4 +7253,241 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get grokLoginNetworkError => 'Network error, please retry';
+
+  @override
+  String get settingsPageLinuxSandbox => 'Sandbox';
+
+  @override
+  String get linuxSandboxListTitle => 'Sandbox';
+
+  @override
+  String get linuxSandboxListEmpty =>
+      'No sandboxes yet. Create one to give assistants a local workspace.';
+
+  @override
+  String get linuxSandboxCreateTitle => 'Create sandbox';
+
+  @override
+  String get linuxSandboxCreateNameLabel => 'Name';
+
+  @override
+  String get linuxSandboxCreateNameHint => 'My sandbox';
+
+  @override
+  String get linuxSandboxCreateNameRequired => 'Please enter a sandbox name.';
+
+  @override
+  String get linuxSandboxCreateAction => 'Create';
+
+  @override
+  String get linuxSandboxCreateFailed => 'Failed to create sandbox.';
+
+  @override
+  String get linuxSandboxDeleteFailed => 'Failed to delete sandbox.';
+
+  @override
+  String get linuxSandboxCreateInstallSection => 'Install options';
+
+  @override
+  String get linuxSandboxCreateBaseEnvTitle => 'Base environment';
+
+  @override
+  String get linuxSandboxCreateBaseEnvSubtitle =>
+      'Empty workspace with file and shell tools.';
+
+  @override
+  String get linuxSandboxCreatePythonTitle => 'Python';
+
+  @override
+  String get linuxSandboxCreateJavaTitle => 'Java';
+
+  @override
+  String get linuxSandboxCreateComingLater => 'Coming later';
+
+  @override
+  String get linuxSandboxDetailToolsSection => 'Tools';
+
+  @override
+  String get linuxSandboxToolReadName => 'Read';
+
+  @override
+  String get linuxSandboxToolReadDescription =>
+      'Read a file or list a directory inside the sandbox.';
+
+  @override
+  String get linuxSandboxToolWriteName => 'Write';
+
+  @override
+  String get linuxSandboxToolWriteDescription =>
+      'Create or overwrite a text file inside the sandbox.';
+
+  @override
+  String get linuxSandboxToolEditName => 'Edit';
+
+  @override
+  String get linuxSandboxToolEditDescription =>
+      'Replace text in a file inside the sandbox.';
+
+  @override
+  String get linuxSandboxToolShellName => 'Shell';
+
+  @override
+  String get linuxSandboxToolShellDescription =>
+      'Run a shell command with the sandbox as working directory.';
+
+  @override
+  String linuxSandboxToolsCount(int enabled, int total) {
+    return '$enabled/$total tools';
+  }
+
+  @override
+  String get linuxSandboxBackupNote =>
+      'Sandbox files are stored on this device and are not included in backup.';
+
+  @override
+  String get linuxSandboxDeleteConfirmTitle => 'Delete sandbox?';
+
+  @override
+  String linuxSandboxDeleteConfirmMessage(String name) {
+    return 'Delete “$name”? Bound assistants will be unbound and local files removed.';
+  }
+
+  @override
+  String get linuxSandboxDeleteAction => 'Delete';
+
+  @override
+  String get linuxSandboxBrowseTitle => 'Files';
+
+  @override
+  String get linuxSandboxBrowseEmpty => 'This folder is empty.';
+
+  @override
+  String get linuxSandboxBrowseUp => 'Up';
+
+  @override
+  String get linuxSandboxAndroidUnsupported =>
+      'Sandbox tools are not available on this Android device ABI. You can still manage sandboxes here.';
+
+  @override
+  String get linuxSandboxAndroidDownloadNote =>
+      'On Android, installing the base environment downloads an Ubuntu rootfs (~30–40 MB) and extracts it on this device. A network connection is required.';
+
+  @override
+  String get linuxSandboxAndroidProotBanner =>
+      'Android sandbox uses PRoot for convenience isolation — not a hard security boundary. Network access remains unrestricted.';
+
+  @override
+  String linuxSandboxInstallProgress(String stage) {
+    return 'Installing: $stage';
+  }
+
+  @override
+  String get linuxSandboxPlatformUnsupported =>
+      'Sandbox tools currently run on Windows, Linux, and Android. You can still manage sandboxes here.';
+
+  @override
+  String get linuxSandboxMissingMessage => 'This sandbox no longer exists.';
+
+  @override
+  String get linuxSandboxWindowsLocalJailBanner =>
+      'Windows sandbox tools require WSL. Install or reinstall the base environment.';
+
+  @override
+  String get linuxSandboxWindowsWslBrokenHint =>
+      'WSL base environment is not ready. Tap Install / Reinstall base environment. You may need to approve UAC or restart Windows.';
+
+  @override
+  String get linuxSandboxWindowsWslInstallNote =>
+      'On Windows, base environment uses real Linux via WSL (shared Cuplivo-Sandbox distro). Setup may show a UAC prompt and can require a restart before finishing.';
+
+  @override
+  String get linuxSandboxWslRebootRequired =>
+      'WSL was enabled but Windows must restart. After restart, open this sandbox and tap Install base environment to finish.';
+
+  @override
+  String get linuxSandboxWslEnableFailed =>
+      'Could not enable WSL. Install WSL from Windows features or run wsl --install, then retry Install base environment.';
+
+  @override
+  String get linuxSandboxWslResumeAfterReboot =>
+      'Restart complete — tap Install base environment to finish WSL setup.';
+
+  @override
+  String get linuxSandboxWslDownloadingRootfs => 'Downloading Linux rootfs';
+
+  @override
+  String get linuxSandboxWslImportingDistro => 'Importing WSL distro';
+
+  @override
+  String get linuxSandboxStatusDisabled => 'Disabled';
+
+  @override
+  String get linuxSandboxStatusNotReady => 'Not ready';
+
+  @override
+  String get linuxSandboxStatusInstalling => 'Installing';
+
+  @override
+  String get linuxSandboxStatusReady => 'Ready';
+
+  @override
+  String get linuxSandboxStatusBroken => 'Broken';
+
+  @override
+  String get linuxSandboxRuntimeModeLocalJail => 'Folder jail';
+
+  @override
+  String get linuxSandboxRuntimeModeWsl => 'WSL';
+
+  @override
+  String get linuxSandboxRuntimeModeNativeLinux => 'Native Linux';
+
+  @override
+  String get linuxSandboxRuntimeModeProot => 'PRoot (Android)';
+
+  @override
+  String get linuxSandboxRuntimeModeUnknown => 'Unknown';
+
+  @override
+  String get linuxSandboxInstallBaseEnvAction => 'Install base environment';
+
+  @override
+  String get linuxSandboxReinstallBaseEnvAction => 'Reinstall base environment';
+
+  @override
+  String get linuxSandboxRetryWslAction => 'Install WSL / Reinstall base env';
+
+  @override
+  String get linuxSandboxInstallFailed => 'Failed to install base environment.';
+
+  @override
+  String get linuxSandboxInstallSuccess => 'Base environment is ready.';
+
+  @override
+  String get assistantEditPageLinuxSandboxTab => 'Sandbox';
+
+  @override
+  String get assistantEditLinuxSandboxEnable => 'Enable sandbox';
+
+  @override
+  String get assistantEditLinuxSandboxEnableSubtitle =>
+      'Allow this assistant to use a local sandbox workspace.';
+
+  @override
+  String get assistantEditLinuxSandboxPick => 'Choose sandbox';
+
+  @override
+  String get assistantEditLinuxSandboxNone =>
+      'No sandboxes yet. Create one in Settings first.';
+
+  @override
+  String get assistantEditLinuxSandboxMissing =>
+      'The selected sandbox is missing. Choose another or turn sandbox off.';
+
+  @override
+  String get assistantEditLinuxSandboxNotReady =>
+      'Selected sandbox is not ready. Install its base environment first.';
+
+  @override
+  String get assistantEditLinuxSandboxManageCta => 'Manage sandboxes';
 }

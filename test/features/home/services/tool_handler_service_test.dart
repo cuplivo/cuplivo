@@ -13,6 +13,8 @@ import 'package:Cuplivo/core/providers/memory_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/mcp/mcp_tool_service.dart';
 import 'package:Cuplivo/features/home/services/tool_handler_service.dart';
+import 'package:Cuplivo/features/linux_sandbox/models/linux_sandbox.dart';
+import 'package:Cuplivo/features/linux_sandbox/providers/linux_sandbox_provider.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -134,6 +136,116 @@ void main() {
     });
   });
 
+  group('ToolHandlerService sandbox tools', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    testWidgets('buildToolDefinitions includes enabled sandbox tools only', (
+      tester,
+    ) async {
+      final sandbox = LinuxSandbox(
+        id: 'sb-defs',
+        name: 'Defs',
+        status: LinuxSandboxStatus.ready,
+        runtimeMode: LinuxSandboxRuntimeMode.wsl,
+        tools: {
+          LinuxSandboxToolNames.read: const LinuxSandboxToolConfig(
+            enabled: true,
+          ),
+          LinuxSandboxToolNames.write: const LinuxSandboxToolConfig(
+            enabled: true,
+          ),
+          LinuxSandboxToolNames.edit: const LinuxSandboxToolConfig(
+            enabled: false,
+          ),
+          LinuxSandboxToolNames.shell: const LinuxSandboxToolConfig(
+            enabled: false,
+          ),
+        },
+      );
+      SharedPreferences.setMockInitialValues({
+        LinuxSandboxProvider.prefsKey: jsonEncode([sandbox.toJson()]),
+      });
+
+      await tester.pumpWidget(
+        _ToolHandlerTestScope(child: const SizedBox.shrink()),
+      );
+      await tester.pump();
+
+      final context = tester.element(find.byType(SizedBox));
+      await context.read<LinuxSandboxProvider>().ensureLoaded();
+
+      final assistant = Assistant(
+        id: 'a-sb',
+        name: 'A',
+        sandboxEnabled: true,
+        sandboxId: sandbox.id,
+      );
+      final defs = ToolHandlerService(contextProvider: context)
+          .buildToolDefinitions(
+            SettingsProvider(),
+            assistant,
+            'openai',
+            'gpt-4o',
+            false,
+            isToolModel: (_, __) => true,
+          );
+
+      final names = defs
+          .map((d) => (d['function'] as Map)['name'] as String)
+          .toList();
+      expect(names, contains(LinuxSandboxToolNames.read));
+      expect(names, contains(LinuxSandboxToolNames.write));
+      expect(names, isNot(contains(LinuxSandboxToolNames.edit)));
+      expect(names, isNot(contains(LinuxSandboxToolNames.shell)));
+    });
+
+    testWidgets(
+      'buildToolCallHandler short-circuits sandbox tools before MCP',
+      (tester) async {
+        await tester.pumpWidget(
+          const _ToolHandlerTestScope(child: SizedBox.shrink()),
+        );
+        await tester.pump();
+
+        final context = tester.element(find.byType(SizedBox));
+        final service = ToolHandlerService(contextProvider: context);
+
+        // Sandbox disabled on assistant -> do not intercept as sandbox tool.
+        final offHandler = service.buildToolCallHandler(
+          SettingsProvider(),
+          Assistant(id: 'a2', name: 'A2'),
+        )!;
+        final offResult = await offHandler(LinuxSandboxToolNames.read, {
+          'path': 'x',
+        });
+        expect(offResult.contains('sandbox_unavailable'), isFalse);
+        expect(offResult.contains('sandbox_not_found'), isFalse);
+
+        // Enabled but missing sandbox target -> sandbox_not_found.
+        final missingHandler = service.buildToolCallHandler(
+          SettingsProvider(),
+          Assistant(
+            id: 'a3',
+            name: 'A3',
+            sandboxEnabled: true,
+            sandboxId: 'does-not-exist',
+          ),
+        )!;
+        final missingResult = await missingHandler(
+          LinuxSandboxToolNames.shell,
+          {'command': 'echo hi'},
+        );
+        final missingPayload =
+            jsonDecode(missingResult) as Map<String, dynamic>;
+        expect(missingPayload['type'], 'tool_error');
+        expect(missingPayload['error'], 'sandbox_not_found');
+        expect(missingPayload['tool'], LinuxSandboxToolNames.shell);
+      },
+    );
+  });
+
   group('ToolHandlerService.sanitizeToolParametersForProvider', () {
     group('OpenAI / Claude', () {
       for (final kind in const [ProviderKind.openai, ProviderKind.claude]) {
@@ -246,6 +358,9 @@ class _ToolHandlerTestScope extends StatelessWidget {
         ChangeNotifierProvider<McpToolService>(create: (_) => McpToolService()),
         ChangeNotifierProvider<MemoryProvider>(
           create: (_) => memoryProvider ?? MemoryProvider(),
+        ),
+        ChangeNotifierProvider<LinuxSandboxProvider>(
+          create: (_) => LinuxSandboxProvider(),
         ),
       ],
       child: child,

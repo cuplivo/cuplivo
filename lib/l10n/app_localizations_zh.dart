@@ -6940,6 +6940,232 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get grokLoginNetworkError => '网络错误，请重试';
+
+  @override
+  String get settingsPageLinuxSandbox => '沙箱';
+
+  @override
+  String get linuxSandboxListTitle => '沙箱';
+
+  @override
+  String get linuxSandboxListEmpty => '暂无沙箱。创建一个后，即可为助手提供本地工作区。';
+
+  @override
+  String get linuxSandboxCreateTitle => '创建沙箱';
+
+  @override
+  String get linuxSandboxCreateNameLabel => '名称';
+
+  @override
+  String get linuxSandboxCreateNameHint => '我的沙箱';
+
+  @override
+  String get linuxSandboxCreateNameRequired => '请输入沙箱名称。';
+
+  @override
+  String get linuxSandboxCreateAction => '创建';
+
+  @override
+  String get linuxSandboxCreateFailed => '创建沙箱失败。';
+
+  @override
+  String get linuxSandboxDeleteFailed => '删除沙箱失败。';
+
+  @override
+  String get linuxSandboxCreateInstallSection => '安装选项';
+
+  @override
+  String get linuxSandboxCreateBaseEnvTitle => '基础环境';
+
+  @override
+  String get linuxSandboxCreateBaseEnvSubtitle => '空白工作区，提供文件与 Shell 工具。';
+
+  @override
+  String get linuxSandboxCreatePythonTitle => 'Python';
+
+  @override
+  String get linuxSandboxCreateJavaTitle => 'Java';
+
+  @override
+  String get linuxSandboxCreateComingLater => '稍后提供';
+
+  @override
+  String get linuxSandboxDetailToolsSection => '工具';
+
+  @override
+  String get linuxSandboxToolReadName => '读取';
+
+  @override
+  String get linuxSandboxToolReadDescription => '在沙箱内读取文件或列出目录。';
+
+  @override
+  String get linuxSandboxToolWriteName => '写入';
+
+  @override
+  String get linuxSandboxToolWriteDescription => '在沙箱内创建或覆盖文本文件。';
+
+  @override
+  String get linuxSandboxToolEditName => '编辑';
+
+  @override
+  String get linuxSandboxToolEditDescription => '在沙箱内替换文件中的文本。';
+
+  @override
+  String get linuxSandboxToolShellName => 'Shell';
+
+  @override
+  String get linuxSandboxToolShellDescription => '以沙箱为工作目录运行 Shell 命令。';
+
+  @override
+  String linuxSandboxToolsCount(int enabled, int total) {
+    return '$enabled/$total 个工具';
+  }
+
+  @override
+  String get linuxSandboxBackupNote => '沙箱文件仅保存在本机，不会包含在备份中。';
+
+  @override
+  String get linuxSandboxDeleteConfirmTitle => '删除沙箱？';
+
+  @override
+  String linuxSandboxDeleteConfirmMessage(String name) {
+    return '确定删除“$name”？已绑定的助手将解除绑定，本地文件也会被删除。';
+  }
+
+  @override
+  String get linuxSandboxDeleteAction => '删除';
+
+  @override
+  String get linuxSandboxBrowseTitle => '文件';
+
+  @override
+  String get linuxSandboxBrowseEmpty => '此文件夹为空。';
+
+  @override
+  String get linuxSandboxBrowseUp => '上级';
+
+  @override
+  String get linuxSandboxAndroidUnsupported =>
+      '此 Android 设备架构不支持沙箱工具。你仍可在此管理沙箱。';
+
+  @override
+  String get linuxSandboxAndroidDownloadNote =>
+      '在 Android 上安装基础环境会下载 Ubuntu 根文件系统（约 30–40 MB）并解压到本机，需要网络连接。';
+
+  @override
+  String get linuxSandboxAndroidProotBanner =>
+      'Android 沙箱通过 PRoot 提供便利隔离——并非硬安全边界。网络访问仍不受限制。';
+
+  @override
+  String linuxSandboxInstallProgress(String stage) {
+    return '正在安装：$stage';
+  }
+
+  @override
+  String get linuxSandboxPlatformUnsupported =>
+      '沙箱工具目前可在 Windows、Linux 与 Android 上运行。你仍可在此管理沙箱。';
+
+  @override
+  String get linuxSandboxMissingMessage => '该沙箱已不存在。';
+
+  @override
+  String get linuxSandboxWindowsLocalJailBanner =>
+      'Windows 沙箱工具需要 WSL。请安装或重新安装基础环境。';
+
+  @override
+  String get linuxSandboxWindowsWslBrokenHint =>
+      'WSL 基础环境尚未就绪。请点击安装/重新安装基础环境。可能需要批准 UAC 或重启 Windows。';
+
+  @override
+  String get linuxSandboxWindowsWslInstallNote =>
+      '在 Windows 上，基础环境通过 WSL 提供真正的 Linux（共享 Cuplivo-Sandbox 发行版）。安装时可能弹出 UAC，并可能需要重启后才能完成。';
+
+  @override
+  String get linuxSandboxWslRebootRequired =>
+      'WSL 已启用，但需要重启 Windows。重启后打开此沙箱并点击「安装基础环境」以完成设置。';
+
+  @override
+  String get linuxSandboxWslEnableFailed =>
+      '无法启用 WSL。请从 Windows 功能安装 WSL，或运行 wsl --install，然后重试安装基础环境。';
+
+  @override
+  String get linuxSandboxWslResumeAfterReboot =>
+      '重启完成 — 请点击「安装基础环境」以完成 WSL 设置。';
+
+  @override
+  String get linuxSandboxWslDownloadingRootfs => '正在下载 Linux 根文件系统';
+
+  @override
+  String get linuxSandboxWslImportingDistro => '正在导入 WSL 发行版';
+
+  @override
+  String get linuxSandboxStatusDisabled => '已禁用';
+
+  @override
+  String get linuxSandboxStatusNotReady => '未就绪';
+
+  @override
+  String get linuxSandboxStatusInstalling => '安装中';
+
+  @override
+  String get linuxSandboxStatusReady => '就绪';
+
+  @override
+  String get linuxSandboxStatusBroken => '已损坏';
+
+  @override
+  String get linuxSandboxRuntimeModeLocalJail => '文件夹隔离';
+
+  @override
+  String get linuxSandboxRuntimeModeWsl => 'WSL';
+
+  @override
+  String get linuxSandboxRuntimeModeNativeLinux => '原生 Linux';
+
+  @override
+  String get linuxSandboxRuntimeModeProot => 'PRoot（Android）';
+
+  @override
+  String get linuxSandboxRuntimeModeUnknown => '未知';
+
+  @override
+  String get linuxSandboxInstallBaseEnvAction => '安装基础环境';
+
+  @override
+  String get linuxSandboxReinstallBaseEnvAction => '重新安装基础环境';
+
+  @override
+  String get linuxSandboxRetryWslAction => '安装 WSL / 重新安装基础环境';
+
+  @override
+  String get linuxSandboxInstallFailed => '安装基础环境失败。';
+
+  @override
+  String get linuxSandboxInstallSuccess => '基础环境已就绪。';
+
+  @override
+  String get assistantEditPageLinuxSandboxTab => '沙箱';
+
+  @override
+  String get assistantEditLinuxSandboxEnable => '启用沙箱';
+
+  @override
+  String get assistantEditLinuxSandboxEnableSubtitle => '允许此助手使用本地沙箱工作区。';
+
+  @override
+  String get assistantEditLinuxSandboxPick => '选择沙箱';
+
+  @override
+  String get assistantEditLinuxSandboxNone => '暂无沙箱。请先在设置中创建。';
+
+  @override
+  String get assistantEditLinuxSandboxMissing => '所选沙箱已丢失。请另选一个，或关闭沙箱。';
+
+  @override
+  String get assistantEditLinuxSandboxNotReady => '所选沙箱尚未就绪。请先安装基础环境。';
+
+  @override
+  String get assistantEditLinuxSandboxManageCta => '管理沙箱';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -13878,6 +14104,232 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get grokLoginNetworkError => '网络错误，请重试';
+
+  @override
+  String get settingsPageLinuxSandbox => '沙箱';
+
+  @override
+  String get linuxSandboxListTitle => '沙箱';
+
+  @override
+  String get linuxSandboxListEmpty => '暂无沙箱。创建一个后，即可为助手提供本地工作区。';
+
+  @override
+  String get linuxSandboxCreateTitle => '创建沙箱';
+
+  @override
+  String get linuxSandboxCreateNameLabel => '名称';
+
+  @override
+  String get linuxSandboxCreateNameHint => '我的沙箱';
+
+  @override
+  String get linuxSandboxCreateNameRequired => '请输入沙箱名称。';
+
+  @override
+  String get linuxSandboxCreateAction => '创建';
+
+  @override
+  String get linuxSandboxCreateFailed => '创建沙箱失败。';
+
+  @override
+  String get linuxSandboxDeleteFailed => '删除沙箱失败。';
+
+  @override
+  String get linuxSandboxCreateInstallSection => '安装选项';
+
+  @override
+  String get linuxSandboxCreateBaseEnvTitle => '基础环境';
+
+  @override
+  String get linuxSandboxCreateBaseEnvSubtitle => '空白工作区，提供文件与 Shell 工具。';
+
+  @override
+  String get linuxSandboxCreatePythonTitle => 'Python';
+
+  @override
+  String get linuxSandboxCreateJavaTitle => 'Java';
+
+  @override
+  String get linuxSandboxCreateComingLater => '稍后提供';
+
+  @override
+  String get linuxSandboxDetailToolsSection => '工具';
+
+  @override
+  String get linuxSandboxToolReadName => '读取';
+
+  @override
+  String get linuxSandboxToolReadDescription => '在沙箱内读取文件或列出目录。';
+
+  @override
+  String get linuxSandboxToolWriteName => '写入';
+
+  @override
+  String get linuxSandboxToolWriteDescription => '在沙箱内创建或覆盖文本文件。';
+
+  @override
+  String get linuxSandboxToolEditName => '编辑';
+
+  @override
+  String get linuxSandboxToolEditDescription => '在沙箱内替换文件中的文本。';
+
+  @override
+  String get linuxSandboxToolShellName => 'Shell';
+
+  @override
+  String get linuxSandboxToolShellDescription => '以沙箱为工作目录运行 Shell 命令。';
+
+  @override
+  String linuxSandboxToolsCount(int enabled, int total) {
+    return '$enabled/$total 个工具';
+  }
+
+  @override
+  String get linuxSandboxBackupNote => '沙箱文件仅保存在本机，不会包含在备份中。';
+
+  @override
+  String get linuxSandboxDeleteConfirmTitle => '删除沙箱？';
+
+  @override
+  String linuxSandboxDeleteConfirmMessage(String name) {
+    return '确定删除“$name”？已绑定的助手将解除绑定，本地文件也会被删除。';
+  }
+
+  @override
+  String get linuxSandboxDeleteAction => '删除';
+
+  @override
+  String get linuxSandboxBrowseTitle => '文件';
+
+  @override
+  String get linuxSandboxBrowseEmpty => '此文件夹为空。';
+
+  @override
+  String get linuxSandboxBrowseUp => '上级';
+
+  @override
+  String get linuxSandboxAndroidUnsupported =>
+      '此 Android 设备架构不支持沙箱工具。你仍可在此管理沙箱。';
+
+  @override
+  String get linuxSandboxAndroidDownloadNote =>
+      '在 Android 上安装基础环境会下载 Ubuntu 根文件系统（约 30–40 MB）并解压到本机，需要网络连接。';
+
+  @override
+  String get linuxSandboxAndroidProotBanner =>
+      'Android 沙箱通过 PRoot 提供便利隔离——并非硬安全边界。网络访问仍不受限制。';
+
+  @override
+  String linuxSandboxInstallProgress(String stage) {
+    return '正在安装：$stage';
+  }
+
+  @override
+  String get linuxSandboxPlatformUnsupported =>
+      '沙箱工具目前可在 Windows、Linux 与 Android 上运行。你仍可在此管理沙箱。';
+
+  @override
+  String get linuxSandboxMissingMessage => '该沙箱已不存在。';
+
+  @override
+  String get linuxSandboxWindowsLocalJailBanner =>
+      'Windows 沙箱工具需要 WSL。请安装或重新安装基础环境。';
+
+  @override
+  String get linuxSandboxWindowsWslBrokenHint =>
+      'WSL 基础环境尚未就绪。请点击安装/重新安装基础环境。可能需要批准 UAC 或重启 Windows。';
+
+  @override
+  String get linuxSandboxWindowsWslInstallNote =>
+      '在 Windows 上，基础环境通过 WSL 提供真正的 Linux（共享 Cuplivo-Sandbox 发行版）。安装时可能弹出 UAC，并可能需要重启后才能完成。';
+
+  @override
+  String get linuxSandboxWslRebootRequired =>
+      'WSL 已启用，但需要重启 Windows。重启后打开此沙箱并点击「安装基础环境」以完成设置。';
+
+  @override
+  String get linuxSandboxWslEnableFailed =>
+      '无法启用 WSL。请从 Windows 功能安装 WSL，或运行 wsl --install，然后重试安装基础环境。';
+
+  @override
+  String get linuxSandboxWslResumeAfterReboot =>
+      '重启完成 — 请点击「安装基础环境」以完成 WSL 设置。';
+
+  @override
+  String get linuxSandboxWslDownloadingRootfs => '正在下载 Linux 根文件系统';
+
+  @override
+  String get linuxSandboxWslImportingDistro => '正在导入 WSL 发行版';
+
+  @override
+  String get linuxSandboxStatusDisabled => '已禁用';
+
+  @override
+  String get linuxSandboxStatusNotReady => '未就绪';
+
+  @override
+  String get linuxSandboxStatusInstalling => '安装中';
+
+  @override
+  String get linuxSandboxStatusReady => '就绪';
+
+  @override
+  String get linuxSandboxStatusBroken => '已损坏';
+
+  @override
+  String get linuxSandboxRuntimeModeLocalJail => '文件夹隔离';
+
+  @override
+  String get linuxSandboxRuntimeModeWsl => 'WSL';
+
+  @override
+  String get linuxSandboxRuntimeModeNativeLinux => '原生 Linux';
+
+  @override
+  String get linuxSandboxRuntimeModeProot => 'PRoot（Android）';
+
+  @override
+  String get linuxSandboxRuntimeModeUnknown => '未知';
+
+  @override
+  String get linuxSandboxInstallBaseEnvAction => '安装基础环境';
+
+  @override
+  String get linuxSandboxReinstallBaseEnvAction => '重新安装基础环境';
+
+  @override
+  String get linuxSandboxRetryWslAction => '安装 WSL / 重新安装基础环境';
+
+  @override
+  String get linuxSandboxInstallFailed => '安装基础环境失败。';
+
+  @override
+  String get linuxSandboxInstallSuccess => '基础环境已就绪。';
+
+  @override
+  String get assistantEditPageLinuxSandboxTab => '沙箱';
+
+  @override
+  String get assistantEditLinuxSandboxEnable => '启用沙箱';
+
+  @override
+  String get assistantEditLinuxSandboxEnableSubtitle => '允许此助手使用本地沙箱工作区。';
+
+  @override
+  String get assistantEditLinuxSandboxPick => '选择沙箱';
+
+  @override
+  String get assistantEditLinuxSandboxNone => '暂无沙箱。请先在设置中创建。';
+
+  @override
+  String get assistantEditLinuxSandboxMissing => '所选沙箱已丢失。请另选一个，或关闭沙箱。';
+
+  @override
+  String get assistantEditLinuxSandboxNotReady => '所选沙箱尚未就绪。请先安装基础环境。';
+
+  @override
+  String get assistantEditLinuxSandboxManageCta => '管理沙箱';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -20816,4 +21268,230 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get grokLoginNetworkError => '網路錯誤，請重試';
+
+  @override
+  String get settingsPageLinuxSandbox => '沙箱';
+
+  @override
+  String get linuxSandboxListTitle => '沙箱';
+
+  @override
+  String get linuxSandboxListEmpty => '尚無沙箱。建立一個後，即可為助手提供本機工作區。';
+
+  @override
+  String get linuxSandboxCreateTitle => '建立沙箱';
+
+  @override
+  String get linuxSandboxCreateNameLabel => '名稱';
+
+  @override
+  String get linuxSandboxCreateNameHint => '我的沙箱';
+
+  @override
+  String get linuxSandboxCreateNameRequired => '請輸入沙箱名稱。';
+
+  @override
+  String get linuxSandboxCreateAction => '建立';
+
+  @override
+  String get linuxSandboxCreateFailed => '建立沙箱失敗。';
+
+  @override
+  String get linuxSandboxDeleteFailed => '刪除沙箱失敗。';
+
+  @override
+  String get linuxSandboxCreateInstallSection => '安裝選項';
+
+  @override
+  String get linuxSandboxCreateBaseEnvTitle => '基礎環境';
+
+  @override
+  String get linuxSandboxCreateBaseEnvSubtitle => '空白工作區，提供檔案與 Shell 工具。';
+
+  @override
+  String get linuxSandboxCreatePythonTitle => 'Python';
+
+  @override
+  String get linuxSandboxCreateJavaTitle => 'Java';
+
+  @override
+  String get linuxSandboxCreateComingLater => '稍後提供';
+
+  @override
+  String get linuxSandboxDetailToolsSection => '工具';
+
+  @override
+  String get linuxSandboxToolReadName => '讀取';
+
+  @override
+  String get linuxSandboxToolReadDescription => '在沙箱內讀取檔案或列出目錄。';
+
+  @override
+  String get linuxSandboxToolWriteName => '寫入';
+
+  @override
+  String get linuxSandboxToolWriteDescription => '在沙箱內建立或覆寫文字檔案。';
+
+  @override
+  String get linuxSandboxToolEditName => '編輯';
+
+  @override
+  String get linuxSandboxToolEditDescription => '在沙箱內替換檔案中的文字。';
+
+  @override
+  String get linuxSandboxToolShellName => 'Shell';
+
+  @override
+  String get linuxSandboxToolShellDescription => '以沙箱為工作目錄執行 Shell 命令。';
+
+  @override
+  String linuxSandboxToolsCount(int enabled, int total) {
+    return '$enabled/$total 個工具';
+  }
+
+  @override
+  String get linuxSandboxBackupNote => '沙箱檔案僅保存在本機，不會包含在備份中。';
+
+  @override
+  String get linuxSandboxDeleteConfirmTitle => '刪除沙箱？';
+
+  @override
+  String linuxSandboxDeleteConfirmMessage(String name) {
+    return '確定刪除「$name」？已綁定的助手將解除綁定，本機檔案也會被刪除。';
+  }
+
+  @override
+  String get linuxSandboxDeleteAction => '刪除';
+
+  @override
+  String get linuxSandboxBrowseTitle => '檔案';
+
+  @override
+  String get linuxSandboxBrowseEmpty => '此資料夾為空。';
+
+  @override
+  String get linuxSandboxBrowseUp => '上一層';
+
+  @override
+  String get linuxSandboxAndroidUnsupported =>
+      '此 Android 裝置架構不支援沙箱工具。你仍可在此管理沙箱。';
+
+  @override
+  String get linuxSandboxAndroidDownloadNote =>
+      '在 Android 上安裝基礎環境會下載 Ubuntu 根檔案系統（約 30–40 MB）並解壓到本機，需要網路連線。';
+
+  @override
+  String get linuxSandboxAndroidProotBanner =>
+      'Android 沙箱透過 PRoot 提供便利隔離——並非硬安全邊界。網路存取仍不受限制。';
+
+  @override
+  String linuxSandboxInstallProgress(String stage) {
+    return '正在安裝：$stage';
+  }
+
+  @override
+  String get linuxSandboxPlatformUnsupported =>
+      '沙箱工具目前可在 Windows、Linux 與 Android 上執行。你仍可在此管理沙箱。';
+
+  @override
+  String get linuxSandboxMissingMessage => '此沙箱已不存在。';
+
+  @override
+  String get linuxSandboxWindowsLocalJailBanner =>
+      'Windows 沙箱工具需要 WSL。請安裝或重新安裝基礎環境。';
+
+  @override
+  String get linuxSandboxWindowsWslBrokenHint =>
+      'WSL 基礎環境尚未就緒。請點選安裝/重新安裝基礎環境。可能需要批准 UAC 或重新啟動 Windows。';
+
+  @override
+  String get linuxSandboxWindowsWslInstallNote =>
+      '在 Windows 上，基礎環境透過 WSL 提供真正的 Linux（共用 Cuplivo-Sandbox 發行版）。安裝時可能跳出 UAC，並可能需要重新啟動後才能完成。';
+
+  @override
+  String get linuxSandboxWslRebootRequired =>
+      'WSL 已啟用，但需要重新啟動 Windows。重新啟動後開啟此沙箱並點選「安裝基礎環境」以完成設定。';
+
+  @override
+  String get linuxSandboxWslEnableFailed =>
+      '無法啟用 WSL。請從 Windows 功能安裝 WSL，或執行 wsl --install，然後重試安裝基礎環境。';
+
+  @override
+  String get linuxSandboxWslResumeAfterReboot =>
+      '重新啟動完成 — 請點選「安裝基礎環境」以完成 WSL 設定。';
+
+  @override
+  String get linuxSandboxWslDownloadingRootfs => '正在下載 Linux 根檔案系統';
+
+  @override
+  String get linuxSandboxWslImportingDistro => '正在匯入 WSL 發行版';
+
+  @override
+  String get linuxSandboxStatusDisabled => '已停用';
+
+  @override
+  String get linuxSandboxStatusNotReady => '未就緒';
+
+  @override
+  String get linuxSandboxStatusInstalling => '安裝中';
+
+  @override
+  String get linuxSandboxStatusReady => '就緒';
+
+  @override
+  String get linuxSandboxStatusBroken => '已損壞';
+
+  @override
+  String get linuxSandboxRuntimeModeLocalJail => '資料夾隔離';
+
+  @override
+  String get linuxSandboxRuntimeModeWsl => 'WSL';
+
+  @override
+  String get linuxSandboxRuntimeModeNativeLinux => '原生 Linux';
+
+  @override
+  String get linuxSandboxRuntimeModeProot => 'PRoot（Android）';
+
+  @override
+  String get linuxSandboxRuntimeModeUnknown => '未知';
+
+  @override
+  String get linuxSandboxInstallBaseEnvAction => '安裝基礎環境';
+
+  @override
+  String get linuxSandboxReinstallBaseEnvAction => '重新安裝基礎環境';
+
+  @override
+  String get linuxSandboxRetryWslAction => '安裝 WSL / 重新安裝基礎環境';
+
+  @override
+  String get linuxSandboxInstallFailed => '安裝基礎環境失敗。';
+
+  @override
+  String get linuxSandboxInstallSuccess => '基礎環境已就緒。';
+
+  @override
+  String get assistantEditPageLinuxSandboxTab => '沙箱';
+
+  @override
+  String get assistantEditLinuxSandboxEnable => '啟用沙箱';
+
+  @override
+  String get assistantEditLinuxSandboxEnableSubtitle => '允許此助手使用本機沙箱工作區。';
+
+  @override
+  String get assistantEditLinuxSandboxPick => '選擇沙箱';
+
+  @override
+  String get assistantEditLinuxSandboxNone => '尚無沙箱。請先在設定中建立。';
+
+  @override
+  String get assistantEditLinuxSandboxMissing => '所選沙箱已遺失。請另選一個，或關閉沙箱。';
+
+  @override
+  String get assistantEditLinuxSandboxNotReady => '所選沙箱尚未就緒。請先安裝基礎環境。';
+
+  @override
+  String get assistantEditLinuxSandboxManageCta => '管理沙箱';
 }

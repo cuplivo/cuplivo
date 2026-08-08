@@ -158,6 +158,41 @@ void main() {
       await repo.close();
     },
   );
+
+  test(
+    'heal adds sandbox columns before assistant insert (v16 column shape)',
+    () async {
+      _createLegacyDb(
+        dbFile,
+        userVersion: 16,
+        missingIsPreset: false,
+        missingHandoffColumns: false,
+        missingSandboxColumns: true,
+      );
+
+      final repo = ChatDatabaseRepository.open(file: dbFile);
+      await repo.ensureReady();
+
+      // Must succeed: heal adds sandbox_enabled/sandbox_id before Drift INSERT.
+      await repo.putAssistant(
+        Assistant(
+          id: 'a1',
+          name: 'Alpha',
+          systemPrompt: 'hi',
+          sandboxEnabled: true,
+          sandboxId: 'sbx-1',
+        ),
+        sortOrder: 0,
+      );
+      final loaded = await repo.getAllAssistants();
+      expect(loaded, hasLength(1));
+      expect(loaded.first.name, 'Alpha');
+      expect(loaded.first.sandboxEnabled, isTrue);
+      expect(loaded.first.sandboxId, 'sbx-1');
+
+      await repo.close();
+    },
+  );
 }
 
 /// Builds a v13-era DB shape (assistant/conversation/message tables only —
@@ -170,6 +205,7 @@ void _createLegacyDb(
   required bool missingIsPreset,
   required bool missingHandoffColumns,
   bool missingOcrMode = false,
+  bool missingSandboxColumns = false,
 }) {
   final raw = sqlite.sqlite3.open(dbFile.path);
   raw.execute('PRAGMA user_version = $userVersion;');
@@ -184,6 +220,12 @@ void _createLegacyDb(
       ? ''
       : '''
   ocr_mode TEXT NOT NULL DEFAULT 'auto',
+''';
+  final sandboxColumns = missingSandboxColumns
+      ? ''
+      : '''
+  sandbox_enabled INTEGER NOT NULL DEFAULT 0,
+  sandbox_id TEXT NULL,
 ''';
   raw.execute('''
 CREATE TABLE assistant_rows (
@@ -227,6 +269,7 @@ CREATE TABLE assistant_rows (
   $ocrModeColumn
   enable_time_injection INTEGER NOT NULL DEFAULT 0,
   $handoffColumns
+  $sandboxColumns
   sort_order INTEGER NOT NULL,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL

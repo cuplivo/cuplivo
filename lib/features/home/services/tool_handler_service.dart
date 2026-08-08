@@ -13,6 +13,10 @@ import '../../../core/providers/tts_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/mcp/mcp_tool_service.dart';
 import '../../../core/services/search/search_tool_service.dart';
+import '../../linux_sandbox/models/linux_sandbox.dart';
+import '../../linux_sandbox/providers/linux_sandbox_provider.dart';
+import '../../linux_sandbox/services/sandbox_runtime.dart';
+import '../../linux_sandbox/services/sandbox_tools_service.dart';
 import 'ask_user_interaction_service.dart';
 import 'local_tools_service.dart';
 import 'tool_approval_service.dart';
@@ -23,6 +27,7 @@ import 'tool_approval_service.dart';
 /// - MCP 工具
 /// - Memory 工具 (create/edit/delete)
 /// - Search 工具
+/// - Linux Sandbox 工具
 enum CollisionSource { builtin, mcpVsMcp }
 
 class ToolNameCollision {
@@ -42,6 +47,14 @@ class ToolHandlerService {
 
   /// Build context (used for accessing providers)
   final BuildContext contextProvider;
+
+  LinuxSandboxProvider? _maybeReadSandboxProvider() {
+    try {
+      return contextProvider.read<LinuxSandboxProvider>();
+    } on ProviderNotFoundException {
+      return null;
+    }
+  }
 
   // ============================================================================
   // Tool Schema Sanitization
@@ -210,7 +223,10 @@ class ToolHandlerService {
     return null;
   }
 
-  static Set<String> _getBuiltinToolNames(Assistant? assistant) {
+  static Set<String> _getBuiltinToolNames(
+    Assistant? assistant, {
+    LinuxSandbox? sandbox,
+  }) {
     final names = <String>{};
     if (assistant == null) return names;
     if (assistant.searchEnabled == true) {
@@ -231,6 +247,15 @@ class ToolHandlerService {
       names.add(LocalToolNames.loadSkill);
       names.add(LocalToolNames.readSkillFile);
     }
+    if (assistant.sandboxEnabled &&
+        assistant.sandboxId != null &&
+        sandbox != null) {
+      for (final entry in sandbox.tools.entries) {
+        if (entry.value.enabled) {
+          names.add(entry.key);
+        }
+      }
+    }
     return names;
   }
 
@@ -241,11 +266,12 @@ class ToolHandlerService {
   static List<ToolNameCollision> detectToolNameCollisions({
     required McpProvider mcp,
     required Assistant? assistant,
+    LinuxSandbox? sandbox,
   }) {
     final collisions = <ToolNameCollision>[];
     if (assistant == null) return collisions;
 
-    final builtinNames = _getBuiltinToolNames(assistant);
+    final builtinNames = _getBuiltinToolNames(assistant, sandbox: sandbox);
     final selectedIds = assistant.mcpServerIds.toSet();
     final boundServers = mcp.connectedServers
         .where((s) => selectedIds.contains(s.id) && s.enabled)
@@ -337,6 +363,23 @@ class ToolHandlerService {
         supportsTools: supportsTools,
       ),
     );
+
+    // Linux sandbox tools.
+    // buildToolDefinitions is sync and cannot await ensureLoaded(); callers
+    // that need a guaranteed load (e.g. send path) should await
+    // LinuxSandboxProvider.ensureLoaded() first. If not loaded yet, skip.
+    if (assistant?.sandboxEnabled == true && assistant?.sandboxId != null) {
+      final sandboxProvider = _maybeReadSandboxProvider();
+      if (sandboxProvider != null && sandboxProvider.loaded) {
+        final sandbox = sandboxProvider.getById(assistant!.sandboxId!);
+        toolDefs.addAll(
+          SandboxToolsService.buildToolDefinitions(
+            sandbox: sandbox,
+            supportsTools: supportsTools,
+          ),
+        );
+      }
+    }
 
     // MCP tools
     final mcpTools = _buildMcpToolDefinitions(
@@ -508,6 +551,8 @@ class ToolHandlerService {
   /// Supports:
   /// - Search tool calls
   /// - Memory tool calls (create/edit/delete)
+  /// - Local tool calls
+  /// - Linux sandbox tool calls
   /// - MCP tool calls
   ToolCallHandler? buildToolCallHandler(
     SettingsProvider settings,
@@ -517,9 +562,10 @@ class ToolHandlerService {
   }) {
     final mcp = contextProvider.read<McpProvider>();
     final toolSvc = contextProvider.read<McpToolService>();
-    // Capture AssistantProvider reference before async gap to avoid
+    // Capture provider references before async gap to avoid
     // use_build_context_synchronously warning
     final assistantProvider = contextProvider.read<AssistantProvider>();
+    final sandboxProvider = _maybeReadSandboxProvider();
 
     return (name, args, {toolCallId}) async {
       try {
@@ -644,6 +690,59 @@ class ToolHandlerService {
             return _toolError(
               error: 'invalid_ask_user_request',
               message: e.message,
+              tool: name,
+            );
+          }
+        }
+
+        // Linux sandbox tools: intercept only when assistant has sandbox
+        // enabled+bound. Missing sandbox -> error. Disabled tool -> fall through
+        // (e.g. to MCP) so collision behavior stays consistent with builtins.
+        if (assistant?.sandboxEnabled == true &&
+            assistant?.sandboxId != null &&
+            SandboxToolsService.isSandboxTool(name) &&
+            sandboxProvider != null) {
+          await sandboxProvider.ensureLoaded();
+          final sandbox = sandboxProvider.getById(assistant!.sandboxId!);
+          if (sandbox == null) {
+            return _toolError(
+              error: 'sandbox_not_found',
+              message: 'Sandbox "${assistant.sandboxId}" was not found.',
+              tool: name,
+            );
+          }
+          final toolCfg = sandbox.tools[name];
+          if (toolCfg != null && toolCfg.enabled) {
+            if (approvalService != null &&
+                SandboxToolsService.toolNeedsApproval(sandbox, name)) {
+              final callId = '${name}_${DateTime.now().microsecondsSinceEpoch}';
+              final result = await approvalService.requestApproval(
+                toolCallId: callId,
+                toolName: name,
+                arguments: args,
+              );
+              if (!result.approved) {
+                return _toolError(
+                  error: 'approval_denied',
+                  message: result.denyReason ?? 'User denied the tool call',
+                  tool: name,
+                );
+              }
+            }
+
+            final runtime = createSandboxRuntime(sandbox.id);
+            final sandboxResult = await SandboxToolsService.tryHandleToolCall(
+              name: name,
+              args: args,
+              sandbox: sandbox,
+              runtime: runtime,
+            );
+            if (sandboxResult != null) {
+              return sandboxResult;
+            }
+            return _toolError(
+              error: 'sandbox_tool_unhandled',
+              message: 'Sandbox tool "$name" could not be handled.',
               tool: name,
             );
           }

@@ -10,6 +10,7 @@ import 'package:Cuplivo/core/providers/memory_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/mcp/mcp_tool_service.dart';
 import 'package:Cuplivo/features/home/services/tool_handler_service.dart';
+import 'package:Cuplivo/features/linux_sandbox/providers/linux_sandbox_provider.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -374,6 +375,9 @@ class _ToolHandlerTestScope extends StatelessWidget {
         ),
         ChangeNotifierProvider<McpToolService>(create: (_) => McpToolService()),
         ChangeNotifierProvider<MemoryProvider>(create: (_) => MemoryProvider()),
+        ChangeNotifierProvider<LinuxSandboxProvider>(
+          create: (_) => LinuxSandboxProvider(),
+        ),
       ],
       child: child,
     );

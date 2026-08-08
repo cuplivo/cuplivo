@@ -95,6 +95,9 @@ Do **not** store sensitive information, including:
   final bool discoverable;
   final String? handoffId;
   final String? handoffDescription;
+  // Sandbox binding
+  final bool sandboxEnabled;
+  final String? sandboxId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -141,6 +144,8 @@ Do **not** store sensitive information, including:
     this.discoverable = false,
     this.handoffId,
     this.handoffDescription,
+    this.sandboxEnabled = false,
+    this.sandboxId,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) : createdAt = createdAt ?? DateTime.now(),
@@ -192,6 +197,9 @@ Do **not** store sensitive information, including:
     String? handoffDescription,
     bool clearHandoffId = false,
     bool clearHandoffDescription = false,
+    bool? sandboxEnabled,
+    String? sandboxId,
+    bool clearSandboxId = false,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool clearChatModel = false,
@@ -256,6 +264,8 @@ Do **not** store sensitive information, including:
       handoffDescription: clearHandoffDescription
           ? null
           : (handoffDescription ?? this.handoffDescription),
+      sandboxEnabled: sandboxEnabled ?? this.sandboxEnabled,
+      sandboxId: clearSandboxId ? null : (sandboxId ?? this.sandboxId),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -304,6 +314,8 @@ Do **not** store sensitive information, including:
     'discoverable': discoverable,
     'handoffId': handoffId,
     'handoffDescription': handoffDescription,
+    'sandboxEnabled': sandboxEnabled,
+    'sandboxId': sandboxId,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
   };
@@ -409,6 +421,8 @@ Do **not** store sensitive information, including:
     discoverable: json['discoverable'] as bool? ?? false,
     handoffId: json['handoffId'] as String?,
     handoffDescription: json['handoffDescription'] as String?,
+    sandboxEnabled: json['sandboxEnabled'] as bool? ?? false,
+    sandboxId: json['sandboxId'] as String?,
     createdAt: json['createdAt'] != null
         ? DateTime.parse(json['createdAt'] as String)
         : DateTime.now(),

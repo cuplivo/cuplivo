@@ -15,6 +15,7 @@ void main() {
         'localTools',
         'mcp',
         'skills',
+        'linuxSandbox',
       ]);
     });
 

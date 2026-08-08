@@ -810,6 +810,8 @@ class ProactiveCareHeadlessChatStore {
       'discoverable': (row['discoverable'] as int? ?? 0) != 0,
       'handoffId': row['handoff_id'] as String?,
       'handoffDescription': row['handoff_description'] as String?,
+      'sandboxEnabled': (row['sandbox_enabled'] as int? ?? 0) != 0,
+      'sandboxId': row['sandbox_id'] as String?,
       'proactiveCareNextMessageAt': _dateTimeFromSqlNullable(
         row['proactive_care_next_message_at'],
       )?.toIso8601String(),

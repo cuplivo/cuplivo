@@ -3359,5 +3359,99 @@
   "grokLoginSessionHint": "Stays signed in; access renews automatically in the background.",
   "grokLoginSignedOutToast": "Signed out",
   "grokLoginHelpText": "Open the xAI authorization page and enter the verification code to authorize Grok access.",
-  "grokLoginNetworkError": "Network error, please retry"
+  "grokLoginNetworkError": "Network error, please retry",
+  "settingsPageLinuxSandbox": "Sandbox",
+  "linuxSandboxListTitle": "Sandbox",
+  "linuxSandboxListEmpty": "No sandboxes yet. Create one to give assistants a local workspace.",
+  "linuxSandboxCreateTitle": "Create sandbox",
+  "linuxSandboxCreateNameLabel": "Name",
+  "linuxSandboxCreateNameHint": "My sandbox",
+  "linuxSandboxCreateNameRequired": "Please enter a sandbox name.",
+  "linuxSandboxCreateAction": "Create",
+  "linuxSandboxCreateFailed": "Failed to create sandbox.",
+  "linuxSandboxDeleteFailed": "Failed to delete sandbox.",
+  "linuxSandboxCreateInstallSection": "Install options",
+  "linuxSandboxCreateBaseEnvTitle": "Base environment",
+  "linuxSandboxCreateBaseEnvSubtitle": "Empty workspace with file and shell tools.",
+  "linuxSandboxCreatePythonTitle": "Python",
+  "linuxSandboxCreateJavaTitle": "Java",
+  "linuxSandboxCreateComingLater": "Coming later",
+  "linuxSandboxDetailToolsSection": "Tools",
+  "linuxSandboxToolReadName": "Read",
+  "linuxSandboxToolReadDescription": "Read a file or list a directory inside the sandbox.",
+  "linuxSandboxToolWriteName": "Write",
+  "linuxSandboxToolWriteDescription": "Create or overwrite a text file inside the sandbox.",
+  "linuxSandboxToolEditName": "Edit",
+  "linuxSandboxToolEditDescription": "Replace text in a file inside the sandbox.",
+  "linuxSandboxToolShellName": "Shell",
+  "linuxSandboxToolShellDescription": "Run a shell command with the sandbox as working directory.",
+  "linuxSandboxToolsCount": "{enabled}/{total} tools",
+  "@linuxSandboxToolsCount": {
+    "placeholders": {
+      "enabled": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "linuxSandboxBackupNote": "Sandbox files are stored on this device and are not included in backup.",
+  "linuxSandboxDeleteConfirmTitle": "Delete sandbox?",
+  "linuxSandboxDeleteConfirmMessage": "Delete “{name}”? Bound assistants will be unbound and local files removed.",
+  "@linuxSandboxDeleteConfirmMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "linuxSandboxDeleteAction": "Delete",
+  "linuxSandboxBrowseTitle": "Files",
+  "linuxSandboxBrowseEmpty": "This folder is empty.",
+  "linuxSandboxBrowseUp": "Up",
+  "linuxSandboxAndroidUnsupported": "Sandbox tools are not available on this Android device ABI. You can still manage sandboxes here.",
+  "linuxSandboxAndroidDownloadNote": "On Android, installing the base environment downloads an Ubuntu rootfs (~30–40 MB) and extracts it on this device. A network connection is required.",
+  "linuxSandboxAndroidProotBanner": "Android sandbox uses PRoot for convenience isolation — not a hard security boundary. Network access remains unrestricted.",
+  "linuxSandboxInstallProgress": "Installing: {stage}",
+  "@linuxSandboxInstallProgress": {
+    "placeholders": {
+      "stage": {
+        "type": "String"
+      }
+    }
+  },
+  "linuxSandboxPlatformUnsupported": "Sandbox tools currently run on Windows, Linux, and Android. You can still manage sandboxes here.",
+  "linuxSandboxMissingMessage": "This sandbox no longer exists.",
+  "linuxSandboxWindowsLocalJailBanner": "Windows sandbox tools require WSL. Install or reinstall the base environment.",
+  "linuxSandboxWindowsWslBrokenHint": "WSL base environment is not ready. Tap Install / Reinstall base environment. You may need to approve UAC or restart Windows.",
+  "linuxSandboxWindowsWslInstallNote": "On Windows, base environment uses real Linux via WSL (shared Cuplivo-Sandbox distro). Setup may show a UAC prompt and can require a restart before finishing.",
+  "linuxSandboxWslRebootRequired": "WSL was enabled but Windows must restart. After restart, open this sandbox and tap Install base environment to finish.",
+  "linuxSandboxWslEnableFailed": "Could not enable WSL. Install WSL from Windows features or run wsl --install, then retry Install base environment.",
+  "linuxSandboxWslResumeAfterReboot": "Restart complete — tap Install base environment to finish WSL setup.",
+  "linuxSandboxWslDownloadingRootfs": "Downloading Linux rootfs",
+  "linuxSandboxWslImportingDistro": "Importing WSL distro",
+  "linuxSandboxStatusDisabled": "Disabled",
+  "linuxSandboxStatusNotReady": "Not ready",
+  "linuxSandboxStatusInstalling": "Installing",
+  "linuxSandboxStatusReady": "Ready",
+  "linuxSandboxStatusBroken": "Broken",
+  "linuxSandboxRuntimeModeLocalJail": "Folder jail",
+  "linuxSandboxRuntimeModeWsl": "WSL",
+  "linuxSandboxRuntimeModeNativeLinux": "Native Linux",
+  "linuxSandboxRuntimeModeProot": "PRoot (Android)",
+  "linuxSandboxRuntimeModeUnknown": "Unknown",
+  "linuxSandboxInstallBaseEnvAction": "Install base environment",
+  "linuxSandboxReinstallBaseEnvAction": "Reinstall base environment",
+  "linuxSandboxRetryWslAction": "Install WSL / Reinstall base env",
+  "linuxSandboxInstallFailed": "Failed to install base environment.",
+  "linuxSandboxInstallSuccess": "Base environment is ready.",
+  "assistantEditPageLinuxSandboxTab": "Sandbox",
+  "assistantEditLinuxSandboxEnable": "Enable sandbox",
+  "assistantEditLinuxSandboxEnableSubtitle": "Allow this assistant to use a local sandbox workspace.",
+  "assistantEditLinuxSandboxPick": "Choose sandbox",
+  "assistantEditLinuxSandboxNone": "No sandboxes yet. Create one in Settings first.",
+  "assistantEditLinuxSandboxMissing": "The selected sandbox is missing. Choose another or turn sandbox off.",
+  "assistantEditLinuxSandboxNotReady": "Selected sandbox is not ready. Install its base environment first.",
+  "assistantEditLinuxSandboxManageCta": "Manage sandboxes"
 }

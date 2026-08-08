@@ -1035,6 +1035,8 @@ class ChatDatabaseRepository {
       'discoverable': row.discoverable,
       'handoffId': row.handoffId,
       'handoffDescription': row.handoffDescription,
+      'sandboxEnabled': row.sandboxEnabled,
+      'sandboxId': row.sandboxId,
       'createdAt': row.createdAt.toIso8601String(),
       'updatedAt': row.updatedAt.toIso8601String(),
     });
@@ -1088,6 +1090,8 @@ class ChatDatabaseRepository {
       discoverable: Value(a.discoverable),
       handoffId: Value(a.handoffId),
       handoffDescription: Value(a.handoffDescription),
+      sandboxEnabled: Value(a.sandboxEnabled),
+      sandboxId: Value(a.sandboxId),
       sortOrder: sortOrder,
       createdAt: a.createdAt,
       updatedAt: a.updatedAt,

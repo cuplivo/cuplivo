@@ -62,6 +62,7 @@ import 'setting/backup_pane.dart';
 import 'setting/hotkeys_pane.dart';
 import 'setting/network_proxy_pane.dart';
 import 'setting/skills_pane.dart';
+import 'setting/linux_sandbox_pane.dart';
 import 'setting/about_pane.dart';
 import 'setting/stats_pane.dart';
 import 'package:system_fonts/system_fonts.dart';
@@ -102,6 +103,7 @@ enum _SettingsMenuItem {
   quickPhrases,
   instructionInjection,
   skills,
+  linuxSandbox,
   worldBook,
   tts,
   networkProxy,
@@ -238,6 +240,10 @@ class _DesktopSettingsPageState extends State<DesktopSettingsPage> {
                           return const DesktopSkillsPane(
                             key: ValueKey('skills'),
                           );
+                        case _SettingsMenuItem.linuxSandbox:
+                          return const DesktopLinuxSandboxPane(
+                            key: ValueKey('linuxSandbox'),
+                          );
                         case _SettingsMenuItem.worldBook:
                           return const DesktopWorldBookPane(
                             key: ValueKey('worldBook'),
@@ -313,6 +319,11 @@ class _SettingsMenu extends StatelessWidget {
         _SettingsMenuItem.skills,
         lucide.Lucide.BookOpen,
         l10n.settingsPageSkills,
+      ),
+      (
+        _SettingsMenuItem.linuxSandbox,
+        lucide.Lucide.Box,
+        l10n.settingsPageLinuxSandbox,
       ),
       (
         _SettingsMenuItem.worldBook,

@@ -48,19 +48,68 @@ export function normalizePolymorphicType(type: string | undefined | null): strin
   return parts[parts.length - 1] || type;
 }
 
+export type KelivoAssetKind = 'upload' | 'avatars' | 'images';
+
 /**
- * 将 Android/iOS 绝对路径或 file:// URI 规范为 zip 内相对路径（优先 upload/）。
+ * 将 Android/iOS 绝对路径或 file:// URI 规范为 zip 内相对路径（如 upload/x.png）。
  * http(s)/data: 原样返回。
  */
 export function toZipLocalPath(
   url: string | null | undefined,
   findInZip: (name: string) => string | null,
+  preferDir: KelivoAssetKind = 'upload',
 ): string | null {
   if (url == null || url === '') return null;
   if (isHttpUrl(url) || /^data:/i.test(url)) return url;
   const name = basename(url.replace(/^file:\/\//i, ''));
   if (!name) return url;
-  return findInZip(name) ?? (name.includes('.') ? `upload/${name}` : url);
+  const found = findInZip(name);
+  if (found) return found;
+  return name.includes('.') ? `${preferDir}/${name}` : url;
+}
+
+/**
+ * Kelivo UI 本地路径：必须以 `/` 开头或含 `:`，否则被当成 emoji 文本。
+ * 将 zip 相对路径转为伪绝对路径（如 /avatars/x.png），供 SandboxPathResolver 映射。
+ * http(s)/data: 原样。
+ */
+export function toKelivoLocalRef(zipRelOrUrl: string | null | undefined): string | null {
+  if (zipRelOrUrl == null || zipRelOrUrl === '') return null;
+  if (isHttpUrl(zipRelOrUrl) || /^data:/i.test(zipRelOrUrl)) return zipRelOrUrl;
+  // 已是 file:// 或绝对路径
+  if (zipRelOrUrl.startsWith('file:') || zipRelOrUrl.startsWith('/')) return zipRelOrUrl;
+  // Windows drive
+  if (/^[A-Za-z]:[\\/]/.test(zipRelOrUrl)) return zipRelOrUrl;
+  // zip 相对 → 前导 /
+  return `/${zipRelOrUrl.replace(/^\/+/, '')}`;
+}
+
+/**
+ * 定位源 zip 内文件，并规划输出目录（avatars/images/upload），返回 Kelivo 可识别路径。
+ * @param registerCopy 登记「源 zip 路径 → 输出 zip 路径」拷贝（可选）
+ */
+export function resolveKelivoAsset(
+  url: string | null | undefined,
+  findInZip: (name: string) => string | null,
+  kind: KelivoAssetKind,
+  registerCopy?: (srcZipPath: string, destZipPath: string) => void,
+): string | null {
+  if (url == null || url === '') return null;
+  if (isHttpUrl(url) || /^data:/i.test(url)) return url;
+
+  const name = basename(url.replace(/^file:\/\//i, ''));
+  if (!name || !name.includes('.')) {
+    // 可能已是 zip 相对或无法解析
+    const rel = toZipLocalPath(url, findInZip, kind);
+    return toKelivoLocalRef(rel);
+  }
+
+  const srcInZip = findInZip(name);
+  const destRel = `${kind}/${name}`;
+  if (srcInZip && registerCopy && srcInZip !== destRel) {
+    registerCopy(srcInZip, destRel);
+  }
+  return toKelivoLocalRef(destRel);
 }
 
 /** 判断字符串是否像本地文件路径（相对路径或绝对路径，非 URL / data URI） */

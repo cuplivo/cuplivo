@@ -1,7 +1,13 @@
 /** 数据层：ConversationEntity + nodes → Kelivo conversations/messages/toolEvents */
 import type { ChatMessage, Conversation, ToolEvent, Assistant } from '../kelivo/types';
 import type { NodeTurn, UIMessage, UIMessagePart, ConversationEntity } from '../rikkahub/types';
-import { isoFromEpochMillis, marker, toZipLocalPath, tryParse, tryParseOrNull } from '../rikkahub/util';
+import {
+  isoFromEpochMillis,
+  marker,
+  resolveKelivoAsset,
+  tryParse,
+  tryParseOrNull,
+} from '../rikkahub/util';
 import { findFileByBasename } from '../zip';
 import type { MigrateContext } from './context';
 import { drop } from '../report';
@@ -114,8 +120,9 @@ function ensurePlaceholders(ctx: MigrateContext, hints: Map<string, PlaceholderH
 }
 
 function partToMarker(part: UIMessagePart, ctx: MigrateContext): string | null {
+  // 消息媒体留在 upload/；路径带前导 / 供 Kelivo SandboxPathResolver / Image.file
   const resolve = (url: string) =>
-    toZipLocalPath(url, (name) => findFileByBasename(ctx.source.zip, name)) ?? url;
+    resolveKelivoAsset(url, (name) => findFileByBasename(ctx.source.zip, name), 'upload') ?? url;
 
   if (part.type === 'image') {
     return marker('image', resolve(part.url));

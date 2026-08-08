@@ -1,13 +1,17 @@
 /** 助手层：RikkaHub Settings.assistants 全量真实还原 → Kelivo Assistant */
 import type { Assistant as KelivoAssistant } from '../kelivo/types';
 import type { Assistant as RhAssistant, Avatar, UIMessage } from '../rikkahub/types';
-import { normalizePolymorphicType, toZipLocalPath } from '../rikkahub/util';
+import { normalizePolymorphicType, resolveKelivoAsset } from '../rikkahub/util';
 import { findFileByBasename } from '../zip';
 import type { MigrateContext } from './context';
 import { drop } from '../report';
 
 const DEFAULT_MEMORY_PROMPT =
   '你是一个记忆管理器。用户消息会被提供给你，请将重要信息整理为简洁的记忆条目。';
+
+function registerAsset(ctx: MigrateContext, src: string, dest: string): void {
+  if (!ctx.extraAssetCopies.has(dest)) ctx.extraAssetCopies.set(dest, src);
+}
 
 export function mapAvatar(a: Avatar, ctx?: MigrateContext): string | null {
   const t = normalizePolymorphicType(a.type);
@@ -16,14 +20,20 @@ export function mapAvatar(a: Avatar, ctx?: MigrateContext): string | null {
     const c = 'content' in a && typeof a.content === 'string' ? a.content : null;
     return c;
   }
-  if (t === 'Image' && 'url' in a && typeof a.url === 'string' && a.url) {
-    if (!ctx) return a.url;
-    return toZipLocalPath(a.url, (name) => findFileByBasename(ctx.source.zip, name));
-  }
-  // 未知 type：若有 url 则尝试当图片路径
-  if ('url' in a && typeof a.url === 'string') {
-    if (!ctx) return a.url;
-    return toZipLocalPath(a.url, (name) => findFileByBasename(ctx.source.zip, name));
+  const url =
+    'url' in a && typeof a.url === 'string' && a.url
+      ? a.url
+      : t === 'Image'
+        ? null
+        : null;
+  if (url) {
+    if (!ctx) return url;
+    return resolveKelivoAsset(
+      url,
+      (name) => findFileByBasename(ctx.source.zip, name),
+      'avatars',
+      (src, dest) => registerAsset(ctx, src, dest),
+    );
   }
   if ('content' in a && typeof a.content === 'string') return a.content;
   return null;
@@ -40,7 +50,12 @@ export function mapAssistant(rh: RhAssistant, ctx: MigrateContext): KelivoAssist
   const model = rh.chatModelId ? ctx.modelById.get(rh.chatModelId) : undefined;
   const now = new Date().toISOString();
   const bg = rh.background
-    ? toZipLocalPath(rh.background, (name) => findFileByBasename(ctx.source.zip, name))
+    ? resolveKelivoAsset(
+        rh.background,
+        (name) => findFileByBasename(ctx.source.zip, name),
+        'images',
+        (src, dest) => registerAsset(ctx, src, dest),
+      )
     : null;
   return {
     id: rh.id,

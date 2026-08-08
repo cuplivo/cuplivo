@@ -40,6 +40,7 @@ export async function migrateRikkaHubToKelivo(zip: JSZip, sourceFileName: string
       kelivoAssistants: new Map(),
       tagMap: new Map(),
       placeholderCount: 0,
+      extraAssetCopies: new Map(),
     };
 
     // 防御：settings 数组字段若缺失/非数组（版本差异），归一化为空数组并警告
@@ -103,6 +104,15 @@ export async function migrateRikkaHubToKelivo(zip: JSZip, sourceFileName: string
     let mediaFiles = 0;
     for (const dir of ['upload/', 'skills/', 'fonts/']) {
       mediaFiles += await copyZipDir(source.zip, outputZip, dir);
+    }
+    // 头像 → avatars/、背景 → images/（从源 zip 拷贝；settings 内路径为 /avatars/... /images/...）
+    for (const [destPath, srcPath] of ctx.extraAssetCopies) {
+      if (outputZip.file(destPath)) continue;
+      const entry = source.zip.file(srcPath);
+      if (!entry || entry.dir) continue;
+      const bytes = await entry.async('uint8array');
+      outputZip.file(destPath, bytes);
+      mediaFiles++;
     }
     report.totals.mediaFiles = mediaFiles;
 

@@ -10,7 +10,12 @@ import { migrateRikkaHubToKelivo } from '../src/lib/migrate';
 import { runRecovery, RECOVERY_ASSISTANT_NAME } from '../src/lib/kelivo/recovery';
 import type { SettingsJson } from '../src/lib/kelivo/types';
 import { prepareRikkaHubDbBytes } from '../src/lib/rikkahub/wal';
-import { normalizePolymorphicType, toZipLocalPath } from '../src/lib/rikkahub/util';
+import {
+  normalizePolymorphicType,
+  resolveKelivoAsset,
+  toKelivoLocalRef,
+  toZipLocalPath,
+} from '../src/lib/rikkahub/util';
 
 const sqlite3 = await sqlite3InitModule({ print: () => {}, printErr: () => {} });
 
@@ -206,7 +211,7 @@ assert.strictEqual(conv1.messageIds.length, 2, 'conv-1 消息 2 条');
 assert.ok(!chats.messages.some((m: { id: string }) => m.id === 'msg-1a'), '未选中的替代版本已丢弃');
 assert.ok(chats.messages.some((m: { id: string }) => m.id === 'msg-1b'), '选中版本保留');
 const msg2 = chats.messages.find((m: { id: string }) => m.id === 'msg-2');
-assert.ok(msg2.content.includes('[image:upload/paste_123.png]'), '图片标记写入 content');
+assert.ok(msg2.content.includes('[image:/upload/paste_123.png]'), '图片标记写入 content（/upload/）');
 assert.strictEqual(msg2.reasoningText, '深度思考过程', '推理文本');
 assert.strictEqual(msg2.providerId, PROVIDER_ID, 'providerId 解析');
 assert.strictEqual(msg2.modelId, 'gpt-4o', 'modelId 解引用');
@@ -224,8 +229,10 @@ const ast = assistants.find((a: { id: string }) => a.id === AST_ID);
 assert.strictEqual(ast.name, '写作助手');
 assert.strictEqual(ast.chatModelId, 'gpt-4o', '助手模型解引用');
 assert.strictEqual(ast.chatModelProvider, PROVIDER_ID);
-assert.strictEqual(ast.avatar, 'upload/paste_123.png', 'FQCN Avatar.Image → zip 相对路径');
-assert.strictEqual(ast.background, 'upload/paste_123.png', 'background file:// → upload/');
+assert.strictEqual(ast.avatar, '/avatars/paste_123.png', 'FQCN Avatar.Image → /avatars/ (Kelivo 可识别)');
+assert.strictEqual(ast.background, '/images/paste_123.png', 'background → /images/');
+assert.ok(outZip.file('avatars/paste_123.png'), '头像文件写入 avatars/');
+assert.ok(outZip.file('images/paste_123.png'), '背景文件写入 images/');
 assert.strictEqual(ast.regexRules[0].pattern, 'gpt');
 assert.strictEqual(ast.skillIds[0], 'skill-a');
 assert.strictEqual(ast.mcpServerIds[0], 'mcp-1');
@@ -269,7 +276,7 @@ assert.strictEqual(settingsJson.display_show_model_timestamp_v1, true, '时间�
 
 // ---------- 6. 校验报告 ----------
 assert.strictEqual(report.droppedAlternatives, 1, '丢弃 1 条未选版本');
-assert.strictEqual(report.totals.mediaFiles, 1, '媒体文件透传 1 个');
+assert.strictEqual(report.totals.mediaFiles, 3, '媒体：upload 1 + avatars 拷贝 1 + images 拷贝 1');
 assert.strictEqual(report.totals.placeholders, 1, '占位 1 个');
 assert.ok(report.dropped.some((d) => d.category.includes('搜索服务')), '搜索丢弃入报告');
 assert.ok(report.dropped.some((d) => d.category.includes('TTS')), 'TTS 丢弃入报告');
@@ -357,6 +364,20 @@ assert.strictEqual(
   'upload/a.png',
 );
 assert.strictEqual(toZipLocalPath('https://cdn.example/x.png', () => null), 'https://cdn.example/x.png');
+assert.strictEqual(toKelivoLocalRef('upload/a.png'), '/upload/a.png');
+assert.strictEqual(toKelivoLocalRef('/avatars/a.png'), '/avatars/a.png');
+assert.strictEqual(toKelivoLocalRef('https://x/a.png'), 'https://x/a.png');
+{
+  const copies: [string, string][] = [];
+  const ref = resolveKelivoAsset(
+    'file:///data/user/0/x/files/upload/a.png',
+    (n) => (n === 'a.png' ? 'upload/a.png' : null),
+    'avatars',
+    (s, d) => copies.push([s, d]),
+  );
+  assert.strictEqual(ref, '/avatars/a.png');
+  assert.deepStrictEqual(copies, [['upload/a.png', 'avatars/a.png']]);
+}
 
 // prepare 对非 WAL / 已折叠库幂等
 {
@@ -392,10 +413,23 @@ for (const fp of fixturePaths) {
   assert.equal(fres.report.warnings.some((w) => w.includes('CANTOPEN')), false, '无 CANTOPEN');
   assert.ok(fres.report.source.walReplayed, 'fixture WAL 已回放');
   const fAssistants = JSON.parse(fres.settingsFile.assistants_v1!);
-  const withAvatar = fAssistants.find((a: { avatar?: string }) => a.avatar && String(a.avatar).startsWith('upload/'));
-  assert.ok(withAvatar, '真实备份助手头像归一到 upload/');
+  const withAvatar = fAssistants.find(
+    (a: { avatar?: string }) => a.avatar && String(a.avatar).startsWith('/avatars/'),
+  );
+  assert.ok(withAvatar, '真实备份助手头像为 /avatars/...');
+  assert.ok(
+    !fAssistants.some(
+      (a: { avatar?: string }) => a.avatar && /^upload\//.test(String(a.avatar)),
+    ),
+    '头像不得为相对 upload/（Kelivo 会当 emoji）',
+  );
+  const withBg = fAssistants.find(
+    (a: { background?: string | null }) => a.background && String(a.background).startsWith('/images/'),
+  );
+  assert.ok(withBg, '真实备份背景为 /images/...');
+  assert.ok(fres.outputZip.file(String(withAvatar.avatar).replace(/^\//, '')), 'avatars/ 文件在输出 zip');
   console.log(
-    `  fixture OK: ${fp.split('/').pop()} → ${fres.report.totals.conversations} 会话 / ${fres.report.totals.messages} 消息 / WAL frames applied`,
+    `  fixture OK: ${fp.split('/').pop()} → ${fres.report.totals.conversations} 会话 / ${fres.report.totals.messages} 消息 / avatar=${withAvatar.avatar}`,
   );
 }
 

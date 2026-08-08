@@ -1,16 +1,108 @@
 /** 助手层：RikkaHub Settings.assistants 全量真实还原 → Kelivo Assistant */
 import type { Assistant as KelivoAssistant } from '../kelivo/types';
 import type { Assistant as RhAssistant, Avatar, UIMessage } from '../rikkahub/types';
+import { normalizePolymorphicType, resolveKelivoAsset } from '../rikkahub/util';
+import { findFileByBasename } from '../zip';
 import type { MigrateContext } from './context';
 import { drop } from '../report';
 
 const DEFAULT_MEMORY_PROMPT =
   '你是一个记忆管理器。用户消息会被提供给你，请将重要信息整理为简洁的记忆条目。';
 
-export function mapAvatar(a: Avatar): string | null {
-  if (a.type === 'Dummy') return null;
-  if (a.type === 'Emoji') return a.content;
-  return a.url;
+/**
+ * RikkaHub localTools（string 或 {type}）→ Kelivo/Cuplivo localToolIds（string[]）。
+ * Cuplivo 入库 jsonEncode(List<String>)，对象会直接崩溃。
+ */
+const LOCAL_TOOL_ID_MAP: Record<string, string> = {
+  // RikkaHub SerialName
+  ask_user: 'ask_user_input_v0',
+  time_info: 'get_time_info',
+  clipboard: 'clipboard_tool',
+  tts: 'text_to_speech',
+  // 已是 Kelivo id
+  ask_user_input_v0: 'ask_user_input_v0',
+  get_time_info: 'get_time_info',
+  clipboard_tool: 'clipboard_tool',
+  text_to_speech: 'text_to_speech',
+  calculate: 'calculate',
+  load_skill: 'load_skill',
+  read_skill_file: 'read_skill_file',
+};
+
+/** 无 Kelivo 对应的 RikkaHub 工具（丢弃） */
+const LOCAL_TOOL_DROP = new Set(['javascript_engine', 'screen_time', 'calendar']);
+
+export function mapLocalToolIds(
+  raw: unknown[] | undefined | null,
+  reportDrop?: (name: string) => void,
+): string[] {
+  if (!raw || !Array.isArray(raw)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    let key = '';
+    if (typeof item === 'string') {
+      key = normalizePolymorphicType(item);
+    } else if (item && typeof item === 'object' && 'type' in item) {
+      key = normalizePolymorphicType(String((item as { type: unknown }).type));
+    } else {
+      reportDrop?.(typeof item === 'object' ? JSON.stringify(item) : String(item));
+      continue;
+    }
+    if (!key) continue;
+    if (LOCAL_TOOL_DROP.has(key)) {
+      reportDrop?.(key);
+      continue;
+    }
+    const id = LOCAL_TOOL_ID_MAP[key];
+    if (!id) {
+      reportDrop?.(key);
+      continue;
+    }
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
+function stringIds(raw: unknown[] | undefined | null): string[] {
+  if (!raw || !Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const x of raw) {
+    if (typeof x === 'string' && x) out.push(x);
+  }
+  return out;
+}
+
+function registerAsset(ctx: MigrateContext, src: string, dest: string): void {
+  if (!ctx.extraAssetCopies.has(dest)) ctx.extraAssetCopies.set(dest, src);
+}
+
+export function mapAvatar(a: Avatar, ctx?: MigrateContext): string | null {
+  const t = normalizePolymorphicType(a.type);
+  if (t === 'Dummy') return null;
+  if (t === 'Emoji') {
+    const c = 'content' in a && typeof a.content === 'string' ? a.content : null;
+    return c;
+  }
+  const url =
+    'url' in a && typeof a.url === 'string' && a.url
+      ? a.url
+      : t === 'Image'
+        ? null
+        : null;
+  if (url) {
+    if (!ctx) return url;
+    return resolveKelivoAsset(
+      url,
+      (name) => findFileByBasename(ctx.source.zip, name),
+      'avatars',
+      (src, dest) => registerAsset(ctx, src, dest),
+    );
+  }
+  if ('content' in a && typeof a.content === 'string') return a.content;
+  return null;
 }
 
 function textOf(um: UIMessage): string {
@@ -23,10 +115,18 @@ function textOf(um: UIMessage): string {
 export function mapAssistant(rh: RhAssistant, ctx: MigrateContext): KelivoAssistant {
   const model = rh.chatModelId ? ctx.modelById.get(rh.chatModelId) : undefined;
   const now = new Date().toISOString();
+  const bg = rh.background
+    ? resolveKelivoAsset(
+        rh.background,
+        (name) => findFileByBasename(ctx.source.zip, name),
+        'images',
+        (src, dest) => registerAsset(ctx, src, dest),
+      )
+    : null;
   return {
     id: rh.id,
     name: rh.name,
-    avatar: mapAvatar(rh.avatar),
+    avatar: mapAvatar(rh.avatar, ctx),
     useAssistantAvatar: rh.useAssistantAvatar,
     useAssistantName: true,
     chatModelProvider: model?.providerKey ?? null,
@@ -41,10 +141,12 @@ export function mapAssistant(rh: RhAssistant, ctx: MigrateContext): KelivoAssist
     systemPrompt: rh.systemPrompt,
     messageTemplate: rh.messageTemplate,
     searchEnabled: rh.enableWebSearch,
-    mcpServerIds: rh.mcpServers,
-    localToolIds: [...rh.localTools],
-    skillIds: [...rh.enabledSkills],
-    background: rh.background,
+    mcpServerIds: stringIds(rh.mcpServers as unknown as unknown[]),
+    localToolIds: mapLocalToolIds(rh.localTools as unknown as unknown[], (name) => {
+      drop(ctx.report, '本地工具（Kelivo 无对应或格式无法识别）', 1, [name]);
+    }),
+    skillIds: stringIds(rh.enabledSkills as unknown as unknown[]),
+    background: bg,
     customHeaders: rh.customHeaders.map((h) => ({ name: h.name, value: h.value })),
     customBody: rh.customBodies.map((b) => ({
       key: b.key,

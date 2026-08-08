@@ -1,12 +1,15 @@
 /**
- * RikkaHub SQLite 读取封装（官方 sqlite-wasm，WAL 完整回放）
+ * RikkaHub SQLite 读取封装（官方 sqlite-wasm）
  *
- * 打开策略（分层兜底）：
- * 1. 主路径：db+wal 字节 → sqlite3_js_posix_create_file 写入 VFS → 以 'w'（读写）打开。
- *    必须用读写模式：WAL 库打开需要创建 -shm（共享内存缓存），只读模式在 shm 缺失时返回 CANTOPEN。
- * 2. 兜底：FS 打开失败 → sqlite3_deserialize 内存注入（WAL 无法回放，仅主库内容）。
+ * 打开策略：
+ * 1. 纯 JS 将 WAL 已提交帧合入主库，并把 journal 头改为 DELETE（见 wal.ts）。
+ *    sqlite-wasm 无 xShmMap，无法直接打开 WAL 模式库（会 SQLITE_CANTOPEN）。
+ * 2. 主路径：prepared bytes → sqlite3_js_posix_create_file → 只读打开。
+ * 3. 兜底：FS 打开失败 → sqlite3_deserialize 内存注入。
  * 路径每次运行唯一，避免残留文件干扰。
  */
+
+import { prepareRikkaHubDbBytes } from './wal';
 
 // 包未导出命名类型，用结构化类型定义所需 API 面
 interface Sqlite3Module {
@@ -74,10 +77,42 @@ export interface RikkaHubDb {
 
 export interface OpenResult {
   db: RikkaHubDb;
-  /** true = 以内存 deserialize 兜底打开（WAL 未回放） */
+  /** true = 以内存 deserialize 兜底打开 */
   memoryFallback: boolean;
-  /** 打开失败详情（诊断用） */
+  /** 是否合入了至少 1 个已提交 WAL frame */
+  walReplayed: boolean;
+  /** WAL 回放降级原因（仍可能成功打开主库） */
+  walDegraded: string | null;
+  /** 打开路径诊断 */
   diagnostics: string | null;
+}
+
+function wrapDb(db: Database): RikkaHubDb {
+  const queryAll = <T = Record<string, unknown>>(sql: string): T[] => {
+    const rows: T[] = [];
+    db.exec(sql, {
+      rowMode: 'object',
+      callback: (row) => {
+        rows.push(row as T);
+      },
+    });
+    return rows;
+  };
+  return {
+    queryAll,
+    queryOne: <T = Record<string, unknown>>(sql: string): T | null => {
+      const rows = queryAll<T>(sql);
+      return rows.length > 0 ? rows[0] : null;
+    },
+    exec: (sql: string) => db.exec(sql),
+    close: () => {
+      try {
+        db.close();
+      } catch {
+        /* 已关闭 */
+      }
+    },
+  };
 }
 
 export async function openRikkaHubDb(files: RikkaHubDbFile): Promise<OpenResult> {
@@ -85,69 +120,47 @@ export async function openRikkaHubDb(files: RikkaHubDbFile): Promise<OpenResult>
   const capi = sqlite3.capi;
   const wasm = sqlite3.wasm;
 
+  const prepared = prepareRikkaHubDbBytes(files.dbBytes, files.walBytes);
+  const walReplayed = prepared.walFramesApplied > 0;
+  const walDegraded = prepared.degradedReason;
+
   runCounter++;
-  const dbPath = `/kh_${Date.now()}_${runCounter}_${files.dbName}`;
+  const dbPath = `/kh_${Date.now()}_${runCounter}_rikka.db`;
 
-  const tryFsOpen = (): Database | null => {
-    try {
-      capi.sqlite3_js_posix_create_file(dbPath, files.dbBytes);
-      if (files.walBytes) {
-        capi.sqlite3_js_posix_create_file(`${dbPath}-wal`, files.walBytes);
-      }
-      // 'w' = 读写：WAL 库需要创建 -shm，只读会 CANTOPEN
-      return new sqlite3.oo1.DB(dbPath, 'w');
-    } catch (e) {
-      return null;
-    }
-  };
-
-  const wrapDb = (db: Database): RikkaHubDb => {
-    const queryAll = <T = Record<string, unknown>>(sql: string): T[] => {
-      const rows: T[] = [];
-      db.exec(sql, {
-        rowMode: 'object',
-        callback: (row) => {
-          rows.push(row as T);
-        },
-      });
-      return rows;
-    };
+  let fsError: string | null = null;
+  try {
+    // 确保传入完整 buffer 视图（部分 wasm 绑定不接受 SharedArrayBuffer 视图）
+    const bytes =
+      prepared.bytes.byteOffset === 0 && prepared.bytes.byteLength === prepared.bytes.buffer.byteLength
+        ? prepared.bytes
+        : prepared.bytes.slice();
+    capi.sqlite3_js_posix_create_file(dbPath, bytes);
+    const db = new sqlite3.oo1.DB(dbPath, 'r');
     return {
-      queryAll,
-      queryOne: <T = Record<string, unknown>>(sql: string): T | null => {
-        const rows = queryAll<T>(sql);
-        return rows.length > 0 ? rows[0] : null;
-      },
-      exec: (sql: string) => db.exec(sql),
-      close: () => {
-        try {
-          db.close();
-        } catch {
-          /* 已关闭 */
-        }
-      },
+      db: wrapDb(db),
+      memoryFallback: false,
+      walReplayed,
+      walDegraded,
+      diagnostics: null,
     };
-  };
-
-  // 1. FS 主路径
-  const fsDb = tryFsOpen();
-  if (fsDb) {
-    return { db: wrapDb(fsDb), memoryFallback: false, diagnostics: null };
+  } catch (e) {
+    fsError = e instanceof Error ? e.message : String(e);
   }
 
-  // 2. 兜底：内存 deserialize（无法回放 WAL）
-  let memoryFallback = false;
-  let diagnostics: string | null = null;
+  // 兜底：内存 deserialize
   try {
-    diagnostics = `VFS 打开失败（可用 VFS: ${capi.sqlite3_js_vfs_list().join(', ')}）`;
+    const bytes =
+      prepared.bytes.byteOffset === 0 && prepared.bytes.byteLength === prepared.bytes.buffer.byteLength
+        ? prepared.bytes
+        : prepared.bytes.slice();
     const db = new sqlite3.oo1.DB(':memory:', 'c');
-    const ptr = wasm.allocFromTypedArray(files.dbBytes);
+    const ptr = wasm.allocFromTypedArray(bytes);
     const rc = capi.sqlite3_deserialize(
       db.pointer,
       'main',
       ptr,
-      files.dbBytes.length,
-      files.dbBytes.length,
+      bytes.length,
+      bytes.length,
       capi.SQLITE_DESERIALIZE_FREEONCLOSE,
     );
     if (rc !== 0) {
@@ -158,11 +171,16 @@ export async function openRikkaHubDb(files: RikkaHubDbFile): Promise<OpenResult>
       }
       throw new Error(`sqlite3_deserialize 失败 (rc=${rc})`);
     }
-    memoryFallback = true;
-    return { db: wrapDb(db), memoryFallback, diagnostics };
+    return {
+      db: wrapDb(db),
+      memoryFallback: true,
+      walReplayed,
+      walDegraded,
+      diagnostics: `VFS 打开失败（${fsError}；可用 VFS: ${capi.sqlite3_js_vfs_list().join(', ')}）`,
+    };
   } catch (e) {
     throw new Error(
-      `rikka_hub.db 无法打开：${diagnostics ?? ''} ${e instanceof Error ? e.message : String(e)}`,
+      `rikka_hub.db 无法打开：FS=${fsError ?? 'n/a'}；deserialize=${e instanceof Error ? e.message : String(e)}`,
     );
   }
 }

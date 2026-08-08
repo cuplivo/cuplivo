@@ -4,10 +4,19 @@
  */
 import JSZip from 'jszip';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { migrateRikkaHubToKelivo } from '../src/lib/migrate';
 import { runRecovery, RECOVERY_ASSISTANT_NAME } from '../src/lib/kelivo/recovery';
 import type { SettingsJson } from '../src/lib/kelivo/types';
+import { prepareRikkaHubDbBytes } from '../src/lib/rikkahub/wal';
+import {
+  normalizePolymorphicType,
+  resolveKelivoAsset,
+  toKelivoLocalRef,
+  toZipLocalPath,
+} from '../src/lib/rikkahub/util';
+import { mapLocalToolIds } from '../src/lib/migrate/assistants';
 
 const sqlite3 = await sqlite3InitModule({ print: () => {}, printErr: () => {} });
 
@@ -129,13 +138,16 @@ function buildSettings(): string {
     ],
     assistants: [
       {
-        id: AST_ID, chatModelId: MODEL_ID, name: '写作助手', avatar: { type: 'Emoji', content: '✍️' }, useAssistantAvatar: true,
+        id: AST_ID, chatModelId: MODEL_ID, name: '写作助手',
+        avatar: { type: 'me.rerere.rikkahub.data.model.Avatar.Image', url: 'file:///data/user/0/me.rerere.rikkahub/files/upload/paste_123.png' },
+        useAssistantAvatar: true,
         tags: ['tag-1'], systemPrompt: '你是写作专家', temperature: 0.7, topP: null, contextMessageLimit: 32,
         streamOutput: true, enableMemory: true, useGlobalMemory: true, enableRecentChatsReference: true,
         messageTemplate: '{{ message }}', presetMessages: [], quickMessageIds: ['qm-1'],
         regexes: [{ id: 'rx-1', name: '缩写', enabled: true, findRegex: 'gpt', replaceString: 'GPT', affectingScope: ['USER'], visualOnly: false }],
         reasoningLevel: 'medium', maxTokens: null, customHeaders: [], customBodies: [], mcpServers: ['mcp-1'],
-        localTools: ['time_info'], enableWebSearch: true, workspaceId: null, background: null, backgroundOpacity: 1,
+        localTools: [{ type: 'ask_user' }, 'time_info', { type: 'javascript_engine' }], enableWebSearch: true, workspaceId: null,
+        background: 'file:///data/user/0/me.rerere.rikkahub/files/upload/paste_123.png', backgroundOpacity: 1,
         useGradientBackground: false, modeInjectionIds: ['mi-1'], lorebookIds: ['lb-1'], enabledSkills: ['skill-a'],
         enableTimeReminder: true, allowConversationSystemPrompt: true, allowConversationPromptInjection: true,
       },
@@ -192,7 +204,7 @@ const chats = JSON.parse(await outZip.file('chats.json')!.async('string'));
 const settingsJson = JSON.parse(await outZip.file('settings.json')!.async('string')) as SettingsJson;
 
 // ---------- 4. 校验 chats.json ----------
-assert.strictEqual(chats.version, 2, 'chats.json version=2');
+assert.strictEqual(chats.version, 1, 'chats.json version=1（Kelivo/Cuplivo 仅接受 1）');
 assert.strictEqual(chats.conversations.length, 2, '2 个会话');
 assert.strictEqual(chats.messages.length, 3, '3 条消息（alt 丢弃 1 条）');
 const conv1 = chats.conversations.find((c: { id: string }) => c.id === 'conv-1');
@@ -200,7 +212,7 @@ assert.strictEqual(conv1.messageIds.length, 2, 'conv-1 消息 2 条');
 assert.ok(!chats.messages.some((m: { id: string }) => m.id === 'msg-1a'), '未选中的替代版本已丢弃');
 assert.ok(chats.messages.some((m: { id: string }) => m.id === 'msg-1b'), '选中版本保留');
 const msg2 = chats.messages.find((m: { id: string }) => m.id === 'msg-2');
-assert.ok(msg2.content.includes('[image:upload/paste_123.png]'), '图片标记写入 content');
+assert.ok(msg2.content.includes('[image:/upload/paste_123.png]'), '图片标记写入 content（/upload/）');
 assert.strictEqual(msg2.reasoningText, '深度思考过程', '推理文本');
 assert.strictEqual(msg2.providerId, PROVIDER_ID, 'providerId 解析');
 assert.strictEqual(msg2.modelId, 'gpt-4o', 'modelId 解引用');
@@ -218,6 +230,19 @@ const ast = assistants.find((a: { id: string }) => a.id === AST_ID);
 assert.strictEqual(ast.name, '写作助手');
 assert.strictEqual(ast.chatModelId, 'gpt-4o', '助手模型解引用');
 assert.strictEqual(ast.chatModelProvider, PROVIDER_ID);
+assert.strictEqual(ast.avatar, '/avatars/paste_123.png', 'FQCN Avatar.Image → /avatars/ (Kelivo 可识别)');
+assert.strictEqual(ast.background, '/images/paste_123.png', 'background → /images/');
+assert.deepStrictEqual(
+  ast.localToolIds,
+  ['ask_user_input_v0', 'get_time_info'],
+  'localTools 对象/短名 → Kelivo string id；javascript_engine 丢弃',
+);
+assert.ok(
+  !ast.localToolIds.some((x: unknown) => typeof x !== 'string'),
+  'localToolIds 全为 string（Cuplivo jsonEncode 要求）',
+);
+assert.ok(outZip.file('avatars/paste_123.png'), '头像文件写入 avatars/');
+assert.ok(outZip.file('images/paste_123.png'), '背景文件写入 images/');
 assert.strictEqual(ast.regexRules[0].pattern, 'gpt');
 assert.strictEqual(ast.skillIds[0], 'skill-a');
 assert.strictEqual(ast.mcpServerIds[0], 'mcp-1');
@@ -261,7 +286,7 @@ assert.strictEqual(settingsJson.display_show_model_timestamp_v1, true, '时间�
 
 // ---------- 6. 校验报告 ----------
 assert.strictEqual(report.droppedAlternatives, 1, '丢弃 1 条未选版本');
-assert.strictEqual(report.totals.mediaFiles, 1, '媒体文件透传 1 个');
+assert.strictEqual(report.totals.mediaFiles, 3, '媒体：upload 1 + avatars 拷贝 1 + images 拷贝 1');
 assert.strictEqual(report.totals.placeholders, 1, '占位 1 个');
 assert.ok(report.dropped.some((d) => d.category.includes('搜索服务')), '搜索丢弃入报告');
 assert.ok(report.dropped.some((d) => d.category.includes('TTS')), 'TTS 丢弃入报告');
@@ -297,7 +322,7 @@ kelivoZip.file(
 kelivoZip.file(
   'chats.json',
   JSON.stringify({
-    version: 2,
+    version: 1,
     conversations: [
       { id: 'c1', title: '会话1', assistantId: 'ast-missing', messageIds: ['m1'], createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00', isPinned: false, mcpServerIds: [], parentConversationId: null, truncateIndex: -1, versionSelections: {}, summary: null, lastSummarizedMessageCount: 0, chatSuggestions: [], conversationKind: 'normal' },
       { id: 'c2', title: '会话2', assistantId: 'ast-ok', messageIds: ['m2'], createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00', isPinned: false, mcpServerIds: [], parentConversationId: null, truncateIndex: -1, versionSelections: {}, summary: null, lastSummarizedMessageCount: 0, chatSuggestions: [], conversationKind: 'normal' },
@@ -340,6 +365,94 @@ assert.strictEqual(ghost.title, '孤儿消息');
 assert.deepStrictEqual(ghost.messageIds, ['m3', 'm4']);
 const c3 = recChats.conversations.find((c: { id: string }) => c.id === 'c3');
 assert.strictEqual(c3.assistantId, rec.recoveryAssistantId, '原 null 会话挂载到恢复助手');
+
+// ---------- 8. 工具函数 + WAL 预处理 ----------
+assert.strictEqual(normalizePolymorphicType('me.rerere.rikkahub.data.model.Avatar.Image'), 'Image');
+assert.strictEqual(normalizePolymorphicType('Dummy'), 'Dummy');
+assert.strictEqual(
+  toZipLocalPath('file:///data/user/0/x/files/upload/a.png', (n) => (n === 'a.png' ? 'upload/a.png' : null)),
+  'upload/a.png',
+);
+assert.strictEqual(toZipLocalPath('https://cdn.example/x.png', () => null), 'https://cdn.example/x.png');
+assert.strictEqual(toKelivoLocalRef('upload/a.png'), '/upload/a.png');
+assert.strictEqual(toKelivoLocalRef('/avatars/a.png'), '/avatars/a.png');
+assert.strictEqual(toKelivoLocalRef('https://x/a.png'), 'https://x/a.png');
+assert.deepStrictEqual(
+  mapLocalToolIds([{ type: 'ask_user' }, 'time_info', { type: 'screen_time' }, 'ask_user_input_v0']),
+  ['ask_user_input_v0', 'get_time_info'],
+  'mapLocalToolIds 映射+去重+丢弃',
+);
+{
+  const copies: [string, string][] = [];
+  const ref = resolveKelivoAsset(
+    'file:///data/user/0/x/files/upload/a.png',
+    (n) => (n === 'a.png' ? 'upload/a.png' : null),
+    'avatars',
+    (s, d) => copies.push([s, d]),
+  );
+  assert.strictEqual(ref, '/avatars/a.png');
+  assert.deepStrictEqual(copies, [['upload/a.png', 'avatars/a.png']]);
+}
+
+// prepare 对非 WAL / 已折叠库幂等
+{
+  const plain = buildDb();
+  const prepPlain = prepareRikkaHubDbBytes(plain.db, null);
+  assert.ok(prepPlain.bytes.length > 0, 'prepare 非空');
+  assert.strictEqual(prepPlain.bytes[18], 1, 'prepare 后 journal 为 DELETE');
+}
+
+// ---------- 9. 真实备份 fixture（若存在）----------
+const fixturePaths = [
+  '/tmp/kelivo-helper-dev/rikkahub_backup/rikkahub_backup_20260808_153015.zip',
+  '/tmp/kelivo-helper-dev/rikkahub-procare-backup/rikkahub_backup_20260808_150406.zip',
+];
+for (const fp of fixturePaths) {
+  if (!fs.existsSync(fp)) {
+    console.log(`  skip fixture (missing): ${fp}`);
+    continue;
+  }
+  const buf = fs.readFileSync(fp);
+  const fzip = await JSZip.loadAsync(buf);
+  const dbB = await fzip.file('rikka_hub.db')!.async('uint8array');
+  const walB = fzip.file('rikka_hub-wal')
+    ? await fzip.file('rikka_hub-wal')!.async('uint8array')
+    : null;
+  const prep = prepareRikkaHubDbBytes(dbB, walB);
+  assert.ok(prep.walFramesApplied > 0 || prep.degradedReason, '真实备份 WAL 应回放或给出降级原因');
+  assert.strictEqual(prep.bytes[18], 1, 'fixture prepare → DELETE journal');
+
+  const fres = await migrateRikkaHubToKelivo(fzip, fp.split('/').pop()!);
+  assert.ok(fres.report.totals.conversations >= 200, `fixture 会话数 ${fres.report.totals.conversations}`);
+  assert.ok(fres.report.totals.messages >= 1000, `fixture 消息数 ${fres.report.totals.messages}`);
+  assert.equal(fres.report.warnings.some((w) => w.includes('CANTOPEN')), false, '无 CANTOPEN');
+  assert.ok(fres.report.source.walReplayed, 'fixture WAL 已回放');
+  const fAssistants = JSON.parse(fres.settingsFile.assistants_v1!);
+  const withAvatar = fAssistants.find(
+    (a: { avatar?: string }) => a.avatar && String(a.avatar).startsWith('/avatars/'),
+  );
+  assert.ok(withAvatar, '真实备份助手头像为 /avatars/...');
+  assert.ok(
+    !fAssistants.some(
+      (a: { avatar?: string }) => a.avatar && /^upload\//.test(String(a.avatar)),
+    ),
+    '头像不得为相对 upload/（Kelivo 会当 emoji）',
+  );
+  const withBg = fAssistants.find(
+    (a: { background?: string | null }) => a.background && String(a.background).startsWith('/images/'),
+  );
+  assert.ok(withBg, '真实备份背景为 /images/...');
+  assert.ok(fres.outputZip.file(String(withAvatar.avatar).replace(/^\//, '')), 'avatars/ 文件在输出 zip');
+  for (const a of fAssistants as { name: string; localToolIds?: unknown[] }[]) {
+    for (const id of a.localToolIds ?? []) {
+      assert.equal(typeof id, 'string', `${a.name} localToolIds 必须为 string，实际 ${typeof id}`);
+    }
+  }
+  assert.strictEqual(fres.chatsFile.version, 1, 'fixture chats.version=1');
+  console.log(
+    `  fixture OK: ${fp.split('/').pop()} → ${fres.report.totals.conversations} 会话 / ${fres.report.totals.messages} 消息 / avatar=${withAvatar.avatar}`,
+  );
+}
 
 console.log('✅ e2e 全部通过');
 console.log(`  迁移: ${report.totals.conversations} 会话 / ${report.totals.messages} 消息 / ${report.totals.assistants} 助手 / ${report.totals.providers} 提供商`);

@@ -23,4 +23,9 @@ export interface MigrateContext {
   tagMap: Map<string, string>;
   /** 占位助手计数 */
   placeholderCount: number;
+  /**
+   * 额外媒体拷贝：输出 zip 路径 → 源 zip 路径
+   * （头像 → avatars/、背景 → images/，源多在 upload/）
+   */
+  extraAssetCopies: Map<string, string>;
 }

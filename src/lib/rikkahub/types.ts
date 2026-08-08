@@ -1,7 +1,7 @@
 /**
  * RikkaHub 备份格式类型定义（canonical，来源：rikkahub.md 调研文档）
  * - settings.json: kotlinx.serialization 序列化的嵌套 Settings data class（camelCase，encodeDefaults=true）
- * - rikka_hub.db: Room（version 24），8 张业务表
+ * - rikka_hub.db: Room（源码注解 version 24；真实备份 identity 可能更高，按列名兼容）
  * - 消息为 parts 结构，modelId 引用 providers[].models[].id (UUID)
  */
 
@@ -107,7 +107,9 @@ export interface DisplaySetting {
   volumeKeyScrollRatio: number;
 }
 
+/** type 可能是短名或 kotlinx FQCN（如 me.rerere...Avatar.Image） */
 export type Avatar =
+  | { type: string; content?: string; url?: string }
   | { type: 'Dummy' }
   | { type: 'Emoji'; content: string }
   | { type: 'Image'; url: string };
@@ -209,6 +211,7 @@ export interface Assistant {
   customHeaders: CustomHeader[];
   customBodies: CustomBody[];
   mcpServers: Uuid[];
+  /** kotlinx 多态：可能是短名 string，或 `{ type: 'ask_user' }` */
   localTools: LocalToolOption[];
   enableWebSearch: boolean;
   workspaceId: Uuid | null;
@@ -223,7 +226,10 @@ export interface Assistant {
   allowConversationPromptInjection: boolean;
 }
 
+/** RikkaHub LocalToolOption：短名或 FQCN/对象形式 */
 export type LocalToolOption =
+  | string
+  | { type: string }
   | 'javascript_engine'
   | 'time_info'
   | 'clipboard'

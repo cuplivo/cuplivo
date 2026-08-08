@@ -1596,7 +1596,8 @@ bool _isCjkCodeUnit(int codeUnit) {
 }
 
 String _normalizeMathTex(String tex) {
-  final escapedSpecials = _escapeInlineMathSpecials(tex);
+  final tagRewritten = _rewriteTagCommands(tex);
+  final escapedSpecials = _escapeInlineMathSpecials(tagRewritten);
   final normalizedBraces = _escapeLikelyLiteralMathBraces(escapedSpecials);
   return normalizedBraces.replaceAllMapped(RegExp(r'\\\|([\s\S]*?)\\\|'), (
     match,
@@ -1605,6 +1606,30 @@ String _normalizeMathTex(String tex) {
     return r'\lVert '
         '$body'
         r' \rVert';
+  });
+}
+
+// flutter_math_fork 0.7.4 (latest) stubs \tag: it expands to
+// \gdef\df@tag{...}, but \gdef is undefined → ParseException → the WHOLE
+// formula falls back to raw plain text. Rewrite \tag{X} → \qquad\text{(X)}
+// and \tag*{X} → \qquad\text{X} so the number renders inline right after the
+// equation — an approximation, NOT right-aligned at the margin like real
+// LaTeX (proper tags via a vendored flutter_math_fork are a deferred task).
+// \notag/\nonumber produce nothing by design → strip. Flat braces only:
+// nested \tag{\alpha} or unbraced \tag 1 stay untouched (raw-text fallback).
+String _rewriteTagCommands(String tex) {
+  final tag = RegExp(r'(?<!\\)\\tag(\*?)\{([^{}]*)\}|\\notag|\\nonumber');
+  return tex.replaceAllMapped(tag, (m) {
+    final label = (m.group(2) ?? '').trim();
+    if (label.isEmpty) return '';
+    final starred = m.group(1) == '*';
+    return starred
+        ? r'\qquad\text{'
+              '$label'
+              '}'
+        : r'\qquad\text{'
+              '($label)'
+              '}';
   });
 }
 

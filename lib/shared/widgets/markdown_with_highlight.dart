@@ -21,7 +21,6 @@ import 'package:super_clipboard/super_clipboard.dart';
 import '../../utils/sandbox_path_resolver.dart';
 import '../../utils/clipboard_images.dart';
 import '../../features/chat/pages/image_viewer_page.dart';
-import '../../features/chat/pages/html_preview_page.dart';
 import 'snackbar.dart';
 import 'ios_tactile.dart';
 import 'mermaid_bridge.dart';
@@ -39,7 +38,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../desktop/desktop_context_menu.dart';
-import 'package:Cuplivo/desktop/html_preview_dialog.dart';
+import 'html_preview_block.dart';
 
 // Inline math is parsed on the UI thread. Bound the lookahead window so a long
 // line with many unmatched openers cannot trigger repeated whole-line scans.
@@ -270,6 +269,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
       followLinkColor: true,
       // Disable built-in $...$ LaTeX so our custom scrollable handlers take over
       useDollarSignsForLatex: false,
+      streaming: widget.streaming,
       onLinkTap: (url, title) => _handleLinkTap(context, url),
       components: components,
       inlineComponents: inlineComponents,
@@ -491,6 +491,11 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
           return PlantUMLBlock(code: restoredCode);
         } else if (lang.toLowerCase() == 'svg') {
           return SvgPreviewBlock(
+            code: restoredCode,
+            streaming: widget.streaming && !closed,
+          );
+        } else if (_isHtml(lang)) {
+          return HtmlPreviewBlock(
             code: restoredCode,
             streaming: widget.streaming && !closed,
           );
@@ -2252,16 +2257,6 @@ class _CollapsibleCodeBlockState extends State<_CollapsibleCodeBlock> {
                       )!.shareProviderSheetCopyButton,
                       onTap: () => _copyCode(context),
                     ),
-                    if (_isHtml(widget.language)) ...[
-                      const SizedBox(width: 16),
-                      _CodeBlockIconAction(
-                        icon: Lucide.Eye,
-                        label: AppLocalizations.of(
-                          context,
-                        )!.codeBlockPreviewButton,
-                        onTap: () => _previewHtml(context),
-                      ),
-                    ],
                   ],
                 ),
               ],
@@ -2397,35 +2392,6 @@ class _CollapsibleCodeBlockState extends State<_CollapsibleCodeBlock> {
         message: l10n.messageExportSheetExportFailed('$e'),
         type: NotificationType.error,
       );
-    }
-  }
-
-  void _previewHtml(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    if (Platform.isAndroid || Platform.isIOS) {
-      Navigator.of(context).push(
-        PageRouteBuilder(
-          pageBuilder: (_, __, ___) => HtmlPreviewPage(html: widget.code),
-          transitionDuration: const Duration(milliseconds: 300),
-          reverseTransitionDuration: const Duration(milliseconds: 240),
-          transitionsBuilder: (context, anim, sec, child) {
-            final curved = CurvedAnimation(
-              parent: anim,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeInCubic,
-            );
-            return FadeTransition(opacity: curved, child: child);
-          },
-        ),
-      );
-    } else if (Platform.isLinux) {
-      showAppSnackBar(
-        context,
-        message: l10n.htmlPreviewNotSupportedOnLinux,
-        type: NotificationType.warning,
-      );
-    } else {
-      showHtmlPreviewDesktopDialog(context, html: widget.code);
     }
   }
 
@@ -4508,6 +4474,8 @@ class FencedCodeBlockMd extends BlockMd {
       return PlantUMLBlock(code: code);
     } else if (langLower == 'svg') {
       return SvgPreviewBlock(code: code, streaming: isStreamingFence);
+    } else if (_isHtml(langLower)) {
+      return HtmlPreviewBlock(code: code, streaming: isStreamingFence);
     }
     return _CollapsibleCodeBlock(
       language: lang,

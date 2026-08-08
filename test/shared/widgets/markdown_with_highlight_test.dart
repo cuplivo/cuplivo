@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:Cuplivo/features/chat/pages/image_viewer_page.dart';
 import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
 import 'package:Cuplivo/shared/widgets/export_capture_scope.dart';
+import 'package:Cuplivo/shared/widgets/html_preview_block.dart';
 import 'package:Cuplivo/shared/widgets/mermaid_image_cache.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
@@ -2995,17 +2996,22 @@ void main() {}
       );
       await tester.pump();
 
-      expect(find.text('html'), findsOneWidget);
+      // html fences render as the in-chat preview block
+      expect(find.byType(HtmlPreviewBlock), findsOneWidget);
+      // switch to the Code tab to inspect the raw content
+      await tester.tap(find.text('Code'));
+      await tester.pump();
+
       expect(
         find.descendant(
-          of: find.byType(SelectableHighlightView),
+          of: find.byType(HtmlPreviewBlock),
           matching: find.textContaining('<details>'),
         ),
         findsOneWidget,
       );
       expect(
         find.descendant(
-          of: find.byType(SelectableHighlightView),
+          of: find.byType(HtmlPreviewBlock),
           matching: find.textContaining('<summary>点击展开/折叠内容</summary>'),
         ),
         findsOneWidget,
@@ -3013,6 +3019,125 @@ void main() {}
       expect(find.text('点击展开/折叠内容'), findsNothing);
       expect(find.byKey(const ValueKey('details-collapsed')), findsNothing);
       expect(find.byKey(const ValueKey('details-expanded')), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'MarkdownWithCodeHighlight keeps html streaming content in the preview '
+    'block (no raw code dump)',
+    (tester) async {
+      final text = ValueNotifier<String>('```html\n<div>partial');
+      addTearDown(text.dispose);
+
+      await tester.pumpWidget(_streamingMarkdownHarness(text));
+      await tester.pump();
+
+      // Streaming + default setting (show-code off) → Preview tab, no code
+      // dump. The body itself is host-dependent (loading on WebView hosts,
+      // Linux notice on Linux) — only the tab state is asserted.
+      expect(find.byType(HtmlPreviewBlock), findsOneWidget);
+      expect(find.byKey(const ValueKey('html-code-body')), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'MarkdownWithCodeHighlight keeps the code tab while streaming html with '
+    'show-code enabled, then switches to preview on completion',
+    (tester) async {
+      final text = ValueNotifier<String>('```html\n<div>partial');
+      addTearDown(text.dispose);
+
+      await tester.pumpWidget(
+        _streamingMarkdownHarness(
+          text,
+          preferences: const {'display_html_streaming_show_code_v1': true},
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(HtmlPreviewBlock), findsOneWidget);
+      expect(find.byKey(const ValueKey('html-code-body')), findsOneWidget);
+
+      // Streaming ends (fence closes) → unconditional switch to Preview tab
+      text.value = '```html\n<div>partial</div>\n```';
+      await tester.pump();
+      expect(find.byKey(const ValueKey('html-code-body')), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'MarkdownWithCodeHighlight handles interrupted html streaming (unclosed '
+    'fence) by leaving the preview block',
+    (tester) async {
+      final text = ValueNotifier<String>('```html\n<div>partial');
+      final streaming = ValueNotifier<bool>(true);
+      addTearDown(text.dispose);
+      addTearDown(streaming.dispose);
+
+      SharedPreferences.setMockInitialValues(const {
+        'display_html_streaming_show_code_v1': true,
+      });
+      await tester.pumpWidget(
+        ChangeNotifierProvider(
+          create: (_) => SettingsProvider(),
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: ValueListenableBuilder<String>(
+                valueListenable: text,
+                builder: (context, value, _) {
+                  return ValueListenableBuilder<bool>(
+                    valueListenable: streaming,
+                    builder: (context, isStreaming, _) {
+                      return MarkdownWithCodeHighlight(
+                        text: value,
+                        streaming: isStreaming,
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Streaming with an UNCLOSED fence → show-code force is active
+      expect(find.byType(HtmlPreviewBlock), findsOneWidget);
+      expect(find.byKey(const ValueKey('html-code-body')), findsOneWidget);
+
+      // Interrupt: streaming ends while the fence stays open
+      streaming.value = false;
+      await tester.pump();
+      expect(find.byKey(const ValueKey('html-code-body')), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'MarkdownWithCodeHighlight forces the html code tab during export capture',
+    (tester) async {
+      await tester.pumpWidget(
+        _settingsHarness(
+          onSettingsReady: (_) {},
+          child: const ExportCaptureScope(
+            enabled: true,
+            child: MarkdownWithCodeHighlight(
+              text: '''
+```html
+<div>content</div>
+```
+''',
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(HtmlPreviewBlock), findsOneWidget);
+      expect(find.byKey(const ValueKey('html-code-body')), findsOneWidget);
+      expect(find.byKey(const ValueKey('html-preview-loading')), findsNothing);
     },
   );
 

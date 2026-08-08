@@ -1944,6 +1944,26 @@ class RenderingSettingsPage extends StatelessWidget {
                       .setMobileCodeBlockWrap(v),
                 ),
               ],
+              _iosDivider(context),
+              _iosSwitchRow(
+                context,
+                icon: Lucide.Globe,
+                label: l10n.displaySettingsPageHtmlStreamingShowCodeTitle,
+                value: sp.htmlStreamingShowCodeInProgress,
+                onChanged: (v) => context
+                    .read<SettingsProvider>()
+                    .setHtmlStreamingShowCodeInProgress(v),
+              ),
+              _iosDivider(context),
+              _iosSwitchRow(
+                context,
+                icon: Lucide.Maximize2,
+                label: l10n.displaySettingsPageAutoOpenHtmlPreviewTitle,
+                value: sp.autoOpenHtmlPreviewOnComplete,
+                onChanged: (v) => context
+                    .read<SettingsProvider>()
+                    .setAutoOpenHtmlPreviewOnComplete(v),
+              ),
             ],
           ),
         ],

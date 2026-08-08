@@ -44,6 +44,7 @@ class GptMarkdown extends StatelessWidget {
     this.components,
     this.inlineComponents,
     this.useDollarSignsForLatex = false,
+    this.streaming = false,
   });
 
   /// The direction of the text.
@@ -100,6 +101,11 @@ class GptMarkdown extends StatelessWidget {
 
   /// Whether to use dollar signs for LaTeX.
   final bool useDollarSignsForLatex;
+
+  /// Whether the content is being streamed. Participates in config equality
+  /// so a streaming flag flip with unchanged text regenerates the parse tree
+  /// (code-block rendering behavior depends on it).
+  final bool streaming;
 
   /// The table builder.
   final TableBuilder? tableBuilder;
@@ -207,6 +213,7 @@ class GptMarkdown extends StatelessWidget {
           components: components,
           inlineComponents: inlineComponents,
           tableBuilder: tableBuilder,
+          streaming: streaming,
         ),
       ),
     );

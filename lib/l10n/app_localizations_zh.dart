@@ -640,6 +640,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get svgSaveDialogTitle => '保存 SVG';
 
   @override
+  String get htmlPreviewTab => '预览';
+
+  @override
+  String get htmlSaveFile => '下载 HTML';
+
+  @override
+  String get htmlSaveSuccess => 'HTML 已保存';
+
+  @override
+  String get htmlSaveFailed => '保存失败';
+
+  @override
+  String get htmlSaveDialogTitle => '保存 HTML';
+
+  @override
+  String get htmlOpenFullScreenPreview => '全屏预览';
+
+  @override
   String get mermaidExportPng => '导出 PNG';
 
   @override
@@ -1504,9 +1522,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get assistantEditPreviewTitle => '预览';
-
-  @override
-  String get codeBlockPreviewButton => '预览';
 
   @override
   String get codeBlockSaveAsButton => '另存为文件';
@@ -2588,6 +2603,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get displaySettingsPageMobileCodeBlockWrapTitle => '移动端代码块自动换行';
+
+  @override
+  String get displaySettingsPageHtmlStreamingShowCodeTitle => 'HTML 生成期间显示代码';
+
+  @override
+  String get displaySettingsPageAutoOpenHtmlPreviewTitle => '生成完成后自动打开 HTML 预览';
 
   @override
   String get displaySettingsPageAutoCollapseCodeBlockTitle => '自动折叠代码块';
@@ -7578,6 +7599,24 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get svgSaveDialogTitle => '保存 SVG';
 
   @override
+  String get htmlPreviewTab => '预览';
+
+  @override
+  String get htmlSaveFile => '下载 HTML';
+
+  @override
+  String get htmlSaveSuccess => 'HTML 已保存';
+
+  @override
+  String get htmlSaveFailed => '保存失败';
+
+  @override
+  String get htmlSaveDialogTitle => '保存 HTML';
+
+  @override
+  String get htmlOpenFullScreenPreview => '全屏预览';
+
+  @override
   String get mermaidExportPng => '导出 PNG';
 
   @override
@@ -8442,9 +8481,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assistantEditPreviewTitle => '预览';
-
-  @override
-  String get codeBlockPreviewButton => '预览';
 
   @override
   String get codeBlockSaveAsButton => '另存为文件';
@@ -9526,6 +9562,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get displaySettingsPageMobileCodeBlockWrapTitle => '移动端代码块自动换行';
+
+  @override
+  String get displaySettingsPageHtmlStreamingShowCodeTitle => 'HTML 生成期间显示代码';
+
+  @override
+  String get displaySettingsPageAutoOpenHtmlPreviewTitle => '生成完成后自动打开 HTML 预览';
 
   @override
   String get displaySettingsPageAutoCollapseCodeBlockTitle => '自动折叠代码块';
@@ -14515,6 +14557,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get svgSaveDialogTitle => '儲存 SVG';
 
   @override
+  String get htmlPreviewTab => '預覽';
+
+  @override
+  String get htmlSaveFile => '下載 HTML';
+
+  @override
+  String get htmlSaveSuccess => 'HTML 已儲存';
+
+  @override
+  String get htmlSaveFailed => '儲存失敗';
+
+  @override
+  String get htmlSaveDialogTitle => '儲存 HTML';
+
+  @override
+  String get htmlOpenFullScreenPreview => '全螢幕預覽';
+
+  @override
   String get mermaidExportPng => '匯出 PNG';
 
   @override
@@ -15379,9 +15439,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantEditPreviewTitle => '預覽';
-
-  @override
-  String get codeBlockPreviewButton => '預覽';
 
   @override
   String get codeBlockSaveAsButton => '另存為檔案';
@@ -16462,6 +16519,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get displaySettingsPageMobileCodeBlockWrapTitle => '行動端程式碼區塊自動換行';
+
+  @override
+  String get displaySettingsPageHtmlStreamingShowCodeTitle => 'HTML 生成期間顯示程式碼';
+
+  @override
+  String get displaySettingsPageAutoOpenHtmlPreviewTitle => '生成完成後自動開啟 HTML 預覽';
 
   @override
   String get displaySettingsPageAutoCollapseCodeBlockTitle => '自動摺疊程式碼區塊';

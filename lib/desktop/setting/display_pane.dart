@@ -2322,6 +2322,37 @@ class _ToggleRowAutoCollapseCodeBlocks extends StatelessWidget {
   }
 }
 
+class _ToggleRowHtmlStreamingShowCode extends StatelessWidget {
+  const _ToggleRowHtmlStreamingShowCode();
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final sp = context.watch<SettingsProvider>();
+    return _ToggleRow(
+      label: l10n.displaySettingsPageHtmlStreamingShowCodeTitle,
+      value: sp.htmlStreamingShowCodeInProgress,
+      onChanged: (v) => context
+          .read<SettingsProvider>()
+          .setHtmlStreamingShowCodeInProgress(v),
+    );
+  }
+}
+
+class _ToggleRowAutoOpenHtmlPreview extends StatelessWidget {
+  const _ToggleRowAutoOpenHtmlPreview();
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final sp = context.watch<SettingsProvider>();
+    return _ToggleRow(
+      label: l10n.displaySettingsPageAutoOpenHtmlPreviewTitle,
+      value: sp.autoOpenHtmlPreviewOnComplete,
+      onChanged: (v) =>
+          context.read<SettingsProvider>().setAutoOpenHtmlPreviewOnComplete(v),
+    );
+  }
+}
+
 class _ToggleRowAutoCollapseThinking extends StatelessWidget {
   const _ToggleRowAutoCollapseThinking();
   @override
@@ -2784,6 +2815,10 @@ class _AutoCollapseCodeBlocksSection extends StatelessWidget {
           const _RowDivider(),
           const _AutoCollapseCodeBlockLinesRow(),
         ],
+        const _RowDivider(),
+        const _ToggleRowHtmlStreamingShowCode(),
+        const _RowDivider(),
+        const _ToggleRowAutoOpenHtmlPreview(),
       ],
     );
   }

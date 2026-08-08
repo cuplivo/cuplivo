@@ -1270,6 +1270,42 @@ abstract class AppLocalizations {
   /// **'Save SVG'**
   String get svgSaveDialogTitle;
 
+  /// No description provided for @htmlPreviewTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get htmlPreviewTab;
+
+  /// No description provided for @htmlSaveFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Download HTML'**
+  String get htmlSaveFile;
+
+  /// No description provided for @htmlSaveSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'HTML saved'**
+  String get htmlSaveSuccess;
+
+  /// No description provided for @htmlSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Save failed'**
+  String get htmlSaveFailed;
+
+  /// No description provided for @htmlSaveDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save HTML'**
+  String get htmlSaveDialogTitle;
+
+  /// No description provided for @htmlOpenFullScreenPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Full-screen preview'**
+  String get htmlOpenFullScreenPreview;
+
   /// No description provided for @mermaidExportPng.
   ///
   /// In en, this message translates to:
@@ -2950,12 +2986,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Preview'**
   String get assistantEditPreviewTitle;
-
-  /// No description provided for @codeBlockPreviewButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Preview'**
-  String get codeBlockPreviewButton;
 
   /// No description provided for @codeBlockSaveAsButton.
   ///
@@ -4996,6 +5026,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mobile Code Block Word Wrap'**
   String get displaySettingsPageMobileCodeBlockWrapTitle;
+
+  /// No description provided for @displaySettingsPageHtmlStreamingShowCodeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show code while HTML is generating'**
+  String get displaySettingsPageHtmlStreamingShowCodeTitle;
+
+  /// No description provided for @displaySettingsPageAutoOpenHtmlPreviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-open HTML preview when done'**
+  String get displaySettingsPageAutoOpenHtmlPreviewTitle;
 
   /// No description provided for @displaySettingsPageAutoCollapseCodeBlockTitle.
   ///

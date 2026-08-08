@@ -221,6 +221,10 @@ class SettingsProvider extends ChangeNotifier {
       'display_auto_collapse_code_block_v1';
   static const String _displayAutoCollapseCodeBlockLinesKey =
       'display_auto_collapse_code_block_lines_v1';
+  static const String _displayHtmlStreamingShowCodeKey =
+      'display_html_streaming_show_code_v1';
+  static const String _displayAutoOpenHtmlPreviewKey =
+      'display_auto_open_html_preview_v1';
   static const String _displayDesktopAutoSwitchTopicsKey =
       'display_desktop_auto_switch_topics_v1';
   static const String _displayDesktopShowTrayKey =
@@ -1138,6 +1142,10 @@ class SettingsProvider extends ChangeNotifier {
           1,
           999,
         );
+    _htmlStreamingShowCodeInProgress =
+        prefs.getBool(_displayHtmlStreamingShowCodeKey) ?? false;
+    _autoOpenHtmlPreviewOnComplete =
+        prefs.getBool(_displayAutoOpenHtmlPreviewKey) ?? false;
     _desktopAutoSwitchTopics =
         prefs.getBool(_displayDesktopAutoSwitchTopicsKey) ?? false;
     // Desktop: tray settings (default enabled on desktop platforms)
@@ -4160,6 +4168,29 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     await prefs.setInt(_displayAutoCollapseCodeBlockLinesKey, next);
   }
 
+  // Display: show the Code tab while an HTML block is streaming (default:
+  // Preview tab with a loading state)
+  bool _htmlStreamingShowCodeInProgress = false;
+  bool get htmlStreamingShowCodeInProgress => _htmlStreamingShowCodeInProgress;
+  Future<void> setHtmlStreamingShowCodeInProgress(bool v) async {
+    if (_htmlStreamingShowCodeInProgress == v) return;
+    _htmlStreamingShowCodeInProgress = v;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_displayHtmlStreamingShowCodeKey, v);
+  }
+
+  // Display: auto-open the full-screen HTML preview page when generation ends
+  bool _autoOpenHtmlPreviewOnComplete = false;
+  bool get autoOpenHtmlPreviewOnComplete => _autoOpenHtmlPreviewOnComplete;
+  Future<void> setAutoOpenHtmlPreviewOnComplete(bool v) async {
+    if (_autoOpenHtmlPreviewOnComplete == v) return;
+    _autoOpenHtmlPreviewOnComplete = v;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_displayAutoOpenHtmlPreviewKey, v);
+  }
+
   // Desktop-only: auto switch to Topics tab when changing assistant
   bool _desktopAutoSwitchTopics = false;
   bool get desktopAutoSwitchTopics => _desktopAutoSwitchTopics;
@@ -4616,6 +4647,8 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     copy._showChatListDate = _showChatListDate;
     copy._autoCollapseCodeBlock = _autoCollapseCodeBlock;
     copy._autoCollapseCodeBlockLines = _autoCollapseCodeBlockLines;
+    copy._htmlStreamingShowCodeInProgress = _htmlStreamingShowCodeInProgress;
+    copy._autoOpenHtmlPreviewOnComplete = _autoOpenHtmlPreviewOnComplete;
     copy._desktopAutoSwitchTopics = _desktopAutoSwitchTopics;
     copy._desktopShowTray = _desktopShowTray;
     copy._desktopMinimizeToTrayOnClose = _desktopMinimizeToTrayOnClose;

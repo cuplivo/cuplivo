@@ -653,6 +653,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get svgSaveDialogTitle => 'Save SVG';
 
   @override
+  String get htmlPreviewTab => 'Preview';
+
+  @override
+  String get htmlSaveFile => 'Download HTML';
+
+  @override
+  String get htmlSaveSuccess => 'HTML saved';
+
+  @override
+  String get htmlSaveFailed => 'Save failed';
+
+  @override
+  String get htmlSaveDialogTitle => 'Save HTML';
+
+  @override
+  String get htmlOpenFullScreenPreview => 'Full-screen preview';
+
+  @override
   String get mermaidExportPng => 'Export PNG';
 
   @override
@@ -1561,9 +1579,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantEditPreviewTitle => 'Preview';
-
-  @override
-  String get codeBlockPreviewButton => 'Preview';
 
   @override
   String get codeBlockSaveAsButton => 'Save as file';
@@ -2676,6 +2691,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get displaySettingsPageMobileCodeBlockWrapTitle =>
       'Mobile Code Block Word Wrap';
+
+  @override
+  String get displaySettingsPageHtmlStreamingShowCodeTitle =>
+      'Show code while HTML is generating';
+
+  @override
+  String get displaySettingsPageAutoOpenHtmlPreviewTitle =>
+      'Auto-open HTML preview when done';
 
   @override
   String get displaySettingsPageAutoCollapseCodeBlockTitle =>

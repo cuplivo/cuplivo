@@ -12,7 +12,7 @@ import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/backup_reminder_provider.dart';
 import '../../../core/models/chat_item.dart';
 import '../../../core/providers/user_provider.dart';
-import '../../settings/pages/settings_page.dart';
+import '../../settings/pages/new/new_settings_page.dart';
 import '../../translate/pages/translate_page.dart';
 import '../../backup/pages/backup_page.dart';
 import '../../group_chat/pages/group_chat_list_page.dart';
@@ -2418,7 +2418,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                                 onTap: () {
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
-                                      builder: (_) => const SettingsPage(),
+                                      builder: (_) => const NewSettingsPage(),
                                     ),
                                   );
                                 },

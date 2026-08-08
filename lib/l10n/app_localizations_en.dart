@@ -462,6 +462,178 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsPageShare => 'Share';
 
   @override
+  String get newSettingsLegacyEntry => 'Legacy Settings';
+
+  @override
+  String get newSettingsLegacyTooltip => 'Open legacy settings page';
+
+  @override
+  String get newSettingsPageSubtitle => 'Grouped settings for the whole app';
+
+  @override
+  String get newSettingsSectionAssistant => 'Assistant';
+
+  @override
+  String get newSettingsSectionAppearance => 'Appearance & Behavior';
+
+  @override
+  String get newSettingsSectionProviders => 'Providers';
+
+  @override
+  String get newSettingsSectionAuxModels => 'Auxiliary Models';
+
+  @override
+  String get newSettingsSectionSillyTavern => 'SillyTavern Features';
+
+  @override
+  String get newSettingsSectionMoreTools => 'More Tools';
+
+  @override
+  String get newSettingsSectionData => 'Data';
+
+  @override
+  String get newSettingsSectionCuplivo => 'Cuplivo';
+
+  @override
+  String get newSettingsAssistantDescription => 'Assistants and their defaults';
+
+  @override
+  String get newSettingsAppearanceDescription =>
+      'Theme, chat appearance, behavior, fonts and language';
+
+  @override
+  String get newSettingsProvidersDescription => 'Model providers and API keys';
+
+  @override
+  String get newSettingsAuxModelsDescription =>
+      'Default model, TTS and ASR services';
+
+  @override
+  String get newSettingsSillyTavernDescription =>
+      'World book and SillyTavern ecosystem';
+
+  @override
+  String get newSettingsMoreToolsDescription =>
+      'Search, MCP, quick phrases, injection, skills and proxy';
+
+  @override
+  String get newSettingsDataDescription =>
+      'Backup, chat storage and statistics';
+
+  @override
+  String get newSettingsCuplivoDescription => 'About, docs and sponsorship';
+
+  @override
+  String get newSettingsAppearanceTitle => 'Appearance & Behavior';
+
+  @override
+  String get newSettingsAppearanceSubtitle =>
+      'Adjust theme, chat look, behavior, fonts and language';
+
+  @override
+  String get newSettingsColorThemeTitle => 'Color & Theme';
+
+  @override
+  String get newSettingsColorThemeSubtitle => 'Color mode and theme color';
+
+  @override
+  String get newSettingsChatAppearanceTitle => 'Chat Appearance';
+
+  @override
+  String get newSettingsChatAppearanceSubtitle =>
+      'Chat item display and backgrounds';
+
+  @override
+  String get newSettingsBehaviorTitle => 'Behavior';
+
+  @override
+  String get newSettingsBehaviorSubtitle =>
+      'Startup, feedback and generation behavior';
+
+  @override
+  String get newSettingsFontsTitle => 'Fonts';
+
+  @override
+  String get newSettingsFontsSubtitle =>
+      'App font, code font and chat font size';
+
+  @override
+  String get newSettingsAuxModelsTitle => 'Auxiliary Models';
+
+  @override
+  String get newSettingsAuxModelsSubtitle =>
+      'Default model and TTS / ASR services';
+
+  @override
+  String get newSettingsSillyTavernTitle => 'SillyTavern Features';
+
+  @override
+  String get newSettingsSillyTavernSubtitle =>
+      'World book and SillyTavern compatibility';
+
+  @override
+  String get newSettingsMoreToolsTitle => 'More Tools';
+
+  @override
+  String get newSettingsMoreToolsSubtitle =>
+      'Search, MCP, quick phrases, injection, skills and proxy';
+
+  @override
+  String get newSettingsDataTitle => 'Data';
+
+  @override
+  String get newSettingsDataSubtitle => 'Backup, chat storage and statistics';
+
+  @override
+  String get newSettingsCuplivoTitle => 'Cuplivo';
+
+  @override
+  String get newSettingsCuplivoSubtitle => 'About, docs and sponsorship';
+
+  @override
+  String get newSettingsTtsModelTitle => 'TTS Model';
+
+  @override
+  String get newSettingsAsrModelTitle => 'ASR Model';
+
+  @override
+  String get newSettingsAdvancedRegexTitle => 'Advanced Regex';
+
+  @override
+  String get newSettingsSillyTavernPluginCompatTitle =>
+      'SillyTavern Plugin Compatibility';
+
+  @override
+  String get newSettingsSillyTavernPresetCompatTitle =>
+      'SillyTavern Preset Compatibility';
+
+  @override
+  String get newSettingsLinuxSandboxTitle => 'Linux Sandbox';
+
+  @override
+  String get newSettingsImportAppThemeTitle => 'Import App Theme';
+
+  @override
+  String get newSettingsComingSoon => 'Coming Soon';
+
+  @override
+  String get newSettingsComingSoonMessage =>
+      'This feature is under development. Stay tuned!';
+
+  @override
+  String get newSettingsDesktopOnlySection => 'Desktop Only';
+
+  @override
+  String get newSettingsSystemFontOption => 'System Fonts';
+
+  @override
+  String get newSettingsLogSettingsTitle => 'Log Settings';
+
+  @override
+  String get newSettingsLogSettingsSubtitle =>
+      'Request and app logging switches';
+
+  @override
   String get statsPageTitle => 'Statistics';
 
   @override

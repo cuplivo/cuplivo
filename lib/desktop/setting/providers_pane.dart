@@ -187,13 +187,10 @@ class _DesktopProvidersBodyState extends State<_DesktopProvidersBody> {
   }
 
   Future<void> _showShareDialog(String providerKey, String displayName) async {
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (_) => _DesktopProviderShareDialog(
-        providerKey: providerKey,
-        displayName: displayName,
-      ),
+    await showProviderShareDialog(
+      context,
+      providerKey: providerKey,
+      displayName: displayName,
     );
   }
 
@@ -2817,8 +2814,8 @@ class _DesktopProviderDetailPaneState
                                               value: toolImagesNow == null
                                                   ? 'auto'
                                                   : (toolImagesNow
-                                                            ? 'on'
-                                                            : 'off'),
+                                                        ? 'on'
+                                                        : 'off'),
                                               options: [
                                                 DesktopSelectOption(
                                                   value: 'auto',
@@ -5993,234 +5990,6 @@ class _DesktopDragHandleState extends State<_DesktopDragHandle> {
           lucide.Lucide.GripVertical,
           size: 18,
           color: cs.onSurface.withValues(alpha: 0.7),
-        ),
-      ),
-    );
-  }
-}
-
-class _DesktopProviderShareDialog extends StatefulWidget {
-  const _DesktopProviderShareDialog({
-    required this.providerKey,
-    required this.displayName,
-  });
-  final String providerKey;
-  final String displayName;
-
-  @override
-  State<_DesktopProviderShareDialog> createState() =>
-      _DesktopProviderShareDialogState();
-}
-
-class _DesktopProviderShareDialogState
-    extends State<_DesktopProviderShareDialog> {
-  late final String _code;
-  final GlobalKey _qrKey = GlobalKey();
-  bool _copyingQr = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final settings = context.read<SettingsProvider>();
-    final cfg =
-        settings.providerConfigs[widget.providerKey] ??
-        settings.getProviderConfig(
-          widget.providerKey,
-          defaultName: widget.displayName,
-        );
-    _code = encodeProviderConfig(cfg);
-  }
-
-  Future<void> _copyText() async {
-    await Clipboard.setData(ClipboardData(text: _code));
-    if (!mounted) return;
-    showAppSnackBar(
-      context,
-      message: AppLocalizations.of(context)!.shareProviderSheetCopiedMessage,
-      type: NotificationType.success,
-    );
-  }
-
-  Future<Uint8List?> _captureQrBytes() async {
-    try {
-      final boundary =
-          _qrKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      if (boundary == null) return null;
-      final image = await boundary.toImage(pixelRatio: 3.0);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      return byteData?.buffer.asUint8List();
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<bool> _writeQrToClipboard(Uint8List bytes) async {
-    try {
-      final clipboard = SystemClipboard.instance;
-      if (clipboard != null) {
-        final item = DataWriterItem(suggestedName: 'provider-qr.png');
-        item.add(Formats.png(bytes));
-        await clipboard.write([item]);
-        return true;
-      }
-    } catch (_) {}
-
-    try {
-      final file = File(
-        p.join(Directory.systemTemp.path, 'kelivo-provider-qr.png'),
-      );
-      await file.writeAsBytes(bytes, flush: true);
-      return await ClipboardImages.setImagePath(file.path);
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<void> _copyQr() async {
-    if (_copyingQr) return;
-    setState(() => _copyingQr = true);
-    bool ok = false;
-    try {
-      final bytes = await _captureQrBytes();
-      if (bytes != null && bytes.isNotEmpty) {
-        ok = await _writeQrToClipboard(bytes);
-      }
-    } catch (_) {
-      ok = false;
-    }
-    if (!mounted) return;
-    setState(() => _copyingQr = false);
-    final l10n = AppLocalizations.of(context)!;
-    showAppSnackBar(
-      context,
-      message: ok
-          ? l10n.shareProviderSheetCopiedMessage
-          : l10n.messageExportSheetExportFailed('copy-failed'),
-      type: ok ? NotificationType.success : NotificationType.error,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final l10n = AppLocalizations.of(context)!;
-    return Dialog(
-      backgroundColor: cs.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      l10n.shareProviderSheetTitle,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: AppFontWeights.emphasis,
-                      ),
-                    ),
-                  ),
-                  _IconBtn(
-                    icon: lucide.Lucide.X,
-                    onTap: () => Navigator.of(context).maybePop(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                l10n.shareProviderSheetDescription,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: cs.onSurface.withValues(alpha: 0.85),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Center(
-                child: RepaintBoundary(
-                  key: _qrKey,
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: cs.outlineVariant.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: SizedBox.square(
-                      dimension: 180,
-                      child: PrettyQrView.data(
-                        data: _code,
-                        errorCorrectLevel: QrErrorCorrectLevel.M,
-                        decoration: const PrettyQrDecoration(
-                          shape: PrettyQrSmoothSymbol(roundFactor: 1),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.04)
-                      : Colors.black.withValues(alpha: 0.03),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: cs.outlineVariant.withValues(alpha: 0.25),
-                  ),
-                ),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 160),
-                  child: SingleChildScrollView(
-                    child: SelectableText(
-                      _code,
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        height: 1.35,
-                        fontFamily: 'monospace',
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  _DialogActionButton(
-                    icon: const Icon(Icons.copy_outlined, size: 18),
-                    label: l10n.desktopProviderShareCopyText,
-                    filled: false,
-                    onTap: _copyText,
-                  ),
-                  const SizedBox(width: 10),
-                  _DialogActionButton(
-                    icon: _copyingQr
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CupertinoActivityIndicator(radius: 8),
-                          )
-                        : const Icon(Icons.qr_code_2, size: 18),
-                    label: l10n.desktopProviderShareCopyQr,
-                    filled: true,
-                    onTap: _copyingQr ? null : _copyQr,
-                  ),
-                ],
-              ),
-            ],
-          ),
         ),
       ),
     );

@@ -4447,6 +4447,46 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     await prefs.setInt(_searchSelectedKey, _searchServiceSelected);
   }
 
+  /// Moves the search service at [oldIndex] to [newIndex] (final index,
+  /// matching the desktop reorder list semantics) and keeps the selected
+  /// service by id.
+  Future<void> reorderSearchServices(int oldIndex, int newIndex) async {
+    if (oldIndex == newIndex) return;
+    if (oldIndex < 0 || oldIndex >= _searchServices.length) return;
+    if (newIndex < 0 || newIndex >= _searchServices.length) return;
+    final selectedId =
+        (_searchServiceSelected >= 0 &&
+            _searchServiceSelected < _searchServices.length)
+        ? _searchServices[_searchServiceSelected].id
+        : null;
+    final current = List<SearchServiceOptions>.from(_searchServices);
+    final moved = current.removeAt(oldIndex);
+    current.insert(newIndex, moved);
+    // Keep the selection attached to the same service id; fall back to the
+    // old index (clamped) only if the selected id is gone.
+    int newSel = selectedId != null
+        ? current.indexWhere((e) => e.id == selectedId)
+        : -1;
+    if (newSel < 0) {
+      newSel = _searchServiceSelected.clamp(
+        0,
+        current.isNotEmpty ? current.length - 1 : 0,
+      );
+    }
+    // Single mutate/notify/prefs batch: listeners never observe a transient
+    // wrong selection and a crash between the two writes cannot leave the
+    // persisted selection stale.
+    _searchServices = current;
+    _searchServiceSelected = newSel;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _searchServicesKey,
+      jsonEncode(_searchServices.map((e) => e.toJson()).toList()),
+    );
+    await prefs.setInt(_searchSelectedKey, _searchServiceSelected);
+  }
+
   Future<void> setSearchCommonOptions(SearchCommonOptions options) async {
     _searchCommonOptions = options;
     notifyListeners();

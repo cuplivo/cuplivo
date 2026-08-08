@@ -1,7 +1,7 @@
 import 'dart:io' show Platform, exit;
 
 import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, TargetPlatform;
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:restart_app/restart_app.dart';
 
 abstract final class PlatformUtils {
@@ -16,6 +16,10 @@ abstract final class PlatformUtils {
       defaultTargetPlatform == TargetPlatform.macOS ||
       defaultTargetPlatform == TargetPlatform.windows ||
       defaultTargetPlatform == TargetPlatform.linux;
+
+  /// [isDesktopTarget] guarded against web (where `dart:io` must not be
+  /// used and `defaultTargetPlatform` reports a desktop value on web).
+  static bool get isDesktopTargetSafe => !kIsWeb && isDesktopTarget;
 
   static bool get isMobileTarget =>
       defaultTargetPlatform == TargetPlatform.android ||

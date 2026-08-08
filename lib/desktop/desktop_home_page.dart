@@ -7,6 +7,7 @@ import 'desktop_nav_rail.dart';
 import 'desktop_chat_page.dart';
 import 'window_title_bar.dart';
 import 'desktop_settings_page.dart';
+import '../features/settings/pages/new/new_settings_page.dart';
 import 'desktop_translate_page.dart';
 import '../features/settings/pages/storage_space_page.dart';
 import '../l10n/app_localizations.dart';
@@ -38,6 +39,7 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
   int _tabIndex = 0; // 0=Chat, 1=Translate, 2=Storage, 3=Settings
   bool _storageVisited = false;
   bool _globalSearchActive = false;
+  bool _settingsPageOpen = false;
   StreamSubscription<HotkeyAction>? _hotkeySub;
   StreamSubscription<ChatAction>? _chatActionSub;
   StreamSubscription<DesktopSettingsNavigationTarget>? _settingsNavSub;
@@ -66,11 +68,7 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
       switch (action) {
         case HotkeyAction.openSettings:
           if (mounted) {
-            setState(() {
-              _tabIndex = 3;
-              _globalSearchActive = false;
-            });
-            ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
+            _openSettingsPage();
           }
           break;
         case HotkeyAction.closeWindow:
@@ -158,11 +156,7 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
       if (!mounted) return;
       switch (target) {
         case DesktopSettingsNavigationTarget.backup:
-          setState(() {
-            _tabIndex = 3;
-            _globalSearchActive = false;
-          });
-          ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
+          _openSettingsPage(target: NewSettingsTarget.backup);
           break;
       }
     });
@@ -225,13 +219,7 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
                 _storageVisited = true;
                 ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
               }),
-              onTapSettings: () {
-                setState(() {
-                  _tabIndex = 3;
-                  _globalSearchActive = false;
-                });
-                ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
-              },
+              onTapSettings: () => _openSettingsPage(),
             ),
             Expanded(
               // Keep all pages alive so ongoing chat streams are not canceled
@@ -301,6 +289,34 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
         );
       },
     );
+  }
+
+  /// Pushes the new settings hub as a route. Repeated triggers while a
+  /// settings route is already open are ignored so we never stack duplicates.
+  void _openSettingsPage({NewSettingsTarget? target}) {
+    if (_settingsPageOpen) return;
+    _settingsPageOpen = true;
+    ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
+    setState(() {
+      _globalSearchActive = false;
+    });
+    try {
+      Navigator.of(context)
+          .push(
+            MaterialPageRoute(
+              builder: (_) => target == null
+                  ? const NewSettingsPage()
+                  : NewSettingsPage(initialTarget: target),
+            ),
+          )
+          .whenComplete(() {
+            if (mounted) _settingsPageOpen = false;
+          });
+    } catch (e) {
+      debugPrint('open settings page failed: $e');
+      _settingsPageOpen = false;
+      rethrow;
+    }
   }
 
   Future<void> _checkConflicts() async {

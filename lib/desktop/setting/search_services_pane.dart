@@ -132,31 +132,10 @@ class _DesktopSearchServicesPaneState extends State<DesktopSearchServicesPane> {
                   );
                 },
                 onReorderItem: (oldIndex, newIndex) async {
-                  final sp = context.read<SettingsProvider>();
-                  final current = List<SearchServiceOptions>.from(
-                    sp.searchServices,
+                  await context.read<SettingsProvider>().reorderSearchServices(
+                    oldIndex,
+                    newIndex,
                   );
-                  if (oldIndex < 0 ||
-                      oldIndex >= current.length ||
-                      newIndex < 0 ||
-                      newIndex >= current.length) {
-                    return;
-                  }
-                  final moved = current.removeAt(oldIndex);
-                  current.insert(newIndex, moved);
-                  final selectedId =
-                      (sp.searchServices.isNotEmpty &&
-                          sp.searchServiceSelected >= 0 &&
-                          sp.searchServiceSelected < sp.searchServices.length)
-                      ? sp.searchServices[sp.searchServiceSelected].id
-                      : null;
-                  await sp.setSearchServices(current);
-                  if (selectedId != null) {
-                    final newSel = current.indexWhere(
-                      (e) => e.id == selectedId,
-                    );
-                    if (newSel >= 0) await sp.setSearchServiceSelected(newSel);
-                  }
                 },
               ),
 

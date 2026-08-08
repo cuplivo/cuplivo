@@ -206,9 +206,16 @@ class McpPage extends StatelessWidget {
                 style: TextStyle(color: cs.onSurface.withValues(alpha: 0.6)),
               ),
             )
-          : ListView.builder(
+          : ReorderableListView.builder(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              buildDefaultDragHandles: false,
               itemCount: servers.length,
+              onReorderItem: (oldIndex, newIndex) async {
+                await context.read<McpProvider>().reorderServers(
+                  oldIndex,
+                  newIndex,
+                );
+              },
               itemBuilder: (context, index) {
                 final s = servers[index];
                 final st = mcp.statusFor(s.id);
@@ -432,6 +439,18 @@ class McpPage extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 8),
                                 Icon(Lucide.ChevronRight, size: 16, color: c),
+                                if (servers.length > 1)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 4),
+                                    child: ReorderableDelayedDragStartListener(
+                                      index: index,
+                                      child: Icon(
+                                        Lucide.GripVertical,
+                                        size: 18,
+                                        color: c.withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -441,112 +460,117 @@ class McpPage extends StatelessWidget {
                   },
                 );
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Slidable(
-                    key: ValueKey('mcp-${s.id}'),
-                    endActionPane: ActionPane(
-                      motion: const StretchMotion(),
-                      extentRatio: 0.42,
-                      children: [
-                        CustomSlidableAction(
-                          autoClose: true,
-                          backgroundColor: Colors.transparent,
-                          child: Container(
-                            width: double.infinity,
-                            height: double.infinity,
-                            decoration: BoxDecoration(
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? cs.error.withValues(alpha: 0.22)
-                                  : cs.error.withValues(alpha: 0.14),
-                              // Match list card radius for consistency
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: cs.error.withValues(alpha: 0.35),
+                return KeyedSubtree(
+                  key: ValueKey('mobile-mcp-${s.id}'),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Slidable(
+                      key: ValueKey('mcp-${s.id}'),
+                      endActionPane: ActionPane(
+                        motion: const StretchMotion(),
+                        extentRatio: 0.42,
+                        children: [
+                          CustomSlidableAction(
+                            autoClose: true,
+                            backgroundColor: Colors.transparent,
+                            child: Container(
+                              width: double.infinity,
+                              height: double.infinity,
+                              decoration: BoxDecoration(
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? cs.error.withValues(alpha: 0.22)
+                                    : cs.error.withValues(alpha: 0.14),
+                                // Match list card radius for consistency
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: cs.error.withValues(alpha: 0.35),
+                                ),
                               ),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            alignment: Alignment.center,
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Lucide.Trash2,
-                                    color: cs.error,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    l10n.mcpPageDelete,
-                                    style: TextStyle(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              alignment: Alignment.center,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Lucide.Trash2,
                                       color: cs.error,
-                                      fontWeight: AppFontWeights.emphasis,
+                                      size: 18,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      l10n.mcpPageDelete,
+                                      style: TextStyle(
+                                        color: cs.error,
+                                        fontWeight: AppFontWeights.emphasis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
+                            onPressed: (_) async {
+                              final prov = context.read<McpProvider>();
+                              final prev = prov.getById(s.id);
+                              final ok = await showDialog<bool>(
+                                context: context,
+                                builder: (dctx) => AlertDialog(
+                                  backgroundColor: cs.surface,
+                                  title: Text(l10n.mcpPageConfirmDeleteTitle),
+                                  content: Text(
+                                    l10n.mcpPageConfirmDeleteContent,
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(dctx).pop(false),
+                                      child: Text(l10n.mcpPageCancel),
+                                    ),
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(dctx).pop(true),
+                                      child: Text(l10n.mcpPageDelete),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (ok != true) return;
+                              await prov.removeServer(s.id);
+                              if (!context.mounted) return;
+                              showAppSnackBar(
+                                context,
+                                message: l10n.mcpPageServerDeleted,
+                                type: NotificationType.info,
+                                actionLabel: l10n.mcpPageUndo,
+                                onAction: () {
+                                  if (prev == null) return;
+                                  Future(() async {
+                                    final newId = await prov.addServer(
+                                      enabled: prev.enabled,
+                                      name: prev.name,
+                                      transport: prev.transport,
+                                      url: prev.url,
+                                      headers: prev.headers,
+                                    );
+                                    // Try to refresh tools when back online
+                                    try {
+                                      await prov.refreshTools(newId);
+                                    } catch (_) {}
+                                  });
+                                },
+                              );
+                            },
                           ),
-                          onPressed: (_) async {
-                            final prov = context.read<McpProvider>();
-                            final prev = prov.getById(s.id);
-                            final ok = await showDialog<bool>(
-                              context: context,
-                              builder: (dctx) => AlertDialog(
-                                backgroundColor: cs.surface,
-                                title: Text(l10n.mcpPageConfirmDeleteTitle),
-                                content: Text(l10n.mcpPageConfirmDeleteContent),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.of(dctx).pop(false),
-                                    child: Text(l10n.mcpPageCancel),
-                                  ),
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.of(dctx).pop(true),
-                                    child: Text(l10n.mcpPageDelete),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (ok != true) return;
-                            await prov.removeServer(s.id);
-                            if (!context.mounted) return;
-                            showAppSnackBar(
-                              context,
-                              message: l10n.mcpPageServerDeleted,
-                              type: NotificationType.info,
-                              actionLabel: l10n.mcpPageUndo,
-                              onAction: () {
-                                if (prev == null) return;
-                                Future(() async {
-                                  final newId = await prov.addServer(
-                                    enabled: prev.enabled,
-                                    name: prev.name,
-                                    transport: prev.transport,
-                                    url: prev.url,
-                                    headers: prev.headers,
-                                  );
-                                  // Try to refresh tools when back online
-                                  try {
-                                    await prov.refreshTools(newId);
-                                  } catch (_) {}
-                                });
-                              },
-                            );
-                          },
-                        ),
-                      ],
+                        ],
+                      ),
+                      child: row,
                     ),
-                    child: row,
                   ),
                 );
               },

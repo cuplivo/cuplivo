@@ -90,17 +90,19 @@ Unlike most personal-customization or single-feature forks, Cuplivo aims to add 
 
 ### UI & Rendering
 
-1. **Reading mode** — Long assistant answers can open in a dedicated reading mode to reduce fatigue (#160).
+1. **Redesigned settings hub** — Settings is now grouped into sections (Assistant, Appearance & Behavior, Providers, Auxiliary Models, SillyTavern, More Tools, Data, Cuplivo); the previous settings page remains accessible via the legacy entry in the top-right corner.
 
-2. **SVG preview** — Renders SVG diagrams inline within `svg` code blocks.
+2. **Reading mode** — Long assistant answers can open in a dedicated reading mode to reduce fatigue (#160).
 
-3. **Custom dynamic color (seed)** — Pick a custom seed color for the dynamic color scheme, giving you full control over the app's accent color with a hue picker (#107).
+3. **SVG preview** — Renders SVG diagrams inline within `svg` code blocks.
 
-4. **Beautify request logs** — Split messages from config in the log viewer so message turns in the request body are easier to read (#127).
+4. **Custom dynamic color (seed)** — Pick a custom seed color for the dynamic color scheme, giving you full control over the app's accent color with a hue picker (#107).
 
-5. **Desktop markdown table toolbar** — Format and copy markdown tables with a dedicated desktop toolbar supporting multi-format copy (plain text, HTML, LaTeX) (#109).
+5. **Beautify request logs** — Split messages from config in the log viewer so message turns in the request body are easier to read (#127).
 
-6. **Preset messages** — Preset messages collapsed behind a toggle bar in the chat list; new conversations are blocked when only presets exist (#116).
+6. **Desktop markdown table toolbar** — Format and copy markdown tables with a dedicated desktop toolbar supporting multi-format copy (plain text, HTML, LaTeX) (#109).
+
+7. **Preset messages** — Preset messages collapsed behind a toggle bar in the chat list; new conversations are blocked when only presets exist (#116).
 
 ### Additional Fixes
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../utils/brand_assets.dart';
 import '../../../utils/avatar_cache.dart';
+import '../../../utils/platform_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
@@ -19,6 +20,7 @@ import '../../../core/providers/model_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../model/widgets/model_detail_sheet.dart';
 import '../../model/widgets/model_select_sheet.dart';
+import '../widgets/provider_share_dialog.dart';
 import '../widgets/share_provider_sheet.dart';
 import '../widgets/provider_group_picker_sheet.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -244,7 +246,15 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
               semanticLabel: l10n.providerDetailPageShareTooltip,
               size: 22,
               onTap: () async {
-                await showShareProviderSheet(context, widget.keyName);
+                if (PlatformUtils.isDesktopTargetSafe) {
+                  await showProviderShareDialog(
+                    context,
+                    providerKey: widget.keyName,
+                    displayName: widget.displayName,
+                  );
+                } else {
+                  await showShareProviderSheet(context, widget.keyName);
+                }
               },
             ),
           ),

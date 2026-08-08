@@ -108,6 +108,22 @@ class _SearchServicesPageState extends State<SearchServicesPage> {
     );
   }
 
+  Future<void> _reorderService(int oldIndex, int newIndex) async {
+    final settings = context.read<SettingsProvider>();
+    // The provider updates its in-memory list and notifies synchronously
+    // before persisting, so refresh the local list immediately.
+    final future = settings.reorderSearchServices(oldIndex, newIndex);
+    if (!mounted) return;
+    setState(() {
+      _services = List.from(settings.searchServices);
+    });
+    await future;
+    if (!mounted) return;
+    setState(() {
+      _selectedIndex = settings.searchServiceSelected;
+    });
+  }
+
   Future<void> _testConnection(int index) async {
     if (index < 0 || index >= _services.length) return;
     final s = _services[index];
@@ -182,10 +198,26 @@ class _SearchServicesPageState extends State<SearchServicesPage> {
           ),
           _iosSectionCard(
             children: [
-              for (int i = 0; i < _services.length; i++) ...[
-                _iosProviderRow(context, index: i),
-                if (i != _services.length - 1) _iosDivider(context),
-              ],
+              ReorderableListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                buildDefaultDragHandles: false,
+                itemCount: _services.length,
+                onReorderItem: (oldIndex, newIndex) =>
+                    _reorderService(oldIndex, newIndex),
+                itemBuilder: (context, index) {
+                  final s = _services[index];
+                  return KeyedSubtree(
+                    key: ValueKey('search-service-${s.id}'),
+                    child: Column(
+                      children: [
+                        _iosProviderRow(context, index: index),
+                        if (index != _services.length - 1) _iosDivider(context),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -508,6 +540,18 @@ class _SearchServicesPageState extends State<SearchServicesPage> {
                     ],
                     const SizedBox(width: 8),
                     Icon(Lucide.ChevronRight, size: 16, color: c),
+                    if (_services.length > 1)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: ReorderableDragStartListener(
+                          index: index,
+                          child: Icon(
+                            Lucide.GripVertical,
+                            size: 18,
+                            color: c.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

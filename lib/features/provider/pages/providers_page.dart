@@ -11,6 +11,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../core/services/haptics.dart';
 import '../widgets/share_provider_sheet.dart';
+import '../widgets/provider_share_dialog.dart';
 import '../../../core/providers/assistant_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
@@ -20,6 +21,7 @@ import '../../../shared/widgets/ios_tile_button.dart';
 import '../../../shared/widgets/ios_checkbox.dart';
 import '../widgets/provider_avatar.dart';
 import '../widgets/provider_group_select_sheet.dart';
+import '../../../utils/platform_utils.dart';
 import '../../../utils/provider_grouping_logic.dart';
 import '../../../theme/app_font_weights.dart';
 
@@ -611,7 +613,17 @@ class _ProvidersPageState extends State<ProvidersPage> {
     if (_selected.isEmpty) return;
     final keys = _selected.toList(growable: false);
     if (keys.length == 1) {
-      await showShareProviderSheet(context, keys.first);
+      if (PlatformUtils.isDesktopTargetSafe) {
+        final settings = context.read<SettingsProvider>();
+        final cfg = settings.getProviderConfig(keys.first);
+        await showProviderShareDialog(
+          context,
+          providerKey: keys.first,
+          displayName: cfg.name.isNotEmpty ? cfg.name : keys.first,
+        );
+      } else {
+        await showShareProviderSheet(context, keys.first);
+      }
       return;
     }
     await _showMultiExportSheet(context, keys);

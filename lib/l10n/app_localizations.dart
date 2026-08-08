@@ -892,6 +892,318 @@ abstract class AppLocalizations {
   /// **'Share'**
   String get settingsPageShare;
 
+  /// No description provided for @newSettingsLegacyEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Legacy Settings'**
+  String get newSettingsLegacyEntry;
+
+  /// No description provided for @newSettingsLegacyTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Open legacy settings page'**
+  String get newSettingsLegacyTooltip;
+
+  /// No description provided for @newSettingsPageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Grouped settings for the whole app'**
+  String get newSettingsPageSubtitle;
+
+  /// No description provided for @newSettingsSectionAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant'**
+  String get newSettingsSectionAssistant;
+
+  /// No description provided for @newSettingsSectionAppearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance & Behavior'**
+  String get newSettingsSectionAppearance;
+
+  /// No description provided for @newSettingsSectionProviders.
+  ///
+  /// In en, this message translates to:
+  /// **'Providers'**
+  String get newSettingsSectionProviders;
+
+  /// No description provided for @newSettingsSectionAuxModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Auxiliary Models'**
+  String get newSettingsSectionAuxModels;
+
+  /// No description provided for @newSettingsSectionSillyTavern.
+  ///
+  /// In en, this message translates to:
+  /// **'SillyTavern Features'**
+  String get newSettingsSectionSillyTavern;
+
+  /// No description provided for @newSettingsSectionMoreTools.
+  ///
+  /// In en, this message translates to:
+  /// **'More Tools'**
+  String get newSettingsSectionMoreTools;
+
+  /// No description provided for @newSettingsSectionData.
+  ///
+  /// In en, this message translates to:
+  /// **'Data'**
+  String get newSettingsSectionData;
+
+  /// No description provided for @newSettingsSectionCuplivo.
+  ///
+  /// In en, this message translates to:
+  /// **'Cuplivo'**
+  String get newSettingsSectionCuplivo;
+
+  /// No description provided for @newSettingsAssistantDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistants and their defaults'**
+  String get newSettingsAssistantDescription;
+
+  /// No description provided for @newSettingsAppearanceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme, chat appearance, behavior, fonts and language'**
+  String get newSettingsAppearanceDescription;
+
+  /// No description provided for @newSettingsProvidersDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Model providers and API keys'**
+  String get newSettingsProvidersDescription;
+
+  /// No description provided for @newSettingsAuxModelsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Default model, TTS and ASR services'**
+  String get newSettingsAuxModelsDescription;
+
+  /// No description provided for @newSettingsSillyTavernDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'World book and SillyTavern ecosystem'**
+  String get newSettingsSillyTavernDescription;
+
+  /// No description provided for @newSettingsMoreToolsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Search, MCP, quick phrases, injection, skills and proxy'**
+  String get newSettingsMoreToolsDescription;
+
+  /// No description provided for @newSettingsDataDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup, chat storage and statistics'**
+  String get newSettingsDataDescription;
+
+  /// No description provided for @newSettingsCuplivoDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'About, docs and sponsorship'**
+  String get newSettingsCuplivoDescription;
+
+  /// No description provided for @newSettingsAppearanceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance & Behavior'**
+  String get newSettingsAppearanceTitle;
+
+  /// No description provided for @newSettingsAppearanceSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust theme, chat look, behavior, fonts and language'**
+  String get newSettingsAppearanceSubtitle;
+
+  /// No description provided for @newSettingsColorThemeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Color & Theme'**
+  String get newSettingsColorThemeTitle;
+
+  /// No description provided for @newSettingsColorThemeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Color mode and theme color'**
+  String get newSettingsColorThemeSubtitle;
+
+  /// No description provided for @newSettingsChatAppearanceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat Appearance'**
+  String get newSettingsChatAppearanceTitle;
+
+  /// No description provided for @newSettingsChatAppearanceSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat item display and backgrounds'**
+  String get newSettingsChatAppearanceSubtitle;
+
+  /// No description provided for @newSettingsBehaviorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Behavior'**
+  String get newSettingsBehaviorTitle;
+
+  /// No description provided for @newSettingsBehaviorSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Startup, feedback and generation behavior'**
+  String get newSettingsBehaviorSubtitle;
+
+  /// No description provided for @newSettingsFontsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fonts'**
+  String get newSettingsFontsTitle;
+
+  /// No description provided for @newSettingsFontsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'App font, code font and chat font size'**
+  String get newSettingsFontsSubtitle;
+
+  /// No description provided for @newSettingsAuxModelsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auxiliary Models'**
+  String get newSettingsAuxModelsTitle;
+
+  /// No description provided for @newSettingsAuxModelsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Default model and TTS / ASR services'**
+  String get newSettingsAuxModelsSubtitle;
+
+  /// No description provided for @newSettingsSillyTavernTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SillyTavern Features'**
+  String get newSettingsSillyTavernTitle;
+
+  /// No description provided for @newSettingsSillyTavernSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'World book and SillyTavern compatibility'**
+  String get newSettingsSillyTavernSubtitle;
+
+  /// No description provided for @newSettingsMoreToolsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'More Tools'**
+  String get newSettingsMoreToolsTitle;
+
+  /// No description provided for @newSettingsMoreToolsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search, MCP, quick phrases, injection, skills and proxy'**
+  String get newSettingsMoreToolsSubtitle;
+
+  /// No description provided for @newSettingsDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Data'**
+  String get newSettingsDataTitle;
+
+  /// No description provided for @newSettingsDataSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup, chat storage and statistics'**
+  String get newSettingsDataSubtitle;
+
+  /// No description provided for @newSettingsCuplivoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cuplivo'**
+  String get newSettingsCuplivoTitle;
+
+  /// No description provided for @newSettingsCuplivoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'About, docs and sponsorship'**
+  String get newSettingsCuplivoSubtitle;
+
+  /// No description provided for @newSettingsTtsModelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'TTS Model'**
+  String get newSettingsTtsModelTitle;
+
+  /// No description provided for @newSettingsAsrModelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'ASR Model'**
+  String get newSettingsAsrModelTitle;
+
+  /// No description provided for @newSettingsAdvancedRegexTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced Regex'**
+  String get newSettingsAdvancedRegexTitle;
+
+  /// No description provided for @newSettingsSillyTavernPluginCompatTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SillyTavern Plugin Compatibility'**
+  String get newSettingsSillyTavernPluginCompatTitle;
+
+  /// No description provided for @newSettingsSillyTavernPresetCompatTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SillyTavern Preset Compatibility'**
+  String get newSettingsSillyTavernPresetCompatTitle;
+
+  /// No description provided for @newSettingsLinuxSandboxTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Linux Sandbox'**
+  String get newSettingsLinuxSandboxTitle;
+
+  /// No description provided for @newSettingsImportAppThemeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import App Theme'**
+  String get newSettingsImportAppThemeTitle;
+
+  /// No description provided for @newSettingsComingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming Soon'**
+  String get newSettingsComingSoon;
+
+  /// No description provided for @newSettingsComingSoonMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This feature is under development. Stay tuned!'**
+  String get newSettingsComingSoonMessage;
+
+  /// No description provided for @newSettingsDesktopOnlySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop Only'**
+  String get newSettingsDesktopOnlySection;
+
+  /// No description provided for @newSettingsSystemFontOption.
+  ///
+  /// In en, this message translates to:
+  /// **'System Fonts'**
+  String get newSettingsSystemFontOption;
+
+  /// No description provided for @newSettingsLogSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Log Settings'**
+  String get newSettingsLogSettingsTitle;
+
+  /// No description provided for @newSettingsLogSettingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Request and app logging switches'**
+  String get newSettingsLogSettingsSubtitle;
+
   /// No description provided for @statsPageTitle.
   ///
   /// In en, this message translates to:

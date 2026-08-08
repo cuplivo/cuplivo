@@ -449,6 +449,162 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsPageShare => '分享';
 
   @override
+  String get newSettingsLegacyEntry => '旧版设置页面';
+
+  @override
+  String get newSettingsLegacyTooltip => '打开旧版设置页面';
+
+  @override
+  String get newSettingsPageSubtitle => '分组管理应用的全部设置';
+
+  @override
+  String get newSettingsSectionAssistant => '助手';
+
+  @override
+  String get newSettingsSectionAppearance => '外观与行为设置';
+
+  @override
+  String get newSettingsSectionProviders => '提供商';
+
+  @override
+  String get newSettingsSectionAuxModels => '辅助模型';
+
+  @override
+  String get newSettingsSectionSillyTavern => 'SillyTavern功能';
+
+  @override
+  String get newSettingsSectionMoreTools => '更多工具';
+
+  @override
+  String get newSettingsSectionData => '数据设置';
+
+  @override
+  String get newSettingsSectionCuplivo => 'Cuplivo';
+
+  @override
+  String get newSettingsAssistantDescription => '管理助手及其默认设置';
+
+  @override
+  String get newSettingsAppearanceDescription => '主题、对话外观、行为、字体与语言';
+
+  @override
+  String get newSettingsProvidersDescription => '模型服务商与 API 密钥';
+
+  @override
+  String get newSettingsAuxModelsDescription => '默认模型与 TTS、ASR 等服务';
+
+  @override
+  String get newSettingsSillyTavernDescription => '世界书与 SillyTavern 生态功能';
+
+  @override
+  String get newSettingsMoreToolsDescription => '搜索、MCP、快捷短语、指令注入、技能与网络代理';
+
+  @override
+  String get newSettingsDataDescription => '备份、聊天存储与统计';
+
+  @override
+  String get newSettingsCuplivoDescription => '关于、使用文档与赞助';
+
+  @override
+  String get newSettingsAppearanceTitle => '外观与行为设置';
+
+  @override
+  String get newSettingsAppearanceSubtitle => '调整主题、对话外观、行为、字体与语言';
+
+  @override
+  String get newSettingsColorThemeTitle => '颜色与主题设置';
+
+  @override
+  String get newSettingsColorThemeSubtitle => '调整颜色模式与主题颜色';
+
+  @override
+  String get newSettingsChatAppearanceTitle => '对话外观设置';
+
+  @override
+  String get newSettingsChatAppearanceSubtitle => '自定义聊天项显示与背景';
+
+  @override
+  String get newSettingsBehaviorTitle => '行为设置';
+
+  @override
+  String get newSettingsBehaviorSubtitle => '启动、反馈与生成相关行为';
+
+  @override
+  String get newSettingsFontsTitle => '字体设置';
+
+  @override
+  String get newSettingsFontsSubtitle => '应用字体、代码字体与聊天字号';
+
+  @override
+  String get newSettingsAuxModelsTitle => '辅助模型';
+
+  @override
+  String get newSettingsAuxModelsSubtitle => '默认模型与 TTS、ASR 服务';
+
+  @override
+  String get newSettingsSillyTavernTitle => 'SillyTavern功能';
+
+  @override
+  String get newSettingsSillyTavernSubtitle => '世界书与 SillyTavern 兼容功能';
+
+  @override
+  String get newSettingsMoreToolsTitle => '更多工具';
+
+  @override
+  String get newSettingsMoreToolsSubtitle => '搜索、MCP、快捷短语、指令注入、技能与网络代理';
+
+  @override
+  String get newSettingsDataTitle => '数据设置';
+
+  @override
+  String get newSettingsDataSubtitle => '备份、聊天存储与统计';
+
+  @override
+  String get newSettingsCuplivoTitle => 'Cuplivo';
+
+  @override
+  String get newSettingsCuplivoSubtitle => '关于、文档与赞助';
+
+  @override
+  String get newSettingsTtsModelTitle => 'TTS模型';
+
+  @override
+  String get newSettingsAsrModelTitle => 'ASR模型';
+
+  @override
+  String get newSettingsAdvancedRegexTitle => '高级正则';
+
+  @override
+  String get newSettingsSillyTavernPluginCompatTitle => 'SillyTavern插件兼容';
+
+  @override
+  String get newSettingsSillyTavernPresetCompatTitle => 'SillyTavern预设兼容';
+
+  @override
+  String get newSettingsLinuxSandboxTitle => 'Linux沙箱';
+
+  @override
+  String get newSettingsImportAppThemeTitle => '导入应用主题';
+
+  @override
+  String get newSettingsComingSoon => '开发中';
+
+  @override
+  String get newSettingsComingSoonMessage => '该功能正在开发中，敬请期待';
+
+  @override
+  String get newSettingsDesktopOnlySection => '桌面端专属';
+
+  @override
+  String get newSettingsSystemFontOption => '选择系统字体';
+
+  @override
+  String get newSettingsLogSettingsTitle => '日志设置';
+
+  @override
+  String get newSettingsLogSettingsSubtitle => '请求与应用日志打印开关';
+
+  @override
   String get statsPageTitle => '统计';
 
   @override
@@ -7387,6 +7543,162 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get settingsPageShare => '分享';
 
   @override
+  String get newSettingsLegacyEntry => '旧版设置页面';
+
+  @override
+  String get newSettingsLegacyTooltip => '打开旧版设置页面';
+
+  @override
+  String get newSettingsPageSubtitle => '分组管理应用的全部设置';
+
+  @override
+  String get newSettingsSectionAssistant => '助手';
+
+  @override
+  String get newSettingsSectionAppearance => '外观与行为设置';
+
+  @override
+  String get newSettingsSectionProviders => '提供商';
+
+  @override
+  String get newSettingsSectionAuxModels => '辅助模型';
+
+  @override
+  String get newSettingsSectionSillyTavern => 'SillyTavern功能';
+
+  @override
+  String get newSettingsSectionMoreTools => '更多工具';
+
+  @override
+  String get newSettingsSectionData => '数据设置';
+
+  @override
+  String get newSettingsSectionCuplivo => 'Cuplivo';
+
+  @override
+  String get newSettingsAssistantDescription => '管理助手及其默认设置';
+
+  @override
+  String get newSettingsAppearanceDescription => '主题、对话外观、行为、字体与语言';
+
+  @override
+  String get newSettingsProvidersDescription => '模型服务商与 API 密钥';
+
+  @override
+  String get newSettingsAuxModelsDescription => '默认模型与 TTS、ASR 等服务';
+
+  @override
+  String get newSettingsSillyTavernDescription => '世界书与 SillyTavern 生态功能';
+
+  @override
+  String get newSettingsMoreToolsDescription => '搜索、MCP、快捷短语、指令注入、技能与网络代理';
+
+  @override
+  String get newSettingsDataDescription => '备份、聊天存储与统计';
+
+  @override
+  String get newSettingsCuplivoDescription => '关于、使用文档与赞助';
+
+  @override
+  String get newSettingsAppearanceTitle => '外观与行为设置';
+
+  @override
+  String get newSettingsAppearanceSubtitle => '调整主题、对话外观、行为、字体与语言';
+
+  @override
+  String get newSettingsColorThemeTitle => '颜色与主题设置';
+
+  @override
+  String get newSettingsColorThemeSubtitle => '调整颜色模式与主题颜色';
+
+  @override
+  String get newSettingsChatAppearanceTitle => '对话外观设置';
+
+  @override
+  String get newSettingsChatAppearanceSubtitle => '自定义聊天项显示与背景';
+
+  @override
+  String get newSettingsBehaviorTitle => '行为设置';
+
+  @override
+  String get newSettingsBehaviorSubtitle => '启动、反馈与生成相关行为';
+
+  @override
+  String get newSettingsFontsTitle => '字体设置';
+
+  @override
+  String get newSettingsFontsSubtitle => '应用字体、代码字体与聊天字号';
+
+  @override
+  String get newSettingsAuxModelsTitle => '辅助模型';
+
+  @override
+  String get newSettingsAuxModelsSubtitle => '默认模型与 TTS、ASR 服务';
+
+  @override
+  String get newSettingsSillyTavernTitle => 'SillyTavern功能';
+
+  @override
+  String get newSettingsSillyTavernSubtitle => '世界书与 SillyTavern 兼容功能';
+
+  @override
+  String get newSettingsMoreToolsTitle => '更多工具';
+
+  @override
+  String get newSettingsMoreToolsSubtitle => '搜索、MCP、快捷短语、指令注入、技能与网络代理';
+
+  @override
+  String get newSettingsDataTitle => '数据设置';
+
+  @override
+  String get newSettingsDataSubtitle => '备份、聊天存储与统计';
+
+  @override
+  String get newSettingsCuplivoTitle => 'Cuplivo';
+
+  @override
+  String get newSettingsCuplivoSubtitle => '关于、文档与赞助';
+
+  @override
+  String get newSettingsTtsModelTitle => 'TTS模型';
+
+  @override
+  String get newSettingsAsrModelTitle => 'ASR模型';
+
+  @override
+  String get newSettingsAdvancedRegexTitle => '高级正则';
+
+  @override
+  String get newSettingsSillyTavernPluginCompatTitle => 'SillyTavern插件兼容';
+
+  @override
+  String get newSettingsSillyTavernPresetCompatTitle => 'SillyTavern预设兼容';
+
+  @override
+  String get newSettingsLinuxSandboxTitle => 'Linux沙箱';
+
+  @override
+  String get newSettingsImportAppThemeTitle => '导入应用主题';
+
+  @override
+  String get newSettingsComingSoon => '开发中';
+
+  @override
+  String get newSettingsComingSoonMessage => '该功能正在开发中，敬请期待';
+
+  @override
+  String get newSettingsDesktopOnlySection => '桌面端专属';
+
+  @override
+  String get newSettingsSystemFontOption => '选择系统字体';
+
+  @override
+  String get newSettingsLogSettingsTitle => '日志设置';
+
+  @override
+  String get newSettingsLogSettingsSubtitle => '请求与应用日志打印开关';
+
+  @override
   String get statsPageTitle => '统计';
 
   @override
@@ -14322,6 +14634,162 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settingsPageShare => '分享';
+
+  @override
+  String get newSettingsLegacyEntry => '舊版設定頁面';
+
+  @override
+  String get newSettingsLegacyTooltip => '開啟舊版設定頁面';
+
+  @override
+  String get newSettingsPageSubtitle => '分組管理應用程式的全部設定';
+
+  @override
+  String get newSettingsSectionAssistant => '助手';
+
+  @override
+  String get newSettingsSectionAppearance => '外觀與行為設定';
+
+  @override
+  String get newSettingsSectionProviders => '提供商';
+
+  @override
+  String get newSettingsSectionAuxModels => '輔助模型';
+
+  @override
+  String get newSettingsSectionSillyTavern => 'SillyTavern功能';
+
+  @override
+  String get newSettingsSectionMoreTools => '更多工具';
+
+  @override
+  String get newSettingsSectionData => '資料設定';
+
+  @override
+  String get newSettingsSectionCuplivo => 'Cuplivo';
+
+  @override
+  String get newSettingsAssistantDescription => '管理助手及其預設設定';
+
+  @override
+  String get newSettingsAppearanceDescription => '主題、對話外觀、行為、字體與語言';
+
+  @override
+  String get newSettingsProvidersDescription => '模型服務商與 API 金鑰';
+
+  @override
+  String get newSettingsAuxModelsDescription => '預設模型與 TTS、ASR 等服務';
+
+  @override
+  String get newSettingsSillyTavernDescription => '世界書與 SillyTavern 生態功能';
+
+  @override
+  String get newSettingsMoreToolsDescription => '搜尋、MCP、快捷片語、指令注入、技能與網路代理';
+
+  @override
+  String get newSettingsDataDescription => '備份、聊天儲存與統計';
+
+  @override
+  String get newSettingsCuplivoDescription => '關於、使用文件與贊助';
+
+  @override
+  String get newSettingsAppearanceTitle => '外觀與行為設定';
+
+  @override
+  String get newSettingsAppearanceSubtitle => '調整主題、對話外觀、行為、字體與語言';
+
+  @override
+  String get newSettingsColorThemeTitle => '顏色與主題設定';
+
+  @override
+  String get newSettingsColorThemeSubtitle => '調整顏色模式與主題顏色';
+
+  @override
+  String get newSettingsChatAppearanceTitle => '對話外觀設定';
+
+  @override
+  String get newSettingsChatAppearanceSubtitle => '自訂聊天項目顯示與背景';
+
+  @override
+  String get newSettingsBehaviorTitle => '行為設定';
+
+  @override
+  String get newSettingsBehaviorSubtitle => '啟動、回饋與生成相關行為';
+
+  @override
+  String get newSettingsFontsTitle => '字型設定';
+
+  @override
+  String get newSettingsFontsSubtitle => '應用字型、程式碼字型與聊天字型大小';
+
+  @override
+  String get newSettingsAuxModelsTitle => '輔助模型';
+
+  @override
+  String get newSettingsAuxModelsSubtitle => '預設模型與 TTS、ASR 服務';
+
+  @override
+  String get newSettingsSillyTavernTitle => 'SillyTavern功能';
+
+  @override
+  String get newSettingsSillyTavernSubtitle => '世界書與 SillyTavern 相容功能';
+
+  @override
+  String get newSettingsMoreToolsTitle => '更多工具';
+
+  @override
+  String get newSettingsMoreToolsSubtitle => '搜尋、MCP、快捷片語、指令注入、技能與網路代理';
+
+  @override
+  String get newSettingsDataTitle => '資料設定';
+
+  @override
+  String get newSettingsDataSubtitle => '備份、聊天儲存與統計';
+
+  @override
+  String get newSettingsCuplivoTitle => 'Cuplivo';
+
+  @override
+  String get newSettingsCuplivoSubtitle => '關於、文件與贊助';
+
+  @override
+  String get newSettingsTtsModelTitle => 'TTS模型';
+
+  @override
+  String get newSettingsAsrModelTitle => 'ASR模型';
+
+  @override
+  String get newSettingsAdvancedRegexTitle => '進階正則';
+
+  @override
+  String get newSettingsSillyTavernPluginCompatTitle => 'SillyTavern外掛相容';
+
+  @override
+  String get newSettingsSillyTavernPresetCompatTitle => 'SillyTavern預設相容';
+
+  @override
+  String get newSettingsLinuxSandboxTitle => 'Linux沙箱';
+
+  @override
+  String get newSettingsImportAppThemeTitle => '匯入應用程式主題';
+
+  @override
+  String get newSettingsComingSoon => '開發中';
+
+  @override
+  String get newSettingsComingSoonMessage => '該功能正在開發中，敬請期待';
+
+  @override
+  String get newSettingsDesktopOnlySection => '桌面端專屬';
+
+  @override
+  String get newSettingsSystemFontOption => '選擇系統字型';
+
+  @override
+  String get newSettingsLogSettingsTitle => '日誌設定';
+
+  @override
+  String get newSettingsLogSettingsSubtitle => '請求與應用程式日誌列印開關';
 
   @override
   String get statsPageTitle => '統計';

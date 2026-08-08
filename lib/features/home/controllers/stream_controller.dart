@@ -101,6 +101,21 @@ class StreamController {
       <String, ContentSplitData>{};
   Map<String, ContentSplitData> get contentSplits => _contentSplits;
 
+  // TEMP perf probe for issue #232 — remove once hotspot is identified.
+  final Map<String, _ReasoningChunkProbe> _reasoningProbes =
+      <String, _ReasoningChunkProbe>{};
+
+  // Reasoning persistence throttle (issue #232): per-message flush timer,
+  // dirty flag, and the injected DB callback captured at schedule time.
+  final Map<String, Timer> _reasoningFlushTimers = <String, Timer>{};
+  final Set<String> _reasoningFlushDirty = <String>{};
+  final Map<String, _UpdateReasoningInDb> _reasoningFlushCallbacks =
+      <String, _UpdateReasoningInDb>{};
+
+  // Reasoning UI throttle (issue #232): coalesces thinking-card rebuilds.
+  final Map<String, Timer> _reasoningUiTimers = <String, Timer>{};
+  final Set<String> _reasoningUiDirty = <String>{};
+
   /// Tool UI parts per assistant message.
   final Map<String, List<ToolUIPart>> _toolParts = <String, List<ToolUIPart>>{};
   Map<String, List<ToolUIPart>> get toolParts => _toolParts;
@@ -132,6 +147,16 @@ class StreamController {
   static const int _streamSmoothMaxCount = 240;
   static const double _streamSmoothPickRate = 0.1;
   static const int _streamSmoothMoveAverageLength = 10;
+
+  /// Reasoning persistence cadence during streaming. Per-chunk full-text DB
+  /// writes are O(n) in accumulated thinking length; batching at this cadence
+  /// caps the write frequency (issue #232). Crash window = one cadence.
+  static const Duration _reasoningFlushInterval = Duration(milliseconds: 500);
+
+  /// Reasoning UI refresh cadence. The thinking card re-parses the whole
+  /// accumulated markdown on every content update; ~6-7 fps is plenty for a
+  /// thinking preview (issue #232).
+  static const Duration _reasoningUiThrottle = Duration(milliseconds: 150);
 
   /// Throttle timers per message ID.
   final Map<String, Timer?> _streamThrottleTimers = <String, Timer?>{};
@@ -683,6 +708,11 @@ class StreamController {
     _inlineImageSanitizeTimers[messageId]?.cancel();
     _inlineImageSanitizeTimers.remove(messageId);
     _inlineImageSanitizing.remove(messageId);
+    _reasoningFlushTimers.remove(messageId)?.cancel();
+    _reasoningFlushDirty.remove(messageId);
+    _reasoningFlushCallbacks.remove(messageId);
+    _reasoningUiTimers.remove(messageId)?.cancel();
+    _reasoningUiDirty.remove(messageId);
   }
 
   /// Clean up timers for a message (public API).
@@ -712,6 +742,17 @@ class StreamController {
     }
     _inlineImageSanitizeTimers.clear();
     _inlineImageSanitizing.clear();
+    for (final timer in _reasoningFlushTimers.values) {
+      timer.cancel();
+    }
+    _reasoningFlushTimers.clear();
+    _reasoningFlushDirty.clear();
+    _reasoningFlushCallbacks.clear();
+    for (final timer in _reasoningUiTimers.values) {
+      timer.cancel();
+    }
+    _reasoningUiTimers.clear();
+    _reasoningUiDirty.clear();
   }
 
   // ============================================================================
@@ -835,35 +876,61 @@ class StreamController {
       }
       _reasoningSegments[messageId] = segments;
 
-      await updateReasoningInDb(
+      final probe = _reasoningProbes.putIfAbsent(
         messageId,
-        reasoningSegmentsJson: serializeReasoningSegmentsWithSplits(
-          segments,
-          contentSplitOffsets: state.contentSplitOffsets,
-          reasoningCountAtSplit: state.reasoningCountAtSplit,
-          toolCountAtSplit: state.toolCountAtSplit,
-        ),
+        () => _ReasoningChunkProbe(messageId),
+      );
+      final probeTotal = Stopwatch()..start();
+
+      // Issue #232: reasoning is persisted on a 500ms cadence instead of
+      // every chunk (full-text writes were O(n) per chunk, O(n^2) overall).
+      // The timer body is fire-and-forget: a failed flush is logged and
+      // retried by the next chunk's schedule or the finish-path persist
+      // (AGENTS 3.16 recoverable-error convention).
+      _reasoningFlushDirty.add(messageId);
+      _reasoningFlushCallbacks[messageId] = updateReasoningInDb;
+      _reasoningFlushTimers.putIfAbsent(
+        messageId,
+        () => Timer(_reasoningFlushInterval, () async {
+          _reasoningFlushTimers.remove(messageId);
+          try {
+            await _flushPendingReasoning(messageId);
+          } catch (e, st) {
+            debugPrint(
+              '[StreamController] reasoning flush failed for '
+              '$messageId: $e\n$st',
+            );
+          }
+        }),
       );
 
-      // Update reasoning via StreamingContentNotifier for real-time UI updates
-      // without triggering full page rebuild (only when viewing this conversation)
-      if (getCurrentConversationId() == conversationId) {
-        streamingContentNotifier.updateReasoning(
-          messageId,
-          reasoningText: r.text,
-          reasoningStartAt: r.startAt,
-          contentSplitOffsets: state.contentSplitOffsets,
-          reasoningCountAtSplit: state.reasoningCountAtSplit,
-          toolCountAtSplit: state.toolCountAtSplit,
-        );
-        onStreamTick?.call();
-      }
-
-      await updateReasoningInDb(
+      // Issue #232: thinking-card rebuilds coalesce to ~6-7 fps.
+      _reasoningUiDirty.add(messageId);
+      _reasoningUiTimers.putIfAbsent(
         messageId,
-        reasoningText: r.text,
-        reasoningStartAt: r.startAt,
+        () => Timer(_reasoningUiThrottle, () {
+          _reasoningUiTimers.remove(messageId);
+          if (!_reasoningUiDirty.remove(messageId)) return;
+          // Update reasoning via StreamingContentNotifier for real-time UI
+          // updates without triggering full page rebuild (only when viewing
+          // this conversation).
+          if (getCurrentConversationId() != conversationId) return;
+          final rd = _reasoning[messageId];
+          if (rd == null) return;
+          final splits = _contentSplits[messageId];
+          streamingContentNotifier.updateReasoning(
+            messageId,
+            reasoningText: rd.text,
+            reasoningStartAt: rd.startAt,
+            contentSplitOffsets: splits?.offsets,
+            reasoningCountAtSplit: splits?.reasoningCounts,
+            toolCountAtSplit: splits?.toolCounts,
+          );
+          onStreamTick?.call();
+        }),
       );
+
+      probe.addChunk(probeTotal.elapsedMicroseconds);
     } else {
       state.reasoningStartAt ??= DateTime.now();
       state.bufferedReasoning += chunk.reasoning!;
@@ -873,6 +940,45 @@ class StreamController {
         reasoningStartAt: state.reasoningStartAt,
       );
     }
+  }
+
+  /// Persist the latest reasoning snapshot for [messageId] (issue #232).
+  ///
+  /// Runs on the 500ms cadence timer while reasoning streams, so per-chunk
+  /// full-text writes are collapsed into batched writes. Idempotent: no-ops
+  /// when nothing is marked dirty. The final state is always persisted by
+  /// [finishReasoningAndPersist] (which flushes first).
+  Future<void> _flushPendingReasoning(String messageId) async {
+    if (!_reasoningFlushDirty.remove(messageId)) return;
+    final callback = _reasoningFlushCallbacks[messageId];
+    if (callback == null) return;
+
+    final probe = _reasoningProbes[messageId];
+    final r = _reasoning[messageId];
+    final segments =
+        _reasoningSegments[messageId] ?? const <ReasoningSegmentData>[];
+    final splits = _contentSplits[messageId];
+
+    String? segmentsJson;
+    if (segments.isNotEmpty) {
+      final swSerialize = Stopwatch()..start();
+      segmentsJson = serializeReasoningSegmentsWithSplits(
+        segments,
+        contentSplitOffsets: splits?.offsets,
+        reasoningCountAtSplit: splits?.reasoningCounts,
+        toolCountAtSplit: splits?.toolCounts,
+      );
+      probe?.flushSerializeUs += swSerialize.elapsedMicroseconds;
+    }
+
+    final sw = Stopwatch()..start();
+    await callback(
+      messageId,
+      reasoningText: r?.text,
+      reasoningStartAt: r?.startAt,
+      reasoningSegmentsJson: segmentsJson,
+    );
+    probe?.recordFlushWrite(sw.elapsedMicroseconds);
   }
 
   /// Process tool calls chunk from stream.
@@ -1216,6 +1322,7 @@ class StreamController {
     required Future<void> Function(
       String messageId, {
       String? reasoningText,
+      DateTime? reasoningStartAt,
       DateTime? reasoningFinishedAt,
       String? reasoningSegmentsJson,
     })
@@ -1228,7 +1335,12 @@ class StreamController {
     final splits = _contentSplits[messageId];
     final segments =
         _reasoningSegments[messageId] ?? const <ReasoningSegmentData>[];
-    if (!changed && splits == null) return;
+    if (!changed && splits == null) {
+      // Issue #232: the final writes below are skipped on this path, so flush
+      // any throttled snapshot to avoid losing the last cadence window.
+      await _flushPendingReasoning(messageId);
+      return;
+    }
 
     // Persist reasoning data
     final r = _reasoning[messageId];
@@ -1236,6 +1348,7 @@ class StreamController {
       await updateReasoningInDb(
         messageId,
         reasoningText: r.text,
+        reasoningStartAt: r.startAt,
         reasoningFinishedAt: r.finishedAt,
       );
     }
@@ -1252,6 +1365,9 @@ class StreamController {
         ),
       );
     }
+
+    // TEMP perf probe (issue #232): final aggregate report.
+    _reasoningProbes.remove(messageId)?.reportFinal();
   }
 
   // ============================================================================
@@ -1731,4 +1847,55 @@ class _ParseResult {
   _ParseResult(this.value, this.endIndex);
   final dynamic value;
   final int endIndex;
+}
+
+// TEMP perf probe for issue #232 — remove once hotspot is identified.
+typedef _UpdateReasoningInDb =
+    Future<void> Function(
+      String messageId, {
+      String? reasoningText,
+      DateTime? reasoningStartAt,
+      String? reasoningSegmentsJson,
+    });
+
+class _ReasoningChunkProbe {
+  _ReasoningChunkProbe(this.messageId);
+  final String messageId;
+  int chunks = 0;
+  int handlerUs = 0;
+  int maxHandlerUs = 0;
+  int flushWrites = 0;
+  int flushWriteUs = 0;
+  int flushSerializeUs = 0;
+  int lastReportChunks = 0;
+
+  void addChunk(int us) {
+    chunks++;
+    handlerUs += us;
+    if (us > maxHandlerUs) maxHandlerUs = us;
+    if (chunks - lastReportChunks >= 50) {
+      _print();
+      lastReportChunks = chunks;
+    }
+  }
+
+  void recordFlushWrite(int us) {
+    flushWrites++;
+    flushWriteUs += us;
+  }
+
+  void _print() {
+    debugPrint(
+      '[perf][reasoning-chunk] msg=$messageId chunks=$chunks '
+      'handlerAvg=${(handlerUs / chunks).toStringAsFixed(0)}us '
+      'handlerMax=${maxHandlerUs}us flushWrites=$flushWrites '
+      'flushWriteAvg=${flushWrites > 0 ? (flushWriteUs / flushWrites).toStringAsFixed(0) : '0'}us '
+      'flushWriteTotal=${flushWriteUs}us serializeTotal=${flushSerializeUs}us',
+    );
+  }
+
+  void reportFinal() {
+    _print();
+    debugPrint('[perf][reasoning-chunk] FINAL msg=$messageId chunks=$chunks');
+  }
 }

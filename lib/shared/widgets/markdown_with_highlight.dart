@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:gpt_markdown/custom_widgets/markdown_config.dart'
@@ -47,6 +48,67 @@ const int _maxInlineMathBodyLength = 512;
 const String _codeDollarMask = '___CODE_DOLLAR_MASK___';
 const String _fencedHtmlTagStartMask = '\uE002';
 
+// TEMP perf probes for issue #232 — remove once hotspot is identified.
+class _MdBuildProbe {
+  _MdBuildProbe(this.label);
+  static const int _reportEvery = 50;
+  final String label;
+  int calls = 0;
+  int totalUs = 0;
+  int maxUs = 0;
+  int lastReportCalls = 0;
+  final Stopwatch _sw = Stopwatch();
+
+  void start() {
+    _sw
+      ..reset()
+      ..start();
+  }
+
+  void end() {
+    _sw.stop();
+    final us = _sw.elapsedMicroseconds;
+    calls++;
+    totalUs += us;
+    if (us > maxUs) maxUs = us;
+    if (calls - lastReportCalls >= _reportEvery) {
+      _print();
+      lastReportCalls = calls;
+    }
+  }
+
+  void _print() {
+    debugPrint(
+      '[perf][$label] calls=$calls total=${totalUs}us '
+      'avg=${(totalUs / calls).toStringAsFixed(0)}us max=${maxUs}us',
+    );
+  }
+}
+
+final _probeSanitize = _MdBuildProbe('sanitize-links');
+final _probeExtractUrls = _MdBuildProbe('extract-urls');
+final _probePreprocess = _MdBuildProbe('preprocess-fences');
+final _probeMath = _MdBuildProbe('math-tex');
+
+bool _frameProbeRegistered = false;
+
+void _ensureFrameProbeRegistered() {
+  if (_frameProbeRegistered) return;
+  _frameProbeRegistered = true;
+  SchedulerBinding.instance.addTimingsCallback((timings) {
+    for (final t in timings) {
+      final buildUs = t.buildDuration.inMicroseconds;
+      final rasterUs = t.rasterDuration.inMicroseconds;
+      if (buildUs + rasterUs > 15000) {
+        debugPrint(
+          '[perf][frame] build=${buildUs}us raster=${rasterUs}us '
+          'total=${buildUs + rasterUs}us',
+        );
+      }
+    }
+  });
+}
+
 /// gpt_markdown with custom code block highlight and inline code styling.
 class MarkdownWithCodeHighlight extends StatefulWidget {
   const MarkdownWithCodeHighlight({
@@ -90,6 +152,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
   void initState() {
     super.initState();
     _renderText = widget.text;
+    _ensureFrameProbeRegistered();
   }
 
   @override
@@ -128,14 +191,20 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
     final cs = Theme.of(context).colorScheme;
+    _probeSanitize.start();
     final sanitizedText = _sanitizeImageLinks(_renderText);
+    _probeSanitize.end();
+    _probeExtractUrls.start();
     final imageUrls = _extractImageUrls(sanitizedText);
+    _probeExtractUrls.end();
+    _probePreprocess.start();
     final normalized = _preprocessFences(
       sanitizedText,
       enableMath: settings.enableMathRendering,
       enableDollarLatex: settings.enableDollarLatex,
       streaming: widget.streaming,
     );
+    _probePreprocess.end();
     // Base text style (can be overridden by caller)
     final baseTextStyle =
         (widget.baseStyle ?? Theme.of(context).textTheme.bodyMedium)?.copyWith(
@@ -1213,17 +1282,22 @@ bool _isValidStreamingDollarMathBody(String body) {
 
 // Safe math renderer that falls back to plain text when parsing fails.
 Widget _renderMath(String tex, {TextStyle? style, bool displayMode = false}) {
-  final resolved = style ?? TextStyle();
-  final normalizedTex = _normalizeMathTex(tex);
+  _probeMath.start();
   try {
-    return Math.tex(
-      normalizedTex,
-      mathStyle: displayMode ? MathStyle.display : MathStyle.text,
-      textStyle: resolved,
-      onErrorFallback: (_) => Text(normalizedTex, style: resolved),
-    );
-  } catch (_) {
-    return Text(normalizedTex, style: resolved);
+    final resolved = style ?? TextStyle();
+    final normalizedTex = _normalizeMathTex(tex);
+    try {
+      return Math.tex(
+        normalizedTex,
+        mathStyle: displayMode ? MathStyle.display : MathStyle.text,
+        textStyle: resolved,
+        onErrorFallback: (_) => Text(normalizedTex, style: resolved),
+      );
+    } catch (_) {
+      return Text(normalizedTex, style: resolved);
+    }
+  } finally {
+    _probeMath.end();
   }
 }
 

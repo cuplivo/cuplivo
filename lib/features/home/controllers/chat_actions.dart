@@ -1035,12 +1035,14 @@ class ChatActions {
                   (
                     String messageId, {
                     String? reasoningText,
+                    DateTime? reasoningStartAt,
                     DateTime? reasoningFinishedAt,
                     String? reasoningSegmentsJson,
                   }) async {
                     await chatService.updateMessage(
                       messageId,
                       reasoningText: reasoningText,
+                      reasoningStartAt: reasoningStartAt,
                       reasoningFinishedAt: reasoningFinishedAt,
                       reasoningSegmentsJson: reasoningSegmentsJson,
                     );
@@ -1446,6 +1448,7 @@ class ChatActions {
           (
             String messageId, {
             String? reasoningText,
+            DateTime? reasoningStartAt,
             DateTime? reasoningFinishedAt,
             String? reasoningSegmentsJson,
           }) async {
@@ -1453,6 +1456,7 @@ class ChatActions {
             await chatService.updateMessageSilent(
               messageId,
               reasoningText: reasoningText,
+              reasoningStartAt: reasoningStartAt,
               reasoningFinishedAt: reasoningFinishedAt,
               reasoningSegmentsJson: reasoningSegmentsJson,
             );
@@ -1672,12 +1676,14 @@ class ChatActions {
           (
             String messageId, {
             String? reasoningText,
+            DateTime? reasoningStartAt,
             DateTime? reasoningFinishedAt,
             String? reasoningSegmentsJson,
           }) async {
             await chatService.updateMessage(
               messageId,
               reasoningText: reasoningText,
+              reasoningStartAt: reasoningStartAt,
               reasoningFinishedAt: reasoningFinishedAt,
               reasoningSegmentsJson: reasoningSegmentsJson,
             );
@@ -1758,12 +1764,14 @@ class ChatActions {
           (
             String messageId, {
             String? reasoningText,
+            DateTime? reasoningStartAt,
             DateTime? reasoningFinishedAt,
             String? reasoningSegmentsJson,
           }) async {
             await chatService.updateMessage(
               messageId,
               reasoningText: reasoningText,
+              reasoningStartAt: reasoningStartAt,
               reasoningFinishedAt: reasoningFinishedAt,
               reasoningSegmentsJson: reasoningSegmentsJson,
             );

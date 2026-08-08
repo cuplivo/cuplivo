@@ -166,6 +166,7 @@ void main() {
             (
               messageId, {
               String? reasoningText,
+              DateTime? reasoningStartAt,
               DateTime? reasoningFinishedAt,
               String? reasoningSegmentsJson,
             }) async {
@@ -219,6 +220,7 @@ void main() {
           (
             messageId, {
             String? reasoningText,
+            DateTime? reasoningStartAt,
             DateTime? reasoningFinishedAt,
             String? reasoningSegmentsJson,
           }) async {},

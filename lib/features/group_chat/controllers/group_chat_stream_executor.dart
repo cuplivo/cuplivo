@@ -271,12 +271,14 @@ class GroupChatStreamExecutor {
             (
               String mid, {
               String? reasoningText,
+              DateTime? reasoningStartAt,
               DateTime? reasoningFinishedAt,
               String? reasoningSegmentsJson,
             }) async {
               await chatService.updateMessageSilent(
                 mid,
                 reasoningText: reasoningText,
+                reasoningStartAt: reasoningStartAt,
                 reasoningFinishedAt: reasoningFinishedAt,
                 reasoningSegmentsJson: reasoningSegmentsJson,
               );
@@ -319,12 +321,14 @@ class GroupChatStreamExecutor {
           (
             String mid, {
             String? reasoningText,
+            DateTime? reasoningStartAt,
             DateTime? reasoningFinishedAt,
             String? reasoningSegmentsJson,
           }) async {
             await chatService.updateMessageSilent(
               mid,
               reasoningText: reasoningText,
+              reasoningStartAt: reasoningStartAt,
               reasoningFinishedAt: reasoningFinishedAt,
               reasoningSegmentsJson: reasoningSegmentsJson,
             );

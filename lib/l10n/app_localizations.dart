@@ -12698,6 +12698,30 @@ abstract class AppLocalizations {
   /// **'Every N user and assistant messages'**
   String get groupChatInjectionEveryNUserAndAssistant;
 
+  /// No description provided for @groupChatInjectGroupMembersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Inject group chat info into assistant system prompt'**
+  String get groupChatInjectGroupMembersTitle;
+
+  /// No description provided for @groupChatInjectGroupMembersDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'When enabled, each member assistant is told at the end of its system prompt that it is in a group chat and who the other members are (user and assistant names only, never their system prompts).'**
+  String get groupChatInjectGroupMembersDesc;
+
+  /// No description provided for @groupChatAdvancedDirectorSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Director'**
+  String get groupChatAdvancedDirectorSection;
+
+  /// No description provided for @groupChatAdvancedAssistantSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant responses'**
+  String get groupChatAdvancedAssistantSection;
+
   /// No description provided for @groupChatDirectorLogsEmpty.
   ///
   /// In en, this message translates to:

@@ -5,6 +5,7 @@ import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/group_chat.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -158,6 +159,61 @@ void main() {
       await repo.close();
     },
   );
+
+  test('heal adds inject_group_members column on group_chat_rows '
+      '(v16 column shape)', () async {
+    _createLegacyDb(
+      dbFile,
+      userVersion: 16,
+      missingIsPreset: false,
+      missingHandoffColumns: false,
+    );
+    // A partial group_chat_rows table missing the v16 column, as if a
+    // silent migration failure left user_version at 16 without it.
+    final raw = sqlite.sqlite3.open(dbFile.path);
+    raw.execute('''
+CREATE TABLE group_chat_rows (
+  id TEXT NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  avatar TEXT NULL,
+  conversation_id TEXT NOT NULL UNIQUE,
+  director_model_provider TEXT NULL,
+  director_model_id TEXT NULL,
+  director_system_prompt TEXT NOT NULL DEFAULT '',
+  max_assistant_messages_per_round INTEGER NOT NULL DEFAULT 3,
+  assistant_detail_injection_mode TEXT NOT NULL DEFAULT 'endOfEveryUserMessage',
+  assistant_detail_injection_n INTEGER NOT NULL DEFAULT 5,
+  pending_cap_assistant_message_id TEXT NULL,
+  assistant_messages_this_round INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+''');
+    raw.close();
+
+    final repo = ChatDatabaseRepository.open(file: dbFile);
+    await repo.ensureReady();
+
+    // Must succeed: heal adds the column before Drift INSERT.
+    final conv = Conversation(
+      title: 'Group',
+      assistantId: null,
+      conversationKind: Conversation.kindGroup,
+    );
+    await repo.putConversation(conv);
+    await repo.putGroupChat(
+      GroupChat(
+        name: 'G',
+        conversationId: conv.id,
+        injectGroupMembersIntoAssistantSystemPrompt: true,
+      ),
+    );
+    final groups = await repo.getAllGroupChats();
+    expect(groups, hasLength(1));
+    expect(groups.first.injectGroupMembersIntoAssistantSystemPrompt, isTrue);
+
+    await repo.close();
+  });
 }
 
 /// Builds a v13-era DB shape (assistant/conversation/message tables only —

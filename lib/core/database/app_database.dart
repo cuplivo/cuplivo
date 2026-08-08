@@ -287,6 +287,8 @@ class GroupChatRows extends Table {
       text().withDefault(const Constant('endOfEveryUserMessage'))();
   IntColumn get assistantDetailInjectionN =>
       integer().withDefault(const Constant(5))();
+  BoolColumn get injectGroupMembersIntoAssistantSystemPrompt =>
+      boolean().withDefault(const Constant(true))();
   TextColumn get pendingCapAssistantMessageId => text().nullable()();
   IntColumn get assistantMessagesThisRound =>
       integer().withDefault(const Constant(0))();
@@ -365,7 +367,7 @@ class AppDatabase extends _$AppDatabase {
   // self-heal below repairs such gaps on every open; without it the gap is
   // permanent because later upgrades skip the failed step's `from < N` block.
   // See docs/adr/0017-schema-self-heal.md.
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   /// Whether [table] has a physical column named [column] (sqlite name).
   Future<bool> _hasColumn(String table, String column) async {
@@ -555,6 +557,12 @@ class AppDatabase extends _$AppDatabase {
       'assistant_messages_this_round',
       'ALTER TABLE group_chat_rows ADD COLUMN assistant_messages_this_round INTEGER NOT NULL DEFAULT 0',
     );
+    // Schema v16 — group-context injection into member assistant system prompts.
+    await _ensureColumn(
+      'group_chat_rows',
+      'inject_group_members_into_assistant_system_prompt',
+      'ALTER TABLE group_chat_rows ADD COLUMN inject_group_members_into_assistant_system_prompt INTEGER NOT NULL DEFAULT 1',
+    );
   }
 
   @override
@@ -711,6 +719,16 @@ class AppDatabase extends _$AppDatabase {
       if (from < 15) {
         try {
           await migrator.addColumn(assistantRows, assistantRows.ocrMode);
+        } catch (_) {
+          // The column may already exist (migration replay / partial retry).
+        }
+      }
+      if (from < 16) {
+        try {
+          await migrator.addColumn(
+            groupChatRows,
+            groupChatRows.injectGroupMembersIntoAssistantSystemPrompt,
+          );
         } catch (_) {
           // The column may already exist (migration replay / partial retry).
         }

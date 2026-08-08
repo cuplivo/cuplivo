@@ -6678,6 +6678,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get groupChatInjectionEveryNUserAndAssistant => '每 N 条用户与助手消息，注入消息的结尾';
 
   @override
+  String get groupChatInjectGroupMembersTitle => '在助手系统提示词中注入群聊信息';
+
+  @override
+  String get groupChatInjectGroupMembersDesc =>
+      '开启后，每个成员助手会在其系统提示词的末尾被告知：当前处于一个群聊中，以及群聊的成员名单（仅包含用户与助手成员的名字，不包含其他成员的系统提示词）。';
+
+  @override
+  String get groupChatAdvancedDirectorSection => '导演';
+
+  @override
+  String get groupChatAdvancedAssistantSection => '助手回复';
+
+  @override
   String get groupChatDirectorLogsEmpty => '暂无导演日志。';
 
   @override
@@ -13616,6 +13629,19 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get groupChatInjectionEveryNUserAndAssistant => '每 N 条用户与助手消息，注入消息的结尾';
 
   @override
+  String get groupChatInjectGroupMembersTitle => '在助手系统提示词中注入群聊信息';
+
+  @override
+  String get groupChatInjectGroupMembersDesc =>
+      '开启后，每个成员助手会在其系统提示词的末尾被告知：当前处于一个群聊中，以及群聊的成员名单（仅包含用户与助手成员的名字，不包含其他成员的系统提示词）。';
+
+  @override
+  String get groupChatAdvancedDirectorSection => '导演';
+
+  @override
+  String get groupChatAdvancedAssistantSection => '助手回复';
+
+  @override
   String get groupChatDirectorLogsEmpty => '暂无导演日志。';
 
   @override
@@ -20552,6 +20578,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get groupChatInjectionEveryNUserAndAssistant =>
       '每 N 條使用者與助手訊息，注入訊息的結尾';
+
+  @override
+  String get groupChatInjectGroupMembersTitle => '在助手系統提示詞中注入群聊資訊';
+
+  @override
+  String get groupChatInjectGroupMembersDesc =>
+      '開啟後，每個成員助手會在其系統提示詞的末尾被告知：目前處於一個群聊中，以及群聊的成員名單（僅包含使用者與助手成員的名字，不包含其他成員的系統提示詞）。';
+
+  @override
+  String get groupChatAdvancedDirectorSection => '導演';
+
+  @override
+  String get groupChatAdvancedAssistantSection => '助手回覆';
 
   @override
   String get groupChatDirectorLogsEmpty => '暫無導演日誌。';

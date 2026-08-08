@@ -148,6 +148,8 @@ class GroupChatProvider extends ChangeNotifier {
       maxAssistantMessagesPerRound: source.maxAssistantMessagesPerRound,
       assistantDetailInjectionMode: source.assistantDetailInjectionMode,
       assistantDetailInjectionN: source.assistantDetailInjectionN,
+      injectGroupMembersIntoAssistantSystemPrompt:
+          source.injectGroupMembersIntoAssistantSystemPrompt,
     );
 
     await _chatService.repo.putGroupChat(copy);

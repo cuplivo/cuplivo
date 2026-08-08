@@ -223,7 +223,11 @@ class GroupChatOrchestrator {
         return;
       }
 
-      final effective = speaker.copyWith(enableProactiveCare: false);
+      final userName = userProvider.name.trim().isEmpty
+          ? 'User'
+          : userProvider.name.trim();
+      final effective = _applyGroupMemberInjection(group, speaker, userName);
+
       final conversation =
           chatService.getConversation(group.conversationId) ??
           Conversation(
@@ -247,9 +251,6 @@ class GroupChatOrchestrator {
       final assistantsById = {
         for (final a in assistantProvider.assistants) a.id: a,
       };
-      final userName = userProvider.name.trim().isEmpty
-          ? 'User'
-          : userProvider.name.trim();
 
       final privateMessages = _privateBuilder.build(
         conversation: conversation,
@@ -608,7 +609,10 @@ class GroupChatOrchestrator {
     required Assistant speaker,
     ChatInputData? inputData,
   }) async {
-    final effective = speaker.copyWith(enableProactiveCare: false);
+    final userName = userProvider.name.trim().isEmpty
+        ? 'User'
+        : userProvider.name.trim();
+    final effective = _applyGroupMemberInjection(group, speaker, userName);
 
     final providerKey =
         (effective.chatModelProvider ?? settingsProvider.currentModelProvider)
@@ -635,9 +639,6 @@ class GroupChatOrchestrator {
     final assistantsById = {
       for (final a in assistantProvider.assistants) a.id: a,
     };
-    final userName = userProvider.name.trim().isEmpty
-        ? 'User'
-        : userProvider.name.trim();
 
     final privateMessages = _privateBuilder.build(
       conversation: conversation,
@@ -691,6 +692,33 @@ class GroupChatOrchestrator {
       if (m.id == placeholder.id) return m;
     }
     return placeholder;
+  }
+
+  /// Applies the optional "group members" paragraph to a member assistant's
+  /// system prompt (see [GroupChat.injectGroupMembersIntoAssistantSystemPrompt]).
+  Assistant _applyGroupMemberInjection(
+    GroupChat group,
+    Assistant speaker,
+    String userName,
+  ) {
+    var effective = speaker.copyWith(enableProactiveCare: false);
+    if (!group.injectGroupMembersIntoAssistantSystemPrompt) return effective;
+    final memberIds = groupChatProvider.assistantIdsOf(group.id).toSet();
+    final memberNames = assistantProvider.assistants
+        .where((a) => memberIds.contains(a.id))
+        .map((a) => a.name)
+        .toList();
+    final injection = AssistantPrivateContextBuilder.buildGroupMemberInjection(
+      group: group,
+      userName: userName,
+      memberNames: memberNames,
+    );
+    if (injection == null || injection.isEmpty) return effective;
+    final base = effective.systemPrompt.trim();
+    effective = effective.copyWith(
+      systemPrompt: base.isEmpty ? injection : '$base\n\n$injection',
+    );
+    return effective;
   }
 
   bool _modelSupportsTools(String providerKey, String modelId) {

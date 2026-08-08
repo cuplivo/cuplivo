@@ -6969,6 +6969,20 @@ class AppLocalizationsEn extends AppLocalizations {
       'Every N user and assistant messages';
 
   @override
+  String get groupChatInjectGroupMembersTitle =>
+      'Inject group chat info into assistant system prompt';
+
+  @override
+  String get groupChatInjectGroupMembersDesc =>
+      'When enabled, each member assistant is told at the end of its system prompt that it is in a group chat and who the other members are (user and assistant names only, never their system prompts).';
+
+  @override
+  String get groupChatAdvancedDirectorSection => 'Director';
+
+  @override
+  String get groupChatAdvancedAssistantSection => 'Assistant responses';
+
+  @override
   String get groupChatDirectorLogsEmpty => 'No director logs yet.';
 
   @override

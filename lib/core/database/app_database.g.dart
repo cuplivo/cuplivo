@@ -6812,6 +6812,23 @@ class $GroupChatRowsTable extends GroupChatRows
         requiredDuringInsert: false,
         defaultValue: const Constant(5),
       );
+  static const VerificationMeta
+  _injectGroupMembersIntoAssistantSystemPromptMeta = const VerificationMeta(
+    'injectGroupMembersIntoAssistantSystemPrompt',
+  );
+  @override
+  late final GeneratedColumn<bool>
+  injectGroupMembersIntoAssistantSystemPrompt = GeneratedColumn<bool>(
+    'inject_group_members_into_assistant_system_prompt',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("inject_group_members_into_assistant_system_prompt" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   static const VerificationMeta _pendingCapAssistantMessageIdMeta =
       const VerificationMeta('pendingCapAssistantMessageId');
   @override
@@ -6869,6 +6886,7 @@ class $GroupChatRowsTable extends GroupChatRows
     maxAssistantMessagesPerRound,
     assistantDetailInjectionMode,
     assistantDetailInjectionN,
+    injectGroupMembersIntoAssistantSystemPrompt,
     pendingCapAssistantMessageId,
     assistantMessagesThisRound,
     createdAt,
@@ -6970,6 +6988,15 @@ class $GroupChatRowsTable extends GroupChatRows
         ),
       );
     }
+    if (data.containsKey('inject_group_members_into_assistant_system_prompt')) {
+      context.handle(
+        _injectGroupMembersIntoAssistantSystemPromptMeta,
+        injectGroupMembersIntoAssistantSystemPrompt.isAcceptableOrUnknown(
+          data['inject_group_members_into_assistant_system_prompt']!,
+          _injectGroupMembersIntoAssistantSystemPromptMeta,
+        ),
+      );
+    }
     if (data.containsKey('pending_cap_assistant_message_id')) {
       context.handle(
         _pendingCapAssistantMessageIdMeta,
@@ -7053,6 +7080,11 @@ class $GroupChatRowsTable extends GroupChatRows
         DriftSqlType.int,
         data['${effectivePrefix}assistant_detail_injection_n'],
       )!,
+      injectGroupMembersIntoAssistantSystemPrompt: attachedDatabase.typeMapping
+          .read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}inject_group_members_into_assistant_system_prompt'],
+          )!,
       pendingCapAssistantMessageId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}pending_cap_assistant_message_id'],
@@ -7089,6 +7121,7 @@ class GroupChatRow extends DataClass implements Insertable<GroupChatRow> {
   final int maxAssistantMessagesPerRound;
   final String assistantDetailInjectionMode;
   final int assistantDetailInjectionN;
+  final bool injectGroupMembersIntoAssistantSystemPrompt;
   final String? pendingCapAssistantMessageId;
   final int assistantMessagesThisRound;
   final DateTime createdAt;
@@ -7104,6 +7137,7 @@ class GroupChatRow extends DataClass implements Insertable<GroupChatRow> {
     required this.maxAssistantMessagesPerRound,
     required this.assistantDetailInjectionMode,
     required this.assistantDetailInjectionN,
+    required this.injectGroupMembersIntoAssistantSystemPrompt,
     this.pendingCapAssistantMessageId,
     required this.assistantMessagesThisRound,
     required this.createdAt,
@@ -7133,6 +7167,9 @@ class GroupChatRow extends DataClass implements Insertable<GroupChatRow> {
     );
     map['assistant_detail_injection_n'] = Variable<int>(
       assistantDetailInjectionN,
+    );
+    map['inject_group_members_into_assistant_system_prompt'] = Variable<bool>(
+      injectGroupMembersIntoAssistantSystemPrompt,
     );
     if (!nullToAbsent || pendingCapAssistantMessageId != null) {
       map['pending_cap_assistant_message_id'] = Variable<String>(
@@ -7165,6 +7202,9 @@ class GroupChatRow extends DataClass implements Insertable<GroupChatRow> {
       maxAssistantMessagesPerRound: Value(maxAssistantMessagesPerRound),
       assistantDetailInjectionMode: Value(assistantDetailInjectionMode),
       assistantDetailInjectionN: Value(assistantDetailInjectionN),
+      injectGroupMembersIntoAssistantSystemPrompt: Value(
+        injectGroupMembersIntoAssistantSystemPrompt,
+      ),
       pendingCapAssistantMessageId:
           pendingCapAssistantMessageId == null && nullToAbsent
           ? const Value.absent()
@@ -7201,6 +7241,9 @@ class GroupChatRow extends DataClass implements Insertable<GroupChatRow> {
       assistantDetailInjectionN: serializer.fromJson<int>(
         json['assistantDetailInjectionN'],
       ),
+      injectGroupMembersIntoAssistantSystemPrompt: serializer.fromJson<bool>(
+        json['injectGroupMembersIntoAssistantSystemPrompt'],
+      ),
       pendingCapAssistantMessageId: serializer.fromJson<String?>(
         json['pendingCapAssistantMessageId'],
       ),
@@ -7233,6 +7276,9 @@ class GroupChatRow extends DataClass implements Insertable<GroupChatRow> {
       'assistantDetailInjectionN': serializer.toJson<int>(
         assistantDetailInjectionN,
       ),
+      'injectGroupMembersIntoAssistantSystemPrompt': serializer.toJson<bool>(
+        injectGroupMembersIntoAssistantSystemPrompt,
+      ),
       'pendingCapAssistantMessageId': serializer.toJson<String?>(
         pendingCapAssistantMessageId,
       ),
@@ -7255,6 +7301,7 @@ class GroupChatRow extends DataClass implements Insertable<GroupChatRow> {
     int? maxAssistantMessagesPerRound,
     String? assistantDetailInjectionMode,
     int? assistantDetailInjectionN,
+    bool? injectGroupMembersIntoAssistantSystemPrompt,
     Value<String?> pendingCapAssistantMessageId = const Value.absent(),
     int? assistantMessagesThisRound,
     DateTime? createdAt,
@@ -7277,6 +7324,9 @@ class GroupChatRow extends DataClass implements Insertable<GroupChatRow> {
         assistantDetailInjectionMode ?? this.assistantDetailInjectionMode,
     assistantDetailInjectionN:
         assistantDetailInjectionN ?? this.assistantDetailInjectionN,
+    injectGroupMembersIntoAssistantSystemPrompt:
+        injectGroupMembersIntoAssistantSystemPrompt ??
+        this.injectGroupMembersIntoAssistantSystemPrompt,
     pendingCapAssistantMessageId: pendingCapAssistantMessageId.present
         ? pendingCapAssistantMessageId.value
         : this.pendingCapAssistantMessageId,
@@ -7311,6 +7361,10 @@ class GroupChatRow extends DataClass implements Insertable<GroupChatRow> {
       assistantDetailInjectionN: data.assistantDetailInjectionN.present
           ? data.assistantDetailInjectionN.value
           : this.assistantDetailInjectionN,
+      injectGroupMembersIntoAssistantSystemPrompt:
+          data.injectGroupMembersIntoAssistantSystemPrompt.present
+          ? data.injectGroupMembersIntoAssistantSystemPrompt.value
+          : this.injectGroupMembersIntoAssistantSystemPrompt,
       pendingCapAssistantMessageId: data.pendingCapAssistantMessageId.present
           ? data.pendingCapAssistantMessageId.value
           : this.pendingCapAssistantMessageId,
@@ -7340,6 +7394,9 @@ class GroupChatRow extends DataClass implements Insertable<GroupChatRow> {
           )
           ..write('assistantDetailInjectionN: $assistantDetailInjectionN, ')
           ..write(
+            'injectGroupMembersIntoAssistantSystemPrompt: $injectGroupMembersIntoAssistantSystemPrompt, ',
+          )
+          ..write(
             'pendingCapAssistantMessageId: $pendingCapAssistantMessageId, ',
           )
           ..write('assistantMessagesThisRound: $assistantMessagesThisRound, ')
@@ -7361,6 +7418,7 @@ class GroupChatRow extends DataClass implements Insertable<GroupChatRow> {
     maxAssistantMessagesPerRound,
     assistantDetailInjectionMode,
     assistantDetailInjectionN,
+    injectGroupMembersIntoAssistantSystemPrompt,
     pendingCapAssistantMessageId,
     assistantMessagesThisRound,
     createdAt,
@@ -7382,6 +7440,8 @@ class GroupChatRow extends DataClass implements Insertable<GroupChatRow> {
           other.assistantDetailInjectionMode ==
               this.assistantDetailInjectionMode &&
           other.assistantDetailInjectionN == this.assistantDetailInjectionN &&
+          other.injectGroupMembersIntoAssistantSystemPrompt ==
+              this.injectGroupMembersIntoAssistantSystemPrompt &&
           other.pendingCapAssistantMessageId ==
               this.pendingCapAssistantMessageId &&
           other.assistantMessagesThisRound == this.assistantMessagesThisRound &&
@@ -7400,6 +7460,7 @@ class GroupChatRowsCompanion extends UpdateCompanion<GroupChatRow> {
   final Value<int> maxAssistantMessagesPerRound;
   final Value<String> assistantDetailInjectionMode;
   final Value<int> assistantDetailInjectionN;
+  final Value<bool> injectGroupMembersIntoAssistantSystemPrompt;
   final Value<String?> pendingCapAssistantMessageId;
   final Value<int> assistantMessagesThisRound;
   final Value<DateTime> createdAt;
@@ -7416,6 +7477,7 @@ class GroupChatRowsCompanion extends UpdateCompanion<GroupChatRow> {
     this.maxAssistantMessagesPerRound = const Value.absent(),
     this.assistantDetailInjectionMode = const Value.absent(),
     this.assistantDetailInjectionN = const Value.absent(),
+    this.injectGroupMembersIntoAssistantSystemPrompt = const Value.absent(),
     this.pendingCapAssistantMessageId = const Value.absent(),
     this.assistantMessagesThisRound = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -7433,6 +7495,7 @@ class GroupChatRowsCompanion extends UpdateCompanion<GroupChatRow> {
     this.maxAssistantMessagesPerRound = const Value.absent(),
     this.assistantDetailInjectionMode = const Value.absent(),
     this.assistantDetailInjectionN = const Value.absent(),
+    this.injectGroupMembersIntoAssistantSystemPrompt = const Value.absent(),
     this.pendingCapAssistantMessageId = const Value.absent(),
     this.assistantMessagesThisRound = const Value.absent(),
     required DateTime createdAt,
@@ -7454,6 +7517,7 @@ class GroupChatRowsCompanion extends UpdateCompanion<GroupChatRow> {
     Expression<int>? maxAssistantMessagesPerRound,
     Expression<String>? assistantDetailInjectionMode,
     Expression<int>? assistantDetailInjectionN,
+    Expression<bool>? injectGroupMembersIntoAssistantSystemPrompt,
     Expression<String>? pendingCapAssistantMessageId,
     Expression<int>? assistantMessagesThisRound,
     Expression<DateTime>? createdAt,
@@ -7476,6 +7540,9 @@ class GroupChatRowsCompanion extends UpdateCompanion<GroupChatRow> {
         'assistant_detail_injection_mode': assistantDetailInjectionMode,
       if (assistantDetailInjectionN != null)
         'assistant_detail_injection_n': assistantDetailInjectionN,
+      if (injectGroupMembersIntoAssistantSystemPrompt != null)
+        'inject_group_members_into_assistant_system_prompt':
+            injectGroupMembersIntoAssistantSystemPrompt,
       if (pendingCapAssistantMessageId != null)
         'pending_cap_assistant_message_id': pendingCapAssistantMessageId,
       if (assistantMessagesThisRound != null)
@@ -7497,6 +7564,7 @@ class GroupChatRowsCompanion extends UpdateCompanion<GroupChatRow> {
     Value<int>? maxAssistantMessagesPerRound,
     Value<String>? assistantDetailInjectionMode,
     Value<int>? assistantDetailInjectionN,
+    Value<bool>? injectGroupMembersIntoAssistantSystemPrompt,
     Value<String?>? pendingCapAssistantMessageId,
     Value<int>? assistantMessagesThisRound,
     Value<DateTime>? createdAt,
@@ -7518,6 +7586,9 @@ class GroupChatRowsCompanion extends UpdateCompanion<GroupChatRow> {
           assistantDetailInjectionMode ?? this.assistantDetailInjectionMode,
       assistantDetailInjectionN:
           assistantDetailInjectionN ?? this.assistantDetailInjectionN,
+      injectGroupMembersIntoAssistantSystemPrompt:
+          injectGroupMembersIntoAssistantSystemPrompt ??
+          this.injectGroupMembersIntoAssistantSystemPrompt,
       pendingCapAssistantMessageId:
           pendingCapAssistantMessageId ?? this.pendingCapAssistantMessageId,
       assistantMessagesThisRound:
@@ -7571,6 +7642,11 @@ class GroupChatRowsCompanion extends UpdateCompanion<GroupChatRow> {
         assistantDetailInjectionN.value,
       );
     }
+    if (injectGroupMembersIntoAssistantSystemPrompt.present) {
+      map['inject_group_members_into_assistant_system_prompt'] = Variable<bool>(
+        injectGroupMembersIntoAssistantSystemPrompt.value,
+      );
+    }
     if (pendingCapAssistantMessageId.present) {
       map['pending_cap_assistant_message_id'] = Variable<String>(
         pendingCapAssistantMessageId.value,
@@ -7610,6 +7686,9 @@ class GroupChatRowsCompanion extends UpdateCompanion<GroupChatRow> {
             'assistantDetailInjectionMode: $assistantDetailInjectionMode, ',
           )
           ..write('assistantDetailInjectionN: $assistantDetailInjectionN, ')
+          ..write(
+            'injectGroupMembersIntoAssistantSystemPrompt: $injectGroupMembersIntoAssistantSystemPrompt, ',
+          )
           ..write(
             'pendingCapAssistantMessageId: $pendingCapAssistantMessageId, ',
           )
@@ -12358,6 +12437,7 @@ typedef $$GroupChatRowsTableCreateCompanionBuilder =
       Value<int> maxAssistantMessagesPerRound,
       Value<String> assistantDetailInjectionMode,
       Value<int> assistantDetailInjectionN,
+      Value<bool> injectGroupMembersIntoAssistantSystemPrompt,
       Value<String?> pendingCapAssistantMessageId,
       Value<int> assistantMessagesThisRound,
       required DateTime createdAt,
@@ -12376,6 +12456,7 @@ typedef $$GroupChatRowsTableUpdateCompanionBuilder =
       Value<int> maxAssistantMessagesPerRound,
       Value<String> assistantDetailInjectionMode,
       Value<int> assistantDetailInjectionN,
+      Value<bool> injectGroupMembersIntoAssistantSystemPrompt,
       Value<String?> pendingCapAssistantMessageId,
       Value<int> assistantMessagesThisRound,
       Value<DateTime> createdAt,
@@ -12487,6 +12568,12 @@ class $$GroupChatRowsTableFilterComposer
     column: $table.assistantDetailInjectionN,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<bool> get injectGroupMembersIntoAssistantSystemPrompt =>
+      $composableBuilder(
+        column: $table.injectGroupMembersIntoAssistantSystemPrompt,
+        builder: (column) => ColumnFilters(column),
+      );
 
   ColumnFilters<String> get pendingCapAssistantMessageId => $composableBuilder(
     column: $table.pendingCapAssistantMessageId,
@@ -12612,6 +12699,12 @@ class $$GroupChatRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get injectGroupMembersIntoAssistantSystemPrompt =>
+      $composableBuilder(
+        column: $table.injectGroupMembersIntoAssistantSystemPrompt,
+        builder: (column) => ColumnOrderings(column),
+      );
+
   ColumnOrderings<String> get pendingCapAssistantMessageId =>
       $composableBuilder(
         column: $table.pendingCapAssistantMessageId,
@@ -12705,6 +12798,12 @@ class $$GroupChatRowsTableAnnotationComposer
     column: $table.assistantDetailInjectionN,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get injectGroupMembersIntoAssistantSystemPrompt =>
+      $composableBuilder(
+        column: $table.injectGroupMembersIntoAssistantSystemPrompt,
+        builder: (column) => column,
+      );
 
   GeneratedColumn<String> get pendingCapAssistantMessageId =>
       $composableBuilder(
@@ -12815,6 +12914,8 @@ class $$GroupChatRowsTableTableManager
                 Value<String> assistantDetailInjectionMode =
                     const Value.absent(),
                 Value<int> assistantDetailInjectionN = const Value.absent(),
+                Value<bool> injectGroupMembersIntoAssistantSystemPrompt =
+                    const Value.absent(),
                 Value<String?> pendingCapAssistantMessageId =
                     const Value.absent(),
                 Value<int> assistantMessagesThisRound = const Value.absent(),
@@ -12832,6 +12933,8 @@ class $$GroupChatRowsTableTableManager
                 maxAssistantMessagesPerRound: maxAssistantMessagesPerRound,
                 assistantDetailInjectionMode: assistantDetailInjectionMode,
                 assistantDetailInjectionN: assistantDetailInjectionN,
+                injectGroupMembersIntoAssistantSystemPrompt:
+                    injectGroupMembersIntoAssistantSystemPrompt,
                 pendingCapAssistantMessageId: pendingCapAssistantMessageId,
                 assistantMessagesThisRound: assistantMessagesThisRound,
                 createdAt: createdAt,
@@ -12851,6 +12954,8 @@ class $$GroupChatRowsTableTableManager
                 Value<String> assistantDetailInjectionMode =
                     const Value.absent(),
                 Value<int> assistantDetailInjectionN = const Value.absent(),
+                Value<bool> injectGroupMembersIntoAssistantSystemPrompt =
+                    const Value.absent(),
                 Value<String?> pendingCapAssistantMessageId =
                     const Value.absent(),
                 Value<int> assistantMessagesThisRound = const Value.absent(),
@@ -12868,6 +12973,8 @@ class $$GroupChatRowsTableTableManager
                 maxAssistantMessagesPerRound: maxAssistantMessagesPerRound,
                 assistantDetailInjectionMode: assistantDetailInjectionMode,
                 assistantDetailInjectionN: assistantDetailInjectionN,
+                injectGroupMembersIntoAssistantSystemPrompt:
+                    injectGroupMembersIntoAssistantSystemPrompt,
                 pendingCapAssistantMessageId: pendingCapAssistantMessageId,
                 assistantMessagesThisRound: assistantMessagesThisRound,
                 createdAt: createdAt,

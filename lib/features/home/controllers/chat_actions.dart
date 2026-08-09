@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/conversation.dart';
-import '../../../core/models/token_usage.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
@@ -1346,9 +1345,14 @@ class ChatActions {
     if (chunk.totalTokens > 0) {
       state.totalTokens = chunk.totalTokens;
     }
+    // Last-wins (replace): providers emit the CURRENT round's cumulative
+    // usage, so the latest chunk is the exact context at this moment.
     if (chunk.usage != null) {
-      state.usage = (state.usage ?? const TokenUsage()).merge(chunk.usage!);
+      state.usage = chunk.usage;
       state.totalTokens = state.usage!.totalTokens;
+    }
+    if (chunk.consumedUsage != null) {
+      state.consumedUsage = chunk.consumedUsage;
     }
 
     String streamingProcessed = _transformAssistantContent(state);
@@ -1504,9 +1508,13 @@ class ChatActions {
     if (chunk.totalTokens > 0) {
       state.totalTokens = chunk.totalTokens;
     }
+    // Last-wins (replace): see _handleContentChunk.
     if (chunk.usage != null) {
-      state.usage = (state.usage ?? const TokenUsage()).merge(chunk.usage!);
+      state.usage = chunk.usage;
       state.totalTokens = state.usage!.totalTokens;
+    }
+    if (chunk.consumedUsage != null) {
+      state.consumedUsage = chunk.consumedUsage;
     }
 
     // Track the _finishStreaming future so _handleStreamDone can await it
@@ -1606,9 +1614,14 @@ class ChatActions {
     final finalDurationMs = state.streamStartedAt != null
         ? DateTime.now().difference(state.streamStartedAt!).inMilliseconds
         : null;
-    final finalPromptTokens = state.usage?.promptTokens;
-    final finalCompletionTokens = state.usage?.completionTokens;
-    final finalCachedTokens = state.usage?.cachedTokens;
+    // Consumed semantics (sum across rounds) — persisted to the token fields.
+    final finalPromptTokens = state.consumedUsage?.promptTokens;
+    final finalCompletionTokens = state.consumedUsage?.completionTokens;
+    final finalCachedTokens = state.consumedUsage?.cachedTokens;
+    final finalTotalTokens =
+        state.consumedUsage?.totalTokens ?? state.totalTokens;
+    // Context semantics (last request round) — what the token display shows.
+    final finalContextTokens = state.usage?.totalTokens ?? state.totalTokens;
 
     // Flush final content to the streaming notifier before async operations.
     // This ensures any intermediate rebuild (e.g., from isProcessingFiles change
@@ -1634,7 +1647,8 @@ class ChatActions {
     await chatService.updateMessage(
       messageId,
       content: sanitizedContent,
-      totalTokens: state.totalTokens,
+      totalTokens: finalTotalTokens,
+      contextTokens: finalContextTokens,
       isStreaming: false,
       promptTokens: finalPromptTokens,
       completionTokens: finalCompletionTokens,
@@ -1644,7 +1658,8 @@ class ChatActions {
 
     final finalizedMessage = state.ctx.assistantMessage.copyWith(
       content: sanitizedContent,
-      totalTokens: state.totalTokens,
+      totalTokens: finalTotalTokens,
+      contextTokens: finalContextTokens,
       isStreaming: false,
       promptTokens: finalPromptTokens,
       completionTokens: finalCompletionTokens,

@@ -43,4 +43,24 @@ class TokenUsage {
       totalTokens: total,
     );
   }
+
+  /// Element-wise sum — for accumulating usage ACROSS independent request
+  /// rounds (each tool-call round is a separately billed request).
+  TokenUsage sum(TokenUsage other) {
+    final prompt = promptTokens + other.promptTokens;
+    final completion = completionTokens + other.completionTokens;
+    return TokenUsage(
+      promptTokens: prompt,
+      completionTokens: completion,
+      cachedTokens: cachedTokens + other.cachedTokens,
+      totalTokens: prompt + completion,
+    );
+  }
+
+  /// Fold [round] (a completed request's usage) into [accumulated]; nulls
+  /// count as zero so rounds without reported usage leave the total unchanged.
+  static TokenUsage? accumulate(TokenUsage? accumulated, TokenUsage? round) {
+    if (round == null) return accumulated;
+    return (accumulated ?? const TokenUsage()).sum(round);
+  }
 }

@@ -15,6 +15,12 @@ class ChatMessage {
 
   final int? totalTokens;
 
+  /// Context semantics: total tokens of the LAST request round of this
+  /// assistant turn (its prompt includes the whole conversation so far).
+  /// What the bottom-right token display shows; null for messages created
+  /// before schema v16 (display falls back to [totalTokens]).
+  final int? contextTokens;
+
   final String conversationId;
 
   final bool isStreaming;
@@ -67,6 +73,7 @@ class ChatMessage {
     String? modelId,
     String? providerId,
     int? totalTokens,
+    int? contextTokens,
     required String conversationId,
     bool isStreaming = false,
     String? reasoningText,
@@ -93,6 +100,7 @@ class ChatMessage {
       modelId: modelId,
       providerId: providerId,
       totalTokens: totalTokens,
+      contextTokens: contextTokens,
       conversationId: conversationId,
       isStreaming: isStreaming,
       reasoningText: reasoningText,
@@ -120,6 +128,7 @@ class ChatMessage {
     this.modelId,
     this.providerId,
     this.totalTokens,
+    this.contextTokens,
     required this.conversationId,
     this.isStreaming = false,
     this.reasoningText,
@@ -149,6 +158,7 @@ class ChatMessage {
     Object? modelId = sentinel,
     Object? providerId = sentinel,
     Object? totalTokens = sentinel,
+    Object? contextTokens = sentinel,
     Object? conversationId = sentinel,
     Object? isStreaming = sentinel,
     Object? reasoningText = sentinel,
@@ -180,6 +190,9 @@ class ChatMessage {
       totalTokens: identical(totalTokens, sentinel)
           ? this.totalTokens
           : totalTokens as int?,
+      contextTokens: identical(contextTokens, sentinel)
+          ? this.contextTokens
+          : contextTokens as int?,
       conversationId: identical(conversationId, sentinel)
           ? this.conversationId
           : conversationId as String,
@@ -236,6 +249,7 @@ class ChatMessage {
       'modelId': modelId,
       'providerId': providerId,
       'totalTokens': totalTokens,
+      'contextTokens': contextTokens,
       'conversationId': conversationId,
       'isStreaming': isStreaming,
       'reasoningText': reasoningText,
@@ -264,6 +278,7 @@ class ChatMessage {
       modelId: json['modelId'] as String?,
       providerId: json['providerId'] as String?,
       totalTokens: json['totalTokens'] as int?,
+      contextTokens: json['contextTokens'] as int?,
       conversationId: json['conversationId'] as String,
       isStreaming: json['isStreaming'] as bool? ?? false,
       reasoningText: json['reasoningText'] as String?,

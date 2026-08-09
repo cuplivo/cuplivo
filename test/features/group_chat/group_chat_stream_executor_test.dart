@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/token_usage.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/api/chat_api_service.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
@@ -12,8 +13,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Records persistence calls instead of touching a real database.
 class _RecordingChatService extends ChatService {
-  final List<({String messageId, String? content, bool? isStreaming})> updates =
-      [];
+  final List<
+    ({
+      String messageId,
+      String? content,
+      bool? isStreaming,
+      int? totalTokens,
+      int? contextTokens,
+      int? promptTokens,
+      int? completionTokens,
+      int? cachedTokens,
+    })
+  >
+  updates = [];
   final List<({String messageId, String content})> silentContent = [];
   final List<({String messageId, DateTime? finishedAt})>
   reasoningFinishedAtUpdates = [];
@@ -23,6 +35,7 @@ class _RecordingChatService extends ChatService {
     String messageId, {
     String? content,
     int? totalTokens,
+    int? contextTokens,
     bool? isStreaming,
     String? reasoningText,
     DateTime? reasoningStartAt,
@@ -41,6 +54,11 @@ class _RecordingChatService extends ChatService {
       messageId: messageId,
       content: content,
       isStreaming: isStreaming,
+      totalTokens: totalTokens,
+      contextTokens: contextTokens,
+      promptTokens: promptTokens,
+      completionTokens: completionTokens,
+      cachedTokens: cachedTokens,
     ));
   }
 
@@ -49,6 +67,7 @@ class _RecordingChatService extends ChatService {
     String messageId, {
     String? content,
     int? totalTokens,
+    int? contextTokens,
     bool? isStreaming,
     String? reasoningText,
     DateTime? reasoningStartAt,
@@ -306,6 +325,112 @@ void main() {
     final finalUpdate = fake.updates.lastWhere((u) => u.isStreaming == false);
     expect(finalUpdate.content, 'Hello World');
   });
+
+  test(
+    'finish persists consumed totals and contextTokens (multi-round)',
+    () async {
+      final settings = await makeSettings();
+      final fake = _RecordingChatService();
+      final sc = stream_ctrl.StreamController(
+        chatService: fake,
+        onStateChanged: () {},
+        getSettingsProvider: () => settings,
+        getCurrentConversationId: () => 'c1',
+      );
+      final chunkStream = StreamController<ChatStreamChunk>();
+      addTearDown(() => chunkStream.close());
+      final executor = GroupChatStreamExecutor(
+        chatService: fake,
+        streamController: sc,
+        sendMessageStream:
+            ({
+              required ProviderConfig config,
+              required String modelId,
+              required List<Map<String, dynamic>> messages,
+              List<String>? userMediaPaths,
+              int? thinkingBudget,
+              double? temperature,
+              double? topP,
+              int? maxTokens,
+              List<Map<String, dynamic>>? tools,
+              ToolCallHandler? onToolCall,
+              Map<String, String>? extraHeaders,
+              Map<String, dynamic>? extraBody,
+              bool stream = true,
+              String? requestId,
+              bool allowImagesApiRouting = true,
+              bool ocrActive = false,
+            }) => chunkStream.stream,
+      );
+
+      final running = executor.executeStream(
+        buildCtx(settings, testConfig()),
+        streamKeyOverride: 'm1',
+        requestIdOverride: 'm1',
+      );
+
+      // Round 1: first request's usage (context = 1020).
+      const round1Usage = TokenUsage(
+        promptTokens: 1000,
+        completionTokens: 20,
+        cachedTokens: 300,
+        totalTokens: 1020,
+      );
+      await pumpEventQueue();
+      chunkStream.add(
+        ChatStreamChunk(
+          content: 'thinking',
+          isDone: false,
+          totalTokens: 1020,
+          usage: round1Usage,
+        ),
+      );
+
+      // Round 2: follow-up request's own usage, consumed = sum of both rounds.
+      const round2Usage = TokenUsage(
+        promptTokens: 1200,
+        completionTokens: 500,
+        cachedTokens: 400,
+        totalTokens: 1700,
+      );
+      const consumed = TokenUsage(
+        promptTokens: 2200,
+        completionTokens: 520,
+        cachedTokens: 700,
+        totalTokens: 2720,
+      );
+      chunkStream.add(
+        ChatStreamChunk(
+          content: 'Answer',
+          isDone: false,
+          totalTokens: 1700,
+          usage: round2Usage,
+          consumedUsage: consumed,
+        ),
+      );
+      chunkStream.add(
+        ChatStreamChunk(
+          content: '',
+          isDone: true,
+          totalTokens: 1700,
+          usage: round2Usage,
+          consumedUsage: consumed,
+        ),
+      );
+      await chunkStream.close();
+      await running.timeout(const Duration(seconds: 5));
+
+      final finalUpdate = fake.updates.lastWhere((u) => u.isStreaming == false);
+      expect(finalUpdate.content, 'thinkingAnswer');
+      // Consumed semantics: sum across both rounds.
+      expect(finalUpdate.totalTokens, 2720);
+      expect(finalUpdate.promptTokens, 2200);
+      expect(finalUpdate.completionTokens, 520);
+      expect(finalUpdate.cachedTokens, 700);
+      // Context semantics: last round's total.
+      expect(finalUpdate.contextTokens, 1700);
+    },
+  );
 
   test('cancel completes the future and finalizes the message', () async {
     final settings = await makeSettings();

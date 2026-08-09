@@ -1400,6 +1400,8 @@ class StreamingState {
   String fullContentRaw;
   int totalTokens = 0;
   TokenUsage? usage;
+  // Sum of usage across all request rounds of this turn (consumed semantics).
+  TokenUsage? consumedUsage;
   String bufferedReasoning = '';
   DateTime? reasoningStartAt;
   bool finishHandled = false;

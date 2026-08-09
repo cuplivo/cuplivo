@@ -404,7 +404,7 @@ Stream<ChatStreamChunk> _sendClaudeStream(
   List<Map<String, dynamic>> convo = List<Map<String, dynamic>>.from(
     initialMessages,
   );
-  TokenUsage? totalUsage;
+  TokenUsage? consumedUsage;
 
   while (true) {
     final omitSamplingParams = _claudeShouldOmitSamplingParams(
@@ -468,13 +468,14 @@ Stream<ChatStreamChunk> _sendClaudeStream(
     if (!stream) {
       final txt = await response.stream.bytesToString();
       final obj = jsonDecode(txt) as Map;
-      // Usage
+      // Usage (per request round - context semantics on the round's own
+      // value; consumed semantics accumulate across rounds).
+      TokenUsage? roundUsage;
       try {
         final u = (obj['usage'] as Map?)?.cast<String, dynamic>();
         if (u != null) {
-          totalUsage = (totalUsage ?? const TokenUsage()).merge(
-            _claudeUsageFromMap(u),
-          );
+          roundUsage = _claudeUsageFromMap(u);
+          consumedUsage = TokenUsage.accumulate(consumedUsage, roundUsage);
         }
       } catch (_) {}
       final content = (obj['content'] as List?) ?? const <dynamic>[];
@@ -536,8 +537,9 @@ Stream<ChatStreamChunk> _sendClaudeStream(
         yield ChatStreamChunk(
           content: '',
           isDone: false,
-          totalTokens: (totalUsage?.totalTokens ?? 0),
-          usage: totalUsage,
+          totalTokens: (roundUsage?.totalTokens ?? 0),
+          usage: roundUsage,
+          consumedUsage: consumedUsage,
           toolCalls: callInfos,
         );
         final results = <Map<String, dynamic>>[];
@@ -567,8 +569,9 @@ Stream<ChatStreamChunk> _sendClaudeStream(
           yield ChatStreamChunk(
             content: '',
             isDone: false,
-            totalTokens: (totalUsage?.totalTokens ?? 0),
-            usage: totalUsage,
+            totalTokens: (roundUsage?.totalTokens ?? 0),
+            usage: roundUsage,
+            consumedUsage: consumedUsage,
             toolResults: resultsInfo,
           );
         }
@@ -583,8 +586,9 @@ Stream<ChatStreamChunk> _sendClaudeStream(
       yield ChatStreamChunk(
         content: buf.toString(),
         isDone: true,
-        totalTokens: (totalUsage?.totalTokens ?? 0),
-        usage: totalUsage,
+        totalTokens: (roundUsage?.totalTokens ?? 0),
+        usage: roundUsage,
+        consumedUsage: consumedUsage,
         truncationReason:
             sr == 'max_tokens' || sr == 'model_context_window_exceeded'
             ? (sr == 'model_context_window_exceeded'
@@ -699,6 +703,7 @@ Stream<ChatStreamChunk> _sendClaudeStream(
                   isDone: false,
                   totalTokens: roundTokens,
                   usage: usage,
+                  consumedUsage: consumedUsage,
                   toolCalls: [
                     ToolCallInfo(
                       id: id,
@@ -726,6 +731,7 @@ Stream<ChatStreamChunk> _sendClaudeStream(
                   isDone: false,
                   totalTokens: roundTokens,
                   usage: usage,
+                  consumedUsage: consumedUsage,
                   toolCalls: [
                     ToolCallInfo(
                       id: id,
@@ -772,6 +778,7 @@ Stream<ChatStreamChunk> _sendClaudeStream(
                 isDone: false,
                 totalTokens: roundTokens,
                 usage: usage,
+                consumedUsage: consumedUsage,
                 toolResults: [
                   ToolResultInfo(
                     id: toolUseId.isEmpty ? 'builtin_search' : toolUseId,
@@ -945,6 +952,7 @@ Stream<ChatStreamChunk> _sendClaudeStream(
                     ),
                   ],
                   usage: usage,
+                  consumedUsage: consumedUsage,
                 );
               }
             } else {
@@ -964,6 +972,7 @@ Stream<ChatStreamChunk> _sendClaudeStream(
                   isDone: false,
                   totalTokens: roundTokens,
                   usage: usage,
+                  consumedUsage: consumedUsage,
                   toolCalls: [
                     ToolCallInfo(
                       id: sid,
@@ -1012,10 +1021,8 @@ Stream<ChatStreamChunk> _sendClaudeStream(
       }
     }
 
-    // Merge usage across rounds for final token count
-    if (usage != null) {
-      totalUsage = (totalUsage ?? const TokenUsage()).merge(usage);
-    }
+    // Fold this round's usage into the consumed accumulator
+    consumedUsage = TokenUsage.accumulate(consumedUsage, usage);
 
     // If no client tool calls, decide whether to continue (pause_turn/server tool) or finalize
     if (anthToolUse.isEmpty) {
@@ -1032,8 +1039,9 @@ Stream<ChatStreamChunk> _sendClaudeStream(
         yield ChatStreamChunk(
           content: '',
           isDone: true,
-          totalTokens: (totalUsage?.totalTokens ?? roundTokens),
-          usage: totalUsage ?? usage,
+          totalTokens: roundTokens,
+          usage: usage,
+          consumedUsage: consumedUsage,
           truncationReason:
               sr == 'max_tokens' || sr == 'model_context_window_exceeded'
               ? (sr == 'model_context_window_exceeded'

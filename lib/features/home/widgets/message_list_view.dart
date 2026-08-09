@@ -745,6 +745,7 @@ class _MessageListViewState extends State<MessageListView> {
         final streamingMessage = message.copyWith(
           content: displayContent,
           totalTokens: displayTokens,
+          contextTokens: displayTokens,
           promptTokens: data.promptTokens,
           completionTokens: data.completionTokens,
           cachedTokens: data.cachedTokens,

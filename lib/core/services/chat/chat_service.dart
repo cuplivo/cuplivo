@@ -1262,6 +1262,7 @@ class ChatService extends ChangeNotifier {
     String messageId, {
     String? content,
     int? totalTokens,
+    int? contextTokens,
     bool? isStreaming,
     String? reasoningText,
     DateTime? reasoningStartAt,
@@ -1285,6 +1286,7 @@ class ChatService extends ChangeNotifier {
     final updatedMessage = message.copyWith(
       content: content ?? message.content,
       totalTokens: totalTokens ?? message.totalTokens,
+      contextTokens: contextTokens ?? message.contextTokens,
       isStreaming: isStreaming ?? message.isStreaming,
       reasoningText: reasoningText ?? message.reasoningText,
       reasoningStartAt: reasoningStartAt ?? message.reasoningStartAt,
@@ -1334,6 +1336,7 @@ class ChatService extends ChangeNotifier {
     String messageId, {
     String? content,
     int? totalTokens,
+    int? contextTokens,
     bool? isStreaming,
     String? reasoningText,
     DateTime? reasoningStartAt,
@@ -1354,6 +1357,7 @@ class ChatService extends ChangeNotifier {
     final updatedMessage = message.copyWith(
       content: content ?? message.content,
       totalTokens: totalTokens ?? message.totalTokens,
+      contextTokens: contextTokens ?? message.contextTokens,
       isStreaming: isStreaming ?? message.isStreaming,
       reasoningText: reasoningText ?? message.reasoningText,
       reasoningStartAt: reasoningStartAt ?? message.reasoningStartAt,

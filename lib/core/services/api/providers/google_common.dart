@@ -598,10 +598,13 @@ Stream<ChatStreamChunk> _sendGoogleStream(
       });
     }
 
-    TokenUsage? totalUsage;
+    // Sum of usage across completed request rounds (consumed semantics).
+    TokenUsage? consumedUsage;
     List<Map<String, dynamic>> currentContents =
         List<Map<String, dynamic>>.from(contents);
     while (true) {
+      // Per-request-round usage (context semantics).
+      TokenUsage? roundUsage;
       final req = http.Request('POST', Uri.parse(url));
       req.headers.addAll(headers);
       final body = Map<String, dynamic>.from(baseBody);
@@ -616,17 +619,17 @@ Stream<ChatStreamChunk> _sendGoogleStream(
       final obj = jsonDecode(txt) as Map<String, dynamic>;
       try {
         final u = (obj['usageMetadata'] as Map?)?.cast<String, dynamic>();
-        totalUsage = (totalUsage ?? const TokenUsage()).merge(
-          TokenUsage.fromGeminiUsageMetadata(u),
-        );
+        roundUsage = TokenUsage.fromGeminiUsageMetadata(u);
+        consumedUsage = TokenUsage.accumulate(consumedUsage, roundUsage);
       } catch (_) {}
       final candidates = (obj['candidates'] as List?) ?? const <dynamic>[];
       if (candidates.isEmpty) {
         yield ChatStreamChunk(
           content: '',
           isDone: true,
-          totalTokens: totalUsage?.totalTokens ?? 0,
-          usage: totalUsage,
+          totalTokens: roundUsage?.totalTokens ?? 0,
+          usage: roundUsage,
+          consumedUsage: consumedUsage,
         );
         return;
       }
@@ -649,16 +652,18 @@ Stream<ChatStreamChunk> _sendGoogleStream(
           yield ChatStreamChunk(
             content: '',
             isDone: false,
-            totalTokens: totalUsage?.totalTokens ?? 0,
-            usage: totalUsage,
+            totalTokens: roundUsage?.totalTokens ?? 0,
+            usage: roundUsage,
+            consumedUsage: consumedUsage,
             toolCalls: [ToolCallInfo(id: partId, name: name, arguments: args)],
           );
           final res = await onToolCall(name, args, toolCallId: partId);
           yield ChatStreamChunk(
             content: '',
             isDone: false,
-            totalTokens: totalUsage?.totalTokens ?? 0,
-            usage: totalUsage,
+            totalTokens: roundUsage?.totalTokens ?? 0,
+            usage: roundUsage,
+            consumedUsage: consumedUsage,
             toolResults: [
               ToolResultInfo(
                 id: partId,
@@ -702,8 +707,9 @@ Stream<ChatStreamChunk> _sendGoogleStream(
             yield ChatStreamChunk(
               content: '',
               isDone: false,
-              totalTokens: totalUsage?.totalTokens ?? 0,
-              usage: totalUsage,
+              totalTokens: roundUsage?.totalTokens ?? 0,
+              usage: roundUsage,
+              consumedUsage: consumedUsage,
               toolCalls: [
                 ToolCallInfo(
                   id: ceId,
@@ -724,8 +730,9 @@ Stream<ChatStreamChunk> _sendGoogleStream(
           yield ChatStreamChunk(
             content: '',
             isDone: false,
-            totalTokens: totalUsage?.totalTokens ?? 0,
-            usage: totalUsage,
+            totalTokens: roundUsage?.totalTokens ?? 0,
+            usage: roundUsage,
+            consumedUsage: consumedUsage,
             toolResults: [
               ToolResultInfo(
                 id: resultId,
@@ -756,8 +763,9 @@ Stream<ChatStreamChunk> _sendGoogleStream(
           content: '',
           reasoning: reasoningStr,
           isDone: false,
-          totalTokens: totalUsage?.totalTokens ?? 0,
-          usage: totalUsage,
+          totalTokens: roundUsage?.totalTokens ?? 0,
+          usage: roundUsage,
+          consumedUsage: consumedUsage,
         );
       }
       var contentStr = buf.toString();
@@ -770,8 +778,9 @@ Stream<ChatStreamChunk> _sendGoogleStream(
       yield ChatStreamChunk(
         content: contentStr,
         isDone: true,
-        totalTokens: totalUsage?.totalTokens ?? 0,
-        usage: totalUsage,
+        totalTokens: roundUsage?.totalTokens ?? 0,
+        usage: roundUsage,
+        consumedUsage: consumedUsage,
         truncationReason: fr == 'MAX_TOKENS' ? 'max_tokens' : null,
       );
       return;
@@ -1008,6 +1017,8 @@ Stream<ChatStreamChunk> _sendGoogleStream(
   List<Map<String, dynamic>> convo = List<Map<String, dynamic>>.from(contents);
   TokenUsage? usage;
   int totalTokens = 0;
+  // Sum of usage across completed request rounds (consumed semantics).
+  TokenUsage? consumedUsage;
 
   // Accumulate built-in search citations across stream rounds
   final List<Map<String, dynamic>> builtinCitations = <Map<String, dynamic>>[];
@@ -1587,6 +1598,7 @@ Stream<ChatStreamChunk> _sendGoogleStream(
                 isDone: true,
                 totalTokens: totalTokens,
                 usage: usage,
+                consumedUsage: TokenUsage.accumulate(consumedUsage, usage),
                 truncationReason: finishReason == 'MAX_TOKENS'
                     ? 'max_tokens'
                     : null,
@@ -1634,6 +1646,7 @@ Stream<ChatStreamChunk> _sendGoogleStream(
         isDone: true,
         totalTokens: totalTokens,
         usage: usage,
+        consumedUsage: TokenUsage.accumulate(consumedUsage, usage),
         truncationReason: finishReason == 'MAX_TOKENS' ? 'max_tokens' : null,
       );
       return;
@@ -1707,6 +1720,11 @@ Stream<ChatStreamChunk> _sendGoogleStream(
       convo.add({'role': 'model', 'parts': modelParts});
       convo.add({'role': 'user', 'parts': responseParts});
     }
+    // Round boundary: fold this round's usage into the consumed accumulator
+    // and reset so the next round's usage is counted independently.
+    consumedUsage = TokenUsage.accumulate(consumedUsage, usage);
+    usage = null;
+    totalTokens = 0;
     // Continue while(true) for next round
   }
 }

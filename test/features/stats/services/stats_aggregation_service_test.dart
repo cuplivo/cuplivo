@@ -33,6 +33,7 @@ void main() {
       String? modelId,
       String? providerId,
       int? totalTokens,
+      int? contextTokens,
       int? promptTokens,
       int? completionTokens,
       int? cachedTokens,
@@ -46,6 +47,7 @@ void main() {
         modelId: modelId,
         providerId: providerId,
         totalTokens: totalTokens,
+        contextTokens: contextTokens,
         promptTokens: promptTokens,
         completionTokens: completionTokens,
         cachedTokens: cachedTokens,
@@ -392,6 +394,65 @@ void main() {
       expect(snapshot.assistantRank.map((e) => e.id).toList(), ['a1']);
       expect(snapshot.assistantRank.single.label, 'Active Assistant');
     });
+
+    test(
+      'sums consumed fields exactly and ignores contextTokens (dual semantics)',
+      () {
+        // A multi-round tool-call message: promptTokens/completionTokens hold
+        // the SUM across rounds (consumed), contextTokens holds the LAST
+        // round's total (context). Stats must aggregate the consumed values
+        // and must not double-count contextTokens.
+        final conversations = [
+          conversation(
+            'c-tool',
+            title: 'Tool topic',
+            createdAt: now.subtract(const Duration(days: 1)),
+            messageIds: ['m-tool'],
+          ),
+        ];
+        final messagesByConversation = {
+          'c-tool': [
+            message(
+              'm-tool',
+              conversationId: 'c-tool',
+              timestamp: now.subtract(const Duration(days: 1)),
+              providerId: 'openai',
+              totalTokens: 3020,
+              promptTokens: 2200,
+              completionTokens: 820,
+              cachedTokens: 700,
+              contextTokens: 1500,
+            ),
+          ],
+        };
+
+        final snapshot = StatsAggregationService.buildSnapshot(
+          now: now,
+          range: StatsDateRange.allTime(now),
+          conversations: conversations,
+          messagesByConversation: messagesByConversation,
+          launchCount: 1,
+          unknownProviderLabel: 'Unknown provider',
+          unknownTopicLabel: 'Untitled topic',
+          providerNames: const {'openai': 'OpenAI'},
+        );
+
+        expect(snapshot.summary.inputTokens, 2200);
+        expect(snapshot.summary.outputTokens, 820);
+        expect(snapshot.summary.cachedTokens, 700);
+
+        final trendDay = snapshot.trend.firstWhere(
+          (day) => day.date == DateTime(2026, 5, 2),
+        );
+        final bucket = trendDay.providerTokens['OpenAI']!;
+        expect(bucket.inputTokens, 2200);
+        expect(bucket.outputTokens, 820);
+        expect(bucket.cachedTokens, 700);
+        // totalTokens of the bucket is derived from the consumed split
+        // fields, not from the stored contextTokens.
+        expect(bucket.totalTokens, 3020);
+      },
+    );
 
     test('uses total tokens as trend fallback for legacy messages', () {
       final conversations = [

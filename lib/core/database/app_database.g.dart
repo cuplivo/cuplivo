@@ -906,6 +906,17 @@ class $MessageRowsTable extends MessageRows
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _contextTokensMeta = const VerificationMeta(
+    'contextTokens',
+  );
+  @override
+  late final GeneratedColumn<int> contextTokens = GeneratedColumn<int>(
+    'context_tokens',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isStreamingMeta = const VerificationMeta(
     'isStreaming',
   );
@@ -1102,6 +1113,7 @@ class $MessageRowsTable extends MessageRows
     modelId,
     providerId,
     totalTokens,
+    contextTokens,
     isStreaming,
     reasoningText,
     reasoningStartAt,
@@ -1189,6 +1201,15 @@ class $MessageRowsTable extends MessageRows
         totalTokens.isAcceptableOrUnknown(
           data['total_tokens']!,
           _totalTokensMeta,
+        ),
+      );
+    }
+    if (data.containsKey('context_tokens')) {
+      context.handle(
+        _contextTokensMeta,
+        contextTokens.isAcceptableOrUnknown(
+          data['context_tokens']!,
+          _contextTokensMeta,
         ),
       );
     }
@@ -1364,6 +1385,10 @@ class $MessageRowsTable extends MessageRows
         DriftSqlType.int,
         data['${effectivePrefix}total_tokens'],
       ),
+      contextTokens: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}context_tokens'],
+      ),
       isStreaming: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_streaming'],
@@ -1446,6 +1471,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
   final String? modelId;
   final String? providerId;
   final int? totalTokens;
+  final int? contextTokens;
   final bool isStreaming;
   final String? reasoningText;
   final DateTime? reasoningStartAt;
@@ -1473,6 +1499,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     this.modelId,
     this.providerId,
     this.totalTokens,
+    this.contextTokens,
     required this.isStreaming,
     this.reasoningText,
     this.reasoningStartAt,
@@ -1506,6 +1533,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     }
     if (!nullToAbsent || totalTokens != null) {
       map['total_tokens'] = Variable<int>(totalTokens);
+    }
+    if (!nullToAbsent || contextTokens != null) {
+      map['context_tokens'] = Variable<int>(contextTokens);
     }
     map['is_streaming'] = Variable<bool>(isStreaming);
     if (!nullToAbsent || reasoningText != null) {
@@ -1566,6 +1596,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       totalTokens: totalTokens == null && nullToAbsent
           ? const Value.absent()
           : Value(totalTokens),
+      contextTokens: contextTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(contextTokens),
       isStreaming: Value(isStreaming),
       reasoningText: reasoningText == null && nullToAbsent
           ? const Value.absent()
@@ -1623,6 +1656,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       modelId: serializer.fromJson<String?>(json['modelId']),
       providerId: serializer.fromJson<String?>(json['providerId']),
       totalTokens: serializer.fromJson<int?>(json['totalTokens']),
+      contextTokens: serializer.fromJson<int?>(json['contextTokens']),
       isStreaming: serializer.fromJson<bool>(json['isStreaming']),
       reasoningText: serializer.fromJson<String?>(json['reasoningText']),
       reasoningStartAt: serializer.fromJson<DateTime?>(
@@ -1661,6 +1695,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       'modelId': serializer.toJson<String?>(modelId),
       'providerId': serializer.toJson<String?>(providerId),
       'totalTokens': serializer.toJson<int?>(totalTokens),
+      'contextTokens': serializer.toJson<int?>(contextTokens),
       'isStreaming': serializer.toJson<bool>(isStreaming),
       'reasoningText': serializer.toJson<String?>(reasoningText),
       'reasoningStartAt': serializer.toJson<DateTime?>(reasoningStartAt),
@@ -1691,6 +1726,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     Value<String?> modelId = const Value.absent(),
     Value<String?> providerId = const Value.absent(),
     Value<int?> totalTokens = const Value.absent(),
+    Value<int?> contextTokens = const Value.absent(),
     bool? isStreaming,
     Value<String?> reasoningText = const Value.absent(),
     Value<DateTime?> reasoningStartAt = const Value.absent(),
@@ -1716,6 +1752,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     modelId: modelId.present ? modelId.value : this.modelId,
     providerId: providerId.present ? providerId.value : this.providerId,
     totalTokens: totalTokens.present ? totalTokens.value : this.totalTokens,
+    contextTokens: contextTokens.present
+        ? contextTokens.value
+        : this.contextTokens,
     isStreaming: isStreaming ?? this.isStreaming,
     reasoningText: reasoningText.present
         ? reasoningText.value
@@ -1761,6 +1800,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       totalTokens: data.totalTokens.present
           ? data.totalTokens.value
           : this.totalTokens,
+      contextTokens: data.contextTokens.present
+          ? data.contextTokens.value
+          : this.contextTokens,
       isStreaming: data.isStreaming.present
           ? data.isStreaming.value
           : this.isStreaming,
@@ -1817,6 +1859,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           ..write('modelId: $modelId, ')
           ..write('providerId: $providerId, ')
           ..write('totalTokens: $totalTokens, ')
+          ..write('contextTokens: $contextTokens, ')
           ..write('isStreaming: $isStreaming, ')
           ..write('reasoningText: $reasoningText, ')
           ..write('reasoningStartAt: $reasoningStartAt, ')
@@ -1847,6 +1890,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     modelId,
     providerId,
     totalTokens,
+    contextTokens,
     isStreaming,
     reasoningText,
     reasoningStartAt,
@@ -1876,6 +1920,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           other.modelId == this.modelId &&
           other.providerId == this.providerId &&
           other.totalTokens == this.totalTokens &&
+          other.contextTokens == this.contextTokens &&
           other.isStreaming == this.isStreaming &&
           other.reasoningText == this.reasoningText &&
           other.reasoningStartAt == this.reasoningStartAt &&
@@ -1903,6 +1948,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
   final Value<String?> modelId;
   final Value<String?> providerId;
   final Value<int?> totalTokens;
+  final Value<int?> contextTokens;
   final Value<bool> isStreaming;
   final Value<String?> reasoningText;
   final Value<DateTime?> reasoningStartAt;
@@ -1929,6 +1975,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     this.modelId = const Value.absent(),
     this.providerId = const Value.absent(),
     this.totalTokens = const Value.absent(),
+    this.contextTokens = const Value.absent(),
     this.isStreaming = const Value.absent(),
     this.reasoningText = const Value.absent(),
     this.reasoningStartAt = const Value.absent(),
@@ -1956,6 +2003,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     this.modelId = const Value.absent(),
     this.providerId = const Value.absent(),
     this.totalTokens = const Value.absent(),
+    this.contextTokens = const Value.absent(),
     this.isStreaming = const Value.absent(),
     this.reasoningText = const Value.absent(),
     this.reasoningStartAt = const Value.absent(),
@@ -1988,6 +2036,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     Expression<String>? modelId,
     Expression<String>? providerId,
     Expression<int>? totalTokens,
+    Expression<int>? contextTokens,
     Expression<bool>? isStreaming,
     Expression<String>? reasoningText,
     Expression<DateTime>? reasoningStartAt,
@@ -2015,6 +2064,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
       if (modelId != null) 'model_id': modelId,
       if (providerId != null) 'provider_id': providerId,
       if (totalTokens != null) 'total_tokens': totalTokens,
+      if (contextTokens != null) 'context_tokens': contextTokens,
       if (isStreaming != null) 'is_streaming': isStreaming,
       if (reasoningText != null) 'reasoning_text': reasoningText,
       if (reasoningStartAt != null) 'reasoning_start_at': reasoningStartAt,
@@ -2047,6 +2097,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     Value<String?>? modelId,
     Value<String?>? providerId,
     Value<int?>? totalTokens,
+    Value<int?>? contextTokens,
     Value<bool>? isStreaming,
     Value<String?>? reasoningText,
     Value<DateTime?>? reasoningStartAt,
@@ -2074,6 +2125,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
       modelId: modelId ?? this.modelId,
       providerId: providerId ?? this.providerId,
       totalTokens: totalTokens ?? this.totalTokens,
+      contextTokens: contextTokens ?? this.contextTokens,
       isStreaming: isStreaming ?? this.isStreaming,
       reasoningText: reasoningText ?? this.reasoningText,
       reasoningStartAt: reasoningStartAt ?? this.reasoningStartAt,
@@ -2121,6 +2173,9 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     }
     if (totalTokens.present) {
       map['total_tokens'] = Variable<int>(totalTokens.value);
+    }
+    if (contextTokens.present) {
+      map['context_tokens'] = Variable<int>(contextTokens.value);
     }
     if (isStreaming.present) {
       map['is_streaming'] = Variable<bool>(isStreaming.value);
@@ -2191,6 +2246,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
           ..write('modelId: $modelId, ')
           ..write('providerId: $providerId, ')
           ..write('totalTokens: $totalTokens, ')
+          ..write('contextTokens: $contextTokens, ')
           ..write('isStreaming: $isStreaming, ')
           ..write('reasoningText: $reasoningText, ')
           ..write('reasoningStartAt: $reasoningStartAt, ')
@@ -8780,6 +8836,7 @@ typedef $$MessageRowsTableCreateCompanionBuilder =
       Value<String?> modelId,
       Value<String?> providerId,
       Value<int?> totalTokens,
+      Value<int?> contextTokens,
       Value<bool> isStreaming,
       Value<String?> reasoningText,
       Value<DateTime?> reasoningStartAt,
@@ -8808,6 +8865,7 @@ typedef $$MessageRowsTableUpdateCompanionBuilder =
       Value<String?> modelId,
       Value<String?> providerId,
       Value<int?> totalTokens,
+      Value<int?> contextTokens,
       Value<bool> isStreaming,
       Value<String?> reasoningText,
       Value<DateTime?> reasoningStartAt,
@@ -8935,6 +8993,11 @@ class $$MessageRowsTableFilterComposer
 
   ColumnFilters<int> get totalTokens => $composableBuilder(
     column: $table.totalTokens,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get contextTokens => $composableBuilder(
+    column: $table.contextTokens,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9138,6 +9201,11 @@ class $$MessageRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get contextTokens => $composableBuilder(
+    column: $table.contextTokens,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isStreaming => $composableBuilder(
     column: $table.isStreaming,
     builder: (column) => ColumnOrderings(column),
@@ -9273,6 +9341,11 @@ class $$MessageRowsTableAnnotationComposer
 
   GeneratedColumn<int> get totalTokens => $composableBuilder(
     column: $table.totalTokens,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get contextTokens => $composableBuilder(
+    column: $table.contextTokens,
     builder: (column) => column,
   );
 
@@ -9468,6 +9541,7 @@ class $$MessageRowsTableTableManager
                 Value<String?> modelId = const Value.absent(),
                 Value<String?> providerId = const Value.absent(),
                 Value<int?> totalTokens = const Value.absent(),
+                Value<int?> contextTokens = const Value.absent(),
                 Value<bool> isStreaming = const Value.absent(),
                 Value<String?> reasoningText = const Value.absent(),
                 Value<DateTime?> reasoningStartAt = const Value.absent(),
@@ -9494,6 +9568,7 @@ class $$MessageRowsTableTableManager
                 modelId: modelId,
                 providerId: providerId,
                 totalTokens: totalTokens,
+                contextTokens: contextTokens,
                 isStreaming: isStreaming,
                 reasoningText: reasoningText,
                 reasoningStartAt: reasoningStartAt,
@@ -9522,6 +9597,7 @@ class $$MessageRowsTableTableManager
                 Value<String?> modelId = const Value.absent(),
                 Value<String?> providerId = const Value.absent(),
                 Value<int?> totalTokens = const Value.absent(),
+                Value<int?> contextTokens = const Value.absent(),
                 Value<bool> isStreaming = const Value.absent(),
                 Value<String?> reasoningText = const Value.absent(),
                 Value<DateTime?> reasoningStartAt = const Value.absent(),
@@ -9548,6 +9624,7 @@ class $$MessageRowsTableTableManager
                 modelId: modelId,
                 providerId: providerId,
                 totalTokens: totalTokens,
+                contextTokens: contextTokens,
                 isStreaming: isStreaming,
                 reasoningText: reasoningText,
                 reasoningStartAt: reasoningStartAt,

@@ -345,6 +345,9 @@ class _SingleModelCardState extends State<_SingleModelCard> {
           totalTokens: data.totalTokens > 0
               ? data.totalTokens
               : message.totalTokens,
+          contextTokens: data.totalTokens > 0
+              ? data.totalTokens
+              : (message.contextTokens ?? message.totalTokens),
           reasoningText: mergedReasoning,
         );
         final segments = reasoningSegments

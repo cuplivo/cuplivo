@@ -1604,7 +1604,13 @@ class ChatStreamChunk {
   final dynamic reasoningDetails;
   final bool isDone;
   final int totalTokens;
+  // Context semantics: usage of the CURRENT request round (within-round
+  // cumulative snapshot for streaming). At finish it equals the last round.
   final TokenUsage? usage;
+  // Consumed semantics: sum of usage across ALL completed request rounds of
+  // this assistant turn. Monotonic across emitted chunks; null until the
+  // first round reports usage.
+  final TokenUsage? consumedUsage;
   final List<ToolCallInfo>? toolCalls;
   final List<ToolResultInfo>? toolResults;
   // Non-null when the response was truncated (e.g. max_tokens, context exceeded).
@@ -1618,6 +1624,7 @@ class ChatStreamChunk {
     required this.isDone,
     required this.totalTokens,
     this.usage,
+    this.consumedUsage,
     this.toolCalls,
     this.toolResults,
     this.truncationReason,

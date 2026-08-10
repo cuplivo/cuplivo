@@ -18,7 +18,7 @@ class ChatMessage {
   /// Context semantics: total tokens of the LAST request round of this
   /// assistant turn (its prompt includes the whole conversation so far).
   /// What the bottom-right token display shows; null for messages created
-  /// before schema v16 (display falls back to [totalTokens]).
+  /// before schema v17 (display falls back to [totalTokens]).
   final int? contextTokens;
 
   final String conversationId;

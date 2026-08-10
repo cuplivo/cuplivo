@@ -1,4 +1,4 @@
-# MCP OAuth: v2 Auto Flow (Discovery + DCR + Loopback)
+# ADR-0015: MCP OAuth: v2 Auto Flow (Discovery + DCR + Loopback)
 
 Remote MCP servers that require OAuth are connected via an AUTO-first flow: the user enables the switch and taps 开始授权 — the app discovers the authorization server metadata (RFC 8414 `{origin}/.well-known/oauth-authorization-server`), dynamically registers a public client (RFC 7591 DCR, `token_endpoint_auth_method: none`), starts a loopback callback server (RFC 8252), and completes the exchange automatically when the browser redirect lands. Manual paste remains the fallback.
 

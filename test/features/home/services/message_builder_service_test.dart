@@ -605,7 +605,12 @@ void main() {
 
       service.applyContextLimit(
         apiMessages,
-        Assistant(id: 'assistant-1', name: 'test', contextMessageSize: 3),
+        Assistant(
+          id: 'assistant-1',
+          name: 'test',
+          contextMessageSize: 3,
+          limitContextMessages: true,
+        ),
       );
 
       expect(
@@ -652,7 +657,12 @@ void main() {
 
       service.applyContextLimit(
         apiMessages,
-        Assistant(id: 'assistant-1', name: 'test', contextMessageSize: 4),
+        Assistant(
+          id: 'assistant-1',
+          name: 'test',
+          contextMessageSize: 4,
+          limitContextMessages: true,
+        ),
       );
 
       expect(

@@ -19,12 +19,18 @@ class ToolApprovalRequest {
   final String toolCallId;
   final String toolName;
   final Map<String, dynamic> arguments;
+
+  /// Conversation the tool call belongs to (null = caller didn't specify).
+  /// Lets surfaces like the 子代理面板 match requests raised inside a
+  /// sub-conversation without name-based guessing.
+  final String? conversationId;
   final Completer<ToolApprovalResult> _completer;
 
   ToolApprovalRequest({
     required this.toolCallId,
     required this.toolName,
     required this.arguments,
+    this.conversationId,
     required this._completer,
   });
 }
@@ -57,12 +63,14 @@ class ToolApprovalService extends ChangeNotifier {
     required String toolCallId,
     required String toolName,
     required Map<String, dynamic> arguments,
+    String? conversationId,
   }) {
     final completer = Completer<ToolApprovalResult>();
     _pending[toolCallId] = ToolApprovalRequest(
       toolCallId: toolCallId,
       toolName: toolName,
       arguments: arguments,
+      conversationId: conversationId,
       completer: completer,
     );
     notifyListeners();
@@ -96,5 +104,21 @@ class ToolApprovalService extends ChangeNotifier {
     }
     _pending.clear();
     notifyListeners();
+  }
+
+  /// Deny (as cancelled) every pending approval belonging to
+  /// [conversationId]. Used when a sub-agent is cancelled from the 子代理
+  /// 面板 — the child's generator is suspended at the approval completer and
+  /// must be released or the stream can never unwind.
+  void cancelForConversation(String conversationId) {
+    var changed = false;
+    for (final req in _pending.values.toList()) {
+      if (req.conversationId == conversationId && !req._completer.isCompleted) {
+        _pending.remove(req.toolCallId);
+        req._completer.complete(ToolApprovalResult.denied('cancelled'));
+        changed = true;
+      }
+    }
+    if (changed) notifyListeners();
   }
 }

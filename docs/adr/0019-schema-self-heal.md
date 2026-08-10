@@ -1,4 +1,4 @@
-# Schema Self-Heal: Repair Silent Migration Gaps on Every Open
+# ADR-0019: Schema Self-Heal: Repair Silent Migration Gaps on Every Open
 
 Restore the runtime schema self-heal in `AppDatabase` that was added and
 removed inside the v2.4.0 release cycle. The heal (`_healSchemaIfNeeded`)

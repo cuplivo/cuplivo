@@ -1,6 +1,7 @@
 import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/home/services/input_draft_persistence.dart';
 import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
@@ -10,8 +11,17 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  setUp(() {
+  late InputDraftPersistence draftPersistence;
+
+  setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    draftPersistence = InputDraftPersistence(
+      await SharedPreferences.getInstance(),
+    );
+  });
+
+  tearDown(() {
+    draftPersistence.disposeInternal();
   });
 
   Widget buildHarness({
@@ -35,6 +45,7 @@ void main() {
   }) {
     return MultiProvider(
       providers: [
+        Provider<InputDraftPersistence>.value(value: draftPersistence),
         ChangeNotifierProvider.value(
           value: settingsProvider ?? SettingsProvider(),
         ),

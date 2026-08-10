@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.6.3] - 2026-08-08
+
+> ℹ️ Android users please note: the in-app auto-update previously always downloaded the x86_64 build; this has been fixed, but to obtain this version you still need to grab the arm64-v8a APK from the GitHub Release page.
+
+### Added
+
+- Migrate from RikkaHub: import backups converted to the Cuplivo-compatible format via the migration website (#165)
+- Built-in filesystem enhancements: browse mounted directories in an in-app file browser; grep results now return paginated matches with surrounding context; inspect code structure via `kelivo_outline`; download internet resources into the workspace; long webpages overflow to a workspace cache for continued reading (#221, #222)
+- Compression mode enhancement: manual "keep recent N messages" compression, improving role-play / novel-writing sessions and reducing style drift (#236)
+- Default compress/OCR prompt presets: more detailed built-in prompts with quick switching (#143)
+
+### Fixed
+
+- Markdown math rendering: multi-line formulas inside lists, plus `\tag` support (#227)
+- Android update download: the in-app update now picks the APK matching the device ABI instead of always grabbing x86_64 (#230)
+- LAN sync: proxy bypass, firewall auto-allow prompt, and mobile bottom-sheet fixes (#182)
+- MCP UI simplification: advanced settings folded behind a disclosure (#224)
+
 ## [2.6.2] - 2026-08-07
 
 ### Fixed

@@ -1,4 +1,4 @@
-# Per-Assistant OCR Mode Replacing the Global OCR Toggle
+# ADR-0020: Per-Assistant OCR Mode Replacing the Global OCR Toggle
 
 The global `ocr_enabled_v1` boolean is replaced by a per-assistant tri-state
 `Assistant.ocrMode` (`auto` / `always` / `never`, SQLite `assistant_rows.ocr_mode`,

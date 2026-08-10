@@ -44,6 +44,7 @@ import 'core/services/headless_generation_service.dart';
 import 'core/services/network/dio_http_client.dart';
 import 'core/services/logging/flutter_logger.dart';
 import 'features/home/services/ask_user_interaction_service.dart';
+import 'features/home/services/input_draft_persistence.dart';
 import 'features/home/services/tool_approval_service.dart';
 import 'utils/sandbox_path_resolver.dart';
 import 'features/skills/skill_manager.dart';
@@ -105,6 +106,10 @@ Future<void> main() async {
         final enabled = prefs.getBool('flutter_log_enabled_v1') ?? false;
         await FlutterLogger.setEnabled(enabled);
       } catch (_) {}
+      // Preload the chat input draft synchronously (before runApp) so restore
+      // at input-bar mount is race-free: the user cannot type before the
+      // draft is already in the controller.
+      await InputDraftPersistence.ensureInitialized();
       // Trim Flutter global image cache to reduce memory pressure from large images
       try {
         PaintingBinding.instance.imageCache.maximumSize = 200;
@@ -199,6 +204,9 @@ class MyApp extends StatelessWidget {
           value: GrokDeviceCodeController.instance,
         ),
         ChangeNotifierProvider(create: (_) => ChatService()),
+        Provider<InputDraftPersistence>.value(
+          value: InputDraftPersistence.instance,
+        ),
         ChangeNotifierProvider(create: (_) => McpToolService()),
         ChangeNotifierProvider(create: (_) => FilesystemMountsProvider()),
         ChangeNotifierProvider(

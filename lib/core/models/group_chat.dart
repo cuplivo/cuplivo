@@ -16,6 +16,7 @@ class GroupChat {
     this.assistantDetailInjectionMode =
         AssistantDetailInjectionMode.endOfEveryUserMessage,
     this.assistantDetailInjectionN = 5,
+    this.injectGroupMembersIntoAssistantSystemPrompt = true,
     this.pendingCapAssistantMessageId,
     this.assistantMessagesThisRound = 0,
     DateTime? createdAt,
@@ -35,6 +36,12 @@ class GroupChat {
   int maxAssistantMessagesPerRound;
   AssistantDetailInjectionMode assistantDetailInjectionMode;
   int assistantDetailInjectionN;
+
+  /// When enabled, member assistants get a short "you are in a group chat
+  /// whose members are: ..." paragraph appended to their system prompt, so
+  /// they can perceive the other participants. Names only — never the other
+  /// members' system prompts (see issue #190).
+  bool injectGroupMembersIntoAssistantSystemPrompt;
 
   /// When set, last assistant message hit the per-round cap and must merge
   /// with the next user message before sending to the director.
@@ -97,6 +104,7 @@ Members: {member_names}
     int? maxAssistantMessagesPerRound,
     AssistantDetailInjectionMode? assistantDetailInjectionMode,
     int? assistantDetailInjectionN,
+    bool? injectGroupMembersIntoAssistantSystemPrompt,
     Object? pendingCapAssistantMessageId = _sentinel,
     int? assistantMessagesThisRound,
     DateTime? createdAt,
@@ -125,6 +133,9 @@ Members: {member_names}
           assistantDetailInjectionMode ?? this.assistantDetailInjectionMode,
       assistantDetailInjectionN:
           assistantDetailInjectionN ?? this.assistantDetailInjectionN,
+      injectGroupMembersIntoAssistantSystemPrompt:
+          injectGroupMembersIntoAssistantSystemPrompt ??
+          this.injectGroupMembersIntoAssistantSystemPrompt,
       pendingCapAssistantMessageId:
           identical(pendingCapAssistantMessageId, _sentinel)
           ? this.pendingCapAssistantMessageId
@@ -147,6 +158,8 @@ Members: {member_names}
     'maxAssistantMessagesPerRound': maxAssistantMessagesPerRound,
     'assistantDetailInjectionMode': assistantDetailInjectionMode.storageValue,
     'assistantDetailInjectionN': assistantDetailInjectionN,
+    'injectGroupMembersIntoAssistantSystemPrompt':
+        injectGroupMembersIntoAssistantSystemPrompt,
     'pendingCapAssistantMessageId': pendingCapAssistantMessageId,
     'assistantMessagesThisRound': assistantMessagesThisRound,
     'createdAt': createdAt.toIso8601String(),
@@ -171,6 +184,9 @@ Members: {member_names}
       ),
       assistantDetailInjectionN:
           (json['assistantDetailInjectionN'] as num?)?.toInt() ?? 5,
+      injectGroupMembersIntoAssistantSystemPrompt:
+          (json['injectGroupMembersIntoAssistantSystemPrompt'] as bool?) ??
+          true,
       pendingCapAssistantMessageId:
           json['pendingCapAssistantMessageId'] as String?,
       assistantMessagesThisRound:

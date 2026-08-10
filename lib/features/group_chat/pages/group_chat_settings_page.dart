@@ -11,11 +11,13 @@ import '../../../core/providers/group_chat_provider.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../shared/widgets/avatar_picker_sheet.dart';
 import '../../../shared/widgets/ios_form_text_field.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../utils/sandbox_path_resolver.dart';
+import '../widgets/group_avatar.dart';
 import 'group_chat_advanced_settings_page.dart';
 import 'group_chat_director_logs_page.dart';
 import 'group_chat_invite_assistants_sheet.dart';
@@ -85,7 +87,7 @@ class _GroupChatSettingsPageState extends State<GroupChatSettingsPage> {
           const SizedBox(height: 10),
           Row(
             children: [
-              _avatar(group, cs),
+              _avatar(group),
               const SizedBox(width: 12),
               Expanded(
                 child: IosFormTextField(
@@ -172,27 +174,28 @@ class _GroupChatSettingsPageState extends State<GroupChatSettingsPage> {
     );
   }
 
-  Widget _avatar(GroupChat group, ColorScheme cs) {
-    final a = group.avatar?.trim() ?? '';
-    if (a.isNotEmpty && !kIsWeb) {
-      final path = SandboxPathResolver.fix(a);
-      final f = File(path);
-      if (f.existsSync()) {
-        return ClipOval(
-          child: Image.file(f, width: 56, height: 56, fit: BoxFit.cover),
-        );
-      }
-    }
-    return CircleAvatar(
-      radius: 28,
-      backgroundColor: cs.primary.withValues(alpha: 0.15),
-      child: Text(
-        group.name.isNotEmpty ? group.name.characters.first : 'G',
-        style: TextStyle(
-          color: cs.primary,
-          fontWeight: AppFontWeights.emphasis,
-        ),
-      ),
+  Widget _avatar(GroupChat group) {
+    return IosCardPress(
+      borderRadius: BorderRadius.circular(999),
+      baseColor: Colors.transparent,
+      duration: const Duration(milliseconds: 260),
+      onTap: () => _showAvatarPicker(context, group),
+      child: GroupAvatar(avatar: group.avatar, name: group.name, size: 56),
+    );
+  }
+
+  Future<void> _showAvatarPicker(BuildContext context, GroupChat group) async {
+    final gp = context.read<GroupChatProvider>();
+    await showAvatarPickerSheet(
+      context,
+      onPick: (v) async {
+        if (!context.mounted) return;
+        await gp.updateGroup(group.copyWith(avatar: v));
+      },
+      onReset: () async {
+        if (!context.mounted) return;
+        await gp.updateGroup(group.copyWith(avatar: null));
+      },
     );
   }
 

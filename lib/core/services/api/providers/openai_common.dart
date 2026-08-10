@@ -408,7 +408,8 @@ bool _shouldUseLongCatOmniPayload(
 /// allowlist decides: only providers whose tool-message content arrays have
 /// been verified against a real API are enabled by default (OpenAI official,
 /// OpenRouter, LongCat). Unverified OpenAI-compatible vendors stay on plain
-/// text until a user explicitly opts in. See docs/adr/0017.
+/// text until a user explicitly opts in. See
+/// docs/adr/0016-mcp-image-round-trip-provider-side-parsing.md.
 bool _shouldSendToolResultImages(ProviderConfig config, String modelId) {
   final explicit = config.enableToolResultImages;
   if (explicit != null) return explicit;
@@ -1901,17 +1902,26 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
               toolCalls: callInfos,
             );
           }
+          final executed = await Future.wait(
+            callInfos.map((c) async {
+              final res = await onToolCall(
+                c.name,
+                c.arguments,
+                toolCallId: c.id,
+              );
+              return (id: c.id, name: c.name, args: c.arguments, res: res);
+            }),
+          );
           final results = <Map<String, dynamic>>[];
           final resultsInfo = <ToolResultInfo>[];
-          for (final c in callInfos) {
-            final res = await onToolCall(c.name, c.arguments, toolCallId: c.id);
-            results.add({'tool_call_id': c.id, 'content': res});
+          for (final e in executed) {
+            results.add({'tool_call_id': e.id, 'content': e.res});
             resultsInfo.add(
               ToolResultInfo(
-                id: c.id,
-                name: c.name,
-                arguments: c.arguments,
-                content: res,
+                id: e.id,
+                name: e.name,
+                arguments: e.args,
+                content: e.res,
               ),
             );
           }
@@ -2135,16 +2145,26 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
           }
 
           // Execute tools and emit results
+          final executed = await Future.wait(
+            toolMsgs.map((m) async {
+              final name = m['__name'] as String;
+              final id = m['__id'] as String;
+              final args = (m['__args'] as Map<String, dynamic>);
+              final res = await onToolCall(name, args, toolCallId: id);
+              return (id: id, name: name, args: args, res: res);
+            }),
+          );
           final results = <Map<String, dynamic>>[];
           final resultsInfo = <ToolResultInfo>[];
-          for (final m in toolMsgs) {
-            final name = m['__name'] as String;
-            final id = m['__id'] as String;
-            final args = (m['__args'] as Map<String, dynamic>);
-            final res = await onToolCall(name, args, toolCallId: id);
-            results.add({'tool_call_id': id, 'content': res});
+          for (final e in executed) {
+            results.add({'tool_call_id': e.id, 'content': e.res});
             resultsInfo.add(
-              ToolResultInfo(id: id, name: name, arguments: args, content: res),
+              ToolResultInfo(
+                id: e.id,
+                name: e.name,
+                arguments: e.args,
+                content: e.res,
+              ),
             );
           }
           if (resultsInfo.isNotEmpty) {
@@ -2531,20 +2551,25 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
                   toolCalls: callInfos2,
                 );
               }
+              final executed = await Future.wait(
+                toolMsgs2.map((m) async {
+                  final name = m['__name'] as String;
+                  final id = m['__id'] as String;
+                  final args = (m['__args'] as Map<String, dynamic>);
+                  final res = await onToolCall(name, args, toolCallId: id);
+                  return (id: id, name: name, args: args, res: res);
+                }),
+              );
               final results2 = <Map<String, dynamic>>[];
               final resultsInfo2 = <ToolResultInfo>[];
-              for (final m in toolMsgs2) {
-                final name = m['__name'] as String;
-                final id = m['__id'] as String;
-                final args = (m['__args'] as Map<String, dynamic>);
-                final res = await onToolCall(name, args, toolCallId: id);
-                results2.add({'tool_call_id': id, 'content': res});
+              for (final e in executed) {
+                results2.add({'tool_call_id': e.id, 'content': e.res});
                 resultsInfo2.add(
                   ToolResultInfo(
-                    id: id,
-                    name: name,
-                    arguments: args,
-                    content: res,
+                    id: e.id,
+                    name: e.name,
+                    arguments: e.args,
+                    content: e.res,
                   ),
                 );
               }
@@ -2925,26 +2950,31 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
                 lastResponseOutputItems,
                 callInfos,
               );
+              final executed = await Future.wait(
+                msgs.map((m) async {
+                  final nm = m['__name'] as String;
+                  final id2 = m['__id'] as String;
+                  final args = (m['__args'] as Map<String, dynamic>);
+                  final res = await onToolCall(nm, args, toolCallId: id2);
+                  return (id: id2, name: nm, args: args, res: res);
+                }),
+              );
               final resultsInfo = <ToolResultInfo>[];
               final followUpOutputs = <Map<String, dynamic>>[];
-              for (final m in msgs) {
-                final nm = m['__name'] as String;
-                final id2 = m['__id'] as String;
-                final args = (m['__args'] as Map<String, dynamic>);
-                final res = await onToolCall(nm, args, toolCallId: id2);
+              for (final e in executed) {
                 resultsInfo.add(
                   ToolResultInfo(
-                    id: id2,
-                    name: nm,
-                    arguments: args,
-                    content: res,
+                    id: e.id,
+                    name: e.name,
+                    arguments: e.args,
+                    content: e.res,
                   ),
                 );
                 followUpOutputs.add({
                   'type': 'function_call_output',
-                  'call_id': id2,
+                  'call_id': e.id,
                   'output': await _buildResponsesToolResultOutput(
-                    res,
+                    e.res,
                     allowRemoteImages: allowRemoteImages,
                   ),
                 });
@@ -3236,26 +3266,31 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
                   outItems2,
                   callInfos2,
                 );
+                final executed = await Future.wait(
+                  msgs2.map((m) async {
+                    final nm = m['__name'] as String;
+                    final id2 = m['__id'] as String;
+                    final args2 = (m['__args'] as Map<String, dynamic>);
+                    final res2 = await onToolCall(nm, args2, toolCallId: id2);
+                    return (id: id2, name: nm, args: args2, res: res2);
+                  }),
+                );
                 final resultsInfo2 = <ToolResultInfo>[];
                 final followUpOutputs2 = <Map<String, dynamic>>[];
-                for (final m in msgs2) {
-                  final nm = m['__name'] as String;
-                  final id2 = m['__id'] as String;
-                  final args2 = (m['__args'] as Map<String, dynamic>);
-                  final res2 = await onToolCall(nm, args2, toolCallId: id2);
+                for (final e in executed) {
                   resultsInfo2.add(
                     ToolResultInfo(
-                      id: id2,
-                      name: nm,
-                      arguments: args2,
-                      content: res2,
+                      id: e.id,
+                      name: e.name,
+                      arguments: e.args,
+                      content: e.res,
                     ),
                   );
                   followUpOutputs2.add({
                     'type': 'function_call_output',
-                    'call_id': id2,
+                    'call_id': e.id,
                     'output': await _buildResponsesToolResultOutput(
-                      res2,
+                      e.res,
                       allowRemoteImages: allowRemoteImages,
                     ),
                   });
@@ -3669,16 +3704,26 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
             );
           }
           // Execute tools and emit results
+          final executed = await Future.wait(
+            toolMsgs.map((m) async {
+              final name = m['__name'] as String;
+              final id = m['__id'] as String;
+              final args = (m['__args'] as Map<String, dynamic>);
+              final res = await onToolCall(name, args, toolCallId: id);
+              return (id: id, name: name, args: args, res: res);
+            }),
+          );
           final results = <Map<String, dynamic>>[];
           final resultsInfo = <ToolResultInfo>[];
-          for (final m in toolMsgs) {
-            final name = m['__name'] as String;
-            final id = m['__id'] as String;
-            final args = (m['__args'] as Map<String, dynamic>);
-            final res = await onToolCall(name, args, toolCallId: id);
-            results.add({'tool_call_id': id, 'content': res});
+          for (final e in executed) {
+            results.add({'tool_call_id': e.id, 'content': e.res});
             resultsInfo.add(
-              ToolResultInfo(id: id, name: name, arguments: args, content: res),
+              ToolResultInfo(
+                id: e.id,
+                name: e.name,
+                arguments: e.args,
+                content: e.res,
+              ),
             );
           }
           if (resultsInfo.isNotEmpty) {
@@ -4076,20 +4121,25 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
                   toolCalls: callInfos2,
                 );
               }
+              final executed = await Future.wait(
+                toolMsgs2.map((m) async {
+                  final name = m['__name'] as String;
+                  final id = m['__id'] as String;
+                  final args = (m['__args'] as Map<String, dynamic>);
+                  final res = await onToolCall(name, args, toolCallId: id);
+                  return (id: id, name: name, args: args, res: res);
+                }),
+              );
               final results2 = <Map<String, dynamic>>[];
               final resultsInfo2 = <ToolResultInfo>[];
-              for (final m in toolMsgs2) {
-                final name = m['__name'] as String;
-                final id = m['__id'] as String;
-                final args = (m['__args'] as Map<String, dynamic>);
-                final res = await onToolCall(name, args, toolCallId: id);
-                results2.add({'tool_call_id': id, 'content': res});
+              for (final e in executed) {
+                results2.add({'tool_call_id': e.id, 'content': e.res});
                 resultsInfo2.add(
                   ToolResultInfo(
-                    id: id,
-                    name: name,
-                    arguments: args,
-                    content: res,
+                    id: e.id,
+                    name: e.name,
+                    arguments: e.args,
+                    content: e.res,
                   ),
                 );
               }
@@ -4192,20 +4242,25 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
                 );
               }
               // Execute tools and emit results
+              final executed = await Future.wait(
+                toolMsgs.map((m) async {
+                  final name = m['__name'] as String;
+                  final id = m['__id'] as String;
+                  final args = (m['__args'] as Map<String, dynamic>);
+                  final res = await onToolCall(name, args, toolCallId: id);
+                  return (id: id, name: name, args: args, res: res);
+                }),
+              );
               final results = <Map<String, dynamic>>[];
               final resultsInfo = <ToolResultInfo>[];
-              for (final m in toolMsgs) {
-                final name = m['__name'] as String;
-                final id = m['__id'] as String;
-                final args = (m['__args'] as Map<String, dynamic>);
-                final res = await onToolCall(name, args, toolCallId: id);
-                results.add({'tool_call_id': id, 'content': res});
+              for (final e in executed) {
+                results.add({'tool_call_id': e.id, 'content': e.res});
                 resultsInfo.add(
                   ToolResultInfo(
-                    id: id,
-                    name: name,
-                    arguments: args,
-                    content: res,
+                    id: e.id,
+                    name: e.name,
+                    arguments: e.args,
+                    content: e.res,
                   ),
                 );
               }
@@ -4581,20 +4636,25 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
                       toolCalls: callInfos2,
                     );
                   }
+                  final executed = await Future.wait(
+                    toolMsgs2.map((m) async {
+                      final name = m['__name'] as String;
+                      final id = m['__id'] as String;
+                      final args = (m['__args'] as Map<String, dynamic>);
+                      final res = await onToolCall(name, args, toolCallId: id);
+                      return (id: id, name: name, args: args, res: res);
+                    }),
+                  );
                   final results2 = <Map<String, dynamic>>[];
                   final resultsInfo2 = <ToolResultInfo>[];
-                  for (final m in toolMsgs2) {
-                    final name = m['__name'] as String;
-                    final id = m['__id'] as String;
-                    final args = (m['__args'] as Map<String, dynamic>);
-                    final res = await onToolCall(name, args, toolCallId: id);
-                    results2.add({'tool_call_id': id, 'content': res});
+                  for (final e in executed) {
+                    results2.add({'tool_call_id': e.id, 'content': e.res});
                     resultsInfo2.add(
                       ToolResultInfo(
-                        id: id,
-                        name: name,
-                        arguments: args,
-                        content: res,
+                        id: e.id,
+                        name: e.name,
+                        arguments: e.args,
+                        content: e.res,
                       ),
                     );
                   }

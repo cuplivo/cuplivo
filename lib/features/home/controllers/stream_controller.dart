@@ -101,6 +101,17 @@ class StreamController {
       <String, ContentSplitData>{};
   Map<String, ContentSplitData> get contentSplits => _contentSplits;
 
+  // Reasoning persistence throttle (issue #232): per-message flush timer,
+  // dirty flag, and the injected DB callback captured at schedule time.
+  final Map<String, Timer> _reasoningFlushTimers = <String, Timer>{};
+  final Set<String> _reasoningFlushDirty = <String>{};
+  final Map<String, _UpdateReasoningInDb> _reasoningFlushCallbacks =
+      <String, _UpdateReasoningInDb>{};
+
+  // Reasoning UI throttle (issue #232): coalesces thinking-card rebuilds.
+  final Map<String, Timer> _reasoningUiTimers = <String, Timer>{};
+  final Set<String> _reasoningUiDirty = <String>{};
+
   /// Tool UI parts per assistant message.
   final Map<String, List<ToolUIPart>> _toolParts = <String, List<ToolUIPart>>{};
   Map<String, List<ToolUIPart>> get toolParts => _toolParts;
@@ -132,6 +143,16 @@ class StreamController {
   static const int _streamSmoothMaxCount = 240;
   static const double _streamSmoothPickRate = 0.1;
   static const int _streamSmoothMoveAverageLength = 10;
+
+  /// Reasoning persistence cadence during streaming. Per-chunk full-text DB
+  /// writes are O(n) in accumulated thinking length; batching at this cadence
+  /// caps the write frequency (issue #232). Crash window = one cadence.
+  static const Duration _reasoningFlushInterval = Duration(milliseconds: 500);
+
+  /// Reasoning UI refresh cadence. The thinking card re-parses the whole
+  /// accumulated markdown on every content update; ~6-7 fps is plenty for a
+  /// thinking preview (issue #232).
+  static const Duration _reasoningUiThrottle = Duration(milliseconds: 150);
 
   /// Throttle timers per message ID.
   final Map<String, Timer?> _streamThrottleTimers = <String, Timer?>{};
@@ -304,52 +325,6 @@ class StreamController {
         )
         .toList();
     return _encodeJson(list);
-  }
-
-  String serializeReasoningSegmentsWithSplits(
-    List<ReasoningSegmentData> segments, {
-    List<int>? contentSplitOffsets,
-    List<int>? reasoningCountAtSplit,
-    List<int>? toolCountAtSplit,
-    dynamic reasoningDetails,
-  }) {
-    final list = segments
-        .map(
-          (s) => {
-            'text': s.text,
-            'startAt': s.startAt?.toIso8601String(),
-            'finishedAt': s.finishedAt?.toIso8601String(),
-            'expanded': s.expanded,
-            'toolStartIndex': s.toolStartIndex,
-          },
-        )
-        .toList();
-
-    if (contentSplitOffsets == null &&
-        reasoningCountAtSplit == null &&
-        toolCountAtSplit == null &&
-        reasoningDetails == null) {
-      return _encodeJson(list);
-    }
-
-    final normalized = _normalizeContentSplitData(
-      ContentSplitData(
-        offsets: List<int>.of(contentSplitOffsets ?? const <int>[]),
-        reasoningCounts: List<int>.of(reasoningCountAtSplit ?? const <int>[]),
-        toolCounts: List<int>.of(toolCountAtSplit ?? const <int>[]),
-      ),
-    );
-
-    return _encodeJson({
-      'v': 2,
-      'segments': list,
-      'contentSplits': {
-        'offsets': normalized.offsets,
-        'reasoningCounts': normalized.reasoningCounts,
-        'toolCounts': normalized.toolCounts,
-      },
-      if (reasoningDetails != null) 'reasoningDetails': reasoningDetails,
-    });
   }
 
   /// Extract persisted vendor reasoning details (if any) from a serialized
@@ -683,6 +658,11 @@ class StreamController {
     _inlineImageSanitizeTimers[messageId]?.cancel();
     _inlineImageSanitizeTimers.remove(messageId);
     _inlineImageSanitizing.remove(messageId);
+    _reasoningFlushTimers.remove(messageId)?.cancel();
+    _reasoningFlushDirty.remove(messageId);
+    _reasoningFlushCallbacks.remove(messageId);
+    _reasoningUiTimers.remove(messageId)?.cancel();
+    _reasoningUiDirty.remove(messageId);
   }
 
   /// Clean up timers for a message (public API).
@@ -712,6 +692,17 @@ class StreamController {
     }
     _inlineImageSanitizeTimers.clear();
     _inlineImageSanitizing.clear();
+    for (final timer in _reasoningFlushTimers.values) {
+      timer.cancel();
+    }
+    _reasoningFlushTimers.clear();
+    _reasoningFlushDirty.clear();
+    _reasoningFlushCallbacks.clear();
+    for (final timer in _reasoningUiTimers.values) {
+      timer.cancel();
+    }
+    _reasoningUiTimers.clear();
+    _reasoningUiDirty.clear();
   }
 
   // ============================================================================
@@ -835,34 +826,52 @@ class StreamController {
       }
       _reasoningSegments[messageId] = segments;
 
-      await updateReasoningInDb(
+      // Issue #232: reasoning is persisted on a 500ms cadence instead of
+      // every chunk (full-text writes were O(n) per chunk, O(n^2) overall).
+      // The timer body is fire-and-forget: a failed flush is logged and
+      // retried by the next chunk's schedule or the finish-path persist
+      // (AGENTS 3.16 recoverable-error convention).
+      _reasoningFlushDirty.add(messageId);
+      _reasoningFlushCallbacks[messageId] = updateReasoningInDb;
+      _reasoningFlushTimers.putIfAbsent(
         messageId,
-        reasoningSegmentsJson: serializeReasoningSegmentsWithSplits(
-          segments,
-          contentSplitOffsets: state.contentSplitOffsets,
-          reasoningCountAtSplit: state.reasoningCountAtSplit,
-          toolCountAtSplit: state.toolCountAtSplit,
-        ),
+        () => Timer(_reasoningFlushInterval, () async {
+          _reasoningFlushTimers.remove(messageId);
+          try {
+            await _flushPendingReasoning(messageId);
+          } catch (e, st) {
+            debugPrint(
+              '[StreamController] reasoning flush failed for '
+              '$messageId: $e\n$st',
+            );
+          }
+        }),
       );
 
-      // Update reasoning via StreamingContentNotifier for real-time UI updates
-      // without triggering full page rebuild (only when viewing this conversation)
-      if (getCurrentConversationId() == conversationId) {
-        streamingContentNotifier.updateReasoning(
-          messageId,
-          reasoningText: r.text,
-          reasoningStartAt: r.startAt,
-          contentSplitOffsets: state.contentSplitOffsets,
-          reasoningCountAtSplit: state.reasoningCountAtSplit,
-          toolCountAtSplit: state.toolCountAtSplit,
-        );
-        onStreamTick?.call();
-      }
-
-      await updateReasoningInDb(
+      // Issue #232: thinking-card rebuilds coalesce to ~6-7 fps.
+      _reasoningUiDirty.add(messageId);
+      _reasoningUiTimers.putIfAbsent(
         messageId,
-        reasoningText: r.text,
-        reasoningStartAt: r.startAt,
+        () => Timer(_reasoningUiThrottle, () {
+          _reasoningUiTimers.remove(messageId);
+          if (!_reasoningUiDirty.remove(messageId)) return;
+          // Update reasoning via StreamingContentNotifier for real-time UI
+          // updates without triggering full page rebuild (only when viewing
+          // this conversation).
+          if (getCurrentConversationId() != conversationId) return;
+          final rd = _reasoning[messageId];
+          if (rd == null) return;
+          final splits = _contentSplits[messageId];
+          streamingContentNotifier.updateReasoning(
+            messageId,
+            reasoningText: rd.text,
+            reasoningStartAt: rd.startAt,
+            contentSplitOffsets: splits?.offsets,
+            reasoningCountAtSplit: splits?.reasoningCounts,
+            toolCountAtSplit: splits?.toolCounts,
+          );
+          onStreamTick?.call();
+        }),
       );
     } else {
       state.reasoningStartAt ??= DateTime.now();
@@ -873,6 +882,40 @@ class StreamController {
         reasoningStartAt: state.reasoningStartAt,
       );
     }
+  }
+
+  /// Persist the latest reasoning snapshot for [messageId] (issue #232).
+  ///
+  /// Runs on the 500ms cadence timer while reasoning streams, so per-chunk
+  /// full-text writes are collapsed into batched writes. Idempotent: no-ops
+  /// when nothing is marked dirty. The final state is always persisted by
+  /// [finishReasoningAndPersist].
+  Future<void> _flushPendingReasoning(String messageId) async {
+    if (!_reasoningFlushDirty.remove(messageId)) return;
+    final callback = _reasoningFlushCallbacks[messageId];
+    if (callback == null) return;
+
+    final r = _reasoning[messageId];
+    final segments =
+        _reasoningSegments[messageId] ?? const <ReasoningSegmentData>[];
+    final splits = _contentSplits[messageId];
+
+    String? segmentsJson;
+    if (segments.isNotEmpty) {
+      segmentsJson = serializeReasoningSegmentsWithSplits(
+        segments,
+        contentSplitOffsets: splits?.offsets,
+        reasoningCountAtSplit: splits?.reasoningCounts,
+        toolCountAtSplit: splits?.toolCounts,
+      );
+    }
+
+    await callback(
+      messageId,
+      reasoningText: r?.text,
+      reasoningStartAt: r?.startAt,
+      reasoningSegmentsJson: segmentsJson,
+    );
   }
 
   /// Process tool calls chunk from stream.
@@ -1216,6 +1259,7 @@ class StreamController {
     required Future<void> Function(
       String messageId, {
       String? reasoningText,
+      DateTime? reasoningStartAt,
       DateTime? reasoningFinishedAt,
       String? reasoningSegmentsJson,
     })
@@ -1228,7 +1272,12 @@ class StreamController {
     final splits = _contentSplits[messageId];
     final segments =
         _reasoningSegments[messageId] ?? const <ReasoningSegmentData>[];
-    if (!changed && splits == null) return;
+    if (!changed && splits == null) {
+      // Issue #232: the final writes below are skipped on this path, so flush
+      // any throttled snapshot to avoid losing the last cadence window.
+      await _flushPendingReasoning(messageId);
+      return;
+    }
 
     // Persist reasoning data
     final r = _reasoning[messageId];
@@ -1236,6 +1285,7 @@ class StreamController {
       await updateReasoningInDb(
         messageId,
         reasoningText: r.text,
+        reasoningStartAt: r.startAt,
         reasoningFinishedAt: r.finishedAt,
       );
     }
@@ -1564,6 +1614,64 @@ dynamic _jsonDecode(String json) {
   return _JsonDecoder.decode(json);
 }
 
+/// Top-level serializer shared by the page streaming pipeline AND headless
+/// sub-generations: persists reasoning segments + content-split boundaries
+/// (v2 payload) so `restoreMessageState` can rebuild interleaved
+/// thinking→content→tool rendering, collapse state, duration and the
+/// loading/finished animation flags.
+String serializeReasoningSegmentsWithSplits(
+  List<ReasoningSegmentData> segments, {
+  List<int>? contentSplitOffsets,
+  List<int>? reasoningCountAtSplit,
+  List<int>? toolCountAtSplit,
+  dynamic reasoningDetails,
+}) {
+  final list = segments
+      .map(
+        (s) => {
+          'text': s.text,
+          'startAt': s.startAt?.toIso8601String(),
+          'finishedAt': s.finishedAt?.toIso8601String(),
+          'expanded': s.expanded,
+          'toolStartIndex': s.toolStartIndex,
+        },
+      )
+      .toList();
+
+  if (contentSplitOffsets == null &&
+      reasoningCountAtSplit == null &&
+      toolCountAtSplit == null &&
+      reasoningDetails == null) {
+    return _jsonEncode(list);
+  }
+
+  final length = math.min(
+    (contentSplitOffsets ?? const <int>[]).length,
+    math.min(
+      (reasoningCountAtSplit ?? const <int>[]).length,
+      (toolCountAtSplit ?? const <int>[]).length,
+    ),
+  );
+  final normalized = ContentSplitData(
+    offsets: List<int>.of((contentSplitOffsets ?? const <int>[]).take(length)),
+    reasoningCounts: List<int>.of(
+      (reasoningCountAtSplit ?? const <int>[]).take(length),
+    ),
+    toolCounts: List<int>.of((toolCountAtSplit ?? const <int>[]).take(length)),
+  );
+
+  return _jsonEncode({
+    'v': 2,
+    'segments': list,
+    'contentSplits': {
+      'offsets': normalized.offsets,
+      'reasoningCounts': normalized.reasoningCounts,
+      'toolCounts': normalized.toolCounts,
+    },
+    if (reasoningDetails != null) 'reasoningDetails': reasoningDetails,
+  });
+}
+
 class _JsonEncoder {
   static String encode(dynamic obj) {
     if (obj == null) return 'null';
@@ -1734,3 +1842,11 @@ class _ParseResult {
   final dynamic value;
   final int endIndex;
 }
+
+typedef _UpdateReasoningInDb =
+    Future<void> Function(
+      String messageId, {
+      String? reasoningText,
+      DateTime? reasoningStartAt,
+      String? reasoningSegmentsJson,
+    });

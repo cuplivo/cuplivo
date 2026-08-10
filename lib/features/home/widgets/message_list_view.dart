@@ -523,6 +523,26 @@ class _MessageListViewState extends State<MessageListView> {
     });
   }
 
+  /// Resolves the assistant owning [message]'s conversation (conversation
+  /// assistantId → provider), falling back to null. This is what makes
+  /// handoff child conversations render their target assistant's avatar and
+  /// name instead of the globally-selected current assistant (resolveSpeaker
+  /// is only wired for group chats).
+  Assistant? _assistantForConversation(
+    BuildContext context,
+    ChatMessage message,
+  ) {
+    try {
+      final chatService = context.read<ChatService>();
+      final convo = chatService.getConversation(message.conversationId);
+      final aId = convo?.assistantId;
+      if (aId == null || aId.isEmpty) return null;
+      return context.read<AssistantProvider>().getById(aId);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Widget _buildMessageItem(
     BuildContext context, {
     required int index,
@@ -534,7 +554,9 @@ class _MessageListViewState extends State<MessageListView> {
     final chatScale = context.watch<SettingsProvider>().chatFontScale;
     final resolved = widget.resolveSpeaker?.call(message);
     final assistant =
-        resolved ?? context.watch<AssistantProvider>().currentAssistant;
+        resolved ??
+        _assistantForConversation(context, message) ??
+        context.watch<AssistantProvider>().currentAssistant;
     final forceSpeakerChrome =
         widget.resolveSpeaker != null && message.role == 'assistant';
     final useAssistAvatar = forceSpeakerChrome

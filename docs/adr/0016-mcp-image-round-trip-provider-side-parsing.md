@@ -1,4 +1,4 @@
-# MCP Image Round-Trip: Provider-Side Parsing, Not a Handler Signature Change
+# ADR-0016: MCP Image Round-Trip: Provider-Side Parsing, Not a Handler Signature Change
 
 The MCP image pipeline (parse → persist → store → UI render) was complete except the return path: `ToolCallHandler` returns `Future<String>`, so every tool result is flattened to plain text and `[image:...]` markers reach the LLM as literal strings the model can never see as images. We fix this at the Provider layer with a minimal closed loop — the handler signature, the DB storage, and the UI rendering stay untouched.
 

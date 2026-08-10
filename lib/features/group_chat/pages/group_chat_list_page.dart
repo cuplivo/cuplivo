@@ -1,6 +1,3 @@
-import 'dart:io' show File;
-
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -10,7 +7,7 @@ import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../theme/app_font_weights.dart';
-import '../../../utils/sandbox_path_resolver.dart';
+import '../widgets/group_avatar.dart';
 import 'group_chat_page.dart';
 import 'group_chat_settings_page.dart';
 
@@ -150,7 +147,7 @@ class _GroupCard extends StatelessWidget {
       },
       child: Row(
         children: [
-          _GroupAvatar(avatar: group.avatar, name: group.name, size: 44),
+          GroupAvatar(avatar: group.avatar, name: group.name, size: 44),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -191,50 +188,6 @@ class _GroupCard extends StatelessWidget {
             },
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _GroupAvatar extends StatelessWidget {
-  const _GroupAvatar({
-    required this.avatar,
-    required this.name,
-    required this.size,
-  });
-  final String? avatar;
-  final String name;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final a = avatar?.trim() ?? '';
-    if (a.isNotEmpty && !kIsWeb && (a.startsWith('/') || a.contains(':'))) {
-      final path = SandboxPathResolver.fix(a);
-      final f = File(path);
-      if (f.existsSync()) {
-        return ClipOval(
-          child: Image.file(f, width: size, height: size, fit: BoxFit.cover),
-        );
-      }
-    }
-    final letter = name.isNotEmpty ? name.characters.first : 'G';
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: 0.15),
-        shape: BoxShape.circle,
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        letter,
-        style: TextStyle(
-          color: cs.primary,
-          fontSize: size * 0.42,
-          fontWeight: AppFontWeights.emphasis,
-        ),
       ),
     );
   }

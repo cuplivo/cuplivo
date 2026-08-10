@@ -437,7 +437,7 @@ class McpProvider extends ChangeNotifier {
   final FilesystemMountsProvider? filesystemMounts;
   final BuildContext Function() contextProvider;
 
-  /// Provider-agnostic OAuth flow orchestration (see ADR-0016).
+  /// Provider-agnostic OAuth flow orchestration (see ADR-0015).
   final OAuthFlowService oauthFlowService;
 
   final Map<String, mcp.Client> _clients = {};

@@ -116,11 +116,17 @@ class AskUserRequest {
   AskUserRequest({
     required this.toolCallId,
     required this.questions,
+    this.conversationId,
     required this._completer,
   });
 
   final String toolCallId;
   final List<AskUserQuestion> questions;
+
+  /// Conversation the question belongs to (null = caller didn't specify).
+  /// Lets surfaces like the 子代理面板 match requests raised inside a
+  /// sub-conversation without name-based guessing.
+  final String? conversationId;
   final Completer<AskUserResult> _completer;
 }
 
@@ -134,6 +140,7 @@ class AskUserInteractionService extends ChangeNotifier {
   Future<AskUserResult> requestAnswer({
     required String toolCallId,
     required Map<String, dynamic> arguments,
+    String? conversationId,
   }) {
     final questions = normalizeQuestions(arguments);
     if (questions.isEmpty) {
@@ -149,6 +156,7 @@ class AskUserInteractionService extends ChangeNotifier {
     _pending[key] = AskUserRequest(
       toolCallId: key,
       questions: questions,
+      conversationId: conversationId,
       completer: completer,
     );
     notifyListeners();
@@ -176,6 +184,28 @@ class AskUserInteractionService extends ChangeNotifier {
     }
     _pending.clear();
     notifyListeners();
+  }
+
+  /// Resolves (as cancelled) every pending ask_user request belonging to
+  /// [conversationId]. Used when a sub-agent is cancelled from the 子代理
+  /// 面板 — the child's generator is suspended at the ask_user completer and
+  /// must be released or the stream can never unwind.
+  void cancelForConversation(String conversationId) {
+    var changed = false;
+    for (final request in _pending.values.toList()) {
+      if (request.conversationId == conversationId &&
+          !request._completer.isCompleted) {
+        _pending.remove(request.toolCallId);
+        request._completer.complete(
+          const AskUserResult.error(
+            error: 'cancelled',
+            message: 'Ask user request was cancelled.',
+          ),
+        );
+        changed = true;
+      }
+    }
+    if (changed) notifyListeners();
   }
 
   static List<AskUserQuestion> normalizeQuestions(

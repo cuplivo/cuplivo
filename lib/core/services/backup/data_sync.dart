@@ -13,6 +13,7 @@ import 'package:xml/xml.dart';
 
 import '../../models/assistant.dart';
 import '../../models/backup.dart';
+import '../../models/chat_input_data.dart';
 import '../../models/chat_message.dart';
 import '../../models/conversation.dart';
 import '../../models/group_chat.dart';
@@ -2348,6 +2349,9 @@ class SharedPreferencesAsync {
     'desktop_hotkeys_enabled_v1',
     'codex_oauth_v1',
     'grok_oauth_v1',
+    // Chat input draft is transient per-device UI state — restoring a backup
+    // on another device must never resurrect a stale unsent draft.
+    chatInputDraftPrefsKey,
   };
 
   static Future<SharedPreferencesAsync> get instance async {

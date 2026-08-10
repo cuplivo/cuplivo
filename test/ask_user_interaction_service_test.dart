@@ -106,6 +106,53 @@ void main() {
       },
     );
 
+    test(
+      'cancelForConversation resolves only matching requests (子代理面板 ✕)',
+      () async {
+        final service = AskUserInteractionService();
+        final childFuture = service.requestAnswer(
+          toolCallId: 'child_call',
+          arguments: const {
+            'questions': [
+              {'id': 'q', 'question': 'Child question?', 'type': 'single'},
+            ],
+          },
+          conversationId: 'child-conv',
+        );
+        final otherFuture = service.requestAnswer(
+          toolCallId: 'other_call',
+          arguments: const {
+            'questions': [
+              {'id': 'q', 'question': 'Other question?', 'type': 'single'},
+            ],
+          },
+          conversationId: 'other-conv',
+        );
+
+        service.cancelForConversation('child-conv');
+
+        final childResult = await childFuture.timeout(
+          const Duration(seconds: 1),
+        );
+        final childPayload =
+            jsonDecode(childResult.toJsonString()) as Map<String, dynamic>;
+        expect(childPayload['error'], 'cancelled');
+        expect(service.pendingRequests.keys, ['other_call']);
+
+        // The other conversation's request stays answerable.
+        service.answer('other_call', const {
+          'q': AskUserAnswerValue.single(value: 'yes', custom: false),
+        });
+        final otherResult = await otherFuture.timeout(
+          const Duration(seconds: 1),
+        );
+        expect(
+          jsonDecode(otherResult.toJsonString()) as Map<String, dynamic>,
+          containsPair('type', 'ask_user_answer'),
+        );
+      },
+    );
+
     test('keeps choice questions even when options are sparse', () async {
       final service = AskUserInteractionService();
       unawaited(

@@ -387,7 +387,7 @@ class _TrashDetailPageState extends State<TrashDetailPage>
   /// One-click local delete for a remote workspaceFile mark: physical
   /// delete + origin='local' marker (so further peers learn) + remote row
   /// removal (done inside [DeletedRecordsStore.recordFileDeletion]).
-  /// Advisory — never auto-deletes (ADR-0018).
+  /// Advisory — never auto-deletes (ADR-0021).
   ///
   /// Directory marks (a recursive delete elsewhere) apply as a
   /// user-confirmed recursive local delete; the confirm dialog shows the

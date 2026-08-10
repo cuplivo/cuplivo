@@ -6,8 +6,10 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/providers/filesystem_mounts_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
@@ -17,6 +19,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../utils/format.dart';
+import '../../../utils/platform_utils.dart';
 
 /// A single entry in the current directory level of [MountFilesPage].
 class _DirEntry {
@@ -328,6 +331,131 @@ class _MountFilesPageState extends State<MountFilesPage> {
     }
   }
 
+  /// Opens a file with the system's default app. Path-based, so it works on
+  /// read-only external mounts too.
+  Future<void> _openExternal(_DirEntry entry) async {
+    final l10n = this.l10n;
+    try {
+      final res = await OpenFilex.open(entry.hostPath);
+      if (res.type != ResultType.done) {
+        if (!mounted) return;
+        showAppSnackBar(
+          context,
+          message: l10n.mountFilesOpenFailed(entry.name, res.message),
+          type: NotificationType.error,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      showAppSnackBar(
+        context,
+        message: l10n.mountFilesOpenFailed(entry.name, '$e'),
+        type: NotificationType.error,
+      );
+    }
+  }
+
+  Future<void> _share(_DirEntry entry) async {
+    final l10n = this.l10n;
+    try {
+      // share_plus exposes app-sandbox paths via FileProvider (Android) /
+      // UIActivityViewController (iOS) without loading the file into memory.
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(entry.hostPath)]),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showAppSnackBar(
+        context,
+        message: l10n.mountFilesShareFailed(entry.name, '$e'),
+        type: NotificationType.error,
+      );
+    }
+  }
+
+  /// Mobile entry: all file actions fold into one "more" sheet so the file
+  /// name keeps room (desktop keeps inline icons).
+  Future<void> _showMoreSheet(_DirEntry entry) async {
+    final l10n = this.l10n;
+    final cs = Theme.of(context).colorScheme;
+    final readOnly = widget.mount.readOnly;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: cs.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        Widget action({
+          required IconData icon,
+          required String label,
+          required Future<void> Function() onTap,
+          Color? color,
+        }) {
+          return IosCardPress(
+            onTap: () {
+              Navigator.of(ctx).pop();
+              onTap();
+            },
+            borderRadius: BorderRadius.circular(12),
+            baseColor: Colors.transparent,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: color ?? cs.onSurface),
+                const SizedBox(width: 14),
+                Text(label, style: const TextStyle(fontSize: 15)),
+              ],
+            ),
+          );
+        }
+
+        return SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 4),
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: cs.onSurface.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              action(
+                icon: Lucide.ExternalLink,
+                label: l10n.mountFilesOpenButton,
+                onTap: () => _openExternal(entry),
+              ),
+              action(
+                icon: Lucide.Share2,
+                label: l10n.mountFilesShareButton,
+                onTap: () => _share(entry),
+              ),
+              action(
+                icon: Lucide.Download,
+                label: l10n.mountFilesDownloadButton,
+                onTap: () => _download(entry),
+              ),
+              if (!readOnly)
+                action(
+                  icon: Lucide.Trash2,
+                  label: l10n.workspaceFilesDeleteButton,
+                  color: cs.error,
+                  onTap: () => _confirmDelete(entry),
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _crumbChip(String label, VoidCallback onTap) {
     final cs = Theme.of(context).colorScheme;
     return GestureDetector(
@@ -391,43 +519,59 @@ class _MountFilesPageState extends State<MountFilesPage> {
 
     final content = _loading
         ? const Center(child: CircularProgressIndicator())
-        : _entries.isEmpty
-        ? Center(
-            child: Text(
-              l10n.mountFilesEmptyDir,
-              style: TextStyle(color: cs.onSurface.withValues(alpha: 0.6)),
-            ),
-          )
         : Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // The breadcrumb stays visible even for empty directories —
+              // without it the user could only leave via the page back
+              // button, with no way to step up one level at a time.
               _breadcrumb(context),
               Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemCount: _entries.length,
-                  separatorBuilder: (_, __) => Divider(
-                    height: 1,
-                    color: cs.onSurface.withValues(alpha: 0.06),
-                  ),
-                  itemBuilder: (context, i) {
-                    final e = _entries[i];
-                    return _EntryRow(
-                      entry: e,
-                      onOpen: () {
-                        if (e.isDir) {
-                          _openDir(e.name);
-                        } else {
-                          _preview(e);
-                        }
-                      },
-                      onDownload: e.isDir ? null : () => _download(e),
-                      onDelete: e.isDir || readOnly
-                          ? null
-                          : () => _confirmDelete(e),
-                    );
-                  },
-                ),
+                child: _entries.isEmpty
+                    ? Center(
+                        child: Text(
+                          l10n.mountFilesEmptyDir,
+                          style: TextStyle(
+                            color: cs.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        itemCount: _entries.length,
+                        separatorBuilder: (_, __) => Divider(
+                          height: 1,
+                          color: cs.onSurface.withValues(alpha: 0.06),
+                        ),
+                        itemBuilder: (context, i) {
+                          final e = _entries[i];
+                          final isDesktop = PlatformUtils.isDesktopTarget;
+                          return _EntryRow(
+                            entry: e,
+                            isDesktop: isDesktop,
+                            onOpen: () {
+                              if (e.isDir) {
+                                _openDir(e.name);
+                              } else {
+                                _preview(e);
+                              }
+                            },
+                            onDownload: e.isDir ? null : () => _download(e),
+                            onDelete: e.isDir || readOnly
+                                ? null
+                                : () => _confirmDelete(e),
+                            onOpenExternal: e.isDir || !isDesktop
+                                ? null
+                                : () => _openExternal(e),
+                            onShare: e.isDir || !isDesktop
+                                ? null
+                                : () => _share(e),
+                            showMore: e.isDir || isDesktop
+                                ? null
+                                : () => _showMoreSheet(e),
+                          );
+                        },
+                      ),
               ),
             ],
           );
@@ -460,15 +604,23 @@ class _MountFilesPageState extends State<MountFilesPage> {
 class _EntryRow extends StatelessWidget {
   const _EntryRow({
     required this.entry,
+    required this.isDesktop,
     required this.onOpen,
     this.onDownload,
     this.onDelete,
+    this.onOpenExternal,
+    this.onShare,
+    this.showMore,
   });
 
   final _DirEntry entry;
+  final bool isDesktop;
   final VoidCallback onOpen;
   final VoidCallback? onDownload;
   final VoidCallback? onDelete;
+  final VoidCallback? onOpenExternal;
+  final VoidCallback? onShare;
+  final VoidCallback? showMore;
 
   @override
   Widget build(BuildContext context) {
@@ -516,7 +668,23 @@ class _EntryRow extends StatelessWidget {
                 ],
               ),
             ),
-            if (onDownload != null)
+            if (onDownload != null && isDesktop) ...[
+              IosIconButton(
+                icon: Lucide.ExternalLink,
+                size: 17,
+                color: cs.onSurface.withValues(alpha: 0.7),
+                minSize: 36,
+                semanticLabel: l10n.mountFilesOpenButton,
+                onTap: onOpenExternal!,
+              ),
+              IosIconButton(
+                icon: Lucide.Share2,
+                size: 17,
+                color: cs.onSurface.withValues(alpha: 0.7),
+                minSize: 36,
+                semanticLabel: l10n.mountFilesShareButton,
+                onTap: onShare!,
+              ),
               IosIconButton(
                 icon: Lucide.Download,
                 size: 17,
@@ -525,14 +693,23 @@ class _EntryRow extends StatelessWidget {
                 semanticLabel: l10n.mountFilesDownloadButton,
                 onTap: onDownload!,
               ),
-            if (onDelete != null)
+              if (onDelete != null)
+                IosIconButton(
+                  icon: Lucide.Trash2,
+                  size: 17,
+                  color: cs.error.withValues(alpha: 0.85),
+                  minSize: 36,
+                  semanticLabel: l10n.workspaceFilesDeleteButton,
+                  onTap: onDelete!,
+                ),
+            ] else if (showMore != null)
               IosIconButton(
-                icon: Lucide.Trash2,
-                size: 17,
-                color: cs.error.withValues(alpha: 0.85),
-                minSize: 36,
-                semanticLabel: l10n.workspaceFilesDeleteButton,
-                onTap: onDelete!,
+                icon: Lucide.Ellipsis,
+                size: 18,
+                color: cs.onSurface.withValues(alpha: 0.6),
+                minSize: 40,
+                semanticLabel: l10n.mountFilesMoreButton,
+                onTap: showMore!,
               ),
             if (entry.isDir)
               Icon(
@@ -554,10 +731,10 @@ class _EntryRow extends StatelessWidget {
   }
 }
 
-/// File content preview mirroring `kelivo_read` semantics exactly (32 KB
-/// char budget, 32 MB size cap, binary rejection) — one rule set, two
-/// surfaces. Common image extensions render inline; everything else is
-/// text or a localized error.
+/// File content preview. Read RULES are shared with `kelivo_read`
+/// (32 MB size cap, binary rejection, truncation note) but the preview's
+/// char budget is its own (256 KB vs the model's 32 KB paginated window) —
+/// the two surfaces deliberately diverge on budget (see CONTEXT.md).
 class FilePreviewPage extends StatefulWidget {
   const FilePreviewPage({
     super.key,
@@ -576,12 +753,16 @@ enum _PreviewState { loading, text, image, error }
 
 class _FilePreviewPageState extends State<FilePreviewPage> {
   _PreviewState _state = _PreviewState.loading;
-  String _text = '';
+  List<String> _textLines = const [];
   bool _truncated = false;
   int _totalLines = 0;
   Uint8List? _imageBytes;
   bool _isSvg = false;
   String? _errorMessage;
+
+  /// Preview char budget: 8x the model-facing `kelivo_read` window.
+  /// User preview is not token-bound, so it may show more of the file.
+  static const int _previewCharBudget = 256 * 1024;
 
   static const Set<String> _imageExtensions = {
     '.png',
@@ -636,38 +817,29 @@ class _FilePreviewPageState extends State<FilePreviewPage> {
         _fail(l10n.mountFilesPreviewBinary(widget.displayName));
         return;
       }
-      final lines = utf8.decode(bytes, allowMalformed: true).split('\n');
-      final buf = StringBuffer();
+      final rawLines = utf8.decode(bytes, allowMalformed: true).split('\n');
+      final lines = <String>[];
       var chars = 0;
-      var lineNo = 1;
       var lineCut = false;
-      while (lineNo <= lines.length) {
-        var content = lines[lineNo - 1];
+      for (var i = 0; i < rawLines.length; i++) {
+        var content = rawLines[i];
         // A single line can exceed the whole budget (minified files): cut
         // it so the preview stays bounded instead of feeding a ~30 MB
         // string to SelectableText (mirrors the server's read budget).
-        if (content.length > KelivoFilesystemMcpServerEngine.readCharBudget) {
-          content = content.substring(
-            0,
-            KelivoFilesystemMcpServerEngine.readCharBudget,
-          );
+        if (content.length > _previewCharBudget) {
+          content = content.substring(0, _previewCharBudget);
           lineCut = true;
         }
-        final entry = '$lineNo: $content\n';
-        if (chars + entry.length >
-                KelivoFilesystemMcpServerEngine.readCharBudget &&
-            buf.isNotEmpty) {
-          break;
-        }
-        buf.write(entry);
-        chars += entry.length;
-        lineNo++;
+        final next = chars + content.length + 1;
+        if (next > _previewCharBudget && lines.isNotEmpty) break;
+        lines.add(content);
+        chars = next;
       }
       if (!mounted) return;
       setState(() {
-        _text = buf.toString();
-        _truncated = lineNo <= lines.length || lineCut;
-        _totalLines = lines.length;
+        _textLines = lines;
+        _truncated = lines.length < rawLines.length || lineCut;
+        _totalLines = rawLines.length;
         _state = _PreviewState.text;
       });
     } catch (e) {
@@ -742,12 +914,31 @@ class _FilePreviewPageState extends State<FilePreviewPage> {
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
-                child: SelectableText(
-                  _text,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontFamily: 'monospace',
-                    height: 1.5,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Line-number gutter: chrome, not content. Right-
+                      // aligned, dimmed, excluded from selection/copy and
+                      // screen readers. Long lines scroll horizontally
+                      // instead of wrapping, so gutter numbers never drift
+                      // away from their lines.
+                      SizedBox(
+                        width: _gutterWidth,
+                        child: ExcludeSemantics(
+                          child: Text(
+                            _gutterNumbers,
+                            textAlign: TextAlign.right,
+                            style: _lineStyle.copyWith(
+                              color: cs.onSurface.withValues(alpha: 0.4),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SelectableText(_textLines.join('\n'), style: _lineStyle),
+                    ],
                   ),
                 ),
               ),
@@ -772,5 +963,29 @@ class _FilePreviewPageState extends State<FilePreviewPage> {
         ),
       },
     );
+  }
+
+  /// Shared metrics so the gutter never drifts from the content column.
+  static final TextStyle _lineStyle = TextStyle(
+    fontSize: 13,
+    fontFamily: 'monospace',
+    height: 1.5,
+  );
+
+  /// "1\n2\n..." for the visible lines.
+  String get _gutterNumbers {
+    final sb = StringBuffer();
+    for (var i = 1; i <= _textLines.length; i++) {
+      if (i > 1) sb.write('\n');
+      sb.write(i);
+    }
+    return sb.toString();
+  }
+
+  /// Fixed width from the TOTAL line count (truncation bar state included),
+  /// so the gutter never jumps while the preview loads more.
+  double get _gutterWidth {
+    final digits = '$_totalLines'.length;
+    return digits * 8.0 + 4.0;
   }
 }

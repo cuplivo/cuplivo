@@ -20,6 +20,7 @@ import '../../shared/widgets/ios_switch.dart';
 import '../../shared/widgets/snackbar.dart';
 import '../../shared/dialogs/incremental_backup_dialog.dart';
 import '../../shared/dialogs/restart_required_dialog.dart';
+import '../../shared/dialogs/rikkahub_migrate_dialog.dart';
 import '../../utils/format.dart';
 import '../../features/backup/widgets/backup_reminder_helpers.dart';
 import '../../shared/widgets/lan_sync_section.dart';
@@ -964,6 +965,12 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                     await backupProvider.restoreFromLocalFile(f, mode: mode);
                   });
                 },
+              ),
+              _DeskIosButton(
+                label: l10n.backupPageImportFromRikkaHub,
+                filled: false,
+                dense: true,
+                onTap: () => showRikkaHubMigrateDialog(context: context),
               ),
               _DeskIosButton(
                 label: l10n.backupPageImportFromCherryStudio,

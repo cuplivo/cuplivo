@@ -1,4 +1,4 @@
-# Filesystem wire format is mount-relative; absolute paths are rejected
+# ADR-0022: Filesystem wire format is mount-relative; absolute paths are rejected
 
 The `@kelivo/filesystem` MCP server addresses files exclusively as mount-relative wire paths (`@alias/rel/path`). Absolute host paths — and `..` segments, backslashes, empty segments, trailing slashes, and unknown mount aliases — are rejected with errors. Most filesystem tools accept both; we deliberately accept only the relative form.
 

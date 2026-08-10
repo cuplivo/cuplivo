@@ -21,6 +21,7 @@ import '../../../core/providers/instruction_injection_provider.dart';
 import '../../../core/providers/world_book_provider.dart';
 import '../../../core/services/trash_restore_coordinator.dart';
 import '../../settings/pages/trash_detail_page.dart';
+import '../widgets/subagent_panel.dart';
 import '../../../core/models/quick_phrase.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
@@ -144,7 +145,9 @@ String _compressContextErrorMessage(AppLocalizations l10n, String error) {
 }
 
 class _CompressContextOptionsDialog extends StatefulWidget {
-  const _CompressContextOptionsDialog();
+  const _CompressContextOptionsDialog({required this.collapsedMessages});
+
+  final List<ChatMessage> collapsedMessages;
 
   @override
   State<_CompressContextOptionsDialog> createState() =>
@@ -155,7 +158,14 @@ class _CompressContextOptionsDialogState
     extends State<_CompressContextOptionsDialog> {
   CompressContextLimitMode _mode = CompressContextLimitMode.start;
   late final TextEditingController _maxCharsController;
+  late final String _totalTextForEstimate;
   String? _error;
+  late int _keepCount;
+
+  int get _userMessageCount => countUserMessages(widget.collapsedMessages);
+
+  bool get _keepCoversAll =>
+      _userMessageCount == 0 || _keepCount >= _userMessageCount;
 
   @override
   void initState() {
@@ -163,6 +173,10 @@ class _CompressContextOptionsDialogState
     _maxCharsController = TextEditingController(
       text: CompressContextOptions.defaultMaxChars.toString(),
     );
+    _totalTextForEstimate = buildConversationTextForCompression(
+      widget.collapsedMessages,
+    );
+    _keepCount = defaultKeepUserMessageCountFor(_userMessageCount);
   }
 
   @override
@@ -172,6 +186,17 @@ class _CompressContextOptionsDialogState
   }
 
   void _submit() {
+    if (_mode == CompressContextLimitMode.keepRecent) {
+      if (_keepCoversAll) {
+        // The keep-all hint is already shown inline in the preview area.
+        return;
+      }
+      Navigator.of(
+        context,
+      ).pop(CompressContextOptions(mode: _mode, keepUserMessages: _keepCount));
+      return;
+    }
+
     int? maxChars;
     if (_mode != CompressContextLimitMode.unlimited) {
       maxChars = int.tryParse(_maxCharsController.text.trim());
@@ -186,6 +211,26 @@ class _CompressContextOptionsDialogState
     Navigator.of(
       context,
     ).pop(CompressContextOptions(mode: _mode, maxChars: maxChars));
+  }
+
+  String _keepEstimateText(AppLocalizations l10n) {
+    final keptText = buildConversationTextForCompression(
+      selectKeepRecentMessages(widget.collapsedMessages, _keepCount),
+    );
+    final summarizedChars = (_totalTextForEstimate.length - keptText.length)
+        .clamp(0, _totalTextForEstimate.length)
+        .toInt();
+    final est = estimateCompressionTokens(
+      totalText: _totalTextForEstimate,
+      keptText: keptText,
+    );
+    return l10n.compressContextEstimatePreview(
+      summarizedChars,
+      keptText.length,
+      est.minResultTokens,
+      est.maxResultTokens,
+      est.totalTokens,
+    );
   }
 
   @override
@@ -240,6 +285,7 @@ class _CompressContextOptionsDialogState
                 const SizedBox(height: 16),
                 _CompressModeSegmented(
                   mode: _mode,
+                  keepRecentDisabled: _userMessageCount <= 1,
                   onChanged: (mode) {
                     setState(() {
                       _mode = mode;
@@ -247,7 +293,8 @@ class _CompressContextOptionsDialogState
                     });
                   },
                 ),
-                if (_mode != CompressContextLimitMode.unlimited) ...[
+                if (_mode == CompressContextLimitMode.start ||
+                    _mode == CompressContextLimitMode.recent) ...[
                   const SizedBox(height: 10),
                   IosFormTextField(
                     label: l10n.compressContextMaxCharsLabel,
@@ -259,6 +306,60 @@ class _CompressContextOptionsDialogState
                     onChanged: (_) {
                       if (_error != null) setState(() => _error = null);
                     },
+                  ),
+                ],
+                if (_mode == CompressContextLimitMode.keepRecent) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      _KeepCountButton(
+                        icon: Lucide.Minus,
+                        onTap: _keepCount > 1
+                            ? () {
+                                setState(() {
+                                  _keepCount--;
+                                  _error = null;
+                                });
+                              }
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          l10n.compressContextKeepCountLabel(_keepCount),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: cs.onSurface.withValues(alpha: 0.78),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      _KeepCountButton(
+                        icon: Lucide.Plus,
+                        onTap: !_keepCoversAll
+                            ? () {
+                                setState(() {
+                                  _keepCount++;
+                                  _error = null;
+                                });
+                              }
+                            : null,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _keepCoversAll
+                        ? l10n.compressContextKeepAllMessages
+                        : _keepEstimateText(l10n),
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.35,
+                      color: _keepCoversAll
+                          ? cs.error
+                          : cs.onSurface.withValues(alpha: 0.62),
+                    ),
                   ),
                 ],
                 if (_error != null) ...[
@@ -301,10 +402,15 @@ class _CompressContextOptionsDialogState
 }
 
 class _CompressModeSegmented extends StatelessWidget {
-  const _CompressModeSegmented({required this.mode, required this.onChanged});
+  const _CompressModeSegmented({
+    required this.mode,
+    required this.onChanged,
+    this.keepRecentDisabled = false,
+  });
 
   final CompressContextLimitMode mode;
   final ValueChanged<CompressContextLimitMode> onChanged;
+  final bool keepRecentDisabled;
 
   @override
   Widget build(BuildContext context) {
@@ -334,7 +440,45 @@ class _CompressModeSegmented extends StatelessWidget {
             onTap: () => onChanged(CompressContextLimitMode.unlimited),
           ),
         ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _SegmentButton(
+            label: l10n.compressContextKeepRecentMessages,
+            selected: mode == CompressContextLimitMode.keepRecent,
+            enabled: !keepRecentDisabled,
+            onTap: () => onChanged(CompressContextLimitMode.keepRecent),
+          ),
+        ),
       ],
+    );
+  }
+}
+
+class _KeepCountButton extends StatelessWidget {
+  const _KeepCountButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final enabled = onTap != null;
+    return IosCardPress(
+      baseColor: isDark ? Colors.white10 : const Color(0xFFF2F3F5),
+      borderRadius: BorderRadius.circular(10),
+      pressedScale: 0.98,
+      onTap: onTap,
+      haptics: false,
+      padding: const EdgeInsets.all(8),
+      child: Icon(
+        icon,
+        size: 16,
+        color: enabled
+            ? cs.onSurface.withValues(alpha: 0.78)
+            : cs.onSurface.withValues(alpha: 0.25),
+      ),
     );
   }
 }
@@ -344,11 +488,13 @@ class _SegmentButton extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.enabled = true,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -363,7 +509,7 @@ class _SegmentButton extends StatelessWidget {
       baseColor: selected ? selectedBg : baseBg,
       borderRadius: BorderRadius.circular(10),
       pressedScale: 0.98,
-      onTap: onTap,
+      onTap: enabled ? onTap : null,
       haptics: false,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       child: Center(
@@ -374,7 +520,11 @@ class _SegmentButton extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: AppFontWeights.emphasis,
-            color: selected ? cs.primary : cs.onSurface.withValues(alpha: 0.78),
+            color: !enabled
+                ? cs.onSurface.withValues(alpha: 0.3)
+                : selected
+                ? cs.primary
+                : cs.onSurface.withValues(alpha: 0.78),
           ),
         ),
       ),
@@ -601,6 +751,7 @@ class _HomePageState extends State<HomePage>
       selection: TextSelection.collapsed(offset: start + trimmed.length),
       composing: TextRange.empty,
     );
+    _mediaController.syncDraft();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _controller.forceScrollToBottomSoon(animate: false);
@@ -1351,111 +1502,120 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _buildChatInputBar(BuildContext context, {required bool isTablet}) {
-    return ChatInputSection(
-      inputBarKey: _inputBarKey,
-      inputFocus: _inputFocus,
-      inputController: _inputController,
-      mediaController: _mediaController,
-      isTablet: isTablet,
-      isLoading: _controller.isCurrentConversationLoading,
-      isToolModel: _controller.isToolModel,
-      isReasoningModel: _controller.isReasoningModel,
-      isReasoningEnabled: _controller.isReasoningEnabled,
-      conversationId: _controller.currentConversation?.id,
-      sendButtonTooltip: _controller.isUserMessageEditActive
-          ? AppLocalizations.of(context)!.messageEditPageSaveAndSend
-          : null,
-      onMore: _toggleTools,
-      onSelectModel: () => showModelSelectSheet(
-        context,
-        onMultiSelectConfirm:
-            _controller.multiAIEngine.mode == MultiAIMode.synthesize
-            ? null
-            : _controller.enterMultiAIMode,
-      ),
-      onLongPressSelectModel: () {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const ProvidersPage()));
-      },
-      onOpenMcp: () {
-        final a = context.read<AssistantProvider>().currentAssistant;
-        if (a != null) {
-          if (PlatformUtils.isDesktop) {
-            showDesktopMcpServersPopover(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SubagentPanel(
+          onOpenChild: (childId) =>
+              _controller.switchConversationAnimated(childId),
+        ),
+        ChatInputSection(
+          inputBarKey: _inputBarKey,
+          inputFocus: _inputFocus,
+          inputController: _inputController,
+          mediaController: _mediaController,
+          isTablet: isTablet,
+          isLoading: _controller.isCurrentConversationLoading,
+          isToolModel: _controller.isToolModel,
+          isReasoningModel: _controller.isReasoningModel,
+          isReasoningEnabled: _controller.isReasoningEnabled,
+          conversationId: _controller.currentConversation?.id,
+          sendButtonTooltip: _controller.isUserMessageEditActive
+              ? AppLocalizations.of(context)!.messageEditPageSaveAndSend
+              : null,
+          onMore: _toggleTools,
+          onSelectModel: () => showModelSelectSheet(
+            context,
+            onMultiSelectConfirm:
+                _controller.multiAIEngine.mode == MultiAIMode.synthesize
+                ? null
+                : _controller.enterMultiAIMode,
+          ),
+          onLongPressSelectModel: () {
+            Navigator.of(
               context,
-              anchorKey: _inputBarKey,
-              assistantId: a.id,
-            );
-          } else {
-            showAssistantMcpSheet(context, assistantId: a.id);
-          }
-        }
-      },
-      onLongPressMcp: () {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const McpPage()));
-      },
-      onOpenSearch: _openSearchSettings,
-      onConfigureReasoning: () async {
-        final assistantProvider = context.read<AssistantProvider>();
-        final settingsProvider = context.read<SettingsProvider>();
-        final assistant = assistantProvider.currentAssistant;
-        if (assistant != null) {
-          if (assistant.thinkingBudget != null) {
-            settingsProvider.setThinkingBudget(assistant.thinkingBudget);
-          }
-          await _openReasoningSettings();
-          if (!mounted) return;
-          final chosen = settingsProvider.thinkingBudget;
-          await assistantProvider.updateAssistant(
-            assistant.copyWith(thinkingBudget: chosen),
-          );
-        }
-      },
-      onSend: (text) async {
-        final result = await _controller.sendMessage(text);
-        if (!mounted) return result;
-        if (PlatformUtils.isMobile &&
-            result == ChatInputSubmissionResult.sent) {
-          _controller.dismissKeyboard();
-        }
-        return result;
-      },
-      onStop: _controller.cancelStreaming,
-      hasQueuedInput: _controller.currentQueuedInput != null,
-      queuedPreviewText: _controller.currentQueuedInput?.input.text,
-      onCancelQueuedInput: _controller.cancelQueuedMessage,
-      onQuickPhrase: _showQuickPhraseMenu,
-      onLongPressQuickPhrase: () {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const QuickPhrasesPage()));
-      },
-      onDocumentProcessing: () => _openDocumentProcessingPopover(),
-      onOpenMiniMap: _openMiniMap,
-      onPickCamera: _controller.onPickCamera,
-      onPickPhotos: _controller.onPickPhotos,
-      onUploadFiles: _controller.onPickFiles,
-      onToggleLearningMode: _openInstructionInjectionPopover,
-      onOpenWorldBook: _openWorldBookPopover,
-      onOpenSkills: _openSkillsPopover,
-      onLongPressLearning: _showLearningPromptSheet,
-      onClearContext: _controller.clearContext,
-      onCompressContext: _handleDesktopCompressContext,
-      backgroundImageActive: _assistantBackgroundActive(context),
-      multiAIModelCount:
-          _controller.multiAIEngine.isActive &&
-              _controller.multiAIEngine.mode == MultiAIMode.continue_
-          ? _controller.multiAIEngine.models.length
-          : null,
-      onMultiSelectModel: () {
-        final engine = _controller.multiAIEngine;
-        if (engine.roundCount == 0) {
-          _controller.editMultiAIModels();
-        }
-      },
+            ).push(MaterialPageRoute(builder: (_) => const ProvidersPage()));
+          },
+          onOpenMcp: () {
+            final a = context.read<AssistantProvider>().currentAssistant;
+            if (a != null) {
+              if (PlatformUtils.isDesktop) {
+                showDesktopMcpServersPopover(
+                  context,
+                  anchorKey: _inputBarKey,
+                  assistantId: a.id,
+                );
+              } else {
+                showAssistantMcpSheet(context, assistantId: a.id);
+              }
+            }
+          },
+          onLongPressMcp: () {
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const McpPage()));
+          },
+          onOpenSearch: _openSearchSettings,
+          onConfigureReasoning: () async {
+            final assistantProvider = context.read<AssistantProvider>();
+            final settingsProvider = context.read<SettingsProvider>();
+            final assistant = assistantProvider.currentAssistant;
+            if (assistant != null) {
+              if (assistant.thinkingBudget != null) {
+                settingsProvider.setThinkingBudget(assistant.thinkingBudget);
+              }
+              await _openReasoningSettings();
+              if (!mounted) return;
+              final chosen = settingsProvider.thinkingBudget;
+              await assistantProvider.updateAssistant(
+                assistant.copyWith(thinkingBudget: chosen),
+              );
+            }
+          },
+          onSend: (text) async {
+            final result = await _controller.sendMessage(text);
+            if (!mounted) return result;
+            if (PlatformUtils.isMobile &&
+                result == ChatInputSubmissionResult.sent) {
+              _controller.dismissKeyboard();
+            }
+            return result;
+          },
+          onStop: _controller.cancelStreaming,
+          hasQueuedInput: _controller.currentQueuedInput != null,
+          queuedPreviewText: _controller.currentQueuedInput?.input.text,
+          onCancelQueuedInput: _controller.cancelQueuedMessage,
+          onQuickPhrase: _showQuickPhraseMenu,
+          onLongPressQuickPhrase: () {
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const QuickPhrasesPage()));
+          },
+          onDocumentProcessing: () => _openDocumentProcessingPopover(),
+          onOpenMiniMap: _openMiniMap,
+          onPickCamera: _controller.onPickCamera,
+          onPickPhotos: _controller.onPickPhotos,
+          onUploadFiles: _controller.onPickFiles,
+          onToggleLearningMode: _openInstructionInjectionPopover,
+          onOpenWorldBook: _openWorldBookPopover,
+          onOpenSkills: _openSkillsPopover,
+          onLongPressLearning: _showLearningPromptSheet,
+          onClearContext: _controller.clearContext,
+          onCompressContext: _handleDesktopCompressContext,
+          backgroundImageActive: _assistantBackgroundActive(context),
+          multiAIModelCount:
+              _controller.multiAIEngine.isActive &&
+                  _controller.multiAIEngine.mode == MultiAIMode.continue_
+              ? _controller.multiAIEngine.models.length
+              : null,
+          onMultiSelectModel: () {
+            final engine = _controller.multiAIEngine;
+            if (engine.roundCount == 0) {
+              _controller.editMultiAIModels();
+            }
+          },
+        ),
+      ],
     );
   }
 
@@ -1803,10 +1963,13 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _showCompressContextOptions() async {
+    final allMsgs = _controller.allMessagesForCurrentConversationContext();
+    final collapsed = _controller.collapseVersions(allMsgs);
     final options = await showDialog<CompressContextOptions>(
       context: context,
       barrierDismissible: true,
-      builder: (_) => const _CompressContextOptionsDialog(),
+      builder: (_) =>
+          _CompressContextOptionsDialog(collapsedMessages: collapsed),
     );
     if (options == null || !mounted) return;
 

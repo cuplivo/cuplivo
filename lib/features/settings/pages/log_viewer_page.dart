@@ -12,6 +12,7 @@ import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/ios_switch.dart';
+import '../../../shared/widgets/ios_labeled_switch_row.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../shared/widgets/expansion_setting_tile.dart';
 import '../../../utils/app_directories.dart';
@@ -1904,7 +1905,7 @@ class _LogSettingsSheet extends StatelessWidget {
     );
 
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1928,6 +1929,49 @@ class _LogSettingsSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
+
+            // Category toggles (request/llm, mcp, tts, search, flutter)
+            IosLabeledSwitchRow(
+              title: l10n.requestLogSettingTitle,
+              value: settings.requestLogEnabled,
+              onChanged: (v) {
+                settings.setRequestLogEnabled(v);
+                onChanged();
+              },
+            ),
+            IosLabeledSwitchRow(
+              title: l10n.logSettingsMcpEnabled,
+              value: settings.mcpLogEnabled,
+              onChanged: (v) {
+                settings.setMcpLogEnabled(v);
+                onChanged();
+              },
+            ),
+            IosLabeledSwitchRow(
+              title: l10n.logSettingsTtsEnabled,
+              value: settings.ttsLogEnabled,
+              onChanged: (v) {
+                settings.setTtsLogEnabled(v);
+                onChanged();
+              },
+            ),
+            IosLabeledSwitchRow(
+              title: l10n.logSettingsSearchEnabled,
+              value: settings.searchLogEnabled,
+              onChanged: (v) {
+                settings.setSearchLogEnabled(v);
+                onChanged();
+              },
+            ),
+            IosLabeledSwitchRow(
+              title: l10n.flutterLogSettingTitle,
+              value: settings.flutterLogEnabled,
+              onChanged: (v) {
+                settings.setFlutterLogEnabled(v);
+                onChanged();
+              },
+            ),
+            const SizedBox(height: 12),
 
             // Save output toggle
             Container(

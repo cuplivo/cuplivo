@@ -351,6 +351,43 @@ class AppLocalizationsEn extends AppLocalizations {
       'Path does not exist or is not a directory';
 
   @override
+  String get storageMountsErrorSyncOverlap =>
+      'This folder overlaps the sync scope (backup/sync folders)';
+
+  @override
+  String get storageMountsErrorInsideWorkspaces =>
+      'This folder is inside the current workspace folder';
+
+  @override
+  String get storageMountsErrorDestinationNotEmpty =>
+      'This folder is not empty — choose an empty folder when moving workspace files';
+
+  @override
+  String get storageMountsWorkspacesLocationTitle => 'Workspace Location';
+
+  @override
+  String get storageMountsWorkspacesLocationDialogTitle =>
+      'Change Workspace Location';
+
+  @override
+  String get storageMountsWorkspacesMoveFilesLabel =>
+      'Move existing files to the new location';
+
+  @override
+  String get storageMountsWorkspacesLocationChanged =>
+      'Workspace location changed';
+
+  @override
+  String storageMountsWorkspacesMoved(Object path) {
+    return 'Moved workspace files to $path';
+  }
+
+  @override
+  String storageMountsWorkspacesMoveFailed(Object error) {
+    return 'Failed to move workspace files: $error';
+  }
+
+  @override
   String mountFilesPageTitle(Object alias) {
     return 'Files · $alias';
   }
@@ -417,6 +454,25 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String mountFilesPreviewTruncated(Object total) {
     return 'Preview truncated: showing the first lines of $total';
+  }
+
+  @override
+  String get mountFilesMoreButton => 'More';
+
+  @override
+  String get mountFilesOpenButton => 'Open';
+
+  @override
+  String get mountFilesShareButton => 'Share';
+
+  @override
+  String mountFilesOpenFailed(Object error, Object name) {
+    return 'Failed to open $name: $error';
+  }
+
+  @override
+  String mountFilesShareFailed(Object error, Object name) {
+    return 'Failed to share $name: $error';
   }
 
   @override
@@ -491,6 +547,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String storageSpaceDeleteRefWarning(int count) {
     return '$count files are referenced by messages — deleting will break their display';
+  }
+
+  @override
+  String storageSpaceDeleteDraftWarning(int count) {
+    return '$count files are still referenced by your unsaved draft';
   }
 
   @override
@@ -711,6 +772,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get svgSaveDialogTitle => 'Save SVG';
+
+  @override
+  String get htmlPreviewTab => 'Preview';
+
+  @override
+  String get htmlSaveFile => 'Download HTML';
+
+  @override
+  String get htmlSaveSuccess => 'HTML saved';
+
+  @override
+  String get htmlSaveFailed => 'Save failed';
+
+  @override
+  String get htmlSaveDialogTitle => 'Save HTML';
+
+  @override
+  String get htmlOpenFullScreenPreview => 'Full-screen preview';
 
   @override
   String get mermaidExportPng => 'Export PNG';
@@ -1623,9 +1702,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assistantEditPreviewTitle => 'Preview';
 
   @override
-  String get codeBlockPreviewButton => 'Preview';
-
-  @override
   String get codeBlockSaveAsButton => 'Save as file';
 
   @override
@@ -1909,6 +1985,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPageImportFromRikkaHub => 'Import from RikkaHub';
+
+  @override
+  String get backupPageRikkaHubMigrateUrl =>
+      'https://kelivo-helper.netlify.app/#/migrate';
+
+  @override
+  String get backupPageRikkaHubMigrateHint =>
+      'RikkaHub backups can be converted to a Cuplivo-compatible backup via the migration website:';
+
+  @override
+  String get backupPageRikkaHubTutorialTitle => 'Usage Tutorial';
+
+  @override
+  String get backupPageRikkaHubStep1 =>
+      'After opening the website, tap “Click to Select”.';
+
+  @override
+  String get backupPageRikkaHubStep2 =>
+      'Find your RikkaHub backup and tap Confirm.';
+
+  @override
+  String get backupPageRikkaHubStep3 =>
+      'Wait about 15 seconds for the migration to complete, then tap to download the migration package. A compressed file with the same name as the original plus a “kelivo” suffix will be downloaded.';
+
+  @override
+  String get backupPageRikkaHubStep4 =>
+      'Return to Cuplivo, tap “Import Backup File” and import the migration package you just downloaded.';
+
+  @override
+  String get backupPageRikkaHubStep5 =>
+      'If you have any issues, join the Cuplivo QQ group to give feedback.';
 
   @override
   String get backupPageNotSupportedYet => 'Not supported yet';
@@ -2394,6 +2501,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get compressContextStartButton => 'Compress';
 
   @override
+  String get compressContextKeepRecentMessages => 'Keep N';
+
+  @override
+  String compressContextKeepCountLabel(Object count) {
+    return 'Keep the most recent $count user messages';
+  }
+
+  @override
+  String get compressContextKeepAllMessages =>
+      'Keeping that many covers all messages — nothing to compress';
+
+  @override
+  String compressContextEstimatePreview(
+    int summarized,
+    int kept,
+    int minTokens,
+    int maxTokens,
+    int totalTokens,
+  ) {
+    return 'Summarize $summarized chars, keep $kept chars verbatim → about $minTokens–$maxTokens tokens (original about $totalTokens tokens)';
+  }
+
+  @override
   String get bottomToolsSheetLearningMode => 'Learning Mode';
 
   @override
@@ -2751,12 +2881,28 @@ class AppLocalizationsEn extends AppLocalizations {
       'Render reasoning (thinking) with Markdown';
 
   @override
+  String get displaySettingsPageStreamingThinkingPreviewTruncateTitle =>
+      'Limit streaming thinking preview';
+
+  @override
+  String get displaySettingsPageStreamingThinkingPreviewTruncateSubtitle =>
+      'While thinking streams, only the tail of the preview is rendered for speed. Turn off to restore the original full-length live preview.';
+
+  @override
   String get displaySettingsPageEnableAssistantMarkdownTitle =>
       'Render assistant messages with Markdown';
 
   @override
   String get displaySettingsPageMobileCodeBlockWrapTitle =>
       'Mobile Code Block Word Wrap';
+
+  @override
+  String get displaySettingsPageHtmlStreamingShowCodeTitle =>
+      'Show code while HTML is generating';
+
+  @override
+  String get displaySettingsPageAutoOpenHtmlPreviewTitle =>
+      'Auto-open HTML preview when done';
 
   @override
   String get displaySettingsPageAutoCollapseCodeBlockTitle =>
@@ -6490,6 +6636,21 @@ class AppLocalizationsEn extends AppLocalizations {
       'Change or select a preset, then tap Save to apply';
 
   @override
+  String get compressPresetStandard => 'Standard (Default)';
+
+  @override
+  String get compressPresetDetailed => 'Detailed';
+
+  @override
+  String get ocrPresetStandard => 'Standard (Default)';
+
+  @override
+  String get ocrPresetCoordinate => 'Coordinate-precise';
+
+  @override
+  String get promptPresetCustom => 'Custom';
+
+  @override
   String get imageCompressionDialogTitle => 'Compress Image';
 
   @override
@@ -6932,6 +7093,68 @@ class AppLocalizationsEn extends AppLocalizations {
   String get handoffBackwardChipTooltip => 'Back to the parent conversation';
 
   @override
+  String get subagentPanelThinking => 'Thinking…';
+
+  @override
+  String get subagentPanelStreaming => 'Streaming';
+
+  @override
+  String get subagentPanelWaitingApproval => 'Waiting for approval';
+
+  @override
+  String subagentPanelLastStepCall(Object tool) {
+    return 'Last step: calling $tool';
+  }
+
+  @override
+  String subagentPanelLastStepDone(Object tool) {
+    return 'Last step: $tool done';
+  }
+
+  @override
+  String get subagentPanelViewChild => 'Open sub-conversation';
+
+  @override
+  String get subagentPanelCancelTooltip => 'Cancel sub-agent';
+
+  @override
+  String get subagentPanelCancelConfirmTitle => 'Cancel sub-agent?';
+
+  @override
+  String get subagentPanelCancelConfirmBody =>
+      'The running sub-agent will be stopped. Content already generated is kept in the sub-conversation.';
+
+  @override
+  String get subagentPanelCancelConfirmKeep => 'Keep running';
+
+  @override
+  String get subagentPanelCancelConfirmAction => 'Stop';
+
+  @override
+  String get subagentPanelApprove => 'Approve';
+
+  @override
+  String get subagentPanelDeny => 'Deny';
+
+  @override
+  String get subagentPanelAskUserPending => 'Your answer is needed';
+
+  @override
+  String get subagentPanelAnswerNow => 'Answer now';
+
+  @override
+  String subagentPanelToolCalls(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tool calls',
+      one: '1 tool call',
+      zero: '0 tool calls',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get groupChatMyGroupChats => 'My group chats';
 
   @override
@@ -7051,6 +7274,20 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get groupChatInjectionEveryNUserAndAssistant =>
       'Every N user and assistant messages';
+
+  @override
+  String get groupChatInjectGroupMembersTitle =>
+      'Inject group chat info into assistant system prompt';
+
+  @override
+  String get groupChatInjectGroupMembersDesc =>
+      'When enabled, each member assistant is told at the end of its system prompt that it is in a group chat and who the other members are (user and assistant names only, never their system prompts).';
+
+  @override
+  String get groupChatAdvancedDirectorSection => 'Director';
+
+  @override
+  String get groupChatAdvancedAssistantSection => 'Assistant responses';
 
   @override
   String get groupChatDirectorLogsEmpty => 'No director logs yet.';

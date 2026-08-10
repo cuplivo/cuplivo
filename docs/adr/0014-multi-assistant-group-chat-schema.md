@@ -1,4 +1,4 @@
-# Multi-Assistant Group Chat: Two New Tables + Two Columns (schema v13, director table dropped in v14)
+# ADR-0014: Multi-Assistant Group Chat: Two New Tables + Two Columns (schema v13, director table dropped in v14)
 
 Group chat persistence uses 2 new tables (`GroupChatRows`, `GroupChatMemberRows`) plus 2 new columns (`conversation_kind`, `speaker_assistant_id`) on existing tables, instead of the MultiAI-style "just add a column" approach. MultiAI's `subgroupId` was sufficient because it added an attribute to an existing entity (the message); group chat introduces entity shapes that existing tables cannot carry.
 

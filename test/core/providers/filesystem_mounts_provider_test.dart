@@ -84,6 +84,55 @@ void main() {
       expect(err, FilesystemMountsProvider.errorPathNotFound);
     });
 
+    test('mount inside a sync root returns errorSyncOverlap', () {
+      final syncRoot = Directory('${tmp.path}/sync')..createSync();
+      final inside = Directory('${syncRoot.path}/sub')..createSync();
+      final err = validateMountConfig(
+        alias: 'docs',
+        path: inside.path,
+        existing: const [],
+        syncRoots: [syncRoot.path],
+      );
+      expect(err, FilesystemMountsProvider.errorSyncOverlap);
+    });
+
+    test('mount containing a sync root returns errorSyncOverlap', () {
+      final outer = Directory('${tmp.path}/outer')..createSync();
+      final syncRoot = Directory('${outer.path}/sync')..createSync();
+      final err = validateMountConfig(
+        alias: 'docs',
+        path: outer.path,
+        existing: const [],
+        syncRoots: [syncRoot.path],
+      );
+      expect(err, FilesystemMountsProvider.errorSyncOverlap);
+    });
+
+    test('mount at a drive root overlapping a sync root returns '
+        'errorSyncOverlap', () {
+      final err = validateMountConfig(
+        alias: 'docs',
+        path: 'C:/',
+        existing: const [],
+        syncRoots: ['C:/appdata/upload'],
+      );
+      // The overlap check runs before the existence check, so this is
+      // platform-neutral even where C:/ does not exist.
+      expect(err, FilesystemMountsProvider.errorSyncOverlap);
+    });
+
+    test('mount adjacent to a sync root is accepted', () {
+      final syncRoot = Directory('${tmp.path}/sync')..createSync();
+      final sibling = Directory('${tmp.path}/sibling')..createSync();
+      final err = validateMountConfig(
+        alias: 'docs',
+        path: sibling.path,
+        existing: const [],
+        syncRoots: [syncRoot.path],
+      );
+      expect(err, isNull);
+    });
+
     test('valid config returns null', () {
       final err = validateMountConfig(
         alias: 'docs',

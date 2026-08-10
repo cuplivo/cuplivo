@@ -26,6 +26,7 @@ import '../../../utils/platform_utils.dart';
 import '../../../utils/app_directories.dart';
 import '../../../utils/path_canon.dart';
 import '../../chat/pages/image_viewer_page.dart';
+import '../../home/services/input_draft_persistence.dart';
 import 'log_viewer_page.dart';
 import 'mount_files_page.dart';
 import 'trash_detail_page.dart';
@@ -1651,9 +1652,19 @@ class _UploadManagerState extends State<_UploadManager> {
         ? _selected.where((p) => _refCountFor(p) > 0).length
         : 0;
     final hasRefs = refCount > 0;
-    final content = hasRefs
+    final draftFiles = context
+        .read<InputDraftPersistence>()
+        .draftReferencedFiles();
+    final draftHitCount = _selected.where(draftFiles.contains).length;
+    var content = hasRefs
         ? '${l10n.storageSpaceDeleteUploadsConfirmMessage(count)}\n\n${l10n.storageSpaceDeleteRefWarning(refCount)}'
         : l10n.storageSpaceDeleteSimpleConfirm(count);
+    // Deletion guardrail: warn (but do not block) when the selected files
+    // are still referenced by the unsent input draft.
+    if (draftHitCount > 0) {
+      content =
+          '$content\n\n${l10n.storageSpaceDeleteDraftWarning(draftHitCount)}';
+    }
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -2664,6 +2675,16 @@ class _MountsPanel extends StatelessWidget {
     ).push(MaterialPageRoute(builder: (_) => MountFilesPage(mount: mount)));
   }
 
+  Future<void> _openWorkspaceLocationDialog(
+    BuildContext context,
+    FilesystemMountsProvider provider,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => _WorkspacesLocationDialog(provider: provider),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -2709,6 +2730,7 @@ class _MountsPanel extends StatelessWidget {
               readOnly: false,
               builtin: true,
               onTap: onOpenWorkspace,
+              onEdit: () => _openWorkspaceLocationDialog(context, provider),
             ),
             for (final m in provider.externalMounts) ...[
               const SizedBox(height: 6),
@@ -2818,22 +2840,20 @@ class _MountRow extends StatelessWidget {
               ],
             ),
           ),
-          if (!builtin) ...[
-            if (onEdit != null)
-              _TactileIconButton(
-                icon: Lucide.Pencil,
-                color: cs.onSurface.withValues(alpha: 0.7),
-                size: 16,
-                onTap: onEdit!,
-              ),
-            if (onDelete != null)
-              _TactileIconButton(
-                icon: Lucide.Trash2,
-                color: cs.error.withValues(alpha: 0.8),
-                size: 16,
-                onTap: onDelete!,
-              ),
-          ],
+          if (onEdit != null)
+            _TactileIconButton(
+              icon: Lucide.Pencil,
+              color: cs.onSurface.withValues(alpha: 0.7),
+              size: 16,
+              onTap: onEdit!,
+            ),
+          if (!builtin && onDelete != null)
+            _TactileIconButton(
+              icon: Lucide.Trash2,
+              color: cs.error.withValues(alpha: 0.8),
+              size: 16,
+              onTap: onDelete!,
+            ),
         ],
       ),
     );
@@ -2891,6 +2911,8 @@ class _MountEditDialogState extends State<_MountEditDialog> {
         return l10n.storageMountsErrorPathInvalid;
       case FilesystemMountsProvider.errorPathNotFound:
         return l10n.storageMountsErrorPathNotFound;
+      case FilesystemMountsProvider.errorSyncOverlap:
+        return l10n.storageMountsErrorSyncOverlap;
       default:
         return null;
     }
@@ -3015,6 +3037,176 @@ class _MountEditDialogState extends State<_MountEditDialog> {
                 ? l10n.assistantTagsCreateDialogOk
                 : l10n.homePageDone,
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Desktop-only dialog to relocate the built-in `@workspaces` sandbox.
+/// New locations are validated against the sync scope (overlapping the
+/// backup/LAN-sync trees is rejected) and against nesting inside the
+/// current sandbox.
+class _WorkspacesLocationDialog extends StatefulWidget {
+  const _WorkspacesLocationDialog({required this.provider});
+
+  final FilesystemMountsProvider provider;
+
+  @override
+  State<_WorkspacesLocationDialog> createState() =>
+      _WorkspacesLocationDialogState();
+}
+
+class _WorkspacesLocationDialogState extends State<_WorkspacesLocationDialog> {
+  String? _path;
+  bool _moveFiles = true;
+  String? _error;
+  bool _saving = false;
+
+  Future<void> _pick() async {
+    final result = await FilePicker.platform.getDirectoryPath();
+    if (result == null || result.isEmpty) return;
+    if (!mounted) return;
+    setState(() {
+      _path = result;
+      _error = null;
+    });
+  }
+
+  String? _localizedError(String code) {
+    final l10n = AppLocalizations.of(context)!;
+    switch (code) {
+      case FilesystemMountsProvider.errorPathInvalid:
+        return l10n.storageMountsErrorPathInvalid;
+      case FilesystemMountsProvider.errorSyncOverlap:
+        return l10n.storageMountsErrorSyncOverlap;
+      case FilesystemMountsProvider.errorInsideWorkspaces:
+        return l10n.storageMountsErrorInsideWorkspaces;
+      case FilesystemMountsProvider.errorDestinationNotEmpty:
+        return l10n.storageMountsErrorDestinationNotEmpty;
+      default:
+        // Unknown codes still surface — never silently no-op.
+        return code;
+    }
+  }
+
+  Future<void> _save() async {
+    final l10n = AppLocalizations.of(context)!;
+    final path = _path;
+    if (path == null || path.isEmpty) {
+      setState(() => _error = l10n.storageMountsErrorPathInvalid);
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    final String? err;
+    try {
+      err = await widget.provider.setWorkspacesLocation(
+        path,
+        moveFiles: _moveFiles,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = l10n.storageMountsWorkspacesMoveFailed('$e');
+      });
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (err != null) {
+      final errorMessage = _localizedError(err);
+      setState(() => _error = errorMessage);
+      return;
+    }
+    if (context.mounted) {
+      showAppSnackBar(
+        context,
+        message: _moveFiles
+            ? l10n.storageMountsWorkspacesMoved(path)
+            : l10n.storageMountsWorkspacesLocationChanged,
+        type: NotificationType.success,
+      );
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    return AlertDialog(
+      title: Text(l10n.storageMountsWorkspacesLocationDialogTitle),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.storageMountsWorkspacesLocationTitle,
+              style: TextStyle(
+                fontSize: 12.5,
+                color: cs.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _path ?? widget.provider.workspaces?.path ?? '',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontFamily: 'monospace',
+                      color: cs.onSurface,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IosTileButton(
+                  label: l10n.storageMountsPickButton,
+                  icon: Lucide.FolderOpen,
+                  onTap: _pick,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.storageMountsWorkspacesMoveFilesLabel,
+                    style: TextStyle(fontSize: 13.5, color: cs.onSurface),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IosSwitch(
+                  value: _moveFiles,
+                  onChanged: (v) => setState(() => _moveFiles = v),
+                ),
+              ],
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              Text(_error!, style: TextStyle(fontSize: 12.5, color: cs.error)),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          child: Text(l10n.homePageCancel),
+        ),
+        TextButton(
+          onPressed: _saving ? null : _save,
+          child: Text(l10n.homePageDone),
         ),
       ],
     );

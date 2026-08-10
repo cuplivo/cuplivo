@@ -126,6 +126,16 @@ jobs:
             abi=$(echo "$file" | sed -E 's/app-(.*)-release\.apk/\1/')
             mv "$file" "Cuplivo_android_${VERSION}_${abi}.apk"
           done
+
+      - name: 📏 记录产物体积
+        run: |
+          {
+            echo "### Android APK sizes"
+            echo '```'
+            ls -lh build/app/outputs/flutter-apk/Cuplivo_android_*.apk
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: 🚀 发布到 Release
         if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
         uses: softprops/action-gh-release@v2
@@ -200,6 +210,17 @@ jobs:
           mkdir Payload
           cp -r Runner.app Payload/
           zip -r ../../../Cuplivo_ios_${VERSION}.ipa Payload
+
+      - name: 📏 记录产物体积
+        run: |
+          {
+            echo "### iOS sizes"
+            echo '```'
+            du -sh build/ios/iphoneos/Runner.app
+            ls -lh Cuplivo_ios_*.ipa
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: 🚀 发布到 Release
         if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
         uses: softprops/action-gh-release@v2
@@ -271,6 +292,17 @@ jobs:
           if [ ! -f "Cuplivo_macos_${VERSION}.dmg" ]; then
             hdiutil create -volname Cuplivo -srcfolder build/macos/Build/Products/Release/cuplivo.app -ov -format UDZO Cuplivo_macos_${VERSION}.dmg
           fi
+
+      - name: 📏 记录产物体积
+        run: |
+          {
+            echo "### macOS sizes"
+            echo '```'
+            du -sh build/macos/Build/Products/Release/cuplivo.app
+            ls -lh Cuplivo_macos_*.dmg
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: 🚀 发布到 Release
         if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
         uses: softprops/action-gh-release@v2
@@ -425,6 +457,16 @@ jobs:
           
           # 编译安装程序
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer.iss"
+
+      - name: 📏 记录产物体积
+        shell: pwsh
+        run: |
+          $lines = @("### Windows sizes", '```')
+          Get-ChildItem Cuplivo_windows_*.zip, Cuplivo_windows_*_setup.exe -ErrorAction SilentlyContinue |
+            ForEach-Object { $lines += ("{0}`t{1:N1} MB" -f $_.Name, ($_.Length / 1MB)) }
+          $lines += '```'
+          $lines -join "`n" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
       - name: 🚀 发布到 Release
         if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
         uses: softprops/action-gh-release@v2
@@ -699,6 +741,17 @@ jobs:
           set -euxo pipefail
           RPM_FILE="Cuplivo_linux_${VERSION}.rpm"
           docker run --rm -v "${PWD}:/work" -w /work fedora:43 bash -lc "dnf -y install ./${RPM_FILE}"
+
+      - name: 📏 记录产物体积
+        run: |
+          {
+            echo "### Linux sizes"
+            echo '```'
+            du -sh build/linux/x64/release/bundle
+            ls -lh Cuplivo_linux_*.tar.gz Cuplivo_linux_*.AppImage Cuplivo_linux_*.deb Cuplivo_linux_*.rpm 2>/dev/null || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: 🚀 发布到 Release
         if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
         uses: softprops/action-gh-release@v2

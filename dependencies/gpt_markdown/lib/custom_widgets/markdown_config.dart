@@ -102,6 +102,7 @@ class GptMarkdownConfig {
     this.components,
     this.inlineComponents,
     this.tableBuilder,
+    this.streaming = false,
   });
 
   /// The direction of the text.
@@ -164,6 +165,13 @@ class GptMarkdownConfig {
   /// The table builder.
   final TableBuilder? tableBuilder;
 
+  /// Whether the content is being streamed. Unlike the builder closures
+  /// (which are excluded from [isSame] because they are recreated every
+  /// build), this value participates in equality: a streaming flag flip with
+  /// unchanged text must regenerate the parse tree, because code-block
+  /// rendering behavior depends on it.
+  final bool streaming;
+
   /// A copy of the configuration with the specified parameters.
   GptMarkdownConfig copyWith({
     TextStyle? style,
@@ -186,6 +194,7 @@ class GptMarkdownConfig {
     final List<MarkdownComponent>? components,
     final List<MarkdownComponent>? inlineComponents,
     final TableBuilder? tableBuilder,
+    final bool? streaming,
   }) {
     return GptMarkdownConfig(
       style: style ?? this.style,
@@ -208,6 +217,7 @@ class GptMarkdownConfig {
       components: components ?? this.components,
       inlineComponents: inlineComponents ?? this.inlineComponents,
       tableBuilder: tableBuilder ?? this.tableBuilder,
+      streaming: streaming ?? this.streaming,
     );
   }
 
@@ -231,6 +241,7 @@ class GptMarkdownConfig {
         maxLines == other.maxLines &&
         overflow == other.overflow &&
         followLinkColor == other.followLinkColor &&
+        streaming == other.streaming &&
         // latexWorkaround == other.latexWorkaround &&
         // components == other.components &&
         // inlineComponents == other.inlineComponents &&

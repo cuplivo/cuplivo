@@ -6,6 +6,8 @@ import '../../core/providers/settings_provider.dart';
 import '../../shared/widgets/snackbar.dart';
 import '../../shared/widgets/ios_switch.dart';
 import '../../core/prompts/title_presets.dart';
+import '../../core/prompts/compress_presets.dart';
+import '../../core/prompts/ocr_presets.dart';
 import '../widgets/preset_dropdown.dart';
 import '../../features/model/widgets/model_select_sheet.dart';
 import '../../features/model/utils/ocr_model_capability.dart';
@@ -550,6 +552,44 @@ class DesktopDefaultModelPane extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          l10n.defaultModelPagePromptLabel,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: AppFontWeights.semibold,
+                          ),
+                        ),
+                      ),
+                      ListenableBuilder(
+                        listenable: ctrl,
+                        builder: (context, _) {
+                          final activeId = OcrPresets.detect(ctrl.text);
+                          return PresetDropdown<String>(
+                            value: activeId,
+                            customLabel: l10n.promptPresetCustom,
+                            options: [
+                              DesktopSelectOption(
+                                value: 'standard',
+                                label: l10n.ocrPresetStandard,
+                              ),
+                              DesktopSelectOption(
+                                value: 'coordinate',
+                                label: l10n.ocrPresetCoordinate,
+                              ),
+                            ],
+                            onSelected: (v) {
+                              final p = OcrPresets.byId(v);
+                              if (p != null) ctrl.text = p.prompt;
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   _promptEditor(
                     ctx,
                     controller: ctrl,
@@ -715,6 +755,44 @@ class DesktopDefaultModelPane extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          l10n.defaultModelPagePromptLabel,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: AppFontWeights.semibold,
+                          ),
+                        ),
+                      ),
+                      ListenableBuilder(
+                        listenable: ctrl,
+                        builder: (context, _) {
+                          final activeId = CompressPresets.detect(ctrl.text);
+                          return PresetDropdown<String>(
+                            value: activeId,
+                            customLabel: l10n.promptPresetCustom,
+                            options: [
+                              DesktopSelectOption(
+                                value: 'standard',
+                                label: l10n.compressPresetStandard,
+                              ),
+                              DesktopSelectOption(
+                                value: 'detailed',
+                                label: l10n.compressPresetDetailed,
+                              ),
+                            ],
+                            onSelected: (v) {
+                              final p = CompressPresets.byId(v);
+                              if (p != null) ctrl.text = p.prompt;
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   _promptEditor(
                     ctx,
                     controller: ctrl,

@@ -5,22 +5,33 @@ import 'package:Cuplivo/theme/app_font_weights.dart';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
 
+// Bundled last-resort subset (assets/fonts/CuplivoSymbolFallback-Regular.ttf).
+// Covers cold glyphs system UI fonts often miss, e.g. U+208C ₌ and U+1CD0 ᳐.
+// Always keep this family last so it never overrides CJK/emoji primary fonts.
+const String kCuplivoSymbolFallbackFamily = 'CuplivoSymbolFallback';
+
 // CJK/Latin fallback to stabilize fontWeight (w100-w600) on iOS for Chinese
 const List<String> kDefaultFontFamilyFallback = <String>[
   'PingFang SC',
   'Heiti SC',
   'Hiragino Sans GB',
   'Roboto',
+  kCuplivoSymbolFallbackFamily,
 ];
 
-const List<String> kAndroidFontFamilyFallback = <String>['sans-serif'];
+const List<String> kAndroidFontFamilyFallback = <String>[
+  'sans-serif',
+  kCuplivoSymbolFallbackFamily,
+];
 
 // Windows-specific font fallback to fix Chinese font rendering issues
 const List<String> kWindowsFontFamilyFallback = <String>[
   'Twemoji Country Flags',
   'Segoe UI',
+  'Segoe UI Symbol',
   'Microsoft YaHei',
   'SimHei',
+  kCuplivoSymbolFallbackFamily,
 ];
 
 // Get platform-appropriate font fallback list

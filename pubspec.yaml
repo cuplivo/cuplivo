@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.6.2+28
+version: 2.6.3+29
 
 environment:
   sdk: ^3.12.1
@@ -110,13 +110,9 @@ dependencies:
   math_expressions: ^2.6.2
   yaml: ^3.1.2
 
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
   restart_app: ^1.8.3
   drift: ^2.34.0
   sqlite3: ^3.3.3
-  reel_text: ^0.4.0
 
 dev_dependencies:
   flutter_test:
@@ -125,6 +121,7 @@ dev_dependencies:
   drift_dev: ^2.34.0
   flutter_launcher_icons: ^0.14.4
   flutter_native_splash: ^2.4.6
+  path_provider_platform_interface: ^2.1.2
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -153,7 +150,9 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/icons/
-    - assets/app_icon.png
+    # About UI only (256px). Keep assets/app_icon.png on disk for launcher_icons /
+    # splash / packaging scripts — do not bundle the 1024px source into the app.
+    - assets/app_icon_about.png
     - assets/app_icon.ico
     - assets/icon_mac.png
     - assets/mermaid.min.js
@@ -166,30 +165,15 @@ flutter:
   # For details regarding adding assets from package dependencies, see
   # https://flutter.dev/to/asset-from-package
 
-  # To add custom fonts to your application, add a fonts section here,
-  # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
-  # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
-  #
+  # Last-resort symbol subset for cold Unicode (see theme_factory.dart).
+  # Rebuild: tool/build_symbol_fallback_font.py (SIL OFL sources).
+  fonts:
+    - family: CuplivoSymbolFallback
+      fonts:
+        - asset: assets/fonts/CuplivoSymbolFallback-Regular.ttf
+
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
-
-#  fonts:
-#    - family: JetBrainsMono
-#      fonts:
-#        - asset: assets/fonts/JetBrainsMono-Regular.ttf
 
 flutter_launcher_icons:
   android: true

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/services/backup/data_sync.dart' as backup_sync;
 
 void main() {
@@ -115,6 +116,38 @@ void main() {
 
       final rawPrefs = await SharedPreferences.getInstance();
       expect(rawPrefs.getString('codex_oauth_v1'), '{"accessToken":"old"}');
+    });
+
+    test('snapshot excludes the chat input draft key', () async {
+      SharedPreferences.setMockInitialValues({
+        chatInputDraftPrefsKey: '{"text":"unsent"}',
+        'display_auto_scroll_enabled_v1': true,
+      });
+
+      final prefs = await backup_sync.SharedPreferencesAsync.instance;
+      final snapshot = await prefs.snapshot();
+
+      expect(snapshot.containsKey(chatInputDraftPrefsKey), isFalse);
+      expect(snapshot['display_auto_scroll_enabled_v1'], isTrue);
+    });
+
+    test('restore ignores the chat input draft key', () async {
+      SharedPreferences.setMockInitialValues({
+        chatInputDraftPrefsKey: '{"text":"local draft"}',
+      });
+
+      final prefs = await backup_sync.SharedPreferencesAsync.instance;
+      await prefs.restore({
+        chatInputDraftPrefsKey: '{"text":"remote stale draft"}',
+        'display_auto_scroll_enabled_v1': true,
+      });
+
+      final rawPrefs = await SharedPreferences.getInstance();
+      expect(
+        rawPrefs.getString(chatInputDraftPrefsKey),
+        '{"text":"local draft"}',
+      );
+      expect(rawPrefs.getBool('display_auto_scroll_enabled_v1'), isTrue);
     });
   });
 }

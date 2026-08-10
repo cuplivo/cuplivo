@@ -1,4 +1,4 @@
-# Reading Mode Uses Navigator.push on All Platforms (Desktop Deviation)
+# ADR-0017: Reading Mode Uses Navigator.push on All Platforms (Desktop Deviation)
 
 Reading Mode (阅读模式) — a per-message full-screen view for long assistant answers — is presented via `Navigator.push(MaterialPageRoute(...))` on **all** platforms, including desktop. This deliberately deviates from the desktop navigation convention (AGENTS.md §1.3: 桌面端导航通过 `DesktopHomePage` 的 nav rail / 侧边栏切换页面，不使用 Navigator 路由栈).
 

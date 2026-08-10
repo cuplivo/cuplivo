@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:mcp_client/mcp_client.dart' as mcp;
 
@@ -10,7 +11,9 @@ import '../../../models/conversation.dart';
 import '../../../providers/assistant_provider.dart';
 import '../../../providers/settings_provider.dart';
 import '../../../../features/chat/utils/thinking_tag_parser.dart';
+import '../../../../features/home/services/ask_user_interaction_service.dart';
 import '../../../../features/home/services/message_builder_service.dart';
+import '../../../../features/home/services/tool_approval_service.dart';
 import '../../../../features/home/services/tool_handler_service.dart';
 import '../../api/chat_api_service.dart';
 import '../../chat/chat_service.dart';
@@ -81,6 +84,12 @@ class KelivoSubagentMcpServerEngine {
           if (name == 'kelivo_handoff') {
             return _ok(requestId, result: await _handleHandoff(arguments));
           }
+          if (name == 'kelivo_handoff_sync') {
+            return _ok(
+              requestId,
+              result: await _handleHandoff(arguments, waitForResult: true),
+            );
+          }
           return _error(
             requestId,
             code: -32101,
@@ -101,8 +110,9 @@ class KelivoSubagentMcpServerEngine {
   }
 
   Future<Map<String, dynamic>> _handleHandoff(
-    Map<String, dynamic> arguments,
-  ) async {
+    Map<String, dynamic> arguments, {
+    bool waitForResult = false,
+  }) async {
     final handoffId = (arguments['assistant'] ?? '').toString().trim();
     final task = (arguments['task'] ?? '').toString().trim();
 
@@ -144,6 +154,11 @@ class KelivoSubagentMcpServerEngine {
       assistantId: target.id,
       mcpServerIds: target.mcpServerIds,
       parentConversationId: parentConversationId,
+      // The delegating conversation stays "current": the 子代理面板 keys off
+      // ChatService.currentConversationId, and nested handoffs must
+      // attribute their parent to the real delegating conversation, not to
+      // whichever child was created last.
+      setAsCurrent: false,
     );
     await _chatService.addMessage(
       conversationId: conversation.id,
@@ -156,8 +171,35 @@ class KelivoSubagentMcpServerEngine {
       '(parent: $parentConversationId, assistant: ${target.name})',
     );
 
-    unawaited(_startGeneration(conversation, target));
+    if (waitForResult) {
+      // Register the job record BEFORE starting the generation: the
+      // generation's synchronous section may fail immediately (failJob below
+      // must find the record), and the `started` JSON response travels back
+      // through pure microtasks while the generation suspends on real I/O —
+      // the handler's waitFor must find the job in both cases.
+      _headlessGen.prepareJob(
+        conversationId: conversation.id,
+        parentConversationId: parentConversationId,
+        wait: true,
+        targetName: target.name,
+      );
+    }
 
+    unawaited(
+      _startGeneration(conversation, target, waitForResult: waitForResult),
+    );
+
+    if (waitForResult) {
+      // Structured JSON: the tool-handler layer extracts the UUID and awaits
+      // the completion future above the MCP boundary (never blocks the
+      // JSON-RPC response, which is bounded by the client request timeout).
+      return _toolResult(
+        text: jsonEncode({
+          'conversation': conversation.id,
+          'status': 'started',
+        }),
+      );
+    }
     return _toolResult(
       text: 'Handoff dispatched. Conversation: ${conversation.id}',
     );
@@ -165,8 +207,9 @@ class KelivoSubagentMcpServerEngine {
 
   Future<void> _startGeneration(
     Conversation conversation,
-    Assistant target,
-  ) async {
+    Assistant target, {
+    bool waitForResult = false,
+  }) async {
     try {
       // ignore: use_build_context_synchronously (root context, valid for app lifetime)
       final ctx = _contextProvider();
@@ -223,7 +266,18 @@ class KelivoSubagentMcpServerEngine {
         isToolModel: (_, _) => true,
       );
       final onToolCall = toolDefs.isNotEmpty
-          ? toolHandler.buildToolCallHandler(settings, target)
+          ? toolHandler.buildToolCallHandler(
+              settings,
+              target,
+              // Approval/ask_user must be answerable from the parent panel
+              // and the child conversation (dual visibility). v1 omitted
+              // these — needsApproval tools silently auto-executed.
+              // ignore: use_build_context_synchronously (root context)
+              approvalService: ctx.read<ToolApprovalService>(),
+              // ignore: use_build_context_synchronously (root context)
+              askUserService: ctx.read<AskUserInteractionService>(),
+              conversationId: conversation.id,
+            )
           : null;
 
       debugPrint(
@@ -245,11 +299,18 @@ class KelivoSubagentMcpServerEngine {
         maxTokens: target.maxTokens,
         stream: target.streamOutput,
         onComplete: () => _generateTitle(conversation.id, target),
+        parentConversationId: conversation.parentConversationId,
+        wait: waitForResult,
+        targetName: target.name,
       );
     } catch (e, st) {
       debugPrint(
         '[Subagent] generation failed for ${conversation.id}: $e\n$st',
       );
+      // Resolve the waiter: a wait-mode handoff must never leave the
+      // orchestrator's await hanging (see ADR-0024 iron rule). No-op for
+      // fire-and-forget (nothing listens to the completer).
+      _headlessGen.failJob(conversation.id, e);
     }
   }
 
@@ -346,10 +407,53 @@ class KelivoSubagentMcpServerEngine {
       }
     }
 
+    final syncDescBuffer = StringBuffer();
+    syncDescBuffer.write(
+      'Delegate a task to another specialized assistant AND WAIT for it to '
+      'finish. The sub-agent\'s complete output is returned as the tool '
+      'result, so you can synthesize from it. Unlike kelivo_handoff, the '
+      'result may be long and this call may take minutes. '
+      'The user can watch progress in the panel and visit the sub-conversation.\n',
+    );
+    if (targets.isEmpty) {
+      syncDescBuffer.write(
+        'No assistants are currently available. '
+        'Ask the user to enable "discoverable" on a target assistant.',
+      );
+    } else {
+      syncDescBuffer.write('Available targets:\n');
+      for (final t in targets) {
+        syncDescBuffer.write(
+          '- ${t.handoffId}: ${t.handoffDescription ?? t.name}\n',
+        );
+      }
+    }
+
     return [
       {
         'name': 'kelivo_handoff',
         'description': descBuffer.toString(),
+        'inputSchema': {
+          'type': 'object',
+          'properties': {
+            'assistant': {
+              'type': 'string',
+              'description': 'The handoff ID of the target assistant',
+            },
+            'task': {
+              'type': 'string',
+              'description':
+                  'The complete task prompt for the target assistant. '
+                  'Include all necessary context — the target has no access '
+                  'to this conversation\'s history.',
+            },
+          },
+          'required': ['assistant', 'task'],
+        },
+      },
+      {
+        'name': 'kelivo_handoff_sync',
+        'description': syncDescBuffer.toString(),
         'inputSchema': {
           'type': 'object',
           'properties': {

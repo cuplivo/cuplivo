@@ -266,4 +266,177 @@ void main() {
       ]);
     });
   });
+
+  group('selectKeepRecentMessages', () {
+    test('保留最近 N 条用户消息及其后的全部消息，边界以用户消息开始', () {
+      final messages = <ChatMessage>[
+        _message(id: 'u1', role: 'user', content: 'q1'),
+        _message(id: 'a1', role: 'assistant', content: 'a1'),
+        _message(id: 'u2', role: 'user', content: 'q2'),
+        _message(id: 'a2', role: 'assistant', content: 'a2'),
+        _message(id: 'u3', role: 'user', content: 'q3'),
+        _message(id: 'a3', role: 'assistant', content: 'a3'),
+      ];
+
+      final kept = selectKeepRecentMessages(messages, 2);
+
+      expect(kept.map((m) => m.id).toList(), ['u2', 'a2', 'u3', 'a3']);
+    });
+
+    test('保留区可包含未答复的尾部用户消息', () {
+      final messages = <ChatMessage>[
+        _message(id: 'u1', role: 'user', content: 'q1'),
+        _message(id: 'a1', role: 'assistant', content: 'a1'),
+        _message(id: 'u2', role: 'user', content: 'q2'),
+      ];
+
+      final kept = selectKeepRecentMessages(messages, 1);
+
+      expect(kept.map((m) => m.id).toList(), ['u2']);
+    });
+
+    test('N 覆盖全部用户消息时返回完整列表（无可压缩内容）', () {
+      final messages = <ChatMessage>[
+        _message(id: 'u1', role: 'user', content: 'q1'),
+        _message(id: 'a1', role: 'assistant', content: 'a1'),
+        _message(id: 'u2', role: 'user', content: 'q2'),
+      ];
+
+      final kept = selectKeepRecentMessages(messages, 3);
+
+      expect(kept.length, messages.length);
+    });
+
+    test('空内容的用户消息不参与计数', () {
+      final messages = <ChatMessage>[
+        _message(id: 'u1', role: 'user', content: 'q1'),
+        _message(id: 'a1', role: 'assistant', content: 'a1'),
+        _message(id: 'u2', role: 'user', content: '   '),
+        _message(id: 'u3', role: 'user', content: 'q3'),
+        _message(id: 'a3', role: 'assistant', content: 'a3'),
+      ];
+
+      final kept = selectKeepRecentMessages(messages, 1);
+
+      expect(kept.map((m) => m.id).toList(), ['u3', 'a3']);
+    });
+
+    test('保留区内的空内容助手消息（纯工具调用）严格保留为空气泡', () {
+      final messages = <ChatMessage>[
+        _message(id: 'u1', role: 'user', content: 'q1'),
+        _message(id: 'a1', role: 'assistant', content: ''),
+        _message(id: 'u2', role: 'user', content: 'q2'),
+        _message(id: 'a2', role: 'assistant', content: ''),
+      ];
+
+      final kept = selectKeepRecentMessages(messages, 1);
+
+      expect(kept.map((m) => m.id).toList(), ['u2', 'a2']);
+    });
+
+    test('无用户消息或空列表时返回空', () {
+      expect(
+        selectKeepRecentMessages([
+          _message(id: 'a1', role: 'assistant', content: 'a1'),
+        ], 1),
+        isEmpty,
+      );
+      expect(selectKeepRecentMessages(const [], 1), isEmpty);
+    });
+
+    test('N 小于等于 0 时返回空', () {
+      final messages = [
+        _message(id: 'u1', role: 'user', content: 'q1'),
+        _message(id: 'a1', role: 'assistant', content: 'a1'),
+      ];
+      expect(selectKeepRecentMessages(messages, 0), isEmpty);
+      expect(selectKeepRecentMessages(messages, -1), isEmpty);
+    });
+  });
+
+  group('countUserMessages', () {
+    test('只统计内容非空的用户消息', () {
+      final messages = <ChatMessage>[
+        _message(id: 'u1', role: 'user', content: 'q1'),
+        _message(id: 'a1', role: 'assistant', content: 'a1'),
+        _message(id: 'u2', role: 'user', content: '   '),
+        _message(id: 'u3', role: 'user', content: 'q3'),
+      ];
+
+      expect(countUserMessages(messages), 2);
+    });
+  });
+
+  group('defaultKeepUserMessageCountFor', () {
+    test('少于 5 条用户消息时默认 1', () {
+      expect(defaultKeepUserMessageCountFor(0), 1);
+      expect(defaultKeepUserMessageCountFor(1), 1);
+      expect(defaultKeepUserMessageCountFor(2), 1);
+      expect(defaultKeepUserMessageCountFor(4), 1);
+    });
+
+    test('5-9 条用户消息时默认 2', () {
+      expect(defaultKeepUserMessageCountFor(5), 2);
+      expect(defaultKeepUserMessageCountFor(9), 2);
+    });
+
+    test('10 条及以上用户消息时默认 3', () {
+      expect(defaultKeepUserMessageCountFor(10), 3);
+      expect(defaultKeepUserMessageCountFor(100), 3);
+    });
+  });
+
+  group('estimateCompressionTokens', () {
+    test('保留区按长度占比折算 token', () {
+      final est = estimateCompressionTokens(
+        totalText: 'a' * 1000,
+        keptText: 'b' * 250,
+      );
+
+      // 1000 ascii chars → 250 tokens；保留 250 字符 → 62.5 → 63
+      expect(est.totalTokens, 250);
+      expect(est.keptTokens, 63);
+      // 总结区 187 tokens，10%-30% → 19..56 → 合计 82..119
+      expect(est.minResultTokens, 82);
+      expect(est.maxResultTokens, 119);
+    });
+
+    test('CJK 按 1.6 字符/token 估算', () {
+      final est = estimateCompressionTokens(
+        totalText: '中' * 400,
+        keptText: '中' * 100,
+      );
+
+      expect(est.totalTokens, 250);
+      expect(est.keptTokens, 63);
+    });
+
+    test('混合文本按 CJK 与非 CJK 分段估算', () {
+      final est = estimateCompressionTokens(
+        totalText: '中' * 200 + 'a' * 400,
+        keptText: '',
+      );
+
+      expect(est.totalTokens, 225);
+    });
+
+    test('空文本返回全零', () {
+      final est = estimateCompressionTokens(totalText: '', keptText: '');
+
+      expect(est.totalTokens, 0);
+      expect(est.keptTokens, 0);
+      expect(est.minResultTokens, 0);
+      expect(est.maxResultTokens, 0);
+    });
+
+    test('区间上界不低于下界', () {
+      final est = estimateCompressionTokens(
+        totalText: 'a' * 5000,
+        keptText: 'b' * 100,
+      );
+
+      expect(est.minResultTokens, lessThanOrEqualTo(est.maxResultTokens));
+      expect(est.keptTokens, lessThanOrEqualTo(est.totalTokens));
+    });
+  });
 }

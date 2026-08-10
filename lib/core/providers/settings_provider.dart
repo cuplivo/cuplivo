@@ -24,6 +24,8 @@ import '../../utils/avatar_cache.dart';
 import '../utils/openai_model_compat.dart';
 import '../../utils/provider_grouping_logic.dart';
 import '../../utils/brand_assets.dart';
+import '../prompts/constants/compress_prompts.dart' as compress_prompts;
+import '../prompts/constants/ocr_prompts.dart' as ocr_prompts;
 
 // Desktop: topic list position
 enum DesktopTopicPosition { left, right }
@@ -57,13 +59,13 @@ class SettingsProvider extends ChangeNotifier {
       'provider_ungrouped_position_v1'; // display index among groups
   static const String providerUngroupedGroupKey = '__ungrouped__';
   static const List<String> _builtInProviderKeysInOrder = [
+    'DeepSeek',
     'OpenAI',
     'SiliconFlow',
     'Gemini',
     'OpenRouter',
     'KelivoIN',
     'Tensdaq',
-    'DeepSeek',
     'AIhubmix',
     'Aliyun',
     'Zhipu AI',
@@ -89,6 +91,7 @@ class SettingsProvider extends ChangeNotifier {
   };
   static const String _pinnedModelsKey = 'pinned_models_v1';
   static const String _selectedModelKey = 'selected_model_v1';
+  static const String _defaultModelSeededKey = 'default_model_seeded_v1';
   static const String _titleModelKey = 'title_model_v1';
   static const String _titlePromptKey = 'title_prompt_v1';
   static const String _ocrModelKey = 'ocr_model_v1';
@@ -202,6 +205,8 @@ class SettingsProvider extends ChangeNotifier {
       'display_enable_user_markdown_v1';
   static const String _displayEnableReasoningMarkdownKey =
       'display_enable_reasoning_markdown_v1';
+  static const String _displayStreamingThinkingPreviewTruncateKey =
+      'display_streaming_thinking_preview_truncate_v1';
   static const String _displayEnableAssistantMarkdownKey =
       'display_enable_assistant_markdown_v1';
   static const String _displayShowChatListDateKey =
@@ -221,6 +226,10 @@ class SettingsProvider extends ChangeNotifier {
       'display_auto_collapse_code_block_v1';
   static const String _displayAutoCollapseCodeBlockLinesKey =
       'display_auto_collapse_code_block_lines_v1';
+  static const String _displayHtmlStreamingShowCodeKey =
+      'display_html_streaming_show_code_v1';
+  static const String _displayAutoOpenHtmlPreviewKey =
+      'display_auto_open_html_preview_v1';
   static const String _displayDesktopAutoSwitchTopicsKey =
       'display_desktop_auto_switch_topics_v1';
   static const String _displayDesktopShowTrayKey =
@@ -851,6 +860,20 @@ class SettingsProvider extends ChangeNotifier {
         _currentModelProvider = parts[0];
         _currentModelId = parts.sublist(1).join('::');
       }
+      // A persisted selection means the user has owned this choice at least
+      // once; arm the sentinel so a later reset is never re-seeded.
+      await prefs.setBool(_defaultModelSeededKey, true);
+    } else {
+      // One-time default: DeepSeek as the global default chat model.
+      // Seeded only on the first load where no model was ever persisted
+      // (guarded by a sentinel so explicit resets/deletes are never undone
+      // on later launches).
+      if (!(prefs.getBool(_defaultModelSeededKey) ?? false)) {
+        _currentModelProvider = 'DeepSeek';
+        _currentModelId = 'deepseek-v4-flash';
+        await prefs.setBool(_defaultModelSeededKey, true);
+        await prefs.setString(_selectedModelKey, 'DeepSeek::deepseek-v4-flash');
+      }
     }
     // load title model
     final titleSel = prefs.getString(_titleModelKey);
@@ -1035,7 +1058,7 @@ class SettingsProvider extends ChangeNotifier {
     _keepAssistantListExpandedOnSidebarClose =
         prefs.getBool(_displayKeepAssistantListExpandedOnSidebarCloseKey) ??
         false;
-    _requestLogEnabled = prefs.getBool(_requestLogEnabledKey) ?? false;
+    _requestLogEnabled = prefs.getBool(_requestLogEnabledKey) ?? true;
     await RequestLogger.setEnabled(_requestLogEnabled);
     _mcpLogEnabled = prefs.getBool(_mcpLogEnabledKey) ?? false;
     await RequestLogger.setCategoryEnabled(
@@ -1057,7 +1080,7 @@ class SettingsProvider extends ChangeNotifier {
     _logSaveOutput = prefs.getBool(_logSaveOutputKey) ?? true;
     RequestLogger.saveOutput = _logSaveOutput;
     _logAutoDeleteDays = prefs.getInt(_logAutoDeleteDaysKey) ?? 0;
-    _logMaxSizeMB = prefs.getInt(_logMaxSizeMBKey) ?? 0;
+    _logMaxSizeMB = prefs.getInt(_logMaxSizeMBKey) ?? 50;
     _trashCapMb = prefs.getInt(_trashCapMbKey) ?? 10;
     _appLaunchCount = prefs.getInt(_appLaunchCountKey) ?? 0;
     // Run log cleanup based on current settings
@@ -1118,6 +1141,8 @@ class SettingsProvider extends ChangeNotifier {
     _enableUserMarkdown = prefs.getBool(_displayEnableUserMarkdownKey) ?? true;
     _enableReasoningMarkdown =
         prefs.getBool(_displayEnableReasoningMarkdownKey) ?? true;
+    _streamingThinkingPreviewTruncate =
+        prefs.getBool(_displayStreamingThinkingPreviewTruncateKey) ?? true;
     _enableAssistantMarkdown =
         prefs.getBool(_displayEnableAssistantMarkdownKey) ?? true;
     _showChatListDate = prefs.getBool(_displayShowChatListDateKey) ?? false;
@@ -1138,6 +1163,10 @@ class SettingsProvider extends ChangeNotifier {
           1,
           999,
         );
+    _htmlStreamingShowCodeInProgress =
+        prefs.getBool(_displayHtmlStreamingShowCodeKey) ?? false;
+    _autoOpenHtmlPreviewOnComplete =
+        prefs.getBool(_displayAutoOpenHtmlPreviewKey) ?? false;
     _desktopAutoSwitchTopics =
         prefs.getBool(_displayDesktopAutoSwitchTopicsKey) ?? false;
     // Desktop: tray settings (default enabled on desktop platforms)
@@ -3079,19 +3108,7 @@ Please translate the <source_text> section:
       ? '${_ocrModelProvider!}::${_ocrModelId!}'
       : null;
 
-  static const String defaultOcrPrompt = '''You are an OCR assistant.
-
-Extract all visible text from the image and also describe any non-text elements (icons, shapes, arrows, objects, symbols, or emojis).
-
-For each element, specify:
-- The exact text (for text) or a short description (for non-text).
-- For document-type content, please use markdown and latex format.
-- If there are objects like buildings or characters, try to identify who they are.
-- Its approximate position in the image (e.g., 'top left', 'center right', 'bottom middle').
-- Its spatial relationship to nearby elements (e.g., 'above', 'below', 'next to', 'on the left of').
-
-Keep the original reading order and layout structure as much as possible.
-Do not interpret or translate—only transcribe and describe what is visually present.''';
+  static const String defaultOcrPrompt = ocr_prompts.defaultOcrPrompt;
 
   String _ocrPrompt = defaultOcrPrompt;
   String get ocrPrompt => _ocrPrompt;
@@ -3256,26 +3273,7 @@ Rules:
       : null;
 
   static const String defaultCompressPrompt =
-      '''Provide a detailed summary of the following conversation for continuing in a new session.
-
-The new session will not have access to the original conversation history, so preserve all context needed to continue seamlessly.
-
-Focus on:
-- Key topics discussed and why they matter
-- Important decisions made and their reasoning
-- Current work in progress and its state
-- Next steps or open questions to address
-- Any relevant technical details, code snippets, or configurations mentioned
-
-Requirements:
-1. Write in {locale} language, matching the original conversation language
-2. Be concise but complete — do not omit important context
-3. Output the summary directly without prefaces or meta-commentary
-4. Start with a clear indicator (e.g., "[Summary of previous conversation]" or equivalent)
-
-<conversation>
-{content}
-</conversation>''';
+      compress_prompts.defaultCompressPrompt;
 
   String _compressPrompt = defaultCompressPrompt;
   String get compressPrompt => _compressPrompt;
@@ -4050,6 +4048,19 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     await prefs.setBool(_displayEnableReasoningMarkdownKey, v);
   }
 
+  // Display: bound the streaming thinking preview to its tail (issue #232).
+  // Off = original behavior (full text re-parsed on every streaming update).
+  bool _streamingThinkingPreviewTruncate = true;
+  bool get streamingThinkingPreviewTruncate =>
+      _streamingThinkingPreviewTruncate;
+  Future<void> setStreamingThinkingPreviewTruncate(bool v) async {
+    if (_streamingThinkingPreviewTruncate == v) return;
+    _streamingThinkingPreviewTruncate = v;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_displayStreamingThinkingPreviewTruncateKey, v);
+  }
+
   // Display: render assistant messages with Markdown
   bool _enableAssistantMarkdown = true;
   bool get enableAssistantMarkdown => _enableAssistantMarkdown;
@@ -4158,6 +4169,29 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_displayAutoCollapseCodeBlockLinesKey, next);
+  }
+
+  // Display: show the Code tab while an HTML block is streaming (default:
+  // Preview tab with a loading state)
+  bool _htmlStreamingShowCodeInProgress = false;
+  bool get htmlStreamingShowCodeInProgress => _htmlStreamingShowCodeInProgress;
+  Future<void> setHtmlStreamingShowCodeInProgress(bool v) async {
+    if (_htmlStreamingShowCodeInProgress == v) return;
+    _htmlStreamingShowCodeInProgress = v;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_displayHtmlStreamingShowCodeKey, v);
+  }
+
+  // Display: auto-open the full-screen HTML preview page when generation ends
+  bool _autoOpenHtmlPreviewOnComplete = false;
+  bool get autoOpenHtmlPreviewOnComplete => _autoOpenHtmlPreviewOnComplete;
+  Future<void> setAutoOpenHtmlPreviewOnComplete(bool v) async {
+    if (_autoOpenHtmlPreviewOnComplete == v) return;
+    _autoOpenHtmlPreviewOnComplete = v;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_displayAutoOpenHtmlPreviewKey, v);
   }
 
   // Desktop-only: auto switch to Topics tab when changing assistant
@@ -4612,10 +4646,13 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     copy._enableMathRendering = _enableMathRendering;
     copy._enableUserMarkdown = _enableUserMarkdown;
     copy._enableReasoningMarkdown = _enableReasoningMarkdown;
+    copy._streamingThinkingPreviewTruncate = _streamingThinkingPreviewTruncate;
     copy._enableAssistantMarkdown = _enableAssistantMarkdown;
     copy._showChatListDate = _showChatListDate;
     copy._autoCollapseCodeBlock = _autoCollapseCodeBlock;
     copy._autoCollapseCodeBlockLines = _autoCollapseCodeBlockLines;
+    copy._htmlStreamingShowCodeInProgress = _htmlStreamingShowCodeInProgress;
+    copy._autoOpenHtmlPreviewOnComplete = _autoOpenHtmlPreviewOnComplete;
     copy._desktopAutoSwitchTopics = _desktopAutoSwitchTopics;
     copy._desktopShowTray = _desktopShowTray;
     copy._desktopMinimizeToTrayOnClose = _desktopMinimizeToTrayOnClose;
@@ -5206,6 +5243,7 @@ class ProviderConfig {
   static ProviderConfig defaultsFor(String key, {String? displayName}) {
     bool defaultEnabled(String k) {
       final s = k.toLowerCase();
+      if (s.contains('deepseek')) return true;
       if (s.contains('tensdaq')) return true;
       if (s.contains('openai')) return true;
       if (s.contains('gemini') || s.contains('google')) return true;

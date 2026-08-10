@@ -11,6 +11,7 @@ import '../../../core/providers/memory_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/tts_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
+import '../../../core/services/headless_generation_service.dart';
 import '../../../core/services/mcp/mcp_tool_service.dart';
 import '../../../core/services/search/search_tool_service.dart';
 import 'ask_user_interaction_service.dart';
@@ -514,6 +515,7 @@ class ToolHandlerService {
     Assistant? assistant, {
     ToolApprovalService? approvalService,
     AskUserInteractionService? askUserService,
+    String? conversationId,
   }) {
     final mcp = contextProvider.read<McpProvider>();
     final toolSvc = contextProvider.read<McpToolService>();
@@ -560,6 +562,7 @@ class ToolHandlerService {
               toolCallId: callId,
               toolName: resolvedName,
               arguments: args,
+              conversationId: conversationId,
             );
             if (!result.approved) {
               return _toolError(
@@ -578,7 +581,7 @@ class ToolHandlerService {
             arguments: args,
             targetServerId: mcpServer!.id,
           );
-          return text;
+          return await _afterSyncHandoff(resolvedName, text);
         }
 
         // Search tool
@@ -638,6 +641,7 @@ class ToolHandlerService {
                   ? toolCallId!.trim()
                   : '${name}_${DateTime.now().microsecondsSinceEpoch}',
               arguments: args,
+              conversationId: conversationId,
             );
             return result.toJsonString();
           } on AskUserInvalidRequestException catch (e) {
@@ -657,6 +661,7 @@ class ToolHandlerService {
             toolCallId: toolCallId,
             toolName: name,
             arguments: args,
+            conversationId: conversationId,
           );
           if (!result.approved) {
             return _toolError(
@@ -675,7 +680,7 @@ class ToolHandlerService {
           toolName: name,
           arguments: args,
         );
-        return text;
+        return await _afterSyncHandoff(name, text);
       } catch (e) {
         // Catch unexpected exceptions and return error JSON to LLM
         // This prevents tool failures from terminating the chat flow
@@ -688,6 +693,56 @@ class ToolHandlerService {
         );
       }
     };
+  }
+
+  /// Wait-mode handoff (`kelivo_handoff_sync`): the fast MCP response carries
+  /// the child conversation UUID; block ABOVE the MCP layer until the
+  /// sub-generation completes, then return its full output (or a
+  /// cancellation/error marker) as the tool result. Any other tool passes
+  /// through unchanged.
+  Future<String> _afterSyncHandoff(String name, String mcpText) async {
+    if (name != 'kelivo_handoff_sync') return mcpText;
+
+    String? childId;
+    try {
+      final decoded = jsonDecode(mcpText);
+      if (decoded is Map) {
+        final id = (decoded['conversation'] ?? '').toString();
+        if (id.isNotEmpty) childId = id;
+      }
+    } catch (e) {
+      debugPrint('[SyncHandoff] unparseable result: $e');
+    }
+    if (childId == null) {
+      return _toolError(
+        error: 'subagent_bad_result',
+        message:
+            'kelivo_handoff_sync returned an unparseable result: '
+            '$mcpText',
+        tool: name,
+      );
+    }
+
+    final headlessGen = contextProvider.read<HeadlessGenerationService>();
+    final result = await headlessGen.waitFor(childId);
+    if (result.cancelled) {
+      return _toolError(
+        error: 'subagent_cancelled',
+        message: 'The sub-agent was cancelled by the user before finishing.',
+        tool: name,
+        instruction:
+            'The sub-agent did not finish. Summarize what was accomplished '
+            'or ask the user whether to retry.',
+      );
+    }
+    if (result.error != null) {
+      return _toolError(
+        error: 'subagent_error',
+        message: result.error!,
+        tool: name,
+      );
+    }
+    return result.text;
   }
 
   /// Handle memory tool calls (create/edit/delete).

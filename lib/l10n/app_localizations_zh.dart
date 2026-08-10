@@ -339,6 +339,38 @@ class AppLocalizationsZh extends AppLocalizations {
   String get storageMountsErrorPathNotFound => '路径不存在或不是目录';
 
   @override
+  String get storageMountsErrorSyncOverlap => '该文件夹与同步范围重叠（备份/同步目录）';
+
+  @override
+  String get storageMountsErrorInsideWorkspaces => '该文件夹位于当前工作区文件夹内部';
+
+  @override
+  String get storageMountsErrorDestinationNotEmpty =>
+      '该文件夹不为空——移动工作区文件时请选择空文件夹';
+
+  @override
+  String get storageMountsWorkspacesLocationTitle => '工作区位置';
+
+  @override
+  String get storageMountsWorkspacesLocationDialogTitle => '更改工作区位置';
+
+  @override
+  String get storageMountsWorkspacesMoveFilesLabel => '将现有文件移动到新位置';
+
+  @override
+  String get storageMountsWorkspacesLocationChanged => '工作区位置已更改';
+
+  @override
+  String storageMountsWorkspacesMoved(Object path) {
+    return '已将工作区文件移动到 $path';
+  }
+
+  @override
+  String storageMountsWorkspacesMoveFailed(Object error) {
+    return '移动工作区文件失败：$error';
+  }
+
+  @override
   String mountFilesPageTitle(Object alias) {
     return '文件 · $alias';
   }
@@ -405,6 +437,25 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String mountFilesPreviewTruncated(Object total) {
     return '预览已截断：仅显示 $total 行中的开头部分';
+  }
+
+  @override
+  String get mountFilesMoreButton => '更多';
+
+  @override
+  String get mountFilesOpenButton => '打开';
+
+  @override
+  String get mountFilesShareButton => '分享';
+
+  @override
+  String mountFilesOpenFailed(Object error, Object name) {
+    return '打开 $name 失败：$error';
+  }
+
+  @override
+  String mountFilesShareFailed(Object error, Object name) {
+    return '分享 $name 失败：$error';
   }
 
   @override
@@ -478,6 +529,11 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String storageSpaceDeleteRefWarning(int count) {
     return '其中 $count 个文件被消息引用——删除后将无法显示';
+  }
+
+  @override
+  String storageSpaceDeleteDraftWarning(int count) {
+    return '其中 $count 个文件仍被未发送的草稿引用';
   }
 
   @override
@@ -698,6 +754,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get svgSaveDialogTitle => '保存 SVG';
+
+  @override
+  String get htmlPreviewTab => '预览';
+
+  @override
+  String get htmlSaveFile => '下载 HTML';
+
+  @override
+  String get htmlSaveSuccess => 'HTML 已保存';
+
+  @override
+  String get htmlSaveFailed => '保存失败';
+
+  @override
+  String get htmlSaveDialogTitle => '保存 HTML';
+
+  @override
+  String get htmlOpenFullScreenPreview => '全屏预览';
 
   @override
   String get mermaidExportPng => '导出 PNG';
@@ -1566,9 +1640,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assistantEditPreviewTitle => '预览';
 
   @override
-  String get codeBlockPreviewButton => '预览';
-
-  @override
   String get codeBlockSaveAsButton => '另存为文件';
 
   @override
@@ -1844,6 +1915,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupPageImportFromRikkaHub => '从 RikkaHub 导入';
+
+  @override
+  String get backupPageRikkaHubMigrateUrl =>
+      'https://kelivo-helper.netlify.app/#/migrate';
+
+  @override
+  String get backupPageRikkaHubMigrateHint =>
+      'RikkaHub 备份可通过迁移网站转换为 Cuplivo 兼容的备份：';
+
+  @override
+  String get backupPageRikkaHubTutorialTitle => '使用教程';
+
+  @override
+  String get backupPageRikkaHubStep1 => '进入这个网站后，点击“点击选择”';
+
+  @override
+  String get backupPageRikkaHubStep2 => '找到自己的 RikkaHub 备份，并点击确认';
+
+  @override
+  String get backupPageRikkaHubStep3 =>
+      '等待 15 秒左右，会提示迁移完成，点击下载迁移包，会下载到一个与原文件名字相同、在后面加入了 kelivo 后缀的压缩包';
+
+  @override
+  String get backupPageRikkaHubStep4 => '回到 Cuplivo，点击“备份文件导入”，导入刚刚下载的迁移包即可';
+
+  @override
+  String get backupPageRikkaHubStep5 => '如有问题可进入 Cuplivo 的 QQ 群反馈';
 
   @override
   String get backupPageNotSupportedYet => '暂不支持';
@@ -2317,6 +2415,28 @@ class AppLocalizationsZh extends AppLocalizations {
   String get compressContextStartButton => '开始压缩';
 
   @override
+  String get compressContextKeepRecentMessages => '保留N条';
+
+  @override
+  String compressContextKeepCountLabel(Object count) {
+    return '保留最近 $count 条用户消息';
+  }
+
+  @override
+  String get compressContextKeepAllMessages => '保留条数覆盖全部消息，无内容可压缩';
+
+  @override
+  String compressContextEstimatePreview(
+    int summarized,
+    int kept,
+    int minTokens,
+    int maxTokens,
+    int totalTokens,
+  ) {
+    return '总结 $summarized 字符，原样保留 $kept 字符 → 压缩后约 $minTokens–$maxTokens tokens（原文约 $totalTokens tokens）';
+  }
+
+  @override
   String get bottomToolsSheetLearningMode => '学习模式';
 
   @override
@@ -2662,11 +2782,25 @@ class AppLocalizationsZh extends AppLocalizations {
       '思维链 Markdown 渲染';
 
   @override
+  String get displaySettingsPageStreamingThinkingPreviewTruncateTitle =>
+      '限制流式思考预览长度';
+
+  @override
+  String get displaySettingsPageStreamingThinkingPreviewTruncateSubtitle =>
+      '思考过程中只渲染预览的尾部以提升流畅度。关闭可恢复原有的全量实时预览。';
+
+  @override
   String get displaySettingsPageEnableAssistantMarkdownTitle =>
       '助手消息 Markdown 渲染';
 
   @override
   String get displaySettingsPageMobileCodeBlockWrapTitle => '移动端代码块自动换行';
+
+  @override
+  String get displaySettingsPageHtmlStreamingShowCodeTitle => 'HTML 生成期间显示代码';
+
+  @override
+  String get displaySettingsPageAutoOpenHtmlPreviewTitle => '生成完成后自动打开 HTML 预览';
 
   @override
   String get displaySettingsPageAutoCollapseCodeBlockTitle => '自动折叠代码块';
@@ -6231,6 +6365,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get titlePresetUnsavedHint => '更改或选择预设后，需点击「保存」方可生效';
 
   @override
+  String get compressPresetStandard => '标准（默认）';
+
+  @override
+  String get compressPresetDetailed => '详细版';
+
+  @override
+  String get ocrPresetStandard => '标准（默认）';
+
+  @override
+  String get ocrPresetCoordinate => '坐标精确定位版';
+
+  @override
+  String get promptPresetCustom => '自定义';
+
+  @override
   String get imageCompressionDialogTitle => '压缩图片';
 
   @override
@@ -6646,6 +6795,67 @@ class AppLocalizationsZh extends AppLocalizations {
   String get handoffBackwardChipTooltip => '返回上一级对话';
 
   @override
+  String get subagentPanelThinking => '思考中';
+
+  @override
+  String get subagentPanelStreaming => '输出中';
+
+  @override
+  String get subagentPanelWaitingApproval => '等待批准';
+
+  @override
+  String subagentPanelLastStepCall(Object tool) {
+    return '最后一步:调用 $tool';
+  }
+
+  @override
+  String subagentPanelLastStepDone(Object tool) {
+    return '最后一步:$tool 完成';
+  }
+
+  @override
+  String get subagentPanelViewChild => '查看子对话';
+
+  @override
+  String get subagentPanelCancelTooltip => '取消子代理';
+
+  @override
+  String get subagentPanelCancelConfirmTitle => '取消子代理?';
+
+  @override
+  String get subagentPanelCancelConfirmBody => '正在运行的子代理将被终止,已生成的内容会保留在子对话中。';
+
+  @override
+  String get subagentPanelCancelConfirmKeep => '继续运行';
+
+  @override
+  String get subagentPanelCancelConfirmAction => '终止';
+
+  @override
+  String get subagentPanelApprove => '批准';
+
+  @override
+  String get subagentPanelDeny => '拒绝';
+
+  @override
+  String get subagentPanelAskUserPending => '需要您的回答';
+
+  @override
+  String get subagentPanelAnswerNow => '去回答';
+
+  @override
+  String subagentPanelToolCalls(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 次工具调用',
+      one: '1 次工具调用',
+      zero: '0 次工具调用',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get groupChatMyGroupChats => '我的群聊';
 
   @override
@@ -6758,6 +6968,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get groupChatInjectionEveryNUserAndAssistant => '每 N 条用户与助手消息，注入消息的结尾';
+
+  @override
+  String get groupChatInjectGroupMembersTitle => '在助手系统提示词中注入群聊信息';
+
+  @override
+  String get groupChatInjectGroupMembersDesc =>
+      '开启后，每个成员助手会在其系统提示词的末尾被告知：当前处于一个群聊中，以及群聊的成员名单（仅包含用户与助手成员的名字，不包含其他成员的系统提示词）。';
+
+  @override
+  String get groupChatAdvancedDirectorSection => '导演';
+
+  @override
+  String get groupChatAdvancedAssistantSection => '助手回复';
 
   @override
   String get groupChatDirectorLogsEmpty => '暂无导演日志。';
@@ -7359,6 +7582,38 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get storageMountsErrorPathNotFound => '路径不存在或不是目录';
 
   @override
+  String get storageMountsErrorSyncOverlap => '该文件夹与同步范围重叠（备份/同步目录）';
+
+  @override
+  String get storageMountsErrorInsideWorkspaces => '该文件夹位于当前工作区文件夹内部';
+
+  @override
+  String get storageMountsErrorDestinationNotEmpty =>
+      '该文件夹不为空——移动工作区文件时请选择空文件夹';
+
+  @override
+  String get storageMountsWorkspacesLocationTitle => '工作区位置';
+
+  @override
+  String get storageMountsWorkspacesLocationDialogTitle => '更改工作区位置';
+
+  @override
+  String get storageMountsWorkspacesMoveFilesLabel => '将现有文件移动到新位置';
+
+  @override
+  String get storageMountsWorkspacesLocationChanged => '工作区位置已更改';
+
+  @override
+  String storageMountsWorkspacesMoved(Object path) {
+    return '已将工作区文件移动到 $path';
+  }
+
+  @override
+  String storageMountsWorkspacesMoveFailed(Object error) {
+    return '移动工作区文件失败：$error';
+  }
+
+  @override
   String mountFilesPageTitle(Object alias) {
     return '文件 · $alias';
   }
@@ -7425,6 +7680,25 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String mountFilesPreviewTruncated(Object total) {
     return '预览已截断：仅显示 $total 行中的开头部分';
+  }
+
+  @override
+  String get mountFilesMoreButton => '更多';
+
+  @override
+  String get mountFilesOpenButton => '打开';
+
+  @override
+  String get mountFilesShareButton => '分享';
+
+  @override
+  String mountFilesOpenFailed(Object error, Object name) {
+    return '打开 $name 失败：$error';
+  }
+
+  @override
+  String mountFilesShareFailed(Object error, Object name) {
+    return '分享 $name 失败：$error';
   }
 
   @override
@@ -7498,6 +7772,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String storageSpaceDeleteRefWarning(int count) {
     return '其中 $count 个文件被消息引用——删除后将无法显示';
+  }
+
+  @override
+  String storageSpaceDeleteDraftWarning(int count) {
+    return '其中 $count 个文件仍被未发送的草稿引用';
   }
 
   @override
@@ -7718,6 +7997,24 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get svgSaveDialogTitle => '保存 SVG';
+
+  @override
+  String get htmlPreviewTab => '预览';
+
+  @override
+  String get htmlSaveFile => '下载 HTML';
+
+  @override
+  String get htmlSaveSuccess => 'HTML 已保存';
+
+  @override
+  String get htmlSaveFailed => '保存失败';
+
+  @override
+  String get htmlSaveDialogTitle => '保存 HTML';
+
+  @override
+  String get htmlOpenFullScreenPreview => '全屏预览';
 
   @override
   String get mermaidExportPng => '导出 PNG';
@@ -8586,9 +8883,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get assistantEditPreviewTitle => '预览';
 
   @override
-  String get codeBlockPreviewButton => '预览';
-
-  @override
   String get codeBlockSaveAsButton => '另存为文件';
 
   @override
@@ -8864,6 +9158,33 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupPageImportFromRikkaHub => '从 RikkaHub 导入';
+
+  @override
+  String get backupPageRikkaHubMigrateUrl =>
+      'https://kelivo-helper.netlify.app/#/migrate';
+
+  @override
+  String get backupPageRikkaHubMigrateHint =>
+      'RikkaHub 备份可通过迁移网站转换为 Cuplivo 兼容的备份：';
+
+  @override
+  String get backupPageRikkaHubTutorialTitle => '使用教程';
+
+  @override
+  String get backupPageRikkaHubStep1 => '进入这个网站后，点击“点击选择”';
+
+  @override
+  String get backupPageRikkaHubStep2 => '找到自己的 RikkaHub 备份，并点击确认';
+
+  @override
+  String get backupPageRikkaHubStep3 =>
+      '等待 15 秒左右，会提示迁移完成，点击下载迁移包，会下载到一个与原文件名字相同、在后面加入了 kelivo 后缀的压缩包';
+
+  @override
+  String get backupPageRikkaHubStep4 => '回到 Cuplivo，点击“备份文件导入”，导入刚刚下载的迁移包即可';
+
+  @override
+  String get backupPageRikkaHubStep5 => '如有问题可进入 Cuplivo 的 QQ 群反馈';
 
   @override
   String get backupPageNotSupportedYet => '暂不支持';
@@ -9337,6 +9658,28 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get compressContextStartButton => '开始压缩';
 
   @override
+  String get compressContextKeepRecentMessages => '保留N条';
+
+  @override
+  String compressContextKeepCountLabel(Object count) {
+    return '保留最近 $count 条用户消息';
+  }
+
+  @override
+  String get compressContextKeepAllMessages => '保留条数覆盖全部消息，无内容可压缩';
+
+  @override
+  String compressContextEstimatePreview(
+    int summarized,
+    int kept,
+    int minTokens,
+    int maxTokens,
+    int totalTokens,
+  ) {
+    return '总结 $summarized 字符，原样保留 $kept 字符 → 压缩后约 $minTokens–$maxTokens tokens（原文约 $totalTokens tokens）';
+  }
+
+  @override
   String get bottomToolsSheetLearningMode => '学习模式';
 
   @override
@@ -9682,11 +10025,25 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       '思维链 Markdown 渲染';
 
   @override
+  String get displaySettingsPageStreamingThinkingPreviewTruncateTitle =>
+      '限制流式思考预览长度';
+
+  @override
+  String get displaySettingsPageStreamingThinkingPreviewTruncateSubtitle =>
+      '思考过程中只渲染预览的尾部以提升流畅度。关闭可恢复原有的全量实时预览。';
+
+  @override
   String get displaySettingsPageEnableAssistantMarkdownTitle =>
       '助手消息 Markdown 渲染';
 
   @override
   String get displaySettingsPageMobileCodeBlockWrapTitle => '移动端代码块自动换行';
+
+  @override
+  String get displaySettingsPageHtmlStreamingShowCodeTitle => 'HTML 生成期间显示代码';
+
+  @override
+  String get displaySettingsPageAutoOpenHtmlPreviewTitle => '生成完成后自动打开 HTML 预览';
 
   @override
   String get displaySettingsPageAutoCollapseCodeBlockTitle => '自动折叠代码块';
@@ -13251,6 +13608,21 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get titlePresetUnsavedHint => '更改或选择预设后，需点击「保存」方可生效';
 
   @override
+  String get compressPresetStandard => '标准（默认）';
+
+  @override
+  String get compressPresetDetailed => '详细版';
+
+  @override
+  String get ocrPresetStandard => '标准（默认）';
+
+  @override
+  String get ocrPresetCoordinate => '坐标精确定位版';
+
+  @override
+  String get promptPresetCustom => '自定义';
+
+  @override
   String get imageCompressionDialogTitle => '压缩图片';
 
   @override
@@ -13666,6 +14038,67 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get handoffBackwardChipTooltip => '返回上一级对话';
 
   @override
+  String get subagentPanelThinking => '思考中';
+
+  @override
+  String get subagentPanelStreaming => '输出中';
+
+  @override
+  String get subagentPanelWaitingApproval => '等待批准';
+
+  @override
+  String subagentPanelLastStepCall(Object tool) {
+    return '最后一步:调用 $tool';
+  }
+
+  @override
+  String subagentPanelLastStepDone(Object tool) {
+    return '最后一步:$tool 完成';
+  }
+
+  @override
+  String get subagentPanelViewChild => '查看子对话';
+
+  @override
+  String get subagentPanelCancelTooltip => '取消子代理';
+
+  @override
+  String get subagentPanelCancelConfirmTitle => '取消子代理?';
+
+  @override
+  String get subagentPanelCancelConfirmBody => '正在运行的子代理将被终止,已生成的内容会保留在子对话中。';
+
+  @override
+  String get subagentPanelCancelConfirmKeep => '继续运行';
+
+  @override
+  String get subagentPanelCancelConfirmAction => '终止';
+
+  @override
+  String get subagentPanelApprove => '批准';
+
+  @override
+  String get subagentPanelDeny => '拒绝';
+
+  @override
+  String get subagentPanelAskUserPending => '需要您的回答';
+
+  @override
+  String get subagentPanelAnswerNow => '去回答';
+
+  @override
+  String subagentPanelToolCalls(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 次工具调用',
+      one: '1 次工具调用',
+      zero: '0 次工具调用',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get groupChatMyGroupChats => '我的群聊';
 
   @override
@@ -13778,6 +14211,19 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get groupChatInjectionEveryNUserAndAssistant => '每 N 条用户与助手消息，注入消息的结尾';
+
+  @override
+  String get groupChatInjectGroupMembersTitle => '在助手系统提示词中注入群聊信息';
+
+  @override
+  String get groupChatInjectGroupMembersDesc =>
+      '开启后，每个成员助手会在其系统提示词的末尾被告知：当前处于一个群聊中，以及群聊的成员名单（仅包含用户与助手成员的名字，不包含其他成员的系统提示词）。';
+
+  @override
+  String get groupChatAdvancedDirectorSection => '导演';
+
+  @override
+  String get groupChatAdvancedAssistantSection => '助手回复';
 
   @override
   String get groupChatDirectorLogsEmpty => '暂无导演日志。';
@@ -14378,6 +14824,38 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get storageMountsErrorPathNotFound => '路徑不存在或不是目錄';
 
   @override
+  String get storageMountsErrorSyncOverlap => '該資料夾與同步範圍重疊（備份/同步目錄）';
+
+  @override
+  String get storageMountsErrorInsideWorkspaces => '該資料夾位於目前工作區資料夾內部';
+
+  @override
+  String get storageMountsErrorDestinationNotEmpty =>
+      '該資料夾不是空的——移動工作區檔案時請選擇空資料夾';
+
+  @override
+  String get storageMountsWorkspacesLocationTitle => '工作區位置';
+
+  @override
+  String get storageMountsWorkspacesLocationDialogTitle => '更改工作區位置';
+
+  @override
+  String get storageMountsWorkspacesMoveFilesLabel => '將現有檔案移動到新位置';
+
+  @override
+  String get storageMountsWorkspacesLocationChanged => '工作區位置已更改';
+
+  @override
+  String storageMountsWorkspacesMoved(Object path) {
+    return '已將工作區檔案移動到 $path';
+  }
+
+  @override
+  String storageMountsWorkspacesMoveFailed(Object error) {
+    return '移動工作區檔案失敗：$error';
+  }
+
+  @override
   String mountFilesPageTitle(Object alias) {
     return '檔案 · $alias';
   }
@@ -14444,6 +14922,25 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String mountFilesPreviewTruncated(Object total) {
     return '預覽已截斷：僅顯示 $total 行中的開頭部分';
+  }
+
+  @override
+  String get mountFilesMoreButton => '更多';
+
+  @override
+  String get mountFilesOpenButton => '開啟';
+
+  @override
+  String get mountFilesShareButton => '分享';
+
+  @override
+  String mountFilesOpenFailed(Object error, Object name) {
+    return '開啟 $name 失敗：$error';
+  }
+
+  @override
+  String mountFilesShareFailed(Object error, Object name) {
+    return '分享 $name 失敗：$error';
   }
 
   @override
@@ -14517,6 +15014,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String storageSpaceDeleteRefWarning(int count) {
     return '其中 $count 個檔案被訊息引用——刪除後將無法顯示';
+  }
+
+  @override
+  String storageSpaceDeleteDraftWarning(int count) {
+    return '其中 $count 個檔案仍被未發送的草稿引用';
   }
 
   @override
@@ -14737,6 +15239,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get svgSaveDialogTitle => '儲存 SVG';
+
+  @override
+  String get htmlPreviewTab => '預覽';
+
+  @override
+  String get htmlSaveFile => '下載 HTML';
+
+  @override
+  String get htmlSaveSuccess => 'HTML 已儲存';
+
+  @override
+  String get htmlSaveFailed => '儲存失敗';
+
+  @override
+  String get htmlSaveDialogTitle => '儲存 HTML';
+
+  @override
+  String get htmlOpenFullScreenPreview => '全螢幕預覽';
 
   @override
   String get mermaidExportPng => '匯出 PNG';
@@ -15605,9 +16125,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get assistantEditPreviewTitle => '預覽';
 
   @override
-  String get codeBlockPreviewButton => '預覽';
-
-  @override
   String get codeBlockSaveAsButton => '另存為檔案';
 
   @override
@@ -15883,6 +16400,33 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupPageImportFromRikkaHub => '從 RikkaHub 匯入';
+
+  @override
+  String get backupPageRikkaHubMigrateUrl =>
+      'https://kelivo-helper.netlify.app/#/migrate';
+
+  @override
+  String get backupPageRikkaHubMigrateHint =>
+      'RikkaHub 備份可透過遷移網站轉換為 Cuplivo 相容的備份：';
+
+  @override
+  String get backupPageRikkaHubTutorialTitle => '使用教學';
+
+  @override
+  String get backupPageRikkaHubStep1 => '進入這個網站後，點擊「點擊選擇」';
+
+  @override
+  String get backupPageRikkaHubStep2 => '找到自己的 RikkaHub 備份，並點擊確認';
+
+  @override
+  String get backupPageRikkaHubStep3 =>
+      '等待約 15 秒，會提示遷移完成，點擊下載遷移包，會下載到一個與原檔案名稱相同、並在後方加上 kelivo 後綴的壓縮包';
+
+  @override
+  String get backupPageRikkaHubStep4 => '回到 Cuplivo，點擊「備份檔案匯入」，匯入剛下載的遷移包即可';
+
+  @override
+  String get backupPageRikkaHubStep5 => '如有問題可進入 Cuplivo 的 QQ 群回饋';
 
   @override
   String get backupPageNotSupportedYet => '暫不支援';
@@ -16355,6 +16899,28 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get compressContextStartButton => '開始壓縮';
 
   @override
+  String get compressContextKeepRecentMessages => '保留N條';
+
+  @override
+  String compressContextKeepCountLabel(Object count) {
+    return '保留最近 $count 條用戶訊息';
+  }
+
+  @override
+  String get compressContextKeepAllMessages => '保留條數涵蓋全部訊息，無內容可壓縮';
+
+  @override
+  String compressContextEstimatePreview(
+    int summarized,
+    int kept,
+    int minTokens,
+    int maxTokens,
+    int totalTokens,
+  ) {
+    return '總結 $summarized 字元，原樣保留 $kept 字元 → 壓縮後約 $minTokens–$maxTokens tokens（原文約 $totalTokens tokens）';
+  }
+
+  @override
   String get bottomToolsSheetLearningMode => '學習模式';
 
   @override
@@ -16700,11 +17266,25 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '思维鏈 Markdown 渲染';
 
   @override
+  String get displaySettingsPageStreamingThinkingPreviewTruncateTitle =>
+      '限制串流思考預覽長度';
+
+  @override
+  String get displaySettingsPageStreamingThinkingPreviewTruncateSubtitle =>
+      '思考過程中僅渲染預覽的尾部以提升流暢度。關閉可恢復原有的全量即時預覽。';
+
+  @override
   String get displaySettingsPageEnableAssistantMarkdownTitle =>
       '助手訊息 Markdown 渲染';
 
   @override
   String get displaySettingsPageMobileCodeBlockWrapTitle => '行動端程式碼區塊自動換行';
+
+  @override
+  String get displaySettingsPageHtmlStreamingShowCodeTitle => 'HTML 生成期間顯示程式碼';
+
+  @override
+  String get displaySettingsPageAutoOpenHtmlPreviewTitle => '生成完成後自動開啟 HTML 預覽';
 
   @override
   String get displaySettingsPageAutoCollapseCodeBlockTitle => '自動摺疊程式碼區塊';
@@ -20270,6 +20850,21 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get titlePresetUnsavedHint => '更改或選擇預設後，需點擊「儲存」方可生效';
 
   @override
+  String get compressPresetStandard => '標準（預設）';
+
+  @override
+  String get compressPresetDetailed => '詳細版';
+
+  @override
+  String get ocrPresetStandard => '標準（預設）';
+
+  @override
+  String get ocrPresetCoordinate => '座標精確定位版';
+
+  @override
+  String get promptPresetCustom => '自定義';
+
+  @override
   String get imageCompressionDialogTitle => '壓縮圖片';
 
   @override
@@ -20685,6 +21280,67 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get handoffBackwardChipTooltip => '返回上一級對話';
 
   @override
+  String get subagentPanelThinking => '思考中';
+
+  @override
+  String get subagentPanelStreaming => '輸出中';
+
+  @override
+  String get subagentPanelWaitingApproval => '等待批准';
+
+  @override
+  String subagentPanelLastStepCall(Object tool) {
+    return '最後一步:呼叫 $tool';
+  }
+
+  @override
+  String subagentPanelLastStepDone(Object tool) {
+    return '最後一步:$tool 完成';
+  }
+
+  @override
+  String get subagentPanelViewChild => '查看子對話';
+
+  @override
+  String get subagentPanelCancelTooltip => '取消子代理';
+
+  @override
+  String get subagentPanelCancelConfirmTitle => '取消子代理?';
+
+  @override
+  String get subagentPanelCancelConfirmBody => '正在執行的子代理將被終止,已生成的內容會保留在子對話中。';
+
+  @override
+  String get subagentPanelCancelConfirmKeep => '繼續執行';
+
+  @override
+  String get subagentPanelCancelConfirmAction => '終止';
+
+  @override
+  String get subagentPanelApprove => '批准';
+
+  @override
+  String get subagentPanelDeny => '拒絕';
+
+  @override
+  String get subagentPanelAskUserPending => '需要您的回答';
+
+  @override
+  String get subagentPanelAnswerNow => '去回答';
+
+  @override
+  String subagentPanelToolCalls(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 次工具呼叫',
+      one: '1 次工具呼叫',
+      zero: '0 次工具呼叫',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get groupChatMyGroupChats => '我的群聊';
 
   @override
@@ -20798,6 +21454,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get groupChatInjectionEveryNUserAndAssistant =>
       '每 N 條使用者與助手訊息，注入訊息的結尾';
+
+  @override
+  String get groupChatInjectGroupMembersTitle => '在助手系統提示詞中注入群聊資訊';
+
+  @override
+  String get groupChatInjectGroupMembersDesc =>
+      '開啟後，每個成員助手會在其系統提示詞的末尾被告知：目前處於一個群聊中，以及群聊的成員名單（僅包含使用者與助手成員的名字，不包含其他成員的系統提示詞）。';
+
+  @override
+  String get groupChatAdvancedDirectorSection => '導演';
+
+  @override
+  String get groupChatAdvancedAssistantSection => '助手回覆';
 
   @override
   String get groupChatDirectorLogsEmpty => '暫無導演日誌。';

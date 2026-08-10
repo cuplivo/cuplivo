@@ -1,4 +1,4 @@
-# Log MCP at the JSON-RPC layer, not the HTTP layer
+# ADR-0018: Log MCP at the JSON-RPC layer, not the HTTP layer
 
 MCP request logging records each message at the JSON-RPC layer of the vendored `mcp_client` `Client` (method, params, result, error), not at the HTTP transport layer, so that all four transport shapes — SSE, Streamable HTTP, stdio, and the in-memory `@kelivo/fetch` / `@kelivo/subagent` servers — produce identical, uniform log entries.
 

@@ -5,7 +5,9 @@ Multi-round tool-call turns undercounted token usage: every provider max-merged 
 We now store **both** quantities on `ChatMessage`, with distinct consumers:
 
 - **Consumed semantics (sum across rounds)** — `promptTokens` / `completionTokens` / `cachedTokens` / `totalTokens`. What was actually billed. Consumed by the Stats aggregation and the token-detail popup. Providers fold each completed round into a `consumedUsage` accumulator (`TokenUsage.sum` / `TokenUsage.accumulate`) at round boundaries and reset the round-local `usage`; the consumer replaces (last-wins) on both `chunk.usage` and `chunk.consumedUsage`.
-- **Context semantics (last round)** — the new `contextTokens` column (schema v16, added to the schema self-heal set). The context the model had at the end of the turn, shown by the bottom-right token display (`contextTokens ?? totalTokens` for legacy rows). Streaming is naturally continuous because the live value is the current round's cumulative.
+- **Context semantics (last round)** — the new `contextTokens` column (schema v17, added to the schema self-heal set). The context the model had at the end of the turn, shown by the bottom-right token display (`contextTokens ?? totalTokens` for legacy rows). Streaming is naturally continuous because the live value is the current round's cumulative.
+
+Schema note: the column was originally designated schema v16, but an unrelated group-chat v16 landed on master in parallel (colliding version numbers with complementary columns). The merged schema is **v17**: the upgrade step idempotently adds both columns, so users upgrading from either v16 variant land the other branch's column.
 
 `TokenUsage.merge` remains max-semantics and is used only within a single request's stream.
 

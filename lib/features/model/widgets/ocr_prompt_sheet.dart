@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
 
+import '../../../core/prompts/ocr_presets.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_switch.dart';
+import '../../../shared/widgets/prompt_preset_picker.dart';
 
 Future<void> showOcrPromptSheet(BuildContext context) async {
   final cs = Theme.of(context).colorScheme;
@@ -65,12 +67,28 @@ Future<void> showOcrPromptSheet(BuildContext context) async {
                 ],
               ),
               const SizedBox(height: 12),
-              Text(
-                l10n.defaultModelPagePromptLabel,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: AppFontWeights.semibold,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      l10n.defaultModelPagePromptLabel,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: AppFontWeights.semibold,
+                      ),
+                    ),
+                  ),
+                  PromptPresetPicker(
+                    controller: controller,
+                    presets: OcrPresets.all,
+                    detect: OcrPresets.detect,
+                    labels: {
+                      'standard': l10n.ocrPresetStandard,
+                      'coordinate': l10n.ocrPresetCoordinate,
+                    },
+                    customLabel: l10n.promptPresetCustom,
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               TextField(

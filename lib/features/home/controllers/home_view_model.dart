@@ -27,22 +27,31 @@ import 'chat_controller.dart';
 import 'generation_controller.dart';
 import 'stream_controller.dart' as stream_ctrl;
 
-enum CompressContextLimitMode { start, recent, unlimited }
+enum CompressContextLimitMode { start, recent, unlimited, keepRecent }
 
 class CompressContextOptions {
-  const CompressContextOptions({required this.mode, this.maxChars});
+  const CompressContextOptions({
+    required this.mode,
+    this.maxChars,
+    this.keepUserMessages,
+  });
 
   static const int defaultMaxChars = 6000;
+  static const int defaultKeepUserMessages = 3;
 
   final CompressContextLimitMode mode;
   final int? maxChars;
+  final int? keepUserMessages;
 }
 
 String buildCompressContextContent(
   String joined,
   CompressContextOptions options,
 ) {
-  if (options.mode == CompressContextLimitMode.unlimited) return joined;
+  if (options.mode == CompressContextLimitMode.unlimited ||
+      options.mode == CompressContextLimitMode.keepRecent) {
+    return joined;
+  }
   final maxChars = options.maxChars ?? CompressContextOptions.defaultMaxChars;
   if (maxChars <= 0 || joined.length <= maxChars) return joined;
   return switch (options.mode) {
@@ -50,7 +59,8 @@ String buildCompressContextContent(
     CompressContextLimitMode.recent => joined.substring(
       joined.length - maxChars,
     ),
-    CompressContextLimitMode.unlimited => joined,
+    CompressContextLimitMode.unlimited ||
+    CompressContextLimitMode.keepRecent => joined,
   };
 }
 
@@ -61,6 +71,108 @@ String buildConversationTextForCompression(List<ChatMessage> messages) {
         (m) => '${m.role == "assistant" ? "Assistant" : "User"}: ${m.content}',
       )
       .join('\n\n');
+}
+
+/// Select the trailing messages starting at the last [keepUserMessages]
+/// user messages (user messages = role 'user' with non-empty content), so
+/// the kept region always starts with a user message. When the requested
+/// count covers all user messages, returns the full list (nothing left to
+/// summarize).
+List<ChatMessage> selectKeepRecentMessages(
+  List<ChatMessage> messages,
+  int keepUserMessages,
+) {
+  if (keepUserMessages <= 0) return const <ChatMessage>[];
+  final userIndices = <int>[];
+  for (var i = 0; i < messages.length; i++) {
+    final m = messages[i];
+    if (m.role == 'user' && m.content.trim().isNotEmpty) {
+      userIndices.add(i);
+    }
+  }
+  if (userIndices.isEmpty) return const <ChatMessage>[];
+  if (userIndices.length <= keepUserMessages) return List.of(messages);
+  return messages.sublist(userIndices[userIndices.length - keepUserMessages]);
+}
+
+/// Number of user messages in a collapsed list (role 'user', non-empty
+/// content) — the count that [selectKeepRecentMessages] counts against.
+int countUserMessages(List<ChatMessage> messages) {
+  return messages
+      .where((m) => m.role == 'user' && m.content.trim().isNotEmpty)
+      .length;
+}
+
+/// Default keep count for the keep-recent mode, scaling with conversation
+/// size (<5 user messages → 1, <10 → 2, ≥10 → 3) so a small conversation's
+/// default never covers all of its user messages.
+int defaultKeepUserMessageCountFor(int userMessageCount) {
+  if (userMessageCount < 5) return 1;
+  if (userMessageCount < 10) return 2;
+  return 3;
+}
+
+class CompressionTokenEstimate {
+  const CompressionTokenEstimate({
+    required this.totalTokens,
+    required this.keptTokens,
+    required this.minResultTokens,
+    required this.maxResultTokens,
+  });
+
+  final int totalTokens;
+  final int keptTokens;
+  final int minResultTokens;
+  final int maxResultTokens;
+}
+
+bool _isCjkRune(int rune) {
+  return (rune >= 0x2E80 && rune <= 0x9FFF) ||
+      (rune >= 0xF900 && rune <= 0xFAFF) ||
+      (rune >= 0xFF00 && rune <= 0xFFEF);
+}
+
+int _estimateCharsToTokens(String text) {
+  var cjk = 0;
+  var other = 0;
+  for (final rune in text.runes) {
+    if (_isCjkRune(rune)) {
+      cjk++;
+    } else {
+      other++;
+    }
+  }
+  return (cjk / 1.6 + other / 4).round();
+}
+
+/// Estimate the token budget of a keep-recent compression result.
+///
+/// Assumptions (documented in CONTEXT.md): kept tokens = totalTokens ×
+/// (kept chars / total chars) — length ratio equals token ratio; the
+/// summarized-away part is estimated at 10%–30% of its own tokens, exposed
+/// as a [minResultTokens]–[maxResultTokens] band.
+CompressionTokenEstimate estimateCompressionTokens({
+  required String totalText,
+  required String keptText,
+}) {
+  final totalTokens = _estimateCharsToTokens(totalText);
+  final totalChars = totalText.length;
+  if (totalChars == 0) {
+    return const CompressionTokenEstimate(
+      totalTokens: 0,
+      keptTokens: 0,
+      minResultTokens: 0,
+      maxResultTokens: 0,
+    );
+  }
+  final keptTokens = (totalTokens * keptText.length / totalChars).round();
+  final oldTokens = totalTokens - keptTokens;
+  return CompressionTokenEstimate(
+    totalTokens: totalTokens,
+    keptTokens: keptTokens,
+    minResultTokens: keptTokens + (oldTokens * 0.10).round(),
+    maxResultTokens: keptTokens + (oldTokens * 0.30).round(),
+  );
 }
 
 List<ChatMessage> selectForkConversationMessages({
@@ -986,8 +1098,23 @@ class HomeViewModel extends ChangeNotifier {
     final collapsed = collapseVersions(allMsgs);
     if (collapsed.isEmpty) return 'no_messages';
 
+    // keep-recent mode: only messages before the keep boundary are summarized
+    List<ChatMessage>? keptMessages;
+    List<ChatMessage> summarizeInput = collapsed;
+    if (options.mode == CompressContextLimitMode.keepRecent) {
+      final keepN =
+          options.keepUserMessages ??
+          CompressContextOptions.defaultKeepUserMessages;
+      keptMessages = selectKeepRecentMessages(collapsed, keepN);
+      if (keptMessages.length >= collapsed.length) return 'no_messages';
+      summarizeInput = collapsed.sublist(
+        0,
+        collapsed.length - keptMessages.length,
+      );
+    }
+
     // Build conversation text for compression
-    final joined = buildConversationTextForCompression(collapsed);
+    final joined = buildConversationTextForCompression(summarizeInput);
     if (joined.trim().isEmpty) return 'no_messages';
 
     final content = buildCompressContextContent(joined, options);
@@ -1033,6 +1160,32 @@ class HomeViewModel extends ChangeNotifier {
       )).trim();
 
       if (summary.isEmpty) return 'empty_summary';
+
+      if (keptMessages != null) {
+        // keep-recent mode: result conversation = [压缩摘要, ...保留消息],
+        // built through the fork clone path (strict reuse).
+        final summaryMsg = ChatMessage(
+          role: 'user',
+          content: summary,
+          timestamp: DateTime.now(),
+          conversationId: convo.id,
+        );
+        final newConvo = await _chatService.forkConversation(
+          title: convo.title,
+          assistantId: convo.assistantId,
+          sourceMessages: [summaryMsg, ...keptMessages],
+        );
+
+        // Switch to the new conversation
+        _chatService.setCurrentConversation(newConvo.id);
+        _chatController.setCurrentConversation(newConvo);
+        _restoreMessageUiState();
+        _streamController.clearAllState();
+        notifyListeners();
+        onConversationSwitched?.call();
+        onScrollToBottom?.call();
+        return null; // success
+      }
 
       // Create new conversation with the summary as first user message
       final newConvo = await _chatService.createDraftConversation(

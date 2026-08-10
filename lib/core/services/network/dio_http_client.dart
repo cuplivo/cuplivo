@@ -176,7 +176,8 @@ class DioHttpClient extends http.BaseClient {
       RequestLogger.logLine('[REQ $reqId] $method $uri');
       if (reqHeaders.isNotEmpty) {
         RequestLogger.logLine(
-          '[REQ $reqId] headers=${RequestLogger.encodeObject(reqHeaders)}',
+          '[REQ $reqId] headers='
+          '${RequestLogger.encodeObject(RequestLogger.redactHeaders(reqHeaders))}',
         );
       }
       if (bodyBytes.isNotEmpty) {
@@ -216,7 +217,8 @@ class DioHttpClient extends http.BaseClient {
         RequestLogger.logLine('[RES $reqId] status=$statusCode');
         if (headers.isNotEmpty) {
           RequestLogger.logLine(
-            '[RES $reqId] headers=${RequestLogger.encodeObject(headers)}',
+            '[RES $reqId] headers='
+            '${RequestLogger.encodeObject(RequestLogger.redactHeaders(headers))}',
           );
         }
       }

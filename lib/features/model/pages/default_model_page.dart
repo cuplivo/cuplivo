@@ -7,6 +7,8 @@ import '../../../icons/lucide_adapter.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../core/prompts/title_presets.dart';
+import '../../../core/prompts/compress_presets.dart';
+import '../../../shared/widgets/prompt_preset_picker.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../widgets/model_select_sheet.dart';
 import '../widgets/ocr_prompt_sheet.dart';
@@ -834,12 +836,28 @@ class DefaultModelPage extends StatelessWidget {
                   cs: cs,
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  l10n.defaultModelPagePromptLabel,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: AppFontWeights.semibold,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.defaultModelPagePromptLabel,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: AppFontWeights.semibold,
+                        ),
+                      ),
+                    ),
+                    PromptPresetPicker(
+                      controller: controller,
+                      presets: CompressPresets.all,
+                      detect: CompressPresets.detect,
+                      labels: {
+                        'standard': l10n.compressPresetStandard,
+                        'detailed': l10n.compressPresetDetailed,
+                      },
+                      customLabel: l10n.promptPresetCustom,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 TextField(

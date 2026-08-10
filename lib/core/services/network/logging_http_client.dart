@@ -70,7 +70,7 @@ class LoggingHttpClient extends http.BaseClient {
       if (request.headers.isNotEmpty) {
         RequestLogger.logLine(
           '[$tag REQ $reqId] headers='
-          '${RequestLogger.encodeObject(request.headers)}',
+          '${RequestLogger.encodeObject(RequestLogger.redactHeaders(request.headers))}',
           category: categoryName,
         );
       }
@@ -122,7 +122,8 @@ class LoggingHttpClient extends http.BaseClient {
     );
     if (response.headers.isNotEmpty) {
       RequestLogger.logLine(
-        '[$tag RES $reqId] headers=${RequestLogger.encodeObject(response.headers)}',
+        '[$tag RES $reqId] headers='
+        '${RequestLogger.encodeObject(RequestLogger.redactHeaders(response.headers))}',
         category: categoryName,
       );
     }

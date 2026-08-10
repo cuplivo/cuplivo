@@ -121,7 +121,7 @@ class KelivoFetchRequestPayload {
   }
 
   /// Validates [raw] as a full-file wire path under `@workspaces/` only
-  /// (ADR 0019 rules; the fetch built-in never touches external mounts).
+  /// (ADR 0022 rules; the fetch built-in never touches external mounts).
   /// Directories are not allowed — the path IS the complete target file.
   static String _validateDownloadPath(String raw) {
     if (raw.trim() != raw) {

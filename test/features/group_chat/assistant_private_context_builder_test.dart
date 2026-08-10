@@ -1,6 +1,7 @@
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/group_chat.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/features/group_chat/services/assistant_private_context_builder.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -163,4 +164,47 @@ void main() {
       expect(private.single.content, contains('[User]: Continue'));
     },
   );
+
+  test('group member injection is null when disabled', () {
+    final group = GroupChat(
+      name: 'G',
+      conversationId: 'c1',
+      injectGroupMembersIntoAssistantSystemPrompt: false,
+    );
+    final injection = AssistantPrivateContextBuilder.buildGroupMemberInjection(
+      group: group,
+      userName: 'User',
+      memberNames: const ['Alpha', 'Beta'],
+    );
+    expect(injection, isNull);
+  });
+
+  test('group member injection lists user then member names when enabled', () {
+    final group = GroupChat(
+      name: 'G',
+      conversationId: 'c1',
+      injectGroupMembersIntoAssistantSystemPrompt: true,
+    );
+    final injection = AssistantPrivateContextBuilder.buildGroupMemberInjection(
+      group: group,
+      userName: 'User',
+      memberNames: const ['Alpha', 'Beta'],
+    );
+    expect(injection, isNotNull);
+    expect(injection, contains('你现在处于一个群聊中'));
+    expect(injection, contains('User'));
+    expect(injection, contains('Alpha'));
+    expect(injection, contains('Beta'));
+  });
+
+  test('group member injection is enabled by default for new groups', () {
+    final group = GroupChat(name: 'G', conversationId: 'c1');
+    final injection = AssistantPrivateContextBuilder.buildGroupMemberInjection(
+      group: group,
+      userName: 'User',
+      memberNames: const ['Alpha'],
+    );
+    expect(injection, isNotNull);
+    expect(injection, contains('Alpha'));
+  });
 }

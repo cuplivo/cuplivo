@@ -36,6 +36,8 @@ Unlike most personal-customization or single-feature forks, Cuplivo aims to add 
 
 2. **Deletion recovery (trash bin)** — Deleted conversations go to a trash bin with configurable capacity (default 10 KB) to prevent accidental loss; sync carries deletion markers so content removed on one side is promptly purged on the other (#137).
 
+3. **Import from RikkaHub** — Convert a RikkaHub backup into a Cuplivo-compatible backup through the migration website, then import it via "Import Backup File" (#165).
+
 ### Signature Chat Experience
 
 1. **Proactive care** — AI can proactively send care messages to users on a configurable schedule (Android only).
@@ -43,7 +45,7 @@ Unlike most personal-customization or single-feature forks, Cuplivo aims to add 
 
 2. **Multi-assistant group chat** — Director-orchestrated group conversations: a background director model decides which assistant speaks, and each member chats in a shared thread with private context (#150).
 
-3. **Built-in filesystem MCP server** — Read, write, and regex-search local files through an in-memory MCP server; mount local directories without a command line, security-first (#173).
+3. **Built-in filesystem MCP server** — Read, write, and regex-search local files through an in-memory MCP server; mount local directories without a command line, security-first. Browse mounted directories in an in-app file browser, with paginated grep results and context, code structure outlines (`kelivo_outline`), downloading internet resources into the workspace, and long-webpage workspace cache continuation (#173, #221, #222).
 
 4. **Multi-AI side-by-side comparison** — Select 2 or more models to answer simultaneously and compare their responses side by side — pick the best result, or synthesize them into a single reply via summary, fusion, or commentary (like a more flexible OpenRouter Fusion).
    - Desktop now shows 2 model responses per page in a two-column layout.
@@ -78,15 +80,17 @@ Unlike most personal-customization or single-feature forks, Cuplivo aims to add 
 
 ### Practical Utilities
 
-1. **Batch select/delete/move for conversations** — Select, delete, or move multiple conversations at once in the sidebar for efficient conversation management (#82).
+1. **Manual keep-recent compression + prompt presets** — Compress a conversation keeping the most recent N messages, with a live token-estimate preview (default keep-count scales with conversation size), improving role-play / novel-writing sessions and reducing style drift; quick-switch between built-in compress/OCR prompt presets (#143, #236).
 
-2. **Storage space manager** — Sort stored files by time or size, find unreferenced images/files (orphans), and reverse-locate which chat record a stored file belongs to (#128).
+2. **Batch select/delete/move for conversations** — Select, delete, or move multiple conversations at once in the sidebar for efficient conversation management (#82).
 
-3. **TTS audio: save locally + speak selection** — Save cloud-generated TTS audio to a local file from the floating player (#131); right-click / long-press selected assistant message text to speak it (#130).
+3. **Storage space manager** — Sort stored files by time or size, find unreferenced images/files (orphans), and reverse-locate which chat record a stored file belongs to (#128).
 
-4. **Enhanced assistant message direct copy** — Naive subsequence Markdown copy + quote for quick message extraction (#122).
+4. **TTS audio: save locally + speak selection** — Save cloud-generated TTS audio to a local file from the floating player (#131); right-click / long-press selected assistant message text to speak it (#130).
 
-5. **Multi-category request logging** — Request logs now cover MCP, TTS, and search services, each in its own category with independent toggles and history (#162).
+5. **Enhanced assistant message direct copy** — Naive subsequence Markdown copy + quote for quick message extraction (#122).
+
+6. **Multi-category request logging** — Request logs now cover MCP, TTS, and search services, each in its own category with independent toggles and history (#162).
 
 ### UI & Rendering
 
@@ -109,6 +113,7 @@ Unlike most personal-customization or single-feature forks, Cuplivo aims to add 
 - Accurate Gemini cached-token reporting
 - Optimized title generation logic (auto-retry on first failure)
 - Large base64 images no longer cause regex stack overflow
+- Markdown math formulas now render correctly: multi-line formulas inside lists, plus `\tag` support (#227)
 - Win+V clipboard history paste fix for Flutter engine bug on Windows
 - iOS: exported chat images now use 8-bit sRGB readback, fixing abnormal table background colors since v1.1.16 (#193)
 - iOS: storage space manager now counts and clears the real iOS tmp directory (#223)

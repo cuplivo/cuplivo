@@ -25,5 +25,20 @@ void main() {
 
       expect(getPlatformFontFallback(), kWindowsFontFamilyFallback);
     });
+
+    test('all platform stacks end with bundled symbol fallback', () {
+      for (final stack in <List<String>>[
+        kAndroidFontFamilyFallback,
+        kWindowsFontFamilyFallback,
+        kDefaultFontFamilyFallback,
+      ]) {
+        expect(stack.last, kCuplivoSymbolFallbackFamily);
+        expect(
+          stack.where((e) => e == kCuplivoSymbolFallbackFamily),
+          hasLength(1),
+        );
+      }
+      expect(kWindowsFontFamilyFallback, contains('Segoe UI Symbol'));
+    });
   });
 }

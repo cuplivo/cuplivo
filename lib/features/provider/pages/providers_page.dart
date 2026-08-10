@@ -463,6 +463,7 @@ class _ProvidersPageState extends State<ProvidersPage> {
   }
 
   List<_Provider> _providers({required AppLocalizations l10n}) => [
+    _p('DeepSeek', 'DeepSeek', enabled: true, models: 0),
     _p('OpenAI', 'OpenAI', enabled: true, models: 0),
     _p(
       l10n.providersPageSiliconFlowName,
@@ -474,7 +475,6 @@ class _ProvidersPageState extends State<ProvidersPage> {
     _p('OpenRouter', 'OpenRouter', enabled: true, models: 0),
     _p('KelivoIN', 'KelivoIN', enabled: true, models: 0),
     _p('Tensdaq', 'Tensdaq', enabled: false, models: 0),
-    _p('DeepSeek', 'DeepSeek', enabled: false, models: 0),
     _p('AIhubmix', 'AIhubmix', enabled: false, models: 0),
     _p(l10n.providersPageAliyunName, 'Aliyun', enabled: false, models: 0),
     _p(l10n.providersPageZhipuName, 'Zhipu AI', enabled: false, models: 0),

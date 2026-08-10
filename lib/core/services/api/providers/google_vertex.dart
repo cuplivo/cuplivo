@@ -450,21 +450,27 @@ Stream<ChatStreamChunk> _sendGoogleVertexClaudeStream({
         );
         final results = <Map<String, dynamic>>[];
         final resultsInfo = <ToolResultInfo>[];
-        for (final e in toolUses.entries) {
-          final name = (e.value['name'] ?? '').toString();
-          final args = (e.value['args'] as Map<String, dynamic>);
-          final res = await onToolCall(name, args, toolCallId: e.key);
+        // Same-turn tool calls run concurrently; results keep call order.
+        final executed = await Future.wait(
+          toolUses.entries.map((e) async {
+            final name = (e.value['name'] ?? '').toString();
+            final args = (e.value['args'] as Map<String, dynamic>);
+            final res = await onToolCall(name, args, toolCallId: e.key);
+            return (id: e.key, name: name, args: args, res: res);
+          }),
+        );
+        for (final e in executed) {
           results.add({
             'type': 'tool_result',
-            'tool_use_id': e.key,
-            'content': res,
+            'tool_use_id': e.id,
+            'content': e.res,
           });
           resultsInfo.add(
             ToolResultInfo(
-              id: e.key,
-              name: name,
-              arguments: args,
-              content: res,
+              id: e.id,
+              name: e.name,
+              arguments: e.args,
+              content: e.res,
             ),
           );
         }
@@ -908,24 +914,30 @@ Stream<ChatStreamChunk> _sendGoogleVertexClaudeStream({
 
     // Build tool_result blocks
     final toolResultsBlocks = <Map<String, dynamic>>[];
-    for (final entry in anthToolUse.entries) {
-      final id = entry.key;
-      final name = (entry.value['name'] ?? '').toString();
-      Map<String, dynamic> args;
-      try {
-        args = (jsonDecode((entry.value['args'] ?? '{}') as String) as Map)
-            .cast<String, dynamic>();
-      } catch (_) {
-        args = <String, dynamic>{};
-      }
-      String res = toolResultsContent[id] ?? '';
-      if (res.isEmpty && onToolCall != null) {
-        res = await onToolCall(name, args, toolCallId: id);
-      }
+    // Same-turn tool calls run concurrently; results keep call order.
+    final executed = await Future.wait(
+      anthToolUse.entries.map((entry) async {
+        final id = entry.key;
+        final name = (entry.value['name'] ?? '').toString();
+        Map<String, dynamic> args;
+        try {
+          args = (jsonDecode((entry.value['args'] ?? '{}') as String) as Map)
+              .cast<String, dynamic>();
+        } catch (_) {
+          args = <String, dynamic>{};
+        }
+        String res = toolResultsContent[id] ?? '';
+        if (res.isEmpty && onToolCall != null) {
+          res = await onToolCall(name, args, toolCallId: id);
+        }
+        return (id: id, res: res);
+      }),
+    );
+    for (final e in executed) {
       toolResultsBlocks.add({
         'type': 'tool_result',
-        'tool_use_id': id,
-        if (res.isNotEmpty) 'content': res,
+        'tool_use_id': e.id,
+        if (e.res.isNotEmpty) 'content': e.res,
       });
     }
 

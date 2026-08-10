@@ -12,7 +12,7 @@ import 'package:path/path.dart' as p;
 ///
 /// External mounts are desktop-only and never sync. The built-in `@workspaces`
 /// mount is always present (rw) and is the only mount on mobile. See
-/// `docs/adr/0019-filesystem-mount-relative-wire-format.md`.
+/// `docs/adr/0022-filesystem-mount-relative-wire-format.md`.
 class FilesystemMount {
   final String alias;
   final String path;
@@ -171,7 +171,7 @@ class _OutlineLanguage {
 /// @kelivo/filesystem — In-memory MCP server engine and transport (Flutter/Dart)
 ///
 /// Provides token-conscious file tools over mount-relative wire paths.
-/// See `docs/adr/0019-filesystem-mount-relative-wire-format.md` and the
+/// See `docs/adr/0022-filesystem-mount-relative-wire-format.md` and the
 /// CONTEXT.md "Filesystem MCP" section.
 ///
 /// The server implements a minimal subset of MCP over JSON-RPC 2.0:
@@ -314,7 +314,9 @@ class KelivoFilesystemMcpServerEngine {
     if (raw == '/') {
       final buf = StringBuffer();
       for (final m in _mounts()) {
-        buf.writeln('${m.wireName} (${m.readOnly ? 'ro' : 'rw'}) ${m.path}');
+        // Alias + mode only — host paths never enter the model context
+        // (ADR-0022: host layout stays out of prompts and request logs).
+        buf.writeln('${m.wireName} (${m.readOnly ? 'ro' : 'rw'})');
       }
       return _toolOk(buf.toString().trim());
     }
@@ -1158,7 +1160,7 @@ class KelivoFilesystemMcpServerEngine {
   Future<void> _recordDeletionIfWorkspaces(ResolvedWirePath resolved) async {
     // Dot-prefixed entries (e.g. .fetch_cache/) never sync, so their markers
     // would be meaningless noise on peers — one dotfile rule, both planes
-    // (content and markers). See ADR-0018.
+    // (content and markers). See ADR-0021.
     if (resolved.mount.alias == 'workspaces' &&
         !resolved.segments.any((s) => s.startsWith('.'))) {
       final cb = onWorkspaceFileDeleted;
@@ -1166,7 +1168,7 @@ class KelivoFilesystemMcpServerEngine {
         try {
           await cb(resolved.wirePath);
         } catch (e) {
-          // Marker protocol is advisory (ADR-0018): a marker failure must
+          // Marker protocol is advisory (ADR-0021): a marker failure must
           // not fail the deletion itself, but it must be visible in logs.
           // ignore: avoid_print
           print('kelivo_filesystem: failed to record deletion marker: $e');

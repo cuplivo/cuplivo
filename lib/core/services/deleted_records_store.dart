@@ -113,7 +113,7 @@ class DeletedRecordsStore {
   /// Records a marker-only local deletion for a filesystem entity
   /// (`type=workspaceFile`, id = mount-relative wire path). No
   /// [DeletedRecordRows] payload is written — files are physically gone and
-  /// not recoverable (Skill precedent; see ADR-0018).
+  /// not recoverable (Skill precedent; see ADR-0021).
   ///
   /// Also removes any `origin='remote'` row for the same path: a local
   /// deletion supersedes a peer's declaration (the "offer local delete"

@@ -1842,7 +1842,7 @@ class ChatService extends ChangeNotifier {
       }
     } catch (_) {}
     // Remove the @workspaces sandbox physically — peer-blind (no deletion
-    // markers, mirroring the entity clearAllData policy; ADR-0012/0018).
+    // markers, mirroring the entity clearAllData policy; ADR-0012/0021).
     try {
       final wsDir = await AppDirectories.getWorkspacesDirectory();
       if (await wsDir.exists()) {

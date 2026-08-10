@@ -81,7 +81,7 @@ class OAuthFlowSession {
 ///
 /// Flow state lives in memory only — an app restart mid-flow invalidates the
 /// session and the user restarts the flow. Deliberate v1 trade-off (see
-/// `docs/adr/0016-mcp-oauth-auto-flow.md`).
+/// `docs/adr/0015-mcp-oauth-auto-flow.md`).
 class OAuthFlowService {
   final Map<String, OAuthFlowSession> _sessions = {};
   final Set<String> _inFlight = {};

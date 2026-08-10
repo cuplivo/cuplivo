@@ -1,6 +1,7 @@
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/conversation.dart';
+import '../../../core/models/group_chat.dart';
 import '../../../core/services/chat/chat_service.dart';
 import 'director_context_builder.dart';
 
@@ -9,6 +10,21 @@ import 'director_context_builder.dart';
 class AssistantPrivateContextBuilder {
   AssistantPrivateContextBuilder({required this.chatService})
     : _directorCtx = DirectorContextBuilder(chatService: chatService);
+
+  /// Returns the "you are in a group chat whose members are: ..." paragraph
+  /// appended to a member assistant's system prompt when the group setting
+  /// [GroupChat.injectGroupMembersIntoAssistantSystemPrompt] is enabled, or
+  /// null when disabled. Lists the user and the member assistant names only —
+  /// never other members' system prompts. See issue #190.
+  static String? buildGroupMemberInjection({
+    required GroupChat group,
+    required String userName,
+    required List<String> memberNames,
+  }) {
+    if (!group.injectGroupMembersIntoAssistantSystemPrompt) return null;
+    final names = <String>[userName, ...memberNames];
+    return '你现在处于一个群聊中，该群聊的成员为：${names.join('、')}';
+  }
 
   final ChatService chatService;
   final DirectorContextBuilder _directorCtx;

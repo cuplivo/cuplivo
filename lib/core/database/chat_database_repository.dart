@@ -1399,6 +1399,8 @@ class ChatDatabaseRepository {
         row.assistantDetailInjectionMode,
       ),
       assistantDetailInjectionN: row.assistantDetailInjectionN,
+      injectGroupMembersIntoAssistantSystemPrompt:
+          row.injectGroupMembersIntoAssistantSystemPrompt,
       pendingCapAssistantMessageId: row.pendingCapAssistantMessageId,
       assistantMessagesThisRound: row.assistantMessagesThisRound,
       createdAt: row.createdAt,
@@ -1420,6 +1422,9 @@ class ChatDatabaseRepository {
         g.assistantDetailInjectionMode.storageValue,
       ),
       assistantDetailInjectionN: Value(g.assistantDetailInjectionN),
+      injectGroupMembersIntoAssistantSystemPrompt: Value(
+        g.injectGroupMembersIntoAssistantSystemPrompt,
+      ),
       pendingCapAssistantMessageId: Value(g.pendingCapAssistantMessageId),
       assistantMessagesThisRound: Value(g.assistantMessagesThisRound),
       createdAt: g.createdAt,

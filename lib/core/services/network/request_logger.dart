@@ -14,6 +14,32 @@ class RequestLogger {
   static const String catTts = 'tts';
   static const String catSearch = 'search';
 
+  /// Header names whose values are masked in log output (case-insensitive).
+  /// Credentials stay out of the plaintext log files: only the first 7
+  /// characters plus the remaining length are written (e.g. `Bearer [45 more]`).
+  static const Set<String> _credentialHeaderNames = <String>{
+    'authorization',
+    'proxy-authorization',
+    'x-api-key',
+    'x-goog-api-key',
+    'api-key',
+  };
+
+  /// Returns [headers] with credential-bearing values masked for logging.
+  static Map<String, String> redactHeaders(Map<String, String> headers) {
+    if (headers.isEmpty) return headers;
+    return headers.map((name, value) {
+      if (value.isNotEmpty &&
+          _credentialHeaderNames.contains(name.toLowerCase())) {
+        final masked = value.length <= 7
+            ? value
+            : '${value.substring(0, 7).trimRight()} [${value.length - 7} more]';
+        return MapEntry(name, masked);
+      }
+      return MapEntry(name, value);
+    });
+  }
+
   static bool _suspended = false;
   static final Map<String, bool> _categoryEnabled = {
     catLlm: false,

@@ -8,6 +8,7 @@ import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/services/headless_generation_service.dart';
 import '../../../core/services/ios_background_generation.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/snackbar.dart';
@@ -969,6 +970,15 @@ class ChatActions {
 
       // Cancel active stream for current conversation only
       ChatApiService.cancelRequest(cid);
+      // Cascading cancellation: a wait-mode sub-agent spawned by this
+      // conversation is cancelled too (fire-and-forget keeps running).
+      // No-op when this conversation has no headless jobs.
+      try {
+        // ignore: use_build_context_synchronously (root context)
+        contextProvider.read<HeadlessGenerationService>().cancel(cid);
+      } catch (e) {
+        debugPrint('[CancelTrace] headless cascade cancel failed: $e');
+      }
       final sub = _conversationStreams.remove(cid);
       try {
         await sub?.cancel();
@@ -1034,12 +1044,14 @@ class ChatActions {
                   (
                     String messageId, {
                     String? reasoningText,
+                    DateTime? reasoningStartAt,
                     DateTime? reasoningFinishedAt,
                     String? reasoningSegmentsJson,
                   }) async {
                     await chatService.updateMessage(
                       messageId,
                       reasoningText: reasoningText,
+                      reasoningStartAt: reasoningStartAt,
                       reasoningFinishedAt: reasoningFinishedAt,
                       reasoningSegmentsJson: reasoningSegmentsJson,
                     );
@@ -1329,14 +1341,13 @@ class ChatActions {
       );
       await chatService.updateMessageSilent(
         messageId,
-        reasoningSegmentsJson: streamController
-            .serializeReasoningSegmentsWithSplits(
-              streamController.getReasoningSegments(messageId) ?? const [],
-              contentSplitOffsets: state.contentSplitOffsets,
-              reasoningCountAtSplit: state.reasoningCountAtSplit,
-              toolCountAtSplit: state.toolCountAtSplit,
-              reasoningDetails: streamController.reasoningDetails[messageId],
-            ),
+        reasoningSegmentsJson: stream_ctrl.serializeReasoningSegmentsWithSplits(
+          streamController.getReasoningSegments(messageId) ?? const [],
+          contentSplitOffsets: state.contentSplitOffsets,
+          reasoningCountAtSplit: state.reasoningCountAtSplit,
+          toolCountAtSplit: state.toolCountAtSplit,
+          reasoningDetails: streamController.reasoningDetails[messageId],
+        ),
       );
     }
 
@@ -1450,6 +1461,7 @@ class ChatActions {
           (
             String messageId, {
             String? reasoningText,
+            DateTime? reasoningStartAt,
             DateTime? reasoningFinishedAt,
             String? reasoningSegmentsJson,
           }) async {
@@ -1457,6 +1469,7 @@ class ChatActions {
             await chatService.updateMessageSilent(
               messageId,
               reasoningText: reasoningText,
+              reasoningStartAt: reasoningStartAt,
               reasoningFinishedAt: reasoningFinishedAt,
               reasoningSegmentsJson: reasoningSegmentsJson,
             );
@@ -1687,12 +1700,14 @@ class ChatActions {
           (
             String messageId, {
             String? reasoningText,
+            DateTime? reasoningStartAt,
             DateTime? reasoningFinishedAt,
             String? reasoningSegmentsJson,
           }) async {
             await chatService.updateMessage(
               messageId,
               reasoningText: reasoningText,
+              reasoningStartAt: reasoningStartAt,
               reasoningFinishedAt: reasoningFinishedAt,
               reasoningSegmentsJson: reasoningSegmentsJson,
             );
@@ -1773,12 +1788,14 @@ class ChatActions {
           (
             String messageId, {
             String? reasoningText,
+            DateTime? reasoningStartAt,
             DateTime? reasoningFinishedAt,
             String? reasoningSegmentsJson,
           }) async {
             await chatService.updateMessage(
               messageId,
               reasoningText: reasoningText,
+              reasoningStartAt: reasoningStartAt,
               reasoningFinishedAt: reasoningFinishedAt,
               reasoningSegmentsJson: reasoningSegmentsJson,
             );
@@ -1872,7 +1889,7 @@ class ChatActions {
       if (segs != null && segs.isNotEmpty) {
         await chatService.updateMessage(
           streaming.id,
-          reasoningSegmentsJson: streamController
+          reasoningSegmentsJson: stream_ctrl
               .serializeReasoningSegmentsWithSplits(
                 segs,
                 contentSplitOffsets: streamController
@@ -1892,7 +1909,7 @@ class ChatActions {
         final splits = streamController.getContentSplitData(streaming.id)!;
         await chatService.updateMessage(
           streaming.id,
-          reasoningSegmentsJson: streamController
+          reasoningSegmentsJson: stream_ctrl
               .serializeReasoningSegmentsWithSplits(
                 const [],
                 contentSplitOffsets: splits.offsets,

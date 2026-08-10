@@ -74,6 +74,21 @@ OAuthFlowService _service({MockClient? client}) {
   return OAuthFlowService(clientFactory: () => client ?? _fullServer());
 }
 
+/// Rebinds [port] until the OS grants it (async close releases it
+/// eventually) or [attempts] polls are exhausted.
+Future<bool> _waitForPortRelease(int port, {int attempts = 50}) async {
+  for (var i = 0; i < attempts; i++) {
+    try {
+      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, port);
+      await probe.close();
+      return true;
+    } on SocketException {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+  }
+  return false;
+}
+
 void main() {
   group('OAuthFlowService auto mode (discovery + DCR + loopback)', () {
     test('discovers endpoints, registers a client, starts loopback', () async {
@@ -295,12 +310,11 @@ void main() {
         final port = result.loopbackCallbackUrl!.port;
         service.cancelFlow('server-1');
 
-        // Port must be released: rebinding the same port succeeds.
-        final probe = await ServerSocket.bind(
-          InternetAddress.loopbackIPv4,
-          port,
-        );
-        await probe.close();
+        // The loopback close is fire-and-forget, so the port release is
+        // asynchronous; poll until the rebind probe succeeds instead of
+        // racing the close (CI flake: EADDRINUSE on immediate rebind).
+        final released = await _waitForPortRelease(port);
+        expect(released, isTrue, reason: 'port $port must be released');
 
         await expectLater(
           service.completeFlow(key: 'server-1', pasted: 'code'),

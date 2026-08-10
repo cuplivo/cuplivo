@@ -1,4 +1,4 @@
-# Display math is normalized to standalone blocks; `\tag` is approximated, not rendered right-aligned
+# ADR-0023: Display math is normalized to standalone blocks; `\tag` is approximated, not rendered right-aligned
 
 `\[...\]` display math in non-standalone positions (list items, mid-paragraph) is repaired by the same mechanism that already fixes `$$...$$`: `_preprocessFences` rewrites it into newline-padded standalone blocks so the line-anchored `LatexBlockScrollableMd` matcher hits. This replaces the previous behavior where `\[` slipped past the matcher and `BackslashEscapeMd` rendered it as a bare `[` (issue #218).
 

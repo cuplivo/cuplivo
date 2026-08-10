@@ -91,6 +91,8 @@ class _DisplaySettingsBody extends StatelessWidget {
                   _RowDivider(),
                   _ToggleRowReasoningMarkdown(),
                   _RowDivider(),
+                  _ToggleRowStreamingThinkingPreviewTruncate(),
+                  _RowDivider(),
                   _ToggleRowAssistantMarkdown(),
                   _RowDivider(),
                   _AutoCollapseCodeBlocksSection(),
@@ -2292,6 +2294,22 @@ class _ToggleRowReasoningMarkdown extends StatelessWidget {
   }
 }
 
+class _ToggleRowStreamingThinkingPreviewTruncate extends StatelessWidget {
+  const _ToggleRowStreamingThinkingPreviewTruncate();
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final sp = context.watch<SettingsProvider>();
+    return _ToggleRow(
+      label: l10n.displaySettingsPageStreamingThinkingPreviewTruncateTitle,
+      value: sp.streamingThinkingPreviewTruncate,
+      onChanged: (v) => context
+          .read<SettingsProvider>()
+          .setStreamingThinkingPreviewTruncate(v),
+    );
+  }
+}
+
 class _ToggleRowAssistantMarkdown extends StatelessWidget {
   const _ToggleRowAssistantMarkdown();
   @override
@@ -2318,6 +2336,37 @@ class _ToggleRowAutoCollapseCodeBlocks extends StatelessWidget {
       value: sp.autoCollapseCodeBlock,
       onChanged: (v) =>
           context.read<SettingsProvider>().setAutoCollapseCodeBlock(v),
+    );
+  }
+}
+
+class _ToggleRowHtmlStreamingShowCode extends StatelessWidget {
+  const _ToggleRowHtmlStreamingShowCode();
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final sp = context.watch<SettingsProvider>();
+    return _ToggleRow(
+      label: l10n.displaySettingsPageHtmlStreamingShowCodeTitle,
+      value: sp.htmlStreamingShowCodeInProgress,
+      onChanged: (v) => context
+          .read<SettingsProvider>()
+          .setHtmlStreamingShowCodeInProgress(v),
+    );
+  }
+}
+
+class _ToggleRowAutoOpenHtmlPreview extends StatelessWidget {
+  const _ToggleRowAutoOpenHtmlPreview();
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final sp = context.watch<SettingsProvider>();
+    return _ToggleRow(
+      label: l10n.displaySettingsPageAutoOpenHtmlPreviewTitle,
+      value: sp.autoOpenHtmlPreviewOnComplete,
+      onChanged: (v) =>
+          context.read<SettingsProvider>().setAutoOpenHtmlPreviewOnComplete(v),
     );
   }
 }
@@ -2784,6 +2833,10 @@ class _AutoCollapseCodeBlocksSection extends StatelessWidget {
           const _RowDivider(),
           const _AutoCollapseCodeBlockLinesRow(),
         ],
+        const _RowDivider(),
+        const _ToggleRowHtmlStreamingShowCode(),
+        const _RowDivider(),
+        const _ToggleRowAutoOpenHtmlPreview(),
       ],
     );
   }

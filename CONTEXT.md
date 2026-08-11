@@ -151,6 +151,14 @@
   - `_oneClickCompressDone` resets to `false` in `_addImages` (new image arrives → button reappears).
 - **Relationship to per-image dialog**: Coexists. The dialog remains available for manual per-image control (full 30–100 quality, arbitrary dimension, explicit format choice). One-click is the fast path; dialog is the precision path.
 
+## Export Capture
+
+- **Export capture (导出截图)**: The shared pipeline (`lib/utils/export_image_capture.dart`) that renders widget content into a PNG for export (message export sheet, markdown table "导出为图片"). Two capture modes:
+  - **Full capture (整图捕获)**: one `toImage` of the laid-out boundary at a pixel ratio capped so both physical dimensions stay ≤15360 (`maxExportFullCapturePhysicalDimension`) — below the common 16384px GPU max-texture edge. The captured size is verified against the expected size (**clip detection**): a smaller image means the GPU clamped the texture, so the capture is rejected.
+  - **Slice capture (分片捕获)**: the fallback when the capped ratio would drop below 2.0 or full capture is clipped. The content is re-rendered in an offscreen overlay viewport (`ClipRect` + `OverflowBox` + `Transform.translate`) panned in windows of ≤4096px physical height (`maxExportCaptureSlicePhysicalHeight`), each window captured and stitched in a background isolate. The rebuild must reproduce the exact layout of the in-tree content (same theme, width, layout decisions) so both modes produce identical pixels.
+- **Blank trim (空白裁切)**: optional post-processing of the final PNG — removes blank margins while preserving a padding ring. Message exports pass 48px (`exportImageBlankTrimPreservePaddingPhysical`); table exports pass none (the table boundary is fully covered by its own background — no trim, byte-parity with the on-screen table).
+- **Capture source**: message export renders the content offscreen inside an `ExportCaptureRoot`; the table uses the in-tree `_tableBoundaryKey` boundary for full capture and a keyless twin of the table surface for the slice rebuild.
+
 ## Image Mode & Image Generation Options (生图参数配置面板)
 
 - **Image mode (生图模式)**: A per-send routing toggle (pre-existing): when the current model supports it (`ChatApiService.supportsOpenAIImagesApiRouting` = OpenAI-family provider + `gpt-image-*` / `chatgpt-image-*` model family), the user prompt is sent to the OpenAI Images API (`/images/generations` or `/images/edits`) instead of chat completion. The routing decision is per `{conversationId, providerKey, modelId}`; the user can dismiss image mode for the current model, and the dismissal is remembered per model key. The prompt is reconstructed from the last user message via `_lastOpenAIImagePrompt` (text parts only; attachments become edit refs).

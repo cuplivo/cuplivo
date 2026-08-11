@@ -15,11 +15,11 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:convert';
 import 'dart:ui' as ui;
-import 'package:image/image.dart' as image_lib;
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import '../../utils/sandbox_path_resolver.dart';
 import '../../utils/clipboard_images.dart';
+import '../../utils/export_image_capture.dart';
 import '../../features/chat/pages/image_viewer_page.dart';
 import 'snackbar.dart';
 import 'ios_tactile.dart';
@@ -2756,22 +2756,51 @@ String markdownTableRowsToMarkdownForTesting(List<List<String>> rows) =>
 @visibleForTesting
 TargetPlatform? markdownTableTargetPlatformOverride;
 
-class _MarkdownTableBlock extends StatelessWidget {
-  _MarkdownTableBlock({
+const double _markdownTableExportPixelRatio = 3.0;
+
+@visibleForTesting
+Future<Uint8List?> captureTablePngBytesForTesting(
+  BuildContext context, {
+  bool forceSlices = false,
+}) async {
+  final state = context.findAncestorStateOfType<_MarkdownTableBlockState>();
+  if (state == null) return null;
+  return state._captureTablePngBytes(forceSlices: forceSlices);
+}
+
+class _MarkdownTableBlock extends StatefulWidget {
+  const _MarkdownTableBlock({
     required this.rows,
     required this.style,
     required this.config,
     required this.appFontFamily,
-  }) : _tableBoundaryKey = GlobalKey();
+  });
 
   final _MarkdownTableData rows;
   final TextStyle style;
   final GptMarkdownConfig config;
   final String? appFontFamily;
-  final GlobalKey _tableBoundaryKey;
+
+  @override
+  State<_MarkdownTableBlock> createState() => _MarkdownTableBlockState();
+}
+
+class _MarkdownTableBlockState extends State<_MarkdownTableBlock> {
+  final GlobalKey _tableBoundaryKey = GlobalKey();
+
+  // Keyless twin of the in-tree table surface, re-rendered in the overlay
+  // when the export needs slice capture. Kept identical to the in-tree
+  // surface so both capture modes produce the same pixels.
+  Widget? _captureTableSurface;
+
+  // The MediaQuery the in-tree table was laid out under (chat font scale and
+  // friends). The overlay render of [_captureTableSurface] must see the same
+  // data or scaled layouts diverge and slice seams misalign.
+  MediaQueryData? _captureTableMediaQuery;
 
   @override
   Widget build(BuildContext context) {
+    final rows = widget.rows;
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = cs.outlineVariant.withValues(
@@ -2822,7 +2851,16 @@ class _MarkdownTableBlock extends StatelessWidget {
           bodyBg: bodyBg,
           borderColor: borderColor,
           compact: true,
+          boundaryKey: _tableBoundaryKey,
         );
+        _captureTableSurface = _buildTableSurface(
+          context,
+          table: table,
+          bodyBg: bodyBg,
+          borderColor: borderColor,
+          compact: true,
+        );
+        _captureTableMediaQuery = MediaQuery.maybeOf(context);
 
         if (!useCompactTable) {
           final l10n = AppLocalizations.of(context)!;
@@ -2934,6 +2972,7 @@ class _MarkdownTableBlock extends StatelessWidget {
     required double columnWidth,
     required bool fixedColumns,
   }) {
+    final rows = widget.rows;
     final columnWidths = <int, TableColumnWidth>{
       for (int i = 0; i < rows.columnCount; i++)
         i: fixedColumns
@@ -2960,9 +2999,9 @@ class _MarkdownTableBlock extends StatelessWidget {
                 _MarkdownTableCell(
                   data: rows.rows[r].cells[c],
                   header: r == 0,
-                  style: style,
-                  config: config,
-                  appFontFamily: appFontFamily,
+                  style: widget.style,
+                  config: widget.config,
+                  appFontFamily: widget.appFontFamily,
                   selectable: !compact,
                 ),
             ],
@@ -2977,6 +3016,7 @@ class _MarkdownTableBlock extends StatelessWidget {
     required Color bodyBg,
     required Color borderColor,
     required bool compact,
+    Key? boundaryKey,
   }) {
     final cs = Theme.of(context).colorScheme;
     final tableContent = Container(
@@ -2991,17 +3031,17 @@ class _MarkdownTableBlock extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
       child: DefaultTextStyle.merge(
-        style: TextStyle(color: cs.onSurface, fontFamily: appFontFamily),
+        style: TextStyle(color: cs.onSurface, fontFamily: widget.appFontFamily),
         child: table,
       ),
     );
 
     if (compact) {
-      return RepaintBoundary(key: _tableBoundaryKey, child: tableContent);
+      return RepaintBoundary(key: boundaryKey, child: tableContent);
     }
 
     return RepaintBoundary(
-      key: _tableBoundaryKey,
+      key: boundaryKey,
       child: SizedBox(
         width: double.infinity,
         child: ClipRRect(
@@ -3038,7 +3078,7 @@ class _MarkdownTableBlock extends StatelessWidget {
 
   Future<void> _copyMarkdown(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
-    await Clipboard.setData(ClipboardData(text: rows.toMarkdown()));
+    await Clipboard.setData(ClipboardData(text: widget.rows.toMarkdown()));
     if (!context.mounted) return;
     showAppSnackBar(
       context,
@@ -3049,7 +3089,7 @@ class _MarkdownTableBlock extends StatelessWidget {
 
   Future<void> _copyAsTsv(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
-    await Clipboard.setData(ClipboardData(text: rows.toTsv()));
+    await Clipboard.setData(ClipboardData(text: widget.rows.toTsv()));
     if (!context.mounted) return;
     showAppSnackBar(
       context,
@@ -3065,7 +3105,7 @@ class _MarkdownTableBlock extends StatelessWidget {
       '-',
     );
     final filename = '${l10n.markdownTableDefaultFileNameStem}_$timestamp.csv';
-    final csv = rows.toCsv();
+    final csv = widget.rows.toCsv();
 
     try {
       if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
@@ -3204,28 +3244,39 @@ class _MarkdownTableBlock extends StatelessWidget {
     }
   }
 
-  Future<Uint8List?> _captureTablePngBytes() async {
+  Future<Uint8List?> _captureTablePngBytes({bool forceSlices = false}) async {
+    final theme = Theme.of(context);
+    final overlay = Overlay.maybeOf(context);
+    final mediaQuery =
+        _captureTableMediaQuery ??
+        MediaQuery.maybeOf(context) ??
+        const MediaQueryData();
     await WidgetsBinding.instance.endOfFrame;
     final boundary =
         _tableBoundaryKey.currentContext?.findRenderObject()
             as RenderRepaintBoundary?;
     if (boundary == null) return null;
-    final image = await boundary.toImage(pixelRatio: 3.0);
-    final data = await image.toByteData(
-      format: ui.ImageByteFormat.rawStraightRgba,
-    );
-    if (data == null) return null;
-    // 8-bit straight-alpha readback: ImageByteFormat.png on wide-gamut
-    // backends (iOS Impeller) embeds 10/16-bit wide-gamut bytes that
-    // downstream consumers misinterpret as sRGB. Encode to a plain
-    // 8-bit PNG here instead.
-    return image_lib.encodePng(
-      image_lib.Image.fromBytes(
-        width: image.width,
-        height: image.height,
-        bytes: data.buffer,
-        numChannels: 4,
-      ),
+    if (!forceSlices) {
+      final bytes = await captureBoundaryPngBytes(
+        boundary,
+        pixelRatio: _markdownTableExportPixelRatio,
+        preservePadding: null,
+      );
+      if (bytes != null) return bytes;
+    }
+    final tableSurface = _captureTableSurface;
+    if (tableSurface == null) return null;
+    final contentSize = boundary.size;
+    if (contentSize.isEmpty) return null;
+    if (overlay == null) return null;
+    return captureWidgetViewportSlicesPngBytes(
+      overlay,
+      () => MediaQuery(data: mediaQuery, child: tableSurface),
+      theme: theme,
+      width: contentSize.width,
+      pixelRatio: _markdownTableExportPixelRatio,
+      contentSize: contentSize,
+      preservePadding: null,
     );
   }
 

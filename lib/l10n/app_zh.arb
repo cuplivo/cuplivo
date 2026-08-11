@@ -1330,6 +1330,7 @@
   "providerDetailPageProviderRemovedMessage": "供应商已删除",
   "providerDetailPageNoModelsTitle": "暂无模型",
   "providerDetailPageNoModelsSubtitle": "点击下方按钮添加模型",
+  "providerDetailPageTestNoModelsHint": "请先添加模型，再进行连接测试",
   "providerDetailPageDeleteModelButton": "删除",
   "providerDetailPageConfirmDeleteTitle": "确认删除",
   "providerDetailPageConfirmDeleteContent": "删除后可通过撤销恢复。是否删除？",

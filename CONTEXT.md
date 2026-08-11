@@ -649,3 +649,14 @@
 
 - "默认启动 DeepSeek" (issue #196) — resolved: default **selection**, not zero-config working. The base URL is seeded but the API key still comes from the user.
 - "关闭温度" — resolved: omit the sampling parameter, not send `temperature: 0`.
+
+## Test Connection Model Auto-Selection (测试连接自动选模型)
+
+- **测试连接 (Test Connection)**: The dialog that verifies a provider's API credentials by sending a minimal request for a chosen model. Two parallel implementations must stay in sync: mobile `_ConnectionTestDialog` (`lib/features/provider/pages/provider_detail_page.dart`) and desktop `_showTestConnectionDialog` (`lib/desktop/setting/providers_pane.dart`).
+- **Auto-selection priority (自动选择优先级, issue #257)**: When the test connection dialog opens, the model field is pre-filled by this cascade — each rule applies only if the candidate is actually present in the provider's model list (`ProviderConfig.models`):
+  1. The chat's **effective** current model (`Assistant.chatModelProvider` if the current assistant has a binding, else `SettingsProvider.currentModel`), if it belongs to this provider. A separate "assistant-bound model" tier was deliberately absorbed into this rule — the binding IS the currently-used model, so a later global-model tier could prefill a stale model over the live one.
+  2. The most recently added model (`ProviderConfig.models` last element). Heuristic, not a contract: the list is append-ordered in most paths, but bulk fetch / select-all flows rebuild it from a set (API-response order), so the tail can deviate from user add-time order.
+  3. Single model → covered by the cascade (it is both the first valid candidate and the last element).
+  A global scan of ALL assistants was rejected (ambiguous when multiple assistants bind different models of the same provider).
+- **Zero-model case (暂无模型)**: 0 models → the dialog body shows a hint (title `providerDetailPageNoModelsTitle` + dialog-specific subtitle `providerDetailPageTestNoModelsHint` — the page-level `providerDetailPageNoModelsSubtitle` ("tap the buttons below") is NOT reused in the dialog, where no such buttons exist) with the test button disabled and only 取消 available; the empty model picker is never opened in this state. The model picker (`showModelSelector`) only enumerates `cfg.models`, so an empty list renders a blank sheet.
+- **No auto-run (只预填不自动测试)**: Auto-selection only pre-fills the model field; the user still clicks 测试. The existing "更改" button stays as-is (issue #257's "在下面再放选择模型的按钮" is satisfied by the existing change affordance — no layout redesign).

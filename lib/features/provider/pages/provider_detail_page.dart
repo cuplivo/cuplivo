@@ -4322,6 +4322,24 @@ class _ConnectionTestDialogState extends State<_ConnectionTestDialog> {
   _TestState _state = _TestState.idle;
   String _errorMessage = '';
   bool _useStream = false;
+  bool _hasModels = true;
+
+  @override
+  void initState() {
+    super.initState();
+    final settings = context.read<SettingsProvider>();
+    final cfg = settings.getProviderConfig(
+      widget.providerKey,
+      defaultName: widget.providerDisplayName,
+    );
+    _hasModels = cfg.models.isNotEmpty;
+    _selectedModelId = ProviderManager.resolvePreferredTestModel(
+      cfg: cfg,
+      currentAssistant: context.read<AssistantProvider>().currentAssistant,
+      currentModelProvider: settings.currentModelProvider,
+      currentModelId: settings.currentModelId,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -4417,7 +4435,28 @@ class _ConnectionTestDialogState extends State<_ConnectionTestDialog> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        if (_selectedModelId == null)
+        if (!_hasModels)
+          Column(
+            children: [
+              Text(
+                l10n.providerDetailPageNoModelsTitle,
+                style: TextStyle(
+                  fontWeight: AppFontWeights.emphasis,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                l10n.providerDetailPageTestNoModelsHint,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: cs.onSurface.withValues(alpha: 0.6),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          )
+        else if (_selectedModelId == null)
           TextButton(
             onPressed: _pickModel,
             child: Text(l10n.providerDetailPageSelectModelButton),

@@ -4079,6 +4079,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Tap the buttons below to add models';
 
   @override
+  String get providerDetailPageTestNoModelsHint =>
+      'Add a model first, then test the connection.';
+
+  @override
   String get providerDetailPageDeleteModelButton => 'Delete';
 
   @override

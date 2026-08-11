@@ -13,6 +13,7 @@ import '../services/api/provider_request_headers.dart';
 import '../services/model_override_payload_parser.dart';
 import 'package:Cuplivo/secrets/fallback.dart';
 import '../services/api/google_service_account_auth.dart';
+import '../models/assistant.dart';
 import '../models/model_types.dart';
 
 class ModelRegistry {
@@ -450,6 +451,35 @@ class ProviderManager {
 
   static Future<List<ModelInfo>> listModels(ProviderConfig cfg) {
     return forConfig(cfg).listModels(cfg);
+  }
+
+  /// Resolves the model the test connection dialog should pre-fill
+  /// (issue #257). Cascade, each rule applies only if the candidate is
+  /// present in [cfg.models]:
+  /// 1. The chat's effective current model: the current assistant's binding
+  ///    when it has one, else the global selection.
+  /// 2. The most recently added model (last element of [cfg.models]).
+  /// The last element is a heuristic: the list is append-ordered in most
+  /// paths, but bulk fetch / select-all flows rebuild it from a set, so the
+  /// tail is not a guaranteed add-time order.
+  /// Returns null when the provider has no models.
+  static String? resolvePreferredTestModel({
+    required ProviderConfig cfg,
+    required Assistant? currentAssistant,
+    required String? currentModelProvider,
+    required String? currentModelId,
+  }) {
+    if (cfg.models.isEmpty) return null;
+    final String? effective;
+    if (currentAssistant?.chatModelProvider != null) {
+      effective = currentAssistant!.chatModelProvider == cfg.id
+          ? currentAssistant.chatModelId
+          : null;
+    } else {
+      effective = currentModelProvider == cfg.id ? currentModelId : null;
+    }
+    if (effective != null && cfg.models.contains(effective)) return effective;
+    return cfg.models.last;
   }
 
   static Future<void> testConnection(

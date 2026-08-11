@@ -2817,8 +2817,8 @@ class _DesktopProviderDetailPaneState
                                               value: toolImagesNow == null
                                                   ? 'auto'
                                                   : (toolImagesNow
-                                                            ? 'on'
-                                                            : 'off'),
+                                                        ? 'on'
+                                                        : 'off'),
                                               options: [
                                                 DesktopSelectOption(
                                                   value: 'auto',
@@ -4605,7 +4605,18 @@ class _DesktopProviderDetailPaneState
 
   Future<void> _showTestConnectionDialog(BuildContext context) async {
     final cs = Theme.of(context).colorScheme;
-    String? selectedModelId;
+    final settings = context.read<SettingsProvider>();
+    final cfg = settings.getProviderConfig(
+      widget.providerKey,
+      defaultName: widget.displayName,
+    );
+    final hasModels = cfg.models.isNotEmpty;
+    String? selectedModelId = ProviderManager.resolvePreferredTestModel(
+      cfg: cfg,
+      currentAssistant: context.read<AssistantProvider>().currentAssistant,
+      currentModelProvider: settings.currentModelProvider,
+      currentModelId: settings.currentModelId,
+    );
     _TestState state = _TestState.idle;
     String errorMessage = '';
     bool useStream = false;
@@ -4706,63 +4717,95 @@ class _DesktopProviderDetailPaneState
                         ),
                       ),
                       const SizedBox(height: 14),
-                      GestureDetector(
-                        onTap: pickModel,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Theme.of(ctx).brightness == Brightness.dark
-                                ? Colors.white10
-                                : const Color(0xFFF7F7F9),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: cs.outlineVariant.withValues(alpha: 0.12),
-                              width: 0.6,
-                            ),
-                          ),
-                          child: Row(
+                      if (!hasModels)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Column(
                             children: [
-                              if (selectedModelId != null)
-                                _BrandCircle(name: selectedModelId!, size: 22),
-                              if (selectedModelId != null)
-                                const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  selectedModelId ??
-                                      l10n.providerDetailPageSelectModelButton,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontWeight: AppFontWeights.semibold,
-                                  ),
+                              Text(
+                                l10n.providerDetailPageNoModelsTitle,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: AppFontWeights.emphasis,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                l10n.providerDetailPageTestNoModelsHint,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: cs.onSurface.withValues(alpha: 0.6),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              l10n.providerDetailPageUseStreamingLabel,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: cs.onSurface.withValues(alpha: 0.9),
+                        )
+                      else
+                        GestureDetector(
+                          onTap: pickModel,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(ctx).brightness == Brightness.dark
+                                  ? Colors.white10
+                                  : const Color(0xFFF7F7F9),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: cs.outlineVariant.withValues(
+                                  alpha: 0.12,
+                                ),
+                                width: 0.6,
                               ),
                             ),
+                            child: Row(
+                              children: [
+                                if (selectedModelId != null)
+                                  _BrandCircle(
+                                    name: selectedModelId!,
+                                    size: 22,
+                                  ),
+                                if (selectedModelId != null)
+                                  const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    selectedModelId ??
+                                        l10n.providerDetailPageSelectModelButton,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontWeight: AppFontWeights.semibold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          IosSwitch(
-                            value: useStream,
-                            onChanged: (v) => setState(() => useStream = v),
-                          ),
-                        ],
-                      ),
+                        ),
+                      if (hasModels) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                l10n.providerDetailPageUseStreamingLabel,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: cs.onSurface.withValues(alpha: 0.9),
+                                ),
+                              ),
+                            ),
+                            IosSwitch(
+                              value: useStream,
+                              onChanged: (v) => setState(() => useStream = v),
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       if (state == _TestState.loading)
                         Center(

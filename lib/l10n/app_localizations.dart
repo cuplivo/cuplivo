@@ -7430,6 +7430,12 @@ abstract class AppLocalizations {
   /// **'Tap the buttons below to add models'**
   String get providerDetailPageNoModelsSubtitle;
 
+  /// No description provided for @providerDetailPageTestNoModelsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a model first, then test the connection.'**
+  String get providerDetailPageTestNoModelsHint;
+
   /// No description provided for @providerDetailPageDeleteModelButton.
   ///
   /// In en, this message translates to:

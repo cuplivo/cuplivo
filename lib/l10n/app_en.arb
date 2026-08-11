@@ -1734,6 +1734,7 @@
   "providerDetailPageProviderRemovedMessage": "Provider removed",
   "providerDetailPageNoModelsTitle": "No Models",
   "providerDetailPageNoModelsSubtitle": "Tap the buttons below to add models",
+  "providerDetailPageTestNoModelsHint": "Add a model first, then test the connection.",
   "providerDetailPageDeleteModelButton": "Delete",
   "providerDetailPageConfirmDeleteTitle": "Confirm Delete",
   "providerDetailPageConfirmDeleteContent": "This can be undone via Undo. Delete?",

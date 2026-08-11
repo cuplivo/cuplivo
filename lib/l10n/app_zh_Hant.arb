@@ -1320,6 +1320,7 @@
   "providerDetailPageProviderRemovedMessage": "供應商已刪除",
   "providerDetailPageNoModelsTitle": "暫無模型",
   "providerDetailPageNoModelsSubtitle": "點擊下方按鈕新增模型",
+  "providerDetailPageTestNoModelsHint": "請先新增模型，再進行連線測試",
   "providerDetailPageDeleteModelButton": "刪除",
   "providerDetailPageConfirmDeleteTitle": "確認刪除",
   "providerDetailPageConfirmDeleteContent": "刪除後可透過撤銷還原。是否刪除？",

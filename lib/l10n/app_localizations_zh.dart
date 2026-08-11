@@ -3917,6 +3917,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get providerDetailPageNoModelsSubtitle => '点击下方按钮添加模型';
 
   @override
+  String get providerDetailPageTestNoModelsHint => '请先添加模型，再进行连接测试';
+
+  @override
   String get providerDetailPageDeleteModelButton => '删除';
 
   @override
@@ -11233,6 +11236,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get providerDetailPageNoModelsSubtitle => '点击下方按钮添加模型';
 
   @override
+  String get providerDetailPageTestNoModelsHint => '请先添加模型，再进行连接测试';
+
+  @override
   String get providerDetailPageDeleteModelButton => '删除';
 
   @override
@@ -18545,6 +18551,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get providerDetailPageNoModelsSubtitle => '點擊下方按鈕新增模型';
+
+  @override
+  String get providerDetailPageTestNoModelsHint => '請先新增模型，再進行連線測試';
 
   @override
   String get providerDetailPageDeleteModelButton => '刪除';

@@ -25,6 +25,7 @@ import 'widgets/desktop_select_dropdown.dart';
 import '../shared/widgets/ios_labeled_switch_row.dart';
 import '../shared/widgets/ios_switch.dart';
 import '../shared/widgets/ios_checkbox.dart';
+import '../shared/widgets/sf_slider_tile.dart';
 import '../shared/widgets/custom_key_value_editor.dart';
 // Desktop assistants panel dependencies
 import '../features/assistant/pages/assistant_settings_edit_page.dart'

@@ -1447,6 +1447,15 @@
   "miniMapTitle": "迷你地图",
   "miniMapTooltip": "迷你地图",
   "miniMapScrollToBottomTooltip": "滚动到底部",
+  "miniMapSearchResultCount": "命中 {count} 条",
+  "@miniMapSearchResultCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "miniMapSearchNoResults": "无匹配结果",
   "searchServicesPageApiKeyRequiredStatus": "需要 API Key",
   "searchServicesPageUrlRequiredStatus": "需要 URL",
   "searchServicesAddDialogTitle": "添加搜索服务",

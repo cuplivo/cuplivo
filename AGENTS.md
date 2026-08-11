@@ -355,6 +355,12 @@ dart analyze --fatal-infos lib test
 - When touching a path dependency under `dependencies/`, update that dependency's own source in the same change; do not patch only the root repo surface.
 - Trap: "I fixed it in one place" is not "done". Before marking a task complete, run `rg` for the changed identifier / pattern across the whole repo and confirm every parallel surface was updated or explicitly excluded. State any intentional exclusions in the delivery notes.
 
+### 3.21 Sliders: Never Material `Slider` on Desktop / Windows
+
+- Hard constraint: Material `Slider` (always creates an `OverlayPortal`) is forbidden on Windows paths -- it corrupts the Windows accessibility tree and crashes the app (incident from #119; Flutter https://github.com/flutter/flutter/issues/190357).
+- New sliders in `lib/desktop/**` must use the shared `SfSliderTile` (`lib/shared/widgets/sf_slider_tile.dart`, wraps Syncfusion `SfSlider`, zero `OverlayPortal`) or a custom-drawn slider without `OverlayPortal` (e.g. `HueSlider`).
+- Before adding a slider widget, `rg` its source for `OverlayPortal`.
+
 ## 4. Recommended Execution Order
 
 1. `git status --short` -- confirm workspace baseline. Don't panic if `windows/flutter/generated_plugin_registrant.{cc,h}`, `linux/flutter/generated_plugin_registrant.{cc,h}`, or `macos/Flutter/GeneratedPluginRegistrant.swift` show up as whole-file diffs: Flutter tool regeneration can flip their line endings (LF/CRLF -- this repo has no `.gitattributes`), so the diff is auto-generate churn, not a real change. Restore with `git checkout -- <file>` and continue; never commit the churn.

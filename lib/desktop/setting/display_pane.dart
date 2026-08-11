@@ -3469,12 +3469,14 @@ class _OneClickCompressLongEdgeRow extends StatelessWidget {
             children: [
               SizedBox(
                 width: 160,
-                child: Slider(
+                child: SfSliderTile(
                   value: val.toDouble(),
                   min: 768,
                   max: 4096,
                   divisions: 13,
                   label: '${val}px',
+                  semanticLabel: l10n.oneClickCompressMaxLongEdgeTitle,
+                  semanticFormatterCallback: (value) => '${value.round()}px',
                   onChanged: (v) => context
                       .read<SettingsProvider>()
                       .setOneClickCompressMaxLongEdge(v.round()),
@@ -3520,12 +3522,14 @@ class _OneClickCompressQualityRow extends StatelessWidget {
             children: [
               SizedBox(
                 width: 160,
-                child: Slider(
+                child: SfSliderTile(
                   value: val.toDouble(),
                   min: 50,
                   max: 95,
                   divisions: 9,
                   label: '$val%',
+                  semanticLabel: l10n.oneClickCompressQualityTitle,
+                  semanticFormatterCallback: (value) => '${value.round()}%',
                   onChanged: (v) => context
                       .read<SettingsProvider>()
                       .setOneClickCompressQuality(v.round()),

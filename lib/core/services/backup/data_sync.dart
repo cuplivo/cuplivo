@@ -23,6 +23,7 @@ import '../chat/chat_service.dart';
 import '../deleted_records_store.dart';
 import '../mcp/kelivo_filesystem/kelivo_filesystem_server.dart'
     show isSafeWireSegment;
+import 'kelivo_image_settings_mapper.dart';
 import '../../../utils/app_directories.dart';
 
 class DataSync {
@@ -951,6 +952,11 @@ class DataSync {
         }
       } catch (_) {}
     }
+    // Derive Kelivo-compatible image-compression keys from the current
+    // one_click_compress_* values, so a Cuplivo backup restores the
+    // compression settings in Kelivo natively too. Derived at export time —
+    // prefs never hold a mirror copy (no dual truth, no staleness).
+    map.addAll(KelivoImageSettingsMapper.translateToUpstream(map));
     return jsonEncode(map);
   }
 
@@ -1113,6 +1119,24 @@ class DataSync {
           // the one-time per-assistant ocrMode migration would re-run and
           // overwrite user per-assistant choices.
           backupLegacyOcrEnabled = map.remove('ocr_enabled_v1');
+          // Kelivo-originated backups carry upstream image-compression keys
+          // (image_upload_quality_v1 et al.) instead of Cuplivo's native
+          // one_click_compress_* keys. Translate them so the compression
+          // settings survive a Kelivo -> Cuplivo migration. The mapper skips
+          // files that already carry one_click_* keys (Cuplivo exports carry
+          // BOTH key sets — they restore their own values verbatim). In
+          // overwrite mode the translated keys win (migrating user); in merge
+          // mode they only fill absent slots. Upstream keys are always
+          // stripped so they never linger inert in prefs — exports re-derive
+          // them from the current one_click_* values.
+          final kelivoTranslation =
+              KelivoImageSettingsMapper.translateFromUpstream(map);
+          if (kelivoTranslation != null) {
+            map.addAll(kelivoTranslation);
+          }
+          for (final key in KelivoImageSettingsMapper.upstreamKeys) {
+            map.remove(key);
+          }
           final prefs = await SharedPreferencesAsync.instance;
           if (mode == RestoreMode.overwrite) {
             // For overwrite mode, restore all settings

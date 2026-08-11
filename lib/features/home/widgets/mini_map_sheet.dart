@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../shared/widgets/mini_map/mini_map_shared.dart';
 import '../../../theme/app_font_weights.dart';
 
 Future<String?> showMiniMapSheet(
@@ -58,28 +60,34 @@ class _MiniMapSheetState extends State<_MiniMapSheet>
     with TickerProviderStateMixin {
   late final TextEditingController _searchController;
   late final FocusNode _searchFocusNode;
-  late List<_QaPair> _pairs;
+  late List<MiniMapQaPair> _pairs;
   String _query = '';
   bool _isSearching = false;
+
+  List<String> _tokens = const [];
+  List<ChatMessage> _searchResults = const [];
+  Timer? _searchDebounce;
+  ScrollController? _sheetController;
 
   @override
   void initState() {
     super.initState();
     _searchController = TextEditingController();
     _searchFocusNode = FocusNode();
-    _pairs = _buildPairs(widget.messages);
+    _pairs = buildMiniMapPairs(widget.messages);
   }
 
   @override
   void didUpdateWidget(covariant _MiniMapSheet oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.messages, widget.messages)) {
-      _pairs = _buildPairs(widget.messages);
+      _pairs = buildMiniMapPairs(widget.messages);
     }
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
@@ -97,8 +105,11 @@ class _MiniMapSheetState extends State<_MiniMapSheet>
   }
 
   void _clearOrCloseSearch({bool close = false}) {
+    _searchDebounce?.cancel();
     setState(() {
       _query = '';
+      _tokens = const [];
+      _searchResults = const [];
       _searchController.clear();
       _isSearching = close ? false : _isSearching;
     });
@@ -108,6 +119,41 @@ class _MiniMapSheetState extends State<_MiniMapSheet>
       _searchFocusNode.requestFocus();
     }
   }
+
+  void _onSearchChanged(String value) {
+    setState(() => _query = value);
+    _searchDebounce?.cancel();
+    if (value.trim().isNotEmpty && _tokens.isEmpty) {
+      // First keystroke: apply immediately so the search view shows real
+      // results right away (no debounce-window collapse). Subsequent
+      // keystrokes are debounced and keep the previous result set visible.
+      _applySearch();
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 180), _applySearch);
+  }
+
+  void _applySearch() {
+    final tokens = miniMapSearchTokens(_query);
+    final results = tokens.isEmpty
+        ? const <ChatMessage>[]
+        : filterMiniMapMessages(widget.messages, tokens);
+    if (!mounted) return;
+    setState(() {
+      _tokens = tokens;
+      _searchResults = results;
+    });
+    final sc = _sheetController;
+    if (sc != null && sc.hasClients) {
+      sc.jumpTo(0);
+    }
+  }
+
+  /// True while the search view should replace the Q/A pair map: a query is
+  /// present (even during the debounce window, where the previous result set
+  /// stays visible) or a result set has been computed.
+  bool get _searchActive =>
+      _isSearching && (_query.trim().isNotEmpty || _tokens.isNotEmpty);
 
   @override
   Widget build(BuildContext context) {
@@ -122,14 +168,17 @@ class _MiniMapSheetState extends State<_MiniMapSheet>
         minChildSize: 0.35,
         maxChildSize: 0.9,
         builder: (ctx, controller) {
-          final pairs = _filteredPairs(_pairs);
+          _sheetController = controller;
           Widget buildList() {
+            if (_searchActive) {
+              return _buildSearchResultsList(context, controller);
+            }
             return ListView.builder(
               controller: controller,
-              itemCount: pairs.length,
+              itemCount: _pairs.length,
               itemBuilder: (context, index) {
                 return _MiniMapRow(
-                  pair: pairs[index],
+                  pair: _pairs[index],
                   selecting: widget.selecting,
                   selectedMessageIds: widget.selectedMessageIds,
                   onToggleSelection: widget.onToggleSelection,
@@ -171,29 +220,30 @@ class _MiniMapSheetState extends State<_MiniMapSheet>
                       ),
                     ),
                     const SizedBox(width: 4),
-                    SizedBox(
-                      height: 36,
-                      width: 36,
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        icon: Icon(
-                          Lucide.ChevronsDown,
-                          size: 18,
-                          color: cs.onSurface,
+                    if (!_searchActive)
+                      SizedBox(
+                        height: 36,
+                        width: 36,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: Icon(
+                            Lucide.ChevronsDown,
+                            size: 18,
+                            color: cs.onSurface,
+                          ),
+                          tooltip: AppLocalizations.of(
+                            context,
+                          )!.miniMapScrollToBottomTooltip,
+                          onPressed: () {
+                            if (controller.hasClients &&
+                                controller.position.maxScrollExtent > 0) {
+                              controller.jumpTo(
+                                controller.position.maxScrollExtent,
+                              );
+                            }
+                          },
                         ),
-                        tooltip: AppLocalizations.of(
-                          context,
-                        )!.miniMapScrollToBottomTooltip,
-                        onPressed: () {
-                          if (controller.hasClients &&
-                              controller.position.maxScrollExtent > 0) {
-                            controller.jumpTo(
-                              controller.position.maxScrollExtent,
-                            );
-                          }
-                        },
                       ),
-                    ),
                     _buildSearchToggle(context, searchWidth),
                   ],
                 ),
@@ -212,6 +262,76 @@ class _MiniMapSheetState extends State<_MiniMapSheet>
           );
         },
       ),
+    );
+  }
+
+  Widget _buildSearchResultsList(
+    BuildContext context,
+    ScrollController controller,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textBase = isDark ? Colors.white : Colors.black;
+    final highlightColor = isDark
+        ? const Color(0xFFB8860B).withValues(alpha: 0.55)
+        : const Color(0xFFFFD700).withValues(alpha: 0.55);
+
+    if (_tokens.isEmpty) {
+      // Debounce window: query entered but no result set computed yet.
+      // Keep the previous state's space without flashing a false empty state.
+      return const SizedBox.shrink();
+    }
+
+    if (_searchResults.isEmpty) {
+      return Center(
+        child: Text(
+          l10n.miniMapSearchNoResults,
+          style: TextStyle(
+            fontSize: 13,
+            color: textBase.withValues(alpha: 0.45),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
+          child: Text(
+            l10n.miniMapSearchResultCount(_searchResults.length),
+            style: TextStyle(
+              fontSize: 12,
+              color: textBase.withValues(alpha: 0.5),
+              fontWeight: AppFontWeights.medium,
+            ),
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            controller: controller,
+            itemCount: _searchResults.length,
+            itemBuilder: (context, index) {
+              final message = _searchResults[index];
+              return _MiniMapSearchRow(
+                message: message,
+                tokens: _tokens,
+                highlightColor: highlightColor,
+                selecting: widget.selecting,
+                selectedMessageIds: widget.selectedMessageIds,
+                onTap: () {
+                  if (widget.selecting) {
+                    widget.onToggleSelection?.call(message.id);
+                  } else {
+                    Navigator.of(context).pop(message.id);
+                  }
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -247,7 +367,7 @@ class _MiniMapSheetState extends State<_MiniMapSheet>
                         child: TextField(
                           controller: _searchController,
                           focusNode: _searchFocusNode,
-                          onChanged: (value) => setState(() => _query = value),
+                          onChanged: _onSearchChanged,
                           textInputAction: TextInputAction.search,
                           textAlignVertical: TextAlignVertical.center,
                           decoration: InputDecoration(
@@ -313,52 +433,109 @@ class _MiniMapSheetState extends State<_MiniMapSheet>
       ),
     );
   }
-
-  List<_QaPair> _buildPairs(List<ChatMessage> items) {
-    final pairs = <_QaPair>[];
-    ChatMessage? pendingUser;
-    for (final m in items) {
-      if (m.role == 'user') {
-        // Push previous if it had no assistant
-        if (pendingUser != null) {
-          pairs.add(_QaPair(user: pendingUser, assistant: null));
-        }
-        pendingUser = m;
-      } else if (m.role == 'assistant') {
-        if (pendingUser != null) {
-          pairs.add(_QaPair(user: pendingUser, assistant: m));
-          pendingUser = null;
-        } else {
-          // Assistant without user: show as orphan on the right
-          pairs.add(_QaPair(user: null, assistant: m));
-        }
-      }
-    }
-    if (pendingUser != null) {
-      pairs.add(_QaPair(user: pendingUser, assistant: null));
-    }
-    return pairs;
-  }
-
-  List<_QaPair> _filteredPairs(List<_QaPair> base) {
-    final needle = _query.trim().toLowerCase();
-    if (needle.isEmpty) return base;
-    return base.where((pair) {
-      final user = pair.user?.content.toLowerCase() ?? '';
-      final asst = pair.assistant?.content.toLowerCase() ?? '';
-      return user.contains(needle) || asst.contains(needle);
-    }).toList();
-  }
 }
 
-class _QaPair {
-  final ChatMessage? user;
-  final ChatMessage? assistant;
-  _QaPair({required this.user, required this.assistant});
+class _MiniMapSearchRow extends StatelessWidget {
+  final ChatMessage message;
+  final List<String> tokens;
+  final Color highlightColor;
+  final bool selecting;
+  final Set<String>? selectedMessageIds;
+  final VoidCallback onTap;
+
+  const _MiniMapSearchRow({
+    required this.message,
+    required this.tokens,
+    required this.highlightColor,
+    required this.selecting,
+    required this.selectedMessageIds,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isUser = message.role == 'user';
+    final snippet = miniMapHitSnippet(message.content, tokens);
+
+    final selected =
+        selecting &&
+        selectedMessageIds != null &&
+        selectedMessageIds!.contains(message.id);
+    final bg = isUser
+        ? (isDark
+              ? cs.primary.withValues(alpha: 0.15)
+              : cs.primary.withValues(alpha: 0.08))
+        : cs.onSurface.withValues(alpha: isDark ? 0.06 : 0.04);
+    final selectedBg = isUser
+        ? (isDark
+              ? cs.primary.withValues(alpha: 0.26)
+              : cs.primary.withValues(alpha: 0.14))
+        : (isDark
+              ? cs.primary.withValues(alpha: 0.18)
+              : cs.primary.withValues(alpha: 0.10));
+    final border = isUser
+        ? cs.primary.withValues(alpha: isDark ? 0.45 : 0.35)
+        : cs.primary.withValues(alpha: isDark ? 0.38 : 0.28);
+
+    final baseStyle = TextStyle(
+      fontSize: 15.5,
+      height: 1.4,
+      color: cs.onSurface,
+    );
+    final highlightStyle = baseStyle.copyWith(backgroundColor: highlightColor);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Align(
+        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth:
+                MediaQuery.sizeOf(context).width * 0.75 -
+                32, // subtract side paddings approx in sheet
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: selected ? selectedBg : bg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: selected ? Border.all(color: border, width: 1) : null,
+                ),
+                child: RichText(
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  text: TextSpan(
+                    children: buildMiniMapHighlightSpans(
+                      snippet.isEmpty
+                          ? miniMapOneLine(message.content)
+                          : snippet,
+                      tokens,
+                      baseStyle,
+                      highlightStyle,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _MiniMapRow extends StatelessWidget {
-  final _QaPair pair;
+  final MiniMapQaPair pair;
   final bool selecting;
   final Set<String>? selectedMessageIds;
   final ValueChanged<String>? onToggleSelection;
@@ -369,25 +546,6 @@ class _MiniMapRow extends StatelessWidget {
     this.selectedMessageIds,
     this.onToggleSelection,
   });
-
-  String _oneLine(String s) {
-    // Strip inline embed markers used in user messages to avoid noise
-    var t = s
-        // remove vendor inline reasoning blocks if present
-        .replaceAll(
-          RegExp(
-            r'<(?:think|thought)>[\s\S]*?<\/(?:think|thought)>',
-            caseSensitive: false,
-          ),
-          '',
-        )
-        .replaceAll(RegExp(r"\[image:[^\]]+\]"), "")
-        .replaceAll(RegExp(r"\[file:[^\]]+\]"), "")
-        .replaceAll('\n', ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    return t;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -454,7 +612,9 @@ class _MiniMapRow extends StatelessWidget {
                                 : null,
                           ),
                           child: Text(
-                            userText.isNotEmpty ? _oneLine(userText) : ' ',
+                            userText.isNotEmpty
+                                ? miniMapOneLine(userText)
+                                : ' ',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -481,7 +641,9 @@ class _MiniMapRow extends StatelessWidget {
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(
-                            userText.isNotEmpty ? _oneLine(userText) : ' ',
+                            userText.isNotEmpty
+                                ? miniMapOneLine(userText)
+                                : ' ',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -529,7 +691,9 @@ class _MiniMapRow extends StatelessWidget {
                                 : null,
                           ),
                           child: Text(
-                            asstText.isNotEmpty ? _oneLine(asstText) : ' ',
+                            asstText.isNotEmpty
+                                ? miniMapOneLine(asstText)
+                                : ' ',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(fontSize: 15.7, height: 1.5),
@@ -553,7 +717,9 @@ class _MiniMapRow extends StatelessWidget {
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(
-                            asstText.isNotEmpty ? _oneLine(asstText) : ' ',
+                            asstText.isNotEmpty
+                                ? miniMapOneLine(asstText)
+                                : ' ',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(fontSize: 15.7, height: 1.5),

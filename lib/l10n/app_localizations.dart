@@ -8132,6 +8132,18 @@ abstract class AppLocalizations {
   /// **'Scroll to bottom'**
   String get miniMapScrollToBottomTooltip;
 
+  /// No description provided for @miniMapSearchResultCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} match} other{{count} matches}}'**
+  String miniMapSearchResultCount(int count);
+
+  /// No description provided for @miniMapSearchNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching messages'**
+  String get miniMapSearchNoResults;
+
   /// No description provided for @searchServicesPageApiKeyRequiredStatus.
   ///
   /// In en, this message translates to:

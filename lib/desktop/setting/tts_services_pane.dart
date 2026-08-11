@@ -10,6 +10,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../utils/brand_assets.dart';
 import '../../features/settings/pages/tts_settings_page.dart';
 import '../../theme/app_font_weights.dart';
+import '../../shared/widgets/sf_slider_tile.dart';
 
 /// Desktop: TTS (语音服务) right-side pane
 /// Adapts mobile TTS page to desktop with hoverable list card style
@@ -683,10 +684,14 @@ class _SystemTtsCardState extends State<_SystemTtsCard> {
                       color: cs.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
-                  Slider(
+                  SfSliderTile(
                     value: rate,
                     min: 0.1,
                     max: 1.0,
+                    label: rate.toStringAsFixed(2),
+                    semanticLabel: l10n.ttsServicesPageSpeechRateLabel,
+                    semanticFormatterCallback: (value) =>
+                        value.toStringAsFixed(2),
                     onChanged: (v) {
                       rate = v;
                       if (ctx.mounted) (ctx as Element).markNeedsBuild();
@@ -701,10 +706,14 @@ class _SystemTtsCardState extends State<_SystemTtsCard> {
                       color: cs.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
-                  Slider(
+                  SfSliderTile(
                     value: pitch,
                     min: 0.5,
                     max: 2.0,
+                    label: pitch.toStringAsFixed(2),
+                    semanticLabel: l10n.ttsServicesPagePitchLabel,
+                    semanticFormatterCallback: (value) =>
+                        value.toStringAsFixed(2),
                     onChanged: (v) {
                       pitch = v;
                       if (ctx.mounted) (ctx as Element).markNeedsBuild();

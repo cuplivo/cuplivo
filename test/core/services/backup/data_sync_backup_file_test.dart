@@ -1029,4 +1029,198 @@ void main() {
       },
     );
   });
+
+  group('DataSync Kelivo image-settings interop', () {
+    late Directory root;
+
+    setUp(() async {
+      root = await Directory.systemTemp.createTemp('kelivo_imgset_');
+      PathProviderPlatform.instance = _FakePathProviderPlatform(root.path);
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    tearDown(() async {
+      if (await root.exists()) {
+        await root.delete(recursive: true);
+      }
+    });
+
+    Future<File> makeSettingsZip(Map<String, dynamic> settings) async {
+      final settingsFile = File('${root.path}/settings.json');
+      await settingsFile.writeAsString(jsonEncode(settings));
+      final zipFile = File('${root.path}/backup.zip');
+      final encoder = ZipFileEncoder();
+      encoder.create(zipFile.path);
+      encoder.addFileSync(settingsFile, 'settings.json');
+      encoder.closeSync();
+      return zipFile;
+    }
+
+    test(
+      'Kelivo zip overwrite translates upstream keys and strips them from prefs',
+      () async {
+        final sync = DataSync(chatService: ChatService());
+        final zipFile = await makeSettingsZip({
+          'image_upload_quality_v1': 'saver',
+          'image_compress_transparent_enabled_v1': true,
+        });
+
+        await sync.restoreFromLocalFile(
+          zipFile,
+          const WebDavConfig(includeChats: false, includeFiles: false),
+          mode: RestoreMode.overwrite,
+        );
+
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getBool('one_click_compress_enabled_v1'), isTrue);
+        expect(prefs.getInt('one_click_compress_max_long_edge_v1'), 1024);
+        expect(prefs.getInt('one_click_compress_quality_v1'), 70);
+        expect(prefs.getBool('one_click_compress_always_jpg_v1'), isTrue);
+        expect(prefs.containsKey('image_upload_quality_v1'), isFalse);
+        expect(prefs.containsKey('image_compress_custom_quality_v1'), isFalse);
+        expect(
+          prefs.containsKey('image_compress_transparent_enabled_v1'),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'Kelivo zip overwrite with unknown enum falls back to balanced',
+      () async {
+        final sync = DataSync(chatService: ChatService());
+        final zipFile = await makeSettingsZip({
+          'image_upload_quality_v1': 'future-quality-mode',
+        });
+
+        await sync.restoreFromLocalFile(
+          zipFile,
+          const WebDavConfig(includeChats: false, includeFiles: false),
+          mode: RestoreMode.overwrite,
+        );
+
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getBool('one_click_compress_enabled_v1'), isTrue);
+        expect(prefs.getInt('one_click_compress_max_long_edge_v1'), 1568);
+        expect(prefs.getInt('one_click_compress_quality_v1'), 85);
+      },
+    );
+
+    test('Kelivo zip merge keeps existing local one_click_* values', () async {
+      SharedPreferences.setMockInitialValues({
+        'one_click_compress_enabled_v1': true,
+        'one_click_compress_max_long_edge_v1': 2048,
+        'one_click_compress_quality_v1': 90,
+        'one_click_compress_always_jpg_v1': false,
+      });
+      final sync = DataSync(chatService: ChatService());
+      final zipFile = await makeSettingsZip({
+        'image_upload_quality_v1': 'saver',
+      });
+
+      await sync.restoreFromLocalFile(
+        zipFile,
+        const WebDavConfig(includeChats: false, includeFiles: false),
+        mode: RestoreMode.merge,
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('one_click_compress_enabled_v1'), isTrue);
+      expect(prefs.getInt('one_click_compress_max_long_edge_v1'), 2048);
+      expect(prefs.getInt('one_click_compress_quality_v1'), 90);
+      expect(prefs.containsKey('image_upload_quality_v1'), isFalse);
+    });
+
+    test(
+      'Cuplivo-style zip (both key sets) restores its own long edge verbatim',
+      () async {
+        // A Cuplivo export carries BOTH key sets. The import must NOT
+        // re-translate it: the file's own maxLongEdge (2048) wins over the
+        // upstream-pinned 1568.
+        final sync = DataSync(chatService: ChatService());
+        final zipFile = await makeSettingsZip({
+          'image_upload_quality_v1': 'custom',
+          'image_compress_custom_quality_v1': 90,
+          'one_click_compress_enabled_v1': true,
+          'one_click_compress_max_long_edge_v1': 2048,
+          'one_click_compress_quality_v1': 90,
+          'one_click_compress_always_jpg_v1': false,
+        });
+
+        await sync.restoreFromLocalFile(
+          zipFile,
+          const WebDavConfig(includeChats: false, includeFiles: false),
+          mode: RestoreMode.overwrite,
+        );
+
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getInt('one_click_compress_max_long_edge_v1'), 2048);
+        expect(prefs.getInt('one_click_compress_quality_v1'), 90);
+        expect(prefs.containsKey('image_upload_quality_v1'), isFalse);
+      },
+    );
+
+    test(
+      'export derives upstream keys from current one_click_* values',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'one_click_compress_enabled_v1': true,
+          'one_click_compress_max_long_edge_v1': 1536,
+          'one_click_compress_quality_v1': 75,
+          'one_click_compress_always_jpg_v1': false,
+        });
+        final sync = DataSync(chatService: ChatService());
+        final backupFile = await sync.prepareBackupFile(
+          WebDavConfig(includeChats: false, includeFiles: false),
+        );
+
+        final input = InputFileStream(backupFile.path);
+        Archive? archive;
+        try {
+          archive = ZipDecoder().decodeStream(input);
+          final settingsEntry = archive.findFile('settings.json');
+          expect(settingsEntry, isNotNull);
+          final settings =
+              jsonDecode(utf8.decode(settingsEntry!.readBytes()!))
+                  as Map<String, dynamic>;
+          expect(settings['image_upload_quality_v1'], 'custom');
+          expect(settings['image_compress_custom_quality_v1'], 75);
+          expect(settings['image_compress_transparent_enabled_v1'], false);
+        } finally {
+          archive?.clearSync();
+          input.closeSync();
+        }
+
+        await DataSync.cleanupTemporaryBackupFile(backupFile);
+      },
+    );
+
+    test('export of a disabled config emits original', () async {
+      SharedPreferences.setMockInitialValues({
+        'one_click_compress_enabled_v1': false,
+        'one_click_compress_quality_v1': 95,
+      });
+      final sync = DataSync(chatService: ChatService());
+      final backupFile = await sync.prepareBackupFile(
+        WebDavConfig(includeChats: false, includeFiles: false),
+      );
+
+      final input = InputFileStream(backupFile.path);
+      Archive? archive;
+      try {
+        archive = ZipDecoder().decodeStream(input);
+        final settings =
+            jsonDecode(
+                  utf8.decode(archive.findFile('settings.json')!.readBytes()!),
+                )
+                as Map<String, dynamic>;
+        expect(settings['image_upload_quality_v1'], 'original');
+      } finally {
+        archive?.clearSync();
+        input.closeSync();
+      }
+
+      await DataSync.cleanupTemporaryBackupFile(backupFile);
+    });
+  });
 }

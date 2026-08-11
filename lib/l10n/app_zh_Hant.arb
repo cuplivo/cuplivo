@@ -1816,6 +1816,15 @@
   "miniMapTitle": "迷你地圖",
   "miniMapTooltip": "迷你地圖",
   "miniMapScrollToBottomTooltip": "捲動到底部",
+  "miniMapSearchResultCount": "命中 {count} 條",
+  "@miniMapSearchResultCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "miniMapSearchNoResults": "無匹配結果",
   "displaySettingsPageEnableDollarLatexTitle": "啟用 $...$ 渲染",
   "displaySettingsPageEnableDollarLatexSubtitle": "將 $...$ 之間的內容以行內數學公式渲染",
   "displaySettingsPageEnableMathTitle": "啟用數學公式渲染",

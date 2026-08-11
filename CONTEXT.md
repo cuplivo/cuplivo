@@ -615,6 +615,18 @@
 
 - "显示公式" / "display formula" was used in issue #218 to mean block-level math as opposed to inline — resolved: the domain term is **Display math** (block-level TeX forms `$$...$$` and `\[...\]`); "inline math" is the flow-level counterpart.
 
+## Mini Map Search (迷你地图搜索)
+
+- **Model**: filter-navigation (过滤导航) — 搜索是地图的定位工具，不是结果列表。输入关键词 → 消息级命中行（单消息一行，hit-centered 片段 + 高亮），点击跳转原消息；清空 → 恢复 Q/A 对鸟瞰图。
+- **Match source**: raw content（原始文本）— 与显示剥离逻辑解耦；`<think>/<thought>/<reasoning>`、`[image:]/[file:]` 内的文字可被命中。已知边缘：命中词恰好是标记/标签名本身（如搜 `think` 匹配 `<think>`）时，压平后的 snippet 不含该词 → 命中行无高亮（匹配源与显示源分裂的固有结果，接受）。
+- **Snippet source**: raw text with tag-flattening — 从原始文本以命中为中心截取，标签字符删除、内部文字保留；markdown 语法符号不动。窗口截断产生的残留裸标签/裸 `[image:`/`[file:` 前缀会再清洗一遍。
+- **Token semantics**: whitespace 分词 AND（与全局搜索 `_tokensOf` 一致）。
+- **Highlight**: 与全局搜索同色（暗 0xFFB8860B@55% / 亮 0xFFFFD700@55%），"黄色=命中"为 app 级心智模型。
+- **Entry divergence**: 手机图标切换式（屏幕窄）+ autofocus；桌面常驻搜索框 + 打开即 autofocus + Esc 两级退（先清空、再关闭）。共享的是逻辑（`lib/shared/widgets/mini_map/`），不是入口 UI。
+- **Debounce**: 150-200ms 各壳私有 Timer（dispose 取消）；shared 保持无状态纯函数。
+- **Performance note**: 单对话内消息级过滤；跨对话的 200 条限制属于全局搜索（issue #243 的另一半，未在本任务处理）。
+- **Selection mode**: 命中行点击 = 切换勾选（`onToggleSelection`），与跳转互斥。
+
 ## Token Accounting (Token 统计)
 
 - **Tool-call round (工具调用轮次)**: One independent API request within a single assistant turn. A multi-round turn = model calls tools → tool results appended → follow-up request, repeated. Each round is separately billed, and its `usage` snapshot resets per request (except Gemini-style within-stream cumulative `usageMetadata`).
@@ -660,3 +672,12 @@
   A global scan of ALL assistants was rejected (ambiguous when multiple assistants bind different models of the same provider).
 - **Zero-model case (暂无模型)**: 0 models → the dialog body shows a hint (title `providerDetailPageNoModelsTitle` + dialog-specific subtitle `providerDetailPageTestNoModelsHint` — the page-level `providerDetailPageNoModelsSubtitle` ("tap the buttons below") is NOT reused in the dialog, where no such buttons exist) with the test button disabled and only 取消 available; the empty model picker is never opened in this state. The model picker (`showModelSelector`) only enumerates `cfg.models`, so an empty list renders a blank sheet.
 - **No auto-run (只预填不自动测试)**: Auto-selection only pre-fills the model field; the user still clicks 测试. The existing "更改" button stays as-is (issue #257's "在下面再放选择模型的按钮" is satisfied by the existing change affordance — no layout redesign).
+
+## Kelivo Backup Interop (Image-Compression Settings)
+
+- **Kelivo image-compression settings (上游图片压缩设置)**: Kelivo's structurally different model — `image_upload_quality_v1` (enum: `original`/`high`/`balanced`/`saver`/`custom`), `image_compress_custom_quality_v1` (int, custom quality), `image_compress_transparent_enabled_v1` (bool). Cuplivo's native model stays untouched: `one_click_compress_*` (4 orthogonal params).
+- **Bidirectional translation (双向翻译)**: `KelivoImageSettingsMapper` (in `lib/core/services/backup/kelivo_image_settings_mapper.dart`) bridges the two models across backup import AND export (issue #124). See `docs/adr/0028-kelivo-image-settings-restore-translation.md`.
+- **Import (Kelivo → Cuplivo)**: `translateFromUpstream` runs in `_restoreFromBackupFile` (before the overwrite/merge branch). Trigger: String `image_upload_quality_v1` present AND no `one_click_compress_*` keys in the file — the second guard makes a Cuplivo export (which carries BOTH key sets) restore its own values verbatim instead of being re-translated (re-translation would overwrite the file's own maxLongEdge with 1568). Unknown enum values fall back to `balanced` with a `debugPrint`; out-of-range custom quality (upstream clamps 10–100) clamps to Cuplivo's 50–95 with a `debugPrint`.
+- **Export (Cuplivo → Kelivo)**: `_exportSettingsJson` derives the upstream keys at export time from the current `one_click_compress_*` values (`enabled=false` → `original`; `true` → `custom` + quality + transparent). Derived, never mirror-written — prefs hold no dual truth and no staleness when the user later changes Cuplivo settings.
+- **Lossy in one dimension only**: upstream persists NO long-edge field — `custom` is hardcoded at 1568 px (1568/2048/1024 are per-preset constants). A Cuplivo long edge collapses to 1568 in Kelivo and stays there if the backup returns. `enabled`, `quality` (Cuplivo 50–95 ⊂ upstream clamp 10–100) and the transparent toggle round-trip losslessly.
+- **Precedence**: overwrite mode — translated keys win (a Kelivo zip implies migration). Merge mode: non-mergeable keys only fill absent slots — local user preferences win. The 3 upstream keys are always stripped from the map on import (whether or not a translation fired), so they never linger inert in prefs — exports re-derive them.

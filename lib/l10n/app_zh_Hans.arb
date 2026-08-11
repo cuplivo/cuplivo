@@ -1849,6 +1849,15 @@
   "miniMapTitle": "迷你地图",
   "miniMapTooltip": "迷你地图",
   "miniMapScrollToBottomTooltip": "滚动到底部",
+  "miniMapSearchResultCount": "命中 {count} 条",
+  "@miniMapSearchResultCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "miniMapSearchNoResults": "无匹配结果",
   "displaySettingsPageEnableDollarLatexTitle": "启用 $...$ 渲染",
   "displaySettingsPageEnableDollarLatexSubtitle": "将 $...$ 之间的内容按行内数学公式渲染",
   "displaySettingsPageEnableMathTitle": "启用数学公式渲染",

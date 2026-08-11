@@ -81,24 +81,26 @@ void main() {
       MaterialApp(
         home: buildExportCaptureViewportRootForTesting(
           theme: exportTheme,
-          width: 80,
+          viewportWidth: 80,
           viewportHeight: 40,
+          contentWidth: 120,
           contentHeight: 120,
+          offsetX: 0,
           offsetY: 40,
           child: Column(
             children: const [
               SizedBox(
-                width: 80,
+                width: 120,
                 height: 40,
                 child: ColoredBox(color: Colors.red),
               ),
               SizedBox(
-                width: 80,
+                width: 120,
                 height: 40,
                 child: ColoredBox(color: Colors.green),
               ),
               SizedBox(
-                width: 80,
+                width: 120,
                 height: 40,
                 child: ColoredBox(color: Colors.blue),
               ),
@@ -115,6 +117,17 @@ void main() {
     expect(overflowBox.minHeight, 120);
     expect(overflowBox.maxHeight, 120);
     expect(transform.transform.getTranslation().y, -40);
+    // The content is wider than the viewport: its left edge must line up
+    // with the viewport's left edge. Centering the overflow child would
+    // shift every horizontal tile and skip the leftmost content.
+    final redBox = find.descendant(
+      of: find.byType(Transform),
+      matching: find.byWidgetPredicate(
+        (widget) => widget is ColoredBox && widget.color == Colors.red,
+      ),
+    );
+    expect(tester.getTopLeft(redBox).dx, 0);
+    expect(tester.getTopLeft(redBox).dy, -40);
   });
 
   test('export capture keeps medium-long images on the whole-capture path', () {
@@ -150,6 +163,13 @@ void main() {
 
     expect(logicalHeight, 1365);
     expect(logicalHeight * 3, lessThanOrEqualTo(4096));
+  });
+
+  test('export capture slice width stays on logical pixel boundaries', () {
+    final logicalWidth = exportCaptureSliceLogicalWidth(pixelRatio: 3);
+
+    expect(logicalWidth, 1365);
+    expect(logicalWidth * 3, lessThanOrEqualTo(4096));
   });
 
   test('export capture detects clipped captures in either dimension', () {
@@ -202,6 +222,7 @@ void main() {
             height: 4096,
             color: image_lib.ColorRgba8(255, 0, 0, 255),
           ),
+          x: 0,
           y: 0,
         ),
         (
@@ -210,6 +231,7 @@ void main() {
             height: 40,
             color: image_lib.ColorRgba8(0, 255, 0, 255),
           ),
+          x: 0,
           y: 4096,
         ),
       ],
@@ -240,6 +262,7 @@ void main() {
               height: 80,
               color: image_lib.ColorRgba8(255, 0, 0, 255),
             ),
+            x: 0,
             y: 0,
           ),
           (
@@ -248,6 +271,7 @@ void main() {
               height: 21,
               color: image_lib.ColorRgba8(0, 255, 0, 255),
             ),
+            x: 0,
             y: 80,
           ),
         ],
@@ -267,7 +291,7 @@ void main() {
     final pngBytes = stitchExportPngSlicesForTesting(
       outputWidth: 2,
       outputHeight: 20,
-      slices: [(bytes: _rowIndexPng(width: 2, height: 21), y: 0)],
+      slices: [(bytes: _rowIndexPng(width: 2, height: 21), x: 0, y: 0)],
     );
 
     final image = image_lib.decodePng(pngBytes);
@@ -276,6 +300,60 @@ void main() {
     for (var y = 0; y < 20; y += 1) {
       expect(image.getPixel(1, y).g, y);
     }
+  });
+
+  test('export image stitching places a 2x2 tile grid', () {
+    final pngBytes = stitchExportPngSlicesForTesting(
+      outputWidth: 24,
+      outputHeight: 24,
+      slices: [
+        (
+          bytes: _solidPng(
+            width: 12,
+            height: 12,
+            color: image_lib.ColorRgba8(255, 0, 0, 255),
+          ),
+          x: 0,
+          y: 0,
+        ),
+        (
+          bytes: _solidPng(
+            width: 12,
+            height: 12,
+            color: image_lib.ColorRgba8(0, 255, 0, 255),
+          ),
+          x: 12,
+          y: 0,
+        ),
+        (
+          bytes: _solidPng(
+            width: 12,
+            height: 12,
+            color: image_lib.ColorRgba8(0, 0, 255, 255),
+          ),
+          x: 0,
+          y: 12,
+        ),
+        (
+          bytes: _solidPng(
+            width: 12,
+            height: 12,
+            color: image_lib.ColorRgba8(255, 255, 0, 255),
+          ),
+          x: 12,
+          y: 12,
+        ),
+      ],
+    );
+
+    final image = image_lib.decodePng(pngBytes);
+    expect(image, isNotNull);
+    expect(image!.width, 24);
+    expect(image.height, 24);
+    expect(image.getPixel(6, 6).r, greaterThan(image.getPixel(6, 6).g));
+    expect(image.getPixel(18, 6).g, greaterThan(image.getPixel(18, 6).r));
+    expect(image.getPixel(6, 18).b, greaterThan(image.getPixel(6, 18).g));
+    expect(image.getPixel(18, 18).r, greaterThan(image.getPixel(18, 18).b));
   });
 
   test('export image blank trim removes opaque outer padding', () {
@@ -397,6 +475,7 @@ void main() {
               contentWidth: 4,
               contentHeight: 4,
             ),
+            x: 0,
             y: 0,
           ),
           (
@@ -410,6 +489,7 @@ void main() {
               contentWidth: 4,
               contentHeight: 4,
             ),
+            x: 0,
             y: 8,
           ),
         ],

@@ -3273,7 +3273,6 @@ class _MarkdownTableBlockState extends State<_MarkdownTableBlock> {
       overlay,
       () => MediaQuery(data: mediaQuery, child: tableSurface),
       theme: theme,
-      width: contentSize.width,
       pixelRatio: _markdownTableExportPixelRatio,
       contentSize: contentSize,
       preservePadding: null,

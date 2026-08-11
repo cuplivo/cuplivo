@@ -9,6 +9,11 @@ import 'package:image/image.dart' as image_lib;
 /// Keep whole-image captures below the common 16384px GPU texture edge while
 /// avoiding the slice compositor for exports that can still fit at >=2x.
 const double maxExportFullCapturePhysicalDimension = 15360.0;
+
+/// Per-tile caps for the slice compositor: every captured tile stays within
+/// the common mobile GPU max texture edge (4096px, e.g. iOS) in both
+/// dimensions, so wide and tall content alike is captured in tiles.
+const double maxExportCaptureSlicePhysicalWidth = 4096.0;
 const double maxExportCaptureSlicePhysicalHeight = 4096.0;
 const double minExportFullCapturePixelRatio = 2.0;
 
@@ -68,6 +73,12 @@ double exportCaptureSliceLogicalHeight({required double pixelRatio}) {
   return math.max(height, 1).toDouble();
 }
 
+@visibleForTesting
+double exportCaptureSliceLogicalWidth({required double pixelRatio}) {
+  final width = (maxExportCaptureSlicePhysicalWidth / pixelRatio).floor();
+  return math.max(width, 1).toDouble();
+}
+
 Future<void> _waitForExportCaptureFrames({
   required int frameCount,
   Duration settleDelay = Duration.zero,
@@ -112,71 +123,88 @@ Future<Uint8List?> captureBoundaryPngBytes(
   );
 }
 
-/// Captures content taller than a GPU texture can hold by re-rendering it in
-/// an offscreen overlay viewport, one [maxExportCaptureSlicePhysicalHeight]
-/// window at a time, then stitching the windows into a single PNG. The
-/// [buildContent] closure must rebuild the content with the exact layout it
-/// has when captured whole (same theme, width and layout decisions).
+/// Captures content larger than a GPU texture can hold by re-rendering it in
+/// an offscreen overlay viewport, one tile at a time (each within
+/// [maxExportCaptureSlicePhysicalWidth] x
+/// [maxExportCaptureSlicePhysicalHeight] physical pixels), then stitching
+/// the tiles into a single PNG. The [buildContent] closure must rebuild the
+/// content with the exact layout it has when captured whole (same theme,
+/// width and layout decisions).
 Future<Uint8List?> captureWidgetViewportSlicesPngBytes(
   OverlayState overlay,
   Widget Function() buildContent, {
   required ThemeData theme,
-  required double width,
   required double pixelRatio,
   required Size contentSize,
   int? preservePadding,
 }) async {
+  final sliceLogicalWidth = exportCaptureSliceLogicalWidth(
+    pixelRatio: pixelRatio,
+  );
   final sliceLogicalHeight = exportCaptureSliceLogicalHeight(
     pixelRatio: pixelRatio,
   );
   final outputWidth = (contentSize.width * pixelRatio).ceil();
   final outputHeight = (contentSize.height * pixelRatio).ceil();
-  final slices = <({Uint8List bytes, int y})>[];
+  final slices = <({Uint8List bytes, int x, int y})>[];
 
   double top = 0;
   while (top < contentSize.height) {
     final height = (contentSize.height - top).clamp(0.0, sliceLogicalHeight);
-    final boundaryKey = GlobalKey();
-    late OverlayEntry entry;
-    entry = OverlayEntry(
-      builder: (ctx) {
-        return Positioned(
-          left: -10000,
-          top: -10000,
-          child: ExportCaptureViewportRoot(
-            theme: theme,
-            boundaryKey: boundaryKey,
-            width: width,
-            viewportHeight: height,
-            contentHeight: contentSize.height,
-            offsetY: top,
-            child: buildContent(),
-          ),
-        );
-      },
-    );
+    double left = 0;
+    while (left < contentSize.width) {
+      final width = (contentSize.width - left).clamp(0.0, sliceLogicalWidth);
+      final boundaryKey = GlobalKey();
+      late OverlayEntry entry;
+      entry = OverlayEntry(
+        builder: (ctx) {
+          return Positioned(
+            left: -10000,
+            top: -10000,
+            child: ExportCaptureViewportRoot(
+              theme: theme,
+              boundaryKey: boundaryKey,
+              viewportWidth: width,
+              viewportHeight: height,
+              contentWidth: contentSize.width,
+              contentHeight: contentSize.height,
+              offsetX: left,
+              offsetY: top,
+              child: buildContent(),
+            ),
+          );
+        },
+      );
 
-    overlay.insert(entry);
-    try {
-      await _waitForExportCaptureFrames(
-        frameCount: 2,
-        settleDelay: const Duration(milliseconds: 80),
-      );
-      final boundary =
-          boundaryKey.currentContext?.findRenderObject()
-              as RenderRepaintBoundary?;
-      if (boundary == null) return null;
-      // Raw full-boundary capture at the exact slice ratio (no re-capping:
-      // a cap would desync slice heights from the stitch y positions). A
-      // clipped slice aborts the whole export.
-      final slice = await _captureFullBoundaryPngBytes(
-        boundary,
-        pixelRatio: pixelRatio,
-      );
-      if (slice == null) return null;
-      slices.add((bytes: slice, y: (top * pixelRatio).round()));
-    } finally {
-      entry.remove();
+      overlay.insert(entry);
+      try {
+        await _waitForExportCaptureFrames(
+          frameCount: 2,
+          settleDelay: const Duration(milliseconds: 80),
+        );
+        final boundary =
+            boundaryKey.currentContext?.findRenderObject()
+                as RenderRepaintBoundary?;
+        if (boundary == null) return null;
+        // Raw full-boundary capture at the exact slice ratio (no re-capping:
+        // a cap would desync slice sizes from the stitch positions). A
+        // clipped tile aborts the whole export.
+        final slice = await _captureFullBoundaryPngBytes(
+          boundary,
+          pixelRatio: pixelRatio,
+        );
+        if (slice == null) return null;
+        slices.add((
+          bytes: slice,
+          x: (left * pixelRatio).round(),
+          y: (top * pixelRatio).round(),
+        ));
+      } finally {
+        entry.remove();
+      }
+
+      left += width;
+      await WidgetsBinding.instance.endOfFrame;
     }
 
     top += height;
@@ -189,7 +217,11 @@ Future<Uint8List?> captureWidgetViewportSlicesPngBytes(
       outputHeight: outputHeight,
       slices: slices
           .map(
-            (slice) => _ExportPngSlicePayload(bytes: slice.bytes, y: slice.y),
+            (slice) => _ExportPngSlicePayload(
+              bytes: slice.bytes,
+              x: slice.x,
+              y: slice.y,
+            ),
           )
           .toList(growable: false),
       preservePadding: preservePadding,
@@ -228,25 +260,30 @@ class ExportCaptureRoot extends StatelessWidget {
   }
 }
 
-/// Renders [child] at full [contentHeight] and pans a [viewportHeight] window
-/// over it via [offsetY], clipped to that window. Used by the slice capture.
+/// Renders [child] at full [contentWidth] x [contentHeight] and pans a
+/// [viewportWidth] x [viewportHeight] window over it via [offsetX]/[offsetY],
+/// clipped to that window. Used by the slice capture.
 class ExportCaptureViewportRoot extends StatelessWidget {
   const ExportCaptureViewportRoot({
     super.key,
     required this.theme,
     required this.boundaryKey,
-    required this.width,
+    required this.viewportWidth,
     required this.viewportHeight,
+    required this.contentWidth,
     required this.contentHeight,
+    required this.offsetX,
     required this.offsetY,
     required this.child,
   });
 
   final ThemeData theme;
   final GlobalKey boundaryKey;
-  final double width;
+  final double viewportWidth;
   final double viewportHeight;
+  final double contentWidth;
   final double contentHeight;
+  final double offsetX;
   final double offsetY;
   final Widget child;
 
@@ -257,20 +294,20 @@ class ExportCaptureViewportRoot extends StatelessWidget {
       child: RepaintBoundary(
         key: boundaryKey,
         child: Container(
-          width: width,
+          width: viewportWidth,
           height: viewportHeight,
           color: theme.colorScheme.surface,
           child: Material(
             type: MaterialType.transparency,
             child: ClipRect(
               child: OverflowBox(
-                alignment: Alignment.topCenter,
-                minWidth: width,
-                maxWidth: width,
+                alignment: Alignment.topLeft,
+                minWidth: contentWidth,
+                maxWidth: contentWidth,
                 minHeight: contentHeight,
                 maxHeight: contentHeight,
                 child: Transform.translate(
-                  offset: Offset(0, -offsetY),
+                  offset: Offset(-offsetX, -offsetY),
                   child: child,
                 ),
               ),
@@ -309,7 +346,7 @@ Uint8List _processCapturedExportPngSync(
     outputWidth: request.outputWidth,
     outputHeight: request.outputHeight,
     slices: request.slices
-        .map((slice) => (bytes: slice.bytes, y: slice.y))
+        .map((slice) => (bytes: slice.bytes, x: slice.x, y: slice.y))
         .toList(growable: false),
   );
   final preservePadding = request.preservePadding;
@@ -340,9 +377,14 @@ class _CapturedExportPngProcessingRequest {
 }
 
 class _ExportPngSlicePayload {
-  const _ExportPngSlicePayload({required this.bytes, required this.y});
+  const _ExportPngSlicePayload({
+    required this.bytes,
+    required this.x,
+    required this.y,
+  });
 
   final Uint8List bytes;
+  final int x;
   final int y;
 }
 
@@ -395,7 +437,7 @@ Future<Uint8List?> _captureFullBoundaryPngBytes(
 Uint8List _stitchExportPngSlices({
   required int outputWidth,
   required int outputHeight,
-  required List<({Uint8List bytes, int y})> slices,
+  required List<({Uint8List bytes, int x, int y})> slices,
 }) {
   return image_lib.encodePng(
     _stitchExportPngSlicesImage(
@@ -409,7 +451,7 @@ Uint8List _stitchExportPngSlices({
 image_lib.Image _stitchExportPngSlicesImage({
   required int outputWidth,
   required int outputHeight,
-  required List<({Uint8List bytes, int y})> slices,
+  required List<({Uint8List bytes, int x, int y})> slices,
 }) {
   final stitched = image_lib.Image(
     width: outputWidth,
@@ -420,15 +462,21 @@ image_lib.Image _stitchExportPngSlicesImage({
   for (final slice in slices) {
     final decoded = image_lib.decodePng(slice.bytes);
     if (decoded == null) continue;
+    final dstX = math.max(slice.x, 0);
     final dstY = math.max(slice.y, 0);
+    final srcX = math.max(-slice.x, 0);
     final srcY = math.max(-slice.y, 0);
+    final copyWidth = math.min(decoded.width - srcX, outputWidth - dstX);
     final copyHeight = math.min(decoded.height - srcY, outputHeight - dstY);
-    final copyWidth = math.min(decoded.width, outputWidth);
     if (copyWidth <= 0 || copyHeight <= 0) continue;
 
     for (var y = 0; y < copyHeight; y += 1) {
       for (var x = 0; x < copyWidth; x += 1) {
-        stitched.setPixel(x, dstY + y, decoded.getPixel(x, srcY + y));
+        stitched.setPixel(
+          dstX + x,
+          dstY + y,
+          decoded.getPixel(srcX + x, srcY + y),
+        );
       }
     }
   }
@@ -582,7 +630,7 @@ bool _exportImageChannelNear(num a, num b) {
 Uint8List stitchExportPngSlicesForTesting({
   required int outputWidth,
   required int outputHeight,
-  required List<({Uint8List bytes, int y})> slices,
+  required List<({Uint8List bytes, int x, int y})> slices,
 }) {
   return _stitchExportPngSlices(
     outputWidth: outputWidth,
@@ -604,7 +652,7 @@ Future<Uint8List> processCapturedExportPngForTesting({
   Uint8List? singlePngBytes,
   int? outputWidth,
   int? outputHeight,
-  List<({Uint8List bytes, int y})>? slices,
+  List<({Uint8List bytes, int x, int y})>? slices,
   int? preservePadding,
 }) {
   final request = singlePngBytes != null
@@ -615,10 +663,13 @@ Future<Uint8List> processCapturedExportPngForTesting({
       : _CapturedExportPngProcessingRequest.slices(
           outputWidth: outputWidth ?? 0,
           outputHeight: outputHeight ?? 0,
-          slices: (slices ?? const <({Uint8List bytes, int y})>[])
+          slices: (slices ?? const <({Uint8List bytes, int x, int y})>[])
               .map(
-                (slice) =>
-                    _ExportPngSlicePayload(bytes: slice.bytes, y: slice.y),
+                (slice) => _ExportPngSlicePayload(
+                  bytes: slice.bytes,
+                  x: slice.x,
+                  y: slice.y,
+                ),
               )
               .toList(growable: false),
           preservePadding: preservePadding,
@@ -646,15 +697,19 @@ Widget buildExportCaptureViewportRootForTesting({
   required Widget child,
   required double viewportHeight,
   required double contentHeight,
-  double width = 480,
+  double viewportWidth = 480,
+  double contentWidth = 480,
+  double offsetX = 0,
   double offsetY = 0,
 }) {
   return ExportCaptureViewportRoot(
     theme: theme,
     boundaryKey: GlobalKey(),
-    width: width,
+    viewportWidth: viewportWidth,
     viewportHeight: viewportHeight,
+    contentWidth: contentWidth,
     contentHeight: contentHeight,
+    offsetX: offsetX,
     offsetY: offsetY,
     child: child,
   );

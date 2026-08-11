@@ -865,7 +865,6 @@ Future<File?> _renderWidgetDirectly(
         overlay,
         buildContent,
         theme: theme,
-        width: width,
         pixelRatio: pixelRatio,
         contentSize: contentSize,
         preservePadding: exportImageBlankTrimPreservePaddingPhysical,

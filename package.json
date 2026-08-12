@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "tsx scripts/e2e-test.ts && tsx scripts/compat-test.ts"
   },
   "dependencies": {
     "@sqlite.org/sqlite-wasm": "3.49.2-build1",

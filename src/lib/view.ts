@@ -1,1 +1,1 @@
-export type View = 'home' | 'migrate' | 'recover';
+export type View = 'home' | 'migrate' | 'recover' | 'compat';

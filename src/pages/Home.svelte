@@ -1,12 +1,18 @@
 <script lang="ts">
   import { navigate } from '../lib/view.svelte';
 
-  const tools: { id: 'migrate' | 'recover'; title: string; desc: string; icon: string }[] = [
+  const tools: { id: 'migrate' | 'recover' | 'compat'; title: string; desc: string; icon: string }[] = [
     {
       id: 'migrate',
       title: '迁移',
       desc: '将 RikkaHub 备份包转换为 Kelivo 可恢复的备份包：会话、消息、助手、提供商与设置全量映射，附迁移报告。',
       icon: '🔄',
+    },
+    {
+      id: 'compat',
+      title: '兼容',
+      desc: '将 Kelivo v1.2.0 备份包转换为 Cuplivo v2.7.1 可恢复的备份包：SQLite 快照读出，chats.json v2 写出，附兼容报告。',
+      icon: '🔀',
     },
     {
       id: 'recover',

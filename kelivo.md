@@ -17,7 +17,7 @@ Zip 根目录内容：
 | 条目 | 是否必选 | 说明 |
 |---|---|---|
 | `settings.json` | 全量必含 | SharedPreferences 全量快照（JSON 对象） |
-| `chats.json` | `includeChats` 时 | 聊天数据，顶层 `version: 1`（运行时仅接受 1） |
+| `chats.json` | `includeChats` 时 | 聊天数据，顶层 `version: 2`（v2.4.0 起；恢复时**从不校验** version，仅作标识） |
 | `deleted.json` | `includeChats` 时（失败可跳过） | 删除墓碑（tombstone），**v1.1.17 无此文件** |
 | `skills/` | 恒含（与 includeFiles 无关） | 技能目录，保留相对路径 |
 | `upload/` `avatars/` `images/` `fonts/` `workspaces/` | `includeFiles` 时 | 用户文件；`workspaces/` 排除任意以 `.` 开头的路径段（如 `.fetch_cache/`） |
@@ -41,7 +41,8 @@ Zip 根目录内容：
 type IsoDateTime = string;
 
 interface ChatsFileV2 {
-  version: 1;
+  /** v2.4.0 起恒为 2；restore 不读取该字段 */
+  version: 2;
   conversations: Conversation[];
   messages: ChatMessage[];
   /** 仅含 role === 'assistant' 且确有事件的消息 */
@@ -269,6 +270,80 @@ v1.1.17 的 `assistants_v1`（`AssistantV1[]` 的 JSON 字符串）：字段为 
 
 - v2.6.0 可恢复 v1.1.17 备份（`version: 1` 缺省字段全部有默认值兜底；旧 `ocr_enabled_v1` 映射到 `ocrMode`）；反向不保证。
 - `version` 字段在恢复时未参与分支判断，仅作标识。
+
+---
+
+# v1.2.0 备份格式（Kelivo 上游最新 tag，2026-08-11）
+
+> 与 v2.6.0 文档同源核实；v1.2.0 是 Chevey339/kelivo 上游 tag，v2.6.0/v2.7.1 是 cuplivo fork tag。两 app 反向演进：上游升级为 SQLite 快照格式，fork 保留 chats.json v2。
+
+## Zip 结构（自然语言）
+
+- 命名：`kelivo_backup_YYYY-MM-DDTHH-MM-ss.ffffff.zip`（toIso8601String 的 `:` → `-`，`data_sync.dart:360-364`）。
+- 顶层条目（写入顺序，`_packZipSync` data_sync.dart:538-624）：`settings.json`（恒含）→ `database/kelivo.db`（`includeChats` 时，`sqlite3.backup()` 一致快照，journal_mode=DELETE、无侧车、userVersion=1）→ `upload/ avatars/ images/ fonts/`（`includeFiles` 时）→ `manifest.json`（恒含，最后写）。
+- **不再有** `chats.json`、`deleted.json`、`skills/`、`workspaces/`。
+- 恢复白名单：仅接受 `settings.json`、`database/kelivo.db`、四个媒体目录前缀（data_sync.dart:1212-1222）；其余条目拒绝。
+- 旧格式（无 manifest.json）恢复路径仍然可用：读 `chats.json` + `settings.json`，`_sanitizeLegacyChatBackup` 清理悬空引用、`decodeLegacyContent` 把旧标记提升为 parts（data_sync.dart:2019-2067）。
+
+## manifest.json — TypeScript Schema
+
+```ts
+interface ManifestJson {
+  format: 'kelivo-backup';
+  formatVersion: 2;              // v1 从未发布
+  payloadKind: 'sqlite' | 'settings-only';
+  createdAtUtc: string;          // ISO-8601
+  appVersion: string;            // '<version> (<buildNumber>)'
+  includeChats: boolean;
+  includeFiles: boolean;
+  secretsIncluded: true;         // 无无密钥变体，必须为 true
+  businessEntityRowIds?: Record<string, string[]>;  // sourceKey -> SQLite rowIds
+  database?: {
+    entry: 'database/kelivo.db';
+    schemaVersion: 1;            // 必须等于 SQLite userVersion
+    conversationCount: number;
+    messageCount: number;
+  };
+  entries: Record<string, { bytes: number; sha256: string }>;
+}
+```
+
+硬上限：manifest ≤ 16 MiB、settings ≤ 16 MiB、单条目 ≤ 8 GiB、总 ≤ 16 GiB、≤ 100 000 条目。
+
+## database/kelivo.db — drift 表（27 张，业务+聊天同库）
+
+`AppDatabase.databaseFileName = 'kelivo.db'`，WAL 模式（快照为 DELETE），schemaVersion 1。
+
+- `conversation_rows`: id, title, created_at(µs), updated_at(µs), is_pinned, assistant_id, truncate_index, version_selections_json, summary, last_summarized_message_count, chat_suggestions_json, **injected_memory_hash（新）**, **last_memory_extracted_order（新）**。无 messageIds 列——由 message_rows 派生（按 message_order）。
+- `message_rows`: id, conversation_id, role, timestamp(µs), model_id, provider_id, total_tokens, is_streaming, reasoning_start_at, reasoning_finished_at, translation, reasoning_segments_json, group_id, version, prompt_tokens, completion_tokens, cached_tokens, duration_ms, message_order。**无 content 列**——内容在 parts。PK=id，UNIQUE(conversation_id, message_order)、(conversation_id, group_id, version)。
+- `message_part_rows`: part_id, conversation_id, revision_id→message_rows.id, ordinal, kind, payload, created_at, updated_at。kind ∈ {text, reasoning, tool_call, image, file, unknown-future}。payload 契约：
+  - text/reasoning: 原文串
+  - tool_call: 不透明 JSON（实际为 `{id, name, arguments, content, metadata?}`——与 chats.json 的 ToolEvent 同构）
+  - image: `{"uri","mime"?,"assetId"?,"unavailable"?}`；file: 另有 `"name"`
+  - uri 为 `kelivo-file:///<root>/<rel>`（root ∈ {upload,images,avatars,fonts}，纯词法）或 legacy 绝对路径/URL
+- `conversation_mcp_server_rows`: conversation_id, server_id, ordinal。
+- `provider_artifact_rows`: conversation_id, revision_id, kind, payload——`kind='gemini_thought_signature'` 存 Gemini 思考签名（替代旧 geminiThoughtSigs）。
+- `asset_rows`（去重媒体库）+ `message_asset_rows`(revision_id, asset_id, kind)：媒体文件库化，`asset_rows.path` 为库内相对路径。
+- `assistant_rows` 等业务表：payload 为 JSON 字符串，导出时经 `BusinessSettingsRouter.exportSnapshotWithRowIds` 重拍平回 `assistants_v1` 等 legacy sourceKey。
+
+## settings.json — 与 v2.6.0 同构，但源自 SQLite
+
+- 由 SQLite 业务表重拍平（`_exportBusinessSettings`，data_sync.dart:1882-1894），键名同 legacy prefs。
+- 排除键升级为 `BackupSettingsValidator.shouldIgnore`：localOnly = 原 8 键 + `flutter_log_enabled_v1` + 任意 `restore_*` 前缀；**新增 discardedKeys**：`pinned_chat_ids`、`chat_titles_map`、`instruction_injections_active_id_v1`、`instruction_injections_active_ids_v1`、`migrations_version_v1`、`provider_configs_backup_v1`。
+- ASR 键仅保留云端 kind（openai_realtime/dashscope/volcengine/mimo/step 等）。
+- 合并恢复由 `BusinessSettingsMerger` 按实体行 id 驱动，**mergeableKeys 列表已废弃**。
+
+## Assistant（v1.2.0）— 相对 v1.1.17 的字段变化
+
+- 新增：`autoOrganizeMemory`、`memoryOrganizeEveryNTurns`(1–20)、`memorySmartAddMode`('batched'|'perItem')、`memoryWriteScope`('alwaysGlobal'|'alwaysAssistant'|'toolDefaultGlobal'|'toolDefaultAssistant')、`allowPastConversationRecall`（**取代** `enableRecentChatsReference`，fromJson 兼容旧名）、`generateConversationSummary`、`appendCurrentTimeToUserMessage`。
+- **移除**（cuplivo v2.6.0 文档中的字段不再导出）：skillIds、memoryMode、memoryRecordPrompt、enableProactiveCare、proactiveCare*、docxMode、pdfMode、otherOfficeMode、ocrMode、enableTimeInjection、discoverable、handoff*、createdAt、updatedAt。
+- `presetMessages` 输出为 **JSON 字符串**（`PresetMessage.encodeList`），v1.1.17 为内联数组。
+- `limitContextMessages` fromJson 默认 `true → false`。
+
+## 兼容性要点
+
+- v1.2.0 恢复接受 v1.1.x legacy zip（无 manifest）；新格式备份**只能**由 v1.2.0+ 恢复。
+- 兼容（kelivo v1.2.0 → cuplivo v2.7.1）即本仓库兼容工具：读 manifest + kelivo.db + settings.json，写 chats.json v2 + deleted.json{} + 媒体目录。
 
 ---
 

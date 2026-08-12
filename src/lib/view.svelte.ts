@@ -3,7 +3,7 @@
  */
 import type { View } from './view';
 
-const VALID: View[] = ['home', 'migrate', 'recover'];
+const VALID: View[] = ['home', 'migrate', 'recover', 'compat'];
 
 function fromHash(): View {
   const h = location.hash.replace(/^#\/?/, '');

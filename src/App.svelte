@@ -2,10 +2,12 @@
   import Home from './pages/Home.svelte';
   import Migrate from './pages/Migrate.svelte';
   import Recovery from './pages/Recovery.svelte';
+  import Compat from './pages/Compat.svelte';
   import { router, navigate } from './lib/view.svelte';
 
-  const navItems: { id: 'migrate' | 'recover'; label: string }[] = [
+  const navItems: { id: 'migrate' | 'recover' | 'compat'; label: string }[] = [
     { id: 'migrate', label: '迁移' },
+    { id: 'compat', label: '兼容' },
     { id: 'recover', label: '恢复' },
   ];
 </script>
@@ -35,6 +37,8 @@
       <Home />
     {:else if router.view === 'migrate'}
       <Migrate />
+    {:else if router.view === 'compat'}
+      <Compat />
     {:else}
       <Recovery />
     {/if}

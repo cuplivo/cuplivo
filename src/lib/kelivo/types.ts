@@ -1,6 +1,7 @@
 ﻿/**
- * Kelivo 备份格式类型定义（canonical，来源：kelivo.md 调研文档）
- * - chats.json: v2.6.0 为 version 2；v1.1.17 为 version 1（字段子集）
+ * Kelivo / Cuplivo 备份格式类型定义（canonical，来源：kelivo.md 调研文档 + v1.2.0/v2.7.1 源码核实）
+ * - chats.json: v1.1.17/v1.2.0 为 version 1；Cuplivo v2.4.0 起为 version 2（含 groupChats/groupMembers）；
+ *   restore 从不读取 version 字段，仅作标识
  * - settings.json: 扁平 `<功能>_v<n>` prefs 快照，集合类型均为 JSON 编码字符串
  */
 
@@ -39,6 +40,9 @@ export interface Conversation {
   lastSummarizedMessageCount: number;
   chatSuggestions: string[];
   conversationKind: string;
+  /** kelivo v1.2.0 独有（兼容保真透传；Cuplivo 读取时忽略） */
+  injectedMemoryHash?: string | null;
+  lastMemoryExtractedOrder?: number;
 }
 
 export interface ChatMessage {
@@ -92,8 +96,8 @@ export interface GroupChatMember {
 }
 
 export interface ChatsFileV2 {
-  /** 与 Kelivo/Cuplivo _parseChatBackup 一致，仅接受 1 */
-  version: 1;
+  /** Cuplivo v2.4.0 起写 2（含 groupChats/groupMembers）；restore 不校验，仅标识 */
+  version: 1 | 2;
   conversations: Conversation[];
   messages: ChatMessage[];
   toolEvents: Record<string, ToolEvent[]>;

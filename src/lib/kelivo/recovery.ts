@@ -8,6 +8,7 @@ import JSZip from 'jszip';
 import { readZipText } from '../zip';
 import { tryParse, tryParseOrNull } from '../rikkahub/util';
 import type { Assistant, ChatMessage, ChatsFile, Conversation, IsoDateTime, SettingsJson } from './types';
+import { stringifySettingsJson } from './serialize';
 
 export const RECOVERY_ASSISTANT_NAME = '恢复的会话';
 /** 固定 id：不与其他助手冲突；若备份已存在同名助手则复用其 id */
@@ -212,7 +213,7 @@ export async function runRecovery(zip: JSZip, sourceFileName: string): Promise<R
   }
   if (foundCount > 0 || recoveryAssistantAdded) {
     settings.assistants_v1 = JSON.stringify(existingAssistants);
-    zip.file('settings.json', JSON.stringify(settings, null, 2));
+    zip.file('settings.json', stringifySettingsJson(settings));
   }
   if (nullCount > 0 && !settings.assistants_v1) {
     warnings.push('settings.json 缺失或无法写入——恢复助手无法注册，挂载的会话可能仍不可见。');

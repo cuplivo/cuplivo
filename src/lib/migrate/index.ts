@@ -5,6 +5,7 @@ import { copyZipDir, outputNameFrom } from '../zip';
 import { emptyReport, type MigrationReport } from '../report';
 import type { Settings } from '../rikkahub/types';
 import type { ChatsFileV2, SettingsJson } from '../kelivo/types';
+import { stringifySettingsJson } from '../kelivo/serialize';
 import type { MigrateContext } from './context';
 import { mapProviders } from './providers';
 import { mapAssistants } from './assistants';
@@ -98,7 +99,7 @@ export async function migrateRikkaHubToKelivo(zip: JSZip, sourceFileName: string
 
     // 6. 组装输出 zip：settings.json + chats.json + 媒体目录透传
     const outputZip = new JSZip();
-    outputZip.file('settings.json', JSON.stringify(settingsFile, null, 2));
+    outputZip.file('settings.json', stringifySettingsJson(settingsFile));
     outputZip.file('chats.json', JSON.stringify(chatsFile, null, 2));
 
     let mediaFiles = 0;

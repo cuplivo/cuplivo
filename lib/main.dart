@@ -57,6 +57,7 @@ import 'dart:io'
 import 'core/services/android_background.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/proactive_care_alarm_service.dart';
+import 'core/services/workspace/workspace_tools_service.dart';
 import 'core/services/proactive_care_message_flow.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -148,6 +149,12 @@ Future<void> main() async {
       // Android: start AlarmManager service for proactive care exact alarms
       if (!kIsWeb && Platform.isAndroid) {
         await ProactiveCareAlarmService.initialize();
+      }
+      // Probe sandbox runtime availability BEFORE runApp so shell tools
+      // are only exposed when the native binary is confirmed present.
+      // This prevents native crashes on builds without proot/iSH.
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        await WorkspaceToolsService.probeShellAvailability();
       }
       // Start app (Flutter log capture is toggleable and off by default)
       runApp(const MyApp());

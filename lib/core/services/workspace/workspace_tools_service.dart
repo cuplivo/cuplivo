@@ -94,10 +94,38 @@ class WorkspaceToolsService {
     },
   };
 
+  /// Whether shell should be exposed to the model.
+  ///
+  /// Previously this returned true on any mobile platform even when the
+  /// native runtime was missing, causing the model to invoke shell and
+  /// trigger a native crash. Now we cache a synchronous flag that is set
+  /// after the first successful [LinuxSandboxService.hasRuntime] probe.
   static bool _shellAvailable(LinuxSandboxService? sandbox) {
     if (sandbox == null) return false;
     if (!Platform.isAndroid && !Platform.isIOS) return false;
-    return true;
+    // Only expose shell when we have confirmed the runtime exists.
+    // The flag is set by [probeShellAvailability] at app startup.
+    return _shellRuntimeConfirmed;
+  }
+
+  /// Cached result of the async runtime check. Defaults to false (safe)
+  /// until explicitly confirmed.
+  static bool _shellRuntimeConfirmed = false;
+
+  /// Call once at app startup (e.g. in main or provider init) to probe
+  /// whether the native sandbox runtime is available. Until this completes,
+  /// shell tools will not be exposed to models — preventing native crashes
+  /// on builds that lack the proot/iSH binary.
+  static Future<void> probeShellAvailability([
+    LinuxSandboxService? sandbox,
+  ]) async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
+    final svc = sandbox ?? LinuxSandboxService.instance;
+    try {
+      _shellRuntimeConfirmed = await svc.hasRuntime();
+    } catch (_) {
+      _shellRuntimeConfirmed = false;
+    }
   }
 
   static Workspace? _boundWorkspace(

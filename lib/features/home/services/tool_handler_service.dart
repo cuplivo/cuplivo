@@ -377,7 +377,9 @@ class ToolHandlerService {
           sandbox: LinuxSandboxService.instance,
         ),
       );
-    } on ProviderNotFoundException catch (e) {
+    } catch (e) {
+      // Catch all exceptions (not just ProviderNotFoundException) to prevent
+      // crashes when workspace/sandbox initialization fails on first launch.
       debugPrint('workspace tools defs skipped: $e');
     }
 

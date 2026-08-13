@@ -104,7 +104,7 @@ jobs:
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "版本号: $VERSION"
-      # 如果有签名密钥，写入密钥文件
+      # 如果有签名密钥，写入密钥文件；否则使用 debug 签名
       - name: 🔑 写入签名密钥
         if: ${{ env.SIGN_KEYSTORE_BASE64 != '' }}
         env:
@@ -117,13 +117,24 @@ jobs:
           echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/key.properties
           echo "✅ 签名配置已写入"
       - name: 🏗️ 构建 APK
-        run: flutter build apk --release --split-per-abi
+        run: |
+          if [ -f android/key.properties ]; then
+            flutter build apk --release --split-per-abi
+          else
+            echo "⚠️ 无签名密钥，使用 debug 签名构建"
+            flutter build apk --debug --split-per-abi
+          fi
 
       - name: 📦 重命名 APK
         run: |
-          cd build/app/outputs/flutter-apk
-          for file in app-*-release.apk; do
-            abi=$(echo "$file" | sed -E 's/app-(.*)-release\.apk/\1/')
+          if [ -f android/key.properties ]; then
+            cd build/app/outputs/flutter-apk
+          else
+            cd build/app/outputs/flutter-apk
+          fi
+          for file in app-*-release.apk app-*-debug.apk; do
+            [ -f "$file" ] || continue
+            abi=$(echo "$file" | sed -E 's/app-(.*)-(release|debug)\.apk/\1/')
             mv "$file" "Cuplivo_android_${VERSION}_${abi}.apk"
           done
 

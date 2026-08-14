@@ -7959,7 +7959,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scheduledTaskDeleteTitle => '删除定时任务？';
 
   @override
-  String get scheduledTaskDeleteMessage => '任务会从 Cuplivo 中删除。旧的快捷指令触发器之后会被静默忽略。';
+  String get scheduledTaskDeleteMessage =>
+      '任务会从 Cuplivo 中删除。旧的快捷指令触发器之后会被静默忽略。';
 
   @override
   String get scheduledTaskCancel => '取消';
@@ -7983,10 +7984,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scheduledTaskRequireApproval => 'AI 操作前需要审批';
 
   @override
-  String get scheduledTaskRequireApprovalSubtitle => '创建、修改、删除、启用或停用任务前，都需要先经过审批。';
+  String get scheduledTaskRequireApprovalSubtitle =>
+      '创建、修改、删除、启用或停用任务前，都需要先经过审批。';
 
   @override
-  String get scheduledTaskShortcutHelp => '点击连接会复制该任务的 Trigger ID 并打开快捷指令。添加“Run Cuplivo Scheduled Task”操作并粘贴 Trigger ID，再创建一个每天在该任务时间运行它的个人自动化；Cuplivo 会自行判断当天是否符合重复规则。';
+  String get scheduledTaskShortcutHelp =>
+      '点击连接会复制该任务的 Trigger ID 并打开快捷指令。添加“Run Cuplivo Scheduled Task”操作并粘贴 Trigger ID，再创建一个每天在该任务时间运行它的个人自动化；Cuplivo 会自行判断当天是否符合重复规则。';
 
   @override
   String get scheduledTaskEmpty => '还没有定时任务。';
@@ -8041,22 +8044,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String scheduledTaskLastSuccess(String time) {
-    return '上次：${time} · 成功';
+    return '上次：$time · 成功';
   }
 
   @override
   String scheduledTaskLastFailure(String time) {
-    return '上次：${time} · 失败';
+    return '上次：$time · 失败';
   }
 
   @override
   String scheduledTaskEveryN(int count, String unit) {
-    return '每 ${count} ${unit}';
+    return '每 $count $unit';
   }
 
   @override
   String scheduledTaskMonthDays(String days) {
-    return '每月 ${days} 日';
+    return '每月 $days 日';
   }
 }
 
@@ -16015,7 +16018,8 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get scheduledTaskDeleteTitle => '删除定时任务？';
 
   @override
-  String get scheduledTaskDeleteMessage => '任务会从 Cuplivo 中删除。旧的快捷指令触发器之后会被静默忽略。';
+  String get scheduledTaskDeleteMessage =>
+      '任务会从 Cuplivo 中删除。旧的快捷指令触发器之后会被静默忽略。';
 
   @override
   String get scheduledTaskCancel => '取消';
@@ -16039,10 +16043,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get scheduledTaskRequireApproval => 'AI 操作前需要审批';
 
   @override
-  String get scheduledTaskRequireApprovalSubtitle => '创建、修改、删除、启用或停用任务前，都需要先经过审批。';
+  String get scheduledTaskRequireApprovalSubtitle =>
+      '创建、修改、删除、启用或停用任务前，都需要先经过审批。';
 
   @override
-  String get scheduledTaskShortcutHelp => '点击连接会复制该任务的 Trigger ID 并打开快捷指令。添加“Run Cuplivo Scheduled Task”操作并粘贴 Trigger ID，再创建一个每天在该任务时间运行它的个人自动化；Cuplivo 会自行判断当天是否符合重复规则。';
+  String get scheduledTaskShortcutHelp =>
+      '点击连接会复制该任务的 Trigger ID 并打开快捷指令。添加“Run Cuplivo Scheduled Task”操作并粘贴 Trigger ID，再创建一个每天在该任务时间运行它的个人自动化；Cuplivo 会自行判断当天是否符合重复规则。';
 
   @override
   String get scheduledTaskEmpty => '还没有定时任务。';
@@ -16097,22 +16103,22 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String scheduledTaskLastSuccess(String time) {
-    return '上次：${time} · 成功';
+    return '上次：$time · 成功';
   }
 
   @override
   String scheduledTaskLastFailure(String time) {
-    return '上次：${time} · 失败';
+    return '上次：$time · 失败';
   }
 
   @override
   String scheduledTaskEveryN(int count, String unit) {
-    return '每 ${count} ${unit}';
+    return '每 $count $unit';
   }
 
   @override
   String scheduledTaskMonthDays(String days) {
-    return '每月 ${days} 日';
+    return '每月 $days 日';
   }
 }
 
@@ -24095,10 +24101,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get scheduledTaskRequireApproval => 'AI 操作前需要審批';
 
   @override
-  String get scheduledTaskRequireApprovalSubtitle => '建立、修改、刪除、啟用或停用任務前，都需要先經過審批。';
+  String get scheduledTaskRequireApprovalSubtitle =>
+      '建立、修改、刪除、啟用或停用任務前，都需要先經過審批。';
 
   @override
-  String get scheduledTaskShortcutHelp => '點擊連接會複製該任務的 Trigger ID 並開啟「捷徑」。加入「Run Cuplivo Scheduled Task」操作並貼上 Trigger ID，再建立一個每天在該任務時間執行它的個人自動化；Cuplivo 會自行判斷當天是否符合重複規則。';
+  String get scheduledTaskShortcutHelp =>
+      '點擊連接會複製該任務的 Trigger ID 並開啟「捷徑」。加入「Run Cuplivo Scheduled Task」操作並貼上 Trigger ID，再建立一個每天在該任務時間執行它的個人自動化；Cuplivo 會自行判斷當天是否符合重複規則。';
 
   @override
   String get scheduledTaskEmpty => '還沒有定時任務。';
@@ -24153,21 +24161,21 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String scheduledTaskLastSuccess(String time) {
-    return '上次：${time} · 成功';
+    return '上次：$time · 成功';
   }
 
   @override
   String scheduledTaskLastFailure(String time) {
-    return '上次：${time} · 失敗';
+    return '上次：$time · 失敗';
   }
 
   @override
   String scheduledTaskEveryN(int count, String unit) {
-    return '每 ${count} ${unit}';
+    return '每 $count $unit';
   }
 
   @override
   String scheduledTaskMonthDays(String days) {
-    return '每月 ${days} 日';
+    return '每月 $days 日';
   }
 }

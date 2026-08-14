@@ -4,19 +4,40 @@ import '../../../icons/lucide_adapter.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../../core/providers/group_chat_provider.dart';
 import '../../../core/models/assistant.dart';
 import 'dart:io' show File;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'assistant_settings_edit_page.dart';
+import '../../group_chat/pages/group_chat_settings_page.dart';
+import '../../group_chat/widgets/group_chat_settings_card.dart';
 import '../../../utils/avatar_cache.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../core/services/haptics.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import '../../../shared/widgets/snackbar.dart';
+import '../../../shared/widgets/create_action_icon_button.dart';
 import '../../../theme/app_font_weights.dart';
 
-class AssistantSettingsPage extends StatelessWidget {
+class AssistantSettingsPage extends StatefulWidget {
   const AssistantSettingsPage({super.key});
+
+  @override
+  State<AssistantSettingsPage> createState() => _AssistantSettingsPageState();
+}
+
+class _AssistantSettingsPageState extends State<AssistantSettingsPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final groupChatProvider = context.read<GroupChatProvider>();
+      if (!groupChatProvider.loaded) {
+        await groupChatProvider.load();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +45,7 @@ class AssistantSettingsPage extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     final assistants = context.watch<AssistantProvider>().assistants;
+    final groupChats = context.watch<GroupChatProvider>().groups;
 
     return Scaffold(
       appBar: AppBar(
@@ -38,39 +60,48 @@ class AssistantSettingsPage extends StatelessWidget {
         ),
         title: Text(l10n.assistantSettingsPageTitle),
         actions: [
-          Tooltip(
-            message: l10n.assistantSettingsAddSheetSave,
-            child: _TactileIconButton(
-              icon: Lucide.Plus,
-              color: cs.onSurface,
-              size: 22,
-              onTap: () async {
-                final assistantProvider = context.read<AssistantProvider>();
-                final name = await _showAddAssistantSheet(context);
-                if (!context.mounted || name == null) return;
-                final id = await assistantProvider.addAssistant(
-                  name: name.trim(),
-                  context: context,
-                );
-                if (!context.mounted) return;
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => AssistantSettingsEditPage(assistantId: id),
-                  ),
-                );
-              },
-            ),
+          CreateActionIconButton(
+            baseIcon: Lucide.Bot,
+            tooltip: l10n.assistantProviderNewAssistantName,
+            color: cs.onSurface,
+            onTap: () async {
+              final assistantProvider = context.read<AssistantProvider>();
+              final name = await _showAddAssistantSheet(context);
+              if (!context.mounted || name == null) return;
+              final id = await assistantProvider.addAssistant(
+                name: name.trim(),
+                context: context,
+              );
+              if (!context.mounted) return;
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => AssistantSettingsEditPage(assistantId: id),
+                ),
+              );
+            },
+          ),
+          CreateActionIconButton(
+            baseIcon: Lucide.MessageCircle,
+            tooltip: l10n.groupChatCreate,
+            color: cs.onSurface,
+            onTap: () => _createGroupChat(context),
           ),
           const SizedBox(width: 8),
         ],
       ),
       body: ReorderableListView.builder(
+        buildDefaultDragHandles: false,
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
-        itemCount: assistants.length,
+        itemCount: assistants.length + groupChats.length,
         onReorderItem: (oldIndex, newIndex) async {
-          // Immediately update UI for smooth experience
+          if (oldIndex >= assistants.length) return;
+          // Group chats stay fixed after the assistant list. Dropping into the
+          // fixed tail places the assistant at the end of the assistant block.
+          final targetIndex = newIndex >= assistants.length
+              ? assistants.length - 1
+              : newIndex;
           final assistantProvider = context.read<AssistantProvider>();
-          await assistantProvider.reorderAssistants(oldIndex, newIndex);
+          await assistantProvider.reorderAssistants(oldIndex, targetIndex);
         },
         proxyDecorator: (child, index, animation) {
           return AnimatedBuilder(
@@ -91,15 +122,26 @@ class AssistantSettingsPage extends StatelessWidget {
           );
         },
         itemBuilder: (context, index) {
-          final item = assistants[index];
-          return KeyedSubtree(
-            key: ValueKey('reorder-assistant-${item.id}'),
-            child: ReorderableDelayedDragStartListener(
-              index: index,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _AssistantCard(item: item),
+          if (index < assistants.length) {
+            final item = assistants[index];
+            return KeyedSubtree(
+              key: ValueKey('reorder-assistant-${item.id}'),
+              child: ReorderableDelayedDragStartListener(
+                index: index,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _AssistantCard(item: item),
+                ),
               ),
+            );
+          }
+
+          final group = groupChats[index - assistants.length];
+          return KeyedSubtree(
+            key: ValueKey('settings-group-chat-${group.id}'),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: GroupChatSettingsCard(group: group),
             ),
           );
         },
@@ -323,8 +365,6 @@ class _AssistantCard extends StatelessWidget {
   }
 }
 
-// --- iOS-style tactile helpers ---
-
 class _TactileIconButton extends StatefulWidget {
   const _TactileIconButton({
     required this.icon,
@@ -418,6 +458,44 @@ class _TactileCardState extends State<_TactileCard> {
       ),
     );
   }
+}
+
+Future<void> _createGroupChat(BuildContext context) async {
+  final l10n = AppLocalizations.of(context)!;
+  final controller = TextEditingController();
+  final name = await showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(l10n.groupChatCreate),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        decoration: InputDecoration(hintText: l10n.groupChatNameHint),
+        onSubmitted: (v) => Navigator.of(ctx).pop(v),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: Text(l10n.groupChatCancel),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(controller.text),
+          child: Text(l10n.groupChatConfirm),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+  if (name == null || !context.mounted) return;
+  final group = await context.read<GroupChatProvider>().createGroup(
+    name: name.trim().isEmpty ? l10n.groupChatDefaultName : name.trim(),
+  );
+  if (!context.mounted) return;
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => GroupChatSettingsPage(groupChatId: group.id),
+    ),
+  );
 }
 
 Future<String?> _showAddAssistantSheet(BuildContext context) async {

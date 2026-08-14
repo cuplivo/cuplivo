@@ -241,6 +241,13 @@ static dispatch_queue_t _readerQueue;
     ENVP_APPEND("PYTHONDONTWRITEBYTECODE=1");
     // V8 cannot JIT under emulation; node honours NODE_OPTIONS.
     ENVP_APPEND("NODE_OPTIONS=--jitless --max-old-space-size=512");
+    // Go tuning (ported from OpenMinis): cap the scheduler to one core-pair
+    // so it does not spin extra threads under the interpreter, and disable
+    // async preemption which is expensive under emulation.
+    ENVP_APPEND("GOMAXPROCS=2");
+    ENVP_APPEND("GODEBUG=asyncpreemptoff=1");
+    // OpenMinis also injects ENV=/etc/profile and node LD_PRELOAD=/lib/zero_free.so;
+    // both are intentionally omitted here pending rootfs confirmation (#361).
 
     // Device timezone for musl (POSIX TZ with fixed name; +/- abbreviations
     // confuse musl's parser — OpenMinis approach).

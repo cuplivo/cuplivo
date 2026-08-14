@@ -8,6 +8,13 @@
 //  thread, never the whole Flutter app.
 //
 
+// The iOS 26+ SDK (ucontext.h:50) makes <ucontext.h> a hard #error unless
+// _XOPEN_SOURCE is defined: the getcontext/setcontext/makecontext/swapcontext
+// routines are deprecated and gated behind the feature macro. This file only
+// uses the ucontext_t struct (uc_mcontext), but the header requires the gate
+// regardless.
+#define _XOPEN_SOURCE 700
+
 #include "CuplivoISHCrashGuards.h"
 
 #include "ish/debug.h"

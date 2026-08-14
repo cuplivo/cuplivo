@@ -7,6 +7,7 @@ import '../../../core/models/assistant.dart';
 import '../../../core/models/assistant_memory.dart';
 import '../../../core/models/workspace.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../../core/providers/download_progress_store.dart';
 import '../../../core/providers/mcp_provider.dart';
 import '../../../core/providers/memory_provider.dart';
 import '../../../core/providers/settings_provider.dart';
@@ -753,6 +754,32 @@ class ToolHandlerService {
               );
             }
           }
+          // The download tool reports live progress to the LivePanel via
+          // DownloadProgressStore, and is aborted when the conversation is
+          // stopped (ADR-0030).
+          DownloadJob? downloadJob;
+          DownloadProgressStore? downloadStore;
+          if (name == WorkspaceToolNames.download) {
+            try {
+              // ignore: use_build_context_synchronously (root context, valid for app lifetime)
+              downloadStore = contextProvider.read<DownloadProgressStore>();
+              final cid = conversationId?.trim();
+              if (cid != null && cid.isNotEmpty) {
+                downloadJob = downloadStore.begin(
+                  conversationId: cid,
+                  url: (args['url'] ?? '').toString(),
+                  displayPath: (args['path'] ?? '').toString(),
+                );
+              }
+            } catch (e) {
+              // Headless / tests without DownloadProgressStore. A missing
+              // store at the root is a misconfiguration — log, don't hide.
+              debugPrint(
+                '[tool_handler] DownloadProgressStore unavailable for the '
+                'download tool: $e',
+              );
+            }
+          }
           try {
             final wsResult = await WorkspaceToolsService.tryHandleToolCall(
               name: name,
@@ -761,6 +788,14 @@ class ToolHandlerService {
               workspaces: wp,
               chatService: chatService,
               sandbox: LinuxSandboxService.instance,
+              onDownloadProgress: (downloadJob == null || downloadStore == null)
+                  ? null
+                  : (received, total) => downloadStore!.updateProgress(
+                      downloadJob!,
+                      received,
+                      total,
+                    ),
+              downloadAbortToken: downloadJob?.abortToken,
             );
             if (wsResult != null) return wsResult;
           } catch (e) {
@@ -769,6 +804,10 @@ class ToolHandlerService {
               message: e.toString(),
               tool: name,
             );
+          } finally {
+            if (downloadJob != null) {
+              downloadStore?.finish(downloadJob);
+            }
           }
         }
 

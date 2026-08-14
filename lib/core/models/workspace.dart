@@ -97,6 +97,7 @@ class WorkspaceDependencyIds {
   static const String python = 'python';
   static const String nodejs = 'nodejs';
   static const String git = 'git';
+  static const String office = 'office';
   static const String buildEssential = 'build_essential';
 
   static const List<String> ordered = <String>[
@@ -104,6 +105,7 @@ class WorkspaceDependencyIds {
     python,
     nodejs,
     git,
+    office,
     buildEssential,
   ];
 }

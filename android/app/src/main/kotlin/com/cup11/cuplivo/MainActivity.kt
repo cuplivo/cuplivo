@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.net.Uri
 import android.content.Intent
+import android.view.KeyEvent
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -22,6 +23,7 @@ class MainActivity : FlutterActivity() {
     private var pendingProcessText: String? = null
     private var pendingSaveResult: MethodChannel.Result? = null
     private var pendingSaveSourcePath: String? = null
+    var volumeCtrlPlugin: LinuxSandboxPlugin? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -45,6 +47,25 @@ class MainActivity : FlutterActivity() {
             }
         }
         pendingProcessText = extractProcessText(intent)
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val plugin = volumeCtrlPlugin
+        if (plugin != null &&
+            plugin.volumeCtrlEnabled &&
+            event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
+        ) {
+            when (event.action) {
+                KeyEvent.ACTION_DOWN -> {
+                    if (event.repeatCount == 0) plugin.emitVolumeCtrl(true)
+                }
+                KeyEvent.ACTION_UP, KeyEvent.ACTION_CANCEL -> {
+                    plugin.emitVolumeCtrl(false)
+                }
+            }
+            return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onNewIntent(intent: Intent) {

@@ -9,6 +9,9 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../icons/lucide_adapter.dart';
+import '../../../core/models/chat_input_data.dart';
+import '../../../core/providers/assistant_provider.dart';
+import '../../../core/services/chat/external_chat_draft_handoff.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/ios_switch.dart';
@@ -18,6 +21,7 @@ import '../../../shared/widgets/expansion_setting_tile.dart';
 import '../../../utils/app_directories.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../logs/request_body_beautifier.dart';
+import '../logs/request_log_ai_analysis.dart';
 import '../logs/request_log_parser.dart';
 import '../../../theme/app_font_weights.dart';
 
@@ -29,6 +33,66 @@ class LogViewerPage extends StatefulWidget {
 
   @override
   State<LogViewerPage> createState() => _LogViewerPageState();
+}
+
+Future<void> _startRequestLogAiAnalysis(
+  BuildContext context,
+  List<RequestLogEntry> entries,
+) async {
+  final l10n = AppLocalizations.of(context)!;
+  if (entries.isEmpty) {
+    showAppSnackBar(
+      context,
+      message: l10n.requestLogAiAnalysisNoRequests,
+      type: NotificationType.warning,
+    );
+    return;
+  }
+
+  final assistant = context.read<AssistantProvider>().currentAssistant;
+  if (assistant == null) {
+    showAppSnackBar(
+      context,
+      message: l10n.requestLogAiAnalysisNoAssistant,
+      type: NotificationType.warning,
+    );
+    return;
+  }
+
+  try {
+    final file = await RequestLogAiAnalysisExporter.writeAnalysisFile(
+      entries: entries,
+      fileNamePrefix: l10n.requestLogAiAnalysisFilePrefix,
+    );
+    if (!context.mounted) return;
+
+    ExternalChatDraftHandoff.stage(
+      ChatInputData(
+        text: l10n.requestLogAiAnalysisPrompt,
+        documents: <DocumentAttachment>[
+          DocumentAttachment(
+            path: file.path,
+            fileName: p.basename(file.path),
+            mime: 'application/json',
+          ),
+        ],
+      ),
+    );
+    Navigator.of(context, rootNavigator: true).popUntil(
+      (route) => route.isFirst,
+    );
+  } catch (error, stackTrace) {
+    debugPrint(
+      'LogViewerPage: failed to prepare AI request-log analysis: '
+      '$error\n$stackTrace',
+    );
+    if (!context.mounted) return;
+    showAppSnackBar(
+      context,
+      message: l10n.requestLogAiAnalysisPreparationFailed,
+      type: NotificationType.error,
+    );
+  }
 }
 
 class _LogViewerPageState extends State<LogViewerPage>
@@ -588,6 +652,14 @@ class _RequestLogFilePageState extends State<_RequestLogFilePage> {
         ),
         title: Text(widget.title),
         actions: [
+          IconButton(
+            icon: Icon(Lucide.Bot, color: cs.onSurface, size: 20),
+            tooltip: l10n.requestLogAiAnalysisTooltip,
+            onPressed: () => _startRequestLogAiAnalysis(
+              context,
+              filtered.take(30).toList(growable: false),
+            ),
+          ),
           IconButton(
             icon: Icon(Lucide.RefreshCw, color: cs.onSurface, size: 20),
             onPressed: _load,
@@ -1318,6 +1390,15 @@ class _RequestLogDetailPageState extends State<_RequestLogDetailPage> {
           '${(entry.method ?? 'REQ').toUpperCase()} · ${entry.statusCode ?? '—'}',
         ),
         actions: [
+          if ((entry.method ?? '').toUpperCase() == 'POST')
+            IconButton(
+              icon: Icon(Lucide.Bot, color: cs.onSurface, size: 20),
+              tooltip: l10n.requestLogAiAnalysisTooltip,
+              onPressed: () => _startRequestLogAiAnalysis(
+                context,
+                <RequestLogEntry>[entry],
+              ),
+            ),
           IconButton(
             icon: Icon(Lucide.Copy, color: cs.onSurface, size: 20),
             tooltip: MaterialLocalizations.of(context).copyButtonLabel,

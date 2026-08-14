@@ -1,5 +1,6 @@
 import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/input_status_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/group_chat/models/chat_input_mode.dart';
 import 'package:Cuplivo/features/home/services/input_draft_persistence.dart';
@@ -32,6 +33,7 @@ void main() {
     onSend,
     SettingsProvider? settingsProvider,
     AssistantProvider? assistantProvider,
+    InputStatusProvider? inputStatus,
     ChatInputBarController? mediaController,
     bool loading = false,
     bool hasQueuedInput = false,
@@ -53,6 +55,9 @@ void main() {
         ),
         ChangeNotifierProvider.value(
           value: assistantProvider ?? AssistantProvider(),
+        ),
+        ChangeNotifierProvider.value(
+          value: inputStatus ?? InputStatusProvider(),
         ),
       ],
       child: MaterialApp(
@@ -191,6 +196,7 @@ void main() {
     final controller = TextEditingController(text: 'draw a cat');
     final focusNode = FocusNode();
     final mediaController = ChatInputBarController();
+    final inputStatus = InputStatusProvider();
     final settings = SettingsProvider();
     await settings.setProviderConfig(
       'OpenAITest',
@@ -212,6 +218,7 @@ void main() {
         focusNode: focusNode,
         mediaController: mediaController,
         settingsProvider: settings,
+        inputStatus: inputStatus,
         onSend: (input) async {
           submissions.add(input);
           return ChatInputSubmissionResult.rejected;
@@ -219,18 +226,15 @@ void main() {
       ),
     );
 
-    expect(find.text('Image mode'), findsOneWidget);
-
     await tapSendButton(tester);
 
     expect(submissions.single.text, 'draw a cat');
     expect(submissions.single.allowImagesApiRouting, isTrue);
     expect(submissions.single.extraBody, isEmpty);
 
-    await tester.tap(find.byIcon(Lucide.X));
+    inputStatus.dismissImageMode();
     await tester.pumpAndSettle();
 
-    expect(find.text('Image mode'), findsNothing);
     expect(mediaController.allowImagesApiRouting, isFalse);
 
     await tapSendButton(tester);
@@ -271,7 +275,6 @@ void main() {
       ),
     );
 
-    expect(find.text('Image mode'), findsOneWidget);
     expect(mediaController.allowImagesApiRouting, isTrue);
 
     mediaController.restoreInput(
@@ -279,7 +282,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Image mode'), findsNothing);
     expect(mediaController.allowImagesApiRouting, isFalse);
 
     controller.dispose();
@@ -442,55 +444,17 @@ void main() {
     focusNode.dispose();
   });
 
-  testWidgets('绘图模式关闭后切换对话会重新显示', (tester) async {
-    final controller = TextEditingController(text: 'draw a cat');
-    final focusNode = FocusNode();
-    final settings = SettingsProvider();
-    await settings.setProviderConfig(
-      'OpenAITest',
-      ProviderConfig(
-        id: 'OpenAITest',
-        enabled: true,
-        name: 'OpenAITest',
-        apiKey: 'test-key',
-        baseUrl: 'https://example.com/v1',
-        providerType: ProviderKind.openai,
-      ),
-    );
-    await settings.setCurrentModel('OpenAITest', 'gpt-image-2');
+  test('image-mode pill reappears after switching conversation', () {
+    final status = InputStatusProvider();
+    status.updateImageModeKey('conversation-a::OpenAITest::gpt-image-2');
+    expect(status.imageModeActive, isTrue);
 
-    await tester.pumpWidget(
-      buildHarness(
-        controller: controller,
-        focusNode: focusNode,
-        settingsProvider: settings,
-        conversationId: 'conversation-a',
-        onSend: (_) async => ChatInputSubmissionResult.rejected,
-      ),
-    );
+    status.dismissImageMode();
+    expect(status.imageModeActive, isFalse);
 
-    expect(find.text('Image mode'), findsOneWidget);
-
-    await tester.tap(find.byIcon(Lucide.X));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Image mode'), findsNothing);
-
-    await tester.pumpWidget(
-      buildHarness(
-        controller: controller,
-        focusNode: focusNode,
-        settingsProvider: settings,
-        conversationId: 'conversation-b',
-        onSend: (_) async => ChatInputSubmissionResult.rejected,
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Image mode'), findsOneWidget);
-
-    controller.dispose();
-    focusNode.dispose();
+    // Switching conversation changes the model key → the dismissal resets.
+    status.updateImageModeKey('conversation-b::OpenAITest::gpt-image-2');
+    expect(status.imageModeActive, isTrue);
   });
 
   testWidgets('非绘图模型保持默认路由许可', (tester) async {
@@ -508,8 +472,6 @@ void main() {
         },
       ),
     );
-
-    expect(find.text('Image mode'), findsNothing);
 
     await tapSendButton(tester);
 

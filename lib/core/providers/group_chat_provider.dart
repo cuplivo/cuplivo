@@ -99,7 +99,7 @@ class GroupChatProvider extends ChangeNotifier {
   }
 
   Future<GroupChat> createGroup({required String name}) async {
-    // Callers must pass a non-empty, localized name (see GroupChatListPage).
+    // Callers must pass a non-empty, localized name.
     final trimmed = name.trim();
     final conversation = await _chatService.createConversation(
       title: trimmed,

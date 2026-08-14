@@ -24,6 +24,7 @@ import '../../../utils/clipboard_images.dart';
 import '../../../core/providers/asr_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../../core/providers/input_status_provider.dart';
 import '../../../core/services/search/search_service.dart';
 import '../../../core/services/api/builtin_tools.dart';
 import '../../../core/services/api/chat_api_service.dart';
@@ -224,17 +225,12 @@ class _ChatInputBarState extends State<ChatInputBar>
   bool _oneClickCompressDone = false;
   bool _oneClickConfirming = false;
   Timer? _confirmTimer;
-  String? _imageModeModelKey;
-  String? _lastImageModeModelKey;
-  String? _dismissedImageModeModelKey;
-  String? _imageWarningModelKey;
-  String? _lastImageWarningModelKey;
-  String? _dismissedImageWarningModelKey;
   String? _lastImageDefaultsSignature;
-  bool _restoredUnsupportedImagesApiRouting = false;
   final _imageGenController = ImageGenerationOptionsController();
 
   bool get _composerLocked => widget.hasQueuedInput;
+
+  InputStatusProvider get _inputStatus => context.read<InputStatusProvider>();
 
   Map<String, dynamic> _filterImageOptionBody(Map<String, dynamic> body) {
     const allowedKeys = <String>{
@@ -342,7 +338,10 @@ class _ChatInputBarState extends State<ChatInputBar>
     final providerKey = a?.chatModelProvider ?? settings.currentModelProvider;
     final modelId = a?.chatModelId ?? settings.currentModelId;
     if (providerKey == null || modelId == null) {
-      _imageModeModelKey = null;
+      _inputStatus.updateImageModeKey(
+        null,
+        conversationId: widget.conversationId,
+      );
       return false;
     }
     final cfg = settings.getProviderConfig(providerKey);
@@ -353,13 +352,14 @@ class _ChatInputBarState extends State<ChatInputBar>
     final nextKey = supported
         ? '${widget.conversationId ?? ''}::$providerKey::$modelId'
         : null;
-    if (nextKey != _lastImageModeModelKey) {
-      _dismissedImageModeModelKey = null;
-      _lastImageModeModelKey = nextKey;
-    }
-    _imageModeModelKey = nextKey;
+    _inputStatus.updateImageModeKey(
+      nextKey,
+      conversationId: widget.conversationId,
+    );
     if (supported) {
-      _restoredUnsupportedImagesApiRouting = false;
+      _inputStatus.clearRestoredUnsupportedImagesApiRouting(
+        widget.conversationId,
+      );
       _syncImageGenerationDefaults(cfg, modelId, a);
     }
     return supported;
@@ -367,7 +367,7 @@ class _ChatInputBarState extends State<ChatInputBar>
 
   void _checkImageWarning(BuildContext context) {
     if (_images.isEmpty) {
-      _imageWarningModelKey = null;
+      _inputStatus.updateImageWarningKey(null);
       return;
     }
     final settings = context.watch<SettingsProvider>();
@@ -376,7 +376,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     final providerKey = a?.chatModelProvider ?? settings.currentModelProvider;
     final modelId = a?.chatModelId ?? settings.currentModelId;
     if (providerKey == null || modelId == null) {
-      _imageWarningModelKey = null;
+      _inputStatus.updateImageWarningKey(null);
       return;
     }
     // OCR-active sends never need the warning: images are OCR-processed
@@ -388,7 +388,7 @@ class _ChatInputBarState extends State<ChatInputBar>
       modelId: modelId,
     );
     if (ocrActive) {
-      _imageWarningModelKey = null;
+      _inputStatus.updateImageWarningKey(null);
       return;
     }
     final cfg = settings.getProviderConfig(providerKey);
@@ -396,23 +396,13 @@ class _ChatInputBarState extends State<ChatInputBar>
     final nextKey = supported
         ? null
         : '${widget.conversationId ?? ''}::$providerKey::$modelId';
-    if (nextKey != _lastImageWarningModelKey) {
-      _dismissedImageWarningModelKey = null;
-      _lastImageWarningModelKey = nextKey;
-    }
-    _imageWarningModelKey = nextKey;
+    _inputStatus.updateImageWarningKey(nextKey);
   }
 
-  bool get _imageModeActive {
-    final key = _imageModeModelKey;
-    return key != null && key != _dismissedImageModeModelKey;
-  }
+  bool get _imageModeActive => _inputStatus.imageModeActive;
 
-  bool get _allowImagesApiRouting {
-    if (_restoredUnsupportedImagesApiRouting) return false;
-    final key = _imageModeModelKey;
-    return key == null || key != _dismissedImageModeModelKey;
-  }
+  bool get _allowImagesApiRouting =>
+      _inputStatus.allowImagesApiRoutingFor(widget.conversationId);
 
   bool get _imageParamsCustomized => _imageGenController.customized;
 
@@ -428,18 +418,15 @@ class _ChatInputBarState extends State<ChatInputBar>
     return _imageGenController.toExtraBody();
   }
 
-  bool get _showImageWarning {
-    final key = _imageWarningModelKey;
-    return key != null && key != _dismissedImageWarningModelKey;
-  }
-
   bool get _hasDraftMedia => _images.isNotEmpty || _docs.isNotEmpty;
 
   // Instance method for onChanged to avoid recreating the callback on every build
   void _onTextChanged(String _) {
     // User typing = a NEW input: the restored queued input's "must not route"
     // flag no longer applies to unrelated later sends.
-    _restoredUnsupportedImagesApiRouting = false;
+    _inputStatus.clearRestoredUnsupportedImagesApiRouting(
+      widget.conversationId,
+    );
     setState(() {});
     _scheduleDraftSave();
   }
@@ -493,7 +480,9 @@ class _ChatInputBarState extends State<ChatInputBar>
 
   void _addImages(List<String> paths) {
     if (paths.isEmpty) return;
-    _restoredUnsupportedImagesApiRouting = false;
+    _inputStatus.clearRestoredUnsupportedImagesApiRouting(
+      widget.conversationId,
+    );
     setState(() {
       _oneClickCompressDone = false;
       _confirmTimer?.cancel();
@@ -554,21 +543,10 @@ class _ChatInputBarState extends State<ChatInputBar>
       _docs
         ..clear()
         ..addAll(input.documents);
-      if (input.allowImagesApiRouting) {
-        if (_imageModeModelKey == null) {
-          _restoredUnsupportedImagesApiRouting = true;
-        } else {
-          _restoredUnsupportedImagesApiRouting = false;
-          if (_dismissedImageModeModelKey == _imageModeModelKey) {
-            _dismissedImageModeModelKey = null;
-          }
-        }
-      } else {
-        _restoredUnsupportedImagesApiRouting = false;
-        if (_imageModeModelKey != null) {
-          _dismissedImageModeModelKey = _imageModeModelKey;
-        }
-      }
+      _inputStatus.restoreAllowImagesApiRouting(
+        allow: input.allowImagesApiRouting,
+        conversationId: widget.conversationId,
+      );
       _imageGenController.restoreFromBody(input.extraBody);
     });
     _scheduleDraftSave();
@@ -1256,7 +1234,9 @@ class _ChatInputBarState extends State<ChatInputBar>
           // The restored queued input has been consumed by this send — the
           // "restored input must not route" flag must not stick to unrelated
           // later sends on the same (non-image) model.
-          _restoredUnsupportedImagesApiRouting = false;
+          _inputStatus.clearRestoredUnsupportedImagesApiRouting(
+            widget.conversationId,
+          );
         });
         // The content has moved into the conversation or the queue — clear
         // the draft immediately so a process death right after sending
@@ -3228,52 +3208,6 @@ class _ChatInputBarState extends State<ChatInputBar>
                     ),
                   ),
                 ),
-                if (_imageModeActive)
-                  PositionedDirectional(
-                    top: -12,
-                    start: AppSpacing.sm,
-                    child: _DismissiblePill(
-                      icon: Lucide.Brush,
-                      label: AppLocalizations.of(
-                        context,
-                      )!.chatInputBarImageMode,
-                      closeTooltip: AppLocalizations.of(
-                        context,
-                      )!.chatInputBarDisableImageModeTooltip,
-                      onClose: _composerLocked
-                          ? null
-                          : () {
-                              final key = _imageModeModelKey;
-                              if (key == null) return;
-                              setState(() {
-                                _dismissedImageModeModelKey = key;
-                              });
-                            },
-                    ),
-                  )
-                else if (_showImageWarning)
-                  PositionedDirectional(
-                    top: -12,
-                    start: AppSpacing.sm,
-                    child: _DismissiblePill(
-                      icon: Lucide.ImageOff,
-                      label: AppLocalizations.of(
-                        context,
-                      )!.chatInputBarImageWarning,
-                      closeTooltip: AppLocalizations.of(
-                        context,
-                      )!.chatInputBarDisableImageWarningTooltip,
-                      onClose: _composerLocked
-                          ? null
-                          : () {
-                              final key = _imageWarningModelKey;
-                              if (key == null) return;
-                              setState(() {
-                                _dismissedImageWarningModelKey = key;
-                              });
-                            },
-                    ),
-                  ),
               ],
             ),
           ],
@@ -3375,98 +3309,6 @@ class _QueuedInputBanner extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _DismissiblePill extends StatelessWidget {
-  const _DismissiblePill({
-    required this.icon,
-    required this.label,
-    required this.closeTooltip,
-    required this.onClose,
-  });
-
-  final IconData icon;
-  final String label;
-  final String closeTooltip;
-  final VoidCallback? onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-    final bg = (isDark ? Colors.black : Colors.white).withValues(
-      alpha: isDark ? 0.34 : 0.58,
-    );
-    final border = isDark
-        ? Colors.white.withValues(alpha: 0.14)
-        : scheme.primary.withValues(alpha: 0.36);
-    final fg = isDark ? scheme.onSurface : scheme.primary;
-    final iconColor = isDark ? scheme.primaryContainer : scheme.primary;
-    final radius = BorderRadius.circular(999);
-
-    return RepaintBoundary(
-      child: ClipRRect(
-        borderRadius: radius,
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: radius,
-              border: Border.all(color: border),
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 172),
-              child: SizedBox(
-                height: 24,
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.only(start: 9, end: 3),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(icon, size: 14, color: iconColor),
-                      const SizedBox(width: 5),
-                      Flexible(
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: fg,
-                            fontWeight: AppFontWeights.semibold,
-                            letterSpacing: 0,
-                          ),
-                        ),
-                      ),
-                      Tooltip(
-                        message: closeTooltip,
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: onClose,
-                          child: Padding(
-                            padding: const EdgeInsets.all(5),
-                            child: Icon(
-                              Lucide.X,
-                              size: 13,
-                              color: (isDark ? scheme.onSurfaceVariant : fg)
-                                  .withValues(
-                                    alpha: onClose == null ? 0.38 : 0.78,
-                                  ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }

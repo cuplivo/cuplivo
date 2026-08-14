@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
+import 'package:Cuplivo/core/providers/download_progress_store.dart';
+import 'package:Cuplivo/core/providers/input_status_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/generation_engine.dart';
 import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
 import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
-import 'package:Cuplivo/features/home/widgets/subagent_panel.dart';
+import 'package:Cuplivo/features/home/widgets/live_panel.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 
 class _FakeChatService extends ChatService {
@@ -22,8 +25,13 @@ void main() {
   late GenerationEngine engine;
   late ToolApprovalService approvalService;
   late AskUserInteractionService askUserService;
+  late DownloadProgressStore downloadStore;
+  late InputStatusProvider inputStatus;
 
-  Future<void> pumpPanel(WidgetTester tester) async {
+  Future<void> pumpPanel(
+    WidgetTester tester, {
+    ValueChanged<String>? onOpenChild,
+  }) async {
     await tester.pumpWidget(
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -40,8 +48,14 @@ void main() {
             ChangeNotifierProvider<AskUserInteractionService>.value(
               value: askUserService,
             ),
+            ChangeNotifierProvider<DownloadProgressStore>.value(
+              value: downloadStore,
+            ),
+            ChangeNotifierProvider<InputStatusProvider>.value(
+              value: inputStatus,
+            ),
           ],
-          child: const Scaffold(body: SubagentPanel()),
+          child: Scaffold(body: LivePanel(onOpenChild: onOpenChild)),
         ),
       ),
     );
@@ -52,12 +66,14 @@ void main() {
     engine = GenerationEngine(chatService: chatService);
     approvalService = ToolApprovalService();
     askUserService = AskUserInteractionService();
+    downloadStore = DownloadProgressStore();
+    inputStatus = InputStatusProvider();
   });
 
-  group('SubagentPanel', () {
+  group('LivePanel', () {
     testWidgets('renders nothing without an active wait job', (tester) async {
       await pumpPanel(tester);
-      expect(find.byType(SubagentPanel), findsOneWidget);
+      expect(find.byType(LivePanel), findsOneWidget);
       expect(find.byIcon(Icons.close), findsNothing);
     });
 
@@ -115,29 +131,7 @@ void main() {
       job.lastStep = 'kelivo_read';
       job.lastStepKind = SlotLastStepKind.done;
       String? openedChildId;
-      await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          home: MultiProvider(
-            providers: [
-              ChangeNotifierProvider<SettingsProvider>(
-                create: (_) => SettingsProvider(),
-              ),
-              ChangeNotifierProvider<ChatService>.value(value: chatService),
-              ChangeNotifierProvider<GenerationEngine>.value(value: engine),
-              ChangeNotifierProvider<ToolApprovalService>.value(
-                value: approvalService,
-              ),
-              ChangeNotifierProvider<AskUserInteractionService>.value(
-                value: askUserService,
-              ),
-            ],
-            child: Scaffold(
-              body: SubagentPanel(onOpenChild: (id) => openedChildId = id),
-            ),
-          ),
-        ),
-      );
+      await pumpPanel(tester, onOpenChild: (id) => openedChildId = id);
 
       // Expand, then the row is tappable and opens the child.
       await tester.tap(find.textContaining('Research Bot'));
@@ -239,6 +233,65 @@ void main() {
 
       final approval = await approvalFuture.timeout(const Duration(seconds: 1));
       expect(approval.approved, isTrue);
+    });
+
+    testWidgets('renders a download entry for the current conversation', (
+      tester,
+    ) async {
+      downloadStore.begin(
+        conversationId: 'parent-conv',
+        url: 'https://example.com/report.zip',
+        displayPath: '/workspace/report.zip',
+      );
+
+      await pumpPanel(tester);
+
+      expect(find.textContaining('report.zip'), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsNothing);
+    });
+
+    testWidgets('hides a download entry for another conversation', (
+      tester,
+    ) async {
+      downloadStore.begin(
+        conversationId: 'other-conv',
+        url: 'https://example.com/report.zip',
+        displayPath: '/workspace/report.zip',
+      );
+
+      await pumpPanel(tester);
+
+      expect(find.textContaining('report.zip'), findsNothing);
+    });
+
+    testWidgets('renders and dismisses the image-mode info pill', (
+      tester,
+    ) async {
+      inputStatus.updateImageModeKey('parent-conv::p::m');
+
+      await pumpPanel(tester);
+
+      expect(find.byIcon(Icons.close), findsOneWidget);
+      expect(find.byIcon(Lucide.Brush), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pump();
+
+      expect(find.byIcon(Icons.close), findsNothing);
+    });
+
+    testWidgets('renders and dismisses the image-warning pill', (tester) async {
+      inputStatus.updateImageWarningKey('parent-conv::p::m');
+
+      await pumpPanel(tester);
+
+      expect(find.byIcon(Lucide.ImageOff), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pump();
+
+      expect(find.byIcon(Icons.close), findsNothing);
     });
   });
 }

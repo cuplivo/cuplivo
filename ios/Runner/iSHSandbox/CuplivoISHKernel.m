@@ -17,6 +17,7 @@
 #include "ish/fs/tty.h"
 #include "ish/fs/dev.h"
 #include "ish/fs/devices.h"
+#include "ish/fs/path.h"
 #include "ish/fs/fd.h"
 
 #include <pthread.h>

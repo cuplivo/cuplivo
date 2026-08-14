@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/input_status_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/group_chat/models/chat_input_mode.dart';
 import 'package:Cuplivo/features/home/services/input_draft_persistence.dart';
@@ -91,6 +92,7 @@ void main() {
         ),
         ChangeNotifierProvider.value(value: SettingsProvider()),
         ChangeNotifierProvider.value(value: AssistantProvider()),
+        ChangeNotifierProvider.value(value: InputStatusProvider()),
       ],
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,

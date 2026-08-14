@@ -69,12 +69,17 @@ final class CuplivoLinuxSandboxPlugin: NSObject {
       return
     }
     queue.async {
+      // FlutterResult must be called on the platform (main) thread; this
+      // queue is a background serial queue, so marshal the completion.
+      let complete: (Any?) -> Void = { value in
+        DispatchQueue.main.async { result(value) }
+      }
       do {
         try CuplivoSandboxRootfsInstaller.install(to: URL(fileURLWithPath: rootfsPath))
-        result(nil)
+        complete(nil)
       } catch {
         NSLog("CuplivoLinuxSandboxPlugin: installBase failed: \(error)")
-        result(
+        complete(
           FlutterError(
             code: "extract_failed", message: error.localizedDescription, details: nil))
       }
@@ -106,9 +111,16 @@ final class CuplivoLinuxSandboxPlugin: NSObject {
     queue.async { [weak self] in
       guard let self else { return }
 
+      // FlutterResult must be called on the platform (main) thread; this
+      // queue and the executor callback are background threads, so marshal
+      // every completion through the main queue.
+      let complete: (Any?) -> Void = { value in
+        DispatchQueue.main.async { result(value) }
+      }
+
       let metaDb = URL(fileURLWithPath: rootfsPath).appendingPathComponent("meta.db")
       guard FileManager.default.fileExists(atPath: metaDb.path) else {
-        result(
+        complete(
           FlutterError(
             code: "rootfs_missing",
             message: "rootfs not installed at \(rootfsPath)",
@@ -120,7 +132,7 @@ final class CuplivoLinuxSandboxPlugin: NSObject {
       if !kernel.isBooted {
         let err = kernel.boot(withRootPath: rootfsPath)
         if err < 0 {
-          result(
+          complete(
             FlutterError(
               code: "boot_failed",
               message: "iSH kernel boot failed: \(err)",
@@ -128,7 +140,7 @@ final class CuplivoLinuxSandboxPlugin: NSObject {
           return
         }
       } else if kernel.bootRootPath != rootfsPath {
-        result(
+        complete(
           FlutterError(
             code: "boot_path_mismatch",
             message: "kernel already booted with a different rootfs; restart the app",
@@ -141,7 +153,7 @@ final class CuplivoLinuxSandboxPlugin: NSObject {
       if self.mountedWorkspaceHostPath != workspacePath {
         let mountErr = kernel.bindMountPath("/workspace", toHostPath: workspacePath)
         if mountErr < 0 {
-          result(
+          complete(
             FlutterError(
               code: "mount_failed",
               message: "failed to mount workspace into guest: \(mountErr)",
@@ -169,7 +181,7 @@ final class CuplivoLinuxSandboxPlugin: NSObject {
         cwd: guestCwd,
         timeout: timeoutMs / 1000.0
       ) { execResult in
-        result(execResult)
+        complete(execResult)
       }
     }
   }

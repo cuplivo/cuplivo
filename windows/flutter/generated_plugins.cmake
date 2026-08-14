@@ -24,6 +24,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  flutter_pty
   jni
   sherpa_onnx_windows
 )

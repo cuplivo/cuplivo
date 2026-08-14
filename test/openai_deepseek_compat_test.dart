@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/api/chat_api_service.dart';
 
-ProviderConfig _deepSeekConfig(String baseUrl) {
+ProviderConfig _deepSeekConfig(String baseUrl, {bool useResponseApi = false}) {
   return ProviderConfig(
     id: 'DeepSeekCompatTest',
     enabled: true,
@@ -14,6 +14,7 @@ ProviderConfig _deepSeekConfig(String baseUrl) {
     apiKey: 'test-key',
     baseUrl: baseUrl,
     providerType: ProviderKind.openai,
+    useResponseApi: useResponseApi,
   );
 }
 
@@ -24,6 +25,218 @@ Future<Map<String, dynamic>> _readJsonBody(HttpRequest request) async {
 
 void main() {
   group('DeepSeek OpenAI compatibility', () {
+    test('Responses non-stream returns reasoning and cached tokens', () async {
+      late Map<String, dynamic> requestBody;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+
+      server.listen((request) async {
+        requestBody = await _readJsonBody(request);
+        request.response.statusCode = HttpStatus.ok;
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode({
+            'id': 'resp-deepseek',
+            'object': 'response',
+            'status': 'completed',
+            'output_text': '9.8 is greater.',
+            'output': [
+              {
+                'id': 'reasoning-deepseek',
+                'type': 'reasoning',
+                'content': [
+                  {
+                    'type': 'reasoning_text',
+                    'text': 'Compare the decimal values.',
+                  },
+                ],
+              },
+              {
+                'id': 'message-deepseek',
+                'type': 'message',
+                'role': 'assistant',
+                'status': 'completed',
+                'content': [
+                  {'type': 'output_text', 'text': '9.8 is greater.'},
+                ],
+              },
+            ],
+            'usage': {
+              'input_tokens': 100,
+              'input_tokens_details': {'cached_tokens': 64},
+              'output_tokens': 30,
+              'output_tokens_details': {'reasoning_tokens': 20},
+              'total_tokens': 130,
+            },
+          }),
+        );
+        await request.response.close();
+      });
+
+      final baseUrl = 'http://${server.address.address}:${server.port}/v1';
+      final chunks = await ChatApiService.sendMessageStream(
+        config: _deepSeekConfig(baseUrl, useResponseApi: true),
+        modelId: 'deepseek-v4-flash',
+        messages: const [
+          {'role': 'user', 'content': '9.11 and 9.8, which is greater?'},
+        ],
+        thinkingBudget: 2000,
+        stream: false,
+      ).toList();
+
+      expect(requestBody['stream'], isFalse);
+      expect(chunks, hasLength(1));
+      expect(chunks.single.content, '9.8 is greater.');
+      expect(chunks.single.reasoning, 'Compare the decimal values.');
+      expect(chunks.single.usage?.promptTokens, 100);
+      expect(chunks.single.usage?.completionTokens, 30);
+      expect(chunks.single.usage?.cachedTokens, 64);
+      expect(chunks.single.usage?.totalTokens, 130);
+    });
+
+    test('Responses stream reports cached tokens without DONE event', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+
+      server.listen((request) async {
+        await _readJsonBody(request);
+        request.response.statusCode = HttpStatus.ok;
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+          charset: 'utf-8',
+        );
+        request.response.write(
+          'data: ${jsonEncode({
+            'type': 'response.completed',
+            'response': {
+              'output': const [],
+              'usage': {
+                'input_tokens': 80,
+                'input_tokens_details': {'cached_tokens': 48},
+                'output_tokens': 12,
+                'output_tokens_details': {'reasoning_tokens': 8},
+                'total_tokens': 92,
+              },
+            },
+          })}\n\n',
+        );
+        await request.response.close();
+      });
+
+      final baseUrl = 'http://${server.address.address}:${server.port}/v1';
+      final chunks = await ChatApiService.sendMessageStream(
+        config: _deepSeekConfig(baseUrl, useResponseApi: true),
+        modelId: 'deepseek-v4-flash',
+        messages: const [
+          {'role': 'user', 'content': 'hello'},
+        ],
+      ).toList();
+
+      expect(chunks.last.isDone, isTrue);
+      expect(chunks.last.usage?.promptTokens, 80);
+      expect(chunks.last.usage?.completionTokens, 12);
+      expect(chunks.last.usage?.cachedTokens, 48);
+      expect(chunks.last.usage?.totalTokens, 92);
+    });
+
+    test('Responses incomplete stream reports cached tokens', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+
+      server.listen((request) async {
+        await _readJsonBody(request);
+        request.response.statusCode = HttpStatus.ok;
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+          charset: 'utf-8',
+        );
+        request.response.write(
+          'data: ${jsonEncode({
+            'type': 'response.incomplete',
+            'response': {
+              'usage': {
+                'input_tokens': 60,
+                'input_tokens_details': {'cached_tokens': 36},
+                'output_tokens': 9,
+                'output_tokens_details': {'reasoning_tokens': 6},
+                'total_tokens': 69,
+              },
+              'incomplete_details': {'reason': 'max_tokens'},
+            },
+          })}\n\n',
+        );
+        await request.response.close();
+      });
+
+      final baseUrl = 'http://${server.address.address}:${server.port}/v1';
+      final chunks = await ChatApiService.sendMessageStream(
+        config: _deepSeekConfig(baseUrl, useResponseApi: true),
+        modelId: 'deepseek-v4-flash',
+        messages: const [
+          {'role': 'user', 'content': 'hello'},
+        ],
+      ).toList();
+
+      expect(chunks.last.isDone, isTrue);
+      expect(chunks.last.usage?.promptTokens, 60);
+      expect(chunks.last.usage?.completionTokens, 9);
+      expect(chunks.last.usage?.cachedTokens, 36);
+      expect(chunks.last.usage?.totalTokens, 69);
+    });
+
+    test('Responses off reasoning sends effort none', () async {
+      late Map<String, dynamic> requestBody;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+
+      server.listen((request) async {
+        requestBody = await _readJsonBody(request);
+        request.response.statusCode = HttpStatus.ok;
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode({
+            'id': 'resp-deepseek',
+            'object': 'response',
+            'status': 'completed',
+            'output_text': 'ok',
+            'output': const [],
+            'usage': {
+              'input_tokens': 1,
+              'input_tokens_details': {'cached_tokens': 0},
+              'output_tokens': 1,
+              'output_tokens_details': {'reasoning_tokens': 0},
+              'total_tokens': 2,
+            },
+          }),
+        );
+        await request.response.close();
+      });
+
+      final baseUrl = 'http://${server.address.address}:${server.port}/v1';
+      final chunks = await ChatApiService.sendMessageStream(
+        config: _deepSeekConfig(baseUrl, useResponseApi: true),
+        modelId: 'deepseek-v4-flash',
+        messages: const [
+          {'role': 'user', 'content': 'hello'},
+        ],
+        thinkingBudget: 0,
+        stream: false,
+      ).toList();
+
+      expect(chunks.last.isDone, isTrue);
+      expect(requestBody['reasoning'], {'effort': 'none'});
+    });
+
     test(
       'xhigh reasoning keeps thinking enabled and passes xhigh effort',
       () async {

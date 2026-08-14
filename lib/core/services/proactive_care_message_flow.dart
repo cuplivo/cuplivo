@@ -230,7 +230,11 @@ class ProactiveCareMessageFlow {
               cfg = ProviderConfig.fromJson(entry.cast<String, dynamic>());
             }
           }
-        } catch (_) {}
+        } catch (e) {
+          debugPrint(
+            '[ProactiveCare] Decision provider config decode failed: $e',
+          );
+        }
         cfg ??= ProviderConfig.defaultsFor(provKey);
         return ProactiveCareModelConfig(
           config: cfg,
@@ -250,7 +254,9 @@ class ProactiveCareMessageFlow {
       final prefs = await SharedPreferences.getInstance();
       final n = prefs.getString(_userNamePrefsKey);
       if (n != null && n.isNotEmpty) return n;
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ProactiveCare] User nickname load failed: $e');
+    }
     return 'User';
   }
 
@@ -260,7 +266,9 @@ class ProactiveCareMessageFlow {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getInt('thinking_budget_v1');
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ProactiveCare] Thinking budget load failed: $e');
+    }
     return null;
   }
 

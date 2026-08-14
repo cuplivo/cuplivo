@@ -178,7 +178,7 @@ class SettingsPage extends StatelessWidget {
               _iosDivider(context),
               _iosNavRow(
                 context,
-                icon: Lucide.Bot,
+                icon: Lucide.botMessageSquare,
                 label: l10n.settingsPageAssistant,
                 onTap: () {
                   Navigator.of(context).push(

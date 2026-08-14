@@ -11,8 +11,10 @@ set -e
 #
 # Requirements (macOS only):
 #   - Xcode command line tools (xcrun iphoneos SDK)
-#   - meson (pip3 install meson) and ninja (brew install ninja)
-#   - LLVM/Clang with lld (brew install llvm) — required for the guest VDSO
+#   - meson and ninja (brew install meson ninja; meson ships ninja as a dep)
+#   - LLVM/Clang (brew install llvm) — required for the guest VDSO
+#   - lld (brew install lld; llvm 22+ ships it as a separate formula) —
+#     required for the guest VDSO link (-fuse-ld=lld)
 #
 # Usage:
 #   ios/sandbox/build_ish.sh [clean]
@@ -67,6 +69,9 @@ check_prerequisites() {
     log_info "LLVM clang: $LLVM_CLANG"
     # Expose lld for the VDSO link (-fuse-ld=lld)
     export PATH="$(dirname "$LLVM_CLANG"):$PATH"
+    # llvm 22+ no longer bundles lld (separate formula: brew install lld)
+    command -v ld.lld >/dev/null 2>&1 || log_error "ld.lld not found (brew install lld) — needed for the guest VDSO link (-fuse-ld=lld)"
+    log_info "ld.lld: $(command -v ld.lld)"
 }
 
 fetch_ish() {
@@ -119,6 +124,11 @@ build_ish() {
     BUILD_DIR="$ISH_DIR/build-ios"
     CROSS_FILE="$BUILD_DIR/ios-cross.txt"
 
+    # meson resolves the source directory from cwd (or an explicit second
+    # positional); run from $ISH_DIR so `meson setup "$BUILD_DIR"` works
+    # (mirrors OpenMinis/deps/build_ish.sh).
+    cd "$ISH_DIR"
+
     if [ ! -f "$BUILD_DIR/build.ninja" ]; then
         log_info "Configuring meson build ($BUILD_TYPE)..."
         meson setup "$BUILD_DIR" \
@@ -139,9 +149,11 @@ build_ish() {
     log_info "Building guest VDSO..."
     ninja -C "$BUILD_DIR" vdso/arm64/libvdso.so.elf
     if [ ! -s "$BUILD_DIR/vdso/arm64/libvdso.so.elf" ]; then
-        log_error "VDSO is empty — LLVM/clang with lld is required (brew install llvm)"
+        log_error "VDSO is empty — LLVM/clang with lld is required (brew install llvm lld)"
     fi
     log_success "Libraries built"
+
+    cd "$SCRIPT_DIR"
 }
 
 copy_outputs() {

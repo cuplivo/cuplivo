@@ -10,6 +10,7 @@ import '../models/assistant.dart';
 import '../models/assistant_regex.dart';
 import '../models/reasoning_payload.dart';
 import '../models/token_usage.dart';
+import '../providers/download_progress_store.dart';
 import '../providers/settings_provider.dart';
 import 'api/chat_api_service.dart';
 import 'chat/chat_service.dart';
@@ -337,10 +338,12 @@ class GenerationRound {
 class GenerationEngine extends ChangeNotifier {
   GenerationEngine({
     required this._chatService,
+    this._downloadProgressStore,
     EngineChatStreamProvider? streamProvider,
   }) : _streamProvider = streamProvider ?? _defaultStreamProvider;
 
   final ChatService _chatService;
+  final DownloadProgressStore? _downloadProgressStore;
   final EngineChatStreamProvider _streamProvider;
 
   /// Active round per conversation (round identity = conversation in current
@@ -624,6 +627,10 @@ class GenerationEngine extends ChangeNotifier {
           cancelSlot(slot.assistantMessageId);
         }
       }
+      // Abort any in-flight workspace download the stopped conversation was
+      // running (its raw HttpClient is independent of the Dio CancelToken —
+      // ADR-0030).
+      _downloadProgressStore?.cancelForConversation(id);
     }
   }
 

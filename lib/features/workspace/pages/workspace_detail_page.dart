@@ -2,18 +2,24 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../../../main.dart' show routeObserver;
 import '../../../core/models/workspace.dart';
 import '../../../core/providers/workspace_provider.dart';
 import '../../../core/services/mcp/kelivo_filesystem/kelivo_filesystem_server.dart';
 import '../../../core/services/workspace/linux_sandbox_service.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../shared/widgets/ios_expandable_section.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../settings/pages/mount_files_page.dart';
+import '../controllers/dependency_install_controller.dart';
+import 'sandbox_files_page.dart';
+import 'workspace_terminal_page.dart';
 
 class WorkspaceDetailPage extends StatefulWidget {
   const WorkspaceDetailPage({super.key, required this.workspaceId});
@@ -24,11 +30,10 @@ class WorkspaceDetailPage extends StatefulWidget {
   State<WorkspaceDetailPage> createState() => _WorkspaceDetailPageState();
 }
 
-class _WorkspaceDetailPageState extends State<WorkspaceDetailPage> {
+class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
+    with RouteAware {
   bool _toolsExpanded = false;
   bool _depsExpanded = false;
-  String? _installingDepId;
-  double? _installProgress; // null = indeterminate
   final Map<String, bool> _depInstalled = <String, bool>{};
   bool _depStatusLoading = false;
   bool _hasRuntime = true;
@@ -36,9 +41,68 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage> {
   @override
   void initState() {
     super.initState();
+    context.read<DependencyInstallController>().addListener(_onInstallChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(_refreshDepStatus());
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPopNext() {
+    // Re-probe on every return to this page so dependencies installed by the
+    // LLM shell tool (or finished background queue items) show up.
+    if (mounted) unawaited(_refreshDepStatus());
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    context.read<DependencyInstallController>().removeListener(
+      _onInstallChanged,
+    );
+    super.dispose();
+  }
+
+  void _onInstallChanged() {
+    if (!mounted) return;
+    final controller = context.read<DependencyInstallController>();
+    final wp = context.read<WorkspaceProvider>();
+    final ws = wp.getById(widget.workspaceId);
+    if (ws == null) return;
+    final done = controller.takeCompleted(ws.id);
+    if (done.isNotEmpty) {
+      unawaited(_refreshDepStatus());
+      final l10n = AppLocalizations.of(context)!;
+      for (final e in done.entries) {
+        final error = e.value;
+        if (error != null) {
+          showAppSnackBar(context, message: error.toString());
+        } else if (e.key == WorkspaceDependencyIds.base) {
+          // Base install may succeed while the native runtime is missing.
+          LinuxSandboxService.instance.hasRuntime().then((runtime) {
+            if (!mounted) return;
+            showAppSnackBar(
+              context,
+              message: runtime
+                  ? l10n.workspaceDepInstallDone
+                  : l10n.workspaceSandboxRuntimeMissing,
+            );
+          });
+        } else {
+          showAppSnackBar(context, message: l10n.workspaceDepInstallDone);
+        }
+      }
+    }
+    setState(() {});
   }
 
   Future<void> _refreshDepStatus() async {
@@ -92,6 +156,18 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage> {
             icon: Icon(Lucide.Pencil, size: 20, color: cs.onSurface),
             onPressed: () => _rename(context, ws),
           ),
+          if (Platform.isAndroid || Platform.isIOS)
+            IconButton(
+              tooltip: l10n.workspaceTerminal,
+              icon: Icon(Lucide.Terminal, size: 20, color: cs.onSurface),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => WorkspaceTerminalPage(workspaceId: ws.id),
+                  ),
+                );
+              },
+            ),
         ],
       ),
       body: ListView(
@@ -123,37 +199,16 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage> {
             ],
           ),
           const SizedBox(height: 12),
-          _foldHeader(
-            context,
+          IosExpandableSection(
+            icon: Lucide.Wrench,
             title: l10n.workspaceFilesystemTools,
             expanded: _toolsExpanded,
             onToggle: () => setState(() => _toolsExpanded = !_toolsExpanded),
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 240),
-            curve: Curves.easeInOutCubic,
-            alignment: Alignment.topCenter,
-            child: _toolsExpanded
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: _sectionCard(
-                      children: [
-                        for (
-                          var i = 0;
-                          i < WorkspaceToolNames.filesystemTools.length;
-                          i++
-                        ) ...[
-                          if (i > 0) _divider(context),
-                          _toolRow(
-                            context,
-                            ws,
-                            WorkspaceToolNames.filesystemTools[i],
-                          ),
-                        ],
-                      ],
-                    ),
-                  )
-                : const SizedBox(width: double.infinity, height: 0),
+            showDivider: true,
+            children: [
+              for (final tool in WorkspaceToolNames.filesystemTools)
+                _toolRow(context, ws, tool),
+            ],
           ),
           const SizedBox(height: 12),
           _sectionCard(
@@ -186,41 +241,77 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage> {
           ),
           if (Platform.isAndroid || Platform.isIOS) ...[
             const SizedBox(height: 12),
-            _foldHeader(
-              context,
+            IosExpandableSection(
+              icon: Lucide.Boxes,
               title: l10n.workspaceInstallDeps,
               expanded: _depsExpanded,
               onToggle: () => setState(() => _depsExpanded = !_depsExpanded),
+              showDivider: true,
+              children: [
+                for (final depId in WorkspaceDependencyIds.ordered)
+                  _depRow(context, ws, depId),
+              ],
             ),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 240),
-              curve: Curves.easeInOutCubic,
-              alignment: Alignment.topCenter,
-              child: _depsExpanded
-                  ? Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: _sectionCard(
-                        children: [
-                          for (
-                            var i = 0;
-                            i < WorkspaceDependencyIds.ordered.length;
-                            i++
-                          ) ...[
-                            if (i > 0) _divider(context),
-                            _depRow(
-                              context,
-                              ws,
-                              WorkspaceDependencyIds.ordered[i],
-                            ),
-                          ],
-                        ],
-                      ),
-                    )
-                  : const SizedBox(width: double.infinity, height: 0),
+            const SizedBox(height: 12),
+            _sectionCard(
+              children: [
+                _navRow(
+                  context,
+                  icon: Lucide.HardDrive,
+                  title: l10n.workspaceSandboxDirEntryTitle,
+                  subtitle: _sandboxDirSubtitle(context),
+                  enabled: _depInstalled[WorkspaceDependencyIds.base] == true,
+                  onTap: () => _openSandboxDir(ws),
+                ),
+              ],
             ),
           ],
         ],
       ),
+    );
+  }
+
+  /// Sandbox dir entry subtitle: "Title ✓ · Title ✓" for every installed
+  /// non-base dependency, or the base-required hint when the base is missing.
+  String _sandboxDirSubtitle(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    if (_depInstalled[WorkspaceDependencyIds.base] != true) {
+      return l10n.workspaceSandboxBaseRequired;
+    }
+    final installed = [
+      for (final id in WorkspaceDependencyIds.ordered)
+        if (id != WorkspaceDependencyIds.base && _depInstalled[id] == true)
+          _depTitle(l10n, id),
+    ];
+    if (installed.isEmpty) return l10n.workspaceSandboxNoDeps;
+    return installed.map((t) => '$t ✓').join(' · ');
+  }
+
+  Future<void> _openSandboxDir(Workspace ws) async {
+    final l10n = AppLocalizations.of(context)!;
+    if (_depInstalled[WorkspaceDependencyIds.base] != true) {
+      showAppSnackBar(context, message: l10n.workspaceSandboxBaseRequired);
+      return;
+    }
+    final wp = context.read<WorkspaceProvider>();
+    final host = wp.hostPathFor(ws);
+    if (host == null) return;
+    final svc = LinuxSandboxService.instance;
+    String root;
+    try {
+      // Guest root `/` maps to the per-workspace proot rootfs on Android
+      // and the shared fakefs `data/` tree on iOS.
+      root = Platform.isIOS
+          ? p.join(await svc.iosRootfsPath(), 'data')
+          : svc.linuxDir(host);
+    } catch (e) {
+      debugPrint('WorkspaceDetailPage._openSandboxDir: $e');
+      if (mounted) showAppSnackBar(context, message: e.toString());
+      return;
+    }
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => SandboxFilesPage(rootHostPath: root)),
     );
   }
 
@@ -325,7 +416,12 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage> {
     if (!Platform.isAndroid && !Platform.isIOS) {
       return const SizedBox.shrink();
     }
-    final installing = _installingDepId == depId;
+    final status = context.watch<DependencyInstallController>().statusFor(
+      ws.id,
+      depId,
+    );
+    final installing = status == DepInstallStatus.installing;
+    final queued = status == DepInstallStatus.queued;
     final installed = _depInstalled[depId] == true;
     final baseInstalled = _depInstalled[WorkspaceDependencyIds.base] == true;
     final needsBaseFirst =
@@ -342,6 +438,8 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage> {
 
     final label = installing
         ? l10n.workspaceDepInstalling
+        : queued
+        ? l10n.workspaceDepQueued
         : installed
         ? l10n.workspaceDepInstalled
         : l10n.workspaceDepInstall;
@@ -389,12 +487,12 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage> {
               IconButton(
                 tooltip: l10n.workspaceDepSettings,
                 icon: Icon(Lucide.Settings, size: 18, color: cs.primary),
-                onPressed: installing
+                onPressed: installing || queued
                     ? null
                     : () => _showDepSettings(context, ws, depId),
               ),
               TextButton(
-                onPressed: installing || _depStatusLoading
+                onPressed: installing || queued || _depStatusLoading
                     ? null
                     : () =>
                           _installDep(context, ws, depId, reinstall: installed),
@@ -402,22 +500,60 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage> {
               ),
             ],
           ),
-          if (installing) ...[
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(2),
-              child: LinearProgressIndicator(
-                minHeight: 3,
-                value: _installProgress,
-                backgroundColor: cs.primary.withValues(alpha: 0.12),
-                color: cs.primary,
-              ),
-            ),
-          ],
+          if (installing) ..._installProgressArea(context, ws, depId),
         ],
       ),
     );
   }
+
+  List<Widget> _installProgressArea(
+    BuildContext context,
+    Workspace ws,
+    String depId,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final controller = context.read<DependencyInstallController>();
+    final progress = controller.progressFor(ws.id, depId);
+    final stage = controller.stageFor(ws.id, depId);
+    final stageLabel = _depStageLabel(l10n, stage);
+    final percent = progress != null ? '${(progress * 100).round()}%' : null;
+    return [
+      const SizedBox(height: 8),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(2),
+        child: LinearProgressIndicator(
+          minHeight: 3,
+          value: progress,
+          backgroundColor: cs.primary.withValues(alpha: 0.12),
+          color: cs.primary,
+        ),
+      ),
+      if (stageLabel != null || percent != null) ...[
+        const SizedBox(height: 4),
+        Text(
+          [
+            if (stageLabel != null) stageLabel,
+            if (percent != null) percent,
+          ].join(' · '),
+          style: TextStyle(
+            fontSize: 11,
+            color: cs.onSurface.withValues(alpha: 0.55),
+          ),
+        ),
+      ],
+    ];
+  }
+
+  String? _depStageLabel(AppLocalizations l10n, String? stage) =>
+      switch (stage) {
+        'downloading' => l10n.workspaceDepStageDownloading,
+        'extracting' => l10n.workspaceDepStageExtracting,
+        'recover' => l10n.workspaceDepStageRecover,
+        'update' => l10n.workspaceDepStageUpdate,
+        'install' || 'installing' => l10n.workspaceDepStageInstall,
+        _ => null,
+      };
 
   Future<void> _installDep(
     BuildContext context,
@@ -454,43 +590,12 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage> {
     final host = wp.hostPathFor(ws);
     if (host == null) return;
     final latest = wp.getById(ws.id) ?? ws;
-    setState(() {
-      _installingDepId = depId;
-      _installProgress = null;
-    });
-    try {
-      await LinuxSandboxService.instance.installPackage(
-        workspaceHostPath: host,
-        depId: depId,
-        pref: latest.prefFor(depId),
-        onProgress: (p) {
-          if (!mounted) return;
-          setState(() {
-            _installProgress = p.progress;
-          });
-        },
-      );
-      if (!context.mounted) return;
-      final runtime = await LinuxSandboxService.instance.hasRuntime();
-      if (!context.mounted) return;
-      if (depId == WorkspaceDependencyIds.base && !runtime) {
-        showAppSnackBar(context, message: l10n.workspaceSandboxRuntimeMissing);
-      } else {
-        showAppSnackBar(context, message: l10n.workspaceDepInstallDone);
-      }
-      await _refreshDepStatus();
-    } catch (e) {
-      if (context.mounted) {
-        showAppSnackBar(context, message: e.toString());
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _installingDepId = null;
-          _installProgress = null;
-        });
-      }
-    }
+    context.read<DependencyInstallController>().enqueue(
+      workspaceId: ws.id,
+      depId: depId,
+      hostPath: host,
+      pref: latest.prefFor(depId),
+    );
   }
 
   Future<void> _showDepSettings(
@@ -679,6 +784,7 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage> {
     WorkspaceDependencyIds.python => l10n.workspaceDepPythonTitle,
     WorkspaceDependencyIds.nodejs => l10n.workspaceDepNodeTitle,
     WorkspaceDependencyIds.git => l10n.workspaceDepGitTitle,
+    WorkspaceDependencyIds.office => l10n.workspaceDepOfficeTitle,
     WorkspaceDependencyIds.buildEssential => l10n.workspaceDepBuildTitle,
     _ => id,
   };
@@ -688,48 +794,10 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage> {
     WorkspaceDependencyIds.python => l10n.workspaceDepPythonDesc,
     WorkspaceDependencyIds.nodejs => l10n.workspaceDepNodeDesc,
     WorkspaceDependencyIds.git => l10n.workspaceDepGitDesc,
+    WorkspaceDependencyIds.office => l10n.workspaceDepOfficeDesc,
     WorkspaceDependencyIds.buildEssential => l10n.workspaceDepBuildDesc,
     _ => '',
   };
-
-  Widget _foldHeader(
-    BuildContext context, {
-    required String title,
-    required bool expanded,
-    required VoidCallback onToggle,
-  }) {
-    final cs = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onToggle,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: AppFontWeights.semibold,
-                  color: cs.onSurface,
-                ),
-              ),
-            ),
-            AnimatedRotation(
-              turns: expanded ? 0.25 : 0,
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                Lucide.ChevronRight,
-                size: 18,
-                color: cs.onSurface.withValues(alpha: 0.45),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _sectionCard({required List<Widget> children}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -745,32 +813,26 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage> {
     );
   }
 
-  Widget _divider(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Divider(
-      height: 1,
-      thickness: 0.6,
-      indent: 12,
-      endIndent: 12,
-      color: cs.outlineVariant.withValues(alpha: 0.18),
-    );
-  }
-
   Widget _navRow(
     BuildContext context, {
     required IconData icon,
     required String title,
     String? subtitle,
+    bool enabled = true,
     required VoidCallback onTap,
   }) {
     final cs = Theme.of(context).colorScheme;
+    final dim = cs.onSurface.withValues(alpha: 0.45);
     return InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         child: Row(
           children: [
-            SizedBox(width: 36, child: Icon(icon, size: 20, color: cs.primary)),
+            SizedBox(
+              width: 36,
+              child: Icon(icon, size: 20, color: enabled ? cs.primary : dim),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -781,7 +843,9 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: AppFontWeights.semibold,
-                      color: cs.onSurface,
+                      color: enabled
+                          ? cs.onSurface
+                          : cs.onSurface.withValues(alpha: 0.45),
                     ),
                   ),
                   if (subtitle != null) ...[
@@ -790,7 +854,9 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage> {
                       subtitle,
                       style: TextStyle(
                         fontSize: 12,
-                        color: cs.onSurface.withValues(alpha: 0.55),
+                        color: enabled
+                            ? cs.onSurface.withValues(alpha: 0.55)
+                            : dim,
                       ),
                     ),
                   ],
@@ -800,7 +866,9 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage> {
             Icon(
               Lucide.ChevronRight,
               size: 18,
-              color: cs.onSurface.withValues(alpha: 0.35),
+              color: enabled
+                  ? cs.onSurface.withValues(alpha: 0.35)
+                  : cs.onSurface.withValues(alpha: 0.15),
             ),
           ],
         ),

@@ -9,6 +9,7 @@ import '../../providers/workspace_provider.dart';
 import '../../services/chat/chat_service.dart';
 import '../mcp/kelivo_filesystem/kelivo_filesystem_server.dart';
 import 'linux_sandbox_service.dart';
+import 'workspace_download_service.dart';
 import 'workspace_path_presentation.dart';
 
 /// Builds and dispatches workspace local tools (filesystem + shell).
@@ -166,6 +167,8 @@ class WorkspaceToolsService {
     required WorkspaceProvider workspaces,
     ChatService? chatService,
     LinuxSandboxService? sandbox,
+    void Function(int receivedBytes, int? totalBytes)? onDownloadProgress,
+    WorkspaceDownloadAbortToken? downloadAbortToken,
   }) async {
     if (assistant == null || !assistant.workspaceEnabled) return null;
     if (!WorkspaceToolNames.isWorkspaceTool(name)) return null;
@@ -214,7 +217,12 @@ class WorkspaceToolsService {
     } on ModelPathException catch (e) {
       return jsonEncode({'error': 'invalid_path', 'message': e.message});
     }
-    final result = await engine.callTool(name, translatedArgs);
+    final result = await engine.callTool(
+      name,
+      translatedArgs,
+      onDownloadProgress: onDownloadProgress,
+      downloadAbortToken: downloadAbortToken,
+    );
     return _mcpResultToText(result);
   }
 

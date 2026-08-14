@@ -4,41 +4,46 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/providers/download_progress_store.dart';
+import '../../../core/providers/input_status_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/generation_engine.dart';
+import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../services/ask_user_interaction_service.dart';
 import '../services/tool_approval_service.dart';
 
-/// 子代理面板 (subagent panel): transient live-status widget pinned above the
-/// parent conversation's input bar while a wait-mode sub-agent runs.
+/// LivePanel (实时面板): unified transient-status surface pinned above the
+/// conversation input bar. Hosts heterogeneous live entries — subagent jobs,
+/// workspace downloads, and the image-mode / image-warning pills — sharing one
+/// pill↔card design language (issue #307, ADR-0030).
 ///
-/// Collapsed pill ↔ expanded card. Shows phase (思考中/输出中/等待批准), the
-/// child's last step, elapsed time, and [查看子对话]. Auto-expands into an
-/// interactive approval card when the child raises a pending approval/ask_user
-/// request. The ✕ button cancels the sub-agent after a confirmation dialog.
-class SubagentPanel extends StatefulWidget {
-  const SubagentPanel({super.key, this.onOpenChild});
+/// Entry order: info pill, warning pill, download entries, subagent entries.
+/// Every entry is conversation-scoped (keyed off `currentConversationId`);
+/// the panel disappears when no entry exists.
+class LivePanel extends StatefulWidget {
+  const LivePanel({super.key, this.onOpenChild});
 
   /// Called with the child conversation id when the user taps 查看子对话 /
-  /// 去回答.
+  /// 去回答 on a subagent entry.
   final ValueChanged<String>? onOpenChild;
 
   @override
-  State<SubagentPanel> createState() => _SubagentPanelState();
+  State<LivePanel> createState() => _LivePanelState();
 }
 
-class _SubagentPanelState extends State<SubagentPanel> {
+class _LivePanelState extends State<LivePanel> {
   Timer? _ticker;
-  final _expandedIds = <String>{};
+  final _expandedJobIds = <String>{};
+  final _expandedDownloadIds = <String>{};
 
   @override
   void initState() {
     super.initState();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      if (_activeJobs().isEmpty) return;
+      if (_activeJobs().isEmpty && _activeDownloads().isEmpty) return;
       setState(() {});
     });
   }
@@ -61,6 +66,13 @@ class _SubagentPanelState extends State<SubagentPanel> {
         .waitSlotsFor(parentId)
         .where((job) => job.status == SlotStatus.running)
         .toList();
+  }
+
+  List<DownloadJob> _activeDownloads() {
+    final chatService = context.read<ChatService>();
+    final parentId = chatService.currentConversationId;
+    if (parentId == null) return const <DownloadJob>[];
+    return context.read<DownloadProgressStore>().runningFor(parentId);
   }
 
   ToolApprovalRequest? _pendingApproval(GenerationSlot job) {
@@ -117,7 +129,13 @@ class _SubagentPanelState extends State<SubagentPanel> {
   @override
   Widget build(BuildContext context) {
     final jobs = _activeJobs();
-    if (jobs.isEmpty) return const SizedBox.shrink();
+    final downloads = _activeDownloads();
+    final inputStatus = context.watch<InputStatusProvider>();
+    final hasPills =
+        inputStatus.imageModeActive || inputStatus.imageWarningActive;
+    if (jobs.isEmpty && downloads.isEmpty && !hasPills) {
+      return const SizedBox.shrink();
+    }
 
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
@@ -129,12 +147,181 @@ class _SubagentPanelState extends State<SubagentPanel> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (inputStatus.imageModeActive) ...[
+            _buildPill(
+              icon: Lucide.Brush,
+              label: l10n.chatInputBarImageMode,
+              closeTooltip: l10n.chatInputBarDisableImageModeTooltip,
+              onClose: () => inputStatus.dismissImageMode(),
+              base: base,
+              cs: cs,
+            ),
+            const SizedBox(height: 6),
+          ],
+          if (inputStatus.imageWarningActive) ...[
+            _buildPill(
+              icon: Lucide.ImageOff,
+              label: l10n.chatInputBarImageWarning,
+              closeTooltip: l10n.chatInputBarDisableImageWarningTooltip,
+              onClose: () => inputStatus.dismissImageWarning(),
+              base: base,
+              cs: cs,
+            ),
+            const SizedBox(height: 6),
+          ],
+          for (final download in downloads) ...[
+            _buildDownloadCard(download, base, cs),
+            if (download != downloads.last) const SizedBox(height: 6),
+          ],
+          if (downloads.isNotEmpty && jobs.isNotEmpty)
+            const SizedBox(height: 6),
           for (final job in jobs) ...[
             _buildJobCard(context, job, base, cs, l10n),
             if (job != jobs.last) const SizedBox(height: 6),
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildPill({
+    required IconData icon,
+    required String label,
+    required String closeTooltip,
+    required VoidCallback onClose,
+    required Color base,
+    required ColorScheme cs,
+  }) {
+    return IosCardPress(
+      borderRadius: BorderRadius.circular(12),
+      baseColor: base,
+      pressedScale: 0.99,
+      onTap: null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Icon(icon, size: 14, color: cs.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: cs.onSurface,
+                ),
+              ),
+            ),
+            IosIconButton(
+              icon: Icons.close,
+              size: 16,
+              color: cs.onSurfaceVariant,
+              semanticLabel: closeTooltip,
+              onTap: onClose,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDownloadCard(DownloadJob job, Color base, ColorScheme cs) {
+    final showExpanded = _expandedDownloadIds.contains(job.id);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IosCardPress(
+          borderRadius: BorderRadius.circular(12),
+          baseColor: base,
+          pressedScale: 0.99,
+          onTap: () => setState(() {
+            if (!_expandedDownloadIds.add(job.id)) {
+              _expandedDownloadIds.remove(job.id);
+            }
+          }),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                Icon(Lucide.Download, size: 14, color: cs.onSurfaceVariant),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '${_basename(job.displayPath)} · '
+                    '${_formatElapsed(job.startedAt)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: cs.onSurface,
+                    ),
+                  ),
+                ),
+                Icon(
+                  showExpanded
+                      ? Icons.keyboard_arrow_down
+                      : Icons.keyboard_arrow_up,
+                  size: 18,
+                  color: cs.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (showExpanded)
+          Container(
+            decoration: BoxDecoration(
+              color: base,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+            child: _buildDownloadProgress(job, cs),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildDownloadProgress(DownloadJob job, ColorScheme cs) {
+    final percent = job.percent;
+    final fraction = (job.progress ?? 0).clamp(0.0, 1.0).toDouble();
+    final detail = percent != null
+        ? '$percent%'
+        : _formatBytes(job.receivedBytes);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: SizedBox(
+            height: 4,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ColoredBox(color: cs.onSurface.withValues(alpha: 0.08)),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FractionallySizedBox(
+                    widthFactor: fraction,
+                    child: ColoredBox(color: cs.primary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          detail,
+          style: TextStyle(
+            fontSize: 11,
+            color: cs.onSurface.withValues(alpha: 0.56),
+          ),
+        ),
+      ],
     );
   }
 
@@ -150,7 +337,7 @@ class _SubagentPanelState extends State<SubagentPanel> {
     final waitingInteraction = approval != null || askUser != null;
     final forceExpanded = waitingInteraction;
     final showExpanded =
-        forceExpanded || _expandedIds.contains(job.conversationId);
+        forceExpanded || _expandedJobIds.contains(job.conversationId);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -162,8 +349,8 @@ class _SubagentPanelState extends State<SubagentPanel> {
           onTap: waitingInteraction
               ? null
               : () => setState(() {
-                  if (!_expandedIds.add(job.conversationId)) {
-                    _expandedIds.remove(job.conversationId);
+                  if (!_expandedJobIds.add(job.conversationId)) {
+                    _expandedJobIds.remove(job.conversationId);
                   }
                 }),
           child: Padding(
@@ -180,7 +367,7 @@ class _SubagentPanelState extends State<SubagentPanel> {
                   child: Text(
                     // {assistant name} · {elapsed} — no phase, no arrow
                     '${job.targetName ?? job.conversationId} · '
-                    '${_formatElapsed(job)}',
+                    '${_formatElapsed(job.startedAt)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -393,8 +580,26 @@ class _SubagentPanelState extends State<SubagentPanel> {
     return entries.isEmpty ? '{}' : entries.join('\n');
   }
 
-  static String _formatElapsed(GenerationSlot job) {
-    final d = DateTime.now().difference(job.startedAt);
+  static String _basename(String path) {
+    final idx = path.lastIndexOf('/');
+    if (idx < 0) return path;
+    final name = path.substring(idx + 1);
+    return name.isEmpty ? path : name;
+  }
+
+  static String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    }
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+  }
+
+  static String _formatElapsed(DateTime startedAt) {
+    final d = DateTime.now().difference(startedAt);
     final h = d.inHours;
     final m = d.inMinutes % 60;
     final s = d.inSeconds % 60;

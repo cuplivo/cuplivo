@@ -1,9 +1,15 @@
 package com.cup11.cuplivo
 
+import android.app.Activity
 import android.content.Context
 import android.os.Build
+import android.os.Process as AndroidProcess
 import android.util.Log
+import android.view.WindowManager
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.BufferedReader
@@ -19,23 +25,84 @@ import java.util.zip.ZipFile
  * Rootfs download and apt orchestration live in Dart; this plugin only
  * extracts the archive and runs commands inside the guest.
  */
-class LinuxSandboxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
+class LinuxSandboxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware {
   private lateinit var channel: MethodChannel
   private lateinit var appContext: Context
+  private var activity: Activity? = null
+  private var volumeCtrlChannel: EventChannel? = null
+  private var volumeCtrlSink: EventChannel.EventSink? = null
+  @Volatile internal var volumeCtrlEnabled: Boolean = false
+
+  private val volumeCtrlStreamHandler = object : EventChannel.StreamHandler {
+    override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+      volumeCtrlSink = events
+    }
+
+    override fun onCancel(arguments: Any?) {
+      volumeCtrlSink = null
+    }
+  }
 
   override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     appContext = binding.applicationContext
     channel = MethodChannel(binding.binaryMessenger, "cuplivo/linux_sandbox")
     channel.setMethodCallHandler(this)
+    volumeCtrlChannel = EventChannel(
+      binding.binaryMessenger,
+      "cuplivo/linux_sandbox/volume_ctrl",
+    )
+    volumeCtrlChannel?.setStreamHandler(volumeCtrlStreamHandler)
   }
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     channel.setMethodCallHandler(null)
+    volumeCtrlEnabled = false
+    volumeCtrlSink = null
+    volumeCtrlChannel?.setStreamHandler(null)
+    volumeCtrlChannel = null
+  }
+
+  override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+    activity = binding.activity
+    if (binding.activity is MainActivity) {
+      (binding.activity as MainActivity).volumeCtrlPlugin = this
+    }
+  }
+
+  override fun onDetachedFromActivityForConfigChanges() {
+    detachActivity(resetIntercept = false)
+  }
+
+  override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+    onAttachedToActivity(binding)
+  }
+
+  override fun onDetachedFromActivity() {
+    detachActivity(resetIntercept = true)
+  }
+
+  private fun detachActivity(resetIntercept: Boolean) {
+    if (resetIntercept) {
+      volumeCtrlEnabled = false
+    }
+    (activity as? MainActivity)?.volumeCtrlPlugin = null
+    activity = null
+  }
+
+  internal fun emitVolumeCtrl(down: Boolean) {
+    volumeCtrlSink?.success(down)
   }
 
   override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
     when (call.method) {
-      "isSupported" -> result.success(hasProot())
+      "isSupported" -> {
+        Thread {
+          val supported = hasProot()
+          android.os.Handler(android.os.Looper.getMainLooper()).post {
+            result.success(supported)
+          }
+        }.start()
+      }
       "getAbi" -> result.success(primaryAbi())
       "extractRootfs" -> {
         val workspace = call.argument<String>("workspacePath")
@@ -118,6 +185,49 @@ class LinuxSandboxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
           }
         }.start()
       }
+      "ptyLaunchSpec" -> {
+        val workspace = call.argument<String>("workspacePath")
+        if (workspace.isNullOrBlank()) {
+          result.error("bad_args", "workspacePath required", null)
+          return
+        }
+        Thread {
+          try {
+            val spec = GuestCommandRunner(appContext).ptyLaunchSpec(workspace)
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+              result.success(spec)
+            }
+          } catch (e: Exception) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+              result.error("pty_spec_failed", e.message, null)
+            }
+          }
+        }.start()
+      }
+      "setKeepScreenOn" -> {
+        val enabled = call.argument<Boolean>("enabled") == true
+        val act = activity
+        if (act == null) {
+          if (enabled) {
+            result.error("no_activity", "Activity not attached", null)
+          } else {
+            result.success(null)
+          }
+          return
+        }
+        act.runOnUiThread {
+          if (enabled) {
+            act.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+          } else {
+            act.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+          }
+        }
+        result.success(null)
+      }
+      "setVolumeCtrlIntercept" -> {
+        volumeCtrlEnabled = call.argument<Boolean>("enabled") == true
+        result.success(null)
+      }
       else -> result.notImplemented()
     }
   }
@@ -140,8 +250,7 @@ class LinuxSandboxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     if (!ok) {
       Log.w(
         TAG,
-        "proot runtime missing: exec=${exec?.absolutePath} loader=${loader?.absolutePath} " +
-          "nativeLibraryDir=${appContext.applicationInfo.nativeLibraryDir}",
+        "proot runtime missing: exec=${exec?.absolutePath} loader=${loader?.absolutePath}",
       )
     }
     return ok
@@ -199,11 +308,12 @@ class LinuxSandboxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     }
   }
 
-  /** Minimal Android-friendly rootfs fixes (DNS / tmp). */
+  /** Minimal Android-friendly rootfs fixes (DNS / tmp / apt locks). */
   private fun patchRootfs(linuxDir: File) {
     try {
       patchDns(linuxDir)
       ensureGuestDirs(linuxDir)
+      writeAptConfig(linuxDir)
     } catch (e: Exception) {
       Log.w(TAG, "patchRootfs: ${e.message}")
     }
@@ -230,6 +340,23 @@ class LinuxSandboxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
       File(linuxDir, path).mkdirs()
     }
   }
+
+  /**
+   * Make every apt invocation inside the guest wait for a held dpkg/apt lock
+   * instead of failing instantly. Covers commands run through the LLM shell
+   * tool (which bypasses the Dart-side install queue): a concurrent install
+   * just waits, then proceeds.
+   */
+  private fun writeAptConfig(linuxDir: File) {
+    val confDir = File(linuxDir, "etc/apt/apt.conf.d")
+    confDir.mkdirs()
+    File(confDir, "99cuplivo").writeText(
+      "// Cuplivo Linux sandbox: wait for dpkg/apt locks instead of failing.\n" +
+        "Acquire::Lock::Timeout \"600\";\n" +
+        "DPkg::Lock::Timeout \"600\";\n" +
+        "Acquire::Retries \"3\";\n",
+    )
+  }
 }
 
 /** Runs one command inside the proot guest and captures capped output. */
@@ -241,9 +368,7 @@ private class GuestCommandRunner(private val appContext: Context) {
     timeoutMs: Long,
   ): Map<String, Any?> {
     val exec = NativeLibResolver.resolve(appContext, EXEC_LIB)
-      ?: throw IllegalStateException(
-        "proot missing (nativeLibraryDir=${appContext.applicationInfo.nativeLibraryDir})",
-      )
+      ?: throw IllegalStateException("proot missing (system lib dir, filesDir cache and APK copy all failed)")
     val loader = NativeLibResolver.resolve(appContext, LOADER_LIB)
       ?: throw IllegalStateException("proot loader missing")
     val linux = File(workspacePath, ".sandbox/linux")
@@ -271,43 +396,91 @@ private class GuestCommandRunner(private val appContext: Context) {
     env["TMPDIR"] = tmp.absolutePath
     return OutputDrainer.capture(builder.start(), timeoutMs)
   }
+
+  fun ptyLaunchSpec(workspacePath: String): Map<String, Any> {
+    val exec = NativeLibResolver.resolve(appContext, EXEC_LIB)
+      ?: throw IllegalStateException("proot missing (system lib dir, filesDir cache and APK copy all failed)")
+    val loader = NativeLibResolver.resolve(appContext, LOADER_LIB)
+      ?: throw IllegalStateException("proot loader missing")
+    val linux = File(workspacePath, ".sandbox/linux")
+    val tmp = File(workspacePath, ".sandbox/tmp")
+    tmp.mkdirs()
+    if (!linux.isDirectory) {
+      throw IllegalStateException("sandbox rootfs missing: ${linux.absolutePath}")
+    }
+    val arguments = buildGuestCommand(
+      proot = exec,
+      linuxDir = linux,
+      guestCwd = "/workspace",
+      hostWorkspace = workspacePath,
+      command = null,
+    )
+    return mapOf(
+      "executable" to arguments.first(),
+      "arguments" to arguments.drop(1),
+      "environment" to mapOf(
+        "PROOT_LOADER" to loader.absolutePath,
+        "PROOT_TMP_DIR" to tmp.absolutePath,
+        "TMPDIR" to tmp.absolutePath,
+      ),
+      "workingDirectory" to workspacePath,
+    )
+  }
 }
 
-/** Vendored proot native library resolution (installed lib dir → cached copy → APK). */
+/**
+ * Vendored proot native library resolution.
+ *
+ * Preferred source is the platform-extracted native library directory
+ * (`applicationInfo.nativeLibraryDir`): the system writes those files with
+ * the exec bit and the right SELinux label already in place, so the binary
+ * can be spawned directly without copying or chmod. The filesDir copy chain
+ * below is kept only for installs where that directory is unavailable.
+ */
 private object NativeLibResolver {
   fun resolve(appContext: Context, libFileName: String): File? {
-    val candidates = mutableListOf<File>()
+    // 1) System-extracted native lib dir: executable out of the box. Still
+    //    verified (and repaired via chmod if needed) so a non-executable
+    //    copy falls through to the fallback chain instead of failing at
+    //    exec time.
+    val systemLib = File(appContext.applicationInfo.nativeLibraryDir, libFileName)
+    if (systemLib.isFile && systemLib.length() > 0L && makeExecutable(systemLib)) {
+      return systemLib
+    }
 
-    // 1) Extracted nativeLibraryDir (extractNativeLibs=true / legacy packaging)
-    candidates += File(appContext.applicationInfo.nativeLibraryDir, libFileName)
-
-    // 2) Previously copied fallback
-    candidates += File(appContext.filesDir, "proot/$libFileName")
-
-    for (f in candidates) {
-      if (f.isFile && f.length() > 0L) {
-        makeExecutable(f)
-        return f
-      }
+    // 2) Previously copied fallback (survives restarts and app updates)
+    val cached = File(appContext.filesDir, "proot/$libFileName")
+    if (cached.isFile && cached.length() > 0L && makeExecutable(cached)) {
+      return cached
     }
 
     // 3) Copy out of APK / split APKs into app filesDir
     val copied = copyFromApk(appContext, libFileName)
-    if (copied != null) {
-      makeExecutable(copied)
+    if (copied != null && makeExecutable(copied)) {
       return copied
     }
     return null
   }
 
-  private fun makeExecutable(file: File) {
+  /**
+   * Best-effort exec bit setup for the filesDir fallback path. setExecutable
+   * silently no-ops on some Android versions/OEMs, so the result is verified
+   * and an explicit libcore chmod (0755) is tried before giving up. Returns
+   * true only when the file is actually executable, so a binary that cannot
+   * be made runnable is reported as missing instead of failing at exec time.
+   */
+  private fun makeExecutable(file: File): Boolean {
     try {
-      if (!file.canExecute()) {
-        file.setExecutable(true, false)
-      }
+      if (file.canExecute()) return true
+      file.setExecutable(true, false)
+      if (file.canExecute()) return true
+      android.system.Os.chmod(file.path, 0x1ED) // 0755
+      if (file.canExecute()) return true
+      Log.w(TAG, "makeExecutable: still not executable after chmod: ${file.absolutePath}")
     } catch (e: Exception) {
-      Log.w("LinuxSandbox", "setExecutable failed for ${file.absolutePath}: ${e.message}")
+      Log.w(TAG, "makeExecutable failed for ${file.absolutePath}: ${e.message}")
     }
+    return false
   }
 
   private fun copyFromApk(appContext: Context, libFileName: String): File? {
@@ -343,6 +516,10 @@ private object NativeLibResolver {
         Log.w("LinuxSandbox", "copyFromApk($apk, $libFileName): ${e.message}")
       }
     }
+    Log.w(
+      "LinuxSandbox",
+      "copyFromApk: no $libFileName entry found (abi=$abi, entries=$entryNames, apks=$apkPaths)",
+    )
     return null
   }
 
@@ -364,7 +541,7 @@ private fun buildGuestCommand(
   linuxDir: File,
   guestCwd: String,
   hostWorkspace: String,
-  command: String,
+  command: String?,
 ): List<String> {
   val argv = mutableListOf<String>()
   argv += proot.absolutePath
@@ -389,10 +566,12 @@ private fun buildGuestCommand(
     "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
     "LANG=C.UTF-8",
     "TERM=xterm-256color",
-    "/bin/bash",
-    "-lc",
-    command,
   )
+  if (command == null) {
+    argv += listOf("/bin/bash", "-l")
+  } else {
+    argv += listOf("/bin/bash", "-lc", command)
+  }
   return argv
 }
 
@@ -411,6 +590,9 @@ private object OutputDrainer {
       // would leave orphan apt processes still holding /var/lib/dpkg locks.
       process.destroy()
       if (!process.waitFor(GRACE_AFTER_TERM_MS, TimeUnit.MILLISECONDS)) {
+        // SIGTERM did not finish the tree: kill surviving guest children
+        // (orphaned apt/dpkg that keep the dpkg lock) before the SIGKILL.
+        pidOf(process)?.let { killDescendants(it) }
         process.destroyForcibly()
       }
       stdout.joinFor(1_000)
@@ -430,6 +612,62 @@ private object OutputDrainer {
       "stderr" to stderr.text(),
       "timedOut" to false,
     )
+  }
+
+  /**
+   * Android's java.lang.Process has no `pid()` (Java 9 API). Parse it from
+   * ProcessImpl.toString(), whose "Process[pid=NNNN]" format is stable
+   * across API levels. Returns null when parsing fails (cleanup skipped).
+   */
+  private fun pidOf(process: Process): Long? {
+    val m = Regex("pid=(\\d+)").find(process.toString())
+    val pid = m?.groupValues?.get(1)?.toLongOrNull()
+    if (pid == null) {
+      Log.w(TAG, "pidOf: cannot parse pid from '${process.toString()}'")
+    }
+    return pid
+  }
+
+  /**
+   * Recursively SIGKILL all children of [pid] by walking /proc (the proot
+   * guest processes are host processes, so the host view sees them). Called
+   * before destroyForcibly so no apt/dpkg survives to hold the dpkg lock.
+   */
+  private fun killDescendants(pid: Long) {
+    val children = mutableListOf<Long>()
+    try {
+      File("/proc").listFiles()?.forEach { dir ->
+        val pidText = dir.name.toLongOrNull() ?: return@forEach
+        try {
+          // A target process may exit between listFiles and readText; that
+          // only skips this PID, the rest of the scan continues.
+          val stat = File(dir, "stat")
+          if (!stat.isFile) return@forEach
+          val text = stat.readText()
+          val open = text.indexOf('(')
+          val close = text.lastIndexOf(')')
+          if (open < 0 || close <= open) return@forEach
+          val parts = text.substring(close + 1).trim().split(' ')
+          // parts[0] = state, parts[1] = ppid
+          if (parts.size > 1 && parts[1].toLongOrNull() == pid) {
+            children += pidText
+          }
+        } catch (e: Exception) {
+          Log.w(TAG, "killDescendants read $pidText: ${e.message}")
+        }
+      }
+    } catch (e: Exception) {
+      Log.w(TAG, "killDescendants scan: ${e.message}")
+      return
+    }
+    children.forEach { child ->
+      killDescendants(child)
+      try {
+        AndroidProcess.killProcess(child.toInt())
+      } catch (e: Exception) {
+        Log.w(TAG, "killDescendants kill $child: ${e.message}")
+      }
+    }
   }
 
   private class LineDrain(private val stream: java.io.InputStream) : Thread() {

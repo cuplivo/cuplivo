@@ -98,6 +98,21 @@ void _applyCompatibleResponsesReasoning(
   int? thinkingBudget,
 }) {
   if (config.useResponseApi != true) return;
+
+  final host = Uri.tryParse(config.baseUrl)?.host.toLowerCase() ?? '';
+  final isDeepSeek =
+      host.contains('deepseek') ||
+      config.id.toLowerCase().contains('deepseek') ||
+      upstreamModelId.toLowerCase().contains('deepseek');
+  if (isDeepSeek) {
+    if (!isReasoning) {
+      body.remove('reasoning');
+    } else if (_isOff(thinkingBudget)) {
+      body['reasoning'] = {'effort': 'none'};
+    }
+    return;
+  }
+
   if (!BuiltInToolsHelper.isDashScopeProvider(config)) return;
 
   body.remove('reasoning');
@@ -479,17 +494,46 @@ int _readOpenAIUsageInt(dynamic value) {
 TokenUsage? _mergeOpenAICompatibleUsage(TokenUsage? current, dynamic rawUsage) {
   if (rawUsage is! Map) return current;
 
-  final details = rawUsage['prompt_tokens_details'];
+  final details =
+      rawUsage['prompt_tokens_details'] ?? rawUsage['input_tokens_details'];
   final cachedTokens = details is Map
       ? _readOpenAIUsageInt(details['cached_tokens'])
       : 0;
   return (current ?? const TokenUsage()).merge(
     TokenUsage(
-      promptTokens: _readOpenAIUsageInt(rawUsage['prompt_tokens']),
-      completionTokens: _readOpenAIUsageInt(rawUsage['completion_tokens']),
+      promptTokens: _readOpenAIUsageInt(
+        rawUsage['prompt_tokens'] ?? rawUsage['input_tokens'],
+      ),
+      completionTokens: _readOpenAIUsageInt(
+        rawUsage['completion_tokens'] ?? rawUsage['output_tokens'],
+      ),
       cachedTokens: cachedTokens,
     ),
   );
+}
+
+String _responsesReasoningText(dynamic rawOutput) {
+  if (rawOutput is! List) return '';
+
+  final buffer = StringBuffer();
+  for (final item in rawOutput) {
+    if (item is! Map || item['type'] != 'reasoning') continue;
+    final content = item['content'];
+    if (content is String) {
+      buffer.write(content);
+      continue;
+    }
+    if (content is! List) continue;
+    for (final part in content) {
+      if (part is String) {
+        buffer.write(part);
+      } else if (part is Map &&
+          (part['type'] == 'reasoning_text' || part['type'] == 'text')) {
+        buffer.write((part['text'] ?? part['content'] ?? '').toString());
+      }
+    }
+  }
+  return buffer.toString();
 }
 
 String _stripDataUrlPrefix(String dataUrl) {
@@ -1739,6 +1783,8 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
       // Responses API non-stream
       if (config.useResponseApi == true) {
         String outText = '';
+        final rawOutput = obj['output'] ?? obj['response']?['output'];
+        final reasoningText = _responsesReasoningText(rawOutput);
         try {
           outText = (obj['output_text'] ?? '').toString();
         } catch (_) {}
@@ -1749,7 +1795,7 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
         }
         if (outText.isEmpty) {
           try {
-            final out = obj['output'] as List?;
+            final out = rawOutput as List?;
             if (out != null) {
               final buf = StringBuffer();
               for (final it in out) {
@@ -1784,28 +1830,13 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
             }
           } catch (_) {}
         }
-        TokenUsage? usage;
-        try {
-          final u = (obj['usage'] ?? obj['response']?['usage']) as Map?;
-          if (u != null) {
-            final prompt =
-                (u['prompt_tokens'] ?? u['input_tokens'] ?? 0) as int? ?? 0;
-            final completion =
-                (u['completion_tokens'] ?? u['output_tokens'] ?? 0) as int? ??
-                0;
-            final cached =
-                (u['prompt_tokens_details']?['cached_tokens'] ?? 0) as int? ??
-                0;
-            usage = TokenUsage(
-              promptTokens: prompt,
-              completionTokens: completion,
-              cachedTokens: cached,
-              totalTokens: prompt + completion,
-            );
-          }
-        } catch (_) {}
+        final usage = _mergeOpenAICompatibleUsage(
+          null,
+          obj['usage'] ?? obj['response']?['usage'],
+        );
         yield ChatStreamChunk(
           content: outText,
+          reasoning: reasoningText.isEmpty ? null : reasoningText,
           isDone: true,
           totalTokens: usage?.totalTokens ?? 0,
           usage: usage,
@@ -2750,15 +2781,11 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
               }
             }
           } else if (type == 'response.incomplete') {
-            final u = json['response']?['usage'];
-            if (u != null) {
-              final inTok = (u['input_tokens'] ?? 0) as int? ?? 0;
-              final outTok = (u['output_tokens'] ?? 0) as int? ?? 0;
-              usage = (usage ?? const TokenUsage()).merge(
-                TokenUsage(promptTokens: inTok, completionTokens: outTok),
-              );
-              totalTokens = usage.totalTokens;
-            }
+            usage = _mergeOpenAICompatibleUsage(
+              usage,
+              json['response']?['usage'],
+            );
+            totalTokens = usage?.totalTokens ?? totalTokens;
             try {
               final details = json['response']?['incomplete_details'];
               if (details is Map) {
@@ -2766,15 +2793,11 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
               }
             } catch (_) {}
           } else if (type == 'response.completed') {
-            final u = json['response']?['usage'];
-            if (u != null) {
-              final inTok = (u['input_tokens'] ?? 0) as int? ?? 0;
-              final outTok = (u['output_tokens'] ?? 0) as int? ?? 0;
-              usage = (usage ?? const TokenUsage()).merge(
-                TokenUsage(promptTokens: inTok, completionTokens: outTok),
-              );
-              totalTokens = usage.totalTokens;
-            }
+            usage = _mergeOpenAICompatibleUsage(
+              usage,
+              json['response']?['usage'],
+            );
+            totalTokens = usage?.totalTokens ?? totalTokens;
             // Extract web search citations from final output (Responses API)
             try {
               final output = json['response']?['output'];
@@ -3165,19 +3188,11 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
                       } else if (o is Map &&
                           (o['type'] ?? '') == 'response.completed') {
                         // usage
-                        final u2 = o['response']?['usage'];
-                        if (u2 != null) {
-                          final inTok = (u2['input_tokens'] ?? 0) as int? ?? 0;
-                          final outTok =
-                              (u2['output_tokens'] ?? 0) as int? ?? 0;
-                          usage = (usage ?? const TokenUsage()).merge(
-                            TokenUsage(
-                              promptTokens: inTok,
-                              completionTokens: outTok,
-                            ),
-                          );
-                          totalTokens = usage.totalTokens;
-                        }
+                        usage = _mergeOpenAICompatibleUsage(
+                          usage,
+                          o['response']?['usage'],
+                        );
+                        totalTokens = usage?.totalTokens ?? totalTokens;
                         // capture output items
                         final out2 = o['response']?['output'];
                         if (out2 is List) {
@@ -3351,15 +3366,8 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
             if (output != null) {
               content = (output['content'] ?? '').toString();
               approxCompletionChars += content.length;
-              final u = json['usage'];
-              if (u != null) {
-                final inTok = (u['input_tokens'] ?? 0) as int? ?? 0;
-                final outTok = (u['output_tokens'] ?? 0) as int? ?? 0;
-                usage = (usage ?? const TokenUsage()).merge(
-                  TokenUsage(promptTokens: inTok, completionTokens: outTok),
-                );
-                totalTokens = usage.totalTokens;
-              }
+              usage = _mergeOpenAICompatibleUsage(usage, json['usage']);
+              totalTokens = usage?.totalTokens ?? totalTokens;
             }
           }
         } else {

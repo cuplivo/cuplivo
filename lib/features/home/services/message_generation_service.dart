@@ -221,6 +221,7 @@ class MessageGenerationService {
             assistant,
             approvalService: approvalService,
             askUserService: askUserService,
+            conversationId: currentConversation?.id,
           )
         : null;
 

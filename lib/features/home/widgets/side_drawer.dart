@@ -15,8 +15,12 @@ import '../../../core/providers/user_provider.dart';
 import '../../settings/pages/settings_page.dart';
 import '../../translate/pages/translate_page.dart';
 import '../../backup/pages/backup_page.dart';
-import '../../group_chat/pages/group_chat_list_page.dart';
+import '../../group_chat/pages/group_chat_page.dart';
+import '../../group_chat/pages/group_chat_settings_page.dart';
+import '../../group_chat/widgets/group_avatar.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../../core/providers/group_chat_provider.dart';
+import '../../../core/models/group_chat.dart';
 import '../../../core/providers/update_provider.dart';
 import '../../../core/models/assistant.dart';
 import '../../chat/pages/chat_history_page.dart';
@@ -167,6 +171,13 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       _searchController.text = widget.globalSearchQuery;
       _query = widget.globalSearchQuery;
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final groupChatProvider = context.read<GroupChatProvider>();
+      if (!groupChatProvider.loaded) {
+        await groupChatProvider.load();
+      }
+    });
     // Update check moved to app startup (main.dart)
     // Prepare desktop tabs controller (available when useDesktopTabs)
     _tabController = TabController(length: 2, vsync: this, initialIndex: 0);
@@ -1565,52 +1576,6 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     ).push(MaterialPageRoute(builder: (_) => const BackupPage()));
   }
 
-  void _openMyGroupChats() {
-    Haptics.light();
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const GroupChatListPage()));
-  }
-
-  Widget _buildMyGroupChatsEntry(BuildContext context, Color textBase) {
-    final l10n = AppLocalizations.of(context)!;
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? Colors.white10 : Colors.white.withValues(alpha: 0.92);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: IosCardPress(
-        baseColor: bg,
-        borderRadius: BorderRadius.circular(14),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        onTap: _openMyGroupChats,
-        child: Row(
-          children: [
-            Icon(Lucide.MessagesSquare, size: 18, color: cs.primary),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                l10n.groupChatMyGroupChats,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: _isDesktop ? 13.5 : 14.5,
-                  fontWeight: AppFontWeights.emphasis,
-                  color: textBase.withValues(alpha: 0.92),
-                ),
-              ),
-            ),
-            Icon(
-              Lucide.ChevronRight,
-              size: 16,
-              color: textBase.withValues(alpha: 0.45),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildBackupReminderBanner(
     BuildContext context,
     Color textBase, {
@@ -1879,8 +1844,6 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                       textBase,
                       topicsOnly: topicsOnly,
                     ),
-                    if (!widget.globalSearchMode)
-                      _buildMyGroupChatsEntry(context, textBase),
                     // 1. 搜索框 + 历史按钮（固定头部）
                     if (_isDesktop)
                       // 桌面端
@@ -3638,23 +3601,70 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
   }
 
   // Build assistants list (ungrouped + grouped by tags). When inlineMode=false (desktop tabs),
-  // apply search filter on assistant names.
+  // apply search filter on assistant and group-chat names.
+  void _openGroupChat(String groupChatId) {
+    _closeAssistantPicker();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => GroupChatPage(groupChatId: groupChatId),
+      ),
+    );
+  }
+
+  void _openGroupChatSettings(String groupChatId) {
+    _closeAssistantPicker();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => GroupChatSettingsPage(groupChatId: groupChatId),
+      ),
+    );
+  }
+
+  Future<void> _showGroupChatItemMenu(
+    GroupChat group, {
+    Offset? anchor,
+  }) async {
+    if (_isDesktop) {
+      if (anchor == null) return;
+      final l10n = AppLocalizations.of(context)!;
+      await showDesktopContextMenuAt(
+        context,
+        globalPosition: anchor,
+        items: [
+          DesktopContextMenuItem(
+            icon: Lucide.Settings,
+            label: l10n.groupChatSettingsTitle,
+            onTap: () => _openGroupChatSettings(group.id),
+          ),
+        ],
+      );
+      return;
+    }
+    _openGroupChatSettings(group.id);
+  }
+
   Widget _buildAssistantsList(BuildContext context, {bool inlineMode = false}) {
     final ap2 = context.watch<AssistantProvider>();
+    final gp = context.watch<GroupChatProvider>();
     final tp = context.watch<TagProvider>();
     final isDark2 = Theme.of(context).brightness == Brightness.dark;
     final textBase2 = isDark2 ? Colors.white : Colors.black;
+    final l10n = AppLocalizations.of(context)!;
 
     List<Assistant> assistants = ap2.assistants;
+    List<GroupChat> groupChats = gp.groups;
     // Apply search filter when:
     // - Desktop tab mode (inlineMode == false), OR
     // - Desktop assistants-only mode (left sidebar when topics are on right)
-    final shouldFilterAssistants =
+    final shouldFilterEntries =
         (!inlineMode) || (widget.desktopAssistantsOnly && _isDesktop);
-    if (shouldFilterAssistants && _query.trim().isNotEmpty) {
+    if (shouldFilterEntries && _query.trim().isNotEmpty) {
       final q = _query.toLowerCase();
       assistants = assistants
           .where((a) => (a.name).toLowerCase().contains(q))
+          .toList();
+      groupChats = groupChats
+          .where((g) => g.name.toLowerCase().contains(q))
           .toList();
     }
 
@@ -3683,6 +3693,29 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
           onEditTap: () => _openAssistantSettings(a.id),
           onLongPress: () => _showAssistantItemMenu(a),
           onSecondaryTapDown: (pos) => _showAssistantItemMenu(a, anchor: pos),
+        ),
+      );
+    }
+
+    Widget buildGroupTile(GroupChat group) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: _AssistantInlineTile(
+          avatar: GroupAvatar(
+            avatar: group.avatar,
+            name: group.name,
+            size: _isDesktop ? 28 : 32,
+          ),
+          name: group.name,
+          badgeText: l10n.groupChatDefaultName,
+          textColor: textBase2,
+          embedded: widget.embedded,
+          onTap: () => _openGroupChat(group.id),
+          onEditTap: () => _openGroupChatSettings(group.id),
+          editSemanticLabel: l10n.groupChatSettingsTitle,
+          onLongPress: () => _showGroupChatItemMenu(group),
+          onSecondaryTapDown: (pos) =>
+              _showGroupChatItemMenu(group, anchor: pos),
         ),
       );
     }
@@ -3773,6 +3806,10 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                       ),
               ),
             ],
+          if (groupChats.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            ...groupChats.map(buildGroupTile),
+          ],
         ],
       ),
     );
@@ -4682,6 +4719,8 @@ class _AssistantInlineTile extends StatefulWidget {
     required this.embedded,
     required this.onTap,
     required this.onEditTap,
+    this.badgeText,
+    this.editSemanticLabel,
     this.onLongPress,
     this.onSecondaryTapDown,
     this.selected = false,
@@ -4689,6 +4728,8 @@ class _AssistantInlineTile extends StatefulWidget {
 
   final Widget avatar;
   final String name;
+  final String? badgeText;
+  final String? editSemanticLabel;
   final Color textColor;
   final bool embedded;
   final VoidCallback onTap;
@@ -4746,15 +4787,33 @@ class _AssistantInlineTileState extends State<_AssistantInlineTile> {
             widget.avatar,
             const SizedBox(width: 16),
             Expanded(
-              child: Text(
-                widget.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: _isDesktop ? 14 : 15,
-                  fontWeight: AppFontWeights.medium,
-                  color: widget.textColor,
-                ),
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      widget.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: _isDesktop ? 14 : 15,
+                        fontWeight: AppFontWeights.medium,
+                        color: widget.textColor,
+                      ),
+                    ),
+                  ),
+                  if (widget.badgeText != null) ...[
+                    const SizedBox(width: 7),
+                    Text(
+                      widget.badgeText!,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: _isDesktop ? 11.5 : 12,
+                        fontWeight: AppFontWeights.regular,
+                        color: widget.textColor.withValues(alpha: 0.42),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
             if (!_isDesktop) ...[
@@ -4766,7 +4825,7 @@ class _AssistantInlineTileState extends State<_AssistantInlineTile> {
                 padding: const EdgeInsets.all(8),
                 minSize: 36,
                 onTap: widget.onEditTap,
-                semanticLabel: 'Edit assistant',
+                semanticLabel: widget.editSemanticLabel ?? 'Edit assistant',
               ),
             ],
           ],

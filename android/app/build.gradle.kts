@@ -53,10 +53,11 @@ android {
         }
     }
 
-    // proot must be a real on-disk executable for ProcessBuilder (not only
-    // memory-mapped for System.loadLibrary). Legacy packaging extracts jniLibs.
     packaging {
         jniLibs {
+            // Extract vendored proot binaries to nativeLibraryDir at install
+            // time (system-set exec bit + SELinux label), so the sandbox can
+            // spawn them directly instead of copying to filesDir and chmod.
             useLegacyPackaging = true
         }
     }

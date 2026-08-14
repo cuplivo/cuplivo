@@ -1758,7 +1758,13 @@ class HomeViewModel extends ChangeNotifier {
         decisionPrompt: decisionPrompt,
         fallbackThinkingBudget: settings.thinkingBudget,
       );
-      if (newTime == null) return;
+      if (newTime == null) {
+        debugPrint(
+          '[ProactiveCare] Decision returned no next time for '
+          '${assistant.id}',
+        );
+        return;
+      }
 
       final latest = assistantProvider.getById(assistant.id);
       if (latest == null || !latest.enableProactiveCare) return;
@@ -1770,6 +1776,9 @@ class HomeViewModel extends ChangeNotifier {
         latest.copyWith(proactiveCareNextMessageAt: newTime),
       );
     } catch (e) {
+      debugPrint(
+        '[ProactiveCare] Decision request failed for ${assistant.id}: $e',
+      );
       FlutterLogger.log(
         '[ProactiveCare] Decision request failed: $e',
         tag: 'HomeViewModel',
@@ -1781,9 +1790,22 @@ class HomeViewModel extends ChangeNotifier {
   /// Builds the care prompt, streams a reply, persists it, notifies the user,
   /// and re-decides the next care time.
   Future<void> handleProactiveCareTrigger(String assistantId) async {
+    debugPrint('[ProactiveCare] Trigger received for $assistantId');
     final assistantProvider = _contextProvider.read<AssistantProvider>();
     final assistant = assistantProvider.getById(assistantId);
-    if (assistant == null || !assistant.enableProactiveCare) return;
+    if (assistant == null) {
+      debugPrint(
+        '[ProactiveCare] Assistant $assistantId not found, dropping trigger',
+      );
+      return;
+    }
+    if (!assistant.enableProactiveCare) {
+      debugPrint(
+        '[ProactiveCare] Proactive care disabled for $assistantId, '
+        'dropping trigger',
+      );
+      return;
+    }
 
     final settings = _contextProvider.read<SettingsProvider>();
     final provKey =
@@ -1791,6 +1813,7 @@ class HomeViewModel extends ChangeNotifier {
     final mdlId = assistant.chatModelId ?? settings.currentModelId;
     final l10n = AppLocalizations.of(_contextProvider);
     if (provKey == null || mdlId == null) {
+      debugPrint('[ProactiveCare] No chat model configured for $assistantId');
       FlutterLogger.log(
         '[ProactiveCare] No chat model configured for $assistantId',
         tag: 'HomeViewModel',
@@ -1858,6 +1881,9 @@ class HomeViewModel extends ChangeNotifier {
       await _showProactiveCareNotification(assistant, reply);
       await _maybeUpdateProactiveCareFor(convo.id);
     } catch (e) {
+      debugPrint(
+        '[ProactiveCare] Foreground care flow failed for $assistantId: $e',
+      );
       FlutterLogger.log(
         '[ProactiveCare] Foreground care flow failed: $e',
         tag: 'HomeViewModel',
@@ -1882,6 +1908,9 @@ class HomeViewModel extends ChangeNotifier {
         body: body,
       );
     } catch (e) {
+      debugPrint(
+        '[ProactiveCare] Failed to show notification for ${assistant.id}: $e',
+      );
       FlutterLogger.log(
         '[ProactiveCare] Failed to show notification: $e',
         tag: 'HomeViewModel',

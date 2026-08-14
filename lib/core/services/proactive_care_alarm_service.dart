@@ -181,7 +181,17 @@ Future<void> _runHeadlessCareFlow(Assistant assistant, int alarmId) async {
             await ProactiveCareAlarmService.sync(
               assistant.copyWith(proactiveCareNextMessageAt: newTime),
             );
+          } else {
+            debugPrint(
+              '[ProactiveCare] Failed to persist next care time for '
+              '${assistant.id}',
+            );
           }
+        } else {
+          debugPrint(
+            '[ProactiveCare] Headless decision returned no next time for '
+            '${assistant.id}',
+          );
         }
       }
     } catch (e) {
@@ -321,12 +331,14 @@ class ProactiveCareAlarmService {
     try {
       final ok = await AndroidAlarmManager.initialize();
       if (!ok) {
+        debugPrint('[ProactiveCare] AndroidAlarmManager.initialize false');
         FlutterLogger.log(
           'AndroidAlarmManager.initialize returned false',
           tag: _logTag,
         );
       }
     } catch (e) {
+      debugPrint('[ProactiveCare] AlarmManager initialize failed: $e');
       FlutterLogger.log('AlarmManager initialize failed: $e', tag: _logTag);
     }
   }
@@ -342,6 +354,23 @@ class ProactiveCareAlarmService {
       hash = (hash * fnvPrime) & 0xFFFFFFFF;
     }
     return hash & 0x7FFFFFFF;
+  }
+
+  /// Returns the assistants whose proactive care alarm should be armed:
+  /// proactive care enabled with a future [Assistant.proactiveCareNextMessageAt].
+  @visibleForTesting
+  static List<Assistant> pendingForReschedule(
+    List<Assistant> assistants, {
+    DateTime? now,
+  }) {
+    final current = now ?? DateTime.now();
+    return <Assistant>[
+      for (final a in assistants)
+        if (a.enableProactiveCare &&
+            a.proactiveCareNextMessageAt != null &&
+            a.proactiveCareNextMessageAt!.isAfter(current))
+          a,
+    ];
   }
 
   /// Schedules or cancels the exact alarm so it matches the assistant's
@@ -367,12 +396,32 @@ class ProactiveCareAlarmService {
         rescheduleOnReboot: true,
         params: <String, dynamic>{'assistantId': assistant.id},
       );
+      if (ok) {
+        debugPrint(
+          '[ProactiveCare] Alarm scheduled for ${assistant.id} at '
+          '${at.toIso8601String()} (id=$id)',
+        );
+      } else {
+        String exactAlarmPermission = 'unknown';
+        try {
+          exactAlarmPermission = (await Permission.scheduleExactAlarm.status)
+              .toString();
+        } catch (e) {
+          exactAlarmPermission = 'check failed: $e';
+        }
+        debugPrint(
+          '[ProactiveCare] Alarm schedule FAILED for ${assistant.id} at '
+          '${at.toIso8601String()} (id=$id, '
+          'exactAlarmPermission=$exactAlarmPermission)',
+        );
+      }
       FlutterLogger.log(
         'Alarm ${ok ? 'scheduled' : 'schedule FAILED'} for assistant '
         '${assistant.id} at ${at.toIso8601String()} (id=$id)',
         tag: _logTag,
       );
     } catch (e) {
+      debugPrint('[ProactiveCare] Alarm sync failed for ${assistant.id}: $e');
       FlutterLogger.log(
         'Alarm sync failed for assistant ${assistant.id}: $e',
         tag: _logTag,
@@ -386,6 +435,7 @@ class ProactiveCareAlarmService {
     try {
       await AndroidAlarmManager.cancel(alarmIdFor(assistantId));
     } catch (e) {
+      debugPrint('[ProactiveCare] Alarm cancel failed for $assistantId: $e');
       FlutterLogger.log(
         'Alarm cancel failed for assistant $assistantId: $e',
         tag: _logTag,
@@ -398,15 +448,15 @@ class ProactiveCareAlarmService {
   /// recover alarms lost after force-stop or process death.
   static Future<void> rescheduleAll(List<Assistant> assistants) async {
     if (!_isAndroid) return;
-    for (final a in assistants) {
-      if (!a.enableProactiveCare) continue;
-      final at = a.proactiveCareNextMessageAt;
-      if (at == null || !at.isAfter(DateTime.now())) continue;
-      try {
-        await sync(a);
-      } catch (e) {
-        FlutterLogger.log('rescheduleAll failed for ${a.id}: $e', tag: _logTag);
-      }
+    final pending = pendingForReschedule(assistants);
+    debugPrint(
+      '[ProactiveCare] rescheduleAll: ${pending.length}/${assistants.length} '
+      'assistants need re-arming',
+    );
+    // sync() never throws (all failures are caught and logged inside), so no
+    // per-assistant try/catch is needed here.
+    for (final a in pending) {
+      await sync(a);
     }
   }
 
@@ -425,6 +475,7 @@ class ProactiveCareAlarmService {
       }
       exactAlarm = status.isGranted;
     } catch (e) {
+      debugPrint('[ProactiveCare] Exact alarm permission request failed: $e');
       FlutterLogger.log(
         'Exact alarm permission request failed: $e',
         tag: _logTag,

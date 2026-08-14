@@ -1,5 +1,6 @@
 import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/input_status_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/home/services/input_draft_persistence.dart';
 import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
@@ -170,6 +171,7 @@ void main() {
         providers: [
           ChangeNotifierProvider.value(value: settings),
           ChangeNotifierProvider.value(value: AssistantProvider()),
+          ChangeNotifierProvider.value(value: InputStatusProvider()),
           Provider<InputDraftPersistence>.value(
             value: InputDraftPersistence(null),
           ),
@@ -216,7 +218,9 @@ void main() {
         ),
       );
 
-      expect(find.text('Image mode'), findsOneWidget);
+      // Image mode is active (the model supports image routing), so the
+      // palette button is available.
+      expect(find.byIcon(Lucide.Palette), findsOneWidget);
 
       await tester.tap(find.byIcon(Lucide.Palette));
       await tester.pumpAndSettle();

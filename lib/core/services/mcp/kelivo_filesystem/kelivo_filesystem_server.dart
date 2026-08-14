@@ -291,10 +291,17 @@ class KelivoFilesystemMcpServerEngine {
   // =====================================================================
 
   /// Public entry for local-tools dispatch (non-MCP).
+  ///
+  /// [onDownloadProgress] and [downloadAbortToken] apply only to the
+  /// `download` tool — threaded through to `WorkspaceDownloadService` so the
+  /// live panel can render progress and the conversation stop can abort the
+  /// transfer.
   Future<Map<String, dynamic>> callTool(
     String name,
-    Map<String, dynamic> args,
-  ) async {
+    Map<String, dynamic> args, {
+    void Function(int receivedBytes, int? totalBytes)? onDownloadProgress,
+    WorkspaceDownloadAbortToken? downloadAbortToken,
+  }) async {
     try {
       switch (name) {
         case 'read':
@@ -320,7 +327,11 @@ class KelivoFilesystemMcpServerEngine {
         case 'unzip':
           return await _unzip(args);
         case 'download':
-          return await _download(args);
+          return await _download(
+            args,
+            onDownloadProgress: onDownloadProgress,
+            downloadAbortToken: downloadAbortToken,
+          );
         default:
           return _toolErr('Tool not found: $name');
       }
@@ -1187,7 +1198,11 @@ class KelivoFilesystemMcpServerEngine {
     );
   }
 
-  Future<Map<String, dynamic>> _download(Map<String, dynamic> args) async {
+  Future<Map<String, dynamic>> _download(
+    Map<String, dynamic> args, {
+    void Function(int receivedBytes, int? totalBytes)? onDownloadProgress,
+    WorkspaceDownloadAbortToken? downloadAbortToken,
+  }) async {
     final resolved = _resolve((args['path'] ?? '').toString());
     if (resolved.isRoot) {
       return _toolErr(
@@ -1223,6 +1238,8 @@ class KelivoFilesystemMcpServerEngine {
         target: target,
         cacheDir: cacheDir,
         wirePath: _display(resolved.wirePath),
+        onProgress: onDownloadProgress,
+        abortToken: downloadAbortToken,
       );
       if (_isSyncedWorkspaceMount(resolved.mount)) {
         try {
@@ -1233,6 +1250,8 @@ class KelivoFilesystemMcpServerEngine {
         'Downloaded ${result.downloadedBytes} bytes to '
         '${_display(resolved.wirePath)}',
       );
+    } on WorkspaceDownloadCancelledException {
+      return _toolErr('Download cancelled.');
     } on WorkspaceDownloadException catch (e) {
       return _toolErr(e.message);
     } catch (e) {

@@ -32,6 +32,34 @@ class WorkspaceDownloadException implements Exception {
   String toString() => message;
 }
 
+/// Cancellation signal for a workspace download. Completer-based so both the
+/// download service (which races each chunk against it) and the
+/// `DownloadProgressStore` (which aborts every download of a stopped
+/// conversation) can observe and trigger it.
+final class WorkspaceDownloadAbortToken {
+  final Completer<void> _completer = Completer<void>();
+
+  bool get isAborted => _completer.isCompleted;
+  Future<void> get whenAborted => _completer.future;
+
+  void abort() {
+    if (!_completer.isCompleted) _completer.complete();
+  }
+
+  void throwIfAborted() {
+    if (isAborted) throw const WorkspaceDownloadCancelledException();
+  }
+}
+
+final class WorkspaceDownloadCancelledException implements Exception {
+  const WorkspaceDownloadCancelledException();
+
+  @override
+  String toString() => 'Workspace download was cancelled';
+}
+
+const Object _downloadCancelledMarker = Object();
+
 /// Downloads URLs into the bound workspace as a local tool (sibling of
 /// `read`/`write`/...).
 ///
@@ -84,11 +112,20 @@ class WorkspaceDownloadService {
   /// [wirePath] is the mount-relative display path used in messages and
   /// errors. The caller is responsible for wire-path validation and the
   /// read-only check — this service only transfers bytes.
+  ///
+  /// [onProgress] fires on every received chunk with the cumulative byte
+  /// count and the server-declared total (null when unknown — chunked
+  /// transfer or a missing Content-Length). [abortToken], when provided,
+  /// force-aborts the transfer: the raw client is force-closed and a
+  /// [WorkspaceDownloadCancelledException] is thrown, leaving no partial file
+  /// installed.
   static Future<WorkspaceDownloadResult> download({
     required Uri url,
     required File target,
     required Directory cacheDir,
     required String wirePath,
+    void Function(int receivedBytes, int? totalBytes)? onProgress,
+    WorkspaceDownloadAbortToken? abortToken,
   }) async {
     final tmp = File(
       p.join(
@@ -107,6 +144,7 @@ class WorkspaceDownloadService {
     var size = 0;
     try {
       await cacheDir.create(recursive: true);
+      abortToken?.throwIfAborted();
       final resp = await _sendWithRedirectGuard(
         client,
         url,
@@ -115,6 +153,11 @@ class WorkspaceDownloadService {
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
         throw Exception('HTTP ${resp.statusCode}');
       }
+      final expectedTotal =
+          resp.contentLength != null && resp.contentLength! > 0
+          ? resp.contentLength
+          : null;
+      onProgress?.call(0, expectedTotal);
       // The IOSink buffers; its first I/O error surfaces at flush()/close().
       // A partial file must never be installed or reported as a success —
       // any write failure aborts the download.
@@ -122,11 +165,21 @@ class WorkspaceDownloadService {
       var sinkFailed = false;
       try {
         try {
-          await for (final chunk in resp.stream.timeout(downloadChunkTimeout)) {
-            sink.add(chunk);
-            size += chunk.length;
+          final iterator = StreamIterator<List<int>>(
+            resp.stream.timeout(downloadChunkTimeout),
+          );
+          try {
+            while (await _moveNextOrAbort(iterator, abortToken)) {
+              final chunk = iterator.current;
+              sink.add(chunk);
+              size += chunk.length;
+              onProgress?.call(size, expectedTotal);
+            }
+            abortToken?.throwIfAborted();
+            await sink.flush();
+          } finally {
+            await iterator.cancel();
           }
-          await sink.flush();
         } finally {
           try {
             await sink.close();
@@ -149,6 +202,15 @@ class WorkspaceDownloadService {
         wirePath: wirePath,
         downloadedBytes: size,
       );
+    } on WorkspaceDownloadCancelledException {
+      try {
+        if (await tmp.exists()) {
+          await tmp.delete();
+        }
+      } catch (cleanupErr) {
+        debugPrint('[workspace/download] failed to clean up $tmp: $cleanupErr');
+      }
+      rethrow;
     } catch (e) {
       try {
         if (await tmp.exists()) {
@@ -167,6 +229,25 @@ class WorkspaceDownloadService {
       await _evictCache(cacheDir, justWritten: tmp);
       rawClient.close(force: true);
     }
+  }
+
+  /// Advances the download stream by one chunk, racing against [abortToken].
+  /// Returns false when the stream is exhausted; throws
+  /// [WorkspaceDownloadCancelledException] when the token fires first.
+  static Future<bool> _moveNextOrAbort(
+    StreamIterator<List<int>> iterator,
+    WorkspaceDownloadAbortToken? abortToken,
+  ) async {
+    abortToken?.throwIfAborted();
+    if (abortToken == null) return iterator.moveNext();
+    final result = await Future.any<Object>([
+      iterator.moveNext(),
+      abortToken.whenAborted.then<Object>((_) => _downloadCancelledMarker),
+    ]);
+    if (identical(result, _downloadCancelledMarker)) {
+      throw const WorkspaceDownloadCancelledException();
+    }
+    return result as bool;
   }
 
   /// Sends the download request, following redirects manually so each hop is

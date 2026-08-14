@@ -1,5 +1,35 @@
 # Changelog
 
+## [3.0.0] - 2026-08-13
+
+> ⚠️ Major release — features may be unstable. Replacing built-in MCP with local tools is a breaking change: historical task context may be polluted, but newly-created conversations are unaffected.
+
+### Added
+
+- Linux sandbox support: **Android** can select a distribution in-app, **iOS** runs the sandbox via iSH; users who complete the setup **can execute command-line tools** (#301)
+- Built-in multi-workspace: on all platforms, simple file read/write without downloading a Linux kernel; the built-in workspace does not support command-line execution (#301)
+- Speech recognition (ASR): ported from upstream, selectable ASR services with per-assistant configuration (#330)
+- Text-to-speech (TTS) expansion: synced upstream TTS providers Qwen Audio / StepFun / Fish Audio (#332, #337)
+- Skills built-in tools: the assistant can now call tools to import and create Skills (#319)
+- Skills panel revamp: improved UI mimicking the MCP style; removed the "+" button in the bottom-right of the management interface to avoid blocking (#313, #344)
+- Math formula export: **block-level formulas** can be copied as LaTeX / copied as PNG / downloaded as PNG (#345)
+- Batch export conversations: export multiple conversations to Markdown in one go (#276, #305)
+- Live panel expansion: the live panel now shows download progress and unifies the image-generation mode and ignore-image-warning design style (#347)
+
+### Changed
+
+- Windows rounded app icon (#327)
+- Rebranding completed: remaining Kelivo user-visible/outbound identity replaced with Cuplivo; removed the Discord link and the KelivoIN built-in provider (#286)
+- Refactored conversation generation: general chat, multi-assistant group chat, multi-AI comparison, and subagents now flow through a single engine, eliminating incomplete duplicate implementations (#287)
+
+### Removed
+
+- Retired the built-in fetch, filesystem, and subagent MCP servers: replaced by the workspace local tools above (#301)
+
+### Fixed
+
+- Switching conversations mid-chat no longer resets the thinking card's timer to zero and auto-collapses it (#287)
+
 ## [2.7.1] - 2026-08-11
 
 > ℹ️ If you've been experiencing crashes on Windows, please upgrade: this release fully fixes the crash that occurred after maximizing the window, closing dialogs, or navigating between pages, introduced in v2.2.0.

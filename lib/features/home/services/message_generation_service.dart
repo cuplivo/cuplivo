@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:provider/provider.dart';
 import 'package:flutter/widgets.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_input_data.dart';
@@ -216,6 +217,7 @@ class MessageGenerationService {
     if (planConversationId != null &&
         generationController.isToolModel(providerKey, modelId)) {
       try {
+        // ignore: use_build_context_synchronously (root context, valid for app lifetime)
         final planStore = contextProvider.read<PlanModeProvider>();
         await planStore.initialize();
         final candidate = planStore.planFor(planConversationId);
@@ -262,6 +264,7 @@ class MessageGenerationService {
     if (activePlan != null && planConversationId != null) {
       toolDefs.addAll(PlanModeToolsService.definitionsFor(activePlan));
       onToolCall = PlanModeToolsService.wrapHandler(
+        // ignore: use_build_context_synchronously (root context, valid for app lifetime)
         context: contextProvider,
         conversationId: planConversationId,
         fallback: onToolCall,

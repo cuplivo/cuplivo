@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -7,6 +9,7 @@ import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/asr_provider.dart';
 import '../../../core/providers/mcp_provider.dart';
+import '../../../core/providers/plan_mode_provider.dart';
 import '../../../core/providers/quick_phrase_provider.dart';
 import '../../../core/providers/instruction_injection_provider.dart';
 import '../../../core/providers/world_book_provider.dart';
@@ -129,8 +132,17 @@ class ChatInputSection extends StatelessWidget {
     final pk = modelIds.providerKey;
     final mid = modelIds.modelId;
 
-    // Enforce model capabilities: disable MCP selection if model doesn't support tools
+    // Enforce model capabilities: disable MCP/Plan when the model cannot use tools.
     _enforceModelCapabilities(context, settings, ap, a, pk, mid);
+    final modelResolved = pk != null && mid != null;
+    final supportsPlanMode = modelResolved && isToolModel(pk, mid);
+    final planStore = context.watch<PlanModeProvider>();
+    final planActive = planStore.isActive(conversationId);
+    if (modelResolved && !supportsPlanMode && planActive && conversationId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(planStore.setActive(conversationId!, false));
+      });
+    }
 
     final isDesktop = _isDesktopPlatform(context);
     final hasWorldBooks =
@@ -225,6 +237,11 @@ class ChatInputSection extends StatelessWidget {
       inputBackgroundOpacityDark: settings.chatInputBackgroundOpacityDark,
       multiAIModelCount: multiAIModelCount,
       onMultiSelectModel: onMultiSelectModel,
+      supportsPlanMode: supportsPlanMode,
+      planModeActive: planActive && supportsPlanMode,
+      onPlanModeChanged: conversationId == null
+          ? null
+          : (active) => unawaited(planStore.setActive(conversationId!, active)),
     );
   }
 

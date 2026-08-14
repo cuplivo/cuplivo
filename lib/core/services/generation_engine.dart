@@ -52,6 +52,7 @@ typedef EngineChatStreamProvider =
       ToolCallHandler? onToolCall,
       Map<String, String>? extraHeaders,
       Map<String, dynamic>? extraBody,
+      String? forcedFirstToolName,
       required bool stream,
       String? requestId,
       required bool allowImagesApiRouting,
@@ -83,6 +84,7 @@ class GenerationSlotRequest {
     this.ocrActive = false,
     this.extraHeaders,
     this.extraBody,
+    this.forcedFirstToolName,
     this.supportsReasoning = true,
     this.autoCollapseThinking = true,
     this.partialImageNotice,
@@ -113,6 +115,7 @@ class GenerationSlotRequest {
   final bool ocrActive;
   final Map<String, String>? extraHeaders;
   final Map<String, dynamic>? extraBody;
+  final String? forcedFirstToolName;
   final bool supportsReasoning;
   final bool autoCollapseThinking;
 
@@ -374,6 +377,7 @@ class GenerationEngine extends ChangeNotifier {
     ToolCallHandler? onToolCall,
     Map<String, String>? extraHeaders,
     Map<String, dynamic>? extraBody,
+    String? forcedFirstToolName,
     bool stream = true,
     String? requestId,
     bool allowImagesApiRouting = true,
@@ -393,6 +397,7 @@ class GenerationEngine extends ChangeNotifier {
       onToolCall: onToolCall,
       extraHeaders: extraHeaders,
       extraBody: extraBody,
+      forcedFirstToolName: forcedFirstToolName,
       stream: stream,
       requestId: requestId,
       allowImagesApiRouting: allowImagesApiRouting,
@@ -706,6 +711,7 @@ class GenerationEngine extends ChangeNotifier {
         onToolCall: req.onToolCall,
         extraHeaders: req.extraHeaders,
         extraBody: req.extraBody,
+        forcedFirstToolName: req.forcedFirstToolName,
         stream: req.stream,
         requestId: slot.assistantMessageId,
         allowImagesApiRouting: req.allowImagesApiRouting,

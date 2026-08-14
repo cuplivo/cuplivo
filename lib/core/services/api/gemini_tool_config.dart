@@ -38,9 +38,20 @@ bool hasBuiltInAndFunctionDeclarations(List<Map<String, dynamic>> tools) {
 Map<String, dynamic>? buildGeminiToolConfig({
   required List<Map<String, dynamic>> tools,
   required bool isGemini3,
+  String? forcedFunctionName,
 }) {
   final hasFuncDecls = shouldAttachGeminiFunctionCallingConfig(tools);
   if (!hasFuncDecls) return null;
+
+  final forced = forcedFunctionName?.trim();
+  if (forced != null && forced.isNotEmpty) {
+    return {
+      'function_calling_config': {
+        'mode': 'ANY',
+        'allowed_function_names': [forced],
+      },
+    };
+  }
 
   if (isGemini3 && hasBuiltInAndFunctionDeclarations(tools)) {
     return {

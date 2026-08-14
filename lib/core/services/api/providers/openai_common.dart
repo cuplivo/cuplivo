@@ -1247,6 +1247,7 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
   ToolCallHandler? onToolCall,
   Map<String, String>? extraHeaders,
   Map<String, dynamic>? extraBody,
+  String? forcedFirstToolName,
   bool stream = true,
 }) async* {
   await CodexDeviceCodeController.ensureFreshOrThrow(config);
@@ -1754,6 +1755,17 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
     extraBody.forEach((k, v) {
       body[k] = (v is String) ? _parseOverrideValue(v) : v;
     });
+  }
+  if (forcedFirstToolName != null &&
+      forcedFirstToolName.trim().isNotEmpty &&
+      tools != null &&
+      tools.isNotEmpty) {
+    body['tool_choice'] = config.useResponseApi == true
+        ? {'type': 'function', 'name': forcedFirstToolName.trim()}
+        : {
+            'type': 'function',
+            'function': {'name': forcedFirstToolName.trim()},
+          };
   }
   _sanitizeOpenAIGpt5SamplingParams(
     body,

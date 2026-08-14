@@ -4,7 +4,9 @@ import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/conversation.dart';
+import '../../../core/models/plan_mode.dart';
 import '../../../core/providers/settings_provider.dart';
+import '../../../core/providers/plan_mode_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/model_override_payload_parser.dart';
@@ -17,6 +19,7 @@ import '../controllers/stream_controller.dart' as stream_ctrl;
 import '../controllers/generation_controller.dart';
 import 'ask_user_interaction_service.dart';
 import 'message_builder_service.dart';
+import 'plan_mode_tools_service.dart';
 import 'tool_approval_service.dart';
 
 /// Callback types for UI updates from MessageGenerationService
@@ -55,6 +58,7 @@ class PreparedGeneration {
   final ToolCallHandler? onToolCall;
   final bool hasBuiltInSearch;
   final List<String> lastUserImagePaths;
+  final String? forcedFirstToolName;
 
   PreparedGeneration({
     required this.apiMessages,
@@ -62,6 +66,7 @@ class PreparedGeneration {
     this.onToolCall,
     required this.hasBuiltInSearch,
     required this.lastUserImagePaths,
+    this.forcedFirstToolName,
   });
 }
 
@@ -203,11 +208,40 @@ class MessageGenerationService {
     // Inject time note (at the end of system message, after all other injections)
     messageBuilderService.injectTimeNote(apiMessages, assistant);
 
+    // Inject conversation-scoped Plan Mode instructions. The mode is
+    // intentionally not stored in assistant settings: it belongs to the
+    // conversation and disappears when the user closes the Plan pill.
+    ConversationPlan? activePlan;
+    final planConversationId = currentConversation?.id;
+    if (planConversationId != null &&
+        generationController.isToolModel(providerKey, modelId)) {
+      try {
+        final planStore = contextProvider.read<PlanModeProvider>();
+        await planStore.initialize();
+        final candidate = planStore.planFor(planConversationId);
+        if (candidate?.active == true) {
+          activePlan = candidate;
+          final planPrompt = PlanModeToolsService.instructionFor(candidate!);
+          final systemIndex = apiMessages.indexWhere(
+            (message) => (message['role'] ?? '').toString() == 'system',
+          );
+          if (systemIndex >= 0) {
+            final existing = (apiMessages[systemIndex]['content'] ?? '').toString();
+            apiMessages[systemIndex]['content'] = existing.trim().isEmpty
+                ? planPrompt
+                : '$existing\n\n$planPrompt';
+          } else {
+            apiMessages.insert(0, {'role': 'system', 'content': planPrompt});
+          }
+        }
+      } catch (_) {}
+    }
+
     // Apply context limit and inline images
     messageBuilderService.applyContextLimit(apiMessages, assistant);
     await messageBuilderService.inlineLocalImages(apiMessages);
 
-    // Prepare tools
+    // Prepare normal tools, then layer Plan Mode's hidden built-ins on top.
     final toolDefs = generationController.buildToolDefinitions(
       settings,
       assistant,
@@ -215,7 +249,7 @@ class MessageGenerationService {
       modelId,
       hasBuiltInSearch,
     );
-    final onToolCall = toolDefs.isNotEmpty
+    ToolCallHandler? onToolCall = toolDefs.isNotEmpty
         ? generationController.buildToolCallHandler(
             settings,
             assistant,
@@ -224,6 +258,18 @@ class MessageGenerationService {
             conversationId: currentConversation?.id,
           )
         : null;
+    String? forcedFirstToolName;
+    if (activePlan != null && planConversationId != null) {
+      toolDefs.addAll(PlanModeToolsService.definitionsFor(activePlan));
+      onToolCall = PlanModeToolsService.wrapHandler(
+        context: contextProvider,
+        conversationId: planConversationId,
+        fallback: onToolCall,
+      );
+      if (activePlan.needsInitialPlan) {
+        forcedFirstToolName = PlanToolNames.create;
+      }
+    }
 
     return PreparedGeneration(
       apiMessages: apiMessages,
@@ -231,6 +277,7 @@ class MessageGenerationService {
       onToolCall: onToolCall,
       hasBuiltInSearch: hasBuiltInSearch,
       lastUserImagePaths: lastUserImagePaths,
+      forcedFirstToolName: forcedFirstToolName,
     );
   }
 
@@ -397,6 +444,7 @@ class MessageGenerationService {
       streamOutput: assistant?.streamOutput ?? true,
       ocrActive: ocrActive,
       generateTitleOnFinish: generateTitleOnFinish,
+      forcedFirstToolName: prepared.forcedFirstToolName,
     );
   }
 

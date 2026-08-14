@@ -192,6 +192,7 @@ void main() {
       ToolCallHandler? onToolCall,
       Map<String, String>? extraHeaders,
       Map<String, dynamic>? extraBody,
+      String? forcedFirstToolName,
       bool stream = true,
       String? requestId,
       bool allowImagesApiRouting = true,

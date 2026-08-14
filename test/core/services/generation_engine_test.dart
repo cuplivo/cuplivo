@@ -209,6 +209,7 @@ void main() {
             onToolCall,
             extraHeaders,
             extraBody,
+            String? forcedFirstToolName,
             required stream,
             requestId,
             required allowImagesApiRouting,

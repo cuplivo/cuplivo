@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/providers/download_progress_store.dart';
+import '../../../core/models/plan_mode.dart';
 import '../../../core/providers/input_status_provider.dart';
+import '../../../core/providers/plan_mode_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/generation_engine.dart';
 import '../../../icons/lucide_adapter.dart';
@@ -37,6 +39,7 @@ class _LivePanelState extends State<LivePanel> {
   Timer? _ticker;
   final _expandedJobIds = <String>{};
   final _expandedDownloadIds = <String>{};
+  bool _planExpanded = true;
 
   @override
   void initState() {
@@ -131,8 +134,13 @@ class _LivePanelState extends State<LivePanel> {
     final jobs = _activeJobs();
     final downloads = _activeDownloads();
     final inputStatus = context.watch<InputStatusProvider>();
+    final chatService = context.watch<ChatService>();
+    final conversationId = chatService.currentConversationId;
+    final planStore = context.watch<PlanModeProvider>();
+    final plan = planStore.planFor(conversationId);
+    final hasPlan = plan?.active == true;
     final hasPills =
-        inputStatus.imageModeActive || inputStatus.imageWarningActive;
+        inputStatus.imageModeActive || inputStatus.imageWarningActive || hasPlan;
     if (jobs.isEmpty && downloads.isEmpty && !hasPills) {
       return const SizedBox.shrink();
     }
@@ -147,6 +155,27 @@ class _LivePanelState extends State<LivePanel> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (hasPlan && plan != null && conversationId != null) ...[
+            if (plan.hasPlan)
+              _buildPlanCard(
+                plan: plan,
+                conversationId: conversationId,
+                store: planStore,
+                base: base,
+                cs: cs,
+                l10n: l10n,
+              )
+            else
+              _buildPlanModePill(
+                label: l10n.planModeLabel,
+                closeTooltip: l10n.planModeDisableTooltip,
+                onClose: () => unawaited(
+                  planStore.setActive(conversationId, false),
+                ),
+                cs: cs,
+              ),
+            const SizedBox(height: 6),
+          ],
           if (inputStatus.imageModeActive) ...[
             _buildPill(
               icon: Lucide.Brush,
@@ -181,6 +210,245 @@ class _LivePanelState extends State<LivePanel> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildPlanModePill({
+    required String label,
+    required String closeTooltip,
+    required VoidCallback onClose,
+    required ColorScheme cs,
+  }) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.primary.withValues(alpha: 0.11),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: cs.primary.withValues(alpha: 0.22)),
+        ),
+        padding: const EdgeInsets.fromLTRB(10, 6, 4, 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Lucide.ListChecks, size: 14, color: cs.primary),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: cs.primary,
+              ),
+            ),
+            const SizedBox(width: 3),
+            IosIconButton(
+              icon: Icons.close,
+              size: 14,
+              color: cs.primary,
+              semanticLabel: closeTooltip,
+              onTap: onClose,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlanCard({
+    required ConversationPlan plan,
+    required String conversationId,
+    required PlanModeProvider store,
+    required Color base,
+    required ColorScheme cs,
+    required AppLocalizations l10n,
+  }) {
+    final awaiting = plan.phase == PlanPhase.awaitingApproval;
+    final showBody = awaiting || _planExpanded;
+    final completed = plan.items
+        .where((item) => item.status == PlanItemStatus.completed)
+        .length;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: base,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cs.primary.withValues(alpha: 0.16)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IosCardPress(
+            borderRadius: BorderRadius.circular(14),
+            baseColor: Colors.transparent,
+            pressedScale: 0.995,
+            onTap: awaiting
+                ? null
+                : () => setState(() => _planExpanded = !_planExpanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              child: Row(
+                children: [
+                  Icon(Lucide.ListChecks, size: 15, color: cs.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          plan.title.trim().isEmpty
+                              ? l10n.planModeLabel
+                              : plan.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: cs.onSurface,
+                          ),
+                        ),
+                        Text(
+                          awaiting
+                              ? l10n.planModeAwaitingApproval
+                              : '$completed/${plan.items.length}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!awaiting)
+                    Icon(
+                      showBody ? Lucide.ChevronUp : Lucide.ChevronDown,
+                      size: 16,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  const SizedBox(width: 4),
+                  IosIconButton(
+                    icon: Icons.close,
+                    size: 16,
+                    color: cs.onSurfaceVariant,
+                    semanticLabel: l10n.planModeDisableTooltip,
+                    onTap: () => unawaited(
+                      store.setActive(conversationId, false),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (showBody) ...[
+            Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.45)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Column(
+                children: [
+                  for (var i = 0; i < plan.items.length; i++) ...[
+                    _buildPlanItem(plan.items[i], cs, l10n),
+                    if (i != plan.items.length - 1) const SizedBox(height: 9),
+                  ],
+                  if (awaiting && store.hasPendingApproval(conversationId)) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => unawaited(store.reject(conversationId)),
+                          child: Text(l10n.planModeReject),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          onPressed: () => unawaited(store.approve(conversationId)),
+                          child: Text(l10n.planModeApprove),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlanItem(
+    PlanItem item,
+    ColorScheme cs,
+    AppLocalizations l10n,
+  ) {
+    final (icon, color, statusLabel) = switch (item.status) {
+      PlanItemStatus.pending => (
+          Icons.circle_outlined,
+          cs.onSurfaceVariant,
+          l10n.planModeStatusPending,
+        ),
+      PlanItemStatus.inProgress => (
+          Lucide.Loader,
+          cs.primary,
+          l10n.planModeStatusInProgress,
+        ),
+      PlanItemStatus.completed => (
+          Lucide.CheckCircle,
+          cs.primary,
+          l10n.planModeStatusCompleted,
+        ),
+      PlanItemStatus.error => (
+          Lucide.TriangleAlert,
+          cs.error,
+          l10n.planModeStatusError,
+        ),
+    };
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(icon, size: 15, color: color),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.title,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    statusLabel,
+                    style: TextStyle(fontSize: 10, color: color),
+                  ),
+                ],
+              ),
+              if (item.description.trim().isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  item.description,
+                  style: TextStyle(
+                    fontSize: 11,
+                    height: 1.35,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 

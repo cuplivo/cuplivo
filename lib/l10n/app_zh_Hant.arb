@@ -3137,5 +3137,15 @@
   "workspaceToolUnzipUserDesc": "解壓 zip 壓縮檔",
   "workspaceToolDownloadTitle": "下載",
   "workspaceToolDownloadUserDesc": "將 URL 下載到工作區",
-  "assistantEditLocalToolWorkspaceTitle": "工作區"
+  "assistantEditLocalToolWorkspaceTitle": "工作區",
+  "planModeLabel": "Plan",
+  "planModeCommandDescription": "規劃並逐步執行複雜任務",
+  "planModeDisableTooltip": "退出 Plan 模式",
+  "planModeAwaitingApproval": "請確認計劃後再執行",
+  "planModeApprove": "批准並執行",
+  "planModeReject": "拒絕",
+  "planModeStatusPending": "待完成",
+  "planModeStatusInProgress": "正在執行",
+  "planModeStatusCompleted": "已完成",
+  "planModeStatusError": "出錯"
 }

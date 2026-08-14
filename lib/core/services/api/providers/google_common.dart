@@ -301,6 +301,7 @@ Stream<ChatStreamChunk> _sendGoogleStream(
   ToolCallHandler? onToolCall,
   Map<String, String>? extraHeaders,
   Map<String, dynamic>? extraBody,
+  String? forcedFirstToolName,
   bool stream = true,
 }) async* {
   // Check for Vertex AI Claude models (prefix "claude-")
@@ -321,6 +322,7 @@ Stream<ChatStreamChunk> _sendGoogleStream(
       onToolCall: onToolCall,
       extraHeaders: extraHeaders,
       extraBody: extraBody,
+      forcedFirstToolName: forcedFirstToolName,
       stream: stream,
     );
     return;
@@ -334,6 +336,8 @@ Stream<ChatStreamChunk> _sendGoogleStream(
   // Effective model features (includes user overrides)
   final effective = _effectiveModelInfo(config, modelId);
   final isReasoning = _shouldRequestGoogleThoughts(config, modelId, effective);
+  var pendingForcedToolName = forcedFirstToolName?.trim();
+  if (pendingForcedToolName?.isEmpty == true) pendingForcedToolName = null;
   // Non-streaming path: use generateContent
   if (!stream) {
     final isVertex = config.vertexAI == true;
@@ -560,6 +564,11 @@ Stream<ChatStreamChunk> _sendGoogleStream(
     final geminiToolConfig = buildGeminiToolConfig(
       tools: toolsArr,
       isGemini3: isGemini3 && !isVertex,
+      forcedFunctionName: pendingForcedToolName,
+    );
+    final automaticGeminiToolConfig = buildGeminiToolConfig(
+      tools: toolsArr,
+      isGemini3: isGemini3 && !isVertex,
     );
 
     final thinkingConfig = isReasoning
@@ -597,6 +606,9 @@ Stream<ChatStreamChunk> _sendGoogleStream(
         baseBody[k] = (v is String) ? _parseOverrideValue(v) : v;
       });
     }
+    if (pendingForcedToolName != null && geminiToolConfig != null) {
+      baseBody['toolConfig'] = geminiToolConfig;
+    }
 
     // Sum of usage across completed request rounds (consumed semantics).
     TokenUsage? consumedUsage;
@@ -611,6 +623,14 @@ Stream<ChatStreamChunk> _sendGoogleStream(
       body['contents'] = _googleApiContents(currentContents);
       req.body = jsonEncode(body);
       final resp = await client.send(req);
+      if (pendingForcedToolName != null) {
+        pendingForcedToolName = null;
+        if (automaticGeminiToolConfig != null) {
+          baseBody['toolConfig'] = automaticGeminiToolConfig;
+        } else {
+          baseBody.remove('toolConfig');
+        }
+      }
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
         final errorBody = await resp.stream.bytesToString();
         throw HttpException('HTTP ${resp.statusCode}: $errorBody');
@@ -1008,7 +1028,7 @@ Stream<ChatStreamChunk> _sendGoogleStream(
     allowCoexistence: isGemini3,
     geminiTools: geminiTools,
   );
-  final geminiToolConfig = buildGeminiToolConfig(
+  final automaticGeminiToolConfig = buildGeminiToolConfig(
     tools: toolsArr,
     isGemini3: isGemini3 && !isVertex,
   );
@@ -1070,6 +1090,13 @@ Stream<ChatStreamChunk> _sendGoogleStream(
           return {'thinkingConfig': thinkingConfig};
         }(),
     };
+    final roundGeminiToolConfig = pendingForcedToolName != null
+        ? buildGeminiToolConfig(
+            tools: toolsArr,
+            isGemini3: isGemini3 && !isVertex,
+            forcedFunctionName: pendingForcedToolName,
+          )
+        : automaticGeminiToolConfig;
     final body = <String, dynamic>{
       'contents': convo,
       if (systemPrompt.isNotEmpty)
@@ -1080,7 +1107,8 @@ Stream<ChatStreamChunk> _sendGoogleStream(
         },
       if (gen.isNotEmpty) 'generationConfig': gen,
       if (toolsArr.isNotEmpty) 'tools': toolsArr,
-      if (geminiToolConfig != null) 'toolConfig': geminiToolConfig,
+      if (roundGeminiToolConfig != null)
+        'toolConfig': roundGeminiToolConfig,
     };
 
     final request = http.Request('POST', uri);
@@ -1115,10 +1143,14 @@ Stream<ChatStreamChunk> _sendGoogleStream(
         body[k] = (v is String) ? _parseOverrideValue(v) : v;
       });
     }
+    if (pendingForcedToolName != null && roundGeminiToolConfig != null) {
+      body['toolConfig'] = roundGeminiToolConfig;
+    }
     body['contents'] = _googleApiContents(convo);
     request.body = jsonEncode(body);
 
     final resp = await client.send(request);
+    pendingForcedToolName = null;
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       final errorBody = await resp.stream.bytesToString();
       throw HttpException('HTTP ${resp.statusCode}: $errorBody');

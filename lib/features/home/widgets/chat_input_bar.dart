@@ -126,6 +126,9 @@ class ChatInputBar extends StatefulWidget {
     this.multiAIModelCount,
     this.onMultiSelectModel,
     this.mode = ChatInputMode.normal,
+    this.supportsPlanMode = false,
+    this.planModeActive = false,
+    this.onPlanModeChanged,
   });
 
   /// When [ChatInputMode.groupChat], hide model/search/reasoning/MCP/multi-AI.
@@ -182,6 +185,9 @@ class ChatInputBar extends StatefulWidget {
   final bool backgroundImageActive;
   final double inputBackgroundOpacityLight;
   final double inputBackgroundOpacityDark;
+  final bool supportsPlanMode;
+  final bool planModeActive;
+  final ValueChanged<bool>? onPlanModeChanged;
 
   @override
   State<ChatInputBar> createState() => _ChatInputBarState();
@@ -224,6 +230,7 @@ class _ChatInputBarState extends State<ChatInputBar>
   bool _oneClickCompressing = false;
   bool _oneClickCompressDone = false;
   bool _oneClickConfirming = false;
+  bool _showPlanCommand = false;
   Timer? _confirmTimer;
   String? _lastImageDefaultsSignature;
   final _imageGenController = ImageGenerationOptionsController();
@@ -421,14 +428,28 @@ class _ChatInputBarState extends State<ChatInputBar>
   bool get _hasDraftMedia => _images.isNotEmpty || _docs.isNotEmpty;
 
   // Instance method for onChanged to avoid recreating the callback on every build
-  void _onTextChanged(String _) {
+  void _onTextChanged(String value) {
     // User typing = a NEW input: the restored queued input's "must not route"
     // flag no longer applies to unrelated later sends.
     _inputStatus.clearRestoredUnsupportedImagesApiRouting(
       widget.conversationId,
     );
-    setState(() {});
+    final showPlanCommand =
+        widget.mode == ChatInputMode.normal &&
+        widget.supportsPlanMode &&
+        !widget.planModeActive &&
+        value == '/';
+    setState(() => _showPlanCommand = showPlanCommand);
     _scheduleDraftSave();
+  }
+
+  void _activatePlanMode() {
+    if (!widget.supportsPlanMode || widget.onPlanModeChanged == null) return;
+    _controller.clear();
+    setState(() => _showPlanCommand = false);
+    widget.onPlanModeChanged!(true);
+    _scheduleDraftSave();
+    widget.focusNode?.requestFocus();
   }
 
   /// Restores the cold-start draft into the input bar. Runs synchronously in
@@ -894,6 +915,10 @@ class _ChatInputBarState extends State<ChatInputBar>
       }
       widget.asrProvider?.addListener(_handleAsrChanged);
     }
+    if ((!widget.supportsPlanMode || widget.planModeActive) &&
+        _showPlanCommand) {
+      _showPlanCommand = false;
+    }
   }
 
   String _hint(BuildContext context) {
@@ -1207,6 +1232,10 @@ class _ChatInputBarState extends State<ChatInputBar>
   }
 
   Future<void> _handleSend() async {
+    if (_showPlanCommand) {
+      _activatePlanMode();
+      return;
+    }
     if (_isSubmitting) return;
     if (_oneClickCompressing) return;
     if (_ownsVoiceSession || _finishingVoice) return;
@@ -2881,6 +2910,16 @@ class _ChatInputBarState extends State<ChatInputBar>
               ),
               const SizedBox(height: AppSpacing.xs),
             ],
+            if (_showPlanCommand) ...[
+              _PlanSlashCommandPopup(
+                onTap: _activatePlanMode,
+                label: AppLocalizations.of(context)!.planModeLabel,
+                description: AppLocalizations.of(
+                  context,
+                )!.planModeCommandDescription,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+            ],
             Stack(
               clipBehavior: Clip.none,
               children: [
@@ -3211,6 +3250,79 @@ class _ChatInputBarState extends State<ChatInputBar>
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlanSlashCommandPopup extends StatelessWidget {
+  const _PlanSlashCommandPopup({
+    required this.onTap,
+    required this.label,
+    required this.description,
+  });
+
+  final VoidCallback onTap;
+  final String label;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 300),
+        child: IosCardPress(
+          borderRadius: BorderRadius.circular(14),
+          baseColor: cs.surface,
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: cs.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(Lucide.ListChecks, size: 17, color: cs.primary),
+                ),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

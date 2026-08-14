@@ -46,6 +46,7 @@ import '../../../shared/widgets/emoji_text.dart';
 import '../../home/services/ask_user_interaction_service.dart';
 import '../../home/services/local_tools_service.dart';
 import '../../home/services/tool_approval_service.dart';
+import '../../home/services/plan_mode_tools_service.dart';
 import '../utils/thinking_tag_parser.dart';
 import 'citation_sources_sheet.dart';
 import 'chat_suggestion_bubbles.dart';
@@ -2153,7 +2154,11 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     List<int>? overrideToolCounts,
   }) {
     final visibleTools = (widget.toolParts ?? const <ToolUIPart>[])
-        .where((p) => p.toolName != 'builtin_search')
+        .where(
+          (p) =>
+              p.toolName != 'builtin_search' &&
+              !PlanModeToolsService.handles(p.toolName),
+        )
         .toList();
     final steps = _buildTimelineSteps(
       visibleTools,
@@ -2225,7 +2230,11 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     final splitOffsets = widget.contentSplitOffsets!;
     final toolCounts = widget.toolCountAtSplit ?? const <int>[];
     final visibleTools = (widget.toolParts ?? const <ToolUIPart>[])
-        .where((p) => p.toolName != 'builtin_search')
+        .where(
+          (p) =>
+              p.toolName != 'builtin_search' &&
+              !PlanModeToolsService.handles(p.toolName),
+        )
         .toList();
 
     final rawSegments = <String>[];

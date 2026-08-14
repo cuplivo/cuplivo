@@ -607,6 +607,7 @@ class GenerationContext {
     required this.streamOutput,
     this.ocrActive = false,
     this.generateTitleOnFinish = true,
+    this.forcedFirstToolName,
   });
 
   final ChatMessage assistantMessage;
@@ -627,4 +628,5 @@ class GenerationContext {
   final bool streamOutput;
   final bool ocrActive;
   final bool generateTitleOnFinish;
+  final String? forcedFirstToolName;
 }

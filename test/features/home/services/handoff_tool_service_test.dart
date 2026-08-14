@@ -322,6 +322,7 @@ void main() {
               maxTokens,
               extraHeaders,
               extraBody,
+              String? forcedFirstToolName,
               required stream,
               String? requestId,
               required allowImagesApiRouting,

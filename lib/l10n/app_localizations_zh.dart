@@ -7917,6 +7917,36 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get assistantEditLocalToolWorkspaceTitle => '工作区';
+
+  @override
+  String get planModeLabel => 'Plan';
+
+  @override
+  String get planModeCommandDescription => '规划并逐步执行复杂任务';
+
+  @override
+  String get planModeDisableTooltip => '退出 Plan 模式';
+
+  @override
+  String get planModeAwaitingApproval => '请确认计划后再执行';
+
+  @override
+  String get planModeApprove => '批准并执行';
+
+  @override
+  String get planModeReject => '拒绝';
+
+  @override
+  String get planModeStatusPending => '待完成';
+
+  @override
+  String get planModeStatusInProgress => '正在执行';
+
+  @override
+  String get planModeStatusCompleted => '已完成';
+
+  @override
+  String get planModeStatusError => '出错';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -15832,6 +15862,36 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assistantEditLocalToolWorkspaceTitle => '工作区';
+
+  @override
+  String get planModeLabel => 'Plan';
+
+  @override
+  String get planModeCommandDescription => '规划并逐步执行复杂任务';
+
+  @override
+  String get planModeDisableTooltip => '退出 Plan 模式';
+
+  @override
+  String get planModeAwaitingApproval => '请确认计划后再执行';
+
+  @override
+  String get planModeApprove => '批准并执行';
+
+  @override
+  String get planModeReject => '拒绝';
+
+  @override
+  String get planModeStatusPending => '待完成';
+
+  @override
+  String get planModeStatusInProgress => '正在执行';
+
+  @override
+  String get planModeStatusCompleted => '已完成';
+
+  @override
+  String get planModeStatusError => '出错';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -23747,4 +23807,34 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantEditLocalToolWorkspaceTitle => '工作區';
+
+  @override
+  String get planModeLabel => 'Plan';
+
+  @override
+  String get planModeCommandDescription => '規劃並逐步執行複雜任務';
+
+  @override
+  String get planModeDisableTooltip => '退出 Plan 模式';
+
+  @override
+  String get planModeAwaitingApproval => '請確認計劃後再執行';
+
+  @override
+  String get planModeApprove => '批准並執行';
+
+  @override
+  String get planModeReject => '拒絕';
+
+  @override
+  String get planModeStatusPending => '待完成';
+
+  @override
+  String get planModeStatusInProgress => '正在執行';
+
+  @override
+  String get planModeStatusCompleted => '已完成';
+
+  @override
+  String get planModeStatusError => '出錯';
 }

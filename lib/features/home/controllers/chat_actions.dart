@@ -16,6 +16,7 @@ import '../../../shared/widgets/snackbar.dart';
 import '../services/ask_user_interaction_service.dart';
 import '../services/message_generation_service.dart';
 import '../services/tool_approval_service.dart';
+import '../../../core/providers/plan_mode_provider.dart';
 import 'chat_controller.dart';
 import 'generation_controller.dart';
 import 'home_view_model.dart';
@@ -896,6 +897,11 @@ class ChatActions {
       } catch (_) {
         // AskUserInteractionService may not be registered yet
       }
+      try {
+        contextProvider.read<PlanModeProvider>().rejectPendingApproval(cid);
+      } catch (_) {
+        // PlanModeProvider may not be registered yet
+      }
 
       // Reset file processing state on cancel
       onFileProcessingFinished?.call();
@@ -990,6 +996,7 @@ class ChatActions {
             ocrActive: ctx.ocrActive,
             extraHeaders: ctx.extraHeaders,
             extraBody: ctx.extraBody,
+            forcedFirstToolName: ctx.forcedFirstToolName,
             supportsReasoning: ctx.supportsReasoning,
             autoCollapseThinking: settings.autoCollapseThinking,
             partialImageNotice: _l10n == null

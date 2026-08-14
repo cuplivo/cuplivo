@@ -14987,6 +14987,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Workspace'**
   String get assistantEditLocalToolWorkspaceTitle;
+
+  /// No description provided for @planModeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan'**
+  String get planModeLabel;
+
+  /// No description provided for @planModeCommandDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan and execute a multi-step task'**
+  String get planModeCommandDescription;
+
+  /// No description provided for @planModeDisableTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit Plan mode'**
+  String get planModeDisableTooltip;
+
+  /// No description provided for @planModeAwaitingApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Review the plan before execution'**
+  String get planModeAwaitingApproval;
+
+  /// No description provided for @planModeApprove.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve and execute'**
+  String get planModeApprove;
+
+  /// No description provided for @planModeReject.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get planModeReject;
+
+  /// No description provided for @planModeStatusPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get planModeStatusPending;
+
+  /// No description provided for @planModeStatusInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get planModeStatusInProgress;
+
+  /// No description provided for @planModeStatusCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get planModeStatusCompleted;
+
+  /// No description provided for @planModeStatusError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get planModeStatusError;
 }
 
 class _AppLocalizationsDelegate

@@ -8283,4 +8283,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantEditLocalToolWorkspaceTitle => 'Workspace';
+
+  @override
+  String get planModeLabel => 'Plan';
+
+  @override
+  String get planModeCommandDescription => 'Plan and execute a multi-step task';
+
+  @override
+  String get planModeDisableTooltip => 'Exit Plan mode';
+
+  @override
+  String get planModeAwaitingApproval => 'Review the plan before execution';
+
+  @override
+  String get planModeApprove => 'Approve and execute';
+
+  @override
+  String get planModeReject => 'Reject';
+
+  @override
+  String get planModeStatusPending => 'Pending';
+
+  @override
+  String get planModeStatusInProgress => 'In progress';
+
+  @override
+  String get planModeStatusCompleted => 'Completed';
+
+  @override
+  String get planModeStatusError => 'Error';
 }

@@ -102,6 +102,7 @@ Stream<ChatStreamChunk> _sendClaudeStream(
   ToolCallHandler? onToolCall,
   Map<String, String>? extraHeaders,
   Map<String, dynamic>? extraBody,
+  String? forcedFirstToolName,
   bool stream = true,
 }) async* {
   final upstreamModelId = _apiModelId(config, modelId);
@@ -405,6 +406,8 @@ Stream<ChatStreamChunk> _sendClaudeStream(
     initialMessages,
   );
   TokenUsage? consumedUsage;
+  var pendingForcedToolName = forcedFirstToolName?.trim();
+  if (pendingForcedToolName?.isEmpty == true) pendingForcedToolName = null;
 
   while (true) {
     final omitSamplingParams = _claudeShouldOmitSamplingParams(
@@ -440,7 +443,10 @@ Stream<ChatStreamChunk> _sendClaudeStream(
         'temperature': temperature,
       if (compatibleTopP != null) 'top_p': compatibleTopP,
       if (allTools.isNotEmpty) 'tools': allTools,
-      if (allTools.isNotEmpty) 'tool_choice': {'type': 'auto'},
+      if (allTools.isNotEmpty)
+        'tool_choice': pendingForcedToolName != null
+            ? {'type': 'tool', 'name': pendingForcedToolName}
+            : {'type': 'auto'},
       if (thinking != null) 'thinking': thinking,
       if (outputConfig != null) 'output_config': outputConfig,
     };
@@ -453,12 +459,19 @@ Stream<ChatStreamChunk> _sendClaudeStream(
         body[k] = (v is String) ? _parseOverrideValue(v) : v;
       });
     }
+    if (pendingForcedToolName != null && allTools.isNotEmpty) {
+      body['tool_choice'] = {'type': 'tool', 'name': pendingForcedToolName};
+    }
 
     final request = http.Request('POST', url);
     request.headers.addAll(baseHeaders);
     request.body = jsonEncode(body);
 
     final response = await client.send(request);
+    // The forced choice is intentionally one-shot. If the selected tool
+    // returns a result and Claude continues in the same generation, all
+    // following rounds return to normal auto tool selection.
+    pendingForcedToolName = null;
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final errorBody = await response.stream.bytesToString();
       throw HttpException('HTTP ${response.statusCode}: $errorBody');

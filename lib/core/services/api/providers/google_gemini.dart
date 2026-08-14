@@ -201,6 +201,7 @@ Stream<ChatStreamChunk> _sendGoogleGeminiStream(
   ToolCallHandler? onToolCall,
   Map<String, String>? extraHeaders,
   Map<String, dynamic>? extraBody,
+  String? forcedFirstToolName,
   bool stream = true,
 }) {
   final cfg = config.copyWith(vertexAI: false);
@@ -218,6 +219,7 @@ Stream<ChatStreamChunk> _sendGoogleGeminiStream(
     onToolCall: onToolCall,
     extraHeaders: extraHeaders,
     extraBody: extraBody,
+    forcedFirstToolName: forcedFirstToolName,
     stream: stream,
   );
 }

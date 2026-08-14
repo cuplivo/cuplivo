@@ -621,6 +621,7 @@ class ChatApiService {
     ToolCallHandler? onToolCall,
     Map<String, String>? extraHeaders,
     Map<String, dynamic>? extraBody,
+    String? forcedFirstToolName,
     bool stream = true,
     String? requestId,
     bool allowImagesApiRouting = true,
@@ -685,6 +686,7 @@ class ChatApiService {
             onToolCall: onToolCall,
             extraHeaders: extraHeaders,
             extraBody: extraBody,
+            forcedFirstToolName: forcedFirstToolName,
             stream: stream,
           );
         } else {
@@ -702,6 +704,7 @@ class ChatApiService {
             onToolCall: onToolCall,
             extraHeaders: extraHeaders,
             extraBody: extraBody,
+            forcedFirstToolName: forcedFirstToolName,
             stream: stream,
           );
         }
@@ -720,6 +723,7 @@ class ChatApiService {
           onToolCall: onToolCall,
           extraHeaders: extraHeaders,
           extraBody: extraBody,
+          forcedFirstToolName: forcedFirstToolName,
           stream: stream,
         );
       } else if (kind == ProviderKind.google) {
@@ -741,6 +745,7 @@ class ChatApiService {
             onToolCall: onToolCall,
             extraHeaders: extraHeaders,
             extraBody: extraBody,
+            forcedFirstToolName: forcedFirstToolName,
             stream: stream,
           );
         } else if (isVertex) {
@@ -758,6 +763,7 @@ class ChatApiService {
             onToolCall: onToolCall,
             extraHeaders: extraHeaders,
             extraBody: extraBody,
+            forcedFirstToolName: forcedFirstToolName,
             stream: stream,
           );
         } else {
@@ -775,6 +781,7 @@ class ChatApiService {
             onToolCall: onToolCall,
             extraHeaders: extraHeaders,
             extraBody: extraBody,
+            forcedFirstToolName: forcedFirstToolName,
             stream: stream,
           );
         }

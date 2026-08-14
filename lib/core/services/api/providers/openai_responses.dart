@@ -79,6 +79,7 @@ Stream<ChatStreamChunk> _sendOpenAIResponsesStream(
   ToolCallHandler? onToolCall,
   Map<String, String>? extraHeaders,
   Map<String, dynamic>? extraBody,
+  String? forcedFirstToolName,
   bool stream = true,
 }) {
   final cfg = config.copyWith(useResponseApi: true);
@@ -96,6 +97,7 @@ Stream<ChatStreamChunk> _sendOpenAIResponsesStream(
     onToolCall: onToolCall,
     extraHeaders: extraHeaders,
     extraBody: extraBody,
+    forcedFirstToolName: forcedFirstToolName,
     stream: stream,
   );
 }

@@ -7989,7 +7989,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTaskShortcutHelp =>
-      '点击连接会复制该任务的 Trigger ID 并打开快捷指令。添加“Run Cuplivo Scheduled Task”操作并粘贴 Trigger ID，再创建一个每天在该任务时间运行它的个人自动化；Cuplivo 会自行判断当天是否符合重复规则。';
+      '点击连接会打开快捷指令。创建一个每天在该任务时间运行的个人自动化，然后添加 Cuplivo 的“执行到期定时任务”操作。同一时间点只需要一个自动化；Cuplivo 会执行该时刻所有到期任务，并静默跳过不符合各自重复规则的日期。';
 
   @override
   String get scheduledTaskEmpty => '还没有定时任务。';
@@ -16048,7 +16048,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTaskShortcutHelp =>
-      '点击连接会复制该任务的 Trigger ID 并打开快捷指令。添加“Run Cuplivo Scheduled Task”操作并粘贴 Trigger ID，再创建一个每天在该任务时间运行它的个人自动化；Cuplivo 会自行判断当天是否符合重复规则。';
+      '点击连接会打开快捷指令。创建一个每天在该任务时间运行的个人自动化，然后添加 Cuplivo 的“执行到期定时任务”操作。同一时间点只需要一个自动化；Cuplivo 会执行该时刻所有到期任务，并静默跳过不符合各自重复规则的日期。';
 
   @override
   String get scheduledTaskEmpty => '还没有定时任务。';
@@ -24106,7 +24106,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTaskShortcutHelp =>
-      '點擊連接會複製該任務的 Trigger ID 並開啟「捷徑」。加入「Run Cuplivo Scheduled Task」操作並貼上 Trigger ID，再建立一個每天在該任務時間執行它的個人自動化；Cuplivo 會自行判斷當天是否符合重複規則。';
+      '點擊連接會開啟「捷徑」。建立一個每天在該任務時間執行的個人自動化，然後加入 Cuplivo 的「執行到期定時任務」操作。同一時間點只需要一個自動化；Cuplivo 會執行該時刻所有到期任務，並靜默略過不符合各自重複規則的日期。';
 
   @override
   String get scheduledTaskEmpty => '還沒有定時任務。';

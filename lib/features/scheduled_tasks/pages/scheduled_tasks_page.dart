@@ -144,7 +144,6 @@ class _ScheduledTaskCardState extends State<_ScheduledTaskCard> {
       await Future<void>.delayed(const Duration(milliseconds: 180));
     }
     await IosScheduledTaskBridge.instance.openShortcutSetup(
-      triggerId: widget.task.triggerId,
       taskName: widget.task.name,
     );
     if (mounted) setState(() => _connecting = false);

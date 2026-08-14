@@ -93,8 +93,9 @@ class ScheduledTaskToolService {
           'description':
               'Edit one scheduled task owned by this assistant. Call '
               'list_scheduled_tasks first to obtain task_id. Changing any '
-              'schedule field invalidates the old iOS Shortcut Trigger ID and '
-              'the user must reconnect the task. Changing only name or prompt '
+              'schedule field changes when the shared iOS Shortcut action '
+              'should run and the user must reconnect the task. Changing only '
+              'name or prompt '
               'does not require reconnection.',
           'parameters': {
             'type': 'object',
@@ -113,9 +114,9 @@ class ScheduledTaskToolService {
         'function': {
           'name': ScheduledTaskToolNames.delete,
           'description':
-              'Delete one scheduled task owned by this assistant. Old iOS '
-              'Shortcut triggers become harmless: Cuplivo will no longer find '
-              'their Trigger ID and will silently ignore them.',
+              'Delete one scheduled task owned by this assistant. Existing iOS '
+              'Personal Automations are harmless: the shared Cuplivo action will '
+              'simply find no matching due task and stay silent.',
           'parameters': {
             'type': 'object',
             'properties': {

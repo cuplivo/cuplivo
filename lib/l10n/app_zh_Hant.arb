@@ -3161,7 +3161,7 @@
   "scheduledTaskAllowAiSubtitle": "開啟後，所有助手都只能管理各自建立或所屬的定時任務。",
   "scheduledTaskRequireApproval": "AI 操作前需要審批",
   "scheduledTaskRequireApprovalSubtitle": "建立、修改、刪除、啟用或停用任務前，都需要先經過審批。",
-  "scheduledTaskShortcutHelp": "點擊連接會複製該任務的 Trigger ID 並開啟「捷徑」。加入「Run Cuplivo Scheduled Task」操作並貼上 Trigger ID，再建立一個每天在該任務時間執行它的個人自動化；Cuplivo 會自行判斷當天是否符合重複規則。",
+  "scheduledTaskShortcutHelp": "點擊連接會開啟「捷徑」。建立一個每天在該任務時間執行的個人自動化，然後加入 Cuplivo 的「執行到期定時任務」操作。同一時間點只需要一個自動化；Cuplivo 會執行該時刻所有到期任務，並靜默略過不符合各自重複規則的日期。",
   "scheduledTaskEmpty": "還沒有定時任務。",
   "scheduledTaskUnknownAssistant": "未知助手",
   "scheduledTaskCompleted": "已執行",

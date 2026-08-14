@@ -1,3 +1,3 @@
-"Run Cuplivo Scheduled Task" = "執行 Cuplivo 定時任務";
-"Runs one Cuplivo scheduled task in the background using its Trigger ID." = "使用觸發 ID 在背景執行一個 Cuplivo 定時任務。";
-"Trigger ID" = "觸發 ID";
+"Run Due Cuplivo Scheduled Tasks" = "執行 Cuplivo 到期定時任務";
+"Runs every Cuplivo scheduled task that is due at the current local time." = "在背景執行目前本地時間已到期的所有 Cuplivo 定時任務。";
+"Run Due Scheduled Tasks" = "執行到期定時任務";

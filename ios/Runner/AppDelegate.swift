@@ -569,19 +569,31 @@ private final class NativeFileSaveHandler: NSObject, UIDocumentPickerDelegate {
 // MARK: - iOS Shortcuts scheduled-task bridge
 
 @available(iOS 16.0, *)
-struct RunCuplivoScheduledTaskIntent: AppIntent {
-  static var title: LocalizedStringResource = "Run Cuplivo Scheduled Task"
+struct RunDueCuplivoScheduledTasksIntent: AppIntent {
+  static var title: LocalizedStringResource = "Run Due Cuplivo Scheduled Tasks"
   static var description = IntentDescription(
-    "Runs one Cuplivo scheduled task in the background using its Trigger ID."
+    "Runs every Cuplivo scheduled task that is due at the current local time."
   )
   static var openAppWhenRun: Bool { false }
 
-  @Parameter(title: "Trigger ID")
-  var triggerId: String
-
   func perform() async throws -> some IntentResult {
-    _ = await ScheduledTaskIntentBridge.shared.execute(triggerId: triggerId)
+    _ = await ScheduledTaskIntentBridge.shared.executeDueTasks()
     return .result()
+  }
+}
+
+@available(iOS 16.0, *)
+struct CuplivoScheduledTaskShortcuts: AppShortcutsProvider {
+  static var appShortcuts: [AppShortcut] {
+    AppShortcut(
+      intent: RunDueCuplivoScheduledTasksIntent(),
+      phrases: [
+        "Run due tasks in \(.applicationName)",
+        "Run scheduled tasks in \(.applicationName)"
+      ],
+      shortTitle: "Run Due Scheduled Tasks",
+      systemImageName: "clock.badge.checkmark"
+    )
   }
 }
 
@@ -589,7 +601,8 @@ struct RunCuplivoScheduledTaskIntent: AppIntent {
 private final class ScheduledTaskIntentBridge {
   static let shared = ScheduledTaskIntentBridge()
 
-  private let pendingKey = "cuplivo.scheduled_tasks.pending_trigger_ids"
+  private let pendingDueSweepKey = "cuplivo.scheduled_tasks.pending_due_sweep"
+  private let legacyPendingTriggerIdsKey = "cuplivo.scheduled_tasks.pending_trigger_ids"
   private var channel: FlutterMethodChannel?
   private var dartReady = false
   private var backgroundTasks = [UUID: UIBackgroundTaskIdentifier]()
@@ -608,20 +621,17 @@ private final class ScheduledTaskIntentBridge {
       case "setReady":
         self.dartReady = true
         result(true)
-      case "consumePendingTriggers":
-        result(self.consumePendingTriggers())
+      case "consumePendingDueSweep":
+        result(self.consumePendingDueSweep())
       case "openShortcutSetup":
-        self.openShortcutSetup(arguments: call.arguments, result: result)
+        self.openShortcutSetup(result: result)
       default:
         result(FlutterMethodNotImplemented)
       }
     }
   }
 
-  func execute(triggerId: String) async -> Bool {
-    let id = triggerId.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !id.isEmpty else { return false }
-
+  func executeDueTasks() async -> Bool {
     // During a cold App Intent launch Flutter may still be booting. Wait a
     // small bounded amount of time for Dart to install its channel handler.
     for _ in 0..<24 {
@@ -630,7 +640,7 @@ private final class ScheduledTaskIntentBridge {
     }
 
     guard dartReady, let channel else {
-      enqueue(triggerId: id)
+      enqueueDueSweep()
       return false
     }
 
@@ -638,43 +648,54 @@ private final class ScheduledTaskIntentBridge {
     defer { endBackgroundTask(backgroundToken) }
 
     return await withCheckedContinuation { continuation in
-      channel.invokeMethod("executeTrigger", arguments: ["triggerId": id]) { response in
+      channel.invokeMethod("executeDueTasks", arguments: nil) { response in
         if response is FlutterError {
-          self.enqueue(triggerId: id)
+          self.enqueueDueSweep()
           continuation.resume(returning: false)
           return
         }
-        if let map = response as? [String: Any], map["handled"] as? Bool == true {
-          let title = (map["taskName"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Cuplivo"
-          let body = (map["notificationBody"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-          self.showNotification(title: title.isEmpty ? "Cuplivo" : title, body: body)
-          continuation.resume(returning: map["success"] as? Bool ?? false)
-        } else {
-          // Unknown/disabled/completed/old Trigger IDs intentionally succeed
-          // silently so obsolete Personal Automations remain harmless.
-          continuation.resume(returning: true)
+
+        guard let rawResults = response as? [[String: Any]] else {
+          // No due tasks is a successful no-op. Dart returns an empty list in
+          // that case, which bridges as an NSArray and normally casts here.
+          if let array = response as? [Any], array.isEmpty {
+            continuation.resume(returning: true)
+          } else {
+            self.enqueueDueSweep()
+            continuation.resume(returning: false)
+          }
+          return
         }
+
+        var allSuccessful = true
+        for map in rawResults {
+          guard map["handled"] as? Bool == true else { continue }
+          let title = (map["taskName"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? "Cuplivo"
+          let body = (map["notificationBody"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+          self.showNotification(
+            title: title.isEmpty ? "Cuplivo" : title,
+            body: body
+          )
+          if map["success"] as? Bool != true {
+            allSuccessful = false
+          }
+        }
+        continuation.resume(returning: allSuccessful)
       }
     }
   }
 
-  private func openShortcutSetup(arguments: Any?, result: @escaping FlutterResult) {
-    let args = arguments as? [String: Any] ?? [:]
-    let triggerId = (args["triggerId"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !triggerId.isEmpty else {
-      result(false)
-      return
-    }
-
+  private func openShortcutSetup(result: @escaping FlutterResult) {
     // Ask for notification permission while the app is foregrounded. A later
     // background App Intent cannot reliably present this permission sheet.
     UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in
       DispatchQueue.main.async {
-        // Apple documents shortcuts://create-shortcut as the supported URL for
-        // entering the new-shortcut editor. Copy the exact Trigger ID so the
-        // user can paste it into the Cuplivo App Intent parameter.
-        UIPasteboard.general.string = triggerId
-        guard let url = URL(string: "shortcuts://create-shortcut") else {
+        // Cuplivo exposes a zero-setup App Shortcut named “Run Due Scheduled
+        // Tasks”. Opening Shortcuts (rather than the blank shortcut editor)
+        // lets the user create a Personal Automation and select that action.
+        guard let url = URL(string: "shortcuts://") else {
           result(false)
           return
         }
@@ -698,21 +719,24 @@ private final class ScheduledTaskIntentBridge {
     UNUserNotificationCenter.current().add(request)
   }
 
-  private func enqueue(triggerId: String) {
-    var pending = UserDefaults.standard.stringArray(forKey: pendingKey) ?? []
-    if !pending.contains(triggerId) { pending.append(triggerId) }
-    UserDefaults.standard.set(pending, forKey: pendingKey)
+  private func enqueueDueSweep() {
+    UserDefaults.standard.set(true, forKey: pendingDueSweepKey)
   }
 
-  private func consumePendingTriggers() -> [String] {
-    let pending = UserDefaults.standard.stringArray(forKey: pendingKey) ?? []
-    UserDefaults.standard.removeObject(forKey: pendingKey)
-    return pending
+  private func consumePendingDueSweep() -> Bool {
+    let pending = UserDefaults.standard.bool(forKey: pendingDueSweepKey)
+    UserDefaults.standard.removeObject(forKey: pendingDueSweepKey)
+
+    // Migrate any trigger-ID work queued by the previous development build to
+    // one due-task sweep. Old IDs are intentionally not interpreted anymore.
+    let legacy = UserDefaults.standard.stringArray(forKey: legacyPendingTriggerIdsKey) ?? []
+    UserDefaults.standard.removeObject(forKey: legacyPendingTriggerIdsKey)
+    return pending || !legacy.isEmpty
   }
 
   private func beginBackgroundTask() -> UUID? {
     let token = UUID()
-    let identifier = UIApplication.shared.beginBackgroundTask(withName: "CuplivoScheduledTaskIntent") { [weak self] in
+    let identifier = UIApplication.shared.beginBackgroundTask(withName: "CuplivoDueScheduledTasksIntent") { [weak self] in
       Task { @MainActor [weak self] in
         self?.endBackgroundTask(token)
       }

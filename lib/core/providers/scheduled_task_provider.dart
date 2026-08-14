@@ -175,14 +175,24 @@ class ScheduledTaskProvider extends ChangeNotifier {
     await ensureLoaded();
     final index = _tasks.indexWhere((task) => task.id == id);
     if (index < 0) return null;
-    final next = _tasks[index].copyWith(
-      connected: true,
-      updatedAt: DateTime.now(),
-    );
-    _tasks[index] = next;
+
+    // One iOS Personal Automation is enough for every task that uses the same
+    // local clock time. Mark the whole time slot connected so the UI does not
+    // ask the user to create duplicate automations for 08:00, for example.
+    final target = _tasks[index].schedule.normalized();
+    final connectedAt = DateTime.now();
+    for (var i = 0; i < _tasks.length; i++) {
+      final schedule = _tasks[i].schedule.normalized();
+      if (schedule.hour == target.hour && schedule.minute == target.minute) {
+        _tasks[i] = _tasks[i].copyWith(
+          connected: true,
+          updatedAt: connectedAt,
+        );
+      }
+    }
     await _persist();
     notifyListeners();
-    return next;
+    return getById(id);
   }
 
   Future<ScheduledTask?> setEnabled(String id, bool value) async {

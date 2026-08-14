@@ -123,8 +123,8 @@ class ScheduledTaskSchedule {
   ///
   /// Shortcuts should invoke Cuplivo at the configured local clock time every
   /// day. iOS may deliver an automation a little late, so a one-hour window is
-  /// accepted. The Trigger ID still identifies the exact task, so this window
-  /// never performs "nearest task" guessing.
+  /// accepted. The shared Shortcut action scans all tasks, but only schedules
+  /// inside this local-time window are considered due.
   bool matchesTrigger(DateTime now, {Duration tolerance = const Duration(hours: 1)}) {
     final schedule = normalized();
     final targetToday = DateTime(
@@ -180,9 +180,9 @@ class ScheduledTaskSchedule {
     }
   }
 
-  /// Stable key for one due occurrence. Multiple Shortcuts may accidentally
-  /// point at the same Trigger ID, so execution claims this key before making
-  /// a model request and never retries that occurrence.
+  /// Stable key for one due occurrence. Multiple Personal Automations may
+  /// accidentally invoke the shared action around the same time, so execution
+  /// claims this key before making a model request and never retries it.
   String? occurrenceKey(
     DateTime now, {
     Duration tolerance = const Duration(hours: 1),

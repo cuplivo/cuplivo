@@ -15129,7 +15129,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTaskShortcutHelp.
   ///
   /// In en, this message translates to:
-  /// **'Connect copies this task’s Trigger ID and opens Shortcuts. Add “Run Cuplivo Scheduled Task”, paste the Trigger ID, then create a Personal Automation that runs it every day at this task’s time. Cuplivo will decide whether the current date matches the recurrence.'**
+  /// **'Connect opens Shortcuts. Create a Personal Automation that runs every day at this task’s time, then add Cuplivo’s “Run Due Scheduled Tasks” action. One automation per clock time is enough; Cuplivo will run every task due at that time and silently skip dates that do not match each task’s recurrence.'**
   String get scheduledTaskShortcutHelp;
 
   /// No description provided for @scheduledTaskEmpty.

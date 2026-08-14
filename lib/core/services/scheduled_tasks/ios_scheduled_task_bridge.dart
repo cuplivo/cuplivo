@@ -26,28 +26,23 @@ class IosScheduledTaskBridge {
     _channel.setMethodCallHandler(_handleNativeCall);
     try {
       await _channel.invokeMethod<bool>('setReady');
-      final pending = await _channel.invokeListMethod<String>(
-        'consumePendingTriggers',
-      );
-      for (final triggerId in pending ?? const <String>[]) {
-        if (triggerId.trim().isEmpty) continue;
-        unawaited(_executeWhenContextReady(triggerId.trim()));
+      final pending =
+          await _channel.invokeMethod<bool>('consumePendingDueSweep') ?? false;
+      if (pending) {
+        unawaited(_executeDueTasksWhenContextReady());
       }
     } catch (error) {
       debugPrint('[ScheduledTaskBridge] initialization failed: $error');
     }
   }
 
-  Future<bool> openShortcutSetup({
-    required String triggerId,
-    required String taskName,
-  }) async {
+  Future<bool> openShortcutSetup({required String taskName}) async {
     if (!isSupported) return false;
     try {
-      return await _channel.invokeMethod<bool>('openShortcutSetup', <String, Object?>{
-            'triggerId': triggerId,
-            'taskName': taskName,
-          }) ??
+      return await _channel.invokeMethod<bool>(
+            'openShortcutSetup',
+            <String, Object?>{'taskName': taskName},
+          ) ??
           false;
     } catch (error) {
       debugPrint('[ScheduledTaskBridge] open Shortcuts failed: $error');
@@ -56,37 +51,24 @@ class IosScheduledTaskBridge {
   }
 
   Future<dynamic> _handleNativeCall(MethodCall call) async {
-    if (call.method != 'executeTrigger') return null;
-    final args = call.arguments;
-    final triggerId = args is Map ? args['triggerId']?.toString().trim() : null;
-    if (triggerId == null || triggerId.isEmpty) {
-      return const <String, dynamic>{'handled': false, 'success': false};
-    }
-    final result = await _executeWhenContextReady(triggerId);
-    return result.toMap();
+    if (call.method != 'executeDueTasks') return null;
+    final results = await _executeDueTasksWhenContextReady();
+    return results.map((result) => result.toMap()).toList(growable: false);
   }
 
-  Future<ScheduledTaskExecutionResult> _executeWhenContextReady(
-    String triggerId,
-  ) async {
+  Future<List<ScheduledTaskExecutionResult>>
+  _executeDueTasksWhenContextReady() async {
     // Flutter can receive an App Intent during cold startup before the first
     // MaterialApp frame exposes navigatorKey.currentContext. Give startup a
-    // short bounded window; the native side also queues triggers until Dart
-    // declares itself ready.
+    // short bounded window; the native side also queues one due-task sweep
+    // until Dart declares itself ready.
     for (var attempt = 0; attempt < 40; attempt++) {
       final context = _contextProvider?.call();
       if (context != null) {
-        return ScheduledTaskExecutionService.executeTrigger(
-          // ignore: use_build_context_synchronously (root context, valid for app lifetime)
-          context: context,
-          triggerId: triggerId,
-        );
+        return ScheduledTaskExecutionService.executeDueTasks(context: context);
       }
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
-    return const ScheduledTaskExecutionResult(
-      handled: false,
-      error: 'flutter_context_unavailable',
-    );
+    return const <ScheduledTaskExecutionResult>[];
   }
 }

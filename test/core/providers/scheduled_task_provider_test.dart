@@ -138,4 +138,52 @@ void main() {
     );
   });
 
+  test(
+    'connecting one task connects every task at the same clock time',
+    () async {
+      final provider = ScheduledTaskProvider();
+      await provider.init();
+
+      final first = await provider.createTask(
+        assistantId: 'assistant-a',
+        name: 'First 8 AM task',
+        prompt: 'First',
+        schedule: ScheduledTaskSchedule(
+          frequency: ScheduledTaskFrequency.daily,
+          hour: 8,
+          minute: 0,
+          anchorDate: DateTime(2026, 8, 14),
+        ),
+      );
+      final second = await provider.createTask(
+        assistantId: 'assistant-b',
+        name: 'Second 8 AM task',
+        prompt: 'Second',
+        schedule: ScheduledTaskSchedule(
+          frequency: ScheduledTaskFrequency.weekly,
+          hour: 8,
+          minute: 0,
+          anchorDate: DateTime(2026, 8, 14),
+          weekdays: const <int>[DateTime.friday],
+        ),
+      );
+      final differentTime = await provider.createTask(
+        assistantId: 'assistant-a',
+        name: '9 AM task',
+        prompt: 'Later',
+        schedule: ScheduledTaskSchedule(
+          frequency: ScheduledTaskFrequency.daily,
+          hour: 9,
+          minute: 0,
+          anchorDate: DateTime(2026, 8, 14),
+        ),
+      );
+
+      await provider.markConnected(first.id);
+
+      expect(provider.getById(first.id)!.connected, isTrue);
+      expect(provider.getById(second.id)!.connected, isTrue);
+      expect(provider.getById(differentTime.id)!.connected, isFalse);
+    },
+  );
 }

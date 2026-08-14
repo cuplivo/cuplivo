@@ -360,51 +360,49 @@ class MobileBackgroundLayer extends StatelessWidget {
       provider = FileImage(file);
     }
 
-    // Prevent keyboard from resizing the background image.
-    // By removing viewInsets, this subtree never learns about the keyboard,
-    // so it always renders at full-screen size.
-    return Positioned.fill(
-      child: MediaQuery.removeViewInsets(
-        context: context,
-        removeBottom: true,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: provider,
-                    fit: BoxFit.cover,
-                    colorFilter: ColorFilter.mode(
-                      Colors.black.withValues(alpha: 0.04),
-                      BlendMode.srcATop,
-                    ),
-                  ),
+    // Fix: Use the full screen size directly instead of relying on parent
+    // constraints. The parent Stack with StackFit.expand still shrinks when
+    // Scaffold resizes for the keyboard, so Positioned.fill inherits the
+    // shrunken size. By using SizedBox with MediaQuery.sizeOf we bypass
+    // the parent constraint entirely and always render at full screen.
+    final screenSize = MediaQuery.sizeOf(context);
+    return SizedBox(
+      width: screenSize.width,
+      height: screenSize.height,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: provider,
+                fit: BoxFit.cover,
+                colorFilter: ColorFilter.mode(
+                  Colors.black.withValues(alpha: 0.04),
+                  BlendMode.srcATop,
                 ),
               ),
             ),
-            Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        cs.surface.withValues(
-                          alpha: (0.20 * maskStrength).clamp(0.0, 1.0),
-                        ),
-                        cs.surface.withValues(
-                          alpha: (0.50 * maskStrength).clamp(0.0, 1.0),
-                        ),
-                      ],
+          ),
+          IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    cs.surface.withValues(
+                      alpha: (0.20 * maskStrength).clamp(0.0, 1.0),
                     ),
-                  ),
+                    cs.surface.withValues(
+                      alpha: (0.50 * maskStrength).clamp(0.0, 1.0),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

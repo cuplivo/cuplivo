@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:Cuplivo/core/providers/download_progress_store.dart';
 import 'package:Cuplivo/core/providers/input_status_provider.dart';
+import 'package:Cuplivo/core/providers/plan_mode_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/generation_engine.dart';
@@ -53,6 +54,9 @@ void main() {
             ),
             ChangeNotifierProvider<InputStatusProvider>.value(
               value: inputStatus,
+            ),
+            ChangeNotifierProvider<PlanModeProvider>(
+              create: (_) => PlanModeProvider(),
             ),
           ],
           child: Scaffold(body: LivePanel(onOpenChild: onOpenChild)),

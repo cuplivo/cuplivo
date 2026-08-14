@@ -147,7 +147,7 @@ Cuplivo is a community fork and has not been fully separated from the upstream p
 
 ## 🚀 Download
 
-🔗 [Download the latest version](https://github.com/Chevey339/kelivo/releases/latest)
+🔗 [Download the latest version](https://github.com/xuanxuan9929/Noxlivo/releases/latest)
 
 > **iOS:** Cuplivo is not on the App Store. Please install it by self-signing (e.g. Sideloadly, AltStore, or other signing tools).
 
@@ -180,7 +180,7 @@ Thanks to [siliconflow.cn](https://siliconflow.cn) for providing free models in 
 
 - ✅ Android
 - ✅ iOS
-- ✅ Harmony ([kelivo-ohos](https://github.com/Chevey339/kelivo-ohos))
+- ✅ Harmony 
 - ✅ Windows
 - ✅ macOS
 - ✅ Linux
@@ -205,7 +205,7 @@ Special thanks to [OpenCode](https://opencode.ai) — the design of our file sys
 
 If you like this project, please give it a star ⭐
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Chevey339/kelivo&type=Date)](https://star-history.com/#Chevey339/kelivo&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=xuanxuan9929/Noxlivo&type=Date)](https://star-history.com/#xuanxuan9929/Noxlivo&Date)
 
 ## 📄 License
 
@@ -213,7 +213,7 @@ This project is licensed under the AGPL-3.0 License - see the [LICENSE](LICENSE)
 
 ## 📞 Contact Us
 
-- Issue: [GitHub Issues](https://github.com/Chevey339/kelivo/issues)
+- Issue: [GitHub Issues](https://github.com/xuanxuan9929/Noxlivo/issues)
 
 ---
 

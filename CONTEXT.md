@@ -1,5 +1,13 @@
 # Cuplivo Domain Glossary
 
+## Chat Rendering
+
+- **Preferred chat renderer**: The user's saved choice for presenting ordinary one-to-one conversation transcripts.
+- **Effective chat renderer**: The renderer currently presenting a transcript after conversation eligibility, platform availability, and renderer health are considered. It may differ from the preferred renderer without changing that preference.
+- **Native chat renderer**: The established chat rendering engine and the default product behavior.
+- **WebView transcript renderer**: The experimental renderer that presents one eligible conversation transcript as a browser-selectable surface while the rest of the chat remains native.
+- **Visible native fallback**: A disclosed transition to the native renderer after the WebView renderer becomes unhealthy; it never changes the preferred renderer by itself.
+
 ## Title Preset System
 - **Hash Fingerprint matching**: `detect()` uses `trim()` only (conservative), exact character match after stripping leading/trailing whitespace.
 - **PromptPreset data class**: `id`, `label`, `prompt` fields only. No `recommendedThinking` — presets are style-only, Thinking is independently controlled.

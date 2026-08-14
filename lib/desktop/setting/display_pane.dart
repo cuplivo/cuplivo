@@ -81,18 +81,24 @@ class _DisplaySettingsBody extends StatelessWidget {
               const SizedBox(height: 16),
               _SettingsCard(
                 title: l10n.displaySettingsPageRenderingSettingsTitle,
-                children: const [
-                  _ToggleRowDollarLatex(),
-                  _RowDivider(),
-                  _ToggleRowMathRendering(),
-                  _RowDivider(),
-                  _ToggleRowUserMarkdown(),
-                  _RowDivider(),
-                  _ToggleRowReasoningMarkdown(),
-                  _RowDivider(),
-                  _ToggleRowAssistantMarkdown(),
-                  _RowDivider(),
-                  _AutoCollapseCodeBlocksSection(),
+                children: [
+                  if (Platform.isMacOS) ...[
+                    const _ChatRenderingEngineRow(),
+                    const _RowDivider(),
+                  ],
+                  const _ToggleRowDollarLatex(),
+                  const _RowDivider(),
+                  const _ToggleRowMathRendering(),
+                  const _RowDivider(),
+                  const _ToggleRowUserMarkdown(),
+                  const _RowDivider(),
+                  const _ToggleRowReasoningMarkdown(),
+                  const _RowDivider(),
+                  const _ToggleRowStreamingThinkingPreviewTruncate(),
+                  const _RowDivider(),
+                  const _ToggleRowAssistantMarkdown(),
+                  const _RowDivider(),
+                  const _AutoCollapseCodeBlocksSection(),
                 ],
               ),
               const SizedBox(height: 16),
@@ -310,8 +316,13 @@ class _InputBarButtonsCustomizeRowState
 }
 
 class _LabeledRow extends StatelessWidget {
-  const _LabeledRow({required this.label, required this.trailing});
+  const _LabeledRow({
+    required this.label,
+    required this.trailing,
+    this.subtitle,
+  });
   final String label;
+  final String? subtitle;
   final Widget trailing;
   @override
   Widget build(BuildContext context) {
@@ -322,17 +333,36 @@ class _LabeledRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.max,
         children: [
           Expanded(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              // Match other settings row labels (14, normal, slightly dimmed)
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: AppFontWeights.regular,
-                color: cs.onSurface.withValues(alpha: 0.9),
-                decoration: TextDecoration.none,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  // Match other settings row labels (14, normal, slightly dimmed)
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: AppFontWeights.regular,
+                    color: cs.onSurface.withValues(alpha: 0.9),
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+                if (subtitle != null && subtitle!.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.2,
+                      color: cs.onSurface.withValues(alpha: 0.56),
+                      decoration: TextDecoration.none,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(width: 6),
@@ -849,6 +879,35 @@ class _BackgroundStyleDropdownState extends State<_BackgroundStyleDropdown> {
       options: options,
       onSelected: (style) =>
           context.read<SettingsProvider>().setChatMessageBackgroundStyle(style),
+    );
+  }
+}
+
+class _ChatRenderingEngineRow extends StatelessWidget {
+  const _ChatRenderingEngineRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final sp = context.watch<SettingsProvider>();
+    return _LabeledRow(
+      label: l10n.displaySettingsPageChatRendererTitle,
+      subtitle: l10n.displaySettingsPageChatRendererSubtitle,
+      trailing: DesktopSelectDropdown<ChatRenderingEngine>(
+        value: sp.chatRenderingEngine,
+        options: [
+          DesktopSelectOption(
+            value: ChatRenderingEngine.native,
+            label: l10n.displaySettingsPageChatRendererNative,
+          ),
+          DesktopSelectOption(
+            value: ChatRenderingEngine.webView,
+            label: l10n.displaySettingsPageChatRendererWebViewExperimental,
+          ),
+        ],
+        onSelected: (engine) =>
+            context.read<SettingsProvider>().setChatRenderingEngine(engine),
+      ),
     );
   }
 }

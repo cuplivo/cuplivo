@@ -1,9 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' show File, Platform;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:open_filex/open_filex.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:intl/intl.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../main.dart';
 import '../../../shared/widgets/interactive_drawer.dart';
@@ -29,6 +34,7 @@ import '../../../core/models/quick_phrase.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
+import '../../../core/models/conversation.dart';
 import '../../../core/services/chat/external_chat_draft_handoff.dart';
 import '../../../core/services/android_process_text.dart';
 import '../../../utils/sandbox_path_resolver.dart';
@@ -47,6 +53,14 @@ import '../../chat/widgets/bottom_tools_sheet.dart';
 import '../../chat/widgets/context_management_sheet.dart';
 import '../../chat/widgets/message_more_sheet.dart';
 import '../../chat/widgets/reasoning_budget_sheet.dart';
+import '../../chat/pages/image_viewer_page.dart';
+import '../../chat/pages/reading_mode_page.dart';
+import '../../chat/services/chat_rendering_policy.dart';
+import '../../chat/utils/message_visual_content.dart';
+import '../../chat/web_transcript/web_transcript_models.dart';
+import '../../chat/web_transcript/web_transcript_projection.dart';
+import '../../chat/web_transcript/web_transcript_resource_proxy.dart';
+import '../../chat/web_transcript/web_transcript_view.dart';
 import '../../search/widgets/search_settings_sheet.dart';
 import '../../model/widgets/model_select_sheet.dart';
 import '../../mcp/pages/mcp_page.dart';
@@ -67,6 +81,8 @@ import '../widgets/scroll_nav_buttons.dart';
 import '../widgets/message_list_view.dart';
 import '../widgets/multi_ai_comparison_view.dart';
 import '../services/multi_ai_engine.dart' show MultiAIMode;
+import '../services/local_tools_service.dart';
+import '../services/ask_user_interaction_service.dart';
 import '../widgets/chat_input_section.dart';
 import '../widgets/chat_input_overlay_layout.dart';
 import '../widgets/chat_selection_app_bar.dart';
@@ -78,6 +94,7 @@ import '../utils/chat_layout_constants.dart';
 import '../utils/input_bar_button_layout.dart';
 import 'input_bar_buttons_customization_page.dart';
 import '../controllers/home_page_controller.dart';
+import '../controllers/chat_transcript_viewport.dart';
 import '../controllers/home_view_model.dart';
 import '../controllers/scroll_controller.dart' as scroll_ctrl;
 import 'home_mobile_layout.dart';
@@ -601,6 +618,12 @@ class _HomePageState extends State<HomePage>
   bool _presetsExpanded = false;
   String? _scrollConversationId;
   double _lastViewInsetBottom = 0;
+  bool _webTranscriptFailed = false;
+  int _webTranscriptRetryToken = 0;
+  ChatTranscriptViewport? _attachedWebTranscriptViewport;
+  bool _loggedUnsupportedWebTranscript = false;
+  Map<String, WebTranscriptResource> _webTranscriptResources =
+      const <String, WebTranscriptResource>{};
   StreamSubscription<String>? _processTextSub;
 
   // ============================================================================
@@ -925,18 +948,13 @@ class _HomePageState extends State<HomePage>
       backgroundImageActive: backgroundImageActive,
       content: Builder(
         builder: (context) {
-          final content = KeyedSubtree(
-            key: ValueKey<String>(
-              _controller.currentConversation?.id ?? 'none',
-            ),
-            child: _buildMessageListView(
-              context,
-              topContentPadding: topContentPadding,
-              bottomContentPadding: bottomContentPadding,
-              dividerPadding: const EdgeInsets.symmetric(
-                vertical: 10,
-                horizontal: AppSpacing.md,
-              ),
+          final content = _buildMessageListView(
+            context,
+            topContentPadding: topContentPadding,
+            bottomContentPadding: bottomContentPadding,
+            dividerPadding: const EdgeInsets.symmetric(
+              vertical: 10,
+              horizontal: AppSpacing.md,
             ),
           );
           final isAndroid =
@@ -944,11 +962,7 @@ class _HomePageState extends State<HomePage>
           Widget w = content;
           if (!isAndroid) {
             w = w
-                .animate(
-                  key: ValueKey(
-                    'mob_body_${_controller.currentConversation?.id ?? 'none'}',
-                  ),
-                )
+                .animate(key: const ValueKey('mobile-chat-surface'))
                 .fadeIn(duration: 200.ms, curve: Curves.easeOutCubic);
             w = FadeTransition(opacity: _controller.convoFade, child: w);
           }
@@ -1134,25 +1148,16 @@ class _HomePageState extends State<HomePage>
       content: FadeTransition(
         opacity: _controller.convoFade,
         child:
-            KeyedSubtree(
-                  key: ValueKey<String>(
-                    _controller.currentConversation?.id ?? 'none',
-                  ),
-                  child: _buildMessageListView(
-                    context,
-                    topContentPadding: topContentPadding,
-                    bottomContentPadding: bottomContentPadding,
-                    dividerPadding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 12,
-                    ),
+            _buildMessageListView(
+                  context,
+                  topContentPadding: topContentPadding,
+                  bottomContentPadding: bottomContentPadding,
+                  dividerPadding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 12,
                   ),
                 )
-                .animate(
-                  key: ValueKey(
-                    'tab_body_${_controller.currentConversation?.id ?? 'none'}',
-                  ),
-                )
+                .animate(key: const ValueKey('tablet-chat-surface'))
                 .fadeIn(duration: 200.ms, curve: Curves.easeOutCubic),
       ),
       bottomOverlay: _controller.selecting
@@ -1449,6 +1454,9 @@ class _HomePageState extends State<HomePage>
     );
 
     final messageList = MessageListView(
+      key: ValueKey<String>(
+        'native-${_controller.currentConversation?.id ?? 'none'}',
+      ),
       isProcessingFiles: _controller.isProcessingFiles,
       scrollController: _scrollController,
       listController: _controller.scrollCtrl.messageListController,
@@ -1545,9 +1553,538 @@ class _HomePageState extends State<HomePage>
       },
     );
 
-    return BackdropGroup(
+    final effectiveEngine = ChatRenderingPolicy.effectiveEngine(
+      requested: settings.chatRenderingEngine,
+      platform: defaultTargetPlatform,
+      conversation: _controller.currentConversation,
+      hasMultiAiContent:
+          _controller.isMultiAIMode || afterMessageWidgets.isNotEmpty,
+      hasInteractiveTool:
+          _controller.toolParts.values.any(
+            (parts) => parts.any(
+              (part) => part.toolName == LocalToolNames.askUser && part.loading,
+            ),
+          ) ||
+          context.watch<AskUserInteractionService>().pendingRequests.values.any(
+            (request) =>
+                request.conversationId == null ||
+                request.conversationId == _controller.currentConversation?.id,
+          ),
+      rendererFailed: _webTranscriptFailed,
+    );
+    if (settings.chatRenderingEngine == ChatRenderingEngine.webView &&
+        !ChatRenderingPolicy.supportsWebView(defaultTargetPlatform) &&
+        !_loggedUnsupportedWebTranscript) {
+      _loggedUnsupportedWebTranscript = true;
+      debugPrint(
+        '[WebTranscript] requested renderer is unsupported on '
+        '$defaultTargetPlatform; using native renderer',
+      );
+    }
+    if (effectiveEngine == ChatRenderingEngine.webView) {
+      final conversation = _controller.currentConversation!;
+      return WebTranscriptView(
+        key: ValueKey<String>('web-transcript-$_webTranscriptRetryToken'),
+        snapshotBuilder: (overrides) => _buildWebTranscriptSnapshot(
+          context,
+          conversation: conversation,
+          messages: messages,
+          overrides: overrides,
+          byGroup: _controller.chatController.groupedMessages,
+          versionSelections: _controller.versionSelections,
+          selecting: _controller.selecting,
+          selectedItems: _controller.selectedItems,
+          hasMoreBefore: _controller.chatController.hasMoreBefore,
+          hasMoreAfter: _controller.chatController.hasMoreAfter,
+        ),
+        streamingContentNotifier: _controller.streamingContentNotifier,
+        topContentPadding: topContentPadding,
+        bottomContentPadding: bottomContentPadding,
+        loadingLabel: AppLocalizations.of(context)!.chatWebRendererLoading,
+        backgroundSource: context
+            .watch<AssistantProvider>()
+            .currentAssistant
+            ?.background,
+        onFatal: (error) {
+          if (!mounted) return;
+          setState(() => _webTranscriptFailed = true);
+        },
+        onAction: (action, messageId, href, resourceId, value) {
+          unawaited(
+            _handleWebTranscriptAction(
+              context,
+              action: action,
+              messageId: messageId,
+              href: href,
+              resourceId: resourceId,
+              value: value,
+              messages: messages,
+            ).catchError((Object error) {
+              debugPrint(
+                '[WebTranscript] action failed type=$action '
+                'error=${error.runtimeType}',
+              );
+            }),
+          );
+        },
+        onOpenPreparedImages: (resourceId, resources) {
+          unawaited(
+            _openPreparedWebTranscriptImages(context, resourceId, resources),
+          );
+        },
+        onViewportChanged: (viewport, attached) {
+          if (!attached) {
+            _controller.detachTranscriptViewport(viewport);
+            if (identical(_attachedWebTranscriptViewport, viewport)) {
+              _attachedWebTranscriptViewport = null;
+            }
+          } else {
+            _attachedWebTranscriptViewport = viewport;
+            _controller.attachTranscriptViewport(viewport);
+          }
+        },
+        onLoadMoreBefore: _controller.loadMoreBefore,
+        onLoadMoreAfter: _controller.loadMoreAfter,
+      );
+    }
+
+    final nativeSurface = BackdropGroup(
       backdropKey: _messageListBackdropKey,
       child: messageList,
+    );
+    if (_webTranscriptFailed &&
+        settings.chatRenderingEngine == ChatRenderingEngine.webView &&
+        ChatRenderingPolicy.supportsWebView(defaultTargetPlatform)) {
+      return Stack(
+        children: [
+          Positioned.fill(child: nativeSurface),
+          Positioned(
+            top: topContentPadding,
+            left: 12,
+            right: 12,
+            child: _buildWebTranscriptFallbackBanner(context),
+          ),
+        ],
+      );
+    }
+
+    return nativeSurface;
+  }
+
+  WebTranscriptSnapshot _buildWebTranscriptSnapshot(
+    BuildContext context, {
+    required Conversation conversation,
+    required List<ChatMessage> messages,
+    required Map<String, ChatMessage> overrides,
+    required Map<String, List<ChatMessage>> byGroup,
+    required Map<String, int> versionSelections,
+    required bool selecting,
+    required Set<String> selectedItems,
+    required bool hasMoreBefore,
+    required bool hasMoreAfter,
+  }) {
+    final projectedMessages = messages
+        .map((message) => overrides[message.id] ?? message)
+        .toList();
+    final reasoning = <String, List<WebTranscriptReasoning>>{};
+    final tools = <String, List<WebTranscriptTool>>{};
+    final splits = <String, WebTranscriptSplits>{};
+    for (final message in projectedMessages) {
+      final segments = _controller.reasoningSegments[message.id];
+      if (segments != null && segments.isNotEmpty) {
+        reasoning[message.id] = segments
+            .map(
+              (segment) => WebTranscriptReasoning(
+                text: segment.text,
+                expanded: segment.expanded,
+                loading: message.isStreaming && segment.finishedAt == null,
+                toolStartIndex: segment.toolStartIndex,
+              ),
+            )
+            .toList();
+      } else {
+        final current = _controller.reasoning[message.id];
+        final text = current?.text.isNotEmpty == true
+            ? current!.text
+            : (message.reasoningText ?? '');
+        if (text.isNotEmpty) {
+          reasoning[message.id] = <WebTranscriptReasoning>[
+            WebTranscriptReasoning(
+              text: text,
+              expanded:
+                  current?.expanded ??
+                  !context.read<SettingsProvider>().autoCollapseThinking,
+              loading: message.isStreaming && current?.finishedAt == null,
+            ),
+          ];
+        }
+      }
+      final messageTools = _controller.toolParts[message.id];
+      if (messageTools != null && messageTools.isNotEmpty) {
+        tools[message.id] = messageTools
+            .map(
+              (tool) => WebTranscriptTool(
+                name: tool.toolName,
+                arguments: tool.arguments,
+                content: tool.content,
+                loading: tool.loading,
+              ),
+            )
+            .toList();
+      }
+      final contentSplit = _controller.contentSplits[message.id];
+      if (contentSplit != null) {
+        splits[message.id] = WebTranscriptSplits(
+          offsets: contentSplit.offsets,
+          reasoningCounts: contentSplit.reasoningCounts,
+          toolCounts: contentSplit.toolCounts,
+        );
+      }
+    }
+
+    final l10n = AppLocalizations.of(context)!;
+    final snapshot = WebTranscriptProjection.build(
+      conversationId: conversation.id,
+      messages: projectedMessages,
+      settings: context.read<SettingsProvider>(),
+      labels: WebTranscriptLabels(
+        user: l10n.userProviderDefaultUserName,
+        assistant: l10n.readingModeAssistantFallback,
+        resend: l10n.chatMessageWidgetResendTooltip,
+        regenerate: l10n.chatMessageWidgetRegenerateTooltip,
+        translate: l10n.chatMessageWidgetTranslateTooltip,
+        speak: l10n.chatMessageWidgetSpeakTooltip,
+        edit: l10n.messageMoreSheetEdit,
+        more: l10n.chatMessageWidgetMoreTooltip,
+        previousVersion: l10n.chatWebRendererPreviousVersion,
+        nextVersion: l10n.chatWebRendererNextVersion,
+        reasoning: l10n.chatMessageWidgetDeepThinking,
+        toolCall: l10n.chatMessageWidgetToolCall('{name}'),
+        arguments: l10n.chatMessageWidgetArguments,
+        result: l10n.chatMessageWidgetResult,
+        noResult: l10n.chatMessageWidgetNoResultYet,
+        translation: l10n.chatMessageWidgetTranslation,
+      ),
+      resolveAssistant: (message) => assistantForMessage(context, message),
+      byGroup: byGroup,
+      versionSelections: versionSelections,
+      reasoning: reasoning,
+      tools: tools,
+      splits: splits,
+      formatTimestamp: (message) => DateFormat.yMd(
+        Localizations.localeOf(context).toLanguageTag(),
+      ).add_Hm().format(message.timestamp),
+      selectedItems: selectedItems,
+      collapsedTranslations: _controller.translations.entries
+          .where((entry) => !entry.value.expanded)
+          .map((entry) => entry.key)
+          .toSet(),
+      selecting: selecting,
+      hasMoreBefore: hasMoreBefore,
+      hasMoreAfter: hasMoreAfter,
+      suggestions:
+          context.read<SettingsProvider>().suggestionModelProvider != null &&
+              context.read<SettingsProvider>().suggestionModelId != null
+          ? conversation.chatSuggestions
+          : const <String>[],
+      spotlightMessageId: _controller.spotlightMessageId,
+    );
+    _webTranscriptResources = snapshot.resources;
+    return snapshot;
+  }
+
+  Future<void> _handleWebTranscriptAction(
+    BuildContext context, {
+    required String action,
+    required String? messageId,
+    required String? href,
+    required String? resourceId,
+    required String? value,
+    required List<ChatMessage> messages,
+  }) async {
+    if (action == 'openLink') {
+      if (resourceId != null) {
+        await _openWebTranscriptResource(context, resourceId);
+      } else if (href != null) {
+        final uri = Uri.tryParse(href);
+        if (uri != null &&
+            const <String>{'http', 'https', 'mailto'}.contains(uri.scheme)) {
+          final opened = await launchUrl(
+            uri,
+            mode: LaunchMode.externalApplication,
+          );
+          if (!opened && context.mounted) {
+            showAppSnackBar(
+              context,
+              message: AppLocalizations.of(
+                context,
+              )!.chatMessageWidgetCannotOpenUrl(href),
+              type: NotificationType.error,
+            );
+          }
+        }
+      }
+      return;
+    }
+    if (action == 'openResource' && resourceId != null) {
+      await _openWebTranscriptResource(context, resourceId);
+      return;
+    }
+    if (messageId == null) return;
+    final index = messages.indexWhere((message) => message.id == messageId);
+    if (index < 0) return;
+    final message = messages[index];
+    switch (action) {
+      case 'resend':
+      case 'regenerate':
+        await _confirmWebTranscriptRegeneration(context, message);
+      case 'translate':
+        _controller.translateMessage(message);
+      case 'speak':
+        await _controller.speakMessage(message);
+      case 'edit':
+        _controller.editMessage(message);
+      case 'select':
+        _controller.toggleSelection(message.id, true);
+      case 'unselect':
+        _controller.toggleSelection(message.id, false);
+      case 'toggleReasoning':
+        _controller.toggleReasoning(message.id);
+      case 'toggleTranslation':
+        _controller.toggleTranslation(message.id);
+      case 'suggestion':
+        if (value != null && value.isNotEmpty) {
+          _controller.sendSuggestion(value);
+        }
+      case 'previousVersion':
+      case 'nextVersion':
+        final groupId = message.groupId ?? message.id;
+        final current =
+            _controller.versionSelections[groupId] ?? message.version;
+        final next = action == 'previousVersion' ? current - 1 : current + 1;
+        await _controller.setSelectedVersion(groupId, next);
+      case 'more':
+        await _showWebTranscriptMoreSheet(context, message, index, messages);
+    }
+  }
+
+  Future<void> _confirmWebTranscriptRegeneration(
+    BuildContext context,
+    ChatMessage message,
+  ) async {
+    if (message.isStreaming) return;
+    final settings = context.read<SettingsProvider>();
+    if (!settings.showRegenerateConfirmDialog) {
+      _controller.regenerateAtMessage(message);
+      return;
+    }
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Theme.of(dialogContext).colorScheme.surface,
+        title: Text(l10n.chatMessageWidgetRegenerateConfirmTitle),
+        content: Text(
+          settings.regenerateDeleteTrailingMessages
+              ? l10n.chatMessageWidgetRegenerateConfirmDeleteTrailingContent
+              : l10n.chatMessageWidgetRegenerateConfirmContent,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.chatMessageWidgetRegenerateConfirmCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.chatMessageWidgetRegenerateConfirmOk),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      _controller.regenerateAtMessage(message);
+    }
+  }
+
+  Future<void> _showWebTranscriptMoreSheet(
+    BuildContext context,
+    ChatMessage message,
+    int index,
+    List<ChatMessage> messages,
+  ) async {
+    final groupId = message.groupId ?? message.id;
+    final byGroup = _controller.chatController.groupedMessages;
+    final action = await showMessageMoreSheet(
+      context,
+      message,
+      canDeleteAllVersions: (byGroup[groupId]?.length ?? 0) > 1,
+      showLegacyWebPreview: false,
+      hideActions: <MessageMoreAction>{
+        if (!_controller.canStartMultiAIComparison) MessageMoreAction.multiAI,
+      },
+    );
+    if (!context.mounted || action == null) return;
+    switch (action) {
+      case MessageMoreAction.deleteCurrentVersion:
+        await _handleDeleteMessage(context, message, byGroup);
+      case MessageMoreAction.deleteAllVersions:
+        await _handleDeleteMessage(
+          context,
+          message,
+          byGroup,
+          deleteAllVersions: true,
+        );
+      case MessageMoreAction.edit:
+        _controller.editMessage(message);
+      case MessageMoreAction.fork:
+        await _controller.forkConversation(message);
+      case MessageMoreAction.share:
+        _controller.shareMessage(index, messages);
+      case MessageMoreAction.selectMessages:
+        _controller.startMessageSelection(
+          messageIndex: index,
+          messageList: messages,
+          mode: ChatSelectionMode.delete,
+        );
+      case MessageMoreAction.multiAI:
+        _controller.handleMultiAIAction(message);
+      case MessageMoreAction.readingMode:
+        final assistant = assistantForMessage(context, message);
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ReadingModePage(
+              message: message,
+              assistantName: assistant?.name,
+            ),
+          ),
+        );
+    }
+  }
+
+  Future<void> _openWebTranscriptResource(
+    BuildContext context,
+    String resourceId,
+  ) async {
+    final resource = _webTranscriptResources[resourceId];
+    if (resource == null) return;
+    try {
+      if (resource.kind == WebTranscriptResourceKind.image) {
+        throw const WebTranscriptResourceException('resource_not_prepared');
+      }
+      final managedPath = WebTranscriptResourceProxy.resolveManagedLocalPath(
+        resource.source,
+      );
+      if (managedPath == null) {
+        throw const WebTranscriptResourceException('resource_unavailable');
+      }
+      final result = await OpenFilex.open(managedPath);
+      if (result.type == ResultType.done) return;
+      throw WebTranscriptResourceException('open_${result.type.name}');
+    } catch (error) {
+      debugPrint(
+        '[WebTranscript] resource action failed id=$resourceId '
+        'error=${error.runtimeType}',
+      );
+      if (!context.mounted) return;
+      showAppSnackBar(
+        context,
+        message: AppLocalizations.of(
+          context,
+        )!.chatWebRendererResourceUnavailable,
+        type: NotificationType.error,
+      );
+    }
+  }
+
+  Future<void> _openPreparedWebTranscriptImages(
+    BuildContext context,
+    String resourceId,
+    Map<String, WebTranscriptResourceData> prepared,
+  ) async {
+    final source = _webTranscriptResources[resourceId];
+    final data = prepared[resourceId];
+    if (source == null || data == null || !context.mounted) return;
+    final messagePrefix = '${resourceId.split(':').first}:';
+    final entries = _webTranscriptResources.entries
+        .where(
+          (entry) =>
+              entry.key.startsWith(messagePrefix) &&
+              entry.value.kind == WebTranscriptResourceKind.image &&
+              prepared.containsKey(entry.key),
+        )
+        .toList();
+    final ids = entries.map((entry) => entry.key).toList();
+    final images = ids.map((id) {
+      final item = prepared[id]!;
+      return 'data:${item.mimeType};base64,${base64Encode(item.bytes)}';
+    }).toList();
+    final initialIndex = ids.indexOf(resourceId);
+    if (images.isEmpty) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ImageViewerPage(
+          images: images,
+          initialIndex: initialIndex < 0 ? 0 : initialIndex,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWebTranscriptFallbackBanner(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: cs.surfaceContainerHighest,
+      elevation: 2,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l10n.chatWebRendererFallback,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: cs.onSurface, fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: IosCardPress(
+                    onTap: () => setState(() {
+                      _webTranscriptFailed = false;
+                      _webTranscriptRetryToken++;
+                    }),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        l10n.chatWebRendererRetry,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: IosCardPress(
+                    onTap: () => context
+                        .read<SettingsProvider>()
+                        .setChatRenderingEngine(ChatRenderingEngine.native),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        l10n.chatWebRendererUseNative,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 

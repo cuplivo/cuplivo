@@ -66,3 +66,4 @@ internationalization.md
 /.agent/
 /.agents/
 /skills-lock.json
+/tool/web_transcript/node_modules/

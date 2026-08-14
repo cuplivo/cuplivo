@@ -1,0 +1,25 @@
+{
+  "name": "@cuplivo/web-transcript",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@vscode/markdown-it-katex": "1.1.2",
+    "dompurify": "3.4.13",
+    "highlight.js": "11.12.0",
+    "katex": "0.16.22",
+    "markdown-it": "14.3.0",
+    "markdown-it-task-lists": "2.1.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "jsdom": "26.1.0"
+  }
+}

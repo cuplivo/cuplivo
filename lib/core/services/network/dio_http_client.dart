@@ -36,6 +36,20 @@ ConnectionTask<Socket> _directConnection(Uri uri, SecurityContext? context) {
   return ConnectionTask.fromSocket(socket, () async => (await socket).close());
 }
 
+ConnectionTask<Socket> _resolvedConnection(Uri uri, InternetAddress address) {
+  final Future<Socket> socket = Socket.connect(address, uri.port);
+  if (uri.scheme == 'https') {
+    final Future<SecureSocket> secureSocket = socket.then(
+      (plain) => SecureSocket.secure(plain, host: uri.host),
+    );
+    return ConnectionTask.fromSocket(
+      secureSocket,
+      () async => (await secureSocket).close(),
+    );
+  }
+  return ConnectionTask.fromSocket(socket, () async => (await socket).close());
+}
+
 class NetworkProxyConfig {
   final bool enabled;
   final String type;
@@ -57,16 +71,20 @@ class NetworkProxyConfig {
 }
 
 class DioHttpClient extends http.BaseClient {
-  DioHttpClient({this._proxy, CancelToken? cancelToken})
-    : _cancelToken = cancelToken ?? CancelToken(),
-      _dio = Dio(
-        BaseOptions(
-          connectTimeout: null,
-          sendTimeout: null,
-          receiveTimeout: null,
-          validateStatus: (_) => true,
-        ),
-      ) {
+  DioHttpClient({
+    this._proxy,
+    CancelToken? cancelToken,
+    this.addressResolver,
+    this.enableRequestLogging = true,
+  }) : _cancelToken = cancelToken ?? CancelToken(),
+       _dio = Dio(
+         BaseOptions(
+           connectTimeout: null,
+           sendTimeout: null,
+           receiveTimeout: null,
+           validateStatus: (_) => true,
+         ),
+       ) {
     _dio.httpClientAdapter = IOHttpClientAdapter(
       createHttpClient: () {
         final client = HttpClient();
@@ -122,6 +140,11 @@ class DioHttpClient extends http.BaseClient {
               );
             }
           }
+        } else if (addressResolver != null) {
+          client.connectionFactory = (uri, proxyHost, proxyPort) async {
+            final address = await addressResolver!(uri.host);
+            return _resolvedConnection(uri, address);
+          };
         }
         return client;
       },
@@ -136,6 +159,8 @@ class DioHttpClient extends http.BaseClient {
 
   final Dio _dio;
   final NetworkProxyConfig? _proxy;
+  final Future<InternetAddress> Function(String host)? addressResolver;
+  final bool enableRequestLogging;
   final CancelToken _cancelToken;
 
   @override
@@ -176,10 +201,14 @@ class DioHttpClient extends http.BaseClient {
     // name embeds the log-skip marker (e.g. the AI log-analysis export) is
     // kept entirely out of the log files, so analysis traffic cannot
     // inflate or poison the logs.
-    final bodyText = RequestLogger.llmEnabled && bodyBytes.isNotEmpty
+    final bodyText = enableRequestLogging &&
+            RequestLogger.llmEnabled &&
+            bodyBytes.isNotEmpty
         ? RequestLogger.safeDecodeUtf8(bodyBytes)
         : '';
-    final logEnabled = RequestLogger.llmEnabled && !_hasLogSkipMarker(bodyText);
+    final logEnabled = enableRequestLogging &&
+        RequestLogger.llmEnabled &&
+        !_hasLogSkipMarker(bodyText);
 
     if (logEnabled) {
       RequestLogger.logLine('[REQ $reqId] $method $uri');

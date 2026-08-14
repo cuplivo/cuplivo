@@ -13,10 +13,22 @@ import 'package:flutter/services.dart';
 /// - Provides a copy button to copy code to clipboard
 /// - Visual feedback when code is copied
 /// - Themed colors that adapt to light/dark mode
+/// - Shows live line/character count while streaming (when [closed] is false)
 class CodeField extends StatefulWidget {
-  const CodeField({super.key, required this.name, required this.codes});
+  const CodeField({
+    super.key,
+    required this.name,
+    required this.codes,
+    this.closed = true,
+  });
   final String name;
   final String codes;
+
+  /// Whether the code block has been closed with a trailing ```.
+  /// When false, the block is still being streamed and a live progress
+  /// indicator (line count and character count) is shown instead of just
+  /// the language label.
+  final bool closed;
 
   @override
   State<CodeField> createState() => _CodeFieldState();
@@ -24,6 +36,12 @@ class CodeField extends StatefulWidget {
 
 class _CodeFieldState extends State<CodeField> {
   bool _copied = false;
+
+  int get _lineCount {
+    if (widget.codes.isEmpty) return 0;
+    return '\n'.allMatches(widget.codes).length + 1;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -39,7 +57,16 @@ class _CodeFieldState extends State<CodeField> {
                   horizontal: 16.0,
                   vertical: 8,
                 ),
-                child: Text(widget.name),
+                child: !widget.closed
+                    ? Text(
+                        widget.name.isNotEmpty
+                            ? '正在生成 ${widget.name} · $_lineCount 行 · ${widget.codes.length} 字符'
+                            : '正在生成 · $_lineCount 行 · ${widget.codes.length} 字符',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      )
+                    : Text(widget.name),
               ),
               const Spacer(),
               TextButton.icon(

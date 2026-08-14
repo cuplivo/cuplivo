@@ -148,7 +148,7 @@ Cuplivo 是一个社区分支，尚未与原项目完全切割。QQ 群已归属
 
 ## 🚀 下载
 
-🔗 [下载最新版本](https://github.com/Chevey339/kelivo/releases/latest)
+🔗 [下载最新版本](https://github.com/xuanxuan9929/Noxlivo/releases/latest)
 
 > **iOS：** Cuplivo 未上架 App Store，请通过自签方式安装（如 Sideloadly、AltStore 或其他签名工具）。
 
@@ -181,7 +181,7 @@ Cuplivo 是一个社区分支，尚未与原项目完全切割。QQ 群已归属
 
 - ✅ Android
 - ✅ iOS
-- ✅ Harmony ([kelivo-ohos](https://github.com/Chevey339/kelivo-ohos))
+- ✅ Harmony 
 - ✅ Windows
 - ✅ macOS
 - ✅ Linux
@@ -206,7 +206,7 @@ Cuplivo 是一个社区分支，尚未与原项目完全切割。QQ 群已归属
 
 如果你喜欢这个项目，可以给个Star ⭐
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Chevey339/kelivo&type=Date)](https://star-history.com/#Chevey339/kelivo&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=xuanxuan9929/Noxlivo&type=Date)](https://star-history.com/#xuanxuan9929/Noxlivo&Date)
 
 ## 📄 许可证
 
@@ -214,7 +214,7 @@ Cuplivo 是一个社区分支，尚未与原项目完全切割。QQ 群已归属
 
 ## 📞 联系我们
 
-- Issue: [GitHub Issues](https://github.com/Chevey339/kelivo/issues)
+- Issue: [GitHub Issues](https://github.com/xuanxuan9929/Noxlivo/issues)
 
 ---
 

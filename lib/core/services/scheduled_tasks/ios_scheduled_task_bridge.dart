@@ -65,6 +65,7 @@ class IosScheduledTaskBridge {
     for (var attempt = 0; attempt < 40; attempt++) {
       final context = _contextProvider?.call();
       if (context != null) {
+        // ignore: use_build_context_synchronously (root context, valid for app lifetime)
         return ScheduledTaskExecutionService.executeDueTasks(context: context);
       }
       await Future<void>.delayed(const Duration(milliseconds: 100));

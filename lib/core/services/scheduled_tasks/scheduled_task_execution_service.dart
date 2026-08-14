@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -72,6 +71,7 @@ class ScheduledTaskExecutionService {
     final results = <ScheduledTaskExecutionResult>[];
     for (final task in dueTasks) {
       final result = await _executeTask(
+        // ignore: use_build_context_synchronously (root context, valid for app lifetime)
         context: context,
         taskProvider: taskProvider,
         task: task,
@@ -107,11 +107,14 @@ class ScheduledTaskExecutionService {
 
     final startedAt = now;
     String? conversationId;
+    // ignore: use_build_context_synchronously (root context, valid for app lifetime)
     final l10n = AppLocalizations.of(context);
 
     try {
+      // ignore: use_build_context_synchronously (root context, valid for app lifetime)
       final chatService = context.read<ChatService>();
       await chatService.init();
+      // ignore: use_build_context_synchronously (root context, valid for app lifetime)
       final assistantProvider = context.read<AssistantProvider>();
       await assistantProvider.ensureLoaded();
       final assistant = assistantProvider.getById(task.assistantId);
@@ -137,12 +140,15 @@ class ScheduledTaskExecutionService {
       // selected MCP connections for a short bounded window so the scheduled
       // assistant inherits the same non-interactive capabilities it normally
       // has in a foreground conversation.
+      // ignore: use_build_context_synchronously (root context, valid for app lifetime)
       final workspaceProvider = context.read<WorkspaceProvider>();
       await workspaceProvider.init();
+      // ignore: use_build_context_synchronously (root context, valid for app lifetime)
       final mcpProvider = context.read<McpProvider>();
       await mcpProvider.ensureLoaded();
       await _waitForSelectedMcpConnections(mcpProvider, assistant);
 
+      // ignore: use_build_context_synchronously (root context, valid for app lifetime)
       final settings = context.read<SettingsProvider>();
       await settings.ensureLoaded();
       final providerKey =
@@ -158,6 +164,7 @@ class ScheduledTaskExecutionService {
 
       final builder = MessageBuilderService(
         chatService: chatService,
+        // ignore: use_build_context_synchronously (root context, valid for app lifetime)
         contextProvider: context,
       );
       final messages = chatService.getMessages(conversation.id);
@@ -197,6 +204,7 @@ class ScheduledTaskExecutionService {
       builder.applyContextLimit(apiMessages, assistant);
       await builder.inlineLocalImages(apiMessages);
 
+      // ignore: use_build_context_synchronously (root context, valid for app lifetime)
       final toolHandler = ToolHandlerService(contextProvider: context);
       var toolDefs = toolHandler.buildToolDefinitions(
         settings,
@@ -207,6 +215,7 @@ class ScheduledTaskExecutionService {
         isToolModel: (_, _) => true,
       );
       toolDefs = _removeInteractiveTools(
+        // ignore: use_build_context_synchronously (root context, valid for app lifetime)
         context: context,
         assistant: assistant,
         definitions: toolDefs,
@@ -230,6 +239,7 @@ class ScheduledTaskExecutionService {
         isStreaming: true,
       );
 
+      // ignore: use_build_context_synchronously (root context, valid for app lifetime)
       final engine = context.read<GenerationEngine>();
       engine.startRound(
         conversationId: conversation.id,

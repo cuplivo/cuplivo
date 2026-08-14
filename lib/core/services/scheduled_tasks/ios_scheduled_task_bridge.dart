@@ -77,6 +77,7 @@ class IosScheduledTaskBridge {
       final context = _contextProvider?.call();
       if (context != null) {
         return ScheduledTaskExecutionService.executeTrigger(
+          // ignore: use_build_context_synchronously (root context, valid for app lifetime)
           context: context,
           triggerId: triggerId,
         );

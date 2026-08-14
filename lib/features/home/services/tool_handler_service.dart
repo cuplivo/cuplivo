@@ -687,6 +687,7 @@ class ToolHandlerService {
           }
           ScheduledTaskProvider scheduled;
           try {
+            // ignore: use_build_context_synchronously (root context, valid for app lifetime)
             scheduled = contextProvider.read<ScheduledTaskProvider>();
           } on ProviderNotFoundException {
             return _toolError(
@@ -745,7 +746,9 @@ class ToolHandlerService {
             } catch (_) {}
           }
           if (needsShortcutsConnection) {
+            // ignore: use_build_context_synchronously (root context, valid for app lifetime)
             final l10n = AppLocalizations.of(contextProvider);
+            // ignore: use_build_context_synchronously (root context, valid for app lifetime)
             final messenger = ScaffoldMessenger.maybeOf(contextProvider);
             if (l10n != null && messenger != null) {
               messenger.showSnackBar(

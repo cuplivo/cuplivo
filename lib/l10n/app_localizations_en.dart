@@ -8234,4 +8234,189 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantEditLocalToolWorkspaceTitle => 'Workspace';
+
+  @override
+  String get settingsPageScheduledTasks => 'Scheduled Tasks';
+
+  @override
+  String get scheduledTaskPageTitle => 'Scheduled Tasks';
+
+  @override
+  String get scheduledTaskCreate => 'Create Task';
+
+  @override
+  String get scheduledTaskEdit => 'Edit Task';
+
+  @override
+  String get scheduledTaskSave => 'Save';
+
+  @override
+  String get scheduledTaskName => 'Task Name';
+
+  @override
+  String get scheduledTaskAssistant => 'Assistant';
+
+  @override
+  String get scheduledTaskPrompt => 'Task Content';
+
+  @override
+  String get scheduledTaskFrequency => 'Repeat';
+
+  @override
+  String get scheduledTaskFrequencyOnce => 'Once';
+
+  @override
+  String get scheduledTaskFrequencyDaily => 'Daily';
+
+  @override
+  String get scheduledTaskFrequencyWeekly => 'Weekly';
+
+  @override
+  String get scheduledTaskFrequencyMonthly => 'Monthly';
+
+  @override
+  String get scheduledTaskFrequencyYearly => 'Yearly';
+
+  @override
+  String get scheduledTaskInterval => 'Interval';
+
+  @override
+  String get scheduledTaskIntervalDayHelp => '1 = every day, 2 = every 2 days, and so on.';
+
+  @override
+  String get scheduledTaskIntervalWeekHelp => '1 = every week, 2 = every 2 weeks, and so on.';
+
+  @override
+  String get scheduledTaskIntervalMonthHelp => '1 = every month, 2 = every 2 months, and so on.';
+
+  @override
+  String get scheduledTaskIntervalYearHelp => '1 = every year, 2 = every 2 years, and so on.';
+
+  @override
+  String get scheduledTaskStartDate => 'Start Date';
+
+  @override
+  String get scheduledTaskRunOnceAt => 'Run Once At';
+
+  @override
+  String get scheduledTaskTime => 'Time';
+
+  @override
+  String get scheduledTaskWeekdays => 'Weekdays';
+
+  @override
+  String get scheduledTaskMonthDaysLabel => 'Days of Month';
+
+  @override
+  String get scheduledTaskYearDate => 'Month and Day';
+
+  @override
+  String get scheduledTaskTimezoneNote => 'Times follow the device’s current local timezone.';
+
+  @override
+  String get scheduledTaskDelete => 'Delete Task';
+
+  @override
+  String get scheduledTaskDeleteTitle => 'Delete scheduled task?';
+
+  @override
+  String get scheduledTaskDeleteMessage => 'The task will be removed from Cuplivo. Any old Shortcut trigger will be ignored silently.';
+
+  @override
+  String get scheduledTaskCancel => 'Cancel';
+
+  @override
+  String get scheduledTaskInvalidForm => 'Complete the task name, assistant, content, and a valid interval.';
+
+  @override
+  String get scheduledTaskSelectWeekday => 'Select at least one weekday.';
+
+  @override
+  String get scheduledTaskSelectMonthDay => 'Select at least one day of the month.';
+
+  @override
+  String get scheduledTaskAllowAi => 'Allow AI to manage scheduled tasks';
+
+  @override
+  String get scheduledTaskAllowAiSubtitle => 'All assistants may manage only their own scheduled tasks.';
+
+  @override
+  String get scheduledTaskRequireApproval => 'Require approval for AI changes';
+
+  @override
+  String get scheduledTaskRequireApprovalSubtitle => 'Creating, editing, deleting, enabling, or disabling a task must be approved first.';
+
+  @override
+  String get scheduledTaskShortcutHelp => 'Connect copies this task’s Trigger ID and opens Shortcuts. Add “Run Cuplivo Scheduled Task”, paste the Trigger ID, then create a Personal Automation that runs it every day at this task’s time. Cuplivo will decide whether the current date matches the recurrence.';
+
+  @override
+  String get scheduledTaskEmpty => 'No scheduled tasks yet.';
+
+  @override
+  String get scheduledTaskUnknownAssistant => 'Unknown assistant';
+
+  @override
+  String get scheduledTaskCompleted => 'Executed';
+
+  @override
+  String get scheduledTaskConnect => 'Connect';
+
+  @override
+  String get scheduledTaskReconnect => 'Reconnect';
+
+  @override
+  String get scheduledTaskLogs => 'Execution Logs';
+
+  @override
+  String get scheduledTaskNotFound => 'This scheduled task no longer exists.';
+
+  @override
+  String get scheduledTaskNoLogs => 'No execution logs yet.';
+
+  @override
+  String get scheduledTaskLogSuccess => 'Success';
+
+  @override
+  String get scheduledTaskLogFailure => 'Failed';
+
+  @override
+  String get scheduledTaskUnitDay => 'days';
+
+  @override
+  String get scheduledTaskUnitWeek => 'weeks';
+
+  @override
+  String get scheduledTaskUnitMonth => 'months';
+
+  @override
+  String get scheduledTaskUnitYear => 'years';
+
+  @override
+  String get scheduledTaskAiConnectHint => 'Scheduled task saved. Go to Settings → Scheduled Tasks to connect it to Shortcuts.';
+
+  @override
+  String get scheduledTaskCompletedNotification => 'Scheduled task completed.';
+
+  @override
+  String get scheduledTaskFailedNotification => 'Scheduled task failed. Open Cuplivo to view the execution log.';
+
+  @override
+  String scheduledTaskLastSuccess(String time) {
+    return 'Last: ${time} · Success';
+  }
+
+  @override
+  String scheduledTaskLastFailure(String time) {
+    return 'Last: ${time} · Failed';
+  }
+
+  @override
+  String scheduledTaskEveryN(int count, String unit) {
+    return 'Every ${count} ${unit}';
+  }
+
+  @override
+  String scheduledTaskMonthDays(String days) {
+    return 'Days ${days}';
+  }
 }

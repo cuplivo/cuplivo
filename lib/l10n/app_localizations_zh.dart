@@ -7873,6 +7873,191 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get assistantEditLocalToolWorkspaceTitle => '工作区';
+
+  @override
+  String get settingsPageScheduledTasks => '定时任务';
+
+  @override
+  String get scheduledTaskPageTitle => '定时任务';
+
+  @override
+  String get scheduledTaskCreate => '新建定时任务';
+
+  @override
+  String get scheduledTaskEdit => '编辑定时任务';
+
+  @override
+  String get scheduledTaskSave => '保存';
+
+  @override
+  String get scheduledTaskName => '任务名称';
+
+  @override
+  String get scheduledTaskAssistant => '助手';
+
+  @override
+  String get scheduledTaskPrompt => '任务内容';
+
+  @override
+  String get scheduledTaskFrequency => '重复方式';
+
+  @override
+  String get scheduledTaskFrequencyOnce => '仅一次';
+
+  @override
+  String get scheduledTaskFrequencyDaily => '每天';
+
+  @override
+  String get scheduledTaskFrequencyWeekly => '每周';
+
+  @override
+  String get scheduledTaskFrequencyMonthly => '每月';
+
+  @override
+  String get scheduledTaskFrequencyYearly => '每年';
+
+  @override
+  String get scheduledTaskInterval => '间隔';
+
+  @override
+  String get scheduledTaskIntervalDayHelp => '1 表示每天，2 表示每 2 天，以此类推。';
+
+  @override
+  String get scheduledTaskIntervalWeekHelp => '1 表示每周，2 表示每 2 周，以此类推。';
+
+  @override
+  String get scheduledTaskIntervalMonthHelp => '1 表示每月，2 表示每 2 个月，以此类推。';
+
+  @override
+  String get scheduledTaskIntervalYearHelp => '1 表示每年，2 表示每 2 年，以此类推。';
+
+  @override
+  String get scheduledTaskStartDate => '起始日期';
+
+  @override
+  String get scheduledTaskRunOnceAt => '执行时间';
+
+  @override
+  String get scheduledTaskTime => '时间';
+
+  @override
+  String get scheduledTaskWeekdays => '星期';
+
+  @override
+  String get scheduledTaskMonthDaysLabel => '每月日期';
+
+  @override
+  String get scheduledTaskYearDate => '月和日';
+
+  @override
+  String get scheduledTaskTimezoneNote => '时间跟随设备当前所在时区。';
+
+  @override
+  String get scheduledTaskDelete => '删除任务';
+
+  @override
+  String get scheduledTaskDeleteTitle => '删除定时任务？';
+
+  @override
+  String get scheduledTaskDeleteMessage => '任务会从 Cuplivo 中删除。旧的快捷指令触发器之后会被静默忽略。';
+
+  @override
+  String get scheduledTaskCancel => '取消';
+
+  @override
+  String get scheduledTaskInvalidForm => '请填写任务名称、助手、任务内容，并设置有效的间隔。';
+
+  @override
+  String get scheduledTaskSelectWeekday => '请至少选择一个星期。';
+
+  @override
+  String get scheduledTaskSelectMonthDay => '请至少选择一个每月日期。';
+
+  @override
+  String get scheduledTaskAllowAi => '允许 AI 操作定时任务';
+
+  @override
+  String get scheduledTaskAllowAiSubtitle => '开启后，所有助手都只能管理各自创建或所属的定时任务。';
+
+  @override
+  String get scheduledTaskRequireApproval => 'AI 操作前需要审批';
+
+  @override
+  String get scheduledTaskRequireApprovalSubtitle => '创建、修改、删除、启用或停用任务前，都需要先经过审批。';
+
+  @override
+  String get scheduledTaskShortcutHelp => '点击连接会复制该任务的 Trigger ID 并打开快捷指令。添加“Run Cuplivo Scheduled Task”操作并粘贴 Trigger ID，再创建一个每天在该任务时间运行它的个人自动化；Cuplivo 会自行判断当天是否符合重复规则。';
+
+  @override
+  String get scheduledTaskEmpty => '还没有定时任务。';
+
+  @override
+  String get scheduledTaskUnknownAssistant => '未知助手';
+
+  @override
+  String get scheduledTaskCompleted => '已执行';
+
+  @override
+  String get scheduledTaskConnect => '连接';
+
+  @override
+  String get scheduledTaskReconnect => '重新连接';
+
+  @override
+  String get scheduledTaskLogs => '执行日志';
+
+  @override
+  String get scheduledTaskNotFound => '这个定时任务已不存在。';
+
+  @override
+  String get scheduledTaskNoLogs => '还没有执行日志。';
+
+  @override
+  String get scheduledTaskLogSuccess => '成功';
+
+  @override
+  String get scheduledTaskLogFailure => '失败';
+
+  @override
+  String get scheduledTaskUnitDay => '天';
+
+  @override
+  String get scheduledTaskUnitWeek => '周';
+
+  @override
+  String get scheduledTaskUnitMonth => '个月';
+
+  @override
+  String get scheduledTaskUnitYear => '年';
+
+  @override
+  String get scheduledTaskAiConnectHint => '定时任务已保存，请到“设置 → 定时任务”中连接快捷指令。';
+
+  @override
+  String get scheduledTaskCompletedNotification => '定时任务已执行完成。';
+
+  @override
+  String get scheduledTaskFailedNotification => '定时任务执行失败，请打开 Cuplivo 查看执行日志。';
+
+  @override
+  String scheduledTaskLastSuccess(String time) {
+    return '上次：${time} · 成功';
+  }
+
+  @override
+  String scheduledTaskLastFailure(String time) {
+    return '上次：${time} · 失败';
+  }
+
+  @override
+  String scheduledTaskEveryN(int count, String unit) {
+    return '每 ${count} ${unit}';
+  }
+
+  @override
+  String scheduledTaskMonthDays(String days) {
+    return '每月 ${days} 日';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -15744,6 +15929,191 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assistantEditLocalToolWorkspaceTitle => '工作区';
+
+  @override
+  String get settingsPageScheduledTasks => '定时任务';
+
+  @override
+  String get scheduledTaskPageTitle => '定时任务';
+
+  @override
+  String get scheduledTaskCreate => '新建定时任务';
+
+  @override
+  String get scheduledTaskEdit => '编辑定时任务';
+
+  @override
+  String get scheduledTaskSave => '保存';
+
+  @override
+  String get scheduledTaskName => '任务名称';
+
+  @override
+  String get scheduledTaskAssistant => '助手';
+
+  @override
+  String get scheduledTaskPrompt => '任务内容';
+
+  @override
+  String get scheduledTaskFrequency => '重复方式';
+
+  @override
+  String get scheduledTaskFrequencyOnce => '仅一次';
+
+  @override
+  String get scheduledTaskFrequencyDaily => '每天';
+
+  @override
+  String get scheduledTaskFrequencyWeekly => '每周';
+
+  @override
+  String get scheduledTaskFrequencyMonthly => '每月';
+
+  @override
+  String get scheduledTaskFrequencyYearly => '每年';
+
+  @override
+  String get scheduledTaskInterval => '间隔';
+
+  @override
+  String get scheduledTaskIntervalDayHelp => '1 表示每天，2 表示每 2 天，以此类推。';
+
+  @override
+  String get scheduledTaskIntervalWeekHelp => '1 表示每周，2 表示每 2 周，以此类推。';
+
+  @override
+  String get scheduledTaskIntervalMonthHelp => '1 表示每月，2 表示每 2 个月，以此类推。';
+
+  @override
+  String get scheduledTaskIntervalYearHelp => '1 表示每年，2 表示每 2 年，以此类推。';
+
+  @override
+  String get scheduledTaskStartDate => '起始日期';
+
+  @override
+  String get scheduledTaskRunOnceAt => '执行时间';
+
+  @override
+  String get scheduledTaskTime => '时间';
+
+  @override
+  String get scheduledTaskWeekdays => '星期';
+
+  @override
+  String get scheduledTaskMonthDaysLabel => '每月日期';
+
+  @override
+  String get scheduledTaskYearDate => '月和日';
+
+  @override
+  String get scheduledTaskTimezoneNote => '时间跟随设备当前所在时区。';
+
+  @override
+  String get scheduledTaskDelete => '删除任务';
+
+  @override
+  String get scheduledTaskDeleteTitle => '删除定时任务？';
+
+  @override
+  String get scheduledTaskDeleteMessage => '任务会从 Cuplivo 中删除。旧的快捷指令触发器之后会被静默忽略。';
+
+  @override
+  String get scheduledTaskCancel => '取消';
+
+  @override
+  String get scheduledTaskInvalidForm => '请填写任务名称、助手、任务内容，并设置有效的间隔。';
+
+  @override
+  String get scheduledTaskSelectWeekday => '请至少选择一个星期。';
+
+  @override
+  String get scheduledTaskSelectMonthDay => '请至少选择一个每月日期。';
+
+  @override
+  String get scheduledTaskAllowAi => '允许 AI 操作定时任务';
+
+  @override
+  String get scheduledTaskAllowAiSubtitle => '开启后，所有助手都只能管理各自创建或所属的定时任务。';
+
+  @override
+  String get scheduledTaskRequireApproval => 'AI 操作前需要审批';
+
+  @override
+  String get scheduledTaskRequireApprovalSubtitle => '创建、修改、删除、启用或停用任务前，都需要先经过审批。';
+
+  @override
+  String get scheduledTaskShortcutHelp => '点击连接会复制该任务的 Trigger ID 并打开快捷指令。添加“Run Cuplivo Scheduled Task”操作并粘贴 Trigger ID，再创建一个每天在该任务时间运行它的个人自动化；Cuplivo 会自行判断当天是否符合重复规则。';
+
+  @override
+  String get scheduledTaskEmpty => '还没有定时任务。';
+
+  @override
+  String get scheduledTaskUnknownAssistant => '未知助手';
+
+  @override
+  String get scheduledTaskCompleted => '已执行';
+
+  @override
+  String get scheduledTaskConnect => '连接';
+
+  @override
+  String get scheduledTaskReconnect => '重新连接';
+
+  @override
+  String get scheduledTaskLogs => '执行日志';
+
+  @override
+  String get scheduledTaskNotFound => '这个定时任务已不存在。';
+
+  @override
+  String get scheduledTaskNoLogs => '还没有执行日志。';
+
+  @override
+  String get scheduledTaskLogSuccess => '成功';
+
+  @override
+  String get scheduledTaskLogFailure => '失败';
+
+  @override
+  String get scheduledTaskUnitDay => '天';
+
+  @override
+  String get scheduledTaskUnitWeek => '周';
+
+  @override
+  String get scheduledTaskUnitMonth => '个月';
+
+  @override
+  String get scheduledTaskUnitYear => '年';
+
+  @override
+  String get scheduledTaskAiConnectHint => '定时任务已保存，请到“设置 → 定时任务”中连接快捷指令。';
+
+  @override
+  String get scheduledTaskCompletedNotification => '定时任务已执行完成。';
+
+  @override
+  String get scheduledTaskFailedNotification => '定时任务执行失败，请打开 Cuplivo 查看执行日志。';
+
+  @override
+  String scheduledTaskLastSuccess(String time) {
+    return '上次：${time} · 成功';
+  }
+
+  @override
+  String scheduledTaskLastFailure(String time) {
+    return '上次：${time} · 失败';
+  }
+
+  @override
+  String scheduledTaskEveryN(int count, String unit) {
+    return '每 ${count} ${unit}';
+  }
+
+  @override
+  String scheduledTaskMonthDays(String days) {
+    return '每月 ${days} 日';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -23615,4 +23985,189 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantEditLocalToolWorkspaceTitle => '工作區';
+
+  @override
+  String get settingsPageScheduledTasks => '定時任務';
+
+  @override
+  String get scheduledTaskPageTitle => '定時任務';
+
+  @override
+  String get scheduledTaskCreate => '新增定時任務';
+
+  @override
+  String get scheduledTaskEdit => '編輯定時任務';
+
+  @override
+  String get scheduledTaskSave => '儲存';
+
+  @override
+  String get scheduledTaskName => '任務名稱';
+
+  @override
+  String get scheduledTaskAssistant => '助手';
+
+  @override
+  String get scheduledTaskPrompt => '任務內容';
+
+  @override
+  String get scheduledTaskFrequency => '重複方式';
+
+  @override
+  String get scheduledTaskFrequencyOnce => '僅一次';
+
+  @override
+  String get scheduledTaskFrequencyDaily => '每天';
+
+  @override
+  String get scheduledTaskFrequencyWeekly => '每週';
+
+  @override
+  String get scheduledTaskFrequencyMonthly => '每月';
+
+  @override
+  String get scheduledTaskFrequencyYearly => '每年';
+
+  @override
+  String get scheduledTaskInterval => '間隔';
+
+  @override
+  String get scheduledTaskIntervalDayHelp => '1 表示每天，2 表示每 2 天，以此類推。';
+
+  @override
+  String get scheduledTaskIntervalWeekHelp => '1 表示每週，2 表示每 2 週，以此類推。';
+
+  @override
+  String get scheduledTaskIntervalMonthHelp => '1 表示每月，2 表示每 2 個月，以此類推。';
+
+  @override
+  String get scheduledTaskIntervalYearHelp => '1 表示每年，2 表示每 2 年，以此類推。';
+
+  @override
+  String get scheduledTaskStartDate => '起始日期';
+
+  @override
+  String get scheduledTaskRunOnceAt => '執行時間';
+
+  @override
+  String get scheduledTaskTime => '時間';
+
+  @override
+  String get scheduledTaskWeekdays => '星期';
+
+  @override
+  String get scheduledTaskMonthDaysLabel => '每月日期';
+
+  @override
+  String get scheduledTaskYearDate => '月和日';
+
+  @override
+  String get scheduledTaskTimezoneNote => '時間跟隨裝置目前所在時區。';
+
+  @override
+  String get scheduledTaskDelete => '刪除任務';
+
+  @override
+  String get scheduledTaskDeleteTitle => '刪除定時任務？';
+
+  @override
+  String get scheduledTaskDeleteMessage => '任務會從 Cuplivo 中刪除。舊的捷徑觸發器之後會被靜默忽略。';
+
+  @override
+  String get scheduledTaskCancel => '取消';
+
+  @override
+  String get scheduledTaskInvalidForm => '請填寫任務名稱、助手、任務內容，並設定有效的間隔。';
+
+  @override
+  String get scheduledTaskSelectWeekday => '請至少選擇一個星期。';
+
+  @override
+  String get scheduledTaskSelectMonthDay => '請至少選擇一個每月日期。';
+
+  @override
+  String get scheduledTaskAllowAi => '允許 AI 操作定時任務';
+
+  @override
+  String get scheduledTaskAllowAiSubtitle => '開啟後，所有助手都只能管理各自建立或所屬的定時任務。';
+
+  @override
+  String get scheduledTaskRequireApproval => 'AI 操作前需要審批';
+
+  @override
+  String get scheduledTaskRequireApprovalSubtitle => '建立、修改、刪除、啟用或停用任務前，都需要先經過審批。';
+
+  @override
+  String get scheduledTaskShortcutHelp => '點擊連接會複製該任務的 Trigger ID 並開啟「捷徑」。加入「Run Cuplivo Scheduled Task」操作並貼上 Trigger ID，再建立一個每天在該任務時間執行它的個人自動化；Cuplivo 會自行判斷當天是否符合重複規則。';
+
+  @override
+  String get scheduledTaskEmpty => '還沒有定時任務。';
+
+  @override
+  String get scheduledTaskUnknownAssistant => '未知助手';
+
+  @override
+  String get scheduledTaskCompleted => '已執行';
+
+  @override
+  String get scheduledTaskConnect => '連接';
+
+  @override
+  String get scheduledTaskReconnect => '重新連接';
+
+  @override
+  String get scheduledTaskLogs => '執行日誌';
+
+  @override
+  String get scheduledTaskNotFound => '這個定時任務已不存在。';
+
+  @override
+  String get scheduledTaskNoLogs => '還沒有執行日誌。';
+
+  @override
+  String get scheduledTaskLogSuccess => '成功';
+
+  @override
+  String get scheduledTaskLogFailure => '失敗';
+
+  @override
+  String get scheduledTaskUnitDay => '天';
+
+  @override
+  String get scheduledTaskUnitWeek => '週';
+
+  @override
+  String get scheduledTaskUnitMonth => '個月';
+
+  @override
+  String get scheduledTaskUnitYear => '年';
+
+  @override
+  String get scheduledTaskAiConnectHint => '定時任務已儲存，請到「設定 → 定時任務」中連接捷徑。';
+
+  @override
+  String get scheduledTaskCompletedNotification => '定時任務已執行完成。';
+
+  @override
+  String get scheduledTaskFailedNotification => '定時任務執行失敗，請開啟 Cuplivo 查看執行日誌。';
+
+  @override
+  String scheduledTaskLastSuccess(String time) {
+    return '上次：${time} · 成功';
+  }
+
+  @override
+  String scheduledTaskLastFailure(String time) {
+    return '上次：${time} · 失敗';
+  }
+
+  @override
+  String scheduledTaskEveryN(int count, String unit) {
+    return '每 ${count} ${unit}';
+  }
+
+  @override
+  String scheduledTaskMonthDays(String days) {
+    return '每月 ${days} 日';
+  }
 }

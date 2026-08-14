@@ -14903,6 +14903,360 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Workspace'**
   String get assistantEditLocalToolWorkspaceTitle;
+
+  /// No description provided for @settingsPageScheduledTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled Tasks'**
+  String get settingsPageScheduledTasks;
+
+  /// No description provided for @scheduledTaskPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled Tasks'**
+  String get scheduledTaskPageTitle;
+
+  /// No description provided for @scheduledTaskCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Task'**
+  String get scheduledTaskCreate;
+
+  /// No description provided for @scheduledTaskEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Task'**
+  String get scheduledTaskEdit;
+
+  /// No description provided for @scheduledTaskSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get scheduledTaskSave;
+
+  /// No description provided for @scheduledTaskName.
+  ///
+  /// In en, this message translates to:
+  /// **'Task Name'**
+  String get scheduledTaskName;
+
+  /// No description provided for @scheduledTaskAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant'**
+  String get scheduledTaskAssistant;
+
+  /// No description provided for @scheduledTaskPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Task Content'**
+  String get scheduledTaskPrompt;
+
+  /// No description provided for @scheduledTaskFrequency.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat'**
+  String get scheduledTaskFrequency;
+
+  /// No description provided for @scheduledTaskFrequencyOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'Once'**
+  String get scheduledTaskFrequencyOnce;
+
+  /// No description provided for @scheduledTaskFrequencyDaily.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily'**
+  String get scheduledTaskFrequencyDaily;
+
+  /// No description provided for @scheduledTaskFrequencyWeekly.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly'**
+  String get scheduledTaskFrequencyWeekly;
+
+  /// No description provided for @scheduledTaskFrequencyMonthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly'**
+  String get scheduledTaskFrequencyMonthly;
+
+  /// No description provided for @scheduledTaskFrequencyYearly.
+  ///
+  /// In en, this message translates to:
+  /// **'Yearly'**
+  String get scheduledTaskFrequencyYearly;
+
+  /// No description provided for @scheduledTaskInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Interval'**
+  String get scheduledTaskInterval;
+
+  /// No description provided for @scheduledTaskIntervalDayHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'1 = every day, 2 = every 2 days, and so on.'**
+  String get scheduledTaskIntervalDayHelp;
+
+  /// No description provided for @scheduledTaskIntervalWeekHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'1 = every week, 2 = every 2 weeks, and so on.'**
+  String get scheduledTaskIntervalWeekHelp;
+
+  /// No description provided for @scheduledTaskIntervalMonthHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'1 = every month, 2 = every 2 months, and so on.'**
+  String get scheduledTaskIntervalMonthHelp;
+
+  /// No description provided for @scheduledTaskIntervalYearHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'1 = every year, 2 = every 2 years, and so on.'**
+  String get scheduledTaskIntervalYearHelp;
+
+  /// No description provided for @scheduledTaskStartDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Date'**
+  String get scheduledTaskStartDate;
+
+  /// No description provided for @scheduledTaskRunOnceAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Run Once At'**
+  String get scheduledTaskRunOnceAt;
+
+  /// No description provided for @scheduledTaskTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get scheduledTaskTime;
+
+  /// No description provided for @scheduledTaskWeekdays.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekdays'**
+  String get scheduledTaskWeekdays;
+
+  /// No description provided for @scheduledTaskMonthDaysLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Days of Month'**
+  String get scheduledTaskMonthDaysLabel;
+
+  /// No description provided for @scheduledTaskYearDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Month and Day'**
+  String get scheduledTaskYearDate;
+
+  /// No description provided for @scheduledTaskTimezoneNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Times follow the device’s current local timezone.'**
+  String get scheduledTaskTimezoneNote;
+
+  /// No description provided for @scheduledTaskDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Task'**
+  String get scheduledTaskDelete;
+
+  /// No description provided for @scheduledTaskDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete scheduled task?'**
+  String get scheduledTaskDeleteTitle;
+
+  /// No description provided for @scheduledTaskDeleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The task will be removed from Cuplivo. Any old Shortcut trigger will be ignored silently.'**
+  String get scheduledTaskDeleteMessage;
+
+  /// No description provided for @scheduledTaskCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get scheduledTaskCancel;
+
+  /// No description provided for @scheduledTaskInvalidForm.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete the task name, assistant, content, and a valid interval.'**
+  String get scheduledTaskInvalidForm;
+
+  /// No description provided for @scheduledTaskSelectWeekday.
+  ///
+  /// In en, this message translates to:
+  /// **'Select at least one weekday.'**
+  String get scheduledTaskSelectWeekday;
+
+  /// No description provided for @scheduledTaskSelectMonthDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Select at least one day of the month.'**
+  String get scheduledTaskSelectMonthDay;
+
+  /// No description provided for @scheduledTaskAllowAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow AI to manage scheduled tasks'**
+  String get scheduledTaskAllowAi;
+
+  /// No description provided for @scheduledTaskAllowAiSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'All assistants may manage only their own scheduled tasks.'**
+  String get scheduledTaskAllowAiSubtitle;
+
+  /// No description provided for @scheduledTaskRequireApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Require approval for AI changes'**
+  String get scheduledTaskRequireApproval;
+
+  /// No description provided for @scheduledTaskRequireApprovalSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating, editing, deleting, enabling, or disabling a task must be approved first.'**
+  String get scheduledTaskRequireApprovalSubtitle;
+
+  /// No description provided for @scheduledTaskShortcutHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect copies this task’s Trigger ID and opens Shortcuts. Add “Run Cuplivo Scheduled Task”, paste the Trigger ID, then create a Personal Automation that runs it every day at this task’s time. Cuplivo will decide whether the current date matches the recurrence.'**
+  String get scheduledTaskShortcutHelp;
+
+  /// No description provided for @scheduledTaskEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No scheduled tasks yet.'**
+  String get scheduledTaskEmpty;
+
+  /// No description provided for @scheduledTaskUnknownAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown assistant'**
+  String get scheduledTaskUnknownAssistant;
+
+  /// No description provided for @scheduledTaskCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Executed'**
+  String get scheduledTaskCompleted;
+
+  /// No description provided for @scheduledTaskConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get scheduledTaskConnect;
+
+  /// No description provided for @scheduledTaskReconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnect'**
+  String get scheduledTaskReconnect;
+
+  /// No description provided for @scheduledTaskLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Execution Logs'**
+  String get scheduledTaskLogs;
+
+  /// No description provided for @scheduledTaskNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'This scheduled task no longer exists.'**
+  String get scheduledTaskNotFound;
+
+  /// No description provided for @scheduledTaskNoLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'No execution logs yet.'**
+  String get scheduledTaskNoLogs;
+
+  /// No description provided for @scheduledTaskLogSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Success'**
+  String get scheduledTaskLogSuccess;
+
+  /// No description provided for @scheduledTaskLogFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get scheduledTaskLogFailure;
+
+  /// No description provided for @scheduledTaskUnitDay.
+  ///
+  /// In en, this message translates to:
+  /// **'days'**
+  String get scheduledTaskUnitDay;
+
+  /// No description provided for @scheduledTaskUnitWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'weeks'**
+  String get scheduledTaskUnitWeek;
+
+  /// No description provided for @scheduledTaskUnitMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'months'**
+  String get scheduledTaskUnitMonth;
+
+  /// No description provided for @scheduledTaskUnitYear.
+  ///
+  /// In en, this message translates to:
+  /// **'years'**
+  String get scheduledTaskUnitYear;
+
+  /// No description provided for @scheduledTaskAiConnectHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled task saved. Go to Settings → Scheduled Tasks to connect it to Shortcuts.'**
+  String get scheduledTaskAiConnectHint;
+
+  /// No description provided for @scheduledTaskCompletedNotification.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled task completed.'**
+  String get scheduledTaskCompletedNotification;
+
+  /// No description provided for @scheduledTaskFailedNotification.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled task failed. Open Cuplivo to view the execution log.'**
+  String get scheduledTaskFailedNotification;
+
+  /// No description provided for @scheduledTaskLastSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Last: {time} · Success'**
+  String scheduledTaskLastSuccess(String time);
+
+  /// No description provided for @scheduledTaskLastFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Last: {time} · Failed'**
+  String scheduledTaskLastFailure(String time);
+
+  /// No description provided for @scheduledTaskEveryN.
+  ///
+  /// In en, this message translates to:
+  /// **'Every {count} {unit}'**
+  String scheduledTaskEveryN(int count, String unit);
+
+  /// No description provided for @scheduledTaskMonthDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Days {days}'**
+  String scheduledTaskMonthDays(String days);
 }
 
 class _AppLocalizationsDelegate

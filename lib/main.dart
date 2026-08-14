@@ -40,6 +40,7 @@ import 'core/providers/backup_reminder_provider.dart';
 import 'core/providers/hotkey_provider.dart';
 import 'core/providers/download_progress_store.dart';
 import 'core/providers/input_status_provider.dart';
+import 'core/providers/scheduled_task_provider.dart';
 import 'core/services/chat/chat_service.dart';
 import 'core/services/trash_restore_coordinator.dart';
 import 'core/services/mcp/mcp_tool_service.dart';
@@ -60,6 +61,7 @@ import 'core/services/android_background.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/proactive_care_alarm_service.dart';
 import 'core/services/proactive_care_message_flow.dart';
+import 'core/services/scheduled_tasks/ios_scheduled_task_bridge.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
@@ -224,6 +226,14 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AskUserInteractionService()),
         ChangeNotifierProvider(create: (_) => DownloadProgressStore()),
         ChangeNotifierProvider(create: (_) => InputStatusProvider()),
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS)
+          ChangeNotifierProvider(
+            create: (_) {
+              final provider = ScheduledTaskProvider();
+              unawaited(provider.init());
+              return provider;
+            },
+          ),
         ChangeNotifierProvider(
           create: (ctx) => GenerationEngine(
             chatService: ctx.read<ChatService>(),
@@ -363,6 +373,18 @@ class MyApp extends StatelessWidget {
                 try {
                   settings.setDynamicColorSupported(dynSupported);
                 } catch (_) {}
+              });
+
+              // iOS Shortcuts -> Flutter scheduled-task bridge. It is safe to
+              // call on every rebuild; the bridge initializes only once.
+              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                try {
+                  await IosScheduledTaskBridge.instance.initialize(
+                    () => navigatorKey.currentContext,
+                  );
+                } catch (e) {
+                  debugPrint('[ScheduledTaskBridge] startup failed: $e');
+                }
               });
 
               // Initialize desktop hotkeys on supported platforms

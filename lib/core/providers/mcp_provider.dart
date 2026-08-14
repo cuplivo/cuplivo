@@ -419,7 +419,7 @@ class McpProvider extends ChangeNotifier {
   }) : oauthFlowService =
            oauthFlowService ??
            OAuthFlowService(clientFactory: oauthClientFactory) {
-    _load();
+    _initialLoad = _load();
   }
 
   final ChatService? chatService;
@@ -427,6 +427,12 @@ class McpProvider extends ChangeNotifier {
 
   /// Provider-agnostic OAuth flow orchestration (see ADR-0015).
   final OAuthFlowService oauthFlowService;
+
+  late final Future<void> _initialLoad;
+
+  /// Resolves after persisted MCP server configuration has been loaded and
+  /// automatic connection attempts have been started.
+  Future<void> ensureLoaded() => _initialLoad;
 
   final Map<String, mcp.Client> _clients = {};
   final Map<String, McpStatus> _status = {}; // id -> status

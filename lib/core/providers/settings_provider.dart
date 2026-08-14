@@ -648,8 +648,16 @@ class SettingsProvider extends ChangeNotifier {
   int get appLaunchCount => _appLaunchCount;
 
   SettingsProvider() {
-    _load();
+    _initialLoad = _load();
   }
+
+  late final Future<void> _initialLoad;
+
+  /// Resolves once persisted settings and model/provider configuration have
+  /// finished loading. Normal UI callers do not need to await this, but a
+  /// cold iOS App Intent must not start a scheduled model request against the
+  /// constructor defaults before SharedPreferences has been restored.
+  Future<void> ensureLoaded() => _initialLoad;
 
   Future<_MigrationResult> _migrateEmbeddingModelOverrides(
     SharedPreferences prefs,

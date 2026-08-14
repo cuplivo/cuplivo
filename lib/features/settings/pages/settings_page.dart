@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../utils/format.dart';
 import '../../../l10n/app_localizations.dart';
@@ -9,6 +10,7 @@ import '../../provider/pages/providers_page.dart';
 import 'display_settings_page.dart';
 import '../../mcp/pages/mcp_page.dart';
 import '../../assistant/pages/assistant_settings_page.dart';
+import '../../scheduled_tasks/pages/scheduled_tasks_page.dart';
 import 'about_page.dart';
 import 'tts_services_page.dart';
 import 'sponsor_page.dart';
@@ -188,6 +190,22 @@ class SettingsPage extends StatelessWidget {
                   );
                 },
               ),
+              if (!kIsWeb &&
+                  defaultTargetPlatform == TargetPlatform.iOS) ...<Widget>[
+                _iosDivider(context),
+                _iosNavRow(
+                  context,
+                  icon: Lucide.Timer,
+                  label: l10n.settingsPageScheduledTasks,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const ScheduledTasksPage(),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ],
           ),
 

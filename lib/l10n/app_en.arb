@@ -3706,5 +3706,95 @@
   "workspaceToolUnzipUserDesc": "Extract zip archives",
   "workspaceToolDownloadTitle": "Download",
   "workspaceToolDownloadUserDesc": "Download a URL into the workspace",
-  "assistantEditLocalToolWorkspaceTitle": "Workspace"
+  "assistantEditLocalToolWorkspaceTitle": "Workspace",
+  "settingsPageScheduledTasks": "Scheduled Tasks",
+  "scheduledTaskPageTitle": "Scheduled Tasks",
+  "scheduledTaskCreate": "Create Task",
+  "scheduledTaskEdit": "Edit Task",
+  "scheduledTaskSave": "Save",
+  "scheduledTaskName": "Task Name",
+  "scheduledTaskAssistant": "Assistant",
+  "scheduledTaskPrompt": "Task Content",
+  "scheduledTaskFrequency": "Repeat",
+  "scheduledTaskFrequencyOnce": "Once",
+  "scheduledTaskFrequencyDaily": "Daily",
+  "scheduledTaskFrequencyWeekly": "Weekly",
+  "scheduledTaskFrequencyMonthly": "Monthly",
+  "scheduledTaskFrequencyYearly": "Yearly",
+  "scheduledTaskInterval": "Interval",
+  "scheduledTaskIntervalDayHelp": "1 = every day, 2 = every 2 days, and so on.",
+  "scheduledTaskIntervalWeekHelp": "1 = every week, 2 = every 2 weeks, and so on.",
+  "scheduledTaskIntervalMonthHelp": "1 = every month, 2 = every 2 months, and so on.",
+  "scheduledTaskIntervalYearHelp": "1 = every year, 2 = every 2 years, and so on.",
+  "scheduledTaskStartDate": "Start Date",
+  "scheduledTaskRunOnceAt": "Run Once At",
+  "scheduledTaskTime": "Time",
+  "scheduledTaskWeekdays": "Weekdays",
+  "scheduledTaskMonthDaysLabel": "Days of Month",
+  "scheduledTaskYearDate": "Month and Day",
+  "scheduledTaskTimezoneNote": "Times follow the device’s current local timezone.",
+  "scheduledTaskDelete": "Delete Task",
+  "scheduledTaskDeleteTitle": "Delete scheduled task?",
+  "scheduledTaskDeleteMessage": "The task will be removed from Cuplivo. Any old Shortcut trigger will be ignored silently.",
+  "scheduledTaskCancel": "Cancel",
+  "scheduledTaskInvalidForm": "Complete the task name, assistant, content, and a valid interval.",
+  "scheduledTaskSelectWeekday": "Select at least one weekday.",
+  "scheduledTaskSelectMonthDay": "Select at least one day of the month.",
+  "scheduledTaskAllowAi": "Allow AI to manage scheduled tasks",
+  "scheduledTaskAllowAiSubtitle": "All assistants may manage only their own scheduled tasks.",
+  "scheduledTaskRequireApproval": "Require approval for AI changes",
+  "scheduledTaskRequireApprovalSubtitle": "Creating, editing, deleting, enabling, or disabling a task must be approved first.",
+  "scheduledTaskShortcutHelp": "Connect copies this task’s Trigger ID and opens Shortcuts. Add “Run Cuplivo Scheduled Task”, paste the Trigger ID, then create a Personal Automation that runs it every day at this task’s time. Cuplivo will decide whether the current date matches the recurrence.",
+  "scheduledTaskEmpty": "No scheduled tasks yet.",
+  "scheduledTaskUnknownAssistant": "Unknown assistant",
+  "scheduledTaskCompleted": "Executed",
+  "scheduledTaskConnect": "Connect",
+  "scheduledTaskReconnect": "Reconnect",
+  "scheduledTaskLogs": "Execution Logs",
+  "scheduledTaskNotFound": "This scheduled task no longer exists.",
+  "scheduledTaskNoLogs": "No execution logs yet.",
+  "scheduledTaskLogSuccess": "Success",
+  "scheduledTaskLogFailure": "Failed",
+  "scheduledTaskUnitDay": "days",
+  "scheduledTaskUnitWeek": "weeks",
+  "scheduledTaskUnitMonth": "months",
+  "scheduledTaskUnitYear": "years",
+  "scheduledTaskAiConnectHint": "Scheduled task saved. Go to Settings → Scheduled Tasks to connect it to Shortcuts.",
+  "scheduledTaskCompletedNotification": "Scheduled task completed.",
+  "scheduledTaskFailedNotification": "Scheduled task failed. Open Cuplivo to view the execution log.",
+  "scheduledTaskLastSuccess": "Last: {time} · Success",
+  "@scheduledTaskLastSuccess": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduledTaskLastFailure": "Last: {time} · Failed",
+  "@scheduledTaskLastFailure": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduledTaskEveryN": "Every {count} {unit}",
+  "@scheduledTaskEveryN": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduledTaskMonthDays": "Days {days}",
+  "@scheduledTaskMonthDays": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  }
 }

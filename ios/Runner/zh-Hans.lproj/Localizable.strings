@@ -1,0 +1,3 @@
+"Run Cuplivo Scheduled Task" = "运行 Cuplivo 定时任务";
+"Runs one Cuplivo scheduled task in the background using its Trigger ID." = "使用触发 ID 在后台运行一个 Cuplivo 定时任务。";
+"Trigger ID" = "触发 ID";

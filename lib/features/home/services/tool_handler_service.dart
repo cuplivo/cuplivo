@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/assistant_memory.dart';
@@ -11,6 +11,7 @@ import '../../../core/providers/download_progress_store.dart';
 import '../../../core/providers/mcp_provider.dart';
 import '../../../core/providers/memory_provider.dart';
 import '../../../core/providers/settings_provider.dart';
+import '../../../core/providers/scheduled_task_provider.dart';
 import '../../../core/providers/tts_provider.dart';
 import '../../../core/providers/workspace_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
@@ -18,12 +19,14 @@ import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/generation_engine.dart';
 import '../../../core/services/mcp/mcp_tool_service.dart';
 import '../../../core/services/search/search_tool_service.dart';
+import '../../../core/services/scheduled_tasks/scheduled_task_tool_service.dart';
 import '../../../core/services/workspace/linux_sandbox_service.dart';
 import '../../../core/services/workspace/workspace_tools_service.dart';
 import 'ask_user_interaction_service.dart';
 import 'handoff_tool_service.dart';
 import 'local_tools_service.dart';
 import 'tool_approval_service.dart';
+import '../../../l10n/app_localizations.dart';
 
 /// 工具调用处理服务
 ///
@@ -248,6 +251,9 @@ class ToolHandlerService {
     if (assistant.workspaceEnabled) {
       names.addAll(WorkspaceToolNames.allTools);
     }
+    if (ScheduledTaskToolService.isSupportedPlatform) {
+      names.addAll(ScheduledTaskToolNames.all);
+    }
     return names;
   }
 
@@ -366,6 +372,22 @@ class ToolHandlerService {
         discoverableAssistants: assistantProvider.assistants,
       ),
     );
+
+    // iOS scheduled-task tools are globally enabled from Settings. They are
+    // intentionally not stored per assistant; ownership is still enforced at
+    // execution time so each assistant can only manage its own tasks.
+    if (supportsTools &&
+        assistant != null &&
+        ScheduledTaskToolService.isSupportedPlatform) {
+      try {
+        final scheduled = contextProvider.read<ScheduledTaskProvider>();
+        if (scheduled.allowAiOperations) {
+          toolDefs.addAll(ScheduledTaskToolService.buildToolDefinitions());
+        }
+      } on ProviderNotFoundException catch (e) {
+        debugPrint('scheduled-task tools defs skipped: $e');
+      }
+    }
 
     // Workspace filesystem + shell tools
     try {
@@ -650,6 +672,88 @@ class ToolHandlerService {
         final memoryResult = await _handleMemoryToolCall(name, args, assistant);
         if (memoryResult != null) {
           return memoryResult;
+        }
+
+        // iOS scheduled-task tools. Write operations reuse the existing
+        // ToolApprovalService, controlled by the global setting on the
+        // Scheduled Tasks page.
+        if (ScheduledTaskToolService.isToolName(name)) {
+          if (assistant == null || !ScheduledTaskToolService.isSupportedPlatform) {
+            return _toolError(
+              error: 'scheduled_tasks_unavailable',
+              message: 'Scheduled tasks are unavailable for this assistant.',
+              tool: name,
+            );
+          }
+          ScheduledTaskProvider scheduled;
+          try {
+            scheduled = contextProvider.read<ScheduledTaskProvider>();
+          } on ProviderNotFoundException {
+            return _toolError(
+              error: 'scheduled_tasks_unavailable',
+              message: 'ScheduledTaskProvider is unavailable.',
+              tool: name,
+            );
+          }
+          await scheduled.ensureLoaded();
+          if (!scheduled.allowAiOperations) {
+            return _toolError(
+              error: 'scheduled_tasks_disabled',
+              message: 'AI scheduled-task access is disabled in Settings.',
+              tool: name,
+            );
+          }
+          if (ScheduledTaskToolService.requiresApproval(name) &&
+              scheduled.aiRequiresApproval) {
+            if (approvalService == null) {
+              return _toolError(
+                error: 'approval_unavailable',
+                message: 'This scheduled-task operation requires user approval.',
+                tool: name,
+              );
+            }
+            final callId = (toolCallId?.trim().isNotEmpty == true)
+                ? toolCallId!.trim()
+                : '${name}_${DateTime.now().microsecondsSinceEpoch}';
+            final approval = await approvalService.requestApproval(
+              toolCallId: callId,
+              toolName: name,
+              arguments: args,
+              conversationId: conversationId,
+            );
+            if (!approval.approved) {
+              return _toolError(
+                error: 'approval_denied',
+                message: approval.denyReason ?? 'User denied the tool call',
+                tool: name,
+              );
+            }
+          }
+          final result = await ScheduledTaskToolService.execute(
+            name: name,
+            arguments: args,
+            assistantId: assistant.id,
+            provider: scheduled,
+          );
+          var needsShortcutsConnection = false;
+          if (name == ScheduledTaskToolNames.create ||
+              name == ScheduledTaskToolNames.update) {
+            try {
+              final decoded = jsonDecode(result);
+              needsShortcutsConnection =
+                  decoded is Map && decoded['needs_shortcuts_connection'] == true;
+            } catch (_) {}
+          }
+          if (needsShortcutsConnection) {
+            final l10n = AppLocalizations.of(contextProvider);
+            final messenger = ScaffoldMessenger.maybeOf(contextProvider);
+            if (l10n != null && messenger != null) {
+              messenger.showSnackBar(
+                SnackBar(content: Text(l10n.scheduledTaskAiConnectHint)),
+              );
+            }
+          }
+          return result;
         }
 
         // Local tools

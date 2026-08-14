@@ -3123,5 +3123,95 @@
   "workspaceToolUnzipUserDesc": "解壓 zip 壓縮檔",
   "workspaceToolDownloadTitle": "下載",
   "workspaceToolDownloadUserDesc": "將 URL 下載到工作區",
-  "assistantEditLocalToolWorkspaceTitle": "工作區"
+  "assistantEditLocalToolWorkspaceTitle": "工作區",
+  "settingsPageScheduledTasks": "定時任務",
+  "scheduledTaskPageTitle": "定時任務",
+  "scheduledTaskCreate": "新增定時任務",
+  "scheduledTaskEdit": "編輯定時任務",
+  "scheduledTaskSave": "儲存",
+  "scheduledTaskName": "任務名稱",
+  "scheduledTaskAssistant": "助手",
+  "scheduledTaskPrompt": "任務內容",
+  "scheduledTaskFrequency": "重複方式",
+  "scheduledTaskFrequencyOnce": "僅一次",
+  "scheduledTaskFrequencyDaily": "每天",
+  "scheduledTaskFrequencyWeekly": "每週",
+  "scheduledTaskFrequencyMonthly": "每月",
+  "scheduledTaskFrequencyYearly": "每年",
+  "scheduledTaskInterval": "間隔",
+  "scheduledTaskIntervalDayHelp": "1 表示每天，2 表示每 2 天，以此類推。",
+  "scheduledTaskIntervalWeekHelp": "1 表示每週，2 表示每 2 週，以此類推。",
+  "scheduledTaskIntervalMonthHelp": "1 表示每月，2 表示每 2 個月，以此類推。",
+  "scheduledTaskIntervalYearHelp": "1 表示每年，2 表示每 2 年，以此類推。",
+  "scheduledTaskStartDate": "起始日期",
+  "scheduledTaskRunOnceAt": "執行時間",
+  "scheduledTaskTime": "時間",
+  "scheduledTaskWeekdays": "星期",
+  "scheduledTaskMonthDaysLabel": "每月日期",
+  "scheduledTaskYearDate": "月和日",
+  "scheduledTaskTimezoneNote": "時間跟隨裝置目前所在時區。",
+  "scheduledTaskDelete": "刪除任務",
+  "scheduledTaskDeleteTitle": "刪除定時任務？",
+  "scheduledTaskDeleteMessage": "任務會從 Cuplivo 中刪除。舊的捷徑觸發器之後會被靜默忽略。",
+  "scheduledTaskCancel": "取消",
+  "scheduledTaskInvalidForm": "請填寫任務名稱、助手、任務內容，並設定有效的間隔。",
+  "scheduledTaskSelectWeekday": "請至少選擇一個星期。",
+  "scheduledTaskSelectMonthDay": "請至少選擇一個每月日期。",
+  "scheduledTaskAllowAi": "允許 AI 操作定時任務",
+  "scheduledTaskAllowAiSubtitle": "開啟後，所有助手都只能管理各自建立或所屬的定時任務。",
+  "scheduledTaskRequireApproval": "AI 操作前需要審批",
+  "scheduledTaskRequireApprovalSubtitle": "建立、修改、刪除、啟用或停用任務前，都需要先經過審批。",
+  "scheduledTaskShortcutHelp": "點擊連接會複製該任務的 Trigger ID 並開啟「捷徑」。加入「Run Cuplivo Scheduled Task」操作並貼上 Trigger ID，再建立一個每天在該任務時間執行它的個人自動化；Cuplivo 會自行判斷當天是否符合重複規則。",
+  "scheduledTaskEmpty": "還沒有定時任務。",
+  "scheduledTaskUnknownAssistant": "未知助手",
+  "scheduledTaskCompleted": "已執行",
+  "scheduledTaskConnect": "連接",
+  "scheduledTaskReconnect": "重新連接",
+  "scheduledTaskLogs": "執行日誌",
+  "scheduledTaskNotFound": "這個定時任務已不存在。",
+  "scheduledTaskNoLogs": "還沒有執行日誌。",
+  "scheduledTaskLogSuccess": "成功",
+  "scheduledTaskLogFailure": "失敗",
+  "scheduledTaskUnitDay": "天",
+  "scheduledTaskUnitWeek": "週",
+  "scheduledTaskUnitMonth": "個月",
+  "scheduledTaskUnitYear": "年",
+  "scheduledTaskAiConnectHint": "定時任務已儲存，請到「設定 → 定時任務」中連接捷徑。",
+  "scheduledTaskCompletedNotification": "定時任務已執行完成。",
+  "scheduledTaskFailedNotification": "定時任務執行失敗，請開啟 Cuplivo 查看執行日誌。",
+  "scheduledTaskLastSuccess": "上次：{time} · 成功",
+  "@scheduledTaskLastSuccess": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduledTaskLastFailure": "上次：{time} · 失敗",
+  "@scheduledTaskLastFailure": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduledTaskEveryN": "每 {count} {unit}",
+  "@scheduledTaskEveryN": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduledTaskMonthDays": "每月 {days} 日",
+  "@scheduledTaskMonthDays": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -3,6 +3,7 @@ import UIKit
 import BackgroundTasks
 import UserNotifications
 import ActivityKit
+import AppIntents
 
 private let backgroundRefreshIdentifier = "psyche.cuplivo.background-generation.refresh"
 private let backgroundProcessingIdentifier = "psyche.cuplivo.background-generation.processing"
@@ -58,6 +59,8 @@ private let backgroundProcessingIdentifier = "psyche.cuplivo.background-generati
       iosBackgroundChannel.setMethodCallHandler { [weak self] call, result in
         self?.backgroundGenerationHandler.handle(call: call, result: result)
       }
+
+      ScheduledTaskIntentBridge.shared.register(messenger: controller.binaryMessenger)
 
       // Exposes the real app tmp directory (NSTemporaryDirectory = <container>/tmp).
       // path_provider's getTemporaryDirectory() returns the Caches directory on
@@ -560,5 +563,167 @@ private final class NativeFileSaveHandler: NSObject, UIDocumentPickerDelegate {
       return topViewController(from: presented)
     }
     return controller
+  }
+}
+
+// MARK: - iOS Shortcuts scheduled-task bridge
+
+@available(iOS 16.0, *)
+struct RunCuplivoScheduledTaskIntent: AppIntent {
+  static var title: LocalizedStringResource = "Run Cuplivo Scheduled Task"
+  static var description = IntentDescription(
+    "Runs one Cuplivo scheduled task in the background using its Trigger ID."
+  )
+  static var openAppWhenRun: Bool { false }
+
+  @Parameter(title: "Trigger ID")
+  var triggerId: String
+
+  func perform() async throws -> some IntentResult {
+    _ = await ScheduledTaskIntentBridge.shared.execute(triggerId: triggerId)
+    return .result()
+  }
+}
+
+@MainActor
+private final class ScheduledTaskIntentBridge {
+  static let shared = ScheduledTaskIntentBridge()
+
+  private let pendingKey = "cuplivo.scheduled_tasks.pending_trigger_ids"
+  private var channel: FlutterMethodChannel?
+  private var dartReady = false
+  private var backgroundTasks = [UUID: UIBackgroundTaskIdentifier]()
+
+  private init() {}
+
+  func register(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "app.scheduled_tasks", binaryMessenger: messenger)
+    self.channel = channel
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard let self else {
+        result(false)
+        return
+      }
+      switch call.method {
+      case "setReady":
+        self.dartReady = true
+        result(true)
+      case "consumePendingTriggers":
+        result(self.consumePendingTriggers())
+      case "openShortcutSetup":
+        self.openShortcutSetup(arguments: call.arguments, result: result)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  func execute(triggerId: String) async -> Bool {
+    let id = triggerId.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !id.isEmpty else { return false }
+
+    // During a cold App Intent launch Flutter may still be booting. Wait a
+    // small bounded amount of time for Dart to install its channel handler.
+    for _ in 0..<24 {
+      if dartReady, channel != nil { break }
+      try? await Task.sleep(nanoseconds: 100_000_000)
+    }
+
+    guard dartReady, let channel else {
+      enqueue(triggerId: id)
+      return false
+    }
+
+    let backgroundToken = beginBackgroundTask()
+    defer { endBackgroundTask(backgroundToken) }
+
+    return await withCheckedContinuation { continuation in
+      channel.invokeMethod("executeTrigger", arguments: ["triggerId": id]) { response in
+        if response is FlutterError {
+          self.enqueue(triggerId: id)
+          continuation.resume(returning: false)
+          return
+        }
+        if let map = response as? [String: Any], map["handled"] as? Bool == true {
+          let title = (map["taskName"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Cuplivo"
+          let body = (map["notificationBody"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+          self.showNotification(title: title.isEmpty ? "Cuplivo" : title, body: body)
+          continuation.resume(returning: map["success"] as? Bool ?? false)
+        } else {
+          // Unknown/disabled/completed/old Trigger IDs intentionally succeed
+          // silently so obsolete Personal Automations remain harmless.
+          continuation.resume(returning: true)
+        }
+      }
+    }
+  }
+
+  private func openShortcutSetup(arguments: Any?, result: @escaping FlutterResult) {
+    let args = arguments as? [String: Any] ?? [:]
+    let triggerId = (args["triggerId"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !triggerId.isEmpty else {
+      result(false)
+      return
+    }
+
+    // Ask for notification permission while the app is foregrounded. A later
+    // background App Intent cannot reliably present this permission sheet.
+    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in
+      DispatchQueue.main.async {
+        // Apple documents shortcuts://create-shortcut as the supported URL for
+        // entering the new-shortcut editor. Copy the exact Trigger ID so the
+        // user can paste it into the Cuplivo App Intent parameter.
+        UIPasteboard.general.string = triggerId
+        guard let url = URL(string: "shortcuts://create-shortcut") else {
+          result(false)
+          return
+        }
+        UIApplication.shared.open(url, options: [:]) { opened in
+          result(opened)
+        }
+      }
+    }
+  }
+
+  private func showNotification(title: String, body: String) {
+    let content = UNMutableNotificationContent()
+    content.title = title
+    content.body = body
+    content.sound = .default
+    let request = UNNotificationRequest(
+      identifier: "cuplivo.scheduled-task.\(UUID().uuidString)",
+      content: content,
+      trigger: nil
+    )
+    UNUserNotificationCenter.current().add(request)
+  }
+
+  private func enqueue(triggerId: String) {
+    var pending = UserDefaults.standard.stringArray(forKey: pendingKey) ?? []
+    if !pending.contains(triggerId) { pending.append(triggerId) }
+    UserDefaults.standard.set(pending, forKey: pendingKey)
+  }
+
+  private func consumePendingTriggers() -> [String] {
+    let pending = UserDefaults.standard.stringArray(forKey: pendingKey) ?? []
+    UserDefaults.standard.removeObject(forKey: pendingKey)
+    return pending
+  }
+
+  private func beginBackgroundTask() -> UUID? {
+    let token = UUID()
+    let identifier = UIApplication.shared.beginBackgroundTask(withName: "CuplivoScheduledTaskIntent") { [weak self] in
+      Task { @MainActor [weak self] in
+        self?.endBackgroundTask(token)
+      }
+    }
+    guard identifier != .invalid else { return nil }
+    backgroundTasks[token] = identifier
+    return token
+  }
+
+  private func endBackgroundTask(_ token: UUID?) {
+    guard let token, let identifier = backgroundTasks.removeValue(forKey: token) else { return }
+    UIApplication.shared.endBackgroundTask(identifier)
   }
 }

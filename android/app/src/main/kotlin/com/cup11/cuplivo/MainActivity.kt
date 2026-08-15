@@ -59,7 +59,7 @@ class MainActivity : FlutterActivity() {
                 KeyEvent.ACTION_DOWN -> {
                     if (event.repeatCount == 0) plugin.emitVolumeCtrl(true)
                 }
-                KeyEvent.ACTION_UP, KeyEvent.ACTION_CANCEL -> {
+                KeyEvent.ACTION_UP -> {
                     plugin.emitVolumeCtrl(false)
                 }
             }

@@ -5781,14 +5781,14 @@ class AppLocalizationsZh extends AppLocalizations {
       '委派任务并等待子助手的完整输出作为工具结果。';
 
   @override
-  String get assistantEditSkillDownloadTitle => '下载 Skills';
+  String get assistantEditSkillDownloadTitle => '下载技能';
 
   @override
   String get assistantEditSkillDownloadSubtitle =>
       '允许助手通过 GitHub 仓库 URL 下载并安装技能。';
 
   @override
-  String get assistantEditSkillCreateTitle => '创建 Skills';
+  String get assistantEditSkillCreateTitle => '创建技能';
 
   @override
   String get assistantEditSkillCreateSubtitle => '允许助手根据 SKILL.md 内容创建新技能。';
@@ -6965,7 +6965,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get multiAIAddModelTooltip => '添加模型';
 
   @override
-  String get skillsTitle => 'skills';
+  String get skillsTitle => '技能';
 
   @override
   String get skillsImportManualTitle => '手动添加';
@@ -6977,7 +6977,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get skillsImportFileLabel => '从文件导入';
 
   @override
-  String get skillsImportChoiceTitle => '导入 skills';
+  String get skillsImportChoiceTitle => '导入技能';
 
   @override
   String get skillsImportFromFile => '从文件导入';
@@ -6999,13 +6999,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get skillsGitHubDownloadFailed => '下载仓库失败。仓库可能不存在或为私有。';
 
   @override
-  String get skillsGitHubSelectTitle => '选择要导入的 skills';
+  String get skillsGitHubSelectTitle => '选择要导入的技能';
 
   @override
-  String get skillsEmptyMessage => '暂无 skills。从文件导入或手动创建一个。';
+  String get skillsEmptyMessage => '暂无技能。从文件导入或手动创建一个。';
 
   @override
-  String get skillsDeleteConfirmTitle => '删除 skills';
+  String get skillsDeleteConfirmTitle => '删除技能';
 
   @override
   String skillsDeleteConfirmMessage(String name) {
@@ -7014,7 +7014,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String skillsImportSuccess(int count) {
-    return '已导入 $count 个 skills';
+    return '已导入 $count 个技能';
   }
 
   @override
@@ -7027,29 +7027,29 @@ class AppLocalizationsZh extends AppLocalizations {
       'SKILL.md 必须包含有效的 YAML 前置元数据且包含 name 字段。';
 
   @override
-  String get skillsNameInvalid => 'skills 名称无效。仅允许小写字母、数字和连字符（不能包含空格、斜杠或点号）。';
+  String get skillsNameInvalid => '技能名称无效。仅允许小写字母、数字和连字符（不能包含空格、斜杠或点号）。';
 
   @override
   String get skillsFrontmatterNameMissing => 'SKILL.md 前置元数据必须包含 name 字段。';
 
   @override
   String skillsSaveFailed(String detail) {
-    return '保存 skills 失败：$detail';
+    return '保存技能失败：$detail';
   }
 
   @override
   String skillsImportFailed(int count) {
-    return '导入 $count 个 skills 失败';
+    return '导入 $count 个技能失败';
   }
 
   @override
   String get skillsDeleteConfirmDeleteButton => '删除';
 
   @override
-  String get assistantEditPageSkillsTab => 'skills';
+  String get assistantEditPageSkillsTab => '技能';
 
   @override
-  String get settingsPageSkills => 'skills';
+  String get settingsPageSkills => '技能';
 
   @override
   String get skillsUncategorizedGroup => '未分类';
@@ -7081,11 +7081,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get skillsClearAll => '全部清除';
 
   @override
-  String get skillsEnableImportedTitle => '启用 skills？';
+  String get skillsEnableImportedTitle => '启用技能？';
 
   @override
   String skillsEnableImportedMessage(int count, String assistantName) {
-    return '为“$assistantName”启用 $count 个已导入的 skills？';
+    return '为“$assistantName”启用 $count 个已导入的技能？';
   }
 
   @override
@@ -7095,10 +7095,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get skillsEnableImportedDismiss => '暂不';
 
   @override
-  String get skillsSheetManageAction => '管理 skills';
+  String get skillsSheetManageAction => '管理技能';
 
   @override
-  String get skillsSheetImportAction => '导入 skills';
+  String get skillsSheetImportAction => '导入技能';
 
   @override
   String responseTruncated(String reason) {
@@ -13731,14 +13731,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       '委派任务并等待子助手的完整输出作为工具结果。';
 
   @override
-  String get assistantEditSkillDownloadTitle => '下载 Skills';
+  String get assistantEditSkillDownloadTitle => '下载技能';
 
   @override
   String get assistantEditSkillDownloadSubtitle =>
       '允许助手通过 GitHub 仓库 URL 下载并安装技能。';
 
   @override
-  String get assistantEditSkillCreateTitle => '创建 Skills';
+  String get assistantEditSkillCreateTitle => '创建技能';
 
   @override
   String get assistantEditSkillCreateSubtitle => '允许助手根据 SKILL.md 内容创建新技能。';
@@ -14915,7 +14915,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get multiAIAddModelTooltip => '添加模型';
 
   @override
-  String get skillsTitle => 'skills';
+  String get skillsTitle => '技能';
 
   @override
   String get skillsImportManualTitle => '手动添加';
@@ -14927,7 +14927,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get skillsImportFileLabel => '从文件导入';
 
   @override
-  String get skillsImportChoiceTitle => '导入 skills';
+  String get skillsImportChoiceTitle => '导入技能';
 
   @override
   String get skillsImportFromFile => '从文件导入';
@@ -14949,13 +14949,13 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get skillsGitHubDownloadFailed => '下载仓库失败。仓库可能不存在或为私有。';
 
   @override
-  String get skillsGitHubSelectTitle => '选择要导入的 skills';
+  String get skillsGitHubSelectTitle => '选择要导入的技能';
 
   @override
-  String get skillsEmptyMessage => '暂无 skills。从文件导入或手动创建一个。';
+  String get skillsEmptyMessage => '暂无技能。从文件导入或手动创建一个。';
 
   @override
-  String get skillsDeleteConfirmTitle => '删除 skills';
+  String get skillsDeleteConfirmTitle => '删除技能';
 
   @override
   String skillsDeleteConfirmMessage(String name) {
@@ -14964,7 +14964,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String skillsImportSuccess(int count) {
-    return '已导入 $count 个 skills';
+    return '已导入 $count 个技能';
   }
 
   @override
@@ -14977,29 +14977,29 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       'SKILL.md 必须包含有效的 YAML 前置元数据且包含 name 字段。';
 
   @override
-  String get skillsNameInvalid => 'skills 名称无效。仅允许小写字母、数字和连字符（不能包含空格、斜杠或点号）。';
+  String get skillsNameInvalid => '技能名称无效。仅允许小写字母、数字和连字符（不能包含空格、斜杠或点号）。';
 
   @override
   String get skillsFrontmatterNameMissing => 'SKILL.md 前置元数据必须包含 name 字段。';
 
   @override
   String skillsSaveFailed(String detail) {
-    return '保存 skills 失败：$detail';
+    return '保存技能失败：$detail';
   }
 
   @override
   String skillsImportFailed(int count) {
-    return '导入 $count 个 skills 失败';
+    return '导入 $count 个技能失败';
   }
 
   @override
   String get skillsDeleteConfirmDeleteButton => '删除';
 
   @override
-  String get assistantEditPageSkillsTab => 'skills';
+  String get assistantEditPageSkillsTab => '技能';
 
   @override
-  String get settingsPageSkills => 'skills';
+  String get settingsPageSkills => '技能';
 
   @override
   String get skillsUncategorizedGroup => '未分类';
@@ -15031,11 +15031,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get skillsClearAll => '全部清除';
 
   @override
-  String get skillsEnableImportedTitle => '启用 skills？';
+  String get skillsEnableImportedTitle => '启用技能？';
 
   @override
   String skillsEnableImportedMessage(int count, String assistantName) {
-    return '为“$assistantName”启用 $count 个已导入的 skills？';
+    return '为“$assistantName”启用 $count 个已导入的技能？';
   }
 
   @override
@@ -15045,10 +15045,10 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get skillsEnableImportedDismiss => '暂不';
 
   @override
-  String get skillsSheetManageAction => '管理 skills';
+  String get skillsSheetManageAction => '管理技能';
 
   @override
-  String get skillsSheetImportAction => '导入 skills';
+  String get skillsSheetImportAction => '导入技能';
 
   @override
   String responseTruncated(String reason) {
@@ -21680,14 +21680,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '委派任務並等待子助手的完整輸出作為工具結果。';
 
   @override
-  String get assistantEditSkillDownloadTitle => '下載 Skills';
+  String get assistantEditSkillDownloadTitle => '下載技能';
 
   @override
   String get assistantEditSkillDownloadSubtitle =>
       '允許助手透過 GitHub 儲存庫 URL 下載並安裝技能。';
 
   @override
-  String get assistantEditSkillCreateTitle => '建立 Skills';
+  String get assistantEditSkillCreateTitle => '建立技能';
 
   @override
   String get assistantEditSkillCreateSubtitle => '允許助手根據 SKILL.md 內容建立新技能。';
@@ -22864,7 +22864,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get multiAIAddModelTooltip => '新增模型';
 
   @override
-  String get skillsTitle => 'skills';
+  String get skillsTitle => '技能';
 
   @override
   String get skillsImportManualTitle => '手動新增';
@@ -22876,7 +22876,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get skillsImportFileLabel => '從檔案匯入';
 
   @override
-  String get skillsImportChoiceTitle => '匯入 skills';
+  String get skillsImportChoiceTitle => '匯入技能';
 
   @override
   String get skillsImportFromFile => '從檔案匯入';
@@ -22898,13 +22898,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get skillsGitHubDownloadFailed => '下載儲存庫失敗。儲存庫可能不存在或為私有。';
 
   @override
-  String get skillsGitHubSelectTitle => '選擇要匯入的 skills';
+  String get skillsGitHubSelectTitle => '選擇要匯入的技能';
 
   @override
-  String get skillsEmptyMessage => '暫無 skills。從檔案匯入或手動建立一個。';
+  String get skillsEmptyMessage => '暫無技能。從檔案匯入或手動建立一個。';
 
   @override
-  String get skillsDeleteConfirmTitle => '刪除 skills';
+  String get skillsDeleteConfirmTitle => '刪除技能';
 
   @override
   String skillsDeleteConfirmMessage(String name) {
@@ -22913,7 +22913,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String skillsImportSuccess(int count) {
-    return '已匯入 $count 個 skills';
+    return '已匯入 $count 個技能';
   }
 
   @override
@@ -22926,29 +22926,29 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       'SKILL.md 必須包含有效的 YAML 前置元資料且包含 name 欄位。';
 
   @override
-  String get skillsNameInvalid => 'skills 名稱無效。僅允許小寫字母、數字和連字號（不能包含空格、斜線或點號）。';
+  String get skillsNameInvalid => '技能名稱無效。僅允許小寫字母、數字和連字號（不能包含空格、斜線或點號）。';
 
   @override
   String get skillsFrontmatterNameMissing => 'SKILL.md 前置元資料必須包含 name 欄位。';
 
   @override
   String skillsSaveFailed(String detail) {
-    return '儲存 skills 失敗：$detail';
+    return '儲存技能失敗：$detail';
   }
 
   @override
   String skillsImportFailed(int count) {
-    return '匯入 $count 個 skills 失敗';
+    return '匯入 $count 個技能失敗';
   }
 
   @override
   String get skillsDeleteConfirmDeleteButton => '刪除';
 
   @override
-  String get assistantEditPageSkillsTab => 'skills';
+  String get assistantEditPageSkillsTab => '技能';
 
   @override
-  String get settingsPageSkills => 'skills';
+  String get settingsPageSkills => '技能';
 
   @override
   String get skillsUncategorizedGroup => '未分類';
@@ -22980,11 +22980,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get skillsClearAll => '全部清除';
 
   @override
-  String get skillsEnableImportedTitle => '啟用 skills？';
+  String get skillsEnableImportedTitle => '啟用技能？';
 
   @override
   String skillsEnableImportedMessage(int count, String assistantName) {
-    return '為「$assistantName」啟用 $count 個已匯入的 skills？';
+    return '為「$assistantName」啟用 $count 個已匯入的技能？';
   }
 
   @override
@@ -22994,10 +22994,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get skillsEnableImportedDismiss => '暫不';
 
   @override
-  String get skillsSheetManageAction => '管理 skills';
+  String get skillsSheetManageAction => '管理技能';
 
   @override
-  String get skillsSheetImportAction => '匯入 skills';
+  String get skillsSheetImportAction => '匯入技能';
 
   @override
   String responseTruncated(String reason) {

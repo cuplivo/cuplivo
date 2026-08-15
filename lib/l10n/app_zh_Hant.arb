@@ -2023,9 +2023,9 @@
   "assistantEditLocalToolHandoffSubtitle": "將任務委派給另一個助手的新對話，無需等待結果。",
   "assistantEditLocalToolHandoffSyncTitle": "同步交接",
   "assistantEditLocalToolHandoffSyncSubtitle": "委派任務並等待子助手的完整輸出作為工具結果。",
-  "assistantEditSkillDownloadTitle": "下載 Skills",
+  "assistantEditSkillDownloadTitle": "下載技能",
   "assistantEditSkillDownloadSubtitle": "允許助手透過 GitHub 儲存庫 URL 下載並安裝技能。",
-  "assistantEditSkillCreateTitle": "建立 Skills",
+  "assistantEditSkillCreateTitle": "建立技能",
   "assistantEditSkillCreateSubtitle": "允許助手根據 SKILL.md 內容建立新技能。",
   "assistantEditMemorySwitchTitle": "記憶",
   "assistantEditMemorySwitchDescription": "允許助理主動儲存並在對話間引用使用者相關資訊",
@@ -2755,20 +2755,20 @@
   "@multiAIAddModelTooltip": {
     "description": "多AI卡片底部添加模型按鈕的提示"
   },
-  "skillsTitle": "skills",
+  "skillsTitle": "技能",
   "skillsImportManualTitle": "手動新增",
   "skillsImportManualHint": "貼上完整的 SKILL.md 內容（包含 YAML 前置元資料）",
   "skillsImportFileLabel": "從檔案匯入",
-  "skillsImportChoiceTitle": "匯入 skills",
+  "skillsImportChoiceTitle": "匯入技能",
   "skillsImportFromFile": "從檔案匯入",
   "skillsImportFromGitHub": "從 GitHub URL 匯入",
   "skillsGitHubImportTitle": "從 GitHub 匯入",
   "skillsGitHubUrlHint": "https://github.com/owner/repo[/tree/branch[/path]]",
   "skillsGitHubUrlInvalid": "無效的 GitHub URL。",
   "skillsGitHubDownloadFailed": "下載儲存庫失敗。儲存庫可能不存在或為私有。",
-  "skillsGitHubSelectTitle": "選擇要匯入的 skills",
-  "skillsEmptyMessage": "暫無 skills。從檔案匯入或手動建立一個。",
-  "skillsDeleteConfirmTitle": "刪除 skills",
+  "skillsGitHubSelectTitle": "選擇要匯入的技能",
+  "skillsEmptyMessage": "暫無技能。從檔案匯入或手動建立一個。",
+  "skillsDeleteConfirmTitle": "刪除技能",
   "skillsDeleteConfirmMessage": "確定刪除 \"{name}\"？此操作不可復原。",
   "@skillsDeleteConfirmMessage": {
     "placeholders": {
@@ -2777,7 +2777,7 @@
       }
     }
   },
-  "skillsImportSuccess": "已匯入 {count} 個 skills",
+  "skillsImportSuccess": "已匯入 {count} 個技能",
   "@skillsImportSuccess": {
     "placeholders": {
       "count": {
@@ -2797,9 +2797,9 @@
     }
   },
   "skillsInvalidFrontmatter": "SKILL.md 必須包含有效的 YAML 前置元資料且包含 name 欄位。",
-  "skillsNameInvalid": "skills 名稱無效。僅允許小寫字母、數字和連字號（不能包含空格、斜線或點號）。",
+  "skillsNameInvalid": "技能名稱無效。僅允許小寫字母、數字和連字號（不能包含空格、斜線或點號）。",
   "skillsFrontmatterNameMissing": "SKILL.md 前置元資料必須包含 name 欄位。",
-  "skillsSaveFailed": "儲存 skills 失敗：{detail}",
+  "skillsSaveFailed": "儲存技能失敗：{detail}",
   "@skillsSaveFailed": {
     "placeholders": {
       "detail": {
@@ -2807,7 +2807,7 @@
       }
     }
   },
-  "skillsImportFailed": "匯入 {count} 個 skills 失敗",
+  "skillsImportFailed": "匯入 {count} 個技能失敗",
   "@skillsImportFailed": {
     "placeholders": {
       "count": {
@@ -2816,8 +2816,8 @@
     }
   },
   "skillsDeleteConfirmDeleteButton": "刪除",
-  "assistantEditPageSkillsTab": "skills",
-  "settingsPageSkills": "skills",
+  "assistantEditPageSkillsTab": "技能",
+  "settingsPageSkills": "技能",
   "skillsUncategorizedGroup": "未分類",
   "skillsEditCategoryTitle": "編輯分類",
   "skillsCategoryHint": "例如：程式設計、寫作、研究",
@@ -2837,8 +2837,8 @@
   "skillsSelectAll": "全選",
   "skillsDeselectAll": "全不選",
   "skillsClearAll": "全部清除",
-  "skillsEnableImportedTitle": "啟用 skills？",
-  "skillsEnableImportedMessage": "為「{assistantName}」啟用 {count} 個已匯入的 skills？",
+  "skillsEnableImportedTitle": "啟用技能？",
+  "skillsEnableImportedMessage": "為「{assistantName}」啟用 {count} 個已匯入的技能？",
   "@skillsEnableImportedMessage": {
     "placeholders": {
       "count": {
@@ -2851,8 +2851,8 @@
   },
   "skillsEnableImportedAction": "啟用",
   "skillsEnableImportedDismiss": "暫不",
-  "skillsSheetManageAction": "管理 skills",
-  "skillsSheetImportAction": "匯入 skills",
+  "skillsSheetManageAction": "管理技能",
+  "skillsSheetImportAction": "匯入技能",
   "responseTruncated": "回答已被截斷（{reason}），內容可能不完整",
   "@responseTruncated": {
     "placeholders": {

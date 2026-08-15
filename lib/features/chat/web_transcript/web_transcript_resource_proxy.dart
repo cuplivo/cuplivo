@@ -161,6 +161,10 @@ class WebTranscriptResourceProxy {
         uri.fragment.isNotEmpty) {
       throw const WebTranscriptResourceException('invalid_remote_uri');
     }
+    final literal = InternetAddress.tryParse(uri.host);
+    if (literal != null && _isPrivateAddress(literal)) {
+      throw const WebTranscriptResourceException('private_remote_host');
+    }
   }
 
   static Future<InternetAddress> _resolvePublicAddress(String host) async {

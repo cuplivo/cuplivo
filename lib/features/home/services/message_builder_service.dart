@@ -20,6 +20,7 @@ import '../../../core/services/world_book_store.dart';
 import '../../../core/providers/instruction_injection_provider.dart';
 import '../../../core/providers/world_book_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../../core/utils/conversation_tree.dart';
 import '../../../core/services/api/builtin_tools.dart';
 import '../../../core/models/assistant_regex.dart';
 import '../../../core/utils/multimodal_input_utils.dart';
@@ -129,11 +130,44 @@ class MessageBuilderService {
     required Conversation? currentConversation,
     bool includeToolMessages = false,
   }) {
+    // A tree already has exactly one authoritative root-to-leaf path. Do not
+    // re-collapse all chronological rows by group: that can pair an edited
+    // user input with an answer from the previous input. The caller may pass
+    // a temporary conversation copy to adjust truncation, so read only the
+    // live cursor from ChatService and retain the supplied truncateIndex.
+    final activeMessageId = currentConversation == null
+        ? null
+        : (chatService.getConversation(currentConversation.id)?.activeMessageId ??
+              currentConversation.activeMessageId);
+    final List<ChatMessage> selectedMessages;
+    if (activeMessageId == null) {
+      selectedMessages = List<ChatMessage>.of(messages);
+    } else {
+      final activePath = ConversationTree.pathToRoot(
+        messages,
+        activeMessageId,
+      );
+      if (activePath.isNotEmpty) {
+        selectedMessages = activePath;
+      } else if (messages.isNotEmpty &&
+          ConversationTree.pathToRoot(messages, messages.last.id).length ==
+              messages.length) {
+        // Regenerating an earlier turn deliberately supplies that earlier
+        // complete path while the live cursor still points at a later leaf.
+        // Respect this explicit, self-contained path; never fall back to a
+        // flat set of groups.
+        selectedMessages = List<ChatMessage>.of(messages);
+      } else {
+        // A corrupted or incomplete tree must not silently turn into a mixed
+        // flat context. Empty is safer than pairing unrelated branches.
+        selectedMessages = const <ChatMessage>[];
+      }
+    }
     final tIndex = currentConversation?.truncateIndex ?? -1;
     final List<ChatMessage> sourceAll =
-        (tIndex >= 0 && tIndex <= messages.length)
-        ? messages.sublist(tIndex)
-        : List.of(messages);
+        (tIndex >= 0 && tIndex <= selectedMessages.length)
+        ? selectedMessages.sublist(tIndex)
+        : selectedMessages;
     final List<ChatMessage> source = collapseVersions(
       sourceAll,
       versionSelections,

@@ -19,6 +19,7 @@ import '../../../core/providers/quick_phrase_provider.dart';
 import '../../../core/providers/instruction_injection_provider.dart';
 import '../../../core/providers/memory_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/utils/conversation_tree.dart';
 import '../../../core/services/generation_engine.dart';
 import '../../../core/services/tts/tts_text_selection.dart';
 import '../../../core/services/haptics.dart';
@@ -761,11 +762,18 @@ class HomePageController extends ChangeNotifier {
       await _createNewConversation();
     }
 
+    // Multi-AI rounds still use their own flat subgroup representation. Keep
+    // a directed conversation on the regular send path instead of creating
+    // rows that lack parent edges.
+    final directedConversation = _chatService.isDirectedTreeConversation(
+      currentConversation!.id,
+    );
     ChatInputSubmissionResult result;
-    if (multiAIEngine.isActive &&
+    if (!directedConversation &&
+        multiAIEngine.isActive &&
         multiAIEngine.mode == MultiAIMode.synthesize) {
       result = await _sendSynthesize(input);
-    } else if (multiAIEngine.isActive) {
+    } else if (!directedConversation && multiAIEngine.isActive) {
       if (!_context.mounted) return ChatInputSubmissionResult.rejected;
       final settings = _context.read<SettingsProvider>();
       final assistant = await _context
@@ -1379,18 +1387,15 @@ class HomePageController extends ChangeNotifier {
       _viewModel.restoreMessageUiState();
     }
     final gid = (newMsg.groupId ?? newMsg.id);
-    versionSelections[gid] = newMsg.version;
-    notifyListeners();
-
     if (currentConversation != null) {
       try {
-        await _chatService.setSelectedVersion(
-          currentConversation!.id,
-          gid,
-          newMsg.version,
+        await _chatController.setSelectedVersion(gid, newMsg.version);
+        _viewModel.updateCurrentConversation(
+          _chatService.getConversation(currentConversation!.id),
         );
       } catch (_) {}
     }
+    notifyListeners();
 
     if (!result.shouldSend) return;
     if (message.role == 'assistant') {
@@ -1534,12 +1539,10 @@ class HomePageController extends ChangeNotifier {
       _viewModel.restoreMessageUiState();
     }
     final gid = newMsg.groupId ?? newMsg.id;
-    versionSelections[gid] = newMsg.version;
     try {
-      await _chatService.setSelectedVersion(
-        conversation.id,
-        gid,
-        newMsg.version,
+      await _chatController.setSelectedVersion(gid, newMsg.version);
+      _viewModel.updateCurrentConversation(
+        _chatService.getConversation(conversation.id),
       );
     } catch (_) {}
     notifyListeners();
@@ -1892,8 +1895,11 @@ class HomePageController extends ChangeNotifier {
       start: 0,
       limit: _chatService.getMessageCount(convo.id),
     );
+    final collapsedMessages = convo.activeMessageId == null
+        ? _chatController.collapseVersions(storedMessages)
+        : ConversationTree.pathToRoot(storedMessages, convo.activeMessageId);
     return ChatController.selectedCollapsedMessagesForExport(
-      collapsedMessages: _chatController.collapseVersions(storedMessages),
+      collapsedMessages: collapsedMessages,
       selectedIds: _selectedItems,
       storedMessages: storedMessages,
     );
@@ -2025,11 +2031,9 @@ class HomePageController extends ChangeNotifier {
   // ============================================================================
 
   Future<void> setSelectedVersion(String groupId, int version) async {
-    versionSelections[groupId] = version;
-    await _chatService.setSelectedVersion(
-      currentConversation!.id,
-      groupId,
-      version,
+    await _chatController.setSelectedVersion(groupId, version);
+    _viewModel.updateCurrentConversation(
+      _chatService.getConversation(currentConversation!.id),
     );
     notifyListeners();
   }
@@ -2066,7 +2070,8 @@ class HomePageController extends ChangeNotifier {
   bool get canStartMultiAIComparison =>
       multiAIEngine.isActive &&
       multiAIEngine.models.length >= 2 &&
-      _chatController.subgroupActiveGroupIds.isEmpty;
+      _chatController.subgroupActiveGroupIds.isEmpty &&
+      !_chatService.isDirectedTreeConversation(currentConversation?.id ?? '');
 
   /// Tag a trigger assistant message with its matching subgroupId from the
   /// engine's model list. If the trigger's model matches a pre-selected model,

@@ -25,5 +25,31 @@ void main() {
 
       expect(conversation.toJson()['chatSuggestions'], ['继续', '举例']);
     });
+
+    test('toJson/fromJson preserves directed-tree active leaf', () {
+      final conversation = Conversation(
+        id: 'conversation-tree',
+        title: 'Chat',
+        activeMessageId: 'answer-5',
+      );
+
+      expect(
+        Conversation.fromJson(conversation.toJson()).activeMessageId,
+        'answer-5',
+      );
+    });
+
+    test('copyWith can explicitly clear the directed-tree active leaf', () {
+      final conversation = Conversation(
+        id: 'conversation-tree-clear',
+        title: 'Chat',
+        activeMessageId: 'answer-5',
+      );
+
+      expect(
+        conversation.copyWith(clearActiveMessageId: true).activeMessageId,
+        isNull,
+      );
+    });
   });
 }

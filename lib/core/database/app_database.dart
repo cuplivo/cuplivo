@@ -378,7 +378,7 @@ class AppDatabase extends _$AppDatabase {
   // self-heal below repairs such gaps on every open; without it the gap is
   // permanent because later upgrades skip the failed step's `from < N` block.
   // See docs/adr/0019-schema-self-heal.md.
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   /// Whether [table] has a physical column named [column] (sqlite name).
   Future<bool> _hasColumn(String table, String column) async {
@@ -558,6 +558,20 @@ class AppDatabase extends _$AppDatabase {
       'request_extra_body_json',
       'ALTER TABLE message_rows ADD COLUMN request_extra_body_json TEXT NULL',
     );
+    // Schema v20: the generated Drift row remains intentionally unchanged
+    // until build_runner is available, so these two additive columns are
+    // accessed through ChatDatabaseRepository's parameterized raw queries.
+    // This keeps an upgrade safe even in release builds that do not regenerate
+    // app_database.g.dart during installation.
+    await _ensureColumn(
+      'message_rows',
+      'parent_message_id',
+      'ALTER TABLE message_rows ADD COLUMN parent_message_id TEXT NULL',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_messages_parent_message_id '
+      'ON message_rows(conversation_id, parent_message_id)',
+    );
 
     // --- conversation_rows ---
     await _ensureColumn(
@@ -569,6 +583,11 @@ class AppDatabase extends _$AppDatabase {
       'conversation_rows',
       'conversation_kind',
       "ALTER TABLE conversation_rows ADD COLUMN conversation_kind TEXT NOT NULL DEFAULT 'normal'",
+    );
+    await _ensureColumn(
+      'conversation_rows',
+      'active_message_id',
+      'ALTER TABLE conversation_rows ADD COLUMN active_message_id TEXT NULL',
     );
     await customStatement(
       "UPDATE conversation_rows SET conversation_kind = 'normal' "
@@ -826,6 +845,26 @@ class AppDatabase extends _$AppDatabase {
         try {
           await migrator.addColumn(assistantRows, assistantRows.workspaceId);
         } catch (_) {}
+      }
+      if (from < 20) {
+        // Directed conversation-tree metadata is deliberately added with raw
+        // SQL because the current generated Drift companion has no fields for
+        // these additive columns. _healSchemaIfNeeded mirrors this for a
+        // partially completed upgrade.
+        await _ensureColumn(
+          'message_rows',
+          'parent_message_id',
+          'ALTER TABLE message_rows ADD COLUMN parent_message_id TEXT NULL',
+        );
+        await _ensureColumn(
+          'conversation_rows',
+          'active_message_id',
+          'ALTER TABLE conversation_rows ADD COLUMN active_message_id TEXT NULL',
+        );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_messages_parent_message_id '
+          'ON message_rows(conversation_id, parent_message_id)',
+        );
       }
       // Final pass: heal any column/table that still did not land.
       await _healSchemaIfNeeded();

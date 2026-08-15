@@ -266,6 +266,8 @@ class MessageGenerationService {
     required ChatInputData input,
     required Assistant? assistant,
     String? groupId,
+    String? parentMessageId,
+    int version = 0,
   }) async {
     final message = await chatService.addMessage(
       conversationId: conversationId,
@@ -275,6 +277,8 @@ class MessageGenerationService {
         assistant: assistant,
       ),
       groupId: groupId,
+      parentMessageId: parentMessageId,
+      version: version,
     );
     // Persist per-message request metadata (routing decision + image options
     // body) so regenerate/continue can replay them. See
@@ -316,6 +320,7 @@ class MessageGenerationService {
     String? groupId,
     String? subgroupId,
     int version = 0,
+    String? parentMessageId,
     String? speakerAssistantId,
   }) async {
     return chatService.addMessage(
@@ -328,6 +333,7 @@ class MessageGenerationService {
       groupId: groupId,
       subgroupId: subgroupId,
       version: version,
+      parentMessageId: parentMessageId,
       speakerAssistantId: speakerAssistantId,
     );
   }

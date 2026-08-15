@@ -11,6 +11,7 @@ import '../models/assistant.dart';
 import '../models/chat_message.dart';
 import '../models/conversation.dart';
 import '../providers/settings_provider.dart';
+import '../utils/conversation_tree.dart';
 import 'api/chat_api_service.dart';
 import 'api/plain_text_collector.dart';
 import 'chat/chat_service.dart';
@@ -315,6 +316,27 @@ class ProactiveCareMessageFlow {
     required Conversation conversation,
     required List<ChatMessage> messages,
   }) {
+    // A directed conversation must contribute only the cursor's exact path.
+    // A per-group collapse can otherwise splice a response from the old
+    // branch onto an edited user message.
+    if (conversation.activeMessageId != null) {
+      final path = ConversationTree.pathToRoot(
+        messages,
+        conversation.activeMessageId,
+      );
+      final tIndex = conversation.truncateIndex;
+      final effective = tIndex >= 0 && tIndex <= path.length
+          ? path.sublist(tIndex)
+          : path;
+      return <Map<String, dynamic>>[
+        for (final m in effective)
+          if ((m.role == 'user' || m.role == 'assistant') &&
+              !m.isStreaming &&
+              m.content.trim().isNotEmpty)
+            {'role': m.role, 'content': m.content},
+      ];
+    }
+
     final collapsed = collapseMessageVersions(
       messages,
       conversation.versionSelections,

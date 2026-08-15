@@ -22,11 +22,17 @@ class Conversation {
   // Parent conversation that spawned this one via handoff; null for normal
   String? parentConversationId;
 
-  // Truncate context starting at this index (-1 means no truncation)
+  // Truncate context starting at this index (-1 means no truncation). In a
+  // directed conversation this index is relative to the active root-to-leaf
+  // path, not the full chronological row set.
   int truncateIndex;
 
   // Selected version per message group (groupId -> selected version index)
   Map<String, int> versionSelections;
+
+  /// Current leaf of the directed message tree. Null keeps a legacy
+  /// conversation on its original linear/versioned behavior.
+  String? activeMessageId;
 
   // LLM-generated conversation summary
   String? summary;
@@ -57,6 +63,7 @@ class Conversation {
     this.parentConversationId,
     int? truncateIndex,
     Map<String, int>? versionSelections,
+    this.activeMessageId,
     this.summary,
     int? lastSummarizedMessageCount,
     List<String>? chatSuggestions,
@@ -83,6 +90,8 @@ class Conversation {
     String? parentConversationId,
     int? truncateIndex,
     Map<String, int>? versionSelections,
+    String? activeMessageId,
+    bool clearActiveMessageId = false,
     String? summary,
     int? lastSummarizedMessageCount,
     List<String>? chatSuggestions,
@@ -101,6 +110,9 @@ class Conversation {
       parentConversationId: parentConversationId ?? this.parentConversationId,
       truncateIndex: truncateIndex ?? this.truncateIndex,
       versionSelections: versionSelections ?? this.versionSelections,
+      activeMessageId: clearActiveMessageId
+          ? null
+          : (activeMessageId ?? this.activeMessageId),
       summary: clearSummary ? null : (summary ?? this.summary),
       lastSummarizedMessageCount:
           lastSummarizedMessageCount ?? this.lastSummarizedMessageCount,
@@ -122,6 +134,7 @@ class Conversation {
       'parentConversationId': parentConversationId,
       'truncateIndex': truncateIndex,
       'versionSelections': versionSelections,
+      'activeMessageId': activeMessageId,
       'summary': summary,
       'lastSummarizedMessageCount': lastSummarizedMessageCount,
       'chatSuggestions': chatSuggestions,
@@ -147,6 +160,7 @@ class Conversation {
             (k, v) => MapEntry(k.toString(), (v as num).toInt()),
           ) ??
           <String, int>{},
+      activeMessageId: json['activeMessageId'] as String?,
       summary: json['summary'] as String?,
       lastSummarizedMessageCount:
           json['lastSummarizedMessageCount'] as int? ?? 0,

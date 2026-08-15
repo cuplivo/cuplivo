@@ -11,6 +11,7 @@ import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/generation_engine.dart';
+import '../../../core/utils/conversation_tree.dart';
 import '../../chat/utils/thinking_tag_parser.dart';
 import 'ask_user_interaction_service.dart';
 import 'local_tools_service.dart';
@@ -362,7 +363,14 @@ class HandoffToolService {
         assistant.thinkingBudget,
       );
 
-      final msgs = chatService.getMessages(conversationId);
+      final rawMessages = chatService.getMessages(conversationId);
+      final conversation = chatService.getConversation(conversationId);
+      final msgs = conversation?.activeMessageId == null
+          ? rawMessages
+          : ConversationTree.pathToRoot(
+              rawMessages,
+              conversation!.activeMessageId,
+            );
       final joined = msgs
           .where((m) => m.content.isNotEmpty)
           .map(

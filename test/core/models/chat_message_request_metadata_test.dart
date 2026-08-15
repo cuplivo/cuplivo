@@ -50,5 +50,20 @@ void main() {
         'n': 2,
       });
     });
+
+    test('toJson/fromJson preserves directed-tree parent', () {
+      final message = ChatMessage(
+        id: 'answer-5',
+        role: 'assistant',
+        content: '5',
+        conversationId: 'conversation-1',
+        parentMessageId: 'question-4',
+      );
+
+      expect(
+        ChatMessage.fromJson(message.toJson()).parentMessageId,
+        'question-4',
+      );
+    });
   });
 }

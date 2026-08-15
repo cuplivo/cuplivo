@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../../../icons/lucide_adapter.dart';
 import 'package:provider/provider.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/utils/conversation_tree.dart';
 import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/logging/flutter_logger.dart';
 import '../../../core/providers/settings_provider.dart';
@@ -1149,8 +1150,15 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       assistant?.thinkingBudget,
     );
 
-    // Content
-    final msgs = chatService.getMessages(conversationId);
+    // Content from a directed conversation must be the active branch only.
+    final rawMessages = chatService.getMessages(conversationId);
+    final conversation = chatService.getConversation(conversationId);
+    final msgs = conversation?.activeMessageId == null
+        ? rawMessages
+        : ConversationTree.pathToRoot(
+            rawMessages,
+            conversation!.activeMessageId,
+          );
     final joined = msgs
         .where((m) => m.content.isNotEmpty)
         .map(

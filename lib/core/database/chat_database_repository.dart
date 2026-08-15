@@ -309,7 +309,7 @@ class ChatDatabaseRepository {
     final row = await (_db.select(
       _db.messageRows,
     )..where((t) => t.id.equals(messageId))).getSingleOrNull();
-    return row == null ? null : _messageFromRow(row);
+    return row == null ? null : _withParentMessageId(_messageFromRow(row));
   }
 
   ChatMessage? getMessageSync(String messageId) {
@@ -334,7 +334,9 @@ class ChatDatabaseRepository {
               ..orderBy([(t) => OrderingTerm.asc(t.messageOrder)])
               ..limit(limit, offset: safeStart))
             .get();
-    return rows.map(_messageFromRow).toList(growable: false);
+    return _withParentMessageIds(
+      rows.map(_messageFromRow).toList(growable: false),
+    );
   }
 
   List<ChatMessage> getMessagesRangeSync(
@@ -358,8 +360,11 @@ class ChatDatabaseRepository {
     final rows = await (_db.select(
       _db.messageRows,
     )..where((t) => t.id.isIn(ids))).get();
+    final mapped = await _withParentMessageIds(
+      rows.map(_messageFromRow).toList(growable: false),
+    );
     final byId = <String, ChatMessage>{
-      for (final row in rows) row.id: _messageFromRow(row),
+      for (final message in mapped) message.id: message,
     };
     return [
       for (final id in ids)
@@ -431,7 +436,9 @@ class ChatDatabaseRepository {
               )
               ..orderBy([(t) => OrderingTerm.asc(t.messageOrder)]))
             .get();
-    return rows.map(_messageFromRow).toList(growable: false);
+    return _withParentMessageIds(
+      rows.map(_messageFromRow).toList(growable: false),
+    );
   }
 
   List<ChatMessage> getMessagesForGroupsSync(
@@ -579,6 +586,7 @@ class ChatDatabaseRepository {
       await _db
           .into(_db.conversationRows)
           .insertOnConflictUpdate(_conversationCompanion(conversation));
+      await _writeActiveMessageId(conversation);
       await _replaceMcpServers(conversation.id, conversation.mcpServerIds);
     });
   }
@@ -586,9 +594,12 @@ class ChatDatabaseRepository {
   Future<void> putMessage(ChatMessage message, {int? messageOrder}) async {
     final order =
         messageOrder ?? await _nextMessageOrder(message.conversationId);
-    await _db
-        .into(_db.messageRows)
-        .insertOnConflictUpdate(_messageCompanion(message, order));
+    await _db.transaction(() async {
+      await _db
+          .into(_db.messageRows)
+          .insertOnConflictUpdate(_messageCompanion(message, order));
+      await _writeParentMessageId(message);
+    });
   }
 
   Future<void> putMigrationBatch({
@@ -652,6 +663,12 @@ class ChatDatabaseRepository {
           );
         }
       });
+      for (final conversation in conversations) {
+        await _writeActiveMessageId(conversation);
+      }
+      for (final entry in messages) {
+        await _writeParentMessageId(entry.message);
+      }
     });
   }
 
@@ -719,6 +736,105 @@ class ChatDatabaseRepository {
           );
         }
       });
+      for (final conversation in conversations) {
+        await _writeActiveMessageId(conversation);
+      }
+      for (final messages in messagesByConversation.values) {
+        for (final message in messages) {
+          await _writeParentMessageId(message);
+        }
+      }
+    });
+  }
+
+  /// Restores one directed branch and its conversation cursor atomically.
+  ///
+  /// A branch cannot be restored one row at a time: a child may refer to a
+  /// parent restored in the same operation, and a partially written branch
+  /// would otherwise become an orphan in the active tree.
+  Future<void> restoreDirectedTreeSubtree({
+    required Conversation conversation,
+    required List<ChatMessage> messages,
+    required Map<String, List<Map<String, dynamic>>> toolEventsByMessageId,
+    required Map<String, String> geminiSignaturesByMessageId,
+  }) async {
+    if (messages.isEmpty) return;
+
+    final messageOrder = <String, int>{
+      for (var i = 0; i < conversation.messageIds.length; i++)
+        conversation.messageIds[i]: i,
+    };
+
+    await _db.transaction(() async {
+      await _db
+          .into(_db.conversationRows)
+          .insertOnConflictUpdate(_conversationCompanion(conversation));
+      await _writeActiveMessageId(conversation);
+      await _replaceMcpServers(conversation.id, conversation.mcpServerIds);
+
+      for (final message in messages) {
+        await _db
+            .into(_db.messageRows)
+            .insertOnConflictUpdate(
+              _messageCompanion(message, messageOrder[message.id] ?? 0),
+            );
+        await _writeParentMessageId(message);
+      }
+
+      for (final entry in toolEventsByMessageId.entries) {
+        await _db
+            .into(_db.toolEventRows)
+            .insertOnConflictUpdate(
+              ToolEventRowsCompanion.insert(
+                messageId: entry.key,
+                eventsJson: jsonEncode(entry.value),
+              ),
+            );
+      }
+      for (final entry in geminiSignaturesByMessageId.entries) {
+        await _db
+            .into(_db.geminiThoughtSignatureRows)
+            .insertOnConflictUpdate(
+              GeminiThoughtSignatureRowsCompanion.insert(
+                messageId: entry.key,
+                signature: entry.value,
+              ),
+            );
+      }
+
+      for (var i = 0; i < conversation.messageIds.length; i++) {
+        await (_db.update(_db.messageRows)
+              ..where((t) => t.id.equals(conversation.messageIds[i])))
+            .write(MessageRowsCompanion(messageOrder: Value(i)));
+      }
+    });
+  }
+
+  /// Deletes a directed subtree as a single database operation.
+  ///
+  /// The caller has already chosen a complete parent-safe subtree. Keeping
+  /// the physical delete atomic ensures an interruption cannot leave only part
+  /// of that subtree in SQLite (and therefore cannot create a dangling parent
+  /// reference on the next launch).
+  Future<void> deleteDirectedTreeSubtree(Iterable<String> messageIds) async {
+    final ids = messageIds.where((id) => id.isNotEmpty).toSet();
+    if (ids.isEmpty) return;
+
+    await _db.transaction(() async {
+      for (final id in ids) {
+        await _db.customStatement(
+          'UPDATE conversation_rows SET active_message_id = NULL '
+          'WHERE active_message_id = ?',
+          [id],
+        );
+        await (_db.delete(_db.toolEventRows)
+              ..where((t) => t.messageId.equals(id)))
+            .go();
+        await (_db.delete(_db.geminiThoughtSignatureRows)
+              ..where((t) => t.messageId.equals(id)))
+            .go();
+        await (_db.delete(_db.messageRows)..where((t) => t.id.equals(id))).go();
+      }
     });
   }
 
@@ -727,11 +843,14 @@ class ChatDatabaseRepository {
       _db.messageRows,
     )..where((t) => t.id.equals(message.id))).getSingleOrNull();
     if (existing == null) return;
-    await _db
-        .into(_db.messageRows)
-        .insertOnConflictUpdate(
-          _messageCompanion(message, existing.messageOrder),
-        );
+    await _db.transaction(() async {
+      await _db
+          .into(_db.messageRows)
+          .insertOnConflictUpdate(
+            _messageCompanion(message, existing.messageOrder),
+          );
+      await _writeParentMessageId(message);
+    });
   }
 
   Future<void> updateConversationMessages({
@@ -746,6 +865,7 @@ class ChatDatabaseRepository {
               conversation.copyWith(messageIds: List<String>.of(messageIds)),
             ),
           );
+      await _writeActiveMessageId(conversation);
       await _replaceMcpServers(conversation.id, conversation.mcpServerIds);
       for (var i = 0; i < messageIds.length; i++) {
         await (_db.update(_db.messageRows)
@@ -766,6 +886,11 @@ class ChatDatabaseRepository {
       _db.messageRows,
     )..where((t) => t.id.equals(messageId))).getSingleOrNull();
     if (row == null) return;
+    await _db.customStatement(
+      'UPDATE conversation_rows SET active_message_id = NULL '
+      'WHERE active_message_id = ?',
+      [messageId],
+    );
     await (_db.delete(
       _db.messageRows,
     )..where((t) => t.id.equals(messageId))).go();
@@ -1124,6 +1249,7 @@ class ChatDatabaseRepository {
       assistantId: row.assistantId,
       truncateIndex: row.truncateIndex,
       versionSelections: _decodeStringIntMap(row.versionSelectionsJson),
+      activeMessageId: await _readActiveMessageId(row.id),
       summary: row.summary,
       lastSummarizedMessageCount: row.lastSummarizedMessageCount,
       chatSuggestions: _decodeStringList(row.chatSuggestionsJson),
@@ -1165,6 +1291,7 @@ class ChatDatabaseRepository {
       versionSelections: _decodeStringIntMap(
         row['version_selections_json'] as String? ?? '{}',
       ),
+      activeMessageId: _readOptionalString(row, 'active_message_id'),
       summary: row['summary'] as String?,
       lastSummarizedMessageCount:
           row['last_summarized_message_count'] as int? ?? 0,
@@ -1202,6 +1329,65 @@ class ChatDatabaseRepository {
     }
   }
 
+  /// [parent_message_id] and [active_message_id] are v20 physical columns.
+  /// They are intentionally queried here rather than referenced through Drift
+  /// companions until generated source can be regenerated in the build
+  /// environment. Keeping the SQL parameterized protects imports/restores
+  /// from malformed ids and preserves compatibility with the checked-in
+  /// generated classes.
+  Future<String?> _readActiveMessageId(String conversationId) async {
+    final rows = await _db.customSelect(
+      'SELECT active_message_id FROM conversation_rows WHERE id = ? LIMIT 1',
+      variables: [Variable.withString(conversationId)],
+    ).get();
+    if (rows.isEmpty) return null;
+    return rows.single.readNullable<String>('active_message_id');
+  }
+
+  Future<ChatMessage> _withParentMessageId(ChatMessage message) async {
+    final messages = await _withParentMessageIds([message]);
+    return messages.isEmpty ? message : messages.single;
+  }
+
+  Future<List<ChatMessage>> _withParentMessageIds(
+    List<ChatMessage> messages,
+  ) async {
+    if (messages.isEmpty) return const <ChatMessage>[];
+    final placeholders = List<String>.filled(messages.length, '?').join(',');
+    final rows = await _db.customSelect(
+      'SELECT id, parent_message_id FROM message_rows '
+      'WHERE id IN ($placeholders)',
+      variables: [
+        for (final message in messages) Variable.withString(message.id),
+      ],
+    ).get();
+    final parentById = <String, String?>{};
+    for (final row in rows) {
+      final id = row.readNullable<String>('id');
+      if (id != null) {
+        parentById[id] = row.readNullable<String>('parent_message_id');
+      }
+    }
+    return [
+      for (final message in messages)
+        message.copyWith(parentMessageId: parentById[message.id]),
+    ];
+  }
+
+  Future<void> _writeParentMessageId(ChatMessage message) {
+    return _db.customStatement(
+      'UPDATE message_rows SET parent_message_id = ? WHERE id = ?',
+      [message.parentMessageId, message.id],
+    );
+  }
+
+  Future<void> _writeActiveMessageId(Conversation conversation) {
+    return _db.customStatement(
+      'UPDATE conversation_rows SET active_message_id = ? WHERE id = ?',
+      [conversation.activeMessageId, conversation.id],
+    );
+  }
+
   ConversationRowsCompanion _conversationCompanion(Conversation conversation) {
     return ConversationRowsCompanion.insert(
       id: conversation.id,
@@ -1233,6 +1419,7 @@ class ChatDatabaseRepository {
       totalTokens: row.totalTokens,
       contextTokens: row.contextTokens,
       conversationId: row.conversationId,
+      parentMessageId: null,
       isStreaming: row.isStreaming,
       reasoningText: row.reasoningText,
       reasoningStartAt: row.reasoningStartAt,
@@ -1269,6 +1456,7 @@ class ChatDatabaseRepository {
       totalTokens: row['total_tokens'] as int?,
       contextTokens: row['context_tokens'] as int?,
       conversationId: row['conversation_id'] as String,
+      parentMessageId: _readOptionalString(row, 'parent_message_id'),
       isStreaming: row['is_streaming'] == 1,
       reasoningText: row['reasoning_text'] as String?,
       reasoningStartAt: nullableDate('reasoning_start_at'),

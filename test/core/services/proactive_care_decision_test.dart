@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/api/chat_api_service.dart';
 import 'package:Cuplivo/core/services/proactive_care_decision_tools.dart';
@@ -96,6 +98,59 @@ void main() {
 
   tearDown(() async {
     await transport.closeAll();
+  });
+
+  group('directed history', () {
+    test('uses only the active root-to-leaf branch', () {
+      const conversationId = 'conversation-1';
+      final history = ProactiveCareMessageFlow.buildHistory(
+        conversation: Conversation(
+          id: conversationId,
+          title: 'test',
+          activeMessageId: 'a5',
+        ),
+        messages: [
+          ChatMessage(
+            id: 'u1',
+            role: 'user',
+            content: '1',
+            conversationId: conversationId,
+          ),
+          ChatMessage(
+            id: 'a2',
+            role: 'assistant',
+            content: '2',
+            conversationId: conversationId,
+            parentMessageId: 'u1',
+          ),
+          ChatMessage(
+            id: 'a3',
+            role: 'assistant',
+            content: '3',
+            conversationId: conversationId,
+            parentMessageId: 'u1',
+          ),
+          ChatMessage(
+            id: 'u4',
+            role: 'user',
+            content: '4',
+            conversationId: conversationId,
+          ),
+          ChatMessage(
+            id: 'a5',
+            role: 'assistant',
+            content: '5',
+            conversationId: conversationId,
+            parentMessageId: 'u4',
+          ),
+        ],
+      );
+
+      expect(history, [
+        {'role': 'user', 'content': '4'},
+        {'role': 'assistant', 'content': '5'},
+      ]);
+    });
   });
 
   Future<DateTime?> decide({

@@ -235,6 +235,57 @@ void main() {
     },
   );
 
+  test('heal adds and round-trips directed-tree columns on an already-v20 DB',
+      () async {
+    // This deliberately has user_version=20 while both v20 physical columns
+    // are absent, mirroring a partially completed release upgrade. Only the
+    // beforeOpen self-heal can repair it.
+    _createLegacyDb(
+      dbFile,
+      userVersion: 20,
+      missingIsPreset: false,
+      missingHandoffColumns: false,
+      missingOcrMode: false,
+      missingContextTokens: false,
+    );
+
+    final repo = ChatDatabaseRepository.open(file: dbFile);
+    await repo.ensureReady();
+
+    final conversation = Conversation(
+      id: 'tree-conversation',
+      title: 'Tree',
+      activeMessageId: 'answer-2',
+    );
+    await repo.putConversation(conversation);
+    await repo.putMessage(
+      ChatMessage(
+        id: 'question-1',
+        role: 'user',
+        content: '1',
+        conversationId: conversation.id,
+        groupId: '__conversation_tree_root__:${conversation.id}',
+      ),
+    );
+    await repo.putMessage(
+      ChatMessage(
+        id: 'answer-2',
+        role: 'assistant',
+        content: '2',
+        conversationId: conversation.id,
+        parentMessageId: 'question-1',
+        groupId: 'question-1',
+      ),
+    );
+
+    final loadedConversation = await repo.getConversation(conversation.id);
+    final loadedMessage = await repo.getMessage('answer-2');
+    expect(loadedConversation?.activeMessageId, 'answer-2');
+    expect(loadedMessage?.parentMessageId, 'question-1');
+
+    await repo.close();
+  });
+
   test('heal adds inject_group_members column on group_chat_rows '
       '(v17 column shape)', () async {
     _createLegacyDb(

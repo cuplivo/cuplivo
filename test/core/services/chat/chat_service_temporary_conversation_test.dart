@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/utils/conversation_tree.dart';
 
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.path);
@@ -202,13 +203,16 @@ void main() {
       expect(edited!.role, 'user');
       expect(edited.content, 'hello, edited');
       expect(edited.conversationId, conversation.id);
-      expect(edited.groupId ?? edited.id, original.id);
+      expect(edited.groupId, ConversationTree.rootGroupId(conversation.id));
       expect(edited.version, 1);
 
       expect(service.getMessages(conversation.id), hasLength(2));
       final convo = service.getConversation(conversation.id);
       expect(convo?.messageIds, contains(edited.id));
-      expect(service.getVersionSelections(conversation.id), {original.id: 1});
+      expect(
+        service.getVersionSelections(conversation.id),
+        {ConversationTree.rootGroupId(conversation.id): 1},
+      );
     });
 
     test(
@@ -238,8 +242,11 @@ void main() {
 
         expect(first?.version, 1);
         expect(second?.version, 2);
-        expect(second?.groupId ?? second?.id, original.id);
-        expect(service.getVersionSelections(conversation.id), {original.id: 2});
+        expect(second?.groupId, ConversationTree.rootGroupId(conversation.id));
+        expect(
+        service.getVersionSelections(conversation.id),
+        {ConversationTree.rootGroupId(conversation.id): 2},
+      );
       },
     );
 
@@ -294,8 +301,8 @@ void main() {
         expect(forkMessages.single.conversationId, fork.id);
         expect(forkMessages.single.content, 'edited answer');
         expect(
-          forkMessages.single.groupId ?? forkMessages.single.id,
-          forkMessages.single.id,
+          forkMessages.single.groupId,
+          ConversationTree.rootGroupId(fork.id),
         );
         expect(forkMessages.single.version, 0);
         expect(service.getVersionSelections(fork.id), isEmpty);

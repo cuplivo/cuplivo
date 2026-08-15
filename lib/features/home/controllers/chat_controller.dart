@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/utils/conversation_tree.dart';
 
 /// Controller for managing conversation state in the home page.
 ///
@@ -43,8 +44,9 @@ class ChatController extends ChangeNotifier {
   int _totalMessageCount = 0;
   int get totalMessageCount => _totalMessageCount;
 
-  bool get hasMoreBefore => _loadedStartIndex > 0;
+  bool get hasMoreBefore => !_usesDirectedTree && _loadedStartIndex > 0;
   bool get hasMoreAfter =>
+      !_usesDirectedTree &&
       _loadedStartIndex + _messages.length < _totalMessageCount;
 
   /// Selected version per message group (groupId -> selected version index).
@@ -86,6 +88,24 @@ class ChatController extends ChangeNotifier {
 
   /// Get the ChatService instance.
   ChatService get chatService => _chatService;
+
+  bool get _usesDirectedTree {
+    final current = _currentConversation;
+    if (current == null) return false;
+    return (_chatService.getConversation(current.id)?.activeMessageId ??
+            current.activeMessageId) !=
+        null;
+  }
+
+  List<ChatMessage> _directedTreePath(Conversation conversation) {
+    final current = _chatService.getConversation(conversation.id) ?? conversation;
+    final raw = _chatService.getMessagesRange(
+      current.id,
+      start: 0,
+      limit: _chatService.getMessageCount(current.id),
+    );
+    return ConversationTree.pathToRoot(raw, current.activeMessageId);
+  }
 
   void _syncCurrentConversationWithService() {
     final conversation = _currentConversation;
@@ -188,6 +208,13 @@ class ChatController extends ChangeNotifier {
 
   void _loadInitialMessageWindow(String conversationId) {
     _totalMessageCount = _chatService.getMessageCount(conversationId);
+    final conversation = _currentConversation;
+    if (conversation != null && _usesDirectedTree) {
+      _messages = _directedTreePath(conversation);
+      _loadedStartIndex = 0;
+      invalidateCache();
+      return;
+    }
     _messages = List.of(_chatService.getRecentMessages(conversationId));
     _loadedStartIndex = (_totalMessageCount - _messages.length)
         .clamp(0, _totalMessageCount)
@@ -354,6 +381,7 @@ class ChatController extends ChangeNotifier {
   List<ChatMessage> allCollapsedMessagesForCurrentConversation() {
     final conversation = _currentConversation;
     if (conversation == null) return const <ChatMessage>[];
+    if (_usesDirectedTree) return _directedTreePath(conversation);
     return collapseVersions(
       _chatService.getMessagesRange(
         conversation.id,
@@ -372,6 +400,9 @@ class ChatController extends ChangeNotifier {
   List<ChatMessage> messagesForCompleteHistoryContext(
     Conversation conversation,
   ) {
+    if (_usesDirectedTree && _currentConversation?.id == conversation.id) {
+      return _directedTreePath(conversation);
+    }
     return _chatService.getMessagesRange(
       conversation.id,
       start: 0,
@@ -512,6 +543,17 @@ class ChatController extends ChangeNotifier {
       return false;
     }
 
+    if (_usesDirectedTree) {
+      _currentConversation =
+          _chatService.getConversation(conversation.id) ?? conversation;
+      _versionSelections = _chatService.getVersionSelections(conversation.id);
+      _totalMessageCount = _chatService.getMessageCount(conversation.id);
+      _messages = _directedTreePath(_currentConversation!);
+      _loadedStartIndex = 0;
+      notifyListeners();
+      return false;
+    }
+
     final wasAtTail =
         _loadedStartIndex + _messages.length >= _totalMessageCount;
     _totalMessageCount = _chatService.getMessageCount(conversation.id);
@@ -622,6 +664,16 @@ class ChatController extends ChangeNotifier {
   void reloadMessages() {
     if (_currentConversation == null) return;
     final conversationId = _currentConversation!.id;
+    if (_usesDirectedTree) {
+      _currentConversation =
+          _chatService.getConversation(conversationId) ?? _currentConversation;
+      _versionSelections = _chatService.getVersionSelections(conversationId);
+      _totalMessageCount = _chatService.getMessageCount(conversationId);
+      _messages = _directedTreePath(_currentConversation!);
+      _loadedStartIndex = 0;
+      notifyListeners();
+      return;
+    }
     final wasAtTail =
         _loadedStartIndex + _messages.length >= _totalMessageCount;
     _totalMessageCount = _chatService.getMessageCount(conversationId);
@@ -665,10 +717,24 @@ class ChatController extends ChangeNotifier {
 
   /// Set the selected version for a message group.
   Future<void> setSelectedVersion(String groupId, int version) async {
-    _versionSelections[groupId] = version;
-    if (_currentConversation != null) {
+    final conversation = _currentConversation;
+    if (conversation == null) return;
+    if (_usesDirectedTree) {
+      await _chatService.selectDirectedTreeVersion(
+        conversationId: conversation.id,
+        groupId: groupId,
+        version: version,
+      );
+      _currentConversation =
+          _chatService.getConversation(conversation.id) ?? conversation;
+      _versionSelections = _chatService.getVersionSelections(conversation.id);
+      _totalMessageCount = _chatService.getMessageCount(conversation.id);
+      _messages = _directedTreePath(_currentConversation!);
+      _loadedStartIndex = 0;
+    } else {
+      _versionSelections[groupId] = version;
       await _chatService.setSelectedVersion(
-        _currentConversation!.id,
+        conversation.id,
         groupId,
         version,
       );
@@ -821,6 +887,14 @@ class ChatController extends ChangeNotifier {
   /// Get messages collapsed by version (cached).
   List<ChatMessage> get collapsedMessages {
     if (_collapsedCache != null) return _collapsedCache!;
+    if (_usesDirectedTree) {
+      _collapsedCache = _directedTreePath(_currentConversation!);
+      _collapsedIdToIndex = <String, int>{
+        for (var i = 0; i < _collapsedCache!.length; i++)
+          _collapsedCache![i].id: i,
+      };
+      return _collapsedCache!;
+    }
     final raw = _messagesWithVisibleGroups();
     final active = subgroupActiveGroupIds;
     final filtered = active.isEmpty
@@ -977,9 +1051,20 @@ class ChatController extends ChangeNotifier {
   Map<String, List<ChatMessage>> groupMessagesByGroup() {
     final Map<String, List<ChatMessage>> byGroup =
         <String, List<ChatMessage>>{};
-    for (final m in _messagesWithVisibleGroups()) {
+    final conversation = _currentConversation;
+    final source = _usesDirectedTree && conversation != null
+        ? _chatService.getMessagesRange(
+            conversation.id,
+            start: 0,
+            limit: _chatService.getMessageCount(conversation.id),
+          )
+        : _messagesWithVisibleGroups();
+    for (final m in source) {
       final gid = (m.groupId ?? m.id);
       byGroup.putIfAbsent(gid, () => <ChatMessage>[]).add(m);
+    }
+    for (final messages in byGroup.values) {
+      messages.sort((a, b) => a.version.compareTo(b.version));
     }
     return byGroup;
   }

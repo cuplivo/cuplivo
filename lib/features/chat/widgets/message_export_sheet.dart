@@ -26,6 +26,7 @@ import '../../../core/providers/user_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/utils/conversation_tree.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../shared/widgets/markdown_with_highlight.dart';
 import '../../../shared/widgets/export_capture_scope.dart';
@@ -643,10 +644,16 @@ Future<bool> exportConversationsMarkdownBatch(
       final count = chatService.getMessageCount(id);
       final all = chatService.getMessagesRange(id, start: 0, limit: count);
       if (all.isEmpty) continue; // empty conversation → skipped
-      final collapsed = ChatController.collapseWithSelections(
-        all,
-        chatService.getVersionSelections(id),
-      );
+      // A directed conversation has one visible root-to-leaf branch. The
+      // legacy group collapse would independently pick a version from every
+      // group and could export an edited input beside an answer from the old
+      // input. Keep the export on the exact branch the user is viewing.
+      final collapsed = convo.activeMessageId == null
+          ? ChatController.collapseWithSelections(
+              all,
+              chatService.getVersionSelections(id),
+            )
+          : ConversationTree.pathToRoot(all, convo.activeMessageId);
       final body = await buildMarkdownExportBody(
         l10n: l10n,
         settings: settings,

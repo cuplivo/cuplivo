@@ -167,6 +167,62 @@ void main() {
   });
 
   group('MessageBuilderService.buildApiMessages', () {
+    test('directed tree only sends the active input and its descendants', () {
+      final service = MessageBuilderService(
+        chatService: _FakeChatService(const {}),
+        contextProvider: _FakeBuildContext(),
+      );
+      final conversation = Conversation(
+        id: 'conversation-1',
+        title: 'test',
+        activeMessageId: 'a5',
+      );
+      final apiMessages = service.buildApiMessages(
+        messages: [
+          ChatMessage(
+            id: 'u1',
+            role: 'user',
+            content: '1',
+            conversationId: conversation.id,
+          ),
+          ChatMessage(
+            id: 'a2',
+            role: 'assistant',
+            content: '2',
+            conversationId: conversation.id,
+            parentMessageId: 'u1',
+          ),
+          ChatMessage(
+            id: 'a3',
+            role: 'assistant',
+            content: '3',
+            conversationId: conversation.id,
+            parentMessageId: 'u1',
+          ),
+          ChatMessage(
+            id: 'u4',
+            role: 'user',
+            content: '4',
+            conversationId: conversation.id,
+          ),
+          ChatMessage(
+            id: 'a5',
+            role: 'assistant',
+            content: '5',
+            conversationId: conversation.id,
+            parentMessageId: 'u4',
+          ),
+        ],
+        versionSelections: const <String, int>{},
+        currentConversation: conversation,
+      );
+
+      expect(
+        apiMessages.map((message) => message['content']).toList(),
+        ['4', '5'],
+      );
+    });
+
     test('有工具调用时会把 reasoning_content 回填到 assistant tool 消息', () {
       final service = MessageBuilderService(
         chatService: _FakeChatService({

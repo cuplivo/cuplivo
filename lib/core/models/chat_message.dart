@@ -25,6 +25,15 @@ class ChatMessage {
 
   final String conversationId;
 
+  /// The exact message this message continues from.
+  ///
+  /// New one-to-one conversations use this to form a directed conversation
+  /// tree: retries become sibling children of the same parent instead of
+  /// independent entries in a flat version list. Null is valid for the first
+  /// message in a conversation and for legacy messages created before the
+  /// tree model existed.
+  final String? parentMessageId;
+
   final bool isStreaming;
 
   // Optional reasoning fields for assistant messages
@@ -100,6 +109,7 @@ class ChatMessage {
     int? totalTokens,
     int? contextTokens,
     required String conversationId,
+    String? parentMessageId,
     bool isStreaming = false,
     String? reasoningText,
     DateTime? reasoningStartAt,
@@ -129,6 +139,7 @@ class ChatMessage {
       totalTokens: totalTokens,
       contextTokens: contextTokens,
       conversationId: conversationId,
+      parentMessageId: parentMessageId,
       isStreaming: isStreaming,
       reasoningText: reasoningText,
       reasoningStartAt: reasoningStartAt,
@@ -159,6 +170,7 @@ class ChatMessage {
     this.totalTokens,
     this.contextTokens,
     required this.conversationId,
+    this.parentMessageId,
     this.isStreaming = false,
     this.reasoningText,
     this.reasoningStartAt,
@@ -191,6 +203,7 @@ class ChatMessage {
     Object? totalTokens = sentinel,
     Object? contextTokens = sentinel,
     Object? conversationId = sentinel,
+    Object? parentMessageId = sentinel,
     Object? isStreaming = sentinel,
     Object? reasoningText = sentinel,
     Object? reasoningStartAt = sentinel,
@@ -229,6 +242,9 @@ class ChatMessage {
       conversationId: identical(conversationId, sentinel)
           ? this.conversationId
           : conversationId as String,
+      parentMessageId: identical(parentMessageId, sentinel)
+          ? this.parentMessageId
+          : parentMessageId as String?,
       isStreaming: identical(isStreaming, sentinel)
           ? this.isStreaming
           : isStreaming as bool,
@@ -291,6 +307,7 @@ class ChatMessage {
       'totalTokens': totalTokens,
       'contextTokens': contextTokens,
       'conversationId': conversationId,
+      'parentMessageId': parentMessageId,
       'isStreaming': isStreaming,
       'reasoningText': reasoningText,
       'reasoningStartAt': reasoningStartAt?.toIso8601String(),
@@ -322,6 +339,7 @@ class ChatMessage {
       totalTokens: json['totalTokens'] as int?,
       contextTokens: json['contextTokens'] as int?,
       conversationId: json['conversationId'] as String,
+      parentMessageId: json['parentMessageId'] as String?,
       isStreaming: json['isStreaming'] as bool? ?? false,
       reasoningText: json['reasoningText'] as String?,
       reasoningStartAt: json['reasoningStartAt'] != null

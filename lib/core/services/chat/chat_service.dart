@@ -10,6 +10,7 @@ import '../../models/assistant.dart';
 import '../../models/chat_message.dart';
 import '../../models/conversation.dart';
 import '../../models/file_reference.dart';
+import '../../utils/conversation_tree.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../utils/app_directories.dart';
 import '../../../utils/path_canon.dart';
@@ -655,6 +656,65 @@ class ChatService extends ChangeNotifier {
     }
   }
 
+  /// Stores one complete directed subtree as a single recoverable unit.
+  ///
+  /// Recording every child as an independent trash item makes it possible to
+  /// restore an answer before its parent question. That produces a dangling
+  /// edge which the tree UI cannot safely display. A branch therefore has one
+  /// root recovery record and is restored atomically in parent-safe order.
+  Future<void> _recordDirectedTreeDeletion({
+    required ChatMessage root,
+    required List<ChatMessage> allMessages,
+    required Set<String> deletedIds,
+    required Conversation? conversation,
+  }) async {
+    final store = _deletedRecordsStore;
+    if (store == null) {
+      debugPrint(
+        '_recordDirectedTreeDeletion: deletedRecordsStore is null, skipping trash',
+      );
+      return;
+    }
+
+    try {
+      final branchMessages = allMessages
+          .where((message) => deletedIds.contains(message.id))
+          .toList(growable: false);
+      final toolEvents = <String, List<Map<String, dynamic>>>{};
+      final geminiSigs = <String, String?>{};
+      for (final message in branchMessages) {
+        if (message.role != 'assistant') continue;
+        toolEvents[message.id] = getToolEvents(message.id);
+        geminiSigs[message.id] = getGeminiThoughtSignature(message.id);
+      }
+
+      final recoveryJson = jsonEncode({
+        'treeSubtree': true,
+        // Keep the legacy preview shape understood by the trash UI.
+        'message': root.toJson(),
+        'messages': branchMessages.map((message) => message.toJson()).toList(),
+        'toolEvents': toolEvents,
+        'geminiSigs': geminiSigs,
+        'conversationId': root.conversationId,
+        'treeState': {
+          'activeMessageId': conversation?.activeMessageId,
+          'versionSelections': conversation?.versionSelections ??
+              const <String, int>{},
+          'messageIds': allMessages.map((message) => message.id).toList(),
+        },
+      });
+      await store.recordDeletion(
+        id: root.id,
+        type: DeletionEntityType.message,
+        recoveryJson: recoveryJson,
+        batchId: const Uuid().v4(),
+        deletedAt: DateTime.now(),
+      );
+    } catch (e) {
+      debugPrint('_recordDirectedTreeDeletion: failed to write trash: $e');
+    }
+  }
+
   Future<void> deleteConversationsForAssistant(String assistantId) async {
     if (!_initialized) await init();
 
@@ -1175,6 +1235,7 @@ class ChatService extends ChangeNotifier {
     String? groupId,
     String? subgroupId,
     int? version,
+    String? parentMessageId,
     bool isPreset = false,
     String? speakerAssistantId,
   }) async {
@@ -1206,6 +1267,44 @@ class ChatService extends ChangeNotifier {
       }
     }
 
+    // Keep every newly created ordinary conversation on the directed model
+    // from its first row onward. More importantly, a feature that adds a
+    // message outside ChatActions (preset injection, proactive care, handoff,
+    // etc.) must not create an invisible root beside the active branch.
+    //
+    // Existing non-empty legacy conversations intentionally remain untouched:
+    // their parent links cannot be reconstructed safely from flat versions.
+    final useDirectedTree =
+        !conversation.isGroup &&
+        (conversation.activeMessageId != null || conversation.messageIds.isEmpty);
+    final resolvedParentMessageId = useDirectedTree
+        ? (parentMessageId ?? conversation.activeMessageId)
+        : parentMessageId;
+    if (useDirectedTree && resolvedParentMessageId != null) {
+      if (resolvedParentMessageId.isEmpty) {
+        throw ArgumentError.value(
+          parentMessageId,
+          'parentMessageId',
+          'A directed message parent cannot be empty.',
+        );
+      }
+      final parentExists = getMessages(conversationId).any(
+        (candidate) => candidate.id == resolvedParentMessageId,
+      );
+      if (!parentExists) {
+        throw StateError(
+          'Cannot add a directed message under a missing parent '
+          '$resolvedParentMessageId in conversation $conversationId.',
+        );
+      }
+    }
+    final directedPlacement = useDirectedTree
+        ? nextDirectedTreeChild(
+            conversationId: conversationId,
+            parentMessageId: resolvedParentMessageId,
+          )
+        : null;
+
     final message = ChatMessage(
       role: role,
       content: content,
@@ -1217,9 +1316,13 @@ class ChatService extends ChangeNotifier {
       reasoningText: reasoningText,
       reasoningStartAt: reasoningStartAt,
       reasoningFinishedAt: reasoningFinishedAt,
-      groupId: groupId,
+      // A tree's group/version are derived from its exact parent. Callers may
+      // supply the same values for clarity, but cannot accidentally create a
+      // group that spans two parents.
+      groupId: directedPlacement?.groupId ?? groupId,
       subgroupId: subgroupId,
-      version: version,
+      version: directedPlacement?.version ?? version,
+      parentMessageId: resolvedParentMessageId,
       isPreset: isPreset,
       speakerAssistantId: speakerAssistantId,
     );
@@ -1247,6 +1350,15 @@ class ChatService extends ChangeNotifier {
     // Update cache
     if (_messagesCache.containsKey(conversationId)) {
       _messagesCache[conversationId]!.add(message);
+    }
+
+    // Move the cursor after the row has entered the cache/storage so every
+    // subsequent generic append continues from this exact message.
+    if (useDirectedTree) {
+      await activateDirectedTreeMessage(
+        conversationId: conversationId,
+        messageId: message.id,
+      );
     }
 
     notifyListeners();
@@ -1553,6 +1665,7 @@ class ChatService extends ChangeNotifier {
     );
     final ids = <String>[];
     final clones = <ChatMessage>[];
+    String? clonedParentId;
     for (final src in sourceMessages) {
       final clone = ChatMessage(
         role: src.role,
@@ -1562,6 +1675,7 @@ class ChatService extends ChangeNotifier {
         providerId: src.providerId,
         totalTokens: src.totalTokens,
         conversationId: convo.id,
+        parentMessageId: clonedParentId,
         isStreaming: false,
         reasoningText: src.reasoningText,
         reasoningStartAt: src.reasoningStartAt,
@@ -1571,10 +1685,16 @@ class ChatService extends ChangeNotifier {
         isPreset: src.isPreset,
         requestAllowImagesApiRouting: src.requestAllowImagesApiRouting,
         requestExtraBodyJson: src.requestExtraBodyJson,
+        groupId: ConversationTree.siblingGroupId(
+          conversationId: convo.id,
+          parentMessageId: clonedParentId,
+        ),
+        version: 0,
       );
       await _repo.putMessage(clone, messageOrder: ids.length);
       ids.add(clone.id);
       clones.add(clone);
+      clonedParentId = clone.id;
     }
     // Attach to conversation in storage
     final c = _conversationsCache[convo.id];
@@ -1583,6 +1703,7 @@ class ChatService extends ChangeNotifier {
         ..clear()
         ..addAll(ids);
       c.versionSelections = <String, int>{};
+      c.activeMessageId = clones.isEmpty ? null : clones.last.id;
       c.updatedAt = DateTime.now();
       await _saveConversation(c);
     }
@@ -1592,44 +1713,243 @@ class ChatService extends ChangeNotifier {
     return _conversationsCache[convo.id]!;
   }
 
+  /// Whether this conversation has opted into the directed message-tree
+  /// model. Legacy rows intentionally remain on their pre-v20 linear logic.
+  bool isDirectedTreeConversation(String conversationId) {
+    final conversation =
+        _conversationsCache[conversationId] ??
+        _draftConversations[conversationId];
+    return conversation?.activeMessageId != null;
+  }
+
+  /// Allocation for the next child of [parentMessageId]. All direct children
+  /// share one group id, so the existing version switcher can represent the
+  /// local fork without ever selecting a node from another parent.
+  ({String groupId, int version}) nextDirectedTreeChild({
+    required String conversationId,
+    required String? parentMessageId,
+  }) {
+    final messages = getMessages(conversationId);
+    return (
+      groupId: ConversationTree.siblingGroupId(
+        conversationId: conversationId,
+        parentMessageId: parentMessageId,
+      ),
+      version: ConversationTree.nextSiblingVersion(
+        messages: messages,
+        conversationId: conversationId,
+        parentMessageId: parentMessageId,
+      ),
+    );
+  }
+
+  /// Move the active cursor to [messageId] and persist the version selection
+  /// of every node on its root-to-leaf path.
+  Future<void> activateDirectedTreeMessage({
+    required String conversationId,
+    required String messageId,
+  }) async {
+    final conversation =
+        _conversationsCache[conversationId] ??
+        _draftConversations[conversationId];
+    if (conversation == null) return;
+
+    final messages = getMessages(conversationId);
+    final path = ConversationTree.pathToRoot(messages, messageId);
+    if (path.isEmpty || path.last.id != messageId) return;
+
+    final previousActiveId = conversation.activeMessageId;
+    final previousPath = previousActiveId == null
+        ? const <ChatMessage>[]
+        : ConversationTree.pathToRoot(messages, previousActiveId);
+    final continuesPreviousPath = previousActiveId == null ||
+        (previousPath.isNotEmpty &&
+            previousPath.length <= path.length &&
+            previousPath
+                .asMap()
+                .entries
+                .every((entry) => entry.value.id == path[entry.key].id));
+
+    for (final message in path) {
+      final groupId = message.groupId ??
+          ConversationTree.siblingGroupId(
+            conversationId: conversationId,
+            parentMessageId: message.parentMessageId,
+          );
+      final index = ConversationTree.siblingIndex(messages, message);
+      if (index >= 0) conversation.versionSelections[groupId] = index;
+    }
+    // A summary represents one branch. Keeping it after a retry, edit, or
+    // sibling switch would inject facts from the old branch into other chats.
+    // Extending the current leaf is safe; normal summary cadence can update it.
+    if (!continuesPreviousPath) {
+      conversation.summary = null;
+      conversation.lastSummarizedMessageCount = 0;
+    }
+    conversation.activeMessageId = messageId;
+    conversation.updatedAt = DateTime.now();
+    await _saveConversation(conversation);
+    notifyListeners();
+  }
+
+  /// Select a sibling version and then follow that branch's remembered child
+  /// selections. This is the critical guard that prevents, for example, an
+  /// edited user message from displaying an answer belonging to the old input.
+  Future<void> selectDirectedTreeVersion({
+    required String conversationId,
+    required String groupId,
+    required int version,
+  }) async {
+    final conversation =
+        _conversationsCache[conversationId] ??
+        _draftConversations[conversationId];
+    if (conversation == null) return;
+
+    final messages = getMessages(conversationId);
+    final candidates = messages
+        .where((message) => (message.groupId ?? message.id) == groupId)
+        .toList(growable: false);
+    if (candidates.isEmpty) return;
+
+    final siblings = ConversationTree.sortedSiblings(messages, candidates.last);
+    if (version < 0 || version >= siblings.length) return;
+
+    conversation.versionSelections[groupId] = version;
+    final leaf = ConversationTree.selectLeafForBranch(
+      messages: messages,
+      branchStart: siblings[version],
+      versionSelections: conversation.versionSelections,
+    );
+    await activateDirectedTreeMessage(
+      conversationId: conversationId,
+      messageId: leaf.id,
+    );
+  }
+
+  /// Safely upgrades a previously linear conversation when it has no existing
+  /// alternatives: the chronological order is then an unambiguous single
+  /// path. Conversations that already have version/subgroup branches are left
+  /// untouched rather than inventing parent edges for historical data.
+  Future<bool> adoptLinearConversationAsDirectedTree(
+    String conversationId,
+  ) async {
+    final conversation =
+        _conversationsCache[conversationId] ??
+        _draftConversations[conversationId];
+    if (conversation == null ||
+        conversation.activeMessageId != null ||
+        conversation.isGroup) {
+      return false;
+    }
+
+    final messages = getMessages(conversationId);
+    if (messages.isEmpty || messages.any((message) => message.subgroupId != null)) {
+      return false;
+    }
+    final seenGroups = <String>{};
+    for (final message in messages) {
+      final groupId = message.groupId ?? message.id;
+      if (message.version != 0 || !seenGroups.add(groupId)) return false;
+    }
+
+    String? parentMessageId;
+    final converted = <ChatMessage>[];
+    for (final message in messages) {
+      converted.add(
+        message.copyWith(
+          parentMessageId: parentMessageId,
+          groupId: ConversationTree.siblingGroupId(
+            conversationId: conversationId,
+            parentMessageId: parentMessageId,
+          ),
+          version: 0,
+        ),
+      );
+      parentMessageId = message.id;
+    }
+
+    if (isTemporaryConversation(conversationId)) {
+      _messagesCache[conversationId] = converted;
+    } else {
+      for (final message in converted) {
+        await _repo.updateMessage(message);
+      }
+      _messagesCache[conversationId] = converted;
+    }
+
+    conversation.versionSelections = <String, int>{
+      for (final message in converted) message.groupId!: 0,
+    };
+    conversation.activeMessageId = converted.last.id;
+    conversation.updatedAt = DateTime.now();
+    await _saveConversation(conversation);
+    notifyListeners();
+    return true;
+  }
+
   Future<ChatMessage?> appendMessageVersion({
     required String messageId,
     required String content,
   }) async {
     if (!_initialized) await init();
-    final original =
+    var original =
         _repo.getMessageSync(messageId) ?? _cachedTemporaryMessage(messageId);
     if (original == null) return null;
 
     final cid = original.conversationId;
-    final convo = _conversationsCache[cid] ?? _draftConversations[cid];
+    var convo = _conversationsCache[cid] ?? _draftConversations[cid];
     if (convo == null) return null;
 
-    final gid = (original.groupId ?? original.id);
-    // Find current max version within this group in this conversation
-    int maxVersion = -1;
-    final groupMessages = getMessagesForGroups(cid, [gid]);
-    for (final m in groupMessages) {
-      final mg = (m.groupId ?? m.id);
-      if (mg == gid) {
-        if (m.version > maxVersion) maxVersion = m.version;
-      }
+    if (convo.activeMessageId == null) {
+      await adoptLinearConversationAsDirectedTree(cid);
+      original = _repo.getMessageSync(messageId) ?? _cachedTemporaryMessage(messageId);
+      convo = _conversationsCache[cid] ?? _draftConversations[cid];
+      if (original == null || convo == null) return null;
     }
-    final nextVersion = maxVersion + 1;
+
+    final currentOriginal = original;
+    final currentConversation = convo;
+
+    final isDirectedTree = currentConversation.activeMessageId != null;
+    final directedPlacement = isDirectedTree
+        ? nextDirectedTreeChild(
+            conversationId: cid,
+            parentMessageId: currentOriginal.parentMessageId,
+          )
+        : null;
+    final gid =
+        directedPlacement?.groupId ??
+        (currentOriginal.groupId ?? currentOriginal.id);
+    int nextVersion = directedPlacement?.version ?? 0;
+    if (directedPlacement == null) {
+      // Legacy messages retain their flat version behavior unchanged.
+      int maxVersion = -1;
+      final groupMessages = getMessagesForGroups(cid, [gid]);
+      for (final message in groupMessages) {
+        final messageGroupId = message.groupId ?? message.id;
+        if (messageGroupId == gid && message.version > maxVersion) {
+          maxVersion = message.version;
+        }
+      }
+      nextVersion = maxVersion + 1;
+    }
 
     final newMsg = ChatMessage(
-      role: original.role,
+      role: currentOriginal.role,
       content: content,
       conversationId: cid,
-      modelId: original.modelId,
-      providerId: original.providerId,
+      modelId: currentOriginal.modelId,
+      providerId: currentOriginal.providerId,
       totalTokens: null,
       isStreaming: false,
       groupId: gid,
       version: nextVersion,
-      speakerAssistantId: original.speakerAssistantId,
-      requestAllowImagesApiRouting: original.requestAllowImagesApiRouting,
-      requestExtraBodyJson: original.requestExtraBodyJson,
+      parentMessageId:
+          isDirectedTree ? currentOriginal.parentMessageId : null,
+      speakerAssistantId: currentOriginal.speakerAssistantId,
+      requestAllowImagesApiRouting:
+          currentOriginal.requestAllowImagesApiRouting,
+      requestExtraBodyJson: currentOriginal.requestExtraBodyJson,
     );
     // Append to conversation order at the end (we'll group when rendering)
     if (_draftConversations.containsKey(cid)) {
@@ -1651,6 +1971,12 @@ class ChatService extends ChangeNotifier {
     // Update caches
     final arr = _messagesCache[cid];
     if (arr != null) arr.add(newMsg);
+    if (isDirectedTree) {
+      await activateDirectedTreeMessage(
+        conversationId: cid,
+        messageId: newMsg.id,
+      );
+    }
     notifyListeners();
     return newMsg;
   }
@@ -1709,7 +2035,12 @@ class ChatService extends ChangeNotifier {
     // Draft case
     if (_draftConversations.containsKey(conversationId)) {
       final draft = _draftConversations[conversationId]!;
-      final lastIndexPlusOne = draft.messageIds.length; // last index + 1
+      final lastIndexPlusOne = draft.activeMessageId == null
+          ? draft.messageIds.length
+          : ConversationTree.pathToRoot(
+              getMessages(conversationId),
+              draft.activeMessageId,
+            ).length;
       final newValue = (draft.truncateIndex == lastIndexPlusOne)
           ? -1
           : lastIndexPlusOne;
@@ -1722,7 +2053,12 @@ class ChatService extends ChangeNotifier {
     // Persisted case
     final c = _conversationsCache[conversationId];
     if (c == null) return null;
-    final lastIndexPlusOne = getMessageCount(conversationId);
+    final lastIndexPlusOne = c.activeMessageId == null
+        ? getMessageCount(conversationId)
+        : ConversationTree.pathToRoot(
+            getMessages(conversationId),
+            c.activeMessageId,
+          ).length;
     final newValue = (c.truncateIndex == lastIndexPlusOne)
         ? -1
         : lastIndexPlusOne;
@@ -1767,6 +2103,11 @@ class ChatService extends ChangeNotifier {
     final message =
         _repo.getMessageSync(messageId) ?? _cachedTemporaryMessage(messageId);
     if (message == null) return;
+
+    if (isDirectedTreeConversation(message.conversationId)) {
+      await _deleteDirectedTreeSubtree(message);
+      return;
+    }
 
     if (isTemporaryConversation(message.conversationId)) {
       final conversation = _draftConversations[message.conversationId];
@@ -1847,6 +2188,114 @@ class ChatService extends ChangeNotifier {
     // Clean up orphaned upload files that are no longer referenced by any message
     await _cleanupOrphanUploads();
 
+    notifyListeners();
+  }
+
+  /// Removes an entire directed subtree so no remaining message can retain a
+  /// dangling parent edge. The legacy delete behavior above intentionally
+  /// stays untouched for pre-tree conversations.
+  Future<void> _deleteDirectedTreeSubtree(ChatMessage root) async {
+    final conversationId = root.conversationId;
+    final messages = getMessages(conversationId);
+    final byParentId = <String, List<ChatMessage>>{};
+    for (final message in messages) {
+      final parentId = message.parentMessageId;
+      if (parentId == null || parentId.isEmpty) continue;
+      byParentId.putIfAbsent(parentId, () => <ChatMessage>[]).add(message);
+    }
+
+    final orderedForDelete = <ChatMessage>[];
+    final deletedIds = <String>{};
+    void collect(ChatMessage message) {
+      if (!deletedIds.add(message.id)) return;
+      for (final child in byParentId[message.id] ?? const <ChatMessage>[]) {
+        collect(child);
+      }
+      orderedForDelete.add(message);
+    }
+
+    collect(root);
+    if (orderedForDelete.isEmpty) return;
+
+    final conversation =
+        _conversationsCache[conversationId] ??
+        _draftConversations[conversationId];
+    final previousActiveId = conversation?.activeMessageId;
+    String? fallbackId;
+    if (previousActiveId != null && deletedIds.contains(previousActiveId)) {
+      fallbackId = root.parentMessageId;
+      if (fallbackId == null || fallbackId.isEmpty) {
+        final siblings = ConversationTree.sortedSiblings(messages, root)
+            .where((candidate) => !deletedIds.contains(candidate.id))
+            .toList(growable: false);
+        if (siblings.isNotEmpty) fallbackId = siblings.last.id;
+      }
+    }
+
+    if (isTemporaryConversation(conversationId)) {
+      final cached = _messagesCache[conversationId];
+      cached?.removeWhere((message) => deletedIds.contains(message.id));
+      conversation?.messageIds.removeWhere(
+        (messageId) => deletedIds.contains(messageId),
+      );
+      for (final message in orderedForDelete) {
+        _temporaryToolEvents.remove(message.id);
+        _temporaryGeminiThoughtSigs.remove(message.id);
+      }
+    } else {
+      await _recordDirectedTreeDeletion(
+        root: root,
+        allMessages: messages,
+        deletedIds: deletedIds,
+        conversation: conversation,
+      );
+      await _repo.deleteDirectedTreeSubtree(
+        orderedForDelete.map((message) => message.id),
+      );
+      await _refreshConversation(conversationId);
+      _messagesCache.remove(conversationId);
+    }
+
+    final remaining = getMessages(conversationId);
+    if (fallbackId != null &&
+        remaining.any((message) => message.id == fallbackId)) {
+      final fallback = remaining.firstWhere(
+        (message) => message.id == fallbackId,
+      );
+      final selectedLeaf = ConversationTree.selectLeafForBranch(
+        messages: remaining,
+        branchStart: fallback,
+        versionSelections:
+            (_conversationsCache[conversationId] ??
+                    _draftConversations[conversationId])
+                ?.versionSelections ??
+            const <String, int>{},
+      );
+      await activateDirectedTreeMessage(
+        conversationId: conversationId,
+        messageId: selectedLeaf.id,
+      );
+    } else if (previousActiveId != null &&
+        remaining.any((message) => message.id == previousActiveId)) {
+      // A sibling before the active one may have been removed, changing its
+      // index in the version switcher. Re-activating normalizes those indexes.
+      await activateDirectedTreeMessage(
+        conversationId: conversationId,
+        messageId: previousActiveId,
+      );
+    } else if (previousActiveId != null && deletedIds.contains(previousActiveId)) {
+      final updated =
+          _conversationsCache[conversationId] ??
+          _draftConversations[conversationId];
+      if (updated != null) {
+        updated.activeMessageId = null;
+        updated.versionSelections.clear();
+        updated.updatedAt = DateTime.now();
+        await _saveConversation(updated);
+      }
+    }
+
+    await _cleanupOrphanUploads();
     notifyListeners();
   }
 
@@ -2066,6 +2515,207 @@ class ChatService extends ChangeNotifier {
     }
   }
 
+  /// Restores a complete directed subtree as one atomic branch.
+  ///
+  /// Tree deletes are intentionally stored as one record. Restoring each row
+  /// individually would allow children to reappear before their parent and
+  /// would break the parent-to-child invariant that keeps version selectors
+  /// scoped to the correct input.
+  Future<String?> _restoreDirectedTreeSubtree({
+    required String trashMessageId,
+    required Map<String, dynamic> bundle,
+  }) async {
+    final store = _deletedRecordsStore;
+    if (store == null) return 'deletedRecordsStore not initialized';
+
+    final rawMessages = bundle['messages'];
+    if (rawMessages is! List) {
+      return 'The deleted branch is missing its messages.';
+    }
+
+    final branchMessages = <ChatMessage>[];
+    for (final rawMessage in rawMessages) {
+      if (rawMessage is! Map) {
+        return 'The deleted branch contains invalid message data.';
+      }
+      final messageJson = <String, dynamic>{
+        for (final entry in rawMessage.entries)
+          entry.key.toString(): entry.value,
+      };
+      branchMessages.add(ChatMessage.fromJson(messageJson));
+    }
+    if (branchMessages.isEmpty) {
+      return 'The deleted branch is empty.';
+    }
+
+    final conversationId = branchMessages.first.conversationId;
+    if (branchMessages.any(
+      (message) => message.conversationId != conversationId,
+    )) {
+      return 'The deleted branch belongs to more than one conversation.';
+    }
+    if (!_conversationsCache.containsKey(conversationId)) {
+      return 'This branch belongs to a deleted conversation. Restore the conversation first.';
+    }
+
+    final restoredIds = branchMessages.map((message) => message.id).toSet();
+    if (restoredIds.length != branchMessages.length) {
+      return 'The deleted branch contains duplicate message ids.';
+    }
+    for (final restoredId in restoredIds) {
+      if (_repo.getMessageSync(restoredId) != null) {
+        return 'A message with this id already exists';
+      }
+    }
+
+    // Every parent must either arrive in this transaction or already be live
+    // in the same conversation. This check makes a corrupt/partial backup
+    // fail closed instead of writing a branch that cannot be traversed.
+    for (final message in branchMessages) {
+      final parentId = message.parentMessageId;
+      if (parentId == null || parentId.isEmpty || restoredIds.contains(parentId)) {
+        continue;
+      }
+      final parent = _repo.getMessageSync(parentId);
+      if (parent == null || parent.conversationId != conversationId) {
+        return 'This branch needs its parent branch restored first.';
+      }
+    }
+
+    final conversation = getCompleteConversation(conversationId);
+    if (conversation == null) {
+      return 'Parent conversation not found in cache';
+    }
+    final liveMessages = List<ChatMessage>.of(getMessages(conversationId));
+    final allMessages = <ChatMessage>[...liveMessages, ...branchMessages];
+    for (final message in branchMessages) {
+      if (ConversationTree.pathToRoot(allMessages, message.id).isEmpty) {
+        return 'The deleted branch has an invalid parent chain.';
+      }
+    }
+
+    final treeState = bundle['treeState'];
+    final rawOrder = treeState is Map ? treeState['messageIds'] : null;
+    final originalOrder = rawOrder is List
+        ? rawOrder.map((id) => id.toString()).toList(growable: false)
+        : const <String>[];
+    final availableIds = allMessages.map((message) => message.id).toSet();
+    final rebuiltOrder = <String>[];
+    final seenIds = <String>{};
+    void addToOrder(String id) {
+      if (availableIds.contains(id) && seenIds.add(id)) rebuiltOrder.add(id);
+    }
+
+    for (final id in originalOrder) {
+      addToOrder(id);
+    }
+    for (final message in liveMessages) {
+      addToOrder(message.id);
+    }
+    for (final message in branchMessages) {
+      addToOrder(message.id);
+    }
+    conversation.messageIds
+      ..clear()
+      ..addAll(rebuiltOrder);
+
+    final rawSelections = treeState is Map
+        ? treeState['versionSelections']
+        : null;
+    if (rawSelections is Map) {
+      final restoredSelections = <String, int>{};
+      for (final entry in rawSelections.entries) {
+        final rawVersion = entry.value;
+        final version = rawVersion is num
+            ? rawVersion.toInt()
+            : int.tryParse(rawVersion?.toString() ?? '');
+        if (version != null && version >= 0) {
+          restoredSelections[entry.key.toString()] = version;
+        }
+      }
+      conversation.versionSelections = restoredSelections;
+    }
+
+    final rawSavedActiveId = treeState is Map
+        ? treeState['activeMessageId']
+        : null;
+    final savedActiveId = rawSavedActiveId is String && rawSavedActiveId.isNotEmpty
+        ? rawSavedActiveId
+        : null;
+    final existingActiveId = conversation.activeMessageId;
+    final String activeMessageId;
+    if (savedActiveId != null && availableIds.contains(savedActiveId)) {
+      activeMessageId = savedActiveId;
+    } else if (existingActiveId != null &&
+        availableIds.contains(existingActiveId)) {
+      activeMessageId = existingActiveId;
+    } else {
+      activeMessageId = branchMessages.last.id;
+    }
+    if (ConversationTree.pathToRoot(allMessages, activeMessageId).isEmpty) {
+      return 'The deleted branch cannot be restored to a valid active path.';
+    }
+    conversation.activeMessageId = activeMessageId;
+    conversation.updatedAt = DateTime.now();
+
+    final toolEvents = <String, List<Map<String, dynamic>>>{};
+    final rawToolEvents = bundle['toolEvents'];
+    if (rawToolEvents is Map) {
+      for (final entry in rawToolEvents.entries) {
+        final restoredId = entry.key.toString();
+        if (!restoredIds.contains(restoredId) || entry.value is! List) continue;
+        final events = (entry.value as List)
+            .whereType<Map>()
+            .map((event) => <String, dynamic>{
+                  for (final item in event.entries)
+                    item.key.toString(): item.value,
+                })
+            .toList(growable: false);
+        if (events.isNotEmpty) toolEvents[restoredId] = events;
+      }
+    }
+
+    final geminiSigs = <String, String>{};
+    final rawGeminiSigs = bundle['geminiSigs'];
+    if (rawGeminiSigs is Map) {
+      for (final entry in rawGeminiSigs.entries) {
+        final restoredId = entry.key.toString();
+        if (restoredIds.contains(restoredId) && entry.value != null) {
+          geminiSigs[restoredId] = entry.value.toString();
+        }
+      }
+    }
+
+    try {
+      await _repo.restoreDirectedTreeSubtree(
+        conversation: conversation,
+        messages: branchMessages,
+        toolEventsByMessageId: toolEvents,
+        geminiSignaturesByMessageId: geminiSigs,
+      );
+
+      // Rebuild from the restored SQLite rows before normalizing the selected
+      // sibling indexes. Keep the complete order in cache even when the
+      // conversation had temporarily become empty after deletion.
+      _messagesCache.remove(conversationId);
+      _conversationsCache[conversationId] = conversation;
+      await activateDirectedTreeMessage(
+        conversationId: conversationId,
+        messageId: activeMessageId,
+      );
+
+      await store.purgeDeletedRecord(
+        trashMessageId,
+        DeletionEntityType.message,
+      );
+      notifyListeners();
+      return null;
+    } catch (e) {
+      debugPrint('_restoreDirectedTreeSubtree: failed: $e');
+      return 'Restore failed: $e';
+    }
+  }
+
   /// Restores a single message from trash by appending it to the end of its
   /// parent conversation.
   ///
@@ -2085,6 +2735,12 @@ class ChatService extends ChangeNotifier {
 
     try {
       final bundle = jsonDecode(record.recoveryJson) as Map<String, dynamic>;
+      if (bundle['treeSubtree'] == true) {
+        return await _restoreDirectedTreeSubtree(
+          trashMessageId: messageId,
+          bundle: bundle,
+        );
+      }
       final msgJson = bundle['message'] as Map<String, dynamic>;
       final message = ChatMessage.fromJson(msgJson);
       final conversationId = message.conversationId;
@@ -2098,6 +2754,16 @@ class ChatService extends ChangeNotifier {
       final existing = _repo.getMessageSync(messageId);
       if (existing != null) {
         return 'A message with this id already exists';
+      }
+
+      // Older recovery records may have been written before subtree deletes
+      // became atomic. Never restore such a child ahead of its parent.
+      final parentId = message.parentMessageId;
+      if (parentId != null && parentId.isNotEmpty) {
+        final parent = _repo.getMessageSync(parentId);
+        if (parent == null || parent.conversationId != conversationId) {
+          return 'This message needs its parent branch restored first.';
+        }
       }
 
       // Append to end of conversation.
@@ -2135,6 +2801,13 @@ class ChatService extends ChangeNotifier {
 
       // Clear cache so messages reload.
       _messagesCache.remove(conversationId);
+
+      if (conversation.activeMessageId != null) {
+        await activateDirectedTreeMessage(
+          conversationId: conversationId,
+          messageId: message.id,
+        );
+      }
 
       // Purge trash row.
       await store.purgeDeletedRecord(messageId, DeletionEntityType.message);

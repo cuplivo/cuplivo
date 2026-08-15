@@ -88,6 +88,7 @@ class _FakeChatService extends ChatService {
     String? reasoningText,
     DateTime? reasoningStartAt,
     DateTime? reasoningFinishedAt,
+    String? parentMessageId,
     String? groupId,
     String? subgroupId,
     int? version,

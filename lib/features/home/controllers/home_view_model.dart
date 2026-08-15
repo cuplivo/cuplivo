@@ -15,6 +15,7 @@ import '../../../core/services/notification_service.dart';
 import '../../../core/services/proactive_care_alarm_service.dart';
 import '../../../core/services/proactive_care_message_flow.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/utils/conversation_tree.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../chat/widgets/chat_message_widget.dart' show ToolUIPart;
@@ -1438,13 +1439,18 @@ class HomeViewModel extends ChangeNotifier {
       assistant?.thinkingBudget,
     );
 
-    // Build content from messages (truncate to reasonable length)
-    final msgs = _chatService.getMessages(convo.id);
+    // Build content from the exact active branch when this is a directed
+    // conversation. Flat group collapse can otherwise combine two branches
+    // in an automatically generated title.
+    final rawMessages = _chatService.getMessages(convo.id);
+    final selectedMessages = convo.activeMessageId == null
+        ? collapseVersions(rawMessages)
+        : ConversationTree.pathToRoot(rawMessages, convo.activeMessageId);
     final tIndex = convo.truncateIndex;
-    final List<ChatMessage> sourceAll = (tIndex >= 0 && tIndex <= msgs.length)
-        ? msgs.sublist(tIndex)
-        : msgs;
-    final List<ChatMessage> source = collapseVersions(sourceAll);
+    final List<ChatMessage> source =
+        (tIndex >= 0 && tIndex <= selectedMessages.length)
+        ? selectedMessages.sublist(tIndex)
+        : selectedMessages;
     final joined = source
         .where((m) => m.content.isNotEmpty)
         .map(
@@ -1507,7 +1513,6 @@ class HomeViewModel extends ChangeNotifier {
     if (convo == null) return;
 
     final settings = _contextProvider.read<SettingsProvider>();
-    final msgCount = convo.messageIds.length;
     final assistantProvider = _contextProvider.read<AssistantProvider>();
 
     // Get assistant for this conversation
@@ -1523,6 +1528,13 @@ class HomeViewModel extends ChangeNotifier {
     final triggerMessageCount =
         assistant?.recentChatsSummaryMessageCount ??
         Assistant.defaultRecentChatsSummaryMessageCount;
+    // Summaries are branch-specific. Counting and summarizing raw rows would
+    // let a hidden retry/edit branch affect the active branch's memory.
+    final rawMessages = _chatService.getMessages(convo.id);
+    final msgs = convo.activeMessageId == null
+        ? rawMessages
+        : ConversationTree.pathToRoot(rawMessages, convo.activeMessageId);
+    final msgCount = msgs.length;
     if (msgCount == 0 ||
         msgCount - convo.lastSummarizedMessageCount < triggerMessageCount) {
       return;
@@ -1543,8 +1555,7 @@ class HomeViewModel extends ChangeNotifier {
 
     final cfg = settings.getProviderConfig(provKey);
 
-    // Get all messages and filter user messages
-    final msgs = _chatService.getMessages(convo.id);
+    // Get the active branch's user messages.
     final allUserMsgs = msgs
         .where((m) => m.role == 'user' && m.content.trim().isNotEmpty)
         .toList();
@@ -1633,12 +1644,18 @@ class HomeViewModel extends ChangeNotifier {
     if (provKey == null || mdlId == null) return;
 
     final rawMsgs = _chatService.getMessages(convo.id);
-    final msgs = collapseVersions(rawMsgs);
-    final collapsedTruncateIndex = ChatService.rawToCollapsedSkip(
-      rawMessages: rawMsgs,
-      collapsedMessages: msgs,
-      truncateIndex: convo.truncateIndex,
-    );
+    final msgs = convo.activeMessageId == null
+        ? collapseVersions(rawMsgs)
+        : ConversationTree.pathToRoot(rawMsgs, convo.activeMessageId);
+    final collapsedTruncateIndex = convo.activeMessageId == null
+        ? ChatService.rawToCollapsedSkip(
+            rawMessages: rawMsgs,
+            collapsedMessages: msgs,
+            truncateIndex: convo.truncateIndex,
+          )
+        : (convo.truncateIndex >= 0 && convo.truncateIndex <= msgs.length
+              ? convo.truncateIndex
+              : 0);
     final lastAssistant = msgs.cast<ChatMessage?>().lastWhere(
       (m) =>
           m != null &&

@@ -11,6 +11,7 @@ import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/generation_engine.dart';
 import '../../../core/services/ios_background_generation.dart';
 import '../../../core/services/logging/flutter_logger.dart';
+import '../../../core/utils/conversation_tree.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../services/ask_user_interaction_service.dart';
@@ -440,12 +441,39 @@ class ChatActions {
       return ChatActionResult.error('audio_attachment_unsupported');
     }
 
-    // Create user message
+    // New regular conversations start as directed trees. Existing legacy
+    // transcripts remain on their historical flat semantics until explicitly
+    // forked/edited, so old backups never need guessed parent links.
+    final latestConversation =
+        chatService.getConversation(conversation.id) ?? conversation;
+    final useDirectedTree =
+        !conversation.isGroup &&
+        (chatService.isDirectedTreeConversation(conversation.id) ||
+            chatService.getMessageCount(conversation.id) == 0);
+    final userParentMessageId =
+        useDirectedTree ? latestConversation.activeMessageId : null;
+    final userPlacement = useDirectedTree
+        ? chatService.nextDirectedTreeChild(
+            conversationId: conversation.id,
+            parentMessageId: userParentMessageId,
+          )
+        : null;
+
+    // Create user message.
     final userMessage = await messageGenerationService.createUserMessage(
       conversationId: conversation.id,
       input: input,
       assistant: assistant,
+      groupId: userPlacement?.groupId,
+      parentMessageId: userParentMessageId,
+      version: userPlacement?.version ?? 0,
     );
+    if (useDirectedTree) {
+      await chatService.activateDirectedTreeMessage(
+        conversationId: conversation.id,
+        messageId: userMessage.id,
+      );
+    }
     if (chatController.appendPersistedTailMessage(userMessage)) {
       viewModel.restoreMessageUiState();
     }
@@ -453,13 +481,29 @@ class ChatActions {
 
     _setConversationLoading(conversation.id, true);
 
-    // Create assistant message placeholder
+    final assistantPlacement = useDirectedTree
+        ? chatService.nextDirectedTreeChild(
+            conversationId: conversation.id,
+            parentMessageId: userMessage.id,
+          )
+        : null;
+
+    // Create assistant message placeholder.
     final assistantMessage = await messageGenerationService
         .createAssistantPlaceholder(
           conversationId: conversation.id,
           modelId: modelId,
           providerKey: providerKey,
+          groupId: assistantPlacement?.groupId,
+          parentMessageId: useDirectedTree ? userMessage.id : null,
+          version: assistantPlacement?.version ?? 0,
         );
+    if (useDirectedTree) {
+      await chatService.activateDirectedTreeMessage(
+        conversationId: conversation.id,
+        messageId: assistantMessage.id,
+      );
+    }
 
     // Pre-create streaming notifier BEFORE adding message to list
     // so that MessageListView can detect it's streaming on first render
@@ -579,6 +623,18 @@ class ChatActions {
         .getLoadedCurrentAssistant();
 
     await cancelStreaming(conversation);
+
+    if (!chatService.isDirectedTreeConversation(conversation.id)) {
+      await chatService.adoptLinearConversationAsDirectedTree(conversation.id);
+    }
+    if (chatService.isDirectedTreeConversation(conversation.id)) {
+      return _regenerateDirectedTreeAtMessage(
+        message: message,
+        conversation: conversation,
+        assistantAsNewReply: assistantAsNewReply,
+        allowImagesApiRouting: allowImagesApiRouting,
+      );
+    }
 
     final completeMessages = chatController.messagesForCompleteHistoryContext(
       conversation,
@@ -739,6 +795,170 @@ class ChatActions {
     );
 
     await _executeGeneration(ctx);
+    return ChatActionResult.success(assistantMessage);
+  }
+
+  /// Regenerate inside the currently selected directed path. Unlike the
+  /// legacy implementation this never removes later rows and never derives
+  /// context from chronological neighbors: the parent edge is the only source
+  /// of truth for the new answer's branch.
+  Future<ChatActionResult> _regenerateDirectedTreeAtMessage({
+    required ChatMessage message,
+    required Conversation conversation,
+    required bool assistantAsNewReply,
+    required bool allowImagesApiRouting,
+  }) async {
+    final rawMessages = chatService.getMessagesRange(
+      conversation.id,
+      start: 0,
+      limit: chatService.getMessageCount(conversation.id),
+    );
+    final targetIndex = rawMessages.indexWhere(
+      (candidate) => candidate.id == message.id,
+    );
+    if (targetIndex < 0) return ChatActionResult.error('message_not_found');
+
+    final target = rawMessages[targetIndex];
+    final String? assistantParentId;
+    if (target.role == 'assistant') {
+      assistantParentId = assistantAsNewReply
+          ? target.id
+          : target.parentMessageId;
+    } else if (target.role == 'user') {
+      assistantParentId = target.id;
+    } else {
+      return ChatActionResult.error('invalid_versioning');
+    }
+    if (assistantParentId == null || assistantParentId.isEmpty) {
+      return ChatActionResult.error('invalid_versioning');
+    }
+
+    final contextPath = ConversationTree.pathToRoot(
+      rawMessages,
+      assistantParentId,
+    );
+    if (contextPath.isEmpty || contextPath.last.id != assistantParentId) {
+      return ChatActionResult.error('invalid_versioning');
+    }
+
+    final settings = contextProvider.read<SettingsProvider>();
+    ToolApprovalService? approvalService;
+    AskUserInteractionService? askUserService;
+    try {
+      approvalService = contextProvider.read<ToolApprovalService>();
+    } catch (_) {}
+    try {
+      askUserService = contextProvider.read<AskUserInteractionService>();
+    } catch (_) {}
+    final shouldGenerateTitleOnRetry =
+        conversation.title == getTitleForLocale(contextProvider);
+    final assistant = await contextProvider
+        .read<AssistantProvider>()
+        .getLoadedCurrentAssistant();
+    final modelConfig = messageGenerationService.getModelConfig(
+      settings,
+      assistant,
+    );
+    if (modelConfig.providerKey == null || modelConfig.modelId == null) {
+      return ChatActionResult.noModel();
+    }
+    final providerKey = modelConfig.providerKey!;
+    final modelId = modelConfig.modelId!;
+
+    if (_hasUnsupportedAudioAttachments(
+      messages: contextPath,
+      conversation: conversation,
+      settings: settings,
+      providerKey: providerKey,
+      modelId: modelId,
+      maxRawTruncateIndex: null,
+    )) {
+      return ChatActionResult.error('audio_attachment_unsupported');
+    }
+
+    final placement = chatService.nextDirectedTreeChild(
+      conversationId: conversation.id,
+      parentMessageId: assistantParentId,
+    );
+    final assistantMessage = await messageGenerationService
+        .createAssistantPlaceholder(
+          conversationId: conversation.id,
+          modelId: modelId,
+          providerKey: providerKey,
+          groupId: placement.groupId,
+          version: placement.version,
+          parentMessageId: assistantParentId,
+        );
+    await chatService.activateDirectedTreeMessage(
+      conversationId: conversation.id,
+      messageId: assistantMessage.id,
+    );
+    streamController.markStreamingStarted(assistantMessage.id);
+
+    if (chatController.appendPersistedTailMessage(assistantMessage)) {
+      viewModel.restoreMessageUiState();
+    }
+    onMessagesChanged?.call();
+    _setConversationLoading(conversation.id, true);
+
+    final supportsReasoning = _isReasoningModel(providerKey, modelId);
+    final enableReasoning =
+        supportsReasoning &&
+        _isReasoningEnabled(
+          assistant?.thinkingBudget ?? settings.thinkingBudget,
+        );
+    await messageGenerationService.initializeReasoningState(
+      messageId: assistantMessage.id,
+      enableReasoning: enableReasoning,
+    );
+
+    final regenerationMessages = <ChatMessage>[
+      ...contextPath,
+      assistantMessage,
+    ];
+    final prepared = await messageGenerationService
+        .prepareApiMessagesWithInjections(
+          messages: regenerationMessages,
+          versionSelections: _versionSelections,
+          currentConversation: _conversationForMessageContext(
+            conversation,
+            regenerationMessages,
+          ),
+          settings: settings,
+          assistant: assistant,
+          assistantId: assistant?.id,
+          providerKey: providerKey,
+          modelId: modelId,
+          approvalService: approvalService,
+          askUserService: askUserService,
+        );
+    final userMediaPaths = messageGenerationService.buildUserMediaPaths(
+      input: null,
+      lastUserMediaPaths: prepared.lastUserImagePaths,
+      settings: settings,
+      providerKey: providerKey,
+      modelId: modelId,
+      assistant: assistant,
+    );
+    final requestOptions = _resolveRequestOptionsFromMessages(
+      regenerationMessages,
+      fallbackAllowImagesApiRouting: allowImagesApiRouting,
+    );
+    final context = messageGenerationService.buildGenerationContext(
+      assistantMessage: assistantMessage,
+      prepared: prepared,
+      userMediaPaths: userMediaPaths,
+      allowImagesApiRouting: requestOptions.allowImagesApiRouting,
+      providerKey: providerKey,
+      modelId: modelId,
+      assistant: assistant,
+      settings: settings,
+      supportsReasoning: supportsReasoning,
+      enableReasoning: enableReasoning,
+      generateTitleOnFinish: shouldGenerateTitleOnRetry,
+      requestExtraBody: requestOptions.requestExtraBody,
+    );
+    await _executeGeneration(context);
     return ChatActionResult.success(assistantMessage);
   }
 

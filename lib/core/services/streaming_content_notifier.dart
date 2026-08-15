@@ -63,8 +63,34 @@ class StreamingContentNotifier {
         completionTokens: completionTokens ?? current.completionTokens,
         cachedTokens: cachedTokens ?? current.cachedTokens,
         durationMs: durationMs ?? current.durationMs,
+        translation: current.translation,
       );
     }
+  }
+
+  /// Update only the live translation for a message. This keeps translation
+  /// streaming local to the message row instead of rebuilding HomePage.
+  void updateTranslation(String messageId, String translation) {
+    final notifier = _notifiers[messageId];
+    if (notifier == null) return;
+    final current = notifier.value;
+    notifier.value = StreamingContentData(
+      content: current.content,
+      totalTokens: current.totalTokens,
+      reasoningText: current.reasoningText,
+      reasoningStartAt: current.reasoningStartAt,
+      reasoningFinishedAt: current.reasoningFinishedAt,
+      contentSplitOffsets: current.contentSplitOffsets,
+      reasoningCountAtSplit: current.reasoningCountAtSplit,
+      toolCountAtSplit: current.toolCountAtSplit,
+      toolPartsVersion: current.toolPartsVersion,
+      uiVersion: current.uiVersion,
+      promptTokens: current.promptTokens,
+      completionTokens: current.completionTokens,
+      cachedTokens: current.cachedTokens,
+      durationMs: current.durationMs,
+      translation: translation,
+    );
   }
 
   /// Update reasoning content for a streaming message.
@@ -96,6 +122,7 @@ class StreamingContentNotifier {
         completionTokens: current.completionTokens,
         cachedTokens: current.cachedTokens,
         durationMs: current.durationMs,
+        translation: current.translation,
       );
     }
   }
@@ -127,6 +154,7 @@ class StreamingContentNotifier {
         completionTokens: current.completionTokens,
         cachedTokens: current.cachedTokens,
         durationMs: current.durationMs,
+        translation: current.translation,
       );
     }
   }
@@ -149,6 +177,7 @@ class StreamingContentNotifier {
         completionTokens: current.completionTokens,
         cachedTokens: current.cachedTokens,
         durationMs: current.durationMs,
+        translation: current.translation,
       );
     }
   }
@@ -191,6 +220,7 @@ class StreamingContentData {
     this.completionTokens,
     this.cachedTokens,
     this.durationMs,
+    this.translation,
   });
 
   final String content;
@@ -213,6 +243,7 @@ class StreamingContentData {
   final int? completionTokens;
   final int? cachedTokens;
   final int? durationMs;
+  final String? translation;
 
   @override
   bool operator ==(Object other) =>
@@ -232,7 +263,8 @@ class StreamingContentData {
           promptTokens == other.promptTokens &&
           completionTokens == other.completionTokens &&
           cachedTokens == other.cachedTokens &&
-          durationMs == other.durationMs;
+          durationMs == other.durationMs &&
+          translation == other.translation;
 
   @override
   int get hashCode =>
@@ -249,5 +281,6 @@ class StreamingContentData {
       promptTokens.hashCode ^
       completionTokens.hashCode ^
       cachedTokens.hashCode ^
-      durationMs.hashCode;
+      durationMs.hashCode ^
+      translation.hashCode;
 }

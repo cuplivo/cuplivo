@@ -308,6 +308,24 @@ class RootfsExtractorTest {
   }
 
   @Test
+  fun abortsWhenWorkerThreadIsInterrupted() {
+    val archive = writeArchive {
+      write(fileRecord("a", "data-a".repeat(1000)))
+      write(fileRecord("b", "data-b".repeat(1000)))
+    }
+    Thread.currentThread().interrupt()
+    try {
+      RootfsExtractor.extract(archive, outDir)
+      fail("interrupted extraction should have aborted")
+    } catch (expected: InterruptedException) {
+      // expected: TarStream.alive() aborts on interrupt, which is how the
+      // plugin cancels an in-flight extraction.
+    } finally {
+      Thread.interrupted() // clear the flag so later tests are unaffected
+    }
+  }
+
+  @Test
   fun rejectsUnsupportedFormats() {
     val zip = File(work, "rootfs.zip")
     zip.writeBytes(byteArrayOf(1, 2, 3))

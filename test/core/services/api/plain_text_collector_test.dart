@@ -91,6 +91,38 @@ void main() {
     expect(snapshots, ['ab', 'abc']);
   });
 
+  test(
+    'coalesces live updates and flushes the final accumulated value',
+    () async {
+      final chunks = StreamController<ChatStreamChunk>();
+      addTearDown(() => chunks.close());
+      final collector = PlainTextCollector(
+        sendMessageStream: fakeSender(chunks),
+      );
+      final snapshots = <String>[];
+
+      final future = collector.collect(
+        config: testConfig(),
+        modelId: 'm',
+        messages: const [],
+        updateInterval: const Duration(milliseconds: 20),
+        onAccumulated: snapshots.add,
+      );
+      await pumpEventQueue();
+      chunks
+        ..add(ChatStreamChunk(content: 'a', isDone: false, totalTokens: 0))
+        ..add(ChatStreamChunk(content: 'b', isDone: false, totalTokens: 0))
+        ..add(ChatStreamChunk(content: '', isDone: false, totalTokens: 0))
+        ..add(ChatStreamChunk(content: 'c', isDone: true, totalTokens: 3));
+      await chunks.close();
+
+      expect(await future, 'abc');
+      expect(snapshots, isNotEmpty);
+      expect(snapshots.last, 'abc');
+      expect(snapshots.length, lessThan(3));
+    },
+  );
+
   test('passes through requestId, thinkingBudget and ocrActive', () async {
     final chunks = StreamController<ChatStreamChunk>();
     addTearDown(() => chunks.close());
@@ -139,5 +171,29 @@ void main() {
     await pumpEventQueue();
     chunks.addError(Exception('boom'));
     await expectLater(future, throwsA(isA<Exception>()));
+  });
+
+  test('cancels a pending throttled update when the stream errors', () async {
+    final chunks = StreamController<ChatStreamChunk>();
+    addTearDown(() => chunks.close());
+    final collector = PlainTextCollector(sendMessageStream: fakeSender(chunks));
+    final snapshots = <String>[];
+
+    final future = collector.collect(
+      config: testConfig(),
+      modelId: 'm',
+      messages: const [],
+      updateInterval: const Duration(milliseconds: 20),
+      onAccumulated: snapshots.add,
+    );
+    await pumpEventQueue();
+    chunks.add(
+      ChatStreamChunk(content: 'partial', isDone: false, totalTokens: 1),
+    );
+    chunks.addError(Exception('boom'));
+
+    await expectLater(future, throwsA(isA<Exception>()));
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    expect(snapshots, isEmpty);
   });
 }

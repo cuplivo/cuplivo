@@ -126,7 +126,7 @@ class _FakeChatService extends ChatService {
     String? reasoningText,
     DateTime? reasoningStartAt,
     DateTime? reasoningFinishedAt,
-    String? translation,
+    Object? translation,
     String? reasoningSegmentsJson,
     int? promptTokens,
     int? completionTokens,

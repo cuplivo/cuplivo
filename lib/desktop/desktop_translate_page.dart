@@ -179,6 +179,7 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
           {'role': 'user', 'content': prompt},
         ],
         requestId: _requestId,
+        updateInterval: const Duration(milliseconds: 120),
         onAccumulated: (t) {
           if (!mounted || _stopped) return;
           setState(() {

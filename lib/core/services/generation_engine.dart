@@ -14,6 +14,7 @@ import '../providers/download_progress_store.dart';
 import '../providers/settings_provider.dart';
 import 'api/chat_api_service.dart';
 import 'chat/chat_service.dart';
+import 'workspace/linux_sandbox_service.dart';
 import 'streaming_content_notifier.dart';
 
 /// Live status of one generation slot.
@@ -631,6 +632,7 @@ class GenerationEngine extends ChangeNotifier {
       // running (its raw HttpClient is independent of the Dio CancelToken —
       // ADR-0030).
       _downloadProgressStore?.cancelForConversation(id);
+      unawaited(LinuxSandboxService.instance.cancelForConversation(id));
     }
   }
 
@@ -653,6 +655,7 @@ class GenerationEngine extends ChangeNotifier {
     for (final mid in _slots.keys.toList()) {
       ChatApiService.cancelRequest(mid);
     }
+    unawaited(LinuxSandboxService.instance.cancelAll());
     super.dispose();
   }
 

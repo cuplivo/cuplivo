@@ -65,6 +65,7 @@ class ChatActions {
     required this.contextProvider,
     required this.viewModel,
     required this.getTitleForLocale,
+    this.hasActiveTranslation,
   });
 
   final HomeViewModel viewModel;
@@ -75,6 +76,7 @@ class ChatActions {
   final MessageGenerationService messageGenerationService;
   final BuildContext contextProvider;
   final String Function(BuildContext context) getTitleForLocale;
+  final bool Function(String messageId)? hasActiveTranslation;
 
   // ============================================================================
   // Callbacks for UI updates (set by HomeViewModel)
@@ -1058,7 +1060,9 @@ class ChatActions {
       );
       onMessagesChanged?.call();
     }
-    streamController.removeStreamingNotifier(mid);
+    if (hasActiveTranslation?.call(mid) != true) {
+      streamController.removeStreamingNotifier(mid);
+    }
     streamController.markStreamingEnded(mid);
     _setConversationLoading(cid, false);
     onFileProcessingFinished?.call();
@@ -1150,7 +1154,9 @@ class ChatActions {
       );
       onMessagesChanged?.call();
     }
-    streamController.removeStreamingNotifier(mid);
+    if (hasActiveTranslation?.call(mid) != true) {
+      streamController.removeStreamingNotifier(mid);
+    }
 
     if (!cancelled) {
       _setConversationLoading(cid, false);

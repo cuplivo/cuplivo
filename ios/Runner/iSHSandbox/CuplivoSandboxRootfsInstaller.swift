@@ -14,6 +14,7 @@ import Compression
 enum SandboxRootfsInstallerError: Error, LocalizedError {
   case bundleResourceMissing
   case archiveOpenFailed
+  case cancelled
   case unsafeEntryPath(String)
   case extractionFailed(String)
 
@@ -21,6 +22,7 @@ enum SandboxRootfsInstallerError: Error, LocalizedError {
     switch self {
     case .bundleResourceMissing: return "alpine-rootfs.zip not found in bundle"
     case .archiveOpenFailed: return "Failed to open rootfs zip archive"
+    case .cancelled: return "Rootfs installation cancelled"
     case .unsafeEntryPath(let p): return "Unsafe zip entry path: \(p)"
     case .extractionFailed(let m): return m
     }
@@ -31,7 +33,7 @@ final class CuplivoSandboxRootfsInstaller {
   static let resourceName = "alpine-rootfs"
 
   /// Extract the bundled rootfs zip into `destDir` (created fresh).
-  static func install(to destDir: URL) throws {
+  static func install(to destDir: URL, isCancelled: () -> Bool = { false }) throws {
     guard let zipURL = Bundle.main.url(forResource: resourceName, withExtension: "zip") else {
       throw SandboxRootfsInstallerError.bundleResourceMissing
     }
@@ -40,32 +42,48 @@ final class CuplivoSandboxRootfsInstaller {
     }
 
     let fm = FileManager.default
-    if fm.fileExists(atPath: destDir.path) {
-      try fm.removeItem(at: destDir)
-    }
-    try fm.createDirectory(at: destDir, withIntermediateDirectories: true)
+    do {
+      if isCancelled() {
+        throw SandboxRootfsInstallerError.cancelled
+      }
+      if fm.fileExists(atPath: destDir.path) {
+        try fm.removeItem(at: destDir)
+      }
+      try fm.createDirectory(at: destDir, withIntermediateDirectories: true)
 
-    let destBase = destDir.standardizedFileURL.path
-    for entry in archive.entries {
-      // Zip-slip guard: resolved path must stay inside destDir.
-      let entryURL = destDir.appendingPathComponent(entry.path).standardizedFileURL
-      guard entryURL.path == destBase || entryURL.path.hasPrefix(destBase + "/") else {
-        throw SandboxRootfsInstallerError.unsafeEntryPath(entry.path)
+      let destBase = destDir.standardizedFileURL.path
+      for entry in archive.entries {
+        if isCancelled() {
+          throw SandboxRootfsInstallerError.cancelled
+        }
+        // Zip-slip guard: resolved path must stay inside destDir.
+        let entryURL = destDir.appendingPathComponent(entry.path).standardizedFileURL
+        guard entryURL.path == destBase || entryURL.path.hasPrefix(destBase + "/") else {
+          throw SandboxRootfsInstallerError.unsafeEntryPath(entry.path)
+        }
+        if entry.isDirectory {
+          try fm.createDirectory(at: entryURL, withIntermediateDirectories: true)
+          continue
+        }
+        let parent = entryURL.deletingLastPathComponent()
+        if !fm.fileExists(atPath: parent.path) {
+          try fm.createDirectory(at: parent, withIntermediateDirectories: true)
+        }
+        guard let data = try archive.extractData(for: entry) else {
+          throw SandboxRootfsInstallerError.extractionFailed("Failed to extract \(entry.path)")
+        }
+        if isCancelled() {
+          throw SandboxRootfsInstallerError.cancelled
+        }
+        try data.write(to: entryURL)
       }
-      if entry.isDirectory {
-        try fm.createDirectory(at: entryURL, withIntermediateDirectories: true)
-        continue
-      }
-      let parent = entryURL.deletingLastPathComponent()
-      if !fm.fileExists(atPath: parent.path) {
-        try fm.createDirectory(at: parent, withIntermediateDirectories: true)
-      }
-      guard let data = try archive.extractData(for: entry) else {
-        throw SandboxRootfsInstallerError.extractionFailed("Failed to extract \(entry.path)")
-      }
-      try data.write(to: entryURL)
+      NSLog("CuplivoSandboxRootfsInstaller: extracted \(archive.entries.count) entries to \(destDir.path)")
+    } catch {
+      // A cancelled or failed install must not leave a directory that looks
+      // like a usable rootfs to the next readiness probe.
+      try? fm.removeItem(at: destDir)
+      throw error
     }
-    NSLog("CuplivoSandboxRootfsInstaller: extracted \(archive.entries.count) entries to \(destDir.path)")
   }
 }
 

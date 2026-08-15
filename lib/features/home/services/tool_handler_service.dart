@@ -796,6 +796,8 @@ class ToolHandlerService {
                       total,
                     ),
               downloadAbortToken: downloadJob?.abortToken,
+              toolCallId: toolCallId,
+              conversationId: conversationId,
             );
             if (wsResult != null) return wsResult;
           } catch (e) {

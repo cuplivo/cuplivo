@@ -586,10 +586,9 @@ class _MessageListViewState extends State<MessageListView> {
         ? widget.suggestions
         : const <String>[];
 
-    // Check if this is a streaming message that should use ValueListenableBuilder
-    final isStreaming =
-        message.isStreaming &&
-        message.role == 'assistant' &&
+    // Generation and translation both use a per-message notifier. This keeps
+    // high-frequency updates out of the HomePage rebuild path.
+    final isLiveMessage =
         widget.streamingContentNotifier != null &&
         widget.streamingContentNotifier!.hasNotifier(message.id);
 
@@ -627,7 +626,7 @@ class _MessageListViewState extends State<MessageListView> {
                       data: data.copyWith(
                         textScaler: TextScaler.linear(textScale * chatScale),
                       ),
-                      child: isStreaming
+                      child: isLiveMessage
                           ? _buildStreamingMessageWidget(
                               context,
                               message: message,
@@ -772,6 +771,7 @@ class _MessageListViewState extends State<MessageListView> {
           completionTokens: data.completionTokens,
           cachedTokens: data.cachedTokens,
           durationMs: data.durationMs,
+          translation: data.translation ?? message.translation,
         );
 
         // Update reasoning text from streaming data while preserving expanded state from r
@@ -802,6 +802,7 @@ class _MessageListViewState extends State<MessageListView> {
             isProcessingFiles: isProcessingFiles,
             suggestions: suggestions,
             enableStreamingTextMotion: !deferUpdates,
+            translationStreaming: data.translation != null,
           ),
         );
       },
@@ -824,10 +825,12 @@ class _MessageListViewState extends State<MessageListView> {
     required bool isProcessingFiles,
     required List<String> suggestions,
     bool enableStreamingTextMotion = true,
+    bool translationStreaming = false,
   }) {
     final chatWidget = ChatMessageWidget(
       message: message,
       enableStreamingTextMotion: enableStreamingTextMotion,
+      translationStreaming: translationStreaming,
       versionIndex: selectedIdx,
       versionCount: total > 0 ? total : 1,
       onPrevVersion: (selectedIdx > 0)

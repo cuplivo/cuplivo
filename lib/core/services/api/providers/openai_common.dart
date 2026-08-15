@@ -138,7 +138,7 @@ bool _isKimiK25Model(String upstreamModelId) {
 bool _isKimiK3Model(String upstreamModelId) {
   final trimmed = upstreamModelId.trim();
   return RegExp(
-        r'(^|[/_:@])kimi-k3(?:$|[-.])',
+        r'(^|[/_:@])kimi-k3(?:$|[-.:])',
         caseSensitive: false,
       ).hasMatch(trimmed) ||
       RegExp(
@@ -146,6 +146,14 @@ bool _isKimiK3Model(String upstreamModelId) {
         caseSensitive: false,
       ).hasMatch(trimmed);
 }
+
+bool _isKimiPreservedThinkingModel(String upstreamModelId) {
+  final normalized = upstreamModelId.trim().toLowerCase();
+  return _isKimiK3Model(normalized) ||
+      RegExp(r'(^|[/_:@])kimi-k2\.7-code(?:$|[-.:])').hasMatch(normalized);
+}
+
+enum _ReasoningContentReplayPolicy { none, toolTurns, all }
 
 bool _isRemoteHttpUrl(String source) {
   final normalized = source.trim().toLowerCase();
@@ -832,6 +840,7 @@ Future<List<Map<String, dynamic>>> _buildOpenAIChatCompletionMessages(
   required bool canImageInput,
   required bool allowRemoteImages,
   bool sendToolResultImages = false,
+  required _ReasoningContentReplayPolicy reasoningContentReplayPolicy,
   bool stripUnsignedReasoningContent = false,
 }) async {
   int lastUserIndex = -1;
@@ -839,6 +848,22 @@ Future<List<Map<String, dynamic>>> _buildOpenAIChatCompletionMessages(
     if ((messages[i]['role'] ?? '').toString() == 'user') {
       lastUserIndex = i;
       break;
+    }
+  }
+
+  final toolTurnIds = <int>{};
+  final messageTurnIds = <int>[];
+  var currentTurnId = -1;
+  for (final message in messages) {
+    final messageRole = (message['role'] ?? 'user').toString();
+    if (messageRole == 'user') currentTurnId++;
+    messageTurnIds.add(currentTurnId);
+    final messageToolCalls = message['tool_calls'];
+    if (messageRole == 'tool' ||
+        (messageRole == 'assistant' &&
+            messageToolCalls is List &&
+            messageToolCalls.isNotEmpty)) {
+      toolTurnIds.add(currentTurnId);
     }
   }
 
@@ -854,10 +879,19 @@ Future<List<Map<String, dynamic>>> _buildOpenAIChatCompletionMessages(
     final outMsg = Map<String, dynamic>.from(m);
     outMsg.remove(multimodalInternalMediaPathsKey);
     outMsg['role'] = role;
-    if (stripUnsignedReasoningContent && role == 'assistant') {
+    if (role == 'assistant') {
       final details = outMsg['reasoning_details'];
-      final hasSignedDetails = details is List && details.isNotEmpty;
-      if (!hasSignedDetails) {
+      final hasSignedClaudeReasoning =
+          stripUnsignedReasoningContent &&
+          details is List &&
+          details.isNotEmpty;
+      final keepReasoningContent =
+          hasSignedClaudeReasoning ||
+          reasoningContentReplayPolicy == _ReasoningContentReplayPolicy.all ||
+          (reasoningContentReplayPolicy ==
+                  _ReasoningContentReplayPolicy.toolTurns &&
+              toolTurnIds.contains(messageTurnIds[i]));
+      if (!keepReasoningContent) {
         outMsg.remove('reasoning_content');
         outMsg.remove('reasoning');
       }
@@ -1140,6 +1174,17 @@ class _OpenAIProviderInfo {
 
   bool get needsReasoningEcho =>
       isDeepSeek || isMimo || isZhipu || isKimiThinkingModel;
+
+  _ReasoningContentReplayPolicy get reasoningContentReplayPolicy {
+    if (_isKimiPreservedThinkingModel(upstreamModelId)) {
+      return _ReasoningContentReplayPolicy.all;
+    }
+    if (needsReasoningEcho) {
+      return _ReasoningContentReplayPolicy.toolTurns;
+    }
+    return _ReasoningContentReplayPolicy.none;
+  }
+
   String get completionTokensKey =>
       (isAzureOpenAI || isMimo) ? 'max_completion_tokens' : 'max_tokens';
 }
@@ -1678,6 +1723,7 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
         canImageInput: canImageInput,
         allowRemoteImages: allowRemoteImages,
         sendToolResultImages: sendToolResultImages,
+        reasoningContentReplayPolicy: info.reasoningContentReplayPolicy,
         stripUnsignedReasoningContent: isClaudeUpstream,
       );
       body = {
@@ -2021,6 +2067,8 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
                   canImageInput: canImageInput,
                   allowRemoteImages: allowRemoteImages,
                   sendToolResultImages: sendToolResultImages,
+                  reasoningContentReplayPolicy:
+                      info.reasoningContentReplayPolicy,
                   stripUnsignedReasoningContent: isClaudeUpstream,
                 );
           reqBody.remove('stream');
@@ -2272,6 +2320,8 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
                       canImageInput: canImageInput,
                       allowRemoteImages: allowRemoteImages,
                       sendToolResultImages: sendToolResultImages,
+                      reasoningContentReplayPolicy:
+                          info.reasoningContentReplayPolicy,
                       stripUnsignedReasoningContent: isClaudeUpstream,
                     ),
                     'stream': true,
@@ -3805,6 +3855,8 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
                       canImageInput: canImageInput,
                       allowRemoteImages: allowRemoteImages,
                       sendToolResultImages: sendToolResultImages,
+                      reasoningContentReplayPolicy:
+                          info.reasoningContentReplayPolicy,
                       stripUnsignedReasoningContent: isClaudeUpstream,
                     ),
                     'stream': true,
@@ -4343,6 +4395,8 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
                           canImageInput: canImageInput,
                           allowRemoteImages: allowRemoteImages,
                           sendToolResultImages: sendToolResultImages,
+                          reasoningContentReplayPolicy:
+                              info.reasoningContentReplayPolicy,
                           stripUnsignedReasoningContent: isClaudeUpstream,
                         ),
                         'stream': true,

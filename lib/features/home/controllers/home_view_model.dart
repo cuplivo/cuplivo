@@ -291,6 +291,7 @@ class HomeViewModel extends ChangeNotifier {
     required this._chatController,
     required this._contextProvider,
     required this.getTitleForLocale,
+    this.hasActiveTranslation,
   }) {
     // Initialize ChatActions
     _chatActions = ChatActions(
@@ -302,6 +303,7 @@ class HomeViewModel extends ChangeNotifier {
       contextProvider: _contextProvider,
       viewModel: this,
       getTitleForLocale: getTitleForLocale,
+      hasActiveTranslation: hasActiveTranslation,
     );
 
     // Wire up callbacks
@@ -332,6 +334,7 @@ class HomeViewModel extends ChangeNotifier {
   final stream_ctrl.StreamController _streamController;
   final ChatController _chatController;
   final BuildContext _contextProvider;
+  final bool Function(String messageId)? hasActiveTranslation;
   final ChatSuggestionService _suggestionService =
       const ChatSuggestionService();
   late final ChatActions _chatActions;

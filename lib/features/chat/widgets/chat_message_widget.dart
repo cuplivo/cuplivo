@@ -730,6 +730,7 @@ class ChatMessageWidget extends StatefulWidget {
   final List<ReasoningSegment>? reasoningSegments;
   // Optional translation UI props
   final bool translationExpanded;
+  final bool translationStreaming;
   final VoidCallback? onToggleTranslation;
   // MCP tool calls/results mixed-in cards
   final List<ToolUIPart>? toolParts;
@@ -778,6 +779,7 @@ class ChatMessageWidget extends StatefulWidget {
     this.onToggleReasoning,
     this.reasoningSegments,
     this.translationExpanded = true,
+    this.translationStreaming = false,
     this.onToggleTranslation,
     this.toolParts,
     this.contentSplitOffsets,
@@ -2657,6 +2659,8 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                                               fontSize: baseTranslation,
                                               height: 1.4,
                                             ),
+                                            streaming:
+                                                widget.translationStreaming,
                                           );
                                     } else {
                                       translationContent = Text(

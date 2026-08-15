@@ -741,3 +741,12 @@
   - `KelivoImageSettingsMapper` and the "Kelivo backup" interop terms — they describe the upstream project, which legitimately exists
 - **Cuplivo identity surfaces (已更名面)**: All user-visible brand strings and outbound identity use Cuplivo — notifications, about page, share text, HTTP User-Agent, OpenRouter title/referer, MCP client name, downloaded/temp file prefixes (`cuplivo-table-*`, `cuplivo-mermaid-*`, `cuplivo_tts_*`).
 - **Residue sweep (issue #274, ADR-0029)**: The v3.0 sweep fixes tier-A (user-visible/externally-visible) residue only; tier-B/C/D (protocol, persistence, legacy compat, external infra) keep the Kelivo name by design. "夺舍" is complete on every surface users and third parties see; it is deliberately incomplete on identity-bearing internals.
+
+## Reasoning Content Replay (思维链回放)
+
+- **Reasoning content**: unsigned plain-text thinking (`reasoning_content`), distinct from signed **reasoning details** (Anthropic/OpenRouter `reasoning_details`) and native **thinking blocks** (Anthropic).
+- **Replay policy**: per-provider decision on whether to echo reasoning content back into conversation history:
+  - **preserve-all**: always echo — Kimi K3 family (`kimi-k3`, incl. the bare `k3` official alias) plus `kimi-k2.7-code`.
+  - **tool-turns-only**: echo only across turns that involve a tool call — DeepSeek, MiMo, Zhipu, Kimi thinking models (k2.5/k2.6/k2.7).
+  - **strip**: never echo — everyone else (Claude additionally requires signed reasoning details; its unsigned echo is dropped).
+- **Coupling**: the message builder always attaches reasoning content to assistant history; the provider layer then applies the replay policy (builder supplies the data, provider strips it). Rationale: providers reject or waste tokens on reasoning echoed outside tool turns. Synced from upstream Kelivo v1.2.1 (issue #343).

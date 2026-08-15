@@ -745,5 +745,74 @@ void main() {
       expect(body.containsKey('temperature'), isFalse);
       expect(body.containsKey('top_p'), isFalse);
     });
+
+    test(
+      'kimi-k3 and kimi-k2.7-code preserved-thinking variants keep history',
+      () async {
+        final requestBodies = <Map<String, dynamic>>[];
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        addTearDown(() async {
+          await server.close(force: true);
+        });
+
+        server.listen((request) async {
+          requestBodies.add(
+            (jsonDecode(await utf8.decoder.bind(request).join()) as Map)
+                .cast<String, dynamic>(),
+          );
+          request.response.statusCode = HttpStatus.ok;
+          request.response.headers.contentType = ContentType(
+            'text',
+            'event-stream',
+            charset: 'utf-8',
+          );
+          request.response.write(
+            'data: ${jsonEncode({
+              'id': 'cmpl-preserved',
+              'object': 'chat.completion.chunk',
+              'created': 0,
+              'model': 'kimi',
+              'choices': [
+                {
+                  'index': 0,
+                  'delta': {'role': 'assistant', 'content': 'ok'},
+                  'finish_reason': 'stop',
+                },
+              ],
+            })}\n\n',
+          );
+          request.response.write('data: [DONE]\n\n');
+          await request.response.close();
+        });
+
+        final baseUrl = 'http://${server.address.address}:${server.port}/v1';
+        for (final modelId in const [
+          'moonshotai/kimi-k3:nitro',
+          'moonshotai/kimi-k2.7-code:floor',
+        ]) {
+          final chunks = await ChatApiService.sendMessageStream(
+            config: _moonshotConfig(baseUrl),
+            modelId: modelId,
+            messages: const [
+              {'role': 'user', 'content': 'hello'},
+              {
+                'role': 'assistant',
+                'content': 'hi there',
+                'reasoning_content': 'preserved thinking text',
+              },
+              {'role': 'user', 'content': 'follow up'},
+            ],
+          ).toList();
+
+          expect(chunks.last.isDone, isTrue);
+        }
+
+        expect(requestBodies, hasLength(2));
+        for (final requestBody in requestBodies) {
+          final messages = (requestBody['messages'] as List).cast<Map>();
+          expect(messages[1]['reasoning_content'], 'preserved thinking text');
+        }
+      },
+    );
   });
 }

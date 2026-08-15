@@ -341,5 +341,122 @@ void main() {
       expect(requests.single['thinking'], {'type': 'disabled'});
       expect(requests.single.containsKey('reasoning_effort'), isFalse);
     });
+
+    test('ordinary history strips reasoning_content', () async {
+      late Map<String, dynamic> requestBody;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+
+      server.listen((request) async {
+        requestBody = await _readJsonBody(request);
+        request.response.statusCode = HttpStatus.ok;
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+          charset: 'utf-8',
+        );
+        request.response.write(
+          'data: ${jsonEncode({
+            'choices': [
+              {
+                'delta': {'content': 'ok'},
+                'finish_reason': 'stop',
+              },
+            ],
+          })}\n\n',
+        );
+        request.response.write('data: [DONE]\n\n');
+        await request.response.close();
+      });
+
+      final baseUrl = 'http://${server.address.address}:${server.port}/v1';
+      await ChatApiService.sendMessageStream(
+        config: _deepSeekConfig(baseUrl),
+        modelId: 'deepseek-reasoner',
+        messages: const [
+          {'role': 'user', 'content': 'first question'},
+          {
+            'role': 'assistant',
+            'content': 'first answer',
+            'reasoning_content': 'private first-turn reasoning',
+          },
+          {'role': 'user', 'content': 'follow up'},
+        ],
+      ).toList();
+
+      final history = (requestBody['messages'] as List).cast<Map>();
+      expect(history[1].containsKey('reasoning_content'), isFalse);
+    });
+
+    test(
+      'tool-call turn preserves every assistant reasoning_content',
+      () async {
+        late Map<String, dynamic> requestBody;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        addTearDown(() async {
+          await server.close(force: true);
+        });
+
+        server.listen((request) async {
+          requestBody = await _readJsonBody(request);
+          request.response.statusCode = HttpStatus.ok;
+          request.response.headers.contentType = ContentType(
+            'text',
+            'event-stream',
+            charset: 'utf-8',
+          );
+          request.response.write(
+            'data: ${jsonEncode({
+              'choices': [
+                {
+                  'delta': {'content': 'ok'},
+                  'finish_reason': 'stop',
+                },
+              ],
+            })}\n\n',
+          );
+          request.response.write('data: [DONE]\n\n');
+          await request.response.close();
+        });
+
+        final baseUrl = 'http://${server.address.address}:${server.port}/v1';
+        await ChatApiService.sendMessageStream(
+          config: _deepSeekConfig(baseUrl),
+          modelId: 'deepseek-reasoner',
+          messages: const [
+            {'role': 'user', 'content': 'check the weather'},
+            {
+              'role': 'assistant',
+              'content': '',
+              'reasoning_content': 'decide to call weather tool',
+              'tool_calls': [
+                {
+                  'id': 'call_weather',
+                  'type': 'function',
+                  'function': {'name': 'weather', 'arguments': '{}'},
+                },
+              ],
+            },
+            {
+              'role': 'tool',
+              'tool_call_id': 'call_weather',
+              'content': 'sunny',
+            },
+            {
+              'role': 'assistant',
+              'content': 'It is sunny.',
+              'reasoning_content': 'summarize the tool result',
+            },
+            {'role': 'user', 'content': 'thanks'},
+          ],
+        ).toList();
+
+        final history = (requestBody['messages'] as List).cast<Map>();
+        expect(history[1]['reasoning_content'], 'decide to call weather tool');
+        expect(history[3]['reasoning_content'], 'summarize the tool result');
+      },
+    );
   });
 }

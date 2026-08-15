@@ -142,6 +142,7 @@ class _TranslatePageState extends State<TranslatePage> {
           {'role': 'user', 'content': p},
         ],
         requestId: _requestId,
+        updateInterval: const Duration(milliseconds: 120),
         onAccumulated: (t) {
           if (!mounted || _stopped) return;
           // Remove any leading whitespace/newlines from the first chunk to

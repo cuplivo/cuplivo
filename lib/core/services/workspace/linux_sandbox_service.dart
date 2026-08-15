@@ -105,13 +105,46 @@ class SandboxExecResult {
   final String stdout;
   final String stderr;
   final bool timedOut;
+  final bool cancelled;
+  final bool stdoutTruncated;
+  final bool stderrTruncated;
 
   const SandboxExecResult({
     required this.exitCode,
     required this.stdout,
     required this.stderr,
     this.timedOut = false,
+    this.cancelled = false,
+    this.stdoutTruncated = false,
+    this.stderrTruncated = false,
   });
+}
+
+class SandboxBusyException implements Exception {
+  const SandboxBusyException(this.workspaceHostPath);
+
+  final String workspaceHostPath;
+
+  @override
+  String toString() => 'Sandbox is busy for workspace $workspaceHostPath';
+}
+
+class SandboxCancelledException implements Exception {
+  const SandboxCancelledException(this.requestId);
+
+  final String requestId;
+
+  @override
+  String toString() => 'Sandbox request $requestId was cancelled';
+}
+
+class SandboxNotReadyException implements Exception {
+  const SandboxNotReadyException(this.status);
+
+  final SandboxStatus status;
+
+  @override
+  String toString() => 'Sandbox is not ready: ${status.name}';
 }
 
 class SandboxInstallProgress {
@@ -140,6 +173,88 @@ class PackageInstallStep {
   });
 }
 
+class _WorkspaceExecutionRequest {
+  _WorkspaceExecutionRequest({
+    required this.requestId,
+    required this.conversationId,
+    required this.action,
+  });
+
+  final String requestId;
+  final String? conversationId;
+  final Future<Object?> Function() action;
+  final Completer<Object?> completer = Completer<Object?>();
+}
+
+class _WorkspaceCancellation {
+  const _WorkspaceCancellation({required this.activeIds});
+
+  final List<String> activeIds;
+}
+
+/// Small bounded FIFO used by both LLM shell calls and package installation.
+/// Keeping this in Dart makes every caller share the same workspace lock;
+/// native runners still keep their own registry as a lifecycle backstop.
+class _WorkspaceExecutionQueue {
+  _WorkspaceExecutionQueue({required this.workspaceHostPath});
+
+  static const int maxPending = 4;
+
+  final String workspaceHostPath;
+  final List<_WorkspaceExecutionRequest> _pending =
+      <_WorkspaceExecutionRequest>[];
+  _WorkspaceExecutionRequest? _active;
+
+  Future<T> enqueue<T>({
+    required String requestId,
+    required String? conversationId,
+    required Future<T> Function() action,
+  }) {
+    if (_pending.length >= maxPending) {
+      throw SandboxBusyException(workspaceHostPath);
+    }
+    final request = _WorkspaceExecutionRequest(
+      requestId: requestId,
+      conversationId: conversationId,
+      action: () async => action(),
+    );
+    _pending.add(request);
+    _pump();
+    return request.completer.future.then((value) => value as T);
+  }
+
+  _WorkspaceCancellation cancelWhere(
+    bool Function(_WorkspaceExecutionRequest) test,
+  ) {
+    for (final request in _pending.where(test).toList()) {
+      _pending.remove(request);
+      request.completer.completeError(
+        SandboxCancelledException(request.requestId),
+      );
+    }
+    final activeIds = <String>[];
+    final active = _active;
+    if (active != null && test(active)) activeIds.add(active.requestId);
+    return _WorkspaceCancellation(activeIds: activeIds);
+  }
+
+  void _pump() {
+    if (_active != null || _pending.isEmpty) return;
+    final request = _pending.removeAt(0);
+    _active = request;
+    unawaited(() async {
+      try {
+        request.completer.complete(await request.action());
+      } catch (error, stackTrace) {
+        request.completer.completeError(error, stackTrace);
+      } finally {
+        _active = null;
+        _pump();
+      }
+    }());
+  }
+}
+
 /// Mobile Linux sandbox.
 ///
 /// - Android: proot + per-workspace Ubuntu rootfs (downloaded), apt.
@@ -160,10 +275,116 @@ class LinuxSandboxService {
     'cuplivo/linux_sandbox/volume_ctrl',
   );
 
-  static const int maxOutputChars = 128 * 1024;
+  static const int maxOutputChars = 64 * 1024;
+  static const int maxShellTimeoutSeconds = 600;
+  static const int maxPackageTimeoutSeconds = 3600;
 
   static const String _ua =
       'Cuplivo/1.0 (Linux sandbox installer; +https://github.com/cuplivo/cuplivo)';
+
+  final Map<String, _WorkspaceExecutionQueue> _executionQueues =
+      <String, _WorkspaceExecutionQueue>{};
+  final Set<String> _cancelledRequestIds = <String>{};
+  final Map<String, CancelToken> _downloadCancelTokens =
+      <String, CancelToken>{};
+  int _requestCounter = 0;
+
+  String _newRequestId(String prefix) {
+    _requestCounter++;
+    return '${prefix}_${DateTime.now().microsecondsSinceEpoch}_$_requestCounter';
+  }
+
+  _WorkspaceExecutionQueue _queueFor(String workspaceHostPath) {
+    return _executionQueues.putIfAbsent(
+      workspaceHostPath,
+      () => _WorkspaceExecutionQueue(workspaceHostPath: workspaceHostPath),
+    );
+  }
+
+  Future<T> _withWorkspaceExecution<T>({
+    required String workspaceHostPath,
+    required String requestId,
+    required String? conversationId,
+    required Future<T> Function() action,
+  }) {
+    final future = _queueFor(workspaceHostPath).enqueue<T>(
+      requestId: requestId,
+      conversationId: conversationId,
+      action: action,
+    );
+    return future.whenComplete(() => _cancelledRequestIds.remove(requestId));
+  }
+
+  Future<void> _cancelNativeRequest(String requestId) async {
+    if (requestId.trim().isEmpty || !isSandboxPlatform) return;
+    try {
+      await _channel.invokeMethod<void>('cancel', {'requestId': requestId});
+    } on MissingPluginException {
+      debugPrint('LinuxSandboxService: cancel plugin unavailable');
+    } on PlatformException catch (e) {
+      debugPrint('LinuxSandboxService: cancel $requestId failed: ${e.code}');
+    } catch (e) {
+      debugPrint('LinuxSandboxService: cancel $requestId failed: $e');
+    }
+  }
+
+  void _throwIfCancelled(String requestId) {
+    if (_cancelledRequestIds.remove(requestId)) {
+      throw SandboxCancelledException(requestId);
+    }
+  }
+
+  void _markCancelled(String requestId) {
+    _cancelledRequestIds.add(requestId);
+    _downloadCancelTokens[requestId]?.cancel('sandbox request cancelled');
+  }
+
+  Future<void> cancelExec(String requestId) async {
+    final ids = <String>{};
+    for (final queue in _executionQueues.values) {
+      final cancellation = queue.cancelWhere(
+        (request) => request.requestId == requestId,
+      );
+      ids.addAll(cancellation.activeIds);
+    }
+    for (final id in ids) {
+      _markCancelled(id);
+    }
+    for (final id in ids) {
+      await _cancelNativeRequest(id);
+    }
+  }
+
+  Future<void> cancelForConversation(String conversationId) async {
+    final id = conversationId.trim();
+    if (id.isEmpty) return;
+    final requestIds = <String>{};
+    for (final queue in _executionQueues.values) {
+      final cancellation = queue.cancelWhere(
+        (request) => request.conversationId == id,
+      );
+      requestIds.addAll(cancellation.activeIds);
+    }
+    for (final requestId in requestIds) {
+      _markCancelled(requestId);
+    }
+    for (final requestId in requestIds) {
+      await _cancelNativeRequest(requestId);
+    }
+  }
+
+  Future<void> cancelAll() async {
+    final requestIds = <String>{};
+    for (final queue in _executionQueues.values) {
+      requestIds.addAll(queue.cancelWhere((_) => true).activeIds);
+    }
+    for (final requestId in requestIds) {
+      _markCancelled(requestId);
+    }
+    for (final requestId in requestIds) {
+      await _cancelNativeRequest(requestId);
+    }
+  }
 
   /// Alpine version of the bundled iOS rootfs (must match
   /// tools/ios_rootfs/prepare_alpine_fakefs.py output).
@@ -381,9 +602,30 @@ class LinuxSandboxService {
     required String workspaceHostPath,
     required DependencyInstallPref pref,
     void Function(SandboxInstallProgress)? onProgress,
+  }) {
+    final requestId = _newRequestId('install_base');
+    return _withWorkspaceExecution<void>(
+      workspaceHostPath: workspaceHostPath,
+      requestId: requestId,
+      conversationId: null,
+      action: () => _installBaseUnlocked(
+        workspaceHostPath: workspaceHostPath,
+        pref: pref,
+        onProgress: onProgress,
+        requestId: requestId,
+      ),
+    );
+  }
+
+  Future<void> _installBaseUnlocked({
+    required String workspaceHostPath,
+    required DependencyInstallPref pref,
+    void Function(SandboxInstallProgress)? onProgress,
+    required String requestId,
   }) async {
+    _throwIfCancelled(requestId);
     if (Platform.isIOS) {
-      await _installBaseIos(onProgress: onProgress);
+      await _installBaseIos(onProgress: onProgress, requestId: requestId);
       return;
     }
     if (!Platform.isAndroid) {
@@ -397,9 +639,19 @@ class LinuxSandboxService {
     await sandboxDir.create(recursive: true);
     final archivePath = p.join(sandboxDir.path, 'download.tar.gz');
 
+    Future<void> deleteArchiveQuietly() async {
+      try {
+        final f = File(archivePath);
+        if (await f.exists()) await f.delete();
+      } catch (e) {
+        debugPrint('LinuxSandboxService: cleanup archive failed: $e');
+      }
+    }
+
     Object? lastError;
     for (final url in urls) {
       try {
+        _throwIfCancelled(requestId);
         onProgress?.call(
           SandboxInstallProgress(
             stage: 'downloading',
@@ -407,43 +659,73 @@ class LinuxSandboxService {
             message: url,
           ),
         );
-        await _downloadFile(
-          url: url,
-          savePath: archivePath,
-          onProgress: (ratio) {
-            onProgress?.call(
-              SandboxInstallProgress(
-                stage: 'downloading',
-                progress: ratio,
-                message: url,
-              ),
-            );
-          },
-        );
+        final cancelToken = CancelToken();
+        _downloadCancelTokens[requestId] = cancelToken;
+        if (_cancelledRequestIds.contains(requestId)) {
+          cancelToken.cancel('sandbox request cancelled');
+        }
+        try {
+          await _downloadFile(
+            url: url,
+            savePath: archivePath,
+            cancelToken: cancelToken,
+            requestId: requestId,
+            onProgress: (ratio) {
+              onProgress?.call(
+                SandboxInstallProgress(
+                  stage: 'downloading',
+                  progress: ratio,
+                  message: url,
+                ),
+              );
+            },
+          );
+        } finally {
+          if (identical(_downloadCancelTokens[requestId], cancelToken)) {
+            _downloadCancelTokens.remove(requestId);
+          }
+        }
+        _throwIfCancelled(requestId);
         onProgress?.call(
           const SandboxInstallProgress(stage: 'extracting', progress: null),
         );
         await _channel.invokeMethod<void>('extractRootfs', {
           'workspacePath': workspaceHostPath,
           'archivePath': archivePath,
+          'requestId': requestId,
         });
-        try {
-          final f = File(archivePath);
-          if (await f.exists()) await f.delete();
-        } catch (e) {
-          debugPrint('LinuxSandboxService: cleanup archive failed: $e');
-        }
+        _throwIfCancelled(requestId);
+        await deleteArchiveQuietly();
         onProgress?.call(
           const SandboxInstallProgress(stage: 'done', progress: 1),
         );
         return;
+      } on SandboxCancelledException {
+        // Do not leave a half-downloaded archive behind for a later retry.
+        await deleteArchiveQuietly();
+        rethrow;
+      } on PlatformException catch (e) {
+        if (e.code == 'cancelled') {
+          // Native cancellation after the download: do not leave the partial
+          // archive behind for a later retry.
+          await deleteArchiveQuietly();
+          throw SandboxCancelledException(requestId);
+        }
+        if (e.code == 'sandbox_busy') {
+          throw SandboxBusyException(workspaceHostPath);
+        }
+        lastError = e;
+        debugPrint('installBase failed for $url: ${e.code}');
+        await deleteArchiveQuietly();
       } catch (e) {
         lastError = e;
         debugPrint('installBase failed for $url: $e');
         try {
           final f = File(archivePath);
           if (await f.exists()) await f.delete();
-        } catch (_) {}
+        } catch (cleanupError) {
+          debugPrint('LinuxSandboxService: cleanup failed: $cleanupError');
+        }
       }
     }
     throw StateError('Failed to install rootfs: $lastError');
@@ -453,7 +735,9 @@ class LinuxSandboxService {
   /// extracts it to the shared sandbox directory. No download involved.
   Future<void> _installBaseIos({
     void Function(SandboxInstallProgress)? onProgress,
+    required String requestId,
   }) async {
+    _throwIfCancelled(requestId);
     final rootfsPath = await iosRootfsPath();
     await Directory(p.dirname(rootfsPath)).create(recursive: true);
     onProgress?.call(
@@ -462,10 +746,15 @@ class LinuxSandboxService {
     try {
       await _channel.invokeMethod<void>('installBase', {
         'rootfsPath': rootfsPath,
+        'requestId': requestId,
       });
+      _throwIfCancelled(requestId);
     } on MissingPluginException {
       throw StateError('Linux sandbox plugin not available');
     } on PlatformException catch (e) {
+      if (e.code == 'cancelled') {
+        throw SandboxCancelledException(requestId);
+      }
       throw StateError(e.message ?? e.code);
     }
     onProgress?.call(const SandboxInstallProgress(stage: 'done', progress: 1));
@@ -474,6 +763,8 @@ class LinuxSandboxService {
   Future<void> _downloadFile({
     required String url,
     required String savePath,
+    required String requestId,
+    CancelToken? cancelToken,
     void Function(double ratio)? onProgress,
   }) async {
     final dio = Dio(
@@ -492,6 +783,7 @@ class LinuxSandboxService {
       final response = await dio.download(
         url,
         savePath,
+        cancelToken: cancelToken,
         deleteOnError: true,
         onReceiveProgress: (received, total) {
           if (total > 0) {
@@ -515,6 +807,9 @@ class LinuxSandboxService {
         throw StateError('Downloaded file empty for $url');
       }
     } on DioException catch (e) {
+      if (cancelToken?.isCancelled == true) {
+        throw SandboxCancelledException(requestId);
+      }
       final code = e.response?.statusCode;
       final reason = e.message ?? e.type.name;
       if (code != null) {
@@ -692,30 +987,52 @@ class LinuxSandboxService {
                 ? 2700
                 : 1800,
           );
-    for (final step in steps) {
-      onProgress?.call(
-        SandboxInstallProgress(stage: step.stage, progress: null),
-      );
-      final r = await exec(
-        workspaceHostPath: workspaceHostPath,
-        command: step.command,
-        timeoutSeconds: step.timeoutSeconds,
-      );
-      if (r.exitCode != 0) {
-        if (step.stage == 'recover') {
-          debugPrint(
-            'LinuxSandboxService: package self-heal failed (${r.exitCode}): '
-            '${r.stderr}',
+    final requestId = _newRequestId('install_$depId');
+    await _withWorkspaceExecution<void>(
+      workspaceHostPath: workspaceHostPath,
+      requestId: requestId,
+      conversationId: null,
+      action: () async {
+        for (final step in steps) {
+          onProgress?.call(
+            SandboxInstallProgress(stage: step.stage, progress: null),
           );
-          continue;
+          final r = await _invokeExec(
+            workspaceHostPath: workspaceHostPath,
+            command: step.command,
+            timeoutSeconds: step.timeoutSeconds,
+            requestId: requestId,
+            maxTimeoutSeconds: maxPackageTimeoutSeconds,
+          );
+          if (r.exitCode != 0) {
+            if (step.stage == 'recover') {
+              debugPrint(
+                'LinuxSandboxService: package self-heal failed '
+                '(${r.exitCode}), continuing',
+              );
+              continue;
+            }
+            final label = step.stage == 'update'
+                ? (ios ? 'apk update' : 'apt update')
+                : (ios ? 'apk add' : 'apt install');
+            // Keep a bounded stderr excerpt in the failure so apt/apk
+            // diagnostics (dpkg lock held, missing package, network) reach
+            // the user instead of a bare exit code.
+            final stderrDetail = r.stderr.trim();
+            final excerpt = stderrDetail.length > 500
+                ? stderrDetail.substring(0, 500)
+                : stderrDetail;
+            throw StateError(
+              '$label failed (${r.exitCode})'
+              '${excerpt.isEmpty ? '' : ': $excerpt'}',
+            );
+          }
         }
-        final label = step.stage == 'update'
-            ? (ios ? 'apk update' : 'apt update')
-            : (ios ? 'apk add' : 'apt install');
-        throw StateError('$label failed (${r.exitCode}): ${r.stderr}');
-      }
-    }
-    onProgress?.call(const SandboxInstallProgress(stage: 'done', progress: 1));
+        onProgress?.call(
+          const SandboxInstallProgress(stage: 'done', progress: 1),
+        );
+      },
+    );
   }
 
   Future<SandboxExecResult> exec({
@@ -723,18 +1040,68 @@ class LinuxSandboxService {
     required String command,
     String? cwd,
     int timeoutSeconds = 30,
+    String? requestId,
+    String? conversationId,
+    bool requireReady = false,
   }) async {
     if (!isSandboxPlatform) {
       throw UnsupportedError('shell is only available on Android or iOS');
     }
+    final effectiveRequestId = requestId?.trim().isNotEmpty == true
+        ? requestId!.trim()
+        : _newRequestId('exec');
+    // Normalize here so cancelForConversation's trimmed matching always
+    // finds the stored request.
+    final effectiveConversationId = conversationId?.trim();
+    return _withWorkspaceExecution<SandboxExecResult>(
+      workspaceHostPath: workspaceHostPath,
+      requestId: effectiveRequestId,
+      conversationId: effectiveConversationId,
+      action: () => _invokeExec(
+        workspaceHostPath: workspaceHostPath,
+        command: command,
+        cwd: cwd,
+        timeoutSeconds: timeoutSeconds,
+        requestId: effectiveRequestId,
+        requireReady: requireReady,
+      ),
+    );
+  }
+
+  Future<SandboxExecResult> _invokeExec({
+    required String workspaceHostPath,
+    required String command,
+    String? cwd,
+    required int timeoutSeconds,
+    required String requestId,
+    bool requireReady = false,
+    int maxTimeoutSeconds = maxShellTimeoutSeconds,
+  }) async {
+    if (_cancelledRequestIds.remove(requestId)) {
+      throw SandboxCancelledException(requestId);
+    }
+    if (requireReady) {
+      final status = await statusFor(workspaceHostPath);
+      if (_cancelledRequestIds.remove(requestId)) {
+        throw SandboxCancelledException(requestId);
+      }
+      if (status != SandboxStatus.ready) {
+        throw SandboxNotReadyException(status);
+      }
+    }
+    final boundedTimeout = timeoutSeconds.clamp(1, maxTimeoutSeconds).toInt();
     try {
       final map = await _channel.invokeMethod<Map>('exec', {
         'workspacePath': workspaceHostPath,
         'command': command,
         if (cwd != null) 'cwd': cwd,
-        'timeoutMs': timeoutSeconds * 1000,
+        'timeoutMs': boundedTimeout * 1000,
+        'requestId': requestId,
         if (Platform.isIOS) 'rootfsPath': await iosRootfsPath(),
       });
+      if (_cancelledRequestIds.remove(requestId)) {
+        throw SandboxCancelledException(requestId);
+      }
       if (map == null) {
         return const SandboxExecResult(
           exitCode: -1,
@@ -742,19 +1109,23 @@ class LinuxSandboxService {
           stderr: 'null result',
         );
       }
-      var stdout = (map['stdout'] ?? '').toString();
-      var stderr = (map['stderr'] ?? '').toString();
-      if (stdout.length > maxOutputChars) {
-        stdout = '${stdout.substring(0, maxOutputChars)}\n...[truncated]';
-      }
-      if (stderr.length > maxOutputChars) {
-        stderr = '${stderr.substring(0, maxOutputChars)}\n...[truncated]';
+      final rawStdout = (map['stdout'] ?? '').toString();
+      final rawStderr = (map['stderr'] ?? '').toString();
+      final stdout = _boundOutput(rawStdout);
+      final stderr = _boundOutput(rawStderr);
+      if (_cancelledRequestIds.remove(requestId)) {
+        throw SandboxCancelledException(requestId);
       }
       return SandboxExecResult(
         exitCode: (map['exitCode'] as num?)?.toInt() ?? -1,
         stdout: stdout,
         stderr: stderr,
         timedOut: map['timedOut'] == true,
+        cancelled: map['cancelled'] == true,
+        stdoutTruncated:
+            map['stdoutTruncated'] == true || rawStdout.length > maxOutputChars,
+        stderrTruncated:
+            map['stderrTruncated'] == true || rawStderr.length > maxOutputChars,
       );
     } on MissingPluginException {
       return const SandboxExecResult(
@@ -763,6 +1134,14 @@ class LinuxSandboxService {
         stderr: 'Linux sandbox plugin not available',
       );
     } on PlatformException catch (e) {
+      if (e.code == 'sandbox_busy') {
+        throw SandboxBusyException(workspaceHostPath);
+      }
+      if (e.code == 'cancelled') {
+        // Mirror the install path: a native cancellation must surface as
+        // SandboxCancelledException, not as an ordinary failed result.
+        throw SandboxCancelledException(requestId);
+      }
       return SandboxExecResult(
         exitCode: -1,
         stdout: '',
@@ -816,6 +1195,16 @@ class LinuxSandboxService {
     return _volumeCtrlChannel.receiveBroadcastStream().map(
       SandboxPtyLaunchSpec.parseVolumeCtrlEvent,
     );
+  }
+
+  static String _boundOutput(String value) {
+    if (value.length <= maxOutputChars) return value;
+    const marker = '\n...[truncated]...\n';
+    final available = maxOutputChars - marker.length;
+    final head = available ~/ 2;
+    final tail = available - head;
+    return '${value.substring(0, head)}$marker'
+        '${value.substring(value.length - tail)}';
   }
 
   /// Allow only plain http(s) mirror base URLs without shell metacharacters.

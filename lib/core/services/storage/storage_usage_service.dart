@@ -14,6 +14,7 @@ enum StorageUsageCategoryKey {
   files,
   chatData,
   assistantData,
+  workspaceData,
   cache,
   logs,
   other,
@@ -137,6 +138,10 @@ abstract final class StorageUsageService {
 
     final assistantSubs = <String, _MutableStats>{'avatars': _MutableStats()};
 
+    // Per-workspace subcategories, keyed by workspace alias (the directory
+    // name directly under the workspaces root, e.g. `default`).
+    final workspaceSubs = <String, _MutableStats>{};
+
     final cacheSubs = <String, _MutableStats>{
       'avatar_cache': _MutableStats(),
       'other_cache': _MutableStats(),
@@ -216,6 +221,18 @@ abstract final class StorageUsageService {
             byCat[StorageUsageCategoryKey.assistantData]!.add(bytes);
             assistantSubs['avatars']!.add(bytes);
             break;
+          case 'workspaces':
+            // Workspace sandboxes live under appData/workspaces/<alias> on
+            // mobile (and desktop's default location), so the recursive walk
+            // covers them. Surface them as their own category with one
+            // subcategory per workspace alias instead of lumping them into
+            // "other".
+            byCat[StorageUsageCategoryKey.workspaceData]!.add(bytes);
+            if (parts.length >= 2) {
+              final alias = parts[1];
+              workspaceSubs.putIfAbsent(alias, _MutableStats.new).add(bytes);
+            }
+            break;
           case 'images':
             // Inline/generated images are stored under appData/images.
             // Treat them as "Images" so users can manage them together.
@@ -254,6 +271,40 @@ abstract final class StorageUsageService {
     final systemCacheDir = await AppDirectories.getSystemCacheDirectory();
     final avatarCacheDir = await AppDirectories.getAvatarCacheDirectory();
     final logsDir = Directory(p.join(root.path, 'logs'));
+
+    // Desktop users may relocate the workspaces root outside the app-data
+    // tree (`workspaces_dir_v1`). The recursive walk above only covers the
+    // default location, so scan a relocated root separately to keep
+    // workspace usage visible there too. No double counting: when the root
+    // is inside the app-data tree the `workspaces` case already counted it.
+    final workspacesRoot = await AppDirectories.getWorkspacesRootDirectory();
+    if (!_isWithin(root.path, workspacesRoot.path)) {
+      try {
+        if (await workspacesRoot.exists()) {
+          await for (final ent in workspacesRoot.list(
+            recursive: true,
+            followLinks: false,
+          )) {
+            if (ent is! File) continue;
+            int bytes = 0;
+            try {
+              bytes = await ent.length();
+            } catch (_) {
+              bytes = 0;
+            }
+            totalFiles += 1;
+            totalBytes += bytes;
+            byCat[StorageUsageCategoryKey.workspaceData]!.add(bytes);
+            final rel = p.relative(ent.path, from: workspacesRoot.path);
+            final parts = p.split(rel);
+            final alias = parts.isEmpty ? '' : parts.first;
+            if (alias.isNotEmpty) {
+              workspaceSubs.putIfAbsent(alias, _MutableStats.new).add(bytes);
+            }
+          }
+        }
+      } catch (_) {}
+    }
 
     // Real iOS app tmp directory (<container>/tmp, via platform channel).
     // path_provider's getTemporaryDirectory() returns Caches on iOS, so the
@@ -352,6 +403,19 @@ abstract final class StorageUsageService {
             stats: assistantSubs['avatars']!.toStats(),
             path: avatarsDir.path,
           ),
+        ],
+      ),
+      StorageUsageCategory(
+        key: StorageUsageCategoryKey.workspaceData,
+        stats: byCat[StorageUsageCategoryKey.workspaceData]!.toStats(),
+        subcategories: [
+          for (final e in workspaceSubs.entries)
+            if (e.value.bytes > 0 || e.value.fileCount > 0)
+              StorageUsageSubcategory(
+                id: e.key,
+                stats: e.value.toStats(),
+                path: p.join(workspacesRoot.path, e.key),
+              ),
         ],
       ),
       StorageUsageCategory(
@@ -595,6 +659,15 @@ abstract final class StorageUsageService {
     return deleted;
   }
 
+  /// True when [child] equals [parent] or is nested inside it (both
+  /// normalized to absolute paths). Used to decide whether the workspaces
+  /// root is already covered by the app-data recursive walk.
+  static bool _isWithin(String parent, String child) {
+    final pa = p.normalize(p.absolute(parent));
+    final ch = p.normalize(p.absolute(child));
+    return ch == pa || p.isWithin(pa, ch);
+  }
+
   static Future<void> _deleteDirectoryContents(Directory dir) async {
     if (!await dir.exists()) return;
     try {
@@ -653,6 +726,7 @@ const List<StorageUsageCategoryKey> _categoryOrder = <StorageUsageCategoryKey>[
   StorageUsageCategoryKey.files,
   StorageUsageCategoryKey.chatData,
   StorageUsageCategoryKey.assistantData,
+  StorageUsageCategoryKey.workspaceData,
   StorageUsageCategoryKey.cache,
   StorageUsageCategoryKey.logs,
   StorageUsageCategoryKey.deletedRecords,

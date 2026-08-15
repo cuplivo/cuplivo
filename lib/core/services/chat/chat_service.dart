@@ -1192,6 +1192,7 @@ class ChatService extends ChangeNotifier {
     final message = ChatMessage(
       role: role,
       content: content,
+      timestamp: original.timestamp,
       conversationId: conversationId,
       modelId: modelId,
       providerId: providerId,
@@ -1603,6 +1604,7 @@ class ChatService extends ChangeNotifier {
     final newMsg = ChatMessage(
       role: original.role,
       content: content,
+      timestamp: original.timestamp,
       conversationId: cid,
       modelId: original.modelId,
       providerId: original.providerId,

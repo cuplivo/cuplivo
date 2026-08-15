@@ -77,6 +77,39 @@ void main() {
   }
 
   test(
+    'workspaces are counted as their own category with per-alias breakdown',
+    () async {
+      final wsDefault = Directory(p.join(appDataDir.path, 'workspaces/default'));
+      final wsOther = Directory(p.join(appDataDir.path, 'workspaces/ws_2'));
+      await wsDefault.create(recursive: true);
+      await wsOther.create(recursive: true);
+      await _writeSizedFile(wsDefault, 'notes.txt', 30);
+      await _writeSizedFile(wsDefault, 'sub/data.bin', 20);
+      await _writeSizedFile(wsOther, 'output.log', 50);
+
+      final report = await StorageUsageService.computeReport();
+      final ws = report.categories.singleWhere(
+        (category) => category.key == StorageUsageCategoryKey.workspaceData,
+      );
+
+      expect(ws.stats.bytes, 100);
+      expect(ws.stats.fileCount, 3);
+      expect(
+        ws.subcategories.map((subcategory) => subcategory.id),
+        containsAllInOrder(['default', 'ws_2']),
+      );
+      final defSub = ws.subcategories.singleWhere((s) => s.id == 'default');
+      expect(defSub.stats.bytes, 50);
+      expect(defSub.stats.fileCount, 2);
+      expect(
+        p.basename(defSub.path!),
+        'default',
+      );
+      expect(report.totalBytes, 100);
+    },
+  );
+
+  test(
     'chat records size uses SQLite files instead of legacy Hive files',
     () async {
       await _writeSizedFile(appDataDir, AppDatabase.databaseFileName, 11);

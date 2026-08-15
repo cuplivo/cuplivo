@@ -83,6 +83,8 @@ class _StorageSpacePageState extends State<StorageSpacePage> {
         return const Color(0xFF22C55E);
       case StorageUsageCategoryKey.assistantData:
         return const Color(0xFF3B82F6); // blue (distinct from chat green)
+      case StorageUsageCategoryKey.workspaceData:
+        return const Color(0xFF14B8A6); // teal
       case StorageUsageCategoryKey.cache:
         return const Color(0xFFEF4444); // red
       case StorageUsageCategoryKey.logs:
@@ -104,6 +106,8 @@ class _StorageSpacePageState extends State<StorageSpacePage> {
         return Lucide.MessagesSquare;
       case StorageUsageCategoryKey.assistantData:
         return Lucide.Bot;
+      case StorageUsageCategoryKey.workspaceData:
+        return Lucide.Folder;
       case StorageUsageCategoryKey.cache:
         return Lucide.Boxes;
       case StorageUsageCategoryKey.logs:
@@ -125,6 +129,8 @@ class _StorageSpacePageState extends State<StorageSpacePage> {
         return l10n.storageSpaceCategoryChatData;
       case StorageUsageCategoryKey.assistantData:
         return l10n.storageSpaceCategoryAssistantData;
+      case StorageUsageCategoryKey.workspaceData:
+        return l10n.settingsPageWorkspace;
       case StorageUsageCategoryKey.cache:
         return l10n.storageSpaceCategoryCache;
       case StorageUsageCategoryKey.logs:

@@ -891,9 +891,10 @@ class _HomePageState extends State<HomePage>
 
     return ChatInputOverlayLayout(
       topInset: _chatTopOverlayInset(context),
-      background: backgroundImageActive
-          ? _buildChatBackground(context, cs)
-          : null,
+      // The full-bleed background is already rendered by MobileBackgroundLayer
+      // outside the Scaffold (home_mobile_layout.dart). Placing a duplicate
+      // inside the Scaffold body causes it to shrink with the body when the
+      // keyboard opens (adjustResize), which visually shifts the image upward.
       topBackground: backgroundImageActive
           ? _buildChatBackground(context, cs)
           : null,

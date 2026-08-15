@@ -10,6 +10,7 @@ class ChatInputOverlayLayout extends StatelessWidget {
     this.topBackground,
     this.foreground,
     this.backgroundImageActive = false,
+    this.keyboardInset = 0,
   });
 
   static const double _topOverlayTailHeight = 16;
@@ -23,67 +24,77 @@ class ChatInputOverlayLayout extends StatelessWidget {
   final Widget? foreground;
   final bool backgroundImageActive;
 
+  /// Keyboard height passed in from the parent so that only the foreground
+  /// content and input bar avoid the keyboard while the background stays at
+  /// full screen height.
+  final double keyboardInset;
+
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
         if (background != null) Positioned.fill(child: background!),
         Positioned.fill(
-          child: Stack(
-            children: [
-              Positioned.fill(child: content),
-              if (backgroundImageActive && topBackground != null)
-                Positioned.fill(
-                  child: ClipRect(
-                    clipper: _TopOverlayClipper(
-                      topInset + _topOverlayTailHeight,
-                    ),
-                    child: _TopBackgroundFade(
-                      height: topInset + _topOverlayTailHeight,
-                      child: IgnorePointer(
-                        key: const Key('chat-input-overlay-top-background'),
-                        child: topBackground!,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: keyboardInset),
+            child: Stack(
+              children: [
+                Positioned.fill(child: content),
+                if (backgroundImageActive && topBackground != null)
+                  Positioned.fill(
+                    child: ClipRect(
+                      clipper: _TopOverlayClipper(
+                        topInset + _topOverlayTailHeight,
+                      ),
+                      child: _TopBackgroundFade(
+                        height: topInset + _topOverlayTailHeight,
+                        child: IgnorePointer(
+                          key: const Key('chat-input-overlay-top-background'),
+                          child: topBackground!,
+                        ),
                       ),
                     ),
+                  )
+                else if (!backgroundImageActive)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    height: topInset + _topOverlayTailHeight,
+                    child: const _TopOverlayFade(),
                   ),
-                )
-              else if (!backgroundImageActive)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  height: topInset + _topOverlayTailHeight,
-                  child: const _TopOverlayFade(),
-                ),
-              if (backgroundImageActive && topBackground != null)
-                Positioned.fill(
-                  child: ClipRect(
-                    clipper: const _BottomOverlayClipper(
-                      _bottomOverlayFadeHeight,
-                    ),
-                    child: _BottomBackgroundFade(
-                      height: _bottomOverlayFadeHeight,
-                      child: IgnorePointer(
-                        key: const Key('chat-input-overlay-bottom-background'),
-                        child: topBackground!,
+                if (backgroundImageActive && topBackground != null)
+                  Positioned.fill(
+                    child: ClipRect(
+                      clipper: const _BottomOverlayClipper(
+                        _bottomOverlayFadeHeight,
+                      ),
+                      child: _BottomBackgroundFade(
+                        height: _bottomOverlayFadeHeight,
+                        child: IgnorePointer(
+                          key: const Key('chat-input-overlay-bottom-background'),
+                          child: topBackground!,
+                        ),
                       ),
                     ),
+                  )
+                else if (!backgroundImageActive)
+                  const Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: _bottomOverlayFadeHeight,
+                    child: _BottomOverlayFade(),
                   ),
-                )
-              else if (!backgroundImageActive)
-                const Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: _bottomOverlayFadeHeight,
-                  child: _BottomOverlayFade(),
-                ),
-              if (foreground != null) Positioned.fill(child: foreground!),
-            ],
+                if (foreground != null) Positioned.fill(child: foreground!),
+              ],
+            ),
           ),
         ),
-        Align(
-          alignment: Alignment.bottomCenter,
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: keyboardInset,
           child: UnconstrainedBox(
             constrainedAxis: Axis.horizontal,
             alignment: Alignment.bottomCenter,

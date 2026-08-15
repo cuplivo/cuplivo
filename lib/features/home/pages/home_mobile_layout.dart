@@ -119,13 +119,13 @@ class HomeMobileScaffold extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Keep the chat artwork at the full window size while Scaffold
-          // resizes only its body around the keyboard. Transparent IMEs can
-          // then reveal the artwork instead of Scaffold's surface color.
+          // Keep the chat artwork at the full window size. Scaffold uses
+          // resizeToAvoidBottomInset: false so its body is never shrunk by
+          // the keyboard; ChatInputOverlayLayout handles the inset itself.
           const MobileBackgroundLayer(),
           Scaffold(
             key: scaffoldKey,
-            resizeToAvoidBottomInset: true,
+            resizeToAvoidBottomInset: false,
             extendBodyBehindAppBar: true,
             backgroundColor: Colors.transparent,
             appBar: appBarOverride ?? _buildAppBar(context, cs),

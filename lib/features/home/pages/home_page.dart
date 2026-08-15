@@ -890,6 +890,7 @@ class _HomePageState extends State<HomePage>
     final backgroundImageActive = _assistantBackgroundActive(context);
 
     return ChatInputOverlayLayout(
+      keyboardInset: MediaQuery.viewInsetsOf(context).bottom,
       topInset: _chatTopOverlayInset(context),
       background: backgroundImageActive
           ? _buildChatBackground(context, cs)

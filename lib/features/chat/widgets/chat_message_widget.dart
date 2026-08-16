@@ -51,6 +51,7 @@ import 'citation_sources_sheet.dart';
 import 'chat_suggestion_bubbles.dart';
 import 'token_display_widget.dart';
 import '../../../theme/app_font_weights.dart';
+import '../utils/nine_patch_image.dart';
 
 final RegExp _urlSchemeRe = RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*:');
 
@@ -3260,7 +3261,11 @@ Widget _buildSharedChatSurface(
         ),
         child: paddedChild,
       );
-    case ChatMessageBackgroundStyle.defaultStyle:
+    case ChatMessageBackgroundStyle.ninePatch:
+      // TODO: Load user's custom .9.png path from settings
+      // For now, fall back to default style
+      return paddedChild;
+        case ChatMessageBackgroundStyle.defaultStyle:
       if (bareOnDefault) {
         return child;
       }

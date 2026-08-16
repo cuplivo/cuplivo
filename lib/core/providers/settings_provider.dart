@@ -1329,6 +1329,9 @@ class SettingsProvider extends ChangeNotifier {
       case 'solid':
         _chatMessageBackgroundStyle = ChatMessageBackgroundStyle.solid;
         break;
+      case 'ninePatch':
+        _chatMessageBackgroundStyle = ChatMessageBackgroundStyle.ninePatch;
+        break;
       default:
         _chatMessageBackgroundStyle = ChatMessageBackgroundStyle.defaultStyle;
     }
@@ -2660,6 +2663,7 @@ class SettingsProvider extends ChangeNotifier {
     final v = switch (style) {
       ChatMessageBackgroundStyle.frosted => 'frosted',
       ChatMessageBackgroundStyle.solid => 'solid',
+      ChatMessageBackgroundStyle.ninePatch => 'ninePatch',
       ChatMessageBackgroundStyle.defaultStyle => 'default',
     };
     await prefs.setString(_displayChatMessageBackgroundStyleKey, v);
@@ -5105,7 +5109,7 @@ class _SocksProxyHttpOverrides extends HttpOverrides {
 enum ProviderKind { openai, google, claude }
 
 // Background rendering mode for chat message bubbles
-enum ChatMessageBackgroundStyle { defaultStyle, frosted, solid }
+enum ChatMessageBackgroundStyle { defaultStyle, frosted, solid, ninePatch }
 
 enum AndroidBackgroundChatMode { off, on, onNotify }
 

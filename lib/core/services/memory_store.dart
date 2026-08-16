@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/assistant_memory.dart';
 
 class MemoryStore {
   static const String _memoriesKey = 'assistant_memories_v1';
+
+  /// Mutex to serialize add() calls and prevent duplicate ID assignment
+  /// when multiple create_memory tool calls happen in parallel.
+  static Completer<void>? _addLock;
 
   static List<AssistantMemory>? _cache;
 
@@ -59,16 +64,27 @@ class MemoryStore {
     required String assistantId,
     required String content,
   }) async {
-    final all = await getAll();
-    final id = _nextId(all);
-    final mem = AssistantMemory(
-      id: id,
-      assistantId: assistantId,
-      content: content,
-    );
-    all.add(mem);
-    await _saveAll(all);
-    return mem;
+    // Serialize concurrent add() calls to prevent duplicate ID assignment.
+    while (_addLock != null && !_addLock!.isCompleted) {
+      await _addLock!.future;
+    }
+    _addLock = Completer<void>();
+
+    try {
+      final all = await getAll();
+      final id = _nextId(all);
+      final mem = AssistantMemory(
+        id: id,
+        assistantId: assistantId,
+        content: content,
+      );
+      all.add(mem);
+      await _saveAll(all);
+      return mem;
+    } finally {
+      _addLock!.complete();
+      _addLock = null;
+    }
   }
 
   static Future<AssistantMemory?> update({

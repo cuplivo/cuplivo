@@ -340,7 +340,16 @@ abstract class AppLocalizations {
   /// **'App'**
   String get storageSpaceCategoryOther;
 
+  /// No description provided for @storageSpaceCategoryWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace'**
   String get storageSpaceCategoryWorkspace;
+
+  /// No description provided for @storageSpaceSubWorkspaceSandbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Linux sandbox'**
   String get storageSpaceSubWorkspaceSandbox;
 
   /// No description provided for @storageSpaceCategoryDeletedRecords.

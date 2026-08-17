@@ -340,6 +340,9 @@ abstract class AppLocalizations {
   /// **'App'**
   String get storageSpaceCategoryOther;
 
+  String get storageSpaceCategoryWorkspace;
+  String get storageSpaceSubWorkspaceSandbox;
+
   /// No description provided for @storageSpaceCategoryDeletedRecords.
   ///
   /// In en, this message translates to:

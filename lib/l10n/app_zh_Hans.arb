@@ -39,6 +39,8 @@
   "storageSpaceCategoryCache": "缓存",
   "storageSpaceCategoryLogs": "日志",
   "storageSpaceCategoryOther": "应用",
+  "storageSpaceCategoryWorkspace": "工作区",
+  "storageSpaceSubWorkspaceSandbox": "Linux 沙箱",
   "storageSpaceCategoryDeletedRecords": "回收站",
   "storageSpaceFilesCount": "{count} 个文件",
   "storageSpaceSafeToClearHint": "可安全清理，不影响聊天记录。",

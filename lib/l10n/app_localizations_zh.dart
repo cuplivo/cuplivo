@@ -135,6 +135,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get storageSpaceCategoryOther => '应用';
 
   @override
+  String get storageSpaceCategoryWorkspace => '工作区';
+
+  @override
+  String get storageSpaceSubWorkspaceSandbox => 'Linux 沙箱';
+
+  @override
   String get storageSpaceCategoryDeletedRecords => '回收站';
 
   @override
@@ -16055,6 +16061,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get storageSpaceCategoryOther => '應用';
+
+  @override
+  String get storageSpaceCategoryWorkspace => '工作區';
+
+  @override
+  String get storageSpaceSubWorkspaceSandbox => 'Linux 沙箱';
 
   @override
   String get storageSpaceCategoryDeletedRecords => '資源回收筒';

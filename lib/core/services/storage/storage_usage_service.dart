@@ -17,6 +17,7 @@ enum StorageUsageCategoryKey {
   cache,
   logs,
   other,
+  workspace,
   deletedRecords,
 }
 
@@ -150,6 +151,11 @@ abstract final class StorageUsageService {
       'other_logs': _MutableStats(),
     };
 
+    final workspaceSubs = <String, _MutableStats>{
+      'files': _MutableStats(),
+      'sandbox': _MutableStats(),
+    };
+
     int totalBytes = 0;
     int totalFiles = 0;
 
@@ -215,6 +221,14 @@ abstract final class StorageUsageService {
           case 'avatars':
             byCat[StorageUsageCategoryKey.assistantData]!.add(bytes);
             assistantSubs['avatars']!.add(bytes);
+            break;
+          case 'workspaces':
+            byCat[StorageUsageCategoryKey.workspace]!.add(bytes);
+            workspaceSubs['files']!.add(bytes);
+            break;
+          case 'linux-sandbox':
+            byCat[StorageUsageCategoryKey.workspace]!.add(bytes);
+            workspaceSubs['sandbox']!.add(bytes);
             break;
           case 'images':
             // Inline/generated images are stored under appData/images.
@@ -310,6 +324,34 @@ abstract final class StorageUsageService {
       } catch (_) {
         // If listing fails for any reason, fall back to 0s; UI will show load failed.
       }
+    }
+
+    // iOS stores the managed iSH rootfs in Application Support, outside the
+    // Documents directory scanned above. Count it as workspace storage.
+    final sandboxRuntime =
+        await AppDirectories.getLinuxSandboxRuntimeDirectory();
+    if (!p.isWithin(
+      p.normalize(root.absolute.path),
+      p.normalize(sandboxRuntime.absolute.path),
+    )) {
+      try {
+        if (await sandboxRuntime.exists()) {
+          await for (final ent in sandboxRuntime.list(
+            recursive: true,
+            followLinks: false,
+          )) {
+            if (ent is! File) continue;
+            int bytes = 0;
+            try {
+              bytes = await ent.length();
+            } catch (_) {}
+            totalFiles += 1;
+            totalBytes += bytes;
+            byCat[StorageUsageCategoryKey.workspace]!.add(bytes);
+            workspaceSubs['sandbox']!.add(bytes);
+          }
+        }
+      } catch (_) {}
     }
 
     final clearable = StorageUsageStats(
@@ -410,6 +452,24 @@ abstract final class StorageUsageService {
       ),
       // Deleted records — informational entry (actual bytes loaded by the
       // trash detail page via DeletedRecordsStore, not via filesystem scan).
+      StorageUsageCategory(
+        key: StorageUsageCategoryKey.workspace,
+        stats: byCat[StorageUsageCategoryKey.workspace]!.toStats(),
+        subcategories: [
+          StorageUsageSubcategory(
+            id: 'files',
+            stats: workspaceSubs['files']!.toStats(),
+            path: (await AppDirectories.getWorkspacesRootDirectory()).path,
+          ),
+          StorageUsageSubcategory(
+            id: 'sandbox',
+            stats: workspaceSubs['sandbox']!.toStats(),
+            path: (
+              await AppDirectories.getLinuxSandboxRuntimeDirectory()
+            ).path,
+          ),
+        ],
+      ),
       StorageUsageCategory(
         key: StorageUsageCategoryKey.deletedRecords,
         stats: const StorageUsageStats(fileCount: 0, bytes: 0),
@@ -655,6 +715,7 @@ const List<StorageUsageCategoryKey> _categoryOrder = <StorageUsageCategoryKey>[
   StorageUsageCategoryKey.assistantData,
   StorageUsageCategoryKey.cache,
   StorageUsageCategoryKey.logs,
+  StorageUsageCategoryKey.workspace,
   StorageUsageCategoryKey.deletedRecords,
   StorageUsageCategoryKey.other,
 ];

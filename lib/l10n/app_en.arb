@@ -63,6 +63,8 @@
   "storageSpaceCategoryCache": "Cache",
   "storageSpaceCategoryLogs": "Logs",
   "storageSpaceCategoryOther": "App",
+  "storageSpaceCategoryWorkspace": "Workspace",
+  "storageSpaceSubWorkspaceSandbox": "Linux sandbox",
   "storageSpaceCategoryDeletedRecords": "Trash",
   "storageSpaceFilesCount": "{count} files",
   "@storageSpaceFilesCount": {

@@ -138,6 +138,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get storageSpaceCategoryOther => 'App';
 
   @override
+  String get storageSpaceCategoryWorkspace => 'Workspace';
+
+  @override
+  String get storageSpaceSubWorkspaceSandbox => 'Linux sandbox';
+
+  @override
   String get storageSpaceCategoryDeletedRecords => 'Trash';
 
   @override

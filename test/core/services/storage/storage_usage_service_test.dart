@@ -138,6 +138,26 @@ void main() {
     },
   );
 
+  test('workspace files are counted in a dedicated category', () async {
+    final workspaceDir = Directory(p.join(appDataDir.path, 'workspaces', 'default'));
+    await workspaceDir.create(recursive: true);
+    await _writeSizedFile(workspaceDir, 'main.dart', 70);
+    await _writeSizedFile(workspaceDir, 'README.md', 30);
+
+    final report = await StorageUsageService.computeReport();
+    final workspace = report.categories.singleWhere(
+      (category) => category.key == StorageUsageCategoryKey.workspace,
+    );
+
+    expect(workspace.stats.bytes, 100);
+    expect(workspace.stats.fileCount, 2);
+    final files = workspace.subcategories.singleWhere(
+      (subcategory) => subcategory.id == 'files',
+    );
+    expect(files.stats.bytes, 100);
+    expect(report.totalBytes, 100);
+  });
+
   test(
     'iOS tmp directory is counted under cache when the channel resolves',
     () async {

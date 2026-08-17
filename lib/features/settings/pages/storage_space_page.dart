@@ -89,6 +89,8 @@ class _StorageSpacePageState extends State<StorageSpacePage> {
         return const Color(0xFFEAB308); // yellow
       case StorageUsageCategoryKey.other:
         return cs.onSurface.withValues(alpha: 0.22);
+      case StorageUsageCategoryKey.workspace:
+        return const Color(0xFF14B8A6); // teal
       case StorageUsageCategoryKey.deletedRecords:
         return const Color(0xFF64748B); // slate
     }
@@ -110,6 +112,8 @@ class _StorageSpacePageState extends State<StorageSpacePage> {
         return Lucide.FileText;
       case StorageUsageCategoryKey.other:
         return Lucide.Box;
+      case StorageUsageCategoryKey.workspace:
+        return Lucide.FolderOpen;
       case StorageUsageCategoryKey.deletedRecords:
         return Lucide.Trash2;
     }
@@ -131,6 +135,8 @@ class _StorageSpacePageState extends State<StorageSpacePage> {
         return l10n.storageSpaceCategoryLogs;
       case StorageUsageCategoryKey.other:
         return l10n.storageSpaceCategoryOther;
+      case StorageUsageCategoryKey.workspace:
+        return l10n.storageSpaceCategoryWorkspace;
       case StorageUsageCategoryKey.deletedRecords:
         return l10n.storageSpaceCategoryDeletedRecords;
     }
@@ -168,6 +174,10 @@ class _StorageSpacePageState extends State<StorageSpacePage> {
         return l10n.storageSpaceSubLogsRequests;
       case 'other_logs':
         return l10n.storageSpaceSubLogsOther;
+      case 'files':
+        return l10n.storageSpaceCategoryWorkspace;
+      case 'sandbox':
+        return l10n.storageSpaceSubWorkspaceSandbox;
       default:
         return id;
     }

@@ -171,6 +171,8 @@ flutter:
     - assets/icon_mac.png
     - assets/mermaid.min.js
     - assets/html/mark.html
+    - assets/web_transcript/
+    - assets/web_transcript/fonts/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

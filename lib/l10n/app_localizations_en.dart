@@ -6179,6 +6179,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String get displaySettingsPageRenderingSettingsTitle => 'Rendering settings';
 
   @override
+  String get displaySettingsPageChatRendererTitle => 'Chat renderer';
+
+  @override
+  String get displaySettingsPageChatRendererNative => 'Native';
+
+  @override
+  String get displaySettingsPageChatRendererWebViewExperimental =>
+      'WebView (Experimental)';
+
+  @override
+  String get displaySettingsPageChatRendererSubtitle =>
+      'Applies only to ordinary one-to-one chats. Automatically falls back to native rendering when needed.';
+
+  @override
+  String get chatWebRendererLoading => 'Starting WebView renderer…';
+
+  @override
+  String get chatWebRendererFallback =>
+      'WebView renderer stopped. This chat is using native rendering.';
+
+  @override
+  String get chatWebRendererRetry => 'Retry WebView';
+
+  @override
+  String get chatWebRendererUseNative => 'Use Native';
+
+  @override
+  String get chatWebRendererPreviousVersion => 'Previous version';
+
+  @override
+  String get chatWebRendererNextVersion => 'Next version';
+
+  @override
+  String get chatWebRendererResourceUnavailable =>
+      'This resource is unavailable or cannot be opened safely.';
+
+  @override
   String get displaySettingsPageBehaviorStartupTitle => 'Behavior & startup';
 
   @override

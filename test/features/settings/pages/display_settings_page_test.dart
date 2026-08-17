@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/settings/pages/display_settings_page.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
@@ -45,5 +47,35 @@ void main() {
     expect(find.text('Light'), findsOneWidget);
     expect(find.text('Dark'), findsOneWidget);
     expect(find.byType(SfSlider), findsNWidgets(2));
+  });
+
+  testWidgets('chat renderer selector is limited to mobile platforms', (
+    tester,
+  ) async {
+    final settings = SettingsProvider();
+    addTearDown(settings.dispose);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SettingsProvider>.value(
+        value: settings,
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: RenderingSettingsPage(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final selector = find.text('Chat renderer');
+    if (Platform.isAndroid || Platform.isIOS) {
+      expect(selector, findsOneWidget);
+      await tester.tap(selector);
+      await tester.pumpAndSettle();
+      expect(find.text('Native'), findsOneWidget);
+      expect(find.text('WebView (Experimental)'), findsOneWidget);
+    } else {
+      expect(selector, findsNothing);
+    }
   });
 }

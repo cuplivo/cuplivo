@@ -48,6 +48,8 @@ enum DesktopMessageNavButtonsMode {
 // Mobile: message navigation buttons visibility mode
 enum MobileMessageNavButtonsMode { always, scroll, never }
 
+enum ChatRenderingEngine { native, webView }
+
 enum _MigrationResult { noChange, applied, failed }
 
 class SettingsProvider extends ChangeNotifier {
@@ -200,6 +202,8 @@ class SettingsProvider extends ChangeNotifier {
       'display_chat_input_background_opacity_light_v1';
   static const String _displayChatInputBackgroundOpacityDarkKey =
       'display_chat_input_background_opacity_dark_v1';
+  static const String _displayChatRenderingEngineKey =
+      'display_chat_rendering_engine_v1';
   static const String _displayEnableDollarLatexKey =
       'display_enable_dollar_latex_v1';
   static const String _displayEnableMathRenderingKey =
@@ -1244,6 +1248,9 @@ class SettingsProvider extends ChangeNotifier {
       _usePureBackground = pureBgPref;
     }
     // display: markdown/math rendering
+    _chatRenderingEngine = _parseChatRenderingEngine(
+      prefs.getString(_displayChatRenderingEngineKey),
+    );
     _enableDollarLatex = prefs.getBool(_displayEnableDollarLatexKey) ?? true;
     _enableMathRendering =
         prefs.getBool(_displayEnableMathRenderingKey) ?? true;
@@ -4232,6 +4239,39 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     );
   }
 
+  ChatRenderingEngine _chatRenderingEngine = ChatRenderingEngine.native;
+  ChatRenderingEngine get chatRenderingEngine => _chatRenderingEngine;
+
+  Future<void> setChatRenderingEngine(ChatRenderingEngine engine) async {
+    if (_chatRenderingEngine == engine) return;
+    _chatRenderingEngine = engine;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _displayChatRenderingEngineKey,
+      _chatRenderingEngineToString(engine),
+    );
+  }
+
+  ChatRenderingEngine _parseChatRenderingEngine(String? raw) {
+    switch (raw) {
+      case 'webView':
+        return ChatRenderingEngine.webView;
+      case 'native':
+      default:
+        return ChatRenderingEngine.native;
+    }
+  }
+
+  String _chatRenderingEngineToString(ChatRenderingEngine engine) {
+    switch (engine) {
+      case ChatRenderingEngine.native:
+        return 'native';
+      case ChatRenderingEngine.webView:
+        return 'webView';
+    }
+  }
+
   // Display: inline $...$ LaTeX rendering
   bool _enableDollarLatex = true;
   bool get enableDollarLatex => _enableDollarLatex;
@@ -4872,6 +4912,7 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     copy._readerFontSize = _readerFontSize;
     copy._autoScrollEnabled = _autoScrollEnabled;
     copy._autoScrollIdleSeconds = _autoScrollIdleSeconds;
+    copy._chatRenderingEngine = _chatRenderingEngine;
     copy._enableDollarLatex = _enableDollarLatex;
     copy._enableMathRendering = _enableMathRendering;
     copy._enableUserMarkdown = _enableUserMarkdown;

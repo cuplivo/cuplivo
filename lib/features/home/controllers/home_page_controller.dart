@@ -37,6 +37,7 @@ import '../../../desktop/message_edit_dialog.dart';
 import '../../../desktop/hotkeys/chat_action_bus.dart';
 import '../../../desktop/hotkeys/sidebar_tab_bus.dart';
 import 'chat_controller.dart';
+import 'chat_transcript_viewport.dart';
 import 'stream_controller.dart' as stream_ctrl;
 import 'generation_controller.dart';
 import 'scroll_controller.dart' as scroll_ctrl;
@@ -148,6 +149,7 @@ class HomePageController extends ChangeNotifier {
   late TranslationService _translationService;
   late FileUploadService _fileUploadService;
   late scroll_ctrl.ChatScrollController _scrollCtrl;
+  ChatTranscriptViewport? _alternateTranscriptViewport;
 
   McpProvider? _mcpProvider;
   GenerationEngine? _generationEngine;
@@ -289,6 +291,16 @@ class HomePageController extends ChangeNotifier {
   // Delegate to scroll controller
   scroll_ctrl.ChatScrollController get scrollCtrl => _scrollCtrl;
 
+  void attachTranscriptViewport(ChatTranscriptViewport viewport) {
+    _alternateTranscriptViewport = viewport;
+  }
+
+  void detachTranscriptViewport(ChatTranscriptViewport viewport) {
+    if (identical(_alternateTranscriptViewport, viewport)) {
+      _alternateTranscriptViewport = null;
+    }
+  }
+
   bool get isDesktopPlatform => PlatformUtils.isDesktopTarget;
 
   bool get isCurrentConversationLoading {
@@ -403,7 +415,11 @@ class HomePageController extends ChangeNotifier {
       onStateChanged: () => notifyListeners(),
       getSettingsProvider: () => _context.read<SettingsProvider>(),
       getCurrentConversationId: () => currentConversation?.id,
-      onStreamTick: () => _scrollCtrl.autoScrollToBottomIfNeeded(),
+      onStreamTick: () {
+        if (_alternateTranscriptViewport?.isReady != true) {
+          _scrollCtrl.autoScrollToBottomIfNeeded();
+        }
+      },
     );
   }
 
@@ -2526,11 +2542,19 @@ class HomePageController extends ChangeNotifier {
 
   void scrollToBottom({bool animate = true}) =>
       _scrollToBottom(animate: animate);
-  void forceScrollToBottomSoon({bool animate = true}) =>
+  void forceScrollToBottomSoon({bool animate = true}) {
+    final alternate = _alternateTranscriptViewport;
+    if (alternate?.isReady == true) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _runViewportCommand(alternate!, alternate.scrollToBottom),
+      );
+    } else {
       _scrollCtrl.forceScrollToBottomSoon(
         animate: animate,
         postSwitchDelay: _postSwitchScrollDelay,
       );
+    }
+  }
 
   bool loadMoreBefore() => _viewModel.loadMoreBefore();
 
@@ -2551,10 +2575,26 @@ class HomePageController extends ChangeNotifier {
     }
     final index = _chatController.indexOfCollapsedMessageId(targetId);
     if (index < 0) return;
+    final alternate = _alternateTranscriptViewport;
+    if (alternate?.isReady == true) {
+      try {
+        await alternate!.scrollToMessage(targetId, block: 'start');
+      } catch (error) {
+        debugPrint(
+          '[WebTranscript] message navigation failed: ${error.runtimeType}',
+        );
+      }
+      return;
+    }
     await _scrollCtrl.scrollToMessageId(targetId: targetId, targetIndex: index);
   }
 
   Future<void> jumpToPreviousQuestion() async {
+    final alternate = _alternateTranscriptViewport;
+    if (alternate?.isReady == true) {
+      await _jumpToAdjacentQuestion(alternate!, previous: true);
+      return;
+    }
     await _scrollCtrl.jumpToPreviousQuestion(
       messages: _chatController.collapsedMessages,
       indexOfId: (id) => _chatController.indexOfCollapsedMessageId(id),
@@ -2562,6 +2602,11 @@ class HomePageController extends ChangeNotifier {
   }
 
   Future<void> jumpToNextQuestion() async {
+    final alternate = _alternateTranscriptViewport;
+    if (alternate?.isReady == true) {
+      await _jumpToAdjacentQuestion(alternate!, previous: false);
+      return;
+    }
     await _scrollCtrl.jumpToNextQuestion(
       messages: _chatController.collapsedMessages,
       indexOfId: (id) => _chatController.indexOfCollapsedMessageId(id),
@@ -2576,7 +2621,12 @@ class HomePageController extends ChangeNotifier {
         _scrollCtrl.clearObserverCache();
       }
     }
-    _scrollCtrl.scrollToTop(animate: animate);
+    final alternate = _alternateTranscriptViewport;
+    if (alternate?.isReady == true) {
+      _runViewportCommand(alternate!, alternate.scrollToTop);
+    } else {
+      _scrollCtrl.scrollToTop(animate: animate);
+    }
   }
 
   void forceScrollToBottom({bool animate = true}) {
@@ -2588,6 +2638,34 @@ class HomePageController extends ChangeNotifier {
       }
     }
     _scrollToBottom(animate: animate);
+  }
+
+  Future<void> _jumpToAdjacentQuestion(
+    ChatTranscriptViewport viewport, {
+    required bool previous,
+  }) async {
+    final messages = _chatController.collapsedMessages;
+    if (messages.isEmpty) return;
+    final visibleId = viewport.firstVisibleMessageId;
+    var index = visibleId == null
+        ? (previous ? messages.length : -1)
+        : messages.indexWhere((message) => message.id == visibleId);
+    if (index < 0) index = previous ? messages.length : -1;
+    if (previous) {
+      for (var i = index - 1; i >= 0; i--) {
+        if (messages[i].role == 'user') {
+          await viewport.scrollToMessage(messages[i].id, block: 'start');
+          return;
+        }
+      }
+      return;
+    }
+    for (var i = index + 1; i < messages.length; i++) {
+      if (messages[i].role == 'user') {
+        await viewport.scrollToMessage(messages[i].id, block: 'start');
+        return;
+      }
+    }
   }
 
   // ============================================================================
@@ -2633,6 +2711,7 @@ class HomePageController extends ChangeNotifier {
 
   bool shouldPinStreamingIndicator(String? messageId) {
     if (messageId == null) return false;
+    if (_alternateTranscriptViewport?.isReady == true) return false;
     if (_scrollCtrl.isUserScrolling) return false;
     if (!_scrollCtrl.hasEnoughContentToScroll(56.0)) return false;
     if (!_scrollCtrl.isNearBottom(48)) return false;
@@ -2674,10 +2753,42 @@ class HomePageController extends ChangeNotifier {
     return l10n.titleForLocale;
   }
 
-  void _scrollToBottom({bool animate = true}) =>
+  void _scrollToBottom({bool animate = true}) {
+    final alternate = _alternateTranscriptViewport;
+    if (alternate?.isReady == true) {
+      _runViewportCommand(alternate!, alternate.scrollToBottom);
+    } else {
       _scrollCtrl.scrollToBottom(animate: animate);
-  void _scrollToBottomSoon({bool animate = true}) =>
+    }
+  }
+
+  void _scrollToBottomSoon({bool animate = true}) {
+    final alternate = _alternateTranscriptViewport;
+    if (alternate?.isReady == true) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _runViewportCommand(alternate!, alternate.scrollToBottom),
+      );
+    } else {
       _scrollCtrl.scrollToBottomSoon(animate: animate);
+    }
+  }
+
+  void _runViewportCommand(
+    ChatTranscriptViewport viewport,
+    Future<void> Function() command,
+  ) {
+    if (!viewport.isReady ||
+        !identical(_alternateTranscriptViewport, viewport)) {
+      return;
+    }
+    unawaited(
+      command().catchError((Object error) {
+        debugPrint(
+          '[WebTranscript] viewport command failed: ${error.runtimeType}',
+        );
+      }),
+    );
+  }
 
   // _getViewportBounds removed: ListObserverController handles visibility.
 

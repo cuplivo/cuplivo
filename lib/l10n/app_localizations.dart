@@ -11238,6 +11238,72 @@ abstract class AppLocalizations {
   /// **'Rendering settings'**
   String get displaySettingsPageRenderingSettingsTitle;
 
+  /// No description provided for @displaySettingsPageChatRendererTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat renderer'**
+  String get displaySettingsPageChatRendererTitle;
+
+  /// No description provided for @displaySettingsPageChatRendererNative.
+  ///
+  /// In en, this message translates to:
+  /// **'Native'**
+  String get displaySettingsPageChatRendererNative;
+
+  /// No description provided for @displaySettingsPageChatRendererWebViewExperimental.
+  ///
+  /// In en, this message translates to:
+  /// **'WebView (Experimental)'**
+  String get displaySettingsPageChatRendererWebViewExperimental;
+
+  /// No description provided for @displaySettingsPageChatRendererSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies only to ordinary one-to-one chats. Automatically falls back to native rendering when needed.'**
+  String get displaySettingsPageChatRendererSubtitle;
+
+  /// No description provided for @chatWebRendererLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting WebView renderer…'**
+  String get chatWebRendererLoading;
+
+  /// No description provided for @chatWebRendererFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'WebView renderer stopped. This chat is using native rendering.'**
+  String get chatWebRendererFallback;
+
+  /// No description provided for @chatWebRendererRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry WebView'**
+  String get chatWebRendererRetry;
+
+  /// No description provided for @chatWebRendererUseNative.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Native'**
+  String get chatWebRendererUseNative;
+
+  /// No description provided for @chatWebRendererPreviousVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous version'**
+  String get chatWebRendererPreviousVersion;
+
+  /// No description provided for @chatWebRendererNextVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Next version'**
+  String get chatWebRendererNextVersion;
+
+  /// No description provided for @chatWebRendererResourceUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This resource is unavailable or cannot be opened safely.'**
+  String get chatWebRendererResourceUnavailable;
+
   /// No description provided for @displaySettingsPageBehaviorStartupTitle.
   ///
   /// In en, this message translates to:

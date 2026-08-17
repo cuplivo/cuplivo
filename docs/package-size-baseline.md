@@ -14,6 +14,24 @@ Measurement notes for install-package size work. Prefer CI job summaries
 | Remove 8 unreferenced `assets/icons/*` | −9,876 B | Exact path audit |
 | **Net Flutter asset delta** | **≈ −316 KiB** | Before store/zip compression |
 
+## Experimental web transcript renderer (issue #304)
+
+The offline renderer is a deliberate new payload, measured after
+`npm run build` with exact-pinned dependencies. It is committed once and bundled
+unchanged on every Flutter target.
+
+| Payload | Uncompressed bytes | Notes |
+|---|---:|---|
+| `assets/web_transcript/app.js` | 878,316 | Minified Markdown, KaTeX, highlighting, sanitization, and protocol runtime |
+| `assets/web_transcript/app.css` | 27,661 | KaTeX, highlighting, and transcript styles |
+| 20 KaTeX WOFF2 fonts | 259,792 | WOFF/TTF fallbacks removed at build time |
+| Third-party notices | 20,069 | Redistribution notices shipped with the bundled runtime |
+| HTML + manifests | 4,393 | CSP shell and deterministic SHA-256 inventory |
+| **Total file payload** | **1,190,231** | All generated files, before package compression |
+
+Filesystem measurement on Linux: `du -sb assets/web_transcript` = 1,190,231 B.
+Use release artifact measurements for compressed package impact.
+
 ## Commands (local)
 
 ```bash

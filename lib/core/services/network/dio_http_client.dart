@@ -36,6 +36,20 @@ ConnectionTask<Socket> _directConnection(Uri uri, SecurityContext? context) {
   return ConnectionTask.fromSocket(socket, () async => (await socket).close());
 }
 
+ConnectionTask<Socket> _resolvedConnection(Uri uri, InternetAddress address) {
+  final Future<Socket> socket = Socket.connect(address, uri.port);
+  if (uri.scheme == 'https') {
+    final Future<SecureSocket> secureSocket = socket.then(
+      (plain) => SecureSocket.secure(plain, host: uri.host),
+    );
+    return ConnectionTask.fromSocket(
+      secureSocket,
+      () async => (await secureSocket).close(),
+    );
+  }
+  return ConnectionTask.fromSocket(socket, () async => (await socket).close());
+}
+
 class NetworkProxyConfig {
   final bool enabled;
   final String type;
@@ -57,16 +71,20 @@ class NetworkProxyConfig {
 }
 
 class DioHttpClient extends http.BaseClient {
-  DioHttpClient({this._proxy, CancelToken? cancelToken})
-    : _cancelToken = cancelToken ?? CancelToken(),
-      _dio = Dio(
-        BaseOptions(
-          connectTimeout: null,
-          sendTimeout: null,
-          receiveTimeout: null,
-          validateStatus: (_) => true,
-        ),
-      ) {
+  DioHttpClient({
+    this._proxy,
+    CancelToken? cancelToken,
+    this.addressResolver,
+    this.enableRequestLogging = true,
+  }) : _cancelToken = cancelToken ?? CancelToken(),
+       _dio = Dio(
+         BaseOptions(
+           connectTimeout: null,
+           sendTimeout: null,
+           receiveTimeout: null,
+           validateStatus: (_) => true,
+         ),
+       ) {
     _dio.httpClientAdapter = IOHttpClientAdapter(
       createHttpClient: () {
         final client = HttpClient();
@@ -122,6 +140,11 @@ class DioHttpClient extends http.BaseClient {
               );
             }
           }
+        } else if (addressResolver != null) {
+          client.connectionFactory = (uri, proxyHost, proxyPort) async {
+            final address = await addressResolver!(uri.host);
+            return _resolvedConnection(uri, address);
+          };
         }
         return client;
       },
@@ -136,6 +159,8 @@ class DioHttpClient extends http.BaseClient {
 
   final Dio _dio;
   final NetworkProxyConfig? _proxy;
+  final Future<InternetAddress> Function(String host)? addressResolver;
+  final bool enableRequestLogging;
   final CancelToken _cancelToken;
 
   @override
@@ -172,7 +197,7 @@ class DioHttpClient extends http.BaseClient {
     final reqHeaders = Map<String, String>.from(request.headers);
     reqHeaders.putIfAbsent('User-Agent', () => 'Cuplivo');
 
-    if (RequestLogger.llmEnabled) {
+    if (enableRequestLogging && RequestLogger.llmEnabled) {
       RequestLogger.logLine('[REQ $reqId] $method $uri');
       if (reqHeaders.isNotEmpty) {
         RequestLogger.logLine(
@@ -213,7 +238,7 @@ class DioHttpClient extends http.BaseClient {
         headers[name] = values.join(',');
       });
 
-      if (RequestLogger.llmEnabled) {
+      if (enableRequestLogging && RequestLogger.llmEnabled) {
         RequestLogger.logLine('[RES $reqId] status=$statusCode');
         if (headers.isNotEmpty) {
           RequestLogger.logLine(
@@ -232,7 +257,9 @@ class DioHttpClient extends http.BaseClient {
         body.stream.listen(
           (chunk) {
             controller.add(chunk);
-            if (RequestLogger.llmEnabled && RequestLogger.saveOutput) {
+            if (enableRequestLogging &&
+                RequestLogger.llmEnabled &&
+                RequestLogger.saveOutput) {
               final s = RequestLogger.safeDecodeUtf8(chunk);
               if (s.isNotEmpty) {
                 RequestLogger.logLine(
@@ -242,7 +269,7 @@ class DioHttpClient extends http.BaseClient {
             }
           },
           onError: (e, st) {
-            if (RequestLogger.llmEnabled) {
+            if (enableRequestLogging && RequestLogger.llmEnabled) {
               RequestLogger.logLine(
                 '[RES $reqId] error=${RequestLogger.escape(e.toString())}',
               );
@@ -251,7 +278,7 @@ class DioHttpClient extends http.BaseClient {
             controller.close();
           },
           onDone: () {
-            if (RequestLogger.llmEnabled) {
+            if (enableRequestLogging && RequestLogger.llmEnabled) {
               RequestLogger.logLine('[RES $reqId] done');
             }
             controller.close();
@@ -282,14 +309,14 @@ class DioHttpClient extends http.BaseClient {
         reasonPhrase: resp.statusMessage,
       );
     } on DioException catch (e) {
-      if (RequestLogger.llmEnabled) {
+      if (enableRequestLogging && RequestLogger.llmEnabled) {
         RequestLogger.logLine(
           '[RES $reqId] dio_error=${RequestLogger.escape(e.toString())}',
         );
       }
       throw http.ClientException(e.toString(), uri);
     } catch (e) {
-      if (RequestLogger.llmEnabled) {
+      if (enableRequestLogging && RequestLogger.llmEnabled) {
         RequestLogger.logLine(
           '[RES $reqId] error=${RequestLogger.escape(e.toString())}',
         );

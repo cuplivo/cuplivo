@@ -2,6 +2,7 @@ name: PR Checks
 
 env:
   FLUTTER_VERSION: '3.44.1'
+  NODE_VERSION: '22.22.1'
 
 on:
   pull_request:
@@ -24,6 +25,26 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tool/web_transcript/package-lock.json
+
+      - name: Web transcript test
+        working-directory: tool/web_transcript
+        run: |
+          npm ci
+          npm test
+
+      - name: Web transcript build has no drift
+        run: |
+          npm --prefix tool/web_transcript run build
+          git diff --exit-code -- assets/web_transcript
+          git status --short -- assets/web_transcript
+          test -z "$(git status --porcelain -- assets/web_transcript)"
 
       - name: Flutter pub get
         run: flutter pub get

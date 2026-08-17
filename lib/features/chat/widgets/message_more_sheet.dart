@@ -36,6 +36,7 @@ Future<MessageMoreAction?> showMessageMoreSheet(
   ChatMessage message, {
   required bool canDeleteAllVersions,
   Set<MessageMoreAction>? hideActions,
+  bool showLegacyWebPreview = true,
 }) async {
   final isDesktop =
       defaultTargetPlatform == TargetPlatform.macOS ||
@@ -57,6 +58,7 @@ Future<MessageMoreAction?> showMessageMoreSheet(
         canDeleteAllVersions: canDeleteAllVersions,
         hideActions: hideActions,
         canReadingMode: canReadingMode,
+        showLegacyWebPreview: showLegacyWebPreview,
       ),
     );
   }
@@ -79,35 +81,36 @@ Future<MessageMoreAction?> showMessageMoreSheet(
           };
         },
       ),
-      DesktopContextMenuItem(
-        icon: Lucide.BookOpenText,
-        label: l10n.messageMoreSheetRenderWebView,
-        onTap: () {
-          afterClose = () async {
-            try {
-              final raw = message.content.trim();
-              if (raw.isEmpty) return;
-              final scheme = Theme.of(context).colorScheme;
-              final processed =
-                  await MarkdownMediaSanitizer.inlineLocalImagesToBase64(raw);
-              final html =
-                  await MarkdownPreviewHtmlBuilder.buildFromMarkdownWithColorScheme(
-                    scheme,
-                    processed,
-                  );
-              if (!context.mounted) return;
-              showHtmlPreviewDesktopDialog(context, html: html);
-            } catch (e) {
-              if (!context.mounted) return;
-              showAppSnackBar(
-                context,
-                message: e.toString(),
-                type: NotificationType.error,
-              );
-            }
-          };
-        },
-      ),
+      if (showLegacyWebPreview)
+        DesktopContextMenuItem(
+          icon: Lucide.BookOpenText,
+          label: l10n.messageMoreSheetRenderWebView,
+          onTap: () {
+            afterClose = () async {
+              try {
+                final raw = message.content.trim();
+                if (raw.isEmpty) return;
+                final scheme = Theme.of(context).colorScheme;
+                final processed =
+                    await MarkdownMediaSanitizer.inlineLocalImagesToBase64(raw);
+                final html =
+                    await MarkdownPreviewHtmlBuilder.buildFromMarkdownWithColorScheme(
+                      scheme,
+                      processed,
+                    );
+                if (!context.mounted) return;
+                showHtmlPreviewDesktopDialog(context, html: html);
+              } catch (e) {
+                if (!context.mounted) return;
+                showAppSnackBar(
+                  context,
+                  message: e.toString(),
+                  type: NotificationType.error,
+                );
+              }
+            };
+          },
+        ),
       if (canReadingMode &&
           !(hideActions?.contains(MessageMoreAction.readingMode) ?? false))
         DesktopContextMenuItem(
@@ -193,12 +196,14 @@ class _MessageMoreSheet extends StatefulWidget {
     required this.canDeleteAllVersions,
     this.hideActions,
     this.canReadingMode = false,
+    this.showLegacyWebPreview = true,
   });
   final ChatMessage message;
   final BuildContext parentContext;
   final bool canDeleteAllVersions;
   final Set<MessageMoreAction>? hideActions;
   final bool canReadingMode;
+  final bool showLegacyWebPreview;
 
   @override
   State<_MessageMoreSheet> createState() => _MessageMoreSheetState();
@@ -308,43 +313,44 @@ class _MessageMoreSheetState extends State<_MessageMoreSheet> {
                         });
                       },
                     ),
-                    _actionItem(
-                      icon: Lucide.BookOpenText,
-                      label: l10n.messageMoreSheetRenderWebView,
-                      onTap: () async {
-                        final parentCtx = widget.parentContext;
-                        final navigator = Navigator.of(parentCtx);
-                        final scheme = Theme.of(parentCtx).colorScheme;
-                        Navigator.of(context).pop();
-                        try {
-                          final raw = widget.message.content.trim();
-                          if (raw.isEmpty) return;
-                          final processed =
-                              await MarkdownMediaSanitizer.inlineLocalImagesToBase64(
-                                raw,
-                              );
-                          final html =
-                              await MarkdownPreviewHtmlBuilder.buildFromMarkdownWithColorScheme(
-                                scheme,
-                                processed,
-                              );
-                          final b64 = base64Encode(utf8.encode(html));
-                          if (!parentCtx.mounted) return;
-                          navigator.push(
-                            MaterialPageRoute(
-                              builder: (_) => WebViewPage(contentBase64: b64),
-                            ),
-                          );
-                        } catch (e) {
-                          if (!parentCtx.mounted) return;
-                          showAppSnackBar(
-                            parentCtx,
-                            message: e.toString(),
-                            type: NotificationType.error,
-                          );
-                        }
-                      },
-                    ),
+                    if (widget.showLegacyWebPreview)
+                      _actionItem(
+                        icon: Lucide.BookOpenText,
+                        label: l10n.messageMoreSheetRenderWebView,
+                        onTap: () async {
+                          final parentCtx = widget.parentContext;
+                          final navigator = Navigator.of(parentCtx);
+                          final scheme = Theme.of(parentCtx).colorScheme;
+                          Navigator.of(context).pop();
+                          try {
+                            final raw = widget.message.content.trim();
+                            if (raw.isEmpty) return;
+                            final processed =
+                                await MarkdownMediaSanitizer.inlineLocalImagesToBase64(
+                                  raw,
+                                );
+                            final html =
+                                await MarkdownPreviewHtmlBuilder.buildFromMarkdownWithColorScheme(
+                                  scheme,
+                                  processed,
+                                );
+                            final b64 = base64Encode(utf8.encode(html));
+                            if (!parentCtx.mounted) return;
+                            navigator.push(
+                              MaterialPageRoute(
+                                builder: (_) => WebViewPage(contentBase64: b64),
+                              ),
+                            );
+                          } catch (e) {
+                            if (!parentCtx.mounted) return;
+                            showAppSnackBar(
+                              parentCtx,
+                              message: e.toString(),
+                              type: NotificationType.error,
+                            );
+                          }
+                        },
+                      ),
                     if (widget.canReadingMode &&
                         !_hid(MessageMoreAction.readingMode))
                       _actionItem(

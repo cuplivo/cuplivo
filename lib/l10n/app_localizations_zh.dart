@@ -5912,6 +5912,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get displaySettingsPageRenderingSettingsTitle => '渲染设置';
 
   @override
+  String get displaySettingsPageChatRendererTitle => '聊天渲染器';
+
+  @override
+  String get displaySettingsPageChatRendererNative => '原生';
+
+  @override
+  String get displaySettingsPageChatRendererWebViewExperimental =>
+      'WebView（实验性）';
+
+  @override
+  String get displaySettingsPageChatRendererSubtitle =>
+      '仅适用于普通一对一聊天；必要时会自动回退到原生渲染。';
+
+  @override
+  String get chatWebRendererLoading => '正在启动 WebView 渲染器…';
+
+  @override
+  String get chatWebRendererFallback => 'WebView 渲染器已停止，当前聊天已使用原生渲染。';
+
+  @override
+  String get chatWebRendererRetry => '重试 WebView';
+
+  @override
+  String get chatWebRendererUseNative => '使用原生渲染';
+
+  @override
+  String get chatWebRendererPreviousVersion => '上一个版本';
+
+  @override
+  String get chatWebRendererNextVersion => '下一个版本';
+
+  @override
+  String get chatWebRendererResourceUnavailable => '此资源不可用或无法安全打开。';
+
+  @override
   String get displaySettingsPageBehaviorStartupTitle => '行为与启动';
 
   @override
@@ -13887,6 +13922,41 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get displaySettingsPageRenderingSettingsTitle => '渲染设置';
 
   @override
+  String get displaySettingsPageChatRendererTitle => '聊天渲染器';
+
+  @override
+  String get displaySettingsPageChatRendererNative => '原生';
+
+  @override
+  String get displaySettingsPageChatRendererWebViewExperimental =>
+      'WebView（实验性）';
+
+  @override
+  String get displaySettingsPageChatRendererSubtitle =>
+      '仅适用于普通一对一聊天；必要时会自动回退到原生渲染。';
+
+  @override
+  String get chatWebRendererLoading => '正在启动 WebView 渲染器…';
+
+  @override
+  String get chatWebRendererFallback => 'WebView 渲染器已停止，当前聊天已使用原生渲染。';
+
+  @override
+  String get chatWebRendererRetry => '重试 WebView';
+
+  @override
+  String get chatWebRendererUseNative => '使用原生渲染';
+
+  @override
+  String get chatWebRendererPreviousVersion => '上一个版本';
+
+  @override
+  String get chatWebRendererNextVersion => '下一个版本';
+
+  @override
+  String get chatWebRendererResourceUnavailable => '此资源不可用或无法安全打开。';
+
+  @override
   String get displaySettingsPageBehaviorStartupTitle => '行为与启动';
 
   @override
@@ -21859,6 +21929,41 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get displaySettingsPageRenderingSettingsTitle => '渲染設定';
+
+  @override
+  String get displaySettingsPageChatRendererTitle => '聊天渲染器';
+
+  @override
+  String get displaySettingsPageChatRendererNative => '原生';
+
+  @override
+  String get displaySettingsPageChatRendererWebViewExperimental =>
+      'WebView（實驗性）';
+
+  @override
+  String get displaySettingsPageChatRendererSubtitle =>
+      '僅適用於一般一對一聊天；必要時會自動回退至原生渲染。';
+
+  @override
+  String get chatWebRendererLoading => '正在啟動 WebView 渲染器…';
+
+  @override
+  String get chatWebRendererFallback => 'WebView 渲染器已停止，目前聊天已使用原生渲染。';
+
+  @override
+  String get chatWebRendererRetry => '重試 WebView';
+
+  @override
+  String get chatWebRendererUseNative => '使用原生渲染';
+
+  @override
+  String get chatWebRendererPreviousVersion => '上一個版本';
+
+  @override
+  String get chatWebRendererNextVersion => '下一個版本';
+
+  @override
+  String get chatWebRendererResourceUnavailable => '此資源無法使用或無法安全開啟。';
 
   @override
   String get displaySettingsPageBehaviorStartupTitle => '行為與啟動';

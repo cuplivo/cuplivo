@@ -1479,6 +1479,7 @@ Widget _iosNavRow(
   BuildContext context, {
   required IconData icon,
   required String label,
+  String? subtitle,
   VoidCallback? onTap,
   String? detailText,
   Widget Function(BuildContext ctx)? detailBuilder,
@@ -1501,11 +1502,29 @@ Widget _iosNavRow(
                 SizedBox(width: 36, child: Icon(icon, size: 20, color: c)),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(fontSize: 15, color: c),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: TextStyle(fontSize: 15, color: c),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (subtitle != null && subtitle.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          subtitle,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.2,
+                            color: cs.onSurface.withValues(alpha: 0.56),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 if (detailBuilder != null)
@@ -1720,6 +1739,53 @@ Future<void> _showMobileMessageNavModeSheet(BuildContext context) async {
   await context.read<SettingsProvider>().setMobileMessageNavButtonsMode(choice);
 }
 
+String _chatRenderingEngineLabel(
+  AppLocalizations l10n,
+  ChatRenderingEngine engine,
+) {
+  switch (engine) {
+    case ChatRenderingEngine.native:
+      return l10n.displaySettingsPageChatRendererNative;
+    case ChatRenderingEngine.webView:
+      return l10n.displaySettingsPageChatRendererWebViewExperimental;
+  }
+}
+
+Future<void> _showChatRenderingEngineSheet(BuildContext context) async {
+  final cs = Theme.of(context).colorScheme;
+  final l10n = AppLocalizations.of(context)!;
+  final choice = await showModalBottomSheet<ChatRenderingEngine>(
+    context: context,
+    backgroundColor: cs.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _sheetOption(
+              ctx,
+              label: l10n.displaySettingsPageChatRendererNative,
+              onTap: () => Navigator.of(ctx).pop(ChatRenderingEngine.native),
+            ),
+            _sheetDividerNoIcon(ctx),
+            _sheetOption(
+              ctx,
+              label: l10n.displaySettingsPageChatRendererWebViewExperimental,
+              onTap: () => Navigator.of(ctx).pop(ChatRenderingEngine.webView),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+  if (choice == null || !context.mounted) return;
+  await context.read<SettingsProvider>().setChatRenderingEngine(choice);
+}
+
 // --- Subpages ---
 
 class ChatItemDisplaySettingsPage extends StatelessWidget {
@@ -1872,6 +1938,20 @@ class RenderingSettingsPage extends StatelessWidget {
         children: [
           _iosSectionCard(
             children: [
+              if (Platform.isAndroid || Platform.isIOS) ...[
+                _iosNavRow(
+                  context,
+                  icon: Lucide.Monitor,
+                  label: l10n.displaySettingsPageChatRendererTitle,
+                  subtitle: l10n.displaySettingsPageChatRendererSubtitle,
+                  detailText: _chatRenderingEngineLabel(
+                    l10n,
+                    sp.chatRenderingEngine,
+                  ),
+                  onTap: () => _showChatRenderingEngineSheet(context),
+                ),
+                _iosDivider(context),
+              ],
               _iosSwitchRow(
                 context,
                 icon: Lucide.Hash,

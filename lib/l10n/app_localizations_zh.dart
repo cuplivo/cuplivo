@@ -8102,6 +8102,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get storageSpaceCategoryOther => '应用';
 
   @override
+  String get storageSpaceCategoryWorkspace => '工作区';
+
+  @override
+  String get storageSpaceSubWorkspaceSandbox => 'Linux 沙箱';
+
+  @override
   String get storageSpaceCategoryDeletedRecords => '回收站';
 
   @override

@@ -6,11 +6,32 @@ import '../models/assistant_memory.dart';
 class MemoryStore {
   static const String _memoriesKey = 'assistant_memories_v1';
 
-  /// Mutex to serialize add() calls and prevent duplicate ID assignment
-  /// when multiple create_memory tool calls happen in parallel.
-  static Completer<void>? _addLock;
+  /// Mutex that serializes every read-modify-write mutation
+  /// (add/update/delete) so concurrent tool calls cannot observe a stale
+  /// snapshot and assign duplicate IDs or drop each other's changes.
+  ///
+  /// The lock is reset to null after each release so waiters never chain onto
+  /// a future that outlives the call site's event loop zone.
+  ///
+  /// NOT reentrant: a locked action must never invoke another locked method,
+  /// or it will wait forever on its own uncompleted completer.
+  static Completer<void>? _lock;
 
   static List<AssistantMemory>? _cache;
+
+  static Future<T> _withLock<T>(Future<T> Function() action) async {
+    while (_lock != null) {
+      await _lock!.future;
+    }
+    final completer = Completer<void>();
+    _lock = completer;
+    try {
+      return await action();
+    } finally {
+      _lock = null;
+      completer.complete();
+    }
+  }
 
   static Future<List<AssistantMemory>> _loadAllInternal() async {
     final prefs = await SharedPreferences.getInstance();
@@ -35,6 +56,10 @@ class MemoryStore {
     return List<AssistantMemory>.of(_cache!);
   }
 
+  /// Replaces the whole memory list. Does NOT take the mutation lock.
+  ///
+  /// Callers outside the locked mutations (e.g. trash restore) must not run
+  /// concurrently with add/update/delete or they can clobber newer changes.
   static Future<void> saveAll(List<AssistantMemory> list) async {
     _cache = List<AssistantMemory>.of(list);
     final prefs = await SharedPreferences.getInstance();
@@ -63,14 +88,8 @@ class MemoryStore {
   static Future<AssistantMemory> add({
     required String assistantId,
     required String content,
-  }) async {
-    // Serialize concurrent add() calls to prevent duplicate ID assignment.
-    while (_addLock != null && !_addLock!.isCompleted) {
-      await _addLock!.future;
-    }
-    _addLock = Completer<void>();
-
-    try {
+  }) {
+    return _withLock(() async {
       final all = await getAll();
       final id = _nextId(all);
       final mem = AssistantMemory(
@@ -81,37 +100,40 @@ class MemoryStore {
       all.add(mem);
       await _saveAll(all);
       return mem;
-    } finally {
-      _addLock!.complete();
-      _addLock = null;
-    }
+    });
   }
 
   static Future<AssistantMemory?> update({
     required int id,
     required String content,
-  }) async {
-    final all = await getAll();
-    final idx = all.indexWhere((m) => m.id == id);
-    if (idx == -1) return null;
-    final updated = all[idx].copyWith(content: content);
-    all[idx] = updated;
-    await _saveAll(all);
-    return updated;
+  }) {
+    return _withLock(() async {
+      final all = await getAll();
+      final idx = all.indexWhere((m) => m.id == id);
+      if (idx == -1) return null;
+      final updated = all[idx].copyWith(content: content);
+      all[idx] = updated;
+      await _saveAll(all);
+      return updated;
+    });
   }
 
-  static Future<bool> delete({required int id}) async {
-    final all = await getAll();
-    final before = all.length;
-    all.removeWhere((m) => m.id == id);
-    final changed = all.length != before;
-    if (changed) await _saveAll(all);
-    return changed;
+  static Future<bool> delete({required int id}) {
+    return _withLock(() async {
+      final all = await getAll();
+      final before = all.length;
+      all.removeWhere((m) => m.id == id);
+      final changed = all.length != before;
+      if (changed) await _saveAll(all);
+      return changed;
+    });
   }
 
-  static Future<void> deleteForAssistant(String assistantId) async {
-    final all = await getAll();
-    all.removeWhere((m) => m.assistantId == assistantId);
-    await _saveAll(all);
+  static Future<void> deleteForAssistant(String assistantId) {
+    return _withLock(() async {
+      final all = await getAll();
+      all.removeWhere((m) => m.assistantId == assistantId);
+      await _saveAll(all);
+    });
   }
 }

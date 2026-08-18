@@ -26,6 +26,7 @@ class BottomToolsSheet extends StatelessWidget {
     this.assistantId,
     this.onDocumentProcessing,
     this.onOpenSkills,
+    this.onOpenWorkspace,
   });
 
   final VoidCallback? onCamera;
@@ -36,6 +37,7 @@ class BottomToolsSheet extends StatelessWidget {
   final String? assistantId;
   final VoidCallback? onDocumentProcessing;
   final VoidCallback? onOpenSkills;
+  final VoidCallback? onOpenWorkspace;
 
   @override
   Widget build(BuildContext context) {
@@ -148,6 +150,7 @@ class BottomToolsSheet extends StatelessWidget {
                       assistantId: assistantId,
                       onDocumentProcessing: onDocumentProcessing,
                       onOpenSkills: onOpenSkills,
+                      onOpenWorkspace: onOpenWorkspace,
                     ),
                   ],
                 ),
@@ -167,12 +170,14 @@ class _LearningAndClearSection extends StatefulWidget {
     this.assistantId,
     this.onDocumentProcessing,
     this.onOpenSkills,
+    this.onOpenWorkspace,
   });
   final VoidCallback? onClear;
   final String? clearLabel;
   final String? assistantId;
   final VoidCallback? onDocumentProcessing;
   final VoidCallback? onOpenSkills;
+  final VoidCallback? onOpenWorkspace;
 
   @override
   State<_LearningAndClearSection> createState() =>
@@ -247,6 +252,20 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (widget.onOpenWorkspace != null) ...[
+          _row(
+            icon: Lucide.FolderOpen,
+            label: l10n.workspaceEntryTitle,
+            selected: assistant?.workspaceEnabled ?? false,
+            onTap: widget.onOpenWorkspace,
+            trailing: Icon(
+              Lucide.ChevronRight,
+              size: 18,
+              color: cs.onSurface.withValues(alpha: 0.55),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
         _row(
           icon: Lucide.Layers,
           label: l10n.instructionInjectionTitle,

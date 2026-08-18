@@ -643,6 +643,14 @@ class MessageBuilderService {
     }
   }
 
+  void injectWorkspacePrompt(
+    List<Map<String, dynamic>> apiMessages,
+    String? prompt,
+  ) {
+    if (prompt == null || prompt.trim().isEmpty) return;
+    _appendToSystemMessage(apiMessages, prompt);
+  }
+
   /// Inject memory prompts and recent chats reference into apiMessages.
   Future<void> injectMemoryAndRecentChats(
     List<Map<String, dynamic>> apiMessages,

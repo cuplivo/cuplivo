@@ -38,6 +38,7 @@ import '../../../core/services/haptics.dart';
 import '../../../desktop/desktop_context_menu.dart';
 import '../../home/services/local_tools_service.dart';
 import '../../skills/skill_manager.dart';
+import '../../workspace/widgets/workspace_settings_sheet.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/collapsible_group_header.dart';

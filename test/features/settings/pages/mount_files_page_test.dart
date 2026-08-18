@@ -183,4 +183,67 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     }
   });
+
+  testWidgets('directory selection hides files and returns canonical path', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final tmp = Directory.systemTemp.createTempSync('mount_picker_test_');
+    addTearDown(() {
+      if (tmp.existsSync()) tmp.deleteSync(recursive: true);
+    });
+    Directory('${tmp.path}/project').createSync();
+    File('${tmp.path}/ignored.txt').writeAsStringSync('ignored');
+    final mount = FilesystemMount(
+      alias: 'default',
+      path: tmp.path,
+      readOnly: false,
+    );
+    String? selected;
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => SettingsProvider(),
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () async {
+                  selected = await Navigator.of(context).push<String>(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          MountFilesPage(mount: mount, selectDirectory: true),
+                    ),
+                  );
+                },
+                child: const Text('open picker'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open picker'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await pumpUntilFound(tester, find.text('project'));
+    expect(find.text('ignored.txt'), findsNothing);
+    expect(find.text('/workspace'), findsOneWidget);
+    await tester.tap(find.text('project'));
+    await tester.pump();
+    final pageL10n = AppLocalizations.of(
+      tester.element(find.byType(MountFilesPage)),
+    )!;
+    await pumpUntilFound(tester, find.text(pageL10n.mountFilesEmptyDir));
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(MountFilesPage)),
+    )!;
+    await tester.tap(find.text(l10n.workspaceDirectorySelectCurrent));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(selected, '/workspace/project');
+  });
 }

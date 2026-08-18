@@ -64,6 +64,9 @@ Do **not** store sensitive information, including:
 
   /// Bound workspace entity id (single bind).
   final String? workspaceId;
+
+  /// Default guest working directory per workspace entity id.
+  final Map<String, String> workspaceDefaultDirectories;
   final String? background; // chat background (color/image ref)
   // Custom request overrides (per assistant)
   final List<Map<String, String>>
@@ -126,6 +129,7 @@ Do **not** store sensitive information, including:
     this.skillIds = const <String>[],
     this.workspaceEnabled = false,
     this.workspaceId,
+    Map<String, String>? workspaceDefaultDirectories,
     this.background,
     this.customHeaders = const <Map<String, String>>[],
     this.customBody = const <Map<String, String>>[],
@@ -150,7 +154,12 @@ Do **not** store sensitive information, including:
     this.handoffDescription,
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) : createdAt = createdAt ?? DateTime.now(),
+  }) : workspaceDefaultDirectories = Map.unmodifiable(
+         Map<String, String>.of(
+           workspaceDefaultDirectories ?? const <String, String>{},
+         ),
+       ),
+       createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now();
 
   Assistant copyWith({
@@ -176,6 +185,7 @@ Do **not** store sensitive information, including:
     List<String>? skillIds,
     bool? workspaceEnabled,
     String? workspaceId,
+    Map<String, String>? workspaceDefaultDirectories,
     bool clearWorkspaceId = false,
     String? background,
     List<Map<String, String>>? customHeaders,
@@ -239,6 +249,8 @@ Do **not** store sensitive information, including:
       skillIds: skillIds ?? this.skillIds,
       workspaceEnabled: workspaceEnabled ?? this.workspaceEnabled,
       workspaceId: clearWorkspaceId ? null : (workspaceId ?? this.workspaceId),
+      workspaceDefaultDirectories:
+          workspaceDefaultDirectories ?? this.workspaceDefaultDirectories,
       background: clearBackground ? null : (background ?? this.background),
       customHeaders: customHeaders ?? this.customHeaders,
       customBody: customBody ?? this.customBody,
@@ -296,6 +308,7 @@ Do **not** store sensitive information, including:
     'skillIds': skillIds,
     'workspaceEnabled': workspaceEnabled,
     'workspaceId': workspaceId,
+    'workspaceDefaultDirectories': workspaceDefaultDirectories,
     'background': background,
     'customHeaders': customHeaders,
     'customBody': customBody,
@@ -347,6 +360,13 @@ Do **not** store sensitive information, including:
     skillIds: (json['skillIds'] as List?)?.cast<String>() ?? const <String>[],
     workspaceEnabled: json['workspaceEnabled'] as bool? ?? false,
     workspaceId: json['workspaceId'] as String?,
+    workspaceDefaultDirectories: (() {
+      final raw = json['workspaceDefaultDirectories'];
+      if (raw is! Map) return const <String, String>{};
+      return raw.map(
+        (key, value) => MapEntry(key.toString(), value.toString()),
+      );
+    })(),
     background: json['background'] as String?,
     customHeaders: (() {
       final raw = json['customHeaders'];

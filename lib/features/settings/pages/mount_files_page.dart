@@ -14,6 +14,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../shared/pages/file_preview_page.dart';
 import '../../../shared/pages/html_file_preview_page.dart';
 import '../../../shared/widgets/ios_tactile.dart';
+import '../../../shared/widgets/ios_tile_button.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../utils/file_kind.dart';
 import '../../../utils/format.dart';
@@ -48,9 +49,16 @@ class _DirEntry {
 /// - content entering `@workspaces` gets mtime=now (backup/sync protocol);
 /// - read-only mounts hide upload/delete but keep preview + download.
 class MountFilesPage extends StatefulWidget {
-  const MountFilesPage({super.key, required this.mount});
+  const MountFilesPage({
+    super.key,
+    required this.mount,
+    this.selectDirectory = false,
+    this.initialDirectory = '/workspace',
+  });
 
   final FilesystemMount mount;
+  final bool selectDirectory;
+  final String initialDirectory;
 
   @override
   State<MountFilesPage> createState() => _MountFilesPageState();
@@ -77,6 +85,12 @@ class _MountFilesPageState extends State<MountFilesPage> {
   @override
   void initState() {
     super.initState();
+    if (widget.selectDirectory &&
+        widget.initialDirectory.startsWith('/workspace/')) {
+      _segments = widget.initialDirectory
+          .substring('/workspace/'.length)
+          .split('/');
+    }
     _load();
   }
 
@@ -103,7 +117,7 @@ class _MountFilesPageState extends State<MountFilesPage> {
                 modifiedAt: DateTime.now(),
               ),
             );
-          } else if (ent is File) {
+          } else if (!widget.selectDirectory && ent is File) {
             try {
               final stat = await ent.stat();
               entries.add(
@@ -496,7 +510,10 @@ class _MountFilesPageState extends State<MountFilesPage> {
   Widget _breadcrumb(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final crumbs = <Widget>[
-      _crumbChip(widget.mount.wireName, () => _navigateTo(const [])),
+      _crumbChip(
+        widget.selectDirectory ? '/workspace' : widget.mount.wireName,
+        () => _navigateTo(const []),
+      ),
       for (var i = 0; i < _segments.length; i++)
         _crumbChip(
           _segments[i],
@@ -599,9 +616,13 @@ class _MountFilesPageState extends State<MountFilesPage> {
           size: 22,
           onTap: () => Navigator.of(context).maybePop(),
         ),
-        title: Text(l10n.mountFilesPageTitle(widget.mount.wireName)),
+        title: Text(
+          widget.selectDirectory
+              ? l10n.workspaceDirectoryPickerTitle
+              : l10n.mountFilesPageTitle(widget.mount.wireName),
+        ),
         actions: [
-          if (!readOnly)
+          if (!readOnly && !widget.selectDirectory)
             IosIconButton(
               icon: Lucide.Upload,
               size: 20,
@@ -612,6 +633,25 @@ class _MountFilesPageState extends State<MountFilesPage> {
         ],
       ),
       body: content,
+      bottomNavigationBar: widget.selectDirectory
+          ? SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: IosTileButton(
+                  label: l10n.workspaceDirectorySelectCurrent,
+                  icon: Lucide.Check,
+                  backgroundColor: cs.primary,
+                  onTap: () {
+                    final selected = _segments.isEmpty
+                        ? '/workspace'
+                        : '/workspace/${_segments.join('/')}';
+                    Navigator.of(context).pop(selected);
+                  },
+                ),
+              ),
+            )
+          : null,
     );
   }
 }

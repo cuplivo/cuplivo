@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:Cuplivo/core/services/workspace/workspace_path_presentation.dart';
 
 void main() {
-  group('parseModelPath (strict /workspace input)', () {
+  group('parseModelPath (standard cwd semantics)', () {
     test('passes "/" through (mount listing special case)', () {
       expect(parseModelPath('/', 'default'), '/');
     });
@@ -17,6 +17,44 @@ void main() {
       );
       expect(parseModelPath('/workspace', 'workspace_2'), '@workspace_2');
       expect(parseModelPath('/workspace/x', 'workspace_2'), '@workspace_2/x');
+    });
+
+    test('resolves relative paths from the configured working directory', () {
+      expect(
+        parseModelPath(
+          'notes.md',
+          'default',
+          workingDirectory: '/workspace/project',
+        ),
+        '@default/project/notes.md',
+      );
+      expect(
+        parseModelPath(
+          '../shared/file.txt',
+          'default',
+          workingDirectory: '/workspace/project/src',
+        ),
+        '@default/project/shared/file.txt',
+      );
+      expect(
+        parseModelPath(
+          '/workspace/root.txt',
+          'default',
+          workingDirectory: '/workspace/project',
+        ),
+        '@default/root.txt',
+      );
+    });
+
+    test('rejects relative paths that escape the workspace root', () {
+      expect(
+        () => parseModelPath(
+          '../../outside.txt',
+          'default',
+          workingDirectory: '/workspace/project',
+        ),
+        throwsA(isA<ModelPathException>()),
+      );
     });
 
     test('preserves trailing slash for engine validation parity', () {
@@ -45,7 +83,6 @@ void main() {
         '/tmp/x',
         '/workspace2/x', // prefix lookalike, not under /workspace/
         'C:/x',
-        'notes.md', // relative, no prefix
       ]) {
         expect(
           () => parseModelPath(bad, 'default'),

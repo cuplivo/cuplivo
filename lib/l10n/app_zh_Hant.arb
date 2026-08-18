@@ -3117,6 +3117,26 @@
   "workspaceBindTitle": "綁定工作區",
   "workspaceEntryTitle": "工作區",
   "workspaceEntrySubtitleOff": "未開啟",
+  "workspaceSettingsTitle": "工作區設定",
+  "workspaceDefaultDirectoryTitle": "預設工作目錄",
+  "workspaceConversationDirectoryTitle": "目前對話工作目錄",
+  "workspaceDirectoryHint": "/workspace 或相對於工作區根目錄的路徑",
+  "workspaceDirectoryBrowse": "瀏覽",
+  "workspaceDirectorySave": "儲存",
+  "workspaceDirectoryUseAssistantDefault": "使用助手預設目錄",
+  "workspaceDirectoryInherited": "正在沿用助手預設目錄",
+  "workspaceDirectoryOverride": "目前對話已覆寫",
+  "workspaceDirectorySaved": "工作目錄已儲存",
+  "workspaceDirectorySaveFailed": "儲存工作目錄失敗：{error}",
+  "@workspaceDirectorySaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "workspaceDirectoryPickerTitle": "選擇工作目錄",
+  "workspaceDirectorySelectCurrent": "選擇目前資料夾",
   "workspaceShellMobileOnly": "Shell 僅在 Android 或 iOS 可用",
   "workspaceToolShellTitle": "Shell",
   "workspaceToolShellUserDesc": "在 Linux 沙箱中執行命令（Android 或 iOS，需先安裝基礎依賴）",

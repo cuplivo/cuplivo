@@ -4,6 +4,7 @@ import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/assistant_regex.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/preset_message.dart';
 
 void main() {
@@ -227,5 +228,37 @@ void main() {
       expect(await repo.getCacheEntry('ocr', 'img2'), isNull);
       expect(await repo.getCacheEntry('other', 'k'), isNotNull);
     });
+  });
+
+  group('ChatDatabaseRepository — ConversationRows', () {
+    late AppDatabase db;
+    late ChatDatabaseRepository repo;
+
+    setUp(() {
+      db = AppDatabase(NativeDatabase.memory());
+      repo = ChatDatabaseRepository(db);
+    });
+
+    tearDown(() async {
+      await repo.close();
+    });
+
+    test(
+      'malformed workspace override JSON fails instead of using root',
+      () async {
+        final conversation = Conversation(title: 'Conversation');
+        await repo.putConversation(conversation);
+        await db.customStatement(
+          'UPDATE conversation_rows '
+          'SET workspace_directory_overrides_json = ? WHERE id = ?',
+          ['not-json', conversation.id],
+        );
+
+        await expectLater(
+          repo.getAllConversations(),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
   });
 }

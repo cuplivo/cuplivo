@@ -40,6 +40,10 @@ class Conversation {
   /// 'normal' | 'group'
   String conversationKind;
 
+  /// Conversation-specific guest working directory per workspace entity id.
+  /// A missing key means the assistant default is inherited dynamically.
+  Map<String, String> workspaceDirectoryOverrides;
+
   static const String kindNormal = 'normal';
   static const String kindGroup = 'group';
 
@@ -61,6 +65,7 @@ class Conversation {
     int? lastSummarizedMessageCount,
     List<String>? chatSuggestions,
     this.conversationKind = kindNormal,
+    Map<String, String>? workspaceDirectoryOverrides,
   }) : id = id ?? const Uuid().v4(),
        createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now(),
@@ -69,7 +74,10 @@ class Conversation {
        truncateIndex = truncateIndex ?? -1,
        versionSelections = versionSelections ?? <String, int>{},
        lastSummarizedMessageCount = lastSummarizedMessageCount ?? 0,
-       chatSuggestions = chatSuggestions ?? [];
+       chatSuggestions = chatSuggestions ?? [],
+       workspaceDirectoryOverrides = Map<String, String>.of(
+         workspaceDirectoryOverrides ?? const <String, String>{},
+       );
 
   Conversation copyWith({
     String? id,
@@ -88,6 +96,7 @@ class Conversation {
     List<String>? chatSuggestions,
     bool clearSummary = false,
     String? conversationKind,
+    Map<String, String>? workspaceDirectoryOverrides,
   }) {
     return Conversation(
       id: id ?? this.id,
@@ -106,6 +115,8 @@ class Conversation {
           lastSummarizedMessageCount ?? this.lastSummarizedMessageCount,
       chatSuggestions: chatSuggestions ?? this.chatSuggestions,
       conversationKind: conversationKind ?? this.conversationKind,
+      workspaceDirectoryOverrides:
+          workspaceDirectoryOverrides ?? this.workspaceDirectoryOverrides,
     );
   }
 
@@ -126,6 +137,7 @@ class Conversation {
       'lastSummarizedMessageCount': lastSummarizedMessageCount,
       'chatSuggestions': chatSuggestions,
       'conversationKind': conversationKind,
+      'workspaceDirectoryOverrides': workspaceDirectoryOverrides,
     };
   }
 
@@ -153,6 +165,11 @@ class Conversation {
       chatSuggestions:
           (json['chatSuggestions'] as List?)?.cast<String>() ?? <String>[],
       conversationKind: json['conversationKind'] as String? ?? kindNormal,
+      workspaceDirectoryOverrides:
+          (json['workspaceDirectoryOverrides'] as Map?)?.map(
+            (key, value) => MapEntry(key.toString(), value.toString()),
+          ) ??
+          <String, String>{},
     );
   }
 }

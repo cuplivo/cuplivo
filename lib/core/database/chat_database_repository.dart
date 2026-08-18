@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import '../models/chat_message.dart';
@@ -1015,6 +1016,9 @@ class ChatDatabaseRepository {
       'skillIds': (jsonDecode(row.skillIdsJson) as List).cast<String>(),
       'workspaceEnabled': row.workspaceEnabled,
       'workspaceId': row.workspaceId,
+      'workspaceDefaultDirectories': jsonDecode(
+        row.workspaceDefaultDirectoriesJson,
+      ),
       'customHeaders': jsonDecode(row.customHeadersJson),
       'customBody': jsonDecode(row.customBodyJson),
       'enableMemory': row.enableMemory,
@@ -1067,6 +1071,9 @@ class ChatDatabaseRepository {
       skillIdsJson: Value(jsonEncode(a.skillIds)),
       workspaceEnabled: Value(a.workspaceEnabled),
       workspaceId: Value(a.workspaceId),
+      workspaceDefaultDirectoriesJson: Value(
+        jsonEncode(a.workspaceDefaultDirectories),
+      ),
       customHeadersJson: Value(jsonEncode(a.customHeaders)),
       customBodyJson: Value(jsonEncode(a.customBody)),
       enableMemory: Value(a.enableMemory),
@@ -1129,6 +1136,9 @@ class ChatDatabaseRepository {
       chatSuggestions: _decodeStringList(row.chatSuggestionsJson),
       parentConversationId: row.parentConversationId,
       conversationKind: row.conversationKind,
+      workspaceDirectoryOverrides: _decodeStringStringMap(
+        row.workspaceDirectoryOverridesJson,
+      ),
     );
   }
 
@@ -1175,6 +1185,9 @@ class ChatDatabaseRepository {
       conversationKind:
           _readOptionalString(row, 'conversation_kind') ??
           Conversation.kindNormal,
+      workspaceDirectoryOverrides: _decodeStringStringMap(
+        _readOptionalString(row, 'workspace_directory_overrides_json') ?? '{}',
+      ),
     );
   }
 
@@ -1219,6 +1232,9 @@ class ChatDatabaseRepository {
       chatSuggestionsJson: Value(jsonEncode(conversation.chatSuggestions)),
       parentConversationId: Value(conversation.parentConversationId),
       conversationKind: Value(conversation.conversationKind),
+      workspaceDirectoryOverridesJson: Value(
+        jsonEncode(conversation.workspaceDirectoryOverrides),
+      ),
     );
   }
 
@@ -1485,6 +1501,34 @@ class ChatDatabaseRepository {
       });
     } catch (_) {
       return <String, int>{};
+    }
+  }
+
+  Map<String, String> _decodeStringStringMap(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) {
+        throw const FormatException('Expected a JSON object.');
+      }
+      final result = <String, String>{};
+      for (final entry in decoded.entries) {
+        if (entry.key is! String || entry.value is! String) {
+          throw const FormatException(
+            'Workspace directory override keys and values must be strings.',
+          );
+        }
+        result[entry.key as String] = entry.value as String;
+      }
+      return result;
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Failed to decode workspace directory overrides: '
+        '$error\n$stackTrace',
+      );
+      throw FormatException(
+        'Invalid workspace directory overrides JSON.',
+        error,
+      );
     }
   }
 

@@ -8,7 +8,9 @@
 /// shell view; filesystem tools and shell now share one vocabulary).
 library;
 
-/// Thrown when a model-supplied path does not use the `/workspace/...` form.
+import 'workspace_execution_context.dart';
+
+/// Thrown when a model-supplied path cannot be resolved inside `/workspace`.
 class ModelPathException implements Exception {
   final String message;
   ModelPathException(this.message);
@@ -17,37 +19,32 @@ class ModelPathException implements Exception {
   String toString() => message;
 }
 
-/// Strict input translation: the model must use `/workspace/...`; canonical
+/// Resolves relative model paths from [workingDirectory]. Canonical
 /// `@alias/...` paths and arbitrary absolute paths are rejected.
 ///
 /// - `/` is passed through unchanged (engine special case: list mounts).
 /// - `/workspace` → `@alias`; `/workspace/rel/path` → `@alias/rel/path`.
 /// - Trailing slashes are preserved so the engine's existing validation
 ///   applies unchanged (read tolerates one, the other tools reject it).
-/// - Segment-level validation (traversal, malformed segments) still happens
-///   inside the engine against the translated canonical path.
-String parseModelPath(String raw, String alias) {
-  if (raw.trim() != raw) {
-    throw ModelPathException(
-      'Invalid path: leading/trailing whitespace is not allowed: $raw',
+/// - `.` and `..` are normalized, but traversal above `/workspace` is rejected.
+/// - Remaining malformed segments are also checked by the filesystem engine.
+String parseModelPath(
+  String raw,
+  String alias, {
+  String workingDirectory = '/workspace',
+}) {
+  try {
+    final resolved = resolveWorkspaceGuestPath(
+      raw,
+      baseDirectory: workingDirectory,
+      preserveTrailingSlash: true,
     );
+    if (resolved == '/') return '/';
+    if (resolved == '/workspace') return '@$alias';
+    return '@$alias/${resolved.substring('/workspace/'.length)}';
+  } on WorkspacePathException catch (e) {
+    throw ModelPathException('Invalid path: ${e.message}');
   }
-  if (raw.isEmpty) {
-    throw ModelPathException('Invalid path: path is required');
-  }
-  if (raw == '/') return '/';
-  if (raw.startsWith('@')) {
-    throw ModelPathException(
-      'Invalid path: use the /workspace/rel/path form, not $raw',
-    );
-  }
-  if (raw != '/workspace' && !raw.startsWith('/workspace/')) {
-    throw ModelPathException(
-      'Invalid path: only paths under /workspace are allowed: $raw',
-    );
-  }
-  if (raw == '/workspace') return '@$alias';
-  return '@$alias/${raw.substring('/workspace/'.length)}';
 }
 
 /// Canonical wire path → model-facing `/workspace/...` form.

@@ -4,12 +4,14 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../../models/assistant.dart';
+import '../../models/conversation.dart';
 import '../../models/workspace.dart';
 import '../../providers/workspace_provider.dart';
 import '../../services/chat/chat_service.dart';
 import '../mcp/kelivo_filesystem/kelivo_filesystem_server.dart';
 import 'linux_sandbox_service.dart';
 import 'workspace_download_service.dart';
+import 'workspace_execution_context.dart';
 import 'workspace_path_presentation.dart';
 
 /// Builds and dispatches workspace local tools (filesystem + shell).
@@ -21,12 +23,17 @@ class WorkspaceToolsService {
     required WorkspaceProvider workspaces,
     required bool supportsTools,
     LinuxSandboxService? sandbox,
+    Conversation? conversation,
+    WorkspaceExecutionContext? executionContext,
   }) {
-    if (!supportsTools || assistant == null || !assistant.workspaceEnabled) {
+    if (!supportsTools) {
       return const <Map<String, dynamic>>[];
     }
-    final ws = _boundWorkspace(assistant, workspaces);
-    if (ws == null) return const <Map<String, dynamic>>[];
+    final context =
+        executionContext ??
+        _resolveContext(assistant, conversation, workspaces);
+    if (context == null) return const <Map<String, dynamic>>[];
+    final ws = context.workspace;
 
     final enabled = <String>{
       for (final t in WorkspaceToolNames.filesystemTools)
@@ -46,30 +53,35 @@ class WorkspaceToolsService {
     for (final t in defs) {
       // Model-facing copy only: canonical wire format stays unchanged.
       final presented = presentDefMap(t);
+      final description =
+          '${presented['description'] ?? ''}\n'
+          'Relative paths resolve from ${context.workingDirectory}; '
+          'absolute /workspace/... paths resolve from the workspace root.';
       out.add({
         'type': 'function',
         'function': {
           'name': presented['name'],
-          'description': presented['description'],
+          'description': description,
           'parameters': presented['inputSchema'] ?? {'type': 'object'},
         },
       });
     }
     if (enabled.contains(WorkspaceToolNames.shell)) {
-      out.add(_shellToolDef());
+      out.add(_shellToolDef(context.workingDirectory));
     }
     return out;
   }
 
-  static Map<String, dynamic> _shellToolDef() => {
+  static Map<String, dynamic> _shellToolDef(String workingDirectory) => {
     'type': 'function',
     'function': {
       'name': WorkspaceToolNames.shell,
       'description':
           'Run a shell command inside the Linux sandbox for the bound '
-          'workspace. Working directory defaults to /workspace (the '
-          'workspace root). Output is truncated. Requires base dependency '
-          'installed.',
+          'workspace. Working directory defaults to $workingDirectory. '
+          'Relative cwd values resolve from that directory; absolute '
+          '/workspace/... values resolve from the workspace root. Output is '
+          'truncated. Requires base dependency installed.',
       'parameters': {
         'type': 'object',
         'properties': {
@@ -101,25 +113,35 @@ class WorkspaceToolsService {
     return true;
   }
 
-  static Workspace? _boundWorkspace(
-    Assistant assistant,
+  static WorkspaceExecutionContext? _resolveContext(
+    Assistant? assistant,
+    Conversation? conversation,
     WorkspaceProvider workspaces,
   ) {
-    final id = assistant.workspaceId;
-    if (id == null || id.isEmpty) return null;
-    return workspaces.getById(id);
+    try {
+      return WorkspaceExecutionContext.resolve(
+        assistant: assistant,
+        conversation: conversation,
+        workspaces: workspaces,
+      );
+    } on WorkspacePathException catch (e) {
+      debugPrint('workspace context invalid: ${e.message}');
+      return null;
+    }
   }
 
   static Set<String> enabledToolNames(
     Assistant? assistant,
     WorkspaceProvider workspaces, {
     LinuxSandboxService? sandbox,
+    Conversation? conversation,
+    WorkspaceExecutionContext? executionContext,
   }) {
-    if (assistant == null || !assistant.workspaceEnabled) {
-      return const <String>{};
-    }
-    final ws = _boundWorkspace(assistant, workspaces);
-    if (ws == null) return const <String>{};
+    final context =
+        executionContext ??
+        _resolveContext(assistant, conversation, workspaces);
+    if (context == null) return const <String>{};
+    final ws = context.workspace;
     final names = <String>{
       for (final t in WorkspaceToolNames.filesystemTools)
         if (ws.isToolEnabled(t)) t,
@@ -143,17 +165,24 @@ class WorkspaceToolsService {
     WorkspaceDownloadAbortToken? downloadAbortToken,
     String? toolCallId,
     String? conversationId,
+    Conversation? conversation,
+    WorkspaceExecutionContext? executionContext,
   }) async {
-    if (assistant == null || !assistant.workspaceEnabled) return null;
     if (!WorkspaceToolNames.isWorkspaceTool(name)) return null;
-
-    final ws = _boundWorkspace(assistant, workspaces);
-    if (ws == null) {
+    if (executionContext == null &&
+        (assistant == null || !assistant.workspaceEnabled)) {
+      return null;
+    }
+    final context =
+        executionContext ??
+        _resolveContext(assistant, conversation, workspaces);
+    if (context == null) {
       return jsonEncode({
         'error': 'workspace_unbound',
         'message': 'No workspace bound to this assistant.',
       });
     }
+    final ws = context.workspace;
     if (name == WorkspaceToolNames.shell) {
       if (!ws.shellEnabled ||
           !ws.isToolEnabled(WorkspaceToolNames.shell) ||
@@ -162,6 +191,18 @@ class WorkspaceToolsService {
       }
     } else if (!ws.isToolEnabled(name)) {
       return null;
+    }
+    try {
+      await ensureWorkspaceWorkingDirectory(
+        context: context,
+        workspaces: workspaces,
+      );
+    } catch (e, st) {
+      debugPrint('workspace working directory unavailable: $e\n$st');
+      return jsonEncode({
+        'error': 'working_directory_unavailable',
+        'message': e.toString(),
+      });
     }
 
     if (name == WorkspaceToolNames.shell) {
@@ -172,6 +213,7 @@ class WorkspaceToolsService {
         sandbox: sandbox,
         requestId: toolCallId,
         conversationId: conversationId,
+        workingDirectory: context.workingDirectory,
       );
     }
 
@@ -189,7 +231,11 @@ class WorkspaceToolsService {
     );
     final Map<String, dynamic> translatedArgs;
     try {
-      translatedArgs = _translateModelArgs(args, ws.alias);
+      translatedArgs = _translateModelArgs(
+        args,
+        ws.alias,
+        context.workingDirectory,
+      );
     } on ModelPathException catch (e) {
       return jsonEncode({'error': 'invalid_path', 'message': e.message});
     }
@@ -202,18 +248,18 @@ class WorkspaceToolsService {
     return _mcpResultToText(result);
   }
 
-  /// Strict model-facing path translation: the model must use
-  /// `/workspace/...`; canonical `@alias/...` is rejected (see
-  /// `workspace_path_presentation.dart`).
+  /// Resolves relative model-facing paths from the captured working directory
+  /// and translates them to the canonical `@alias/...` wire format.
   static Map<String, dynamic> _translateModelArgs(
     Map<String, dynamic> args,
     String alias,
+    String workingDirectory,
   ) {
     final out = Map<String, dynamic>.from(args);
     for (final key in const ['path', 'source', 'destination']) {
       final v = out[key];
       if (v == null || v is! String) continue;
-      out[key] = parseModelPath(v, alias);
+      out[key] = parseModelPath(v, alias, workingDirectory: workingDirectory);
     }
     return out;
   }
@@ -243,6 +289,7 @@ class WorkspaceToolsService {
     LinuxSandboxService? sandbox,
     String? requestId,
     String? conversationId,
+    required String workingDirectory,
   }) async {
     if (!Platform.isAndroid && !Platform.isIOS) {
       return jsonEncode({
@@ -265,7 +312,16 @@ class WorkspaceToolsService {
         'message': 'command is required',
       });
     }
-    final cwd = args['cwd']?.toString();
+    final String cwd;
+    try {
+      cwd = resolveWorkspaceGuestPath(
+        args['cwd']?.toString() ?? workingDirectory,
+        baseDirectory: workingDirectory,
+        allowMountListingRoot: false,
+      );
+    } on WorkspacePathException catch (e) {
+      return jsonEncode({'error': 'invalid_path', 'message': e.message});
+    }
     final timeout = (args['timeout'] as num?)?.toInt() ?? 30;
     try {
       final result = await svc.exec(
@@ -316,27 +372,39 @@ class WorkspaceToolsService {
     required Assistant? assistant,
     required WorkspaceProvider workspaces,
     LinuxSandboxService? sandbox,
+    Conversation? conversation,
+    WorkspaceExecutionContext? executionContext,
   }) {
-    if (assistant == null || !assistant.workspaceEnabled) return null;
-    final ws = _boundWorkspace(assistant, workspaces);
-    if (ws == null) return null;
+    final context =
+        executionContext ??
+        _resolveContext(assistant, conversation, workspaces);
+    if (context == null) return null;
+    final ws = context.workspace;
     final tools = enabledToolNames(
       assistant,
       workspaces,
       sandbox: sandbox,
+      conversation: conversation,
+      executionContext: context,
     ).join(', ');
     if (tools.isEmpty) return null;
     final buf = StringBuffer()
       ..writeln('<workspace>')
       ..writeln('Bound workspace: /workspace (${ws.displayName})')
-      ..writeln('Paths use the /workspace/rel/path form')
+      ..writeln('Current working directory: ${context.workingDirectory}')
+      ..writeln(
+        'Relative paths resolve from the current working directory; '
+        'absolute /workspace/... paths resolve from the workspace root.',
+      )
       ..writeln('Enabled tools: $tools');
     if (enabledToolNames(
       assistant,
       workspaces,
       sandbox: sandbox,
+      conversation: conversation,
+      executionContext: context,
     ).contains(WorkspaceToolNames.shell)) {
-      buf.writeln('Shell guest cwd default: /workspace');
+      buf.writeln('Shell guest cwd default: ${context.workingDirectory}');
     }
     buf.writeln('</workspace>');
     return buf.toString();

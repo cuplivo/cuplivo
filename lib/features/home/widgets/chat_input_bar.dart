@@ -78,6 +78,7 @@ class ChatInputBar extends StatefulWidget {
     this.onLongPressSelectModel,
     this.onOpenMcp,
     this.onLongPressMcp,
+    this.onOpenWorkspace,
     this.onOpenSearch,
     this.onMore,
     this.onConfigureReasoning,
@@ -96,6 +97,7 @@ class ChatInputBar extends StatefulWidget {
     this.supportsReasoning = true,
     this.showMcpButton = false,
     this.mcpActive = false,
+    this.workspaceActive = false,
     this.showMiniMapButton = false,
     this.onOpenMiniMap,
     this.onPickCamera,
@@ -140,6 +142,7 @@ class ChatInputBar extends StatefulWidget {
   final VoidCallback? onMultiSelectModel;
   final VoidCallback? onOpenMcp;
   final VoidCallback? onLongPressMcp;
+  final VoidCallback? onOpenWorkspace;
   final VoidCallback? onOpenSearch;
   final VoidCallback? onMore;
   final VoidCallback? onConfigureReasoning;
@@ -158,6 +161,7 @@ class ChatInputBar extends StatefulWidget {
   final bool supportsReasoning;
   final bool showMcpButton;
   final bool mcpActive;
+  final bool workspaceActive;
   final bool showMiniMapButton;
   final VoidCallback? onOpenMiniMap;
   final VoidCallback? onPickCamera;
@@ -2021,6 +2025,25 @@ class _ChatInputBarState extends State<ChatInputBar>
                 icon: Lucide.Hammer,
                 label: l10n.chatInputBarMcpServersTooltip,
                 onTap: lockTap(widget.onOpenMcp),
+              ),
+            ),
+          );
+        }
+
+        if (widget.onOpenWorkspace != null && !isGroupChat) {
+          actions.add(
+            _OverflowAction(
+              width: normalButtonW,
+              builder: () => _CompactIconButton(
+                tooltip: l10n.workspaceEntryTitle,
+                icon: Lucide.FolderOpen,
+                active: widget.workspaceActive,
+                onTap: lockTap(widget.onOpenWorkspace),
+              ),
+              menu: DesktopContextMenuItem(
+                icon: Lucide.FolderOpen,
+                label: l10n.workspaceEntryTitle,
+                onTap: lockTap(widget.onOpenWorkspace),
               ),
             ),
           );

@@ -46,6 +46,7 @@ class ChatInputSection extends StatelessWidget {
     this.onLongPressSelectModel,
     this.onOpenMcp,
     this.onLongPressMcp,
+    this.onOpenWorkspace,
     this.onOpenSearch,
     this.onConfigureReasoning,
     this.onSend,
@@ -69,6 +70,8 @@ class ChatInputSection extends StatelessWidget {
     this.conversationId,
     this.sendButtonTooltip,
     this.backgroundImageActive = false,
+    this.showWorkspaceButton = false,
+    this.workspaceActive = false,
     this.multiAIModelCount,
     this.onMultiSelectModel,
     this.imageGenController,
@@ -94,6 +97,7 @@ class ChatInputSection extends StatelessWidget {
   final VoidCallback? onMultiSelectModel;
   final VoidCallback? onOpenMcp;
   final VoidCallback? onLongPressMcp;
+  final VoidCallback? onOpenWorkspace;
   final VoidCallback? onOpenSearch;
   final VoidCallback? onConfigureReasoning;
   final Future<ChatInputSubmissionResult> Function(ChatInputData)? onSend;
@@ -117,6 +121,8 @@ class ChatInputSection extends StatelessWidget {
   final String? conversationId;
   final String? sendButtonTooltip;
   final bool backgroundImageActive;
+  final bool showWorkspaceButton;
+  final bool workspaceActive;
 
   /// Shared image-generation options controller (home page owned), forwarded
   /// to the bar so the LivePanel inline card and the bar snapshot one
@@ -151,6 +157,9 @@ class ChatInputSection extends StatelessWidget {
       conversationId: conversationId,
       onOpenMcp: onOpenMcp,
       onLongPressMcp: onLongPressMcp,
+      onOpenWorkspace: showWorkspaceButton && (isTablet || isDesktop)
+          ? onOpenWorkspace
+          : null,
       onStop: onStop,
       modelIcon: (pk != null && mid != null)
           ? CurrentModelIcon(
@@ -188,6 +197,7 @@ class ChatInputSection extends StatelessWidget {
       onCancelQueuedInput: onCancelQueuedInput,
       showMcpButton: _shouldShowMcpButton(context, settings, a, pk, mid),
       mcpActive: _isMcpActive(context, a),
+      workspaceActive: workspaceActive,
       showQuickPhraseButton: _hasQuickPhrases(context, a),
       onQuickPhrase: onQuickPhrase,
       onLongPressQuickPhrase: onLongPressQuickPhrase,

@@ -46,6 +46,8 @@ void main() {
     double inputBackgroundOpacityLight = 0.8236,
     double inputBackgroundOpacityDark = 0.7396,
     ChatInputMode mode = ChatInputMode.normal,
+    VoidCallback? onOpenWorkspace,
+    bool workspaceActive = false,
   }) {
     return MultiProvider(
       providers: [
@@ -84,6 +86,8 @@ void main() {
             inputBackgroundOpacityLight: inputBackgroundOpacityLight,
             inputBackgroundOpacityDark: inputBackgroundOpacityDark,
             mode: mode,
+            onOpenWorkspace: onOpenWorkspace,
+            workspaceActive: workspaceActive,
           ),
         ),
       ),
@@ -114,6 +118,46 @@ void main() {
     controller.dispose();
     focusNode.dispose();
   });
+
+  testWidgets(
+    'workspace action is available in normal chat and hidden in group chat',
+    (tester) async {
+      final controller = TextEditingController();
+      final focusNode = FocusNode();
+      var taps = 0;
+
+      await tester.pumpWidget(
+        buildHarness(
+          controller: controller,
+          focusNode: focusNode,
+          onSend: (_) async => ChatInputSubmissionResult.sent,
+          onOpenWorkspace: () => taps++,
+          workspaceActive: true,
+        ),
+      );
+      await tester.pump();
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(ChatInputBar)),
+      )!;
+      await tester.tap(find.byTooltip(l10n.workspaceEntryTitle));
+      expect(taps, 1);
+
+      await tester.pumpWidget(
+        buildHarness(
+          controller: controller,
+          focusNode: focusNode,
+          onSend: (_) async => ChatInputSubmissionResult.sent,
+          onOpenWorkspace: () => taps++,
+          mode: ChatInputMode.groupChat,
+        ),
+      );
+      await tester.pump();
+      expect(find.byTooltip(l10n.workspaceEntryTitle), findsNothing);
+
+      controller.dispose();
+      focusNode.dispose();
+    },
+  );
 
   testWidgets('提交结果 rejected 时保留输入内容', (tester) async {
     final controller = TextEditingController(text: 'keep me');

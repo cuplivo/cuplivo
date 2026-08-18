@@ -1005,6 +1005,48 @@ class ChatService extends ChangeNotifier {
     await setConversationMcpServers(conversationId, set.toList());
   }
 
+  Future<void> setConversationWorkspaceDirectoryOverride(
+    String conversationId,
+    String workspaceId,
+    String directory,
+  ) async {
+    await _updateConversationWorkspaceDirectories(
+      conversationId,
+      (current) => current[workspaceId] = directory,
+    );
+  }
+
+  Future<void> clearConversationWorkspaceDirectoryOverride(
+    String conversationId,
+    String workspaceId,
+  ) async {
+    await _updateConversationWorkspaceDirectories(
+      conversationId,
+      (current) => current.remove(workspaceId),
+    );
+  }
+
+  Future<void> _updateConversationWorkspaceDirectories(
+    String conversationId,
+    void Function(Map<String, String> current) update,
+  ) async {
+    if (!_initialized) await init();
+    final conversation =
+        _draftConversations[conversationId] ??
+        _conversationsCache[conversationId];
+    if (conversation == null) return;
+    final directories = Map<String, String>.of(
+      conversation.workspaceDirectoryOverrides,
+    );
+    update(directories);
+    conversation.workspaceDirectoryOverrides = directories;
+    conversation.updatedAt = DateTime.now();
+    if (!_draftConversations.containsKey(conversationId)) {
+      await _saveConversation(conversation);
+    }
+    notifyListeners();
+  }
+
   Future<List<Assistant>> getAllAssistants() => _repo.getAllAssistants();
   Future<void> putAssistants(List<Assistant> list) => _repo.putAssistants(list);
   Future<void> putAssistant(Assistant a) => _repo.putAssistant(a);

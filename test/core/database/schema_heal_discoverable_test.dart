@@ -289,6 +289,47 @@ CREATE TABLE group_chat_rows (
 
     await repo.close();
   });
+
+  test('heal adds workspace directory maps before assistant and conversation '
+      'inserts (v20 column shape)', () async {
+    _createLegacyDb(
+      dbFile,
+      userVersion: 20,
+      missingIsPreset: false,
+      missingHandoffColumns: false,
+      missingContextTokens: false,
+    );
+
+    final repo = ChatDatabaseRepository.open(file: dbFile);
+    await repo.ensureReady();
+
+    await repo.putAssistant(
+      Assistant(
+        id: 'a1',
+        name: 'Alpha',
+        workspaceDefaultDirectories: const {'w1': '/workspace/project'},
+      ),
+      sortOrder: 0,
+    );
+    await repo.putConversation(
+      Conversation(
+        title: 'Conv',
+        assistantId: 'a1',
+        workspaceDirectoryOverrides: const {'w1': '/workspace/project/session'},
+      ),
+    );
+
+    final assistants = await repo.getAllAssistants();
+    final conversations = await repo.getAllConversations();
+    expect(assistants.single.workspaceDefaultDirectories, {
+      'w1': '/workspace/project',
+    });
+    expect(conversations.single.workspaceDirectoryOverrides, {
+      'w1': '/workspace/project/session',
+    });
+
+    await repo.close();
+  });
 }
 
 /// Builds a v13-era DB shape (assistant/conversation/message tables only —

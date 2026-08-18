@@ -3714,6 +3714,26 @@
   "workspaceBindTitle": "Bound workspace",
   "workspaceEntryTitle": "Workspace",
   "workspaceEntrySubtitleOff": "Off",
+  "workspaceSettingsTitle": "Workspace settings",
+  "workspaceDefaultDirectoryTitle": "Default working directory",
+  "workspaceConversationDirectoryTitle": "Conversation working directory",
+  "workspaceDirectoryHint": "/workspace or a path relative to the workspace root",
+  "workspaceDirectoryBrowse": "Browse",
+  "workspaceDirectorySave": "Save",
+  "workspaceDirectoryUseAssistantDefault": "Use assistant default",
+  "workspaceDirectoryInherited": "Following the assistant default",
+  "workspaceDirectoryOverride": "Overridden for this conversation",
+  "workspaceDirectorySaved": "Working directory saved",
+  "workspaceDirectorySaveFailed": "Failed to save working directory: {error}",
+  "@workspaceDirectorySaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "workspaceDirectoryPickerTitle": "Choose working directory",
+  "workspaceDirectorySelectCurrent": "Use this folder",
   "workspaceShellMobileOnly": "Shell is only available on Android or iOS",
   "workspaceToolShellTitle": "Shell",
   "workspaceToolShellUserDesc": "Run commands in the Linux sandbox (Android or iOS, requires base dependency)",

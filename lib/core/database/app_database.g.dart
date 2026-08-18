@@ -157,6 +157,18 @@ class $ConversationRowsTable extends ConversationRows
     requiredDuringInsert: false,
     defaultValue: const Constant('normal'),
   );
+  static const VerificationMeta _workspaceDirectoryOverridesJsonMeta =
+      const VerificationMeta('workspaceDirectoryOverridesJson');
+  @override
+  late final GeneratedColumn<String> workspaceDirectoryOverridesJson =
+      GeneratedColumn<String>(
+        'workspace_directory_overrides_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('{}'),
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -172,6 +184,7 @@ class $ConversationRowsTable extends ConversationRows
     chatSuggestionsJson,
     parentConversationId,
     conversationKind,
+    workspaceDirectoryOverridesJson,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -289,6 +302,15 @@ class $ConversationRowsTable extends ConversationRows
         ),
       );
     }
+    if (data.containsKey('workspace_directory_overrides_json')) {
+      context.handle(
+        _workspaceDirectoryOverridesJsonMeta,
+        workspaceDirectoryOverridesJson.isAcceptableOrUnknown(
+          data['workspace_directory_overrides_json']!,
+          _workspaceDirectoryOverridesJsonMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -350,6 +372,10 @@ class $ConversationRowsTable extends ConversationRows
         DriftSqlType.string,
         data['${effectivePrefix}conversation_kind'],
       )!,
+      workspaceDirectoryOverridesJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}workspace_directory_overrides_json'],
+      )!,
     );
   }
 
@@ -375,6 +401,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
 
   /// 'normal' | 'group' — group public transcripts use kind=group.
   final String conversationKind;
+  final String workspaceDirectoryOverridesJson;
   const ConversationRow({
     required this.id,
     required this.title,
@@ -389,6 +416,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
     required this.chatSuggestionsJson,
     this.parentConversationId,
     required this.conversationKind,
+    required this.workspaceDirectoryOverridesJson,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -414,6 +442,9 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
       map['parent_conversation_id'] = Variable<String>(parentConversationId);
     }
     map['conversation_kind'] = Variable<String>(conversationKind);
+    map['workspace_directory_overrides_json'] = Variable<String>(
+      workspaceDirectoryOverridesJson,
+    );
     return map;
   }
 
@@ -438,6 +469,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
           ? const Value.absent()
           : Value(parentConversationId),
       conversationKind: Value(conversationKind),
+      workspaceDirectoryOverridesJson: Value(workspaceDirectoryOverridesJson),
     );
   }
 
@@ -468,6 +500,9 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
         json['parentConversationId'],
       ),
       conversationKind: serializer.fromJson<String>(json['conversationKind']),
+      workspaceDirectoryOverridesJson: serializer.fromJson<String>(
+        json['workspaceDirectoryOverridesJson'],
+      ),
     );
   }
   @override
@@ -489,6 +524,9 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
       'chatSuggestionsJson': serializer.toJson<String>(chatSuggestionsJson),
       'parentConversationId': serializer.toJson<String?>(parentConversationId),
       'conversationKind': serializer.toJson<String>(conversationKind),
+      'workspaceDirectoryOverridesJson': serializer.toJson<String>(
+        workspaceDirectoryOverridesJson,
+      ),
     };
   }
 
@@ -506,6 +544,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
     String? chatSuggestionsJson,
     Value<String?> parentConversationId = const Value.absent(),
     String? conversationKind,
+    String? workspaceDirectoryOverridesJson,
   }) => ConversationRow(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -523,6 +562,8 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
         ? parentConversationId.value
         : this.parentConversationId,
     conversationKind: conversationKind ?? this.conversationKind,
+    workspaceDirectoryOverridesJson:
+        workspaceDirectoryOverridesJson ?? this.workspaceDirectoryOverridesJson,
   );
   ConversationRow copyWithCompanion(ConversationRowsCompanion data) {
     return ConversationRow(
@@ -553,6 +594,10 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
       conversationKind: data.conversationKind.present
           ? data.conversationKind.value
           : this.conversationKind,
+      workspaceDirectoryOverridesJson:
+          data.workspaceDirectoryOverridesJson.present
+          ? data.workspaceDirectoryOverridesJson.value
+          : this.workspaceDirectoryOverridesJson,
     );
   }
 
@@ -571,7 +616,10 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
           ..write('lastSummarizedMessageCount: $lastSummarizedMessageCount, ')
           ..write('chatSuggestionsJson: $chatSuggestionsJson, ')
           ..write('parentConversationId: $parentConversationId, ')
-          ..write('conversationKind: $conversationKind')
+          ..write('conversationKind: $conversationKind, ')
+          ..write(
+            'workspaceDirectoryOverridesJson: $workspaceDirectoryOverridesJson',
+          )
           ..write(')'))
         .toString();
   }
@@ -591,6 +639,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
     chatSuggestionsJson,
     parentConversationId,
     conversationKind,
+    workspaceDirectoryOverridesJson,
   );
   @override
   bool operator ==(Object other) =>
@@ -608,7 +657,9 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
           other.lastSummarizedMessageCount == this.lastSummarizedMessageCount &&
           other.chatSuggestionsJson == this.chatSuggestionsJson &&
           other.parentConversationId == this.parentConversationId &&
-          other.conversationKind == this.conversationKind);
+          other.conversationKind == this.conversationKind &&
+          other.workspaceDirectoryOverridesJson ==
+              this.workspaceDirectoryOverridesJson);
 }
 
 class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
@@ -625,6 +676,7 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
   final Value<String> chatSuggestionsJson;
   final Value<String?> parentConversationId;
   final Value<String> conversationKind;
+  final Value<String> workspaceDirectoryOverridesJson;
   final Value<int> rowid;
   const ConversationRowsCompanion({
     this.id = const Value.absent(),
@@ -640,6 +692,7 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
     this.chatSuggestionsJson = const Value.absent(),
     this.parentConversationId = const Value.absent(),
     this.conversationKind = const Value.absent(),
+    this.workspaceDirectoryOverridesJson = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ConversationRowsCompanion.insert({
@@ -656,6 +709,7 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
     this.chatSuggestionsJson = const Value.absent(),
     this.parentConversationId = const Value.absent(),
     this.conversationKind = const Value.absent(),
+    this.workspaceDirectoryOverridesJson = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
@@ -675,6 +729,7 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
     Expression<String>? chatSuggestionsJson,
     Expression<String>? parentConversationId,
     Expression<String>? conversationKind,
+    Expression<String>? workspaceDirectoryOverridesJson,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -695,6 +750,8 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
       if (parentConversationId != null)
         'parent_conversation_id': parentConversationId,
       if (conversationKind != null) 'conversation_kind': conversationKind,
+      if (workspaceDirectoryOverridesJson != null)
+        'workspace_directory_overrides_json': workspaceDirectoryOverridesJson,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -713,6 +770,7 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
     Value<String>? chatSuggestionsJson,
     Value<String?>? parentConversationId,
     Value<String>? conversationKind,
+    Value<String>? workspaceDirectoryOverridesJson,
     Value<int>? rowid,
   }) {
     return ConversationRowsCompanion(
@@ -731,6 +789,9 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
       chatSuggestionsJson: chatSuggestionsJson ?? this.chatSuggestionsJson,
       parentConversationId: parentConversationId ?? this.parentConversationId,
       conversationKind: conversationKind ?? this.conversationKind,
+      workspaceDirectoryOverridesJson:
+          workspaceDirectoryOverridesJson ??
+          this.workspaceDirectoryOverridesJson,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -785,6 +846,11 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
     if (conversationKind.present) {
       map['conversation_kind'] = Variable<String>(conversationKind.value);
     }
+    if (workspaceDirectoryOverridesJson.present) {
+      map['workspace_directory_overrides_json'] = Variable<String>(
+        workspaceDirectoryOverridesJson.value,
+      );
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -807,6 +873,9 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
           ..write('chatSuggestionsJson: $chatSuggestionsJson, ')
           ..write('parentConversationId: $parentConversationId, ')
           ..write('conversationKind: $conversationKind, ')
+          ..write(
+            'workspaceDirectoryOverridesJson: $workspaceDirectoryOverridesJson, ',
+          )
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2725,6 +2794,18 @@ class $AssistantRowsTable extends AssistantRows
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _workspaceDefaultDirectoriesJsonMeta =
+      const VerificationMeta('workspaceDefaultDirectoriesJson');
+  @override
+  late final GeneratedColumn<String> workspaceDefaultDirectoriesJson =
+      GeneratedColumn<String>(
+        'workspace_default_directories_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('{}'),
+      );
   static const VerificationMeta _regexRulesJsonMeta = const VerificationMeta(
     'regexRulesJson',
   );
@@ -3012,6 +3093,7 @@ class $AssistantRowsTable extends AssistantRows
     skillIdsJson,
     workspaceEnabled,
     workspaceId,
+    workspaceDefaultDirectoriesJson,
     regexRulesJson,
     enableProactiveCare,
     proactiveCareNextMessageAt,
@@ -3260,6 +3342,15 @@ class $AssistantRowsTable extends AssistantRows
         workspaceId.isAcceptableOrUnknown(
           data['workspace_id']!,
           _workspaceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('workspace_default_directories_json')) {
+      context.handle(
+        _workspaceDefaultDirectoriesJsonMeta,
+        workspaceDefaultDirectoriesJson.isAcceptableOrUnknown(
+          data['workspace_default_directories_json']!,
+          _workspaceDefaultDirectoriesJsonMeta,
         ),
       );
     }
@@ -3547,6 +3638,10 @@ class $AssistantRowsTable extends AssistantRows
         DriftSqlType.string,
         data['${effectivePrefix}workspace_id'],
       ),
+      workspaceDefaultDirectoriesJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}workspace_default_directories_json'],
+      )!,
       regexRulesJson: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}regex_rules_json'],
@@ -3667,6 +3762,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
   final String skillIdsJson;
   final bool workspaceEnabled;
   final String? workspaceId;
+  final String workspaceDefaultDirectoriesJson;
   final String regexRulesJson;
   final bool enableProactiveCare;
   final DateTime? proactiveCareNextMessageAt;
@@ -3715,6 +3811,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     required this.skillIdsJson,
     required this.workspaceEnabled,
     this.workspaceId,
+    required this.workspaceDefaultDirectoriesJson,
     required this.regexRulesJson,
     required this.enableProactiveCare,
     this.proactiveCareNextMessageAt,
@@ -3784,6 +3881,9 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     if (!nullToAbsent || workspaceId != null) {
       map['workspace_id'] = Variable<String>(workspaceId);
     }
+    map['workspace_default_directories_json'] = Variable<String>(
+      workspaceDefaultDirectoriesJson,
+    );
     map['regex_rules_json'] = Variable<String>(regexRulesJson);
     map['enable_proactive_care'] = Variable<bool>(enableProactiveCare);
     if (!nullToAbsent || proactiveCareNextMessageAt != null) {
@@ -3866,6 +3966,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       workspaceId: workspaceId == null && nullToAbsent
           ? const Value.absent()
           : Value(workspaceId),
+      workspaceDefaultDirectoriesJson: Value(workspaceDefaultDirectoriesJson),
       regexRulesJson: Value(regexRulesJson),
       enableProactiveCare: Value(enableProactiveCare),
       proactiveCareNextMessageAt:
@@ -3935,6 +4036,9 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       skillIdsJson: serializer.fromJson<String>(json['skillIdsJson']),
       workspaceEnabled: serializer.fromJson<bool>(json['workspaceEnabled']),
       workspaceId: serializer.fromJson<String?>(json['workspaceId']),
+      workspaceDefaultDirectoriesJson: serializer.fromJson<String>(
+        json['workspaceDefaultDirectoriesJson'],
+      ),
       regexRulesJson: serializer.fromJson<String>(json['regexRulesJson']),
       enableProactiveCare: serializer.fromJson<bool>(
         json['enableProactiveCare'],
@@ -4006,6 +4110,9 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       'skillIdsJson': serializer.toJson<String>(skillIdsJson),
       'workspaceEnabled': serializer.toJson<bool>(workspaceEnabled),
       'workspaceId': serializer.toJson<String?>(workspaceId),
+      'workspaceDefaultDirectoriesJson': serializer.toJson<String>(
+        workspaceDefaultDirectoriesJson,
+      ),
       'regexRulesJson': serializer.toJson<String>(regexRulesJson),
       'enableProactiveCare': serializer.toJson<bool>(enableProactiveCare),
       'proactiveCareNextMessageAt': serializer.toJson<DateTime?>(
@@ -4065,6 +4172,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     String? skillIdsJson,
     bool? workspaceEnabled,
     Value<String?> workspaceId = const Value.absent(),
+    String? workspaceDefaultDirectoriesJson,
     String? regexRulesJson,
     bool? enableProactiveCare,
     Value<DateTime?> proactiveCareNextMessageAt = const Value.absent(),
@@ -4117,6 +4225,8 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     skillIdsJson: skillIdsJson ?? this.skillIdsJson,
     workspaceEnabled: workspaceEnabled ?? this.workspaceEnabled,
     workspaceId: workspaceId.present ? workspaceId.value : this.workspaceId,
+    workspaceDefaultDirectoriesJson:
+        workspaceDefaultDirectoriesJson ?? this.workspaceDefaultDirectoriesJson,
     regexRulesJson: regexRulesJson ?? this.regexRulesJson,
     enableProactiveCare: enableProactiveCare ?? this.enableProactiveCare,
     proactiveCareNextMessageAt: proactiveCareNextMessageAt.present
@@ -4216,6 +4326,10 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       workspaceId: data.workspaceId.present
           ? data.workspaceId.value
           : this.workspaceId,
+      workspaceDefaultDirectoriesJson:
+          data.workspaceDefaultDirectoriesJson.present
+          ? data.workspaceDefaultDirectoriesJson.value
+          : this.workspaceDefaultDirectoriesJson,
       regexRulesJson: data.regexRulesJson.present
           ? data.regexRulesJson.value
           : this.regexRulesJson,
@@ -4298,6 +4412,9 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
           ..write('skillIdsJson: $skillIdsJson, ')
           ..write('workspaceEnabled: $workspaceEnabled, ')
           ..write('workspaceId: $workspaceId, ')
+          ..write(
+            'workspaceDefaultDirectoriesJson: $workspaceDefaultDirectoriesJson, ',
+          )
           ..write('regexRulesJson: $regexRulesJson, ')
           ..write('enableProactiveCare: $enableProactiveCare, ')
           ..write('proactiveCareNextMessageAt: $proactiveCareNextMessageAt, ')
@@ -4353,6 +4470,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     skillIdsJson,
     workspaceEnabled,
     workspaceId,
+    workspaceDefaultDirectoriesJson,
     regexRulesJson,
     enableProactiveCare,
     proactiveCareNextMessageAt,
@@ -4405,6 +4523,8 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
           other.skillIdsJson == this.skillIdsJson &&
           other.workspaceEnabled == this.workspaceEnabled &&
           other.workspaceId == this.workspaceId &&
+          other.workspaceDefaultDirectoriesJson ==
+              this.workspaceDefaultDirectoriesJson &&
           other.regexRulesJson == this.regexRulesJson &&
           other.enableProactiveCare == this.enableProactiveCare &&
           other.proactiveCareNextMessageAt == this.proactiveCareNextMessageAt &&
@@ -4457,6 +4577,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
   final Value<String> skillIdsJson;
   final Value<bool> workspaceEnabled;
   final Value<String?> workspaceId;
+  final Value<String> workspaceDefaultDirectoriesJson;
   final Value<String> regexRulesJson;
   final Value<bool> enableProactiveCare;
   final Value<DateTime?> proactiveCareNextMessageAt;
@@ -4506,6 +4627,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     this.skillIdsJson = const Value.absent(),
     this.workspaceEnabled = const Value.absent(),
     this.workspaceId = const Value.absent(),
+    this.workspaceDefaultDirectoriesJson = const Value.absent(),
     this.regexRulesJson = const Value.absent(),
     this.enableProactiveCare = const Value.absent(),
     this.proactiveCareNextMessageAt = const Value.absent(),
@@ -4556,6 +4678,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     this.skillIdsJson = const Value.absent(),
     this.workspaceEnabled = const Value.absent(),
     this.workspaceId = const Value.absent(),
+    this.workspaceDefaultDirectoriesJson = const Value.absent(),
     this.regexRulesJson = const Value.absent(),
     this.enableProactiveCare = const Value.absent(),
     this.proactiveCareNextMessageAt = const Value.absent(),
@@ -4610,6 +4733,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     Expression<String>? skillIdsJson,
     Expression<bool>? workspaceEnabled,
     Expression<String>? workspaceId,
+    Expression<String>? workspaceDefaultDirectoriesJson,
     Expression<String>? regexRulesJson,
     Expression<bool>? enableProactiveCare,
     Expression<DateTime>? proactiveCareNextMessageAt,
@@ -4664,6 +4788,8 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
       if (skillIdsJson != null) 'skill_ids_json': skillIdsJson,
       if (workspaceEnabled != null) 'workspace_enabled': workspaceEnabled,
       if (workspaceId != null) 'workspace_id': workspaceId,
+      if (workspaceDefaultDirectoriesJson != null)
+        'workspace_default_directories_json': workspaceDefaultDirectoriesJson,
       if (regexRulesJson != null) 'regex_rules_json': regexRulesJson,
       if (enableProactiveCare != null)
         'enable_proactive_care': enableProactiveCare,
@@ -4724,6 +4850,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     Value<String>? skillIdsJson,
     Value<bool>? workspaceEnabled,
     Value<String?>? workspaceId,
+    Value<String>? workspaceDefaultDirectoriesJson,
     Value<String>? regexRulesJson,
     Value<bool>? enableProactiveCare,
     Value<DateTime?>? proactiveCareNextMessageAt,
@@ -4774,6 +4901,9 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
       skillIdsJson: skillIdsJson ?? this.skillIdsJson,
       workspaceEnabled: workspaceEnabled ?? this.workspaceEnabled,
       workspaceId: workspaceId ?? this.workspaceId,
+      workspaceDefaultDirectoriesJson:
+          workspaceDefaultDirectoriesJson ??
+          this.workspaceDefaultDirectoriesJson,
       regexRulesJson: regexRulesJson ?? this.regexRulesJson,
       enableProactiveCare: enableProactiveCare ?? this.enableProactiveCare,
       proactiveCareNextMessageAt:
@@ -4886,6 +5016,11 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     if (workspaceId.present) {
       map['workspace_id'] = Variable<String>(workspaceId.value);
     }
+    if (workspaceDefaultDirectoriesJson.present) {
+      map['workspace_default_directories_json'] = Variable<String>(
+        workspaceDefaultDirectoriesJson.value,
+      );
+    }
     if (regexRulesJson.present) {
       map['regex_rules_json'] = Variable<String>(regexRulesJson.value);
     }
@@ -4994,6 +5129,9 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
           ..write('skillIdsJson: $skillIdsJson, ')
           ..write('workspaceEnabled: $workspaceEnabled, ')
           ..write('workspaceId: $workspaceId, ')
+          ..write(
+            'workspaceDefaultDirectoriesJson: $workspaceDefaultDirectoriesJson, ',
+          )
           ..write('regexRulesJson: $regexRulesJson, ')
           ..write('enableProactiveCare: $enableProactiveCare, ')
           ..write('proactiveCareNextMessageAt: $proactiveCareNextMessageAt, ')
@@ -8483,6 +8621,7 @@ typedef $$ConversationRowsTableCreateCompanionBuilder =
       Value<String> chatSuggestionsJson,
       Value<String?> parentConversationId,
       Value<String> conversationKind,
+      Value<String> workspaceDirectoryOverridesJson,
       Value<int> rowid,
     });
 typedef $$ConversationRowsTableUpdateCompanionBuilder =
@@ -8500,6 +8639,7 @@ typedef $$ConversationRowsTableUpdateCompanionBuilder =
       Value<String> chatSuggestionsJson,
       Value<String?> parentConversationId,
       Value<String> conversationKind,
+      Value<String> workspaceDirectoryOverridesJson,
       Value<int> rowid,
     });
 
@@ -8649,6 +8789,12 @@ class $$ConversationRowsTableFilterComposer
     column: $table.conversationKind,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<String> get workspaceDirectoryOverridesJson =>
+      $composableBuilder(
+        column: $table.workspaceDirectoryOverridesJson,
+        builder: (column) => ColumnFilters(column),
+      );
 
   Expression<bool> messageRowsRefs(
     Expression<bool> Function($$MessageRowsTableFilterComposer f) f,
@@ -8801,6 +8947,12 @@ class $$ConversationRowsTableOrderingComposer
     column: $table.conversationKind,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get workspaceDirectoryOverridesJson =>
+      $composableBuilder(
+        column: $table.workspaceDirectoryOverridesJson,
+        builder: (column) => ColumnOrderings(column),
+      );
 }
 
 class $$ConversationRowsTableAnnotationComposer
@@ -8864,6 +9016,12 @@ class $$ConversationRowsTableAnnotationComposer
     column: $table.conversationKind,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get workspaceDirectoryOverridesJson =>
+      $composableBuilder(
+        column: $table.workspaceDirectoryOverridesJson,
+        builder: (column) => column,
+      );
 
   Expression<T> messageRowsRefs<T extends Object>(
     Expression<T> Function($$MessageRowsTableAnnotationComposer a) f,
@@ -8990,6 +9148,8 @@ class $$ConversationRowsTableTableManager
                 Value<String> chatSuggestionsJson = const Value.absent(),
                 Value<String?> parentConversationId = const Value.absent(),
                 Value<String> conversationKind = const Value.absent(),
+                Value<String> workspaceDirectoryOverridesJson =
+                    const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ConversationRowsCompanion(
                 id: id,
@@ -9005,6 +9165,8 @@ class $$ConversationRowsTableTableManager
                 chatSuggestionsJson: chatSuggestionsJson,
                 parentConversationId: parentConversationId,
                 conversationKind: conversationKind,
+                workspaceDirectoryOverridesJson:
+                    workspaceDirectoryOverridesJson,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -9022,6 +9184,8 @@ class $$ConversationRowsTableTableManager
                 Value<String> chatSuggestionsJson = const Value.absent(),
                 Value<String?> parentConversationId = const Value.absent(),
                 Value<String> conversationKind = const Value.absent(),
+                Value<String> workspaceDirectoryOverridesJson =
+                    const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ConversationRowsCompanion.insert(
                 id: id,
@@ -9037,6 +9201,8 @@ class $$ConversationRowsTableTableManager
                 chatSuggestionsJson: chatSuggestionsJson,
                 parentConversationId: parentConversationId,
                 conversationKind: conversationKind,
+                workspaceDirectoryOverridesJson:
+                    workspaceDirectoryOverridesJson,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -10167,6 +10333,7 @@ typedef $$AssistantRowsTableCreateCompanionBuilder =
       Value<String> skillIdsJson,
       Value<bool> workspaceEnabled,
       Value<String?> workspaceId,
+      Value<String> workspaceDefaultDirectoriesJson,
       Value<String> regexRulesJson,
       Value<bool> enableProactiveCare,
       Value<DateTime?> proactiveCareNextMessageAt,
@@ -10218,6 +10385,7 @@ typedef $$AssistantRowsTableUpdateCompanionBuilder =
       Value<String> skillIdsJson,
       Value<bool> workspaceEnabled,
       Value<String?> workspaceId,
+      Value<String> workspaceDefaultDirectoriesJson,
       Value<String> regexRulesJson,
       Value<bool> enableProactiveCare,
       Value<DateTime?> proactiveCareNextMessageAt,
@@ -10380,6 +10548,12 @@ class $$AssistantRowsTableFilterComposer
     column: $table.workspaceId,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<String> get workspaceDefaultDirectoriesJson =>
+      $composableBuilder(
+        column: $table.workspaceDefaultDirectoriesJson,
+        builder: (column) => ColumnFilters(column),
+      );
 
   ColumnFilters<String> get regexRulesJson => $composableBuilder(
     column: $table.regexRulesJson,
@@ -10626,6 +10800,12 @@ class $$AssistantRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get workspaceDefaultDirectoriesJson =>
+      $composableBuilder(
+        column: $table.workspaceDefaultDirectoriesJson,
+        builder: (column) => ColumnOrderings(column),
+      );
+
   ColumnOrderings<String> get regexRulesJson => $composableBuilder(
     column: $table.regexRulesJson,
     builder: (column) => ColumnOrderings(column),
@@ -10862,6 +11042,12 @@ class $$AssistantRowsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get workspaceDefaultDirectoriesJson =>
+      $composableBuilder(
+        column: $table.workspaceDefaultDirectoriesJson,
+        builder: (column) => column,
+      );
+
   GeneratedColumn<String> get regexRulesJson => $composableBuilder(
     column: $table.regexRulesJson,
     builder: (column) => column,
@@ -11012,6 +11198,8 @@ class $$AssistantRowsTableTableManager
                 Value<String> skillIdsJson = const Value.absent(),
                 Value<bool> workspaceEnabled = const Value.absent(),
                 Value<String?> workspaceId = const Value.absent(),
+                Value<String> workspaceDefaultDirectoriesJson =
+                    const Value.absent(),
                 Value<String> regexRulesJson = const Value.absent(),
                 Value<bool> enableProactiveCare = const Value.absent(),
                 Value<DateTime?> proactiveCareNextMessageAt =
@@ -11064,6 +11252,8 @@ class $$AssistantRowsTableTableManager
                 skillIdsJson: skillIdsJson,
                 workspaceEnabled: workspaceEnabled,
                 workspaceId: workspaceId,
+                workspaceDefaultDirectoriesJson:
+                    workspaceDefaultDirectoriesJson,
                 regexRulesJson: regexRulesJson,
                 enableProactiveCare: enableProactiveCare,
                 proactiveCareNextMessageAt: proactiveCareNextMessageAt,
@@ -11115,6 +11305,8 @@ class $$AssistantRowsTableTableManager
                 Value<String> skillIdsJson = const Value.absent(),
                 Value<bool> workspaceEnabled = const Value.absent(),
                 Value<String?> workspaceId = const Value.absent(),
+                Value<String> workspaceDefaultDirectoriesJson =
+                    const Value.absent(),
                 Value<String> regexRulesJson = const Value.absent(),
                 Value<bool> enableProactiveCare = const Value.absent(),
                 Value<DateTime?> proactiveCareNextMessageAt =
@@ -11167,6 +11359,8 @@ class $$AssistantRowsTableTableManager
                 skillIdsJson: skillIdsJson,
                 workspaceEnabled: workspaceEnabled,
                 workspaceId: workspaceId,
+                workspaceDefaultDirectoriesJson:
+                    workspaceDefaultDirectoriesJson,
                 regexRulesJson: regexRulesJson,
                 enableProactiveCare: enableProactiveCare,
                 proactiveCareNextMessageAt: proactiveCareNextMessageAt,

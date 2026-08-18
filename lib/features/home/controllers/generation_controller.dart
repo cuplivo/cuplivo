@@ -2,10 +2,12 @@ import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_message.dart';
+import '../../../core/models/conversation.dart';
 import '../../../core/providers/model_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/services/workspace/workspace_execution_context.dart';
 import '../../model/utils/ocr_model_capability.dart';
 import '../../../utils/assistant_regex.dart';
 import '../../../core/models/assistant_regex.dart';
@@ -126,8 +128,10 @@ class GenerationController {
     Assistant? assistant,
     String providerKey,
     String modelId,
-    bool hasBuiltInSearch,
-  ) {
+    bool hasBuiltInSearch, {
+    Conversation? conversation,
+    WorkspaceExecutionContext? workspaceExecutionContext,
+  }) {
     return toolHandlerService.buildToolDefinitions(
       settings,
       assistant,
@@ -135,8 +139,28 @@ class GenerationController {
       modelId,
       hasBuiltInSearch,
       isToolModel: isToolModel,
+      conversation: conversation,
+      workspaceExecutionContext: workspaceExecutionContext,
     );
   }
+
+  WorkspaceExecutionContext? resolveWorkspaceExecutionContext(
+    Assistant? assistant,
+    Conversation? conversation,
+  ) => toolHandlerService.resolveWorkspaceExecutionContext(
+    assistant,
+    conversation,
+  );
+
+  String? buildWorkspacePromptReminder({
+    required Assistant? assistant,
+    required Conversation? conversation,
+    WorkspaceExecutionContext? workspaceExecutionContext,
+  }) => toolHandlerService.buildWorkspacePromptReminder(
+    assistant: assistant,
+    conversation: conversation,
+    executionContext: workspaceExecutionContext,
+  );
 
   /// Build tool call handler function.
   /// Delegates to ToolHandlerService.buildToolCallHandler.
@@ -146,6 +170,8 @@ class GenerationController {
     ToolApprovalService? approvalService,
     AskUserInteractionService? askUserService,
     String? conversationId,
+    Conversation? conversation,
+    WorkspaceExecutionContext? workspaceExecutionContext,
   }) {
     return toolHandlerService.buildToolCallHandler(
       settings,
@@ -153,6 +179,8 @@ class GenerationController {
       approvalService: approvalService,
       askUserService: askUserService,
       conversationId: conversationId,
+      conversation: conversation,
+      workspaceExecutionContext: workspaceExecutionContext,
     );
   }
 

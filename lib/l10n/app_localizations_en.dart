@@ -8207,6 +8207,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workspaceEntrySubtitleOff => 'Off';
 
   @override
+  String get workspaceSettingsTitle => 'Workspace settings';
+
+  @override
+  String get workspaceDefaultDirectoryTitle => 'Default working directory';
+
+  @override
+  String get workspaceConversationDirectoryTitle =>
+      'Conversation working directory';
+
+  @override
+  String get workspaceDirectoryHint =>
+      '/workspace or a path relative to the workspace root';
+
+  @override
+  String get workspaceDirectoryBrowse => 'Browse';
+
+  @override
+  String get workspaceDirectorySave => 'Save';
+
+  @override
+  String get workspaceDirectoryUseAssistantDefault => 'Use assistant default';
+
+  @override
+  String get workspaceDirectoryInherited => 'Following the assistant default';
+
+  @override
+  String get workspaceDirectoryOverride => 'Overridden for this conversation';
+
+  @override
+  String get workspaceDirectorySaved => 'Working directory saved';
+
+  @override
+  String workspaceDirectorySaveFailed(String error) {
+    return 'Failed to save working directory: $error';
+  }
+
+  @override
+  String get workspaceDirectoryPickerTitle => 'Choose working directory';
+
+  @override
+  String get workspaceDirectorySelectCurrent => 'Use this folder';
+
+  @override
   String get workspaceShellMobileOnly =>
       'Shell is only available on Android or iOS';
 

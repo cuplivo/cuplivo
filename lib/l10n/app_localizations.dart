@@ -14820,6 +14820,84 @@ abstract class AppLocalizations {
   /// **'Off'**
   String get workspaceEntrySubtitleOff;
 
+  /// No description provided for @workspaceSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace settings'**
+  String get workspaceSettingsTitle;
+
+  /// No description provided for @workspaceDefaultDirectoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Default working directory'**
+  String get workspaceDefaultDirectoryTitle;
+
+  /// No description provided for @workspaceConversationDirectoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation working directory'**
+  String get workspaceConversationDirectoryTitle;
+
+  /// No description provided for @workspaceDirectoryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'/workspace or a path relative to the workspace root'**
+  String get workspaceDirectoryHint;
+
+  /// No description provided for @workspaceDirectoryBrowse.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse'**
+  String get workspaceDirectoryBrowse;
+
+  /// No description provided for @workspaceDirectorySave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get workspaceDirectorySave;
+
+  /// No description provided for @workspaceDirectoryUseAssistantDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Use assistant default'**
+  String get workspaceDirectoryUseAssistantDefault;
+
+  /// No description provided for @workspaceDirectoryInherited.
+  ///
+  /// In en, this message translates to:
+  /// **'Following the assistant default'**
+  String get workspaceDirectoryInherited;
+
+  /// No description provided for @workspaceDirectoryOverride.
+  ///
+  /// In en, this message translates to:
+  /// **'Overridden for this conversation'**
+  String get workspaceDirectoryOverride;
+
+  /// No description provided for @workspaceDirectorySaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Working directory saved'**
+  String get workspaceDirectorySaved;
+
+  /// No description provided for @workspaceDirectorySaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save working directory: {error}'**
+  String workspaceDirectorySaveFailed(String error);
+
+  /// No description provided for @workspaceDirectoryPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose working directory'**
+  String get workspaceDirectoryPickerTitle;
+
+  /// No description provided for @workspaceDirectorySelectCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this folder'**
+  String get workspaceDirectorySelectCurrent;
+
   /// No description provided for @workspaceShellMobileOnly.
   ///
   /// In en, this message translates to:

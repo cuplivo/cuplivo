@@ -245,6 +245,16 @@ class HandoffToolService {
 
       // ignore: use_build_context_synchronously (root context)
       final toolHandler = ToolHandlerService(contextProvider: context);
+      final workspaceExecutionContext = toolHandler
+          .resolveWorkspaceExecutionContext(target, conversation);
+      messageBuilder.injectWorkspacePrompt(
+        apiMessages,
+        toolHandler.buildWorkspacePromptReminder(
+          assistant: target,
+          conversation: conversation,
+          executionContext: workspaceExecutionContext,
+        ),
+      );
       final toolDefs = toolHandler.buildToolDefinitions(
         settings,
         target,
@@ -252,6 +262,8 @@ class HandoffToolService {
         modelId,
         false,
         isToolModel: (_, _) => true,
+        conversation: conversation,
+        workspaceExecutionContext: workspaceExecutionContext,
       );
       final onToolCall = toolDefs.isNotEmpty
           ? toolHandler.buildToolCallHandler(
@@ -264,6 +276,8 @@ class HandoffToolService {
               // ignore: use_build_context_synchronously (root context)
               askUserService: context.read<AskUserInteractionService>(),
               conversationId: conversation.id,
+              conversation: conversation,
+              workspaceExecutionContext: workspaceExecutionContext,
             )
           : null;
 

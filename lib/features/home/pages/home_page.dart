@@ -57,6 +57,7 @@ import '../widgets/instruction_injection_sheet.dart';
 import '../../skills/pages/skills_page.dart';
 import '../../skills/skill_manager.dart';
 import '../../skills/widgets/skills_sheet.dart';
+import '../../workspace/widgets/workspace_settings_sheet.dart';
 import '../widgets/world_book_sheet.dart';
 import '../widgets/document_processing_sheet.dart';
 import '../widgets/learning_prompt_sheet.dart';
@@ -1534,6 +1535,16 @@ class _HomePageState extends State<HomePage>
           isReasoningModel: _controller.isReasoningModel,
           isReasoningEnabled: _controller.isReasoningEnabled,
           conversationId: _controller.currentConversation?.id,
+          showWorkspaceButton:
+              _controller.currentConversation?.isGroup == false &&
+              context.watch<AssistantProvider>().currentAssistant != null,
+          workspaceActive:
+              context
+                  .watch<AssistantProvider>()
+                  .currentAssistant
+                  ?.workspaceEnabled ??
+              false,
+          onOpenWorkspace: _openWorkspaceSettings,
           sendButtonTooltip: _controller.isUserMessageEditActive
               ? AppLocalizations.of(context)!.messageEditPageSaveAndSend
               : null,
@@ -1897,10 +1908,29 @@ class _HomePageState extends State<HomePage>
     await showLearningPromptSheet(context);
   }
 
+  Future<void> _openWorkspaceSettings() async {
+    final assistant = context.read<AssistantProvider>().currentAssistant;
+    final conversation = _controller.currentConversation;
+    if (assistant == null || conversation == null || conversation.isGroup) {
+      return;
+    }
+    await showWorkspaceSettingsSheet(
+      context,
+      assistantId: assistant.id,
+      conversationId: conversation.id,
+    );
+  }
+
   void _toggleTools() async {
     _controller.dismissKeyboard();
     final cs = Theme.of(context).colorScheme;
     final assistantId = context.read<AssistantProvider>().currentAssistantId;
+    final conversation = _controller.currentConversation;
+    final showWorkspace =
+        !PlatformUtils.isDesktop &&
+        assistantId != null &&
+        conversation != null &&
+        !conversation.isGroup;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1937,6 +1967,13 @@ class _HomePageState extends State<HomePage>
               Navigator.of(ctx).maybePop();
               _openSkillsPopover();
             },
+            onOpenWorkspace: showWorkspace
+                ? () async {
+                    await Navigator.of(ctx).maybePop();
+                    if (!mounted) return;
+                    await _openWorkspaceSettings();
+                  }
+                : null,
           ),
         );
       },

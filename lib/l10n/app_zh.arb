@@ -3116,6 +3116,26 @@
   "workspaceBindTitle": "绑定工作区",
   "workspaceEntryTitle": "工作区",
   "workspaceEntrySubtitleOff": "未开启",
+  "workspaceSettingsTitle": "工作区设置",
+  "workspaceDefaultDirectoryTitle": "默认工作目录",
+  "workspaceConversationDirectoryTitle": "当前会话工作目录",
+  "workspaceDirectoryHint": "/workspace 或相对于工作区根目录的路径",
+  "workspaceDirectoryBrowse": "浏览",
+  "workspaceDirectorySave": "保存",
+  "workspaceDirectoryUseAssistantDefault": "使用助手默认目录",
+  "workspaceDirectoryInherited": "正在继承助手默认目录",
+  "workspaceDirectoryOverride": "当前会话已覆盖",
+  "workspaceDirectorySaved": "工作目录已保存",
+  "workspaceDirectorySaveFailed": "保存工作目录失败：{error}",
+  "@workspaceDirectorySaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "workspaceDirectoryPickerTitle": "选择工作目录",
+  "workspaceDirectorySelectCurrent": "选择当前文件夹",
   "workspaceShellMobileOnly": "Shell 仅在 Android 或 iOS 可用",
   "workspaceToolShellTitle": "Shell",
   "workspaceToolShellUserDesc": "在 Linux 沙箱中运行命令（Android 或 iOS，需先安装基础依赖）",

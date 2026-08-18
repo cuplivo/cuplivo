@@ -54,6 +54,41 @@ void main() {
   }
 
   group('ChatService temporary conversations', () {
+    test(
+      'workspace directory override updates and clears on a draft',
+      () async {
+        final service = createService();
+        await service.init();
+        final conversation = await service.createDraftConversation(
+          title: 'Chat',
+        );
+
+        await service.setConversationWorkspaceDirectoryOverride(
+          conversation.id,
+          'workspace-a',
+          '/workspace/session-a',
+        );
+        expect(
+          service
+              .getConversation(conversation.id)
+              ?.workspaceDirectoryOverrides['workspace-a'],
+          '/workspace/session-a',
+        );
+
+        await service.clearConversationWorkspaceDirectoryOverride(
+          conversation.id,
+          'workspace-a',
+        );
+        expect(
+          service
+              .getConversation(conversation.id)
+              ?.workspaceDirectoryOverrides
+              .containsKey('workspace-a'),
+          isFalse,
+        );
+      },
+    );
+
     test('ordinary draft persists when its first message is added', () async {
       final service = createService();
       await service.init();

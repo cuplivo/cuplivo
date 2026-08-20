@@ -77,6 +77,22 @@ Do **not** store sensitive information, including:
   final int
   recentChatsSummaryMessageCount; // refresh summary after N new messages
   final String memoryRecordPrompt; // custom prompt for active memory recording
+
+  // Memory v2 (schema v20): three-layer memory controls + cross-window + presets.
+  // These extend the v15 enableMemory / memoryMode pair without overriding it;
+  // a v15 assistant with `enableMemory=true` keeps the same long-term memory
+  // behavior, while the new fields opt into cross-window context and the
+  // three-layer policy (systemPrompt / cross-window / long-term). See the
+  // 3-layer memory feature module for the consumer side.
+  final bool enableThreeLayerMemory; // master switch for the 3-layer policy
+  final bool enableCrossWindowMemory; // share recent entries across chats
+  final bool enableCrossWindowMemoryCompression; // background compress old entries
+  final bool useRecentChatsAsFallback; // use recent chats when cross-window is off
+  final int
+  crossWindowMemoryCompressionThresholdChars; // chars before compressing old
+  final int crossWindowMemoryTailEntries; // recent entries to keep un-compressed
+  final int longTermMemoryRecallCount; // N memories to inject per turn
+  final int longTermMemoryMaxChars; // char cap on long-term injection per turn
   // Preset conversation messages (ordered)
   final List<PresetMessage> presetMessages;
   // Regex replacement rules
@@ -134,6 +150,14 @@ Do **not** store sensitive information, including:
     this.enableRecentChatsReference = false,
     this.recentChatsSummaryMessageCount = defaultRecentChatsSummaryMessageCount,
     this.memoryRecordPrompt = defaultMemoryRecordPrompt,
+    this.enableThreeLayerMemory = true,
+    this.enableCrossWindowMemory = true,
+    this.enableCrossWindowMemoryCompression = true,
+    this.useRecentChatsAsFallback = false,
+    this.crossWindowMemoryCompressionThresholdChars = 12000,
+    this.crossWindowMemoryTailEntries = 16,
+    this.longTermMemoryRecallCount = 6,
+    this.longTermMemoryMaxChars = 3000,
     this.presetMessages = const <PresetMessage>[],
     this.regexRules = const <AssistantRegex>[],
     this.enableProactiveCare = false,
@@ -185,6 +209,14 @@ Do **not** store sensitive information, including:
     bool? enableRecentChatsReference,
     int? recentChatsSummaryMessageCount,
     String? memoryRecordPrompt,
+    bool? enableThreeLayerMemory,
+    bool? enableCrossWindowMemory,
+    bool? enableCrossWindowMemoryCompression,
+    bool? useRecentChatsAsFallback,
+    int? crossWindowMemoryCompressionThresholdChars,
+    int? crossWindowMemoryTailEntries,
+    int? longTermMemoryRecallCount,
+    int? longTermMemoryMaxChars,
     List<PresetMessage>? presetMessages,
     List<AssistantRegex>? regexRules,
     bool? enableProactiveCare,
@@ -249,6 +281,20 @@ Do **not** store sensitive information, including:
       recentChatsSummaryMessageCount:
           recentChatsSummaryMessageCount ?? this.recentChatsSummaryMessageCount,
       memoryRecordPrompt: memoryRecordPrompt ?? this.memoryRecordPrompt,
+      enableThreeLayerMemory: enableThreeLayerMemory ?? this.enableThreeLayerMemory,
+      enableCrossWindowMemory: enableCrossWindowMemory ?? this.enableCrossWindowMemory,
+      enableCrossWindowMemoryCompression: enableCrossWindowMemoryCompression ??
+          this.enableCrossWindowMemoryCompression,
+      useRecentChatsAsFallback: useRecentChatsAsFallback ?? this.useRecentChatsAsFallback,
+      crossWindowMemoryCompressionThresholdChars:
+          crossWindowMemoryCompressionThresholdChars ??
+              this.crossWindowMemoryCompressionThresholdChars,
+      crossWindowMemoryTailEntries:
+          crossWindowMemoryTailEntries ?? this.crossWindowMemoryTailEntries,
+      longTermMemoryRecallCount:
+          longTermMemoryRecallCount ?? this.longTermMemoryRecallCount,
+      longTermMemoryMaxChars:
+          longTermMemoryMaxChars ?? this.longTermMemoryMaxChars,
       presetMessages: presetMessages ?? this.presetMessages,
       regexRules: regexRules ?? this.regexRules,
       enableProactiveCare: enableProactiveCare ?? this.enableProactiveCare,
@@ -304,6 +350,15 @@ Do **not** store sensitive information, including:
     'enableRecentChatsReference': enableRecentChatsReference,
     'recentChatsSummaryMessageCount': recentChatsSummaryMessageCount,
     'memoryRecordPrompt': memoryRecordPrompt,
+    'enableThreeLayerMemory': enableThreeLayerMemory,
+    'enableCrossWindowMemory': enableCrossWindowMemory,
+    'enableCrossWindowMemoryCompression': enableCrossWindowMemoryCompression,
+    'useRecentChatsAsFallback': useRecentChatsAsFallback,
+    'crossWindowMemoryCompressionThresholdChars':
+        crossWindowMemoryCompressionThresholdChars,
+    'crossWindowMemoryTailEntries': crossWindowMemoryTailEntries,
+    'longTermMemoryRecallCount': longTermMemoryRecallCount,
+    'longTermMemoryMaxChars': longTermMemoryMaxChars,
     'presetMessages': PresetMessage.encodeList(presetMessages),
     'regexRules': regexRules.map((e) => e.toJson()).toList(),
     'enableProactiveCare': enableProactiveCare,
@@ -391,6 +446,35 @@ Do **not** store sensitive information, including:
     })(),
     memoryRecordPrompt:
         (json['memoryRecordPrompt'] as String?) ?? defaultMemoryRecordPrompt,
+    // Memory v2: safe reads — pre-v20 backups lack these fields, fall back
+    // to the defaults declared in the constructor.
+    enableThreeLayerMemory: json['enableThreeLayerMemory'] as bool? ?? true,
+    enableCrossWindowMemory: json['enableCrossWindowMemory'] as bool? ?? true,
+    enableCrossWindowMemoryCompression:
+        json['enableCrossWindowMemoryCompression'] as bool? ?? true,
+    useRecentChatsAsFallback: json['useRecentChatsAsFallback'] as bool? ?? false,
+    crossWindowMemoryCompressionThresholdChars: (() {
+      final raw = (json['crossWindowMemoryCompressionThresholdChars'] as num?)
+          ?.toInt();
+      if (raw == null || raw < 1000) return 12000;
+      return raw;
+    })(),
+    crossWindowMemoryTailEntries: (() {
+      final raw =
+          (json['crossWindowMemoryTailEntries'] as num?)?.toInt();
+      if (raw == null || raw < 2) return 16;
+      return raw;
+    })(),
+    longTermMemoryRecallCount: (() {
+      final raw = (json['longTermMemoryRecallCount'] as num?)?.toInt();
+      if (raw == null || raw < 1) return 6;
+      return raw;
+    })(),
+    longTermMemoryMaxChars: (() {
+      final raw = (json['longTermMemoryMaxChars'] as num?)?.toInt();
+      if (raw == null || raw < 500) return 3000;
+      return raw;
+    })(),
     presetMessages: (() {
       try {
         return PresetMessage.decodeList(json['presetMessages']);

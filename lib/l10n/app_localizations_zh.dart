@@ -8126,6 +8126,154 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get iosBackgroundGenerationPrivacyActiveDetail => '任务进行中…';
+
+  @override
+  String get commonSave => '保存';
+
+  @override
+  String get commonCancel => '取消';
+
+  @override
+  String get commonDelete => '删除';
+
+  @override
+  String get memorySettingsPageTitle => '三层记忆';
+
+  @override
+  String get memorySettingsPageSectionMaster => '总开关';
+
+  @override
+  String get memorySettingsPageEnableThreeLayer => '启用三层记忆';
+
+  @override
+  String get memorySettingsPageEnableThreeLayerSub =>
+      '同时使用系统提示词中的固定记忆、跨窗口的近期上下文、以及按相关度排名的长期记忆。';
+
+  @override
+  String get memorySettingsPageSectionPreset => '预设';
+
+  @override
+  String get memorySettingsPagePresetHelp => '选一个预设可一次性应用一组合适的数值，也可以单独调整下方参数。';
+
+  @override
+  String get memorySettingsPageSectionCrossWindow => '跨窗口';
+
+  @override
+  String get memorySettingsPageEnableCrossWindow => '在不同窗口间共享近期对话';
+
+  @override
+  String get memorySettingsPageEnableCrossWindowSub =>
+      '让这个助手看到你在同一个助手的其它窗口里聊过的内容。';
+
+  @override
+  String get memorySettingsPageEnableCompression => '自动压缩旧条目';
+
+  @override
+  String get memorySettingsPageEnableCompressionSub => '定期把较早的对话整理成摘要，腾出提示词空间。';
+
+  @override
+  String get memorySettingsPageCompressionThresholdTitle => '压缩触发阈值';
+
+  @override
+  String get memorySettingsPageCompressionThresholdSub =>
+      '未压缩的近期条目超过这么多字符时，触发一次压缩。';
+
+  @override
+  String get memorySettingsPageUnitChars => '字';
+
+  @override
+  String get memorySettingsPageUnitEntries => '条';
+
+  @override
+  String get memorySettingsPageTailEntriesTitle => '保留近期条目数';
+
+  @override
+  String get memorySettingsPageTailEntriesSub => '永远保留最近这几条不参与压缩。';
+
+  @override
+  String get memorySettingsPageSectionLongTerm => '长期记忆';
+
+  @override
+  String get memorySettingsPageRecallCountTitle => '每轮注入条数';
+
+  @override
+  String get memorySettingsPageRecallCountSub => '每个用户回合最多注入多少条长期记忆。';
+
+  @override
+  String get memorySettingsPageLongTermMaxCharsTitle => '注入字符预算';
+
+  @override
+  String get memorySettingsPageLongTermMaxCharsSub => '长期记忆块一共占多少字符。';
+
+  @override
+  String get memorySettingsPageRecentChatsFallback => '降级使用近期聊天';
+
+  @override
+  String get memorySettingsPageRecentChatsFallbackSub =>
+      '三层记忆开启但跨窗口关闭时，降级到原有的近期聊天引用。';
+
+  @override
+  String get memorySettingsPageSectionBank => '长期记忆库';
+
+  @override
+  String get memorySettingsPageOpenBank => '浏览长期记忆库';
+
+  @override
+  String get memorySettingsPageOpenBankSub => '搜索、筛选、删除聊天流程写入的长期记忆。';
+
+  @override
+  String get memoryBankPageTitle => '长期记忆库';
+
+  @override
+  String get memoryBankPageErrorPrefix => '加载失败：';
+
+  @override
+  String get memoryBankPageEmpty => '还没有任何长期记忆。聊天中讲到的内容会自动写入这里。';
+
+  @override
+  String get memoryBankPageDeleteTitle => '删除这一条？';
+
+  @override
+  String get memoryBankPageDeleteConfirm => '这一条会从长期记忆库中删除。聊天原文不受影响。';
+
+  @override
+  String get memoryBankPageStatTotal => '总数';
+
+  @override
+  String get memoryBankPageStatMessages => '消息';
+
+  @override
+  String get memoryBankPageStatSummaries => '摘要';
+
+  @override
+  String get memoryBankPageStatManual => '手动';
+
+  @override
+  String get memoryBankPageSearchHint => '搜索内容';
+
+  @override
+  String get memoryBankPageTypeAll => '全部';
+
+  @override
+  String get memoryBankPageTypeMessage => '消息';
+
+  @override
+  String get memoryBankPageTypePhase => '阶段';
+
+  @override
+  String get memoryBankPageTypeDaily => '日';
+
+  @override
+  String get memoryBankPageTypeManual => '手动';
+
+  @override
+  String get memoryBankPageTypeAuto => '自动';
+
+  @override
+  String get assistantEditThreeLayerMemoryTitle => '三层记忆设置';
+
+  @override
+  String get assistantEditThreeLayerMemorySub => '总开关、预设、跨窗口和长期记忆参数。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -16250,6 +16398,154 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get iosBackgroundGenerationPrivacyActiveDetail => '任务进行中…';
+
+  @override
+  String get commonSave => '保存';
+
+  @override
+  String get commonCancel => '取消';
+
+  @override
+  String get commonDelete => '删除';
+
+  @override
+  String get memorySettingsPageTitle => '三层记忆';
+
+  @override
+  String get memorySettingsPageSectionMaster => '总开关';
+
+  @override
+  String get memorySettingsPageEnableThreeLayer => '启用三层记忆';
+
+  @override
+  String get memorySettingsPageEnableThreeLayerSub =>
+      '同时使用系统提示词中的固定记忆、跨窗口的近期上下文、以及按相关度排名的长期记忆。';
+
+  @override
+  String get memorySettingsPageSectionPreset => '预设';
+
+  @override
+  String get memorySettingsPagePresetHelp => '选一个预设可一次性应用一组合适的数值，也可以单独调整下方参数。';
+
+  @override
+  String get memorySettingsPageSectionCrossWindow => '跨窗口';
+
+  @override
+  String get memorySettingsPageEnableCrossWindow => '在不同窗口间共享近期对话';
+
+  @override
+  String get memorySettingsPageEnableCrossWindowSub =>
+      '让这个助手看到你在同一个助手的其它窗口里聊过的内容。';
+
+  @override
+  String get memorySettingsPageEnableCompression => '自动压缩旧条目';
+
+  @override
+  String get memorySettingsPageEnableCompressionSub => '定期把较早的对话整理成摘要，腾出提示词空间。';
+
+  @override
+  String get memorySettingsPageCompressionThresholdTitle => '压缩触发阈值';
+
+  @override
+  String get memorySettingsPageCompressionThresholdSub =>
+      '未压缩的近期条目超过这么多字符时，触发一次压缩。';
+
+  @override
+  String get memorySettingsPageUnitChars => '字';
+
+  @override
+  String get memorySettingsPageUnitEntries => '条';
+
+  @override
+  String get memorySettingsPageTailEntriesTitle => '保留近期条目数';
+
+  @override
+  String get memorySettingsPageTailEntriesSub => '永远保留最近这几条不参与压缩。';
+
+  @override
+  String get memorySettingsPageSectionLongTerm => '长期记忆';
+
+  @override
+  String get memorySettingsPageRecallCountTitle => '每轮注入条数';
+
+  @override
+  String get memorySettingsPageRecallCountSub => '每个用户回合最多注入多少条长期记忆。';
+
+  @override
+  String get memorySettingsPageLongTermMaxCharsTitle => '注入字符预算';
+
+  @override
+  String get memorySettingsPageLongTermMaxCharsSub => '长期记忆块一共占多少字符。';
+
+  @override
+  String get memorySettingsPageRecentChatsFallback => '降级使用近期聊天';
+
+  @override
+  String get memorySettingsPageRecentChatsFallbackSub =>
+      '三层记忆开启但跨窗口关闭时，降级到原有的近期聊天引用。';
+
+  @override
+  String get memorySettingsPageSectionBank => '长期记忆库';
+
+  @override
+  String get memorySettingsPageOpenBank => '浏览长期记忆库';
+
+  @override
+  String get memorySettingsPageOpenBankSub => '搜索、筛选、删除聊天流程写入的长期记忆。';
+
+  @override
+  String get memoryBankPageTitle => '长期记忆库';
+
+  @override
+  String get memoryBankPageErrorPrefix => '加载失败：';
+
+  @override
+  String get memoryBankPageEmpty => '还没有任何长期记忆。聊天中讲到的内容会自动写入这里。';
+
+  @override
+  String get memoryBankPageDeleteTitle => '删除这一条？';
+
+  @override
+  String get memoryBankPageDeleteConfirm => '这一条会从长期记忆库中删除。聊天原文不受影响。';
+
+  @override
+  String get memoryBankPageStatTotal => '总数';
+
+  @override
+  String get memoryBankPageStatMessages => '消息';
+
+  @override
+  String get memoryBankPageStatSummaries => '摘要';
+
+  @override
+  String get memoryBankPageStatManual => '手动';
+
+  @override
+  String get memoryBankPageSearchHint => '搜索内容';
+
+  @override
+  String get memoryBankPageTypeAll => '全部';
+
+  @override
+  String get memoryBankPageTypeMessage => '消息';
+
+  @override
+  String get memoryBankPageTypePhase => '阶段';
+
+  @override
+  String get memoryBankPageTypeDaily => '日';
+
+  @override
+  String get memoryBankPageTypeManual => '手动';
+
+  @override
+  String get memoryBankPageTypeAuto => '自动';
+
+  @override
+  String get assistantEditThreeLayerMemoryTitle => '三层记忆设置';
+
+  @override
+  String get assistantEditThreeLayerMemorySub => '总开关、预设、跨窗口和长期记忆参数。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -24375,4 +24671,152 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get iosBackgroundGenerationPrivacyActiveDetail => '任務進行中…';
+
+  @override
+  String get commonSave => '儲存';
+
+  @override
+  String get commonCancel => '取消';
+
+  @override
+  String get commonDelete => '刪除';
+
+  @override
+  String get memorySettingsPageTitle => '三層記憶';
+
+  @override
+  String get memorySettingsPageSectionMaster => '總開關';
+
+  @override
+  String get memorySettingsPageEnableThreeLayer => '啟用三層記憶';
+
+  @override
+  String get memorySettingsPageEnableThreeLayerSub =>
+      '同時使用系統提示詞中的固定記憶、跨視窗的近期上下文、以及按相關度排名的長期記憶。';
+
+  @override
+  String get memorySettingsPageSectionPreset => '預設';
+
+  @override
+  String get memorySettingsPagePresetHelp => '選一個預設可一次套用一組合適的數值，也可以單獨調整下方參數。';
+
+  @override
+  String get memorySettingsPageSectionCrossWindow => '跨視窗';
+
+  @override
+  String get memorySettingsPageEnableCrossWindow => '在不同視窗間共享近期對話';
+
+  @override
+  String get memorySettingsPageEnableCrossWindowSub =>
+      '讓這個助手看到你在同一個助手的其他視窗裡聊過的內容。';
+
+  @override
+  String get memorySettingsPageEnableCompression => '自動壓縮舊條目';
+
+  @override
+  String get memorySettingsPageEnableCompressionSub => '定期把較早的對話整理成摘要，騰出提示詞空間。';
+
+  @override
+  String get memorySettingsPageCompressionThresholdTitle => '壓縮觸發門檻';
+
+  @override
+  String get memorySettingsPageCompressionThresholdSub =>
+      '未壓縮的近期條目超過這麼多字元時，觸發一次壓縮。';
+
+  @override
+  String get memorySettingsPageUnitChars => '字';
+
+  @override
+  String get memorySettingsPageUnitEntries => '條';
+
+  @override
+  String get memorySettingsPageTailEntriesTitle => '保留近期條目數';
+
+  @override
+  String get memorySettingsPageTailEntriesSub => '永遠保留最近這幾條不參與壓縮。';
+
+  @override
+  String get memorySettingsPageSectionLongTerm => '長期記憶';
+
+  @override
+  String get memorySettingsPageRecallCountTitle => '每輪注入條數';
+
+  @override
+  String get memorySettingsPageRecallCountSub => '每個使用者回合最多注入多少條長期記憶。';
+
+  @override
+  String get memorySettingsPageLongTermMaxCharsTitle => '注入字元預算';
+
+  @override
+  String get memorySettingsPageLongTermMaxCharsSub => '長期記憶塊一共佔多少字元。';
+
+  @override
+  String get memorySettingsPageRecentChatsFallback => '降級使用近期聊天';
+
+  @override
+  String get memorySettingsPageRecentChatsFallbackSub =>
+      '三層記憶開啟但跨視窗關閉時，降級到原有的近期聊天引用。';
+
+  @override
+  String get memorySettingsPageSectionBank => '長期記憶庫';
+
+  @override
+  String get memorySettingsPageOpenBank => '瀏覽長期記憶庫';
+
+  @override
+  String get memorySettingsPageOpenBankSub => '搜尋、篩選、刪除聊天流程寫入的長期記憶。';
+
+  @override
+  String get memoryBankPageTitle => '長期記憶庫';
+
+  @override
+  String get memoryBankPageErrorPrefix => '載入失敗：';
+
+  @override
+  String get memoryBankPageEmpty => '還沒有任何長期記憶。聊天中講到的內容會自動寫入這裡。';
+
+  @override
+  String get memoryBankPageDeleteTitle => '刪除這一條？';
+
+  @override
+  String get memoryBankPageDeleteConfirm => '這一條會從長期記憶庫中刪除。聊天原文不受影響。';
+
+  @override
+  String get memoryBankPageStatTotal => '總數';
+
+  @override
+  String get memoryBankPageStatMessages => '訊息';
+
+  @override
+  String get memoryBankPageStatSummaries => '摘要';
+
+  @override
+  String get memoryBankPageStatManual => '手動';
+
+  @override
+  String get memoryBankPageSearchHint => '搜尋內容';
+
+  @override
+  String get memoryBankPageTypeAll => '全部';
+
+  @override
+  String get memoryBankPageTypeMessage => '訊息';
+
+  @override
+  String get memoryBankPageTypePhase => '階段';
+
+  @override
+  String get memoryBankPageTypeDaily => '日';
+
+  @override
+  String get memoryBankPageTypeManual => '手動';
+
+  @override
+  String get memoryBankPageTypeAuto => '自動';
+
+  @override
+  String get assistantEditThreeLayerMemoryTitle => '三層記憶設定';
+
+  @override
+  String get assistantEditThreeLayerMemorySub => '總開關、預設、跨視窗和長期記憶參數。';
 }

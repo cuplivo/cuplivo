@@ -152,6 +152,29 @@ class AssistantRows extends Table {
       integer().withDefault(const Constant(5))();
   TextColumn get memoryRecordPrompt => text().withDefault(const Constant(''))();
 
+  // --- Memory v2 (schema v20): three-layer memory + cross-window + presets ---
+  // Tumin-style three-layer memory. Augments the v15 enableMemory / memoryMode
+  // pair; the v15 fields are still honored for backward compat (long-term
+  // memory injection remains driven by enableMemory).
+  BoolColumn get enableThreeLayerMemory =>
+      boolean().withDefault(const Constant(true))();
+  BoolColumn get enableCrossWindowMemory =>
+      boolean().withDefault(const Constant(true))();
+  BoolColumn get enableCrossWindowMemoryCompression =>
+      boolean().withDefault(const Constant(true))();
+  BoolColumn get useRecentChatsAsFallback =>
+      boolean().withDefault(const Constant(false))();
+  // Numeric knobs for the three-layer policy; mirrors the Tumin natural /
+  // saver / strong preset values when paired with the matching combination.
+  IntColumn get crossWindowMemoryCompressionThresholdChars =>
+      integer().withDefault(const Constant(12000))();
+  IntColumn get crossWindowMemoryTailEntries =>
+      integer().withDefault(const Constant(16))();
+  IntColumn get longTermMemoryRecallCount =>
+      integer().withDefault(const Constant(6))();
+  IntColumn get longTermMemoryMaxChars =>
+      integer().withDefault(const Constant(3000))();
+
   // --- File Processing ---
   TextColumn get docxMode => text().withDefault(const Constant('extract'))();
   TextColumn get pdfMode => text().withDefault(const Constant('extract'))();
@@ -173,6 +196,39 @@ class AssistantRows extends Table {
   IntColumn get sortOrder => integer()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Rich memory entries used by the memory bank UI (browse, filter, delete).
+///
+/// Distinct from [AssistantRows] + `assistant_memories_v1` SharedPreferences
+/// (which is the lightweight per-assistant memory the chat pipeline reads).
+/// The memory bank stores the full lifecycle: type/role, conversation
+/// association, date grouping, vector status, and an optional embedding
+/// payload kept as a JSON string for forward compatibility.
+@TableIndex(name: 'idx_memory_bank_assistant', columns: {#assistantId})
+@TableIndex(name: 'idx_memory_bank_type', columns: {#type})
+@TableIndex(name: 'idx_memory_bank_date_group', columns: {#dateGroup})
+@TableIndex(name: 'idx_memory_bank_assistant_type', columns: {#assistantId, #type})
+class MemoryBankRows extends Table {
+  IntColumn get id => integer()();
+  TextColumn get content => text().withDefault(const Constant(''))();
+  // 'message' | 'phase_summary' | 'daily_summary' | 'manual' | 'auto_summary'
+  TextColumn get type => text().withDefault(const Constant('message'))();
+  TextColumn get conversationId => text().nullable()();
+  TextColumn get assistantId => text().nullable()();
+  // 'user' | 'assistant'
+  TextColumn get role => text().nullable()();
+  IntColumn get createdAt => integer()();
+  // 'yyyy-MM-dd' — used to group daily/phase summaries.
+  TextColumn get dateGroup => text().nullable()();
+  // 'pending' | 'done' | 'failed' | 'skipped'
+  TextColumn get vectorStatus => text().withDefault(const Constant('pending'))();
+  IntColumn get vectorRetryCount => integer().withDefault(const Constant(0))();
+  // JSON-encoded float array; nullable so legacy / pre-vector rows stay valid.
+  TextColumn get embedding => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -326,6 +382,7 @@ class GroupChatMemberRows extends Table {
     ConversationRows,
     MessageRows,
     AssistantRows,
+    MemoryBankRows,
     ConversationMcpServerRows,
     ToolEventRows,
     GeminiThoughtSignatureRows,
@@ -378,7 +435,7 @@ class AppDatabase extends _$AppDatabase {
   // self-heal below repairs such gaps on every open; without it the gap is
   // permanent because later upgrades skip the failed step's `from < N` block.
   // See docs/adr/0019-schema-self-heal.md.
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   /// Whether [table] has a physical column named [column] (sqlite name).
   Future<bool> _hasColumn(String table, String column) async {
@@ -526,6 +583,56 @@ class AppDatabase extends _$AppDatabase {
       'workspace_id',
       'ALTER TABLE assistant_rows ADD COLUMN workspace_id TEXT NULL',
     );
+    // Three-layer memory v2 (schema v20). Mirror the migration ALTERs so a
+    // broken partial upgrade (advanced user_version, missing columns) is
+    // repaired on every open. Idempotent — _ensureColumn no-ops when the
+    // column already exists.
+    await _ensureColumn(
+      'assistant_rows',
+      'enable_three_layer_memory',
+      'ALTER TABLE assistant_rows ADD COLUMN enable_three_layer_memory INTEGER NOT NULL DEFAULT 1',
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'enable_cross_window_memory',
+      'ALTER TABLE assistant_rows ADD COLUMN enable_cross_window_memory INTEGER NOT NULL DEFAULT 1',
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'enable_cross_window_memory_compression',
+      'ALTER TABLE assistant_rows ADD COLUMN enable_cross_window_memory_compression INTEGER NOT NULL DEFAULT 1',
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'use_recent_chats_as_fallback',
+      'ALTER TABLE assistant_rows ADD COLUMN use_recent_chats_as_fallback INTEGER NOT NULL DEFAULT 0',
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'cross_window_memory_compression_threshold_chars',
+      'ALTER TABLE assistant_rows ADD COLUMN cross_window_memory_compression_threshold_chars INTEGER NOT NULL DEFAULT 12000',
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'cross_window_memory_tail_entries',
+      'ALTER TABLE assistant_rows ADD COLUMN cross_window_memory_tail_entries INTEGER NOT NULL DEFAULT 16',
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'long_term_memory_recall_count',
+      'ALTER TABLE assistant_rows ADD COLUMN long_term_memory_recall_count INTEGER NOT NULL DEFAULT 6',
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'long_term_memory_max_chars',
+      'ALTER TABLE assistant_rows ADD COLUMN long_term_memory_max_chars INTEGER NOT NULL DEFAULT 3000',
+    );
+
+    // Memory bank table (schema v20) — created empty; existing
+    // `assistant_memories_v1` SharedPreferences entries are NOT backfilled
+    // automatically (that would require a per-assistant read of prefs on first
+    // open; the chat pipeline picks the lighter path on demand).
+    await _ensureTable(memoryBankRows, 'memory_bank_rows');
 
     // --- message_rows ---
     await _ensureColumn(
@@ -825,6 +932,68 @@ class AppDatabase extends _$AppDatabase {
         } catch (_) {}
         try {
           await migrator.addColumn(assistantRows, assistantRows.workspaceId);
+        } catch (_) {}
+      }
+      if (from < 20) {
+        // Three-layer memory v2: 4 bool + 4 int knobs on assistant_rows, plus
+        // the rich memory bank table for the browse/manage UI. All new
+        // columns have NOT NULL defaults so existing assistant rows upgrade
+        // without a data migration. The memory_bank table is created empty —
+        // pre-existing AssistantMemory entries (shared_preferences
+        // `assistant_memories_v1`) are NOT copied over automatically; that
+        // backfill is the chat pipeline's job on first run.
+        try {
+          await migrator.createTable(memoryBankRows);
+        } catch (_) {
+          // table may already exist on migration replay
+        }
+        try {
+          await migrator.addColumn(
+            assistantRows,
+            assistantRows.enableThreeLayerMemory,
+          );
+        } catch (_) {}
+        try {
+          await migrator.addColumn(
+            assistantRows,
+            assistantRows.enableCrossWindowMemory,
+          );
+        } catch (_) {}
+        try {
+          await migrator.addColumn(
+            assistantRows,
+            assistantRows.enableCrossWindowMemoryCompression,
+          );
+        } catch (_) {}
+        try {
+          await migrator.addColumn(
+            assistantRows,
+            assistantRows.useRecentChatsAsFallback,
+          );
+        } catch (_) {}
+        try {
+          await migrator.addColumn(
+            assistantRows,
+            assistantRows.crossWindowMemoryCompressionThresholdChars,
+          );
+        } catch (_) {}
+        try {
+          await migrator.addColumn(
+            assistantRows,
+            assistantRows.crossWindowMemoryTailEntries,
+          );
+        } catch (_) {}
+        try {
+          await migrator.addColumn(
+            assistantRows,
+            assistantRows.longTermMemoryRecallCount,
+          );
+        } catch (_) {}
+        try {
+          await migrator.addColumn(
+            assistantRows,
+            assistantRows.longTermMemoryMaxChars,
+          );
         } catch (_) {}
       }
       // Final pass: heal any column/table that still did not land.

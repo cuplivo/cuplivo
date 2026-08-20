@@ -8505,4 +8505,165 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get iosBackgroundGenerationPrivacyActiveDetail => 'Task in progress…';
+
+  @override
+  String get commonSave => 'Save';
+
+  @override
+  String get commonCancel => 'Cancel';
+
+  @override
+  String get commonDelete => 'Delete';
+
+  @override
+  String get memorySettingsPageTitle => '3-Layer Memory';
+
+  @override
+  String get memorySettingsPageSectionMaster => 'Master';
+
+  @override
+  String get memorySettingsPageEnableThreeLayer => 'Enable 3-Layer Memory';
+
+  @override
+  String get memorySettingsPageEnableThreeLayerSub =>
+      'Combine system prompt memory, cross-window context, and ranked long-term memories.';
+
+  @override
+  String get memorySettingsPageSectionPreset => 'Preset';
+
+  @override
+  String get memorySettingsPagePresetHelp =>
+      'Pick a preset for a coherent set of values, or tweak the numbers below for a custom configuration.';
+
+  @override
+  String get memorySettingsPageSectionCrossWindow => 'Cross-Window';
+
+  @override
+  String get memorySettingsPageEnableCrossWindow =>
+      'Share recent chats across windows';
+
+  @override
+  String get memorySettingsPageEnableCrossWindowSub =>
+      'Let this assistant see what you talked about in other windows of the same persona.';
+
+  @override
+  String get memorySettingsPageEnableCompression => 'Compress older entries';
+
+  @override
+  String get memorySettingsPageEnableCompressionSub =>
+      'Periodically summarize old entries to keep the prompt small.';
+
+  @override
+  String get memorySettingsPageCompressionThresholdTitle =>
+      'Compression threshold';
+
+  @override
+  String get memorySettingsPageCompressionThresholdSub =>
+      'Trigger a compression when the un-compressed tail exceeds this many characters.';
+
+  @override
+  String get memorySettingsPageUnitChars => 'chars';
+
+  @override
+  String get memorySettingsPageUnitEntries => 'entries';
+
+  @override
+  String get memorySettingsPageTailEntriesTitle => 'Un-compressed tail';
+
+  @override
+  String get memorySettingsPageTailEntriesSub =>
+      'Always keep this many most-recent entries out of the summary.';
+
+  @override
+  String get memorySettingsPageSectionLongTerm => 'Long-Term Memory';
+
+  @override
+  String get memorySettingsPageRecallCountTitle => 'Recall count per turn';
+
+  @override
+  String get memorySettingsPageRecallCountSub =>
+      'Maximum number of saved memories to inject for one user turn.';
+
+  @override
+  String get memorySettingsPageLongTermMaxCharsTitle =>
+      'Recall character budget';
+
+  @override
+  String get memorySettingsPageLongTermMaxCharsSub =>
+      'Total characters reserved for the long-term memory block.';
+
+  @override
+  String get memorySettingsPageRecentChatsFallback =>
+      'Fall back to recent chats';
+
+  @override
+  String get memorySettingsPageRecentChatsFallbackSub =>
+      'When 3-layer is on but cross-window is off, fall back to the recent-chats reference.';
+
+  @override
+  String get memorySettingsPageSectionBank => 'Long-Term Bank';
+
+  @override
+  String get memorySettingsPageOpenBank => 'Browse long-term bank';
+
+  @override
+  String get memorySettingsPageOpenBankSub =>
+      'Search, filter, and delete the rows written by the chat pipeline.';
+
+  @override
+  String get memoryBankPageTitle => 'Long-Term Bank';
+
+  @override
+  String get memoryBankPageErrorPrefix => 'Failed to load: ';
+
+  @override
+  String get memoryBankPageEmpty =>
+      'No memory rows yet. The chat pipeline will fill this in as you talk.';
+
+  @override
+  String get memoryBankPageDeleteTitle => 'Delete this row?';
+
+  @override
+  String get memoryBankPageDeleteConfirm =>
+      'This row will be removed from the long-term bank. The row in the chat transcript is unaffected.';
+
+  @override
+  String get memoryBankPageStatTotal => 'Total';
+
+  @override
+  String get memoryBankPageStatMessages => 'Messages';
+
+  @override
+  String get memoryBankPageStatSummaries => 'Summaries';
+
+  @override
+  String get memoryBankPageStatManual => 'Manual';
+
+  @override
+  String get memoryBankPageSearchHint => 'Search content';
+
+  @override
+  String get memoryBankPageTypeAll => 'All';
+
+  @override
+  String get memoryBankPageTypeMessage => 'Message';
+
+  @override
+  String get memoryBankPageTypePhase => 'Phase';
+
+  @override
+  String get memoryBankPageTypeDaily => 'Daily';
+
+  @override
+  String get memoryBankPageTypeManual => 'Manual';
+
+  @override
+  String get memoryBankPageTypeAuto => 'Auto';
+
+  @override
+  String get assistantEditThreeLayerMemoryTitle => '3-Layer Memory Settings';
+
+  @override
+  String get assistantEditThreeLayerMemorySub =>
+      'Master switch, presets, cross-window stream, and long-term recall.';
 }

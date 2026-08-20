@@ -1353,22 +1353,50 @@
   "sideDrawerBatchExportSuccess": "{exported} conversations exported",
   "@sideDrawerBatchExportSuccess": {
     "description": "Batch export completed successfully",
-    "placeholders": {"exported": {"type": "int"}}
+    "placeholders": {
+      "exported": {
+        "type": "int"
+      }
+    }
   },
   "sideDrawerBatchExportSuccessSkipped": "{exported} conversations exported, {skipped} empty skipped",
   "@sideDrawerBatchExportSuccessSkipped": {
     "description": "Batch export completed successfully with empty conversations skipped",
-    "placeholders": {"exported": {"type": "int"}, "skipped": {"type": "int"}}
+    "placeholders": {
+      "exported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
   },
   "sideDrawerBatchExportPartialFailure": "{exported} exported, {failed} failed",
   "@sideDrawerBatchExportPartialFailure": {
     "description": "Batch export partially failed",
-    "placeholders": {"exported": {"type": "int"}, "failed": {"type": "int"}}
+    "placeholders": {
+      "exported": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
   },
   "sideDrawerBatchExportPartialFailureSkipped": "{exported} exported, {failed} failed, {skipped} empty skipped",
   "@sideDrawerBatchExportPartialFailureSkipped": {
     "description": "Batch export partially failed with empty conversations skipped",
-    "placeholders": {"exported": {"type": "int"}, "failed": {"type": "int"}, "skipped": {"type": "int"}}
+    "placeholders": {
+      "exported": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
   },
   "@sideDrawerBatchPartialFailure": {
     "placeholders": {
@@ -3807,5 +3835,53 @@
   "iosKeepAliveConfigLocationOff": "Location off",
   "iosKeepAliveInterruptedNotice": "Interrupted by the system previously",
   "iosBackgroundGenerationPrivacyActiveTitle": "Background Task",
-  "iosBackgroundGenerationPrivacyActiveDetail": "Task in progress…"
+  "iosBackgroundGenerationPrivacyActiveDetail": "Task in progress…",
+  "commonSave": "Save",
+  "commonCancel": "Cancel",
+  "commonDelete": "Delete",
+  "memorySettingsPageTitle": "3-Layer Memory",
+  "memorySettingsPageSectionMaster": "Master",
+  "memorySettingsPageEnableThreeLayer": "Enable 3-Layer Memory",
+  "memorySettingsPageEnableThreeLayerSub": "Combine system prompt memory, cross-window context, and ranked long-term memories.",
+  "memorySettingsPageSectionPreset": "Preset",
+  "memorySettingsPagePresetHelp": "Pick a preset for a coherent set of values, or tweak the numbers below for a custom configuration.",
+  "memorySettingsPageSectionCrossWindow": "Cross-Window",
+  "memorySettingsPageEnableCrossWindow": "Share recent chats across windows",
+  "memorySettingsPageEnableCrossWindowSub": "Let this assistant see what you talked about in other windows of the same persona.",
+  "memorySettingsPageEnableCompression": "Compress older entries",
+  "memorySettingsPageEnableCompressionSub": "Periodically summarize old entries to keep the prompt small.",
+  "memorySettingsPageCompressionThresholdTitle": "Compression threshold",
+  "memorySettingsPageCompressionThresholdSub": "Trigger a compression when the un-compressed tail exceeds this many characters.",
+  "memorySettingsPageUnitChars": "chars",
+  "memorySettingsPageUnitEntries": "entries",
+  "memorySettingsPageTailEntriesTitle": "Un-compressed tail",
+  "memorySettingsPageTailEntriesSub": "Always keep this many most-recent entries out of the summary.",
+  "memorySettingsPageSectionLongTerm": "Long-Term Memory",
+  "memorySettingsPageRecallCountTitle": "Recall count per turn",
+  "memorySettingsPageRecallCountSub": "Maximum number of saved memories to inject for one user turn.",
+  "memorySettingsPageLongTermMaxCharsTitle": "Recall character budget",
+  "memorySettingsPageLongTermMaxCharsSub": "Total characters reserved for the long-term memory block.",
+  "memorySettingsPageRecentChatsFallback": "Fall back to recent chats",
+  "memorySettingsPageRecentChatsFallbackSub": "When 3-layer is on but cross-window is off, fall back to the recent-chats reference.",
+  "memorySettingsPageSectionBank": "Long-Term Bank",
+  "memorySettingsPageOpenBank": "Browse long-term bank",
+  "memorySettingsPageOpenBankSub": "Search, filter, and delete the rows written by the chat pipeline.",
+  "memoryBankPageTitle": "Long-Term Bank",
+  "memoryBankPageErrorPrefix": "Failed to load: ",
+  "memoryBankPageEmpty": "No memory rows yet. The chat pipeline will fill this in as you talk.",
+  "memoryBankPageDeleteTitle": "Delete this row?",
+  "memoryBankPageDeleteConfirm": "This row will be removed from the long-term bank. The row in the chat transcript is unaffected.",
+  "memoryBankPageStatTotal": "Total",
+  "memoryBankPageStatMessages": "Messages",
+  "memoryBankPageStatSummaries": "Summaries",
+  "memoryBankPageStatManual": "Manual",
+  "memoryBankPageSearchHint": "Search content",
+  "memoryBankPageTypeAll": "All",
+  "memoryBankPageTypeMessage": "Message",
+  "memoryBankPageTypePhase": "Phase",
+  "memoryBankPageTypeDaily": "Daily",
+  "memoryBankPageTypeManual": "Manual",
+  "memoryBankPageTypeAuto": "Auto",
+  "assistantEditThreeLayerMemoryTitle": "3-Layer Memory Settings",
+  "assistantEditThreeLayerMemorySub": "Master switch, presets, cross-window stream, and long-term recall."
 }

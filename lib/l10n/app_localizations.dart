@@ -15383,6 +15383,294 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Task in progress…'**
   String get iosBackgroundGenerationPrivacyActiveDetail;
+
+  /// No description provided for @commonSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get commonSave;
+
+  /// No description provided for @commonCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get commonCancel;
+
+  /// No description provided for @commonDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get commonDelete;
+
+  /// No description provided for @memorySettingsPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'3-Layer Memory'**
+  String get memorySettingsPageTitle;
+
+  /// No description provided for @memorySettingsPageSectionMaster.
+  ///
+  /// In en, this message translates to:
+  /// **'Master'**
+  String get memorySettingsPageSectionMaster;
+
+  /// No description provided for @memorySettingsPageEnableThreeLayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable 3-Layer Memory'**
+  String get memorySettingsPageEnableThreeLayer;
+
+  /// No description provided for @memorySettingsPageEnableThreeLayerSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Combine system prompt memory, cross-window context, and ranked long-term memories.'**
+  String get memorySettingsPageEnableThreeLayerSub;
+
+  /// No description provided for @memorySettingsPageSectionPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Preset'**
+  String get memorySettingsPageSectionPreset;
+
+  /// No description provided for @memorySettingsPagePresetHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a preset for a coherent set of values, or tweak the numbers below for a custom configuration.'**
+  String get memorySettingsPagePresetHelp;
+
+  /// No description provided for @memorySettingsPageSectionCrossWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Cross-Window'**
+  String get memorySettingsPageSectionCrossWindow;
+
+  /// No description provided for @memorySettingsPageEnableCrossWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Share recent chats across windows'**
+  String get memorySettingsPageEnableCrossWindow;
+
+  /// No description provided for @memorySettingsPageEnableCrossWindowSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Let this assistant see what you talked about in other windows of the same persona.'**
+  String get memorySettingsPageEnableCrossWindowSub;
+
+  /// No description provided for @memorySettingsPageEnableCompression.
+  ///
+  /// In en, this message translates to:
+  /// **'Compress older entries'**
+  String get memorySettingsPageEnableCompression;
+
+  /// No description provided for @memorySettingsPageEnableCompressionSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Periodically summarize old entries to keep the prompt small.'**
+  String get memorySettingsPageEnableCompressionSub;
+
+  /// No description provided for @memorySettingsPageCompressionThresholdTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression threshold'**
+  String get memorySettingsPageCompressionThresholdTitle;
+
+  /// No description provided for @memorySettingsPageCompressionThresholdSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Trigger a compression when the un-compressed tail exceeds this many characters.'**
+  String get memorySettingsPageCompressionThresholdSub;
+
+  /// No description provided for @memorySettingsPageUnitChars.
+  ///
+  /// In en, this message translates to:
+  /// **'chars'**
+  String get memorySettingsPageUnitChars;
+
+  /// No description provided for @memorySettingsPageUnitEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'entries'**
+  String get memorySettingsPageUnitEntries;
+
+  /// No description provided for @memorySettingsPageTailEntriesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Un-compressed tail'**
+  String get memorySettingsPageTailEntriesTitle;
+
+  /// No description provided for @memorySettingsPageTailEntriesSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Always keep this many most-recent entries out of the summary.'**
+  String get memorySettingsPageTailEntriesSub;
+
+  /// No description provided for @memorySettingsPageSectionLongTerm.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-Term Memory'**
+  String get memorySettingsPageSectionLongTerm;
+
+  /// No description provided for @memorySettingsPageRecallCountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recall count per turn'**
+  String get memorySettingsPageRecallCountTitle;
+
+  /// No description provided for @memorySettingsPageRecallCountSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum number of saved memories to inject for one user turn.'**
+  String get memorySettingsPageRecallCountSub;
+
+  /// No description provided for @memorySettingsPageLongTermMaxCharsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recall character budget'**
+  String get memorySettingsPageLongTermMaxCharsTitle;
+
+  /// No description provided for @memorySettingsPageLongTermMaxCharsSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Total characters reserved for the long-term memory block.'**
+  String get memorySettingsPageLongTermMaxCharsSub;
+
+  /// No description provided for @memorySettingsPageRecentChatsFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Fall back to recent chats'**
+  String get memorySettingsPageRecentChatsFallback;
+
+  /// No description provided for @memorySettingsPageRecentChatsFallbackSub.
+  ///
+  /// In en, this message translates to:
+  /// **'When 3-layer is on but cross-window is off, fall back to the recent-chats reference.'**
+  String get memorySettingsPageRecentChatsFallbackSub;
+
+  /// No description provided for @memorySettingsPageSectionBank.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-Term Bank'**
+  String get memorySettingsPageSectionBank;
+
+  /// No description provided for @memorySettingsPageOpenBank.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse long-term bank'**
+  String get memorySettingsPageOpenBank;
+
+  /// No description provided for @memorySettingsPageOpenBankSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Search, filter, and delete the rows written by the chat pipeline.'**
+  String get memorySettingsPageOpenBankSub;
+
+  /// No description provided for @memoryBankPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-Term Bank'**
+  String get memoryBankPageTitle;
+
+  /// No description provided for @memoryBankPageErrorPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load: '**
+  String get memoryBankPageErrorPrefix;
+
+  /// No description provided for @memoryBankPageEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No memory rows yet. The chat pipeline will fill this in as you talk.'**
+  String get memoryBankPageEmpty;
+
+  /// No description provided for @memoryBankPageDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this row?'**
+  String get memoryBankPageDeleteTitle;
+
+  /// No description provided for @memoryBankPageDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This row will be removed from the long-term bank. The row in the chat transcript is unaffected.'**
+  String get memoryBankPageDeleteConfirm;
+
+  /// No description provided for @memoryBankPageStatTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get memoryBankPageStatTotal;
+
+  /// No description provided for @memoryBankPageStatMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages'**
+  String get memoryBankPageStatMessages;
+
+  /// No description provided for @memoryBankPageStatSummaries.
+  ///
+  /// In en, this message translates to:
+  /// **'Summaries'**
+  String get memoryBankPageStatSummaries;
+
+  /// No description provided for @memoryBankPageStatManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get memoryBankPageStatManual;
+
+  /// No description provided for @memoryBankPageSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search content'**
+  String get memoryBankPageSearchHint;
+
+  /// No description provided for @memoryBankPageTypeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get memoryBankPageTypeAll;
+
+  /// No description provided for @memoryBankPageTypeMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Message'**
+  String get memoryBankPageTypeMessage;
+
+  /// No description provided for @memoryBankPageTypePhase.
+  ///
+  /// In en, this message translates to:
+  /// **'Phase'**
+  String get memoryBankPageTypePhase;
+
+  /// No description provided for @memoryBankPageTypeDaily.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily'**
+  String get memoryBankPageTypeDaily;
+
+  /// No description provided for @memoryBankPageTypeManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get memoryBankPageTypeManual;
+
+  /// No description provided for @memoryBankPageTypeAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get memoryBankPageTypeAuto;
+
+  /// No description provided for @assistantEditThreeLayerMemoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'3-Layer Memory Settings'**
+  String get assistantEditThreeLayerMemoryTitle;
+
+  /// No description provided for @assistantEditThreeLayerMemorySub.
+  ///
+  /// In en, this message translates to:
+  /// **'Master switch, presets, cross-window stream, and long-term recall.'**
+  String get assistantEditThreeLayerMemorySub;
 }
 
 class _AppLocalizationsDelegate

@@ -784,6 +784,62 @@ class _MemoryTabState extends State<_MemoryTab> {
           },
         ),
 
+        // 3-layer memory migration: jump to the new per-assistant settings
+        // page that exposes the 3-layer switch, presets, cross-window knobs,
+        // long-term recall tuning, and the bank browser.
+        sectionCard(
+          child: InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => SettingMemoryPage(
+                    assistantId: widget.assistantId,
+                  ),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+              child: Row(
+                children: [
+                  Icon(Lucide.Layers, size: 20, color: cs.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          l10n.assistantEditThreeLayerMemoryTitle,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: AppFontWeights.medium,
+                            color: cs.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          l10n.assistantEditThreeLayerMemorySub,
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.4,
+                            color: cs.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Lucide.ChevronRight,
+                    size: 18,
+                    color: cs.onSurface.withValues(alpha: 0.5),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
         const SizedBox(height: 32),
       ],
     );

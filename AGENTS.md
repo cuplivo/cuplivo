@@ -415,3 +415,83 @@ dart analyze --fatal-infos lib test
 - Error messages must be useful -- they should help locate and recover, not just say "failed".
 - Mechanisms over hand-picked magic constants. If a threshold must be hardcoded, explain why and state its boundaries.
 - When small-step verification is possible, do not make large irreversible changes.
+
+## 8. Memory Subsystem (3-Layer Migration)
+
+The 3-layer memory feature was migrated from Tumin. It lives in two
+places; the wire format and field names are intentionally identical to
+Tumin so a future round-trip tool (Tumin → Cuplivo / Cuplivo → Tumin) is
+one commit away.
+
+### 8.1 Module layout
+
+- `lib/core/memory/` — the library. Five files, each focused:
+  - `fixed_memory_section.dart` — extract / insert the
+    `<!-- CUPLIVO_FIXED_MEMORY_BEGIN/END -->` block inside
+    `Assistant.systemPrompt`. Marker prefix is `CUPLIVO_FIXED_MEMORY_*`,
+    NOT `TUMIN_FIXED_MEMORY_*`, to avoid collision with Cuplivo's other
+    in-prompt sentinels.
+  - `memory_strategy.dart` — three presets (`natural` / `saver` /
+    `strong`) plus `applyStrategy` / `detectStrategy`. Default values
+    mirror the v20 `Assistant` constructor so a freshly built assistant
+    reads as the `natural` preset.
+  - `cross_window_memory_store.dart` — per-assistant recent-life stream,
+    stored as one JSON blob in `SharedPreferencesAsync` under
+    `cross_window_memory_v1`. 1200-entry cap, 10-min compression lease.
+  - `three_layer_memory_policy.dart` — bag-of-words ranker (latin
+    tokens + CJK bigrams) and the `shouldInjectRecentChats` decision
+    table. Pure functions, no I/O — easy to unit-test.
+  - `memory_bank_service.dart` — typed view of the `memory_bank_rows`
+    drift table: keyword search, 6-dim stats, no-op vector pipeline.
+  - `memory_reserved_interfaces.dart` — six `UnimplementedError`-throwing
+    placeholders for phase-2 / phase-3 features (DailySummary, Diary,
+    External sync, Plugin bridge, Sticker AI, Reading space,
+    ProactiveMessage). Each is a typed call site; accidental use fails
+    loudly in tests instead of silently dropping a write.
+  - `memory_tool.dart` — the unified `memory_tool` (1 tool, 3 actions
+    via `action: create | edit | delete`). Legacy `create_memory` /
+    `edit_memory` / `delete_memory` remain available; the new tool is
+    the preferred surface when `enableThreeLayerMemory == true`.
+- `lib/features/memory/pages/setting_memory_page.dart` and
+  `lib/features/memory/pages/memory_bank_page.dart` — UI. View models
+  in `lib/features/memory/view_models/`.
+
+### 8.2 Schema touchpoints
+
+- `memory_bank_rows` is a drift table, schema v20. Defined in
+  `app_database.dart` alongside the migration `v19→v20`. The
+  `_healSchemaIfNeeded()` final pass is the idempotent repair.
+- New `Assistant` fields (8) all use safe reads in `fromJson`
+  (`json['x'] as bool? ?? defaultValue`). Pre-v20 backups round-trip
+  cleanly — every new field falls back to the constructor default.
+- The cross-window stream is a SharedPreferences key. It is included
+  in the prefs snapshot export / restore, so old snapshots replay as
+  a transient state blob. New conversationIds won't match the restored
+  cursors, so the user just sees the imported history the next time
+  they hit a window that wasn't in the snapshot.
+
+### 8.3 Backup compatibility rules
+
+- `_chatsJsonVersion` in `data_sync.dart` is v2 (v1 + `memoryBank`).
+- v1 backups import cleanly: the `memoryBank` field is optional and
+  defaults to an empty list.
+- v2 backups restore the bank in overwrite / merge modes the same way
+  as conversations. Merge dedupes on `(assistantId, createdAt, content)`.
+- A single bad row in the bank must NOT abort the whole restore
+  (`_restoreMemoryBank` catches per-row exceptions).
+
+### 8.4 Wiring touchpoints
+
+- `MessageBuilderService.injectMemoryAndRecentChats` is the injection
+  entry point. When `enableThreeLayerMemory == true` it appends the
+  3-layer block (cross-window + ranked long-term). Fixed memory is NOT
+  re-injected — it lives inside `assistant.systemPrompt` between the
+  `CUPLIVO_FIXED_MEMORY_*` sentinels.
+- `MessageBuilderService.recordMessageForMemory` is the write side.
+  It is called from `MessageGenerationService.createUserMessage` for
+  every user turn. Best-effort: a write hiccup must not break the chat
+  pipeline. The assistant message write is intentionally not wired —
+  adding it is a phase-2 follow-up.
+- The unified `memory_tool` is dispatched from
+  `ToolHandlerService._handleMemoryToolCall`. The legacy three tools
+  are unaffected.

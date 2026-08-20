@@ -284,6 +284,16 @@ class MessageGenerationService {
       requestAllowImagesApiRouting: input.allowImagesApiRouting,
       requestExtraBody: input.extraBody,
     );
+    // 3-layer memory: feed the persisted user text into the cross-window
+    // stream + memory bank so future turns can recall it. Best-effort —
+    // a write failure must never break the chat pipeline.
+    await messageBuilderService.recordMessageForMemory(
+      assistant: assistant,
+      conversationId: conversationId,
+      messageId: message.id,
+      role: 'user',
+      text: input.text,
+    );
     return message;
   }
 

@@ -20,6 +20,7 @@ import '../../../core/services/mcp/mcp_tool_service.dart';
 import '../../../core/services/search/search_tool_service.dart';
 import '../../../core/services/workspace/linux_sandbox_service.dart';
 import '../../../core/services/workspace/workspace_tools_service.dart';
+import '../../../core/memory/memory_tool.dart';
 import 'ask_user_interaction_service.dart';
 import 'handoff_tool_service.dart';
 import 'local_tools_service.dart';
@@ -251,6 +252,11 @@ class ToolHandlerService {
       if (assistant.memoryMode == 'tool') {
         names.add('read_memory');
       }
+      if (MemoryTool.shouldExpose(
+        enableThreeLayerMemory: assistant.enableThreeLayerMemory,
+      )) {
+        names.add(MemoryTool.toolName);
+      }
     }
     for (final id in assistant.localToolIds) {
       names.add(id);
@@ -370,6 +376,16 @@ class ToolHandlerService {
       toolDefs.addAll(
         _buildMemoryToolDefinitions(memoryMode: assistant!.memoryMode),
       );
+      // 3-layer migration: surface the unified `memory_tool` (1 tool, 3
+      // actions) as the preferred entry point when the new master switch
+      // is on. The legacy three (`create_memory` / `edit_memory` /
+      // `delete_memory`) remain available above for assistants that were
+      // created before this migration.
+      if (MemoryTool.shouldExpose(
+        enableThreeLayerMemory: assistant.enableThreeLayerMemory,
+      )) {
+        toolDefs.add(MemoryTool.getToolDefinition());
+      }
     }
 
     // Local tools
@@ -907,8 +923,30 @@ class ToolHandlerService {
     if (name != 'create_memory' &&
         name != 'edit_memory' &&
         name != 'delete_memory' &&
-        name != 'read_memory') {
+        name != 'read_memory' &&
+        name != MemoryTool.toolName) {
       return null;
+    }
+
+    // 3-layer migration entry point: dispatch the unified `memory_tool`
+    // through [MemoryTool.execute] which routes by `action` field.
+    if (name == MemoryTool.toolName) {
+      try {
+        final mp = contextProvider.read<MemoryProvider>();
+        return await MemoryTool.execute(
+          memoryProvider: mp,
+          assistantId: assistant!.id,
+          args: args,
+        );
+      } catch (e) {
+        return _toolError(
+          error: 'memory_execution_error',
+          message: e.toString(),
+          tool: name,
+          instruction:
+              'The memory tool failed. Retry only after correcting the parameters, or inform the user about the issue.',
+        );
+      }
     }
 
     try {

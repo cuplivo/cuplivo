@@ -22,6 +22,7 @@ import '../../chat/widgets/chat_message_widget.dart';
 import '../../home/widgets/assistant_avatar.dart';
 import '../../chat/widgets/reasoning_budget_sheet.dart';
 import '../../model/widgets/model_select_sheet.dart';
+import '../../memory/pages/setting_memory_page.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/conversation.dart';

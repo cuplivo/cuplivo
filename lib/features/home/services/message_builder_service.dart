@@ -23,6 +23,9 @@ import '../../../core/providers/instruction_injection_provider.dart';
 import '../../../core/providers/world_book_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/services/api/builtin_tools.dart';
+import '../../../core/memory/cross_window_memory_store.dart';
+import '../../../core/memory/memory_bank_service.dart';
+import '../../../core/memory/three_layer_memory_policy.dart';
 import '../../../core/models/assistant_regex.dart';
 import '../../../core/utils/multimodal_input_utils.dart';
 import '../../model/utils/ocr_model_capability.dart';
@@ -699,6 +702,142 @@ These memories are automatically included in future conversation contexts within
         }
       }
     } catch (_) {}
+
+    // 3-layer memory migration: when the master switch is on, this takes
+    // precedence over the legacy `enableMemory` / `memoryMode` path. The
+    // legacy block is still emitted by the snippet above; the 3-layer block
+    // is additive and uses the cross-window stream + ranked long-term
+    // memories, which are better-quality signals than raw memory dumps.
+    if (assistant?.enableThreeLayerMemory == true) {
+      await injectThreeLayerMemory(
+        apiMessages,
+        assistant!,
+        currentConversationId: currentConversationId,
+      );
+    }
+  }
+
+  /// Build and inject the 3-layer memory block (cross-window + long-term).
+  ///
+  /// Reads:
+  /// - **Cross-window**: from [CrossWindowMemoryStore] — only events from
+  ///   *other* windows of the same assistant that this window has not yet
+  ///   seen. The cursor advances only through the events actually included.
+  /// - **Long-term**: from [MemoryProvider] ranked by the
+  ///   [ThreeLayerMemoryPolicy] bag-of-words ranker. Bounded by
+  ///   `assistant.longTermMemoryRecallCount` and
+  ///   `assistant.longTermMemoryMaxChars`.
+  ///
+  /// Writes:
+  /// - **Fixed memory** lives inside `assistant.systemPrompt` (between the
+  ///   `<!-- CUPLIVO_FIXED_MEMORY_BEGIN/END -->` sentinels), so it is
+  ///   already in the system message. This method does not re-inject it
+  ///   to avoid duplicating the block.
+  ///
+  /// Failures are swallowed — 3-layer memory is an additive enhancement,
+  /// not a hard requirement for the request to succeed.
+  Future<void> injectThreeLayerMemory(
+    List<Map<String, dynamic>> apiMessages,
+    Assistant assistant, {
+    String? currentConversationId,
+  }) async {
+    if (assistant.id.trim().isEmpty) return;
+    final buf = StringBuffer();
+    // Read the long-term provider before any await so we don't cross an
+    // async gap with [contextProvider] (BuildContext lint).
+    final mp = contextProvider.read<MemoryProvider>();
+    try {
+      if (assistant.enableCrossWindowMemory) {
+        final store = CrossWindowMemoryStore();
+        final delta = await store.consumeForeignDelta(
+          assistant.id,
+          currentConversationId ?? '',
+        );
+        if (delta.prompt.isNotEmpty) {
+          buf.writeln(delta.prompt);
+        }
+      }
+      try {
+        await mp.initialize();
+        final mems = mp.getForAssistant(assistant.id);
+        final selected = ThreeLayerMemoryPolicy.selectLongTermMemories(
+          memories: mems,
+          query: _lastUserText(apiMessages),
+          limit: assistant.longTermMemoryRecallCount,
+          maxChars: assistant.longTermMemoryMaxChars,
+        );
+        if (selected.isNotEmpty) {
+          buf.writeln();
+          buf.writeln('## Long-term memories');
+          buf.writeln(
+            'Use these saved facts naturally; never quote them verbatim unless asked.',
+          );
+          for (final m in selected) {
+            buf.writeln('- (id=${m.id}) ${m.content}');
+          }
+        }
+      } catch (_) {
+        // best-effort; long-term read is non-fatal
+      }
+    } catch (_) {
+      // best-effort; never fail the chat
+    }
+    final block = buf.toString().trim();
+    if (block.isEmpty) return;
+    _appendToSystemMessage(apiMessages, block);
+  }
+
+  /// Pull the latest user message text out of [apiMessages] for the long-term
+  /// ranker query. Returns an empty string when there is no user turn yet
+  /// (the ranker returns `[]` in that case).
+  String _lastUserText(List<Map<String, dynamic>> apiMessages) {
+    for (var i = apiMessages.length - 1; i >= 0; i--) {
+      final msg = apiMessages[i];
+      if (msg['role'] == 'user') {
+        return (msg['content'] ?? '').toString();
+      }
+    }
+    return '';
+  }
+
+  /// Feed a single chat message into the 3-layer persistence paths.
+  ///
+  /// Best-effort — failures are swallowed so a write hiccup never breaks
+  /// the chat pipeline. Gated on [Assistant.enableThreeLayerMemory] +
+  /// [Assistant.enableCrossWindowMemory] for the cross-window stream.
+  Future<void> recordMessageForMemory({
+    required Assistant? assistant,
+    required String conversationId,
+    required String messageId,
+    required String role,
+    required String text,
+  }) async {
+    final cleanText = text.trim();
+    if (cleanText.isEmpty || assistant == null) return;
+    if (!assistant.enableThreeLayerMemory) return;
+    if (role != 'user' && role != 'assistant') return;
+    if (assistant.id.trim().isEmpty || conversationId.trim().isEmpty) return;
+    try {
+      if (assistant.enableCrossWindowMemory) {
+        final store = CrossWindowMemoryStore();
+        await store.append(
+          assistantId: assistant.id,
+          conversationId: conversationId,
+          messageId: messageId,
+          role: role,
+          text: cleanText,
+        );
+      }
+      final db = chatService.repo.db;
+      await MemoryBankService(db).saveChatMessage(
+        content: cleanText,
+        role: role,
+        assistantId: assistant.id,
+        conversationId: conversationId,
+      );
+    } catch (_) {
+      // best-effort
+    }
   }
 
   String _formatCurrentHour(DateTime now) {

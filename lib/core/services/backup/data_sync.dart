@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:archive/archive_io.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
@@ -20,6 +21,7 @@ import '../../models/group_chat.dart';
 import '../../models/group_chat_member.dart';
 import '../../models/incremental_backup.dart';
 import '../chat/chat_service.dart';
+import '../../database/app_database.dart';
 import '../deleted_records_store.dart';
 import '../mcp/kelivo_filesystem/kelivo_filesystem_server.dart'
     show isSafeWireSegment;
@@ -38,7 +40,10 @@ class DataSync {
   // own importer never reads this field, so exporting v1 keeps backups
   // importable into Kelivo without affecting Cuplivo round-trips. Never bump
   // this past 1 without relaxing Kelivo's _parseChatBackup constraint first.
-  static const int _chatsJsonVersion = 1;
+  // v2: added `memoryBank` for the 3-layer memory long-term bank rows.
+  // v1 backups (without `memoryBank`) still import cleanly — the field is
+  // optional and defaults to an empty list.
+  static const int _chatsJsonVersion = 2;
 
   // ===== WebDAV helpers =====
   Uri _collectionUri(WebDavConfig cfg) {
@@ -1134,6 +1139,27 @@ class DataSync {
       sink.write(',');
       sink.write('"groupMembers":');
       sink.write(jsonEncode(memberPayload));
+      sink.write(',');
+
+      // --- memory bank rows (3-layer migration) ---
+      // Stream the bank in a single JSON array. Incremental backups carry
+      // the same shape — the rows are individually timestamped so a future
+      // incremental filter can scope them by `createdAt`.
+      sink.write('"memoryBank":');
+      try {
+        final bankRows =
+            await chatService.repo.db.select(chatService.repo.db.memoryBankRows).get();
+        sink.write('[');
+        for (int i = 0; i < bankRows.length; i++) {
+          if (i > 0) sink.write(',');
+          sink.write(jsonEncode(_memoryBankRowToJson(bankRows[i])));
+        }
+        sink.write(']');
+      } catch (_) {
+        // Older builds that pre-date the migration cannot have any rows;
+        // emit an empty array so the import side still gets a valid field.
+        sink.write('[]');
+      }
 
       sink.write('}');
     } finally {
@@ -1142,6 +1168,23 @@ class DataSync {
     }
 
     return file;
+  }
+
+  Map<String, dynamic> _memoryBankRowToJson(MemoryBankRow row) {
+    return <String, dynamic>{
+      'content': row.content,
+      'type': row.type,
+      'conversationId': row.conversationId,
+      'assistantId': row.assistantId,
+      'role': row.role,
+      'createdAt': row.createdAt,
+      'dateGroup': row.dateGroup,
+      'vectorStatus': row.vectorStatus,
+      'vectorRetryCount': row.vectorRetryCount,
+      // Embedding is a JSON-encoded float array; emit as raw JSON list so
+      // it's compact. Stays `null` until the vector pipeline lands.
+      'embedding': row.embedding,
+    };
   }
 
   Future<void> _restoreFromBackupFile(
@@ -1548,6 +1591,11 @@ class DataSync {
               toolEventsByMessageId: toolEvents,
               geminiSignaturesByMessageId: geminiThoughtSigs,
             );
+            // Memory bank: overwrite mode wipes the table and re-inserts
+            // the rows that came in. We use [rawInsert] so the import is
+            // loss-less even if the import order differs from the export
+            // order (the row id is auto-assigned, so order is irrelevant).
+            await _restoreMemoryBank(obj, mode: RestoreMode.overwrite);
           } else {
             // Merge mode: Add only non-existing conversations and messages
             final existingConvs = chatService.getAllCompleteConversations();
@@ -1629,6 +1677,11 @@ class DataSync {
                 } catch (_) {}
               }
             }
+            // Memory bank merge mode: only insert rows whose
+            // (assistantId, createdAt) tuple doesn't already exist. This
+            // keeps the user's existing rows while pulling in the imported
+            // ones. Older backups without `memoryBank` are a no-op.
+            await _restoreMemoryBank(obj, mode: RestoreMode.merge);
           }
 
           // Restore group chat metadata. The groupChats/groupMembers keys are
@@ -2142,6 +2195,64 @@ class DataSync {
   /// Applies the legacy `ocr_enabled_v1` mapping to an assistant map that
   /// predates per-assistant `ocrMode` (true -> 'auto', false -> 'never').
   /// Assistants that already carry an `ocrMode` field are left untouched.
+  /// Restore the [MemoryBankRows] table from a backup payload.
+  ///
+  /// Backwards compatible with v1 backups that don't carry a `memoryBank`
+  /// key — the field defaults to an empty list and the call is a no-op.
+  /// v1-to-v2 import is silent and loss-less.
+  Future<void> _restoreMemoryBank(
+    Map<String, dynamic> obj, {
+    required RestoreMode mode,
+  }) async {
+    final raw = obj['memoryBank'] as List?;
+    if (raw == null || raw.isEmpty) return;
+    final db = chatService.repo.db;
+    if (mode == RestoreMode.overwrite) {
+      await db.delete(db.memoryBankRows).go();
+    }
+    final existing = mode == RestoreMode.merge
+        ? await db.select(db.memoryBankRows).get()
+        : const <MemoryBankRow>[];
+    final existingKeys = <String>{
+      for (final r in existing)
+        '${r.assistantId ?? ''}|${r.createdAt}|${r.content}',
+    };
+    for (final entry in raw) {
+      if (entry is! Map) continue;
+      final map = entry.cast<String, dynamic>();
+      final content = (map['content'] as String?) ?? '';
+      if (content.isEmpty) continue;
+      final assistantId = map['assistantId'] as String?;
+      final createdAt = (map['createdAt'] as num?)?.toInt() ?? 0;
+      if (mode == RestoreMode.merge &&
+          existingKeys.contains('$assistantId|$createdAt|$content')) {
+        continue;
+      }
+      try {
+        await db.into(db.memoryBankRows).insert(
+              MemoryBankRowsCompanion.insert(
+                content: Value(content),
+                type: Value((map['type'] as String?) ?? 'message'),
+                conversationId: Value(map['conversationId'] as String?),
+                assistantId: Value(assistantId),
+                role: Value(map['role'] as String?),
+                createdAt: createdAt,
+                dateGroup: Value(map['dateGroup'] as String?),
+                vectorStatus: Value(
+                  (map['vectorStatus'] as String?) ?? 'skipped',
+                ),
+                vectorRetryCount: Value(
+                  (map['vectorRetryCount'] as num?)?.toInt() ?? 0,
+                ),
+                embedding: Value(map['embedding'] as String?),
+              ),
+            );
+      } catch (_) {
+        // A single bad row must not abort the whole restore.
+      }
+    }
+  }
+
   static Map<String, dynamic> _applyLegacyOcrModeToAssistantMap(
     Map<String, dynamic> map,
     Object? legacyOcrEnabled,

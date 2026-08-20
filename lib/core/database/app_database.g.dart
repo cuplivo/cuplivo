@@ -2852,6 +2852,115 @@ class $AssistantRowsTable extends AssistantRows
         requiredDuringInsert: false,
         defaultValue: const Constant(''),
       );
+  static const VerificationMeta _enableThreeLayerMemoryMeta =
+      const VerificationMeta('enableThreeLayerMemory');
+  @override
+  late final GeneratedColumn<bool> enableThreeLayerMemory =
+      GeneratedColumn<bool>(
+        'enable_three_layer_memory',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("enable_three_layer_memory" IN (0, 1))',
+        ),
+        defaultValue: const Constant(true),
+      );
+  static const VerificationMeta _enableCrossWindowMemoryMeta =
+      const VerificationMeta('enableCrossWindowMemory');
+  @override
+  late final GeneratedColumn<bool> enableCrossWindowMemory =
+      GeneratedColumn<bool>(
+        'enable_cross_window_memory',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("enable_cross_window_memory" IN (0, 1))',
+        ),
+        defaultValue: const Constant(true),
+      );
+  static const VerificationMeta _enableCrossWindowMemoryCompressionMeta =
+      const VerificationMeta('enableCrossWindowMemoryCompression');
+  @override
+  late final GeneratedColumn<bool> enableCrossWindowMemoryCompression =
+      GeneratedColumn<bool>(
+        'enable_cross_window_memory_compression',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("enable_cross_window_memory_compression" IN (0, 1))',
+        ),
+        defaultValue: const Constant(true),
+      );
+  static const VerificationMeta _useRecentChatsAsFallbackMeta =
+      const VerificationMeta('useRecentChatsAsFallback');
+  @override
+  late final GeneratedColumn<bool> useRecentChatsAsFallback =
+      GeneratedColumn<bool>(
+        'use_recent_chats_as_fallback',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("use_recent_chats_as_fallback" IN (0, 1))',
+        ),
+        defaultValue: const Constant(false),
+      );
+  static const VerificationMeta
+  _crossWindowMemoryCompressionThresholdCharsMeta = const VerificationMeta(
+    'crossWindowMemoryCompressionThresholdChars',
+  );
+  @override
+  late final GeneratedColumn<int> crossWindowMemoryCompressionThresholdChars =
+      GeneratedColumn<int>(
+        'cross_window_memory_compression_threshold_chars',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(12000),
+      );
+  static const VerificationMeta _crossWindowMemoryTailEntriesMeta =
+      const VerificationMeta('crossWindowMemoryTailEntries');
+  @override
+  late final GeneratedColumn<int> crossWindowMemoryTailEntries =
+      GeneratedColumn<int>(
+        'cross_window_memory_tail_entries',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(16),
+      );
+  static const VerificationMeta _longTermMemoryRecallCountMeta =
+      const VerificationMeta('longTermMemoryRecallCount');
+  @override
+  late final GeneratedColumn<int> longTermMemoryRecallCount =
+      GeneratedColumn<int>(
+        'long_term_memory_recall_count',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(6),
+      );
+  static const VerificationMeta _longTermMemoryMaxCharsMeta =
+      const VerificationMeta('longTermMemoryMaxChars');
+  @override
+  late final GeneratedColumn<int> longTermMemoryMaxChars = GeneratedColumn<int>(
+    'long_term_memory_max_chars',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(3000),
+  );
   static const VerificationMeta _docxModeMeta = const VerificationMeta(
     'docxMode',
   );
@@ -3022,6 +3131,14 @@ class $AssistantRowsTable extends AssistantRows
     enableRecentChatsReference,
     recentChatsSummaryMessageCount,
     memoryRecordPrompt,
+    enableThreeLayerMemory,
+    enableCrossWindowMemory,
+    enableCrossWindowMemoryCompression,
+    useRecentChatsAsFallback,
+    crossWindowMemoryCompressionThresholdChars,
+    crossWindowMemoryTailEntries,
+    longTermMemoryRecallCount,
+    longTermMemoryMaxChars,
     docxMode,
     pdfMode,
     otherOfficeMode,
@@ -3350,6 +3467,78 @@ class $AssistantRowsTable extends AssistantRows
         ),
       );
     }
+    if (data.containsKey('enable_three_layer_memory')) {
+      context.handle(
+        _enableThreeLayerMemoryMeta,
+        enableThreeLayerMemory.isAcceptableOrUnknown(
+          data['enable_three_layer_memory']!,
+          _enableThreeLayerMemoryMeta,
+        ),
+      );
+    }
+    if (data.containsKey('enable_cross_window_memory')) {
+      context.handle(
+        _enableCrossWindowMemoryMeta,
+        enableCrossWindowMemory.isAcceptableOrUnknown(
+          data['enable_cross_window_memory']!,
+          _enableCrossWindowMemoryMeta,
+        ),
+      );
+    }
+    if (data.containsKey('enable_cross_window_memory_compression')) {
+      context.handle(
+        _enableCrossWindowMemoryCompressionMeta,
+        enableCrossWindowMemoryCompression.isAcceptableOrUnknown(
+          data['enable_cross_window_memory_compression']!,
+          _enableCrossWindowMemoryCompressionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('use_recent_chats_as_fallback')) {
+      context.handle(
+        _useRecentChatsAsFallbackMeta,
+        useRecentChatsAsFallback.isAcceptableOrUnknown(
+          data['use_recent_chats_as_fallback']!,
+          _useRecentChatsAsFallbackMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cross_window_memory_compression_threshold_chars')) {
+      context.handle(
+        _crossWindowMemoryCompressionThresholdCharsMeta,
+        crossWindowMemoryCompressionThresholdChars.isAcceptableOrUnknown(
+          data['cross_window_memory_compression_threshold_chars']!,
+          _crossWindowMemoryCompressionThresholdCharsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cross_window_memory_tail_entries')) {
+      context.handle(
+        _crossWindowMemoryTailEntriesMeta,
+        crossWindowMemoryTailEntries.isAcceptableOrUnknown(
+          data['cross_window_memory_tail_entries']!,
+          _crossWindowMemoryTailEntriesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('long_term_memory_recall_count')) {
+      context.handle(
+        _longTermMemoryRecallCountMeta,
+        longTermMemoryRecallCount.isAcceptableOrUnknown(
+          data['long_term_memory_recall_count']!,
+          _longTermMemoryRecallCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('long_term_memory_max_chars')) {
+      context.handle(
+        _longTermMemoryMaxCharsMeta,
+        longTermMemoryMaxChars.isAcceptableOrUnknown(
+          data['long_term_memory_max_chars']!,
+          _longTermMemoryMaxCharsMeta,
+        ),
+      );
+    }
     if (data.containsKey('docx_mode')) {
       context.handle(
         _docxModeMeta,
@@ -3587,6 +3776,38 @@ class $AssistantRowsTable extends AssistantRows
         DriftSqlType.string,
         data['${effectivePrefix}memory_record_prompt'],
       )!,
+      enableThreeLayerMemory: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}enable_three_layer_memory'],
+      )!,
+      enableCrossWindowMemory: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}enable_cross_window_memory'],
+      )!,
+      enableCrossWindowMemoryCompression: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}enable_cross_window_memory_compression'],
+      )!,
+      useRecentChatsAsFallback: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}use_recent_chats_as_fallback'],
+      )!,
+      crossWindowMemoryCompressionThresholdChars: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cross_window_memory_compression_threshold_chars'],
+      )!,
+      crossWindowMemoryTailEntries: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cross_window_memory_tail_entries'],
+      )!,
+      longTermMemoryRecallCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}long_term_memory_recall_count'],
+      )!,
+      longTermMemoryMaxChars: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}long_term_memory_max_chars'],
+      )!,
       docxMode: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}docx_mode'],
@@ -3677,6 +3898,14 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
   final bool enableRecentChatsReference;
   final int recentChatsSummaryMessageCount;
   final String memoryRecordPrompt;
+  final bool enableThreeLayerMemory;
+  final bool enableCrossWindowMemory;
+  final bool enableCrossWindowMemoryCompression;
+  final bool useRecentChatsAsFallback;
+  final int crossWindowMemoryCompressionThresholdChars;
+  final int crossWindowMemoryTailEntries;
+  final int longTermMemoryRecallCount;
+  final int longTermMemoryMaxChars;
   final String docxMode;
   final String pdfMode;
   final String otherOfficeMode;
@@ -3725,6 +3954,14 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     required this.enableRecentChatsReference,
     required this.recentChatsSummaryMessageCount,
     required this.memoryRecordPrompt,
+    required this.enableThreeLayerMemory,
+    required this.enableCrossWindowMemory,
+    required this.enableCrossWindowMemoryCompression,
+    required this.useRecentChatsAsFallback,
+    required this.crossWindowMemoryCompressionThresholdChars,
+    required this.crossWindowMemoryTailEntries,
+    required this.longTermMemoryRecallCount,
+    required this.longTermMemoryMaxChars,
     required this.docxMode,
     required this.pdfMode,
     required this.otherOfficeMode,
@@ -3804,6 +4041,24 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       recentChatsSummaryMessageCount,
     );
     map['memory_record_prompt'] = Variable<String>(memoryRecordPrompt);
+    map['enable_three_layer_memory'] = Variable<bool>(enableThreeLayerMemory);
+    map['enable_cross_window_memory'] = Variable<bool>(enableCrossWindowMemory);
+    map['enable_cross_window_memory_compression'] = Variable<bool>(
+      enableCrossWindowMemoryCompression,
+    );
+    map['use_recent_chats_as_fallback'] = Variable<bool>(
+      useRecentChatsAsFallback,
+    );
+    map['cross_window_memory_compression_threshold_chars'] = Variable<int>(
+      crossWindowMemoryCompressionThresholdChars,
+    );
+    map['cross_window_memory_tail_entries'] = Variable<int>(
+      crossWindowMemoryTailEntries,
+    );
+    map['long_term_memory_recall_count'] = Variable<int>(
+      longTermMemoryRecallCount,
+    );
+    map['long_term_memory_max_chars'] = Variable<int>(longTermMemoryMaxChars);
     map['docx_mode'] = Variable<String>(docxMode);
     map['pdf_mode'] = Variable<String>(pdfMode);
     map['other_office_mode'] = Variable<String>(otherOfficeMode);
@@ -3879,6 +4134,18 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       enableRecentChatsReference: Value(enableRecentChatsReference),
       recentChatsSummaryMessageCount: Value(recentChatsSummaryMessageCount),
       memoryRecordPrompt: Value(memoryRecordPrompt),
+      enableThreeLayerMemory: Value(enableThreeLayerMemory),
+      enableCrossWindowMemory: Value(enableCrossWindowMemory),
+      enableCrossWindowMemoryCompression: Value(
+        enableCrossWindowMemoryCompression,
+      ),
+      useRecentChatsAsFallback: Value(useRecentChatsAsFallback),
+      crossWindowMemoryCompressionThresholdChars: Value(
+        crossWindowMemoryCompressionThresholdChars,
+      ),
+      crossWindowMemoryTailEntries: Value(crossWindowMemoryTailEntries),
+      longTermMemoryRecallCount: Value(longTermMemoryRecallCount),
+      longTermMemoryMaxChars: Value(longTermMemoryMaxChars),
       docxMode: Value(docxMode),
       pdfMode: Value(pdfMode),
       otherOfficeMode: Value(otherOfficeMode),
@@ -3959,6 +4226,30 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       memoryRecordPrompt: serializer.fromJson<String>(
         json['memoryRecordPrompt'],
       ),
+      enableThreeLayerMemory: serializer.fromJson<bool>(
+        json['enableThreeLayerMemory'],
+      ),
+      enableCrossWindowMemory: serializer.fromJson<bool>(
+        json['enableCrossWindowMemory'],
+      ),
+      enableCrossWindowMemoryCompression: serializer.fromJson<bool>(
+        json['enableCrossWindowMemoryCompression'],
+      ),
+      useRecentChatsAsFallback: serializer.fromJson<bool>(
+        json['useRecentChatsAsFallback'],
+      ),
+      crossWindowMemoryCompressionThresholdChars: serializer.fromJson<int>(
+        json['crossWindowMemoryCompressionThresholdChars'],
+      ),
+      crossWindowMemoryTailEntries: serializer.fromJson<int>(
+        json['crossWindowMemoryTailEntries'],
+      ),
+      longTermMemoryRecallCount: serializer.fromJson<int>(
+        json['longTermMemoryRecallCount'],
+      ),
+      longTermMemoryMaxChars: serializer.fromJson<int>(
+        json['longTermMemoryMaxChars'],
+      ),
       docxMode: serializer.fromJson<String>(json['docxMode']),
       pdfMode: serializer.fromJson<String>(json['pdfMode']),
       otherOfficeMode: serializer.fromJson<String>(json['otherOfficeMode']),
@@ -4024,6 +4315,26 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
         recentChatsSummaryMessageCount,
       ),
       'memoryRecordPrompt': serializer.toJson<String>(memoryRecordPrompt),
+      'enableThreeLayerMemory': serializer.toJson<bool>(enableThreeLayerMemory),
+      'enableCrossWindowMemory': serializer.toJson<bool>(
+        enableCrossWindowMemory,
+      ),
+      'enableCrossWindowMemoryCompression': serializer.toJson<bool>(
+        enableCrossWindowMemoryCompression,
+      ),
+      'useRecentChatsAsFallback': serializer.toJson<bool>(
+        useRecentChatsAsFallback,
+      ),
+      'crossWindowMemoryCompressionThresholdChars': serializer.toJson<int>(
+        crossWindowMemoryCompressionThresholdChars,
+      ),
+      'crossWindowMemoryTailEntries': serializer.toJson<int>(
+        crossWindowMemoryTailEntries,
+      ),
+      'longTermMemoryRecallCount': serializer.toJson<int>(
+        longTermMemoryRecallCount,
+      ),
+      'longTermMemoryMaxChars': serializer.toJson<int>(longTermMemoryMaxChars),
       'docxMode': serializer.toJson<String>(docxMode),
       'pdfMode': serializer.toJson<String>(pdfMode),
       'otherOfficeMode': serializer.toJson<String>(otherOfficeMode),
@@ -4075,6 +4386,14 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     bool? enableRecentChatsReference,
     int? recentChatsSummaryMessageCount,
     String? memoryRecordPrompt,
+    bool? enableThreeLayerMemory,
+    bool? enableCrossWindowMemory,
+    bool? enableCrossWindowMemoryCompression,
+    bool? useRecentChatsAsFallback,
+    int? crossWindowMemoryCompressionThresholdChars,
+    int? crossWindowMemoryTailEntries,
+    int? longTermMemoryRecallCount,
+    int? longTermMemoryMaxChars,
     String? docxMode,
     String? pdfMode,
     String? otherOfficeMode,
@@ -4132,6 +4451,24 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     recentChatsSummaryMessageCount:
         recentChatsSummaryMessageCount ?? this.recentChatsSummaryMessageCount,
     memoryRecordPrompt: memoryRecordPrompt ?? this.memoryRecordPrompt,
+    enableThreeLayerMemory:
+        enableThreeLayerMemory ?? this.enableThreeLayerMemory,
+    enableCrossWindowMemory:
+        enableCrossWindowMemory ?? this.enableCrossWindowMemory,
+    enableCrossWindowMemoryCompression:
+        enableCrossWindowMemoryCompression ??
+        this.enableCrossWindowMemoryCompression,
+    useRecentChatsAsFallback:
+        useRecentChatsAsFallback ?? this.useRecentChatsAsFallback,
+    crossWindowMemoryCompressionThresholdChars:
+        crossWindowMemoryCompressionThresholdChars ??
+        this.crossWindowMemoryCompressionThresholdChars,
+    crossWindowMemoryTailEntries:
+        crossWindowMemoryTailEntries ?? this.crossWindowMemoryTailEntries,
+    longTermMemoryRecallCount:
+        longTermMemoryRecallCount ?? this.longTermMemoryRecallCount,
+    longTermMemoryMaxChars:
+        longTermMemoryMaxChars ?? this.longTermMemoryMaxChars,
     docxMode: docxMode ?? this.docxMode,
     pdfMode: pdfMode ?? this.pdfMode,
     otherOfficeMode: otherOfficeMode ?? this.otherOfficeMode,
@@ -4247,6 +4584,32 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       memoryRecordPrompt: data.memoryRecordPrompt.present
           ? data.memoryRecordPrompt.value
           : this.memoryRecordPrompt,
+      enableThreeLayerMemory: data.enableThreeLayerMemory.present
+          ? data.enableThreeLayerMemory.value
+          : this.enableThreeLayerMemory,
+      enableCrossWindowMemory: data.enableCrossWindowMemory.present
+          ? data.enableCrossWindowMemory.value
+          : this.enableCrossWindowMemory,
+      enableCrossWindowMemoryCompression:
+          data.enableCrossWindowMemoryCompression.present
+          ? data.enableCrossWindowMemoryCompression.value
+          : this.enableCrossWindowMemoryCompression,
+      useRecentChatsAsFallback: data.useRecentChatsAsFallback.present
+          ? data.useRecentChatsAsFallback.value
+          : this.useRecentChatsAsFallback,
+      crossWindowMemoryCompressionThresholdChars:
+          data.crossWindowMemoryCompressionThresholdChars.present
+          ? data.crossWindowMemoryCompressionThresholdChars.value
+          : this.crossWindowMemoryCompressionThresholdChars,
+      crossWindowMemoryTailEntries: data.crossWindowMemoryTailEntries.present
+          ? data.crossWindowMemoryTailEntries.value
+          : this.crossWindowMemoryTailEntries,
+      longTermMemoryRecallCount: data.longTermMemoryRecallCount.present
+          ? data.longTermMemoryRecallCount.value
+          : this.longTermMemoryRecallCount,
+      longTermMemoryMaxChars: data.longTermMemoryMaxChars.present
+          ? data.longTermMemoryMaxChars.value
+          : this.longTermMemoryMaxChars,
       docxMode: data.docxMode.present ? data.docxMode.value : this.docxMode,
       pdfMode: data.pdfMode.present ? data.pdfMode.value : this.pdfMode,
       otherOfficeMode: data.otherOfficeMode.present
@@ -4310,6 +4673,20 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
             'recentChatsSummaryMessageCount: $recentChatsSummaryMessageCount, ',
           )
           ..write('memoryRecordPrompt: $memoryRecordPrompt, ')
+          ..write('enableThreeLayerMemory: $enableThreeLayerMemory, ')
+          ..write('enableCrossWindowMemory: $enableCrossWindowMemory, ')
+          ..write(
+            'enableCrossWindowMemoryCompression: $enableCrossWindowMemoryCompression, ',
+          )
+          ..write('useRecentChatsAsFallback: $useRecentChatsAsFallback, ')
+          ..write(
+            'crossWindowMemoryCompressionThresholdChars: $crossWindowMemoryCompressionThresholdChars, ',
+          )
+          ..write(
+            'crossWindowMemoryTailEntries: $crossWindowMemoryTailEntries, ',
+          )
+          ..write('longTermMemoryRecallCount: $longTermMemoryRecallCount, ')
+          ..write('longTermMemoryMaxChars: $longTermMemoryMaxChars, ')
           ..write('docxMode: $docxMode, ')
           ..write('pdfMode: $pdfMode, ')
           ..write('otherOfficeMode: $otherOfficeMode, ')
@@ -4363,6 +4740,14 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     enableRecentChatsReference,
     recentChatsSummaryMessageCount,
     memoryRecordPrompt,
+    enableThreeLayerMemory,
+    enableCrossWindowMemory,
+    enableCrossWindowMemoryCompression,
+    useRecentChatsAsFallback,
+    crossWindowMemoryCompressionThresholdChars,
+    crossWindowMemoryTailEntries,
+    longTermMemoryRecallCount,
+    longTermMemoryMaxChars,
     docxMode,
     pdfMode,
     otherOfficeMode,
@@ -4417,6 +4802,17 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
           other.recentChatsSummaryMessageCount ==
               this.recentChatsSummaryMessageCount &&
           other.memoryRecordPrompt == this.memoryRecordPrompt &&
+          other.enableThreeLayerMemory == this.enableThreeLayerMemory &&
+          other.enableCrossWindowMemory == this.enableCrossWindowMemory &&
+          other.enableCrossWindowMemoryCompression ==
+              this.enableCrossWindowMemoryCompression &&
+          other.useRecentChatsAsFallback == this.useRecentChatsAsFallback &&
+          other.crossWindowMemoryCompressionThresholdChars ==
+              this.crossWindowMemoryCompressionThresholdChars &&
+          other.crossWindowMemoryTailEntries ==
+              this.crossWindowMemoryTailEntries &&
+          other.longTermMemoryRecallCount == this.longTermMemoryRecallCount &&
+          other.longTermMemoryMaxChars == this.longTermMemoryMaxChars &&
           other.docxMode == this.docxMode &&
           other.pdfMode == this.pdfMode &&
           other.otherOfficeMode == this.otherOfficeMode &&
@@ -4467,6 +4863,14 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
   final Value<bool> enableRecentChatsReference;
   final Value<int> recentChatsSummaryMessageCount;
   final Value<String> memoryRecordPrompt;
+  final Value<bool> enableThreeLayerMemory;
+  final Value<bool> enableCrossWindowMemory;
+  final Value<bool> enableCrossWindowMemoryCompression;
+  final Value<bool> useRecentChatsAsFallback;
+  final Value<int> crossWindowMemoryCompressionThresholdChars;
+  final Value<int> crossWindowMemoryTailEntries;
+  final Value<int> longTermMemoryRecallCount;
+  final Value<int> longTermMemoryMaxChars;
   final Value<String> docxMode;
   final Value<String> pdfMode;
   final Value<String> otherOfficeMode;
@@ -4516,6 +4920,14 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     this.enableRecentChatsReference = const Value.absent(),
     this.recentChatsSummaryMessageCount = const Value.absent(),
     this.memoryRecordPrompt = const Value.absent(),
+    this.enableThreeLayerMemory = const Value.absent(),
+    this.enableCrossWindowMemory = const Value.absent(),
+    this.enableCrossWindowMemoryCompression = const Value.absent(),
+    this.useRecentChatsAsFallback = const Value.absent(),
+    this.crossWindowMemoryCompressionThresholdChars = const Value.absent(),
+    this.crossWindowMemoryTailEntries = const Value.absent(),
+    this.longTermMemoryRecallCount = const Value.absent(),
+    this.longTermMemoryMaxChars = const Value.absent(),
     this.docxMode = const Value.absent(),
     this.pdfMode = const Value.absent(),
     this.otherOfficeMode = const Value.absent(),
@@ -4566,6 +4978,14 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     this.enableRecentChatsReference = const Value.absent(),
     this.recentChatsSummaryMessageCount = const Value.absent(),
     this.memoryRecordPrompt = const Value.absent(),
+    this.enableThreeLayerMemory = const Value.absent(),
+    this.enableCrossWindowMemory = const Value.absent(),
+    this.enableCrossWindowMemoryCompression = const Value.absent(),
+    this.useRecentChatsAsFallback = const Value.absent(),
+    this.crossWindowMemoryCompressionThresholdChars = const Value.absent(),
+    this.crossWindowMemoryTailEntries = const Value.absent(),
+    this.longTermMemoryRecallCount = const Value.absent(),
+    this.longTermMemoryMaxChars = const Value.absent(),
     this.docxMode = const Value.absent(),
     this.pdfMode = const Value.absent(),
     this.otherOfficeMode = const Value.absent(),
@@ -4620,6 +5040,14 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     Expression<bool>? enableRecentChatsReference,
     Expression<int>? recentChatsSummaryMessageCount,
     Expression<String>? memoryRecordPrompt,
+    Expression<bool>? enableThreeLayerMemory,
+    Expression<bool>? enableCrossWindowMemory,
+    Expression<bool>? enableCrossWindowMemoryCompression,
+    Expression<bool>? useRecentChatsAsFallback,
+    Expression<int>? crossWindowMemoryCompressionThresholdChars,
+    Expression<int>? crossWindowMemoryTailEntries,
+    Expression<int>? longTermMemoryRecallCount,
+    Expression<int>? longTermMemoryMaxChars,
     Expression<String>? docxMode,
     Expression<String>? pdfMode,
     Expression<String>? otherOfficeMode,
@@ -4681,6 +5109,24 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
         'recent_chats_summary_message_count': recentChatsSummaryMessageCount,
       if (memoryRecordPrompt != null)
         'memory_record_prompt': memoryRecordPrompt,
+      if (enableThreeLayerMemory != null)
+        'enable_three_layer_memory': enableThreeLayerMemory,
+      if (enableCrossWindowMemory != null)
+        'enable_cross_window_memory': enableCrossWindowMemory,
+      if (enableCrossWindowMemoryCompression != null)
+        'enable_cross_window_memory_compression':
+            enableCrossWindowMemoryCompression,
+      if (useRecentChatsAsFallback != null)
+        'use_recent_chats_as_fallback': useRecentChatsAsFallback,
+      if (crossWindowMemoryCompressionThresholdChars != null)
+        'cross_window_memory_compression_threshold_chars':
+            crossWindowMemoryCompressionThresholdChars,
+      if (crossWindowMemoryTailEntries != null)
+        'cross_window_memory_tail_entries': crossWindowMemoryTailEntries,
+      if (longTermMemoryRecallCount != null)
+        'long_term_memory_recall_count': longTermMemoryRecallCount,
+      if (longTermMemoryMaxChars != null)
+        'long_term_memory_max_chars': longTermMemoryMaxChars,
       if (docxMode != null) 'docx_mode': docxMode,
       if (pdfMode != null) 'pdf_mode': pdfMode,
       if (otherOfficeMode != null) 'other_office_mode': otherOfficeMode,
@@ -4734,6 +5180,14 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     Value<bool>? enableRecentChatsReference,
     Value<int>? recentChatsSummaryMessageCount,
     Value<String>? memoryRecordPrompt,
+    Value<bool>? enableThreeLayerMemory,
+    Value<bool>? enableCrossWindowMemory,
+    Value<bool>? enableCrossWindowMemoryCompression,
+    Value<bool>? useRecentChatsAsFallback,
+    Value<int>? crossWindowMemoryCompressionThresholdChars,
+    Value<int>? crossWindowMemoryTailEntries,
+    Value<int>? longTermMemoryRecallCount,
+    Value<int>? longTermMemoryMaxChars,
     Value<String>? docxMode,
     Value<String>? pdfMode,
     Value<String>? otherOfficeMode,
@@ -4788,6 +5242,24 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
       recentChatsSummaryMessageCount:
           recentChatsSummaryMessageCount ?? this.recentChatsSummaryMessageCount,
       memoryRecordPrompt: memoryRecordPrompt ?? this.memoryRecordPrompt,
+      enableThreeLayerMemory:
+          enableThreeLayerMemory ?? this.enableThreeLayerMemory,
+      enableCrossWindowMemory:
+          enableCrossWindowMemory ?? this.enableCrossWindowMemory,
+      enableCrossWindowMemoryCompression:
+          enableCrossWindowMemoryCompression ??
+          this.enableCrossWindowMemoryCompression,
+      useRecentChatsAsFallback:
+          useRecentChatsAsFallback ?? this.useRecentChatsAsFallback,
+      crossWindowMemoryCompressionThresholdChars:
+          crossWindowMemoryCompressionThresholdChars ??
+          this.crossWindowMemoryCompressionThresholdChars,
+      crossWindowMemoryTailEntries:
+          crossWindowMemoryTailEntries ?? this.crossWindowMemoryTailEntries,
+      longTermMemoryRecallCount:
+          longTermMemoryRecallCount ?? this.longTermMemoryRecallCount,
+      longTermMemoryMaxChars:
+          longTermMemoryMaxChars ?? this.longTermMemoryMaxChars,
       docxMode: docxMode ?? this.docxMode,
       pdfMode: pdfMode ?? this.pdfMode,
       otherOfficeMode: otherOfficeMode ?? this.otherOfficeMode,
@@ -4926,6 +5398,46 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     if (memoryRecordPrompt.present) {
       map['memory_record_prompt'] = Variable<String>(memoryRecordPrompt.value);
     }
+    if (enableThreeLayerMemory.present) {
+      map['enable_three_layer_memory'] = Variable<bool>(
+        enableThreeLayerMemory.value,
+      );
+    }
+    if (enableCrossWindowMemory.present) {
+      map['enable_cross_window_memory'] = Variable<bool>(
+        enableCrossWindowMemory.value,
+      );
+    }
+    if (enableCrossWindowMemoryCompression.present) {
+      map['enable_cross_window_memory_compression'] = Variable<bool>(
+        enableCrossWindowMemoryCompression.value,
+      );
+    }
+    if (useRecentChatsAsFallback.present) {
+      map['use_recent_chats_as_fallback'] = Variable<bool>(
+        useRecentChatsAsFallback.value,
+      );
+    }
+    if (crossWindowMemoryCompressionThresholdChars.present) {
+      map['cross_window_memory_compression_threshold_chars'] = Variable<int>(
+        crossWindowMemoryCompressionThresholdChars.value,
+      );
+    }
+    if (crossWindowMemoryTailEntries.present) {
+      map['cross_window_memory_tail_entries'] = Variable<int>(
+        crossWindowMemoryTailEntries.value,
+      );
+    }
+    if (longTermMemoryRecallCount.present) {
+      map['long_term_memory_recall_count'] = Variable<int>(
+        longTermMemoryRecallCount.value,
+      );
+    }
+    if (longTermMemoryMaxChars.present) {
+      map['long_term_memory_max_chars'] = Variable<int>(
+        longTermMemoryMaxChars.value,
+      );
+    }
     if (docxMode.present) {
       map['docx_mode'] = Variable<String>(docxMode.value);
     }
@@ -5006,6 +5518,20 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
             'recentChatsSummaryMessageCount: $recentChatsSummaryMessageCount, ',
           )
           ..write('memoryRecordPrompt: $memoryRecordPrompt, ')
+          ..write('enableThreeLayerMemory: $enableThreeLayerMemory, ')
+          ..write('enableCrossWindowMemory: $enableCrossWindowMemory, ')
+          ..write(
+            'enableCrossWindowMemoryCompression: $enableCrossWindowMemoryCompression, ',
+          )
+          ..write('useRecentChatsAsFallback: $useRecentChatsAsFallback, ')
+          ..write(
+            'crossWindowMemoryCompressionThresholdChars: $crossWindowMemoryCompressionThresholdChars, ',
+          )
+          ..write(
+            'crossWindowMemoryTailEntries: $crossWindowMemoryTailEntries, ',
+          )
+          ..write('longTermMemoryRecallCount: $longTermMemoryRecallCount, ')
+          ..write('longTermMemoryMaxChars: $longTermMemoryMaxChars, ')
           ..write('docxMode: $docxMode, ')
           ..write('pdfMode: $pdfMode, ')
           ..write('otherOfficeMode: $otherOfficeMode, ')
@@ -5018,6 +5544,661 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MemoryBankRowsTable extends MemoryBankRows
+    with TableInfo<$MemoryBankRowsTable, MemoryBankRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MemoryBankRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _contentMeta = const VerificationMeta(
+    'content',
+  );
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+    'content',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('message'),
+  );
+  static const VerificationMeta _conversationIdMeta = const VerificationMeta(
+    'conversationId',
+  );
+  @override
+  late final GeneratedColumn<String> conversationId = GeneratedColumn<String>(
+    'conversation_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _assistantIdMeta = const VerificationMeta(
+    'assistantId',
+  );
+  @override
+  late final GeneratedColumn<String> assistantId = GeneratedColumn<String>(
+    'assistant_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+    'role',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dateGroupMeta = const VerificationMeta(
+    'dateGroup',
+  );
+  @override
+  late final GeneratedColumn<String> dateGroup = GeneratedColumn<String>(
+    'date_group',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _vectorStatusMeta = const VerificationMeta(
+    'vectorStatus',
+  );
+  @override
+  late final GeneratedColumn<String> vectorStatus = GeneratedColumn<String>(
+    'vector_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _vectorRetryCountMeta = const VerificationMeta(
+    'vectorRetryCount',
+  );
+  @override
+  late final GeneratedColumn<int> vectorRetryCount = GeneratedColumn<int>(
+    'vector_retry_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _embeddingMeta = const VerificationMeta(
+    'embedding',
+  );
+  @override
+  late final GeneratedColumn<String> embedding = GeneratedColumn<String>(
+    'embedding',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    content,
+    type,
+    conversationId,
+    assistantId,
+    role,
+    createdAt,
+    dateGroup,
+    vectorStatus,
+    vectorRetryCount,
+    embedding,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'memory_bank_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MemoryBankRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('content')) {
+      context.handle(
+        _contentMeta,
+        content.isAcceptableOrUnknown(data['content']!, _contentMeta),
+      );
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    }
+    if (data.containsKey('conversation_id')) {
+      context.handle(
+        _conversationIdMeta,
+        conversationId.isAcceptableOrUnknown(
+          data['conversation_id']!,
+          _conversationIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('assistant_id')) {
+      context.handle(
+        _assistantIdMeta,
+        assistantId.isAcceptableOrUnknown(
+          data['assistant_id']!,
+          _assistantIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+        _roleMeta,
+        role.isAcceptableOrUnknown(data['role']!, _roleMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('date_group')) {
+      context.handle(
+        _dateGroupMeta,
+        dateGroup.isAcceptableOrUnknown(data['date_group']!, _dateGroupMeta),
+      );
+    }
+    if (data.containsKey('vector_status')) {
+      context.handle(
+        _vectorStatusMeta,
+        vectorStatus.isAcceptableOrUnknown(
+          data['vector_status']!,
+          _vectorStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('vector_retry_count')) {
+      context.handle(
+        _vectorRetryCountMeta,
+        vectorRetryCount.isAcceptableOrUnknown(
+          data['vector_retry_count']!,
+          _vectorRetryCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('embedding')) {
+      context.handle(
+        _embeddingMeta,
+        embedding.isAcceptableOrUnknown(data['embedding']!, _embeddingMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MemoryBankRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MemoryBankRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      content: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      conversationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}conversation_id'],
+      ),
+      assistantId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}assistant_id'],
+      ),
+      role: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}role'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      dateGroup: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date_group'],
+      ),
+      vectorStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vector_status'],
+      )!,
+      vectorRetryCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}vector_retry_count'],
+      )!,
+      embedding: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}embedding'],
+      ),
+    );
+  }
+
+  @override
+  $MemoryBankRowsTable createAlias(String alias) {
+    return $MemoryBankRowsTable(attachedDatabase, alias);
+  }
+}
+
+class MemoryBankRow extends DataClass implements Insertable<MemoryBankRow> {
+  final int id;
+  final String content;
+  final String type;
+  final String? conversationId;
+  final String? assistantId;
+  final String? role;
+  final int createdAt;
+  final String? dateGroup;
+  final String vectorStatus;
+  final int vectorRetryCount;
+  final String? embedding;
+  const MemoryBankRow({
+    required this.id,
+    required this.content,
+    required this.type,
+    this.conversationId,
+    this.assistantId,
+    this.role,
+    required this.createdAt,
+    this.dateGroup,
+    required this.vectorStatus,
+    required this.vectorRetryCount,
+    this.embedding,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['content'] = Variable<String>(content);
+    map['type'] = Variable<String>(type);
+    if (!nullToAbsent || conversationId != null) {
+      map['conversation_id'] = Variable<String>(conversationId);
+    }
+    if (!nullToAbsent || assistantId != null) {
+      map['assistant_id'] = Variable<String>(assistantId);
+    }
+    if (!nullToAbsent || role != null) {
+      map['role'] = Variable<String>(role);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    if (!nullToAbsent || dateGroup != null) {
+      map['date_group'] = Variable<String>(dateGroup);
+    }
+    map['vector_status'] = Variable<String>(vectorStatus);
+    map['vector_retry_count'] = Variable<int>(vectorRetryCount);
+    if (!nullToAbsent || embedding != null) {
+      map['embedding'] = Variable<String>(embedding);
+    }
+    return map;
+  }
+
+  MemoryBankRowsCompanion toCompanion(bool nullToAbsent) {
+    return MemoryBankRowsCompanion(
+      id: Value(id),
+      content: Value(content),
+      type: Value(type),
+      conversationId: conversationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(conversationId),
+      assistantId: assistantId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(assistantId),
+      role: role == null && nullToAbsent ? const Value.absent() : Value(role),
+      createdAt: Value(createdAt),
+      dateGroup: dateGroup == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dateGroup),
+      vectorStatus: Value(vectorStatus),
+      vectorRetryCount: Value(vectorRetryCount),
+      embedding: embedding == null && nullToAbsent
+          ? const Value.absent()
+          : Value(embedding),
+    );
+  }
+
+  factory MemoryBankRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MemoryBankRow(
+      id: serializer.fromJson<int>(json['id']),
+      content: serializer.fromJson<String>(json['content']),
+      type: serializer.fromJson<String>(json['type']),
+      conversationId: serializer.fromJson<String?>(json['conversationId']),
+      assistantId: serializer.fromJson<String?>(json['assistantId']),
+      role: serializer.fromJson<String?>(json['role']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      dateGroup: serializer.fromJson<String?>(json['dateGroup']),
+      vectorStatus: serializer.fromJson<String>(json['vectorStatus']),
+      vectorRetryCount: serializer.fromJson<int>(json['vectorRetryCount']),
+      embedding: serializer.fromJson<String?>(json['embedding']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'content': serializer.toJson<String>(content),
+      'type': serializer.toJson<String>(type),
+      'conversationId': serializer.toJson<String?>(conversationId),
+      'assistantId': serializer.toJson<String?>(assistantId),
+      'role': serializer.toJson<String?>(role),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'dateGroup': serializer.toJson<String?>(dateGroup),
+      'vectorStatus': serializer.toJson<String>(vectorStatus),
+      'vectorRetryCount': serializer.toJson<int>(vectorRetryCount),
+      'embedding': serializer.toJson<String?>(embedding),
+    };
+  }
+
+  MemoryBankRow copyWith({
+    int? id,
+    String? content,
+    String? type,
+    Value<String?> conversationId = const Value.absent(),
+    Value<String?> assistantId = const Value.absent(),
+    Value<String?> role = const Value.absent(),
+    int? createdAt,
+    Value<String?> dateGroup = const Value.absent(),
+    String? vectorStatus,
+    int? vectorRetryCount,
+    Value<String?> embedding = const Value.absent(),
+  }) => MemoryBankRow(
+    id: id ?? this.id,
+    content: content ?? this.content,
+    type: type ?? this.type,
+    conversationId: conversationId.present
+        ? conversationId.value
+        : this.conversationId,
+    assistantId: assistantId.present ? assistantId.value : this.assistantId,
+    role: role.present ? role.value : this.role,
+    createdAt: createdAt ?? this.createdAt,
+    dateGroup: dateGroup.present ? dateGroup.value : this.dateGroup,
+    vectorStatus: vectorStatus ?? this.vectorStatus,
+    vectorRetryCount: vectorRetryCount ?? this.vectorRetryCount,
+    embedding: embedding.present ? embedding.value : this.embedding,
+  );
+  MemoryBankRow copyWithCompanion(MemoryBankRowsCompanion data) {
+    return MemoryBankRow(
+      id: data.id.present ? data.id.value : this.id,
+      content: data.content.present ? data.content.value : this.content,
+      type: data.type.present ? data.type.value : this.type,
+      conversationId: data.conversationId.present
+          ? data.conversationId.value
+          : this.conversationId,
+      assistantId: data.assistantId.present
+          ? data.assistantId.value
+          : this.assistantId,
+      role: data.role.present ? data.role.value : this.role,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      dateGroup: data.dateGroup.present ? data.dateGroup.value : this.dateGroup,
+      vectorStatus: data.vectorStatus.present
+          ? data.vectorStatus.value
+          : this.vectorStatus,
+      vectorRetryCount: data.vectorRetryCount.present
+          ? data.vectorRetryCount.value
+          : this.vectorRetryCount,
+      embedding: data.embedding.present ? data.embedding.value : this.embedding,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoryBankRow(')
+          ..write('id: $id, ')
+          ..write('content: $content, ')
+          ..write('type: $type, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('assistantId: $assistantId, ')
+          ..write('role: $role, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('dateGroup: $dateGroup, ')
+          ..write('vectorStatus: $vectorStatus, ')
+          ..write('vectorRetryCount: $vectorRetryCount, ')
+          ..write('embedding: $embedding')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    content,
+    type,
+    conversationId,
+    assistantId,
+    role,
+    createdAt,
+    dateGroup,
+    vectorStatus,
+    vectorRetryCount,
+    embedding,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MemoryBankRow &&
+          other.id == this.id &&
+          other.content == this.content &&
+          other.type == this.type &&
+          other.conversationId == this.conversationId &&
+          other.assistantId == this.assistantId &&
+          other.role == this.role &&
+          other.createdAt == this.createdAt &&
+          other.dateGroup == this.dateGroup &&
+          other.vectorStatus == this.vectorStatus &&
+          other.vectorRetryCount == this.vectorRetryCount &&
+          other.embedding == this.embedding);
+}
+
+class MemoryBankRowsCompanion extends UpdateCompanion<MemoryBankRow> {
+  final Value<int> id;
+  final Value<String> content;
+  final Value<String> type;
+  final Value<String?> conversationId;
+  final Value<String?> assistantId;
+  final Value<String?> role;
+  final Value<int> createdAt;
+  final Value<String?> dateGroup;
+  final Value<String> vectorStatus;
+  final Value<int> vectorRetryCount;
+  final Value<String?> embedding;
+  const MemoryBankRowsCompanion({
+    this.id = const Value.absent(),
+    this.content = const Value.absent(),
+    this.type = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.assistantId = const Value.absent(),
+    this.role = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.dateGroup = const Value.absent(),
+    this.vectorStatus = const Value.absent(),
+    this.vectorRetryCount = const Value.absent(),
+    this.embedding = const Value.absent(),
+  });
+  MemoryBankRowsCompanion.insert({
+    this.id = const Value.absent(),
+    this.content = const Value.absent(),
+    this.type = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.assistantId = const Value.absent(),
+    this.role = const Value.absent(),
+    required int createdAt,
+    this.dateGroup = const Value.absent(),
+    this.vectorStatus = const Value.absent(),
+    this.vectorRetryCount = const Value.absent(),
+    this.embedding = const Value.absent(),
+  }) : createdAt = Value(createdAt);
+  static Insertable<MemoryBankRow> custom({
+    Expression<int>? id,
+    Expression<String>? content,
+    Expression<String>? type,
+    Expression<String>? conversationId,
+    Expression<String>? assistantId,
+    Expression<String>? role,
+    Expression<int>? createdAt,
+    Expression<String>? dateGroup,
+    Expression<String>? vectorStatus,
+    Expression<int>? vectorRetryCount,
+    Expression<String>? embedding,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (content != null) 'content': content,
+      if (type != null) 'type': type,
+      if (conversationId != null) 'conversation_id': conversationId,
+      if (assistantId != null) 'assistant_id': assistantId,
+      if (role != null) 'role': role,
+      if (createdAt != null) 'created_at': createdAt,
+      if (dateGroup != null) 'date_group': dateGroup,
+      if (vectorStatus != null) 'vector_status': vectorStatus,
+      if (vectorRetryCount != null) 'vector_retry_count': vectorRetryCount,
+      if (embedding != null) 'embedding': embedding,
+    });
+  }
+
+  MemoryBankRowsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? content,
+    Value<String>? type,
+    Value<String?>? conversationId,
+    Value<String?>? assistantId,
+    Value<String?>? role,
+    Value<int>? createdAt,
+    Value<String?>? dateGroup,
+    Value<String>? vectorStatus,
+    Value<int>? vectorRetryCount,
+    Value<String?>? embedding,
+  }) {
+    return MemoryBankRowsCompanion(
+      id: id ?? this.id,
+      content: content ?? this.content,
+      type: type ?? this.type,
+      conversationId: conversationId ?? this.conversationId,
+      assistantId: assistantId ?? this.assistantId,
+      role: role ?? this.role,
+      createdAt: createdAt ?? this.createdAt,
+      dateGroup: dateGroup ?? this.dateGroup,
+      vectorStatus: vectorStatus ?? this.vectorStatus,
+      vectorRetryCount: vectorRetryCount ?? this.vectorRetryCount,
+      embedding: embedding ?? this.embedding,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (conversationId.present) {
+      map['conversation_id'] = Variable<String>(conversationId.value);
+    }
+    if (assistantId.present) {
+      map['assistant_id'] = Variable<String>(assistantId.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (dateGroup.present) {
+      map['date_group'] = Variable<String>(dateGroup.value);
+    }
+    if (vectorStatus.present) {
+      map['vector_status'] = Variable<String>(vectorStatus.value);
+    }
+    if (vectorRetryCount.present) {
+      map['vector_retry_count'] = Variable<int>(vectorRetryCount.value);
+    }
+    if (embedding.present) {
+      map['embedding'] = Variable<String>(embedding.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoryBankRowsCompanion(')
+          ..write('id: $id, ')
+          ..write('content: $content, ')
+          ..write('type: $type, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('assistantId: $assistantId, ')
+          ..write('role: $role, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('dateGroup: $dateGroup, ')
+          ..write('vectorStatus: $vectorStatus, ')
+          ..write('vectorRetryCount: $vectorRetryCount, ')
+          ..write('embedding: $embedding')
           ..write(')'))
         .toString();
   }
@@ -8349,6 +9530,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $MessageRowsTable messageRows = $MessageRowsTable(this);
   late final $AssistantRowsTable assistantRows = $AssistantRowsTable(this);
+  late final $MemoryBankRowsTable memoryBankRows = $MemoryBankRowsTable(this);
   late final $ConversationMcpServerRowsTable conversationMcpServerRows =
       $ConversationMcpServerRowsTable(this);
   late final $ToolEventRowsTable toolEventRows = $ToolEventRowsTable(this);
@@ -8388,6 +9570,22 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_messages_subgroup',
     'CREATE INDEX idx_messages_subgroup ON message_rows (subgroup_id)',
   );
+  late final Index idxMemoryBankAssistant = Index(
+    'idx_memory_bank_assistant',
+    'CREATE INDEX idx_memory_bank_assistant ON memory_bank_rows (assistant_id)',
+  );
+  late final Index idxMemoryBankType = Index(
+    'idx_memory_bank_type',
+    'CREATE INDEX idx_memory_bank_type ON memory_bank_rows (type)',
+  );
+  late final Index idxMemoryBankDateGroup = Index(
+    'idx_memory_bank_date_group',
+    'CREATE INDEX idx_memory_bank_date_group ON memory_bank_rows (date_group)',
+  );
+  late final Index idxMemoryBankAssistantType = Index(
+    'idx_memory_bank_assistant_type',
+    'CREATE INDEX idx_memory_bank_assistant_type ON memory_bank_rows (assistant_id, type)',
+  );
   late final Index idxGroupChatsUpdatedAt = Index(
     'idx_group_chats_updated_at',
     'CREATE INDEX idx_group_chats_updated_at ON group_chat_rows (updated_at)',
@@ -8400,6 +9598,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     conversationRows,
     messageRows,
     assistantRows,
+    memoryBankRows,
     conversationMcpServerRows,
     toolEventRows,
     geminiThoughtSignatureRows,
@@ -8415,6 +9614,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     idxMessagesConversationTimestamp,
     idxMessagesGroup,
     idxMessagesSubgroup,
+    idxMemoryBankAssistant,
+    idxMemoryBankType,
+    idxMemoryBankDateGroup,
+    idxMemoryBankAssistantType,
     idxGroupChatsUpdatedAt,
   ];
   @override
@@ -10177,6 +11380,14 @@ typedef $$AssistantRowsTableCreateCompanionBuilder =
       Value<bool> enableRecentChatsReference,
       Value<int> recentChatsSummaryMessageCount,
       Value<String> memoryRecordPrompt,
+      Value<bool> enableThreeLayerMemory,
+      Value<bool> enableCrossWindowMemory,
+      Value<bool> enableCrossWindowMemoryCompression,
+      Value<bool> useRecentChatsAsFallback,
+      Value<int> crossWindowMemoryCompressionThresholdChars,
+      Value<int> crossWindowMemoryTailEntries,
+      Value<int> longTermMemoryRecallCount,
+      Value<int> longTermMemoryMaxChars,
       Value<String> docxMode,
       Value<String> pdfMode,
       Value<String> otherOfficeMode,
@@ -10228,6 +11439,14 @@ typedef $$AssistantRowsTableUpdateCompanionBuilder =
       Value<bool> enableRecentChatsReference,
       Value<int> recentChatsSummaryMessageCount,
       Value<String> memoryRecordPrompt,
+      Value<bool> enableThreeLayerMemory,
+      Value<bool> enableCrossWindowMemory,
+      Value<bool> enableCrossWindowMemoryCompression,
+      Value<bool> useRecentChatsAsFallback,
+      Value<int> crossWindowMemoryCompressionThresholdChars,
+      Value<int> crossWindowMemoryTailEntries,
+      Value<int> longTermMemoryRecallCount,
+      Value<int> longTermMemoryMaxChars,
       Value<String> docxMode,
       Value<String> pdfMode,
       Value<String> otherOfficeMode,
@@ -10428,6 +11647,48 @@ class $$AssistantRowsTableFilterComposer
 
   ColumnFilters<String> get memoryRecordPrompt => $composableBuilder(
     column: $table.memoryRecordPrompt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get enableThreeLayerMemory => $composableBuilder(
+    column: $table.enableThreeLayerMemory,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get enableCrossWindowMemory => $composableBuilder(
+    column: $table.enableCrossWindowMemory,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get enableCrossWindowMemoryCompression =>
+      $composableBuilder(
+        column: $table.enableCrossWindowMemoryCompression,
+        builder: (column) => ColumnFilters(column),
+      );
+
+  ColumnFilters<bool> get useRecentChatsAsFallback => $composableBuilder(
+    column: $table.useRecentChatsAsFallback,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get crossWindowMemoryCompressionThresholdChars =>
+      $composableBuilder(
+        column: $table.crossWindowMemoryCompressionThresholdChars,
+        builder: (column) => ColumnFilters(column),
+      );
+
+  ColumnFilters<int> get crossWindowMemoryTailEntries => $composableBuilder(
+    column: $table.crossWindowMemoryTailEntries,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get longTermMemoryRecallCount => $composableBuilder(
+    column: $table.longTermMemoryRecallCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get longTermMemoryMaxChars => $composableBuilder(
+    column: $table.longTermMemoryMaxChars,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10677,6 +11938,48 @@ class $$AssistantRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get enableThreeLayerMemory => $composableBuilder(
+    column: $table.enableThreeLayerMemory,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get enableCrossWindowMemory => $composableBuilder(
+    column: $table.enableCrossWindowMemory,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get enableCrossWindowMemoryCompression =>
+      $composableBuilder(
+        column: $table.enableCrossWindowMemoryCompression,
+        builder: (column) => ColumnOrderings(column),
+      );
+
+  ColumnOrderings<bool> get useRecentChatsAsFallback => $composableBuilder(
+    column: $table.useRecentChatsAsFallback,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get crossWindowMemoryCompressionThresholdChars =>
+      $composableBuilder(
+        column: $table.crossWindowMemoryCompressionThresholdChars,
+        builder: (column) => ColumnOrderings(column),
+      );
+
+  ColumnOrderings<int> get crossWindowMemoryTailEntries => $composableBuilder(
+    column: $table.crossWindowMemoryTailEntries,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get longTermMemoryRecallCount => $composableBuilder(
+    column: $table.longTermMemoryRecallCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get longTermMemoryMaxChars => $composableBuilder(
+    column: $table.longTermMemoryMaxChars,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get docxMode => $composableBuilder(
     column: $table.docxMode,
     builder: (column) => ColumnOrderings(column),
@@ -10913,6 +12216,48 @@ class $$AssistantRowsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get enableThreeLayerMemory => $composableBuilder(
+    column: $table.enableThreeLayerMemory,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get enableCrossWindowMemory => $composableBuilder(
+    column: $table.enableCrossWindowMemory,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get enableCrossWindowMemoryCompression =>
+      $composableBuilder(
+        column: $table.enableCrossWindowMemoryCompression,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<bool> get useRecentChatsAsFallback => $composableBuilder(
+    column: $table.useRecentChatsAsFallback,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get crossWindowMemoryCompressionThresholdChars =>
+      $composableBuilder(
+        column: $table.crossWindowMemoryCompressionThresholdChars,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<int> get crossWindowMemoryTailEntries => $composableBuilder(
+    column: $table.crossWindowMemoryTailEntries,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get longTermMemoryRecallCount => $composableBuilder(
+    column: $table.longTermMemoryRecallCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get longTermMemoryMaxChars => $composableBuilder(
+    column: $table.longTermMemoryMaxChars,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get docxMode =>
       $composableBuilder(column: $table.docxMode, builder: (column) => column);
 
@@ -11025,6 +12370,16 @@ class $$AssistantRowsTableTableManager
                 Value<int> recentChatsSummaryMessageCount =
                     const Value.absent(),
                 Value<String> memoryRecordPrompt = const Value.absent(),
+                Value<bool> enableThreeLayerMemory = const Value.absent(),
+                Value<bool> enableCrossWindowMemory = const Value.absent(),
+                Value<bool> enableCrossWindowMemoryCompression =
+                    const Value.absent(),
+                Value<bool> useRecentChatsAsFallback = const Value.absent(),
+                Value<int> crossWindowMemoryCompressionThresholdChars =
+                    const Value.absent(),
+                Value<int> crossWindowMemoryTailEntries = const Value.absent(),
+                Value<int> longTermMemoryRecallCount = const Value.absent(),
+                Value<int> longTermMemoryMaxChars = const Value.absent(),
                 Value<String> docxMode = const Value.absent(),
                 Value<String> pdfMode = const Value.absent(),
                 Value<String> otherOfficeMode = const Value.absent(),
@@ -11074,6 +12429,16 @@ class $$AssistantRowsTableTableManager
                 enableRecentChatsReference: enableRecentChatsReference,
                 recentChatsSummaryMessageCount: recentChatsSummaryMessageCount,
                 memoryRecordPrompt: memoryRecordPrompt,
+                enableThreeLayerMemory: enableThreeLayerMemory,
+                enableCrossWindowMemory: enableCrossWindowMemory,
+                enableCrossWindowMemoryCompression:
+                    enableCrossWindowMemoryCompression,
+                useRecentChatsAsFallback: useRecentChatsAsFallback,
+                crossWindowMemoryCompressionThresholdChars:
+                    crossWindowMemoryCompressionThresholdChars,
+                crossWindowMemoryTailEntries: crossWindowMemoryTailEntries,
+                longTermMemoryRecallCount: longTermMemoryRecallCount,
+                longTermMemoryMaxChars: longTermMemoryMaxChars,
                 docxMode: docxMode,
                 pdfMode: pdfMode,
                 otherOfficeMode: otherOfficeMode,
@@ -11128,6 +12493,16 @@ class $$AssistantRowsTableTableManager
                 Value<int> recentChatsSummaryMessageCount =
                     const Value.absent(),
                 Value<String> memoryRecordPrompt = const Value.absent(),
+                Value<bool> enableThreeLayerMemory = const Value.absent(),
+                Value<bool> enableCrossWindowMemory = const Value.absent(),
+                Value<bool> enableCrossWindowMemoryCompression =
+                    const Value.absent(),
+                Value<bool> useRecentChatsAsFallback = const Value.absent(),
+                Value<int> crossWindowMemoryCompressionThresholdChars =
+                    const Value.absent(),
+                Value<int> crossWindowMemoryTailEntries = const Value.absent(),
+                Value<int> longTermMemoryRecallCount = const Value.absent(),
+                Value<int> longTermMemoryMaxChars = const Value.absent(),
                 Value<String> docxMode = const Value.absent(),
                 Value<String> pdfMode = const Value.absent(),
                 Value<String> otherOfficeMode = const Value.absent(),
@@ -11177,6 +12552,16 @@ class $$AssistantRowsTableTableManager
                 enableRecentChatsReference: enableRecentChatsReference,
                 recentChatsSummaryMessageCount: recentChatsSummaryMessageCount,
                 memoryRecordPrompt: memoryRecordPrompt,
+                enableThreeLayerMemory: enableThreeLayerMemory,
+                enableCrossWindowMemory: enableCrossWindowMemory,
+                enableCrossWindowMemoryCompression:
+                    enableCrossWindowMemoryCompression,
+                useRecentChatsAsFallback: useRecentChatsAsFallback,
+                crossWindowMemoryCompressionThresholdChars:
+                    crossWindowMemoryCompressionThresholdChars,
+                crossWindowMemoryTailEntries: crossWindowMemoryTailEntries,
+                longTermMemoryRecallCount: longTermMemoryRecallCount,
+                longTermMemoryMaxChars: longTermMemoryMaxChars,
                 docxMode: docxMode,
                 pdfMode: pdfMode,
                 otherOfficeMode: otherOfficeMode,
@@ -11213,6 +12598,324 @@ typedef $$AssistantRowsTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $AssistantRowsTable, AssistantRow>,
       ),
       AssistantRow,
+      PrefetchHooks Function()
+    >;
+typedef $$MemoryBankRowsTableCreateCompanionBuilder =
+    MemoryBankRowsCompanion Function({
+      Value<int> id,
+      Value<String> content,
+      Value<String> type,
+      Value<String?> conversationId,
+      Value<String?> assistantId,
+      Value<String?> role,
+      required int createdAt,
+      Value<String?> dateGroup,
+      Value<String> vectorStatus,
+      Value<int> vectorRetryCount,
+      Value<String?> embedding,
+    });
+typedef $$MemoryBankRowsTableUpdateCompanionBuilder =
+    MemoryBankRowsCompanion Function({
+      Value<int> id,
+      Value<String> content,
+      Value<String> type,
+      Value<String?> conversationId,
+      Value<String?> assistantId,
+      Value<String?> role,
+      Value<int> createdAt,
+      Value<String?> dateGroup,
+      Value<String> vectorStatus,
+      Value<int> vectorRetryCount,
+      Value<String?> embedding,
+    });
+
+class $$MemoryBankRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $MemoryBankRowsTable> {
+  $$MemoryBankRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get conversationId => $composableBuilder(
+    column: $table.conversationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get assistantId => $composableBuilder(
+    column: $table.assistantId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dateGroup => $composableBuilder(
+    column: $table.dateGroup,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get vectorStatus => $composableBuilder(
+    column: $table.vectorStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get vectorRetryCount => $composableBuilder(
+    column: $table.vectorRetryCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get embedding => $composableBuilder(
+    column: $table.embedding,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MemoryBankRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $MemoryBankRowsTable> {
+  $$MemoryBankRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get conversationId => $composableBuilder(
+    column: $table.conversationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get assistantId => $composableBuilder(
+    column: $table.assistantId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dateGroup => $composableBuilder(
+    column: $table.dateGroup,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get vectorStatus => $composableBuilder(
+    column: $table.vectorStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get vectorRetryCount => $composableBuilder(
+    column: $table.vectorRetryCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get embedding => $composableBuilder(
+    column: $table.embedding,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MemoryBankRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MemoryBankRowsTable> {
+  $$MemoryBankRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get conversationId => $composableBuilder(
+    column: $table.conversationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get assistantId => $composableBuilder(
+    column: $table.assistantId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get dateGroup =>
+      $composableBuilder(column: $table.dateGroup, builder: (column) => column);
+
+  GeneratedColumn<String> get vectorStatus => $composableBuilder(
+    column: $table.vectorStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get vectorRetryCount => $composableBuilder(
+    column: $table.vectorRetryCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get embedding =>
+      $composableBuilder(column: $table.embedding, builder: (column) => column);
+}
+
+class $$MemoryBankRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MemoryBankRowsTable,
+          MemoryBankRow,
+          $$MemoryBankRowsTableFilterComposer,
+          $$MemoryBankRowsTableOrderingComposer,
+          $$MemoryBankRowsTableAnnotationComposer,
+          $$MemoryBankRowsTableCreateCompanionBuilder,
+          $$MemoryBankRowsTableUpdateCompanionBuilder,
+          (
+            MemoryBankRow,
+            BaseReferences<_$AppDatabase, $MemoryBankRowsTable, MemoryBankRow>,
+          ),
+          MemoryBankRow,
+          PrefetchHooks Function()
+        > {
+  $$MemoryBankRowsTableTableManager(
+    _$AppDatabase db,
+    $MemoryBankRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MemoryBankRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MemoryBankRowsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MemoryBankRowsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String?> conversationId = const Value.absent(),
+                Value<String?> assistantId = const Value.absent(),
+                Value<String?> role = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<String?> dateGroup = const Value.absent(),
+                Value<String> vectorStatus = const Value.absent(),
+                Value<int> vectorRetryCount = const Value.absent(),
+                Value<String?> embedding = const Value.absent(),
+              }) => MemoryBankRowsCompanion(
+                id: id,
+                content: content,
+                type: type,
+                conversationId: conversationId,
+                assistantId: assistantId,
+                role: role,
+                createdAt: createdAt,
+                dateGroup: dateGroup,
+                vectorStatus: vectorStatus,
+                vectorRetryCount: vectorRetryCount,
+                embedding: embedding,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String?> conversationId = const Value.absent(),
+                Value<String?> assistantId = const Value.absent(),
+                Value<String?> role = const Value.absent(),
+                required int createdAt,
+                Value<String?> dateGroup = const Value.absent(),
+                Value<String> vectorStatus = const Value.absent(),
+                Value<int> vectorRetryCount = const Value.absent(),
+                Value<String?> embedding = const Value.absent(),
+              }) => MemoryBankRowsCompanion.insert(
+                id: id,
+                content: content,
+                type: type,
+                conversationId: conversationId,
+                assistantId: assistantId,
+                role: role,
+                createdAt: createdAt,
+                dateGroup: dateGroup,
+                vectorStatus: vectorStatus,
+                vectorRetryCount: vectorRetryCount,
+                embedding: embedding,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MemoryBankRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MemoryBankRowsTable,
+      MemoryBankRow,
+      $$MemoryBankRowsTableFilterComposer,
+      $$MemoryBankRowsTableOrderingComposer,
+      $$MemoryBankRowsTableAnnotationComposer,
+      $$MemoryBankRowsTableCreateCompanionBuilder,
+      $$MemoryBankRowsTableUpdateCompanionBuilder,
+      (
+        MemoryBankRow,
+        BaseReferences<_$AppDatabase, $MemoryBankRowsTable, MemoryBankRow>,
+      ),
+      MemoryBankRow,
       PrefetchHooks Function()
     >;
 typedef $$ConversationMcpServerRowsTableCreateCompanionBuilder =
@@ -13820,6 +15523,8 @@ class $AppDatabaseManager {
       $$MessageRowsTableTableManager(_db, _db.messageRows);
   $$AssistantRowsTableTableManager get assistantRows =>
       $$AssistantRowsTableTableManager(_db, _db.assistantRows);
+  $$MemoryBankRowsTableTableManager get memoryBankRows =>
+      $$MemoryBankRowsTableTableManager(_db, _db.memoryBankRows);
   $$ConversationMcpServerRowsTableTableManager get conversationMcpServerRows =>
       $$ConversationMcpServerRowsTableTableManager(
         _db,

@@ -1015,10 +1015,15 @@ class _WorldBookEntryEditDialogState extends State<_WorldBookEntryEditDialog> {
   }
 
   void _addKeywordsFromInput() {
-    final text = _keywordInputController.text.trim();
-    if (text.isEmpty) return;
+    final raw = _keywordInputController.text.trim();
+    if (raw.isEmpty) return;
+    final parts = raw
+        .split(RegExp(r'[,，\n\r\t]+'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty);
+    if (parts.isEmpty) return;
     final set = _keywords.toSet();
-    set.add(text);
+    set.addAll(parts);
     setState(() {
       _keywords = set.toList(growable: false);
       _keywordInputController.clear();

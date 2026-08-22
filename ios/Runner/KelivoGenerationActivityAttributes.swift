@@ -11,7 +11,6 @@ struct CuplivoGenerationActivityAttributes: ActivityAttributes {
     var startedAt: Date
     var finishedAt: Date?
     var elapsedSeconds: Int
-    var wavePhase: Int
     var isFinished: Bool
   }
 

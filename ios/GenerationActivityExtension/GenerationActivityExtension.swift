@@ -137,13 +137,26 @@ private struct ActivityElapsedText: View {
   let context: ActivityViewContext<CuplivoGenerationActivityAttributes>
 
   var body: some View {
-    Text(elapsedText(seconds: context.state.elapsedSeconds))
-      .font(.caption2)
-      .fontWeight(.semibold)
-      .monospacedDigit()
-      .foregroundStyle(.secondary)
-      .lineLimit(1)
-      .minimumScaleFactor(0.72)
+    if context.state.isFinished {
+      // Finished: freeze at the captured elapsed time.
+      Text(elapsedText(seconds: context.state.elapsedSeconds))
+        .font(.caption2)
+        .fontWeight(.semibold)
+        .monospacedDigit()
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.72)
+    } else {
+      // Running: system-driven timer — the widget ticks on its own and the
+      // host app does not need to push per-second updates.
+      Text(context.state.startedAt, style: .timer)
+        .font(.caption2)
+        .fontWeight(.semibold)
+        .monospacedDigit()
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.72)
+    }
   }
 }
 

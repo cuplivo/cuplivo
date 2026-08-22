@@ -436,6 +436,10 @@ class McpProvider extends ChangeNotifier {
   final Set<String> _reconnecting = <String>{};
   // Heartbeat timers for live-connection health checks
   final Map<String, Timer> _heartbeats = <String, Timer>{};
+  // Transport-disconnect listeners: trigger an automatic reconnect when the
+  // connection drops (network switch / restore), unless we disconnected
+  // intentionally.
+  final _disconnectSubs = <String, StreamSubscription<mcp.DisconnectReason>>{};
   Duration _requestTimeout = const Duration(seconds: 30);
 
   final McpStdioCommandResolver _stdioCommandResolver =
@@ -1263,22 +1267,47 @@ class McpProvider extends ChangeNotifier {
       // debugPrint('[MCP/Connected] id=$id (${server.name})');
       notifyListeners();
 
+      // React to transport drops (network switch, server restart, session
+      // expiry) by marking the server errored and scheduling an automatic
+      // reconnect. Intentional disconnects emit
+      // [mcp.DisconnectReason.clientDisconnected] and are ignored.
+      _disconnectSubs[id]?.cancel();
+      _disconnectSubs[id] = client.onDisconnect.listen((reason) {
+        if (reason == mcp.DisconnectReason.clientDisconnected) return;
+        if (!_servers.any((s) => s.id == id && s.enabled)) return;
+        // debugPrint('[MCP/Disconnect] transport dropped id=$id reason=$reason');
+        _status[id] = McpStatus.error;
+        _errors[id] = 'MCP connection lost: $reason';
+        notifyListeners();
+        unawaited(_reconnectWithBackoff(id, maxAttempts: 3));
+      });
+
       // Try to refresh tools once connected
       // debugPrint('[MCP/Tools] refreshing tools for id=$id ...');
       await refreshTools(id);
       // debugPrint('[MCP/Tools] refresh done for id=$id');
-
-      // Start/refresh heartbeat for this connection
-      _startHeartbeat(
-        id,
-        interval: Duration(seconds: server.heartbeatIntervalSeconds ?? 12),
-      );
     } catch (e) {
       // debugPrint('[MCP/Error] connect failed for id=$id (${server.name})');
       // _logMcpException('connect', serverId: id, error: e, stack: st);
       _status[id] = McpStatus.error;
       _errors[id] = e.toString();
       notifyListeners();
+    } finally {
+      // Keep a supervisor heartbeat for every enabled server — including when
+      // connect() failed (e.g. the network was down at startup). Later ticks
+      // retry the connection, so the server reconnects automatically once the
+      // network is back instead of staying in the error state forever.
+      // OAuth servers that are still awaiting authorization are excluded —
+      // they connect right after the OAuth flow completes.
+      final cfg = getById(id);
+      final needsOAuth =
+          cfg != null && cfg.oauth != null && cfg.oauthToken == null;
+      if (cfg != null && cfg.enabled && !needsOAuth) {
+        _startHeartbeat(
+          id,
+          interval: Duration(seconds: server.heartbeatIntervalSeconds ?? 12),
+        );
+      }
     }
   }
 
@@ -1310,6 +1339,7 @@ class McpProvider extends ChangeNotifier {
       // debugPrint('[MCP/Error] disconnect failed for id=$id');
       // _logMcpException('disconnect', serverId: id, error: e, stack: st);
     }
+    _disconnectSubs.remove(id)?.cancel();
     _status[id] = McpStatus.idle;
     _errors.remove(id);
     _stopHeartbeat(id);
@@ -1343,30 +1373,45 @@ class McpProvider extends ChangeNotifier {
   }) {
     _stopHeartbeat(id);
     _heartbeats[id] = Timer.periodic(interval, (t) async {
-      // Heartbeat only when we think we're connected
-      if (!isConnected(id)) return;
-      final client = _clients[id];
-      if (client == null) return;
-      try {
-        // A lightweight call to verify liveness
-        // listTools is relatively cheap and available
-        final fut = client.listTools(logTags: {'reason': 'heartbeat'});
-        // Add a soft timeout to avoid piling up
-        await fut.timeout(const Duration(seconds: 6));
-      } catch (e) {
-        // Rate-limited? Server is alive — skip this tick, don't reconnect.
-        if (_isRateLimitError(e)) return;
-        // debugPrint('[MCP/Heartbeat] liveness check failed id=$id');
-        // Consider connection lost; mark error and try auto-reconnect
-        _status[id] = McpStatus.error;
-        _errors[id] = e.toString();
-        notifyListeners();
-        await _reconnectWithBackoff(id, maxAttempts: 3);
-        // If reconnected, restart heartbeat (connect() also starts it)
-        if (!isConnected(id)) {
-          // keep error state; next heartbeat tick will be a no-op
+      // Supervisor heartbeat: only run for enabled servers and skip while a
+      // connect/retry is already in flight.
+      final server = getById(id);
+      if (server == null || !server.enabled) return;
+      if (_status[id] == McpStatus.connecting) return;
+      if (_reconnecting.contains(id)) return;
+
+      if (isConnected(id)) {
+        final client = _clients[id];
+        if (client == null) return;
+        try {
+          // A lightweight call to verify liveness
+          // listTools is relatively cheap and available
+          final fut = client.listTools(logTags: {'reason': 'heartbeat'});
+          // Add a soft timeout to avoid piling up
+          await fut.timeout(const Duration(seconds: 6));
+        } catch (e) {
+          // Rate-limited? Server is alive — skip this tick, don't reconnect.
+          if (_isRateLimitError(e)) return;
+          // debugPrint('[MCP/Heartbeat] liveness check failed id=$id');
+          // Consider connection lost; mark error and try auto-reconnect
+          _status[id] = McpStatus.error;
+          _errors[id] = e.toString();
+          notifyListeners();
+          await _reconnectWithBackoff(id, maxAttempts: 3);
+          // If reconnected, restart heartbeat (connect() also starts it);
+          // otherwise keep the error state and retry on a later tick.
         }
+        return;
       }
+
+      // Not connected (initial connect failed, or a previous reconnect gave
+      // up while the network was still down). Retry so the server reconnects
+      // automatically once the network is back. Skip OAuth servers that are
+      // still awaiting authorization — they connect after the OAuth flow.
+      final needsOAuth = server.oauth != null && server.oauthToken == null;
+      if (needsOAuth) return;
+      // debugPrint('[MCP/Heartbeat] auto-retrying connection id=$id');
+      await _reconnectWithBackoff(id, maxAttempts: 2);
     });
   }
 
@@ -1841,6 +1886,11 @@ class McpProvider extends ChangeNotifier {
       t.cancel();
     }
     _heartbeats.clear();
+    // Clean up transport-disconnect listeners
+    for (final sub in _disconnectSubs.values) {
+      sub.cancel();
+    }
+    _disconnectSubs.clear();
     super.dispose();
   }
 

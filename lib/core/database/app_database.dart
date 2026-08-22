@@ -95,6 +95,10 @@ class AssistantRows extends Table {
       boolean().withDefault(const Constant(false))();
   BoolColumn get useAssistantName =>
       boolean().withDefault(const Constant(false))();
+  BoolColumn get splitBubbleByLine =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get splitUserBubbleByLine =>
+      boolean().withDefault(const Constant(false))();
   TextColumn get background => text().nullable()();
 
   // --- Model Selection ---
@@ -378,7 +382,7 @@ class AppDatabase extends _$AppDatabase {
   // self-heal below repairs such gaps on every open; without it the gap is
   // permanent because later upgrades skip the failed step's `from < N` block.
   // See docs/adr/0019-schema-self-heal.md.
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   /// Whether [table] has a physical column named [column] (sqlite name).
   Future<bool> _hasColumn(String table, String column) async {
@@ -525,6 +529,16 @@ class AppDatabase extends _$AppDatabase {
       'assistant_rows',
       'workspace_id',
       'ALTER TABLE assistant_rows ADD COLUMN workspace_id TEXT NULL',
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'split_bubble_by_line',
+      'ALTER TABLE assistant_rows ADD COLUMN split_bubble_by_line INTEGER NOT NULL DEFAULT 0',
+    );
+    await _ensureColumn(
+      'assistant_rows',
+      'split_user_bubble_by_line',
+      'ALTER TABLE assistant_rows ADD COLUMN split_user_bubble_by_line INTEGER NOT NULL DEFAULT 0',
     );
 
     // --- message_rows ---
@@ -826,6 +840,18 @@ class AppDatabase extends _$AppDatabase {
         try {
           await migrator.addColumn(assistantRows, assistantRows.workspaceId);
         } catch (_) {}
+      }
+      if (from < 20) {
+        await _ensureColumn(
+          'assistant_rows',
+          'split_bubble_by_line',
+          'ALTER TABLE assistant_rows ADD COLUMN split_bubble_by_line INTEGER NOT NULL DEFAULT 0',
+        );
+        await _ensureColumn(
+          'assistant_rows',
+          'split_user_bubble_by_line',
+          'ALTER TABLE assistant_rows ADD COLUMN split_user_bubble_by_line INTEGER NOT NULL DEFAULT 0',
+        );
       }
       // Final pass: heal any column/table that still did not land.
       await _healSchemaIfNeeded();

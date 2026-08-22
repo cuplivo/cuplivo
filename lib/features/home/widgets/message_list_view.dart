@@ -984,6 +984,67 @@ class _MessageListViewState extends State<MessageListView> {
                 widget.onRecoveredAskUserAnswer!(message, part, result),
     );
 
+    // --- Split-by-line bubble rendering ---
+    final bool shouldSplit;
+    if (message.role == 'assistant') {
+      shouldSplit = assistant?.splitBubbleByLine == true;
+    } else if (message.role == 'user') {
+      shouldSplit = assistant?.splitUserBubbleByLine == true;
+    } else {
+      shouldSplit = false;
+    }
+
+    Widget result = chatWidget;
+
+    if (shouldSplit && !message.isStreaming) {
+      final lines =
+          message.content.split('\n').where((l) => l.trim().isNotEmpty).toList();
+      if (lines.length > 1) {
+        result = Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (int i = 0; i < lines.length; i++)
+              Padding(
+                padding: EdgeInsets.only(bottom: i < lines.length - 1 ? 2 : 0),
+                child: ChatMessageWidget(
+                  message: message.copyWith(content: lines[i]),
+                  versionIndex: i == lines.length - 1 ? selectedIdx : 0,
+                  versionCount: i == lines.length - 1 ? (total > 0 ? total : 1) : 1,
+                  onPrevVersion: i == lines.length - 1
+                      ? (selectedIdx > 0
+                          ? () => widget.onVersionChange?.call(gid, selectedIdx - 1)
+                          : null)
+                      : null,
+                  onNextVersion: i == lines.length - 1
+                      ? (selectedIdx < total - 1
+                          ? () => widget.onVersionChange?.call(gid, selectedIdx + 1)
+                          : null)
+                      : null,
+                  modelIcon: i == 0 ? chatWidget.modelIcon : null,
+                  showModelIcon: i == 0 ? chatWidget.showModelIcon : false,
+                  useAssistantAvatar: i == 0 && chatWidget.useAssistantAvatar,
+                  useAssistantName: i == 0 && chatWidget.useAssistantName,
+                  assistantName: i == 0 ? chatWidget.assistantName : null,
+                  assistantAvatar: i == 0 ? chatWidget.assistantAvatar : null,
+                  showUserAvatar: i == 0 && chatWidget.showUserAvatar,
+                  showTokenStats: i == lines.length - 1 && chatWidget.showTokenStats,
+                  onRegenerate: i == lines.length - 1 ? chatWidget.onRegenerate : null,
+                  onResend: i == lines.length - 1 ? chatWidget.onResend : null,
+                  onEdit: i == lines.length - 1 ? chatWidget.onEdit : null,
+                  onDelete: i == lines.length - 1 ? chatWidget.onDelete : null,
+                  onMore: i == lines.length - 1 ? chatWidget.onMore : null,
+                  onTranslate: null,
+                  onSpeak: null,
+                  suggestions: i == lines.length - 1 ? suggestions : const [],
+                  onSuggestionTap: i == lines.length - 1 ? widget.onSuggestionTap : null,
+                  onQuoteSelection: i == lines.length - 1 ? widget.onQuoteSelection : null,
+                ),
+              ),
+          ],
+        );
+      }
+    }
+
     // Backward bar for handoff-spawned conversations
     if (message.role == 'user' && index == 0) {
       final backwardChip = _buildHandoffBackwardChip(context, message);
@@ -991,11 +1052,11 @@ class _MessageListViewState extends State<MessageListView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
-          children: [backwardChip, const SizedBox(height: 8), chatWidget],
+          children: [backwardChip, const SizedBox(height: 8), result],
         );
       }
     }
-    return chatWidget;
+    return result;
   }
 
   Widget? _buildHandoffBackwardChip(BuildContext context, ChatMessage message) {

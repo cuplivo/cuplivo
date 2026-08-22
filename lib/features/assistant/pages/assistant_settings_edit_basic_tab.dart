@@ -264,6 +264,28 @@ class _BasicSettingsTabState extends State<_BasicSettingsTab> {
                     .updateAssistant(a.copyWith(useAssistantName: v)),
               ),
               _iosDivider(context),
+              // Split assistant reply into per-line bubbles
+              _iosSwitchRow(
+                context,
+                icon: Lucide.SplitSquareVertical,
+                label: 'Split reply by line',
+                value: a.splitBubbleByLine,
+                onChanged: (v) => context
+                    .read<AssistantProvider>()
+                    .updateAssistant(a.copyWith(splitBubbleByLine: v)),
+              ),
+              _iosDivider(context),
+              // Split user message into per-line bubbles
+              _iosSwitchRow(
+                context,
+                icon: Lucide.SplitSquareVertical,
+                label: 'Split user message by line',
+                value: a.splitUserBubbleByLine,
+                onChanged: (v) => context
+                    .read<AssistantProvider>()
+                    .updateAssistant(a.copyWith(splitUserBubbleByLine: v)),
+              ),
+              _iosDivider(context),
               // Stream output
               _iosSwitchRow(
                 context,

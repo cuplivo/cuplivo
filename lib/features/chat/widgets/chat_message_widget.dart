@@ -40,6 +40,7 @@ import '../../../core/models/assistant_regex.dart';
 import '../../../shared/widgets/ios_checkbox.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/version_switcher.dart';
+import '../../../shared/widgets/windows_ax_tree_safe_tooltip.dart';
 import '../../../desktop/desktop_context_menu.dart';
 import '../../../desktop/menu_anchor.dart';
 import '../../../shared/widgets/emoji_text.dart';
@@ -220,7 +221,7 @@ Widget _buildTextToSpeechReplayRow(
         ),
       ),
       const SizedBox(width: 8),
-      Tooltip(
+      WindowsAxTreeSafeTooltip(
         message: l10n.ttsFloatingReplayTooltip,
         child: IosIconButton(
           size: 14,
@@ -418,7 +419,7 @@ void _showToolDetail(BuildContext context, ToolUIPart part) {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          Tooltip(
+                          WindowsAxTreeSafeTooltip(
                             message: l10n.mcpPageClose,
                             child: IconButton(
                               icon: Icon(
@@ -4816,7 +4817,7 @@ class _ToolCallItemState extends State<_ToolCallItem> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            Tooltip(
+                            WindowsAxTreeSafeTooltip(
                               message: l10n.mcpPageClose,
                               child: IconButton(
                                 icon: Icon(

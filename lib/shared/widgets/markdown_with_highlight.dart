@@ -44,6 +44,7 @@ import 'html_preview_block.dart';
 import '../cache/byte_lru_cache.dart';
 import 'incremental_markdown_document.dart';
 import 'markdown_line_lexer.dart';
+import 'windows_ax_tree_safe_tooltip.dart';
 
 // Inline math is parsed on the UI thread. Bound the lookahead window so a long
 // line with many unmatched openers cannot trigger repeated whole-line scans.
@@ -587,7 +588,12 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
                       blockContents[i - 1],
                       mathEnabled: settings.enableMathRendering,
                     ))
-                  _MarkdownBlockSeparator(style: baseTextStyle),
+                  _MarkdownBlockSeparator(
+                    key: ValueKey(
+                      'markdown-block-separator-${sourceBlocks[i].start}',
+                    ),
+                    style: baseTextStyle,
+                  ),
                 _CachedMarkdownBlock(
                   key: ValueKey(
                     'markdown-source-block-${sourceBlocks[i].start}',
@@ -682,7 +688,8 @@ class _CachedMarkdownBlockState extends State<_CachedMarkdownBlock> {
   Key _parseIdentity(String content) {
     final previous = _identityContent;
     if (previous != null &&
-        (content.length < previous.length || !content.startsWith(previous))) {
+        !content.startsWith(previous) &&
+        !previous.startsWith(content)) {
       _identityEpoch++;
     }
     _identityContent = content;
@@ -771,7 +778,7 @@ bool _isLineBreak(int unit) => markdownIsLogicalLineBreak(unit);
 /// only ever ends a block on a run of bare line breaks, so one of these stands
 /// in for every gap it opens.
 class _MarkdownBlockSeparator extends StatelessWidget {
-  const _MarkdownBlockSeparator({required this.style});
+  const _MarkdownBlockSeparator({super.key, required this.style});
 
   /// The `height` hardcoded by `NewLines` in `gpt_markdown`.
   static const double _newLinesHeight = 1.15;
@@ -2943,7 +2950,7 @@ class _CodeBlockIconAction extends StatelessWidget {
     final color = Theme.of(
       context,
     ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
-    return Tooltip(
+    return WindowsAxTreeSafeTooltip(
       message: label,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(4),
@@ -3795,7 +3802,7 @@ class _MarkdownTableToolbar extends StatelessWidget {
             ),
           ),
           _copyButton(context),
-          Tooltip(
+          WindowsAxTreeSafeTooltip(
             message: imageActionLabel,
             child: IosIconButton(
               icon: Lucide.ImageDown,
@@ -3808,7 +3815,7 @@ class _MarkdownTableToolbar extends StatelessWidget {
               color: cs.onSurfaceVariant.withValues(alpha: 0.68),
             ),
           ),
-          Tooltip(
+          WindowsAxTreeSafeTooltip(
             message: exportLabel,
             child: IosIconButton(
               icon: Lucide.Download,
@@ -3830,7 +3837,7 @@ class _MarkdownTableToolbar extends StatelessWidget {
     final showMenu = showCopyMenu && tsvCopyLabel != null && onCopyTsv != null;
 
     if (!showMenu) {
-      return Tooltip(
+      return WindowsAxTreeSafeTooltip(
         message: copyLabel,
         child: IosIconButton(
           icon: Lucide.Copy,
@@ -3845,7 +3852,7 @@ class _MarkdownTableToolbar extends StatelessWidget {
       );
     }
 
-    return Tooltip(
+    return WindowsAxTreeSafeTooltip(
       message: copyLabel,
       child: IosIconButton(
         key: _copyMenuKey,

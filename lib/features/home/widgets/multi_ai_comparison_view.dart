@@ -4,6 +4,7 @@ import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../theme/app_semantic_colors.dart';
+import '../../../shared/widgets/windows_ax_tree_safe_tooltip.dart';
 import '../../../utils/platform_utils.dart';
 import '../../chat/pages/reading_mode_page.dart';
 import '../../chat/widgets/chat_message_widget.dart'
@@ -466,7 +467,7 @@ class _AddModelButton extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.only(right: 6),
-      child: Tooltip(
+      child: WindowsAxTreeSafeTooltip(
         message: l10n.multiAIAddModelTooltip,
         child: GestureDetector(
           onTap: onTap,
@@ -511,7 +512,7 @@ class _ModeButtonState extends State<_ModeButton> {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Tooltip(
+    return WindowsAxTreeSafeTooltip(
       message: widget.tooltip,
       child: GestureDetector(
         onTapDown: (_) => setState(() => _pressed = true),

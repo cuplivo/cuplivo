@@ -980,6 +980,82 @@ Inline ***strong emphasis*** text.
   });
 
   testWidgets(
+    'MarkdownWithCodeHighlight preserves a block parse identity when its live tail commits',
+    (tester) async {
+      final paragraph = 'A long streaming paragraph. ${'content ' * 70}';
+      final text = ValueNotifier<String>('$paragraph\n');
+      addTearDown(text.dispose);
+
+      await tester.pumpWidget(_streamingMarkdownHarness(text));
+      await tester.pump();
+
+      final firstBlock = find.byKey(const ValueKey('markdown-source-block-0'));
+      final firstMarkdown = find.descendant(
+        of: firstBlock,
+        matching: find.byType(GptMarkdown),
+      );
+      final originalElement = tester.element(firstMarkdown);
+      expect(
+        tester.widget<GptMarkdown>(firstMarkdown).key,
+        const ValueKey('parsed-markdown-0'),
+      );
+
+      // The second newline commits the tail as a stable source block. Its
+      // normalized content shrinks by the pending newline, but it is still the
+      // same append-only parse and must keep its semantics/render identity.
+      text.value = '$paragraph\n\nnext paragraph';
+      await tester.pump();
+
+      final committedMarkdown = find.descendant(
+        of: firstBlock,
+        matching: find.byType(GptMarkdown),
+      );
+      expect(tester.element(committedMarkdown), same(originalElement));
+      expect(
+        tester.widget<GptMarkdown>(committedMarkdown).key,
+        const ValueKey('parsed-markdown-0'),
+      );
+      expect(
+        find.byKey(
+          ValueKey('markdown-block-separator-${paragraph.length + 2}'),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'MarkdownWithCodeHighlight replaces parse identity for a true source rewrite',
+    (tester) async {
+      final text = ValueNotifier<String>('alpha ${'content ' * 70}');
+      addTearDown(text.dispose);
+
+      await tester.pumpWidget(_streamingMarkdownHarness(text));
+      await tester.pump();
+
+      final firstBlock = find.byKey(const ValueKey('markdown-source-block-0'));
+      final firstMarkdown = find.descendant(
+        of: firstBlock,
+        matching: find.byType(GptMarkdown),
+      );
+      final originalElement = tester.element(firstMarkdown);
+
+      text.value = 'beta ${'replacement ' * 60}';
+      await tester.pump();
+
+      final rewrittenMarkdown = find.descendant(
+        of: firstBlock,
+        matching: find.byType(GptMarkdown),
+      );
+      expect(tester.element(rewrittenMarkdown), isNot(same(originalElement)));
+      expect(
+        tester.widget<GptMarkdown>(rewrittenMarkdown).key,
+        const ValueKey('parsed-markdown-1'),
+      );
+    },
+  );
+
+  testWidgets(
     'MarkdownWithCodeHighlight keeps refreshing during continuous long streams',
     (tester) async {
       final baseLines = List<String>.filled(

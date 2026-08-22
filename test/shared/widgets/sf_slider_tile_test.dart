@@ -55,6 +55,24 @@ void main() {
     expect(slider.stepSize, isNull);
   });
 
+  testWidgets('null onChanged disables the slider', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        const SfSliderTile(
+          value: 75,
+          min: 30,
+          max: 100,
+          divisions: 70,
+          label: '—',
+          onChanged: null,
+        ),
+      ),
+    );
+
+    final slider = tester.widget<SfSlider>(find.byType(SfSlider));
+    expect(slider.onChanged, isNull);
+  });
+
   testWidgets('clamps out-of-range value before rendering', (tester) async {
     await tester.pumpWidget(
       wrap(

@@ -50,7 +50,8 @@ class SfSliderTile extends StatelessWidget {
   /// Text shown in the waterdrop tooltip while interacting.
   final String label;
 
-  final ValueChanged<double> onChanged;
+  /// Called while the value changes. A null callback disables the slider.
+  final ValueChanged<double>? onChanged;
 
   final ValueChanged<double>? onChangeEnd;
 
@@ -173,7 +174,7 @@ class SfSliderTile extends StatelessWidget {
                   ],
           ),
         ),
-        onChanged: (v) => onChanged(_toDouble(v)),
+        onChanged: onChanged == null ? null : (v) => onChanged!(_toDouble(v)),
         onChangeEnd: onChangeEnd == null
             ? null
             : (v) => onChangeEnd!(_toDouble(v)),

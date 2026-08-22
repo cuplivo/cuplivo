@@ -14,6 +14,7 @@ import '../../features/settings/widgets/mimo_reference_audio_picker.dart';
 import '../../features/settings/widgets/voice_service_widgets.dart';
 import '../../shared/widgets/ios_switch.dart';
 import '../../shared/widgets/snackbar.dart';
+import '../../shared/widgets/sf_slider_tile.dart';
 import '../../theme/app_font_weights.dart';
 import '../../theme/app_semantic_colors.dart';
 
@@ -671,10 +672,14 @@ class _SystemTtsCardState extends State<_SystemTtsCard> {
                       color: cs.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
-                  Slider(
+                  SfSliderTile(
                     value: rate,
                     min: 0.1,
                     max: 1.0,
+                    label: rate.toStringAsFixed(2),
+                    semanticLabel: l10n.ttsServicesPageSpeechRateLabel,
+                    semanticFormatterCallback: (value) =>
+                        value.toStringAsFixed(2),
                     onChanged: (v) {
                       rate = v;
                       if (ctx.mounted) (ctx as Element).markNeedsBuild();
@@ -689,10 +694,14 @@ class _SystemTtsCardState extends State<_SystemTtsCard> {
                       color: cs.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
-                  Slider(
+                  SfSliderTile(
                     value: pitch,
                     min: 0.5,
                     max: 2.0,
+                    label: pitch.toStringAsFixed(2),
+                    semanticLabel: l10n.ttsServicesPagePitchLabel,
+                    semanticFormatterCallback: (value) =>
+                        value.toStringAsFixed(2),
                     onChanged: (v) {
                       pitch = v;
                       if (ctx.mounted) (ctx as Element).markNeedsBuild();

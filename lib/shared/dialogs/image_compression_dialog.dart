@@ -6,6 +6,7 @@ import '../../icons/lucide_adapter.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/format.dart';
 import '../widgets/ios_tactile.dart';
+import '../widgets/sf_slider_tile.dart';
 
 /// Compression config returned by [ImageCompressionDialog].
 class CompressionConfig {
@@ -288,7 +289,6 @@ class _ImageCompressionDialogBodyState
   }
 
   Widget _buildQualitySlider(ColorScheme cs, AppLocalizations l10n) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -312,34 +312,23 @@ class _ImageCompressionDialogBodyState
             ),
           ],
         ),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: 3,
-            activeTrackColor: cs.primary,
-            inactiveTrackColor: cs.onSurface.withValues(
-              alpha: isDark ? 0.22 : 0.18,
-            ),
-            thumbColor: cs.primary,
-            overlayColor: cs.primary.withValues(alpha: 0.12),
-            showValueIndicator: ShowValueIndicator.never,
-          ),
-          child: Slider(
-            value: _quality.toDouble(),
-            min: _minQuality.toDouble(),
-            max: _maxQuality.toDouble(),
-            divisions: _maxQuality - _minQuality,
-            onChanged: (_hasAlpha && _keepPng)
-                ? null
-                : (v) => setState(() => _quality = v.round()),
-          ),
+        SfSliderTile(
+          value: _quality.toDouble(),
+          min: _minQuality.toDouble(),
+          max: _maxQuality.toDouble(),
+          divisions: _maxQuality - _minQuality,
+          label: '$_quality%',
+          semanticLabel: l10n.imageCompressionQuality,
+          semanticFormatterCallback: (value) => '${value.round()}%',
+          onChanged: (_hasAlpha && _keepPng)
+              ? null
+              : (value) => setState(() => _quality = value.round()),
         ),
       ],
     );
   }
 
   Widget _buildDimensionSlider(ColorScheme cs, AppLocalizations l10n) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -363,24 +352,15 @@ class _ImageCompressionDialogBodyState
             ),
           ],
         ),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: 3,
-            activeTrackColor: cs.primary,
-            inactiveTrackColor: cs.onSurface.withValues(
-              alpha: isDark ? 0.22 : 0.18,
-            ),
-            thumbColor: cs.primary,
-            overlayColor: cs.primary.withValues(alpha: 0.12),
-            showValueIndicator: ShowValueIndicator.never,
-          ),
-          child: Slider(
-            value: _maxDimension.toDouble(),
-            min: _sliderMin.toDouble(),
-            max: _maxDimensionUpper.toDouble(),
-            divisions: ((_maxDimensionUpper - _sliderMin) ~/ 64).clamp(1, 100),
-            onChanged: (v) => setState(() => _maxDimension = v.round()),
-          ),
+        SfSliderTile(
+          value: _maxDimension.toDouble(),
+          min: _sliderMin.toDouble(),
+          max: _maxDimensionUpper.toDouble(),
+          divisions: ((_maxDimensionUpper - _sliderMin) ~/ 64).clamp(1, 100),
+          label: '$_maxDimension px',
+          semanticLabel: l10n.imageCompressionMaxDimension,
+          semanticFormatterCallback: (value) => '${value.round()} px',
+          onChanged: (value) => setState(() => _maxDimension = value.round()),
         ),
         const SizedBox(height: 4),
         Row(

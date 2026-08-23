@@ -210,10 +210,16 @@ class SafMountPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityA
         val value = block()
         mainHandler.post { result.success(value) }
       } catch (e: SecurityException) {
+        android.util.Log.w(TAG, "access_denied: ${e.message}")
         mainHandler.post { result.error("access_denied", e.message, null) }
       } catch (e: FileNotFoundException) {
+        android.util.Log.w(TAG, "uri_not_found: ${e.message}")
         mainHandler.post { result.error("uri_not_found", e.message, null) }
       } catch (e: Exception) {
+        android.util.Log.w(
+          TAG,
+          "access_failed: ${e.javaClass.simpleName} ${e.message}",
+        )
         mainHandler.post { result.error("access_failed", e.message ?: e.javaClass.simpleName, null) }
       }
     }.start()
@@ -260,16 +266,38 @@ class SafMountPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityA
   }
 
   private fun list(uri: Uri): List<Map<String, Any?>> {
-    val doc = DocumentFile.fromTreeUri(appContext, uri)
+    val docId = documentIdFor(uri.pathSegments)
       ?: throw FileNotFoundException("Cannot resolve tree: $uri")
-    return doc.listFiles().map { child ->
-      mapOf(
-        "name" to (child.name ?: ""),
-        "isDirectory" to child.isDirectory,
-        "lastModified" to child.lastModified(),
-        "size" to child.length(),
-        "uri" to child.uri.toString(),
+    val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(uri, docId)
+    val projection =
+      arrayOf(
+        DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+        DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+        DocumentsContract.Document.COLUMN_MIME_TYPE,
+        DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+        DocumentsContract.Document.COLUMN_SIZE,
       )
+    val cursor =
+      appContext.contentResolver.query(childrenUri, projection, null, null, null)
+        ?: throw FileNotFoundException("Cannot list: $uri")
+    return cursor.use { c ->
+      val result = mutableListOf<Map<String, Any?>>()
+      while (c.moveToNext()) {
+        val childDocId = c.getString(0) ?: continue
+        result.add(
+          mapOf(
+            "name" to (c.getString(1) ?: ""),
+            "isDirectory" to
+              (c.getString(2) == DocumentsContract.Document.MIME_TYPE_DIR),
+            "lastModified" to c.getLong(3),
+            "size" to c.getLong(4),
+            "uri" to
+              DocumentsContract.buildDocumentUriUsingTree(uri, childDocId)
+                .toString(),
+          ),
+        )
+      }
+      result
     }
   }
 
@@ -296,26 +324,58 @@ class SafMountPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityA
   }
 
   private fun createFile(parentUri: Uri, name: String): String {
-    val parent = DocumentFile.fromTreeUri(appContext, parentUri)
+    val docId = documentIdFor(parentUri.pathSegments)
       ?: throw FileNotFoundException("Cannot resolve parent: $parentUri")
+    val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(parentUri, docId)
     val mime = mimeForName(name)
-    val created = parent.createFile(mime, name)
-      ?: throw IllegalStateException("Provider refused createFile($name)")
-    return created.uri.toString()
+    val created =
+      DocumentsContract.createDocument(appContext.contentResolver, childrenUri, mime, name)
+        ?: throw IllegalStateException("Provider refused createFile($name)")
+    return canonicalDocumentUri(parentUri, created)
   }
 
   private fun mkdir(parentUri: Uri, name: String): String {
-    val parent = DocumentFile.fromTreeUri(appContext, parentUri)
+    val docId = documentIdFor(parentUri.pathSegments)
       ?: throw FileNotFoundException("Cannot resolve parent: $parentUri")
-    val created = parent.createDirectory(name)
-      ?: throw IllegalStateException("Provider refused createDirectory($name)")
-    return created.uri.toString()
+    val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(parentUri, docId)
+    val created =
+      DocumentsContract.createDocument(
+        appContext.contentResolver,
+        childrenUri,
+        DocumentsContract.Document.MIME_TYPE_DIR,
+        name,
+      ) ?: throw IllegalStateException("Provider refused createDirectory($name)")
+    return canonicalDocumentUri(parentUri, created)
+  }
+
+  /**
+   * Normalizes a createDocument() result to the canonical
+   * `tree/.../document/<id>` form expected by the Dart side. Anything that
+   * is NOT exactly that shape — a provider echoing the requested children
+   * URI back, a foreign single-document URI, a `/children` tail — aborts
+   * the round loudly instead of silently recording the wrong URI (which
+   * would route later child pushes to the wrong level of the user's real
+   * directory). The sequence is safe to retry: nothing was created under
+   * the wrong path, the round can re-attempt.
+   */
+  private fun canonicalDocumentUri(parentUri: Uri, created: Uri): String {
+    if (!isCanonicalTreeDocumentUriShape(created.pathSegments)) {
+      val error = "provider returned a non-canonical document URI from createDocument()"
+      android.util.Log.w(TAG, error)
+      throw IllegalStateException(error)
+    }
+    val docId = documentIdFor(created.pathSegments)!!
+    return DocumentsContract.buildDocumentUriUsingTree(parentUri, docId).toString()
   }
 
   private fun delete(uri: Uri): Boolean {
-    val doc = DocumentFile.fromSingleUri(appContext, uri)
-      ?: return false
-    return doc.delete()
+    return try {
+      DocumentsContract.deleteDocument(appContext.contentResolver, uri)
+      true
+    } catch (e: Exception) {
+      android.util.Log.w(TAG, "delete failed: ${e.javaClass.simpleName}: ${e.message}")
+      false
+    }
   }
 
   private fun checkAccess(uri: Uri): Boolean {
@@ -368,3 +428,47 @@ class SafMountPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityA
     var sharedPendingPickResult: MethodChannel.Result? = null
   }
 }
+
+/**
+ * SAF document addressing (issue #528): maps a content URI's path segments
+ * to the document-ID segment a subtree operation must key off.
+ *
+ * - `tree/<treeId>` (mount root) → `<treeId>` — the tree's root document.
+ * - `tree/<treeId>/document/<docId>` (child, or its `/children` tail) →
+ *   `<docId>` — the child itself. A child URI must NEVER be re-resolved
+ *   with [DocumentFile.fromTreeUri]: that API keeps only the tree id and
+ *   silently returns the tree root, which made the walker re-enumerate the
+ *   mount root on every directory step until the 30 s round timeout.
+ *
+ * Deliberately pure Kotlin ([List], no [android.net.Uri]) so the grammar
+ * is host-JVM unit-testable; the plugin wires [Uri.pathSegments] through.
+ * Anything else (foreign `document/`-first shapes, empty ids) resolves to
+ * null and is rejected by the caller.
+ */
+internal fun documentIdFor(pathSegments: List<String>): String? {
+  if (pathSegments.size < 2 || pathSegments[0] != "tree") return null
+  val treeId = pathSegments[1]
+  return when {
+    pathSegments.size == 2 && treeId.isNotEmpty() -> treeId
+    pathSegments.size >= 4 &&
+        pathSegments[2] == "document" &&
+        pathSegments[3].isNotEmpty() -> pathSegments[3]
+    else -> null
+  }
+}
+
+/**
+ * True only for the canonical created-document shape
+ * `tree/<treeId>/document/<docId>` — exactly four segments, no `/children`
+ * tail. `documentIdFor` stays tolerant (a children tail is a legitimate
+ * listing target), but a CREATE result must be this exact shape: a provider
+ * echoing the requested children URI back (5 segments, the PARENT's id)
+ * would otherwise be silently treated as the created URI and route later
+ * pushes to the wrong level. Anything else is rejected by the caller.
+ */
+internal fun isCanonicalTreeDocumentUriShape(pathSegments: List<String>): Boolean =
+  pathSegments.size == 4 &&
+      pathSegments[0] == "tree" &&
+      pathSegments[2] == "document" &&
+      pathSegments[1].isNotEmpty() &&
+      pathSegments[3].isNotEmpty()

@@ -201,12 +201,12 @@ class DioHttpClient extends http.BaseClient {
     // name embeds the log-skip marker (e.g. the AI log-analysis export) is
     // kept entirely out of the log files, so analysis traffic cannot
     // inflate or poison the logs.
-    final bodyText = enableRequestLogging &&
-            RequestLogger.llmEnabled &&
-            bodyBytes.isNotEmpty
+    final bodyText =
+        enableRequestLogging && RequestLogger.llmEnabled && bodyBytes.isNotEmpty
         ? RequestLogger.safeDecodeUtf8(bodyBytes)
         : '';
-    final logEnabled = enableRequestLogging &&
+    final logEnabled =
+        enableRequestLogging &&
         RequestLogger.llmEnabled &&
         !_hasLogSkipMarker(bodyText);
 

@@ -94,8 +94,6 @@ class _DisplaySettingsBody extends StatelessWidget {
                   const _RowDivider(),
                   const _ToggleRowReasoningMarkdown(),
                   const _RowDivider(),
-                  const _ToggleRowStreamingThinkingPreviewTruncate(),
-                  const _RowDivider(),
                   const _ToggleRowAssistantMarkdown(),
                   const _RowDivider(),
                   const _AutoCollapseCodeBlocksSection(),

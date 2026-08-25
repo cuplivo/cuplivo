@@ -389,9 +389,17 @@ private final class IosBackgroundGenerationHandler {
     if #available(iOS 16.1, *) {
       let ownedId = (liveActivity as? Activity<CuplivoGenerationActivityAttributes>)?.id
       let activities = Activity<CuplivoGenerationActivityAttributes>.activities
-      for activity in activities
-      where (reclaimOwned || activity.id != ownedId)
-        && (activity.activityState == .active || activity.activityState == .stale) {
+      for activity in activities {
+        guard activity.id != ownedId || reclaimOwned else { continue }
+        // `ActivityState.stale` is iOS 16.2+ only; on 16.1 we can only end
+        // `.active` instances.
+        let shouldEnd: Bool
+        if #available(iOS 16.2, *) {
+          shouldEnd = activity.activityState == .active || activity.activityState == .stale
+        } else {
+          shouldEnd = activity.activityState == .active
+        }
+        guard shouldEnd else { continue }
         NSLog("Cuplivo live activity orphan cleanup (\(reason)): ending \(activity.id)")
         endOrphanedLiveActivity(activity)
       }

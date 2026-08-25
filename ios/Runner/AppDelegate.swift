@@ -138,8 +138,8 @@ private let backgroundProcessingIdentifier = "com.cup11.cuplivo.background-gener
 
   override func applicationDidBecomeActive(_ application: UIApplication) {
     super.applicationDidBecomeActive(application)
+    backgroundGenerationHandler.endOrphanedLiveActivities(reason: "applicationDidBecomeActive", reclaimOwned: false)
     backgroundGenerationHandler.dismissFinishedLiveActivityIfNeeded()
-    backgroundGenerationHandler.endOrphanedLiveActivities(reason: "applicationDidBecomeActive")
   }
 }
 
@@ -370,7 +370,7 @@ private final class IosBackgroundGenerationHandler {
   }
 
   /// Ends every live instance of `CuplivoGenerationActivityAttributes` that
-  /// this process does not own. The owning reference lives only in memory,
+  /// this process must not keep. The owning reference lives only in memory,
   /// so instances created by a previous process (killed, crashed, or force-
   /// quit) would otherwise linger on the Lock Screen / Dynamic Island until
   /// system expiry. Enumerating by attributes type needs no persistence.
@@ -379,13 +379,19 @@ private final class IosBackgroundGenerationHandler {
   /// applicationDidBecomeActive, mirroring dismissFinishedLiveActivityIfNeeded.
   ///
   /// Safe to call while a generation is running: the in-process owner is
-  /// skipped, and each end task captures its own activity object, so it can
-  /// never tear down an instance created afterwards.
-  func endOrphanedLiveActivities(reason: String) {
+  /// skipped unless `reclaimOwned` is set, and each end task captures its own
+  /// activity object, so it can never tear down an instance created
+  /// afterwards. `reclaimOwned` is used right before requesting a new
+  /// activity: an owned card belonging to a previous generation (finished in
+  /// the background, or replaced without being ended) must retire, otherwise
+  /// it coexists with the new card.
+  func endOrphanedLiveActivities(reason: String, reclaimOwned: Bool) {
     if #available(iOS 16.1, *) {
-      guard !isLiveActivityActive() else { return }
+      let ownedId = (liveActivity as? Activity<CuplivoGenerationActivityAttributes>)?.id
       let activities = Activity<CuplivoGenerationActivityAttributes>.activities
-      for activity in activities where activity.activityState == .active || activity.activityState == .stale {
+      for activity in activities
+      where (reclaimOwned || activity.id != ownedId)
+        && (activity.activityState == .active || activity.activityState == .stale) {
         NSLog("Cuplivo live activity orphan cleanup (\(reason)): ending \(activity.id)")
         endOrphanedLiveActivity(activity)
       }
@@ -397,9 +403,9 @@ private final class IosBackgroundGenerationHandler {
     // Reuse the exact final content state shape of finishLiveActivity's
     // active-app path (endLiveActivity): finished card with elapsed time.
     // Keep the orphan's own start time / wave phase so the tombstone shows
-    // truthful data. Both accessors are optional: prefer the non-deprecated
-    // content.state on iOS 16.2+, fall back to contentState on 16.1, and to
-    // a clean finished card if the system reports no prior content at all.
+    // truthful data. `content` is non-optional on iOS 16.2+, while
+    // `contentState` is optional on 16.1, so fall back to a clean finished
+    // card only when the system reports no prior content at all.
     let finishedAt = Date()
     let fallbackState = CuplivoGenerationActivityAttributes.ContentState(
       displayTitle: activity.attributes.title,
@@ -414,7 +420,7 @@ private final class IosBackgroundGenerationHandler {
     )
     let priorState: CuplivoGenerationActivityAttributes.ContentState
     if #available(iOS 16.2, *) {
-      priorState = activity.content?.state ?? fallbackState
+      priorState = activity.content.state
     } else {
       priorState = activity.contentState ?? fallbackState
     }
@@ -442,9 +448,10 @@ private final class IosBackgroundGenerationHandler {
     if #available(iOS 16.1, *) {
       guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
       // Defensive: reclaim any leftover instance (e.g. from a previous
-      // process) before creating a new one, so at most one generation card
-      // is ever on screen.
-      endOrphanedLiveActivities(reason: "beforeStart")
+      // process, or the in-process card of an earlier generation that ended
+      // in the background) before creating a new one, so at most one
+      // generation card is ever on screen.
+      endOrphanedLiveActivities(reason: "beforeStart", reclaimOwned: true)
       liveActivityDisplayTitle = title
       liveActivityDetail = detail
       liveActivityStartedAt = Date()

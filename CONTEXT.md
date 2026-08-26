@@ -17,7 +17,10 @@ Kelivo 的同源 fork（`cuplivo/cuplivo`，upstream = `Chevey339/kelivo`），U
 RikkaHub 备份 → Kelivo 可恢复备份包的唯一途径。原则：保真数据 + 最小猜测 + 迁移报告。
 
 **兼容（Compatibility）**:
-Kelivo v1.2.0 备份 zip → Cuplivo v2.7.1 可恢复备份 zip 的能力。与**迁移**独立：迁移是跨源深度映射，兼容是同源格式转换（读 `database/kelivo.db` SQLite 快照，写 chats.json v2）。原则沿用保真数据 + 最小猜测 + 报告。
+Kelivo v1.2.0 备份 zip → Cuplivo v2.7.1 可恢复备份 zip 的能力。与**迁移**独立：迁移是跨源深度映射，兼容是同源格式转换（读 `database/kelivo.db` SQLite 快照，写 chats.json，版本常量 1——Cuplivo 导入端不读该字段，Kelivo 旧导入端只接受 v1，cuplivo/cuplivo#453）。原则沿用保真数据 + 最小猜测 + 报告。
+
+**记忆降级（Memory Downgrade）**:
+**兼容**的构成能力：Cuplivo v2.7.1 只认旧版记忆（`assistant_memories_v1`），Kelivo v1.2.0 新版记忆（`memory_entries_v1` / MemoryEntry）在兼容转换中降级为旧版——scope=assistant 直转、scope=global 复制到所有助手、status=archived 丢弃入报告；新条目的 `migrationIds`（应用内旧→新迁移残留的原旧 id）精确取代旧记录，(assistantId, normalize(content)) 兜底去重。与该词的核心区别：**降级**只发生在兼容（Kelivo→Cuplivo）方向，迁移（RikkaHub→Kelivo）写的是旧版键，无需转换。
 
 **迁移报告（Migration Report）**:
 迁移产物附带的可下载清单，记录丢弃项、未识别 modelId、占位助手等，供用户留档。

@@ -7,7 +7,8 @@ import JSZip from 'jszip';
 import assert from 'node:assert/strict';
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { compatKelivoToCuplivo, compatOutputName } from '../src/lib/compat';
-import { transformAssistantsV1 } from '../src/lib/cuplivo/settings';
+import { transformAssistantsV1, transformSearchServicesV1 } from '../src/lib/cuplivo/settings';
+import { transformMemories } from '../src/lib/compat/memory';
 import { managedTail, portableSlash, relativeManaged } from '../src/lib/cuplivo/chats';
 import type { CompatReport } from '../src/lib/compat/report';
 
@@ -110,12 +111,17 @@ function buildDb(): Uint8Array {
   return bytes;
 }
 
-// ---------- 2. 构造 settings.json（v1.2.0 形态：presetMessages 字符串、新记忆字段） ----------
+// ---------- 2. 构造 settings.json（v1.2.0 形态：presetMessages 字符串、双代记忆） ----------
+const AST_ID_2 = 'ast-2';
 function buildSettings(): string {
   return JSON.stringify({
     theme_mode_v1: 'dark',
     image_upload_quality_v1: 85,
     image_compress_custom_quality_v1: 60,
+    tts_speech_rate_v1: 1,
+    search_services_v1: JSON.stringify([
+      { type: 'exa', id: 'srv-1', name: 'Exa 搜索', apiKey: 'primary-key', apiKeys: ['k2', 'k3'], keyManagement: null },
+    ]),
     current_assistant_id_v1: AST_ID,
     assistants_v1: JSON.stringify([
       {
@@ -132,6 +138,18 @@ function buildSettings(): string {
         autoOrganizeMemory: true,
         memorySmartAddMode: 'batched',
       },
+      { id: AST_ID_2, name: '第二个助手', systemPrompt: '', messageTemplate: '{{ message }}', regexRules: [] },
+    ]),
+    assistant_memories_v1: JSON.stringify([
+      { id: 1, assistantId: AST_ID, content: '旧记忆A' },
+      { id: 2, assistantId: AST_ID_2, content: '旧记忆B' },
+      { id: 5, assistantId: AST_ID, content: '新身份' },
+    ]),
+    memory_entries_v1: JSON.stringify([
+      { id: 'mem_000001', scope: 'assistant', assistantId: AST_ID, type: 'identity', status: 'active', content: '新身份', source: 'manual', migrationIds: [1] },
+      { id: 'mem_000002', scope: 'assistant', assistantId: AST_ID_2, type: 'workflow', status: 'active', content: '旧记忆B', source: 'manual', migrationIds: [2] },
+      { id: 'mem_000003', scope: 'global', type: 'voice', status: 'active', content: '全局声音', source: 'tool' },
+      { id: 'mem_000004', scope: 'assistant', assistantId: AST_ID, type: 'instruction', status: 'archived', content: '该忘的', source: 'manual' },
     ]),
   });
 }
@@ -178,11 +196,12 @@ const outZip = result.outputZip;
 const report: CompatReport = result.report;
 
 const chats = JSON.parse(await outZip.file('chats.json')!.async('string'));
-const settingsJson = JSON.parse(await outZip.file('settings.json')!.async('string'));
+const settingsText = await outZip.file('settings.json')!.async('string');
+const settingsJson = JSON.parse(settingsText);
 
 // ---------- 4. 校验 chats.json ----------
 assert.match(result.outputName, /^kelivo_backup_\d{8}T\d{6}\.\d{6}\.zip$/, '目标惯例文件名');
-assert.strictEqual(chats.version, 2, 'chats.json version=2（Cuplivo 惯例）');
+assert.strictEqual(chats.version, 1, 'chats.json version=1（锁定常量：Kelivo 旧导入端拒绝 v2，cuplivo#453）');
 assert.strictEqual(chats.conversations.length, 2, '2 个会话');
 assert.strictEqual(chats.messages.length, 4, '4 条消息（含全部 revision）');
 assert.deepStrictEqual(chats.groupChats, [], 'groupChats 空');
@@ -234,12 +253,34 @@ assert.ok(!m3.content.includes('not-json'), '损坏 image 部件丢弃');
 assert.strictEqual(settingsJson.theme_mode_v1, 'dark', '直通键保留');
 assert.strictEqual(settingsJson.image_upload_quality_v1, 85, '图像键保持 Kelivo 形态（Cuplivo 恢复时翻译）');
 const assistants = JSON.parse(settingsJson.assistants_v1);
-assert.strictEqual(assistants.length, 1);
+assert.strictEqual(assistants.length, 2);
 const ast = assistants[0];
 assert.deepStrictEqual(ast.presetMessages, [{ id: 'pm-1', role: 'user', content: '开场白' }], 'presetMessages 字符串 → 内联数组');
 assert.strictEqual(ast.enableRecentChatsReference, true, '合成 enableRecentChatsReference');
 assert.strictEqual(ast.allowPastConversationRecall, true, '原字段保留（保真）');
 assert.strictEqual(ast.autoOrganizeMemory, true, 'Kelivo 独有字段保留');
+
+const memories: { id: number; assistantId: string; content: string }[] = JSON.parse(settingsJson.assistant_memories_v1);
+assert.deepStrictEqual(
+  memories,
+  [
+    { id: 6, assistantId: AST_ID, content: '新身份' },
+    { id: 7, assistantId: AST_ID_2, content: '旧记忆B' },
+    { id: 8, assistantId: AST_ID, content: '全局声音' },
+    { id: 9, assistantId: AST_ID_2, content: '全局声音' },
+  ],
+  '记忆降级：migrationIds 取代 + 内容去重 + global 复制所有助手 + 新 id 从旧 max+1',
+);
+assert.strictEqual(settingsJson.memory_entries_v1, undefined, 'memory_entries_v1 已移除');
+
+assert.ok(settingsText.includes('"tts_speech_rate_v1": 1.0'), 'double 键序列化补小数点（getDouble 强转防崩溃）');
+const searchServices = JSON.parse(settingsJson.search_services_v1);
+assert.deepStrictEqual(
+  searchServices[0].apiKeys,
+  [{ key: 'primary-key' }, { key: 'k2' }, { key: 'k3' }],
+  'search apiKeys 字符串池 → ApiKeyConfig 列表（主 key 优先）',
+);
+assert.strictEqual(searchServices[0].apiKey, 'primary-key', 'apiKey 主键串保留（向后兼容）');
 
 // ---------- 6. 校验 zip 结构 ----------
 assert.deepStrictEqual(JSON.parse(await outZip.file('deleted.json')!.async('string')), {}, 'deleted.json 空对象');
@@ -259,9 +300,12 @@ assert.strictEqual(report.source.appVersion, '1.2.0 (42)');
 assert.strictEqual(report.totals.conversations, 2);
 assert.strictEqual(report.totals.messages, 4);
 assert.strictEqual(report.totals.toolEvents, 1);
-assert.strictEqual(report.totals.assistants, 1);
+assert.strictEqual(report.totals.assistants, 2);
 assert.strictEqual(report.totals.mediaFiles, 5);
 assert.strictEqual(report.totals.geminiSignatures, 1);
+assert.strictEqual(report.totals.memories, 4, '记忆转换计数');
+assert.ok(report.dropped.some((d) => d.category.includes('archived')), 'archived 记忆入报告');
+assert.ok(report.warnings.some((w) => w.includes('记忆转换')), '记忆转换警告');
 assert.ok(report.dropped.some((d) => d.category.includes('future_widget')), '未知部件入报告');
 assert.ok(report.dropped.some((d) => d.category.includes('损坏')), '损坏部件入报告');
 const missing = report.dropped.filter((d) => d.category.includes('不在备份包中'));
@@ -284,7 +328,7 @@ assert.strictEqual(relativeManaged('workspaces/a.png'), null, '非管理根拒�
   const report0: CompatReport = {
     generatedAt: '',
     source: { fileName: 'x', format: 'kelivo-backup', formatVersion: 2, payloadKind: 'sqlite', appVersion: null },
-    totals: { conversations: 0, messages: 0, mediaFiles: 0, toolEvents: 0, assistants: 0, geminiSignatures: 0 },
+    totals: { conversations: 0, messages: 0, mediaFiles: 0, toolEvents: 0, assistants: 0, geminiSignatures: 0, memories: 0 },
     dropped: [],
     warnings: [],
   };
@@ -301,6 +345,67 @@ assert.strictEqual(relativeManaged('workspaces/a.png'), null, '非管理根拒�
   assert.strictEqual(list[2].presetMessages[0].content, 'y', '已是数组不动');
   assert.strictEqual(list[2].enableRecentChatsReference, true, '已有旧键不覆盖');
   assert.ok(report0.dropped.some((d) => d.category.includes('presetMessages')), '无法解析计数');
+}
+
+// ---------- 9.5 单元：记忆降级边界 ----------
+{
+  const report1: CompatReport = {
+    generatedAt: '', source: { fileName: 'x', format: 'kelivo-backup', formatVersion: 2, payloadKind: 'sqlite', appVersion: null },
+    totals: { conversations: 0, messages: 0, mediaFiles: 0, toolEvents: 0, assistants: 0, geminiSignatures: 0, memories: 0 },
+    dropped: [], warnings: [],
+  };
+  const out1 = transformMemories({ memory_entries_v1: 'not-json', assistant_memories_v1: '[{"id":7,"assistantId":"a","content":"旧"}]' }, report1);
+  assert.strictEqual(out1.memory_entries_v1, undefined, '不可解析的新键移除');
+  assert.strictEqual(out1.assistant_memories_v1, '[{"id":7,"assistantId":"a","content":"旧"}]', '旧键原样保留');
+  assert.strictEqual(report1.totals.memories, 0, '未转换不计总数');
+  assert.ok(report1.warnings.some((w) => w.includes('memory_entries_v1')), '不可解析警告');
+
+  const report2: CompatReport = {
+    generatedAt: '', source: { fileName: 'x', format: 'kelivo-backup', formatVersion: 2, payloadKind: 'sqlite', appVersion: null },
+    totals: { conversations: 0, messages: 0, mediaFiles: 0, toolEvents: 0, assistants: 0, geminiSignatures: 0, memories: 0 },
+    dropped: [], warnings: [],
+  };
+  const out2 = transformMemories(
+    {
+      memory_entries_v1: JSON.stringify([
+        { id: 'm1', scope: 'global', status: 'active', content: '孤儿全局' },
+        { id: 'm2', scope: 'assistant', status: 'active', content: '' },
+        { id: 'm3', scope: 'assistant', assistantId: 'a', status: 'weird', content: 'x' },
+      ]),
+    },
+    report2,
+  );
+  assert.strictEqual(out2.assistant_memories_v1, undefined, '无合法记录时移除旧键');
+  assert.ok(report2.dropped.some((d) => d.category.includes('global')), '无助手列表时 global 丢弃');
+  assert.strictEqual(report2.dropped.find((d) => d.category.includes('非法'))?.count, 2, '空内容/非法 status 计数');
+}
+
+// ---------- 9.6 单元：搜索服务手术边界 ----------
+{
+  const report3: CompatReport = {
+    generatedAt: '', source: { fileName: 'x', format: 'kelivo-backup', formatVersion: 2, payloadKind: 'sqlite', appVersion: null },
+    totals: { conversations: 0, messages: 0, mediaFiles: 0, toolEvents: 0, assistants: 0, geminiSignatures: 0, memories: 0 },
+    dropped: [], warnings: [],
+  };
+  const native = transformSearchServicesV1(
+    { search_services_v1: JSON.stringify([{ id: 'a', apiKey: 'p', apiKeys: [{ key: 'x', isEnabled: true }] }]) },
+    report3,
+  );
+  assert.deepStrictEqual(
+    JSON.parse(native.search_services_v1 as string)[0].apiKeys,
+    [{ key: 'x', isEnabled: true }],
+    '已是 Map 不动（Cuplivo 原生）',
+  );
+  const mixed = transformSearchServicesV1(
+    { search_services_v1: JSON.stringify([{ id: 'b', apiKey: 'p', apiKeys: ['s1', 5] }]) },
+    report3,
+  );
+  assert.deepStrictEqual(JSON.parse(mixed.search_services_v1 as string)[0].apiKeys, ['s1', 5], '混合元素保持原样');
+  assert.ok(report3.dropped.some((d) => d.category.includes('搜索服务')), '混合元素入报告');
+  const bad = transformSearchServicesV1({ search_services_v1: 'not-json' }, report3);
+  assert.strictEqual(bad.search_services_v1, 'not-json', '非法 JSON 原样保留');
+  assert.ok(report3.warnings.some((w) => w.includes('search_services_v1')), '非法 JSON 警告');
+  assert.strictEqual(report3.totals.memories, 0, '搜索手术不动记忆计数');
 }
 
 // ---------- 10. 非 v1.2.0 输入拒绝 ----------
@@ -327,5 +432,5 @@ assert.match(compatOutputName(new Date('2026-08-12T03:04:05.678Z')), /^kelivo_ba
 
 console.log('✅ compat e2e 全部通过');
 console.log(
-  `  兼容: ${report.totals.conversations} 会话 / ${report.totals.messages} 消息 / ${report.totals.toolEvents} 工具事件 / ${report.totals.assistants} 助手 / ${report.totals.mediaFiles} 媒体`,
+  `  兼容: ${report.totals.conversations} 会话 / ${report.totals.messages} 消息 / ${report.totals.toolEvents} 工具事件 / ${report.totals.assistants} 助手 / ${report.totals.memories} 记忆 / ${report.totals.mediaFiles} 媒体`,
 );

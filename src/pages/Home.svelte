@@ -11,7 +11,7 @@
     {
       id: 'compat',
       title: '兼容',
-      desc: '将 Kelivo v1.2.0 备份包转换为 Cuplivo v2.7.1 可恢复的备份包：SQLite 快照读出，chats.json v2 写出，附兼容报告。',
+      desc: '将 Kelivo v1.2.0 备份包转换为 Cuplivo v2.7.1 可恢复的备份包：SQLite 快照读出，chats.json（version 1）写出，附兼容报告。',
       icon: '🔀',
     },
     {

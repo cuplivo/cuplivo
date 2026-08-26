@@ -2,8 +2,9 @@
  * 兼容编排器：Kelivo v1.2.0 备份 zip → Cuplivo v2.7.1 可恢复备份 zip + 兼容报告
  *
  * 与迁移（RikkaHub→Kelivo）相互独立，不共享转换管线（CONTEXT.md 术语「兼容」）。
- * 目标 zip 形态对齐 Cuplivo 自身导出惯例：settings.json + chats.json(version 2)
- * + deleted.json({}) + upload|avatars|images|fonts/，文件名 kelivo_backup_<紧凑ISO>.zip
+ * 目标 zip 形态对齐 Cuplivo 自身导出惯例：settings.json + chats.json(version 1，
+ * 字段群含 groupChats 等) + deleted.json({}) + upload|avatars|images|fonts/，
+ * 文件名 kelivo_backup_<紧凑ISO>.zip
  */
 import JSZip from 'jszip';
 import { loadKelivoV120Source, closeSource } from '../kelivo-v120/load';
@@ -11,6 +12,7 @@ import { copyZipDir } from '../zip';
 import { emptyCompatReport, type CompatReport } from './report';
 import { transformSettings } from '../cuplivo/settings';
 import { buildChats } from '../cuplivo/chats';
+import { stringifySettingsJson } from '../kelivo/serialize';
 
 export interface CompatResult {
   outputZip: JSZip;
@@ -48,12 +50,14 @@ export async function compatKelivoToCuplivo(
     // 1. settings.json：近逐字直通 + 助手层手术
     const settingsFile = transformSettings(source.settings, report);
 
-    // 2. chats.json v2：全保真展平
+    // 2. chats.json：全保真展平（version 恒 1）
     const chatsFile = buildChats(source, report);
 
-    // 3. 组装输出 zip：settings + chats(v2) + deleted({}) + 媒体目录透传
+    // 3. 组装输出 zip：settings + chats + deleted({}) + 媒体目录透传
     const outputZip = new JSZip();
-    outputZip.file('settings.json', JSON.stringify(settingsFile, null, 2));
+    // stringifySettingsJson：double 键归一（1.0 → '1' 会被写回成 int，
+    // Cuplivo v2.7.1 恢复后 prefs.getDouble 强转崩溃——1b42277b 同因）
+    outputZip.file('settings.json', stringifySettingsJson(settingsFile));
     outputZip.file('chats.json', JSON.stringify(chatsFile, null, 2));
     outputZip.file('deleted.json', '{}');
 

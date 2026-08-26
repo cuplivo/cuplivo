@@ -106,6 +106,10 @@
           <div class="text-xs text-gray-500 mt-1">助手</div>
         </div>
         <div class="bg-gray-50 rounded-lg p-3">
+          <div class="text-2xl font-bold text-gray-900">{report.totals.memories}</div>
+          <div class="text-xs text-gray-500 mt-1">记忆</div>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
           <div class="text-2xl font-bold text-gray-900">{report.totals.mediaFiles}</div>
           <div class="text-xs text-gray-500 mt-1">媒体文件</div>
         </div>

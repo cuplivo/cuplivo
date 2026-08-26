@@ -5,8 +5,6 @@
  * 键若写成 int，导入后 prefs.getDouble 强转崩溃（type 'int' is not a
  * subtype of type 'double'），导致 TTS 等初始化失败。
  */
-import type { SettingsJson } from './types';
-
 /** Kelivo 以 SharedPreferences getDouble 读取的键，整数值必须带小数点 */
 const DOUBLE_KEYS = new Set([
   'tts_speech_rate_v1',
@@ -18,7 +16,7 @@ const DOUBLE_KEYS = new Set([
   'display_chat_input_background_opacity_light_v1',
 ]);
 
-export function stringifySettingsJson(settings: SettingsJson): string {
+export function stringifySettingsJson(settings: Record<string, unknown>): string {
   let text = JSON.stringify(settings, null, 2);
   for (const key of DOUBLE_KEYS) {
     const v = settings[key];

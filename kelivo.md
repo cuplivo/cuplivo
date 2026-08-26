@@ -17,7 +17,7 @@ Zip 根目录内容：
 | 条目 | 是否必选 | 说明 |
 |---|---|---|
 | `settings.json` | 全量必含 | SharedPreferences 全量快照（JSON 对象） |
-| `chats.json` | `includeChats` 时 | 聊天数据，顶层 `version: 2`（v2.4.0 起；恢复时**从不校验** version，仅作标识） |
+| `chats.json` | `includeChats` 时 | 聊天数据，顶层 `version: 2`（v2.4.0 起；恢复时**从不校验** version，仅作标识；v3.0.2 起锁回 `version: 1`——Kelivo 旧导入端拒绝 v2，cuplivo/cuplivo#453） |
 | `deleted.json` | `includeChats` 时（失败可跳过） | 删除墓碑（tombstone），**v1.1.17 无此文件** |
 | `skills/` | 恒含（与 includeFiles 无关） | 技能目录，保留相对路径 |
 | `upload/` `avatars/` `images/` `fonts/` `workspaces/` | `includeFiles` 时 | 用户文件；`workspaces/` 排除任意以 `.` 开头的路径段（如 `.fetch_cache/`） |
@@ -275,7 +275,7 @@ v1.1.17 的 `assistants_v1`（`AssistantV1[]` 的 JSON 字符串）：字段为 
 
 # v1.2.0 备份格式（Kelivo 上游最新 tag，2026-08-11）
 
-> 与 v2.6.0 文档同源核实；v1.2.0 是 Chevey339/kelivo 上游 tag，v2.6.0/v2.7.1 是 cuplivo fork tag。两 app 反向演进：上游升级为 SQLite 快照格式，fork 保留 chats.json v2。
+> 与 v2.6.0 文档同源核实；v1.2.0 是 Chevey339/kelivo 上游 tag，v2.6.0/v2.7.1 是 cuplivo fork tag。两 app 反向演进：上游升级为 SQLite 快照格式，fork 保留 chats.json（v2.7.1 时点 v2，v3.0.2 起锁回 v1）。
 
 ## Zip 结构（自然语言）
 
@@ -343,7 +343,7 @@ interface ManifestJson {
 ## 兼容性要点
 
 - v1.2.0 恢复接受 v1.1.x legacy zip（无 manifest）；新格式备份**只能**由 v1.2.0+ 恢复。
-- 兼容（kelivo v1.2.0 → cuplivo v2.7.1）即本仓库兼容工具：读 manifest + kelivo.db + settings.json，写 chats.json v2 + deleted.json{} + 媒体目录。
+- 兼容（kelivo v1.2.0 → cuplivo v2.7.1）即本仓库兼容工具：读 manifest + kelivo.db + settings.json，写 chats.json（版本常量 1）+ deleted.json{} + 媒体目录。
 
 ---
 
@@ -505,7 +505,8 @@ interface SettingsJson {
   search_auto_test_on_launch_v1?: boolean;
 
   // --- 记忆/标签/世界书/指令注入/快捷短语（除 memories 外均以 SQLite 为主，prefs 为兼容面）---
-  assistant_memories_v1?: JsonString<AssistantMemory[]>;
+  assistant_memories_v1?: JsonString<AssistantMemory[]>;   // 旧版记忆（v1.2.0 仍有，SQLite assistant_memory_rows）
+  memory_entries_v1?: JsonString<MemoryEntry[]>;           // v1.2.0 新版记忆（v1.1.x 无此键）
   assistant_tags_v1?: JsonString<AssistantTag[]>;
   assistant_tag_map_v1?: JsonString<Record<string, string>>;       // assistantId -> tagId
   assistant_tag_collapsed_v1?: JsonString<Record<string, boolean>>;
@@ -769,6 +770,19 @@ interface TtsServiceOptions {
 }
 
 interface AssistantMemory { id: number; assistantId: string; content: string; }
+// v1.2.0 新版记忆（MemoryEntry，SQLite memory_entry_rows 为主，blob 为兼容面）
+interface MemoryEntry {
+  id: string;                 // 'mem_' + 8 hex
+  scope: 'global' | 'assistant';
+  assistantId?: string | null; // scope=assistant 必填
+  type: 'identity' | 'workflow' | 'voice' | 'instruction';
+  status: 'active' | 'archived';
+  content: string;
+  source: 'manual' | 'tool' | 'extracted' | 'distilled'; // 载荷专用
+  relatedIds?: string[];       // 载荷专用
+  migrationIds?: number[];      // 应用内旧→新迁移后保留的原旧 id，为空时不输出
+  createdAt: number; updatedAt: number;  // microsecondsSinceEpoch
+}
 interface AssistantTag { id: string; name: string; }
 interface WorldBook {
   id: string; name: string; description: string; enabled: boolean;

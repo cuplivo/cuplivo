@@ -1,5 +1,5 @@
 ﻿/**
- * chats.json v2 构造：kelivo.db 会话/消息/部件 → Cuplivo chats.json
+ * chats.json 构造：kelivo.db 会话/消息/部件 → Cuplivo chats.json
  *
  * 原则（兼容裁定）：全保真展平
  * - 消息全量（含全部 revision 与 versionSelections）——Cuplivo 原生格式即如此
@@ -7,6 +7,10 @@
  * - image/file → [image:ref] / [file:ref|name|mime] 标记；kelivo-file: URI → /root/rel
  * - unknown 部件原样入 content；损坏部件丢弃入报告
  * - null assistantId 会话原样保留（Cuplivo 侧边栏显式包含 null 会话，无需挂载）
+ *
+ * version 锁定 1：Cuplivo 自身导入端从不读该字段，但 Kelivo 旧版 chats.json
+ * 导入端只接受 version 1（v2 抛 FormatException('version')）——上游已同因锁定
+ * （cuplivo/cuplivo#453，Kelivo 双向兼容）。groupChats/groupMembers 等字段照常保留。
  */
 import { drop, type CompatReport } from '../compat/report';
 import type { KelivoV120Source } from '../kelivo-v120/load';
@@ -31,6 +35,9 @@ import {
 import type { ChatsFileV2, ChatMessage, Conversation, ToolEvent } from '../kelivo/types';
 
 const MANAGED_ROOTS = ['upload', 'images', 'avatars', 'fonts'];
+
+/** chats.json 版本常量：锁定 1（上游 cuplivo/cuplivo#453 同因锁定，见文件头注释） */
+const CHATS_JSON_VERSION = 1;
 
 /** 绝对路径 → 便携斜杠路径；file: scheme 剥除；UNC 拒绝 */
 function portableSlash(path: string): string | null {
@@ -302,7 +309,7 @@ export function buildChats(source: KelivoV120Source, report: CompatReport): Chat
   if (!db) {
     drop(report, '会话/消息（数据库缺失）', 1);
     return {
-      version: 2,
+      version: CHATS_JSON_VERSION,
       conversations: [],
       messages: [],
       toolEvents: {},
@@ -375,7 +382,7 @@ export function buildChats(source: KelivoV120Source, report: CompatReport): Chat
   report.totals.geminiSignatures = Object.keys(geminiThoughtSigs).length;
 
   return {
-    version: 2,
+    version: CHATS_JSON_VERSION,
     conversations,
     messages,
     toolEvents,

@@ -17,6 +17,7 @@ export interface CompatReport {
     toolEvents: number;
     assistants: number;
     geminiSignatures: number;
+    memories: number;
   };
   dropped: DroppedItem[];
   warnings: string[];
@@ -39,6 +40,7 @@ export function emptyCompatReport(sourceFileName: string): CompatReport {
       toolEvents: 0,
       assistants: 0,
       geminiSignatures: 0,
+      memories: 0,
     },
     dropped: [],
     warnings: [],
@@ -63,7 +65,7 @@ export function compatReportToMarkdown(r: CompatReport): string {
   lines.push('## 转换总量');
   lines.push('');
   lines.push(
-    `- 会话: ${r.totals.conversations} | 消息: ${r.totals.messages} | 工具事件: ${r.totals.toolEvents} | 助手: ${r.totals.assistants} | 媒体文件: ${r.totals.mediaFiles}`,
+    `- 会话: ${r.totals.conversations} | 消息: ${r.totals.messages} | 工具事件: ${r.totals.toolEvents} | 助手: ${r.totals.assistants} | 记忆: ${r.totals.memories} | 媒体文件: ${r.totals.mediaFiles}`,
   );
   lines.push('');
   if (r.dropped.length > 0) {

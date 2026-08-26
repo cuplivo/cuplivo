@@ -1,6 +1,7 @@
 ﻿/**
  * Kelivo / Cuplivo 备份格式类型定义（canonical，来源：kelivo.md 调研文档 + v1.2.0/v2.7.1 源码核实）
- * - chats.json: v1.1.17/v1.2.0 为 version 1；Cuplivo v2.4.0 起为 version 2（含 groupChats/groupMembers）；
+ * - chats.json: v1.1.17/v1.2.0 为 version 1；Cuplivo v2.4.0 起为 version 2（含 groupChats/groupMembers），
+ *   v3.0.2 起上游锁回 version 1（Kelivo 旧导入端拒绝 v2，cuplivo/cuplivo#453）；
  *   restore 从不读取 version 字段，仅作标识
  * - settings.json: 扁平 `<功能>_v<n>` prefs 快照，集合类型均为 JSON 编码字符串
  */
@@ -236,6 +237,21 @@ export interface AssistantMemory {
   content: string;
 }
 
+/** Kelivo v1.2.0 新版记忆 MemoryEntry 载荷（v1.2.0 起 memory_entry_rows 为主、blob 为兼容面） */
+export interface MemoryEntry {
+  id: string;
+  scope: 'global' | 'assistant';
+  assistantId?: string | null;
+  type: 'identity' | 'workflow' | 'voice' | 'instruction';
+  status: 'active' | 'archived';
+  content: string;
+  source: 'manual' | 'tool' | 'extracted' | 'distilled';
+  relatedIds?: string[];
+  migrationIds?: number[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface AssistantTag {
   id: string;
   name: string;
@@ -353,6 +369,7 @@ export interface SettingsJson {
   title_model_v1?: ModelRef;
   // 记忆/标签/世界书/指令注入/快捷短语
   assistant_memories_v1?: JsonString;
+  memory_entries_v1?: JsonString;
   assistant_tags_v1?: JsonString;
   assistant_tag_map_v1?: JsonString;
   world_books_v1?: JsonString;

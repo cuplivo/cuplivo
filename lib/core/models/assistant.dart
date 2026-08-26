@@ -43,6 +43,8 @@ Do **not** store sensitive information, including:
   final bool
   useAssistantAvatar; // replace model icon in chat with assistant avatar
   final bool useAssistantName; // replace model name in chat with assistant name
+  final bool splitBubbleByLine; // split assistant reply into per-line bubbles
+  final bool splitUserBubbleByLine; // split user message into per-line bubbles
   final String? chatModelProvider; // null -> use global default
   final String? chatModelId; // null -> use global default
   final double? temperature; // null to disable; else 0.0 - 2.0
@@ -109,6 +111,8 @@ Do **not** store sensitive information, including:
     this.avatar,
     this.useAssistantAvatar = false,
     this.useAssistantName = false,
+    this.splitBubbleByLine = false,
+    this.splitUserBubbleByLine = false,
     this.chatModelProvider,
     this.chatModelId,
     this.temperature,
@@ -159,6 +163,8 @@ Do **not** store sensitive information, including:
     String? avatar,
     bool? useAssistantAvatar,
     bool? useAssistantName,
+    bool? splitBubbleByLine,
+    bool? splitUserBubbleByLine,
     String? chatModelProvider,
     String? chatModelId,
     double? temperature,
@@ -218,6 +224,8 @@ Do **not** store sensitive information, including:
       avatar: clearAvatar ? null : (avatar ?? this.avatar),
       useAssistantAvatar: useAssistantAvatar ?? this.useAssistantAvatar,
       useAssistantName: useAssistantName ?? this.useAssistantName,
+      splitBubbleByLine: splitBubbleByLine ?? this.splitBubbleByLine,
+      splitUserBubbleByLine: splitUserBubbleByLine ?? this.splitUserBubbleByLine,
       chatModelProvider: clearChatModel
           ? null
           : (chatModelProvider ?? this.chatModelProvider),
@@ -279,6 +287,8 @@ Do **not** store sensitive information, including:
     'avatar': avatar,
     'useAssistantAvatar': useAssistantAvatar,
     'useAssistantName': useAssistantName,
+    'splitBubbleByLine': splitBubbleByLine,
+    'splitUserBubbleByLine': splitUserBubbleByLine,
     'chatModelProvider': chatModelProvider,
     'chatModelId': chatModelId,
     'temperature': temperature,
@@ -329,6 +339,8 @@ Do **not** store sensitive information, including:
     avatar: json['avatar'] as String?,
     useAssistantAvatar: json['useAssistantAvatar'] as bool? ?? false,
     useAssistantName: json['useAssistantName'] as bool? ?? false,
+    splitBubbleByLine: json['splitBubbleByLine'] as bool? ?? false,
+    splitUserBubbleByLine: json['splitUserBubbleByLine'] as bool? ?? false,
     chatModelProvider: json['chatModelProvider'] as String?,
     chatModelId: json['chatModelId'] as String?,
     temperature: (json['temperature'] as num?)?.toDouble(),

@@ -392,7 +392,14 @@ private final class IosBackgroundGenerationHandler {
     if #available(iOS 16.1, *) {
       guard !isLiveActivityActive() else { return }
       let activities = Activity<CuplivoGenerationActivityAttributes>.activities
-      for activity in activities where activity.activityState == .active || activity.activityState == .stale {
+      for activity in activities {
+        let shouldEnd: Bool
+        if #available(iOS 16.2, *) {
+          shouldEnd = activity.activityState == .active || activity.activityState == .stale
+        } else {
+          shouldEnd = activity.activityState == .active
+        }
+        guard shouldEnd else { continue }
         NSLog("Cuplivo live activity orphan cleanup (\(reason)): ending \(activity.id)")
         endOrphanedLiveActivity(activity)
       }
@@ -404,9 +411,9 @@ private final class IosBackgroundGenerationHandler {
     // Reuse the exact final content state shape of finishLiveActivity's
     // active-app path (endLiveActivity): finished card with elapsed time.
     // Keep the orphan's own start time / wave phase so the tombstone shows
-    // truthful data. Both accessors are optional: prefer the non-deprecated
-    // content.state on iOS 16.2+, fall back to contentState on 16.1, and to
-    // a clean finished card if the system reports no prior content at all.
+    // truthful data. `content` is non-optional on iOS 16.2+; use the legacy
+    // optional contentState on iOS 16.1, falling back to a clean finished
+    // card only when that legacy system state is unavailable.
     let finishedAt = Date()
     let fallbackState = CuplivoGenerationActivityAttributes.ContentState(
       displayTitle: activity.attributes.title,
@@ -421,7 +428,7 @@ private final class IosBackgroundGenerationHandler {
     )
     let priorState: CuplivoGenerationActivityAttributes.ContentState
     if #available(iOS 16.2, *) {
-      priorState = activity.content?.state ?? fallbackState
+      priorState = activity.content.state
     } else {
       priorState = activity.contentState ?? fallbackState
     }

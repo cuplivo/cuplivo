@@ -279,7 +279,7 @@ Map<String, dynamic> _buildChats(
   String dirPath,
   _Report report,
 ) {
-  final db = sqlite3.openReadOnly(dbPath);
+  final db = sqlite3.open(dbPath, mode: OpenMode.readOnly);
   try {
     final convRows = db.select(
       'SELECT id, title, created_at, updated_at, is_pinned, assistant_id, '
@@ -392,7 +392,7 @@ Map<String, dynamic> _buildChats(
       'groupMembers': <Object?>[],
     };
   } finally {
-    db.dispose();
+    db.close();
   }
 }
 
@@ -807,10 +807,11 @@ String? _transformAssistantsV1(Object? raw, _Report report) {
   return jsonEncode(out);
 }
 
-/// Kelivo serializes the extra search-service key pool as `apiKeys:
-/// List<String>`, while Cuplivo's readKeys casts it to ApiKeyConfig objects —
-/// pass-through would crash on restore. Convert: primary key first, string →
-/// `{key}` object; Cuplivo's fromJson fills the remaining defaults.
+/// Kelivo serializes the extra search-service key pool as a JSON string
+/// containing `apiKeys: [String]`, while Cuplivo's readKeys casts it to
+/// ApiKeyConfig objects — pass-through would crash on restore. Convert:
+/// primary key first, string to `{key}` object; Cuplivo's fromJson fills the
+/// remaining defaults.
 void _transformSearchServicesV1(
   Map<String, dynamic> sourceSettings,
   _Report report,

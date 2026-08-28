@@ -2,6 +2,8 @@
 ///
 /// All fixtures here are SYNTHETIC (fabricated rows/JSON) — no real user
 /// data is ever committed to this repository.
+library;
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -110,7 +112,7 @@ void _writeKelivoDb(String dbPath) {
   );
   db.execute("INSERT INTO asset_rows VALUES ('as1', 'h', 'upload/test.png', 3);");
   db.execute("INSERT INTO message_asset_rows VALUES ('m1', 'as1');");
-  db.dispose();
+  db.close();
 }
 
 Map<String, dynamic> _assistantsBlob() => {

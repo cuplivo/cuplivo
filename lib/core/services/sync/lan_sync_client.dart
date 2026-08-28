@@ -197,7 +197,7 @@ class LanSyncClient extends ChangeNotifier {
       final outboundDelta = _outboundDelta;
       final hasFileDelta = outboundDelta?.isNotEmpty ?? false;
       if (hasConversationDelta || hasFileDelta) {
-        final cfg = const WebDavConfig(includeChats: true, includeFiles: true);
+        final cfg = const WebDavConfig();
         final incremental = IncrementalBackupConfig(
           since: plan.since ?? DateTime(2000),
           // Settings (including assistants and providers) ride settings.json.

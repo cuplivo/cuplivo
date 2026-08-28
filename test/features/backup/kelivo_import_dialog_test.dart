@@ -111,6 +111,23 @@ Future<void> _pumpDesktopBackupPane(
   await tester.pump();
 }
 
+Future<void> _openMigrationChooser(
+  WidgetTester tester,
+  String optionLabel,
+) async {
+  final summary = find.text('Migrate from Other Apps');
+  await tester.scrollUntilVisible(
+    summary,
+    120,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(summary);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(optionLabel));
+  await tester.pumpAndSettle();
+}
+
 void _expectAbove(WidgetTester tester, String upper, String lower) {
   final upperTop = tester.getTopLeft(find.text(upper).first).dy;
   final lowerTop = tester.getTopLeft(find.text(lower).first).dy;
@@ -150,7 +167,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
+    businessPrefs = BusinessPreferences.memoryForTests();
     SharedPreferences.setMockInitialValues(const {});
+    businessPrefs = BusinessPreferences.memoryForTests(const {});
   });
 
   tearDown(() {
@@ -159,24 +178,34 @@ void main() {
   });
 
   group('BackupPage Kelivo import entry', () {
-    testWidgets(
-      'shows Import from New Kelivo after Backup File and before RikkaHub',
-      (tester) async {
-        await tester.binding.setSurfaceSize(const Size(900, 1600));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+    testWidgets('chooser lists sources in order', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(900, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-        await _pumpBackupPage(
-          tester,
-          settings: SettingsProvider(preferences: businessPrefs),
-        );
+      await _pumpBackupPage(
+        tester,
+        settings: SettingsProvider(preferences: businessPrefs),
+      );
 
-        expect(find.text('Import from New Kelivo'), findsOneWidget);
-        _expectAbove(tester, 'Import Backup File', 'Import from New Kelivo');
-        _expectAbove(tester, 'Import from New Kelivo', 'Import from RikkaHub');
-      },
-    );
+      final summary = find.text('Migrate from Other Apps');
+      await tester.scrollUntilVisible(
+        summary,
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(summary);
+      await tester.pumpAndSettle();
 
-    testWidgets('tapping the row opens the Kelivo import guide', (
+      expect(find.text('Import from New Kelivo'), findsOneWidget);
+      expect(find.text('Import from RikkaHub'), findsOneWidget);
+      expect(find.text('Import from Cherry Studio'), findsOneWidget);
+      expect(find.text('Import from Chatbox'), findsOneWidget);
+      _expectAbove(tester, 'Import from New Kelivo', 'Import from RikkaHub');
+      _expectAbove(tester, 'Import from RikkaHub', 'Import from Cherry Studio');
+    });
+
+    testWidgets('tapping the option opens the Kelivo import guide', (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(const Size(900, 1600));
@@ -187,8 +216,7 @@ void main() {
         settings: SettingsProvider(preferences: businessPrefs),
       );
 
-      await tester.tap(find.text('Import from New Kelivo'));
-      await tester.pumpAndSettle();
+      await _openMigrationChooser(tester, 'Import from New Kelivo');
 
       _expectKelivoDialogShown(tester);
     });
@@ -216,8 +244,7 @@ void main() {
         tester,
         settings: SettingsProvider(preferences: businessPrefs),
       );
-      await tester.tap(find.text('Import from New Kelivo'));
-      await tester.pumpAndSettle();
+      await _openMigrationChooser(tester, 'Import from New Kelivo');
       await tester.tap(find.text(_kelivoUrl));
       await tester.pumpAndSettle();
 
@@ -246,8 +273,7 @@ void main() {
         tester,
         settings: SettingsProvider(preferences: businessPrefs),
       );
-      await tester.tap(find.text('Import from New Kelivo'));
-      await tester.pumpAndSettle();
+      await _openMigrationChooser(tester, 'Import from New Kelivo');
       await tester.tap(find.text(_kelivoUrl));
       await tester.pumpAndSettle();
 
@@ -264,15 +290,7 @@ void main() {
         tester,
         settings: SettingsProvider(preferences: businessPrefs),
       );
-      final entry = find.text('Import from New Kelivo');
-      await tester.scrollUntilVisible(
-        entry,
-        120,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(entry);
-      await tester.pumpAndSettle();
+      await _openMigrationChooser(tester, 'Import from New Kelivo');
 
       expect(find.byType(SingleChildScrollView), findsOneWidget);
       expect(find.text('Usage Tutorial'), findsOneWidget);
@@ -285,7 +303,7 @@ void main() {
   });
 
   group('DesktopBackupPane Kelivo import entry', () {
-    testWidgets('shows the button and opens the Kelivo import guide', (
+    testWidgets('shows the entry and opens the Kelivo import guide', (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(const Size(1100, 1300));
@@ -296,17 +314,7 @@ void main() {
         settings: SettingsProvider(preferences: businessPrefs),
       );
 
-      final button = find.text('Import from New Kelivo');
-      await tester.scrollUntilVisible(
-        button,
-        120,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
-      expect(button, findsOneWidget);
-
-      await tester.tap(button);
-      await tester.pumpAndSettle();
+      await _openMigrationChooser(tester, 'Import from New Kelivo');
 
       _expectKelivoDialogShown(tester);
     });

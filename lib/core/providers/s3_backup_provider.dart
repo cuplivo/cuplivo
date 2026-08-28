@@ -73,18 +73,19 @@ class S3BackupProvider extends ChangeNotifier {
 
   WebDavConfig _scopeAsWebdavConfig() {
     // DataSync currently uses WebDavConfig for include flags; other fields are ignored.
-    return WebDavConfig(
-      includeChats: _cfg.includeChats,
-      includeFiles: _cfg.includeFiles,
-    );
+    return WebDavConfig(content: _cfg.content);
   }
 
-  Future<bool> test() async {
+  /// Tests the connection. Pass [config] (an unconfirmed dialog draft) to
+  /// validate what the user typed WITHOUT persisting anything — only the
+  /// stored [_cfg] is ever written, and only via [updateConfig].
+  Future<bool> test({S3Config? config}) async {
+    final cfg = config ?? _cfg;
     _busy = true;
     _message = null;
     notifyListeners();
     try {
-      await _client.test(_cfg);
+      await _client.test(cfg);
       return true;
     } catch (e) {
       _message = e.toString();

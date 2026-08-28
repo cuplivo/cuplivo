@@ -203,18 +203,18 @@
 
 ## Incremental Backup (Experimental)
 
-- **Data scope**: Chat data (conversations + messages + toolEvents + geminiThoughtSigs). Optionally includes files (upload/, images/, avatars/, fonts/) when `includeFiles=true`, filtered by mtime >= since. `skills/` is always included regardless of `includeFiles` (see Skill System).
+- **Data scope**: Chat data (conversations + messages + toolEvents + geminiThoughtSigs). Section-wise file payloads per the run’s `BackupContentScope` (上传附件/生成的图片/头像字体/工作区/技能), filtered by mtime >= since. See ADR-0051.
 - **Filtering unit**: Message-level (`message.timestamp >= since`). Conversations created before `since` are still included if they have recent messages; only those messages are exported. Uses `updatedAt` as a fast pre-filter to skip inactive conversations. See `docs/adr/0002-conversation-level-incremental-filtering.md`.
 - **File naming**: `cuplivo_incr_<export_ts_YYYYMMDD-HHmmss-ffffff>_<since_ts_YYYYMMDD-HHmmss>.zip`. The `cuplivo_incr_` prefix is the single identification mechanism for the restore path.
 - **Restore behavior**: `cuplivo_incr_` prefix detected → skip the "Overwrite/Merge" dialog entirely → force `RestoreMode.merge` at both UI and DataSync layers.
 - **Date source**: `BackupReminderProvider.lastBackupTime` for the [↻] shortcut. If null, fallback to 30 days ago. User can always override via `showDatePicker()`.
 - **`includeSettings`**: Default `true`. Not yet persisted (planned for a future PR).
-- **`includeFiles`**: Default follows the config's `includeFiles` toggle. Files are filtered by `lastModifiedSync() >= since`. Not persisted.
+- **Scope**: The incremental dialog exposes the SAME 6-bit grid as the full-backup section (2×3, `SegmentedToggleMulti`, 能力 look) and writes the chosen scope back to both channel configs (persisted) — full, incremental and LAN sync share one scope (see ADR-0051).
 - **Architecture**: Incremental backup is NOT a mode toggle on full backup — it's a separate independent action. `BackupProvider.incrementalBackup(IncrementalBackupConfig)` and `S3BackupProvider.incrementalBackup(IncrementalBackupConfig)` are new methods that don't modify existing `backup()`.
-- **UI placement**: Desktop & Mobile. Each target (WebDAV, S3, Local) gets its own incremental section within its existing card, with date picker + [↻] shortcut + settings toggle + includeFiles toggle + separate action button.
+- **UI placement**: Desktop & Mobile. The incremental entry lives on the hero card (增量备份 outlined button next to 立即备份 and 从备份恢复); the dialog shows date picker + [↻] shortcut + the unified content-scope grid + update-backup-time toggle.
 - **User-visible behaviors**:
   - Export filename always starts with `cuplivo_incr_`
-  - Export includes settings if `includeSettings=true`, includes files if `includeFiles=true` (filtered by mtime)
+  - Export includes section-wise payloads per the run’s `BackupContentScope` (settings.json assistant keys ride the chats bit; files filtered by mtime; legacy runs map `includeSettings`/`includeFiles` as before — ADR-0051)
   - Import automatically skips mode selection for `cuplivo_incr_` files
   - Empty export (0 conversations matched) shows a confirmation warning before producing the file
 
@@ -247,6 +247,27 @@
 - **Flat scalar settings**: restored only if absent locally — an existing local preference is preserved (per the "仅添加不存在的数据" contract).
 - **Structured JSON keys** (`provider_configs_v1`, `assistant_memories_v1`, `mcp_servers_v1`, `asr_services_v1`, `pinned_models_v1`, tags/maps, groups): merged per-structure; the backup wins on conflicts (dedup by id where applicable).
 - **Provider proxy is device-local**: within `provider_configs_v1`, a provider that already exists locally keeps its 6 proxy fields (`proxyEnabled/Type/Host/Port/Username/Password`) from the backup NEVER — local values win; a legacy local config with no proxy block at all is forced to the app's no-proxy defaults instead of adopting the backup's proxy. Brand-new providers imported by the merge keep their backup proxy as-is (nothing local to preserve). (issue #512) LAN sync rides the same merge path, so a sync peer's proxy never lands on the device either; overwrite restore still imports proxy settings wholesale.
+
+## Backup Page Layout (备份页布局, issue #306)
+
+- **备份渠道 (backup channel)**: 本地 / WebDAV / S3, the three backup destinations. A channel's enabled status is DERIVED, never stored (no `enabled` flag):
+  - WebDAV enabled ⇔ `url` non-empty (username/password optional — public servers need no auth).
+  - S3 enabled ⇔ `endpoint` + `bucket` + `accessKeyId` + `secretAccessKey` all non-empty (region/sessionToken/prefix have defaults, not part of the rule).
+  - 本地 always enabled (nothing to configure).
+  - An unconfigured channel stays visible (status shown as 未配置, dimmed with a grey dot) in every destination surface — tapping it opens the config form (the enable path).
+- **备份目的地 (BackupDestination)**: the hero card's 本地/WebDAV/S3 segmented picker (`SegmentedToggle`, 模型类型 look) holds ONE row with the WHOLE lifecycle on the selected destination — 立即备份 (filled primary, text `onPrimary`) + 增量备份 (outlined) + 从备份恢复 (outlined). An unconfigured destination segment taps through to the channel config dialog; saving a config auto-selects that channel. Segments carry readiness dots (green = configured incl. 本地, grey = unconfigured) — the same dot language as the channel rows.
+- **New page structure (mobile `backup_page.dart` + desktop `backup_pane.dart`, same decisions)**:
+  1. **英雄卡 (hero)**: status headline (`No Backup Yet` / 数据已有备份 + last-backup detail) + destination picker + one-row lifecycle actions; 从备份恢复 follows the selected destination (本地 → pick `.zip` + mode dialog; WebDAV/S3 → remote list when configured, config dialog when not). The reminder-due state NEVER swaps this card — it only adds a row on the reminder card.
+  2. **局域网同步 first** — no "导出与同步" section header at all (LAN sync is its own card); the 数据迁移 (搬家) entry row follows right after.
+  3. **数据迁移 (move house)**: ONE row (`backupMigrateTitle`) → centered dialog with two tinted (`surfaceFill`) groups — 搬去… (single entry: Kelivo / Cuplivo 旧版 → `kelivoLegacy` whole-pack export) and 从…搬来 (Kelivo v1.2+ / RikkaHub / Cherry Studio / ChatBox). The old "导出 Kelivo 兼容备份" card and the four-source chooser are merged here; rare actions are one tap deep, never a fold.
+  4. **备份内容 (BackupContentScope)**: 6-section multi-select grid (`SegmentedToggleMulti` 2×3, the model 能力 look): 聊天记录及助手 / 设置项 / 附件(upload+images) / 工作区 / 技能 / 字体与头像(fonts+avatars). A range/boundary note: settings.json is SECTION-WISE by key whitelist (assistant keys ride the chats bit), `settings_meta.json` carries only the written keys, and the OLD rule "skills/ always packed" is gone — skills follow the 技能 bit. See ADR-0051.
+  5. **备份提醒**: switch + 频率/时间 rows; when DUE (`shouldShowReminder`) exactly one EXTRA row is prepended (warning dot + 该备份了 + last-backup time) — no component is replaced.
+  6. **备份渠道管理**: WebDAV/S3 rows in their own card (status dot + 已启用/未配置, shared `BackupActionRow` on BOTH shells — no page-private channel row widget), tap → config form (mobile bottom sheet / desktop centered dialog with `maxWidth: 480`; shell wrapped in `Dialog` on desktop so TextFields keep a Material ancestor).
+- **Backup content scope is ONE model**: `BackupContentScope` (6 bools) lives in both `WebDavConfig` and `S3Config` (`content` field); UI applies every change to BOTH channels (persisted via settings.json round-trip). The incremental dialog exposes the same 6-grid (replacing the old 包含设置/包含文件 switches) and writes the chosen scope back to the channel configs — full, incremental and LAN sync share it. Legacy `includeChats`/`includeFiles` remain as DERIVED getters + JSON keys for old builds; old runs fall back on absent scope.
+- **Kelivo-兼容导出 ignores the scope** (always whole-pack — the legacy importer needs the full settings/chats shape). LAN sync zip stays whole-pack too (modern peers use their own delta; included sections are unchanged).
+- **Restore-side section gate (恢复端分片门控)**: the restore path applies the SAME section split as the exporter — assistant-owned keys (`assistants_v1`/`assistant_memories_v1`) ride the chats bit, everything else rides the settings bit. This also covers whole-pack legacy zips, whose single settings.json carries both sections; the legacy `ocr_enabled_v1` mapping follows the chats bit and the key is always stripped afterwards.
+- **首页快捷入口 (home quick entry)**: ONE fixed row occupying the same slot as the update notice entry — mobile drawer bottom bar (above the update row, which sits above the user row) and desktop sidebar bottom (directly above the update row; `desktopTopicsOnly` never renders it, same one-entry-per-config rule as the update entry). ALWAYS one compact row: icon + 数据备份 + last-backup status (`backupReminderDateTimeLabel`) + chevron. When the reminder is DUE (`shouldShowReminder`) the row NEVER morphs into another shape — it only gains a SECOND line (该备份了 · 上次备份 {time}, warning color) and the icon turns warning (no tall card, no snooze — session-snoozing was deleted with the old banner; `shouldShowReminder` clears on the next completed backup or a disabled reminder). Mobile tap → push `BackupPage`; desktop tap → `DesktopSettingsNavigationBus.openBackup()` (settings tab → backup pane). Always visible (no conditional gating beyond `reminder.loaded`).
+- **UI vocabulary reuses 模型类型/能力 segment styles**: the destination picker and the scope grid are the shared `SegmentedToggle`/`SegmentedToggleMulti` widgets (extracted from `model_detail_sheet` + desktop `model_edit_dialog`, which now also use the shared copy).
 
 ## Markdown Batch Export (批量导出 Markdown)
 
@@ -347,7 +368,7 @@
   - GitHub URL: User pastes a `github.com/{owner}/{repo}[/tree/{branch}[/sub/path]]` URL. App downloads the repo archive ZIP from `github.com/{owner}/{repo}/archive/refs/heads/{branch}.zip` (no API rate limit, no auth for public repos), then reuses the same ZIP import pipeline (scan for all `SKILL.md` at any depth, multi-select dialog if >1 found). If a subpath is specified, the scan is scoped to that subdirectory. Private/missing repos return 404 → localized "not found or private" error. GitHub only — no GitLab/generic git hosts.
 - **Update**: Re-import with the same name overwrites the directory. Atomic write handles crash safety.
 - **Delete**: `SkillManager.deleteSkill(name)` removes the directory. Removes from all assistants' `skillIds` (orphan cleanup).
-- **Export**: Included in backup via `_packZipSync` — `skills/` directory packed independently of `includeFiles`, always included. Incremental backup uses mtime ≥ since filtering (same mechanism as upload/avatars/images/fonts).
+- **Export**: Included in backup via `_packZipSync` — `skills/` directory now follows the scope’s 技能 bit (the old “always packed” rule is gone, ADR-0051). Incremental backup uses mtime >= since filtering (same mechanism as upload/avatars/images/fonts).
 
 ### System Prompt Injection
 
@@ -384,8 +405,8 @@
 
 ### Backup Integration
 
-- `skills/` directory is always included in backup ZIPs — NOT gated by `includeFiles`. Rationale: skill files are small (pure text) and fundamental to assistant behavior. Incremental backup filters by mtime via existing `_addDirectoryToZip(since:)`.
-- Restore: `_restoreFromBackupFile` restores `skills/` unconditionally (independent of `includeFiles`, symmetric with export): overwrite = wipe local `skills/` then copy all entries; merge = per-file newer-wins — a backup entry replaces the local copy only when strictly newer (`backup mtime > local mtime`), ties/older keep local. File mtimes are preserved from the ZIP entry `lastModTime` via `_extractZipSync`, making the comparison self-contained (no `since` needed) and bidirectional-sync safe (a peer with a newer local edit is never regressed). `SkillManager` discovers restored skills on next `listSkills()`. The incremental scope preview (`analyzeIncrementalScope`) counts `skills/` files unconditionally for the same reason.
+- `skills/` directory is gated by the scope’s 技能 bit (once “always included”; changed for the 6-section `BackupContentScope`, ADR-0051). Incremental backup filters by mtime via existing `_addDirectoryToZip(since:)`.
+- Restore: `_restoreFromBackupFile` restores `skills/` symmetrically with the export scope bit (independent of the legacy `includeFiles` getter): overwrite = wipe local `skills/` then copy all entries; merge = per-file newer-wins — a backup entry replaces the local copy only when strictly newer (`backup mtime > local mtime`), ties/older keep local. File mtimes are preserved from the ZIP entry `lastModTime` via `_extractZipSync`, making the comparison self-contained (no `since` needed) and bidirectional-sync safe (a peer with a newer local edit is never regressed). `SkillManager` discovers restored skills on next `listSkills()`. The incremental scope preview (`analyzeIncrementalScope`) counts `skills/` files only when the skill bit is on (mirroring the pack).
 
 ### Relationship to Existing Concepts
 

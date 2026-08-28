@@ -539,6 +539,21 @@ class ChatService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Whether [conversationId] is a preset-only conversation: at least one
+  /// persisted message row, all marked `isPreset`. Such a conversation holds
+  /// no user content (issue #578) and may be recycled when the user leaves it.
+  ///
+  /// Decided via repo-level counts, never through the ChatController load
+  /// window — the 360-message window truncates and would fail open on long
+  /// real conversations. Draft (not yet persisted) conversations return false.
+  Future<bool> isRecyclablePresetOnlyConversation(String conversationId) async {
+    if (!initialized) return false;
+    final total = await repo.getMessageCount(conversationId);
+    if (total == 0) return false;
+    final nonPreset = await repo.getNonPresetMessageCount(conversationId);
+    return nonPreset == 0;
+  }
+
   Future<bool> _deleteDraftConversation(String id) async {
     if (!_draftConversations.containsKey(id)) return false;
 

@@ -2172,6 +2172,35 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get backupPageImportInProgress => 'Importing...';
+
+  @override
+  String backupPageImportElapsed(Object seconds) {
+    return 'Elapsed ${seconds}s';
+  }
+
+  @override
+  String backupPageImportStats(
+    Object assistants,
+    Object conversations,
+    Object files,
+    Object messages,
+    Object providers,
+  ) {
+    return 'Providers: $providers\nAssistants: $assistants\nConversations: $conversations\nMessages: $messages\nFiles: $files';
+  }
+
+  @override
+  String backupPageImportStatsNoFiles(
+    Object assistants,
+    Object conversations,
+    Object messages,
+    Object providers,
+  ) {
+    return 'Providers: $providers\nAssistants: $assistants\nConversations: $conversations\nMessages: $messages';
+  }
+
+  @override
   String get backupStageGenerating => 'Preparing files...';
 
   @override
@@ -2597,7 +2626,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get lanSyncRestoreExtracting => 'Extracting sync data...';
+  String get lanSyncRestoreExtracting => 'Extracting data...';
 
   @override
   String get lanSyncRestoreMergingChats => 'Merging chats...';

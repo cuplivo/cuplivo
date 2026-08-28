@@ -296,7 +296,7 @@ void main() {
         tester,
         (l10n, cs) => [buildRestoreProgress(progress, l10n, cs)],
       );
-      expect(find.text('Extracting sync data...'), findsOneWidget);
+      expect(find.text('Extracting data...'), findsOneWidget);
       final indicator = tester.widget<LinearProgressIndicator>(
         find.byType(LinearProgressIndicator),
       );

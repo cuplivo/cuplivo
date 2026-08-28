@@ -235,10 +235,15 @@ class _BackupPageState extends State<BackupPage> {
     }
   }
 
+  /// Runs a restore-family import behind the modal overlay with live
+  /// [RestoreProgress] (stage → determinate bar → counts) and an elapsed
+  /// ticker. [label], when set (third-party importers without a progress
+  /// pipeline), swaps the progress body for a fixed "正在导入…" label.
   Future<T> _runWithImportingOverlay<T>(
     BuildContext context,
-    Future<T> Function() task,
-  ) => _runWithLoadingOverlay(context, task);
+    Future<T> Function(RestoreProgressCallback onProgress) task, {
+    String? label,
+  }) => runRestoreWithProgressOverlay(context, task, label: label);
 
   Future<void> _afterSuccessfulRestore(BuildContext context) async {
     if (!context.mounted) return;
@@ -249,7 +254,8 @@ class _BackupPageState extends State<BackupPage> {
 
   Future<void> _restoreIncrementalItem({
     required BuildContext context,
-    required Future<void> Function() performRestore,
+    required Future<void> Function(RestoreProgressCallback onProgress)
+    performRestore,
   }) async {
     try {
       await _runWithImportingOverlay(context, performRestore);
@@ -417,7 +423,7 @@ class _BackupPageState extends State<BackupPage> {
                       onTap: vm.busy
                           ? null
                           : () async {
-                              final list = await _runWithImportingOverlay(
+                              final list = await _runWithLoadingOverlay(
                                 context,
                                 () => vm.listRemote(),
                               );
@@ -607,10 +613,11 @@ class _BackupPageState extends State<BackupPage> {
                                             )) {
                                               return _restoreIncrementalItem(
                                                 context: context,
-                                                performRestore: () =>
+                                                performRestore: (onProgress) =>
                                                     vm.restoreFromItem(
                                                       item,
                                                       mode: RestoreMode.merge,
+                                                      onProgress: onProgress,
                                                     ),
                                               );
                                             }
@@ -624,10 +631,12 @@ class _BackupPageState extends State<BackupPage> {
                                             try {
                                               await _runWithImportingOverlay(
                                                 context,
-                                                () => vm.restoreFromItem(
-                                                  item,
-                                                  mode: mode,
-                                                ),
+                                                (onProgress) =>
+                                                    vm.restoreFromItem(
+                                                      item,
+                                                      mode: mode,
+                                                      onProgress: onProgress,
+                                                    ),
                                               );
                                             } catch (e) {
                                               if (!context.mounted) return;
@@ -678,10 +687,11 @@ class _BackupPageState extends State<BackupPage> {
                                     )) {
                                       return _restoreIncrementalItem(
                                         context: context,
-                                        performRestore: () =>
+                                        performRestore: (onProgress) =>
                                             vm.restoreFromItem(
                                               item,
                                               mode: RestoreMode.merge,
+                                              onProgress: onProgress,
                                             ),
                                       );
                                     }
@@ -695,9 +705,10 @@ class _BackupPageState extends State<BackupPage> {
                                     try {
                                       await _runWithImportingOverlay(
                                         context,
-                                        () => vm.restoreFromItem(
+                                        (onProgress) => vm.restoreFromItem(
                                           item,
                                           mode: mode,
+                                          onProgress: onProgress,
                                         ),
                                       );
                                     } catch (e) {
@@ -836,7 +847,7 @@ class _BackupPageState extends State<BackupPage> {
                       onTap: s3Vm.busy
                           ? null
                           : () async {
-                              final list = await _runWithImportingOverlay(
+                              final list = await _runWithLoadingOverlay(
                                 context,
                                 () => s3Vm.listRemote(),
                               );
@@ -1014,10 +1025,11 @@ class _BackupPageState extends State<BackupPage> {
                                             )) {
                                               return _restoreIncrementalItem(
                                                 context: context,
-                                                performRestore: () =>
+                                                performRestore: (onProgress) =>
                                                     s3Vm.restoreFromItem(
                                                       item,
                                                       mode: RestoreMode.merge,
+                                                      onProgress: onProgress,
                                                     ),
                                               );
                                             }
@@ -1031,10 +1043,12 @@ class _BackupPageState extends State<BackupPage> {
                                             try {
                                               await _runWithImportingOverlay(
                                                 context,
-                                                () => s3Vm.restoreFromItem(
-                                                  item,
-                                                  mode: mode,
-                                                ),
+                                                (onProgress) =>
+                                                    s3Vm.restoreFromItem(
+                                                      item,
+                                                      mode: mode,
+                                                      onProgress: onProgress,
+                                                    ),
                                               );
                                             } catch (e) {
                                               if (!context.mounted) return;
@@ -1086,10 +1100,11 @@ class _BackupPageState extends State<BackupPage> {
                                     )) {
                                       return _restoreIncrementalItem(
                                         context: context,
-                                        performRestore: () =>
+                                        performRestore: (onProgress) =>
                                             s3Vm.restoreFromItem(
                                               item,
                                               mode: RestoreMode.merge,
+                                              onProgress: onProgress,
                                             ),
                                       );
                                     }
@@ -1103,9 +1118,10 @@ class _BackupPageState extends State<BackupPage> {
                                     try {
                                       await _runWithImportingOverlay(
                                         context,
-                                        () => s3Vm.restoreFromItem(
+                                        (onProgress) => s3Vm.restoreFromItem(
                                           item,
                                           mode: mode,
+                                          onProgress: onProgress,
                                         ),
                                       );
                                     } catch (e) {
@@ -1281,7 +1297,7 @@ class _BackupPageState extends State<BackupPage> {
               if (mode == null) return;
               if (!context.mounted) return;
 
-              await _runWithImportingOverlay(context, () async {
+              await _runWithImportingOverlay(context, (_) async {
                 try {
                   final settings = context.read<SettingsProvider>();
                   final cs = context.read<ChatService>();
@@ -1301,11 +1317,7 @@ class _BackupPageState extends State<BackupPage> {
                       title: Text(l10n.backupPageRestartRequired),
                       content: Text(
                         '${l10n.backupPageImportFromCherryStudio}:\n'
-                        ' • Providers: ${res.providers}\n'
-                        ' • Assistants: ${res.assistants}\n'
-                        ' • Conversations: ${res.conversations}\n'
-                        ' • Messages: ${res.messages}\n'
-                        ' • Files: ${res.files}\n\n'
+                        '${l10n.backupPageImportStats(res.assistants, res.conversations, res.files, res.messages, res.providers)}\n\n'
                         '${l10n.backupPageRestartContent}',
                       ),
                       actions: [
@@ -1327,7 +1339,7 @@ class _BackupPageState extends State<BackupPage> {
                     type: NotificationType.error,
                   );
                 }
-              });
+              }, label: l10n.backupPageImportInProgress);
             },
           ),
           _iosDivider(context),
@@ -1349,7 +1361,7 @@ class _BackupPageState extends State<BackupPage> {
               if (mode == null) return;
               if (!context.mounted) return;
 
-              await _runWithImportingOverlay(context, () async {
+              await _runWithImportingOverlay(context, (_) async {
                 try {
                   final cs = context.read<ChatService>();
                   final settings = context.read<SettingsProvider>();
@@ -1373,10 +1385,7 @@ class _BackupPageState extends State<BackupPage> {
                         title: Text(l10n.backupPageRestartRequired),
                         content: Text(
                           '${l10n.backupPageImportFromChatbox}:\n'
-                          ' • Providers: ${res.providers}\n'
-                          ' • Assistants: ${res.assistants}\n'
-                          ' • Conversations: ${res.conversations}\n'
-                          ' • Messages: ${res.messages}\n\n'
+                          '${l10n.backupPageImportStatsNoFiles(res.assistants, res.conversations, res.messages, res.providers)}\n\n'
                           '${l10n.backupPageRestartContent}',
                         ),
                         actions: [
@@ -1399,7 +1408,7 @@ class _BackupPageState extends State<BackupPage> {
                     type: NotificationType.error,
                   );
                 }
-              });
+              }, label: l10n.backupPageImportInProgress);
             },
           ),
         ],
@@ -1542,7 +1551,11 @@ class _BackupPageState extends State<BackupPage> {
     try {
       await _runWithImportingOverlay(
         context,
-        () => vm.restoreFromLocalFile(File(path), mode: mode),
+        (onProgress) => vm.restoreFromLocalFile(
+          File(path),
+          mode: mode,
+          onProgress: onProgress,
+        ),
       );
     } catch (e) {
       if (!context.mounted) return;

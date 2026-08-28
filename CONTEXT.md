@@ -159,6 +159,14 @@
 - **Desktop modal parity (桌面模态对齐)**: 桌面端本地导出/WebDAV/S3 备份/增量与移动端一致——模态 `LoadingDialogCard`(barrierDismissible:false,防止重复触发)+ 阶段文案 + 计时;角落 busy 转圈仅保留为附加指示。
 - **Dot rule (dot 目录规则)**: `workspaces/` 下任何路径段以 `.` 开头的文件/目录(.sandbox、.fetch_cache、.github 等)声明性排除于备份/同步/恢复 —— 一条规则、多个表面(导出、增量统计、LAN manifest、恢复;glob/grep 同源)。导出侧遍历在 **walk 期剪枝**(dot 目录不下穿,`.sandbox` rootfs 可达十万级文件),输出集合与"全量递归 + 逐文件过滤"完全一致,只省遍历成本——剪枝永远不该改变内容集合。
 
+## Backup Import (备份导入) — issue #583
+
+- **导入锁定 (modal lock)**: 备份恢复族（本地/WebDAV/S3/增量，移动+桌面）恢复期间必须弹出**不可解除模态遮罩**（`barrierDismissible: false`；刻意**无** `PopScope` —— 返回键/ESC 仍可解掉 route，风险接受，issue #583 决策：核心是不让用户误触重复触发）。桌面本地导入原先完全无遮罩，本契约补齐；第三方导入器（Cherry/Chatbox，移动+桌面）同规格：模态遮罩 + 固定"正在导入…"（`backupPageImportInProgress`）文案。
+- **进度复用 (progress single-source)**: 恢复进度走既有 `RestoreProgress`/`RestoreStage` 管道（DataSync 全量发射，LAN sync 已用），`buildRestoreProgress`（阶段文案 → 进度条 → 计数）自 `lan_sync_section.dart` **迁移**到 `loading_dialog_card.dart` 单源（lan_sync_section 改为 re-export，渲染零变化）。`LoadingDialogCard` 增 `progressListenable: ValueListenable<RestoreProgress>`；恢复族遮罩 = 进度 + "已耗时 Xs"（`backupPageImportElapsed`，与导出侧的 `backupPageExportElapsed` 对称）。
+- **Provider 链路**: `BackupProvider.restoreFromLocalFile/restoreFromItem` 与 `S3BackupProvider.restoreFromItem` 接受并透传 `RestoreProgressCallback`。
+- **成功契约**: 恢复完成弹重启对话框；Cherry/Chatbox 桌面端补统计（与移动端一致：Cherry 5 项含 Files，Chatbox 4 项）；统计行使用本地化模板键 `backupPageImportStats` / `backupPageImportStatsNoFiles`（参数按 gen-l10n 字母序：assistants, conversations, files, messages, providers）。
+- **文案中性化**: `lanSyncRestore*` 阶段文案从 "sync data" 微调为中性（如 "Extracting data..."/"正在解压数据..."），LAN sync 与备份导入共用，无键名造假。
+
 ## Backup Merge Semantics (智能合并)
 
 - **LWW Preferences Merge (LWW 首写合并)**: Restore-merge decisions for preferences are made per backup key using the key's `updated_at` from the SQLite KV table (source of truth): imported value wins iff strictly newer than local; ties/no-metadata fall back to legacy fill-absent semantics. Only for scalar preferences — structured keys (provider_configs_v1, mcp_servers_v1, ...) keep per-id merges as the final refinement layer over the LWW-chosen base blob (e.g. provider proxy local-wins #512 still applies).

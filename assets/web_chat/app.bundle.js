@@ -1,7 +1,7 @@
 (() => {
   // protocol.mjs
   var PROTOCOL_VERSION = 4;
-  var ASSET_VERSION = "web-chat-v17";
+  var ASSET_VERSION = "web-chat-v18";
   var transfers = /* @__PURE__ */ new Map();
   function receiveTransferChunk(chunk) {
     if (chunk.protocolVersion !== PROTOCOL_VERSION) {

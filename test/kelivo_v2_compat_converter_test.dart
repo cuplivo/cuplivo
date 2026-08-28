@@ -271,7 +271,9 @@ void main() {
     expect(contents, contains('a1:喜欢简洁回答'));
     expect(contents, contains('a1:使用中文')); // global copied to assistant
     expect(contents, contains('a1:独特旧记忆')); // legacy kept
-    expect(contents, isNot(contains('a1:取代旧记录'))); // superseded by migrationIds
+    expect(contents, contains('a1:取代旧记录')); // new-format record survives…
+    // …while the superseded legacy twin (id 13, same content) is gone:
+    expect(memories, hasLength(4));
     expect(contents, isNot(contains('a1:过时记忆'))); // archived dropped
     final converted = memories.firstWhere((m) => m['content'] == '喜欢简洁回答')
         as Map<String, dynamic>;

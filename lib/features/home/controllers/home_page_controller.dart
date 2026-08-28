@@ -805,22 +805,32 @@ class HomePageController extends ChangeNotifier {
     return null;
   }
 
-  void initDesktopUi() {
-    if (PlatformUtils.isDesktopTarget && !_desktopUiInited) {
-      _desktopUiInited = true;
-      try {
-        final sp = _context.read<SettingsProvider>();
-        _embeddedSidebarWidth = sp.desktopSidebarWidth.clamp(
-          _sidebarMinWidth,
-          _sidebarMaxWidth,
-        );
-        _tabletSidebarOpen = sp.desktopSidebarOpen;
-        _rightSidebarOpen = sp.desktopRightSidebarOpen;
-        _rightSidebarWidth = sp.desktopRightSidebarWidth.clamp(
-          _sidebarMinWidth,
-          _sidebarMaxWidth,
-        );
-      } catch (_) {}
+  Future<void> initDesktopUi() async {
+    if (!PlatformUtils.isDesktopTarget || _desktopUiInited) return;
+    _desktopUiInited = true;
+    try {
+      // SettingsProvider._load() completes asynchronously (it performs real
+      // SQLite/logging I/O before the desktop-width assignments); the first
+      // frame builds HomePage before that, so reading widths here without
+      // awaiting would consume the constructor defaults and a later rebuild
+      // would never re-apply them (_desktopUiInited is one-shot).
+      final sp = _context.read<SettingsProvider>();
+      await sp.loaded;
+      if (_disposed || !_context.mounted) return;
+      _embeddedSidebarWidth = sp.desktopSidebarWidth.clamp(
+        _sidebarMinWidth,
+        _sidebarMaxWidth,
+      );
+      _tabletSidebarOpen = sp.desktopSidebarOpen;
+      _rightSidebarOpen = sp.desktopRightSidebarOpen;
+      _rightSidebarWidth = sp.desktopRightSidebarWidth.clamp(
+        _sidebarMinWidth,
+        _sidebarMaxWidth,
+      );
+      notifyListeners();
+    } catch (e, st) {
+      debugPrint('[HomePageController] initDesktopUi failed: $e');
+      debugPrint('$st');
     }
   }
 

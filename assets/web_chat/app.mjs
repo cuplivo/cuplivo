@@ -65,6 +65,14 @@ let touchStartY = null;
 let touchActive = false;
 let pointerStartX = null;
 let pointerStartY = null;
+// iOS (iPhone/iPad, incl. iPadOS desktop UA): WKWebView drives native
+// scrolling from the touch stream. Calling preventDefault() on the early
+// 'hold'-phase touchmoves makes WebKit classify the gesture as
+// non-scrolling, so the page can never be dragged afterwards. On iOS we
+// never preventDefault and never arm the persistent scroll-stop lock from
+// touch events; programmatic clamping (virtual window loads) still works.
+const isIosTouchDevice = /iP(hone|od|ad)/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 let scrollStopLock = false;
 let scrollStopFrame = 0;
 let scrollStopTop = 0;
@@ -2630,12 +2638,16 @@ function stopScrolling() {
   // pointer event. Never restart the lock after this gesture already became a
   // real drag.
   if (gestureActive && gestureIntent !== 'hold') return;
+  timeline.style.scrollBehavior = 'auto';
+  // On iOS a persistent lock would fight the native pan gesture inside
+  // WKWebView; only honor locks armed programmatically (virtual-window
+  // clamping) and otherwise leave touch scrolling alone.
+  if (isIosTouchDevice && !scrollStopLock) return;
   if (!scrollStopLock) {
     scrollStopLock = true;
     scrollStopTop = timeline.scrollTop;
     scrollStopLeft = timeline.scrollLeft;
   }
-  timeline.style.scrollBehavior = 'auto';
   restoreScrollStopPosition();
   if (!scrollStopFrame) scrollStopFrame = requestAnimationFrame(enforceScrollStop);
 }
@@ -2723,7 +2735,7 @@ timeline.addEventListener('touchstart', (event) => {
 timeline.addEventListener('touchmove', (event) => {
   if (virtualWindowLoading) {
     restoreScrollStopPosition();
-    if (event.cancelable) event.preventDefault();
+    if (!isIosTouchDevice && event.cancelable) event.preventDefault();
     return;
   }
   const currentX = event.touches[0]?.clientX;
@@ -2738,7 +2750,7 @@ timeline.addEventListener('touchmove', (event) => {
   });
   if (intent === 'hold') {
     restoreScrollStopPosition();
-    if (scrollStopLock && event.cancelable) {
+    if (!isIosTouchDevice && scrollStopLock && event.cancelable) {
       event.preventDefault();
     }
     return;

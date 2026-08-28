@@ -7,7 +7,7 @@ import 'package:Cuplivo/features/home/webview/web_chat_protocol.dart';
 void main() {
   test('Web chat uses protocol v4 and bundled assets v17', () {
     expect(webChatProtocolVersion, 4);
-    expect(webChatAssetVersion, 'web-chat-v18');
+    expect(webChatAssetVersion, 'web-chat-v19');
   });
 
   group('Web streaming patch buffer', () {

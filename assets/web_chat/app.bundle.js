@@ -1,7 +1,7 @@
 (() => {
   // protocol.mjs
   var PROTOCOL_VERSION = 4;
-  var ASSET_VERSION = "web-chat-v18";
+  var ASSET_VERSION = "web-chat-v19";
   var transfers = /* @__PURE__ */ new Map();
   function receiveTransferChunk(chunk) {
     if (chunk.protocolVersion !== PROTOCOL_VERSION) {
@@ -841,6 +841,7 @@
   var touchActive = false;
   var pointerStartX = null;
   var pointerStartY = null;
+  var isIosTouchDevice = /iP(hone|od|ad)/.test(navigator.userAgent) || navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
   var scrollStopLock = false;
   var scrollStopFrame = 0;
   var scrollStopTop = 0;
@@ -3278,12 +3279,13 @@
   }
   function stopScrolling() {
     if (gestureActive && gestureIntent !== "hold") return;
+    timeline.style.scrollBehavior = "auto";
+    if (isIosTouchDevice && !scrollStopLock) return;
     if (!scrollStopLock) {
       scrollStopLock = true;
       scrollStopTop = timeline.scrollTop;
       scrollStopLeft = timeline.scrollLeft;
     }
-    timeline.style.scrollBehavior = "auto";
     restoreScrollStopPosition();
     if (!scrollStopFrame) scrollStopFrame = requestAnimationFrame(enforceScrollStop);
   }
@@ -3371,7 +3373,7 @@
   timeline.addEventListener("touchmove", (event) => {
     if (virtualWindowLoading) {
       restoreScrollStopPosition();
-      if (event.cancelable) event.preventDefault();
+      if (!isIosTouchDevice && event.cancelable) event.preventDefault();
       return;
     }
     const currentX = event.touches[0]?.clientX;
@@ -3385,7 +3387,7 @@
     });
     if (intent === "hold") {
       restoreScrollStopPosition();
-      if (scrollStopLock && event.cancelable) {
+      if (!isIosTouchDevice && scrollStopLock && event.cancelable) {
         event.preventDefault();
       }
       return;

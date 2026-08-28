@@ -76,6 +76,10 @@ class _WebConversationViewportState extends State<WebConversationViewport> {
   ];
 
   WebViewController? _flutterController;
+  /// Resolves once the iOS/macOS shell page navigation completes. WKWebView
+  /// fails evaluateJavaScript while a navigation is in flight, and the page
+  /// posts `ready` before that, so bridge sends wait on this first.
+  Future<void>? _flutterShellLoadFuture;
   AndroidWebChatController? _androidController;
   winweb.WebviewController? _windowsController;
   StreamSubscription<dynamic>? _windowsMessageSubscription;
@@ -305,7 +309,10 @@ class _WebConversationViewportState extends State<WebConversationViewport> {
           );
     if (_isStale(generation)) return;
     _flutterController = controller;
-    await controller.loadFlutterAsset('assets/web_chat/index.html');
+    final shellLoadFuture =
+        controller.loadFlutterAsset('assets/web_chat/index.html');
+    _flutterShellLoadFuture = shellLoadFuture;
+    await shellLoadFuture;
   }
 
   Future<void> _handleAndroidViewCreated(int viewId, int generation) async {
@@ -873,7 +880,7 @@ class _WebConversationViewportState extends State<WebConversationViewport> {
       if (Platform.isWindows) {
         await _windowsController?.postWebMessage(encoded);
       } else {
-        await _runWebJavaScript(
+        await _runWebJavaScriptWithRetry(
           'window.CuplivoWeb.receive(${jsonEncode(encoded)});',
         );
       }
@@ -897,7 +904,25 @@ class _WebConversationViewportState extends State<WebConversationViewport> {
     } else if (Platform.isAndroid) {
       await _androidController?.runJavaScript(source);
     } else {
+      final shellLoad = _flutterShellLoadFuture;
+      if (shellLoad != null) await shellLoad;
       await _flutterController?.runJavaScript(source);
+    }
+  }
+
+  /// WKWebView occasionally fails evaluateJavaScript transiently right after
+  /// the shell posts `ready` (navigation and subresources still settling).
+  /// Retry a few times before tearing the whole viewport down.
+  Future<void> _runWebJavaScriptWithRetry(String source) async {
+    final generation = _generation;
+    for (var attempt = 1;; attempt++) {
+      try {
+        await _runWebJavaScript(source);
+        return;
+      } catch (error) {
+        if (attempt >= 3 || _isStale(generation) || !_ready) rethrow;
+        await Future<void>.delayed(Duration(milliseconds: 80 * attempt));
+      }
     }
   }
 
@@ -1057,6 +1082,7 @@ class _WebConversationViewportState extends State<WebConversationViewport> {
     _androidController?.dispose();
     _androidController = null;
     _flutterController = null;
+    _flutterShellLoadFuture = null;
     unawaited(_initialize());
   }
 

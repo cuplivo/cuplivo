@@ -279,14 +279,18 @@ void main() {
         as Map<String, dynamic>;
     expect(converted['id'], 14); // max legacy id (13) + 1
 
-    // search services: string pool → ApiKeyConfig objects
+    // search services: string pool → ApiKeyConfig objects.
+    // Parity with kelivo-helper: the primary apiKey is prepended and the
+    // pool is appended verbatim — if the source pool already contains the
+    // primary key, the duplicate is preserved (same as the website output).
     final services =
         jsonDecode(settings['search_services_v1'] as String) as List;
     final service = services.first as Map<String, dynamic>;
     final apiKeys = service['apiKeys'] as List;
-    expect(apiKeys, hasLength(2));
+    expect(apiKeys, hasLength(3));
     expect((apiKeys.first as Map)['key'], 'primary-key');
-    expect((apiKeys.last as Map)['key'], 'pool-key-1');
+    expect((apiKeys[1] as Map)['key'], 'pool-key-1');
+    expect((apiKeys.last as Map)['key'], 'primary-key');
 
     // double round-trip: Dart-native doubles survive re-encode
     expect(settings['double_key_v1'], 1.0);

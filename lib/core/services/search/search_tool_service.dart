@@ -140,8 +140,9 @@ Best Practice: (1) Use keywords rather than a complete sentence for `query`; (2)
 
   static Future<String> executeSearch(
     String query,
-    SettingsProvider settings,
-  ) async {
+    SettingsProvider settings, {
+    http.Client? searchClient,
+  }) async {
     final services = settings.searchServices;
     if (services.isEmpty) {
       return jsonEncode({'error': 'No search services configured'});
@@ -152,7 +153,10 @@ Best Practice: (1) Use keywords rather than a complete sentence for `query`; (2)
       services.length - 1,
     );
     final serviceOptions = services[selectedIndex];
-    final service = SearchService.getService(serviceOptions);
+    final service = SearchService.getService(
+      serviceOptions,
+      client: searchClient,
+    );
     final manager = ApiKeyManager();
 
     // Keyless services (BingLocal, DuckDuckGo, SearXNG) or providers whose
@@ -164,6 +168,7 @@ Best Practice: (1) Use keywords rather than a complete sentence for `query`; (2)
     // Keyed services: rotate keys on failure, retry transparently.
     final config = serviceOptions.keyManagement ?? const KeyManagementConfig();
     final beforeJson = serviceOptions.toJson();
+    String? lastError;
     final result = await _runWithKeyRotation<String>(
       serviceOptions,
       manager,
@@ -174,6 +179,7 @@ Best Practice: (1) Use keywords rather than a complete sentence for `query`; (2)
         service,
         serviceOptions,
         apiKeyOverride: apiKey,
+        onError: (error) => lastError = error,
       ),
       failureCode: 'search_failed',
     );
@@ -188,7 +194,10 @@ Best Practice: (1) Use keywords rather than a complete sentence for `query`; (2)
       beforeJson,
     );
 
-    return result ?? jsonEncode({'error': 'All search keys failed'});
+    return result ??
+        jsonEncode({
+          'error': 'All search keys failed${_errorSuffix(lastError)}',
+        });
   }
 
   static Future<String> executeFetch(
@@ -542,6 +551,7 @@ Best Practice: (1) Use keywords rather than a complete sentence for `query`; (2)
     SearchService service,
     SearchServiceOptions serviceOptions, {
     String? apiKeyOverride,
+    void Function(String error)? onError,
   }) async {
     try {
       final result = await service.search(
@@ -568,6 +578,7 @@ Best Practice: (1) Use keywords rather than a complete sentence for `query`; (2)
       });
     } catch (e) {
       debugPrint('[search_web] ${service.name} search failed: $e');
+      onError?.call(e.toString());
       return null;
     }
   }

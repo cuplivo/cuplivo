@@ -5,6 +5,8 @@ import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
 class JinaSearchService extends SearchService<JinaOptions> {
+  JinaSearchService({super.client});
+
   @override
   String get name => 'Jina';
 

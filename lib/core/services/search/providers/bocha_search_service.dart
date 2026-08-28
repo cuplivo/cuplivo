@@ -4,6 +4,8 @@ import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
 class BochaSearchService extends SearchService<BochaOptions> {
+  BochaSearchService({super.client});
+
   @override
   String get name => 'Bocha';
 

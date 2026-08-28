@@ -4,6 +4,8 @@ import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
 class BingSearchService extends SearchService<BingLocalOptions> {
+  BingSearchService({super.client});
+
   @override
   String get name => 'Bing (Local)';
 

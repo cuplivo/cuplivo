@@ -4,6 +4,8 @@ import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
 class BraveSearchService extends SearchService<BraveOptions> {
+  BraveSearchService({super.client});
+
   @override
   String get name => 'Brave Search';
 

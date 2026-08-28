@@ -4,6 +4,8 @@ import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
 class SearXNGSearchService extends SearchService<SearXNGOptions> {
+  SearXNGSearchService({super.client});
+
   @override
   String get name => 'SearXNG';
 

@@ -5,6 +5,8 @@ import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
 class OllamaSearchService extends SearchService<OllamaOptions> {
+  OllamaSearchService({super.client});
+
   @override
   String get name => 'Ollama';
 

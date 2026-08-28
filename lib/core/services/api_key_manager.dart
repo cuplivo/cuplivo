@@ -34,16 +34,21 @@ class ApiKeyManager {
 
     final now = DateTime.now().millisecondsSinceEpoch;
     final cooldownMs = config.failureRecoveryTimeMinutes * 60 * 1000;
+    // An error key becomes selectable again once its cooldown has elapsed;
+    // the next failure re-marks it error with a fresh [updatedAt] (new
+    // cooldown), while success flips it back to active.
     final available = enabled.where((k) {
-      if (k.status == ApiKeyStatus.disabled) return false;
       if (k.status == ApiKeyStatus.error) {
-        final since = now - (k.updatedAt);
-        if (since < cooldownMs) return false;
+        return now - k.updatedAt >= cooldownMs;
       }
       return k.status == ApiKeyStatus.active;
     }).toList();
 
     if (available.isEmpty) {
+      final probe = _recoveryProbe(enabled, config);
+      if (probe != null) {
+        return KeySelectionResult(probe, 'escalation_all_error');
+      }
       return const KeySelectionResult(null, 'no_available_keys');
     }
 
@@ -73,6 +78,26 @@ class ApiKeyManager {
     }
 
     return KeySelectionResult(chosen, 'strategy_${strategy.name}');
+  }
+
+  /// When every enabled key is inside its failure cooldown, re-admit the key
+  /// whose cooldown is closest to expiry (its failure is the oldest) as a
+  /// single probe, so a recovering provider resumes without user intervention.
+  /// Escalation is gated by [KeyManagementConfig.enableAutoRecovery]. Callers
+  /// that persist the updated key (e.g. `SearchToolService._runWithKeyRotation`)
+  /// refresh [ApiKeyConfig.updatedAt] on a probe failure, so consecutive probes
+  /// rotate across keys instead of hammering one.
+  static ApiKeyConfig? _recoveryProbe(
+    List<ApiKeyConfig> enabled,
+    KeyManagementConfig config,
+  ) {
+    if (!config.enableAutoRecovery) return null;
+    final candidates = enabled
+        .where((k) => k.status == ApiKeyStatus.error)
+        .toList();
+    if (candidates.isEmpty) return null;
+    candidates.sort((a, b) => a.updatedAt.compareTo(b.updatedAt));
+    return candidates.first;
   }
 
   ApiKeyConfig updateKeyStatus(

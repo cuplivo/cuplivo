@@ -5,6 +5,8 @@ import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
 class TavilySearchService extends SearchService<TavilyOptions> {
+  TavilySearchService({super.client});
+
   @override
   String get name => 'Tavily';
 

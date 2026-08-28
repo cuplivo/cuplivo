@@ -4,6 +4,8 @@ import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
 class DuckDuckGoSearchService extends SearchService<DuckDuckGoOptions> {
+  DuckDuckGoSearchService({super.client});
+
   @override
   String get name => 'DuckDuckGo';
 

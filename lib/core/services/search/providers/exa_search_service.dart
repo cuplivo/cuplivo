@@ -5,6 +5,8 @@ import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
 class ExaSearchService extends SearchService<ExaOptions> {
+  ExaSearchService({super.client});
+
   @override
   String get name => 'Exa';
 

@@ -5,6 +5,8 @@ import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
 class PerplexitySearchService extends SearchService<PerplexityOptions> {
+  PerplexitySearchService({super.client});
+
   @override
   String get name => 'Perplexity';
 

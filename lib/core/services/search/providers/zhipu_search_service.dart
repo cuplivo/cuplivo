@@ -5,6 +5,8 @@ import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
 class ZhipuSearchService extends SearchService<ZhipuOptions> {
+  ZhipuSearchService({super.client});
+
   @override
   String get name => 'Zhipu (智谱)';
 

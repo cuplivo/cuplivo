@@ -11,6 +11,7 @@ import '../../core/models/world_book.dart';
 import '../../core/providers/world_book_provider.dart';
 import '../../icons/lucide_adapter.dart' as lucide;
 import '../../l10n/app_localizations.dart';
+import '../../shared/widgets/assistant_bind_multi_select.dart';
 import '../../shared/widgets/ios_switch.dart';
 import '../../shared/widgets/snackbar.dart';
 import '../widgets/desktop_select_dropdown.dart';
@@ -113,6 +114,7 @@ class _DesktopWorldBookPaneState extends State<DesktopWorldBookPane> {
       'id': book.id,
       'name': book.name,
       'description': book.description,
+      'group': book.group,
       'enabled': book.enabled,
       'entries': book.entries
           .map(
@@ -265,8 +267,10 @@ class _DesktopWorldBookPaneState extends State<DesktopWorldBookPane> {
     return result == true;
   }
 
-  Future<WorldBook?> _showBookEditDialog({WorldBook? book}) async {
-    return showDialog<WorldBook>(
+  Future<(WorldBook, Set<String>)?> _showBookEditDialog({
+    WorldBook? book,
+  }) async {
+    return showDialog<(WorldBook, Set<String>)?>(
       context: context,
       builder: (ctx) => _WorldBookEditDialog(book: book),
     );
@@ -324,7 +328,14 @@ class _DesktopWorldBookPaneState extends State<DesktopWorldBookPane> {
                           final result = await _showBookEditDialog();
                           if (!mounted) return;
                           if (result == null) return;
-                          await provider.addBook(result);
+                          final (book, selected) = result;
+                          await provider.addBook(book);
+                          if (!context.mounted) return;
+                          await applyWorldBookBindings(
+                            context,
+                            itemId: book.id,
+                            selectedAssistantIds: selected,
+                          );
                         },
                         tooltip: l10n.worldBookAdd,
                       ),
@@ -391,7 +402,14 @@ class _DesktopWorldBookPaneState extends State<DesktopWorldBookPane> {
                           final edited = await _showBookEditDialog(book: book);
                           if (!mounted) return;
                           if (edited == null) return;
-                          await wbProvider.updateBook(edited);
+                          final (nextBook, selected) = edited;
+                          await wbProvider.updateBook(nextBook);
+                          if (!context.mounted) return;
+                          await applyWorldBookBindings(
+                            context,
+                            itemId: nextBook.id,
+                            selectedAssistantIds: selected,
+                          );
                         },
                         onDelete: () async {
                           final confirm = await _confirmDeleteBook(book);
@@ -825,7 +843,9 @@ class _WorldBookEditDialog extends StatefulWidget {
 class _WorldBookEditDialogState extends State<_WorldBookEditDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _descController;
+  late final TextEditingController _groupController;
   late bool _enabled;
+  Set<String> _assistantSelection = <String>{};
 
   @override
   void initState() {
@@ -834,6 +854,7 @@ class _WorldBookEditDialogState extends State<_WorldBookEditDialog> {
     _descController = TextEditingController(
       text: widget.book?.description ?? '',
     );
+    _groupController = TextEditingController(text: widget.book?.group ?? '');
     _enabled = widget.book?.enabled ?? true;
   }
 
@@ -841,6 +862,7 @@ class _WorldBookEditDialogState extends State<_WorldBookEditDialog> {
   void dispose() {
     _nameController.dispose();
     _descController.dispose();
+    _groupController.dispose();
     super.dispose();
   }
 
@@ -858,64 +880,88 @@ class _WorldBookEditDialogState extends State<_WorldBookEditDialog> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 58),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.6,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
-                        child: Text(
-                          widget.book == null
-                              ? l10n.worldBookAdd
-                              : l10n.worldBookConfig,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: AppFontWeights.emphasis,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.book == null
+                                  ? l10n.worldBookAdd
+                                  : l10n.worldBookConfig,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: AppFontWeights.emphasis,
+                              ),
+                            ),
                           ),
+                          _SmallIconBtn(
+                            icon: lucide.Lucide.X,
+                            onTap: () => Navigator.of(context).maybePop(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _nameController,
+                        decoration: _deskInputDecoration(
+                          context,
+                        ).copyWith(hintText: l10n.worldBookNameLabel),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _descController,
+                        maxLines: 3,
+                        decoration: _deskInputDecoration(
+                          context,
+                        ).copyWith(hintText: l10n.worldBookDescriptionLabel),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _groupController,
+                        decoration: _deskInputDecoration(context).copyWith(
+                          hintText:
+                              '${l10n.worldBookGroupLabel} · ${l10n.worldBookGroupHint}',
                         ),
                       ),
-                      _SmallIconBtn(
-                        icon: lucide.Lucide.X,
-                        onTap: () => Navigator.of(context).maybePop(),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              l10n.worldBookEnabledLabel,
+                              style: TextStyle(
+                                color: cs.onSurface.withValues(alpha: 0.8),
+                                fontSize: 13.5,
+                                fontWeight: AppFontWeights.semibold,
+                              ),
+                            ),
+                          ),
+                          IosSwitch(
+                            value: _enabled,
+                            onChanged: (v) => setState(() => _enabled = v),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 20, thickness: 0.6),
+                      AssistantBindMultiSelect(
+                        itemId: widget.book?.id,
+                        activeIdsFor: context
+                            .watch<WorldBookProvider>()
+                            .activeBookIdsFor,
+                        onSelectionChanged: (selection) =>
+                            _assistantSelection = selection,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _nameController,
-                    decoration: _deskInputDecoration(
-                      context,
-                    ).copyWith(hintText: l10n.worldBookNameLabel),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _descController,
-                    maxLines: 3,
-                    decoration: _deskInputDecoration(
-                      context,
-                    ).copyWith(hintText: l10n.worldBookDescriptionLabel),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          l10n.worldBookEnabledLabel,
-                          style: TextStyle(
-                            color: cs.onSurface.withValues(alpha: 0.8),
-                            fontSize: 13.5,
-                            fontWeight: AppFontWeights.semibold,
-                          ),
-                        ),
-                      ),
-                      IosSwitch(
-                        value: _enabled,
-                        onChanged: (v) => setState(() => _enabled = v),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ),
             Positioned(
@@ -928,15 +974,17 @@ class _WorldBookEditDialogState extends State<_WorldBookEditDialog> {
                 onTap: () {
                   final base = widget.book;
                   final id = base?.id ?? const Uuid().v4();
-                  Navigator.of(context).pop(
-                    WorldBook(
-                      id: id,
-                      name: _nameController.text.trim(),
-                      description: _descController.text.trim(),
-                      enabled: _enabled,
-                      entries: base?.entries ?? const <WorldBookEntry>[],
-                    ),
+                  final result = WorldBook(
+                    id: id,
+                    name: _nameController.text.trim(),
+                    description: _descController.text.trim(),
+                    group: _groupController.text.trim(),
+                    enabled: _enabled,
+                    entries: base?.entries ?? const <WorldBookEntry>[],
                   );
+                  Navigator.of(
+                    context,
+                  ).pop((result, Set<String>.from(_assistantSelection)));
                 },
               ),
             ),

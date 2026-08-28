@@ -6270,6 +6270,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get instructionInjectionGroupLabel => '分组';
 
   @override
+  String get worldBookUngroupedGroup => '未分组';
+
+  @override
+  String get worldBookGroupLabel => '分组';
+
+  @override
+  String get worldBookGroupHint => '分组名称（留空则不分组）';
+
+  @override
+  String get bindingsEnableForAssistants => '为哪些助手启用';
+
+  @override
+  String get bindingsUnnamedAssistant => '未命名助手';
+
+  @override
+  String get bindingsNoAssistantsHint => '暂无可用助手';
+
+  @override
   String get instructionInjectionGroupHint => '可选';
 
   @override
@@ -7776,6 +7794,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get assistantEditPageSkillsTab => '技能 (skills)';
+
+  @override
+  String get assistantEditPageBindingsTab => '世界书与指令注入';
 
   @override
   String get settingsPageSkills => '技能 (skills)';
@@ -15233,6 +15254,24 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get instructionInjectionGroupLabel => '分组';
 
   @override
+  String get worldBookUngroupedGroup => '未分组';
+
+  @override
+  String get worldBookGroupLabel => '分组';
+
+  @override
+  String get worldBookGroupHint => '分组名称（留空则不分组）';
+
+  @override
+  String get bindingsEnableForAssistants => '为哪些助手启用';
+
+  @override
+  String get bindingsUnnamedAssistant => '未命名助手';
+
+  @override
+  String get bindingsNoAssistantsHint => '暂无可用助手';
+
+  @override
   String get instructionInjectionGroupHint => '可选';
 
   @override
@@ -16739,6 +16778,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assistantEditPageSkillsTab => '技能 (skills)';
+
+  @override
+  String get assistantEditPageBindingsTab => '世界书与指令注入';
 
   @override
   String get settingsPageSkills => '技能 (skills)';
@@ -24195,6 +24237,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get instructionInjectionGroupLabel => '分組';
 
   @override
+  String get worldBookUngroupedGroup => '未分組';
+
+  @override
+  String get worldBookGroupLabel => '分組';
+
+  @override
+  String get worldBookGroupHint => '分組名稱（留空則不分組）';
+
+  @override
+  String get bindingsEnableForAssistants => '為哪些助手啟用';
+
+  @override
+  String get bindingsUnnamedAssistant => '未命名助手';
+
+  @override
+  String get bindingsNoAssistantsHint => '暫無可用助手';
+
+  @override
   String get instructionInjectionGroupHint => '可選';
 
   @override
@@ -25703,6 +25763,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantEditPageSkillsTab => '技能 (skills)';
+
+  @override
+  String get assistantEditPageBindingsTab => '世界書與指令注入';
 
   @override
   String get settingsPageSkills => '技能 (skills)';

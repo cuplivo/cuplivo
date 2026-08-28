@@ -235,6 +235,18 @@ class _WorldBookListInner extends StatelessWidget {
     final books = provider.books;
     final selected = provider.activeBookIdsFor(assistantId).toSet();
 
+    final Map<String, List<WorldBook>> grouped = <String, List<WorldBook>>{};
+    for (final book in books) {
+      final g = book.group.trim();
+      (grouped[g] ??= <WorldBook>[]).add(book);
+    }
+    final groupNames = grouped.keys.toList()
+      ..sort((a, b) {
+        if (a.isEmpty && b.isNotEmpty) return -1;
+        if (a.isNotEmpty && b.isEmpty) return 1;
+        return a.toLowerCase().compareTo(b.toLowerCase());
+      });
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
       child: Column(
@@ -256,29 +268,137 @@ class _WorldBookListInner extends StatelessWidget {
               },
             ),
           ),
-          for (final book in books)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 1),
-              child: _RowItem(
-                title: book.name.trim().isEmpty
-                    ? l10n.worldBookUnnamed
-                    : book.name,
-                preview: book.description,
-                active: selected.contains(book.id),
-                disabled: !book.enabled,
-                onTap: () async {
-                  final isActive = selected.contains(book.id);
-                  if (!book.enabled && !isActive) return;
-                  try {
-                    await context.read<WorldBookProvider>().toggleActiveBookId(
-                      book.id,
-                      assistantId: assistantId,
-                    );
-                  } catch (_) {}
-                },
-              ),
+          for (final groupName in groupNames) ...[
+            _GroupHeaderRow(
+              title: groupName.trim().isEmpty
+                  ? l10n.worldBookUngroupedGroup
+                  : groupName.trim(),
+              collapsed: provider.isGroupCollapsed(groupName),
+              onTap: () => context
+                  .read<WorldBookProvider>()
+                  .toggleGroupCollapsed(groupName),
             ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: provider.isGroupCollapsed(groupName)
+                  ? const SizedBox(width: double.infinity, height: 0)
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final book in grouped[groupName]!)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 1),
+                            child: _RowItem(
+                              title: book.name.trim().isEmpty
+                                  ? l10n.worldBookUnnamed
+                                  : book.name,
+                              preview: book.description,
+                              active: selected.contains(book.id),
+                              disabled: !book.enabled,
+                              onTap: () async {
+                                final isActive = selected.contains(book.id);
+                                if (!book.enabled && !isActive) return;
+                                try {
+                                  await context
+                                      .read<WorldBookProvider>()
+                                      .toggleActiveBookId(
+                                        book.id,
+                                        assistantId: assistantId,
+                                      );
+                                } catch (_) {}
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class _GroupHeaderRow extends StatefulWidget {
+  const _GroupHeaderRow({
+    required this.title,
+    required this.collapsed,
+    required this.onTap,
+  });
+
+  final String title;
+  final bool collapsed;
+  final VoidCallback onTap;
+
+  @override
+  State<_GroupHeaderRow> createState() => _GroupHeaderRowState();
+}
+
+class _GroupHeaderRowState extends State<_GroupHeaderRow> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final hoverBg = (isDark ? Colors.white : Colors.black).withValues(
+      alpha: isDark ? 0.10 : 0.06,
+    );
+    final titleColor = cs.onSurface.withValues(alpha: 0.72);
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: _hovered ? hoverBg : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 22,
+                height: 22,
+                child: Center(
+                  child: AnimatedRotation(
+                    turns: widget.collapsed ? 0.0 : 0.25,
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    child: Icon(
+                      Lucide.ChevronRight,
+                      size: 15,
+                      color: titleColor,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  widget.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: AppFontWeights.semibold,
+                    color: titleColor,
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

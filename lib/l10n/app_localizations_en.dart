@@ -6551,6 +6551,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get instructionInjectionGroupLabel => 'Group';
 
   @override
+  String get worldBookUngroupedGroup => 'Ungrouped';
+
+  @override
+  String get worldBookGroupLabel => 'Group';
+
+  @override
+  String get worldBookGroupHint => 'Group name (empty = ungrouped)';
+
+  @override
+  String get bindingsEnableForAssistants => 'Enable for assistants';
+
+  @override
+  String get bindingsUnnamedAssistant => 'Unnamed assistant';
+
+  @override
+  String get bindingsNoAssistantsHint => 'No assistants available';
+
+  @override
   String get instructionInjectionGroupHint => 'Optional';
 
   @override
@@ -8132,6 +8150,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantEditPageSkillsTab => 'Skills';
+
+  @override
+  String get assistantEditPageBindingsTab => 'WorldBook & Injections';
 
   @override
   String get settingsPageSkills => 'Skills';

@@ -11,6 +11,7 @@ import '../../l10n/app_localizations.dart';
 import '../../core/models/instruction_injection.dart';
 import '../../core/providers/instruction_injection_group_provider.dart';
 import '../../core/providers/instruction_injection_provider.dart';
+import '../../shared/widgets/assistant_bind_multi_select.dart';
 import '../../shared/widgets/snackbar.dart';
 import '../../theme/app_font_weights.dart';
 import '../../theme/app_semantic_colors.dart';
@@ -218,7 +219,7 @@ class _DesktopInstructionInjectionPaneState
   }) async {
     final l10n = AppLocalizations.of(context)!;
     final provider = context.read<InstructionInjectionProvider>();
-    final result = await showDialog<Map<String, String>?>(
+    final result = await showDialog<(Map<String, String>, Set<String>)?>(
       context: context,
       builder: (ctx) => _InstructionInjectionEditDialog(
         title: item == null
@@ -227,28 +228,39 @@ class _DesktopInstructionInjectionPaneState
         initTitle: item?.title ?? '',
         initGroup: item?.group ?? '',
         initPrompt: item?.prompt ?? '',
+        itemId: item?.id,
       ),
     );
     if (!mounted) return;
     if (result == null) return;
-    final title = (result['title'] ?? '').trim();
-    final group = (result['group'] ?? '').trim();
-    final prompt = (result['prompt'] ?? '').trim();
+    final (fields, selection) = result;
+    final title = (fields['title'] ?? '').trim();
+    final group = (fields['group'] ?? '').trim();
+    final prompt = (fields['prompt'] ?? '').trim();
     if (title.isEmpty || prompt.isEmpty) return;
 
+    String itemId;
     if (item == null) {
       final newItem = InstructionInjection(
-        id: const Uuid().v4(),
+        id: fields['id'] ?? const Uuid().v4(),
         title: title,
         prompt: prompt,
         group: group,
       );
       await provider.add(newItem);
+      itemId = newItem.id;
     } else {
       await provider.update(
         item.copyWith(title: title, group: group, prompt: prompt),
       );
+      itemId = item.id;
     }
+    if (!context.mounted) return;
+    await applyInjectionBindings(
+      context,
+      itemId: itemId,
+      selectedAssistantIds: selection,
+    );
   }
 
   Future<String?> _readPickedFileAsString(PlatformFile file) async {
@@ -417,11 +429,13 @@ class _InstructionInjectionEditDialog extends StatefulWidget {
     required this.initTitle,
     required this.initGroup,
     required this.initPrompt,
+    this.itemId,
   });
   final String title;
   final String initTitle;
   final String initGroup;
   final String initPrompt;
+  final String? itemId;
 
   @override
   State<_InstructionInjectionEditDialog> createState() =>
@@ -433,6 +447,7 @@ class _InstructionInjectionEditDialogState
   late final TextEditingController _titleController;
   late final TextEditingController _groupController;
   late final TextEditingController _promptController;
+  Set<String> _assistantSelection = <String>{};
 
   @override
   void initState() {
@@ -508,6 +523,22 @@ class _InstructionInjectionEditDialogState
                       context,
                     ).copyWith(hintText: l10n.instructionInjectionPromptLabel),
                   ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 4),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    child: SingleChildScrollView(
+                      child: AssistantBindMultiSelect(
+                        itemId: widget.itemId,
+                        activeIdsFor: context
+                            .watch<InstructionInjectionProvider>()
+                            .activeIdsFor,
+                        onSelectionChanged: (selection) =>
+                            _assistantSelection = selection,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -519,11 +550,22 @@ class _InstructionInjectionEditDialogState
                 filled: true,
                 dense: true,
                 onTap: () {
-                  Navigator.of(context).pop({
-                    'title': _titleController.text,
-                    'group': _groupController.text,
-                    'prompt': _promptController.text,
-                  });
+                  final title = _titleController.text.trim();
+                  final prompt = _promptController.text.trim();
+                  if (title.isEmpty || prompt.isEmpty) {
+                    Navigator.of(context).pop();
+                    return;
+                  }
+                  final itemId = widget.itemId ?? const Uuid().v4();
+                  Navigator.of(context).pop((
+                    <String, String>{
+                      'id': itemId,
+                      'title': _titleController.text,
+                      'group': _groupController.text,
+                      'prompt': _promptController.text,
+                    },
+                    Set<String>.from(_assistantSelection),
+                  ));
                 },
               ),
             ),

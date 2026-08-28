@@ -11855,6 +11855,42 @@ abstract class AppLocalizations {
   /// **'Group'**
   String get instructionInjectionGroupLabel;
 
+  /// No description provided for @worldBookUngroupedGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Ungrouped'**
+  String get worldBookUngroupedGroup;
+
+  /// No description provided for @worldBookGroupLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Group'**
+  String get worldBookGroupLabel;
+
+  /// No description provided for @worldBookGroupHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name (empty = ungrouped)'**
+  String get worldBookGroupHint;
+
+  /// No description provided for @bindingsEnableForAssistants.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable for assistants'**
+  String get bindingsEnableForAssistants;
+
+  /// No description provided for @bindingsUnnamedAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Unnamed assistant'**
+  String get bindingsUnnamedAssistant;
+
+  /// No description provided for @bindingsNoAssistantsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No assistants available'**
+  String get bindingsNoAssistantsHint;
+
   /// No description provided for @instructionInjectionGroupHint.
   ///
   /// In en, this message translates to:
@@ -14632,6 +14668,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Skills'**
   String get assistantEditPageSkillsTab;
+
+  /// No description provided for @assistantEditPageBindingsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'WorldBook & Injections'**
+  String get assistantEditPageBindingsTab;
 
   /// No description provided for @settingsPageSkills.
   ///

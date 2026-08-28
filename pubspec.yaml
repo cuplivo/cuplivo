@@ -174,8 +174,7 @@ flutter:
     - assets/mermaid.min.js
     - assets/web_chat/index.html
     - assets/web_chat/styles.css
-    - assets/web_chat/app.mjs
-    - assets/web_chat/protocol.mjs
+    - assets/web_chat/app.bundle.js
     - assets/web_chat/vendor/
     - assets/web_chat/vendor/fonts/
     - assets/html/mark.html

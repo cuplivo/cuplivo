@@ -1,5 +1,5 @@
 export const PROTOCOL_VERSION = 4;
-export const ASSET_VERSION = 'web-chat-v17';
+export const ASSET_VERSION = 'web-chat-v18';
 
 const transfers = new Map();
 

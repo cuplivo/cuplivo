@@ -65,8 +65,7 @@ class _WebConversationViewportState extends State<WebConversationViewport> {
   static const List<String> _windowsAssets = <String>[
     'index.html',
     'styles.css',
-    'app.mjs',
-    'protocol.mjs',
+    'app.bundle.js',
     'vendor/marked.min.js',
     'vendor/purify.min.js',
     'vendor/highlight.min.js',

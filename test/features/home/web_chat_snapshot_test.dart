@@ -92,7 +92,7 @@ void main() {
 
     final rendered = (snapshot['messages'] as List).single as Map;
     expect(snapshot['protocolVersion'], 4);
-    expect(snapshot['assetVersion'], 'web-chat-v17');
+    expect(snapshot['assetVersion'], 'web-chat-v18');
     expect(snapshot['initialViewportMode'], 'anchor');
     expect(snapshot['locale'], 'zh-Hans');
     expect(snapshot['textDirection'], 'ltr');

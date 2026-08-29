@@ -1012,7 +1012,7 @@ class _HomePageState extends State<HomePage>
     required String? modelDisplay,
     required ColorScheme cs,
   }) {
-    _controller.initDesktopUi();
+    unawaited(_controller.initDesktopUi());
 
     final collapsed = _controller.collapseVersions(_controller.messages);
     final selectable = collapsed

@@ -546,6 +546,16 @@ class HomePageController extends ChangeNotifier {
       }
     };
     _viewModel.onAssistantMessageFinished = _handleAssistantMessageFinished;
+    _viewModel.onQueuedInputDrain = _drainQueuedInputThroughRouter;
+  }
+
+  /// Queued-input drain routed through the page send router so Multi-AI and
+  /// synthesize modes are honored instead of forcing a single-model send.
+  Future<ChatInputSubmissionResult> _drainQueuedInputThroughRouter(
+    ChatInputData input,
+  ) async {
+    if (!_context.mounted) return ChatInputSubmissionResult.rejected;
+    return sendMessage(input);
   }
 
   String _localizeGenerationError(AppLocalizations l10n, String error) {
@@ -863,6 +873,14 @@ class HomePageController extends ChangeNotifier {
       result = await _sendSynthesize(input);
     } else if (multiAIEngine.isActive) {
       if (!_context.mounted) return ChatInputSubmissionResult.rejected;
+      // Multi-AI rounds share the same per-conversation busy gate as the
+      // single-model path (issue #578 QQ flow): a send while the current
+      // round is still streaming is queued, never raced into a parallel
+      // round. queueIfCurrentConversationBusy already notified.
+      final queued = _viewModel.queueIfCurrentConversationBusy(input);
+      if (queued != null) {
+        return queued;
+      }
       final settings = _context.read<SettingsProvider>();
       final assistant = await _context
           .read<AssistantProvider>()

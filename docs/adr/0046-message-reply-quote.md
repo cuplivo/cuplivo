@@ -1,4 +1,4 @@
-# ADR-0042: Message Reply — Quote Citation + `<reply-to>` Context Injection
+# ADR-0046: Message Reply — Quote Citation + `<reply-to>` Context Injection
 
 Issue #312: QQ-style message-level reply. A user can reply to any message via the
 message 更多 sheet (whole-message quote, `id` only) or via the text-selection

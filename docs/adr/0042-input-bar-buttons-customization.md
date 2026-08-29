@@ -1,4 +1,4 @@
-# ADR-0041: Input Bar Buttons Customization (order + direct/in-more)
+# ADR-0042: Input Bar Buttons Customization (order + direct/in-more)
 
 Issue #282: the input bar's left action row (15 conditional buttons, incl. a
 dedicated **customize entry** that always defaults into the More bucket so

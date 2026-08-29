@@ -5,7 +5,7 @@ import '../../../core/models/message_quote.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../utils/quote_plain_text.dart';
 
-/// QQ-style one-line reply citation (issue #312, docs/adr/0042-draft).
+/// QQ-style one-line reply citation (issue #312, docs/adr/0046).
 ///
 /// [target] is the resolved quoted message row; null renders the localized
 /// stub (deleted / restore-mismatched target). Display extracts via the

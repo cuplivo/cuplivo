@@ -1,10 +1,10 @@
-# ADR-0041: Sub-Agent Wait-Only Unification: One Tool, One Word, Guided Setup
+# ADR-0045: Sub-Agent Wait-Only Unification: One Tool, One Word, Guided Setup
 
 Sub-agent delegation (Handoff) shipped as a historical two-mode split — `kelivo_handoff`
 (fire-and-forget, UUID-only tool result) and `kelivo_handoff_sync` (wait-mode, full output
 as tool result) — with equally split user-facing vocabulary: 「任务交接 / 同步交接」 in
 assistant settings vs 「子代理 / 子对话」 in the chat 子代理面板, while users only ask for
-「子 agent」. ADR-0041 retires the split: one wait-mode tool, one unified user-facing
+「子 agent」. ADR-0045 retires the split: one wait-mode tool, one unified user-facing
 name, and on-boarding guidance at every place a user can enable the feature.
 
 ## Problem

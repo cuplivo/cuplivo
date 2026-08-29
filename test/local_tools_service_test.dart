@@ -234,7 +234,7 @@ void main() {
       );
 
       // A legacy sync-id list normalizes onto the single wait-mode tool
-      // (ADR-0041) — the definition comes out identical.
+      // (ADR-0045) — the definition comes out identical.
       final onlySync = LocalToolsService.buildToolDefinitions(
         assistant: Assistant(
           id: 'a1',

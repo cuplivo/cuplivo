@@ -1,4 +1,4 @@
-# ADR-0037: Custom Themes Replace the Legacy Seed; Custom Theme Wins Over System Dynamic Color
+# ADR-0038: Custom Themes Replace the Legacy Seed; Custom Theme Wins Over System Dynamic Color
 
 Upstream Kelivo's custom-theme system (a `CustomTheme` model with primary/secondary/tertiary
 colors generating a TONAL_SPOT M3 scheme via `material_color_utilities`, plus full HSV color

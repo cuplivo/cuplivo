@@ -2,7 +2,7 @@ import 'markdown_subsequence_match.dart';
 
 /// The single canonical markdown→plain extraction shared by ALL message-quote
 /// consumers (draft preview row, bubble quote block, `<reply-to>` API
-/// injection). See docs/adr/0042-message-reply-quote.md.
+/// injection). See docs/adr/0046-message-reply-quote.md.
 ///
 /// Keep the output pure extraction: no clipping, no whitespace flattening —
 /// presentation transforms (`\n`→space, ellipsis, budget clip) live in

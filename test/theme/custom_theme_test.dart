@@ -260,7 +260,7 @@ void main() {
       expect(first.id, 'shared');
       expect(imported.id, isNot('shared'));
       expect(settings.customThemes, hasLength(2));
-      // Import activates the theme (ADR-0037).
+      // Import activates the theme (ADR-0038).
       expect(settings.selectedCustomThemeId, imported.id);
       expect(settings.themePaletteId, ThemePalettes.customPaletteId);
     });

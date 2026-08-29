@@ -153,7 +153,7 @@ class MessageBuilderService {
     // Resolve <reply-to> targets against the collapsed stream: the quote
     // points at a message row id; the resolved citation is the plain text of
     // that version (or the selected span). Unresolvable (deleted target) →
-    // no prefix, display stub only (docs/adr/0042).
+    // no prefix, display stub only (docs/adr/0046).
     final sourceById = <String, ChatMessage>{for (final m in source) m.id: m};
 
     final out = <Map<String, dynamic>>[];
@@ -267,7 +267,7 @@ class MessageBuilderService {
   /// `<reply-to>` plain text for [message]'s quote against the collapsed
   /// stream. Unresolvable target → null (no prefix; the UI shows the stub).
   /// Range slices are markdown-space ([start, end) into raw content) per
-  /// docs/adr/0042; malformed out-of-range pairs degrade to full text.
+  /// docs/adr/0046; malformed out-of-range pairs degrade to full text.
   String? _replyToQuoteText(
     ChatMessage message,
     MessageQuote quote,

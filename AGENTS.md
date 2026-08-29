@@ -77,7 +77,7 @@
 - **Dynamic Color (系统动态色)** (Android 12+, mobile-only) and Custom Theme are mutually exclusive: an active Custom Theme wins over `useDynamicColor`. The legacy seed (`dynamic_color_seed_v1` + `custom_dynamic`) is migrated to a Custom Theme on first load.
 - **AppSemanticColors (语义色扩展)**: a `ThemeExtension` providing tokens `ColorScheme` lacks — `surfaceFill`, `surfaceCard`, `success`/`warning` (+ containers), `searchHighlight`, `chartSeries` — all derived from or harmonized with the active scheme, read via `context.appColors`. `surfaceContainerLowest→Highest` are derived from the scheme surface (never the purple-tinted M3 defaults).
 - New UI colors MUST use theme tokens (scheme roles, `AppSemanticColors`, theme constants) — never raw literals. Deliberate fixed colors must carry a `color-gate: ignore` marker (checked by `tool/check_colors.py`, not wired into CI).
-- See `docs/adr/0037-custom-themes-replace-seed.md` (phase 1) and `docs/adr/0038-semantic-color-migration.md` (phase 2).
+- See `docs/adr/0038-custom-themes-replace-seed.md` (phase 1) and `docs/adr/0040-semantic-color-migration.md` (phase 2).
 
 ## 2. Working Style
 

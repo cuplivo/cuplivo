@@ -1090,7 +1090,7 @@ class HomeViewModel extends ChangeNotifier {
       }
       // Re-check right before the delete: the user may have switched back to
       // this conversation while the count queries were in flight (no switch
-      // lock exists — see ADR-0044 residual race). Deleting the live current
+      // lock exists — see ADR-0050 residual race). Deleting the live current
       // conversation would yank the view. The window shrinks to "between this
       // check and the first await inside deleteConversation", which is
       // accepted.

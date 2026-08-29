@@ -1,12 +1,12 @@
-# ADR-0038: Semantic Color Migration (Phase 2 of the Theme System)
+# ADR-0040: Semantic Color Migration (Phase 2 of the Theme System)
 
 Phase 2 of #300 lands `AppSemanticColors`, derives the M3 `surfaceContainer*` roles from the
 active scheme, and migrates the hardcoded surface-fill / card / status / text-muted colors
-across the app to semantic tokens. It completes the phase-2 scope deferred by ADR-0037.
+across the app to semantic tokens. It completes the phase-2 scope deferred by ADR-0038.
 
 ## Context
 
-ADR-0037 shipped custom themes but deliberately deferred `AppSemanticColors` (a ~100-file
+ADR-0038 shipped custom themes but deliberately deferred `AppSemanticColors` (a ~100-file
 migration) and the derived `surfaceContainer*` roles. The app still scattered hardcoded color
 literals — `Colors.white10/white12` + `Color(0xFFF2F3F5/F7F7F9)` for subtle fills,
 `Colors.white`@0.96 / `Color(0xFF1C1C1E/141414)` for cards, `Colors.black54/white70` for muted
@@ -28,7 +28,7 @@ palettes.
   builders (`_withDerivedSurfaceContainers`), including the post-fix upstream values (light
   `surfaceContainerHigh` = white@0.85 so chat bubbles/cards/menus stay ≈white). This changes ~46
   existing `surfaceContainer*` usages from purple-tinted M3 defaults to palette-derived neutrals
-  — the widest single visual change in this phase, and the point of the ADR-0037 "surfaceContainer
+  — the widest single visual change in this phase, and the point of the ADR-0038 "surfaceContainer
   推导" item.
 - **Migrate the idiom families to tokens.** `F2F3F5`/`F7F7F9`/`white10`/`white12` →
   `surfaceFill` (the two near-identical light grays collapse into one derived value — deliberate
@@ -60,5 +60,5 @@ palettes.
   (accepted, upstream parity).
 - The static-palette `surfaceContainer*` rendering changes from purple-tinted to neutral
   palette-derived; the `_withDerivedSurfaceContainers` comment documents the bubble ≈white rule.
-- Phase 2 is complete; ADR-0037's "Phase 2 remains a standalone, independently reviewable change"
+- Phase 2 is complete; ADR-0038's "Phase 2 remains a standalone, independently reviewable change"
   note is resolved.

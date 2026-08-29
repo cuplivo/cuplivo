@@ -513,7 +513,7 @@ class LocalToolsService {
       });
     }
     if (assistant.localToolIds.contains(LocalToolNames.handoff)) {
-      // Single wait-mode sub-agent delegation tool (ADR-0041): the retired
+      // Single wait-mode sub-agent delegation tool (ADR-0045): the retired
       // `kelivo_handoff_sync` sibling is fused into `kelivo_handoff`, whose
       // ids are normalized at Assistant construction.
       tools.add({

@@ -2780,7 +2780,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageMoreSheetShare => '分享';
 
   @override
-  String get messageMoreSheetSelectMessages => '选择消息';
+  String get messageMoreSheetSelectMessages => '多选';
 
   @override
   String get messageMoreSheetReply => '回复';
@@ -11734,7 +11734,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageMoreSheetShare => '分享';
 
   @override
-  String get messageMoreSheetSelectMessages => '选择消息';
+  String get messageMoreSheetSelectMessages => '多选';
 
   @override
   String get messageMoreSheetReply => '回复';
@@ -20687,7 +20687,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get messageMoreSheetShare => '分享';
 
   @override
-  String get messageMoreSheetSelectMessages => '選擇訊息';
+  String get messageMoreSheetSelectMessages => '多選';
 
   @override
   String get messageMoreSheetReply => '回覆';

@@ -1110,7 +1110,7 @@
   "messageMoreSheetNotImplemented": "Not yet implemented",
   "messageMoreSheetEdit": "Edit",
   "messageMoreSheetShare": "Share",
-  "messageMoreSheetSelectMessages": "Select Messages",
+  "messageMoreSheetSelectMessages": "Multi Select",
   "messageMoreSheetReply": "Reply",
   "messageQuoteDeletedErrorMessage": "The original message has been deleted",
   "messageQuotePreviewDismiss": "Dismiss reply quote",

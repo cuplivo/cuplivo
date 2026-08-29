@@ -963,7 +963,7 @@
   "messageMoreSheetNotImplemented": "暂未实现",
   "messageMoreSheetEdit": "编辑",
   "messageMoreSheetShare": "分享",
-  "messageMoreSheetSelectMessages": "选择消息",
+  "messageMoreSheetSelectMessages": "多选",
   "messageMoreSheetReply": "回复",
   "messageQuoteDeletedErrorMessage": "原消息已被删除",
   "messageQuotePreviewDismiss": "移除回复引用",

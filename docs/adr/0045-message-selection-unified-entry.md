@@ -1,4 +1,4 @@
-# ADR-0044: Message Selection Unified Entry (消息选择统一入口)
+# ADR-0045: Message Selection Unified Entry (消息选择统一入口)
 
 The message 更多/右键 menu offered two actions (分享 / 选择消息) that both entered
 the same message selection mode; only the bottom action bar differed
@@ -8,7 +8,7 @@ unified action bar.
 ## Decision
 
 `MessageMoreAction.share` is removed. The menu keeps a single entry —
-选择消息/Select Messages — which enters selection mode with the anchor message
+多选/Multi Select — which enters selection mode with the anchor message
 and its paired user/assistant message pre-selected (the pre-selection that the
 share entry used). `ChatSelectionMode` and the `_selectionMode` field are
 deleted; selection mode has one shape, and the bottom bar is a unified

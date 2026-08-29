@@ -2880,7 +2880,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageMoreSheetShare => 'Share';
 
   @override
-  String get messageMoreSheetSelectMessages => 'Select Messages';
+  String get messageMoreSheetSelectMessages => 'Multi Select';
 
   @override
   String get messageMoreSheetReply => 'Reply';

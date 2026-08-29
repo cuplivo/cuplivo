@@ -5287,7 +5287,7 @@ abstract class AppLocalizations {
   /// No description provided for @messageMoreSheetSelectMessages.
   ///
   /// In en, this message translates to:
-  /// **'Select Messages'**
+  /// **'Multi Select'**
   String get messageMoreSheetSelectMessages;
 
   /// No description provided for @messageMoreSheetReply.

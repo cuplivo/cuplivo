@@ -43,11 +43,13 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
   bool _depProbeFailed = false;
   bool _hasRuntime = true;
   int _depStatusRefreshGeneration = 0;
+  DependencyInstallController? _installController;
 
   @override
   void initState() {
     super.initState();
-    context.read<DependencyInstallController>().addListener(_onInstallChanged);
+    _installController = context.read<DependencyInstallController>()
+      ..addListener(_onInstallChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(_refreshDepStatus());
     });
@@ -72,15 +74,13 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
   @override
   void dispose() {
     routeObserver.unsubscribe(this);
-    context.read<DependencyInstallController>().removeListener(
-      _onInstallChanged,
-    );
+    _installController?.removeListener(_onInstallChanged);
     super.dispose();
   }
 
   void _onInstallChanged() {
     if (!mounted) return;
-    final controller = context.read<DependencyInstallController>();
+    final controller = _installController!;
     final wp = context.read<WorkspaceProvider>();
     final ws = wp.getById(widget.workspaceId);
     if (ws == null) return;

@@ -36,7 +36,7 @@ File _buildZip(String path, Map<String, List<int>> files) {
     archive.add(ArchiveFile.bytes(name, data));
   });
   final out = File(path);
-  out.writeAsBytesSync(ZipEncoder().encode(archive)!);
+  out.writeAsBytesSync(ZipEncoder().encode(archive));
   return out;
 }
 

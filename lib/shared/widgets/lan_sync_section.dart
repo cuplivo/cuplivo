@@ -22,6 +22,14 @@ import '../../utils/format.dart';
 import '../dialogs/restart_required_dialog.dart';
 import 'ios_form_text_field.dart';
 import 'ios_tactile.dart';
+import 'loading_dialog_card.dart' show buildRestoreProgress;
+
+/// Shared restore-progress content for the sync dialog/sheet mask: stage
+/// text + determinate bar (indeterminate stages render a busy bar).
+///
+/// [buildRestoreProgress] lives in [loading_dialog_card.dart] (single source
+/// shared with the backup import overlay) and is imported from there.
+export 'loading_dialog_card.dart' show buildRestoreProgress;
 
 /// Shared LAN Sync section widget for backup settings.
 ///
@@ -1317,69 +1325,6 @@ List<Widget> buildPlanSummary(
       ),
     ],
   ];
-}
-
-/// Shared restore-progress content for the sync dialog/sheet mask: stage
-/// text + determinate bar (indeterminate stages render a busy bar).
-Widget buildRestoreProgress(
-  RestoreProgress progress,
-  AppLocalizations l10n,
-  ColorScheme cs,
-) {
-  final stageText = switch (progress.stage) {
-    RestoreStage.extracting => l10n.lanSyncRestoreExtracting,
-    RestoreStage.mergingChats => l10n.lanSyncRestoreMergingChats,
-    RestoreStage.copyingFiles => l10n.lanSyncRestoreCopyingFiles,
-    RestoreStage.restoringSkills => l10n.lanSyncRestoreRestoringSkills,
-  };
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Text(
-        stageText,
-        style: TextStyle(
-          fontSize: 13,
-          color: cs.onSurface.withValues(alpha: 0.6),
-        ),
-      ),
-      const SizedBox(height: 8),
-      LinearProgressIndicator(
-        value: progress.fraction,
-        minHeight: 4,
-        borderRadius: BorderRadius.circular(2),
-      ),
-      if (progress.stage == RestoreStage.copyingFiles &&
-          progress.filesTotal > 0) ...[
-        const SizedBox(height: 6),
-        Text(
-          // gen-l10n orders Object params alphabetically: count, size, total.
-          l10n.lanSyncRestoreFilesProgress(
-            progress.filesCopied,
-            formatBytes(progress.bytesTotal),
-            progress.filesTotal,
-          ),
-          style: TextStyle(
-            fontSize: 12,
-            color: cs.onSurface.withValues(alpha: 0.5),
-          ),
-        ),
-      ],
-      if (progress.stage == RestoreStage.mergingChats &&
-          progress.conversationsTotal > 0) ...[
-        const SizedBox(height: 6),
-        Text(
-          l10n.lanSyncRestoreChatsProgress(
-            progress.conversationsMerged,
-            progress.conversationsTotal,
-          ),
-          style: TextStyle(
-            fontSize: 12,
-            color: cs.onSurface.withValues(alpha: 0.5),
-          ),
-        ),
-      ],
-    ],
-  );
 }
 
 /// Shared restore-failure content for the sync dialog/sheet: localized error

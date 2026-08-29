@@ -163,6 +163,7 @@ class S3BackupProvider extends ChangeNotifier {
   Future<void> restoreFromItem(
     BackupFileItem item, {
     RestoreMode mode = RestoreMode.overwrite,
+    RestoreProgressCallback? onProgress,
   }) async {
     _busy = true;
     _message = null;
@@ -178,6 +179,7 @@ class S3BackupProvider extends ChangeNotifier {
         file,
         _scopeAsWebdavConfig(),
         mode: mode,
+        onProgress: onProgress,
       );
     } catch (e) {
       _message = e.toString();

@@ -2094,6 +2094,35 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get backupPageImportInProgress => '正在导入...';
+
+  @override
+  String backupPageImportElapsed(Object seconds) {
+    return '已耗时 $seconds 秒';
+  }
+
+  @override
+  String backupPageImportStats(
+    Object assistants,
+    Object conversations,
+    Object files,
+    Object messages,
+    Object providers,
+  ) {
+    return '供应商: $providers\n助手: $assistants\n对话: $conversations\n消息: $messages\n文件: $files';
+  }
+
+  @override
+  String backupPageImportStatsNoFiles(
+    Object assistants,
+    Object conversations,
+    Object messages,
+    Object providers,
+  ) {
+    return '供应商: $providers\n助手: $assistants\n对话: $conversations\n消息: $messages';
+  }
+
+  @override
   String get backupStageGenerating => '正在生成文件...';
 
   @override
@@ -2506,7 +2535,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get lanSyncRestoreExtracting => '正在解压同步数据...';
+  String get lanSyncRestoreExtracting => '正在解压数据...';
 
   @override
   String get lanSyncRestoreMergingChats => '正在合并聊天记录...';
@@ -11057,6 +11086,35 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
+  String get backupPageImportInProgress => '正在导入...';
+
+  @override
+  String backupPageImportElapsed(Object seconds) {
+    return '已耗时 $seconds 秒';
+  }
+
+  @override
+  String backupPageImportStats(
+    Object assistants,
+    Object conversations,
+    Object files,
+    Object messages,
+    Object providers,
+  ) {
+    return '供应商: $providers\n助手: $assistants\n对话: $conversations\n消息: $messages\n文件: $files';
+  }
+
+  @override
+  String backupPageImportStatsNoFiles(
+    Object assistants,
+    Object conversations,
+    Object messages,
+    Object providers,
+  ) {
+    return '供应商: $providers\n助手: $assistants\n对话: $conversations\n消息: $messages';
+  }
+
+  @override
   String get backupStageGenerating => '正在生成文件...';
 
   @override
@@ -11469,7 +11527,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get lanSyncRestoreExtracting => '正在解压同步数据...';
+  String get lanSyncRestoreExtracting => '正在解压数据...';
 
   @override
   String get lanSyncRestoreMergingChats => '正在合并聊天记录...';
@@ -20020,6 +20078,35 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String get backupPageImportInProgress => '正在導入...';
+
+  @override
+  String backupPageImportElapsed(Object seconds) {
+    return '已耗時 $seconds 秒';
+  }
+
+  @override
+  String backupPageImportStats(
+    Object assistants,
+    Object conversations,
+    Object files,
+    Object messages,
+    Object providers,
+  ) {
+    return '供應商: $providers\n助手: $assistants\n對話: $conversations\n訊息: $messages\n檔案: $files';
+  }
+
+  @override
+  String backupPageImportStatsNoFiles(
+    Object assistants,
+    Object conversations,
+    Object messages,
+    Object providers,
+  ) {
+    return '供應商: $providers\n助手: $assistants\n對話: $conversations\n訊息: $messages';
+  }
+
+  @override
   String get backupStageGenerating => '正在產生檔案...';
 
   @override
@@ -20432,7 +20519,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get lanSyncRestoreExtracting => '正在解壓同步資料...';
+  String get lanSyncRestoreExtracting => '正在解壓資料...';
 
   @override
   String get lanSyncRestoreMergingChats => '正在合併聊天記錄...';

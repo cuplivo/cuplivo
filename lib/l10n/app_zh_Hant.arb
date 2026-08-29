@@ -1719,6 +1719,9 @@
   "displaySettingsPageShowRegenerateConfirmDialogTitle": "重新生成前彈出確認",
   "displaySettingsPageForkKeepMessageVersionsTitle": "建立分支時保留訊息版本",
   "displaySettingsPageForkKeepMessageVersionsSubtitle": "分支會帶上每則訊息 roll 出的歷史版本，可繼續左右切換；關閉則只帶目前選中的回答",
+  "displaySettingsPageConversationModelIndependentTitle": "會話模型獨立",
+  "displaySettingsPageConversationModelIndependentSubtitle": "新會話建立時鎖定其初始模型，之後不再跟隨助手模型變更；會話內切換模型僅影響該會話。",
+  "conversationModelIndependentFreezeNotice": "已切換模型，僅對目前會話生效",
   "chainOfThoughtExpandSteps": "展開更多 {count} 步",
   "@chainOfThoughtExpandSteps": {
     "placeholders": {

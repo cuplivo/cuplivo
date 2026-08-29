@@ -1,5 +1,6 @@
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/models/assistant.dart';
+import '../../../core/models/conversation.dart';
 
 /// Helper class for extracting model display information.
 ///
@@ -50,11 +51,12 @@ class ModelDisplayInfo {
 ModelDisplayInfo getModelDisplayInfo(
   SettingsProvider settings, {
   Assistant? assistant,
+  Conversation? conversation,
 }) {
-  // Determine provider and model from assistant or global defaults
-  final providerKey =
-      assistant?.chatModelProvider ?? settings.currentModelProvider;
-  final modelId = assistant?.chatModelId ?? settings.currentModelId;
+  // Determine provider and model: conversation binding → assistant → global
+  final resolved = resolveChatModel(settings, assistant, conversation);
+  final providerKey = resolved.providerKey;
+  final modelId = resolved.modelId;
 
   if (providerKey == null || modelId == null) {
     return const ModelDisplayInfo();
@@ -87,26 +89,48 @@ ModelDisplayInfo getModelDisplayInfo(
   );
 }
 
+/// The effective chat model chain (ADR-0045):
+/// conversation binding → assistant binding → global default.
+/// Toggle-agnostic — the toggle only gates write/creation-time behavior.
+({String? providerKey, String? modelId}) resolveChatModel(
+  SettingsProvider settings,
+  Assistant? assistant,
+  Conversation? conversation,
+) {
+  return (
+    providerKey:
+        conversation?.chatModelProvider ??
+        assistant?.chatModelProvider ??
+        settings.currentModelProvider,
+    modelId:
+        conversation?.chatModelId ??
+        assistant?.chatModelId ??
+        settings.currentModelId,
+  );
+}
+
 /// Gets just the provider key and model ID without display formatting.
 ///
 /// Use this when you only need the raw identifiers for API calls.
 ({String? providerKey, String? modelId}) getActiveModelIds(
   SettingsProvider settings, {
   Assistant? assistant,
+  Conversation? conversation,
 }) {
-  return (
-    providerKey: assistant?.chatModelProvider ?? settings.currentModelProvider,
-    modelId: assistant?.chatModelId ?? settings.currentModelId,
-  );
+  return resolveChatModel(settings, assistant, conversation);
 }
 
 /// Gets the ProviderConfig for the active model.
 ProviderConfig? getActiveProviderConfig(
   SettingsProvider settings, {
   Assistant? assistant,
+  Conversation? conversation,
 }) {
-  final providerKey =
-      assistant?.chatModelProvider ?? settings.currentModelProvider;
+  final providerKey = resolveChatModel(
+    settings,
+    assistant,
+    conversation,
+  ).providerKey;
   if (providerKey == null) return null;
   return settings.getProviderConfig(providerKey);
 }

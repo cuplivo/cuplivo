@@ -1205,6 +1205,8 @@ class ChatDatabaseRepository {
       workspaceDirectoryOverrides: _decodeStringStringMap(
         row.workspaceDirectoryOverridesJson,
       ),
+      chatModelProvider: row.chatModelProvider,
+      chatModelId: row.chatModelId,
     );
   }
 
@@ -1254,6 +1256,8 @@ class ChatDatabaseRepository {
       workspaceDirectoryOverrides: _decodeStringStringMap(
         _readOptionalString(row, 'workspace_directory_overrides_json') ?? '{}',
       ),
+      chatModelProvider: _readOptionalString(row, 'chat_model_provider'),
+      chatModelId: _readOptionalString(row, 'chat_model_id'),
     );
   }
 
@@ -1301,6 +1305,8 @@ class ChatDatabaseRepository {
       workspaceDirectoryOverridesJson: Value(
         jsonEncode(conversation.workspaceDirectoryOverrides),
       ),
+      chatModelProvider: Value(conversation.chatModelProvider),
+      chatModelId: Value(conversation.chatModelId),
     );
   }
 

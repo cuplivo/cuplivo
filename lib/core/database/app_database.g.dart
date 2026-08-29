@@ -169,6 +169,29 @@ class $ConversationRowsTable extends ConversationRows
         requiredDuringInsert: false,
         defaultValue: const Constant('{}'),
       );
+  static const VerificationMeta _chatModelProviderMeta = const VerificationMeta(
+    'chatModelProvider',
+  );
+  @override
+  late final GeneratedColumn<String> chatModelProvider =
+      GeneratedColumn<String>(
+        'chat_model_provider',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _chatModelIdMeta = const VerificationMeta(
+    'chatModelId',
+  );
+  @override
+  late final GeneratedColumn<String> chatModelId = GeneratedColumn<String>(
+    'chat_model_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -185,6 +208,8 @@ class $ConversationRowsTable extends ConversationRows
     parentConversationId,
     conversationKind,
     workspaceDirectoryOverridesJson,
+    chatModelProvider,
+    chatModelId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -311,6 +336,24 @@ class $ConversationRowsTable extends ConversationRows
         ),
       );
     }
+    if (data.containsKey('chat_model_provider')) {
+      context.handle(
+        _chatModelProviderMeta,
+        chatModelProvider.isAcceptableOrUnknown(
+          data['chat_model_provider']!,
+          _chatModelProviderMeta,
+        ),
+      );
+    }
+    if (data.containsKey('chat_model_id')) {
+      context.handle(
+        _chatModelIdMeta,
+        chatModelId.isAcceptableOrUnknown(
+          data['chat_model_id']!,
+          _chatModelIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -376,6 +419,14 @@ class $ConversationRowsTable extends ConversationRows
         DriftSqlType.string,
         data['${effectivePrefix}workspace_directory_overrides_json'],
       )!,
+      chatModelProvider: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}chat_model_provider'],
+      ),
+      chatModelId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}chat_model_id'],
+      ),
     );
   }
 
@@ -402,6 +453,12 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
   /// 'normal' | 'group' — group public transcripts use kind=group.
   final String conversationKind;
   final String workspaceDirectoryOverridesJson;
+
+  /// Per-conversation chat model binding (schema v22, nullable). Mirror of
+  /// assistant_rows.chat_model_provider/chat_model_id naming. Non-null means
+  /// the conversation no longer follows the assistant's model.
+  final String? chatModelProvider;
+  final String? chatModelId;
   const ConversationRow({
     required this.id,
     required this.title,
@@ -417,6 +474,8 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
     this.parentConversationId,
     required this.conversationKind,
     required this.workspaceDirectoryOverridesJson,
+    this.chatModelProvider,
+    this.chatModelId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -445,6 +504,12 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
     map['workspace_directory_overrides_json'] = Variable<String>(
       workspaceDirectoryOverridesJson,
     );
+    if (!nullToAbsent || chatModelProvider != null) {
+      map['chat_model_provider'] = Variable<String>(chatModelProvider);
+    }
+    if (!nullToAbsent || chatModelId != null) {
+      map['chat_model_id'] = Variable<String>(chatModelId);
+    }
     return map;
   }
 
@@ -470,6 +535,12 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
           : Value(parentConversationId),
       conversationKind: Value(conversationKind),
       workspaceDirectoryOverridesJson: Value(workspaceDirectoryOverridesJson),
+      chatModelProvider: chatModelProvider == null && nullToAbsent
+          ? const Value.absent()
+          : Value(chatModelProvider),
+      chatModelId: chatModelId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(chatModelId),
     );
   }
 
@@ -503,6 +574,10 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
       workspaceDirectoryOverridesJson: serializer.fromJson<String>(
         json['workspaceDirectoryOverridesJson'],
       ),
+      chatModelProvider: serializer.fromJson<String?>(
+        json['chatModelProvider'],
+      ),
+      chatModelId: serializer.fromJson<String?>(json['chatModelId']),
     );
   }
   @override
@@ -527,6 +602,8 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
       'workspaceDirectoryOverridesJson': serializer.toJson<String>(
         workspaceDirectoryOverridesJson,
       ),
+      'chatModelProvider': serializer.toJson<String?>(chatModelProvider),
+      'chatModelId': serializer.toJson<String?>(chatModelId),
     };
   }
 
@@ -545,6 +622,8 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
     Value<String?> parentConversationId = const Value.absent(),
     String? conversationKind,
     String? workspaceDirectoryOverridesJson,
+    Value<String?> chatModelProvider = const Value.absent(),
+    Value<String?> chatModelId = const Value.absent(),
   }) => ConversationRow(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -564,6 +643,10 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
     conversationKind: conversationKind ?? this.conversationKind,
     workspaceDirectoryOverridesJson:
         workspaceDirectoryOverridesJson ?? this.workspaceDirectoryOverridesJson,
+    chatModelProvider: chatModelProvider.present
+        ? chatModelProvider.value
+        : this.chatModelProvider,
+    chatModelId: chatModelId.present ? chatModelId.value : this.chatModelId,
   );
   ConversationRow copyWithCompanion(ConversationRowsCompanion data) {
     return ConversationRow(
@@ -598,6 +681,12 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
           data.workspaceDirectoryOverridesJson.present
           ? data.workspaceDirectoryOverridesJson.value
           : this.workspaceDirectoryOverridesJson,
+      chatModelProvider: data.chatModelProvider.present
+          ? data.chatModelProvider.value
+          : this.chatModelProvider,
+      chatModelId: data.chatModelId.present
+          ? data.chatModelId.value
+          : this.chatModelId,
     );
   }
 
@@ -618,8 +707,10 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
           ..write('parentConversationId: $parentConversationId, ')
           ..write('conversationKind: $conversationKind, ')
           ..write(
-            'workspaceDirectoryOverridesJson: $workspaceDirectoryOverridesJson',
+            'workspaceDirectoryOverridesJson: $workspaceDirectoryOverridesJson, ',
           )
+          ..write('chatModelProvider: $chatModelProvider, ')
+          ..write('chatModelId: $chatModelId')
           ..write(')'))
         .toString();
   }
@@ -640,6 +731,8 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
     parentConversationId,
     conversationKind,
     workspaceDirectoryOverridesJson,
+    chatModelProvider,
+    chatModelId,
   );
   @override
   bool operator ==(Object other) =>
@@ -659,7 +752,9 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
           other.parentConversationId == this.parentConversationId &&
           other.conversationKind == this.conversationKind &&
           other.workspaceDirectoryOverridesJson ==
-              this.workspaceDirectoryOverridesJson);
+              this.workspaceDirectoryOverridesJson &&
+          other.chatModelProvider == this.chatModelProvider &&
+          other.chatModelId == this.chatModelId);
 }
 
 class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
@@ -677,6 +772,8 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
   final Value<String?> parentConversationId;
   final Value<String> conversationKind;
   final Value<String> workspaceDirectoryOverridesJson;
+  final Value<String?> chatModelProvider;
+  final Value<String?> chatModelId;
   final Value<int> rowid;
   const ConversationRowsCompanion({
     this.id = const Value.absent(),
@@ -693,6 +790,8 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
     this.parentConversationId = const Value.absent(),
     this.conversationKind = const Value.absent(),
     this.workspaceDirectoryOverridesJson = const Value.absent(),
+    this.chatModelProvider = const Value.absent(),
+    this.chatModelId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ConversationRowsCompanion.insert({
@@ -710,6 +809,8 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
     this.parentConversationId = const Value.absent(),
     this.conversationKind = const Value.absent(),
     this.workspaceDirectoryOverridesJson = const Value.absent(),
+    this.chatModelProvider = const Value.absent(),
+    this.chatModelId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
@@ -730,6 +831,8 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
     Expression<String>? parentConversationId,
     Expression<String>? conversationKind,
     Expression<String>? workspaceDirectoryOverridesJson,
+    Expression<String>? chatModelProvider,
+    Expression<String>? chatModelId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -752,6 +855,8 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
       if (conversationKind != null) 'conversation_kind': conversationKind,
       if (workspaceDirectoryOverridesJson != null)
         'workspace_directory_overrides_json': workspaceDirectoryOverridesJson,
+      if (chatModelProvider != null) 'chat_model_provider': chatModelProvider,
+      if (chatModelId != null) 'chat_model_id': chatModelId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -771,6 +876,8 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
     Value<String?>? parentConversationId,
     Value<String>? conversationKind,
     Value<String>? workspaceDirectoryOverridesJson,
+    Value<String?>? chatModelProvider,
+    Value<String?>? chatModelId,
     Value<int>? rowid,
   }) {
     return ConversationRowsCompanion(
@@ -792,6 +899,8 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
       workspaceDirectoryOverridesJson:
           workspaceDirectoryOverridesJson ??
           this.workspaceDirectoryOverridesJson,
+      chatModelProvider: chatModelProvider ?? this.chatModelProvider,
+      chatModelId: chatModelId ?? this.chatModelId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -851,6 +960,12 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
         workspaceDirectoryOverridesJson.value,
       );
     }
+    if (chatModelProvider.present) {
+      map['chat_model_provider'] = Variable<String>(chatModelProvider.value);
+    }
+    if (chatModelId.present) {
+      map['chat_model_id'] = Variable<String>(chatModelId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -876,6 +991,8 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
           ..write(
             'workspaceDirectoryOverridesJson: $workspaceDirectoryOverridesJson, ',
           )
+          ..write('chatModelProvider: $chatModelProvider, ')
+          ..write('chatModelId: $chatModelId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8992,6 +9109,8 @@ typedef $$ConversationRowsTableCreateCompanionBuilder =
       Value<String?> parentConversationId,
       Value<String> conversationKind,
       Value<String> workspaceDirectoryOverridesJson,
+      Value<String?> chatModelProvider,
+      Value<String?> chatModelId,
       Value<int> rowid,
     });
 typedef $$ConversationRowsTableUpdateCompanionBuilder =
@@ -9010,6 +9129,8 @@ typedef $$ConversationRowsTableUpdateCompanionBuilder =
       Value<String?> parentConversationId,
       Value<String> conversationKind,
       Value<String> workspaceDirectoryOverridesJson,
+      Value<String?> chatModelProvider,
+      Value<String?> chatModelId,
       Value<int> rowid,
     });
 
@@ -9165,6 +9286,16 @@ class $$ConversationRowsTableFilterComposer
         column: $table.workspaceDirectoryOverridesJson,
         builder: (column) => ColumnFilters(column),
       );
+
+  ColumnFilters<String> get chatModelProvider => $composableBuilder(
+    column: $table.chatModelProvider,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get chatModelId => $composableBuilder(
+    column: $table.chatModelId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   Expression<bool> messageRowsRefs(
     Expression<bool> Function($$MessageRowsTableFilterComposer f) f,
@@ -9323,6 +9454,16 @@ class $$ConversationRowsTableOrderingComposer
         column: $table.workspaceDirectoryOverridesJson,
         builder: (column) => ColumnOrderings(column),
       );
+
+  ColumnOrderings<String> get chatModelProvider => $composableBuilder(
+    column: $table.chatModelProvider,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get chatModelId => $composableBuilder(
+    column: $table.chatModelId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ConversationRowsTableAnnotationComposer
@@ -9392,6 +9533,16 @@ class $$ConversationRowsTableAnnotationComposer
         column: $table.workspaceDirectoryOverridesJson,
         builder: (column) => column,
       );
+
+  GeneratedColumn<String> get chatModelProvider => $composableBuilder(
+    column: $table.chatModelProvider,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get chatModelId => $composableBuilder(
+    column: $table.chatModelId,
+    builder: (column) => column,
+  );
 
   Expression<T> messageRowsRefs<T extends Object>(
     Expression<T> Function($$MessageRowsTableAnnotationComposer a) f,
@@ -9520,6 +9671,8 @@ class $$ConversationRowsTableTableManager
                 Value<String> conversationKind = const Value.absent(),
                 Value<String> workspaceDirectoryOverridesJson =
                     const Value.absent(),
+                Value<String?> chatModelProvider = const Value.absent(),
+                Value<String?> chatModelId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ConversationRowsCompanion(
                 id: id,
@@ -9537,6 +9690,8 @@ class $$ConversationRowsTableTableManager
                 conversationKind: conversationKind,
                 workspaceDirectoryOverridesJson:
                     workspaceDirectoryOverridesJson,
+                chatModelProvider: chatModelProvider,
+                chatModelId: chatModelId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -9556,6 +9711,8 @@ class $$ConversationRowsTableTableManager
                 Value<String> conversationKind = const Value.absent(),
                 Value<String> workspaceDirectoryOverridesJson =
                     const Value.absent(),
+                Value<String?> chatModelProvider = const Value.absent(),
+                Value<String?> chatModelId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ConversationRowsCompanion.insert(
                 id: id,
@@ -9573,6 +9730,8 @@ class $$ConversationRowsTableTableManager
                 conversationKind: conversationKind,
                 workspaceDirectoryOverridesJson:
                     workspaceDirectoryOverridesJson,
+                chatModelProvider: chatModelProvider,
+                chatModelId: chatModelId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

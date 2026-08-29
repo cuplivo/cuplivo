@@ -16,6 +16,14 @@ import '../../../utils/path_canon.dart';
 import '../deleted_records_store.dart';
 import '../workspace/linux_sandbox_service.dart';
 
+/// Resolves the effective chat model (assistant binding ?? global default)
+/// that a new conversation should snapshot, or null when no snapshot should
+/// happen (feature off, or nothing resolvable). Set by the startup gate.
+typedef ConversationModelSnapshotResolver =
+    Future<({String? providerKey, String? modelId})?> Function(
+      String? assistantId,
+    );
+
 class ChatService extends ChangeNotifier {
   static const int defaultInitialMessageMin = 2;
   static const int defaultInitialMessageMax = 240;
@@ -45,6 +53,56 @@ class ChatService extends ChangeNotifier {
   void setDefaultConversationTitle(String title) {
     if (title.trim().isEmpty) return;
     _defaultConversationTitle = title.trim();
+  }
+
+  /// Optional snapshot resolver for the "conversation model independence"
+  /// feature. Returns null when the toggle is off or nothing resolvable.
+  ConversationModelSnapshotResolver? _creationModelSnapshotResolver;
+  void setCreationModelSnapshotResolver(
+    ConversationModelSnapshotResolver resolver,
+  ) {
+    _creationModelSnapshotResolver = resolver;
+  }
+
+  /// Applies a model selection to a conversation binding (the single write
+  /// outlet for in-conversation model switches). Conversations are pinned to
+  /// their binding afterwards — they never follow the assistant again.
+  ///
+  /// Draft/temporary conversations are updated in memory only: persisting an
+  /// empty draft (e.g. "new chat → switch model" without a first message)
+  /// would materialize a bogus empty conversation in the sidebar. The binding
+  /// is persisted with the draft on first-message promotion.
+  Future<void> setConversationModelBinding({
+    required String conversationId,
+    required String providerKey,
+    required String modelId,
+  }) async {
+    if (!_initialized) await init();
+    var conversation =
+        _conversationsCache[conversationId] ??
+        _draftConversations[conversationId];
+    conversation ??= _repo.getConversationSync(
+      conversationId,
+      includeMessageIds: false,
+    );
+    if (conversation == null) return;
+    conversation.chatModelProvider = providerKey;
+    conversation.chatModelId = modelId;
+    conversation.updatedAt = DateTime.now();
+    if (_draftConversations.containsKey(conversationId)) {
+      notifyListeners();
+      return;
+    }
+    await _saveConversation(conversation);
+    notifyListeners();
+  }
+
+  Future<({String? providerKey, String? modelId})?> _resolveCreationSnapshot(
+    String? assistantId,
+  ) async {
+    final resolver = _creationModelSnapshotResolver;
+    if (resolver == null) return null;
+    return resolver(assistantId);
   }
 
   bool _initialized = false;
@@ -407,6 +465,16 @@ class ChatService extends ChangeNotifier {
       conversationKind: conversationKind,
     );
 
+    // Conversation model independence: snapshot the effective chat model at
+    // creation. Group chats never take a binding (per-speaker models rule).
+    if (conversationKind == Conversation.kindNormal) {
+      final snapshot = await _resolveCreationSnapshot(assistantId);
+      if (snapshot != null && snapshot.providerKey != null) {
+        conversation.chatModelProvider = snapshot.providerKey;
+        conversation.chatModelId = snapshot.modelId;
+      }
+    }
+
     await _saveConversation(conversation);
     if (setAsCurrent) {
       _currentConversationId = conversation.id;
@@ -490,6 +558,12 @@ class ChatService extends ChangeNotifier {
       title: title ?? _defaultConversationTitle,
       assistantId: assistantId,
     );
+    // Conversation model independence: draft conversations snapshot too.
+    final snapshot = await _resolveCreationSnapshot(assistantId);
+    if (snapshot != null && snapshot.providerKey != null) {
+      conversation.chatModelProvider = snapshot.providerKey;
+      conversation.chatModelId = snapshot.modelId;
+    }
     _draftConversations[conversation.id] = conversation;
     if (temporary) {
       _temporaryConversationIds.add(conversation.id);

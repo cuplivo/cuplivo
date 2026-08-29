@@ -2191,6 +2191,9 @@
   "displaySettingsPageShowRegenerateConfirmDialogTitle": "Confirm before regenerating",
   "displaySettingsPageForkKeepMessageVersionsTitle": "Keep Message Versions When Forking",
   "displaySettingsPageForkKeepMessageVersionsSubtitle": "The fork carries every regenerated version of each message so you can still switch between them; off keeps only the selected answer.",
+  "displaySettingsPageConversationModelIndependentTitle": "Independent Conversation Models",
+  "displaySettingsPageConversationModelIndependentSubtitle": "New conversations freeze their model at creation and no longer follow assistant model changes. Switching a model in a conversation affects only that conversation.",
+  "conversationModelIndependentFreezeNotice": "Model switched for this conversation only",
   "chainOfThoughtExpandSteps": "Show {count} more steps",
   "@chainOfThoughtExpandSteps": {
     "placeholders": {

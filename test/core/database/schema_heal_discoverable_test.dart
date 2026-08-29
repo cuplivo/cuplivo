@@ -270,6 +270,42 @@ void main() {
     await repo.close();
   });
 
+  test(
+    'heal adds conversation model binding columns (v22 column shape)',
+    () async {
+      _createLegacyDb(
+        dbFile,
+        userVersion: 21,
+        missingIsPreset: false,
+        missingHandoffColumns: false,
+        missingV15RequestMetadata: false,
+        missingQuoteJson: false,
+        missingConversationModelBinding: true,
+      );
+
+      final repo = ChatDatabaseRepository.open(file: dbFile);
+      await repo.ensureReady();
+
+      // Must succeed: heal adds chat_model_provider / chat_model_id before the
+      // Drift INSERT, and the binding round-trips through the repository.
+      final conv = Conversation(
+        title: 'Conv',
+        assistantId: 'a1',
+        chatModelProvider: 'DeepSeek',
+        chatModelId: 'deepseek-v4-flash',
+      );
+      await repo.putConversation(conv);
+      final loaded = repo.getConversationSync(
+        conv.id,
+        includeMessageIds: false,
+      );
+      expect(loaded?.chatModelProvider, 'DeepSeek');
+      expect(loaded?.chatModelId, 'deepseek-v4-flash');
+
+      await repo.close();
+    },
+  );
+
   test('heal creates preference_rows (v21 table shape)', () async {
     _createLegacyDb(
       dbFile,
@@ -513,6 +549,7 @@ void _createLegacyDb(
   bool includeWorkspaceBindingColumns = false,
   bool includeWorkspaceV20Columns = false,
   bool missingPreferenceRows = true,
+  bool missingConversationModelBinding = true,
 }) {
   final raw = sqlite.sqlite3.open(dbFile.path);
   raw.execute('PRAGMA user_version = $userVersion;');
@@ -543,6 +580,9 @@ void _createLegacyDb(
   final workspaceV20ConversationColumn = includeWorkspaceV20Columns
       ? ",\n  workspace_directory_overrides_json TEXT NOT NULL DEFAULT '{}'"
       : '';
+  final conversationModelBindingColumns = missingConversationModelBinding
+      ? ''
+      : ",\n  chat_model_provider TEXT NULL,\n  chat_model_id TEXT NULL";
   raw.execute('''
 CREATE TABLE assistant_rows (
   id TEXT NOT NULL PRIMARY KEY,
@@ -605,7 +645,7 @@ CREATE TABLE conversation_rows (
   summary TEXT NULL,
   last_summarized_message_count INTEGER NOT NULL DEFAULT 0,
   chat_suggestions_json TEXT NOT NULL DEFAULT '[]',
-  parent_conversation_id TEXT NULL$workspaceV20ConversationColumn
+  parent_conversation_id TEXT NULL$workspaceV20ConversationColumn$conversationModelBindingColumns
 );
 ''');
   final isPresetColumn = missingIsPreset

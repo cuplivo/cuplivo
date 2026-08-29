@@ -5119,6 +5119,16 @@ class AppLocalizationsZh extends AppLocalizations {
       '分支会带上每条消息 roll 出的历史版本，可继续左右切换；关闭则只带当前选中的回答';
 
   @override
+  String get displaySettingsPageConversationModelIndependentTitle => '会话模型独立';
+
+  @override
+  String get displaySettingsPageConversationModelIndependentSubtitle =>
+      '新会话创建时锁定其初始模型，之后不再跟随助手模型变化；会话内切换模型仅影响该会话。';
+
+  @override
+  String get conversationModelIndependentFreezeNotice => '已切换模型，仅对当前会话生效';
+
+  @override
   String chainOfThoughtExpandSteps(Object count) {
     return '展开更多 $count 步';
   }
@@ -14082,6 +14092,16 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       '分支会带上每条消息 roll 出的历史版本，可继续左右切换；关闭则只带当前选中的回答';
 
   @override
+  String get displaySettingsPageConversationModelIndependentTitle => '会话模型独立';
+
+  @override
+  String get displaySettingsPageConversationModelIndependentSubtitle =>
+      '新会话创建时锁定其初始模型，之后不再跟随助手模型变化；会话内切换模型仅影响该会话。';
+
+  @override
+  String get conversationModelIndependentFreezeNotice => '已切换模型，仅对当前会话生效';
+
+  @override
   String chainOfThoughtExpandSteps(Object count) {
     return '展开更多 $count 步';
   }
@@ -23041,6 +23061,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get displaySettingsPageForkKeepMessageVersionsSubtitle =>
       '分支會帶上每則訊息 roll 出的歷史版本，可繼續左右切換；關閉則只帶目前選中的回答';
+
+  @override
+  String get displaySettingsPageConversationModelIndependentTitle => '會話模型獨立';
+
+  @override
+  String get displaySettingsPageConversationModelIndependentSubtitle =>
+      '新會話建立時鎖定其初始模型，之後不再跟隨助手模型變更；會話內切換模型僅影響該會話。';
+
+  @override
+  String get conversationModelIndependentFreezeNotice => '已切換模型，僅對目前會話生效';
 
   @override
   String chainOfThoughtExpandSteps(Object count) {

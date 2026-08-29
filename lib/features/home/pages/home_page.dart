@@ -835,7 +835,11 @@ class _HomePageState extends State<HomePage>
     final ap = context.watch<AssistantProvider>();
     final assistant = ap.currentAssistant;
 
-    final modelInfo = getModelDisplayInfo(settings, assistant: assistant);
+    final modelInfo = getModelDisplayInfo(
+      settings,
+      assistant: assistant,
+      conversation: _controller.currentConversation,
+    );
 
     final title = _controller.isTemporaryConversation
         ? AppLocalizations.of(context)!.temporaryChatTitle
@@ -911,6 +915,7 @@ class _HomePageState extends State<HomePage>
       temporaryConversationEnabled: _controller.isTemporaryConversation,
       onSelectModel: () => showModelSelectSheet(
         context,
+        conversation: _controller.currentConversation,
         onMultiSelectConfirm: _controller.enterMultiAIMode,
       ),
       globalSearchMode: _controller.isGlobalSearchMode,
@@ -1061,6 +1066,7 @@ class _HomePageState extends State<HomePage>
           .openGlobalSearchResult(conversationId: convId, messageId: msgId),
       onSelectModel: () => showModelSelectSheet(
         context,
+        conversation: _controller.currentConversation,
         onMultiSelectConfirm: _controller.enterMultiAIMode,
       ),
       onSidebarWidthChanged: _controller.updateSidebarWidth,
@@ -2912,12 +2918,14 @@ class _HomePageState extends State<HomePage>
       isReasoningModel: _controller.isReasoningModel,
       isReasoningEnabled: _controller.isReasoningEnabled,
       conversationId: _controller.currentConversation?.id,
+      conversation: _controller.currentConversation,
       sendButtonTooltip: _controller.isUserMessageEditActive
           ? AppLocalizations.of(context)!.messageEditPageSaveAndSend
           : null,
       onMore: _toggleTools,
       onSelectModel: () => showModelSelectSheet(
         context,
+        conversation: _controller.currentConversation,
         onMultiSelectConfirm:
             _controller.multiAIEngine.mode == MultiAIMode.synthesize
             ? null
@@ -3188,10 +3196,28 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _openReasoningSettings() async {
+    // ADR-0045: the option availability gates (X-high / max reasoning) must
+    // follow the conversation's effective model, not just the assistant's.
+    final settings = context.read<SettingsProvider>();
+    final assistant = context.read<AssistantProvider>().currentAssistant;
+    final resolved = resolveChatModel(
+      settings,
+      assistant,
+      _controller.currentConversation,
+    );
     if (PlatformUtils.isDesktop) {
-      await showDesktopReasoningBudgetPopover(context, anchorKey: _inputBarKey);
+      await showDesktopReasoningBudgetPopover(
+        context,
+        anchorKey: _inputBarKey,
+        modelProvider: resolved.providerKey,
+        modelId: resolved.modelId,
+      );
     } else {
-      await showReasoningBudgetSheet(context);
+      await showReasoningBudgetSheet(
+        context,
+        modelProvider: resolved.providerKey,
+        modelId: resolved.modelId,
+      );
     }
   }
 
@@ -3299,7 +3325,11 @@ class _HomePageState extends State<HomePage>
     ];
     // Capability gates mirror ChatInputSection: rows are only offered when
     // the current model/assistant actually supports them.
-    final modelIds = getActiveModelIds(settings, assistant: a);
+    final modelIds = getActiveModelIds(
+      settings,
+      assistant: a,
+      conversation: _controller.currentConversation,
+    );
     final pk = modelIds.providerKey;
     final mid = modelIds.modelId;
     final supportsReasoning = pk != null && mid != null;
@@ -3354,6 +3384,7 @@ class _HomePageState extends State<HomePage>
               Navigator.of(ctx).maybePop();
               showModelSelectSheet(
                 context,
+                conversation: _controller.currentConversation,
                 onMultiSelectConfirm:
                     _controller.multiAIEngine.mode == MultiAIMode.synthesize
                     ? null

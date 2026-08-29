@@ -44,6 +44,14 @@ class Conversation {
   /// A missing key means the assistant default is inherited dynamically.
   Map<String, String> workspaceDirectoryOverrides;
 
+  /// Per-conversation chat model binding (nullable). Non-null means the
+  /// conversation has its own model and never follows the assistant again.
+  /// Mirror of `Assistant.chatModelProvider` naming.
+  String? chatModelProvider;
+
+  /// Mirror of `Assistant.chatModelId` naming.
+  String? chatModelId;
+
   static const String kindNormal = 'normal';
   static const String kindGroup = 'group';
 
@@ -66,6 +74,8 @@ class Conversation {
     List<String>? chatSuggestions,
     this.conversationKind = kindNormal,
     Map<String, String>? workspaceDirectoryOverrides,
+    this.chatModelProvider,
+    this.chatModelId,
   }) : id = id ?? const Uuid().v4(),
        createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now(),
@@ -97,6 +107,8 @@ class Conversation {
     bool clearSummary = false,
     String? conversationKind,
     Map<String, String>? workspaceDirectoryOverrides,
+    String? chatModelProvider,
+    String? chatModelId,
   }) {
     return Conversation(
       id: id ?? this.id,
@@ -117,6 +129,8 @@ class Conversation {
       conversationKind: conversationKind ?? this.conversationKind,
       workspaceDirectoryOverrides:
           workspaceDirectoryOverrides ?? this.workspaceDirectoryOverrides,
+      chatModelProvider: chatModelProvider ?? this.chatModelProvider,
+      chatModelId: chatModelId ?? this.chatModelId,
     );
   }
 
@@ -138,6 +152,8 @@ class Conversation {
       'chatSuggestions': chatSuggestions,
       'conversationKind': conversationKind,
       'workspaceDirectoryOverrides': workspaceDirectoryOverrides,
+      'chatModelProvider': chatModelProvider,
+      'chatModelId': chatModelId,
     };
   }
 
@@ -170,6 +186,8 @@ class Conversation {
             (key, value) => MapEntry(key.toString(), value.toString()),
           ) ??
           <String, String>{},
+      chatModelProvider: json['chatModelProvider'] as String?,
+      chatModelId: json['chatModelId'] as String?,
     );
   }
 }

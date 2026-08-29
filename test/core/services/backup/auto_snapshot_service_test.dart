@@ -66,7 +66,7 @@ class _FakeExporter {
       throw StateError('disk full');
     }
     final unique = 'backup_${calls}_${DateTime.now().microsecondsSinceEpoch}';
-    return _buildZip('$workDir/$unique.zip', payload);
+    return _buildZip('${workDir.path}/$unique.zip', payload);
   }
 }
 

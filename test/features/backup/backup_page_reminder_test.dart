@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 
+import 'package:Cuplivo/core/providers/auto_snapshot_provider.dart';
 import 'package:Cuplivo/core/providers/backup_reminder_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
@@ -46,6 +47,13 @@ Widget _buildHarness({
       ChangeNotifierProvider<SettingsProvider>.value(value: settings),
       ChangeNotifierProvider<ChatService>.value(value: chatService),
       ChangeNotifierProvider<BackupReminderProvider>.value(value: reminder),
+      ChangeNotifierProvider<AutoSnapshotProvider>(
+        create: (_) => AutoSnapshotProvider(
+          preferences: businessPrefs,
+          chatService: chatService,
+          autoLoad: false,
+        ),
+      ),
     ],
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,

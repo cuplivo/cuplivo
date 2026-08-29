@@ -9303,6 +9303,98 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get messageStyleSettingsPageTitle => '消息样式';
+
+  @override
+  String get backupMigrateMoveOutHeader => '搬去…';
+
+  @override
+  String get backupMigrateMoveInHeader => '从…搬来';
+
+  @override
+  String get backupPageExportKelivoCompatible => '导出 Kelivo 兼容备份';
+
+  @override
+  String get backupPageImportFromOtherApps => '从其他APP导入';
+
+  @override
+  String get backupReminderSidebarTitle => '备份提醒';
+
+  @override
+  String get backupReminderSidebarSubtitle => '已经到你设定的备份周期了。';
+
+  @override
+  String get backupReminderSidebarAction => '去备份';
+
+  @override
+  String get backupReminderSnoozeTooltip => '稍后提醒';
+
+  @override
+  String get autoSnapshotSectionTitle => '自动快照';
+
+  @override
+  String get autoSnapshotEnableTitle => '启用自动快照';
+
+  @override
+  String get autoSnapshotEnableSubtitle => '在本机保留最多 3 份完整快照。快照独立于备份之外，不会随备份上传。';
+
+  @override
+  String get autoSnapshotFrequencyTitle => '快照频率';
+
+  @override
+  String get autoSnapshotFrequencyEvery12h => '每 12 小时';
+
+  @override
+  String get autoSnapshotFrequencyDaily => '每天';
+
+  @override
+  String get autoSnapshotFrequencyEvery3Days => '每 3 天';
+
+  @override
+  String get autoSnapshotFrequencyEvery5Days => '每 5 天';
+
+  @override
+  String get autoSnapshotCreateNow => '立即创建快照';
+
+  @override
+  String get autoSnapshotListTitle => '快照列表';
+
+  @override
+  String get autoSnapshotEmpty => '暂无快照';
+
+  @override
+  String autoSnapshotMetaCounts(int assistants, int conversations) {
+    return '$assistants 个助手 · $conversations 个会话';
+  }
+
+  @override
+  String get autoSnapshotCreatedToast => '快照已成功创建';
+
+  @override
+  String get autoSnapshotDedupedToast => '数据无变化，已跳过本次快照';
+
+  @override
+  String get autoSnapshotBusyToast => '有其他备份任务进行中，请稍后再试';
+
+  @override
+  String autoSnapshotFailedToast(String error) {
+    return '快照创建失败：$error';
+  }
+
+  @override
+  String get autoSnapshotDisableTitle => '关闭自动快照？';
+
+  @override
+  String autoSnapshotDisableBody(int count) {
+    return '关闭会永久删除已有的 $count 份快照。确定继续吗？';
+  }
+
+  @override
+  String get autoSnapshotDisableConfirm => '关闭并删除';
+
+  @override
+  String autoSnapshotDisableDeleteFailed(String error) {
+    return '删除存储的快照失败：$error。快照文件仍保留在磁盘上。';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -18604,6 +18696,98 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get messageStyleSettingsPageTitle => '消息样式';
+
+  @override
+  String get backupMigrateMoveOutHeader => '搬去…';
+
+  @override
+  String get backupMigrateMoveInHeader => '从…搬来';
+
+  @override
+  String get backupPageExportKelivoCompatible => '导出 Kelivo 兼容备份';
+
+  @override
+  String get backupPageImportFromOtherApps => '从其他APP导入';
+
+  @override
+  String get backupReminderSidebarTitle => '备份提醒';
+
+  @override
+  String get backupReminderSidebarSubtitle => '已经到你设定的备份周期了。';
+
+  @override
+  String get backupReminderSidebarAction => '去备份';
+
+  @override
+  String get backupReminderSnoozeTooltip => '稍后提醒';
+
+  @override
+  String get autoSnapshotSectionTitle => '自动快照';
+
+  @override
+  String get autoSnapshotEnableTitle => '启用自动快照';
+
+  @override
+  String get autoSnapshotEnableSubtitle => '在本机保留最多 3 份完整快照。快照独立于备份之外，不会随备份上传。';
+
+  @override
+  String get autoSnapshotFrequencyTitle => '快照频率';
+
+  @override
+  String get autoSnapshotFrequencyEvery12h => '每 12 小时';
+
+  @override
+  String get autoSnapshotFrequencyDaily => '每天';
+
+  @override
+  String get autoSnapshotFrequencyEvery3Days => '每 3 天';
+
+  @override
+  String get autoSnapshotFrequencyEvery5Days => '每 5 天';
+
+  @override
+  String get autoSnapshotCreateNow => '立即创建快照';
+
+  @override
+  String get autoSnapshotListTitle => '快照列表';
+
+  @override
+  String get autoSnapshotEmpty => '暂无快照';
+
+  @override
+  String autoSnapshotMetaCounts(int assistants, int conversations) {
+    return '$assistants 个助手 · $conversations 个会话';
+  }
+
+  @override
+  String get autoSnapshotCreatedToast => '快照已成功创建';
+
+  @override
+  String get autoSnapshotDedupedToast => '数据无变化，已跳过本次快照';
+
+  @override
+  String get autoSnapshotBusyToast => '有其他备份任务进行中，请稍后再试';
+
+  @override
+  String autoSnapshotFailedToast(String error) {
+    return '快照创建失败：$error';
+  }
+
+  @override
+  String get autoSnapshotDisableTitle => '关闭自动快照？';
+
+  @override
+  String autoSnapshotDisableBody(int count) {
+    return '关闭会永久删除已有的 $count 份快照。确定继续吗？';
+  }
+
+  @override
+  String get autoSnapshotDisableConfirm => '关闭并删除';
+
+  @override
+  String autoSnapshotDisableDeleteFailed(String error) {
+    return '删除存储的快照失败：$error。快照文件仍保留在磁盘上。';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -27907,4 +28091,96 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get messageStyleSettingsPageTitle => '訊息樣式';
+
+  @override
+  String get backupMigrateMoveOutHeader => '搬去…';
+
+  @override
+  String get backupMigrateMoveInHeader => '從…搬來';
+
+  @override
+  String get backupPageExportKelivoCompatible => '匯出 Kelivo 相容備份';
+
+  @override
+  String get backupPageImportFromOtherApps => '從其他APP匯入';
+
+  @override
+  String get backupReminderSidebarTitle => '備份提醒';
+
+  @override
+  String get backupReminderSidebarSubtitle => '已經到你設定的備份週期了。';
+
+  @override
+  String get backupReminderSidebarAction => '去備份';
+
+  @override
+  String get backupReminderSnoozeTooltip => '稍後提醒';
+
+  @override
+  String get autoSnapshotSectionTitle => '自動快照';
+
+  @override
+  String get autoSnapshotEnableTitle => '啟用自動快照';
+
+  @override
+  String get autoSnapshotEnableSubtitle => '在本機保留最多 3 份完整快照。快照獨立於備份之外，不會隨備份上傳。';
+
+  @override
+  String get autoSnapshotFrequencyTitle => '快照頻率';
+
+  @override
+  String get autoSnapshotFrequencyEvery12h => '每 12 小時';
+
+  @override
+  String get autoSnapshotFrequencyDaily => '每天';
+
+  @override
+  String get autoSnapshotFrequencyEvery3Days => '每 3 天';
+
+  @override
+  String get autoSnapshotFrequencyEvery5Days => '每 5 天';
+
+  @override
+  String get autoSnapshotCreateNow => '立即建立快照';
+
+  @override
+  String get autoSnapshotListTitle => '快照清單';
+
+  @override
+  String get autoSnapshotEmpty => '尚無快照';
+
+  @override
+  String autoSnapshotMetaCounts(int assistants, int conversations) {
+    return '$assistants 個助手 · $conversations 個會話';
+  }
+
+  @override
+  String get autoSnapshotCreatedToast => '快照已成功建立';
+
+  @override
+  String get autoSnapshotDedupedToast => '資料無變化，已跳過本次快照';
+
+  @override
+  String get autoSnapshotBusyToast => '有其他備份任務進行中，請稍後再試';
+
+  @override
+  String autoSnapshotFailedToast(String error) {
+    return '快照建立失敗：$error';
+  }
+
+  @override
+  String get autoSnapshotDisableTitle => '關閉自動快照？';
+
+  @override
+  String autoSnapshotDisableBody(int count) {
+    return '關閉會永久刪除已有的 $count 份快照。確定繼續嗎？';
+  }
+
+  @override
+  String get autoSnapshotDisableConfirm => '關閉並刪除';
+
+  @override
+  String autoSnapshotDisableDeleteFailed(String error) {
+    return '刪除儲存的快照失敗：$error。快照檔案仍保留在磁碟上。';
+  }
 }

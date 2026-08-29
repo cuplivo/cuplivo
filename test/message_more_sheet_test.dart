@@ -60,6 +60,13 @@ void main() {
     expect(find.text('Delete All Versions'), findsOneWidget);
   });
 
+  testWidgets('菜单不再显示独立的分享入口', (tester) async {
+    await _openMoreSheet(tester, canDeleteAllVersions: false);
+
+    expect(find.text('Share'), findsNothing);
+    expect(find.text('Select Messages'), findsOneWidget);
+  });
+
   testWidgets('单版本消息菜单不显示删除全部版本', (tester) async {
     await _openMoreSheet(tester, canDeleteAllVersions: false);
 

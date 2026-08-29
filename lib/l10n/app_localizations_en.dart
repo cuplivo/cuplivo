@@ -3226,10 +3226,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Export this message as a Markdown file';
 
   @override
-  String get messageExportSheetBatchMarkdownSubtitle =>
-      'Export selected messages as a Markdown file';
-
-  @override
   String get messageExportSheetPlainText => 'Plain Text';
 
   @override
@@ -3237,19 +3233,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Export this message as a TXT file';
 
   @override
-  String get messageExportSheetBatchTxtSubtitle =>
-      'Export selected messages as a TXT file';
-
-  @override
   String get messageExportSheetExportImage => 'Export as Image';
 
   @override
   String get messageExportSheetSingleExportImageSubtitle =>
       'Render this message to a PNG image';
-
-  @override
-  String get messageExportSheetBatchExportImageSubtitle =>
-      'Render selected messages to a PNG image';
 
   @override
   String get messageExportSheetShowThinkingAndToolCards =>

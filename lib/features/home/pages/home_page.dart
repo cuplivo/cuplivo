@@ -85,9 +85,9 @@ import '../services/ask_user_interaction_service.dart';
 import '../services/tool_approval_service.dart';
 import '../widgets/chat_input_section.dart';
 import '../widgets/chat_input_overlay_layout.dart';
+import '../widgets/chat_selection_action_bar.dart';
 import '../widgets/chat_selection_app_bar.dart';
-import '../widgets/chat_selection_delete_bar.dart';
-import '../widgets/chat_selection_export_bar.dart';
+import '../widgets/chat_selection_delete_dialog.dart';
 import '../widgets/user_message_edit_overlay.dart';
 import '../utils/model_display_helper.dart';
 import '../utils/chat_layout_constants.dart';
@@ -1120,29 +1120,14 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _buildSelectionActionBar(BuildContext context) {
-    if (_controller.selectionMode == ChatSelectionMode.delete) {
-      return ChatSelectionDeleteBar(
-        key: _selectionActionBarKey,
-        hasMultiVersionSelection:
-            _controller.selectedMessagesIncludeMultipleVersions,
-        onDeleteCurrentVersions: () {
-          unawaited(
-            _handleDeleteSelectedMessages(context, deleteAllVersions: false),
-          );
-        },
-        onDeleteAllVersions: () {
-          unawaited(
-            _handleDeleteSelectedMessages(context, deleteAllVersions: true),
-          );
-        },
-      );
-    }
-
-    return ChatSelectionExportBar(
+    return ChatSelectionActionBar(
       key: _selectionActionBarKey,
       onExportMarkdown: _controller.exportSelectedAsMarkdown,
       onExportTxt: _controller.exportSelectedAsTxt,
       onExportImage: _controller.exportSelectedAsImage,
+      onDelete: () {
+        unawaited(_handleDeleteSelectedMessages(context));
+      },
       showThinkingTools: _controller.showThinkingTools,
       showThinkingContent: _controller.showThinkingContent,
       onToggleThinkingTools: _controller.toggleThinkingTools,
@@ -1688,12 +1673,9 @@ class _HomePageState extends State<HomePage>
       ),
       onMultiAI: (message) => _controller.handleMultiAIAction(message),
       onForkConversation: (message) => _controller.forkConversation(message),
-      onShareMessage: (index, messages) =>
-          _controller.shareMessage(index, messages),
       onSelectMessages: (index, messages) => _controller.startMessageSelection(
         messageIndex: index,
         messageList: messages,
-        mode: ChatSelectionMode.delete,
       ),
       onSpeakMessage: (message) => _controller.speakMessage(message),
       onSuggestionTap: (suggestion) => _controller.sendSuggestion(suggestion),
@@ -2221,14 +2203,6 @@ class _HomePageState extends State<HomePage>
         await _showWebMessageMore(message, visibleMessages);
         return;
       case 'share':
-        _controller.shareMessage(
-          visibleMessages.indexOf(message),
-          visibleMessages,
-        );
-        return;
-      case 'fork':
-        await _controller.forkConversation(message);
-        return;
       case 'select':
         if (_controller.selecting) {
           _controller.toggleSelection(
@@ -2240,8 +2214,10 @@ class _HomePageState extends State<HomePage>
         _controller.startMessageSelection(
           messageIndex: visibleMessages.indexOf(message),
           messageList: visibleMessages,
-          mode: ChatSelectionMode.delete,
         );
+        return;
+      case 'fork':
+        await _controller.forkConversation(message);
         return;
       case 'delete':
         if (!mounted) return;
@@ -2378,17 +2354,10 @@ class _HomePageState extends State<HomePage>
       case MessageMoreAction.fork:
         await _controller.forkConversation(message);
         return;
-      case MessageMoreAction.share:
-        _controller.shareMessage(
-          visibleMessages.indexOf(message),
-          visibleMessages,
-        );
-        return;
       case MessageMoreAction.selectMessages:
         _controller.startMessageSelection(
           messageIndex: visibleMessages.indexOf(message),
           messageList: visibleMessages,
-          mode: ChatSelectionMode.delete,
         );
         return;
       case MessageMoreAction.multiAI:
@@ -3566,12 +3535,8 @@ class _HomePageState extends State<HomePage>
     await _controller.deleteMessage(message: message, byGroup: byGroup);
   }
 
-  Future<void> _handleDeleteSelectedMessages(
-    BuildContext context, {
-    required bool deleteAllVersions,
-  }) async {
+  Future<void> _handleDeleteSelectedMessages(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
-    final cs = Theme.of(context).colorScheme;
     if (_controller.selectedItems.isEmpty) {
       showAppSnackBar(
         context,
@@ -3581,36 +3546,14 @@ class _HomePageState extends State<HomePage>
       return;
     }
 
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          deleteAllVersions
-              ? l10n.homePageDeleteAllVersions
-              : l10n.chatSelectionDeleteSelected,
-        ),
-        content: Text(
-          deleteAllVersions
-              ? l10n.chatSelectionDeleteSelectedAllVersionsConfirm(
-                  _controller.selectedItems.length,
-                )
-              : l10n.chatSelectionDeleteSelectedConfirm(
-                  _controller.selectedItems.length,
-                ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.homePageCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.homePageDelete, style: TextStyle(color: cs.error)),
-          ),
-        ],
-      ),
+    final count = _controller.selectedItems.length;
+    final deleteAllVersions = await showChatSelectionDeleteDialog(
+      context,
+      count: count,
+      hasMultiVersionSelection:
+          _controller.selectedMessagesIncludeMultipleVersions,
     );
-    if (confirm != true) return;
+    if (deleteAllVersions == null) return;
 
     await _controller.deleteSelectedMessages(
       deleteAllVersions: deleteAllVersions,

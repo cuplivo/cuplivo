@@ -2,14 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Cuplivo/features/home/widgets/chat_selection_delete_bar.dart';
-import 'package:Cuplivo/features/home/widgets/chat_selection_export_bar.dart';
+import 'package:Cuplivo/features/home/widgets/chat_selection_action_bar.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
-import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
-import 'package:Cuplivo/theme/app_font_weights.dart';
-import 'package:provider/provider.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:provider/provider.dart';
 
 var businessPrefs = BusinessPreferences.memoryForTests();
 
@@ -39,13 +36,19 @@ Future<void> _pumpBar(WidgetTester tester, Widget child) async {
 }
 
 void main() {
-  testWidgets('分享导出栏不展示删除操作', (tester) async {
+  testWidgets('统一动作台展示导出三格和删除格', (tester) async {
+    var markdownDeletes = 0;
+    var txtDeletes = 0;
+    var imageDeletes = 0;
+    var deleteTaps = 0;
+
     await _pumpBar(
       tester,
-      ChatSelectionExportBar(
-        onExportMarkdown: () {},
-        onExportTxt: () {},
-        onExportImage: () {},
+      ChatSelectionActionBar(
+        onExportMarkdown: () => markdownDeletes++,
+        onExportTxt: () => txtDeletes++,
+        onExportImage: () => imageDeletes++,
+        onDelete: () => deleteTaps++,
         showThinkingTools: false,
         showThinkingContent: false,
         onToggleThinkingTools: () {},
@@ -56,66 +59,48 @@ void main() {
     expect(find.text('TXT'), findsOneWidget);
     expect(find.text('MD'), findsOneWidget);
     expect(find.text('Image'), findsOneWidget);
-    expect(find.text('Delete Selected'), findsNothing);
-    expect(find.text('Delete This Version'), findsNothing);
-    expect(find.text('Delete All Versions'), findsNothing);
-  });
-
-  testWidgets('删除栏在单版本选择时只展示普通删除', (tester) async {
-    var currentVersionDeletes = 0;
-    var allVersionDeletes = 0;
-
-    await _pumpBar(
-      tester,
-      ChatSelectionDeleteBar(
-        hasMultiVersionSelection: false,
-        onDeleteCurrentVersions: () {
-          currentVersionDeletes++;
-        },
-        onDeleteAllVersions: () {
-          allVersionDeletes++;
-        },
-      ),
-    );
-
     expect(find.text('Delete'), findsOneWidget);
-    expect(find.text('Delete This Version'), findsNothing);
-    expect(find.text('Delete All Versions'), findsNothing);
-    expect(tester.getSize(find.byType(IosCardPress)).width, closeTo(396, 0.1));
-    expect(
-      tester.widget<Text>(find.text('Delete')).style?.fontWeight,
-      AppFontWeights.medium,
-    );
 
+    await tester.tap(find.text('TXT'));
+    await tester.tap(find.text('MD'));
+    await tester.tap(find.text('Image'));
     await tester.tap(find.text('Delete'));
-    expect(currentVersionDeletes, 1);
-    expect(allVersionDeletes, 0);
+
+    expect(markdownDeletes, 1);
+    expect(txtDeletes, 1);
+    expect(imageDeletes, 1);
+    expect(deleteTaps, 1);
   });
 
-  testWidgets('删除栏在多版本选择时展示本版本和全部版本', (tester) async {
-    var currentVersionDeletes = 0;
-    var allVersionDeletes = 0;
+  testWidgets('thinking 开关独立作用于导出选项', (tester) async {
+    var tools = false;
+    var content = false;
 
     await _pumpBar(
       tester,
-      ChatSelectionDeleteBar(
-        hasMultiVersionSelection: true,
-        onDeleteCurrentVersions: () {
-          currentVersionDeletes++;
-        },
-        onDeleteAllVersions: () {
-          allVersionDeletes++;
-        },
+      StatefulBuilder(
+        builder: (context, setState) => ChatSelectionActionBar(
+          onExportMarkdown: () {},
+          onExportTxt: () {},
+          onExportImage: () {},
+          onDelete: () {},
+          showThinkingTools: tools,
+          showThinkingContent: content,
+          onToggleThinkingTools: () => setState(() => tools = !tools),
+          onToggleThinkingContent: () => setState(() => content = !content),
+        ),
       ),
     );
 
-    expect(find.text('Delete This Version'), findsOneWidget);
-    expect(find.text('Delete All Versions'), findsOneWidget);
+    expect(find.text('Thinking tools'), findsOneWidget);
+    expect(find.text('Thinking content'), findsOneWidget);
 
-    await tester.tap(find.text('Delete This Version'));
-    await tester.tap(find.text('Delete All Versions'));
+    await tester.tap(find.text('Thinking tools'));
+    await tester.pumpAndSettle();
+    expect(tools, isTrue);
 
-    expect(currentVersionDeletes, 1);
-    expect(allVersionDeletes, 1);
+    await tester.tap(find.text('Thinking content'));
+    await tester.pumpAndSettle();
+    expect(content, isTrue);
   });
 }

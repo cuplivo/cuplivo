@@ -964,3 +964,15 @@
 
 - "引用" was used to mean both the message-level reply's **Quote** and the pre-existing text-selection 引用 paste — resolved: two features sharing only the Chinese word; internal term is always **Quote** (reply) vs 引用-paste.
 - "display-only" was floated mid-design and retracted: the quote is a display citation **plus** a context-carrier via `<reply-to>`; it is never wire-structural (no thread/tree, no role change).
+
+## Message Selection Mode (消息选择模式) — ADR-0044
+
+- **消息选择模式 (message selection mode)**: The single trade-select mode entered from the message 更多 sheet's 选择消息 entry (Share was merged into it). The anchor message and its paired user/assistant message are pre-selected at entry; the user can toggle, select-all, invert, or use the mini-map. Exists as one shape only — there is no share/delete distinction anymore.
+- **选择动作台 (selection action bar)**: The unified bottom bar that replaces the old export bar and delete bar — `ChatSelectionActionBar`. Row 1 = TXT / MD / Image / 删除(destructive); Row 2 = thinking tools / thinking content toggles. Both 分享(导出) and 删除 act on the same selection set.
+- **多版本删除 (multi-version delete)**: When the selection contains messages with multiple versions, the 删除 action opens one radio confirm dialog (删除本版本 default / 删除全部版本) with the count warning; single-version selections keep the plain confirm dialog. "Current version" restores the old delete-current behavior; "all versions" deletes the group.
+- **Fork divergence vs upstream (分叉差异)**: Upstream Kelivo keeps separate 分享 and 选择消息 menu entries; Cuplivo deliberately merged them (ADR-0044). The legacy WebView protocol actions `'share'`/`'select'` are still accepted and both route to the unified entry.
+
+### Example Dialogue
+
+> **Dev:** "Can the selection action bar still delete all versions of a multi-version message?"
+> **Domain expert:** "Yes — 删除 opens one dialog with a 删除本版本/删除全部版本 radio pair (本版本 pre-selected); the old two-button delete bar is gone. And there's no separate 'share' entry anymore: 选择消息 is the only door into selection mode, and from there you can either export or delete the same selection."

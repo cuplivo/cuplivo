@@ -26,7 +26,6 @@ enum MessageMoreAction {
   fork,
   deleteCurrentVersion,
   deleteAllVersions,
-  share,
   selectMessages,
   multiAI,
   readingMode,
@@ -134,14 +133,6 @@ Future<MessageMoreAction?> showMessageMoreSheet(
           label: l10n.messageMoreSheetReply,
           onTap: () {
             selected = MessageMoreAction.reply;
-          },
-        ),
-      if (!(hideActions?.contains(MessageMoreAction.share) ?? false))
-        DesktopContextMenuItem(
-          icon: Lucide.Share,
-          label: l10n.messageMoreSheetShare,
-          onTap: () {
-            selected = MessageMoreAction.share;
           },
         ),
       if (message.role != 'user' &&
@@ -382,14 +373,6 @@ class _MessageMoreSheetState extends State<_MessageMoreSheet> {
                         label: l10n.messageMoreSheetReply,
                         onTap: () {
                           Navigator.of(context).pop(MessageMoreAction.reply);
-                        },
-                      ),
-                    if (!_hid(MessageMoreAction.share))
-                      _actionItem(
-                        icon: Lucide.Share,
-                        label: l10n.messageMoreSheetShare,
-                        onTap: () {
-                          Navigator.of(context).pop(MessageMoreAction.share);
                         },
                       ),
                     if (widget.message.role != 'user' &&

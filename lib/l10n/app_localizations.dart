@@ -5866,12 +5866,6 @@ abstract class AppLocalizations {
   /// **'Export this message as a Markdown file'**
   String get messageExportSheetSingleMarkdownSubtitle;
 
-  /// No description provided for @messageExportSheetBatchMarkdownSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Export selected messages as a Markdown file'**
-  String get messageExportSheetBatchMarkdownSubtitle;
-
   /// No description provided for @messageExportSheetPlainText.
   ///
   /// In en, this message translates to:
@@ -5884,12 +5878,6 @@ abstract class AppLocalizations {
   /// **'Export this message as a TXT file'**
   String get messageExportSheetSingleTxtSubtitle;
 
-  /// No description provided for @messageExportSheetBatchTxtSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Export selected messages as a TXT file'**
-  String get messageExportSheetBatchTxtSubtitle;
-
   /// No description provided for @messageExportSheetExportImage.
   ///
   /// In en, this message translates to:
@@ -5901,12 +5889,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Render this message to a PNG image'**
   String get messageExportSheetSingleExportImageSubtitle;
-
-  /// No description provided for @messageExportSheetBatchExportImageSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Render selected messages to a PNG image'**
-  String get messageExportSheetBatchExportImageSubtitle;
 
   /// No description provided for @messageExportSheetShowThinkingAndToolCards.
   ///

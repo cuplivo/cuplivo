@@ -3108,25 +3108,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageExportSheetSingleMarkdownSubtitle => '将该消息导出为 Markdown 文件';
 
   @override
-  String get messageExportSheetBatchMarkdownSubtitle => '将选中的消息导出为 Markdown 文件';
-
-  @override
   String get messageExportSheetPlainText => '纯文本';
 
   @override
   String get messageExportSheetSingleTxtSubtitle => '将该消息导出为 TXT 文件';
 
   @override
-  String get messageExportSheetBatchTxtSubtitle => '将选中的消息导出为 TXT 文件';
-
-  @override
   String get messageExportSheetExportImage => '导出为图片';
 
   @override
   String get messageExportSheetSingleExportImageSubtitle => '将该消息渲染为 PNG 图片';
-
-  @override
-  String get messageExportSheetBatchExportImageSubtitle => '将选中的消息渲染为 PNG 图片';
 
   @override
   String get messageExportSheetShowThinkingAndToolCards => '显示思考卡片和工具卡片';
@@ -12071,25 +12062,16 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageExportSheetSingleMarkdownSubtitle => '将该消息导出为 Markdown 文件';
 
   @override
-  String get messageExportSheetBatchMarkdownSubtitle => '将选中的消息导出为 Markdown 文件';
-
-  @override
   String get messageExportSheetPlainText => '纯文本';
 
   @override
   String get messageExportSheetSingleTxtSubtitle => '将该消息导出为 TXT 文件';
 
   @override
-  String get messageExportSheetBatchTxtSubtitle => '将选中的消息导出为 TXT 文件';
-
-  @override
   String get messageExportSheetExportImage => '导出为图片';
 
   @override
   String get messageExportSheetSingleExportImageSubtitle => '将该消息渲染为 PNG 图片';
-
-  @override
-  String get messageExportSheetBatchExportImageSubtitle => '将选中的消息渲染为 PNG 图片';
 
   @override
   String get messageExportSheetShowThinkingAndToolCards => '显示思考卡片和工具卡片';
@@ -21033,25 +21015,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get messageExportSheetSingleMarkdownSubtitle => '將該訊息匯出為 Markdown 檔案';
 
   @override
-  String get messageExportSheetBatchMarkdownSubtitle => '將選中的訊息匯出為 Markdown 檔案';
-
-  @override
   String get messageExportSheetPlainText => '純文字';
 
   @override
   String get messageExportSheetSingleTxtSubtitle => '將該訊息匯出為 TXT 檔案';
 
   @override
-  String get messageExportSheetBatchTxtSubtitle => '將選中的訊息匯出為 TXT 檔案';
-
-  @override
   String get messageExportSheetExportImage => '匯出為圖片';
 
   @override
   String get messageExportSheetSingleExportImageSubtitle => '將該訊息渲染為 PNG 圖片';
-
-  @override
-  String get messageExportSheetBatchExportImageSubtitle => '將選中的訊息渲染為 PNG 圖片';
 
   @override
   String get messageExportSheetShowThinkingAndToolCards => '顯示深度思考卡片與工具卡片';

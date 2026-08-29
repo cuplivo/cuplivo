@@ -63,8 +63,6 @@ import '../services/file_upload_service.dart';
 import '../widgets/chat_input_bar.dart';
 import '../../model/widgets/model_select_sheet.dart';
 
-enum ChatSelectionMode { share, delete }
-
 /// Translation data for UI state (expanded/collapsed).
 class TranslationData {
   bool expanded = true; // default to expanded when translation is added
@@ -188,7 +186,6 @@ class HomePageController extends ChangeNotifier {
 
   // Selection mode
   bool _selecting = false;
-  ChatSelectionMode _selectionMode = ChatSelectionMode.share;
   final Set<String> _selectedItems = <String>{};
   bool _showThinkingTools = false;
   bool _showThinkingContent = false;
@@ -247,7 +244,6 @@ class HomePageController extends ChangeNotifier {
   Map<String, TranslationData> get translations => _translations;
   ChatController get chatController => _chatController;
   bool get selecting => _selecting;
-  ChatSelectionMode get selectionMode => _selectionMode;
   Set<String> get selectedItems => _selectedItems;
   int get selectedCount => _selectedItems.length;
   bool get showThinkingTools => _showThinkingTools;
@@ -1826,22 +1822,12 @@ class HomePageController extends ChangeNotifier {
     await tts.speak(text);
   }
 
-  void shareMessage(int messageIndex, List<ChatMessage> messageList) {
-    startMessageSelection(
-      messageIndex: messageIndex,
-      messageList: messageList,
-      mode: ChatSelectionMode.share,
-    );
-  }
-
   void startMessageSelection({
     required int messageIndex,
     required List<ChatMessage> messageList,
-    required ChatSelectionMode mode,
   }) {
     dismissKeyboard();
     _selecting = true;
-    _selectionMode = mode;
     _selectedItems.clear();
     _showThinkingTools = false;
     _showThinkingContent = false;
@@ -2079,33 +2065,8 @@ class HomePageController extends ChangeNotifier {
     );
   }
 
-  Future<void> confirmSelection() async {
-    final convo = currentConversation;
-    if (convo == null) return;
-    final selected = _selectedCollapsedMessages();
-    if (selected.isEmpty) {
-      final l10n = AppLocalizations.of(_context)!;
-      showAppSnackBar(
-        _context,
-        message: l10n.homePageSelectMessagesToShare,
-        type: NotificationType.info,
-      );
-      return;
-    }
-    _selecting = false;
-    notifyListeners();
-    await showChatExportSheet(
-      _context,
-      conversation: convo,
-      selectedMessages: selected,
-    );
-    _selectedItems.clear();
-    notifyListeners();
-  }
-
   void cancelSelection() {
     _selecting = false;
-    _selectionMode = ChatSelectionMode.share;
     _selectedItems.clear();
     notifyListeners();
   }

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
@@ -104,17 +105,13 @@ class AutoSnapshotException implements Exception {
 /// the temporary file and leaves the existing snapshots untouched.
 class AutoSnapshotService {
   AutoSnapshotService({
-    required Future<File> Function() exportBackup,
-    required int Function() assistantCount,
-    required int Function() conversationCount,
-    required int Function() messageCount,
+    required this._exportBackup,
+    required this._assistantCount,
+    required this._conversationCount,
+    required this._messageCount,
     Future<Directory> Function()? rootDirectoryResolver,
     this.maxSnapshots = 3,
-  }) : _exportBackup = exportBackup,
-       _assistantCount = assistantCount,
-       _conversationCount = conversationCount,
-       _messageCount = messageCount,
-       _rootDirectoryResolver =
+  }) : _rootDirectoryResolver =
            rootDirectoryResolver ?? AppDirectories.getAppDataDirectory;
 
   static const String _zipPrefix = 'auto_snapshot_';

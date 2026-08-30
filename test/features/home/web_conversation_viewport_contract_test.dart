@@ -198,7 +198,7 @@ void main() {
     final automaticBody = source.substring(scheduleStart, confirmStart);
     final explicitBody = source.substring(
       confirmStart,
-      source.indexOf('String _webCssColor', confirmStart),
+      source.indexOf('Widget _buildChatInputBar', confirmStart),
     );
 
     expect(automaticBody, contains('_showWebMultiAIFallbackNotice()'));
@@ -226,7 +226,7 @@ void main() {
     'HomePage assigns the Flutter-owned background mode to Web snapshots',
     () {
       final source = File(
-        'lib/features/home/pages/home_page.dart',
+        'lib/features/home/webview/web_chat_snapshot.dart',
       ).readAsStringSync();
 
       expect(source, contains("'backgroundOwner': 'flutter'"));
@@ -237,7 +237,7 @@ void main() {
     'HomePage passes Flutter code-block surface tokens to Web snapshots',
     () {
       final source = File(
-        'lib/features/home/pages/home_page.dart',
+        'lib/features/home/webview/web_chat_snapshot.dart',
       ).readAsStringSync();
 
       expect(source, contains("'code-body'"));
@@ -252,7 +252,7 @@ void main() {
     'HomePage reuses the localized Web loading label for virtual windows',
     () {
       final source = File(
-        'lib/features/home/pages/home_page.dart',
+        'lib/features/home/webview/web_chat_snapshot.dart',
       ).readAsStringSync();
 
       expect(source, contains("'loading': l10n.webChatLoading"));
@@ -260,25 +260,31 @@ void main() {
   );
 
   test('Windows Web assets reuse only complete versioned caches', () {
-    final source = File(
+    final viewportSource = File(
       'lib/features/home/webview/web_conversation_viewport.dart',
     ).readAsStringSync();
+    final cacheSource = File(
+      'lib/features/home/webview/web_chat_shell_cache.dart',
+    ).readAsStringSync();
 
-    expect(source, contains('.complete'));
-    expect(source, contains('.complete.tmp'));
-    expect(source, contains('_windowsCacheIsComplete'));
-    expect(source, contains('_cleanupOldWindowsCaches'));
-    expect(source, contains("'mermaid.min.js'"));
+    expect(cacheSource, contains('.complete'));
+    expect(cacheSource, contains('.complete.tmp'));
+    expect(cacheSource, contains('_windowsCacheIsComplete'));
+    expect(cacheSource, contains('_cleanupOldWindowsCaches'));
+    expect(cacheSource, contains("'mermaid.min.js'"));
     expect(
-      source,
+      viewportSource,
       contains("queryParameters: <String, String>{'platform': 'windows'}"),
     );
-    expect(source, contains('addVirtualHostNameMapping'));
-    expect(source, contains("scheme: 'https'"));
-    expect(source, contains("host: _windowsVirtualHost"));
-    expect(source, contains('winweb.WebviewHostResourceAccessKind.deny'));
-    expect(source, isNot(contains('Uri.file(shell.path)')));
-    expect(RegExp(r'flush: true').allMatches(source), hasLength(1));
+    expect(viewportSource, contains('addVirtualHostNameMapping'));
+    expect(viewportSource, contains("scheme: 'https'"));
+    expect(viewportSource, contains("host: webChatWindowsVirtualHost"));
+    expect(
+      viewportSource,
+      contains('winweb.WebviewHostResourceAccessKind.deny'),
+    );
+    expect(viewportSource, isNot(contains('Uri.file(shell.path)')));
+    expect(RegExp(r'flush: true').allMatches(cacheSource), hasLength(1));
   });
 
   test(

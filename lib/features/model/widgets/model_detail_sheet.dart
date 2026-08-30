@@ -15,6 +15,7 @@ import '../../../shared/widgets/ios_tile_button.dart';
 import 'model_edit_state_helper.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/shared/widgets/segmented_toggle.dart';
 
 Future<bool?> showModelDetailSheet(
   BuildContext context, {
@@ -509,7 +510,7 @@ class _ModelDetailSheetState extends State<_ModelDetailSheet>
             const SizedBox(height: 12),
             _label(context, l10n.modelDetailSheetModelTypeLabel),
             const SizedBox(height: 6),
-            _SegmentedSingle(
+            SegmentedToggle(
               options: [
                 l10n.modelDetailSheetChatType,
                 l10n.modelDetailSheetEmbeddingType,
@@ -529,7 +530,7 @@ class _ModelDetailSheetState extends State<_ModelDetailSheet>
           children: [
             _label(context, l10n.modelDetailSheetInputModesLabel),
             const SizedBox(height: 6),
-            _SegmentedMulti(
+            SegmentedToggleMulti(
               options: [
                 l10n.modelDetailSheetTextMode,
                 l10n.modelDetailSheetImageMode,
@@ -552,7 +553,7 @@ class _ModelDetailSheetState extends State<_ModelDetailSheet>
               const SizedBox(height: 12),
               _label(context, l10n.modelDetailSheetOutputModesLabel),
               const SizedBox(height: 6),
-              _SegmentedMulti(
+              SegmentedToggleMulti(
                 options: [
                   l10n.modelDetailSheetTextMode,
                   l10n.modelDetailSheetImageMode,
@@ -574,7 +575,7 @@ class _ModelDetailSheetState extends State<_ModelDetailSheet>
               const SizedBox(height: 12),
               _label(context, l10n.modelDetailSheetAbilitiesLabel),
               const SizedBox(height: 6),
-              _SegmentedMulti(
+              SegmentedToggleMulti(
                 options: [
                   l10n.modelDetailSheetToolsAbility,
                   l10n.modelDetailSheetReasoningAbility,
@@ -945,196 +946,6 @@ class _ModelDetailSheetState extends State<_ModelDetailSheet>
     }
     if (!mounted) return;
     Navigator.of(context).pop(true);
-  }
-}
-
-class _SegmentedSingle extends StatelessWidget {
-  const _SegmentedSingle({
-    required this.options,
-    required this.value,
-    required this.onChanged,
-  });
-  final List<String> options;
-  final int value; // index
-  final ValueChanged<int> onChanged;
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final Color sel = isDark
-        ? cs.primary.withValues(alpha: 0.20)
-        : cs.primary.withValues(alpha: 0.14);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: context.appColors.surfaceFill,
-        border: Border.all(
-          color: Theme.of(
-            context,
-          ).colorScheme.outlineVariant.withValues(alpha: 0.35),
-        ),
-      ),
-      child: Row(
-        children: [
-          for (int i = 0; i < options.length; i++)
-            Expanded(
-              child: InkWell(
-                onTap: () => onChanged(i),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: i == value ? sel : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (i == value)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: Icon(
-                            Lucide.Check,
-                            size: 16,
-                            color: cs.primary,
-                          ),
-                        ),
-                      Text(
-                        options[i],
-                        style: TextStyle(
-                          color: cs.onSurface,
-                          fontWeight: AppFontWeights.semibold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SegmentedMulti extends StatelessWidget {
-  const _SegmentedMulti({
-    required this.options,
-    required this.isSelected,
-    required this.onChanged,
-    this.allowEmpty = false,
-  });
-
-  final List<String> options;
-  final List<bool> isSelected;
-  final ValueChanged<int> onChanged;
-  final bool allowEmpty;
-
-  @override
-  Widget build(BuildContext context) {
-    assert(options.length == isSelected.length);
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bool allSelected =
-        isSelected.isNotEmpty && isSelected.every((e) => e);
-    final int selectedCount = isSelected.where((e) => e).length;
-
-    final base = context.appColors.surfaceFill;
-    final sel = isDark
-        ? cs.primary.withValues(alpha: 0.20)
-        : cs.primary.withValues(alpha: 0.14);
-    final r = BorderRadius.circular(12);
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: r,
-        color: base, // 外层始终用同一个“底色”
-        border: Border.all(
-          color: Theme.of(
-            context,
-          ).colorScheme.outlineVariant.withValues(alpha: 0.35),
-        ),
-      ),
-      child: ClipRRect(
-        // 确保内部遮罩遵守圆角
-        borderRadius: r,
-        child: Stack(
-          children: [
-            // 全选时：在“同一个底色”上叠加一层 sel（与单选的叠加路径一致）
-            if (allSelected)
-              Positioned.fill(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
-                  decoration: BoxDecoration(color: sel, borderRadius: r),
-                ),
-              ),
-            Row(
-              children: [
-                for (int i = 0; i < options.length; i++)
-                  Expanded(
-                    child: InkWell(
-                      splashColor: Colors.transparent,
-                      highlightColor: Colors.transparent,
-                      onTap: () => onChanged(i),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 160),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          // 全选时子项透明，让上面的整条遮罩生效；
-                          // 非全选时按原逻辑逐项着色
-                          color: allSelected
-                              ? Colors.transparent
-                              : (isSelected[i] ? sel : Colors.transparent),
-                          borderRadius: selectedCount == 1 && isSelected[i]
-                              ? r
-                              : i == 0
-                              ? const BorderRadius.only(
-                                  topLeft: Radius.circular(12),
-                                  bottomLeft: Radius.circular(12),
-                                )
-                              : (i == options.length - 1
-                                    ? const BorderRadius.only(
-                                        topRight: Radius.circular(12),
-                                        bottomRight: Radius.circular(12),
-                                      )
-                                    : BorderRadius.zero),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            if (isSelected[i])
-                              Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: Icon(
-                                  Lucide.Check,
-                                  size: 16,
-                                  color: cs.primary,
-                                ),
-                              ),
-                            Text(
-                              options[i],
-                              style: TextStyle(
-                                color: cs.onSurface,
-                                fontWeight: AppFontWeights.semibold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

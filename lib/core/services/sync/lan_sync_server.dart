@@ -289,7 +289,7 @@ class LanSyncServer extends ChangeNotifier {
     // Modern peer (manifest present): exact per-file delta + per-conversation
     // chat window from the retained plan. Old peer: legacy single-`since`
     // mtime/chat filter. No zip at all when there is nothing to send.
-    final cfg = const WebDavConfig(includeChats: true, includeFiles: true);
+    final cfg = const WebDavConfig();
     File? myZip;
     final outboundDelta = _serverOutboundDelta;
     final hasSomethingToSend =

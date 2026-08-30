@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/models/backup.dart';
 import '../../core/models/incremental_backup.dart';
 import '../../icons/lucide_adapter.dart';
 import '../../utils/format.dart';
@@ -8,19 +8,20 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_font_weights.dart';
 import '../widgets/ios_switch.dart';
 import '../widgets/ios_tactile.dart';
+import '../widgets/segmented_toggle.dart';
 
 class IncrementalBackupDialog {
   static Future<IncrementalBackupConfig?> show(
     BuildContext context, {
     DateTime? lastBackupTime,
-    bool initialIncludeFiles = true,
+    BackupContentScope? initialScope,
     Future<IncrementalScope> Function(IncrementalBackupConfig config)? analyzer,
   }) {
     return showDialog<IncrementalBackupConfig>(
       context: context,
       builder: (_) => _IncrementalBackupDialogBody(
         lastBackupTime: lastBackupTime,
-        initialIncludeFiles: initialIncludeFiles,
+        initialScope: initialScope,
         analyzer: analyzer,
         isSheet: false,
       ),
@@ -30,7 +31,7 @@ class IncrementalBackupDialog {
   static Future<IncrementalBackupConfig?> showSheet(
     BuildContext context, {
     DateTime? lastBackupTime,
-    bool initialIncludeFiles = true,
+    BackupContentScope? initialScope,
     Future<IncrementalScope> Function(IncrementalBackupConfig config)? analyzer,
   }) {
     return showModalBottomSheet<IncrementalBackupConfig>(
@@ -44,7 +45,7 @@ class IncrementalBackupDialog {
         top: false,
         child: _IncrementalBackupDialogBody(
           lastBackupTime: lastBackupTime,
-          initialIncludeFiles: initialIncludeFiles,
+          initialScope: initialScope,
           analyzer: analyzer,
           isSheet: true,
         ),
@@ -56,12 +57,12 @@ class IncrementalBackupDialog {
 class _IncrementalBackupDialogBody extends StatefulWidget {
   const _IncrementalBackupDialogBody({
     required this.lastBackupTime,
-    this.initialIncludeFiles = true,
+    this.initialScope,
     this.analyzer,
     this.isSheet = false,
   });
   final DateTime? lastBackupTime;
-  final bool initialIncludeFiles;
+  final BackupContentScope? initialScope;
   final bool isSheet;
   final Future<IncrementalScope> Function(IncrementalBackupConfig config)?
   analyzer;
@@ -73,14 +74,10 @@ class _IncrementalBackupDialogBody extends StatefulWidget {
 
 class _IncrementalBackupDialogBodyState
     extends State<_IncrementalBackupDialogBody> {
-  static const _prefsIncludeSettingsKey = 'incr_include_settings_v1';
-  static const _prefsUpdateBackupTimeKey = 'incr_update_backup_time_v1';
-
   late DateTime _since;
-  bool _includeSettings = true;
-  late bool _includeFiles;
+  late BackupContentScope _scope;
   bool _updateBackupTime = true;
-  IncrementalScope? _scope;
+  IncrementalScope? _scopePreview;
   bool _analyzing = false;
   int _gen = 0;
 
@@ -90,47 +87,59 @@ class _IncrementalBackupDialogBodyState
     _since =
         widget.lastBackupTime ??
         DateTime.now().subtract(const Duration(days: 30));
-    _includeFiles = widget.initialIncludeFiles;
-    _loadPersistence();
+    _scope = widget.initialScope ?? const BackupContentScope();
     if (widget.analyzer != null) _rerunAnalysis();
   }
 
-  Future<void> _loadPersistence() async {
-    final prefs = SharedPreferencesAsync();
-    final includeSettings =
-        await prefs.getBool(_prefsIncludeSettingsKey) ?? true;
-    final updateBackupTime =
-        await prefs.getBool(_prefsUpdateBackupTimeKey) ?? true;
-    if (!mounted) return;
-    setState(() {
-      _includeSettings = includeSettings;
-      _updateBackupTime = updateBackupTime;
-    });
+  String _fmt(DateTime d) => d.toIso8601String().split('T')[0];
+
+  List<(String, bool)> _scopeOptions(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return [
+      (l10n.backupScopeChatsAssistants, _scope.chatsAndAssistants),
+      (l10n.backupScopeSettings, _scope.settings),
+      (l10n.backupScopeAttachments, _scope.attachments),
+      (l10n.backupScopeWorkspaces, _scope.workspaces),
+      (l10n.backupScopeSkills, _scope.skills),
+      (l10n.backupScopeFontsAvatars, _scope.fontsAndAvatars),
+    ];
   }
 
-  String _fmt(DateTime d) => d.toIso8601String().split('T')[0];
+  void _toggleScope(int i) {
+    setState(() {
+      _scope = switch (i) {
+        0 => _scope.copyWith(chatsAndAssistants: !_scope.chatsAndAssistants),
+        1 => _scope.copyWith(settings: !_scope.settings),
+        2 => _scope.copyWith(attachments: !_scope.attachments),
+        3 => _scope.copyWith(workspaces: !_scope.workspaces),
+        4 => _scope.copyWith(skills: !_scope.skills),
+        _ => _scope.copyWith(fontsAndAvatars: !_scope.fontsAndAvatars),
+      };
+    });
+    _rerunAnalysis();
+  }
 
   Future<void> _rerunAnalysis() async {
     final analyzer = widget.analyzer;
     if (analyzer == null) return;
     setState(() {
       _analyzing = true;
-      _scope = null;
+      _scopePreview = null;
     });
     final gen = ++_gen;
     try {
       final scope = await analyzer(
-        IncrementalBackupConfig(since: _since, includeFiles: _includeFiles),
+        IncrementalBackupConfig(since: _since, contentScope: _scope),
       );
       if (gen != _gen || !mounted) return;
       setState(() {
-        _scope = scope;
+        _scopePreview = scope;
         _analyzing = false;
       });
     } catch (_) {
       if (gen != _gen || !mounted) return;
       setState(() {
-        _scope = null;
+        _scopePreview = null;
         _analyzing = false;
       });
     }
@@ -150,17 +159,12 @@ class _IncrementalBackupDialogBodyState
   }
 
   Future<void> _onConfirm() async {
-    final prefs = SharedPreferencesAsync();
-    await prefs.setBool(_prefsIncludeSettingsKey, _includeSettings);
-    await prefs.setBool(_prefsUpdateBackupTimeKey, _updateBackupTime);
-    if (!mounted) return;
     Navigator.of(context).pop(
       IncrementalBackupConfig(
         since: _since,
-        includeSettings: _includeSettings,
-        includeFiles: _includeFiles,
+        contentScope: _scope,
         updateBackupTime: _updateBackupTime,
-        scope: _scope,
+        scope: _scopePreview,
       ),
     );
   }
@@ -185,7 +189,7 @@ class _IncrementalBackupDialogBodyState
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minWidth: 320, maxWidth: 420),
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
           child: _buildForm(cs, l10n),
         ),
@@ -252,7 +256,7 @@ class _IncrementalBackupDialogBodyState
       ),
     );
 
-    if (_analyzing && _scope == null) {
+    if (_analyzing && _scopePreview == null) {
       children.add(const SizedBox(height: 6));
       children.add(
         Row(
@@ -276,8 +280,8 @@ class _IncrementalBackupDialogBodyState
           ],
         ),
       );
-    } else if (_scope != null) {
-      final s = _scope!;
+    } else if (_scopePreview != null) {
+      final s = _scopePreview!;
       if (s.newConversations.count > 0) {
         children.add(const SizedBox(height: 6));
         children.add(
@@ -396,43 +400,14 @@ class _IncrementalBackupDialogBodyState
         ),
         if (widget.analyzer != null) _buildPreviewCard(cs, l10n),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Text(
-              l10n.backupPageIncrementalIncludeSettings,
-              style: TextStyle(
-                fontSize: 13,
-                color: cs.onSurface.withValues(alpha: 0.8),
-              ),
-            ),
-            const Spacer(),
-            IosSwitch(
-              value: _includeSettings,
-              onChanged: (v) => setState(() => _includeSettings = v),
-            ),
-          ],
+        // Unified content scope (same 6 sections as the backup page).
+        SegmentedToggleMulti(
+          options: [for (final o in _scopeOptions(context)) o.$1],
+          isSelected: [for (final o in _scopeOptions(context)) o.$2],
+          itemsPerRow: 3,
+          onChanged: _toggleScope,
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Text(
-              l10n.backupPageIncrementalIncludeFiles,
-              style: TextStyle(
-                fontSize: 13,
-                color: cs.onSurface.withValues(alpha: 0.8),
-              ),
-            ),
-            const Spacer(),
-            IosSwitch(
-              value: _includeFiles,
-              onChanged: (v) {
-                setState(() => _includeFiles = v);
-                _rerunAnalysis();
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Row(
           children: [
             Expanded(

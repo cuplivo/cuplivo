@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 
+import 'package:Cuplivo/core/models/backup.dart';
 import 'package:Cuplivo/core/providers/backup_provider.dart';
 import 'package:Cuplivo/core/providers/backup_reminder_provider.dart';
 import 'package:Cuplivo/core/providers/s3_backup_provider.dart';
@@ -12,6 +13,7 @@ import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/trash_restore_coordinator.dart';
 import 'package:Cuplivo/desktop/setting/backup_pane.dart';
 import 'package:Cuplivo/features/backup/pages/backup_page.dart';
+import 'package:Cuplivo/features/backup/widgets/backup_hero_card.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 
 var businessPrefs = BusinessPreferences.memoryForTests();
@@ -130,7 +132,7 @@ Future<void> _openSettingsPage(WidgetTester tester, String label) async {
     scrollable: find.byType(Scrollable).first,
   );
   await tester.pumpAndSettle();
-  await tester.tap(target);
+  await tester.tap(target.first);
   await tester.pumpAndSettle();
 }
 
@@ -144,24 +146,23 @@ void _expectAbove(WidgetTester tester, String upper, String lower) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('BackupPage mobile backup settings navigation', () {
+  group('BackupPage redesigned layout', () {
     setUp(() {
-      businessPrefs = BusinessPreferences.memoryForTests();
       SharedPreferences.setMockInitialValues({});
       businessPrefs = BusinessPreferences.memoryForTests(const {});
     });
 
-    testWidgets('opens WebDAV settings as a full page and saves config', (
+    testWidgets('opens WebDAV config as a bottom sheet and saves config', (
       tester,
     ) async {
       final settings = SettingsProvider(preferences: businessPrefs);
 
       await _pumpBackupPage(tester, settings: settings);
 
-      await _openSettingsPage(tester, 'WebDAV Server Settings');
+      await _openSettingsPage(tester, 'WebDAV Backup');
 
-      expect(find.byType(BottomSheet), findsNothing);
-      expect(find.widgetWithText(AppBar, 'WebDAV Server Settings'), findsOne);
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(find.text('WebDAV Server Settings'), findsOneWidget);
       expect(find.text('WebDAV Server URL'), findsOneWidget);
       expect(find.text('User-Agent'), findsOneWidget);
 
@@ -171,75 +172,252 @@ void main() {
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
-      expect(
-        find.widgetWithText(AppBar, 'WebDAV Server Settings'),
-        findsNothing,
-      );
+      expect(find.byType(BottomSheet), findsNothing);
       expect(settings.webDavConfig.url, 'https://dav.example.com/root');
       expect(settings.webDavConfig.userAgent, 'KelivoTest/1.0');
+      // The restore card is gone — the channel card shows the only row pair.
+      expect(find.text('Enabled'), findsOneWidget);
     });
 
-    testWidgets('shows local backup before WebDAV and S3 backup sections', (
+    testWidgets('test connection validates the draft without persisting it', (
       tester,
     ) async {
-      await tester.binding.setSurfaceSize(const Size(900, 1200));
+      await tester.binding.setSurfaceSize(const Size(900, 1400));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
       final settings = SettingsProvider(preferences: businessPrefs);
 
       await _pumpBackupPage(tester, settings: settings);
 
-      expect(find.text('Backup Reminder'), findsOneWidget);
-      expect(find.text('Local Backup'), findsOneWidget);
-      expect(find.text('WebDAV Backup'), findsOneWidget);
-      expect(find.text('S3 Backup'), findsOneWidget);
-      _expectAbove(tester, 'Backup Reminder', 'Local Backup');
-      _expectAbove(tester, 'Local Backup', 'WebDAV Backup');
-      _expectAbove(tester, 'WebDAV Backup', 'S3 Backup');
+      await _openSettingsPage(tester, 'WebDAV Backup');
+
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(0), 'https://draft.example.com/dav');
+      await tester.tap(find.text('Test'));
+      await tester.pumpAndSettle();
+
+      // Test runs against the typed draft, but must NOT write it back: only
+      // 保存 commits. The stored config stays unchanged after the test.
+      expect(settings.webDavConfig.url, isEmpty);
+      expect(find.text('Test'), findsOneWidget);
     });
 
-    testWidgets('opens S3 settings as a full page and saves config', (
+    testWidgets('hero, sections and rows are ordered correctly', (
       tester,
     ) async {
+      await tester.binding.setSurfaceSize(const Size(900, 1800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
       final settings = SettingsProvider(preferences: businessPrefs);
 
       await _pumpBackupPage(tester, settings: settings);
 
-      await _openSettingsPage(tester, 'S3 Settings');
+      // Hero headline + ONE row with all three lifecycle actions.
+      expect(find.text('Backup Now'), findsOneWidget);
+      expect(find.text('Incremental Backup'), findsOneWidget);
+      expect(find.text('Restore from Backup'), findsOneWidget);
+      expect(find.text('No Backup Yet'), findsOneWidget);
+      // Sections in order; the old restore section and Kelivo export card
+      // are gone (merged into the migration dialog / hero).
+      expect(find.text('LAN Sync'), findsOneWidget);
+      expect(find.text('Restore'), findsNothing);
+      expect(find.text('Migrate from Other Apps'), findsOneWidget);
+      expect(
+        find.text('Move data between Cuplivo and other apps'),
+        findsOneWidget,
+      );
+      expect(find.text('Backup Contents'), findsOneWidget);
+      expect(find.text('Backup Reminder'), findsOneWidget);
+      expect(find.text('Backup Channels'), findsOneWidget);
+      // One entry only: the channel card (restore card was removed).
+      expect(find.text('WebDAV Backup'), findsOneWidget);
+      expect(find.text('S3 Backup'), findsOneWidget);
+      _expectAbove(tester, 'Migrate from Other Apps', 'Backup Contents');
+      _expectAbove(tester, 'Backup Contents', 'Backup Reminder');
+      _expectAbove(tester, 'Backup Reminder', 'Backup Channels');
+    });
 
-      expect(find.byType(BottomSheet), findsNothing);
-      expect(find.widgetWithText(AppBar, 'S3 Settings'), findsOne);
+    testWidgets('unconfigured channels are dimmed and route to config', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(900, 1800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final settings = SettingsProvider(preferences: businessPrefs);
+
+      await _pumpBackupPage(tester, settings: settings);
+
+      // Channel card: both unconfigured.
+      expect(find.text('Not configured'), findsNWidgets(2));
+      expect(find.text('WebDAV Backup'), findsOneWidget);
+      expect(find.text('S3 Backup'), findsOneWidget);
+      // Tapping the S3 channel row opens the config sheet (the enable path).
+      await _openSettingsPage(tester, 'S3 Backup');
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(find.text('S3 Settings'), findsOneWidget);
+    });
+
+    testWidgets('configured channels show enabled status', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(900, 1800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final settings = SettingsProvider(preferences: businessPrefs);
+      await settings.setWebDavConfig(
+        const WebDavConfig(url: 'https://dav.example.com'),
+      );
+      await settings.setS3Config(
+        const S3Config(
+          endpoint: 'https://s3.example.com',
+          bucket: 'b',
+          accessKeyId: 'ak',
+          secretAccessKey: 'sk',
+        ),
+      );
+
+      await _pumpBackupPage(tester, settings: settings);
+
+      // Channel card rows only (restore card was removed).
+      expect(find.text('Enabled'), findsNWidgets(2));
+      expect(find.text('WebDAV Backup'), findsOneWidget);
+      expect(find.text('S3 Backup'), findsOneWidget);
+      expect(find.text('Restore'), findsNothing);
+    });
+
+    testWidgets('s3 config opens as a bottom sheet and saves config', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(900, 1400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final settings = SettingsProvider(preferences: businessPrefs);
+
+      await _pumpBackupPage(tester, settings: settings);
+
+      await _openSettingsPage(tester, 'S3 Backup');
+
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(find.text('S3 Settings'), findsOneWidget);
       expect(find.text('Endpoint'), findsOneWidget);
-      expect(find.text('User-Agent'), findsOneWidget);
 
       final fields = find.byType(TextField);
-      await tester.enterText(fields.at(0), ' https://s3.example.com ');
-      await tester.enterText(fields.at(7), ' KelivoS3/1.0 ');
+      await tester.enterText(fields.first, ' https://s3.example.com ');
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(AppBar, 'S3 Settings'), findsNothing);
+      expect(find.byType(BottomSheet), findsNothing);
       expect(settings.s3Config.endpoint, 'https://s3.example.com');
-      expect(settings.s3Config.userAgent, 'KelivoS3/1.0');
+      // Only the endpoint was saved — isConfigured also needs bucket + keys,
+      // so the channel rows stay unconfigured.
+      expect(find.text('Enabled'), findsNothing);
+      expect(find.text('Not configured'), findsWidgets);
     });
 
-    testWidgets('desktop shows local backup before WebDAV and S3 sections', (
+    testWidgets('scope chips toggle and persist on both channels', (
       tester,
     ) async {
-      await tester.binding.setSurfaceSize(const Size(1100, 1300));
+      await tester.binding.setSurfaceSize(const Size(900, 1800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final settings = SettingsProvider(preferences: businessPrefs);
+
+      await _pumpBackupPage(tester, settings: settings);
+
+      await _openSettingsPage(tester, 'Skills');
+      expect(settings.webDavConfig.content.skills, isFalse);
+      expect(settings.s3Config.content.skills, isFalse);
+
+      await _openSettingsPage(tester, 'Skills');
+      expect(settings.webDavConfig.content.skills, isTrue);
+      expect(settings.s3Config.content.skills, isTrue);
+      expect(settings.webDavConfig.includeFiles, isTrue);
+    });
+
+    testWidgets('desktop shows hero plus ordered sections', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1100, 1800));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
       final settings = SettingsProvider(preferences: businessPrefs);
 
       await _pumpDesktopBackupPane(tester, settings: settings);
 
+      expect(find.text('Backup Now'), findsOneWidget);
+      expect(find.text('Restore from Backup'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      expect(find.text('Restore'), findsNothing);
+      expect(find.text('Migrate from Other Apps'), findsOneWidget);
+      expect(find.text('Backup Contents'), findsOneWidget);
       expect(find.text('Backup Reminder'), findsOneWidget);
-      expect(find.text('Local Backup'), findsOneWidget);
+      expect(find.text('Backup Channels'), findsOneWidget);
+      expect(find.text('WebDAV Backup'), findsOneWidget);
+      expect(find.text('S3 Backup'), findsOneWidget);
+      _expectAbove(tester, 'Migrate from Other Apps', 'Backup Contents');
+      _expectAbove(tester, 'Backup Reminder', 'Backup Channels');
+    });
+
+    testWidgets('unconfigured segments route to the config dialog', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(900, 1400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final settings = SettingsProvider(preferences: businessPrefs);
+
+      await _pumpBackupPage(tester, settings: settings);
+
+      // Tap the unconfigured WebDAV segment inside the hero picker.
+      final hero = find.byType(BackupHeroCard);
+      expect(hero, findsOneWidget);
+      final segment = find.descendant(of: hero, matching: find.text('WebDAV'));
+      await tester.tap(segment);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(BottomSheet), findsOneWidget);
       expect(find.text('WebDAV Server Settings'), findsOneWidget);
-      expect(find.text('S3 Settings'), findsOneWidget);
-      _expectAbove(tester, 'Backup Reminder', 'Local Backup');
-      _expectAbove(tester, 'Local Backup', 'WebDAV Server Settings');
-      _expectAbove(tester, 'WebDAV Server Settings', 'S3 Settings');
+    });
+
+    testWidgets('migration row opens the grouped move-out/move-in dialog', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(900, 1800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final settings = SettingsProvider(preferences: businessPrefs);
+
+      await _pumpBackupPage(tester, settings: settings);
+
+      await _openSettingsPage(tester, 'Migrate from Other Apps');
+
+      // Two tinted groups; export entry in 搬去, four sources in 搬来.
+      expect(find.text('Move out to'), findsOneWidget);
+      expect(find.text('Move in from'), findsOneWidget);
+      expect(find.text('Kelivo / Older Cuplivo'), findsOneWidget);
+      expect(find.text('Import from New Kelivo'), findsOneWidget);
+      expect(find.text('Import from RikkaHub'), findsOneWidget);
+      expect(find.text('Import from Cherry Studio'), findsOneWidget);
+      expect(find.text('Import from Chatbox'), findsOneWidget);
+      _expectAbove(tester, 'Kelivo / Older Cuplivo', 'Import from New Kelivo');
+      _expectAbove(tester, 'Move out to', 'Move in from');
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Move in from'), findsNothing);
+    });
+
+    testWidgets('desktop config dialog renders (Material shell regression)', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1100, 1800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final settings = SettingsProvider(preferences: businessPrefs);
+
+      await _pumpDesktopBackupPane(tester, settings: settings);
+
+      await _openSettingsPage(tester, 'WebDAV Backup');
+
+      expect(find.text('WebDAV Server Settings'), findsOneWidget);
+      expect(find.byType(TextField), findsWidgets);
+      expect(tester.takeException(), isNull);
     });
   });
 }

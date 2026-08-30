@@ -78,7 +78,7 @@ void main() {
           chatService: ChatService(),
         );
         final backupFile = await sync.prepareBackupFile(
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(content: BackupContentScope(chatsAndAssistants: false, attachments: false, workspaces: false, fontsAndAvatars: false, settings: true, skills: true)),
         );
         addTearDown(() => backupFile.deleteSync());
 
@@ -111,7 +111,7 @@ void main() {
         chatService: ChatService(),
       );
       final backupFile = await sync.prepareBackupFile(
-        const WebDavConfig(includeChats: false, includeFiles: false),
+        const WebDavConfig(content: BackupContentScope(chatsAndAssistants: false, attachments: false, workspaces: false, fontsAndAvatars: false, settings: true, skills: true)),
       );
       addTearDown(() => backupFile.deleteSync());
 
@@ -170,7 +170,7 @@ void main() {
         );
         await sync.restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(content: BackupContentScope(chatsAndAssistants: false, attachments: false, workspaces: false, fontsAndAvatars: false, settings: true, skills: true)),
           mode: RestoreMode.merge,
         );
 

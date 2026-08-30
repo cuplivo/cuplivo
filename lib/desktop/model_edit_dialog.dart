@@ -14,6 +14,7 @@ import '../shared/widgets/snackbar.dart';
 import '../features/model/widgets/model_edit_state_helper.dart';
 import '../theme/app_font_weights.dart';
 import '../theme/app_semantic_colors.dart';
+import '../shared/widgets/segmented_toggle.dart';
 
 Future<bool?> showDesktopModelEditDialog(
   BuildContext context, {
@@ -550,7 +551,7 @@ class _ModelEditDialogBodyState extends State<_ModelEditDialogBody>
           children: [
             _label(context, l10n.modelDetailSheetModelTypeLabel),
             const SizedBox(height: 6),
-            _SegmentedSingle(
+            SegmentedToggle(
               options: [
                 l10n.modelDetailSheetChatType,
                 l10n.modelDetailSheetEmbeddingType,
@@ -563,7 +564,7 @@ class _ModelEditDialogBodyState extends State<_ModelEditDialogBody>
             const SizedBox(height: 12),
             _label(context, l10n.modelDetailSheetInputModesLabel),
             const SizedBox(height: 6),
-            _SegmentedMulti(
+            SegmentedToggleMulti(
               options: [
                 l10n.modelDetailSheetTextMode,
                 l10n.modelDetailSheetImageMode,
@@ -578,7 +579,7 @@ class _ModelEditDialogBodyState extends State<_ModelEditDialogBody>
               const SizedBox(height: 12),
               _label(context, l10n.modelDetailSheetOutputModesLabel),
               const SizedBox(height: 6),
-              _SegmentedMulti(
+              SegmentedToggleMulti(
                 options: [
                   l10n.modelDetailSheetTextMode,
                   l10n.modelDetailSheetImageMode,
@@ -593,7 +594,7 @@ class _ModelEditDialogBodyState extends State<_ModelEditDialogBody>
               const SizedBox(height: 12),
               _label(context, l10n.modelDetailSheetAbilitiesLabel),
               const SizedBox(height: 6),
-              _SegmentedMulti(
+              SegmentedToggleMulti(
                 options: [
                   l10n.modelDetailSheetToolsAbility,
                   l10n.modelDetailSheetReasoningAbility,
@@ -986,130 +987,6 @@ class _PrimaryDeskButtonState extends State<_PrimaryDeskButton> {
         ),
       ),
     );
-  }
-}
-
-class _SegmentedSingle extends StatelessWidget {
-  const _SegmentedSingle({
-    required this.options,
-    required this.value,
-    required this.onChanged,
-  });
-  final List<String> options;
-  final int value;
-  final ValueChanged<int> onChanged;
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final selBg = isDark
-        ? cs.primary.withValues(alpha: 0.20)
-        : cs.primary.withValues(alpha: 0.12);
-    final baseBg = context.appColors.surfaceFill;
-    final children = <Widget>[];
-    for (int i = 0; i < options.length; i++) {
-      final selected = i == value;
-      children.add(
-        Expanded(
-          child: InkWell(
-            onTap: () => onChanged(i),
-            mouseCursor: SystemMouseCursors.click,
-            hoverColor: Colors.transparent,
-            splashColor: Colors.transparent,
-            highlightColor: Colors.transparent,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: selected ? selBg : baseBg,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: selected
-                      ? cs.primary.withValues(alpha: 0.35)
-                      : cs.outlineVariant.withValues(alpha: 0.35),
-                ),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                options[i],
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: selected
-                      ? cs.primary
-                      : cs.onSurface.withValues(alpha: 0.82),
-                  fontWeight: AppFontWeights.semibold,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      if (i != options.length - 1) children.add(const SizedBox(width: 8));
-    }
-    return Row(children: children);
-  }
-}
-
-class _SegmentedMulti extends StatelessWidget {
-  const _SegmentedMulti({
-    required this.options,
-    required this.isSelected,
-    required this.onChanged,
-  });
-  final List<String> options;
-  final List<bool> isSelected;
-  final ValueChanged<int> onChanged;
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final selBg = isDark
-        ? cs.primary.withValues(alpha: 0.20)
-        : cs.primary.withValues(alpha: 0.12);
-    final baseBg = context.appColors.surfaceFill;
-    final children = <Widget>[];
-    for (int i = 0; i < options.length; i++) {
-      final selected = isSelected[i];
-      children.add(
-        Expanded(
-          child: InkWell(
-            onTap: () => onChanged(i),
-            mouseCursor: SystemMouseCursors.click,
-            hoverColor: Colors.transparent,
-            splashColor: Colors.transparent,
-            highlightColor: Colors.transparent,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: selected ? selBg : baseBg,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: selected
-                      ? cs.primary.withValues(alpha: 0.35)
-                      : cs.outlineVariant.withValues(alpha: 0.35),
-                ),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                options[i],
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: selected
-                      ? cs.primary
-                      : cs.onSurface.withValues(alpha: 0.82),
-                  fontWeight: AppFontWeights.semibold,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      if (i != options.length - 1) children.add(const SizedBox(width: 8));
-    }
-    return Row(children: children);
   }
 }
 

@@ -120,7 +120,7 @@ void main() {
         chatService: chatService,
       );
       final backupFile = await sync.prepareBackupFile(
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(content: BackupContentScope(chatsAndAssistants: true, attachments: false, workspaces: false, fontsAndAvatars: false, settings: true, skills: true)),
       );
       addTearDown(() => DataSync.cleanupTemporaryBackupFile(backupFile));
 
@@ -150,7 +150,7 @@ void main() {
       );
       await restoreSync.restoreFromLocalFile(
         backupFile,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(content: BackupContentScope(chatsAndAssistants: true, attachments: false, workspaces: false, fontsAndAvatars: false, settings: true, skills: true)),
         mode: RestoreMode.overwrite,
       );
       await restoreService.reloadCachesFromDb();
@@ -220,7 +220,7 @@ void main() {
     );
     await sync.restoreFromLocalFile(
       zipFile,
-      const WebDavConfig(includeChats: true, includeFiles: false),
+      const WebDavConfig(content: BackupContentScope(chatsAndAssistants: true, attachments: false, workspaces: false, fontsAndAvatars: false, settings: true, skills: true)),
       mode: RestoreMode.merge,
     );
 
@@ -261,7 +261,7 @@ void main() {
     final sync = DataSync(preferences: businessPrefs, chatService: chatService);
     await sync.restoreFromLocalFile(
       zipFile,
-      const WebDavConfig(includeChats: false, includeFiles: false),
+      const WebDavConfig(content: BackupContentScope(chatsAndAssistants: false, attachments: false, workspaces: false, fontsAndAvatars: false, settings: true, skills: true)),
       mode: RestoreMode.merge,
     );
 
@@ -305,7 +305,7 @@ void main() {
         chatService: chatService,
       );
       final backupFile = await sync.prepareBackupFile(
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(content: BackupContentScope(chatsAndAssistants: true, attachments: false, workspaces: false, fontsAndAvatars: false, settings: true, skills: true)),
         format: BackupFormat.kelivoLegacy,
       );
       addTearDown(() => DataSync.cleanupTemporaryBackupFile(backupFile));
@@ -344,7 +344,7 @@ void main() {
       );
       await restoreSync.restoreFromLocalFile(
         backupFile,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(content: BackupContentScope(chatsAndAssistants: true, attachments: false, workspaces: false, fontsAndAvatars: false, settings: true, skills: true)),
         mode: RestoreMode.overwrite,
       );
       await restoreService.reloadCachesFromDb();

@@ -4059,12 +4059,6 @@ abstract class AppLocalizations {
   /// **'Export to File'**
   String get backupPageExportToFile;
 
-  /// No description provided for @backupPageExportKelivoCompatible.
-  ///
-  /// In en, this message translates to:
-  /// **'Export for Kelivo'**
-  String get backupPageExportKelivoCompatible;
-
   /// No description provided for @backupPageExportToFileSubtitle.
   ///
   /// In en, this message translates to:
@@ -4082,12 +4076,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Import a local backup file'**
   String get backupPageImportBackupFileSubtitle;
-
-  /// No description provided for @backupPageImportFromOtherApps.
-  ///
-  /// In en, this message translates to:
-  /// **'Import from Other Apps'**
-  String get backupPageImportFromOtherApps;
 
   /// No description provided for @backupPageImportFromKelivo.
   ///
@@ -4371,6 +4359,54 @@ abstract class AppLocalizations {
   /// **'Local Backup'**
   String get backupPageLocalBackup;
 
+  /// No description provided for @backupPageChannelManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup Channels'**
+  String get backupPageChannelManagement;
+
+  /// No description provided for @backupPageFullBackupSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Full Backup'**
+  String get backupPageFullBackupSection;
+
+  /// No description provided for @backupPageImportRestoreSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Import & Restore'**
+  String get backupPageImportRestoreSection;
+
+  /// No description provided for @backupPageChannelEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get backupPageChannelEnabled;
+
+  /// No description provided for @backupPageChannelNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured'**
+  String get backupPageChannelNotConfigured;
+
+  /// No description provided for @backupPageChannelLocalAlwaysOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Always available'**
+  String get backupPageChannelLocalAlwaysOn;
+
+  /// No description provided for @backupPageRestoreFromWebDav.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from WebDAV'**
+  String get backupPageRestoreFromWebDav;
+
+  /// No description provided for @backupPageRestoreFromS3.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from S3'**
+  String get backupPageRestoreFromS3;
+
   /// No description provided for @backupPageImportFromCherryStudio.
   ///
   /// In en, this message translates to:
@@ -4388,6 +4424,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Incremental Backup'**
   String get backupPageIncrementalTitle;
+
+  /// No description provided for @backupPageRestoreFromBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from Backup'**
+  String get backupPageRestoreFromBackup;
+
+  /// No description provided for @backupPageTestingConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Testing...'**
+  String get backupPageTestingConnection;
+
+  /// No description provided for @backupEntryDueLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup due · Last backup {time}'**
+  String backupEntryDueLine(Object time);
+
+  /// No description provided for @backupHeroHealthyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup Is Up to Date'**
+  String get backupHeroHealthyTitle;
+
+  /// No description provided for @backupHeroLastBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Last backup {time}'**
+  String backupHeroLastBackup(Object time);
+
+  /// No description provided for @backupHeroDueTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup Due'**
+  String get backupHeroDueTitle;
+
+  /// No description provided for @backupHeroNoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No Backup Yet'**
+  String get backupHeroNoTitle;
+
+  /// No description provided for @backupHeroNoDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Your chats are only on this device so far'**
+  String get backupHeroNoDetail;
+
+  /// No description provided for @backupSectionExportSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Export & Sync'**
+  String get backupSectionExportSync;
+
+  /// No description provided for @backupSectionAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic Backup'**
+  String get backupSectionAuto;
+
+  /// No description provided for @backupRestoreCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from Cloud'**
+  String get backupRestoreCloud;
+
+  /// No description provided for @backupRestoreCloudNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No cloud channel configured'**
+  String get backupRestoreCloudNone;
+
+  /// No description provided for @backupMigrateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Migrate from Other Apps'**
+  String get backupMigrateTitle;
+
+  /// No description provided for @backupMigrateRowSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move data between Cuplivo and other apps'**
+  String get backupMigrateRowSubtitle;
+
+  /// No description provided for @backupMigrateMoveOutHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Move out to'**
+  String get backupMigrateMoveOutHeader;
+
+  /// No description provided for @backupMigrateMoveInHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Move in from'**
+  String get backupMigrateMoveInHeader;
+
+  /// No description provided for @backupMigrateExportLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Kelivo / Older Cuplivo'**
+  String get backupMigrateExportLabel;
+
+  /// No description provided for @backupPageContentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup Contents'**
+  String get backupPageContentLabel;
+
+  /// No description provided for @backupScopeChatsAssistants.
+  ///
+  /// In en, this message translates to:
+  /// **'Chats & Assistants'**
+  String get backupScopeChatsAssistants;
+
+  /// No description provided for @backupScopeSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get backupScopeSettings;
+
+  /// No description provided for @backupScopeAttachments.
+  ///
+  /// In en, this message translates to:
+  /// **'Attachments'**
+  String get backupScopeAttachments;
+
+  /// No description provided for @backupScopeWorkspaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspaces'**
+  String get backupScopeWorkspaces;
+
+  /// No description provided for @backupScopeSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills'**
+  String get backupScopeSkills;
+
+  /// No description provided for @backupScopeFontsAvatars.
+  ///
+  /// In en, this message translates to:
+  /// **'Fonts & Avatars'**
+  String get backupScopeFontsAvatars;
+
+  /// No description provided for @backupDestLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Local'**
+  String get backupDestLocal;
+
+  /// No description provided for @backupPageExportKelivoCompatibleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'A backup that old Kelivo hosts can import'**
+  String get backupPageExportKelivoCompatibleSubtitle;
 
   /// No description provided for @backupPageIncrementalDescription.
   ///
@@ -4592,30 +4784,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter a number from 1 to 365.'**
   String get backupReminderCustomDaysInvalid;
-
-  /// No description provided for @backupReminderSidebarTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Backup reminder'**
-  String get backupReminderSidebarTitle;
-
-  /// No description provided for @backupReminderSidebarSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Your backup interval has arrived.'**
-  String get backupReminderSidebarSubtitle;
-
-  /// No description provided for @backupReminderSidebarAction.
-  ///
-  /// In en, this message translates to:
-  /// **'Go to backup'**
-  String get backupReminderSidebarAction;
-
-  /// No description provided for @backupReminderSnoozeTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Remind me later'**
-  String get backupReminderSnoozeTooltip;
 
   /// No description provided for @lanSyncSectionTitle.
   ///
@@ -5739,6 +5907,12 @@ abstract class AppLocalizations {
   /// **'Image'**
   String get chatSelectionExportImage;
 
+  /// No description provided for @chatSelectionExportPdf.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF'**
+  String get chatSelectionExportPdf;
+
   /// No description provided for @chatSelectionThinkingTools.
   ///
   /// In en, this message translates to:
@@ -5895,17 +6069,41 @@ abstract class AppLocalizations {
   /// **'Markdown'**
   String get messageExportSheetMarkdown;
 
+  /// No description provided for @messageExportSheetPdf.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF'**
+  String get messageExportSheetPdf;
+
   /// No description provided for @messageExportSheetSingleMarkdownSubtitle.
   ///
   /// In en, this message translates to:
   /// **'Export this message as a Markdown file'**
   String get messageExportSheetSingleMarkdownSubtitle;
 
+  /// No description provided for @messageExportSheetPdfIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF exported, but some images or diagrams may be incomplete'**
+  String get messageExportSheetPdfIncomplete;
+
+  /// No description provided for @messageExportSheetPdfUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF export is currently only available on Windows'**
+  String get messageExportSheetPdfUnsupported;
+
   /// No description provided for @messageExportSheetPlainText.
   ///
   /// In en, this message translates to:
   /// **'Plain Text'**
   String get messageExportSheetPlainText;
+
+  /// No description provided for @messageExportSheetSinglePdfSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export this message as a PDF file'**
+  String get messageExportSheetSinglePdfSubtitle;
 
   /// No description provided for @messageExportSheetSingleTxtSubtitle.
   ///

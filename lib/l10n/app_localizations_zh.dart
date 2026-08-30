@@ -2135,9 +2135,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupPageExportToFile => '导出为文件';
 
   @override
-  String get backupPageExportKelivoCompatible => '导出 Kelivo 兼容备份';
-
-  @override
   String get backupPageExportToFileSubtitle => '导出APP数据为文件';
 
   @override
@@ -2145,9 +2142,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupPageImportBackupFileSubtitle => '导入本地备份文件';
-
-  @override
-  String get backupPageImportFromOtherApps => '从其他APP导入';
 
   @override
   String get backupPageImportFromKelivo => '从新版 Kelivo 导入';
@@ -2301,6 +2295,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupPageLocalBackup => '本地备份';
 
   @override
+  String get backupPageChannelManagement => '备份渠道管理';
+
+  @override
+  String get backupPageFullBackupSection => '全量备份';
+
+  @override
+  String get backupPageImportRestoreSection => '导入恢复';
+
+  @override
+  String get backupPageChannelEnabled => '已启用';
+
+  @override
+  String get backupPageChannelNotConfigured => '未配置';
+
+  @override
+  String get backupPageChannelLocalAlwaysOn => '始终可用';
+
+  @override
+  String get backupPageRestoreFromWebDav => '从 WebDAV 恢复';
+
+  @override
+  String get backupPageRestoreFromS3 => '从 S3 恢复';
+
+  @override
   String get backupPageImportFromCherryStudio => '从 Cherry Studio 导入';
 
   @override
@@ -2308,6 +2326,88 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupPageIncrementalTitle => '增量备份';
+
+  @override
+  String get backupPageRestoreFromBackup => '从备份恢复';
+
+  @override
+  String get backupPageTestingConnection => '测试中…';
+
+  @override
+  String backupEntryDueLine(Object time) {
+    return '该备份了 · 上次备份 $time';
+  }
+
+  @override
+  String get backupHeroHealthyTitle => '数据已有备份';
+
+  @override
+  String backupHeroLastBackup(Object time) {
+    return '上次备份 $time';
+  }
+
+  @override
+  String get backupHeroDueTitle => '该备份了';
+
+  @override
+  String get backupHeroNoTitle => '还没有备份';
+
+  @override
+  String get backupHeroNoDetail => '聊天记录目前只保存在这台设备上';
+
+  @override
+  String get backupSectionExportSync => '导出与同步';
+
+  @override
+  String get backupSectionAuto => '自动备份';
+
+  @override
+  String get backupRestoreCloud => '从云端恢复';
+
+  @override
+  String get backupRestoreCloudNone => '尚未配置云端渠道';
+
+  @override
+  String get backupMigrateTitle => '从其他应用迁移';
+
+  @override
+  String get backupMigrateRowSubtitle => '在 Cuplivo 与其他应用之间迁移数据';
+
+  @override
+  String get backupMigrateMoveOutHeader => '搬去…';
+
+  @override
+  String get backupMigrateMoveInHeader => '从…搬来';
+
+  @override
+  String get backupMigrateExportLabel => 'Kelivo / Cuplivo 旧版';
+
+  @override
+  String get backupPageContentLabel => '备份内容';
+
+  @override
+  String get backupScopeChatsAssistants => '聊天记录及助手';
+
+  @override
+  String get backupScopeSettings => '设置项';
+
+  @override
+  String get backupScopeAttachments => '附件';
+
+  @override
+  String get backupScopeWorkspaces => '工作区';
+
+  @override
+  String get backupScopeSkills => '技能';
+
+  @override
+  String get backupScopeFontsAvatars => '字体与头像';
+
+  @override
+  String get backupDestLocal => '本地';
+
+  @override
+  String get backupPageExportKelivoCompatibleSubtitle => '生成可供旧版 Kelivo 导入的备份';
 
   @override
   String get backupPageIncrementalDescription => '仅导出某个日期之后的聊天数据。';
@@ -2418,18 +2518,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupReminderCustomDaysInvalid => '请输入 1 到 365 之间的数字。';
-
-  @override
-  String get backupReminderSidebarTitle => '备份提醒';
-
-  @override
-  String get backupReminderSidebarSubtitle => '已经到你设定的备份周期了。';
-
-  @override
-  String get backupReminderSidebarAction => '去备份';
-
-  @override
-  String get backupReminderSnoozeTooltip => '稍后提醒';
 
   @override
   String get lanSyncSectionTitle => '局域网同步';
@@ -3045,6 +3133,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatSelectionExportImage => '图片';
 
   @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
   String get chatSelectionThinkingTools => '思考工具';
 
   @override
@@ -3134,10 +3225,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageExportSheetMarkdown => 'Markdown';
 
   @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
   String get messageExportSheetSingleMarkdownSubtitle => '将该消息导出为 Markdown 文件';
 
   @override
+  String get messageExportSheetPdfIncomplete => 'PDF 已导出，部分图片或图表可能不完整';
+
+  @override
+  String get messageExportSheetPdfUnsupported => 'PDF 导出目前仅支持 Windows';
+
+  @override
   String get messageExportSheetPlainText => '纯文本';
+
+  @override
+  String get messageExportSheetSinglePdfSubtitle => '将该消息导出为 PDF 文件';
 
   @override
   String get messageExportSheetSingleTxtSubtitle => '将该消息导出为 TXT 文件';
@@ -11182,9 +11285,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupPageExportToFile => '导出为文件';
 
   @override
-  String get backupPageExportKelivoCompatible => '导出 Kelivo 兼容备份';
-
-  @override
   String get backupPageExportToFileSubtitle => '导出APP数据为文件';
 
   @override
@@ -11192,9 +11292,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupPageImportBackupFileSubtitle => '导入本地备份文件';
-
-  @override
-  String get backupPageImportFromOtherApps => '从其他APP导入';
 
   @override
   String get backupPageImportFromKelivo => '从新版 Kelivo 导入';
@@ -11348,6 +11445,30 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupPageLocalBackup => '本地备份';
 
   @override
+  String get backupPageChannelManagement => '备份渠道管理';
+
+  @override
+  String get backupPageFullBackupSection => '全量备份';
+
+  @override
+  String get backupPageImportRestoreSection => '导入恢复';
+
+  @override
+  String get backupPageChannelEnabled => '已启用';
+
+  @override
+  String get backupPageChannelNotConfigured => '未配置';
+
+  @override
+  String get backupPageChannelLocalAlwaysOn => '始终可用';
+
+  @override
+  String get backupPageRestoreFromWebDav => '从 WebDAV 恢复';
+
+  @override
+  String get backupPageRestoreFromS3 => '从 S3 恢复';
+
+  @override
   String get backupPageImportFromCherryStudio => '从 Cherry Studio 导入';
 
   @override
@@ -11355,6 +11476,88 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupPageIncrementalTitle => '增量备份';
+
+  @override
+  String get backupPageRestoreFromBackup => '从备份恢复';
+
+  @override
+  String get backupPageTestingConnection => '测试中…';
+
+  @override
+  String backupEntryDueLine(Object time) {
+    return '该备份了 · 上次备份 $time';
+  }
+
+  @override
+  String get backupHeroHealthyTitle => '数据已有备份';
+
+  @override
+  String backupHeroLastBackup(Object time) {
+    return '上次备份 $time';
+  }
+
+  @override
+  String get backupHeroDueTitle => '该备份了';
+
+  @override
+  String get backupHeroNoTitle => '还没有备份';
+
+  @override
+  String get backupHeroNoDetail => '聊天记录目前只保存在这台设备上';
+
+  @override
+  String get backupSectionExportSync => '导出与同步';
+
+  @override
+  String get backupSectionAuto => '自动备份';
+
+  @override
+  String get backupRestoreCloud => '从云端恢复';
+
+  @override
+  String get backupRestoreCloudNone => '尚未配置云端渠道';
+
+  @override
+  String get backupMigrateTitle => '从其他应用迁移';
+
+  @override
+  String get backupMigrateRowSubtitle => '在 Cuplivo 与其他应用之间迁移数据';
+
+  @override
+  String get backupMigrateMoveOutHeader => '搬去…';
+
+  @override
+  String get backupMigrateMoveInHeader => '从…搬来';
+
+  @override
+  String get backupMigrateExportLabel => 'Kelivo / Cuplivo 旧版';
+
+  @override
+  String get backupPageContentLabel => '备份内容';
+
+  @override
+  String get backupScopeChatsAssistants => '聊天记录及助手';
+
+  @override
+  String get backupScopeSettings => '设置项';
+
+  @override
+  String get backupScopeAttachments => '附件';
+
+  @override
+  String get backupScopeWorkspaces => '工作区';
+
+  @override
+  String get backupScopeSkills => '技能';
+
+  @override
+  String get backupScopeFontsAvatars => '字体与头像';
+
+  @override
+  String get backupDestLocal => '本地';
+
+  @override
+  String get backupPageExportKelivoCompatibleSubtitle => '生成可供旧版 Kelivo 导入的备份';
 
   @override
   String get backupPageIncrementalDescription => '仅导出某个日期之后的聊天数据。';
@@ -11465,18 +11668,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupReminderCustomDaysInvalid => '请输入 1 到 365 之间的数字。';
-
-  @override
-  String get backupReminderSidebarTitle => '备份提醒';
-
-  @override
-  String get backupReminderSidebarSubtitle => '已经到你设定的备份周期了。';
-
-  @override
-  String get backupReminderSidebarAction => '去备份';
-
-  @override
-  String get backupReminderSnoozeTooltip => '稍后提醒';
 
   @override
   String get lanSyncSectionTitle => '局域网同步';
@@ -12092,6 +12283,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get chatSelectionExportImage => '图片';
 
   @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
   String get chatSelectionThinkingTools => '思考工具';
 
   @override
@@ -12181,10 +12375,22 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageExportSheetMarkdown => 'Markdown';
 
   @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
   String get messageExportSheetSingleMarkdownSubtitle => '将该消息导出为 Markdown 文件';
 
   @override
+  String get messageExportSheetPdfIncomplete => 'PDF 已导出，部分图片或图表可能不完整';
+
+  @override
+  String get messageExportSheetPdfUnsupported => 'PDF 导出目前仅支持 Windows';
+
+  @override
   String get messageExportSheetPlainText => '纯文本';
+
+  @override
+  String get messageExportSheetSinglePdfSubtitle => '将该消息导出为 PDF 文件';
 
   @override
   String get messageExportSheetSingleTxtSubtitle => '将该消息导出为 TXT 文件';
@@ -20229,9 +20435,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupPageExportToFile => '匯出為檔案';
 
   @override
-  String get backupPageExportKelivoCompatible => '匯出 Kelivo 相容備份';
-
-  @override
   String get backupPageExportToFileSubtitle => '匯出APP資料為檔案';
 
   @override
@@ -20239,9 +20442,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupPageImportBackupFileSubtitle => '匯入本機備份檔案';
-
-  @override
-  String get backupPageImportFromOtherApps => '從其他APP匯入';
 
   @override
   String get backupPageImportFromKelivo => '從新版 Kelivo 匯入';
@@ -20395,6 +20595,30 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupPageLocalBackup => '本機備份';
 
   @override
+  String get backupPageChannelManagement => '備份渠道管理';
+
+  @override
+  String get backupPageFullBackupSection => '全量備份';
+
+  @override
+  String get backupPageImportRestoreSection => '匯入復原';
+
+  @override
+  String get backupPageChannelEnabled => '已啟用';
+
+  @override
+  String get backupPageChannelNotConfigured => '未配置';
+
+  @override
+  String get backupPageChannelLocalAlwaysOn => '始終可用';
+
+  @override
+  String get backupPageRestoreFromWebDav => '從 WebDAV 恢復';
+
+  @override
+  String get backupPageRestoreFromS3 => '從 S3 恢復';
+
+  @override
   String get backupPageImportFromCherryStudio => '從 Cherry Studio 匯入';
 
   @override
@@ -20402,6 +20626,88 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupPageIncrementalTitle => '增量備份';
+
+  @override
+  String get backupPageRestoreFromBackup => '從備份還原';
+
+  @override
+  String get backupPageTestingConnection => '測試中…';
+
+  @override
+  String backupEntryDueLine(Object time) {
+    return '該備份了 · 上次備份 $time';
+  }
+
+  @override
+  String get backupHeroHealthyTitle => '資料已有備份';
+
+  @override
+  String backupHeroLastBackup(Object time) {
+    return '上次備份 $time';
+  }
+
+  @override
+  String get backupHeroDueTitle => '該備份了';
+
+  @override
+  String get backupHeroNoTitle => '還沒有備份';
+
+  @override
+  String get backupHeroNoDetail => '聊天記錄目前只保存在這台裝置上';
+
+  @override
+  String get backupSectionExportSync => '匯出與同步';
+
+  @override
+  String get backupSectionAuto => '自動備份';
+
+  @override
+  String get backupRestoreCloud => '從雲端復原';
+
+  @override
+  String get backupRestoreCloudNone => '尚未配置雲端渠道';
+
+  @override
+  String get backupMigrateTitle => '從其他應用程式遷移';
+
+  @override
+  String get backupMigrateRowSubtitle => '在 Cuplivo 與其他應用之間遷移資料';
+
+  @override
+  String get backupMigrateMoveOutHeader => '搬去…';
+
+  @override
+  String get backupMigrateMoveInHeader => '從…搬來';
+
+  @override
+  String get backupMigrateExportLabel => 'Kelivo / Cuplivo 舊版';
+
+  @override
+  String get backupPageContentLabel => '備份內容';
+
+  @override
+  String get backupScopeChatsAssistants => '聊天記錄及助手';
+
+  @override
+  String get backupScopeSettings => '設定項';
+
+  @override
+  String get backupScopeAttachments => '附件';
+
+  @override
+  String get backupScopeWorkspaces => '工作區';
+
+  @override
+  String get backupScopeSkills => '技能';
+
+  @override
+  String get backupScopeFontsAvatars => '字體與頭像';
+
+  @override
+  String get backupDestLocal => '本機';
+
+  @override
+  String get backupPageExportKelivoCompatibleSubtitle => '產生可供舊版 Kelivo 匯入的備份';
 
   @override
   String get backupPageIncrementalDescription => '僅匯出某個日期之後的聊天資料。';
@@ -20512,18 +20818,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupReminderCustomDaysInvalid => '請輸入 1 到 365 之間的數字。';
-
-  @override
-  String get backupReminderSidebarTitle => '備份提醒';
-
-  @override
-  String get backupReminderSidebarSubtitle => '已經到你設定的備份週期了。';
-
-  @override
-  String get backupReminderSidebarAction => '去備份';
-
-  @override
-  String get backupReminderSnoozeTooltip => '稍後提醒';
 
   @override
   String get lanSyncSectionTitle => '區域網路同步';
@@ -21138,6 +21432,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get chatSelectionExportImage => '圖片';
 
   @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
   String get chatSelectionThinkingTools => '思考工具';
 
   @override
@@ -21227,10 +21524,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get messageExportSheetMarkdown => 'Markdown';
 
   @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
   String get messageExportSheetSingleMarkdownSubtitle => '將該訊息匯出為 Markdown 檔案';
 
   @override
+  String get messageExportSheetPdfIncomplete => 'PDF 已導出，部分圖片或圖表可能不完整';
+
+  @override
+  String get messageExportSheetPdfUnsupported => 'PDF 匯出目前僅支援 Windows';
+
+  @override
   String get messageExportSheetPlainText => '純文字';
+
+  @override
+  String get messageExportSheetSinglePdfSubtitle => '將該訊息匯出為 PDF 檔案';
 
   @override
   String get messageExportSheetSingleTxtSubtitle => '將該訊息匯出為 TXT 檔案';

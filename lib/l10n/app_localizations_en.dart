@@ -2213,9 +2213,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backupPageExportToFile => 'Export to File';
 
   @override
-  String get backupPageExportKelivoCompatible => 'Export for Kelivo';
-
-  @override
   String get backupPageExportToFileSubtitle => 'Export app data to a file';
 
   @override
@@ -2223,9 +2220,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPageImportBackupFileSubtitle => 'Import a local backup file';
-
-  @override
-  String get backupPageImportFromOtherApps => 'Import from Other Apps';
 
   @override
   String get backupPageImportFromKelivo => 'Import from New Kelivo';
@@ -2387,6 +2381,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backupPageLocalBackup => 'Local Backup';
 
   @override
+  String get backupPageChannelManagement => 'Backup Channels';
+
+  @override
+  String get backupPageFullBackupSection => 'Full Backup';
+
+  @override
+  String get backupPageImportRestoreSection => 'Import & Restore';
+
+  @override
+  String get backupPageChannelEnabled => 'Enabled';
+
+  @override
+  String get backupPageChannelNotConfigured => 'Not configured';
+
+  @override
+  String get backupPageChannelLocalAlwaysOn => 'Always available';
+
+  @override
+  String get backupPageRestoreFromWebDav => 'Restore from WebDAV';
+
+  @override
+  String get backupPageRestoreFromS3 => 'Restore from S3';
+
+  @override
   String get backupPageImportFromCherryStudio => 'Import from Cherry Studio';
 
   @override
@@ -2394,6 +2412,90 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPageIncrementalTitle => 'Incremental Backup';
+
+  @override
+  String get backupPageRestoreFromBackup => 'Restore from Backup';
+
+  @override
+  String get backupPageTestingConnection => 'Testing...';
+
+  @override
+  String backupEntryDueLine(Object time) {
+    return 'Backup due · Last backup $time';
+  }
+
+  @override
+  String get backupHeroHealthyTitle => 'Backup Is Up to Date';
+
+  @override
+  String backupHeroLastBackup(Object time) {
+    return 'Last backup $time';
+  }
+
+  @override
+  String get backupHeroDueTitle => 'Backup Due';
+
+  @override
+  String get backupHeroNoTitle => 'No Backup Yet';
+
+  @override
+  String get backupHeroNoDetail => 'Your chats are only on this device so far';
+
+  @override
+  String get backupSectionExportSync => 'Export & Sync';
+
+  @override
+  String get backupSectionAuto => 'Automatic Backup';
+
+  @override
+  String get backupRestoreCloud => 'Restore from Cloud';
+
+  @override
+  String get backupRestoreCloudNone => 'No cloud channel configured';
+
+  @override
+  String get backupMigrateTitle => 'Migrate from Other Apps';
+
+  @override
+  String get backupMigrateRowSubtitle =>
+      'Move data between Cuplivo and other apps';
+
+  @override
+  String get backupMigrateMoveOutHeader => 'Move out to';
+
+  @override
+  String get backupMigrateMoveInHeader => 'Move in from';
+
+  @override
+  String get backupMigrateExportLabel => 'Kelivo / Older Cuplivo';
+
+  @override
+  String get backupPageContentLabel => 'Backup Contents';
+
+  @override
+  String get backupScopeChatsAssistants => 'Chats & Assistants';
+
+  @override
+  String get backupScopeSettings => 'Settings';
+
+  @override
+  String get backupScopeAttachments => 'Attachments';
+
+  @override
+  String get backupScopeWorkspaces => 'Workspaces';
+
+  @override
+  String get backupScopeSkills => 'Skills';
+
+  @override
+  String get backupScopeFontsAvatars => 'Fonts & Avatars';
+
+  @override
+  String get backupDestLocal => 'Local';
+
+  @override
+  String get backupPageExportKelivoCompatibleSubtitle =>
+      'A backup that old Kelivo hosts can import';
 
   @override
   String get backupPageIncrementalDescription =>
@@ -2506,19 +2608,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupReminderCustomDaysInvalid => 'Enter a number from 1 to 365.';
-
-  @override
-  String get backupReminderSidebarTitle => 'Backup reminder';
-
-  @override
-  String get backupReminderSidebarSubtitle =>
-      'Your backup interval has arrived.';
-
-  @override
-  String get backupReminderSidebarAction => 'Go to backup';
-
-  @override
-  String get backupReminderSnoozeTooltip => 'Remind me later';
 
   @override
   String get lanSyncSectionTitle => 'LAN Sync';
@@ -3153,6 +3242,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatSelectionExportImage => 'Image';
 
   @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
   String get chatSelectionThinkingTools => 'Thinking tools';
 
   @override
@@ -3251,11 +3343,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageExportSheetMarkdown => 'Markdown';
 
   @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
   String get messageExportSheetSingleMarkdownSubtitle =>
       'Export this message as a Markdown file';
 
   @override
+  String get messageExportSheetPdfIncomplete =>
+      'PDF exported, but some images or diagrams may be incomplete';
+
+  @override
+  String get messageExportSheetPdfUnsupported =>
+      'PDF export is currently only available on Windows';
+
+  @override
   String get messageExportSheetPlainText => 'Plain Text';
+
+  @override
+  String get messageExportSheetSinglePdfSubtitle =>
+      'Export this message as a PDF file';
 
   @override
   String get messageExportSheetSingleTxtSubtitle =>

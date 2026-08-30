@@ -88,6 +88,8 @@ class SettingsProvider extends ChangeNotifier {
   static const String _themeModeKey = 'theme_mode_v1';
   static const String _providerConfigsKey = 'provider_configs_v1';
   static const String _providerConfigsBackupKey = 'provider_configs_backup_v1';
+  static const String _hiddenBuiltinProvidersKey =
+      'hidden_builtin_providers_v1';
   static const String _migrationsVersionKey = 'migrations_version_v1';
   static const int _embeddingOverridesMigrationVersion = 3;
   static const int _doubleKeysNormalizationMigrationVersion = 4;
@@ -488,6 +490,40 @@ class SettingsProvider extends ChangeNotifier {
       Map.unmodifiable(_providerConfigs);
   bool get hasAnyActiveModel =>
       _providerConfigs.values.any((c) => c.enabled && c.models.isNotEmpty);
+  // Hidden built-in providers are removed from the visible list but keep
+  // their persisted config (apiKey, models, name, ...) so restore brings
+  // them back exactly as they were. Never deleted (data-disaster risk).
+  final Set<String> _hiddenBuiltinProviders = <String>{};
+  Set<String> get hiddenBuiltinProviderKeys =>
+      Set.unmodifiable(_hiddenBuiltinProviders);
+  bool isProviderHidden(String key) => _hiddenBuiltinProviders.contains(key);
+
+  /// Hides a built-in provider: removes it from lists and the model picker,
+  /// clears all model selections referencing it, but keeps its config.
+  /// Non-built-in keys are ignored — custom providers have true delete.
+  Future<void> hideBuiltinProvider(String key) async {
+    if (!_builtInProviderKeys.contains(key)) return;
+    if (!_hiddenBuiltinProviders.add(key)) return;
+    await _clearSelectionsForProvider(key);
+    await _persistHiddenBuiltinProviders();
+    notifyListeners();
+  }
+
+  /// Re-shows every hidden built-in provider (configs preserved).
+  Future<void> restoreAllBuiltinProviders() async {
+    if (_hiddenBuiltinProviders.isEmpty) return;
+    _hiddenBuiltinProviders.clear();
+    await _persistHiddenBuiltinProviders();
+    notifyListeners();
+  }
+
+  Future<void> _persistHiddenBuiltinProviders() async {
+    await _preferences.setString(
+      _hiddenBuiltinProvidersKey,
+      jsonEncode(_hiddenBuiltinProviders.toList()),
+    );
+  }
+
   // Returns a config for the given key without mutating internal state when missing.
   // This avoids implicitly creating providers during read paths (e.g., rendering old chats).
   ProviderConfig getProviderConfig(String key, {String? defaultName}) {
@@ -967,6 +1003,22 @@ class SettingsProvider extends ChangeNotifier {
     // throws). Runs before the getDouble reads below within this same _load.
     await _normalizeDoublePrefKeys(prefs);
 
+    // load hidden built-in providers (validated: only real built-in keys)
+    try {
+      final hiddenStr = prefs.getString(_hiddenBuiltinProvidersKey) ?? '';
+      _hiddenBuiltinProviders.clear();
+      if (hiddenStr.isNotEmpty) {
+        final raw = jsonDecode(hiddenStr);
+        if (raw is List) {
+          _hiddenBuiltinProviders.addAll(
+            raw.whereType<String>().where(_builtInProviderKeys.contains),
+          );
+        }
+      }
+    } catch (_) {
+      _hiddenBuiltinProviders.clear();
+    }
+
     // load provider grouping
     try {
       final groupsStr = prefs.getString(_providerGroupsKey) ?? '';
@@ -1131,6 +1183,24 @@ class SettingsProvider extends ChangeNotifier {
       if (parts.length >= 2) {
         _proactiveCareDecisionModelProvider = parts[0];
         _proactiveCareDecisionModelId = parts.sublist(1).join('::');
+      }
+    }
+    // Reconcile model selections against hidden built-ins. A cross-device
+    // backup/merge restore can land a hidden key while an independently
+    // merged model selection (scalar LWW each) still references it — and the
+    // config still exists, so nothing else would ever clear these. Mirrors
+    // the hide-time clearing (issue #295).
+    for (final hiddenKey in _hiddenBuiltinProviders) {
+      if (_currentModelProvider == hiddenKey ||
+          _titleModelProvider == hiddenKey ||
+          _translateModelProvider == hiddenKey ||
+          _ocrModelProvider == hiddenKey ||
+          _summaryModelProvider == hiddenKey ||
+          _suggestionModelProvider == hiddenKey ||
+          _compressModelProvider == hiddenKey ||
+          _proactiveCareDecisionModelProvider == hiddenKey ||
+          _pinnedModels.any((e) => e.startsWith('$hiddenKey::'))) {
+        await _clearSelectionsForProvider(hiddenKey);
       }
     }
     // learning mode
@@ -3438,6 +3508,21 @@ class SettingsProvider extends ChangeNotifier {
     _providerGroupMap.remove(key);
     _cleanupProviderOrderAndGrouping();
 
+    await _clearSelectionsForProvider(key);
+
+    // Persist updates
+    final prefs = _preferences;
+    final map = _providerConfigs.map((k, v) => MapEntry(k, v.toJson()));
+    await prefs.setString(_providerConfigsKey, jsonEncode(map));
+    await prefs.setStringList(_providersOrderKey, _providersOrder);
+    await prefs.setString(_providerGroupMapKey, jsonEncode(_providerGroupMap));
+    notifyListeners();
+  }
+
+  /// Clears every model selection (settings-level + pinned) referencing the
+  /// given provider without touching its config. Shared by remove (delete)
+  /// and hide so both paths behave identically.
+  Future<void> _clearSelectionsForProvider(String key) async {
     // Clear selections referencing this provider to avoid re-creating defaults
     final prefs = _preferences;
     if (_currentModelProvider == key) {
@@ -3487,13 +3572,6 @@ class SettingsProvider extends ChangeNotifier {
     if (_pinnedModels.length != beforePinned) {
       await prefs.setStringList(_pinnedModelsKey, _pinnedModels.toList());
     }
-
-    // Persist updates
-    final map = _providerConfigs.map((k, v) => MapEntry(k, v.toJson()));
-    await prefs.setString(_providerConfigsKey, jsonEncode(map));
-    await prefs.setStringList(_providersOrderKey, _providersOrder);
-    await prefs.setString(_providerGroupMapKey, jsonEncode(_providerGroupMap));
-    notifyListeners();
   }
 
   // Favorites (pinned models)

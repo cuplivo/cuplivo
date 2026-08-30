@@ -94,13 +94,21 @@ class _ProvidersPageState extends State<ProvidersPage> {
     final cs = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
 
-    // Base, fixed providers (recompute each build so dynamic additions reflect immediately)
-    final base = _providers(l10n: l10n);
-
     // Dynamic providers from settings
     final settings = context.watch<SettingsProvider>();
+
+    // Base, fixed providers (recompute each build so dynamic additions reflect immediately)
+    // baseKeys is the FULL built-in set: a hidden built-in's persisted config
+    // must never be re-classified as a dynamic (custom) provider.
+    final allBase = _providers(l10n: l10n);
+    final baseKeys = {for (final p in allBase) p.keyName};
+    final base = [
+      for (final p in allBase)
+        if (!settings.isProviderHidden(p.keyName)) p,
+    ];
+
+    // Dynamic providers from settings
     final cfgs = settings.providerConfigs;
-    final baseKeys = {for (final p in base) p.keyName};
     final dynamicItems = <_Provider>[];
     cfgs.forEach((key, cfg) {
       if (!baseKeys.contains(key)) {
@@ -417,6 +425,15 @@ class _ProvidersPageState extends State<ProvidersPage> {
                         settlingKeys: _settleKeys,
                       ),
               ),
+              if (!_selectMode &&
+                  settings.hiddenBuiltinProviderKeys.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _RestoreBuiltinsTile(
+                  count: settings.hiddenBuiltinProviderKeys.length,
+                  onTap: _onRestoreBuiltins,
+                ),
+              ],
+              const SizedBox(height: 12),
             ],
           ),
           Positioned(
@@ -432,27 +449,18 @@ class _ProvidersPageState extends State<ProvidersPage> {
               onMoveToGroup: _onMoveSelectedToGroup,
               onSelectAll: () {
                 setState(() {
-                  // Select all deletable (non-built-in) providers
-                  final baseKeys = {for (final p in base) p.keyName};
-                  final deletable = [
-                    for (final key in visibleProviderKeys)
-                      if (!baseKeys.contains(key)) key,
-                  ];
+                  // Select all visible providers (built-ins included since
+                  // batch delete now hides them instead of ignoring them).
+                  final all = visibleProviderKeys.toList();
                   final allSelected =
-                      deletable.isNotEmpty &&
-                      deletable.every(_selected.contains) &&
-                      _selected.length == deletable.length;
-                  _selected.removeWhere((k) => !deletable.contains(k));
+                      all.isNotEmpty && all.every(_selected.contains);
+                  _selected.removeWhere((k) => !all.contains(k));
                   if (allSelected) {
-                    // Unselect all deletable
-                    for (final k in deletable) {
-                      _selected.remove(k);
-                    }
+                    // Unselect all
+                    _selected.clear();
                   } else {
-                    // Select all deletable
-                    _selected
-                      ..removeWhere((k) => !deletable.contains(k))
-                      ..addAll(deletable);
+                    // Select all
+                    _selected.addAll(all);
                   }
                 });
               },
@@ -641,24 +649,34 @@ class _ProvidersPageState extends State<ProvidersPage> {
     final l10n = AppLocalizations.of(context)!;
     final assistantProvider = context.read<AssistantProvider>();
     final settingsProvider = context.read<SettingsProvider>();
-    // Skip built-in providers (default ones)
+    // Custom providers are deleted; built-in providers are hidden (config kept).
     final builtInKeys = {for (final p in _providers(l10n: l10n)) p.keyName};
     final keysToDelete = _selected
         .where((k) => !builtInKeys.contains(k))
         .toList(growable: false);
+    final keysToHide = _selected
+        .where((k) => builtInKeys.contains(k))
+        .toList(growable: false);
 
-    if (keysToDelete.isEmpty) {
-      // Nothing deletable selected
-      return;
-    }
+    if (keysToDelete.isEmpty && keysToHide.isEmpty) return;
+
+    final title = keysToDelete.isEmpty && keysToHide.isNotEmpty
+        ? l10n.providersPageHideBuiltinTitle
+        : l10n.providerDetailPageDeleteProviderTitle;
+    final content = keysToDelete.isEmpty
+        ? l10n.providersPageHideSelectedConfirmContent
+        : keysToHide.isEmpty
+        ? l10n.providersPageDeleteSelectedConfirmContent
+        : l10n.providersPageBatchDeleteMixedConfirmContent(
+            keysToDelete.length,
+            keysToHide.length,
+          );
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(
-          '${l10n.providerDetailPageDeleteProviderTitle} (${keysToDelete.length})',
-        ),
-        content: Text(l10n.providersPageDeleteSelectedConfirmContent),
+        title: Text('$title (${keysToDelete.length + keysToHide.length})'),
+        content: Text(content),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -676,9 +694,10 @@ class _ProvidersPageState extends State<ProvidersPage> {
     );
     if (!mounted || confirmed != true) return;
 
+    final affected = [...keysToDelete, ...keysToHide];
     // 尽可能复用 ProviderDetailPage 删除前的清理逻辑：清理引用该 provider 的助手模型选择
     for (final assistant in assistantProvider.assistants) {
-      if (keysToDelete.contains(assistant.chatModelProvider)) {
+      if (affected.contains(assistant.chatModelProvider)) {
         await assistantProvider.updateAssistant(
           assistant.copyWith(clearChatModel: true),
         );
@@ -687,14 +706,53 @@ class _ProvidersPageState extends State<ProvidersPage> {
     for (final key in keysToDelete) {
       await settingsProvider.removeProviderConfig(key);
     }
+    for (final key in keysToHide) {
+      await settingsProvider.hideBuiltinProvider(key);
+    }
     if (!mounted) return;
     setState(() {
       _selected.clear();
       _selectMode = false;
     });
+    final message = keysToHide.isEmpty
+        ? l10n.providersPageDeleteSelectedSnackbar
+        : keysToDelete.isEmpty
+        ? l10n.providersPageHideBuiltinSnackbar(keysToHide.length)
+        : l10n.providersPageBatchDeleteMixedSnackbar(
+            keysToDelete.length,
+            keysToHide.length,
+          );
+    showAppSnackBar(context, message: message, type: NotificationType.success);
+  }
+
+  Future<void> _onRestoreBuiltins() async {
+    final l10n = AppLocalizations.of(context)!;
+    final settingsProvider = context.read<SettingsProvider>();
+    final count = settingsProvider.hiddenBuiltinProviderKeys.length;
+    if (count == 0) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.providersPageRestoreBuiltinsButton(count)),
+        content: Text(l10n.providersPageRestoreBuiltinsConfirm(count)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.providerDetailPageCancelButton),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l10n.providersPageRestoreBuiltinsButton(count)),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true) return;
+    await settingsProvider.restoreAllBuiltinProviders();
+    if (!mounted) return;
     showAppSnackBar(
       context,
-      message: l10n.providersPageDeleteSelectedSnackbar,
+      message: l10n.providersPageRestoreBuiltinsSnackbar(count),
       type: NotificationType.success,
     );
   }
@@ -1797,6 +1855,55 @@ class _TactileIconButtonState extends State<_TactileIconButton> {
 }
 
 // Row tactile wrapper for iOS-style lists: no ripple, optional haptics, color-only press feedback
+class _RestoreBuiltinsTile extends StatelessWidget {
+  const _RestoreBuiltinsTile({required this.count, required this.onTap});
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: _TactileRow(
+        onTap: onTap,
+        pressedScale: 1.00,
+        haptics: false,
+        builder: (pressed) {
+          final base = cs.primary.withValues(alpha: pressed ? 0.16 : 0.10);
+          return Container(
+            decoration: BoxDecoration(
+              color: Color.alphaBlend(cs.primary.withValues(alpha: 0.04), base),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            child: Row(
+              children: [
+                Icon(Lucide.RefreshCw, size: 18, color: cs.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    l10n.providersPageRestoreBuiltinsButton(count),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: cs.onSurface,
+                      fontWeight: AppFontWeights.semibold,
+                    ),
+                  ),
+                ),
+                Icon(Lucide.ChevronRight, size: 16, color: cs.onSurface),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 class _TactileRow extends StatefulWidget {
   const _TactileRow({
     required this.builder,

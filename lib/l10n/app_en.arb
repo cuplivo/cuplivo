@@ -2806,6 +2806,63 @@
   "displaySettingsPageHapticsSettingsTitle": "Haptics",
   "assistantSettingsNoPromptPlaceholder": "No prompt yet",
   "providersPageMultiSelectTooltip": "Multi-select",
+  "providersPageHideBuiltinAction": "Hide built-in provider",
+  "providersPageHideBuiltinTitle": "Hide Built-in Provider",
+  "providersPageHideSelectedConfirmContent": "Hidden built-in providers can be restored anytime from the bottom of the provider list.",
+  "providersPageBatchDeleteMixedConfirmContent": "Delete {deleteCount} custom provider(s) and hide {hideCount} built-in provider(s)? Built-in providers can be restored anytime from the bottom of the list.",
+  "@providersPageBatchDeleteMixedConfirmContent": {
+    "placeholders": {
+      "deleteCount": {
+        "type": "int"
+      },
+      "hideCount": {
+        "type": "int"
+      }
+    }
+  },
+  "providersPageHideBuiltinSnackbar": "Hid {count} built-in provider(s)",
+  "@providersPageHideBuiltinSnackbar": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "providersPageBatchDeleteMixedSnackbar": "Deleted {deleteCount} provider(s), hid {hideCount} built-in provider(s)",
+  "@providersPageBatchDeleteMixedSnackbar": {
+    "placeholders": {
+      "deleteCount": {
+        "type": "int"
+      },
+      "hideCount": {
+        "type": "int"
+      }
+    }
+  },
+  "providersPageRestoreBuiltinsButton": "Restore built-in providers ({count})",
+  "@providersPageRestoreBuiltinsButton": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "providersPageRestoreBuiltinsConfirm": "Restore {count} hidden built-in provider(s)? Their saved configurations will be restored.",
+  "@providersPageRestoreBuiltinsConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "providersPageRestoreBuiltinsSnackbar": "Restored {count} built-in provider(s)",
+  "@providersPageRestoreBuiltinsSnackbar": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "providersPageDeleteSelectedConfirmContent": "Delete selected providers? This cannot be undone.",
   "providersPageDeleteSelectedSnackbar": "Deleted selected providers",
   "providersPageExportSelectedTitle": "Export {count} providers",
@@ -4079,3 +4136,4 @@
   "webConversationStylesDeleteAction": "Delete",
   "webConversationStylesNoDescription": "No description"
 }
+

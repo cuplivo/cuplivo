@@ -419,6 +419,63 @@
   "assistantEditQQAvatarDialogCancel": "取消",
   "assistantEditQQAvatarDialogSave": "保存",
   "providersPageMultiSelectTooltip": "多选",
+  "providersPageHideBuiltinAction": "隐藏内置供应商",
+  "providersPageHideBuiltinTitle": "隐藏内置供应商",
+  "providersPageHideSelectedConfirmContent": "隐藏的内置供应商可随时从供应商列表底部恢复。",
+  "providersPageBatchDeleteMixedConfirmContent": "将删除 {deleteCount} 个自定义供应商，并隐藏 {hideCount} 个内置供应商。内置供应商可随时从列表底部恢复。",
+  "@providersPageBatchDeleteMixedConfirmContent": {
+    "placeholders": {
+      "deleteCount": {
+        "type": "int"
+      },
+      "hideCount": {
+        "type": "int"
+      }
+    }
+  },
+  "providersPageHideBuiltinSnackbar": "已隐藏 {count} 个内置供应商",
+  "@providersPageHideBuiltinSnackbar": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "providersPageBatchDeleteMixedSnackbar": "已删除 {deleteCount} 个供应商，隐藏 {hideCount} 个内置供应商",
+  "@providersPageBatchDeleteMixedSnackbar": {
+    "placeholders": {
+      "deleteCount": {
+        "type": "int"
+      },
+      "hideCount": {
+        "type": "int"
+      }
+    }
+  },
+  "providersPageRestoreBuiltinsButton": "恢复内置供应商（{count}）",
+  "@providersPageRestoreBuiltinsButton": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "providersPageRestoreBuiltinsConfirm": "将恢复 {count} 个隐藏的内置供应商？已保存的配置将一并恢复。",
+  "@providersPageRestoreBuiltinsConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "providersPageRestoreBuiltinsSnackbar": "已恢复 {count} 个内置供应商",
+  "@providersPageRestoreBuiltinsSnackbar": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "providersPageDeleteSelectedConfirmContent": "确定要删除选中的供应商吗？该操作不可撤销。",
   "providersPageDeleteSelectedSnackbar": "已删除选中的供应商",
   "providersPageExportSelectedTitle": "导出 {count} 个供应商",
@@ -3482,3 +3539,4 @@
   "webConversationStylesDeleteAction": "删除",
   "webConversationStylesNoDescription": "无描述"
 }
+

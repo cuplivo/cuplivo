@@ -31,6 +31,21 @@ void main() {
     final css = File('assets/web_chat/styles.css').readAsStringSync();
     expect(css, contains('body.print-mode'));
     expect(css, contains('var(--cuplivo-surface)'));
+    expect(css, contains('-webkit-print-color-adjust: exact'));
+    expect(css, contains('print-color-adjust: exact'));
+  });
+
+  test('Android print adapter keeps the fixed PDF defaults and lifecycle', () {
+    final kotlin = File(
+      'android/app/src/main/kotlin/com/cup11/cuplivo/'
+      'AndroidWebChatPdfHandler.kt',
+    ).readAsStringSync();
+    expect(kotlin, contains('MediaSize.ISO_A4.asPortrait()'));
+    expect(kotlin, contains('PRINT_MARGIN_MILS = 551'));
+    expect(kotlin, contains('600, 600'));
+    expect(kotlin, contains('PrintAttributes.COLOR_MODE_COLOR'));
+    expect(kotlin, contains('delegate.onFinish()'));
+    expect(kotlin, contains('disposeCurrentTask(cancelPrint = false)'));
   });
 
   test('print media bundle answers remote images inside tool results', () {

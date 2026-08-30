@@ -898,8 +898,9 @@ Future<void> exportChatMessagesPdf(
   bool expandThinkingContent = false,
 }) async {
   final l10n = AppLocalizations.of(context)!;
+  File? temporaryPdf;
   try {
-    if (!Platform.isWindows) {
+    if (!Platform.isWindows && !Platform.isAndroid) {
       showAppSnackBar(
         context,
         message: l10n.messageExportSheetPdfUnsupported,
@@ -912,6 +913,24 @@ Future<void> exportChatMessagesPdf(
       message: l10n.messageExportSheetExporting,
       type: NotificationType.info,
     );
+    if (Platform.isAndroid) {
+      final result = await printConversationPdfOnAndroid(
+        context,
+        conversation: conversation,
+        messages: messages,
+        showThinkingAndToolCards: showThinkingAndToolCards,
+        expandThinkingContent: expandThinkingContent,
+      );
+      if (!context.mounted || result.cancelled) return;
+      if (result.timedOut) {
+        showAppSnackBar(
+          context,
+          message: l10n.messageExportSheetPdfIncomplete,
+          type: NotificationType.warning,
+        );
+      }
+      return;
+    }
     final result = await renderConversationPdf(
       context,
       conversation: conversation,
@@ -919,6 +938,7 @@ Future<void> exportChatMessagesPdf(
       showThinkingAndToolCards: showThinkingAndToolCards,
       expandThinkingContent: expandThinkingContent,
     );
+    temporaryPdf = result.file;
     final String? savePath = await FilePicker.platform.saveFile(
       dialogTitle: l10n.backupPageExportToFile,
       fileName: 'chat-export-${DateTime.now().millisecondsSinceEpoch}.pdf',
@@ -951,6 +971,18 @@ Future<void> exportChatMessagesPdf(
       message: l10n.messageExportSheetExportFailed('$e'),
       type: NotificationType.error,
     );
+  } finally {
+    final file = temporaryPdf;
+    if (file != null && await file.exists()) {
+      try {
+        await file.delete();
+      } catch (error) {
+        debugPrint(
+          'MessageExportSheet: temporary PDF cleanup failed '
+          '(${error.runtimeType})',
+        );
+      }
+    }
   }
 }
 

@@ -1354,7 +1354,7 @@
   "messageExportSheetPdf": "PDF",
   "messageExportSheetSingleMarkdownSubtitle": "Export this message as a Markdown file",
   "messageExportSheetPdfIncomplete": "PDF exported, but some images or diagrams may be incomplete",
-  "messageExportSheetPdfUnsupported": "PDF export is currently only available on Windows",
+  "messageExportSheetPdfUnsupported": "PDF export is currently only available on Windows and Android",
   "messageExportSheetPlainText": "Plain Text",
   "messageExportSheetSinglePdfSubtitle": "Export this message as a PDF file",
   "messageExportSheetSingleTxtSubtitle": "Export this message as a TXT file",
@@ -4169,4 +4169,3 @@
   "webConversationStylesDeleteAction": "Delete",
   "webConversationStylesNoDescription": "No description"
 }
-

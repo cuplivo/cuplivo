@@ -6090,7 +6090,7 @@ abstract class AppLocalizations {
   /// No description provided for @messageExportSheetPdfUnsupported.
   ///
   /// In en, this message translates to:
-  /// **'PDF export is currently only available on Windows'**
+  /// **'PDF export is currently only available on Windows and Android'**
   String get messageExportSheetPdfUnsupported;
 
   /// No description provided for @messageExportSheetPlainText.

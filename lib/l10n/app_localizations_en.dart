@@ -3355,7 +3355,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get messageExportSheetPdfUnsupported =>
-      'PDF export is currently only available on Windows';
+      'PDF export is currently only available on Windows and Android';
 
   @override
   String get messageExportSheetPlainText => 'Plain Text';

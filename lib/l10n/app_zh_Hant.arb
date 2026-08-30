@@ -1146,7 +1146,7 @@
   "messageExportSheetPdf": "PDF",
   "messageExportSheetSingleMarkdownSubtitle": "將該訊息匯出為 Markdown 檔案",
   "messageExportSheetPdfIncomplete": "PDF 已導出，部分圖片或圖表可能不完整",
-  "messageExportSheetPdfUnsupported": "PDF 匯出目前僅支援 Windows",
+  "messageExportSheetPdfUnsupported": "PDF 匯出目前僅支援 Windows 和 Android",
   "messageExportSheetPlainText": "純文字",
   "messageExportSheetSinglePdfSubtitle": "將該訊息匯出為 PDF 檔案",
   "messageExportSheetSingleTxtSubtitle": "將該訊息匯出為 TXT 檔案",
@@ -3572,4 +3572,3 @@
   "webConversationStylesDeleteAction": "刪除",
   "webConversationStylesNoDescription": "無描述"
 }
-

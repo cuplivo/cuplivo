@@ -3234,7 +3234,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageExportSheetPdfIncomplete => 'PDF 已导出，部分图片或图表可能不完整';
 
   @override
-  String get messageExportSheetPdfUnsupported => 'PDF 导出目前仅支持 Windows';
+  String get messageExportSheetPdfUnsupported =>
+      'PDF 导出目前仅支持 Windows 和 Android';
 
   @override
   String get messageExportSheetPlainText => '纯文本';
@@ -12384,7 +12385,8 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageExportSheetPdfIncomplete => 'PDF 已导出，部分图片或图表可能不完整';
 
   @override
-  String get messageExportSheetPdfUnsupported => 'PDF 导出目前仅支持 Windows';
+  String get messageExportSheetPdfUnsupported =>
+      'PDF 导出目前仅支持 Windows 和 Android';
 
   @override
   String get messageExportSheetPlainText => '纯文本';
@@ -21533,7 +21535,8 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get messageExportSheetPdfIncomplete => 'PDF 已導出，部分圖片或圖表可能不完整';
 
   @override
-  String get messageExportSheetPdfUnsupported => 'PDF 匯出目前僅支援 Windows';
+  String get messageExportSheetPdfUnsupported =>
+      'PDF 匯出目前僅支援 Windows 和 Android';
 
   @override
   String get messageExportSheetPlainText => '純文字';

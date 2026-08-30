@@ -946,6 +946,8 @@ body[data-style-process-shadow="true"] :is(
        with translucent dark bubbles. The decorative wallpaper layers
        stay hidden (never printed). */
     background: var(--cuplivo-surface) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   body.print-mode::before,
   body.print-mode #chat-background {

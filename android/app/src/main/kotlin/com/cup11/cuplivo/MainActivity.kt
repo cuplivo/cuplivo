@@ -25,6 +25,7 @@ class MainActivity : FlutterActivity() {
     private var pendingSaveSourcePath: String? = null
     var volumeCtrlPlugin: LinuxSandboxPlugin? = null
     private var deviceLocalToolsHandler: DeviceLocalToolsHandler? = null
+    private var webChatPdfHandler: AndroidWebChatPdfHandler? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -35,6 +36,9 @@ class MainActivity : FlutterActivity() {
         flutterEngine.plugins.add(LinuxSandboxPlugin())
         flutterEngine.plugins.add(SafMountPlugin())
         deviceLocalToolsHandler = DeviceLocalToolsHandler(this).also {
+            it.configure(flutterEngine.dartExecutor.binaryMessenger)
+        }
+        webChatPdfHandler = AndroidWebChatPdfHandler(this).also {
             it.configure(flutterEngine.dartExecutor.binaryMessenger)
         }
         processTextChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, processTextChannelName)
@@ -56,6 +60,12 @@ class MainActivity : FlutterActivity() {
             }
         }
         pendingProcessText = extractProcessText(intent)
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        webChatPdfHandler?.dispose()
+        webChatPdfHandler = null
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {

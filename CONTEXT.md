@@ -973,7 +973,21 @@
 - "引用" was used to mean both the message-level reply's **Quote** and the pre-existing text-selection 引用 paste — resolved: two features sharing only the Chinese word; internal term is always **Quote** (reply) vs 引用-paste.
 - "display-only" was floated mid-design and retracted: the quote is a display citation **plus** a context-carrier via `<reply-to>`; it is never wire-structural (no thread/tree, no role change).
 
-## Message Selection Mode (消息选择模式) — ADR-0045
+## WorldBook & InstructionInjection Binding (世界书与指令注入绑定) — issue #501
+
+- **Per-assistant binding (按助手绑定)**: WorldBook and InstructionInjection are bound to ASSISTANTS, not conversations — one map per feature (`_activeIdsByAssistant` in `WorldBookStore` / `InstructionInjectionProvider`), keyed by assistantId with a `__global__` fallback for null. Every binding surface (chat input bar, assistant editor tab, edit-sheet multi-select) reads/writes this same map.
+- **助手侧入口 (assistant-side entry)**: A combined bindings tab in the assistant editor (`_assistantEditTabSpecs` on mobile + `_AssistantDesktopMenu` on desktop — one widget, two shells, Skills-tab precedent) that inlines the 世界书 section and the 指令注入 section. Mirrors the `_SkillsTab` pattern: master enable-all row, collapsible groups, `IosSwitch` toggle rows, inline (never opens the modal sheet). The legacy conversation-bound entry (input-bar + menu) stays.
+- **条目侧多选 (item-side assignment)**: The book-config sheet/dialog and the instruction-injection edit sheet/dialog additionally offer "为哪些助手启用" — an explicit multi-select of CURRENT assistants per item. Writes/removes per-assistant bindings directly; deliberately NO "all future assistants" global option (the `__global__` fallback is never written by this UI).
+- **WorldBook group (世界书分组)**: `WorldBook.group` — free-form string on the BOOK level (never entry level; entries are never bound individually), default `''` = 未分组, mirroring `InstructionInjection.group`'s conventions. At WorldBook the bindable item IS the book.
+- **Grouping surfaces (分组显示面)**: Grouped renders appear ONLY in bind surfaces — mobile binding sheet, desktop binding popover, and the assistant-editor bindings-tab sections. The WorldBook manage page (mobile page + desktop pane) deliberately stays FLAT: it already provides book drag-reorder + per-book collapse, and group headers there would create 3-level nesting (group→book→entries) + across-group reorder semantics with no gain.
+- **Collapse-state split (折叠状态分层)**: bind sheet/popover group headers persist collapse state (`world_books_group_collapsed_v1`, mirroring `InstructionInjectionGroupProvider`); the assistant-editor tab sections use session-scoped `CollapsibleGroupsMixin` (mirroring the Skills tab).
+- **Compatibility**: `group` is a new optional JSON field — absent on old data / old backups defaults to `''`. The RikkaHub lorebook export carries it (upstream ignores unknown keys; a Cuplivo re-import restores it via `fromJson`).
+
+### Flagged Ambiguities
+
+- "世界书条目" was used to mean both the book list items (bind surfaces) and entries inside a book — resolved: grouping is BOOK-level because the bindable items are books; `WorldBookEntry` stays ungrouped.
+
+  ## Message Selection Mode (消息选择模式) — ADR-0045
 
 - **消息选择模式 (message selection mode)**: The single trade-select mode entered from the message 更多 sheet's 多选 (Multi Select) entry (Share was merged into it). The anchor message and its paired user/assistant message are pre-selected at entry; the user can toggle, select-all, invert, or use the mini-map. Exists as one shape only — there is no share/delete distinction anymore.
 - **选择动作台 (selection action bar)**: The unified bottom bar that replaces the old export bar and delete bar — `ChatSelectionActionBar`. Row 1 = TXT / MD / Image / 删除(destructive); Row 2 = thinking tools / thinking content toggles. Both 分享(导出) and 删除 act on the same selection set.

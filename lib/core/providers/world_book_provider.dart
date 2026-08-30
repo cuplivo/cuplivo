@@ -22,6 +22,7 @@ class WorldBookProvider with ChangeNotifier {
   Map<String, List<String>> _activeIdsByAssistant =
       const <String, List<String>>{};
   Map<String, bool> _collapsedBooks = const <String, bool>{};
+  Map<String, bool> _collapsedGroups = const <String, bool>{};
 
   List<WorldBook> get books => List<WorldBook>.unmodifiable(_books);
 
@@ -49,6 +50,9 @@ class WorldBookProvider with ChangeNotifier {
 
   bool isBookCollapsed(String id) => _collapsedBooks[id] ?? false;
 
+  bool isGroupCollapsed(String groupName) =>
+      _collapsedGroups[WorldBookStore.groupCollapseKey(groupName)] ?? false;
+
   Future<void> initialize() async {
     if (_initialized) return;
     await loadAll();
@@ -71,12 +75,27 @@ class WorldBookProvider with ChangeNotifier {
         await _store.setCollapsedMap(cleanedCollapsed);
       }
 
+      final collapsedGroups = await _store.getCollapsedGroupsMap();
+      final knownGroupKeys = _books
+          .map((e) => WorldBookStore.groupCollapseKey(e.group))
+          .toSet();
+      final cleanedGroups = <String, bool>{
+        for (final entry in collapsedGroups.entries)
+          if (knownGroupKeys.contains(entry.key)) entry.key: entry.value,
+      };
+      _collapsedGroups = cleanedGroups;
+
+      if (cleanedGroups.length != collapsedGroups.length) {
+        await _store.setCollapsedGroupsMap(cleanedGroups);
+      }
+
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to load world books: $e');
       _books = const <WorldBook>[];
       _activeIdsByAssistant = const <String, List<String>>{};
       _collapsedBooks = const <String, bool>{};
+      _collapsedGroups = const <String, bool>{};
       notifyListeners();
     }
   }
@@ -136,6 +155,7 @@ class WorldBookProvider with ChangeNotifier {
     _books = const <WorldBook>[];
     _activeIdsByAssistant = const <String, List<String>>{};
     _collapsedBooks = const <String, bool>{};
+    _collapsedGroups = const <String, bool>{};
     notifyListeners();
   }
 
@@ -189,6 +209,20 @@ class WorldBookProvider with ChangeNotifier {
 
   Future<void> toggleBookCollapsed(String id) async {
     await setBookCollapsed(id, !isBookCollapsed(id));
+  }
+
+  Future<void> setGroupCollapsed(String groupName, bool collapsed) async {
+    final key = WorldBookStore.groupCollapseKey(groupName);
+
+    final next = Map<String, bool>.from(_collapsedGroups);
+    next[key] = collapsed;
+    _collapsedGroups = next;
+    notifyListeners();
+    await _store.setCollapsedGroup(key, collapsed);
+  }
+
+  Future<void> toggleGroupCollapsed(String groupName) async {
+    await setGroupCollapsed(groupName, !isGroupCollapsed(groupName));
   }
 
   Future<void> setActiveBookIds(List<String> ids, {String? assistantId}) async {

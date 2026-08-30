@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/models/world_book.dart';
 import '../../../core/providers/world_book_provider.dart';
 import '../../../core/services/haptics.dart';
 import '../../../icons/lucide_adapter.dart';
@@ -29,6 +30,19 @@ class WorldBookSheet extends StatelessWidget {
           final books = provider.books;
           final activeIds = provider.activeBookIdsFor(assistantId).toSet();
 
+          final Map<String, List<WorldBook>> grouped =
+              <String, List<WorldBook>>{};
+          for (final book in books) {
+            final g = book.group.trim();
+            (grouped[g] ??= <WorldBook>[]).add(book);
+          }
+          final groupNames = grouped.keys.toList()
+            ..sort((a, b) {
+              if (a.isEmpty && b.isNotEmpty) return -1;
+              if (a.isNotEmpty && b.isEmpty) return 1;
+              return a.toLowerCase().compareTo(b.toLowerCase());
+            });
+
           return Column(
             children: [
               _SheetTopBar(
@@ -53,45 +67,141 @@ class WorldBookSheet extends StatelessWidget {
                         ),
                       )
                     else
-                      for (final book in books)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Builder(
-                            builder: (rowCtx) {
-                              final selected = activeIds.contains(book.id);
-                              final disabled = !book.enabled;
-                              final canTap = !disabled || selected;
-                              return _SelectableRow(
-                                icon: Lucide.BookOpen,
-                                label: book.name.trim().isEmpty
-                                    ? l10n.worldBookUnnamed
-                                    : book.name.trim(),
-                                subtitle: book.description.trim().isEmpty
-                                    ? null
-                                    : book.description.trim(),
-                                selected: selected,
-                                disabled: disabled,
-                                onTap: !canTap
-                                    ? null
-                                    : () async {
-                                        Haptics.light();
-                                        await rowCtx
-                                            .read<WorldBookProvider>()
-                                            .toggleActiveBookId(
-                                              book.id,
-                                              assistantId: assistantId,
-                                            );
-                                      },
-                              );
-                            },
-                          ),
+                      for (final groupName in groupNames) ...[
+                        _GroupHeader(
+                          title: groupName.trim().isEmpty
+                              ? l10n.worldBookUngroupedGroup
+                              : groupName.trim(),
+                          collapsed: provider.isGroupCollapsed(groupName),
+                          onToggle: () => ctx
+                              .read<WorldBookProvider>()
+                              .toggleGroupCollapsed(groupName),
                         ),
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 260),
+                          curve: Curves.easeInOutCubic,
+                          alignment: Alignment.topCenter,
+                          child: provider.isGroupCollapsed(groupName)
+                              ? const SizedBox.shrink()
+                              : Column(
+                                  children: [
+                                    for (
+                                      int i = 0;
+                                      i < (grouped[groupName]?.length ?? 0);
+                                      i++
+                                    )
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 10,
+                                        ),
+                                        child: Builder(
+                                          builder: (rowCtx) {
+                                            final book = grouped[groupName]![i];
+                                            final selected = activeIds.contains(
+                                              book.id,
+                                            );
+                                            final disabled = !book.enabled;
+                                            final canTap =
+                                                !disabled || selected;
+                                            return _SelectableRow(
+                                              icon: Lucide.BookOpen,
+                                              label: book.name.trim().isEmpty
+                                                  ? l10n.worldBookUnnamed
+                                                  : book.name.trim(),
+                                              subtitle:
+                                                  book.description
+                                                      .trim()
+                                                      .isEmpty
+                                                  ? null
+                                                  : book.description.trim(),
+                                              selected: selected,
+                                              disabled: disabled,
+                                              onTap: !canTap
+                                                  ? null
+                                                  : () async {
+                                                      Haptics.light();
+                                                      await rowCtx
+                                                          .read<
+                                                            WorldBookProvider
+                                                          >()
+                                                          .toggleActiveBookId(
+                                                            book.id,
+                                                            assistantId:
+                                                                assistantId,
+                                                          );
+                                                    },
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                        ),
+                      ],
                   ],
                 ),
               ),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _GroupHeader extends StatelessWidget {
+  const _GroupHeader({
+    required this.title,
+    required this.collapsed,
+    required this.onToggle,
+  });
+
+  final String title;
+  final bool collapsed;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final textBase = cs.onSurface;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onToggle,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: Center(
+                child: AnimatedRotation(
+                  turns: collapsed ? 0.0 : 0.25, // right -> down
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutCubic,
+                  child: Icon(
+                    Lucide.ChevronRight,
+                    size: 16,
+                    color: textBase.withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: AppFontWeights.emphasis,
+                  color: textBase,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

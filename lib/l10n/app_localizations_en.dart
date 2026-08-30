@@ -6956,6 +6956,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String get providersPageMultiSelectTooltip => 'Multi-select';
 
   @override
+  String get providersPageHideBuiltinAction => 'Hide built-in provider';
+
+  @override
+  String get providersPageHideBuiltinTitle => 'Hide Built-in Provider';
+
+  @override
+  String get providersPageHideSelectedConfirmContent =>
+      'Hidden built-in providers can be restored anytime from the bottom of the provider list.';
+
+  @override
+  String providersPageBatchDeleteMixedConfirmContent(
+    int deleteCount,
+    int hideCount,
+  ) {
+    return 'Delete $deleteCount custom provider(s) and hide $hideCount built-in provider(s)? Built-in providers can be restored anytime from the bottom of the list.';
+  }
+
+  @override
+  String providersPageHideBuiltinSnackbar(int count) {
+    return 'Hid $count built-in provider(s)';
+  }
+
+  @override
+  String providersPageBatchDeleteMixedSnackbar(int deleteCount, int hideCount) {
+    return 'Deleted $deleteCount provider(s), hid $hideCount built-in provider(s)';
+  }
+
+  @override
+  String providersPageRestoreBuiltinsButton(int count) {
+    return 'Restore built-in providers ($count)';
+  }
+
+  @override
+  String providersPageRestoreBuiltinsConfirm(int count) {
+    return 'Restore $count hidden built-in provider(s)? Their saved configurations will be restored.';
+  }
+
+  @override
+  String providersPageRestoreBuiltinsSnackbar(int count) {
+    return 'Restored $count built-in provider(s)';
+  }
+
+  @override
   String get providersPageDeleteSelectedConfirmContent =>
       'Delete selected providers? This cannot be undone.';
 

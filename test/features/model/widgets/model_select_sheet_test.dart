@@ -536,4 +536,44 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 20)),
   );
+
+  testWidgets('model selector excludes hidden built-in providers', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    try {
+      businessPrefs = BusinessPreferences.memoryForTests({});
+      final settings = SettingsProvider(preferences: businessPrefs);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+
+      await settings.setProviderConfig(
+        'DeepSeek',
+        _providerConfig('DeepSeek', 'DeepSeek', ['ds-hidden-model']),
+      );
+      await settings.setProviderConfig(
+        'provider-visible',
+        _providerConfig('provider-visible', 'Visible', ['visible-model']),
+      );
+      await settings.setCurrentModel('DeepSeek', 'ds-hidden-model');
+      await settings.setProvidersOrder(const ['provider-visible']);
+      await settings.hideBuiltinProvider('DeepSeek');
+      expect(settings.currentModelProvider, isNull);
+
+      await _pumpModelSelector(tester, settings: settings);
+      await tester.pumpAndSettle(const Duration(milliseconds: 100));
+      expect(
+        find.byKey(const ValueKey('model-selector-provider-tab-DeepSeek')),
+        findsNothing,
+      );
+      expect(find.text('ds-hidden-model'), findsNothing);
+    } finally {
+      await _dismissModelSelector(tester);
+      debugDefaultTargetPlatformOverride = null;
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    }
+  }, timeout: const Timeout(Duration(seconds: 20)));
 }

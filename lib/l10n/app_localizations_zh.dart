@@ -6661,6 +6661,49 @@ class AppLocalizationsZh extends AppLocalizations {
   String get providersPageMultiSelectTooltip => '多选';
 
   @override
+  String get providersPageHideBuiltinAction => '隐藏内置供应商';
+
+  @override
+  String get providersPageHideBuiltinTitle => '隐藏内置供应商';
+
+  @override
+  String get providersPageHideSelectedConfirmContent =>
+      '隐藏的内置供应商可随时从供应商列表底部恢复。';
+
+  @override
+  String providersPageBatchDeleteMixedConfirmContent(
+    int deleteCount,
+    int hideCount,
+  ) {
+    return '将删除 $deleteCount 个自定义供应商，并隐藏 $hideCount 个内置供应商。内置供应商可随时从列表底部恢复。';
+  }
+
+  @override
+  String providersPageHideBuiltinSnackbar(int count) {
+    return '已隐藏 $count 个内置供应商';
+  }
+
+  @override
+  String providersPageBatchDeleteMixedSnackbar(int deleteCount, int hideCount) {
+    return '已删除 $deleteCount 个供应商，隐藏 $hideCount 个内置供应商';
+  }
+
+  @override
+  String providersPageRestoreBuiltinsButton(int count) {
+    return '恢复内置供应商（$count）';
+  }
+
+  @override
+  String providersPageRestoreBuiltinsConfirm(int count) {
+    return '将恢复 $count 个隐藏的内置供应商？已保存的配置将一并恢复。';
+  }
+
+  @override
+  String providersPageRestoreBuiltinsSnackbar(int count) {
+    return '已恢复 $count 个内置供应商';
+  }
+
+  @override
   String get providersPageDeleteSelectedConfirmContent =>
       '确定要删除选中的供应商吗？该操作不可撤销。';
 
@@ -15663,6 +15706,49 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get providersPageMultiSelectTooltip => '多选';
+
+  @override
+  String get providersPageHideBuiltinAction => '隐藏内置供应商';
+
+  @override
+  String get providersPageHideBuiltinTitle => '隐藏内置供应商';
+
+  @override
+  String get providersPageHideSelectedConfirmContent =>
+      '隐藏的内置供应商可随时从供应商列表底部恢复。';
+
+  @override
+  String providersPageBatchDeleteMixedConfirmContent(
+    int deleteCount,
+    int hideCount,
+  ) {
+    return '将删除 $deleteCount 个自定义供应商，并隐藏 $hideCount 个内置供应商。内置供应商可随时从列表底部恢复。';
+  }
+
+  @override
+  String providersPageHideBuiltinSnackbar(int count) {
+    return '已隐藏 $count 个内置供应商';
+  }
+
+  @override
+  String providersPageBatchDeleteMixedSnackbar(int deleteCount, int hideCount) {
+    return '已删除 $deleteCount 个供应商，隐藏 $hideCount 个内置供应商';
+  }
+
+  @override
+  String providersPageRestoreBuiltinsButton(int count) {
+    return '恢复内置供应商（$count）';
+  }
+
+  @override
+  String providersPageRestoreBuiltinsConfirm(int count) {
+    return '将恢复 $count 个隐藏的内置供应商？已保存的配置将一并恢复。';
+  }
+
+  @override
+  String providersPageRestoreBuiltinsSnackbar(int count) {
+    return '已恢复 $count 个内置供应商';
+  }
 
   @override
   String get providersPageDeleteSelectedConfirmContent =>
@@ -24668,6 +24754,49 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get providersPageMultiSelectTooltip => '多選';
+
+  @override
+  String get providersPageHideBuiltinAction => '隱藏內建供應商';
+
+  @override
+  String get providersPageHideBuiltinTitle => '隱藏內建供應商';
+
+  @override
+  String get providersPageHideSelectedConfirmContent =>
+      '隱藏的內建供應商可隨時從供應商列表底部還原。';
+
+  @override
+  String providersPageBatchDeleteMixedConfirmContent(
+    int deleteCount,
+    int hideCount,
+  ) {
+    return '將刪除 $deleteCount 個自訂供應商，並隱藏 $hideCount 個內建供應商。內建供應商可隨時從列表底部還原。';
+  }
+
+  @override
+  String providersPageHideBuiltinSnackbar(int count) {
+    return '已隱藏 $count 個內建供應商';
+  }
+
+  @override
+  String providersPageBatchDeleteMixedSnackbar(int deleteCount, int hideCount) {
+    return '已刪除 $deleteCount 個供應商，隱藏 $hideCount 個內建供應商';
+  }
+
+  @override
+  String providersPageRestoreBuiltinsButton(int count) {
+    return '還原內建供應商（$count）';
+  }
+
+  @override
+  String providersPageRestoreBuiltinsConfirm(int count) {
+    return '將還原 $count 個隱藏的內建供應商？已保存的設定將一併還原。';
+  }
+
+  @override
+  String providersPageRestoreBuiltinsSnackbar(int count) {
+    return '已還原 $count 個內建供應商';
+  }
 
   @override
   String get providersPageDeleteSelectedConfirmContent =>

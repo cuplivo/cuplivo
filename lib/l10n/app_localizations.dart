@@ -12574,6 +12574,63 @@ abstract class AppLocalizations {
   /// **'Multi-select'**
   String get providersPageMultiSelectTooltip;
 
+  /// No description provided for @providersPageHideBuiltinAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide built-in provider'**
+  String get providersPageHideBuiltinAction;
+
+  /// No description provided for @providersPageHideBuiltinTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide Built-in Provider'**
+  String get providersPageHideBuiltinTitle;
+
+  /// No description provided for @providersPageHideSelectedConfirmContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden built-in providers can be restored anytime from the bottom of the provider list.'**
+  String get providersPageHideSelectedConfirmContent;
+
+  /// No description provided for @providersPageBatchDeleteMixedConfirmContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {deleteCount} custom provider(s) and hide {hideCount} built-in provider(s)? Built-in providers can be restored anytime from the bottom of the list.'**
+  String providersPageBatchDeleteMixedConfirmContent(
+    int deleteCount,
+    int hideCount,
+  );
+
+  /// No description provided for @providersPageHideBuiltinSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Hid {count} built-in provider(s)'**
+  String providersPageHideBuiltinSnackbar(int count);
+
+  /// No description provided for @providersPageBatchDeleteMixedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted {deleteCount} provider(s), hid {hideCount} built-in provider(s)'**
+  String providersPageBatchDeleteMixedSnackbar(int deleteCount, int hideCount);
+
+  /// No description provided for @providersPageRestoreBuiltinsButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore built-in providers ({count})'**
+  String providersPageRestoreBuiltinsButton(int count);
+
+  /// No description provided for @providersPageRestoreBuiltinsConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore {count} hidden built-in provider(s)? Their saved configurations will be restored.'**
+  String providersPageRestoreBuiltinsConfirm(int count);
+
+  /// No description provided for @providersPageRestoreBuiltinsSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored {count} built-in provider(s)'**
+  String providersPageRestoreBuiltinsSnackbar(int count);
+
   /// No description provided for @providersPageDeleteSelectedConfirmContent.
   ///
   /// In en, this message translates to:

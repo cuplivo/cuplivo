@@ -188,6 +188,38 @@ class _DesktopProvidersBodyState extends State<_DesktopProvidersBody> {
     );
   }
 
+  Future<void> _onRestoreBuiltins() async {
+    final l10n = AppLocalizations.of(context)!;
+    final settings = context.read<SettingsProvider>();
+    final count = settings.hiddenBuiltinProviderKeys.length;
+    if (count == 0) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.providersPageRestoreBuiltinsButton(count)),
+        content: Text(l10n.providersPageRestoreBuiltinsConfirm(count)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.providerDetailPageCancelButton),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l10n.providersPageRestoreBuiltinsButton(count)),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true) return;
+    await settings.restoreAllBuiltinProviders();
+    if (!mounted) return;
+    showAppSnackBar(
+      context,
+      message: l10n.providersPageRestoreBuiltinsSnackbar(count),
+      type: NotificationType.success,
+    );
+  }
+
   Widget _buildDesktopProviderRow({
     required ({String name, String key}) item,
     required SettingsProvider settings,
@@ -223,6 +255,54 @@ class _DesktopProvidersBodyState extends State<_DesktopProvidersBody> {
           );
         });
       },
+      onHide: baseKeys.contains(item.key)
+          ? () async {
+              final l10n = AppLocalizations.of(context)!;
+              final ap = context.read<AssistantProvider>();
+              final ok = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: Text(l10n.providersPageHideBuiltinTitle),
+                  content: Text(l10n.providersPageHideSelectedConfirmContent),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: Text(l10n.providerDetailPageCancelButton),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      child: Text(
+                        l10n.providerDetailPageDeleteButton,
+                        style: TextStyle(color: colorScheme.error),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+              if (ok != true) return;
+              try {
+                for (final assistant in ap.assistants) {
+                  if (assistant.chatModelProvider == item.key) {
+                    await ap.updateAssistant(
+                      assistant.copyWith(clearChatModel: true),
+                    );
+                  }
+                }
+              } catch (e, st) {
+                debugPrint(
+                  '[ProvidersPane] clearing assistant model refs failed while hiding $item.key: $e',
+                );
+                debugPrint('$st');
+              }
+              await settings.hideBuiltinProvider(item.key);
+              if (!mounted) return;
+              setState(() {
+                if (_selectedKey == item.key) {
+                  _selectedKey = _nextKeyAfterRemoval(ordered, item.key);
+                }
+              });
+            }
+          : null,
       onDelete: baseKeys.contains(item.key)
           ? null
           : () async {
@@ -262,11 +342,21 @@ class _DesktopProvidersBodyState extends State<_DesktopProvidersBody> {
               if (!mounted) return;
               setState(() {
                 if (_selectedKey == item.key) {
-                  _selectedKey = ordered.isNotEmpty ? ordered.first.key : null;
+                  _selectedKey = _nextKeyAfterRemoval(ordered, item.key);
                 }
               });
             },
     );
+  }
+
+  /// Fallback detail-pane selection after removal/hide: never lands back on
+  /// the removed key itself, even when it was first in order.
+  String? _nextKeyAfterRemoval(
+    List<({String name, String key})> ordered,
+    String removedKey,
+  ) {
+    if (ordered.length <= 1) return null;
+    return ordered.firstWhere((e) => e.key != removedKey).key;
   }
 
   @override
@@ -290,7 +380,14 @@ class _DesktopProvidersBodyState extends State<_DesktopProvidersBody> {
       (name: l10n.providersPageByteDanceName, key: 'ByteDance'),
     ];
     final cfgs = settings.providerConfigs;
-    final baseKeys = {for (final p in base()) p.key};
+    // baseKeys is the FULL built-in set so a hidden built-in's persisted
+    // config is never re-classified as a dynamic (custom) provider.
+    final allBase = base();
+    final baseKeys = {for (final p in allBase) p.key};
+    final builtInVisible = [
+      for (final p in allBase)
+        if (!settings.isProviderHidden(p.key)) p,
+    ];
     final dynamicItems = <({String name, String key})>[];
     cfgs.forEach((key, cfg) {
       if (!baseKeys.contains(key)) {
@@ -301,7 +398,10 @@ class _DesktopProvidersBodyState extends State<_DesktopProvidersBody> {
       }
     });
     // Apply saved order
-    final merged = <({String name, String key})>[...base(), ...dynamicItems];
+    final merged = <({String name, String key})>[
+      ...builtInVisible,
+      ...dynamicItems,
+    ];
     final order = settings.providersOrder;
     final map = {for (final p in merged) p.key: p};
     final ordered = <({String name, String key})>[];
@@ -655,6 +755,16 @@ class _DesktopProvidersBodyState extends State<_DesktopProvidersBody> {
                               },
                             ),
                     ),
+                    if (settings.hiddenBuiltinProviderKeys.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _AddFullWidthButton(
+                        height: 36,
+                        label: l10n.providersPageRestoreBuiltinsButton(
+                          settings.hiddenBuiltinProviderKeys.length,
+                        ),
+                        onTap: _onRestoreBuiltins,
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     // Bottom add button
                     _AddFullWidthButton(
@@ -6317,6 +6427,7 @@ class _ProviderListRow extends StatefulWidget {
     required this.onEdit,
     required this.onShare,
     this.onDelete,
+    this.onHide,
   });
   final String name;
   final String keyName;
@@ -6327,6 +6438,7 @@ class _ProviderListRow extends StatefulWidget {
   final VoidCallback onEdit;
   final VoidCallback onShare;
   final Future<void> Function()? onDelete;
+  final Future<void> Function()? onHide;
   @override
   State<_ProviderListRow> createState() => _ProviderListRowState();
 }
@@ -6365,6 +6477,15 @@ class _ProviderListRowState extends State<_ProviderListRow> {
               )!.providerDetailPageEditTooltip,
               onTap: widget.onEdit,
             ),
+            if (widget.onHide != null)
+              DesktopContextMenuItem(
+                icon: lucide.Lucide.EyeOff,
+                label: AppLocalizations.of(
+                  context,
+                )!.providersPageHideBuiltinAction,
+                danger: true,
+                onTap: () => widget.onHide?.call(),
+              ),
             if (widget.onDelete != null)
               DesktopContextMenuItem(
                 icon: lucide.Lucide.Trash2,

@@ -2743,7 +2743,7 @@ class SettingsProvider extends ChangeNotifier {
     // One-time migration from the legacy single seed (custom_dynamic palette).
     // The seed becomes a Custom Theme with only a primary color; if the seed
     // was the active palette, the migrated theme is selected and the palette
-    // becomes 'custom'. See docs/adr/0037-custom-themes-replace-seed.md.
+    // becomes 'custom'. See docs/adr/0038-custom-themes-replace-seed.md.
     final seed = _dynamicColorSeed;
     if (seed != null) {
       final migrated = CustomTheme(
@@ -2824,7 +2824,7 @@ class SettingsProvider extends ChangeNotifier {
     _customThemes = _customThemes.where((t) => t.id != id).toList();
     if (wasSelected) {
       // Deleting the active theme deselects it and falls back to the default
-      // palette — the user removed what they were using (ADR-0037).
+      // palette — the user removed what they were using (ADR-0038).
       _selectedCustomThemeId = null;
       if (_themePaletteId == ThemePalettes.customPaletteId) {
         _themePaletteId = ThemePalettes.defaultId;
@@ -2853,7 +2853,7 @@ class SettingsProvider extends ChangeNotifier {
 
   /// Parse a shared custom-theme JSON string, save it and return the stored
   /// theme (a fresh id is assigned when the id is missing or already taken).
-  /// Importing activates the theme, matching the editor flow (ADR-0037).
+  /// Importing activates the theme, matching the editor flow (ADR-0038).
   Future<CustomTheme> importCustomTheme(String source) async {
     var t = CustomTheme.parse(source);
     if (t.id.isEmpty || _customThemes.any((e) => e.id == t.id)) {

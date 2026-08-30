@@ -9,6 +9,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../core/services/haptics.dart';
 import '../../../features/instruction_injection/pages/instruction_injection_page.dart';
+import '../../../shared/widgets/assistant_bind_multi_select.dart';
 import '../../../theme/app_font_weights.dart';
 
 /// Bottom sheet for displaying instruction injection items on mobile/tablet.
@@ -135,7 +136,10 @@ class InstructionInjectionSheet extends StatelessWidget {
                                             final item = grouped[groupName]![i];
                                             final result =
                                                 await showModalBottomSheet<
-                                                  Map<String, String>?
+                                                  (
+                                                    Map<String, String>,
+                                                    Set<String>,
+                                                  )?
                                                 >(
                                                   context: ctx,
                                                   isScrollControlled: true,
@@ -155,13 +159,15 @@ class InstructionInjectionSheet extends StatelessWidget {
                                                 );
                                             if (result != null) {
                                               if (!ctx.mounted) return;
+                                              final (fields, selection) =
+                                                  result;
                                               final title =
-                                                  result['title']?.trim() ?? '';
+                                                  fields['title']?.trim() ?? '';
                                               final prompt =
-                                                  result['prompt']?.trim() ??
+                                                  fields['prompt']?.trim() ??
                                                   '';
                                               final group =
-                                                  result['group']?.trim() ?? '';
+                                                  fields['group']?.trim() ?? '';
                                               if (title.isEmpty ||
                                                   prompt.isEmpty) {
                                                 return;
@@ -177,6 +183,12 @@ class InstructionInjectionSheet extends StatelessWidget {
                                                       group: group,
                                                     ),
                                                   );
+                                              if (!ctx.mounted) return;
+                                              await applyInjectionBindings(
+                                                ctx,
+                                                itemId: item.id,
+                                                selectedAssistantIds: selection,
+                                              );
                                             }
                                           },
                                         ),

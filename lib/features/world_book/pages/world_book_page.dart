@@ -12,6 +12,7 @@ import '../../../core/providers/world_book_provider.dart';
 import '../../../core/services/haptics.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../shared/widgets/assistant_bind_multi_select.dart';
 import '../../../shared/widgets/ios_form_text_field.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../shared/widgets/ios_tactile.dart';
@@ -36,9 +37,11 @@ class _WorldBookPageState extends State<WorldBookPage> {
     });
   }
 
-  Future<WorldBook?> _showBookConfigSheet({WorldBook? book}) async {
+  Future<(WorldBook, Set<String>)?> _showBookConfigSheet({
+    WorldBook? book,
+  }) async {
     final cs = Theme.of(context).colorScheme;
-    return showModalBottomSheet<WorldBook>(
+    return showModalBottomSheet<(WorldBook, Set<String>)?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: cs.surface,
@@ -258,6 +261,7 @@ class _WorldBookPageState extends State<WorldBookPage> {
       'id': book.id,
       'name': book.name,
       'description': book.description,
+      'group': book.group,
       'enabled': book.enabled,
       'entries': book.entries
           .map(
@@ -371,8 +375,15 @@ class _WorldBookPageState extends State<WorldBookPage> {
               onTap: () async {
                 Haptics.light();
                 final result = await _showBookConfigSheet();
-                if (result == null) return;
-                await provider.addBook(result);
+                if (result == null || !mounted) return;
+                final (book, selected) = result;
+                await provider.addBook(book);
+                if (!context.mounted) return;
+                await applyWorldBookBindings(
+                  context,
+                  itemId: book.id,
+                  selectedAssistantIds: selected,
+                );
               },
             ),
           ),
@@ -460,8 +471,15 @@ class _WorldBookPageState extends State<WorldBookPage> {
                       onConfig: () async {
                         Haptics.light();
                         final updated = await _showBookConfigSheet(book: book);
-                        if (updated == null) return;
-                        await provider.updateBook(updated);
+                        if (updated == null || !mounted) return;
+                        final (nextBook, selected) = updated;
+                        await provider.updateBook(nextBook);
+                        if (!context.mounted) return;
+                        await applyWorldBookBindings(
+                          context,
+                          itemId: nextBook.id,
+                          selectedAssistantIds: selected,
+                        );
                       },
                       onDelete: () async {
                         Haptics.light();
@@ -1066,7 +1084,9 @@ class _WorldBookEditSheet extends StatefulWidget {
 class _WorldBookEditSheetState extends State<_WorldBookEditSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _descController;
+  late final TextEditingController _groupController;
   bool _enabled = true;
+  Set<String> _assistantSelection = <String>{};
 
   @override
   void initState() {
@@ -1075,6 +1095,7 @@ class _WorldBookEditSheetState extends State<_WorldBookEditSheet> {
     _descController = TextEditingController(
       text: widget.book?.description ?? '',
     );
+    _groupController = TextEditingController(text: widget.book?.group ?? '');
     _enabled = widget.book?.enabled ?? true;
   }
 
@@ -1082,6 +1103,7 @@ class _WorldBookEditSheetState extends State<_WorldBookEditSheet> {
   void dispose() {
     _nameController.dispose();
     _descController.dispose();
+    _groupController.dispose();
     super.dispose();
   }
 
@@ -1202,10 +1224,33 @@ class _WorldBookEditSheetState extends State<_WorldBookEditSheet> {
                           textInputAction: TextInputAction.newline,
                           inlineLabel: false,
                         ),
+                        IosFormTextField(
+                          label: l10n.worldBookGroupLabel,
+                          hintText: l10n.worldBookGroupHint,
+                          controller: _groupController,
+                          textAlign: TextAlign.start,
+                          textInputAction: TextInputAction.next,
+                          inlineLabel: false,
+                        ),
                         switchRow(
                           label: l10n.worldBookEnabledLabel,
                           value: _enabled,
                           onChanged: (v) => setState(() => _enabled = v),
+                        ),
+                        const SizedBox(height: 4),
+                        const Divider(
+                          height: 15,
+                          thickness: 0.6,
+                          indent: 12,
+                          endIndent: 12,
+                        ),
+                        AssistantBindMultiSelect(
+                          itemId: widget.book?.id,
+                          activeIdsFor: context
+                              .watch<WorldBookProvider>()
+                              .activeBookIdsFor,
+                          onSelectionChanged: (selection) =>
+                              _assistantSelection = selection,
                         ),
                       ],
                     ),
@@ -1231,10 +1276,13 @@ class _WorldBookEditSheetState extends State<_WorldBookEditSheet> {
                         id: base?.id ?? const Uuid().v4(),
                         name: _nameController.text.trim(),
                         description: _descController.text.trim(),
+                        group: _groupController.text.trim(),
                         enabled: _enabled,
                         entries: base?.entries ?? const <WorldBookEntry>[],
                       );
-                      Navigator.of(context).pop(result);
+                      Navigator.of(
+                        context,
+                      ).pop((result, Set<String>.from(_assistantSelection)));
                     },
                   ),
                 ),

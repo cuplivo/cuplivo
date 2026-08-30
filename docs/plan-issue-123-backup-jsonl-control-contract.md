@@ -4,7 +4,7 @@ Status: **IMPLEMENTED** (slices A-G landed on `refactor/preferences-sqlite` in
 two commits: `3f50e241` KV migration, `22f34df2` JSONL+LWW backup v2).
 
 Branch: `refactor/preferences-sqlite`
-Scope decisions resolved in the design grill (mirror CONTEXT.md additions + ADR-0042).
+Scope decisions resolved in the design grill (mirror CONTEXT.md additions + ADR-0048).
 
 ## Primary Setpoint
 
@@ -184,7 +184,7 @@ upstream's BusinessSettingsMerger/router port, upstream media DB, Hive legacy,
    Tracked.
 2. **Old-build + new-zip residual** — destructive only on manual overwrite
    (clearAllData + absent chats.json); LAN/incremental merge is non-destructive.
-   Accepted per ADR-0042, stated in PR description.
+   Accepted per ADR-0048, stated in PR description.
 3. **91 test files churn** — mechanical but broad; risk of tests silently
    passing by reading stale SP (they must swap `setMockInitialValues`).
 

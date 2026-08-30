@@ -101,12 +101,18 @@ class BackupProvider extends ChangeNotifier {
   Future<void> restoreFromItem(
     BackupFileItem item, {
     RestoreMode mode = RestoreMode.overwrite,
+    RestoreProgressCallback? onProgress,
   }) async {
     _busy = true;
     _message = null;
     notifyListeners();
     try {
-      await _dataSync.restoreFromWebDav(_cfg, item, mode: mode);
+      await _dataSync.restoreFromWebDav(
+        _cfg,
+        item,
+        mode: mode,
+        onProgress: onProgress,
+      );
     } catch (e) {
       _message = e.toString();
       rethrow;
@@ -166,5 +172,11 @@ class BackupProvider extends ChangeNotifier {
   Future<void> restoreFromLocalFile(
     File file, {
     RestoreMode mode = RestoreMode.overwrite,
-  }) => _dataSync.restoreFromLocalFile(file, _cfg, mode: mode);
+    RestoreProgressCallback? onProgress,
+  }) => _dataSync.restoreFromLocalFile(
+    file,
+    _cfg,
+    mode: mode,
+    onProgress: onProgress,
+  );
 }

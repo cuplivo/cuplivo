@@ -1,4 +1,4 @@
-# ADR-0040: Screen-on Wake Lock During Generation
+# ADR-0041: Screen-on Wake Lock During Generation
 
 Mobile chat generation holds the screen on (`wakelock_plus`, Android
 `FLAG_KEEP_SCREEN_ON` / iOS `idleTimerDisabled`) so the user can watch the

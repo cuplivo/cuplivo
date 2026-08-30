@@ -8,7 +8,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 ///
 /// Platform-gated: only Android and iOS hold a wake lock; every other
 /// platform is a no-op (desktop monitor sleep is out of scope, see
-/// docs/adr/0040-screen-on-wake-lock-during-generation.md). Refcounted so
+/// docs/adr/0041-screen-on-wake-lock-during-generation.md). Refcounted so
 /// concurrent generation (Multi-AI N-slot rounds, sequential rounds) holds
 /// the lock until the last slot settles.
 ///

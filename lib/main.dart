@@ -530,7 +530,7 @@ class MyApp extends StatelessWidget {
               ColorScheme? darkDynOverride;
               if (isCustomPalette) {
                 // Custom theme wins over Android system dynamic color
-                // (ADR-0037) — the custom palette is used as-is.
+                // (ADR-0038) — the custom palette is used as-is.
                 lightDynOverride = null;
                 darkDynOverride = null;
               } else if (useDyn) {

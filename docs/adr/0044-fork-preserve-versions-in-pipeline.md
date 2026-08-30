@@ -1,4 +1,4 @@
-# ADR-0042: Preserve Message Versions on Fork — In-Pipeline, Not Repo-Level
+# ADR-0044: Preserve Message Versions on Fork — In-Pipeline, Not Repo-Level
 
 Port of upstream Kelivo `feat(chat): add a switch to keep message versions when
 forking`: a Display & Behavior setting that makes "创建分支" carry every

@@ -1946,7 +1946,7 @@ class ChatService extends ChangeNotifier {
       requestAllowImagesApiRouting: original.requestAllowImagesApiRouting,
       requestExtraBodyJson: original.requestExtraBodyJson,
       // Quote is part of the user message's content identity: a retry/edit
-      // version carries the citation with it (docs/adr/0042).
+      // version carries the citation with it (docs/adr/0046).
       quoteJson: original.quoteJson,
       timestamp: timestamp,
     );

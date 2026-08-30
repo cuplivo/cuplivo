@@ -1,4 +1,4 @@
-# ADR-0044: Preset-Only Conversation Recycle
+# ADR-0050: Preset-Only Conversation Recycle
 <!-- - summary: 纯预设会话在用户切走时回收,判定走 repo SQL,不加启动清扫 -->
 <!-- - status: accepted -->
 

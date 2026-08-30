@@ -1,4 +1,4 @@
-# ADR-0042: Markdown code scanner — one rule set for spans and fences
+# ADR-0047: Markdown code scanner — one rule set for spans and fences
 
 Issue #544 (inline code span around a Windows path `D:\ComfyUI\` rendered
 garbled) surfaced a rules-copy problem: five independent implementations of

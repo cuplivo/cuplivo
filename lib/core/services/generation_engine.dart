@@ -704,7 +704,7 @@ class GenerationEngine extends ChangeNotifier {
       // Screen-on wake lock (mobile only, refcounted): every slot that
       // starts acquires once and releases exactly once in the finally below,
       // so Multi-AI rounds hold the lock until the last slot settles. See
-      // docs/adr/0040-screen-on-wake-lock-during-generation.md.
+      // docs/adr/0041-screen-on-wake-lock-during-generation.md.
       _wakeLockManager.acquire();
       await for (final chunk in _streamProvider(
         config: req.config,

@@ -1,4 +1,4 @@
-# ADR-0043: Declarative Web Conversation Style Library
+# ADR-0049: Declarative Web Conversation Style Library
 
 PR #555 introduced an optional isolated Web conversation viewport for
 one-to-one chat. Users may now import named styles for that viewport, but the

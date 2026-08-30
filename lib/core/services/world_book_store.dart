@@ -32,12 +32,21 @@ class WorldBookStore {
   static const String _activeIdsByAssistantKey =
       'world_books_active_ids_by_assistant_v1';
   static const String _collapsedBooksKey = 'world_books_collapsed_v1';
+  static const String _collapsedGroupsKey = 'world_books_group_collapsed_v1';
   static const String _defaultAssistantKey = '__global__';
+  static const String _ungroupedKey = '__ungrouped__';
+
+  /// Normalizes a group name to its stable collapse key (empty = ungrouped).
+  static String groupCollapseKey(String groupName) {
+    final g = groupName.trim();
+    return g.isEmpty ? _ungroupedKey : g;
+  }
 
   final BusinessPreferences _preferences;
   List<WorldBook>? _cache;
   Map<String, List<String>>? _activeIdsByAssistantCache;
   Map<String, bool>? _collapsedBooksCache;
+  Map<String, bool>? _collapsedGroupsCache;
 
   static String assistantKey(String? assistantId) {
     final id = (assistantId ?? '').trim();
@@ -160,10 +169,12 @@ class WorldBookStore {
     _cache = const <WorldBook>[];
     _activeIdsByAssistantCache = const <String, List<String>>{};
     _collapsedBooksCache = const <String, bool>{};
+    _collapsedGroupsCache = const <String, bool>{};
     final prefs = _preferences;
     await prefs.remove(_itemsKey);
     await prefs.remove(_activeIdsByAssistantKey);
     await prefs.remove(_collapsedBooksKey);
+    await prefs.remove(_collapsedGroupsKey);
   }
 
   Future<void> reorder({required int oldIndex, required int newIndex}) async {
@@ -245,6 +256,28 @@ class WorldBookStore {
     await _persistCollapsedBooksMap(next);
   }
 
+  Future<Map<String, bool>> getCollapsedGroupsMap() async {
+    final map = await _loadCollapsedGroupsMap();
+    return _cloneCollapsedBooksMap(map);
+  }
+
+  Future<void> setCollapsedGroup(String groupName, bool collapsed) async {
+    final key = groupCollapseKey(groupName);
+    final map = await _loadCollapsedGroupsMap();
+    map[key] = collapsed;
+    await _persistCollapsedGroupsMap(map);
+  }
+
+  Future<void> setCollapsedGroupsMap(Map<String, bool> map) async {
+    final next = <String, bool>{};
+    map.forEach((key, value) {
+      final id = key.trim();
+      if (id.isEmpty) return;
+      next[id] = value;
+    });
+    await _persistCollapsedGroupsMap(next);
+  }
+
   Future<Map<String, List<String>>> _loadActiveIdsMap() async {
     if (_activeIdsByAssistantCache != null) {
       return _cloneActiveIdsMap(_activeIdsByAssistantCache!);
@@ -298,6 +331,38 @@ class WorldBookStore {
     final prefs = _preferences;
     try {
       await prefs.setString(_collapsedBooksKey, jsonEncode(map));
+    } catch (_) {}
+  }
+
+  Future<Map<String, bool>> _loadCollapsedGroupsMap() async {
+    if (_collapsedGroupsCache != null) {
+      return _cloneCollapsedBooksMap(_collapsedGroupsCache!);
+    }
+    final prefs = _preferences;
+    final raw = prefs.getString(_collapsedGroupsKey);
+    Map<String, bool> map = <String, bool>{};
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw) as Map;
+        decoded.forEach((key, value) {
+          final id = key.toString().trim();
+          if (id.isEmpty) return;
+          final collapsed = value is bool ? value : value.toString() == 'true';
+          map[id] = collapsed;
+        });
+      } catch (_) {
+        map = <String, bool>{};
+      }
+    }
+    _collapsedGroupsCache = map;
+    return _cloneCollapsedBooksMap(map);
+  }
+
+  Future<void> _persistCollapsedGroupsMap(Map<String, bool> map) async {
+    _collapsedGroupsCache = _cloneCollapsedBooksMap(map);
+    final prefs = _preferences;
+    try {
+      await prefs.setString(_collapsedGroupsKey, jsonEncode(map));
     } catch (_) {}
   }
 }

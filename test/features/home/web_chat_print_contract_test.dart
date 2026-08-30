@@ -15,6 +15,15 @@ void main() {
     expect(match!.group(1), webChatAssetVersion);
   });
 
+  test(
+    'web chat font role families stay in sync between Dart and JS shell',
+    () {
+      final app = File('assets/web_chat/app.mjs').readAsStringSync();
+      expect(app, contains(WebChatFontFace.appFaceFamily));
+      expect(app, contains(WebChatFontFace.codeFaceFamily));
+    },
+  );
+
   test('web chat shell wires the print mode contract', () {
     final app = File('assets/web_chat/app.mjs').readAsStringSync();
     expect(app, contains("searchParams.get('mode') === 'print'"));

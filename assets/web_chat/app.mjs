@@ -8,6 +8,7 @@ import {
   commitPendingMeasurements,
   createAdaptiveStreamPresenter,
   createExpansionCoordinator,
+  createFontFaceRegistrator,
   createFontFaceTracker,
   createFrameCoalescer,
   createRenderCommitCoordinator,
@@ -48,7 +49,7 @@ const pendingMeasuredHeights = new Map();
 const pendingActions = new Map();
 const pendingMedia = new Set();
 const fontFaceTracker = createFontFaceTracker();
-const roleFaces = new Map();
+const fontRegistrator = createFontFaceRegistrator(fontFaceTracker);
 const localExpansions = new Map();
 const mountedSlots = new Map();
 const presentedStreamContent = new Map();
@@ -505,26 +506,35 @@ function applyTheme() {
   applyFonts();
 }
 
+// Must match WebChatFontFace.appFaceFamily / codeFaceFamily in
+// lib/features/home/webview/web_chat_snapshot.dart; the print contract test
+// keeps the two sides in sync.
+const FACE_FAMILIES = ['Cuplivo WebApp Font', 'Cuplivo WebCode Font'];
+
 function applyFonts() {
   if (!state) return;
   applyFontFamily(
     '--cuplivo-app-font',
     state.display?.appFont,
     '--cuplivo-default-app-font',
+    FACE_FAMILIES[0],
   );
   applyFontFamily(
     '--cuplivo-code-font',
     state.display?.codeFont,
     '--cuplivo-default-code-font',
+    FACE_FAMILIES[1],
   );
 }
 
-function applyFontFamily(variable, font, chainVariable) {
+function applyFontFamily(variable, font, chainVariable, faceFamily) {
   if (!font?.family) {
+    fontFaceTracker.expect(null, faceFamily);
     document.documentElement.style.removeProperty(variable);
     return;
   }
   if (font.handle) {
+    fontFaceTracker.expect(font.handle, font.family);
     const outcome = fontFaceTracker.begin(
       font.handle,
       font.family,
@@ -537,6 +547,8 @@ function applyFontFamily(variable, font, chainVariable) {
         requestMedia(font.handle);
       }
     }
+  } else {
+    fontFaceTracker.expect(null, faceFamily);
   }
   document.documentElement.style.setProperty(
     variable,
@@ -545,44 +557,12 @@ function applyFontFamily(variable, font, chainVariable) {
 }
 
 function registerFontFaces(handle, families, dataUrl) {
-  const jobs = [...families].map((family) => ({
-    family,
-    face: null,
-    promise: null,
-  }));
-  const withFaces = jobs.map((job) => {
-    job.promise = new FontFace(job.family, `url("${dataUrl}")`)
-      .load()
-      .then((face) => {
-        document.fonts.add(face);
-        job.face = face;
-      });
-    return job;
-  });
-  Promise.allSettled(withFaces.map((job) => job.promise)).then((results) => {
-    const rejected = [];
-    results.forEach((result, index) => {
-      const job = withFaces[index];
-      if (result.status === 'fulfilled') {
-        fontFaceTracker.completed(handle, job.family);
-        const replacedHandle = fontFaceTracker.adopt(handle, job.family);
-        const previous = roleFaces.get(job.family);
-        roleFaces.set(job.family, { handle, face: job.face });
-        if (replacedHandle !== null && previous && previous.handle !== handle) {
-          document.fonts.delete(previous.face);
-        }
-      } else {
-        fontFaceTracker.fail(handle, job.family);
-        rejected.push({ family: job.family, reason: result.reason });
-      }
-    });
-    if (rejected.length) {
-      console.warn(
-        'web_chat: one or more font faces failed to load',
-        handle,
-        rejected,
-      );
-    }
+  fontRegistrator.register({
+    fonts: document.fonts,
+    load: (family, url) => new FontFace(family, `url("${url}")`).load(),
+    handle,
+    families,
+    dataUrl,
   });
 }
 
@@ -3274,8 +3254,8 @@ window.CuplivoWeb = {
             localExpansions.clear();
             pendingActions.clear();
             pendingMedia.clear();
+            fontRegistrator.removeAll(document.fonts);
             fontFaceTracker.reset();
-            roleFaces.clear();
             heights.clear();
             pendingMeasuredHeights.clear();
             mountedSlots.clear();

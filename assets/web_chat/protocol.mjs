@@ -7,6 +7,7 @@ export function createFontFaceTracker() {
   const state = new Map();
   const fontTransfers = new Map();
   const owners = new Map();
+  const expected = new Map();
   const familyKey = (handle, family) => `${handle}::${family}`;
   return {
     // Prepares (handle, family); the caller must register when tracked is
@@ -34,14 +35,53 @@ export function createFontFaceTracker() {
       return families;
     },
 
-    completed(handle, family) {
-      const key = familyKey(handle, family);
-      if (state.get(key) === 'pending') state.set(key, 'loaded');
+    // Keeps the expected owner of a family in sync with the current snapshot:
+    // the shell calls this whenever it applies a selected handle font (with
+    // the handle) and when the role leaves the handle-font track, e.g. the
+    // default font or a plain CSS family (with null). A load that finishes
+    // after the expectation moved is stale and must neither register nor
+    // adopt.
+    expect(handle, family) {
+      if (handle == null) expected.delete(family);
+      else expected.set(family, handle);
     },
 
+    // Completion of a (handle, family) load. Returns true only for a task
+    // that is still pending and whose handle is still the expected owner.
+    // Stale tasks drop their pending state so re-selecting the handle later
+    // re-registers from the cached data URL; tasks whose state vanished
+    // (canceled, session reset) are ignored outright.
+    complete(handle, family) {
+      const key = familyKey(handle, family);
+      if (state.get(key) !== 'pending') return false;
+      if (expected.get(family) !== handle) {
+        state.delete(key);
+        return false;
+      }
+      state.set(key, 'loaded');
+      return true;
+    },
+
+    // The face of this (handle, family) was evicted from document.fonts by a
+    // replacement owner; forget the loaded state so a later selection
+    // re-registers from the media cache. Failed states are left untouched.
+    forget(handle, family) {
+      const key = familyKey(handle, family);
+      if (state.get(key) === 'loaded') state.delete(key);
+    },
+
+    // Failure of a (handle, family) load: a current task hard-fails (no
+    // retry until the session resets), while a task whose expectation moved
+    // only drops its pending state so re-selecting the handle later stays
+    // retryable.
     fail(handle, family) {
       const key = familyKey(handle, family);
-      if (state.get(key) === 'pending') state.set(key, 'failed');
+      if (state.get(key) !== 'pending') return;
+      if (expected.get(family) !== handle) {
+        state.delete(key);
+        return;
+      }
+      state.set(key, 'failed');
     },
 
     // Marks every family waiting on a handle as failed and drops the transfer.
@@ -79,6 +119,72 @@ export function createFontFaceTracker() {
       state.clear();
       fontTransfers.clear();
       owners.clear();
+      expected.clear();
+    },
+  };
+}
+
+// Owns the registered faces of a font role for one render session. The
+// WebView document survives session switches, so faces must be explicitly
+// removed from the live FontFaceSet when a session resets; replacement
+// switches (A -> B) evict the previous owner's face so the CSS family stays
+// unambiguous, and a task finishing after the role moved on never adopts.
+export function createFontFaceRegistrator(tracker) {
+  const roleFaces = new Map();
+  return {
+    // Starts loading (handle, family) faces from the data URL and registers
+    // those that still own their family. [load] returns a promise resolving
+    // to the loaded face; [fonts] is the live FontFaceSet (add/delete).
+    register({ fonts, load, handle, families, dataUrl }) {
+      const jobs = [...families].map((family) => ({
+        family,
+        face: null,
+        promise: null,
+      }));
+      const withFaces = jobs.map((job) => {
+        job.promise = load(job.family, dataUrl).then((face) => {
+          job.face = face;
+        });
+        return job;
+      });
+      Promise.allSettled(withFaces.map((job) => job.promise)).then((results) => {
+        const rejected = [];
+        results.forEach((result, index) => {
+          const job = withFaces[index];
+          if (result.status === 'fulfilled') {
+            if (!tracker.complete(handle, job.family)) return;
+            fonts.add(job.face);
+            const replacedHandle = tracker.adopt(handle, job.family);
+            const previous = roleFaces.get(job.family);
+            roleFaces.set(job.family, { handle, face: job.face });
+            if (replacedHandle !== null && previous && previous.handle !== handle) {
+              fonts.delete(previous.face);
+              tracker.forget(previous.handle, job.family);
+            }
+          } else {
+            tracker.fail(handle, job.family);
+            rejected.push({ family: job.family, reason: result.reason });
+          }
+        });
+        if (rejected.length) {
+          console.warn(
+            'web_chat: one or more font faces failed to load',
+            handle,
+            rejected,
+          );
+        }
+      });
+    },
+
+    // Removes every registered face from the live FontFaceSet. Must run
+    // before a render session reset: the document is reused, so any face
+    // left behind keeps competing for the same CSS family and leaks the
+    // decoded font for the rest of the process lifetime.
+    removeAll(fonts) {
+      for (const entry of roleFaces.values()) {
+        fonts.delete(entry.face);
+      }
+      roleFaces.clear();
     },
   };
 }

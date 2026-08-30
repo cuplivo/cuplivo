@@ -84,6 +84,10 @@ Unlike most personal-customization or single-feature forks, Cuplivo aims to add 
 
 7. **Startup assistant pin** — Choose an assistant that gets auto-selected when the app restarts, keeping your preferred assistant across sessions.
 
+8. **World book discovery** — Expanding the input bar shows world books grouped, and active assistants can be bound quickly while creating/editing entries.
+
+9. **Conversation export to PDF** — Export the current conversation to PDF (currently limited to Windows + WebView mode).
+
 ### UI & Rendering
 
 1. **Web conversation view (experimental)** — Enable the experimental toggle to render standard conversations in a WebView on Android/iOS/macOS/Windows, with a declarative "Web conversation style library" JSON style import for bubble and card styling.

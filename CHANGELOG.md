@@ -1,5 +1,26 @@
 # Changelog
 
+## [3.1.1] - 2026-08-30
+
+### Added
+
+- **Backup page redesign**: the backup page has been redesigned with a shortcut entry added on the home page for a smoother experience (#306 by @cup113)
+- **Conversation export to PDF**: export conversations to PDF — limited to Windows + WebView mode (#293 by @cup113)
+- **Message multi-select & share merged**: conversation message multi-select and share are unified into a single entry (#561 by @cup113)
+- **Import restore progress modal**: backup imports are locked behind a modal with live restore progress, preventing accidental operations and blind waiting (#583 by @cup113)
+- **World book discovery**: expanding the input bar shows world books grouped, and active assistants can be bound quickly when creating/editing entries (#501 by @cup113)
+- **Hide built-in providers**: built-in providers can be hidden (#295 by @cup113)
+
+### Fixed
+
+- **WebView font rendering**: fixed the Web conversation view not using the selected app/code fonts (#600 by @cup113)
+- **WebView mobile scrolling & iOS compatibility**: mobile touch panning is handed back to the WebView; iOS now serves the shell from a loopback HTTP origin, fixing WebView failure to open (#619, #617 by @cup113)
+- **Desktop panel width persistence**: side panel widths are restored on restart (#594 by @cup113)
+- **Chat background bounce with keyboard**: the chat background stays still when the keyboard opens (#297 by @cup113, @Chevey339)
+- SSRF guard now passes through fake-IP DNS answers, no longer blocking legitimate domains (#547 by @HowieATP, @cup113)
+- Context management entry became dead after folding into "+" — the button now works again (#603 by @cup113)
+- Preset messages: fixed infinite preset creation; preset-only conversations are recycled on leave and the send queue is scoped per conversation (#592 by @cup113)
+
 ## [3.1.0] - 2026-08-28
 
 ### Added

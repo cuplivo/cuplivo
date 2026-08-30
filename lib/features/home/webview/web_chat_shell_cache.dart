@@ -41,29 +41,13 @@ Future<File>? _windowsShellInFlight;
 
 Future<File> _prepareWindowsWebChatShell() async {
   final temp = await getTemporaryDirectory();
-  final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-  return prepareWindowsWebChatShellWith(
-    tempRoot: temp,
-    manifestAssets: manifest.listAssets(),
-    loadAsset: rootBundle.load,
-  );
-}
-
-/// Core cache preparation with injected temp directory and asset access, so
-/// version selection / replacement behavior can be verified without the
-/// path_provider and asset-bundle plugins. Shared by the interactive viewport
-/// and the PDF printer through [prepareWindowsWebChatShell].
-Future<File> prepareWindowsWebChatShellWith({
-  required Directory tempRoot,
-  required Iterable<String> manifestAssets,
-  required Future<ByteData> Function(String path) loadAsset,
-}) async {
   final directory = Directory(
-    '${tempRoot.path}${Platform.pathSeparator}cuplivo_web_chat_$webChatAssetVersion',
+    '${temp.path}${Platform.pathSeparator}cuplivo_web_chat_$webChatAssetVersion',
   );
+  final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
   final relativeAssets = <String>{
     ...webChatWindowsAssets,
-    for (final asset in manifestAssets)
+    for (final asset in manifest.listAssets())
       if (asset.startsWith('assets/web_chat/vendor/fonts/'))
         asset.substring('assets/web_chat/'.length),
   };
@@ -77,7 +61,7 @@ Future<File> prepareWindowsWebChatShellWith({
   }
   await directory.create(recursive: true);
   for (final relative in relativeAssets) {
-    final data = await loadAsset('assets/web_chat/$relative');
+    final data = await rootBundle.load('assets/web_chat/$relative');
     final output = File(
       '${directory.path}${Platform.pathSeparator}'
       '${relative.replaceAll('/', Platform.pathSeparator)}',
@@ -87,7 +71,7 @@ Future<File> prepareWindowsWebChatShellWith({
       data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
     );
   }
-  final mermaid = await loadAsset('assets/mermaid.min.js');
+  final mermaid = await rootBundle.load('assets/mermaid.min.js');
   await File(
     '${directory.path}${Platform.pathSeparator}mermaid.min.js',
   ).writeAsBytes(

@@ -1,83 +1,91 @@
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:Cuplivo/features/home/webview/web_chat_protocol.dart';
 import 'package:Cuplivo/features/home/webview/web_chat_shell_cache.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+
+class _FakePathProvider extends PathProviderPlatform {
+  _FakePathProvider(this.temporaryPath);
+
+  final String temporaryPath;
+
+  @override
+  Future<String?> getTemporaryPath() async => temporaryPath;
+}
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late Directory tempRoot;
+  late PathProviderPlatform realPathProvider;
 
   setUp(() {
     tempRoot = Directory.systemTemp.createTempSync('cuplivo_web_chat_test_');
+    realPathProvider = PathProviderPlatform.instance;
+    PathProviderPlatform.instance = _FakePathProvider(tempRoot.path);
   });
 
   tearDown(() {
+    PathProviderPlatform.instance = realPathProvider;
     if (tempRoot.existsSync()) {
       tempRoot.deleteSync(recursive: true);
     }
   });
-
-  ByteData bytes(String path) =>
-      ByteData.sublistView(utf8.encode('content of $path'));
-
-  Future<ByteData> loadAsset(String path) async => bytes(path);
 
   File fileIn(Directory dir, String relative) => File(
     '${dir.path}${Platform.pathSeparator}'
     '${relative.replaceAll('/', Platform.pathSeparator)}',
   );
 
-  void writeCompleteCache(Directory dir) {
-    for (final relative in <String>[
+  Directory cacheDir(String version) => Directory(
+    '${tempRoot.path}${Platform.pathSeparator}cuplivo_web_chat_$version',
+  );
+
+  File marker(Directory dir) =>
+      File('${dir.path}${Platform.pathSeparator}.complete');
+
+  Future<Set<String>> relativeAssets() async {
+    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    return <String>{
       ...webChatWindowsAssets,
+      for (final asset in manifest.listAssets())
+        if (asset.startsWith('assets/web_chat/vendor/fonts/'))
+          asset.substring('assets/web_chat/'.length),
+    };
+  }
+
+  Future<void> writeCompleteCache(Directory dir, String version) async {
+    for (final relative in <String>{
+      ...await relativeAssets(),
       'mermaid.min.js',
-    ]) {
+    }) {
       final file = fileIn(dir, relative);
       file.createSync(recursive: true);
       file.writeAsStringSync('cached:$relative');
     }
-    File(
-      '${dir.path}${Platform.pathSeparator}.complete',
-    ).writeAsStringSync(webChatAssetVersion);
+    marker(dir).writeAsStringSync(version);
   }
-
-  Directory cacheDir(String version) => Directory(
-    '${tempRoot.path}${Platform.pathSeparator}cuplivo_web_chat_$version',
-  );
 
   test(
     'a complete old cache does not satisfy the current asset version',
     () async {
       // A machine that last ran master (web-chat-v18) keeps a complete
-      // versioned cache. The same directory name matches nothing after
-      // `web-chat-v18` was retired, so preparation must extract into a new
+      // versioned cache. The same directory name matches nothing after the
+      // asset version was raised, so preparation must extract into a new
       // versioned directory and drop the old one instead of reusing it.
-      final staleVersion = 'web-chat-v18';
-      writeCompleteCache(cacheDir(staleVersion));
+      const staleVersion = 'web-chat-v18';
+      await writeCompleteCache(cacheDir(staleVersion), staleVersion);
       expect(cacheDir(staleVersion).existsSync(), isTrue);
 
-      final index = await prepareWindowsWebChatShellWith(
-        tempRoot: tempRoot,
-        manifestAssets: const <String>[],
-        loadAsset: loadAsset,
-      );
+      final index = await prepareWindowsWebChatShell();
 
       final active = cacheDir(webChatAssetVersion);
       expect(webChatAssetVersion, isNot(staleVersion));
       expect(index.path, startsWith(active.path));
-      expect(
-        fileIn(active, 'index.html').readAsStringSync(),
-        'content of assets/web_chat/index.html',
-      );
-      expect(
-        File(
-          '${active.path}${Platform.pathSeparator}.complete',
-        ).readAsStringSync(),
-        webChatAssetVersion,
-      );
+      expect(marker(active).readAsStringSync(), webChatAssetVersion);
+      expect(fileIn(active, 'index.html').existsSync(), isTrue);
       expect(fileIn(active, 'mermaid.min.js').existsSync(), isTrue);
       expect(
         cacheDir(staleVersion).existsSync(),
@@ -93,38 +101,25 @@ void main() {
       ..createSync(recursive: true)
       ..writeAsStringSync('stale');
 
-    await prepareWindowsWebChatShellWith(
-      tempRoot: tempRoot,
-      manifestAssets: const <String>[],
-      loadAsset: loadAsset,
-    );
+    await prepareWindowsWebChatShell();
 
-    expect(
-      fileIn(active, 'index.html').readAsStringSync(),
-      'content of assets/web_chat/index.html',
-    );
-    expect(
-      File('${active.path}${Platform.pathSeparator}.complete').existsSync(),
-      isTrue,
-    );
+    expect(fileIn(active, 'index.html').readAsStringSync(), isNot('stale'));
+    expect(marker(active).existsSync(), isTrue);
   });
 
   test(
     'a complete current-version cache is reused without re-extraction',
     () async {
       final active = cacheDir(webChatAssetVersion);
-      writeCompleteCache(active);
+      await writeCompleteCache(active, webChatAssetVersion);
+      fileIn(active, 'index.html').writeAsStringSync('sentinel');
 
-      final index = await prepareWindowsWebChatShellWith(
-        tempRoot: tempRoot,
-        manifestAssets: const <String>[],
-        loadAsset: loadAsset,
-      );
+      final index = await prepareWindowsWebChatShell();
 
       expect(index.path, startsWith(active.path));
       expect(
         fileIn(active, 'index.html').readAsStringSync(),
-        'cached:index.html',
+        'sentinel',
         reason: 'a complete cache must not be re-extracted',
       );
     },

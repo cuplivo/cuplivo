@@ -7,6 +7,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
+import 'package:system_fonts/system_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../main.dart';
@@ -1502,6 +1503,14 @@ class _HomePageState extends State<HomePage>
         userAvatarValue: user.avatarValue,
         toolParts: _controller.toolParts,
       );
+      final webAppFont = _resolveWebChatFontFace(settings, forCode: false);
+      final webCodeFont = _resolveWebChatFontFace(settings, forCode: true);
+      for (final face in <WebChatFontFace?>[webAppFont, webCodeFont]) {
+        final source = face?.toMediaSource();
+        if (source != null && face!.path != null) {
+          snapshotMediaRegistry[webChatMediaHandle(face.path!)] = source;
+        }
+      }
       final retainedLiveMedia = <String, WebChatMediaSource>{
         for (final entry in _webMediaRegistry.entries)
           if (entry.value.messageIds.any(activeLiveMessageIds.contains))
@@ -1543,6 +1552,8 @@ class _HomePageState extends State<HomePage>
         topContentPadding: topContentPadding,
         bottomContentPadding: bottomContentPadding,
         activeLiveMessageIds: activeLiveMessageIds,
+        appWebFont: webAppFont,
+        codeWebFont: webCodeFont,
         remoteMediaHandles: <String, String>{
           for (final entry in mediaRegistry.entries)
             if (entry.value.kind == WebChatMediaSourceKind.remoteImage)
@@ -1752,6 +1763,42 @@ class _HomePageState extends State<HomePage>
     _webActionEpoch++;
   }
 
+  /// Resolves the font face the web chat shell should use for body or code
+  /// text:
+  /// - Local imported fonts serve their file bytes through the media bridge
+  ///   (paths never cross the Web bridge).
+  /// - System fonts (desktop) serve the resolved font file the same way,
+  ///   since the settings store the file basename, not a CSS family name.
+  /// - Google fonts pass the family name through; the shell falls back to its
+  ///   default if the family is not installed on the host.
+  WebChatFontFace? _resolveWebChatFontFace(
+    SettingsProvider settings, {
+    required bool forCode,
+  }) {
+    final family = forCode ? settings.codeFontFamily : settings.appFontFamily;
+    if (family == null || family.isEmpty) return null;
+    final faceFamily = forCode
+        ? WebChatFontFace.codeFaceFamily
+        : WebChatFontFace.appFaceFamily;
+    final localPath = forCode
+        ? settings.codeFontLocalPath
+        : settings.appFontLocalPath;
+    if (localPath != null && localPath.isNotEmpty) {
+      return WebChatFontFace(family: faceFamily, path: localPath);
+    }
+    final isGoogle = forCode
+        ? settings.codeFontIsGoogle
+        : settings.appFontIsGoogle;
+    if (isGoogle) return WebChatFontFace(family: family);
+    if (!kIsWeb && PlatformUtils.isDesktopTarget) {
+      final path = SystemFonts().getFontMap()[family];
+      if (path != null) {
+        return WebChatFontFace(family: faceFamily, path: path);
+      }
+    }
+    return WebChatFontFace(family: family);
+  }
+
   Map<String, dynamic> _buildWebChatSnapshot({
     required BuildContext context,
     required String conversationId,
@@ -1768,6 +1815,8 @@ class _HomePageState extends State<HomePage>
     required double bottomContentPadding,
     required Set<String> activeLiveMessageIds,
     required Map<String, String> remoteMediaHandles,
+    WebChatFontFace? appWebFont,
+    WebChatFontFace? codeWebFont,
   }) {
     final l10n = AppLocalizations.of(context)!;
     final colors = Theme.of(context).colorScheme;
@@ -1783,6 +1832,8 @@ class _HomePageState extends State<HomePage>
       isDark: isDark,
       ttsActive: ttsActive,
     );
+    if (appWebFont != null) display['appFont'] = appWebFont.toDisplayJson();
+    if (codeWebFont != null) display['codeFont'] = codeWebFont.toDisplayJson();
     final snapshot = const WebChatSnapshotBuilder().build(
       renderSessionId: _webRenderSessionId,
       conversationId: conversationId,

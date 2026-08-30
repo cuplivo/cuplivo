@@ -610,6 +610,39 @@ String webChatRemoteMediaHandle(String url) =>
 
 enum WebChatMediaSourceKind { localFile, bundledAsset, remoteImage }
 
+/// App- or code-font face handed to the web chat shell.
+///
+/// [family] is the CSS family name the shell should prefer. When [path] is
+/// set, the shell must load the actual font bytes through the opaque media
+/// handle ([handle]) and register them under [family]; raw paths never cross
+/// the Web bridge (same rule as media references). When [path] is absent the
+/// family is passed through as plain CSS (system-installed or Google fonts
+/// that the shell may resolve natively).
+class WebChatFontFace {
+  const WebChatFontFace({required this.family, this.path});
+
+  /// Fixed face names the shell registers under via @font-face.
+  static const String appFaceFamily = 'Cuplivo WebApp Font';
+  static const String codeFaceFamily = 'Cuplivo WebCode Font';
+
+  final String family;
+  final String? path;
+
+  String? get handle => path == null ? null : webChatMediaHandle(path!);
+
+  Map<String, dynamic> toDisplayJson() => <String, dynamic>{
+    'family': family,
+    if (handle != null) 'handle': handle,
+  };
+
+  WebChatMediaSource? toMediaSource() => path == null
+      ? null
+      : WebChatMediaSource(
+          kind: WebChatMediaSourceKind.localFile,
+          value: path!,
+        );
+}
+
 class WebChatMediaSource {
   const WebChatMediaSource({
     required this.kind,

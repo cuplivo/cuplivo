@@ -11,6 +11,7 @@ import {
   commitPendingMeasurements,
   createAdaptiveStreamPresenter,
   createExpansionCoordinator,
+  createFontFaceTracker,
   createFrameCoalescer,
   createRenderCommitCoordinator,
   createVirtualWindowCoordinator,
@@ -92,7 +93,7 @@ test('transfer chunks reassemble UTF-8 snapshots', () => {
   let result = null;
   for (const [index, chunk] of chunks.entries()) {
     result = receiveTransferChunk({
-      protocolVersion: 4,
+      protocolVersion: 5,
       transferId: 'utf8-transfer',
       index,
       total: chunks.length,
@@ -103,14 +104,14 @@ test('transfer chunks reassemble UTF-8 snapshots', () => {
 });
 
 test('snapshot reducer rejects an older revision in the same session', () => {
-  const current = { type: 'snapshot', protocolVersion: 4, assetVersion: 'web-chat-v18', renderSessionId: 's', renderRevision: 4, messages: [] };
+  const current = { type: 'snapshot', protocolVersion: 5, assetVersion: 'web-chat-v18', renderSessionId: 's', renderRevision: 4, messages: [] };
   const older = { ...current, renderRevision: 3, messages: [{ id: 'old' }] };
   assert.equal(reduceEnvelope(current, older), current);
 });
 
 test('new snapshots retain resolved opaque media only in the same session', () => {
   const current = {
-    type: 'snapshot', protocolVersion: 4, assetVersion: 'web-chat-v18',
+    type: 'snapshot', protocolVersion: 5, assetVersion: 'web-chat-v18',
     renderSessionId: 's', renderRevision: 4, messages: [],
     media: { 'asset:icon': 'data:image/svg+xml;base64,PHN2Zy8+' },
   };
@@ -186,6 +187,96 @@ test('stream patches can register opaque media without leaking it into messages'
   assert.match(appSource, /return messagePatch/);
 });
 
+test('font faces never drop the default chains and stay role-switchable', () => {
+  assert.match(appSource, /createFontFaceTracker\(\)/);
+  assert.match(appSource, /fontFaceTracker\.begin\(/);
+  assert.match(appSource, /registerFontFaces\(font\.handle, \[font\.family\], state\.media\[font\.handle\]\)/);
+  assert.match(appSource, /Promise\.allSettled\(withFaces\.map/);
+  assert.match(appSource, /fontFaceTracker\.adopt\(/);
+  assert.match(appSource, /document\.fonts\.delete\(previous\.face\)/);
+  assert.match(appSource, /fontFaceTracker\.cancel\(envelope\.handle\)/);
+  assert.match(appSource, /var\(\$\{chainVariable\}\)/);
+  assert.match(appSource, /removeProperty\(variable\)/);
+  assert.match(appSource, /fontFaceTracker\.reset\(\)/);
+  assert.match(appSource, /roleFaces\.clear\(\)/);
+
+  assert.match(styleSource, /--cuplivo-default-app-font/);
+  assert.match(styleSource, /--cuplivo-default-code-font/);
+  assert.match(styleSource, /var\(--cuplivo-app-font, var\(--cuplivo-default-app-font\)\)/);
+  assert.match(styleSource, /var\(--cuplivo-code-font, var\(--cuplivo-default-code-font\)\)/);
+});
+
+test('font map: a cached handle can drop into a second role later', () => {
+  const tracker = createFontFaceTracker();
+  // First role uses the transfer path: no cached bytes, so both the transfer
+  // queue and the request happens.
+  const app = tracker.begin('h', 'Cuplivo WebApp Font', undefined);
+  assert.deepEqual(app, { tracked: false, cached: false });
+  tracker.takeTransfer('h');
+  tracker.completed('h', 'Cuplivo WebApp Font');
+
+  // The same file is later assigned to the code role. The cached data URL
+  // means no transfer is queued and the new family must be registered.
+  const code = tracker.begin('h', 'Cuplivo WebCode Font', 'data:font/ttf;base64,AA');
+  assert.deepEqual(code, { tracked: false, cached: true });
+  assert.equal(tracker.takeTransfer('h'), undefined);
+  tracker.completed('h', 'Cuplivo WebCode Font');
+
+  assert.deepEqual(tracker.begin('h', 'Cuplivo WebApp Font', undefined), { tracked: true });
+  assert.deepEqual(tracker.begin('h', 'Cuplivo WebCode Font', undefined), { tracked: true });
+});
+
+test('font map: a transfer carries every queued family once', () => {
+  const tracker = createFontFaceTracker();
+  tracker.begin('h', 'Cuplivo WebApp Font', undefined);
+  tracker.begin('h', 'Cuplivo WebCode Font', undefined);
+  const queued = tracker.takeTransfer('h');
+  assert.equal(queued.size, 2);
+  assert.equal(tracker.takeTransfer('h'), undefined);
+});
+
+test('font map: failed roles do not retry until the session resets', () => {
+  const tracker = createFontFaceTracker();
+  tracker.begin('h', 'Cuplivo WebCode Font', undefined);
+  tracker.failTransfer('h');
+  assert.deepEqual(tracker.begin('h', 'Cuplivo WebCode Font', undefined), { tracked: true });
+  assert.equal(tracker.takeTransfer('h'), undefined);
+
+  tracker.reset();
+  assert.deepEqual(tracker.begin('h', 'Cuplivo WebCode Font', undefined), { tracked: false, cached: false });
+});
+
+test('font map: replacing the file of a role evicts the previous face owner', () => {
+  const tracker = createFontFaceTracker();
+  tracker.begin('hA', 'Cuplivo WebApp Font', 'data:a');
+  tracker.completed('hA', 'Cuplivo WebApp Font');
+  assert.equal(tracker.adopt('hA', 'Cuplivo WebApp Font'), null);
+
+  tracker.begin('hB', 'Cuplivo WebApp Font', 'data:b');
+  tracker.completed('hB', 'Cuplivo WebApp Font');
+  assert.equal(tracker.adopt('hB', 'Cuplivo WebApp Font'), 'hA');
+
+  assert.equal(tracker.adopt('hB', 'Cuplivo WebApp Font'), null);
+});
+
+test('font map: inactive cancels stay retryable while hard failures do not', () => {
+  const tracker = createFontFaceTracker();
+  tracker.begin('h', 'Cuplivo WebApp Font', undefined);
+  tracker.cancel('h');
+  assert.deepEqual(tracker.begin('h', 'Cuplivo WebApp Font', undefined), { tracked: false, cached: false });
+
+  tracker.failTransfer('h');
+  assert.deepEqual(tracker.begin('h', 'Cuplivo WebApp Font', undefined), { tracked: true });
+});
+
+test('font map: cancel never resets a completed face', () => {
+  const tracker = createFontFaceTracker();
+  tracker.begin('h', 'Cuplivo WebApp Font', 'data:cached');
+  tracker.completed('h', 'Cuplivo WebApp Font');
+  tracker.cancel('h');
+  assert.deepEqual(tracker.begin('h', 'Cuplivo WebApp Font', undefined), { tracked: true });
+});
+
 test('typed appearance maps only the three supported surfaces and clears defaults', () => {
   assert.match(appSource, /const appearanceSurfaces = \{[\s\S]*?userBubble: 'user'[\s\S]*?assistantBubble: 'assistant'[\s\S]*?processCard: 'process'/);
   assert.match(appSource, /\^#\[0-9a-f\]\{6\}/i);
@@ -205,7 +296,7 @@ test('typed appearance maps only the three supported surfaces and clears default
 
 test('same-session streaming snapshots preserve a newer live patch', () => {
   const state = {
-    type: 'snapshot', protocolVersion: 4, assetVersion: 'web-chat-v18',
+    type: 'snapshot', protocolVersion: 5, assetVersion: 'web-chat-v18',
     renderSessionId: 's', conversationId: 'c', renderRevision: 2,
     messages: [{ id: 'm', content: 'new', isStreaming: true, streamRevision: 7 }],
   };
@@ -220,7 +311,7 @@ test('same-session streaming snapshots preserve a newer live patch', () => {
 
 test('live translation survives unrelated snapshots until it is finalized', () => {
   const state = {
-    type: 'snapshot', protocolVersion: 4, assetVersion: 'web-chat-v18',
+    type: 'snapshot', protocolVersion: 5, assetVersion: 'web-chat-v18',
     renderSessionId: 's', conversationId: 'c', renderRevision: 2,
     messages: [{
       id: 'm', content: 'answer', isStreaming: false,

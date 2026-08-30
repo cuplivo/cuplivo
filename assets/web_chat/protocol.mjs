@@ -1,7 +1,87 @@
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 export const ASSET_VERSION = 'web-chat-v18';
 
 const transfers = new Map();
+
+export function createFontFaceTracker() {
+  const state = new Map();
+  const fontTransfers = new Map();
+  const owners = new Map();
+  const familyKey = (handle, family) => `${handle}::${family}`;
+  return {
+    // Prepares (handle, family); the caller must register when tracked is
+    // false, using the cached data URL (cached: true) or a media request
+    // (cached: false).
+    begin(handle, family, cachedUrl) {
+      const key = familyKey(handle, family);
+      if (state.has(key)) return { tracked: true };
+      state.set(key, 'pending');
+      if (cachedUrl) return { tracked: false, cached: true };
+      let families = fontTransfers.get(handle);
+      if (!families) {
+        families = new Set();
+        fontTransfers.set(handle, families);
+      }
+      families.add(family);
+      return { tracked: false, cached: false };
+    },
+
+    // Families that are awaiting media bytes for a handle, cleared as they are
+    // handed to the registration step.
+    takeTransfer(handle) {
+      const families = fontTransfers.get(handle);
+      if (families) fontTransfers.delete(handle);
+      return families;
+    },
+
+    completed(handle, family) {
+      const key = familyKey(handle, family);
+      if (state.get(key) === 'pending') state.set(key, 'loaded');
+    },
+
+    fail(handle, family) {
+      const key = familyKey(handle, family);
+      if (state.get(key) === 'pending') state.set(key, 'failed');
+    },
+
+    // Marks every family waiting on a handle as failed and drops the transfer.
+    failTransfer(handle) {
+      const families = fontTransfers.get(handle);
+      if (!families) return;
+      fontTransfers.delete(handle);
+      for (const family of families) {
+        this.fail(handle, family);
+      }
+    },
+
+    // Cancels a request whose payload never arrived (e.g. the source left the
+    // active registry mid-transfer). Unlike a hard failure this stays
+    // retryable: pending state is dropped so begin() can request again.
+    cancel(handle) {
+      fontTransfers.delete(handle);
+      for (const [key, value] of state) {
+        if (value === 'pending' && key.startsWith(`${handle}::`)) {
+          state.delete(key);
+        }
+      }
+    },
+
+    // Records which handle currently provides a family. Returns the previous
+    // owner when a different handle took over, so the caller can drop the old
+    // face and keep the CSS family unambiguous.
+    adopt(handle, family) {
+      const previous = owners.get(family);
+      owners.set(family, handle);
+      return previous === handle || previous === undefined ? null : previous;
+    },
+
+    reset() {
+      state.clear();
+      fontTransfers.clear();
+      owners.clear();
+    },
+  };
+}
 
 export function receiveTransferChunk(chunk) {
   if (chunk.protocolVersion !== PROTOCOL_VERSION) {

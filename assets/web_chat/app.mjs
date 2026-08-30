@@ -8,6 +8,7 @@ import {
   commitPendingMeasurements,
   createAdaptiveStreamPresenter,
   createExpansionCoordinator,
+  createFontFaceTracker,
   createFrameCoalescer,
   createRenderCommitCoordinator,
   createRenderGate,
@@ -46,6 +47,8 @@ const heights = new Map();
 const pendingMeasuredHeights = new Map();
 const pendingActions = new Map();
 const pendingMedia = new Set();
+const fontFaceTracker = createFontFaceTracker();
+const roleFaces = new Map();
 const localExpansions = new Map();
 const mountedSlots = new Map();
 const presentedStreamContent = new Map();
@@ -499,6 +502,88 @@ function applyTheme() {
     document.body.dataset.hasBackground = 'false';
   }
   applyAppearance();
+  applyFonts();
+}
+
+function applyFonts() {
+  if (!state) return;
+  applyFontFamily(
+    '--cuplivo-app-font',
+    state.display?.appFont,
+    '--cuplivo-default-app-font',
+  );
+  applyFontFamily(
+    '--cuplivo-code-font',
+    state.display?.codeFont,
+    '--cuplivo-default-code-font',
+  );
+}
+
+function applyFontFamily(variable, font, chainVariable) {
+  if (!font?.family) {
+    document.documentElement.style.removeProperty(variable);
+    return;
+  }
+  if (font.handle) {
+    const outcome = fontFaceTracker.begin(
+      font.handle,
+      font.family,
+      state.media?.[font.handle],
+    );
+    if (!outcome.tracked) {
+      if (outcome.cached) {
+        registerFontFaces(font.handle, [font.family], state.media[font.handle]);
+      } else {
+        requestMedia(font.handle);
+      }
+    }
+  }
+  document.documentElement.style.setProperty(
+    variable,
+    `'${font.family}', var(${chainVariable})`,
+  );
+}
+
+function registerFontFaces(handle, families, dataUrl) {
+  const jobs = [...families].map((family) => ({
+    family,
+    face: null,
+    promise: null,
+  }));
+  const withFaces = jobs.map((job) => {
+    job.promise = new FontFace(job.family, `url("${dataUrl}")`)
+      .load()
+      .then((face) => {
+        document.fonts.add(face);
+        job.face = face;
+      });
+    return job;
+  });
+  Promise.allSettled(withFaces.map((job) => job.promise)).then((results) => {
+    const rejected = [];
+    results.forEach((result, index) => {
+      const job = withFaces[index];
+      if (result.status === 'fulfilled') {
+        fontFaceTracker.completed(handle, job.family);
+        const replacedHandle = fontFaceTracker.adopt(handle, job.family);
+        const previous = roleFaces.get(job.family);
+        roleFaces.set(job.family, { handle, face: job.face });
+        if (replacedHandle !== null && previous && previous.handle !== handle) {
+          document.fonts.delete(previous.face);
+        }
+      } else {
+        fontFaceTracker.fail(handle, job.family);
+        rejected.push({ family: job.family, reason: result.reason });
+      }
+    });
+    if (rejected.length) {
+      console.warn(
+        'web_chat: one or more font faces failed to load',
+        handle,
+        rejected,
+      );
+    }
+  });
 }
 
 function sendAction(action, messageId = null, payload = {}) {
@@ -3137,6 +3222,10 @@ function handleMediaResult(payload) {
     media: { ...(state.media ?? {}), [payload.handle]: payload.dataUrl },
   };
   pendingMedia.delete(payload.handle);
+  const transferFamilies = fontFaceTracker.takeTransfer(payload.handle);
+  if (transferFamilies?.size) {
+    registerFontFaces(payload.handle, transferFamilies, payload.dataUrl);
+  }
   for (const image of document.querySelectorAll('img[data-media-handle]')) {
     if (image.dataset.mediaHandle === payload.handle) image.src = payload.dataUrl;
   }
@@ -3185,6 +3274,8 @@ window.CuplivoWeb = {
             localExpansions.clear();
             pendingActions.clear();
             pendingMedia.clear();
+            fontFaceTracker.reset();
+            roleFaces.clear();
             heights.clear();
             pendingMeasuredHeights.clear();
             mountedSlots.clear();
@@ -3222,6 +3313,11 @@ window.CuplivoWeb = {
           envelope.renderSessionId === state.renderSessionId &&
           envelope.conversationId === state.conversationId) {
         pendingMedia.delete(envelope.handle);
+        if (envelope.code === 'inactive') {
+          fontFaceTracker.cancel(envelope.handle);
+        } else {
+          fontFaceTracker.failTransfer(envelope.handle);
+        }
       }
       else if (envelope.type === 'viewportCommand') handleViewportCommand(envelope);
     } catch (error) {

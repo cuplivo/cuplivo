@@ -11,16 +11,25 @@ vertical/horizontal split, and the desktop wheel path is untouched.
 ## Decision
 
 `assets/web_chat/app.mjs` detects mobile touch devices
-(`isIosTouchDevice` / `isAndroidTouchDevice` → `isTouchNativeOwned`) and:
+(`isIosTouchDevice` / `isAndroidTouchDevice` → `isTouchNativeOwned`), and
+every `stopScrolling()` call now carries an explicit origin
+(`'touch'` / `'pointer'` / `'programmatic'`):
 
-- `stopScrolling()` never arms the persistent scroll-stop lock from touch on
-  mobile — when no lock is already active (any remaining `scrollStopLock`
-  means a programmatic clamp, which stays honored and enforced);
+- `stopScrolling('touch')` never arms the persistent scroll-stop lock on
+  mobile — when no lock is already active (any existing `scrollStopLock` means
+  a programmatic clamp, which stays honored and enforced);
+- `stopScrolling('pointer')` (mouse/pen) and `'programmatic'` (viewport
+  commands, Flutter bridge, web-shared calls) keep locking on every platform,
+  so the pre-change semantics of every non-touch transport window are
+  preserved exactly — the exemption is touch-origin-only;
 - the `touchmove` handlers never call `preventDefault` on mobile, in both the
   virtual-window-loading branch and the hold-phase branch;
-- all call sites stay: `touchstart`/`pointerdown` → `stopScrolling()`
-  (`scrollBehavior` reset + fling-cancel path preserved), `setRenderBlocked`,
-  `flushMountedUpdates`, and the Kotlin `flingScroll(0, 0)` momentum cancel.
+- all call sites stay: `touchstart`/`pointerdown` pass the event-derived
+  origin, `setRenderBlocked`, `flushMountedUpdates`, and the Kotlin
+  `flingScroll(0, 0)` momentum cancel are untouched. The Dart bridge forwards
+  the origin through `AndroidWebChatController.stopScrolling(origin)` and the
+  Kotlin side whitelists it into one of three fixed scripts (no dynamic
+  string interpolation into evaluated JS).
 
 Rationale by platform:
 
@@ -56,6 +65,11 @@ guard here is the canonical form.
 
 - Mobile touch scroll should no longer fight the native pan: less sponge/kick
   on Android, and iOS can pan at all.
+- The origin-exemption is behaviorally pinned by
+  `assets/web_chat/test/scroll_handling.test.mjs` (VM harness loading the
+  actual shell): Android/iOS touch never arming or canceling, desktop legacy
+  still locking and canceling, and a programmatically established clamp
+  surviving a mobile touch and staying enforced.
 - Residual risk: the arena-buffered Android down is inherent to Flutter
   platform views and unchanged by this decision; residual stall (if any must
   be diagnosed on device — not CI-headless).

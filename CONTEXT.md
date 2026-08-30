@@ -40,9 +40,11 @@
   the Android platform view wins verticals and hands the pointer stream to the
   native view; horizontals stay in Flutter so `InteractiveDrawer` keeps its
   full-area swipe gesture; taps resolve at pointer-up. The persistent
-  **scroll-stop lock** is therefore never armed from touch events on mobile —
-  it remains for the programmatic virtual-window clamp and desktop/legacy
-  pointer paths.
+  **scroll-stop lock** is therefore never armed by a touch-origin
+  `stopScrolling` call on mobile — every call carries its origin
+  (`'touch'`/`'pointer'`/`'programmatic'`) and only `'touch'` is exempt;
+  programmatic/桥接/mouse-pointer calls keep the lock, which remains for the
+  virtual-window clamp and desktop/legacy pointer paths.
 - **迟发指针流 (delayed pointer stream)**: The Android platform view receives
   the native touch stream only after the arena resolves (the vertical
   recognizer winning means ~18px of movement already happened), so after the

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -920,7 +921,7 @@ class _WebConversationViewportState extends State<WebConversationViewport> {
   }
 
   Future<void> _sendViewportCommand(Map<String, dynamic> command) async {
-    await _stopWebScrolling();
+    await _stopWebScrolling('programmatic');
     await _sendEnvelope(command);
   }
 
@@ -934,13 +935,15 @@ class _WebConversationViewportState extends State<WebConversationViewport> {
     }
   }
 
-  Future<void> _stopWebScrolling() async {
+  Future<void> _stopWebScrolling(String origin) async {
     if (!_ready) return;
     try {
       if (Platform.isAndroid) {
-        await _androidController?.stopScrolling();
+        await _androidController?.stopScrolling(origin);
       } else {
-        await _runWebJavaScript('window.CuplivoWeb?.stopScrolling?.();');
+        await _runWebJavaScript(
+          'window.CuplivoWeb?.stopScrolling?.(${jsonEncode(origin)});',
+        );
       }
     } catch (error) {
       debugPrint(
@@ -1119,7 +1122,11 @@ class _WebConversationViewportState extends State<WebConversationViewport> {
     }
     return Listener(
       behavior: HitTestBehavior.translucent,
-      onPointerDown: (PointerDownEvent _) => unawaited(_stopWebScrolling()),
+      onPointerDown: (PointerDownEvent event) => unawaited(
+        _stopWebScrolling(
+          event.kind == ui.PointerDeviceKind.touch ? 'touch' : 'pointer',
+        ),
+      ),
       child: Stack(
         fit: StackFit.expand,
         children: [

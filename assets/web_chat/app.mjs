@@ -70,9 +70,9 @@ let pointerStartY = null;
 // gesture as non-scrolling so the page can never be dragged afterwards; on
 // Android, Flutter's gesture arena dispatches the native touch stream only
 // after the vertical recognizer wins, so arming the persistent lock from
-// touch fights the live Chromium pan and reads as a "jelly" kick. Never arm
-// the persistent scroll-stop lock from touch events and never preventDefault
-// early touchmoves here; programmatic clamping (virtual-window loads) stays.
+// touch fights the live Chromium pan and reads as a "jelly" kick. Only
+// touch-origin stopScrolling calls ('touch') are exempt on mobile
+// touch devices; programmatic/pointer/bridge calls keep locking.
 const isIosTouchDevice = /iP(hone|od|ad)/.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const isAndroidTouchDevice = /Android/i.test(navigator.userAgent);
@@ -2637,15 +2637,17 @@ function enforceScrollStop() {
   restoreScrollStopPosition();
   scrollStopFrame = requestAnimationFrame(enforceScrollStop);
 }
-function stopScrolling() {
+function stopScrolling(origin = 'programmatic') {
   // The Flutter/Android bridge may deliver this call slightly after the DOM
   // pointer event. Never restart the lock after this gesture already became a
   // real drag.
   if (gestureActive && gestureIntent !== 'hold') return;
   timeline.style.scrollBehavior = 'auto';
-  // Mobile touch devices own the pan: never arm the persistent lock from
-  // touch events. Programmatic locks (virtual-window clamping) stay honored.
-  if (isTouchNativeOwned && !scrollStopLock) return;
+  // Mobile touch devices own the pan: a touch-origin call never arms the
+  // persistent lock. Programmatic or non-touch calls (viewport commands,
+  // Flutter bridge, mouse pointers, virtual-window clamping) still arm, and
+  // an already-established programmatic lock is always honored below.
+  if (origin === 'touch' && isTouchNativeOwned && !scrollStopLock) return;
   if (!scrollStopLock) {
     scrollStopLock = true;
     scrollStopTop = timeline.scrollTop;
@@ -2690,7 +2692,7 @@ timeline.addEventListener('pointerdown', (event) => {
   gestureIntent = 'hold';
   pointerStartX = event.clientX;
   pointerStartY = event.clientY;
-  stopScrolling();
+  stopScrolling(event.pointerType === 'touch' ? 'touch' : 'pointer');
 }, { passive: true });
 timeline.addEventListener('pointermove', (event) => {
   if (virtualWindowLoading) {
@@ -2730,7 +2732,7 @@ timeline.addEventListener('touchstart', (event) => {
   gestureActive = true;
   gestureIntent = 'hold';
   touchActive = true;
-  stopScrolling();
+  stopScrolling('touch');
   setRenderBlocked(true);
   touchStartX = event.touches[0]?.clientX ?? null;
   touchStartY = event.touches[0]?.clientY ?? null;

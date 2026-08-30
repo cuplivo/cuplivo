@@ -37,7 +37,11 @@ void main() {
 
     expect(calls, hasLength(1));
     expect(calls.single.method, 'stopScrolling');
-    expect(calls.single.arguments, isNull);
+    expect(calls.single.arguments, 'programmatic');
+
+    await controller.stopScrolling('touch');
+    expect(calls, hasLength(2));
+    expect(calls.last.arguments, 'touch');
   });
 
   testWidgets('Android Web chat only claims vertical drag gestures', (

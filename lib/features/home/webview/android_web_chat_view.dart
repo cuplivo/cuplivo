@@ -55,7 +55,8 @@ class AndroidWebChatController {
 
   Future<void> runJavaScript(String source) => _invoke('runJavaScript', source);
 
-  Future<void> stopScrolling() => _invoke('stopScrolling');
+  Future<void> stopScrolling([String origin = 'programmatic']) =>
+      _invoke('stopScrolling', origin);
 
   Future<void> _invoke(String method, [Object? arguments]) async {
     if (_disposed) {

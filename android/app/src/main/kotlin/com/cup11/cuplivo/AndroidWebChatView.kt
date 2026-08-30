@@ -36,7 +36,17 @@ private const val WEB_CHAT_ASSET_PREFIX = "${FLUTTER_ASSET_PREFIX}web_chat/"
 private const val MERMAID_ASSET_PATH = "${FLUTTER_ASSET_PREFIX}mermaid.min.js"
 private const val LOG_TAG = "CuplivoWebChat"
 private const val STOP_WEB_SCROLLING_SCRIPT =
-  "window.CuplivoWeb?.stopScrolling?.();"
+  "window.CuplivoWeb?.stopScrolling?.('programmatic');"
+private const val STOP_WEB_SCROLLING_TOUCH_SCRIPT =
+  "window.CuplivoWeb?.stopScrolling?.('touch');"
+private const val STOP_WEB_SCROLLING_POINTER_SCRIPT =
+  "window.CuplivoWeb?.stopScrolling?.('pointer');"
+
+private fun webStopScrollingScript(origin: String?): String = when (origin) {
+  "touch" -> STOP_WEB_SCROLLING_TOUCH_SCRIPT
+  "pointer" -> STOP_WEB_SCROLLING_POINTER_SCRIPT
+  else -> STOP_WEB_SCROLLING_SCRIPT
+}
 
 internal fun isAllowedWebChatAssetPath(path: String): Boolean {
   if (path.contains("..") || path.startsWith('/')) return false
@@ -141,7 +151,7 @@ private class AndroidWebChatPlatformView(
     }
     webView.setOnTouchListener { _, event ->
       if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-        stopScrolling()
+        stopScrolling(origin = "touch")
       }
       false
     }
@@ -235,18 +245,23 @@ private class AndroidWebChatPlatformView(
         webView.evaluateJavascript(source) { result.success(null) }
       }
       "stopScrolling" -> {
-        stopScrolling { result.success(null) }
+        stopScrolling(call.arguments as? String) { result.success(null) }
       }
       else -> result.notImplemented()
     }
   }
 
-  private fun stopScrolling(onComplete: (() -> Unit)? = null) {
+  private fun stopScrolling(
+    origin: String? = null,
+    onComplete: (() -> Unit)? = null,
+  ) {
     // Flutter's vertical-drag recognizer buffers the native ACTION_DOWN until
     // the gesture arena resolves. Cancel Chromium's compositor fling from the
     // method channel immediately, then keep the nested timeline fixed in JS.
+    // The origin is preserved into JS so touch-origin calls stay arming-free
+    // on mobile while programmatic/pointer calls keep the lock.
     webView.flingScroll(0, 0)
-    webView.evaluateJavascript(STOP_WEB_SCROLLING_SCRIPT) {
+    webView.evaluateJavascript(webStopScrollingScript(origin)) {
       onComplete?.invoke()
     }
   }

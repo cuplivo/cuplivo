@@ -2170,10 +2170,11 @@ class DataSync {
     // into RAM (the old approach called file.readAsBytes() which for a 600-800 MB
     // file would allocate a contiguous byte array of the same size).
     final tmp = await _ensureTempDir();
-    final extractDir = Directory(
-      p.join(tmp.path, 'restore_${DateTime.now().millisecondsSinceEpoch}'),
-    );
-    await extractDir.create(recursive: true);
+    // Uniqueness is OS-atomic (createTemp), NOT millisecond-derived: two
+    // concurrent restores in one process (e.g. LAN sync peers under test)
+    // must never share an extract dir, or their chats_meta/messages streams
+    // interleave and fail the count validation.
+    final extractDir = await tmp.createTemp('restore_');
 
     try {
       onProgress?.call(const RestoreProgress(stage: RestoreStage.extracting));

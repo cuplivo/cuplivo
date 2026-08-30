@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -95,19 +96,30 @@ class LanSyncClient extends ChangeNotifier {
   SyncPriority? get effectivePriority =>
       _priorityConfirmed ? _chosenPriority : null;
 
-  /// Whether a non-auto session must force a settings-only exchange (issue
-  /// #615): no chat delta, no file delta, but a CONFIRMED conflict direction
-  /// was chosen — identical message IDs with different system
-  /// prompts/settings would otherwise produce NO zip and the chosen
-  /// direction would never reach the merge. Unconfirmed choices (old peers)
-  /// never force anything: mixed-version sessions keep today's semantics.
+  /// Whether a CONFIRMED non-auto session must send a settings/assistants-
+  /// only payload (issue #615, review round 2): every confirmed split-
+  /// failure session ships settings on BOTH sides, so the chosen direction
+  /// actually reaches the merge. This side rides its chat/file delta when it
+  /// has one; when it has none, it must still build a settings-only zip.
+  /// Peer-side deltas NEVER suppress this side's payload — the other side
+  /// needs our settings to apply the direction to them. Unconfirmed choices
+  /// (old peers) never force anything: mixed-version sessions keep today's
+  /// semantics.
   bool get forceSettingsExchange {
     final plan = _plan;
     if (plan == null) return false;
     if (effectivePriority == null) return false;
-    if (plan.since != null) return false;
+    // Our own outgoing chat delta: conversations where WE pushed changes
+    // (initiatorOnly, or a both-sides fork with our increment). serverOnly
+    // is the peer's delta — it must not suppress our settings payload.
+    if (plan.conversations.any(
+      (c) =>
+          c.state == SyncConvState.fork ||
+          c.state == SyncConvState.initiatorOnly,
+    )) {
+      return false;
+    }
     if ((_outboundDelta?.isNotEmpty ?? false)) return false;
-    if ((plan.serverFileCount ?? 0) > 0) return false;
     return true;
   }
 
@@ -323,7 +335,9 @@ class LanSyncClient extends ChangeNotifier {
         final tmpDir = await _getTempDir();
         final receivedPath = p.join(
           tmpDir.path,
-          'lan_sync_received_${DateTime.now().millisecondsSinceEpoch}.zip',
+          'lan_sync_received_'
+          '${DateTime.now().microsecondsSinceEpoch}_'
+          '${Random().nextInt(0xFFFFFF).toRadixString(16)}.zip',
         );
         final receivedFile = File(receivedPath);
         await receivedFile.writeAsBytes(response.bodyBytes);

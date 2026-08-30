@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
@@ -271,7 +272,9 @@ class LanSyncServer extends ChangeNotifier {
       final tmpDir = await _getTempDir();
       final receivedPath = p.join(
         tmpDir.path,
-        'lan_sync_received_${DateTime.now().millisecondsSinceEpoch}.zip',
+        'lan_sync_received_'
+        '${DateTime.now().microsecondsSinceEpoch}_'
+        '${Random().nextInt(0xFFFFFF).toRadixString(16)}.zip',
       );
       receivedFile = File(receivedPath);
       await receivedFile.writeAsBytes(zipPart);
@@ -298,12 +301,15 @@ class LanSyncServer extends ChangeNotifier {
     // chat window from the retained plan. Old peer: legacy single-`since`
     // mtime/chat filter. No zip at all when there is nothing to send —
     // EXCEPT a non-auto sync priority session (the initiator accepted a
-    // conflict direction): settings/assistant conflicts alone (identical
-    // message IDs) must still exchange a settings-only payload so the chosen
-    // direction actually reaches the merge (issue #615 P1).
+    // conflict direction): the CONFIRMED session ships settings/assistants
+    // on BOTH sides, so the chosen direction actually reaches the merge
+    // (issue #615 P1). Our own delta carries settings; no delta of ours
+    // still builds a settings-only payload. Whether the INITIATOR has a
+    // delta is never a reason to suppress our side.
     final cfg = const WebDavConfig();
     File? myZip;
     final outboundDelta = _serverOutboundDelta;
+    // THIS side's delta only (server chat window / server file delta).
     final hasChatOrFileDelta =
         _exchangeSince != null ||
         (outboundDelta != null && outboundDelta.isNotEmpty);

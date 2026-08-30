@@ -2671,6 +2671,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lanSyncClientConfirm => 'Start Sync';
 
   @override
+  String get lanSyncPriorityLabel => 'Conflict resolution';
+
+  @override
+  String get lanSyncPriorityAuto => 'Auto (default merge)';
+
+  @override
+  String get lanSyncPriorityInitiatorWins => 'This device wins';
+
+  @override
+  String get lanSyncPriorityServerWins => 'Peer wins';
+
+  @override
+  String get lanSyncPeerPriorityInitiatorWins =>
+      'Peer chose \"This device wins\": conflicting data will follow the peer\'s copy.';
+
+  @override
+  String get lanSyncPeerPriorityServerWins =>
+      'Peer chose \"Peer wins\": conflicting data will keep this device\'s copy.';
+
+  @override
   String get lanSyncClientExchanging => 'Exchanging data...';
 
   @override

@@ -1,5 +1,9 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
+import '../../models/backup.dart';
+
 /// The current protocol phase of a LAN sync peer (server or client).
 ///
 /// UI-facing only: the widgets map a phase to a localized status line.
@@ -47,6 +51,50 @@ class FileManifestEntry {
   }
 }
 
+/// Per-session conflict-direction bit chosen by the initiator (issue #615).
+///
+/// Absolute, role-based: `initiatorWins` means "the device that started this
+/// sync keeps its copy on conflicts"; `serverWins` means "the listening device
+/// keeps its copy". Each side derives its role-relative
+/// [ConflictPrecedence] (localWins / incomingWins) from this value. Null /
+/// absent on the wire = auto (current fixed-policy merge, zero change).
+/// Old peers ignore the unknown field and degrade to auto silently.
+enum SyncPriority {
+  initiatorWins,
+  serverWins;
+
+  /// Parses the wire value. Unknown values degrade to null (auto) instead of
+  /// throwing: a newer peer introducing a future mode must not break the plan
+  /// request on an older build — symmetric with "absent field = auto".
+  static SyncPriority? tryParse(String? raw) {
+    if (raw == null) return null;
+    for (final value in SyncPriority.values) {
+      if (value.name == raw) return value;
+    }
+    debugPrint(
+      'lan sync: unknown syncPriority value "$raw", degrading to auto',
+    );
+    return null;
+  }
+}
+
+/// Resolves the role-relative restore precedence for this device.
+///
+/// [isInitiator] is true when this device started the sync; [priority] is the
+/// session's absolute choice (wire value). Null -> auto. The rule: local wins
+/// iff the absolute winner IS this device.
+ConflictPrecedence resolveSyncPrecedence(
+  SyncPriority? priority, {
+  required bool isInitiator,
+}) {
+  if (priority == null) return ConflictPrecedence.auto;
+  final thisDeviceWins =
+      (priority == SyncPriority.initiatorWins) == isInitiator;
+  return thisDeviceWins
+      ? ConflictPrecedence.localWins
+      : ConflictPrecedence.incomingWins;
+}
+
 /// Index sent from the initiator (device A) to the server (device B) in round 1.
 ///
 /// Contains per-conversation message IDs (ordered by messageOrder), the
@@ -62,16 +110,22 @@ class SyncIndex {
   /// `since`-based packing path.
   final Map<String, FileManifestEntry>? fileManifest;
 
+  /// The initiator's chosen conflict direction for this sync session.
+  /// Null = auto/absent (old peer or no choice made).
+  final SyncPriority? syncPriority;
+
   const SyncIndex({
     required this.conversations,
     required this.assistantIds,
     this.fileManifest,
+    this.syncPriority,
   });
 
   Map<String, dynamic> toJson() => {
     'conversations': conversations,
     'assistantIds': assistantIds,
     'fileManifest': fileManifest?.map((k, v) => MapEntry(k, v.toJson())),
+    if (syncPriority != null) 'syncPriority': syncPriority!.name,
   };
 
   String toJsonString() => jsonEncode(toJson());
@@ -82,6 +136,7 @@ class SyncIndex {
       (k, v) => MapEntry(k, (v as List).cast<String>()),
     );
     final manifestRaw = json['fileManifest'] as Map<String, dynamic>?;
+    final rawPriority = json['syncPriority'] as String?;
     return SyncIndex(
       conversations: conversations,
       assistantIds: (json['assistantIds'] as List).cast<String>(),
@@ -91,6 +146,7 @@ class SyncIndex {
           FileManifestEntry.fromJson((v as Map).cast<String, dynamic>()),
         ),
       ),
+      syncPriority: SyncPriority.tryParse(rawPriority),
     );
   }
 

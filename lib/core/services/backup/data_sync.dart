@@ -1212,9 +1212,16 @@ class DataSync {
     WebDavConfig cfg, {
     RestoreMode mode = RestoreMode.overwrite,
     RestoreProgressCallback? onProgress,
+    ConflictPrecedence precedence = ConflictPrecedence.auto,
   }) async {
     if (!await file.exists()) throw Exception('备份文件不存在');
-    await _restoreFromBackupFile(file, cfg, mode: mode, onProgress: onProgress);
+    await _restoreFromBackupFile(
+      file,
+      cfg,
+      mode: mode,
+      onProgress: onProgress,
+      precedence: precedence,
+    );
   }
 
   // ===== Internal helpers =====
@@ -1907,13 +1914,18 @@ class DataSync {
   /// Memory is bounded by one conversation: each conversation's messages are
   /// accumulated then written via [ChatService.restoreConversationsBatch].
   /// Both overwrite and merge stream; merge keeps today's ID-skip semantics
-  /// (never LWW for chats). toolEvents/geminiSignatures ride inline per
-  /// message. Group chat metadata rides the chats_meta.json payload.
+  /// (never LWW for chats) — except conversation *metadata* direction (issue
+  /// #615): with [ConflictPrecedence.incomingWins] an already-existing
+  /// conversation row is replaced wholesale by the incoming copy (winner's
+  /// fields), while the message list stays the local append-union so the
+  /// loser's exclusive messages survive. toolEvents/geminiSignatures ride
+  /// inline per message. Group chat metadata rides the chats_meta.json payload.
   Future<void> _restoreChatsFromJsonl({
     required Directory extractDir,
     required Map<String, dynamic> chatsMeta,
     required RestoreMode mode,
     RestoreProgressCallback? onProgress,
+    ConflictPrecedence precedence = ConflictPrecedence.auto,
   }) async {
     if (!chatService.initialized) await chatService.init();
     final conversationsFile = File(
@@ -1945,11 +1957,13 @@ class DataSync {
       onProgress?.call(const RestoreProgress(stage: RestoreStage.mergingChats));
     }
 
+    final existingConvsById = <String, Conversation>{};
     final existingConvIds = <String>{};
     final existingMsgIds = <String>{};
     if (mode == RestoreMode.merge) {
       for (final conv in chatService.getAllCompleteConversations()) {
         existingConvIds.add(conv.id);
+        existingConvsById[conv.id] = conv;
         existingMsgIds.addAll(
           chatService.getMessages(conv.id).map((m) => m.id),
         );
@@ -2022,8 +2036,37 @@ class DataSync {
             }
           }
         } else if (byConv.containsKey(c.id)) {
-          for (final msg in byConv[c.id]!) {
-            if (existingMsgIds.contains(msg.id)) continue;
+          final exclusiveMsgs = <ChatMessage>[
+            for (final msg in byConv[c.id]!)
+              if (!existingMsgIds.contains(msg.id)) msg,
+          ];
+          // Conversation metadata direction (issue #615, category D): with
+          // incomingWins the winner's row replaces the loser's (id, createdAt
+          // and messageIds exempt). Row-replace happens first: the append
+          // path then keeps the union list (the rider lifts updatedAt if a
+          // newly appended message is newer).
+          if (precedence == ConflictPrecedence.incomingWins) {
+            final local = existingConvsById[c.id];
+            await chatService.replaceConversationRow(
+              c.copyWith(
+                createdAt: local?.createdAt,
+                // The sort key must reflect the union's newest activity:
+                // never regress below either side's updatedAt (winning copy
+                // could be from a stale peer while the losing side holds
+                // newer local-exclusive activity — the #545 sort sink would
+                // otherwise re-appear).
+                updatedAt:
+                    (local != null && local.updatedAt.isAfter(c.updatedAt))
+                    ? local.updatedAt
+                    : c.updatedAt,
+                messageIds: [
+                  ...(local?.messageIds ?? const <String>[]),
+                  for (final msg in exclusiveMsgs) msg.id,
+                ],
+              ),
+            );
+          }
+          for (final msg in exclusiveMsgs) {
             await chatService.addMessageDirectly(c.id, msg);
           }
         }
@@ -2115,6 +2158,7 @@ class DataSync {
     WebDavConfig cfg, {
     RestoreMode mode = RestoreMode.overwrite,
     RestoreProgressCallback? onProgress,
+    ConflictPrecedence precedence = ConflictPrecedence.auto,
   }) async {
     // Incremental backup detection: cuplivo_incr_ prefix forces merge mode
     if (mode == RestoreMode.overwrite &&
@@ -2273,12 +2317,15 @@ class DataSync {
               if (mergeableKeys.contains(key)) {
                 // Special handling for mergeable configurations
                 if (key == 'provider_configs_v1' && existing.containsKey(key)) {
-                  // Merge provider configs per provider key. The backup wins
-                  // for all fields EXCEPT the proxy block, which is
-                  // device-local: an existing provider's proxy is composed
-                  // from its local block over the no-proxy defaults — the
-                  // backup's proxy never lands on the device (issue #512).
-                  // Brand-new providers keep their backup proxy.
+                  // Merge provider configs per provider key. Unless the local
+                  // side wins (issue #615), the backup wins for all fields
+                  // EXCEPT the proxy block, which is device-local: an existing
+                  // provider's proxy is composed from its local block over the
+                  // no-proxy defaults — the backup's proxy never lands on the
+                  // device (issue #512). Brand-new providers keep their backup
+                  // proxy. localWins flips the per-provider winner so the local
+                  // config survives the merge untouched (new providers still
+                  // get added from the backup).
                   try {
                     final existingConfigs =
                         jsonDecode(existing[key] as String)
@@ -2289,6 +2336,8 @@ class DataSync {
                     // Start from the local configs so providers absent from
                     // the backup survive the merge untouched.
                     final mergedConfigs = <String, dynamic>{...existingConfigs};
+                    final localWins =
+                        precedence == ConflictPrecedence.localWins;
                     for (final entry in newConfigs.entries) {
                       final providerKey = entry.key;
                       final incoming = entry.value;
@@ -2300,6 +2349,16 @@ class DataSync {
                         continue;
                       }
                       final localMap = local.cast<String, dynamic>();
+                      if (localWins) {
+                        // Local wins: incoming only fills fields the local
+                        // config lacks; the proxy block is implicitly local.
+                        final mergedLocal = <String, dynamic>{
+                          ...incoming.cast<String, dynamic>(),
+                          ...localMap,
+                        };
+                        mergedConfigs[providerKey] = mergedLocal;
+                        continue;
+                      }
                       // The proxy fields of an existing provider are composed
                       // from the local block (where present) over the
                       // no-proxy defaults — the backup's proxy never lands on
@@ -2337,18 +2396,21 @@ class DataSync {
                       _mergeJsonListById(
                         existing[key] as String,
                         newValue as String,
+                        precedence: precedence,
                       ),
                     );
                   } catch (_) {}
                 } else if (key == 'asr_services_v1' &&
                     existing.containsKey(key)) {
                   // Merge ASR services by id; prefer existing on conflicts
+                  // (incomingWins flips the winner per id, issue #615).
                   try {
                     await prefs.restoreSingle(
                       key,
                       _mergeJsonListById(
                         existing[key] as String,
                         newValue as String,
+                        precedence: precedence,
                       ),
                     );
                   } catch (_) {}
@@ -2377,7 +2439,9 @@ class DataSync {
                     // If merge fails, keep existing
                   }
                 } else if (key == 'assistant_tags_v1') {
-                  // Merge tag list by id; keep existing order, append new tags at end (incoming order)
+                  // Merge tag list by id; keep existing order, append new tags
+                  // at end (incoming order). incomingWins replaces the entry
+                  // content on id conflict (issue #615).
                   try {
                     final existingStr = (existing[key] ?? '') as String?;
                     final newStr = (newValue ?? '') as String?;
@@ -2399,13 +2463,17 @@ class DataSync {
                         tagById[id] = Map<String, dynamic>.from(e);
                       }
                     }
-                    // Add new tags that don't exist yet
+                    // Add new tags that don't exist yet; on id conflict,
+                    // incomingWins replaces the local entry in place.
                     for (final e in newList) {
                       if (e is Map && e['id'] != null) {
                         final id = e['id'].toString();
                         if (!tagById.containsKey(id)) {
                           tagById[id] = Map<String, dynamic>.from(e);
                           existingOrder.add(id);
+                        } else if (precedence ==
+                            ConflictPrecedence.incomingWins) {
+                          tagById[id] = Map<String, dynamic>.from(e);
                         }
                       }
                     }
@@ -2418,6 +2486,7 @@ class DataSync {
                   }
                 } else if (key == 'assistant_tag_map_v1') {
                   // Merge assistant->tag mapping; prefer existing on conflicts
+                  // (incomingWins flips the winner per key, issue #615).
                   try {
                     final existingStr = (existing[key] ?? '') as String?;
                     final newStr = (newValue ?? '') as String?;
@@ -2428,11 +2497,14 @@ class DataSync {
                     final newMap = (newStr == null || newStr.isEmpty)
                         ? <String, dynamic>{}
                         : (jsonDecode(newStr) as Map<String, dynamic>);
-                    final merged = <String, dynamic>{...newMap, ...existingMap};
+                    final merged = precedence == ConflictPrecedence.incomingWins
+                        ? <String, dynamic>{...existingMap, ...newMap}
+                        : <String, dynamic>{...newMap, ...existingMap};
                     await prefs.restoreSingle(key, jsonEncode(merged));
                   } catch (_) {}
                 } else if (key == 'assistant_tag_collapsed_v1') {
                   // Merge collapse states; prefer existing on conflicts
+                  // (incomingWins flips the winner per key, issue #615).
                   try {
                     final existingStr = (existing[key] ?? '') as String?;
                     final newStr = (newValue ?? '') as String?;
@@ -2443,11 +2515,13 @@ class DataSync {
                     final newMap = (newStr == null || newStr.isEmpty)
                         ? <String, dynamic>{}
                         : (jsonDecode(newStr) as Map<String, dynamic>);
-                    final merged = <String, dynamic>{...newMap, ...existingMap};
+                    final merged = precedence == ConflictPrecedence.incomingWins
+                        ? <String, dynamic>{...existingMap, ...newMap}
+                        : <String, dynamic>{...newMap, ...existingMap};
                     await prefs.restoreSingle(key, jsonEncode(merged));
                   } catch (_) {}
                 } else if (key == 'provider_groups_v1') {
-                  // Merge provider groups by id; keep existing order, append new groups at end (incoming order)
+                  // Merge provider groups by id; keep existing order, append new groups at end (incoming order). incomingWins replaces the entry content on id conflict (issue #615).
                   try {
                     final existingStr = (existing[key] ?? '') as String?;
                     final newStr = (newValue ?? '') as String?;
@@ -2474,6 +2548,9 @@ class DataSync {
                         if (!groupById.containsKey(id)) {
                           groupById[id] = Map<String, dynamic>.from(e);
                           existingOrder.add(id);
+                        } else if (precedence ==
+                            ConflictPrecedence.incomingWins) {
+                          groupById[id] = Map<String, dynamic>.from(e);
                         }
                       }
                     }
@@ -2484,6 +2561,7 @@ class DataSync {
                   } catch (_) {}
                 } else if (key == 'provider_group_map_v1') {
                   // Merge provider->group mapping; prefer existing on conflicts
+                  // (incomingWins flips the winner per key, issue #615).
                   try {
                     final existingStr = (existing[key] ?? '') as String?;
                     final newStr = (newValue ?? '') as String?;
@@ -2494,11 +2572,14 @@ class DataSync {
                     final newMap = (newStr == null || newStr.isEmpty)
                         ? <String, dynamic>{}
                         : (jsonDecode(newStr) as Map<String, dynamic>);
-                    final merged = <String, dynamic>{...newMap, ...existingMap};
+                    final merged = precedence == ConflictPrecedence.incomingWins
+                        ? <String, dynamic>{...existingMap, ...newMap}
+                        : <String, dynamic>{...newMap, ...existingMap};
                     await prefs.restoreSingle(key, jsonEncode(merged));
                   } catch (_) {}
                 } else if (key == 'provider_group_collapsed_v1') {
                   // Merge collapse states; prefer existing on conflicts
+                  // (incomingWins flips the winner per key, issue #615).
                   try {
                     final existingStr = (existing[key] ?? '') as String?;
                     final newStr = (newValue ?? '') as String?;
@@ -2509,28 +2590,43 @@ class DataSync {
                     final newMap = (newStr == null || newStr.isEmpty)
                         ? <String, dynamic>{}
                         : (jsonDecode(newStr) as Map<String, dynamic>);
-                    final merged = <String, dynamic>{...newMap, ...existingMap};
+                    final merged = precedence == ConflictPrecedence.incomingWins
+                        ? <String, dynamic>{...existingMap, ...newMap}
+                        : <String, dynamic>{...newMap, ...existingMap};
                     await prefs.restoreSingle(key, jsonEncode(merged));
                   } catch (_) {}
                 } else if ((key == 'providers_order_v1' ||
                         key == 'search_services_v1') &&
                     existing.containsKey(key)) {
                   // For these lists, prefer the imported version if different
-                  // This ensures new providers/services are properly ordered
-                  await prefs.restoreSingle(key, newValue);
+                  // (ensures new providers/services are properly ordered).
+                  // localWins keeps the local list (issue #615); incomingWins
+                  // keeps the incumbent replacing behavior.
+                  if (precedence != ConflictPrecedence.localWins) {
+                    await prefs.restoreSingle(key, newValue);
+                  }
                 } else {
                   // For new keys, add them
                   await prefs.restoreSingle(key, newValue);
                 }
-              } else if (existing.containsKey(key) && localMeta.isNotEmpty) {
+              } else if (existing.containsKey(key)) {
                 // LWW scalar merge (issue #123): supply the incoming value
                 // only when the backup's KV updated_at is strictly newer than
                 // the local KV updated_at. No meta on either side → legacy
-                // fill-absent behavior (the branch below).
-                final backupTs = localMeta[key];
-                final localTs = _localUpdatedAtFor(key);
-                if (backupTs != null && localTs != null && backupTs > localTs) {
+                // fill-absent behavior (the branch below). Direction overrides
+                // the clock (issue #615): localWins keeps the local value,
+                // incomingWins adopts the incoming value wholesale.
+                if (precedence == ConflictPrecedence.incomingWins) {
                   await prefs.restoreSingle(key, newValue);
+                } else if (precedence != ConflictPrecedence.localWins &&
+                    localMeta.isNotEmpty) {
+                  final backupTs = localMeta[key];
+                  final localTs = _localUpdatedAtFor(key);
+                  if (backupTs != null &&
+                      localTs != null &&
+                      backupTs > localTs) {
+                    await prefs.restoreSingle(key, newValue);
+                  }
                 }
               } else if (!existing.containsKey(key)) {
                 // For non-mergeable keys, only add if not existing
@@ -2577,6 +2673,7 @@ class DataSync {
             chatsMeta: chatsMeta,
             mode: mode,
             onProgress: onProgress,
+            precedence: precedence,
           );
         } else {
           try {
@@ -2635,6 +2732,9 @@ class DataSync {
               );
               final existingConvs = chatService.getAllCompleteConversations();
               final existingConvIds = existingConvs.map((c) => c.id).toSet();
+              final existingConvsById = <String, Conversation>{
+                for (final cv in existingConvs) cv.id: cv,
+              };
 
               // Create a map of message IDs to avoid duplicates
               final existingMsgIds = <String>{};
@@ -2673,6 +2773,28 @@ class DataSync {
                   }
                 } else if (byConv.containsKey(c.id)) {
                   final newMessages = byConv[c.id]!;
+                  // Conversation metadata direction (issue #615, category D):
+                  // with incomingWins the winner's row replaces the loser's
+                  // (id, createdAt and messageIds exempt).
+                  if (precedence == ConflictPrecedence.incomingWins) {
+                    final local = existingConvsById[c.id];
+                    await chatService.replaceConversationRow(
+                      c.copyWith(
+                        createdAt: local?.createdAt,
+                        // Same rule as the JSONL branch: the sort key must
+                        // never regress below either side's updatedAt.
+                        updatedAt:
+                            (local != null &&
+                                local.updatedAt.isAfter(c.updatedAt))
+                            ? local.updatedAt
+                            : c.updatedAt,
+                        messageIds: [
+                          ...(local?.messageIds ?? const <String>[]),
+                          for (final msg in newMessages) msg.id,
+                        ],
+                      ),
+                    );
+                  }
                   for (final msg in newMessages) {
                     await chatService.addMessageDirectly(c.id, msg);
                   }
@@ -2801,6 +2923,7 @@ class DataSync {
           final merged = _mergeAssistantMaps(
             existingMaps,
             rawIncomingAssistants,
+            precedence: precedence,
           );
           // Local assistants always carry an explicit ocrMode; only
           // brand-new incoming assistants can still lack it.
@@ -3448,7 +3571,15 @@ class DataSync {
     }
   }
 
-  static String _mergeJsonListById(String existingRaw, String incomingRaw) {
+  /// Merges two JSON-encoded lists keyed by `id`. By default the existing
+  /// entry wins on id conflict and brand-new ids are appended in incoming
+  /// order. `incomingWins` replaces the local entry in place on id conflict
+  /// (issue #615); `localWins` is the incumbent behavior.
+  static String _mergeJsonListById(
+    String existingRaw,
+    String incomingRaw, {
+    ConflictPrecedence precedence = ConflictPrecedence.auto,
+  }) {
     final existingList = jsonDecode(existingRaw) as List;
     final incomingList = jsonDecode(incomingRaw) as List;
     final byId = <String, Map<String, dynamic>>{};
@@ -3466,6 +3597,13 @@ class DataSync {
       addIfNew(item);
     }
     for (final item in incomingList) {
+      final id = item is Map ? item['id']?.toString() : null;
+      if (id != null &&
+          byId.containsKey(id) &&
+          precedence == ConflictPrecedence.incomingWins) {
+        byId[id] = Map<String, dynamic>.from(item);
+        continue;
+      }
       addIfNew(item);
     }
 
@@ -3535,10 +3673,15 @@ class DataSync {
     return map;
   }
 
+  /// Merges assistant maps by id. Incoming fields win today (except non-empty
+  /// local avatar/background). `localWins` flips the per-field winner so the
+  /// local copy survives the merge (issue #615); brand-new assistant ids still
+  /// merge in wholesale.
   static List<Map<String, dynamic>> _mergeAssistantMaps(
     List<Map<String, dynamic>> existing,
-    List<Map<String, dynamic>> incoming,
-  ) {
+    List<Map<String, dynamic>> incoming, {
+    ConflictPrecedence precedence = ConflictPrecedence.auto,
+  }) {
     final assistantMap = <String, Map<String, dynamic>>{};
 
     // Seed map with existing assistants
@@ -3548,6 +3691,8 @@ class DataSync {
         assistantMap[id] = Map<String, dynamic>.from(a);
       }
     }
+
+    final localWins = precedence == ConflictPrecedence.localWins;
 
     // Merge with incoming assistants
     for (final a in incoming) {
@@ -3561,7 +3706,9 @@ class DataSync {
       }
 
       final local = assistantMap[id]!;
-      final merged = <String, dynamic>{...local, ...inc};
+      final merged = localWins
+          ? <String, dynamic>{...inc, ...local}
+          : <String, dynamic>{...local, ...inc};
 
       // Special rule: do not override existing non-empty avatar
       final localAvatar = (local['avatar'] ?? '').toString();

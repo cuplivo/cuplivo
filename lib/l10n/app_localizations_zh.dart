@@ -2580,6 +2580,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncClientConfirm => '开始同步';
 
   @override
+  String get lanSyncPriorityLabel => '冲突处理';
+
+  @override
+  String get lanSyncPriorityAuto => '自动（默认合并）';
+
+  @override
+  String get lanSyncPriorityInitiatorWins => '本机优先';
+
+  @override
+  String get lanSyncPriorityServerWins => '对方优先';
+
+  @override
+  String get lanSyncPeerPriorityInitiatorWins => '对方选择「本机优先」：冲突数据将以对方版本为准。';
+
+  @override
+  String get lanSyncPeerPriorityServerWins => '对方选择「对方优先」：冲突数据将保留本机版本。';
+
+  @override
   String get lanSyncClientExchanging => '正在交换数据...';
 
   @override
@@ -11730,6 +11748,24 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncClientConfirm => '开始同步';
 
   @override
+  String get lanSyncPriorityLabel => '冲突处理';
+
+  @override
+  String get lanSyncPriorityAuto => '自动（默认合并）';
+
+  @override
+  String get lanSyncPriorityInitiatorWins => '本机优先';
+
+  @override
+  String get lanSyncPriorityServerWins => '对方优先';
+
+  @override
+  String get lanSyncPeerPriorityInitiatorWins => '对方选择「本机优先」：冲突数据将以对方版本为准。';
+
+  @override
+  String get lanSyncPeerPriorityServerWins => '对方选择「对方优先」：冲突数据将保留本机版本。';
+
+  @override
   String get lanSyncClientExchanging => '正在交换数据...';
 
   @override
@@ -20878,6 +20914,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncClientConfirm => '開始同步';
+
+  @override
+  String get lanSyncPriorityLabel => '衝突處理';
+
+  @override
+  String get lanSyncPriorityAuto => '自動（預設合併）';
+
+  @override
+  String get lanSyncPriorityInitiatorWins => '本機優先';
+
+  @override
+  String get lanSyncPriorityServerWins => '對方優先';
+
+  @override
+  String get lanSyncPeerPriorityInitiatorWins => '對方選擇「本機優先」：衝突資料將以對方版本為準。';
+
+  @override
+  String get lanSyncPeerPriorityServerWins => '對方選擇「對方優先」：衝突資料將保留本機版本。';
 
   @override
   String get lanSyncClientExchanging => '正在交換資料...';

@@ -22,6 +22,7 @@ import '../../utils/format.dart';
 import '../dialogs/restart_required_dialog.dart';
 import 'ios_form_text_field.dart';
 import 'ios_tactile.dart';
+import 'ios_tile_button.dart';
 import 'loading_dialog_card.dart' show buildRestoreProgress;
 
 /// Shared restore-progress content for the sync dialog/sheet mask: stage
@@ -102,6 +103,10 @@ class _LanSyncSectionState extends State<LanSyncSection> {
   final _portController = TextEditingController(text: '9527');
   final _pinController = TextEditingController();
 
+  /// The initiator's chosen conflict direction for this session (issue #615).
+  /// Null = auto (current merge behavior). Session-only, never persisted.
+  SyncPriority? _priorityChoice;
+
   /// The zip received for merge-restore, kept so a failed restore can be
   /// cleaned up when the section is disposed (the temp dir must not
   /// accumulate large sync payloads).
@@ -133,8 +138,8 @@ class _LanSyncSectionState extends State<LanSyncSection> {
     _client.addListener(_onChanged);
 
     // When a zip is received (either side), restore it and prompt restart.
-    _server.onZipReceived = _restoreAndRestart;
-    _client.onZipReceived = _restoreAndRestart;
+    _server.onZipReceived = (zip) => _restoreAndRestart(zip, isServer: true);
+    _client.onZipReceived = (zip) => _restoreAndRestart(zip, isServer: false);
   }
 
   void _onChanged() {
@@ -168,7 +173,10 @@ class _LanSyncSectionState extends State<LanSyncSection> {
     super.dispose();
   }
 
-  Future<void> _restoreAndRestart(File zipFile) async {
+  Future<void> _restoreAndRestart(
+    File zipFile, {
+    required bool isServer,
+  }) async {
     if (!mounted) return;
     // The sync dialog/sheet stays mounted throughout the write window — its
     // non-dismissible barrier IS the full-screen mask. Never pop it here.
@@ -194,10 +202,17 @@ class _LanSyncSectionState extends State<LanSyncSection> {
     _lastRestoreNotifyStage = null;
     _setRestoreProgress(const RestoreProgress(stage: RestoreStage.extracting));
     try {
+      // Derive the role-relative conflict direction for THIS device (issue
+      // #615): the wire bit is absolute (initiator wins / server wins); this
+      // device is the initiator when it is not the server side of the sync.
+      final priority = isServer
+          ? _server.initiatorPriority
+          : _client.chosenPriority;
       await _dataSync.restoreFromLocalFile(
         zipFile,
         const WebDavConfig(),
         mode: RestoreMode.merge,
+        precedence: resolveSyncPrecedence(priority, isInitiator: !isServer),
         onProgress: _setRestoreProgress,
       );
       if (!mounted) return;
@@ -361,6 +376,7 @@ class _LanSyncSectionState extends State<LanSyncSection> {
     ColorScheme cs,
   ) {
     _client.reset();
+    _priorityChoice = null;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -374,6 +390,8 @@ class _LanSyncSectionState extends State<LanSyncSection> {
         onNegotiate: _negotiate,
         onExchange: _exchange,
         onClose: () => Navigator.of(ctx).pop(),
+        priority: _priorityChoice,
+        onPriorityChanged: (v) => setState(() => _priorityChoice = v),
       ),
     );
   }
@@ -480,6 +498,7 @@ class _LanSyncSectionState extends State<LanSyncSection> {
     ColorScheme cs,
   ) {
     _client.reset();
+    _priorityChoice = null;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -498,6 +517,8 @@ class _LanSyncSectionState extends State<LanSyncSection> {
         onNegotiate: _negotiate,
         onExchange: _exchange,
         onClose: () => Navigator.of(ctx).pop(),
+        priority: _priorityChoice,
+        onPriorityChanged: (v) => setState(() => _priorityChoice = v),
       ),
     );
   }
@@ -522,7 +543,12 @@ class _LanSyncSectionState extends State<LanSyncSection> {
     }
 
     try {
-      await _client.negotiate(host: host, port: port, pin: pin);
+      await _client.negotiate(
+        host: host,
+        port: port,
+        pin: pin,
+        syncPriority: _priorityChoice,
+      );
     } catch (e) {
       _showError(
         e.toString().contains('PIN')
@@ -761,6 +787,23 @@ class _ServerDialogState extends State<_ServerDialog> {
                   ),
                 ),
               ],
+              // Display-only notice (issue #615): the initiator's conflict
+              // direction reaches the server UI so its user knows how
+              // conflicting data will be resolved. No veto — the PIN already
+              // gates the session.
+              if (server.initiatorPriority != null &&
+                  server.restoreProgress == null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  server.initiatorPriority == SyncPriority.initiatorWins
+                      ? l10n.lanSyncPeerPriorityInitiatorWins
+                      : l10n.lanSyncPeerPriorityServerWins,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: cs.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
               if (server.restoreProgress != null) ...[
                 const SizedBox(height: 12),
                 buildRestoreProgress(server.restoreProgress!, l10n, cs),
@@ -895,6 +938,8 @@ class _ClientDialog extends StatefulWidget {
   final Future<void> Function() onNegotiate;
   final Future<bool> Function() onExchange;
   final VoidCallback onClose;
+  final SyncPriority? priority;
+  final ValueChanged<SyncPriority?> onPriorityChanged;
 
   const _ClientDialog({
     required this.hostController,
@@ -906,6 +951,8 @@ class _ClientDialog extends StatefulWidget {
     required this.onNegotiate,
     required this.onExchange,
     required this.onClose,
+    required this.priority,
+    required this.onPriorityChanged,
   });
 
   @override
@@ -996,6 +1043,17 @@ class _ClientDialogState extends State<_ClientDialog> {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              _SyncPriorityPicker(
+                value: widget.priority,
+                onChanged: widget.onPriorityChanged,
+                // Locked while the plan request is in flight: the wire value
+                // is captured at negotiate time, so a late pick would diverge
+                // from what the peer will actually apply (issue #615 review).
+                enabled: !client.busy && client.plan == null,
+                l10n: l10n,
+                cs: cs,
+              ),
               if (phaseText.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text(
@@ -1081,6 +1139,8 @@ class _ClientSheet extends StatefulWidget {
   final Future<void> Function() onNegotiate;
   final Future<bool> Function() onExchange;
   final VoidCallback onClose;
+  final SyncPriority? priority;
+  final ValueChanged<SyncPriority?> onPriorityChanged;
 
   const _ClientSheet({
     required this.hostController,
@@ -1092,6 +1152,8 @@ class _ClientSheet extends StatefulWidget {
     required this.onNegotiate,
     required this.onExchange,
     required this.onClose,
+    required this.priority,
+    required this.onPriorityChanged,
   });
 
   @override
@@ -1132,124 +1194,196 @@ class _ClientSheetState extends State<_ClientSheet> {
         top: false,
         child: Padding(
           padding: EdgeInsets.fromLTRB(16, 12, 16, bottom + 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: cs.onSurface.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                l10n.lanSyncClientDialogTitle,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: AppFontWeights.semibold,
-                  color: cs.onSurface,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              IosFormTextField(
-                label: l10n.lanSyncClientHost,
-                controller: widget.hostController,
-                hintText: '192.168.1.100',
-              ),
-              const SizedBox(height: 10),
-              // Stacked, not side-by-side: two fields in one row are too
-              // cramped for phone widths (issue #182).
-              IosFormTextField(
-                label: l10n.lanSyncClientPort,
-                controller: widget.portController,
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 10),
-              IosFormTextField(
-                label: l10n.lanSyncClientPin,
-                controller: widget.pinController,
-                keyboardType: TextInputType.number,
-                maxLength: 4,
-              ),
-              const SizedBox(height: 16),
-              if (phaseText.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Text(
-                    phaseText,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: cs.onSurface.withValues(alpha: 0.6),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: cs.onSurface.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(999),
                     ),
                   ),
                 ),
-              if (client.plan != null) ...[
-                ...buildPlanSummary(
-                  l10n,
-                  client.plan!,
-                  cs,
-                  outboundFileCount: client.outboundFileCount,
-                  outboundFileSizeBytes: client.outboundFileSizeBytes,
+                const SizedBox(height: 12),
+                Text(
+                  l10n.lanSyncClientDialogTitle,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: AppFontWeights.semibold,
+                    color: cs.onSurface,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 12),
-              ],
-              if (client.restoreProgress != null) ...[
-                buildRestoreProgress(client.restoreProgress!, l10n, cs),
-                const SizedBox(height: 12),
-              ] else if (client.restoreError != null) ...[
-                buildRestoreError(
-                  client.restoreError!,
-                  l10n,
-                  cs,
-                  onClose: widget.onClose,
+                const SizedBox(height: 16),
+                IosFormTextField(
+                  label: l10n.lanSyncClientHost,
+                  controller: widget.hostController,
+                  hintText: '192.168.1.100',
                 ),
-                const SizedBox(height: 12),
-              ],
-              FilledButton(
-                onPressed: client.busy || client.restoreError != null
-                    ? null
-                    : () async {
-                        if (client.plan == null) {
-                          await widget.onNegotiate();
-                        } else {
-                          final shouldClose = await widget.onExchange();
-                          if (context.mounted && shouldClose) {
-                            widget.onClose();
-                          }
-                        }
-                      },
-                child: client.busy
-                    ? SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: cs.onPrimary,
-                        ),
-                      )
-                    : Text(
-                        client.plan == null
-                            ? l10n.lanSyncClientConnect
-                            : l10n.lanSyncClientConfirm,
+                const SizedBox(height: 10),
+                // Stacked, not side-by-side: two fields in one row are too
+                // cramped for phone widths (issue #182).
+                IosFormTextField(
+                  label: l10n.lanSyncClientPort,
+                  controller: widget.portController,
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 10),
+                IosFormTextField(
+                  label: l10n.lanSyncClientPin,
+                  controller: widget.pinController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                ),
+                const SizedBox(height: 16),
+                _SyncPriorityPicker(
+                  value: widget.priority,
+                  onChanged: widget.onPriorityChanged,
+                  // Locked while the plan request is in flight: the wire value
+                  // is captured at negotiate time, so a late pick would diverge
+                  // from what the peer will actually apply (issue #615 review).
+                  enabled: !client.busy && client.plan == null,
+                  l10n: l10n,
+                  cs: cs,
+                ),
+                const SizedBox(height: 16),
+                if (phaseText.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Text(
+                      phaseText,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: cs.onSurface.withValues(alpha: 0.6),
                       ),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: client.busy || client.restoreError != null
-                    ? null
-                    : widget.onClose,
-                child: Text(l10n.backupPageCancel),
-              ),
-            ],
+                    ),
+                  ),
+                if (client.plan != null) ...[
+                  ...buildPlanSummary(
+                    l10n,
+                    client.plan!,
+                    cs,
+                    outboundFileCount: client.outboundFileCount,
+                    outboundFileSizeBytes: client.outboundFileSizeBytes,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (client.restoreProgress != null) ...[
+                  buildRestoreProgress(client.restoreProgress!, l10n, cs),
+                  const SizedBox(height: 12),
+                ] else if (client.restoreError != null) ...[
+                  buildRestoreError(
+                    client.restoreError!,
+                    l10n,
+                    cs,
+                    onClose: widget.onClose,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                FilledButton(
+                  onPressed: client.busy || client.restoreError != null
+                      ? null
+                      : () async {
+                          if (client.plan == null) {
+                            await widget.onNegotiate();
+                          } else {
+                            final shouldClose = await widget.onExchange();
+                            if (context.mounted && shouldClose) {
+                              widget.onClose();
+                            }
+                          }
+                        },
+                  child: client.busy
+                      ? SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: cs.onPrimary,
+                          ),
+                        )
+                      : Text(
+                          client.plan == null
+                              ? l10n.lanSyncClientConnect
+                              : l10n.lanSyncClientConfirm,
+                        ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: client.busy || client.restoreError != null
+                      ? null
+                      : widget.onClose,
+                  child: Text(l10n.backupPageCancel),
+                ),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Shared conflict-direction picker (issue #615), used by the desktop client
+/// dialog and the mobile client sheet. Three modes: auto (default merge) /
+/// this device wins / peer wins. Disabled once the plan request has been sent
+/// — the choice is fixed for the whole session.
+class _SyncPriorityPicker extends StatelessWidget {
+  final SyncPriority? value;
+  final ValueChanged<SyncPriority?> onChanged;
+  final bool enabled;
+  final AppLocalizations l10n;
+  final ColorScheme cs;
+
+  const _SyncPriorityPicker({
+    required this.value,
+    required this.onChanged,
+    required this.enabled,
+    required this.l10n,
+    required this.cs,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final options = <(SyncPriority?, String)>[
+      (null, l10n.lanSyncPriorityAuto),
+      (SyncPriority.initiatorWins, l10n.lanSyncPriorityInitiatorWins),
+      (SyncPriority.serverWins, l10n.lanSyncPriorityServerWins),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          l10n.lanSyncPriorityLabel,
+          style: TextStyle(
+            fontSize: 13,
+            color: cs.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+        const SizedBox(height: 8),
+        for (final option in options) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: IosTileButton(
+              label: option.$2,
+              icon: value == option.$1
+                  ? Icons.radio_button_checked
+                  : Icons.circle_outlined,
+              onTap: enabled ? () => onChanged(option.$1) : () {},
+              enabled: enabled,
+              fontSize: 13,
+              // Matches the tinted-pill pattern (bg primary + default primary
+              // fg) — no onPrimary over the pale primary tint (contrast).
+              backgroundColor: value == option.$1 ? cs.primary : null,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

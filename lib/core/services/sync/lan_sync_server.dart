@@ -110,6 +110,11 @@ class LanSyncServer extends ChangeNotifier {
   /// initiator is an old peer → `since`-based file packing.
   Set<String>? _serverOutboundDelta;
 
+  /// The initiator's chosen conflict direction for this session (issue #615).
+  /// Read from the plan request; null = auto / old peer.
+  SyncPriority? _initiatorPriority;
+  SyncPriority? get initiatorPriority => _initiatorPriority;
+
   LanSyncServer({required this._chatService, required this._dataSync});
 
   /// Starts the HTTP server. Throws on failure.
@@ -151,6 +156,7 @@ class LanSyncServer extends ChangeNotifier {
     _receivedZip = null;
     _restoreProgress = null;
     _restoreError = null;
+    _initiatorPriority = null;
     notifyListeners();
   }
 
@@ -213,6 +219,8 @@ class LanSyncServer extends ChangeNotifier {
   Future<void> _handlePlan(HttpRequest request) async {
     final body = await _readBody(request);
     final index = SyncIndex.fromJsonString(body);
+
+    _initiatorPriority = index.syncPriority;
 
     // Build the server's own index.
     final myConversations = _chatService.getAllCompleteConversations();

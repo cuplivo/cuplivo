@@ -80,6 +80,11 @@ class LanSyncClient extends ChangeNotifier {
   bool _busy = false;
   bool get busy => _busy;
 
+  /// The conflict direction chosen for THIS session by the initiator.
+  /// Null = auto. Reset by [reset].
+  SyncPriority? _chosenPriority;
+  SyncPriority? get chosenPriority => _chosenPriority;
+
   /// Called when the server's zip arrives and has been saved to disk.
   SyncClientZipReceivedCallback? onZipReceived;
 
@@ -109,13 +114,17 @@ class LanSyncClient extends ChangeNotifier {
   /// Round 1: Connect to the server, send our index, get back the sync plan.
   ///
   /// Returns the plan for the UI to display. The user confirms before
-  /// proceeding to [exchange].
+  /// proceeding to [exchange]. [syncPriority] is this device's chosen
+  /// conflict direction (issue #615); null = auto (current behavior), and old
+  /// peers ignore the field entirely.
   Future<SyncPlan> negotiate({
     required String host,
     required int port,
     required String pin,
+    SyncPriority? syncPriority,
   }) async {
     _busy = true;
+    _chosenPriority = syncPriority;
     _phase = LanSyncPhase.waiting;
     notifyListeners();
 
@@ -299,6 +308,7 @@ class LanSyncClient extends ChangeNotifier {
       conversations: convMap,
       assistantIds: assistantIds,
       fileManifest: manifest,
+      syncPriority: _chosenPriority,
     );
   }
 
@@ -337,6 +347,7 @@ class LanSyncClient extends ChangeNotifier {
     _outboundFileSizeBytes = null;
     _outboundDelta = null;
     _localManifest = null;
+    _chosenPriority = null;
     _restoreProgress = null;
     _restoreError = null;
     _phase = LanSyncPhase.idle;

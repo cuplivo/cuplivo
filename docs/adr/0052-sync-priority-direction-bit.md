@@ -1,0 +1,18 @@
+# ADR-0052: Sync Priority — per-session conflict-direction bit for LAN sync (issue #615)
+
+LAN sync applies a fixed-policy merge on both peers: ID-skip unions for chats, incoming-wins field-merge for assistants, per-key LWW for scalars, mtime-wins for files, advisory tombstones. When a stale device syncs into a fresh one, the fixed winner can drag fresh data backward (e.g. an old assistant copy overwrites the newer one because `_mergeAssistantMaps` ignores `Assistant.updatedAt`). We add a **per-session** three-mode conflict-direction bit chosen by the initiator — auto (default, current behavior) / local wins / peer wins — which flips only the **winner of an id-conflict**, while merge-only semantics (fill-absent, union, never delete) stay always on. It is a merge-direction bit, not `RestoreMode.overwrite`.
+
+## Considered Options
+
+- **Per-device priority rank** (rejected): a persistence + handshake-ordered "device rank" is overkill — the user scenario is a one-off "my phone is stale, let this sync take PC's truth", a session decision, not a device attribute. It would also require a device-identity concept the protocol does not have.
+- **Server-side veto / confirm** (rejected for v1): the choosing side and the informed side are usually the same person; the PIN already gates the session. The server UI only shows a one-line notice ("conflicting data will be overwritten by the peer") — display-only, no confirmation flow.
+- **Direction overriding LWW for scalars** (taken): without it the bit would be meaningless for settings — LWW lets a stale-but-newly-edited device win. The intended hero story is exactly "PC's sys prompt v2 beats phone's v1" regardless of who touched it last.
+
+## Consequences
+
+- Wire: `SyncIndex.syncPriority` = `'initiatorWins' | 'serverWins' | null` (absent = auto). Old peers ignore unknown JSON fields → silently degrade to auto; unknown values also degrade to auto (a newer peer's future mode must not break this build's plan request). The legacy server's always-incoming-wins behavior happens to match `initiatorWins` for assistants, so degradation is only audible for conversation-metadata direction (category D).
+- Restore layer: `ConflictPrecedence { auto, localWins, incomingWins }`, an optional parameter on `_restoreFromBackupFile`; every existing caller (backup page, S3 restore, incremental restore) passes nothing → auto, byte-for-byte current behavior.
+- Per-category rules: assistants — field-level winner; scalar settings — direction overrides LWW; structured lists (mcp/asr/tags/groups/pinned/maps) — id-conflict winner, unions preserved; conversation metadata — winner's row replaces loser's, exempting `id`, `createdAt` and `messageIds` (the local append-union manages the message list, so the loser's exclusive messages survive).
+- Explicit non-goals: message content edits (ID-skip stays; issue #620), files (strictly-newer-wins stays — priority must not copy old bytes over new), deletion tombstones (advisory stays), sync forks (union stays; fork-copy materialization is issue #621).
+- Session-only: never persisted, never a device property.
+- Merge append now bumps `conversation.updatedAt` to max(local, latest incoming message timestamp) (issue #545, symptom 2) — a small rider in the same restore path; it fixes the post-sync sort-order sink.

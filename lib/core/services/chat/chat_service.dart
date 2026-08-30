@@ -956,7 +956,13 @@ class ChatService extends ChangeNotifier {
     if (conversation != null) {
       if (!conversation.messageIds.contains(message.id)) {
         conversation.messageIds.add(message.id);
-        // Keep original updatedAt during restore
+        // Keep original updatedAt during restore, but never let a restore
+        // regress it below the newest incoming message (issue #545: synced
+        // messages sorted to the bottom because the conversation kept a
+        // stale updatedAt from before the messages arrived).
+        if (message.timestamp.isAfter(conversation.updatedAt)) {
+          conversation.updatedAt = message.timestamp;
+        }
         await _saveConversation(conversation);
       }
     }
@@ -973,6 +979,20 @@ class ChatService extends ChangeNotifier {
       }
     }
 
+    notifyListeners();
+  }
+
+  /// Replaces an existing conversation's row wholesale (same id).
+  ///
+  /// Used by LAN-sync direction merges (issue #615, category D): the winner's
+  /// conversation copy replaces the loser's fields. The caller is responsible
+  /// for preserving the locally-managed message list — `messageIds` must be
+  /// the local append-union, otherwise the loser's exclusive messages would
+  /// be dropped by the replace.
+  Future<void> replaceConversationRow(Conversation updated) async {
+    if (!_initialized) await init();
+    await _saveConversation(updated);
+    await _refreshConversation(updated.id);
     notifyListeners();
   }
 

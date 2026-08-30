@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:Cuplivo/core/models/backup.dart';
 import 'package:Cuplivo/core/services/sync/lan_sync_models.dart';
 
 void main() {
@@ -144,6 +145,83 @@ void main() {
       );
       final restored = SyncPlan.fromJsonString(original.toJsonString());
       expect(restored.serverFileManifest, isNull);
+    });
+  });
+
+  group('SyncPriority (issue #615)', () {
+    SyncIndex index({SyncPriority? priority}) => SyncIndex(
+      conversations: {
+        'c1': ['m1'],
+      },
+      assistantIds: const ['a1'],
+      syncPriority: priority,
+    );
+
+    test('round-trips initiatorWins / serverWins', () {
+      for (final priority in [
+        SyncPriority.initiatorWins,
+        SyncPriority.serverWins,
+      ]) {
+        final restored = SyncIndex.fromJsonString(
+          index(priority: priority).toJsonString(),
+        );
+        expect(restored.syncPriority, priority);
+      }
+    });
+
+    test('null (auto) serializes without the key and parses as null', () {
+      final json = index().toJsonString();
+      expect(json, isNot(contains('syncPriority')));
+      expect(SyncIndex.fromJsonString(json).syncPriority, isNull);
+    });
+
+    test('old-format JSON without syncPriority parses as null', () {
+      final raw = jsonEncode({
+        'conversations': {
+          'c1': ['m1'],
+        },
+        'assistantIds': ['a1'],
+        'fileManifest': null,
+      });
+      expect(SyncIndex.fromJsonString(raw).syncPriority, isNull);
+    });
+
+    test('unknown syncPriority value degrades to auto (forward-compat)', () {
+      final raw = jsonEncode({
+        'conversations': {
+          'c1': ['m1'],
+        },
+        'assistantIds': ['a1'],
+        'syncPriority': 'bogus',
+      });
+      expect(SyncIndex.fromJsonString(raw).syncPriority, isNull);
+    });
+
+    test('resolveSyncPrecedence derives the role-relative direction', () {
+      expect(
+        resolveSyncPrecedence(null, isInitiator: true),
+        ConflictPrecedence.auto,
+      );
+      expect(
+        resolveSyncPrecedence(null, isInitiator: false),
+        ConflictPrecedence.auto,
+      );
+      expect(
+        resolveSyncPrecedence(SyncPriority.initiatorWins, isInitiator: true),
+        ConflictPrecedence.localWins,
+      );
+      expect(
+        resolveSyncPrecedence(SyncPriority.initiatorWins, isInitiator: false),
+        ConflictPrecedence.incomingWins,
+      );
+      expect(
+        resolveSyncPrecedence(SyncPriority.serverWins, isInitiator: true),
+        ConflictPrecedence.incomingWins,
+      );
+      expect(
+        resolveSyncPrecedence(SyncPriority.serverWins, isInitiator: false),
+        ConflictPrecedence.localWins,
+      );
     });
   });
 }

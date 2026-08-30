@@ -32,6 +32,37 @@ import 'stream_controller.dart' as stream_ctrl;
 
 enum CompressContextLimitMode { start, recent, unlimited, keepRecent }
 
+/// Per-conversation pending send queue (issue #578 QQ flow).
+///
+/// One single slot per conversation: a queue for A never rejects or shadows
+/// sends in B. Entries keep their payload (the composer draft was cleared at
+/// queue time, so dropping an entry would silently lose user text).
+class PendingSendQueue {
+  final Map<String, QueuedChatInput> _entries = {};
+
+  QueuedChatInput? entryFor(String? conversationId) {
+    if (conversationId == null) return null;
+    return _entries[conversationId];
+  }
+
+  /// Stores [input] for [conversationId] when its slot is free. Returns
+  /// `false` when the slot is already occupied (single-slot-per-conversation
+  /// invariant); the caller then rejects instead of overwriting.
+  bool tryPut(String conversationId, QueuedChatInput queued) {
+    if (_entries.containsKey(conversationId)) return false;
+    _entries[conversationId] = queued;
+    return true;
+  }
+
+  QueuedChatInput? remove(String conversationId) {
+    return _entries.remove(conversationId);
+  }
+
+  bool contains(String conversationId) {
+    return _entries.containsKey(conversationId);
+  }
+}
+
 class CompressContextOptions {
   const CompressContextOptions({
     required this.mode,
@@ -374,7 +405,13 @@ class HomeViewModel extends ChangeNotifier {
     );
   }
 
-  QueuedChatInput? _queuedInput;
+  /// Per-conversation queued sends. See [PendingSendQueue]: the queue is
+  /// keyed by conversation so a pending input for A can never reject or
+  /// shadow sends in B (issue #578 cross-talk: "new conversation send does
+  /// nothing"). Entries for conversations the user left keep their content
+  /// and drain when that conversation's streaming settles and it is current
+  /// again.
+  final PendingSendQueue _pendingSends = PendingSendQueue();
   bool _isDrainingQueuedInput = false;
 
   /// Function to get localized title
@@ -386,6 +423,13 @@ class HomeViewModel extends ChangeNotifier {
 
   /// Called when an error occurs (UI should show snackbar).
   void Function(String error)? onError;
+
+  /// Page-layer router for a drained queued send. When set (wired by the
+  /// page controller), the drain re-enters the page send router so Multi-AI
+  /// mode and synthesize routing are honored; when null, the queue drains
+  /// through the direct single-model send path.
+  Future<ChatInputSubmissionResult> Function(ChatInputData input)?
+  onQueuedInputDrain;
 
   /// Called when a warning occurs (UI should show snackbar).
   void Function(String warning)? onWarning;
@@ -431,12 +475,7 @@ class HomeViewModel extends ChangeNotifier {
       _chatController.isCurrentConversationLoading;
 
   QueuedChatInput? get currentQueuedInput {
-    final cid = currentConversation?.id;
-    final queued = _queuedInput;
-    if (cid == null || queued == null || queued.conversationId != cid) {
-      return null;
-    }
-    return queued;
+    return _pendingSends.entryFor(currentConversation?.id);
   }
 
   final ValueNotifier<bool> isProcessingFiles = ValueNotifier<bool>(false);
@@ -536,17 +575,8 @@ class HomeViewModel extends ChangeNotifier {
     }
 
     final activeConversation = currentConversation!;
-    if (_chatController.isConversationLoading(activeConversation.id)) {
-      if (_queuedInput != null) {
-        return ChatInputSubmissionResult.rejected;
-      }
-      _queuedInput = QueuedChatInput(
-        conversationId: activeConversation.id,
-        input: _cloneInput(input),
-      );
-      notifyListeners();
-      return ChatInputSubmissionResult.queued;
-    }
+    final queued = queueIfCurrentConversationBusy(input);
+    if (queued != null) return queued;
 
     final success = await _sendMessageToConversation(input, activeConversation);
     return success
@@ -554,10 +584,45 @@ class HomeViewModel extends ChangeNotifier {
         : ChatInputSubmissionResult.rejected;
   }
 
+  /// Shared busy gate for the current conversation: when it is loading,
+  /// stores [input] in the per-conversation queue (one slot per conversation)
+  /// and returns [`queued`]; when the slot is already occupied returns
+  /// [`rejected`]; when the conversation is idle returns `null` so the caller
+  /// proceeds with the direct send.
+  ///
+  /// Both the single-model path ([sendMessage]) and the page-layer Multi-AI
+  /// router use this gate, so a queued send on a busy Multi-AI round no
+  /// longer races a parallel round (issue #578 QQ flow).
+  ChatInputSubmissionResult? queueIfCurrentConversationBusy(
+    ChatInputData input,
+  ) {
+    final conversation = currentConversation;
+    if (conversation == null) return null;
+    if (!_chatController.isConversationLoading(conversation.id)) return null;
+    if (!_pendingSends.tryPut(
+      conversation.id,
+      QueuedChatInput(
+        conversationId: conversation.id,
+        input: _cloneInput(input),
+      ),
+    )) {
+      // One queue slot per conversation. Unreachable via the composer UI
+      // (the input bar locks while a queue is pending); only programmatic
+      // sends race here — log instead of swallowing silently.
+      debugPrint(
+        '[SendQueue] conversation ${conversation.id} already has a queued '
+        'send; rejecting the duplicate',
+      );
+      return ChatInputSubmissionResult.rejected;
+    }
+    notifyListeners();
+    return ChatInputSubmissionResult.queued;
+  }
+
   ChatInputData? cancelCurrentQueuedInput() {
     final queued = currentQueuedInput;
     if (queued == null || _isDrainingQueuedInput) return null;
-    _queuedInput = null;
+    _pendingSends.remove(queued.conversationId);
     notifyListeners();
     return _cloneInput(queued.input);
   }
@@ -613,23 +678,42 @@ class HomeViewModel extends ChangeNotifier {
 
   Future<void> _drainQueuedInputIfReady(String conversationId) async {
     if (_isDrainingQueuedInput) return;
-    final queued = _queuedInput;
+    final queued = _pendingSends.entryFor(conversationId);
+    if (queued == null) return;
+    // The drain only ever sends into the CURRENT conversation: ChatActions
+    // builds its API context from the chat controller, which is bound to the
+    // current view. Draining a background conversation's queue would corrupt
+    // that context (proactive care writes raw rows for exactly this reason).
     final conversation = currentConversation;
-    if (queued == null || conversation == null) return;
-    if (queued.conversationId != conversationId ||
-        conversation.id != conversationId) {
+    if (conversation == null || conversation.id != conversationId) return;
+    if (_chatService.getConversation(conversationId) == null) {
+      // The target no longer exists (deleted/recycled): drop the queue
+      // instead of resurrecting the conversation on send.
+      _pendingSends.remove(conversationId);
+      notifyListeners();
       return;
     }
     if (_chatController.isConversationLoading(conversationId)) return;
 
     _isDrainingQueuedInput = true;
-    _queuedInput = null;
+    _pendingSends.remove(conversationId);
     notifyListeners();
 
     final input = queued.input;
-    final success = await _sendMessageToConversation(input, conversation);
-    if (!success) {
-      _queuedInput = queued;
+    final routed = onQueuedInputDrain != null
+        ? await onQueuedInputDrain!(input)
+        : await _sendMessageToConversation(input, conversation).then(
+            (ok) => ok
+                ? ChatInputSubmissionResult.sent
+                : ChatInputSubmissionResult.rejected,
+          );
+    if (routed == ChatInputSubmissionResult.rejected) {
+      if (!_pendingSends.tryPut(conversationId, queued)) {
+        debugPrint(
+          '[SendQueue] drain restore failed for conversation $conversationId: '
+          'slot occupied by a newer send; discarding the re-queued input',
+        );
+      }
     }
 
     _isDrainingQueuedInput = false;
@@ -968,6 +1052,7 @@ class HomeViewModel extends ChangeNotifier {
 
     if (currentConversation?.id == id) return;
 
+    final leftId = currentConversation?.id;
     _chatService.setCurrentConversation(id);
     final convo = _chatService.getConversation(id);
     if (convo != null) {
@@ -982,6 +1067,54 @@ class HomeViewModel extends ChangeNotifier {
       notifyListeners();
       onConversationSwitched?.call();
       unawaited(_drainQueuedInputIfReady(id));
+      // Recycle only after the switch really happened; a failed target
+      // (convo == null) leaves the old conversation visible, and deleting it
+      // here would yank the user's current view.
+      if (leftId != null && leftId != id) {
+        await _recyclePresetOnlyConversation(leftId);
+      }
+    }
+  }
+
+  /// Recycles [conversationId] when it is a preset-only conversation (only
+  /// preset messages, no user content). Run after the user has switched away
+  /// so the deletion never touches the live current conversation. Failures
+  /// are log-only: the recycle is a cleanup, never a hard error on the
+  /// switch path (issue #578).
+  Future<void> _recyclePresetOnlyConversation(String conversationId) async {
+    try {
+      if (!await _chatService.isRecyclablePresetOnlyConversation(
+        conversationId,
+      )) {
+        return;
+      }
+      // Re-check right before the delete: the user may have switched back to
+      // this conversation while the count queries were in flight (no switch
+      // lock exists — see ADR-0050 residual race). Deleting the live current
+      // conversation would yank the view. The window shrinks to "between this
+      // check and the first await inside deleteConversation", which is
+      // accepted.
+      if (currentConversation?.id == conversationId) return;
+      await _chatService.deleteConversation(conversationId);
+      if (_chatService.getConversation(conversationId) != null) {
+        // deleteConversation silently no-ops on a cache miss; don't log a
+        // success that didn't happen.
+        debugPrint(
+          '[PresetRecycle] conversation $conversationId was marked for '
+          'recycle but deleteConversation left it intact',
+        );
+        return;
+      }
+      debugPrint(
+        '[PresetRecycle] recycled preset-only conversation $conversationId',
+      );
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[PresetRecycle] recycle failed for $conversationId: $e');
+      FlutterLogger.log(
+        'Preset-only conversation recycle failed for $conversationId: $e',
+        tag: 'HomeViewModel',
+      );
     }
   }
 

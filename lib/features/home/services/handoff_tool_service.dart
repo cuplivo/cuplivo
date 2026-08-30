@@ -23,7 +23,7 @@ import 'tool_handler_service.dart';
 /// Executes the handoff local tool (`kelivo_handoff`).
 ///
 /// Formerly the `@kelivo/subagent` in-memory MCP server, then a fire-and-forget
-/// / wait-mode tool pair; since ADR-0041 the single wait-mode tool: create a
+/// / wait-mode tool pair; since ADR-0045 the single wait-mode tool: create a
 /// child conversation for the target assistant, dispatch the task, and block
 /// until the child generation completes — returning its FULL output as the
 /// tool result (or a cancellation/error marker — the await never hangs).

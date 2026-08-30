@@ -1,4 +1,4 @@
-# Backup v2: JSONL chat streams + LWW preference merge
+# ADR-0048: Backup v2 — JSONL chat streams + LWW preference merge
 
 Restore of large backups OOMs because `_restoreFromBackupFile` decodes the entire `chats.json` blob into memory, and preference merge decided conflicts by fill-absent/per-id rules with no notion of which copy is newer. v2 moves chats payload to JSONL streams (identified by a `chats_meta.json` sentinel) and adds per-key LWW via a `settings_meta.json` updatedAt companion; old zips and old builds remain compatible.
 

@@ -16,7 +16,7 @@ class Assistant {
   ];
 
   /// Legacy local-tool ids fused into the single wait-mode handoff tool
-  /// (ADR-0041). Mirror of `LocalToolNames.handoff` / `LocalToolNames.handoffSync`
+  /// (ADR-0045). Mirror of `LocalToolNames.handoff` / `LocalToolNames.handoffSync`
   /// wire names — kept frozen; the feature library owns the active constant.
   static const String _handoffToolId = 'kelivo_handoff';
   static const String _legacyHandoffSyncToolId = 'kelivo_handoff_sync';
@@ -174,7 +174,7 @@ Do **not** store sensitive information, including:
        localToolIds = _normalizeLocalToolIds(localToolIds ?? const <String>[]);
 
   /// Normalizes legacy local-tool ids onto the single wait-mode handoff tool
-  /// (ADR-0041). Storage is untouched — every read path (DB row, backup JSON,
+  /// (ADR-0045). Storage is untouched — every read path (DB row, backup JSON,
   /// copyWith/fromJson, this constructor) converges here, so a next save writes
   /// the normalized id and a backup round-trips with the frozen wire name only.
   static List<String> _normalizeLocalToolIds(List<String> ids) {

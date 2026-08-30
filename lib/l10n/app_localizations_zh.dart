@@ -2094,6 +2094,35 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get backupPageImportInProgress => '正在导入...';
+
+  @override
+  String backupPageImportElapsed(Object seconds) {
+    return '已耗时 $seconds 秒';
+  }
+
+  @override
+  String backupPageImportStats(
+    Object assistants,
+    Object conversations,
+    Object files,
+    Object messages,
+    Object providers,
+  ) {
+    return '供应商: $providers\n助手: $assistants\n对话: $conversations\n消息: $messages\n文件: $files';
+  }
+
+  @override
+  String backupPageImportStatsNoFiles(
+    Object assistants,
+    Object conversations,
+    Object messages,
+    Object providers,
+  ) {
+    return '供应商: $providers\n助手: $assistants\n对话: $conversations\n消息: $messages';
+  }
+
+  @override
   String get backupStageGenerating => '正在生成文件...';
 
   @override
@@ -2506,7 +2535,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get lanSyncRestoreExtracting => '正在解压同步数据...';
+  String get lanSyncRestoreExtracting => '正在解压数据...';
 
   @override
   String get lanSyncRestoreMergingChats => '正在合并聊天记录...';
@@ -2780,7 +2809,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageMoreSheetShare => '分享';
 
   @override
-  String get messageMoreSheetSelectMessages => '选择消息';
+  String get messageMoreSheetSelectMessages => '多选';
 
   @override
   String get messageMoreSheetReply => '回复';
@@ -3108,25 +3137,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageExportSheetSingleMarkdownSubtitle => '将该消息导出为 Markdown 文件';
 
   @override
-  String get messageExportSheetBatchMarkdownSubtitle => '将选中的消息导出为 Markdown 文件';
-
-  @override
   String get messageExportSheetPlainText => '纯文本';
 
   @override
   String get messageExportSheetSingleTxtSubtitle => '将该消息导出为 TXT 文件';
 
   @override
-  String get messageExportSheetBatchTxtSubtitle => '将选中的消息导出为 TXT 文件';
-
-  @override
   String get messageExportSheetExportImage => '导出为图片';
 
   @override
   String get messageExportSheetSingleExportImageSubtitle => '将该消息渲染为 PNG 图片';
-
-  @override
-  String get messageExportSheetBatchExportImageSubtitle => '将选中的消息渲染为 PNG 图片';
 
   @override
   String get messageExportSheetShowThinkingAndToolCards => '显示思考卡片和工具卡片';
@@ -11078,6 +11098,35 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
+  String get backupPageImportInProgress => '正在导入...';
+
+  @override
+  String backupPageImportElapsed(Object seconds) {
+    return '已耗时 $seconds 秒';
+  }
+
+  @override
+  String backupPageImportStats(
+    Object assistants,
+    Object conversations,
+    Object files,
+    Object messages,
+    Object providers,
+  ) {
+    return '供应商: $providers\n助手: $assistants\n对话: $conversations\n消息: $messages\n文件: $files';
+  }
+
+  @override
+  String backupPageImportStatsNoFiles(
+    Object assistants,
+    Object conversations,
+    Object messages,
+    Object providers,
+  ) {
+    return '供应商: $providers\n助手: $assistants\n对话: $conversations\n消息: $messages';
+  }
+
+  @override
   String get backupStageGenerating => '正在生成文件...';
 
   @override
@@ -11490,7 +11539,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get lanSyncRestoreExtracting => '正在解压同步数据...';
+  String get lanSyncRestoreExtracting => '正在解压数据...';
 
   @override
   String get lanSyncRestoreMergingChats => '正在合并聊天记录...';
@@ -11764,7 +11813,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageMoreSheetShare => '分享';
 
   @override
-  String get messageMoreSheetSelectMessages => '选择消息';
+  String get messageMoreSheetSelectMessages => '多选';
 
   @override
   String get messageMoreSheetReply => '回复';
@@ -12092,25 +12141,16 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageExportSheetSingleMarkdownSubtitle => '将该消息导出为 Markdown 文件';
 
   @override
-  String get messageExportSheetBatchMarkdownSubtitle => '将选中的消息导出为 Markdown 文件';
-
-  @override
   String get messageExportSheetPlainText => '纯文本';
 
   @override
   String get messageExportSheetSingleTxtSubtitle => '将该消息导出为 TXT 文件';
 
   @override
-  String get messageExportSheetBatchTxtSubtitle => '将选中的消息导出为 TXT 文件';
-
-  @override
   String get messageExportSheetExportImage => '导出为图片';
 
   @override
   String get messageExportSheetSingleExportImageSubtitle => '将该消息渲染为 PNG 图片';
-
-  @override
-  String get messageExportSheetBatchExportImageSubtitle => '将选中的消息渲染为 PNG 图片';
 
   @override
   String get messageExportSheetShowThinkingAndToolCards => '显示思考卡片和工具卡片';
@@ -20062,6 +20102,35 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String get backupPageImportInProgress => '正在導入...';
+
+  @override
+  String backupPageImportElapsed(Object seconds) {
+    return '已耗時 $seconds 秒';
+  }
+
+  @override
+  String backupPageImportStats(
+    Object assistants,
+    Object conversations,
+    Object files,
+    Object messages,
+    Object providers,
+  ) {
+    return '供應商: $providers\n助手: $assistants\n對話: $conversations\n訊息: $messages\n檔案: $files';
+  }
+
+  @override
+  String backupPageImportStatsNoFiles(
+    Object assistants,
+    Object conversations,
+    Object messages,
+    Object providers,
+  ) {
+    return '供應商: $providers\n助手: $assistants\n對話: $conversations\n訊息: $messages';
+  }
+
+  @override
   String get backupStageGenerating => '正在產生檔案...';
 
   @override
@@ -20474,7 +20543,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get lanSyncRestoreExtracting => '正在解壓同步資料...';
+  String get lanSyncRestoreExtracting => '正在解壓資料...';
 
   @override
   String get lanSyncRestoreMergingChats => '正在合併聊天記錄...';
@@ -20747,7 +20816,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get messageMoreSheetShare => '分享';
 
   @override
-  String get messageMoreSheetSelectMessages => '選擇訊息';
+  String get messageMoreSheetSelectMessages => '多選';
 
   @override
   String get messageMoreSheetReply => '回覆';
@@ -21075,25 +21144,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get messageExportSheetSingleMarkdownSubtitle => '將該訊息匯出為 Markdown 檔案';
 
   @override
-  String get messageExportSheetBatchMarkdownSubtitle => '將選中的訊息匯出為 Markdown 檔案';
-
-  @override
   String get messageExportSheetPlainText => '純文字';
 
   @override
   String get messageExportSheetSingleTxtSubtitle => '將該訊息匯出為 TXT 檔案';
 
   @override
-  String get messageExportSheetBatchTxtSubtitle => '將選中的訊息匯出為 TXT 檔案';
-
-  @override
   String get messageExportSheetExportImage => '匯出為圖片';
 
   @override
   String get messageExportSheetSingleExportImageSubtitle => '將該訊息渲染為 PNG 圖片';
-
-  @override
-  String get messageExportSheetBatchExportImageSubtitle => '將選中的訊息渲染為 PNG 圖片';
 
   @override
   String get messageExportSheetShowThinkingAndToolCards => '顯示深度思考卡片與工具卡片';

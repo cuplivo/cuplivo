@@ -200,7 +200,7 @@ void main() {
     await tester.pump();
 
     // The right "+" sheet is the single bucket surface on phone; the left
-    // row-end "+" must not appear (ADR-0041: never two "+"s on screen).
+    // row-end "+" must not appear (ADR-0042: never two "+"s on screen).
     expect(find.byIcon(Lucide.Plus), findsOneWidget);
   });
 

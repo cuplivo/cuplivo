@@ -328,8 +328,16 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
     s3BackupProvider.updateConfig(cfg);
   }
 
+  /// Runs a restore behind the shared modal overlay (see
+  /// [runRestoreWithProgressOverlay]).
+  Future<void> _runRestoreWithProgress(
+    BuildContext context,
+    Future<void> Function(RestoreProgressCallback onProgress) task,
+  ) => runRestoreWithProgressOverlay(context, task);
+
   Future<void> _chooseRestoreModeAndRun(
-    Future<void> Function(RestoreMode) action,
+    Future<void> Function(RestoreMode mode, RestoreProgressCallback onProgress)
+    action,
   ) async {
     final rootCtx = Navigator.of(context, rootNavigator: true).context;
     final mode = await showDialog<RestoreMode>(
@@ -337,8 +345,12 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
       builder: (ctx) => _RestoreModeDialog(),
     );
     if (mode == null) return;
+    if (!rootCtx.mounted) return;
     try {
-      await action(mode);
+      await _runRestoreWithProgress(
+        rootCtx,
+        (onProgress) => action(mode, onProgress),
+      );
     } catch (e) {
       if (!rootCtx.mounted) return;
       if (await maybeShowKelivoCompatError(rootCtx, e)) return;
@@ -621,10 +633,11 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                                       title:
                                           '${l10n.backupPageRemoteBackups} (WebDAV)',
                                       listRemote: backupProvider.listRemote,
-                                      restoreFromItem: (it, mode) =>
+                                      restoreFromItem: (it, mode, onProgress) =>
                                           backupProvider.restoreFromItem(
                                             it,
                                             mode: mode,
+                                            onProgress: onProgress,
                                           ),
                                       deleteAndReload:
                                           backupProvider.deleteAndReload,
@@ -930,10 +943,11 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                                       title:
                                           '${l10n.backupPageRemoteBackups} (S3)',
                                       listRemote: s3BackupProvider.listRemote,
-                                      restoreFromItem: (it, mode) =>
+                                      restoreFromItem: (it, mode, onProgress) =>
                                           s3BackupProvider.restoreFromItem(
                                             it,
                                             mode: mode,
+                                            onProgress: onProgress,
                                           ),
                                       deleteAndReload:
                                           s3BackupProvider.deleteAndReload,
@@ -1091,8 +1105,12 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                   final path = result?.files.single.path;
                   if (path == null) return;
                   final f = File(path);
-                  await _chooseRestoreModeAndRun((mode) async {
-                    await backupProvider.restoreFromLocalFile(f, mode: mode);
+                  await _chooseRestoreModeAndRun((mode, onProgress) async {
+                    await backupProvider.restoreFromLocalFile(
+                      f,
+                      mode: mode,
+                      onProgress: onProgress,
+                    );
                   });
                 },
               ),
@@ -1135,13 +1153,19 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                   if (!context.mounted) return;
                   final settings = context.read<SettingsProvider>();
                   final chat = context.read<ChatService>();
+                  final l10n = AppLocalizations.of(rootCtx)!;
                   try {
-                    await CherryImporter.importFromCherryStudio(
-                      file: f,
-                      mode: mode,
-                      settings: settings,
-                      chatService: chat,
-                      preferences: context.read<BusinessPreferences>(),
+                    final res = await runWithLoadingDialog(
+                      context,
+                      () => CherryImporter.importFromCherryStudio(
+                        file: f,
+                        mode: mode,
+                        settings: settings,
+                        chatService: chat,
+                        preferences: context.read<BusinessPreferences>(),
+                      ),
+                      label: l10n.backupPageImportInProgress,
+                      elapsedTextBuilder: l10n.backupPageImportElapsed,
                     );
                     if (!rootCtx.mounted) return;
                     await showDialog(
@@ -1157,7 +1181,11 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                             borderRadius: BorderRadius.circular(16),
                           ),
                           title: Text(l10n.backupPageRestartRequired),
-                          content: Text(l10n.backupPageRestartContent),
+                          content: Text(
+                            '${l10n.backupPageImportFromCherryStudio}:\n'
+                            '${l10n.backupPageImportStats(res.assistants, res.conversations, res.files, res.messages, res.providers)}\n\n'
+                            '${l10n.backupPageRestartContent}',
+                          ),
                           actions: [
                             TextButton(
                               onPressed: () async {
@@ -1218,13 +1246,19 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                   if (!context.mounted) return;
                   final settings = context.read<SettingsProvider>();
                   final chat = context.read<ChatService>();
+                  final l10n = AppLocalizations.of(rootCtx)!;
                   try {
-                    final res = await ChatboxImporter.importFromChatbox(
-                      file: f,
-                      mode: mode,
-                      settings: settings,
-                      chatService: chat,
-                      preferences: context.read<BusinessPreferences>(),
+                    final res = await runWithLoadingDialog(
+                      context,
+                      () => ChatboxImporter.importFromChatbox(
+                        file: f,
+                        mode: mode,
+                        settings: settings,
+                        chatService: chat,
+                        preferences: context.read<BusinessPreferences>(),
+                      ),
+                      label: l10n.backupPageImportInProgress,
+                      elapsedTextBuilder: l10n.backupPageImportElapsed,
                     );
                     if (!rootCtx.mounted) return;
                     await showDialog(
@@ -1237,10 +1271,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                         title: Text(l10n.backupPageRestartRequired),
                         content: Text(
                           '${l10n.backupPageImportFromChatbox}:\n'
-                          ' • Providers: ${res.providers}\n'
-                          ' • Assistants: ${res.assistants}\n'
-                          ' • Conversations: ${res.conversations}\n'
-                          ' • Messages: ${res.messages}\n\n'
+                          '${l10n.backupPageImportStatsNoFiles(res.assistants, res.conversations, res.messages, res.providers)}\n\n'
                           '${l10n.backupPageRestartContent}',
                         ),
                         actions: [
@@ -1550,7 +1581,11 @@ class _RemoteBackupsDialog extends StatefulWidget {
 
   final String title;
   final Future<List<BackupFileItem>> Function() listRemote;
-  final Future<void> Function(BackupFileItem item, RestoreMode mode)
+  final Future<void> Function(
+    BackupFileItem item,
+    RestoreMode mode,
+    RestoreProgressCallback? onProgress,
+  )
   restoreFromItem;
   final Future<List<BackupFileItem>> Function(BackupFileItem item)
   deleteAndReload;
@@ -1604,9 +1639,12 @@ class _RemoteBackupsDialogState extends State<_RemoteBackupsDialog> {
 
   Future<void> _restoreWithMerge(BackupFileItem item) async {
     final rootCtx = Navigator.of(context, rootNavigator: true).context;
-    setState(() => _loading = true);
     try {
-      await widget.restoreFromItem(item, RestoreMode.merge);
+      await _runRestoreWithProgress(
+        rootCtx,
+        (onProgress) =>
+            widget.restoreFromItem(item, RestoreMode.merge, onProgress),
+      );
     } catch (e) {
       if (!rootCtx.mounted) return;
       if (await maybeShowKelivoCompatError(rootCtx, e)) return;
@@ -1617,8 +1655,6 @@ class _RemoteBackupsDialogState extends State<_RemoteBackupsDialog> {
         type: NotificationType.error,
       );
       return;
-    } finally {
-      if (mounted) setState(() => _loading = false);
     }
     if (!rootCtx.mounted) return;
     await refreshProvidersAfterRestore(rootCtx);
@@ -1626,8 +1662,16 @@ class _RemoteBackupsDialogState extends State<_RemoteBackupsDialog> {
     await showRestartRequiredDialog(rootCtx);
   }
 
+  /// Runs a restore behind the shared modal overlay (see
+  /// [runRestoreWithProgressOverlay]).
+  Future<void> _runRestoreWithProgress(
+    BuildContext context,
+    Future<void> Function(RestoreProgressCallback onProgress) task,
+  ) => runRestoreWithProgressOverlay(context, task);
+
   Future<void> _chooseRestoreModeAndRun(
-    Future<void> Function(RestoreMode) action,
+    Future<void> Function(RestoreMode mode, RestoreProgressCallback onProgress)
+    action,
   ) async {
     // Use a stable context so we can still show a restart prompt even if this
     // dialog is closed while the restore task is running.
@@ -1637,9 +1681,12 @@ class _RemoteBackupsDialogState extends State<_RemoteBackupsDialog> {
       builder: (_) => _RestoreModeDialog(),
     );
     if (mode == null) return;
-    setState(() => _loading = true);
+    if (!rootCtx.mounted) return;
     try {
-      await action(mode);
+      await _runRestoreWithProgress(
+        rootCtx,
+        (onProgress) => action(mode, onProgress),
+      );
     } catch (e) {
       if (!rootCtx.mounted) return;
       if (await maybeShowKelivoCompatError(rootCtx, e)) return;
@@ -1650,8 +1697,6 @@ class _RemoteBackupsDialogState extends State<_RemoteBackupsDialog> {
         type: NotificationType.error,
       );
       return;
-    } finally {
-      if (mounted) setState(() => _loading = false);
     }
     if (!rootCtx.mounted) return;
     await refreshProvidersAfterRestore(rootCtx);
@@ -1733,8 +1778,15 @@ class _RemoteBackupsDialogState extends State<_RemoteBackupsDialog> {
                                 )) {
                                   _restoreWithMerge(it);
                                 } else {
-                                  _chooseRestoreModeAndRun((mode) async {
-                                    await widget.restoreFromItem(it, mode);
+                                  _chooseRestoreModeAndRun((
+                                    mode,
+                                    onProgress,
+                                  ) async {
+                                    await widget.restoreFromItem(
+                                      it,
+                                      mode,
+                                      onProgress,
+                                    );
                                   });
                                 }
                               },
@@ -1803,7 +1855,11 @@ void _showRemoteBackupsDialog(
   BuildContext context, {
   required String title,
   required Future<List<BackupFileItem>> Function() listRemote,
-  required Future<void> Function(BackupFileItem item, RestoreMode mode)
+  required Future<void> Function(
+    BackupFileItem item,
+    RestoreMode mode,
+    RestoreProgressCallback? onProgress,
+  )
   restoreFromItem,
   required Future<List<BackupFileItem>> Function(BackupFileItem item)
   deleteAndReload,

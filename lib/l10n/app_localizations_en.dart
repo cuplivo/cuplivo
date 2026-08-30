@@ -2172,6 +2172,35 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get backupPageImportInProgress => 'Importing...';
+
+  @override
+  String backupPageImportElapsed(Object seconds) {
+    return 'Elapsed ${seconds}s';
+  }
+
+  @override
+  String backupPageImportStats(
+    Object assistants,
+    Object conversations,
+    Object files,
+    Object messages,
+    Object providers,
+  ) {
+    return 'Providers: $providers\nAssistants: $assistants\nConversations: $conversations\nMessages: $messages\nFiles: $files';
+  }
+
+  @override
+  String backupPageImportStatsNoFiles(
+    Object assistants,
+    Object conversations,
+    Object messages,
+    Object providers,
+  ) {
+    return 'Providers: $providers\nAssistants: $assistants\nConversations: $conversations\nMessages: $messages';
+  }
+
+  @override
   String get backupStageGenerating => 'Preparing files...';
 
   @override
@@ -2597,7 +2626,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get lanSyncRestoreExtracting => 'Extracting sync data...';
+  String get lanSyncRestoreExtracting => 'Extracting data...';
 
   @override
   String get lanSyncRestoreMergingChats => 'Merging chats...';
@@ -2880,7 +2909,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageMoreSheetShare => 'Share';
 
   @override
-  String get messageMoreSheetSelectMessages => 'Select Messages';
+  String get messageMoreSheetSelectMessages => 'Multi Select';
 
   @override
   String get messageMoreSheetReply => 'Reply';
@@ -3226,10 +3255,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Export this message as a Markdown file';
 
   @override
-  String get messageExportSheetBatchMarkdownSubtitle =>
-      'Export selected messages as a Markdown file';
-
-  @override
   String get messageExportSheetPlainText => 'Plain Text';
 
   @override
@@ -3237,19 +3262,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Export this message as a TXT file';
 
   @override
-  String get messageExportSheetBatchTxtSubtitle =>
-      'Export selected messages as a TXT file';
-
-  @override
   String get messageExportSheetExportImage => 'Export as Image';
 
   @override
   String get messageExportSheetSingleExportImageSubtitle =>
       'Render this message to a PNG image';
-
-  @override
-  String get messageExportSheetBatchExportImageSubtitle =>
-      'Render selected messages to a PNG image';
 
   @override
   String get messageExportSheetShowThinkingAndToolCards =>

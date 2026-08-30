@@ -426,7 +426,6 @@ class _SingleModelCardState extends State<_SingleModelCard> {
                 streamingMsg,
                 canDeleteAllVersions: false,
                 hideActions: {
-                  MessageMoreAction.share,
                   MessageMoreAction.selectMessages,
                   MessageMoreAction.multiAI,
                 },

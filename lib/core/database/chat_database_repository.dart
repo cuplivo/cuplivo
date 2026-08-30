@@ -307,6 +307,21 @@ class ChatDatabaseRepository {
     return row.read(count) ?? 0;
   }
 
+  /// Count of messages in [conversationId] that are NOT preset rows.
+  /// Used by the preset-only conversation recycle check (issue #578).
+  Future<int> getNonPresetMessageCount(String conversationId) async {
+    final count = _db.messageRows.id.count();
+    final row =
+        await (_db.selectOnly(_db.messageRows)
+              ..addColumns([count])
+              ..where(
+                _db.messageRows.conversationId.equals(conversationId) &
+                    _db.messageRows.isPreset.equals(false),
+              ))
+            .getSingle();
+    return row.read(count) ?? 0;
+  }
+
   int getMessageCountSync(String conversationId) {
     final db = _syncDb;
     if (db == null) return 0;

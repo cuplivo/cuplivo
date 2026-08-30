@@ -2275,10 +2275,10 @@ class _ChatInputBarState extends State<ChatInputBar>
         }
 
         if (widget.onClearContext != null) {
-          void showContextMenu() {
+          void showContextMenu(GlobalKey anchorKey) {
             showDesktopAnchoredMenu(
               context,
-              anchorKey: _contextMgmtAnchorKey,
+              anchorKey: anchorKey,
               items: [
                 if (widget.onCompressContext != null)
                   DesktopContextMenuItem(
@@ -2303,13 +2303,19 @@ class _ChatInputBarState extends State<ChatInputBar>
               child: _CompactIconButton(
                 tooltip: l10n.contextManagement,
                 icon: Lucide.Eraser,
-                onTap: _composerLocked ? null : showContextMenu,
+                onTap: _composerLocked
+                    ? null
+                    : () => showContextMenu(_contextMgmtAnchorKey),
               ),
             ),
             menu: DesktopContextMenuItem(
               icon: Lucide.Eraser,
               label: l10n.contextManagement,
-              onTap: _composerLocked ? null : showContextMenu,
+              // Overflowed into the row "+" menu: the per-button anchor is not
+              // mounted there, so anchor the second-level menu at the "+" itself.
+              onTap: _composerLocked
+                  ? null
+                  : () => showContextMenu(_leftOverflowAnchorKey),
             ),
           );
         }
@@ -2598,7 +2604,7 @@ class _ChatInputBarState extends State<ChatInputBar>
 
   /// Pending-reply preview row — LivePanel visual language (transparent row,
   /// hairline rule, single line) but owned by the bar as draft state, never a
-  /// LivePanel entry (docs/adr/0042).
+  /// LivePanel entry (docs/adr/0046).
   Widget _buildQuotePreviewRow(BuildContext context, bool isDark) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;

@@ -1086,7 +1086,7 @@ Future<void> showImportCustomThemeDialog(BuildContext context) async {
         ));
 
   if (imported != null && context.mounted) {
-    // importCustomTheme activates the imported theme (ADR-0037).
+    // importCustomTheme activates the imported theme (ADR-0038).
     await context.read<SettingsProvider>().importCustomTheme(imported.export());
   }
 }

@@ -63,8 +63,6 @@ import '../services/file_upload_service.dart';
 import '../widgets/chat_input_bar.dart';
 import '../../model/widgets/model_select_sheet.dart';
 
-enum ChatSelectionMode { share, delete }
-
 /// Translation data for UI state (expanded/collapsed).
 class TranslationData {
   bool expanded = true; // default to expanded when translation is added
@@ -188,7 +186,6 @@ class HomePageController extends ChangeNotifier {
 
   // Selection mode
   bool _selecting = false;
-  ChatSelectionMode _selectionMode = ChatSelectionMode.share;
   final Set<String> _selectedItems = <String>{};
   bool _showThinkingTools = false;
   bool _showThinkingContent = false;
@@ -247,7 +244,6 @@ class HomePageController extends ChangeNotifier {
   Map<String, TranslationData> get translations => _translations;
   ChatController get chatController => _chatController;
   bool get selecting => _selecting;
-  ChatSelectionMode get selectionMode => _selectionMode;
   Set<String> get selectedItems => _selectedItems;
   int get selectedCount => _selectedItems.length;
   bool get showThinkingTools => _showThinkingTools;
@@ -546,6 +542,16 @@ class HomePageController extends ChangeNotifier {
       }
     };
     _viewModel.onAssistantMessageFinished = _handleAssistantMessageFinished;
+    _viewModel.onQueuedInputDrain = _drainQueuedInputThroughRouter;
+  }
+
+  /// Queued-input drain routed through the page send router so Multi-AI and
+  /// synthesize modes are honored instead of forcing a single-model send.
+  Future<ChatInputSubmissionResult> _drainQueuedInputThroughRouter(
+    ChatInputData input,
+  ) async {
+    if (!_context.mounted) return ChatInputSubmissionResult.rejected;
+    return sendMessage(input);
   }
 
   String _localizeGenerationError(AppLocalizations l10n, String error) {
@@ -805,22 +811,32 @@ class HomePageController extends ChangeNotifier {
     return null;
   }
 
-  void initDesktopUi() {
-    if (PlatformUtils.isDesktopTarget && !_desktopUiInited) {
-      _desktopUiInited = true;
-      try {
-        final sp = _context.read<SettingsProvider>();
-        _embeddedSidebarWidth = sp.desktopSidebarWidth.clamp(
-          _sidebarMinWidth,
-          _sidebarMaxWidth,
-        );
-        _tabletSidebarOpen = sp.desktopSidebarOpen;
-        _rightSidebarOpen = sp.desktopRightSidebarOpen;
-        _rightSidebarWidth = sp.desktopRightSidebarWidth.clamp(
-          _sidebarMinWidth,
-          _sidebarMaxWidth,
-        );
-      } catch (_) {}
+  Future<void> initDesktopUi() async {
+    if (!PlatformUtils.isDesktopTarget || _desktopUiInited) return;
+    _desktopUiInited = true;
+    try {
+      // SettingsProvider._load() completes asynchronously (it performs real
+      // SQLite/logging I/O before the desktop-width assignments); the first
+      // frame builds HomePage before that, so reading widths here without
+      // awaiting would consume the constructor defaults and a later rebuild
+      // would never re-apply them (_desktopUiInited is one-shot).
+      final sp = _context.read<SettingsProvider>();
+      await sp.loaded;
+      if (_disposed || !_context.mounted) return;
+      _embeddedSidebarWidth = sp.desktopSidebarWidth.clamp(
+        _sidebarMinWidth,
+        _sidebarMaxWidth,
+      );
+      _tabletSidebarOpen = sp.desktopSidebarOpen;
+      _rightSidebarOpen = sp.desktopRightSidebarOpen;
+      _rightSidebarWidth = sp.desktopRightSidebarWidth.clamp(
+        _sidebarMinWidth,
+        _sidebarMaxWidth,
+      );
+      notifyListeners();
+    } catch (e, st) {
+      debugPrint('[HomePageController] initDesktopUi failed: $e');
+      debugPrint('$st');
     }
   }
 
@@ -853,6 +869,14 @@ class HomePageController extends ChangeNotifier {
       result = await _sendSynthesize(input);
     } else if (multiAIEngine.isActive) {
       if (!_context.mounted) return ChatInputSubmissionResult.rejected;
+      // Multi-AI rounds share the same per-conversation busy gate as the
+      // single-model path (issue #578 QQ flow): a send while the current
+      // round is still streaming is queued, never raced into a parallel
+      // round. queueIfCurrentConversationBusy already notified.
+      final queued = _viewModel.queueIfCurrentConversationBusy(input);
+      if (queued != null) {
+        return queued;
+      }
       final settings = _context.read<SettingsProvider>();
       final assistant = await _context
           .read<AssistantProvider>()
@@ -1826,22 +1850,12 @@ class HomePageController extends ChangeNotifier {
     await tts.speak(text);
   }
 
-  void shareMessage(int messageIndex, List<ChatMessage> messageList) {
-    startMessageSelection(
-      messageIndex: messageIndex,
-      messageList: messageList,
-      mode: ChatSelectionMode.share,
-    );
-  }
-
   void startMessageSelection({
     required int messageIndex,
     required List<ChatMessage> messageList,
-    required ChatSelectionMode mode,
   }) {
     dismissKeyboard();
     _selecting = true;
-    _selectionMode = mode;
     _selectedItems.clear();
     _showThinkingTools = false;
     _showThinkingContent = false;
@@ -2079,33 +2093,8 @@ class HomePageController extends ChangeNotifier {
     );
   }
 
-  Future<void> confirmSelection() async {
-    final convo = currentConversation;
-    if (convo == null) return;
-    final selected = _selectedCollapsedMessages();
-    if (selected.isEmpty) {
-      final l10n = AppLocalizations.of(_context)!;
-      showAppSnackBar(
-        _context,
-        message: l10n.homePageSelectMessagesToShare,
-        type: NotificationType.info,
-      );
-      return;
-    }
-    _selecting = false;
-    notifyListeners();
-    await showChatExportSheet(
-      _context,
-      conversation: convo,
-      selectedMessages: selected,
-    );
-    _selectedItems.clear();
-    notifyListeners();
-  }
-
   void cancelSelection() {
     _selecting = false;
-    _selectionMode = ChatSelectionMode.share;
     _selectedItems.clear();
     notifyListeners();
   }

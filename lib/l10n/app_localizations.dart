@@ -4000,6 +4000,41 @@ abstract class AppLocalizations {
   /// **'Elapsed {seconds}s'**
   String backupPageExportElapsed(Object seconds);
 
+  /// No description provided for @backupPageImportInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing...'**
+  String get backupPageImportInProgress;
+
+  /// No description provided for @backupPageImportElapsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Elapsed {seconds}s'**
+  String backupPageImportElapsed(Object seconds);
+
+  /// No description provided for @backupPageImportStats.
+  ///
+  /// In en, this message translates to:
+  /// **'Providers: {providers}\nAssistants: {assistants}\nConversations: {conversations}\nMessages: {messages}\nFiles: {files}'**
+  String backupPageImportStats(
+    Object assistants,
+    Object conversations,
+    Object files,
+    Object messages,
+    Object providers,
+  );
+
+  /// No description provided for @backupPageImportStatsNoFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Providers: {providers}\nAssistants: {assistants}\nConversations: {conversations}\nMessages: {messages}'**
+  String backupPageImportStatsNoFiles(
+    Object assistants,
+    Object conversations,
+    Object messages,
+    Object providers,
+  );
+
   /// No description provided for @backupStageGenerating.
   ///
   /// In en, this message translates to:
@@ -4771,7 +4806,7 @@ abstract class AppLocalizations {
   /// No description provided for @lanSyncRestoreExtracting.
   ///
   /// In en, this message translates to:
-  /// **'Extracting sync data...'**
+  /// **'Extracting data...'**
   String get lanSyncRestoreExtracting;
 
   /// No description provided for @lanSyncRestoreMergingChats.
@@ -5287,7 +5322,7 @@ abstract class AppLocalizations {
   /// No description provided for @messageMoreSheetSelectMessages.
   ///
   /// In en, this message translates to:
-  /// **'Select Messages'**
+  /// **'Multi Select'**
   String get messageMoreSheetSelectMessages;
 
   /// No description provided for @messageMoreSheetReply.
@@ -5866,12 +5901,6 @@ abstract class AppLocalizations {
   /// **'Export this message as a Markdown file'**
   String get messageExportSheetSingleMarkdownSubtitle;
 
-  /// No description provided for @messageExportSheetBatchMarkdownSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Export selected messages as a Markdown file'**
-  String get messageExportSheetBatchMarkdownSubtitle;
-
   /// No description provided for @messageExportSheetPlainText.
   ///
   /// In en, this message translates to:
@@ -5884,12 +5913,6 @@ abstract class AppLocalizations {
   /// **'Export this message as a TXT file'**
   String get messageExportSheetSingleTxtSubtitle;
 
-  /// No description provided for @messageExportSheetBatchTxtSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Export selected messages as a TXT file'**
-  String get messageExportSheetBatchTxtSubtitle;
-
   /// No description provided for @messageExportSheetExportImage.
   ///
   /// In en, this message translates to:
@@ -5901,12 +5924,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Render this message to a PNG image'**
   String get messageExportSheetSingleExportImageSubtitle;
-
-  /// No description provided for @messageExportSheetBatchExportImageSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Render selected messages to a PNG image'**
-  String get messageExportSheetBatchExportImageSubtitle;
 
   /// No description provided for @messageExportSheetShowThinkingAndToolCards.
   ///

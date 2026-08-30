@@ -3045,6 +3045,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatSelectionExportImage => '图片';
 
   @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
   String get chatSelectionThinkingTools => '思考工具';
 
   @override
@@ -3134,10 +3137,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageExportSheetMarkdown => 'Markdown';
 
   @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
   String get messageExportSheetSingleMarkdownSubtitle => '将该消息导出为 Markdown 文件';
 
   @override
+  String get messageExportSheetPdfIncomplete => 'PDF 已导出，部分图片或图表可能不完整';
+
+  @override
+  String get messageExportSheetPdfUnsupported => 'PDF 导出目前仅支持 Windows';
+
+  @override
   String get messageExportSheetPlainText => '纯文本';
+
+  @override
+  String get messageExportSheetSinglePdfSubtitle => '将该消息导出为 PDF 文件';
 
   @override
   String get messageExportSheetSingleTxtSubtitle => '将该消息导出为 TXT 文件';
@@ -12092,6 +12107,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get chatSelectionExportImage => '图片';
 
   @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
   String get chatSelectionThinkingTools => '思考工具';
 
   @override
@@ -12181,10 +12199,22 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageExportSheetMarkdown => 'Markdown';
 
   @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
   String get messageExportSheetSingleMarkdownSubtitle => '将该消息导出为 Markdown 文件';
 
   @override
+  String get messageExportSheetPdfIncomplete => 'PDF 已导出，部分图片或图表可能不完整';
+
+  @override
+  String get messageExportSheetPdfUnsupported => 'PDF 导出目前仅支持 Windows';
+
+  @override
   String get messageExportSheetPlainText => '纯文本';
+
+  @override
+  String get messageExportSheetSinglePdfSubtitle => '将该消息导出为 PDF 文件';
 
   @override
   String get messageExportSheetSingleTxtSubtitle => '将该消息导出为 TXT 文件';
@@ -21138,6 +21168,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get chatSelectionExportImage => '圖片';
 
   @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
   String get chatSelectionThinkingTools => '思考工具';
 
   @override
@@ -21227,10 +21260,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get messageExportSheetMarkdown => 'Markdown';
 
   @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
   String get messageExportSheetSingleMarkdownSubtitle => '將該訊息匯出為 Markdown 檔案';
 
   @override
+  String get messageExportSheetPdfIncomplete => 'PDF 已導出，部分圖片或圖表可能不完整';
+
+  @override
+  String get messageExportSheetPdfUnsupported => 'PDF 匯出目前僅支援 Windows';
+
+  @override
   String get messageExportSheetPlainText => '純文字';
+
+  @override
+  String get messageExportSheetSinglePdfSubtitle => '將該訊息匯出為 PDF 檔案';
 
   @override
   String get messageExportSheetSingleTxtSubtitle => '將該訊息匯出為 TXT 檔案';

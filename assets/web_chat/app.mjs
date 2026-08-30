@@ -37,6 +37,8 @@ const timeline = document.getElementById('timeline');
 const backgroundLayer = document.getElementById('chat-background');
 const virtualWindowLoader = document.getElementById('virtual-window-loader');
 const virtualWindowLoaderLabel = document.getElementById('virtual-window-loader-label');
+const PRINT_MODE = new URL(document.location.href).searchParams.get('mode') === 'print';
+if (PRINT_MODE) document.body.classList.add('print-mode');
 const maxHtmlPreviewCodeUnits = 1024 * 1024;
 let state = null;
 let requestSequence = 0;
@@ -1972,12 +1974,14 @@ function render() {
     reportSlowRender(startedAt, 'virtual_window_render_slow');
     return;
   }
-  const range = visibleRange({
-    heights: messages.map(messageHeight),
-    scrollTop: viewport.scrollTop,
-    viewportHeight: viewport.viewportHeight,
-    overscan: virtualOverscan(viewport.viewportHeight),
-  });
+  const range = PRINT_MODE
+    ? { start: 0, end: messages.length, top: 0, bottom: 0 }
+    : visibleRange({
+        heights: messages.map(messageHeight),
+        scrollTop: viewport.scrollTop,
+        viewportHeight: viewport.viewportHeight,
+        overscan: virtualOverscan(viewport.viewportHeight),
+      });
   renderedRange = { start: range.start, end: range.end };
   mountedSlots.clear();
   topSpacer = document.createElement('div');
@@ -2023,6 +2027,46 @@ function acknowledgeCommittedRender() {
     conversationId: state.conversationId,
     renderRevision: state.renderRevision,
   });
+  if (PRINT_MODE) maybeSchedulePrintComplete();
+}
+
+const PRINT_COMPLETE_POLL_MS = 200;
+const PRINT_COMPLETE_MAX_ATTEMPTS = 150;
+let printCompletePosted = false;
+let printCompleteTimer = 0;
+let printCompleteAttempts = 0;
+
+function maybeSchedulePrintComplete() {
+  if (!PRINT_MODE || printCompletePosted || printCompleteTimer) return;
+  printCompleteAttempts = 0;
+  printCompleteTimer = setInterval(checkPrintComplete, PRINT_COMPLETE_POLL_MS);
+}
+
+function checkPrintComplete() {
+  printCompleteAttempts += 1;
+  const imagesLoaded = [...document.querySelectorAll('img[data-media-handle]')]
+    .every((image) => image.complete);
+  const coreIdle =
+    pendingMedia.size === 0 &&
+    pendingRendererRenders.size === 0 &&
+    pendingRendererRefreshes.size === 0 &&
+    pendingMermaidCommits.size === 0 &&
+    rendererRefreshFrame === 0;
+  const timedOut = printCompleteAttempts >= PRINT_COMPLETE_MAX_ATTEMPTS;
+  if ((coreIdle && imagesLoaded) || timedOut) {
+    clearInterval(printCompleteTimer);
+    printCompleteTimer = 0;
+    printCompletePosted = true;
+    bridge.post({
+      type: 'printRenderComplete',
+      protocolVersion: PROTOCOL_VERSION,
+      assetVersion: ASSET_VERSION,
+      renderSessionId: state?.renderSessionId ?? '',
+      conversationId: state?.conversationId ?? '',
+      capabilityToken: state?.capabilityToken ?? '',
+      ...(timedOut && !(coreIdle && imagesLoaded) ? { timedOut: true } : {}),
+    });
+  }
 }
 
 function releaseInitialBottomPin() {
@@ -3091,6 +3135,7 @@ function handleMediaResult(payload) {
       );
     if (affected) updateMountedMessage(message.id);
   }
+  if (PRINT_MODE) maybeSchedulePrintComplete();
 }
 
 window.CuplivoWeb = {

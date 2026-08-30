@@ -2093,6 +2093,33 @@ class HomePageController extends ChangeNotifier {
     );
   }
 
+  Future<void> exportSelectedAsPdf() async {
+    final convo = currentConversation;
+    if (convo == null) return;
+
+    final selected = _selectedCollapsedMessages();
+    if (selected.isEmpty) {
+      final l10n = AppLocalizations.of(_context)!;
+      showAppSnackBar(
+        _context,
+        message: l10n.homePageSelectMessagesToShare,
+        type: NotificationType.info,
+      );
+      return;
+    }
+
+    final showThinkingTools = _showThinkingTools;
+    final showThinkingContent = _showThinkingContent;
+    cancelSelection();
+    await exportChatMessagesPdf(
+      _context,
+      conversation: convo,
+      messages: selected,
+      showThinkingAndToolCards: showThinkingTools,
+      expandThinkingContent: showThinkingContent,
+    );
+  }
+
   void cancelSelection() {
     _selecting = false;
     _selectedItems.clear();

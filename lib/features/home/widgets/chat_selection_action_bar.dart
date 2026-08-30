@@ -10,7 +10,7 @@ import '../../../theme/design_tokens.dart';
 
 /// Unified bottom action bar for message selection mode.
 ///
-/// Row 1: TXT / MD / Image / Delete (destructive).
+/// Row 1: TXT / MD / PDF / Image / Delete (destructive).
 /// Row 2: Thinking tools / Thinking content toggles.
 class ChatSelectionActionBar extends StatelessWidget {
   const ChatSelectionActionBar({
@@ -18,6 +18,7 @@ class ChatSelectionActionBar extends StatelessWidget {
     required this.onExportMarkdown,
     required this.onExportTxt,
     required this.onExportImage,
+    required this.onExportPdf,
     required this.onDelete,
     required this.showThinkingTools,
     required this.showThinkingContent,
@@ -28,6 +29,7 @@ class ChatSelectionActionBar extends StatelessWidget {
   final VoidCallback onExportMarkdown;
   final VoidCallback onExportTxt;
   final VoidCallback onExportImage;
+  final VoidCallback onExportPdf;
   final VoidCallback onDelete;
 
   final bool showThinkingTools;
@@ -103,6 +105,16 @@ class ChatSelectionActionBar extends StatelessWidget {
                                 label: l10n.chatSelectionExportMd,
                                 color: cs.primary,
                                 onTap: onExportMarkdown,
+                                dense: compact,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _SelectionActionButton(
+                                icon: Lucide.FileDown,
+                                label: l10n.chatSelectionExportPdf,
+                                color: cs.onSurface,
+                                onTap: onExportPdf,
                                 dense: compact,
                               ),
                             ),

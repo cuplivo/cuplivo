@@ -5739,6 +5739,12 @@ abstract class AppLocalizations {
   /// **'Image'**
   String get chatSelectionExportImage;
 
+  /// No description provided for @chatSelectionExportPdf.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF'**
+  String get chatSelectionExportPdf;
+
   /// No description provided for @chatSelectionThinkingTools.
   ///
   /// In en, this message translates to:
@@ -5895,17 +5901,41 @@ abstract class AppLocalizations {
   /// **'Markdown'**
   String get messageExportSheetMarkdown;
 
+  /// No description provided for @messageExportSheetPdf.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF'**
+  String get messageExportSheetPdf;
+
   /// No description provided for @messageExportSheetSingleMarkdownSubtitle.
   ///
   /// In en, this message translates to:
   /// **'Export this message as a Markdown file'**
   String get messageExportSheetSingleMarkdownSubtitle;
 
+  /// No description provided for @messageExportSheetPdfIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF exported, but some images or diagrams may be incomplete'**
+  String get messageExportSheetPdfIncomplete;
+
+  /// No description provided for @messageExportSheetPdfUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF export is currently only available on Windows'**
+  String get messageExportSheetPdfUnsupported;
+
   /// No description provided for @messageExportSheetPlainText.
   ///
   /// In en, this message translates to:
   /// **'Plain Text'**
   String get messageExportSheetPlainText;
+
+  /// No description provided for @messageExportSheetSinglePdfSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export this message as a PDF file'**
+  String get messageExportSheetSinglePdfSubtitle;
 
   /// No description provided for @messageExportSheetSingleTxtSubtitle.
   ///

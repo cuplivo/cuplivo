@@ -3153,6 +3153,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatSelectionExportImage => 'Image';
 
   @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
   String get chatSelectionThinkingTools => 'Thinking tools';
 
   @override
@@ -3251,11 +3254,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageExportSheetMarkdown => 'Markdown';
 
   @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
   String get messageExportSheetSingleMarkdownSubtitle =>
       'Export this message as a Markdown file';
 
   @override
+  String get messageExportSheetPdfIncomplete =>
+      'PDF exported, but some images or diagrams may be incomplete';
+
+  @override
+  String get messageExportSheetPdfUnsupported =>
+      'PDF export is currently only available on Windows';
+
+  @override
   String get messageExportSheetPlainText => 'Plain Text';
+
+  @override
+  String get messageExportSheetSinglePdfSubtitle =>
+      'Export this message as a PDF file';
 
   @override
   String get messageExportSheetSingleTxtSubtitle =>

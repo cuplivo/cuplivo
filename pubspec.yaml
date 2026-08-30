@@ -97,7 +97,8 @@ dependencies:
   flutter_animate: ^4.5.2
   webview_flutter: ^4.13.1
   webview_flutter_wkwebview: ^3.25.1
-  webview_windows: ^0.4.0
+  webview_windows:
+    path: dependencies/webview_windows
   flutter_math_fork: ^0.7.4
   scrollable_positioned_list: ^0.3.8
   super_sliver_list: ^0.4.1

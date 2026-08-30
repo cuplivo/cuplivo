@@ -36,10 +36,11 @@ Future<void> _pumpBar(WidgetTester tester, Widget child) async {
 }
 
 void main() {
-  testWidgets('统一动作台展示导出三格和删除格', (tester) async {
+  testWidgets('统一动作台展示导出四格和删除格', (tester) async {
     var markdownDeletes = 0;
     var txtDeletes = 0;
     var imageDeletes = 0;
+    var pdfDeletes = 0;
     var deleteTaps = 0;
 
     await _pumpBar(
@@ -48,6 +49,7 @@ void main() {
         onExportMarkdown: () => markdownDeletes++,
         onExportTxt: () => txtDeletes++,
         onExportImage: () => imageDeletes++,
+        onExportPdf: () => pdfDeletes++,
         onDelete: () => deleteTaps++,
         showThinkingTools: false,
         showThinkingContent: false,
@@ -58,17 +60,20 @@ void main() {
 
     expect(find.text('TXT'), findsOneWidget);
     expect(find.text('MD'), findsOneWidget);
+    expect(find.text('PDF'), findsOneWidget);
     expect(find.text('Image'), findsOneWidget);
     expect(find.text('Delete'), findsOneWidget);
 
     await tester.tap(find.text('TXT'));
     await tester.tap(find.text('MD'));
+    await tester.tap(find.text('PDF'));
     await tester.tap(find.text('Image'));
     await tester.tap(find.text('Delete'));
 
     expect(markdownDeletes, 1);
     expect(txtDeletes, 1);
     expect(imageDeletes, 1);
+    expect(pdfDeletes, 1);
     expect(deleteTaps, 1);
   });
 
@@ -83,6 +88,7 @@ void main() {
           onExportMarkdown: () {},
           onExportTxt: () {},
           onExportImage: () {},
+          onExportPdf: () {},
           onDelete: () {},
           showThinkingTools: tools,
           showThinkingContent: content,

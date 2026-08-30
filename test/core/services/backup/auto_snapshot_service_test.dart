@@ -73,9 +73,9 @@ class _FakeExporter {
 AutoSnapshotService _service(Directory root, _FakeExporter exporter) {
   return AutoSnapshotService(
     exportBackup: exporter.export,
-    assistantCount: () => 3,
-    conversationCount: () => 7,
-    messageCount: () => 42,
+    assistantCount: () async => 3,
+    conversationCount: () async => 7,
+    messageCount: () async => 42,
     rootDirectoryResolver: () async => root,
   );
 }
@@ -259,6 +259,26 @@ void main() {
         names.where((n) => n.contains('auto_snapshots')),
         isEmpty,
         reason: 'Snapshots must not travel with backups: $names',
+      );
+    });
+
+    test('deleteAllSnapshots removes every stored snapshot', () async {
+      final service = _service(root, exporter);
+      await service.createSnapshot();
+      exporter.payload['conversations.jsonl'] = utf8.encode('{}\n{}\n');
+      await service.createSnapshot();
+
+      final before = await service.listSnapshots();
+      expect(before, hasLength(2));
+
+      await service.deleteAllSnapshots();
+      expect(await service.listSnapshots(), isEmpty);
+
+      final dir = await service.snapshotDirectory();
+      expect(
+        dir.listSync().whereType<File>(),
+        isEmpty,
+        reason: 'No zip or sidecar should remain after deleteAllSnapshots',
       );
     });
   });

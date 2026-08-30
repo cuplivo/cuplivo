@@ -4821,6 +4821,24 @@ abstract class AppLocalizations {
   /// **'{date}, {year}'**
   String backupEntryDateWithYear(Object date, Object year);
 
+  /// No description provided for @autoSnapshotDisableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off Auto Snapshots?'**
+  String get autoSnapshotDisableTitle;
+
+  /// No description provided for @autoSnapshotDisableBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Turning off will permanently delete {count} existing snapshot(s). Continue?'**
+  String autoSnapshotDisableBody(int count);
+
+  /// No description provided for @autoSnapshotDisableConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off & Delete'**
+  String get autoSnapshotDisableConfirm;
+
   /// No description provided for @lanSyncSectionTitle.
   ///
   /// In en, this message translates to:

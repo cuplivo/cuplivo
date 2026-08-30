@@ -125,9 +125,9 @@ class AutoSnapshotService {
   }
 
   final Future<File> Function() _exportBackup;
-  final int Function() _assistantCount;
-  final int Function() _conversationCount;
-  final int Function() _messageCount;
+  final Future<int> Function() _assistantCount;
+  final Future<int> Function() _conversationCount;
+  final Future<int> Function() _messageCount;
   final Future<Directory> Function() _rootDirectoryResolver;
   final int maxSnapshots;
 
@@ -213,7 +213,14 @@ class AutoSnapshotService {
       final hash = _hashEntries(entries);
 
       if (newestHash != null && newestHash == hash) {
-        // Payload identical to the newest snapshot — skip creation entirely.
+        // Payload identical to the newest snapshot — discard the temp export
+        // (avoid a disk leak per dedup tick) and skip creation entirely. The
+        // caller still resets its schedule anchor on this path.
+        try {
+          tempBackup.deleteSync();
+        } catch (_) {
+          // Best effort; temp leftovers are cleaned by the OS eventually.
+        }
         return const AutoSnapshotResult(
           AutoSnapshotStatus.deduplicated,
           null,
@@ -247,9 +254,9 @@ class AutoSnapshotService {
         fileName: fileName,
         createdAt: now,
         sizeBytes: target.lengthSync(),
-        assistantCount: _assistantCount(),
-        conversationCount: _conversationCount(),
-        messageCount: _messageCount(),
+        assistantCount: await _assistantCount(),
+        conversationCount: await _conversationCount(),
+        messageCount: await _messageCount(),
         contentHash: hash,
       );
       File('${dir.path}/$fileName.json').writeAsStringSync(
@@ -264,6 +271,22 @@ class AutoSnapshotService {
         try {
           tempBackup.deleteSync();
         } catch (_) {}
+      }
+    }
+  }
+
+  /// Removes every stored snapshot (zips + sidecars). Used when the feature
+  /// is turned off — the user confirmed the destructive intent.
+  Future<void> deleteAllSnapshots() async {
+    final dir = await snapshotDirectory();
+    if (!dir.existsSync()) return;
+    await for (final entity in dir.list()) {
+      try {
+        if (entity is File || entity is Directory) {
+          await entity.delete(recursive: true);
+        }
+      } catch (_) {
+        // Best effort; a leftover file is harmless.
       }
     }
   }

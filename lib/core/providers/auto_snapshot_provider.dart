@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
 
@@ -38,7 +37,6 @@ class AutoSnapshotProvider extends ChangeNotifier
   static const String _enabledKey = 'auto_snapshot_enabled_v1';
   static const String _intervalMinutesKey = 'auto_snapshot_interval_minutes_v1';
   static const String _lastSnapshotAtKey = 'auto_snapshot_last_snapshot_at_v1';
-  static const String _assistantsPrefsKey = 'assistants_v1';
 
   final BusinessPreferences preferences;
   final ChatService chatService;
@@ -46,6 +44,7 @@ class AutoSnapshotProvider extends ChangeNotifier
   late AutoSnapshotService _service;
 
   bool _loaded = false;
+  bool _serviceBuilt = false;
   bool _enabled = false;
   int _intervalMinutes = 1440;
   DateTime? _lastSnapshotAt;
@@ -80,6 +79,7 @@ class AutoSnapshotProvider extends ChangeNotifier
       conversationCount: _countConversations,
       messageCount: _countMessages,
     );
+    _serviceBuilt = true;
     await refreshSnapshots();
     _loaded = true;
     if (_enabled) _startTicker();
@@ -87,16 +87,27 @@ class AutoSnapshotProvider extends ChangeNotifier
     notifyListeners();
   }
 
-  Future<void> setEnabled(bool value) async {
-    _enabled = value;
-    await preferences.setBool(_enabledKey, value);
+  /// Turns the feature off. If [deleteSnapshots] is true (default), all
+  /// stored snapshots are removed for good — the UI prompts for this before
+  /// calling. The schedule anchor is cleared either way.
+  Future<void> setEnabled(bool value, {bool deleteSnapshots = true}) async {
     if (value) {
+      _enabled = true;
+      await preferences.setBool(_enabledKey, true);
       _startTicker();
       // Baseline snapshot the moment the feature is switched on, so there is
       // always at least one restore point without waiting a full interval.
       unawaited(createSnapshot());
     } else {
       _stopTicker();
+      _enabled = false;
+      await preferences.setBool(_enabledKey, false);
+      _lastSnapshotAt = null;
+      await preferences.remove(_lastSnapshotAtKey);
+      if (deleteSnapshots && _serviceBuilt) {
+        await _service.deleteAllSnapshots();
+      }
+      await refreshSnapshots();
     }
     notifyListeners();
   }
@@ -120,13 +131,17 @@ class AutoSnapshotProvider extends ChangeNotifier
     try {
       final result = await _service.createSnapshot();
       _lastError = null;
-      if (result.status == AutoSnapshotStatus.created) {
-        _lastSnapshotAt = result.metadata!.createdAt;
-        await preferences.setString(
-          _lastSnapshotAtKey,
-          _lastSnapshotAt!.toIso8601String(),
-        );
-      }
+      // The schedule anchor advances on *every* successful attempt — both a
+      // created snapshot and a deduplicated skip (identical payload) mean the
+      // cadence has been satisfied; only a hard failure keeps the anchor so
+      // the next tick retries.
+      _lastSnapshotAt = result.status == AutoSnapshotStatus.created
+          ? result.metadata!.createdAt
+          : DateTime.now();
+      await preferences.setString(
+        _lastSnapshotAtKey,
+        _lastSnapshotAt!.toIso8601String(),
+      );
       await refreshSnapshots();
       return result.status == AutoSnapshotStatus.created
           ? AutoSnapshotOutcome.created
@@ -187,18 +202,16 @@ class AutoSnapshotProvider extends ChangeNotifier
 
   // ===== Count providers (cheap reads for the snapshot metadata) =====
 
-  int _countAssistants() {
-    final raw = preferences.getString(_assistantsPrefsKey);
-    if (raw == null || raw.isEmpty) return 0;
+  Future<int> _countAssistants() async {
+    if (!chatService.initialized) return 0;
     try {
-      final decoded = jsonDecode(raw);
-      return decoded is List ? decoded.length : 0;
+      return (await chatService.getAllAssistants()).length;
     } catch (_) {
       return 0;
     }
   }
 
-  int _countConversations() {
+  Future<int> _countConversations() async {
     if (!chatService.initialized) return 0;
     try {
       return chatService.repo.getConversationCountSync();
@@ -207,7 +220,7 @@ class AutoSnapshotProvider extends ChangeNotifier
     }
   }
 
-  int _countMessages() {
+  Future<int> _countMessages() async {
     if (!chatService.initialized) return 0;
     try {
       return chatService.repo.getTotalMessageCountSync();

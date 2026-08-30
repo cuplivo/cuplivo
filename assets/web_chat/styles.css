@@ -933,3 +933,56 @@ body[data-style-process-shadow="true"] :is(
 ) {
   box-shadow: var(--cuplivo-style-process-shadow);
 }
+
+@media print {
+  html, body.print-mode {
+    /* The viewport's real background is Flutter-owned (backgroundOwner=
+       'flutter' hides the layers above); print must paint an explicit
+       theme surface floor, otherwise dark themes print on white paper
+       with translucent dark bubbles. The decorative wallpaper layers
+       stay hidden (never printed). */
+    background: var(--cuplivo-surface) !important;
+  }
+  body.print-mode::before,
+  body.print-mode #chat-background {
+    display: none !important;
+  }
+  body.print-mode {
+    overflow: visible !important;
+    height: auto !important;
+  }
+  body.print-mode #timeline {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+  body.print-mode #virtual-window-loader,
+  body.print-mode .spacer,
+  body.print-mode .code-block-chevron,
+  body.print-mode .code-block-action,
+  body.print-mode .action {
+    display: none !important;
+  }
+  body.print-mode .markdown pre,
+  body.print-mode .code-block {
+    overflow: visible !important;
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+    break-inside: auto;
+  }
+  body.print-mode .code-block code,
+  body.print-mode .markdown pre code {
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+  }
+  body.print-mode .message {
+    break-inside: avoid;
+  }
+  body.print-mode .markdown table {
+    break-inside: auto;
+  }
+}
+@page {
+  size: A4;
+  margin: 14mm;
+}

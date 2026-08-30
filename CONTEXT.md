@@ -32,6 +32,69 @@
   defaults and only decorates three Web chat surfaces; it cannot recolor app
   navigation, settings, Flutter-rendered messages, or the viewport background.
 
+## Web Chat Secure Origin (Web 对话安全来源)
+
+- **Contract**: the interactive Web chat shell never runs from a `file://`
+  origin — ADR-0043 ("the chat shell never uses a `file://` origin"). The
+  origin must be an origin the app trusts (HTTPS-like), mapping ONLY packaged
+  app assets (e.g. Windows' `deny` folder access), never an arbitrary disk
+  path, and it must grant no read access to the host bundle.
+- **Per-platform mechanism**:
+  - **Windows**: assets copied to a temp cache tree, served via WebView2
+    HTTPS virtual host `cuplivo-web-chat.invalid` with resource access kind
+    `deny` (`prepareWindowsWebChatShell` + `addVirtualHostNameMapping`).
+  - **Android**: webview_flutter_android's built-in `https://appassets.androidplatform.net`
+    custom scheme (`AndroidWebChatView.kt` `WEB_CHAT_ORIGIN`), source
+    allowlist `setOf(WEB_CHAT_ORIGIN)`.
+  - **iOS/macOS — NOT COMPLIANT (known gap)**: currently
+    `loadFlutterAsset()` → `WKWebView loadFileURL(allowingReadAccessTo: ...)`
+    = `file://` origin plus an explicit read-access grant — the opposite of
+    Windows' `deny`. No WKWebView equivalent of virtual-host mapping exists,
+    so the compliant fix is a local-loopback HTTP server (dart:io
+    `HttpServer` on `127.0.0.1` serving the archived web assets; iOS ATS
+    exempts localhost, macOS needs `com.apple.security.network.server`).
+- **Failure signature**: `{component: web_conversation_viewport, code:
+  shell_ready_timeout, renderRevision: null}`. On the non-compliant file://
+  path, `app.mjs`'s module graph (`type="module"` + `import from
+  "./protocol.mjs"`) dies silently under the strict CSP — sub-resource
+  errors never surface because `onWebResourceError` is main-frame-only
+  (viewport `isForMainFrame != true return`), the `ready` post (`app.mjs`
+  line 3174, module top-level) never fires, and the 10s init timer fails to
+  `shell_ready_timeout`. `web_chat_platform.dart` still advertises iOS as
+  supported — paperwork support, not verified support.
+- **Scope rule**: PDF export rides the Web pipeline, so the secure origin
+  fix is its precondition. Implemented: Windows (vendored webview_windows
+  PrintToPdf bridge). Planned follow-ups: Android
+  (`createPrintDocumentAdapter` to temp file → bytes saveFile, page size /
+  background follow the Android print manager quirks), macOS/iOS PDF (waits
+  for the secure-origin fix), Linux stays excluded (no WebView in the app at
+  all). On un-implemented platforms the export row stays visible and
+  answers with an explicit "Windows only" notice — never silent.
+- **Web 对话打印模式 (web chat print mode)**: the PDF export path loads the
+  SAME shell document through the secure origin with a `?mode=print` (or
+  equivalent static branch) and drives only its snapshot→DOM render path —
+  no interactive protocol, action gate, streaming patches, virtual scroll,
+  or gesture handling. Single rendering codebase: print output shares the
+  interactive viewport's DOM component markers and (ADR-0049) style
+  resolution, and reuses `mediaRegistry` for local-attachment data URLs.
+  Platform capture then runs the browser print-to-PDF (Windows WebView2
+  `PrintToPdf` bridge; Android planned via `createPrintDocumentAdapter`)
+  offstage.
+- **PDF export (issue #293)**: rides the Web pipeline — v1 entry is the
+  existing message export sheet plus a "PDF" format row + the share-bar
+  PDF button (single/batch selection, reusing its thinking/tool-card
+  toggles and save flow); fixed A4 page size and 14 mm margins from the
+  print settings, `@page` CSS aligned to the same values (no
+  user-configurable page options); conversation-batch PDF and configurable
+  page size are follow-ups. Implemented: Windows capture via a
+  `PrintToPdf` bridge in VENDORED webview_windows (repo precedent and the
+  only route that reuses the one WebView2 secure-origin instance; the
+  package has zero print API upstream). Planned: Android
+  (`createPrintDocumentAdapter` to a temp file then the bytes-based
+  `saveFile` flow), macOS/iOS PDF (waits on the secure-origin fix), Linux
+  excluded. Un-implemented platforms show the row but answer with an
+  explicit "Windows only" notice.
+
 ## Title Preset System
 - **Hash Fingerprint matching**: `detect()` uses `trim()` only (conservative), exact character match after stripping leading/trailing whitespace.
 - **PromptPreset data class**: `id`, `label`, `prompt` fields only. No `recommendedThinking` — presets are style-only, Thinking is independently controlled.

@@ -37,6 +37,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../home/widgets/model_icon.dart';
 import '../../home/controllers/chat_controller.dart';
+import '../../home/webview/web_conversation_pdf_printer.dart';
 import '../utils/thinking_tag_parser.dart';
 import '../models/tool_ui_part.dart';
 import 'chat_message_widget.dart' show ChatMessageWidget, ReasoningSegment;
@@ -878,6 +879,70 @@ Future<void> exportChatMessagesTxt(
       filename: filename,
       content: buf.toString(),
       allowedExtensions: const ['txt'],
+    );
+  } catch (e) {
+    if (!context.mounted) return;
+    showAppSnackBar(
+      context,
+      message: l10n.messageExportSheetExportFailed('$e'),
+      type: NotificationType.error,
+    );
+  }
+}
+
+Future<void> exportChatMessagesPdf(
+  BuildContext context, {
+  required Conversation conversation,
+  required List<ChatMessage> messages,
+  bool showThinkingAndToolCards = false,
+  bool expandThinkingContent = false,
+}) async {
+  final l10n = AppLocalizations.of(context)!;
+  try {
+    if (!Platform.isWindows) {
+      showAppSnackBar(
+        context,
+        message: l10n.messageExportSheetPdfUnsupported,
+        type: NotificationType.info,
+      );
+      return;
+    }
+    showAppSnackBar(
+      context,
+      message: l10n.messageExportSheetExporting,
+      type: NotificationType.info,
+    );
+    final result = await renderConversationPdf(
+      context,
+      conversation: conversation,
+      messages: messages,
+      showThinkingAndToolCards: showThinkingAndToolCards,
+      expandThinkingContent: expandThinkingContent,
+    );
+    final String? savePath = await FilePicker.platform.saveFile(
+      dialogTitle: l10n.backupPageExportToFile,
+      fileName: 'chat-export-${DateTime.now().millisecondsSinceEpoch}.pdf',
+      type: FileType.custom,
+      allowedExtensions: const ['pdf'],
+    );
+    if (savePath == null) return; // user cancelled
+    await File(savePath).writeAsBytes(await result.file.readAsBytes());
+    if (!context.mounted) return;
+    showAppSnackBar(
+      context,
+      message: result.timedOut
+          ? l10n.messageExportSheetPdfIncomplete
+          : l10n.messageExportSheetExportedAs(p.basename(savePath)),
+      type: result.timedOut
+          ? NotificationType.warning
+          : NotificationType.success,
+    );
+  } on PdfUnsupportedPlatformException {
+    if (!context.mounted) return;
+    showAppSnackBar(
+      context,
+      message: l10n.messageExportSheetPdfUnsupported,
+      type: NotificationType.info,
     );
   } catch (e) {
     if (!context.mounted) return;
@@ -1855,6 +1920,36 @@ class _ExportDialogState extends State<_ExportDialog> {
     }
   }
 
+  Future<void> _onExportPdf() async {
+    if (_exporting) return;
+    try {
+      final pctx = widget.parentContext;
+      final msg = widget.message;
+      final service = pctx.read<ChatService>();
+      final convo = service.getConversation(msg.conversationId);
+      final effectiveConvo =
+          convo ?? Conversation(id: msg.conversationId, title: '');
+      await Navigator.of(context).maybePop();
+      if (!pctx.mounted) return;
+      await exportChatMessagesPdf(
+        pctx,
+        conversation: effectiveConvo,
+        messages: [msg],
+        showThinkingAndToolCards: _showThinkingAndToolCards,
+        expandThinkingContent: _expandThinkingContent,
+      );
+    } catch (e) {
+      final pctx = widget.parentContext;
+      if (!pctx.mounted) return;
+      final l10n = AppLocalizations.of(pctx)!;
+      showAppSnackBar(
+        pctx,
+        message: l10n.messageExportSheetExportFailed('$e'),
+        type: NotificationType.error,
+      );
+    }
+  }
+
   Future<void> _onExportTxt() async {
     if (_exporting) return;
     try {
@@ -1975,6 +2070,12 @@ class _ExportDialogState extends State<_ExportDialog> {
                           subtitle:
                               l10n.messageExportSheetSingleMarkdownSubtitle,
                           onTap: _exporting ? null : _onExportMarkdown,
+                        ),
+                        _ExportOptionTile(
+                          icon: Lucide.FileDown,
+                          title: l10n.messageExportSheetPdf,
+                          subtitle: l10n.messageExportSheetSinglePdfSubtitle,
+                          onTap: _exporting ? null : _onExportPdf,
                         ),
                         _ExportOptionTile(
                           icon: Lucide.FileText,
@@ -2118,6 +2219,37 @@ class _ExportSheetState extends State<_ExportSheet> {
     }
   }
 
+  Future<void> _onExportPdf() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    try {
+      final pctx = widget.parentContext;
+      final msg = widget.message;
+      final service = pctx.read<ChatService>();
+      final convo = service.getConversation(msg.conversationId);
+      final effectiveConvo =
+          convo ?? Conversation(id: msg.conversationId, title: '');
+      await exportChatMessagesPdf(
+        pctx,
+        conversation: effectiveConvo,
+        messages: [msg],
+        showThinkingAndToolCards: _showThinkingAndToolCards,
+        expandThinkingContent: _expandThinkingContent,
+      );
+    } catch (e) {
+      if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
+        showAppSnackBar(
+          context,
+          message: l10n.messageExportSheetExportFailed('$e'),
+          type: NotificationType.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
   Future<void> _onExportTxt() async {
     if (_exporting) return;
     setState(() => _exporting = true);
@@ -2230,6 +2362,16 @@ class _ExportSheetState extends State<_ExportSheet> {
                         ? null
                         : () {
                             _onExportMarkdown();
+                          },
+                  ),
+                  _ExportOptionTile(
+                    icon: Lucide.FileDown,
+                    title: l10n.messageExportSheetPdf,
+                    subtitle: l10n.messageExportSheetSinglePdfSubtitle,
+                    onTap: _exporting
+                        ? null
+                        : () {
+                            _onExportPdf();
                           },
                   ),
                   _ExportOptionTile(

@@ -8220,7 +8220,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get subagentTargetBadge => '{count} 个目标';
+  String subagentTargetBadge(num count) {
+    return '$count 个目标';
+  }
 
   @override
   String get subagentNoTargetHint =>
@@ -17622,7 +17624,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get subagentTargetBadge => '{count} 个目标';
+  String subagentTargetBadge(num count) {
+    return '$count 个目标';
+  }
 
   @override
   String get subagentNoTargetHint =>
@@ -27025,7 +27029,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get subagentTargetBadge => '{count} 個目標';
+  String subagentTargetBadge(num count) {
+    return '$count 個目標';
+  }
 
   @override
   String get subagentNoTargetHint =>

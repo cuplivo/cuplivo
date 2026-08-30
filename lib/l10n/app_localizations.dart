@@ -9670,6 +9670,24 @@ abstract class AppLocalizations {
   /// **'The fork carries every regenerated version of each message so you can still switch between them; off keeps only the selected answer.'**
   String get displaySettingsPageForkKeepMessageVersionsSubtitle;
 
+  /// No description provided for @displaySettingsPageConversationModelIndependentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Independent Conversation Models'**
+  String get displaySettingsPageConversationModelIndependentTitle;
+
+  /// No description provided for @displaySettingsPageConversationModelIndependentSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New conversations freeze their model at creation and no longer follow assistant model changes. Switching a model in a conversation affects only that conversation.'**
+  String get displaySettingsPageConversationModelIndependentSubtitle;
+
+  /// No description provided for @conversationModelIndependentFreezeNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Model switched for this conversation only'**
+  String get conversationModelIndependentFreezeNotice;
+
   /// No description provided for @chainOfThoughtExpandSteps.
   ///
   /// In en, this message translates to:

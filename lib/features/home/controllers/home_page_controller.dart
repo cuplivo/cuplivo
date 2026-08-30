@@ -61,6 +61,7 @@ import '../services/ocr_service.dart';
 import '../services/translation_service.dart';
 import '../services/file_upload_service.dart';
 import '../widgets/chat_input_bar.dart';
+import '../utils/conversation_model_binding.dart';
 import '../../model/widgets/model_select_sheet.dart';
 
 /// Translation data for UI state (expanded/collapsed).
@@ -672,7 +673,9 @@ class HomePageController extends ChangeNotifier {
           }
           break;
         case ChatAction.switchModel:
-          unawaited(showModelSelectSheet(ctx));
+          unawaited(
+            showModelSelectSheet(ctx, conversation: currentConversation),
+          );
           break;
         case ChatAction.enterGlobalSearch:
           enterGlobalSearchMode(preserveQuery: true);
@@ -724,6 +727,21 @@ class HomePageController extends ChangeNotifier {
     final prefs = _context.read<SettingsProvider>();
     final assistantProvider = _context.read<AssistantProvider>();
     final ctx = _context;
+    // Conversation model independence: resolve the effective chat model
+    // (assistant binding ?? global) that new conversations snapshot.
+    _chatService.setCreationModelSnapshotResolver((assistantId) async {
+      if (!ctx.mounted) return null;
+      final settings = ctx.read<SettingsProvider>();
+      if (!settings.conversationModelIndependent) return null;
+      final assistant = assistantId == null
+          ? null
+          : ctx.read<AssistantProvider>().getById(assistantId);
+      final providerKey =
+          assistant?.chatModelProvider ?? settings.currentModelProvider;
+      final modelId = assistant?.chatModelId ?? settings.currentModelId;
+      if (providerKey == null || modelId == null) return null;
+      return (providerKey: providerKey, modelId: modelId);
+    });
     await _chatService.init();
     if (!ctx.mounted) return;
     await assistantProvider.ensureDefaults(ctx);
@@ -2314,15 +2332,44 @@ class HomePageController extends ChangeNotifier {
 
     if (result.length == 1) {
       final sel = result.first;
-      final assistant = _context.read<AssistantProvider>().currentAssistant;
       engine.exit();
-      if (assistant != null) {
-        await _context.read<AssistantProvider>().updateAssistant(
-          assistant.copyWith(
-            chatModelProvider: sel.providerKey,
-            chatModelId: sel.modelId,
-          ),
-        );
+      // ADR-0045: the single-model downgrade is an in-conversation switch —
+      // bound or toggle-on conversations keep it local; the assistant is
+      // updated only when the conversation stays unbound with the toggle off.
+      final target = resolveConversationModelWriteTarget(
+        conversationModelIndependent: _context
+            .read<SettingsProvider>()
+            .conversationModelIndependent,
+        conversation: currentConversation,
+      );
+      if (target == ConversationModelWriteTarget.conversationBinding) {
+        final convo = currentConversation;
+        if (convo != null) {
+          final wasUnbound = !conversationModelBindingActive(convo);
+          await _chatService.setConversationModelBinding(
+            conversationId: convo.id,
+            providerKey: sel.providerKey,
+            modelId: sel.modelId,
+          );
+          if (wasUnbound && _context.mounted) {
+            showAppSnackBar(
+              _context,
+              message: AppLocalizations.of(
+                _context,
+              )!.conversationModelIndependentFreezeNotice,
+            );
+          }
+        }
+      } else {
+        final assistant = _context.read<AssistantProvider>().currentAssistant;
+        if (assistant != null) {
+          await _context.read<AssistantProvider>().updateAssistant(
+            assistant.copyWith(
+              chatModelProvider: sel.providerKey,
+              chatModelId: sel.modelId,
+            ),
+          );
+        }
       }
       notifyListeners();
       return;

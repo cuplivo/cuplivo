@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/assistant.dart';
+import '../../../core/models/conversation.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/asr_provider.dart';
@@ -68,6 +69,7 @@ class ChatInputSection extends StatelessWidget {
     this.onClearContext,
     this.onCompressContext,
     this.conversationId,
+    this.conversation,
     this.sendButtonTooltip,
     this.backgroundImageActive = false,
     this.multiAIModelCount,
@@ -117,6 +119,11 @@ class ChatInputSection extends StatelessWidget {
   final VoidCallback? onClearContext;
   final VoidCallback? onCompressContext;
   final String? conversationId;
+
+  /// Resolved once by the home page; capability gates inside the bar derive
+  /// the effective model from it (ADR-0045).
+  final Conversation? conversation;
+
   final String? sendButtonTooltip;
   final bool backgroundImageActive;
 
@@ -136,8 +143,13 @@ class ChatInputSection extends StatelessWidget {
     final a = ap.currentAssistant;
     final assistantId = a?.id;
 
-    // Use unified helper to get model identifiers
-    final modelIds = getActiveModelIds(settings, assistant: a);
+    // Use unified helper to get model identifiers (ADR-0045: a bound
+    // conversation's capability gates follow its own model, not the assistant).
+    final modelIds = getActiveModelIds(
+      settings,
+      assistant: a,
+      conversation: conversation,
+    );
     final pk = modelIds.providerKey;
     final mid = modelIds.modelId;
 
@@ -164,6 +176,7 @@ class ChatInputSection extends StatelessWidget {
       onSelectModel: onSelectModel,
       onLongPressSelectModel: onLongPressSelectModel,
       conversationId: conversationId,
+      conversation: conversation,
       onOpenToolsHub: onOpenToolsHub,
       onLongPressMcp: onLongPressMcp,
       onStop: onStop,
@@ -201,7 +214,7 @@ class ChatInputSection extends StatelessWidget {
       hasQueuedInput: hasQueuedInput,
       queuedPreviewText: queuedPreviewText,
       onCancelQueuedInput: onCancelQueuedInput,
-      showToolsHubButton: _shouldShowToolsHubButton(settings, a, pk, mid),
+      showToolsHubButton: _shouldShowToolsHubButton(pk, mid),
       toolsHubActive: _isToolsActive(context, a),
       showQuickPhraseButton: _hasQuickPhrases(context, a),
       onQuickPhrase: onQuickPhrase,
@@ -320,16 +333,9 @@ class ChatInputSection extends StatelessWidget {
     }
   }
 
-  bool _shouldShowToolsHubButton(
-    SettingsProvider settings,
-    Assistant? a,
-    String? pk,
-    String? mid,
-  ) {
-    final pk2 = a?.chatModelProvider ?? settings.currentModelProvider;
-    final mid3 = a?.chatModelId ?? settings.currentModelId;
-    if (pk2 == null || mid3 == null) return false;
-    return isToolModel(pk2, mid3);
+  bool _shouldShowToolsHubButton(String? pk, String? mid) {
+    if (pk == null || mid == null) return false;
+    return isToolModel(pk, mid);
   }
 
   bool _isToolsActive(BuildContext context, Assistant? a) {

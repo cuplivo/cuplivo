@@ -6,6 +6,11 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/model_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../../core/models/conversation.dart';
+import '../../../core/services/chat/chat_service.dart';
+import '../../home/utils/conversation_model_binding.dart';
+import '../../home/utils/model_display_helper.dart';
+import '../../../shared/widgets/snackbar.dart';
 import '../../../icons/lucide_adapter.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'model_detail_sheet.dart';
@@ -315,29 +320,68 @@ Future<void> showModelSelectSheet(
   BuildContext context, {
   bool updateAssistant = true,
   void Function(List<ModelSelection>)? onMultiSelectConfirm,
+  Conversation? conversation,
 }) async {
   final assistantProvider = context.read<AssistantProvider>();
   final settings = context.read<SettingsProvider>();
+  final chatService = context.read<ChatService>();
+  // In-chat contexts pass the conversation: the preselect must reflect the
+  // effective chain (conversation binding → assistant → global), not only
+  // the current assistant.
+  String? initialProviderKey;
+  String? initialModelId;
+  if (conversation != null) {
+    final assistant = conversation.assistantId != null
+        ? assistantProvider.getById(conversation.assistantId!)
+        : assistantProvider.currentAssistant;
+    final resolved = resolveChatModel(settings, assistant, conversation);
+    initialProviderKey = resolved.providerKey;
+    initialModelId = resolved.modelId;
+  }
   final sel = await showModelSelector(
     context,
+    initialProviderKey: initialProviderKey,
+    initialModelId: initialModelId,
     onMultiSelectConfirm: onMultiSelectConfirm,
   );
-  if (sel != null) {
-    if (updateAssistant) {
-      // Update assistant's model instead of global default
-      final assistant = assistantProvider.currentAssistant;
-      if (assistant != null) {
-        await assistantProvider.updateAssistant(
-          assistant.copyWith(
-            chatModelProvider: sel.providerKey,
-            chatModelId: sel.modelId,
-          ),
-        );
-      }
-    } else {
-      // Only update global default when explicitly requested (e.g., from settings)
-      await settings.setCurrentModel(sel.providerKey, sel.modelId);
+  if (sel == null) return;
+  if (!updateAssistant) {
+    // Only update global default when explicitly requested (e.g., from settings)
+    await settings.setCurrentModel(sel.providerKey, sel.modelId);
+    return;
+  }
+  final target = resolveConversationModelWriteTarget(
+    conversationModelIndependent: settings.conversationModelIndependent,
+    conversation: conversation,
+  );
+  if (target == ConversationModelWriteTarget.conversationBinding) {
+    // ADR-0045: bound conversations (or toggle-on first switch) freeze to
+    // their own binding; the assistant is never touched by in-chat switches.
+    final wasUnbound = !conversationModelBindingActive(conversation);
+    await chatService.setConversationModelBinding(
+      conversationId: conversation!.id,
+      providerKey: sel.providerKey,
+      modelId: sel.modelId,
+    );
+    if (wasUnbound && context.mounted) {
+      showAppSnackBar(
+        context,
+        message: AppLocalizations.of(
+          context,
+        )!.conversationModelIndependentFreezeNotice,
+      );
     }
+    return;
+  }
+  // Status quo: update the assistant's model instead of the global default.
+  final assistant = assistantProvider.currentAssistant;
+  if (assistant != null) {
+    await assistantProvider.updateAssistant(
+      assistant.copyWith(
+        chatModelProvider: sel.providerKey,
+        chatModelId: sel.modelId,
+      ),
+    );
   }
 }
 

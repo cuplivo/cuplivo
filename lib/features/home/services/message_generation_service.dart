@@ -16,6 +16,7 @@ import '../../../utils/assistant_regex.dart';
 import '../../../core/models/assistant_regex.dart';
 import '../controllers/stream_controller.dart' as stream_ctrl;
 import '../controllers/generation_controller.dart';
+import '../utils/model_display_helper.dart';
 import 'ask_user_interaction_service.dart';
 import 'message_builder_service.dart';
 import 'tool_approval_service.dart';
@@ -422,16 +423,14 @@ class MessageGenerationService {
     );
   }
 
-  /// Get current model and provider from assistant or global settings.
+  /// Get current model and provider via the effective chain
+  /// (ADR-0045): conversation binding → assistant → global default.
   ({String? providerKey, String? modelId}) getModelConfig(
     SettingsProvider settings,
-    Assistant? assistant,
-  ) {
-    return (
-      providerKey:
-          assistant?.chatModelProvider ?? settings.currentModelProvider,
-      modelId: assistant?.chatModelId ?? settings.currentModelId,
-    );
+    Assistant? assistant, {
+    Conversation? conversation,
+  }) {
+    return resolveChatModel(settings, assistant, conversation);
   }
 
   /// Calculate version info for regeneration.

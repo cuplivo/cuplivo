@@ -34,6 +34,12 @@ class ConversationRows extends Table {
   TextColumn get workspaceDirectoryOverridesJson =>
       text().withDefault(const Constant('{}'))();
 
+  /// Per-conversation chat model binding (schema v22, nullable). Mirror of
+  /// assistant_rows.chat_model_provider/chat_model_id naming. Non-null means
+  /// the conversation no longer follows the assistant's model.
+  TextColumn get chatModelProvider => text().nullable()();
+  TextColumn get chatModelId => text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
@@ -460,7 +466,7 @@ class AppDatabase extends _$AppDatabase {
   // self-heal below repairs such gaps on every open; without it the gap is
   // permanent because later upgrades skip the failed step's `from < N` block.
   // See docs/adr/0019-schema-self-heal.md.
-  int get schemaVersion => 21;
+  int get schemaVersion => 22;
 
   /// Whether [table] has a physical column named [column] (sqlite name).
   Future<bool> _hasColumn(String table, String column) async {
@@ -672,6 +678,17 @@ class AppDatabase extends _$AppDatabase {
       'conversation_rows',
       'workspace_directory_overrides_json',
       "ALTER TABLE conversation_rows ADD COLUMN workspace_directory_overrides_json TEXT NOT NULL DEFAULT '{}'",
+    );
+    // Per-conversation chat model binding (schema v22).
+    await _ensureColumn(
+      'conversation_rows',
+      'chat_model_provider',
+      'ALTER TABLE conversation_rows ADD COLUMN chat_model_provider TEXT NULL',
+    );
+    await _ensureColumn(
+      'conversation_rows',
+      'chat_model_id',
+      'ALTER TABLE conversation_rows ADD COLUMN chat_model_id TEXT NULL',
     );
     await customStatement(
       "UPDATE conversation_rows SET conversation_kind = 'normal' "
@@ -982,6 +999,22 @@ class AppDatabase extends _$AppDatabase {
         // (_ensureTable below) repairs on every open.
         try {
           await migrator.createTable(preferenceRows);
+        } catch (_) {}
+      }
+      if (from < 22) {
+        // Per-conversation chat model binding (conversation model
+        // independence). Nullable columns; heal covers a skipped ALTER.
+        try {
+          await migrator.addColumn(
+            conversationRows,
+            conversationRows.chatModelProvider,
+          );
+        } catch (_) {}
+        try {
+          await migrator.addColumn(
+            conversationRows,
+            conversationRows.chatModelId,
+          );
         } catch (_) {}
       }
       // Final pass: heal any column/table that still did not land.

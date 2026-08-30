@@ -160,6 +160,8 @@ class SettingsProvider extends ChangeNotifier {
       'display_show_regenerate_confirm_dialog_v1';
   static const String _chatForkKeepMessageVersionsKey =
       'chat_fork_keep_message_versions_v1';
+  static const String _conversationModelIndependentKey =
+      'conversation_model_independent_v1';
   static const String _displayShowMessageNavKey = 'display_show_message_nav_v1';
   static const String _displayDesktopMessageNavButtonsModeKey =
       'display_desktop_message_nav_buttons_mode_v1';
@@ -1184,6 +1186,8 @@ class SettingsProvider extends ChangeNotifier {
         prefs.getBool(_displayShowRegenerateConfirmDialogKey) ?? true;
     _forkKeepMessageVersions =
         prefs.getBool(_chatForkKeepMessageVersionsKey) ?? false;
+    _conversationModelIndependent =
+        prefs.getBool(_conversationModelIndependentKey) ?? false;
     _showMessageNavButtons = prefs.getBool(_displayShowMessageNavKey) ?? true;
     _mobileMessageNavButtonsMode = _parseMobileMessageNavButtonsMode(
       prefs.getString(_displayMobileMessageNavButtonsModeKey),
@@ -4256,6 +4260,16 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     await prefs.setBool(_chatForkKeepMessageVersionsKey, v);
   }
 
+  bool _conversationModelIndependent = false;
+  bool get conversationModelIndependent => _conversationModelIndependent;
+  Future<void> setConversationModelIndependent(bool v) async {
+    if (_conversationModelIndependent == v) return;
+    _conversationModelIndependent = v;
+    notifyListeners();
+    final prefs = _preferences;
+    await prefs.setBool(_conversationModelIndependentKey, v);
+  }
+
   // Display: show message navigation button
   bool _showMessageNavButtons = true;
   bool get showMessageNavButtons => _showMessageNavButtons;
@@ -5297,6 +5311,7 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     copy._regenerateDeleteTrailingMessages = _regenerateDeleteTrailingMessages;
     copy._showRegenerateConfirmDialog = _showRegenerateConfirmDialog;
     copy._forkKeepMessageVersions = _forkKeepMessageVersions;
+    copy._conversationModelIndependent = _conversationModelIndependent;
     copy._showMessageNavButtons = _showMessageNavButtons;
     copy._mobileMessageNavButtonsMode = _mobileMessageNavButtonsMode;
     copy._useNewAssistantAvatarUx = _useNewAssistantAvatarUx;

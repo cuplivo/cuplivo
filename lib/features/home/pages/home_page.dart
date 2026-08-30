@@ -946,9 +946,9 @@ class _HomePageState extends State<HomePage>
 
     return ChatInputOverlayLayout(
       topInset: _chatTopOverlayInset(context),
-      background: backgroundImageActive
-          ? _buildChatBackground(context, cs)
-          : null,
+      // The full-window artwork already sits behind the Scaffold
+      // (MobileBackgroundLayer); painting it again inside the body would only
+      // duplicate it in a box that shrinks with the keyboard.
       topBackground: backgroundImageActive
           ? _buildChatBackground(context, cs)
           : null,

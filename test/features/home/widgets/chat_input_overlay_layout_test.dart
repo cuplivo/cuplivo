@@ -215,4 +215,51 @@ void main() {
     expect(bottomClip.top, 420);
     expect(bottomClip.height, 180);
   });
+
+  testWidgets('键盘弹出时背景仍按键盘收起时的高度布局', (tester) async {
+    const backgroundKey = Key('background');
+    const contentKey = Key('content');
+
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    Widget build() {
+      return const MaterialApp(
+        home: Scaffold(
+          resizeToAvoidBottomInset: true,
+          body: ChatInputOverlayLayout(
+            topInset: 100,
+            backgroundImageActive: true,
+            topBackground: ColoredBox(key: backgroundKey, color: Colors.green),
+            content: ColoredBox(key: contentKey, color: Colors.blue),
+            bottomOverlay: SizedBox(width: 200, height: 50),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(build());
+    final closedContentHeight = tester.getSize(find.byKey(contentKey)).height;
+    final closedBackgroundHeight = tester
+        .getSize(find.byKey(backgroundKey).first)
+        .height;
+    expect(closedBackgroundHeight, closedContentHeight);
+
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    await tester.pumpWidget(build());
+
+    // The body really did shrink around the keyboard...
+    expect(
+      tester.getSize(find.byKey(contentKey)).height,
+      closedContentHeight - 300,
+    );
+    // ...but the artwork keeps its original box, so BoxFit.cover does not
+    // re-crop and the background stays put.
+    expect(
+      tester.getSize(find.byKey(backgroundKey).first).height,
+      closedBackgroundHeight,
+    );
+    expect(tester.getTopLeft(find.byKey(backgroundKey).first).dy, 0);
+  });
 }

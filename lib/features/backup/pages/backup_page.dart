@@ -28,7 +28,7 @@ import '../../../shared/widgets/ios_switch.dart';
 import '../../../shared/dialogs/incremental_backup_dialog.dart';
 import '../../../shared/dialogs/restart_required_dialog.dart';
 import '../../../shared/dialogs/rikkahub_migrate_dialog.dart';
-import '../../../shared/dialogs/kelivo_import_dialog.dart';
+
 import '../../../shared/dialogs/kelivo_compat_dialog.dart';
 import '../../../core/services/backup/cherry_importer.dart';
 import '../../../core/services/backup/chatbox_importer.dart';
@@ -1258,13 +1258,6 @@ class _BackupPageState extends State<BackupPage> {
             icon: Lucide.Import2,
             label: l10n.backupPageImportBackupFile,
             onTap: () => _doImportLocal(context, vm),
-          ),
-          _iosDivider(context),
-          _iosNavRow(
-            context,
-            icon: Lucide.Box,
-            label: l10n.backupPageImportFromKelivo,
-            onTap: () => showKelivoImportDialog(context: context),
           ),
           _iosDivider(context),
           _iosNavRow(

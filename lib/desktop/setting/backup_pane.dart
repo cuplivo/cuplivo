@@ -24,7 +24,6 @@ import '../../shared/widgets/snackbar.dart';
 import '../../shared/dialogs/incremental_backup_dialog.dart';
 import '../../shared/dialogs/restart_required_dialog.dart';
 import '../../shared/dialogs/rikkahub_migrate_dialog.dart';
-import '../../shared/dialogs/kelivo_import_dialog.dart';
 import '../../shared/dialogs/kelivo_compat_dialog.dart';
 import '../../utils/format.dart';
 import '../../features/backup/widgets/backup_reminder_helpers.dart';
@@ -1113,13 +1112,6 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                     );
                   });
                 },
-              ),
-              _DeskIosButton(
-                label: l10n.backupPageImportFromKelivo,
-                icon: lucide.Lucide.Box,
-                filled: false,
-                dense: true,
-                onTap: () => showKelivoImportDialog(context: context),
               ),
               _DeskIosButton(
                 label: l10n.backupPageImportFromRikkaHub,

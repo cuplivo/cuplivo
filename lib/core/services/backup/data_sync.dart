@@ -25,7 +25,7 @@ import '../sync/lan_sync_models.dart' show FileManifestEntry;
 import '../../database/business_preferences.dart';
 import '../../database/business_key_registry.dart';
 import 'kelivo_image_settings_mapper.dart';
-import 'kelivo_v2_exception.dart';
+import 'kelivo_v2_compat_converter.dart';
 import 'double_pref_keys.dart';
 import '../../../utils/app_directories.dart';
 
@@ -2081,12 +2081,23 @@ class DataSync {
       await _runExtractInIsolate(file.path, extractDir.path);
 
       // Kelivo v2 (upstream) backups carry a manifest.json + database/
-      // kelivo.db payload instead of chats.json. This build cannot import
-      // them — importing would silently restore nothing. Surface a typed
-      // error so the UI can redirect to the kelivo-helper compat page.
-      // Detected before ANY write, so nothing local is destroyed.
+      // kelivo.db payload instead of chats.json. Convert the extracted temp
+      // directory in place to the legacy chats.json v1 layout so restore
+      // proceeds seamlessly (port of cup113/kelivo-helper). Unconvertible
+      // manifests (missing/unknown format or version) still throw
+      // KelivoV2BackupException so the UI can offer the kelivo-helper
+      // fallback dialog. Conversion touches only the temp extraction dir,
+      // never local data.
       if (File(p.join(extractDir.path, 'manifest.json')).existsSync()) {
-        throw KelivoV2BackupException();
+        final result = await convertKelivoV2BackupInPlace(extractDir.path);
+        debugPrint('restoreData: kelivo v2 compat conversion: $result');
+        for (final w in result.warnings) {
+          debugPrint('restoreData: kelivo v2 compat warning: $w');
+        }
+        // KelivoV2BackupException (unconvertible manifest) and other
+        // conversion errors propagate: the typed one triggers the
+        // kelivo-helper fallback dialog, the rest are generic failures —
+        // nothing local has been written at this point.
       }
 
       // chats_meta.json sentinel → JSONL v2 format (issue #123)

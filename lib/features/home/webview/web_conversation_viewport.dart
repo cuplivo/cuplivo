@@ -19,6 +19,7 @@ import '../../../theme/app_semantic_colors.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../controllers/conversation_viewport_port.dart';
 import 'android_web_chat_view.dart';
+import 'local_web_chat_shell_server.dart';
 import 'web_chat_protocol.dart';
 import 'web_chat_remote_media.dart';
 import 'web_chat_snapshot.dart';
@@ -77,6 +78,7 @@ class _WebConversationViewportState extends State<WebConversationViewport> {
   ];
 
   WebViewController? _flutterController;
+  LocalWebChatShellServer? _shellServer;
   AndroidWebChatController? _androidController;
   winweb.WebviewController? _windowsController;
   StreamSubscription<dynamic>? _windowsMessageSubscription;
@@ -274,39 +276,62 @@ class _WebConversationViewportState extends State<WebConversationViewport> {
   }
 
   Future<void> _initializeFlutterWebView(int generation) async {
-    final controller =
-        WebViewController(
-            onPermissionRequest: (request) => unawaited(request.deny()),
-          )
-          ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..setBackgroundColor(const Color(0x00000000))
-          ..setNavigationDelegate(
-            NavigationDelegate(
-              onNavigationRequest: (request) {
-                if (!request.isMainFrame || _isLocalShellUrl(request.url)) {
-                  return NavigationDecision.navigate;
-                }
-                unawaited(_openExternalUrl(request.url));
-                return NavigationDecision.prevent;
-              },
-              onWebResourceError: (error) {
-                if (error.isForMainFrame != true) return;
-                debugPrint(
-                  'WebConversationViewport: shell resource failed: '
-                  '${error.errorCode}',
-                );
-                _fail(generation, 'resource_${error.errorCode}');
-              },
-            ),
-          )
-          ..addJavaScriptChannel(
-            'CuplivoChat',
-            onMessageReceived: (message) =>
-                _handleBridgeMessage(message.message),
+    // The shell must load from a loopback HTTP origin (ADR-0051): a
+    // `file://` document origin is opaque on WebKit and blocks the shell's
+    // ES-module graph, so it can never signal `ready`.
+    LocalWebChatShellServer server;
+    try {
+      server = await LocalWebChatShellServer.acquire();
+    } catch (error) {
+      debugPrint(
+        'WebConversationViewport: shell server failed '
+        '(${error.runtimeType})',
+      );
+      _fail(generation, 'shell_server_failed');
+      return;
+    }
+    if (_isStale(generation)) return;
+    _shellServer = server;
+    final controller = WebViewController(
+      onPermissionRequest: (request) => unawaited(request.deny()),
+    );
+    // Ordering matters: every channel/setting registration must complete
+    // before the navigation is issued so `window.CuplivoChat` exists for the
+    // shell's first `ready`.
+    await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
+    await controller.setBackgroundColor(const Color(0x00000000));
+    await controller.setNavigationDelegate(
+      NavigationDelegate(
+        onNavigationRequest: (request) {
+          if (!request.isMainFrame || _isLocalShellUrl(request.url)) {
+            return NavigationDecision.navigate;
+          }
+          unawaited(_openExternalUrl(request.url));
+          return NavigationDecision.prevent;
+        },
+        onWebResourceError: (error) {
+          if (error.isForMainFrame != true) return;
+          debugPrint(
+            'WebConversationViewport: shell resource failed: '
+            '${error.errorCode}',
           );
+          _fail(generation, 'resource_${error.errorCode}');
+        },
+      ),
+    );
+    await controller.addJavaScriptChannel(
+      'CuplivoChat',
+      onMessageReceived: (message) => _handleBridgeMessage(message.message),
+    );
+    await controller.setOnConsoleMessage((message) {
+      debugPrint(
+        'WebConversationViewport: web console ${message.level.name}: '
+        '${message.message}',
+      );
+    });
     if (_isStale(generation)) return;
     _flutterController = controller;
-    await controller.loadFlutterAsset('assets/web_chat/index.html');
+    await controller.loadRequest(server.shellUri);
   }
 
   Future<void> _handleAndroidViewCreated(int viewId, int generation) async {
@@ -349,12 +374,19 @@ class _WebConversationViewportState extends State<WebConversationViewport> {
     }
   }
 
-  bool _isLocalShellUrl(String url) =>
-      url.startsWith('file:') ||
-      url.startsWith('data:') ||
-      url.startsWith('about:') ||
-      url.startsWith('https://$_windowsVirtualHost/') ||
-      url.startsWith('https://appassets.androidplatform.net/');
+  bool _isLocalShellUrl(String url) {
+    if (url.startsWith('file:') ||
+        url.startsWith('data:') ||
+        url.startsWith('about:') ||
+        url.startsWith('https://$_windowsVirtualHost/') ||
+        url.startsWith('https://appassets.androidplatform.net/')) {
+      return true;
+    }
+    final server = _shellServer;
+    if (server == null) return false;
+    final uri = Uri.tryParse(url);
+    return uri != null && server.isLocalShellUri(uri);
+  }
 
   Future<File> _prepareWindowsShell() async {
     final temp = await getTemporaryDirectory();

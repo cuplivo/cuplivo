@@ -299,4 +299,27 @@ void main() {
       );
     },
   );
+
+  test(
+    'Darwin shell loads from a loopback server and awaits channel registration',
+    () {
+      final source = File(
+        'lib/features/home/webview/web_conversation_viewport.dart',
+      ).readAsStringSync();
+
+      expect(source, contains('LocalWebChatShellServer.acquire()'));
+      expect(source, contains('isLocalShellUri'));
+      final acquireAt = source.indexOf('LocalWebChatShellServer.acquire()');
+      final channelAt = source.indexOf('await controller.addJavaScriptChannel');
+      expect(acquireAt, greaterThan(0));
+      expect(channelAt, greaterThan(0));
+      final loadAt = source.indexOf(
+        'await controller.loadRequest(server.shellUri)',
+      );
+      expect(loadAt, greaterThan(0));
+      expect(channelAt, greaterThan(acquireAt));
+      expect(loadAt, greaterThan(channelAt));
+      expect(source.substring(acquireAt, loadAt), contains("'CuplivoChat'"));
+    },
+  );
 }

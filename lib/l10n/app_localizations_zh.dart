@@ -2631,6 +2631,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncPlanNoChanges => '无待同步内容。';
 
   @override
+  String get lanSyncPlanPrioritySettings => '已选择冲突方向：将交换设置数据。';
+
+  @override
   String lanSyncPlanToSendFiles(Object count, Object size) {
     return '将发送 $count 个文件（$size）';
   }
@@ -11799,6 +11802,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncPlanNoChanges => '无待同步内容。';
 
   @override
+  String get lanSyncPlanPrioritySettings => '已选择冲突方向：将交换设置数据。';
+
+  @override
   String lanSyncPlanToSendFiles(Object count, Object size) {
     return '将发送 $count 个文件（$size）';
   }
@@ -20965,6 +20971,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncPlanNoChanges => '無待同步內容。';
+
+  @override
+  String get lanSyncPlanPrioritySettings => '已選擇衝突方向：將交換設定資料。';
 
   @override
   String lanSyncPlanToSendFiles(Object count, Object size) {

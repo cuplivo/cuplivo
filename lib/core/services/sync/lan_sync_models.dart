@@ -254,6 +254,13 @@ class SyncPlan {
   /// outbound per-file delta. Null when the peer is old (`since`-based flow).
   final Map<String, FileManifestEntry>? serverFileManifest;
 
+  /// The server's echo of the initiator's [SyncIndex.syncPriority] (issue
+  /// #615): non-null only when this server READ and accepted the sent value.
+  /// The initiator applies its chosen direction only after receiving an
+  /// identical echo — a mixed-version session (old server ignores the field)
+  /// must fall back to auto on BOTH sides, never apply asymmetric rules.
+  final SyncPriority? syncPriority;
+
   /// Convenience: total conversations with initiator-only increments.
   int get initiatorOnlyCount =>
       conversations.where((c) => c.state == SyncConvState.initiatorOnly).length;
@@ -274,6 +281,7 @@ class SyncPlan {
     this.serverFileCount,
     this.serverFileSizeBytes,
     this.serverFileManifest,
+    this.syncPriority,
   });
 
   Map<String, dynamic> toJson() => {
@@ -287,6 +295,7 @@ class SyncPlan {
       'serverFileManifest': serverFileManifest!.map(
         (k, v) => MapEntry(k, v.toJson()),
       ),
+    if (syncPriority != null) 'syncPriority': syncPriority!.name,
   };
 
   String toJsonString() => jsonEncode(toJson());
@@ -297,6 +306,7 @@ class SyncPlan {
         .toList();
     final sinceStr = json['since'] as String?;
     final manifestRaw = json['serverFileManifest'] as Map<String, dynamic>?;
+    final rawPriority = json['syncPriority'] as String?;
     return SyncPlan(
       conversations: convs,
       missingAssistantIds: (json['missingAssistantIds'] as List).cast<String>(),
@@ -311,6 +321,7 @@ class SyncPlan {
           FileManifestEntry.fromJson((v as Map).cast<String, dynamic>()),
         ),
       ),
+      syncPriority: SyncPriority.tryParse(rawPriority),
     );
   }
 

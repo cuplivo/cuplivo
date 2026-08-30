@@ -2725,6 +2725,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lanSyncPlanNoChanges => 'No changes to sync.';
 
   @override
+  String get lanSyncPlanPrioritySettings =>
+      'Conflict direction chosen: settings will be exchanged.';
+
+  @override
   String lanSyncPlanToSendFiles(Object count, Object size) {
     return '$count files to send ($size)';
   }

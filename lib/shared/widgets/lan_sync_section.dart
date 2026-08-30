@@ -205,9 +205,11 @@ class _LanSyncSectionState extends State<LanSyncSection> {
       // Derive the role-relative conflict direction for THIS device (issue
       // #615): the wire bit is absolute (initiator wins / server wins); this
       // device is the initiator when it is not the server side of the sync.
+      // The initiator only applies a direction the server echoed back —
+      // effectivePriority is null (auto) on mixed-version sessions.
       final priority = isServer
           ? _server.initiatorPriority
-          : _client.chosenPriority;
+          : _client.effectivePriority;
       await _dataSync.restoreFromLocalFile(
         zipFile,
         const WebDavConfig(),
@@ -1072,6 +1074,7 @@ class _ClientDialogState extends State<_ClientDialog> {
                   cs,
                   outboundFileCount: client.outboundFileCount,
                   outboundFileSizeBytes: client.outboundFileSizeBytes,
+                  forceSettingsExchange: client.forceSettingsExchange,
                 ),
               ],
               if (client.restoreProgress != null) ...[
@@ -1270,6 +1273,7 @@ class _ClientSheetState extends State<_ClientSheet> {
                     cs,
                     outboundFileCount: client.outboundFileCount,
                     outboundFileSizeBytes: client.outboundFileSizeBytes,
+                    forceSettingsExchange: client.forceSettingsExchange,
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -1393,12 +1397,16 @@ class _SyncPriorityPicker extends StatelessWidget {
 /// [outboundFileCount]/[outboundFileSizeBytes] are the initiator's own file
 /// payload (computed client-side); [SyncPlan.serverFileCount] is the peer's.
 /// File lines render only when the count is known and > 0.
+/// [forceSettingsExchange] (issue #615) replaces the "no changes" line with a
+/// settings-exchange note when a confirmed conflict direction forces a
+/// settings-only payload despite zero chat/file deltas.
 List<Widget> buildPlanSummary(
   AppLocalizations l10n,
   SyncPlan plan,
   ColorScheme cs, {
   int? outboundFileCount,
   int? outboundFileSizeBytes,
+  bool forceSettingsExchange = false,
 }) {
   // A file-only delta (all conversations identical) is a real sync: the plan
   // must not render "No changes" just because there are no chat increments.
@@ -1407,7 +1415,8 @@ List<Widget> buildPlanSummary(
   if (plan.initiatorOnlyCount == 0 &&
       plan.serverOnlyCount == 0 &&
       plan.forkCount == 0 &&
-      !hasFilePayload) {
+      !hasFilePayload &&
+      !forceSettingsExchange) {
     return [
       Text(
         l10n.lanSyncPlanNoChanges,
@@ -1416,6 +1425,11 @@ List<Widget> buildPlanSummary(
     ];
   }
   return [
+    if (forceSettingsExchange)
+      Text(
+        l10n.lanSyncPlanPrioritySettings,
+        style: TextStyle(fontSize: 14, color: cs.onSurface),
+      ),
     if (plan.initiatorOnlyCount > 0)
       Text(
         l10n.lanSyncPlanToSend(plan.initiatorOnlyCount),

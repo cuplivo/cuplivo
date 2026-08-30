@@ -14,6 +14,25 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 
 var businessPrefs = BusinessPreferences.memoryForTests();
 
+/// Post-#595 content scopes: chats+assistants without file trees (LAN sync
+/// chat direction tests) and settings-only (scalar direction tests).
+const _chatsScope = BackupContentScope(
+  chatsAndAssistants: true,
+  settings: true,
+  attachments: false,
+  workspaces: false,
+  skills: false,
+  fontsAndAvatars: false,
+);
+const _settingsScope = BackupContentScope(
+  chatsAndAssistants: false,
+  settings: true,
+  attachments: false,
+  workspaces: false,
+  skills: false,
+  fontsAndAvatars: false,
+);
+
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.root);
 
@@ -154,7 +173,7 @@ void main() {
         final sync = DataSync(preferences: businessPrefs, chatService: service);
         await sync.restoreFromLocalFile(
           await assistantZip(),
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          WebDavConfig(content: _chatsScope),
           mode: RestoreMode.merge,
         );
 
@@ -184,7 +203,7 @@ void main() {
         final sync = DataSync(preferences: businessPrefs, chatService: service);
         await sync.restoreFromLocalFile(
           await assistantZip(),
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          WebDavConfig(content: _chatsScope),
           mode: RestoreMode.merge,
           precedence: ConflictPrecedence.localWins,
         );
@@ -260,7 +279,7 @@ void main() {
         final sync = DataSync(preferences: businessPrefs, chatService: service);
         await sync.restoreFromLocalFile(
           await directionZip(),
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          WebDavConfig(content: _chatsScope),
           mode: RestoreMode.merge,
         );
 
@@ -290,7 +309,7 @@ void main() {
       final sync = DataSync(preferences: businessPrefs, chatService: service);
       await sync.restoreFromLocalFile(
         await directionZip(),
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        WebDavConfig(content: _chatsScope),
         mode: RestoreMode.merge,
         precedence: ConflictPrecedence.localWins,
       );
@@ -312,7 +331,7 @@ void main() {
       final sync = DataSync(preferences: businessPrefs, chatService: service);
       await sync.restoreFromLocalFile(
         await directionZip(),
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        WebDavConfig(content: _chatsScope),
         mode: RestoreMode.merge,
         precedence: ConflictPrecedence.incomingWins,
       );
@@ -392,7 +411,7 @@ void main() {
       final sync = DataSync(preferences: businessPrefs, chatService: service);
       await sync.restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        WebDavConfig(content: _chatsScope),
         mode: RestoreMode.merge,
         precedence: ConflictPrecedence.incomingWins,
       );
@@ -455,7 +474,7 @@ void main() {
       final sync = DataSync(preferences: businessPrefs, chatService: service);
       await sync.restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        WebDavConfig(content: _chatsScope),
         mode: RestoreMode.merge,
       );
 
@@ -497,7 +516,7 @@ void main() {
         );
         await sync.restoreFromLocalFile(
           await olderBackupZip(),
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          WebDavConfig(content: _settingsScope),
           mode: RestoreMode.merge,
           precedence: ConflictPrecedence.incomingWins,
         );
@@ -531,7 +550,7 @@ void main() {
       );
       await sync.restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: false, includeFiles: false),
+        WebDavConfig(content: _settingsScope),
         mode: RestoreMode.merge,
         precedence: ConflictPrecedence.localWins,
       );

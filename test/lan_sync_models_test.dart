@@ -224,4 +224,40 @@ void main() {
       );
     });
   });
+
+  group('SyncPlan syncPriority echo (issue #615)', () {
+    SyncPlan plan({SyncPriority? echo}) => SyncPlan(
+      conversations: const [],
+      missingAssistantIds: const [],
+      remoteMissingAssistantIds: const [],
+      since: null,
+      syncPriority: echo,
+    );
+
+    test('round-trips the echo', () {
+      final restored = SyncPlan.fromJsonString(
+        plan(echo: SyncPriority.serverWins).toJsonString(),
+      );
+      expect(restored.syncPriority, SyncPriority.serverWins);
+    });
+
+    test('absence serializes no key and parses as null (old peer)', () {
+      final json = plan().toJsonString();
+      expect(json, isNot(contains('syncPriority')));
+      expect(SyncPlan.fromJsonString(json).syncPriority, isNull);
+    });
+
+    test('unknown echo value degrades to null (auto)', () {
+      final restored = SyncPlan.fromJsonString(
+        jsonEncode({
+          'conversations': <dynamic>[],
+          'missingAssistantIds': <dynamic>[],
+          'remoteMissingAssistantIds': <dynamic>[],
+          'since': null,
+          'syncPriority': 'futureMode',
+        }),
+      );
+      expect(restored.syncPriority, isNull);
+    });
+  });
 }

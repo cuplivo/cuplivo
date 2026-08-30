@@ -85,6 +85,32 @@ class LanSyncClient extends ChangeNotifier {
   SyncPriority? _chosenPriority;
   SyncPriority? get chosenPriority => _chosenPriority;
 
+  /// Whether the server echoed an identical, non-null [SyncPriority] in the
+  /// plan (issue #615 mixed-version symmetry). Only then does this device
+  /// apply the chosen direction; otherwise both sides fall back to auto.
+  bool _priorityConfirmed = false;
+
+  /// The direction this device should apply: the chosen priority when the
+  /// server confirmed it, otherwise null (auto).
+  SyncPriority? get effectivePriority =>
+      _priorityConfirmed ? _chosenPriority : null;
+
+  /// Whether a non-auto session must force a settings-only exchange (issue
+  /// #615): no chat delta, no file delta, but a CONFIRMED conflict direction
+  /// was chosen — identical message IDs with different system
+  /// prompts/settings would otherwise produce NO zip and the chosen
+  /// direction would never reach the merge. Unconfirmed choices (old peers)
+  /// never force anything: mixed-version sessions keep today's semantics.
+  bool get forceSettingsExchange {
+    final plan = _plan;
+    if (plan == null) return false;
+    if (effectivePriority == null) return false;
+    if (plan.since != null) return false;
+    if ((_outboundDelta?.isNotEmpty ?? false)) return false;
+    if ((plan.serverFileCount ?? 0) > 0) return false;
+    return true;
+  }
+
   /// Called when the server's zip arrives and has been saved to disk.
   SyncClientZipReceivedCallback? onZipReceived;
 
@@ -151,6 +177,18 @@ class LanSyncClient extends ChangeNotifier {
 
       final plan = SyncPlan.fromJsonString(response.body);
       _plan = plan;
+      // Mixed-version gate (issue #615): apply the chosen direction only
+      // when the server echoed an identical value. Old servers (and unknown
+      // modes that degraded to auto server-side) echo null → this device
+      // falls back to auto too, keeping both sides symmetric.
+      final chosen = _chosenPriority;
+      _priorityConfirmed = chosen != null && plan.syncPriority == chosen;
+      if (chosen != null && !_priorityConfirmed) {
+        debugPrint(
+          'lan sync: server did not confirm syncPriority "${chosen.name}" '
+          '(unknown, old peer or degraded) — using auto',
+        );
+      }
       // Compute our own outbound file payload so the plan preview can show
       // "will send N files". Modern peer: exact per-file delta against the
       // server's manifest. Old peer: stat-only `since`-based count.
@@ -198,26 +236,54 @@ class LanSyncClient extends ChangeNotifier {
 
     try {
       // Build our incremental zip. Triggered by a conversation delta
-      // (`plan.since`) and/or OUR OWN outbound file delta (modern peer). A
-      // server-only delta still requires the exchange (to receive the server's
-      // zip) but must not ship our settings for nothing.
+      // (`plan.since`), OUR OWN outbound file delta (modern peer), or a
+      // forced settings-only exchange when the user picked a non-auto
+      // conflict direction and nothing else has a delta (issue #615 P1:
+      // system-prompt/settings-only conflicts would otherwise never
+      // exchange any payload). A server-only delta still requires the
+      // exchange (to receive the server's zip) but must not ship our
+      // settings for nothing.
       File? myZip;
       final hasConversationDelta = plan.since != null;
       final outboundDelta = _outboundDelta;
       final hasFileDelta = outboundDelta?.isNotEmpty ?? false;
-      if (hasConversationDelta || hasFileDelta) {
+      final forceSettings = forceSettingsExchange;
+      if (hasConversationDelta || hasFileDelta || forceSettings) {
+        // cfg content is irrelevant whenever a contentScope is present
+        // (incremental.effectiveScope wins); the legacy mapped scope is
+        // the pre-#595 behavior (chats+settings+files, skills always).
         final cfg = const WebDavConfig();
-        final incremental = IncrementalBackupConfig(
-          since: plan.since ?? DateTime(2000),
-          // Settings (including assistants and providers) ride settings.json.
-          // Merge restore fills absent slots + unions mergeable lists, so
-          // both peers converge on the union of their configuration.
-          includeSettings: true,
-          includeFiles: true,
-          updateBackupTime: false,
-          conversationSince: _buildConversationSince(plan),
-          includeFilePaths: outboundDelta,
-        );
+        final incremental = forceSettings
+            ? IncrementalBackupConfig(
+                since: DateTime(2000),
+                // Settings/assistants-only payload: chats are excluded via an
+                // empty per-conversation window, file trees are off.
+                includeSettings: true,
+                includeFiles: false,
+                updateBackupTime: false,
+                contentScope: const BackupContentScope(
+                  chatsAndAssistants: true,
+                  settings: true,
+                  attachments: false,
+                  workspaces: false,
+                  skills: false,
+                  fontsAndAvatars: false,
+                ),
+                conversationSince: const {},
+                includeFilePaths: null,
+              )
+            : IncrementalBackupConfig(
+                since: plan.since ?? DateTime(2000),
+                // Settings (including assistants and providers) ride
+                // settings.json. Merge restore fills absent slots + unions
+                // mergeable lists, so both peers converge on the union of
+                // their configuration.
+                includeSettings: true,
+                includeFiles: true,
+                updateBackupTime: false,
+                conversationSince: _buildConversationSince(plan),
+                includeFilePaths: outboundDelta,
+              );
         myZip = await _dataSync.exportToFile(cfg, incremental: incremental);
       }
 
@@ -348,6 +414,7 @@ class LanSyncClient extends ChangeNotifier {
     _outboundDelta = null;
     _localManifest = null;
     _chosenPriority = null;
+    _priorityConfirmed = false;
     _restoreProgress = null;
     _restoreError = null;
     _phase = LanSyncPhase.idle;

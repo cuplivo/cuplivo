@@ -4995,6 +4995,12 @@ abstract class AppLocalizations {
   /// **'No changes to sync.'**
   String get lanSyncPlanNoChanges;
 
+  /// No description provided for @lanSyncPlanPrioritySettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflict direction chosen: settings will be exchanged.'**
+  String get lanSyncPlanPrioritySettings;
+
   /// No description provided for @lanSyncPlanToSendFiles.
   ///
   /// In en, this message translates to:

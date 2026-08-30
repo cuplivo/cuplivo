@@ -1041,6 +1041,7 @@
   "lanSyncPlanToReceive": "{count} conversations to receive",
   "lanSyncPlanForks": "{count} forks detected (skipped in v1)",
   "lanSyncPlanNoChanges": "No changes to sync.",
+  "lanSyncPlanPrioritySettings": "Conflict direction chosen: settings will be exchanged.",
   "lanSyncPlanToSendFiles": "{count} files to send ({size})",
   "lanSyncPlanToReceiveFiles": "{count} files to receive ({size})",
   "lanSyncRestoreExtracting": "Extracting data...",

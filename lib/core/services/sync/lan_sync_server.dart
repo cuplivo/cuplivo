@@ -296,24 +296,51 @@ class LanSyncServer extends ChangeNotifier {
     // Build the server's incremental zip.
     // Modern peer (manifest present): exact per-file delta + per-conversation
     // chat window from the retained plan. Old peer: legacy single-`since`
-    // mtime/chat filter. No zip at all when there is nothing to send.
+    // mtime/chat filter. No zip at all when there is nothing to send —
+    // EXCEPT a non-auto sync priority session (the initiator accepted a
+    // conflict direction): settings/assistant conflicts alone (identical
+    // message IDs) must still exchange a settings-only payload so the chosen
+    // direction actually reaches the merge (issue #615 P1).
     final cfg = const WebDavConfig();
     File? myZip;
     final outboundDelta = _serverOutboundDelta;
-    final hasSomethingToSend =
+    final hasChatOrFileDelta =
         _exchangeSince != null ||
         (outboundDelta != null && outboundDelta.isNotEmpty);
-    if (hasSomethingToSend) {
-      final incremental = IncrementalBackupConfig(
-        since: _exchangeSince ?? since ?? DateTime(2000),
-        // Settings (including assistants and providers) ride settings.json;
-        // merge restore unions them on the receiving side (issue #476).
-        includeSettings: true,
-        includeFiles: true,
-        updateBackupTime: false,
-        conversationSince: _exchangeConversationSince,
-        includeFilePaths: outboundDelta,
-      );
+    final forceSettingsExchange =
+        !hasChatOrFileDelta && _initiatorPriority != null;
+    if (hasChatOrFileDelta || forceSettingsExchange) {
+      final incremental = forceSettingsExchange
+          ? IncrementalBackupConfig(
+              since: DateTime(2000),
+              // Settings (and assistants — they ride the chats bit) are the
+              // whole payload; no chats (empty per-conversation window) and
+              // no file trees have anything to send in this session.
+              includeSettings: true,
+              includeFiles: false,
+              updateBackupTime: false,
+              contentScope: const BackupContentScope(
+                chatsAndAssistants: true,
+                settings: true,
+                attachments: false,
+                workspaces: false,
+                skills: false,
+                fontsAndAvatars: false,
+              ),
+              conversationSince: const {},
+              includeFilePaths: null,
+            )
+          : IncrementalBackupConfig(
+              since: _exchangeSince ?? since ?? DateTime(2000),
+              // Settings (including assistants and providers) ride
+              // settings.json; merge restore unions them on the receiving
+              // side (issue #476).
+              includeSettings: true,
+              includeFiles: true,
+              updateBackupTime: false,
+              conversationSince: _exchangeConversationSince,
+              includeFilePaths: outboundDelta,
+            );
       myZip = await _dataSync.exportToFile(cfg, incremental: incremental);
     }
 
@@ -499,6 +526,11 @@ class LanSyncServer extends ChangeNotifier {
       serverFileCount: serverFileCount,
       serverFileSizeBytes: serverFileSizeBytes,
       serverFileManifest: peerManifest != null ? localManifest : null,
+      // Echo the accepted direction (issue #615 mixed-version symmetry):
+      // the initiator only applies its choice when the server echoes an
+      // identical non-null value — an old server (or an unknown value that
+      // degraded to auto) echoes null and both sides fall back to auto.
+      syncPriority: initiatorIndex.syncPriority,
     );
   }
 

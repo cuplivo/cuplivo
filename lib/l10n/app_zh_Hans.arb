@@ -955,6 +955,7 @@
   "lanSyncPlanToReceive": "{count} 个对话待接收",
   "lanSyncPlanForks": "{count} 处分叉已检测（v1 暂跳过）",
   "lanSyncPlanNoChanges": "无待同步内容。",
+  "lanSyncPlanPrioritySettings": "已选择冲突方向：将交换设置数据。",
   "lanSyncPlanToSendFiles": "将发送 {count} 个文件（{size}）",
   "lanSyncPlanToReceiveFiles": "将接收 {count} 个文件（{size}）",
   "lanSyncRestoreExtracting": "正在解压数据...",

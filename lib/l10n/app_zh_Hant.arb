@@ -919,6 +919,7 @@
   "lanSyncPlanToReceive": "{count} 個對話待接收",
   "lanSyncPlanForks": "{count} 處分叉已偵測（v1 暫跳過）",
   "lanSyncPlanNoChanges": "無待同步內容。",
+  "lanSyncPlanPrioritySettings": "已選擇衝突方向：將交換設定資料。",
   "lanSyncPlanToSendFiles": "將傳送 {count} 個檔案（{size}）",
   "lanSyncPlanToReceiveFiles": "將接收 {count} 個檔案（{size}）",
   "lanSyncRestoreExtracting": "正在解壓資料...",

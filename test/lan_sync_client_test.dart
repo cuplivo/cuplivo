@@ -469,6 +469,156 @@ void main() {
     );
 
     test(
+      'confirmed priority forces a settings-only exchange with no chat delta',
+      () async {
+        // Regression for issue #615 P1: identical message IDs + different
+        // settings/system prompts produce no chat/file delta — a confirmed
+        // non-auto direction must still exchange a settings/assistants-only
+        // payload so the merge direction actually applies.
+        businessPrefs = BusinessPreferences.memoryForTests({});
+        PathProviderPlatform.instance = _FakePathProviderPlatform(tempDir.path);
+
+        final conversation = Conversation(id: 'c1', title: 'Chat 1');
+        await repo.putConversation(conversation);
+        await repo.putMessage(
+          ChatMessage(
+            id: 'm1',
+            role: 'user',
+            content: 'hello',
+            conversationId: 'c1',
+            timestamp: DateTime(2025, 1, 1),
+          ),
+        );
+        chatService._conversations.add(conversation);
+
+        final plan = SyncPlan(
+          conversations: const [],
+          missingAssistantIds: const [],
+          remoteMissingAssistantIds: const [],
+          since: null,
+          syncPriority: SyncPriority.initiatorWins,
+        );
+        late http.Request captured;
+        final lanClient = LanSyncClient(
+          chatService: chatService,
+          dataSync: dataSync,
+          httpClient: MockClient((request) async {
+            if (request.url.path == '/sync/plan') {
+              return http.Response(plan.toJsonString(), 200);
+            }
+            captured = request;
+            return http.Response(
+              '{"empty":true}',
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }),
+        );
+
+        await lanClient.negotiate(
+          host: '192.168.1.100',
+          port: 9527,
+          pin: '1234',
+          syncPriority: SyncPriority.initiatorWins,
+        );
+        expect(lanClient.effectivePriority, SyncPriority.initiatorWins);
+        expect(lanClient.forceSettingsExchange, isTrue);
+
+        await lanClient.exchange(
+          host: '192.168.1.100',
+          port: 9527,
+          pin: '1234',
+        );
+
+        expect(lanClient.phase, LanSyncPhase.noData);
+        expect(captured, isNotNull);
+        final boundary = captured.headers['content-type']!
+            .split('boundary=')
+            .last;
+        final parts = parseMultipartBytes(captured.bodyBytes, boundary);
+        final zipBytes = parts['zip'];
+        expect(zipBytes, isNotNull, reason: 'forced session must ship a zip');
+
+        final archive = ZipDecoder().decodeBytes(zipBytes!);
+        try {
+          expect(archive.findFile('settings.json'), isNotNull);
+          final meta = archive.findFile('chats_meta.json');
+          if (meta != null) {
+            final decoded =
+                jsonDecode(utf8.decode(meta.readBytes()!))
+                    as Map<String, dynamic>;
+            expect(
+              decoded['conversation_count'],
+              0,
+              reason: 'settings-only payload must not export chat data',
+            );
+          }
+        } finally {
+          archive.clearSync();
+        }
+      },
+    );
+
+    test('unconfirmed priority (old server echo null) falls back to auto and '
+        'forces nothing', () async {
+      final lanClient = LanSyncClient(
+        chatService: chatService,
+        dataSync: dataSync,
+        httpClient: clientWith(
+          planResponse: () => http.Response(emptyPlan.toJsonString(), 200),
+          exchangeResponse: () => http.Response(
+            '{"empty":true}',
+            200,
+            headers: {'content-type': 'application/json'},
+          ),
+        ),
+      );
+
+      await lanClient.negotiate(
+        host: '192.168.1.100',
+        port: 9527,
+        pin: '1234',
+        syncPriority: SyncPriority.serverWins,
+      );
+      expect(lanClient.chosenPriority, SyncPriority.serverWins);
+      expect(
+        lanClient.effectivePriority,
+        isNull,
+        reason: 'no echo → auto (mixed-version symmetry)',
+      );
+      expect(lanClient.forceSettingsExchange, isFalse);
+
+      await lanClient.exchange(host: '192.168.1.100', port: 9527, pin: '1234');
+      expect(lanClient.phase, LanSyncPhase.noData);
+    });
+
+    test('identical echo confirms the chosen priority', () async {
+      final plan = SyncPlan(
+        conversations: const [],
+        missingAssistantIds: const [],
+        remoteMissingAssistantIds: const [],
+        since: null,
+        syncPriority: SyncPriority.serverWins,
+      );
+      final lanClient = LanSyncClient(
+        chatService: chatService,
+        dataSync: dataSync,
+        httpClient: clientWith(
+          planResponse: () => http.Response(plan.toJsonString(), 200),
+          exchangeResponse: () => http.Response('unused', 200),
+        ),
+      );
+
+      await lanClient.negotiate(
+        host: '192.168.1.100',
+        port: 9527,
+        pin: '1234',
+        syncPriority: SyncPriority.serverWins,
+      );
+      expect(lanClient.effectivePriority, SyncPriority.serverWins);
+    });
+
+    test(
       'negotiate computes outbound file stats from the plan since',
       () async {
         // Install the fake path provider so countFilesForSince walks real

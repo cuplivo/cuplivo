@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -162,7 +163,19 @@ void main() {
       final client = MockClient((request) async {
         if (request.url.path == '/sync/plan') {
           planBody = request.body;
-          return http.Response(_emptyPlanJson(), 200);
+          // Modern server: echo the accepted direction back.
+          final sent = jsonDecode(request.body) as Map<String, dynamic>;
+          final echo = sent['syncPriority'] as String?;
+          return http.Response(
+            jsonEncode({
+              'conversations': <dynamic>[],
+              'missingAssistantIds': <dynamic>[],
+              'remoteMissingAssistantIds': <dynamic>[],
+              'since': null,
+              if (echo != null) 'syncPriority': echo,
+            }),
+            200,
+          );
         }
         return http.Response('Not found', 404);
       });
@@ -182,6 +195,18 @@ void main() {
         planBody,
         contains('"syncPriority":"initiatorWins"'),
         reason: 'chosen direction must ride the plan request',
+      );
+
+      // Confirmed direction + zero chat/file delta → the plan summary shows
+      // the forced settings-exchange note instead of "No changes to sync.".
+      expect(
+        find.text('No changes to sync.'),
+        findsNothing,
+        reason: 'forced settings exchange is a real sync',
+      );
+      expect(
+        find.text('Conflict direction chosen: settings will be exchanged.'),
+        findsOneWidget,
       );
 
       // After negotiate the picker is locked (choice fixed per session).

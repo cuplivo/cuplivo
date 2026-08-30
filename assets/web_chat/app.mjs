@@ -67,6 +67,18 @@ let touchStartY = null;
 let touchActive = false;
 let pointerStartX = null;
 let pointerStartY = null;
+// Mobile touch devices own panning inside the platform WebView. On iOS,
+// preventDefault() during the early touchmoves makes WebKit classify the
+// gesture as non-scrolling so the page can never be dragged afterwards; on
+// Android, Flutter's gesture arena dispatches the native touch stream only
+// after the vertical recognizer wins, so arming the persistent lock from
+// touch fights the live Chromium pan and reads as a "jelly" kick. Only
+// touch-origin stopScrolling calls ('touch') are exempt on mobile
+// touch devices; programmatic/pointer/bridge calls keep locking.
+const isIosTouchDevice = /iP(hone|od|ad)/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isAndroidTouchDevice = /Android/i.test(navigator.userAgent);
+const isTouchNativeOwned = isIosTouchDevice || isAndroidTouchDevice;
 let scrollStopLock = false;
 let scrollStopFrame = 0;
 let scrollStopTop = 0;
@@ -2669,17 +2681,22 @@ function enforceScrollStop() {
   restoreScrollStopPosition();
   scrollStopFrame = requestAnimationFrame(enforceScrollStop);
 }
-function stopScrolling() {
+function stopScrolling(origin = 'programmatic') {
   // The Flutter/Android bridge may deliver this call slightly after the DOM
   // pointer event. Never restart the lock after this gesture already became a
   // real drag.
   if (gestureActive && gestureIntent !== 'hold') return;
+  timeline.style.scrollBehavior = 'auto';
+  // Mobile touch devices own the pan: a touch-origin call never arms the
+  // persistent lock. Programmatic or non-touch calls (viewport commands,
+  // Flutter bridge, mouse pointers, virtual-window clamping) still arm, and
+  // an already-established programmatic lock is always honored below.
+  if (origin === 'touch' && isTouchNativeOwned && !scrollStopLock) return;
   if (!scrollStopLock) {
     scrollStopLock = true;
     scrollStopTop = timeline.scrollTop;
     scrollStopLeft = timeline.scrollLeft;
   }
-  timeline.style.scrollBehavior = 'auto';
   restoreScrollStopPosition();
   if (!scrollStopFrame) scrollStopFrame = requestAnimationFrame(enforceScrollStop);
 }
@@ -2719,7 +2736,7 @@ timeline.addEventListener('pointerdown', (event) => {
   gestureIntent = 'hold';
   pointerStartX = event.clientX;
   pointerStartY = event.clientY;
-  stopScrolling();
+  stopScrolling(event.pointerType === 'touch' ? 'touch' : 'pointer');
 }, { passive: true });
 timeline.addEventListener('pointermove', (event) => {
   if (virtualWindowLoading) {
@@ -2759,7 +2776,7 @@ timeline.addEventListener('touchstart', (event) => {
   gestureActive = true;
   gestureIntent = 'hold';
   touchActive = true;
-  stopScrolling();
+  stopScrolling('touch');
   setRenderBlocked(true);
   touchStartX = event.touches[0]?.clientX ?? null;
   touchStartY = event.touches[0]?.clientY ?? null;
@@ -2767,7 +2784,7 @@ timeline.addEventListener('touchstart', (event) => {
 timeline.addEventListener('touchmove', (event) => {
   if (virtualWindowLoading) {
     restoreScrollStopPosition();
-    if (event.cancelable) event.preventDefault();
+    if (!isTouchNativeOwned && event.cancelable) event.preventDefault();
     return;
   }
   const currentX = event.touches[0]?.clientX;
@@ -2782,7 +2799,7 @@ timeline.addEventListener('touchmove', (event) => {
   });
   if (intent === 'hold') {
     restoreScrollStopPosition();
-    if (scrollStopLock && event.cancelable) {
+    if (!isTouchNativeOwned && scrollStopLock && event.cancelable) {
       event.preventDefault();
     }
     return;

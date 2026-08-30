@@ -1052,10 +1052,10 @@ test('pointer down cancels momentum before release while preserving a new drag',
   assert.match(appSource, /touchcancel[\s\S]*?releaseScrollStopLock\(\)/);
   const touchStart = appSource.indexOf("timeline.addEventListener('touchstart'");
   const touchStartBody = appSource.slice(touchStart, touchStart + 500);
-  assert.match(touchStartBody, /touchActive = true[\s\S]*?stopScrolling\(\)/);
+  assert.match(touchStartBody, /touchActive = true[\s\S]*?stopScrolling\('touch'\)/);
 });
 
-test('touch jitter below the Flutter slop keeps the scroll lock and blocks native drift', () => {
+test('touch jitter below the Flutter slop classifies as hold with guarded lock wiring', () => {
   assert.equal(
     verticalGestureIntent({ startX: 100, startY: 100, currentX: 110, currentY: 110 }),
     'hold',
@@ -1080,6 +1080,21 @@ test('touch jitter below the Flutter slop keeps the scroll lock and blocks nativ
   assert.match(appSource, /let gestureIntent = 'idle'/);
   assert.match(appSource, /function stopScrolling[\s\S]*?gestureActive[\s\S]*?gestureIntent/);
   assert.match(appSource, /timeline\.addEventListener\('scroll'[\s\S]*?if \(scrollStopLock\)[\s\S]*?return;/);
+});
+
+test('mobile touch calls never arm the persistent lock; origins stay explicit', () => {
+  assert.match(appSource, /const isIosTouchDevice/);
+  assert.match(appSource, /const isAndroidTouchDevice/);
+  assert.match(appSource, /const isTouchNativeOwned = isIosTouchDevice \|\| isAndroidTouchDevice/);
+  assert.match(appSource, /function stopScrolling\(origin = 'programmatic'\)/);
+  assert.match(appSource, /origin === 'touch'[\s\S]*?isTouchNativeOwned[\s\S]*?return;/);
+  assert.match(appSource, /function stopScrolling[\s\S]*?scrollStopLock = true/);
+  assert.match(appSource, /stopScrolling\(event\.pointerType === 'touch' \? 'touch' : 'pointer'\)/);
+  assert.match(appSource, /if \(!isTouchNativeOwned && event\.cancelable\) event\.preventDefault\(\)/);
+  assert.match(appSource, /if \(!isTouchNativeOwned && scrollStopLock && event\.cancelable\)/);
+  const touchStart = appSource.indexOf("timeline.addEventListener('touchstart'");
+  const touchStartBody = appSource.slice(touchStart, touchStart + 500);
+  assert.match(touchStartBody, /stopScrolling\('touch'\)/);
 });
 
 test('code blocks use the Flutter surface, header, and code-view structure', () => {

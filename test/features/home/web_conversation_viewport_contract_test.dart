@@ -11,9 +11,14 @@ void main() {
       ).readAsStringSync();
 
       expect(source, contains('onPointerDown'));
-      expect(source, contains('window.CuplivoWeb?.stopScrolling?.();'));
+      expect(
+        source,
+        contains(r'window.CuplivoWeb?.stopScrolling?.(${jsonEncode(origin)});'),
+      );
+      expect(source, contains("_stopWebScrolling('programmatic')"));
+      expect(source, contains('PointerDeviceKind.touch'));
       expect(source, contains('_windowsController?.executeScript'));
-      expect(source, contains('_androidController?.stopScrolling()'));
+      expect(source, contains('_androidController?.stopScrolling(origin)'));
       expect(source, contains('_flutterController?.runJavaScript'));
     },
   );
@@ -28,10 +33,10 @@ void main() {
       expect(source, contains('_sendViewportCommand'));
       final methodStart = source.indexOf('Future<void> _sendViewportCommand');
       final methodBody = source.substring(methodStart, methodStart + 500);
-      expect(methodBody.indexOf('_stopWebScrolling()'), isNonNegative);
+      expect(methodBody, contains("_stopWebScrolling('programmatic')"));
       expect(
-        methodBody.indexOf('_sendEnvelope(command)'),
-        greaterThan(methodBody.indexOf('_stopWebScrolling()')),
+        methodBody.indexOf("_sendEnvelope(command)"),
+        greaterThan(methodBody.indexOf("_stopWebScrolling('programmatic')")),
       );
     },
   );
@@ -296,12 +301,23 @@ void main() {
       expect(nativeSource, contains('MotionEvent.ACTION_DOWN'));
       expect(nativeSource, contains('"stopScrolling"'));
       expect(nativeSource, contains('webView.flingScroll(0, 0)'));
-      expect(nativeSource, contains('window.CuplivoWeb?.stopScrolling?.();'));
-      expect(nativeSource, contains('stopScrolling { result.success(null) }'));
-      expect(nativeSource, contains('onComplete?.invoke()'));
+      expect(
+        nativeSource,
+        contains("window.CuplivoWeb?.stopScrolling?.('touch');"),
+      );
+      expect(
+        nativeSource,
+        contains("window.CuplivoWeb?.stopScrolling?.('programmatic');"),
+      );
+      expect(
+        nativeSource,
+        contains('stopScrolling(call.arguments as? String)'),
+      );
       expect(
         controllerSource,
-        contains("Future<void> stopScrolling() => _invoke('stopScrolling')"),
+        contains(
+          "Future<void> stopScrolling([String origin = 'programmatic'])",
+        ),
       );
     },
   );

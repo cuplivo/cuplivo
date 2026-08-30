@@ -19,12 +19,12 @@ enum AutoSnapshotOutcome { created, deduplicated, skipped, failed }
 /// the configured interval has elapsed and fires when it has; cold starts and
 /// background resumes recompute the elapsed time through the same check, so a
 /// month-long gap produces exactly one catch-up snapshot on open.
-class AutoSnapshotProvider extends ChangeNotifier
-    with WidgetsBindingObserver {
+class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
   AutoSnapshotProvider({
     required this.preferences,
     required this.chatService,
     bool autoLoad = true,
+    this.serviceFactory,
   }) {
     if (autoLoad) {
       unawaited(load());
@@ -41,6 +41,10 @@ class AutoSnapshotProvider extends ChangeNotifier
   final BusinessPreferences preferences;
   final ChatService chatService;
 
+  /// Overrides service construction — a test seam for providers that need to
+  /// observe or control snapshot timing. Null in production.
+  final AutoSnapshotService Function()? serviceFactory;
+
   late AutoSnapshotService _service;
 
   bool _loaded = false;
@@ -49,6 +53,7 @@ class AutoSnapshotProvider extends ChangeNotifier
   int _intervalMinutes = 1440;
   DateTime? _lastSnapshotAt;
   bool _busy = false;
+  Future<AutoSnapshotOutcome>? _inflight;
   String? _lastError;
   List<SnapshotMetadata> _snapshots = const [];
   Timer? _ticker;
@@ -67,18 +72,21 @@ class AutoSnapshotProvider extends ChangeNotifier
       preferences.getInt(_intervalMinutesKey) ?? 1440,
     );
     _lastSnapshotAt = _parseDate(preferences.getString(_lastSnapshotAtKey));
-    _service = AutoSnapshotService(
-      exportBackup: () => DataSync(
-        chatService: chatService,
-        preferences: preferences,
-      ).exportToFile(
-        // The snapshot is a local full backup; no remote config is used.
-        const WebDavConfig(),
-      ),
-      assistantCount: _countAssistants,
-      conversationCount: _countConversations,
-      messageCount: _countMessages,
-    );
+    _service =
+        serviceFactory?.call() ??
+        AutoSnapshotService(
+          exportBackup: () =>
+              DataSync(
+                chatService: chatService,
+                preferences: preferences,
+              ).exportToFile(
+                // The snapshot is a local full backup; no remote config is used.
+                const WebDavConfig(),
+              ),
+          assistantCount: _countAssistants,
+          conversationCount: _countConversations,
+          messageCount: _countMessages,
+        );
     _serviceBuilt = true;
     await refreshSnapshots();
     _loaded = true;
@@ -90,6 +98,11 @@ class AutoSnapshotProvider extends ChangeNotifier
   /// Turns the feature off. If [deleteSnapshots] is true (default), all
   /// stored snapshots are removed for good — the UI prompts for this before
   /// calling. The schedule anchor is cleared either way.
+  ///
+  /// A snapshot created by the enable baseline or a due tick may still be in
+  /// flight (exports take seconds to minutes); it is awaited first so the
+  /// delete can never race it and resurrect a snapshot the user confirmed to
+  /// be permanently removed.
   Future<void> setEnabled(bool value, {bool deleteSnapshots = true}) async {
     if (value) {
       _enabled = true;
@@ -101,6 +114,13 @@ class AutoSnapshotProvider extends ChangeNotifier
     } else {
       _stopTicker();
       _enabled = false;
+      notifyListeners();
+      final inflight = _inflight;
+      if (inflight != null) {
+        // createSnapshot never throws on its own — failures surface as
+        // AutoSnapshotOutcome.failed — so awaiting is always safe.
+        await inflight;
+      }
       await preferences.setBool(_enabledKey, false);
       _lastSnapshotAt = null;
       await preferences.remove(_lastSnapshotAtKey);
@@ -128,6 +148,18 @@ class AutoSnapshotProvider extends ChangeNotifier
     }
     _busy = true;
     notifyListeners();
+    final future = _createSnapshotInternal();
+    _inflight = future;
+    try {
+      return await future;
+    } finally {
+      _inflight = null;
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<AutoSnapshotOutcome> _createSnapshotInternal() async {
     try {
       final result = await _service.createSnapshot();
       _lastError = null;
@@ -152,9 +184,6 @@ class AutoSnapshotProvider extends ChangeNotifier
       // next tick retries.
       _lastError = e.toString();
       return AutoSnapshotOutcome.failed;
-    } finally {
-      _busy = false;
-      notifyListeners();
     }
   }
 
@@ -253,4 +282,3 @@ class AutoSnapshotProvider extends ChangeNotifier
     super.dispose();
   }
 }
-

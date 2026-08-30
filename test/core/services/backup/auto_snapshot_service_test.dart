@@ -119,77 +119,112 @@ void main() {
       expect(zip.existsSync(), isTrue);
     });
 
-    test('deduplicates when payload is identical to the newest snapshot',
-        () async {
-      final service = _service(root, exporter);
-      await service.createSnapshot();
-      final result = await service.createSnapshot();
-
-      expect(result.status, AutoSnapshotStatus.deduplicated);
-      final snapshots = await service.listSnapshots();
-      expect(snapshots, hasLength(1));
-      expect(exporter.calls, 2);
-    });
-
-    test('creates a new snapshot when payload changes, and evicts FIFO at 3',
-        () async {
-      final service = _service(root, exporter);
-      final names = <String>[];
-      for (var i = 0; i < 4; i++) {
-        if (i > 0) {
-          // Distinct second-precision timestamps keep the FIFO order strict.
-          await Future<void>.delayed(const Duration(milliseconds: 1100));
-        }
-        exporter.payload = {
-          'chats_meta.json': utf8.encode(
-            jsonEncode({
-              'format_version': 2,
-              'conversation_count': i,
-              'message_count': i * 10,
-            }),
-          ),
-          'conversations.jsonl': utf8.encode('$i\n'),
-        };
+    test(
+      'deduplicates when payload is identical to the newest snapshot',
+      () async {
+        final service = _service(root, exporter);
+        await service.createSnapshot();
         final result = await service.createSnapshot();
-        expect(result.status, AutoSnapshotStatus.created);
-        names.add(result.metadata!.fileName);
-      }
 
-      final snapshots = await service.listSnapshots();
-      expect(snapshots, hasLength(3));
-      // Newest first: the first-created snapshot was evicted.
-      expect(
-        snapshots.map((s) => s.fileName).toSet(),
-        names.sublist(1).toSet(),
+        expect(result.status, AutoSnapshotStatus.deduplicated);
+        final snapshots = await service.listSnapshots();
+        expect(snapshots, hasLength(1));
+        expect(exporter.calls, 2);
+      },
+    );
+
+    test(
+      'creates a new snapshot when payload changes, and evicts FIFO at 3',
+      () async {
+        final service = _service(root, exporter);
+        final names = <String>[];
+        for (var i = 0; i < 4; i++) {
+          if (i > 0) {
+            // Distinct second-precision timestamps keep the FIFO order strict.
+            await Future<void>.delayed(const Duration(milliseconds: 1100));
+          }
+          exporter.payload = {
+            'chats_meta.json': utf8.encode(
+              jsonEncode({
+                'format_version': 2,
+                'conversation_count': i,
+                'message_count': i * 10,
+              }),
+            ),
+            'conversations.jsonl': utf8.encode('$i\n'),
+          };
+          final result = await service.createSnapshot();
+          expect(result.status, AutoSnapshotStatus.created);
+          names.add(result.metadata!.fileName);
+        }
+
+        final snapshots = await service.listSnapshots();
+        expect(snapshots, hasLength(3));
+        // Newest first: the first-created snapshot was evicted.
+        expect(
+          snapshots.map((s) => s.fileName).toSet(),
+          names.sublist(1).toSet(),
+        );
+        // Sidecars are cleaned up together with their zips.
+        final dir = await service.snapshotDirectory();
+        expect(
+          dir
+              .listSync()
+              .whereType<File>()
+              .where((f) => f.path.endsWith('.json'))
+              .length,
+          3,
+        );
+      },
+    );
+
+    test(
+      'failed export leaves the snapshot store completely untouched',
+      () async {
+        final service = _service(root, exporter);
+        await service.createSnapshot();
+        final before = await service.listSnapshots();
+
+        exporter.failNext = true;
+        await expectLater(service.createSnapshot(), throwsException);
+
+        final after = await service.listSnapshots();
+        expect(after, hasLength(before.length));
+        expect(after.first.fileName, before.first.fileName);
+        expect(after.first.contentHash, before.first.contentHash);
+        // No stray temp files inside the snapshot directory.
+        final dir = await service.snapshotDirectory();
+        expect(dir.listSync().whereType<File>().length, 2); // zip + sidecar
+      },
+    );
+
+    test('count failure leaves the snapshot store byte-identical', () async {
+      final service = AutoSnapshotService(
+        exportBackup: exporter.export,
+        assistantCount: () async => throw StateError('db busy'),
+        conversationCount: () async => 7,
+        messageCount: () async => 42,
+        rootDirectoryResolver: () async => root,
       );
-      // Sidecars are cleaned up together with their zips.
-      final dir = await service.snapshotDirectory();
-      expect(
-        dir
-            .listSync()
-            .whereType<File>()
-            .where((f) => f.path.endsWith('.json'))
-            .length,
-        3,
-      );
-    });
+      final before = await service.snapshotDirectory();
+      // Only the temp export and the to-be-created dir exist now.
+      final preState = before.existsSync()
+          ? before
+                .listSync()
+                .map((e) => '${e.statSync().size}:${e.uri.pathSegments.last}')
+                .toList()
+          : const <String>[];
 
-    test('failed export leaves the snapshot store completely untouched',
-        () async {
-      final service = _service(root, exporter);
-      await service.createSnapshot();
-      final before = await service.listSnapshots();
-
-      exporter.failNext = true;
       await expectLater(service.createSnapshot(), throwsException);
 
-      final after = await service.listSnapshots();
-      expect(after, hasLength(before.length));
-      expect(after.first.fileName, before.first.fileName);
-      expect(after.first.contentHash, before.first.contentHash);
-      // No stray temp files inside the snapshot directory.
-      final dir = await service.snapshotDirectory();
-      expect(dir.listSync().whereType<File>().length, 2); // zip + sidecar
+      final after = await service.snapshotDirectory();
+      final postState = after
+          .listSync()
+          .map((e) => '${e.statSync().size}:${e.uri.pathSegments.last}')
+          .toList();
+      expect(postState, preState);
+      // The failed attempt must not leave the exported temp file behind.
+      expect(workDir.listSync(), isEmpty);
     });
 
     test('rejects a zip without the sentinel entry', () async {
@@ -200,15 +235,13 @@ void main() {
       expect(await service.listSnapshots(), isEmpty);
     });
 
-    test('corrupt sidecar falls back to filesystem-derived metadata',
-        () async {
+    test('corrupt sidecar falls back to filesystem-derived metadata', () async {
       final service = _service(root, exporter);
       await service.createSnapshot();
       final dir = await service.snapshotDirectory();
-      final sidecar = dir
-          .listSync()
-          .whereType<File>()
-          .firstWhere((f) => f.path.endsWith('.json'));
+      final sidecar = dir.listSync().whereType<File>().firstWhere(
+        (f) => f.path.endsWith('.json'),
+      );
       await sidecar.writeAsString('{ not json');
 
       final snapshots = await service.listSnapshots();
@@ -269,11 +302,15 @@ void main() {
         chatService: ChatService(),
       );
       final backupFile = await sync.prepareBackupFile(
-        const WebDavConfig(includeChats: false, includeFiles: true),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: false,
+            attachments: true,
+          ),
+        ),
       );
 
-      final input = InputFileStream(backupFile.path);
-      final archive = ZipDecoder().decodeStream(input);
+      final archive = ZipDecoder().decodeBytes(backupFile.readAsBytesSync());
       final names = archive.map((e) => e.name).toList();
       expect(
         names.where((n) => n.contains('auto_snapshots')),
@@ -281,6 +318,5 @@ void main() {
         reason: 'Snapshots must not travel with backups: $names',
       );
     });
-
   });
 }

@@ -101,8 +101,11 @@ class AutoSnapshotException implements Exception {
 ///
 /// Atomicity contract: a snapshot only becomes visible after its zip has been
 /// fully written elsewhere and moved into place; the sidecar is written after
-/// the move, and eviction runs last. Any failure before those steps deletes
-/// the temporary file and leaves the existing snapshots untouched.
+/// the move, and eviction runs last. Any failure before the move deletes the
+/// temporary file and leaves the existing snapshots untouched; a failure
+/// after the move (counts are computed before it, so the remaining risk is a
+/// sidecar write) rolls the committed zip + sidecar back, so the store stays
+/// byte-identical on every failed attempt.
 class AutoSnapshotService {
   AutoSnapshotService({
     required this._exportBackup,
@@ -144,8 +147,7 @@ class AutoSnapshotService {
     for (final ent in dir.listSync()) {
       if (ent is! File || !ent.path.endsWith('.json')) continue;
       try {
-        final json =
-            jsonDecode(ent.readAsStringSync()) as Map<String, dynamic>;
+        final json = jsonDecode(ent.readAsStringSync()) as Map<String, dynamic>;
         result.add(SnapshotMetadata.fromJson(json));
       } catch (_) {
         // Corrupt sidecar: fall back to what the filesystem itself tells us
@@ -221,13 +223,27 @@ class AutoSnapshotService {
         } catch (_) {
           // Best effort; temp leftovers are cleaned by the OS eventually.
         }
-        return const AutoSnapshotResult(
-          AutoSnapshotStatus.deduplicated,
-          null,
-        );
+        return const AutoSnapshotResult(AutoSnapshotStatus.deduplicated, null);
       }
 
       final now = DateTime.now();
+
+      // Counts run BEFORE the commit point: they read the database and may
+      // fail (or be slow). A failure here must leave the store untouched —
+      // never after the zip has already been moved into place.
+      final int assistantCount;
+      final int conversationCount;
+      final int messageCount;
+      try {
+        assistantCount = await _assistantCount();
+        conversationCount = await _conversationCount();
+        messageCount = await _messageCount();
+      } catch (e) {
+        throw AutoSnapshotException(
+          'Snapshot metadata failed: ${e.toString()}',
+        );
+      }
+
       final baseName = '$_zipPrefix${_fileTimestamp(now)}';
       var fileName = '$baseName.zip';
       // Second-precision timestamps can collide on rapid consecutive
@@ -239,29 +255,45 @@ class AutoSnapshotService {
       }
       final target = File('${dir.path}/$fileName');
 
-      // Same-volume atomic move; fall back to copy+delete across volumes.
+      final SnapshotMetadata meta;
       try {
-        tempBackup.renameSync(target.path);
-      } catch (_) {
-        tempBackup.copySync(target.path);
-        tempBackup.deleteSync();
-      }
-      if (!target.existsSync()) {
-        throw AutoSnapshotException('Snapshot move failed');
-      }
+        // Same-volume atomic move; fall back to copy+delete across volumes.
+        try {
+          tempBackup.renameSync(target.path);
+        } catch (_) {
+          tempBackup.copySync(target.path);
+          tempBackup.deleteSync();
+        }
+        if (!target.existsSync()) {
+          throw AutoSnapshotException('Snapshot move failed');
+        }
 
-      final meta = SnapshotMetadata(
-        fileName: fileName,
-        createdAt: now,
-        sizeBytes: target.lengthSync(),
-        assistantCount: await _assistantCount(),
-        conversationCount: await _conversationCount(),
-        messageCount: await _messageCount(),
-        contentHash: hash,
-      );
-      File('${dir.path}/$fileName.json').writeAsStringSync(
-        jsonEncode(meta.toJson()),
-      );
+        meta = SnapshotMetadata(
+          fileName: fileName,
+          createdAt: now,
+          sizeBytes: target.lengthSync(),
+          assistantCount: assistantCount,
+          conversationCount: conversationCount,
+          messageCount: messageCount,
+          contentHash: hash,
+        );
+        File(
+          '${dir.path}/$fileName.json',
+        ).writeAsStringSync(jsonEncode(meta.toJson()));
+      } catch (e) {
+        // Post-commit failure (move, sidecar write, disk full, ...): roll the
+        // pair back so the store stays byte-identical to the pre-attempt
+        // state — the caller reports failure but no orphan survives.
+        try {
+          target.deleteSync();
+        } catch (_) {}
+        try {
+          File('${dir.path}/$fileName.json').deleteSync();
+        } catch (_) {}
+        throw e is AutoSnapshotException
+            ? e
+            : AutoSnapshotException('Snapshot commit failed: ${e.toString()}');
+      }
 
       await _evict(dir);
       return AutoSnapshotResult(AutoSnapshotStatus.created, meta);
@@ -295,15 +327,20 @@ class AutoSnapshotService {
   /// snapshot is durable, so a failure here can at worst leave one extra
   /// snapshot (self-heals on the next cycle) — never data loss.
   Future<void> _evict(Directory dir) async {
-    final current = await listSnapshots();
-    if (current.length <= maxSnapshots) return;
-    for (final meta in current.skip(maxSnapshots)) {
-      try {
-        final zip = File('${dir.path}/${meta.fileName}');
-        if (zip.existsSync()) zip.deleteSync();
-        final sidecar = File('${dir.path}/${meta.fileName}.json');
-        if (sidecar.existsSync()) sidecar.deleteSync();
-      } catch (_) {}
+    try {
+      final current = await listSnapshots();
+      if (current.length <= maxSnapshots) return;
+      for (final meta in current.skip(maxSnapshots)) {
+        try {
+          final zip = File('${dir.path}/${meta.fileName}');
+          if (zip.existsSync()) zip.deleteSync();
+          final sidecar = File('${dir.path}/${meta.fileName}.json');
+          if (sidecar.existsSync()) sidecar.deleteSync();
+        } catch (_) {}
+      }
+    } catch (_) {
+      // Best effort: evicting is not part of the atomic snapshot contract —
+      // a transient IO error leaves one extra snapshot, cleaned next cycle.
     }
   }
 
@@ -311,10 +348,11 @@ class AutoSnapshotService {
   /// `name:size:crc32` lines fed to SHA-256. Independent of zip header
   /// mtimes and compression metadata.
   String _hashEntries(List<_ZipEntryInfo> entries) {
-    final lines = entries
-        .map((e) => '${e.name}:${e.uncompressedSize}:${e.crc32}')
-        .toList()
-      ..sort();
+    final lines =
+        entries
+            .map((e) => '${e.name}:${e.uncompressedSize}:${e.crc32}')
+            .toList()
+          ..sort();
     return sha256.convert(utf8.encode(lines.join('\n'))).toString();
   }
 

@@ -2549,17 +2549,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get autoSnapshotDisableTitle => '关闭自动快照？';
-
-  @override
-  String autoSnapshotDisableBody(int count) {
-    return '关闭会永久删除已有的 $count 份快照。确定继续吗？';
-  }
-
-  @override
-  String get autoSnapshotDisableConfirm => '关闭并删除';
-
-  @override
   String get lanSyncSectionTitle => '局域网同步';
 
   @override
@@ -11953,17 +11942,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get autoSnapshotDisableTitle => '关闭自动快照？';
-
-  @override
-  String autoSnapshotDisableBody(int count) {
-    return '关闭会永久删除已有的 $count 份快照。确定继续吗？';
-  }
-
-  @override
-  String get autoSnapshotDisableConfirm => '关闭并删除';
-
-  @override
   String get lanSyncSectionTitle => '局域网同步';
 
   @override
@@ -21355,17 +21333,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String backupEntryDateWithYear(Object date, Object year) {
     return '$date（$year）';
   }
-
-  @override
-  String get autoSnapshotDisableTitle => '關閉自動快照？';
-
-  @override
-  String autoSnapshotDisableBody(int count) {
-    return '關閉會永久刪除已有的 $count 份快照。確定繼續嗎？';
-  }
-
-  @override
-  String get autoSnapshotDisableConfirm => '關閉並刪除';
 
   @override
   String get lanSyncSectionTitle => '區域網路同步';

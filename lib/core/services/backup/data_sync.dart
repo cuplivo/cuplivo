@@ -259,16 +259,11 @@ class DataSync {
   }
 
   /// Runs [action] while holding the cross-feature backup activity gate, so
-  /// the auto-snapshot scheduler can tell a backup/restore is in flight and
-  /// defer its tick. Reference-counted — nested gated calls are safe.
-  Future<T> _gated<T>(Future<T> Function() action) async {
-    BackupActivityGate.begin();
-    try {
-      return await action();
-    } finally {
-      BackupActivityGate.end();
-    }
-  }
+  /// an auto snapshot never overlaps a backup/restore/export and vice versa.
+  /// The gate is a FIFO exclusive permit; nested calls along the same async
+  /// chain (e.g. `backupToWebDav` -> `prepareBackupFile`) re-enter safely.
+  Future<T> _gated<T>(Future<T> Function() action) =>
+      BackupActivityGate.scoped(action);
 
   Future<File> prepareBackupFile(
     WebDavConfig cfg, {

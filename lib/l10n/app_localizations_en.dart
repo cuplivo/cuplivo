@@ -2656,17 +2656,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get autoSnapshotDisableTitle => 'Turn off Auto Snapshots?';
-
-  @override
-  String autoSnapshotDisableBody(int count) {
-    return 'Turning off will permanently delete $count existing snapshot(s). Continue?';
-  }
-
-  @override
-  String get autoSnapshotDisableConfirm => 'Turn off & Delete';
-
-  @override
   String get lanSyncSectionTitle => 'LAN Sync';
 
   @override

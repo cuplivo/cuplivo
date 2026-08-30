@@ -148,7 +148,7 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
     _busy = true;
     notifyListeners();
-    final future = _createSnapshotInternal();
+    final future = BackupActivityGate.scoped(_createSnapshotInternal);
     _inflight = future;
     try {
       return await future;

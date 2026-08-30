@@ -801,18 +801,18 @@ class _BackupPageState extends State<BackupPage> {
             },
           ),
           _iosDivider(context),
-          _iosNavRow(
-            context,
+          BackupActionRow(
             icon: Lucide.Timer,
             label: l10n.autoSnapshotFrequencyTitle,
-            detailText: intervalLabel(snapshotProvider.intervalMinutes),
+            value: intervalLabel(snapshotProvider.intervalMinutes),
+            enabled: snapshotProvider.enabled,
             onTap: snapshotProvider.enabled ? chooseFrequency : null,
           ),
           _iosDivider(context),
-          _iosNavRow(
-            context,
+          BackupActionRow(
             icon: Lucide.History,
             label: l10n.autoSnapshotCreateNow,
+            enabled: !snapshotProvider.busy,
             onTap: snapshotProvider.busy ? null : createNow,
           ),
         ],
@@ -825,9 +825,9 @@ class _BackupPageState extends State<BackupPage> {
             l10n.autoSnapshotEnableSubtitle,
             style: TextStyle(
               fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurface.withValues(
-                alpha: 0.55,
-              ),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.55),
             ),
           ),
         ),
@@ -841,9 +841,9 @@ class _BackupPageState extends State<BackupPage> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: AppFontWeights.semibold,
-              color: Theme.of(context).colorScheme.onSurface.withValues(
-                alpha: 0.8,
-              ),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.8),
             ),
           ),
         ),
@@ -852,10 +852,7 @@ class _BackupPageState extends State<BackupPage> {
         _iosSectionCard(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 14,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
               child: Row(
                 children: [
                   SizedBox(
@@ -863,9 +860,9 @@ class _BackupPageState extends State<BackupPage> {
                     child: Icon(
                       Lucide.History,
                       size: 20,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(
-                        alpha: 0.5,
-                      ),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -874,8 +871,9 @@ class _BackupPageState extends State<BackupPage> {
                       l10n.autoSnapshotEmpty,
                       style: TextStyle(
                         fontSize: 15,
-                        color: Theme.of(context).colorScheme.onSurface
-                            .withValues(alpha: 0.5),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
                     ),
                   ),
@@ -903,8 +901,9 @@ class _BackupPageState extends State<BackupPage> {
   ) {
     final cs = Theme.of(context).colorScheme;
     final dateText = DateFormat('yyyy-MM-dd HH:mm').format(meta.createdAt);
-    final countsText = AppLocalizations.of(context)!
-        .autoSnapshotMetaCounts(meta.assistantCount, meta.conversationCount);
+    final countsText = AppLocalizations.of(
+      context,
+    )!.autoSnapshotMetaCounts(meta.assistantCount, meta.conversationCount);
     final sizeText = formatBytes(meta.sizeBytes);
     return _TactileRow(
       onTap: () => _restoreAutoSnapshot(context, meta, vm),
@@ -915,10 +914,7 @@ class _BackupPageState extends State<BackupPage> {
           base: cs.onSurface.withValues(alpha: 0.9),
           builder: (c) {
             return Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 11,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
               child: Row(
                 children: [
                   SizedBox(
@@ -991,11 +987,8 @@ class _BackupPageState extends State<BackupPage> {
     try {
       await _runWithImportingOverlay(
         context,
-        (onProgress) => vm.restoreFromLocalFile(
-          file,
-          mode: mode,
-          onProgress: onProgress,
-        ),
+        (onProgress) =>
+            vm.restoreFromLocalFile(file, mode: mode, onProgress: onProgress),
       );
     } catch (e) {
       if (!context.mounted) return;

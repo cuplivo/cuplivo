@@ -217,6 +217,26 @@ void main() {
       // Counts are unknown once the sidecar is gone.
       expect(snapshots.first.conversationCount, 0);
     });
+
+    test('deleteAllSnapshots removes every stored snapshot', () async {
+      final service = _service(root, exporter);
+      await service.createSnapshot();
+      exporter.payload['conversations.jsonl'] = utf8.encode('{}\n{}\n');
+      await service.createSnapshot();
+
+      final before = await service.listSnapshots();
+      expect(before, hasLength(2));
+
+      await service.deleteAllSnapshots();
+      expect(await service.listSnapshots(), isEmpty);
+
+      final dir = await service.snapshotDirectory();
+      expect(
+        dir.listSync().whereType<File>(),
+        isEmpty,
+        reason: 'No zip or sidecar should remain after deleteAllSnapshots',
+      );
+    });
   });
 
   group('Auto snapshots stay out of backups', () {
@@ -262,24 +282,5 @@ void main() {
       );
     });
 
-    test('deleteAllSnapshots removes every stored snapshot', () async {
-      final service = _service(root, exporter);
-      await service.createSnapshot();
-      exporter.payload['conversations.jsonl'] = utf8.encode('{}\n{}\n');
-      await service.createSnapshot();
-
-      final before = await service.listSnapshots();
-      expect(before, hasLength(2));
-
-      await service.deleteAllSnapshots();
-      expect(await service.listSnapshots(), isEmpty);
-
-      final dir = await service.snapshotDirectory();
-      expect(
-        dir.listSync().whereType<File>(),
-        isEmpty,
-        reason: 'No zip or sidecar should remain after deleteAllSnapshots',
-      );
-    });
   });
 }

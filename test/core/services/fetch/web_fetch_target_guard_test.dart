@@ -29,9 +29,12 @@ void main() {
         '169.254.169.254',
         '100.64.0.1',
         '0.0.0.0',
+        '198.18.1.1',
+        '198.19.255.255',
         '[::1]',
         '[fe80::1]',
         '[fc00::1]',
+        '[::ffff:198.18.1.1]',
       ]) {
         final reason = WebFetchTargetGuard.literalBlockReason(
           Uri.parse('http://$host/path'),
@@ -77,6 +80,83 @@ void main() {
         Uri.parse('http://127.0.0.1/path'),
       );
       expect(reason, isNull); // literal path is handled by literalBlockReason
+    });
+
+    test(
+      'fake-IP DNS answers (198.18/15) are allowed through the resolver',
+      () async {
+        // A fake-IP proxy resolves a public hostname into a synthetic address
+        // inside 198.18.0.0/15. This must NOT be reported as blocked, otherwise
+        // every ordinary page fails under Clash / mihomo / sing-box.
+        final original = WebFetchTargetGuard.redirectResolve;
+        WebFetchTargetGuard.redirectResolve = (_) async => [
+          InternetAddress('198.18.1.1'),
+        ];
+        addTearDown(() => WebFetchTargetGuard.redirectResolve = original);
+        final reason = await WebFetchTargetGuard.resolvedBlockReason(
+          Uri.parse('http://fake-ip.example.com/path'),
+        );
+        expect(
+          reason,
+          isNull,
+          reason: 'fake-IP range must not trip the SSRF guard',
+        );
+      },
+    );
+
+    test(
+      'IPv4-mapped fake-IP DNS answer is allowed through the resolver',
+      () async {
+        // The fake-IP exemption must apply to the IPv6-mapped form
+        // (::ffff:198.18.x.x) too, otherwise resolvers returning mapped answers
+        // still trip the guard.
+        final original = WebFetchTargetGuard.redirectResolve;
+        WebFetchTargetGuard.redirectResolve = (_) async => [
+          InternetAddress('::ffff:198.18.1.1'),
+        ];
+        addTearDown(() => WebFetchTargetGuard.redirectResolve = original);
+        final reason = await WebFetchTargetGuard.resolvedBlockReason(
+          Uri.parse('http://fake-ip.example.com/path'),
+        );
+        expect(
+          reason,
+          isNull,
+          reason: 'mapped fake-IP range must not trip the SSRF guard',
+        );
+      },
+    );
+
+    test(
+      'resolver still blocks RFC1918 even when allowed fake-IP range',
+      () async {
+        // The fake-IP exemption only relaxes the 198.18/15 benchmark block;
+        // genuine private-address answers must remain blocked.
+        final original = WebFetchTargetGuard.redirectResolve;
+        WebFetchTargetGuard.redirectResolve = (_) async => [
+          InternetAddress('10.0.0.5'),
+        ];
+        addTearDown(() => WebFetchTargetGuard.redirectResolve = original);
+        final reason = await WebFetchTargetGuard.resolvedBlockReason(
+          Uri.parse('http://internal.example.com/path'),
+        );
+        expect(
+          reason,
+          isNotNull,
+          reason: 'RFC1918 answer must still be blocked after fake-IP fix',
+        );
+      },
+    );
+
+    test('resolver blocks metadata and loopback answers', () async {
+      final original = WebFetchTargetGuard.redirectResolve;
+      WebFetchTargetGuard.redirectResolve = (_) async => [
+        InternetAddress('169.254.169.254'),
+      ];
+      addTearDown(() => WebFetchTargetGuard.redirectResolve = original);
+      final reason = await WebFetchTargetGuard.resolvedBlockReason(
+        Uri.parse('http://metadata.example.com/path'),
+      );
+      expect(reason, isNotNull);
     });
   });
 

@@ -10,6 +10,11 @@ import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 /// (169.254.169.254) — and in download mode write those bytes into
 /// `@workspaces`. Every direct connection is validated before a socket is
 /// opened, and each redirect hop is re-validated.
+///
+/// DNS-layer limits (see also [resolvedBlockReason]): under a fake-IP proxy,
+/// answers cannot distinguish virtual from real hosts; IPv6 fake-IP ranges
+/// (user-configured `fake-ip-range6`, ULA space) are deliberately not
+/// exempted since fc00::/7 is also a genuine internal range.
 class WebFetchTargetGuard {
   WebFetchTargetGuard._();
 
@@ -37,6 +42,12 @@ class WebFetchTargetGuard {
     return null;
   }
 
+  /// Resolver hook so tests can inject synthetic DNS answer sets without
+  /// depending on the real network. Defaults to the platform resolver.
+  @visibleForTesting
+  static Future<List<InternetAddress>> Function(String host) redirectResolve =
+      (String host) => InternetAddress.lookup(host);
+
   /// Returns a rejection reason when [url]'s hostname resolves to a blocked
   /// address, otherwise null. Best-effort: DNS failures are not treated as
   /// blocked (the connection itself will surface the real error). Only
@@ -48,13 +59,24 @@ class WebFetchTargetGuard {
     }
     final List<InternetAddress> addresses;
     try {
-      addresses = await InternetAddress.lookup(url.host);
+      addresses = await redirectResolve(url.host);
     } catch (e) {
       debugPrint('[web_fetch] DNS lookup failed for ${url.host}: $e');
       return null;
     }
     for (final address in addresses) {
-      if (_isBlockedAddress(address)) {
+      // DNS answers that fall inside the fake-IP range (198.18.0.0/15,
+      // IANA benchmark space) are NOT real targets. They are virtual
+      // addresses injected by a fake-IP proxy (Clash / mihomo / sing-box
+      // default to this range): the OS resolves the public hostname into a
+      // synthetic loopback-like address that the proxy then rewrites in
+      // software. Treating these as blocked would reject every ordinary
+      // public site under such a proxy. Tradeoff: under a fake-IP proxy,
+      // internal-only hostnames (e.g. intranet.corp.com) also resolve to
+      // fake addresses and are routed to the real internal host by the
+      // proxy, so hostname-level SSRF protection is inherently limited —
+      // only literal-IP URLs and `localhost` stay hard-blocked.
+      if (_isBlockedAddress(address, allowFakeIpRange: true)) {
         return '${url.host} resolves to $address, a loopback/private/'
             'link-local/metadata address and not an allowed web_fetch target';
       }
@@ -62,7 +84,10 @@ class WebFetchTargetGuard {
     return null;
   }
 
-  static bool _isBlockedAddress(InternetAddress address) {
+  static bool _isBlockedAddress(
+    InternetAddress address, {
+    bool allowFakeIpRange = false,
+  }) {
     if (address.isLoopback || address.isLinkLocal) return true;
     if (address.rawAddress.isEmpty) return true;
     if (address.type == InternetAddressType.IPv6) {
@@ -87,6 +112,7 @@ class WebFetchTargetGuard {
           raw[11] == 0xff) {
         return _isBlockedAddress(
           InternetAddress.fromRawAddress(raw.sublist(12)),
+          allowFakeIpRange: allowFakeIpRange,
         );
       }
       return false;
@@ -102,7 +128,12 @@ class WebFetchTargetGuard {
     if (a == 169 && b == 254) return true; // link-local / metadata
     if (a == 172 && b >= 16 && b <= 31) return true; // 172.16/12
     if (a == 192 && b == 168) return true; // 192.168/16
-    if (a == 198 && (b == 18 || b == 19)) return true; // benchmark
+    // 198.18.0.0/15 is the IANA benchmark block. Its only real-world use is
+    // the fake-IP range of Clash / mihomo / sing-box proxies, so answers in
+    // DNS lookups are virtual injected addresses, not real internal hosts.
+    // Only let those through when the address came from a resolved lookup;
+    // an explicit literal IP in that range is still rejected below.
+    if (a == 198 && (b == 18 || b == 19) && !allowFakeIpRange) return true;
     if (a >= 224) return true; // multicast + reserved
     return false;
   }

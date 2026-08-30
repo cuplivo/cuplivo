@@ -8,6 +8,8 @@ import {
   commitPendingMeasurements,
   createAdaptiveStreamPresenter,
   createExpansionCoordinator,
+  createFontFaceRegistrator,
+  createFontFaceTracker,
   createFrameCoalescer,
   createRenderCommitCoordinator,
   createRenderGate,
@@ -46,6 +48,8 @@ const heights = new Map();
 const pendingMeasuredHeights = new Map();
 const pendingActions = new Map();
 const pendingMedia = new Set();
+const fontFaceTracker = createFontFaceTracker();
+const fontRegistrator = createFontFaceRegistrator(fontFaceTracker);
 const localExpansions = new Map();
 const mountedSlots = new Map();
 const presentedStreamContent = new Map();
@@ -499,6 +503,67 @@ function applyTheme() {
     document.body.dataset.hasBackground = 'false';
   }
   applyAppearance();
+  applyFonts();
+}
+
+// Must match WebChatFontFace.appFaceFamily / codeFaceFamily in
+// lib/features/home/webview/web_chat_snapshot.dart; the print contract test
+// keeps the two sides in sync.
+const FACE_FAMILIES = ['Cuplivo WebApp Font', 'Cuplivo WebCode Font'];
+
+function applyFonts() {
+  if (!state) return;
+  applyFontFamily(
+    '--cuplivo-app-font',
+    state.display?.appFont,
+    '--cuplivo-default-app-font',
+    FACE_FAMILIES[0],
+  );
+  applyFontFamily(
+    '--cuplivo-code-font',
+    state.display?.codeFont,
+    '--cuplivo-default-code-font',
+    FACE_FAMILIES[1],
+  );
+}
+
+function applyFontFamily(variable, font, chainVariable, faceFamily) {
+  if (!font?.family) {
+    fontFaceTracker.expect(null, faceFamily);
+    document.documentElement.style.removeProperty(variable);
+    return;
+  }
+  if (font.handle) {
+    fontFaceTracker.expect(font.handle, font.family);
+    const outcome = fontFaceTracker.begin(
+      font.handle,
+      font.family,
+      state.media?.[font.handle],
+    );
+    if (!outcome.tracked) {
+      if (outcome.cached) {
+        registerFontFaces(font.handle, [font.family], state.media[font.handle]);
+      } else {
+        requestMedia(font.handle);
+      }
+    }
+  } else {
+    fontFaceTracker.expect(null, faceFamily);
+  }
+  document.documentElement.style.setProperty(
+    variable,
+    `'${font.family}', var(${chainVariable})`,
+  );
+}
+
+function registerFontFaces(handle, families, dataUrl) {
+  fontRegistrator.register({
+    fonts: document.fonts,
+    load: (family, url) => new FontFace(family, `url("${url}")`).load(),
+    handle,
+    families,
+    dataUrl,
+  });
 }
 
 function sendAction(action, messageId = null, payload = {}) {
@@ -3137,6 +3202,10 @@ function handleMediaResult(payload) {
     media: { ...(state.media ?? {}), [payload.handle]: payload.dataUrl },
   };
   pendingMedia.delete(payload.handle);
+  const transferFamilies = fontFaceTracker.takeTransfer(payload.handle);
+  if (transferFamilies?.size) {
+    registerFontFaces(payload.handle, transferFamilies, payload.dataUrl);
+  }
   for (const image of document.querySelectorAll('img[data-media-handle]')) {
     if (image.dataset.mediaHandle === payload.handle) image.src = payload.dataUrl;
   }
@@ -3185,6 +3254,8 @@ window.CuplivoWeb = {
             localExpansions.clear();
             pendingActions.clear();
             pendingMedia.clear();
+            fontRegistrator.removeAll(document.fonts);
+            fontFaceTracker.reset();
             heights.clear();
             pendingMeasuredHeights.clear();
             mountedSlots.clear();
@@ -3222,6 +3293,11 @@ window.CuplivoWeb = {
           envelope.renderSessionId === state.renderSessionId &&
           envelope.conversationId === state.conversationId) {
         pendingMedia.delete(envelope.handle);
+        if (envelope.code === 'inactive') {
+          fontFaceTracker.cancel(envelope.handle);
+        } else {
+          fontFaceTracker.failTransfer(envelope.handle);
+        }
       }
       else if (envelope.type === 'viewportCommand') handleViewportCommand(envelope);
     } catch (error) {

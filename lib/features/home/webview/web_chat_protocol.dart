@@ -1,10 +1,16 @@
 import 'dart:convert';
 import 'dart:math';
 
-const int webChatProtocolVersion = 4;
-const String webChatAssetVersion = 'web-chat-v18';
+const int webChatProtocolVersion = 5;
+const String webChatAssetVersion = 'web-chat-v19';
 const int webChatMaxChunkBytes = 128 * 1024;
 const int webChatMaxChunkPayloadBytes = 95 * 1024;
+
+/// Cap for media payloads served over the Web bridge (avatars, images).
+const int webChatMediaMaxBytes = 16 * 1024 * 1024;
+
+/// Cap for font payloads: CJK collections can exceed the image cap.
+const int webChatFontMaxBytes = 32 * 1024 * 1024;
 
 /// Latest-wins buffer for streaming message patches.
 ///

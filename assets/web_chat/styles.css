@@ -26,6 +26,10 @@
   --cuplivo-user-avatar-background: Canvas;
   --cuplivo-assistant-avatar-background: Canvas;
   --cuplivo-font-scale: 1;
+  --cuplivo-default-app-font: system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --cuplivo-default-code-font: ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", monospace;
   --cuplivo-background-mask-top: transparent;
   --cuplivo-background-mask-bottom: transparent;
   --cuplivo-content-top-inset: 8px;
@@ -38,7 +42,8 @@ body {
   position: relative;
   background: transparent;
   color: var(--cuplivo-on-surface);
-  font: calc(15px * var(--cuplivo-font-scale))/1.55 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font: calc(15px * var(--cuplivo-font-scale))/1.55 var(--cuplivo-default-app-font);
+  font-family: var(--cuplivo-app-font, var(--cuplivo-default-app-font));
   -webkit-tap-highlight-color: transparent;
 }
 #chat-background {
@@ -419,8 +424,7 @@ body[data-background-style="solid"] :is(
   padding: 0;
   color: var(--cuplivo-code-text, var(--cuplivo-on-surface));
   background: transparent;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", monospace;
+  font-family: var(--cuplivo-code-font, var(--cuplivo-default-code-font));
   font-size: calc(13px * var(--cuplivo-font-scale));
   line-height: 1.5;
 }

@@ -561,14 +561,19 @@ class _WebConversationViewportState extends State<WebConversationViewport> {
           'webp' => 'image/webp',
           'svg' when source.kind == WebChatMediaSourceKind.bundledAsset =>
             'image/svg+xml',
+          'ttf' => 'font/ttf',
+          'otf' => 'font/otf',
+          'ttc' => 'font/collection',
           _ => null,
         };
         if (mime == null) {
           throw const WebChatProtocolException('unsupported media type');
         }
+        final isFontMime = mime.startsWith('font/');
         final bytes = switch (source.kind) {
           WebChatMediaSourceKind.localFile => await _readLocalMedia(
             source.value,
+            maxBytes: isFontMime ? webChatFontMaxBytes : webChatMediaMaxBytes,
           ),
           WebChatMediaSourceKind.bundledAsset => await _readBundledMedia(
             source.value,
@@ -591,6 +596,15 @@ class _WebConversationViewportState extends State<WebConversationViewport> {
         debugPrint(
           'WebConversationViewport: discarded inactive media response',
         );
+        // The payload never arrived: tell the shell so it can cancel the
+        // pending request and retry when the source becomes active again.
+        await _sendEnvelope(<String, dynamic>{
+          'type': 'mediaError',
+          'renderSessionId': requestSessionId,
+          'conversationId': requestConversationId,
+          'handle': handle,
+          'code': 'inactive',
+        });
         return;
       }
       final payload = <String, dynamic>{
@@ -632,18 +646,21 @@ class _WebConversationViewportState extends State<WebConversationViewport> {
     }
   }
 
-  Future<Uint8List> _readLocalMedia(String path) async {
+  Future<Uint8List> _readLocalMedia(
+    String path, {
+    int maxBytes = webChatMediaMaxBytes,
+  }) async {
     final resolvedPath = SandboxPathResolver.fix(path);
     final file = File(resolvedPath);
     if (!await file.exists()) {
       throw const FileSystemException('media file does not exist');
     }
     final length = await file.length();
-    if (length > 16 * 1024 * 1024) {
+    if (length > maxBytes) {
       throw const WebChatProtocolException('local media exceeds size limit');
     }
     final bytes = await file.readAsBytes();
-    if (bytes.length > 16 * 1024 * 1024) {
+    if (bytes.length > maxBytes) {
       throw const WebChatProtocolException('local media exceeds size limit');
     }
     return bytes;

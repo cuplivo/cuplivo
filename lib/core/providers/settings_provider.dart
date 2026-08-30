@@ -1932,6 +1932,8 @@ class SettingsProvider extends ChangeNotifier {
   bool get codeFontIsGoogle => _codeFontIsGoogle;
   String? get appFontLocalAlias => _appFontLocalAlias;
   String? get codeFontLocalAlias => _codeFontLocalAlias;
+  String? get appFontLocalPath => _appFontLocalPath;
+  String? get codeFontLocalPath => _codeFontLocalPath;
 
   // Use alias if a local font is set and successfully registered
   String? get _effectiveAppFontAlias =>

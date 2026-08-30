@@ -11,6 +11,8 @@ import {
   commitPendingMeasurements,
   createAdaptiveStreamPresenter,
   createExpansionCoordinator,
+  createFontFaceRegistrator,
+  createFontFaceTracker,
   createFrameCoalescer,
   createRenderCommitCoordinator,
   createVirtualWindowCoordinator,
@@ -92,7 +94,7 @@ test('transfer chunks reassemble UTF-8 snapshots', () => {
   let result = null;
   for (const [index, chunk] of chunks.entries()) {
     result = receiveTransferChunk({
-      protocolVersion: 4,
+      protocolVersion: 5,
       transferId: 'utf8-transfer',
       index,
       total: chunks.length,
@@ -103,14 +105,14 @@ test('transfer chunks reassemble UTF-8 snapshots', () => {
 });
 
 test('snapshot reducer rejects an older revision in the same session', () => {
-  const current = { type: 'snapshot', protocolVersion: 4, assetVersion: 'web-chat-v18', renderSessionId: 's', renderRevision: 4, messages: [] };
+  const current = { type: 'snapshot', protocolVersion: 5, assetVersion: 'web-chat-v19', renderSessionId: 's', renderRevision: 4, messages: [] };
   const older = { ...current, renderRevision: 3, messages: [{ id: 'old' }] };
   assert.equal(reduceEnvelope(current, older), current);
 });
 
 test('new snapshots retain resolved opaque media only in the same session', () => {
   const current = {
-    type: 'snapshot', protocolVersion: 4, assetVersion: 'web-chat-v18',
+    type: 'snapshot', protocolVersion: 5, assetVersion: 'web-chat-v19',
     renderSessionId: 's', renderRevision: 4, messages: [],
     media: { 'asset:icon': 'data:image/svg+xml;base64,PHN2Zy8+' },
   };
@@ -186,6 +188,294 @@ test('stream patches can register opaque media without leaking it into messages'
   assert.match(appSource, /return messagePatch/);
 });
 
+test('font faces never drop the default chains and stay role-switchable', () => {
+  assert.match(appSource, /createFontFaceTracker\(\)/);
+  assert.match(appSource, /createFontFaceRegistrator\(fontFaceTracker\)/);
+  assert.match(appSource, /fontFaceTracker\.begin\(/);
+  assert.match(appSource, /fontFaceTracker\.expect\(/);
+  assert.match(appSource, /registerFontFaces\(font\.handle, \[font\.family\], state\.media\[font\.handle\]\)/);
+  assert.match(appSource, /fontRegistrator\.register\(\{/);
+  assert.match(appSource, /fontFaceTracker\.cancel\(envelope\.handle\)/);
+  assert.match(appSource, /var\(\$\{chainVariable\}\)/);
+  assert.match(appSource, /removeProperty\(variable\)/);
+  assert.match(appSource, /fontRegistrator\.removeAll\(document\.fonts\)/);
+  assert.match(appSource, /fontFaceTracker\.reset\(\)/);
+
+  assert.match(appSource, /Cuplivo WebApp Font/);
+  assert.match(appSource, /Cuplivo WebCode Font/);
+  assert.match(styleSource, /--cuplivo-default-app-font/);
+  assert.match(styleSource, /--cuplivo-default-code-font/);
+  assert.match(styleSource, /var\(--cuplivo-app-font, var\(--cuplivo-default-app-font\)\)/);
+  assert.match(styleSource, /var\(--cuplivo-code-font, var\(--cuplivo-default-code-font\)\)/);
+});
+
+test('font map: a cached handle can drop into a second role later', () => {
+  const tracker = createFontFaceTracker();
+  // First role uses the transfer path: no cached bytes, so both the transfer
+  // queue and the request happens.
+  tracker.expect('h', 'Cuplivo WebApp Font');
+  const app = tracker.begin('h', 'Cuplivo WebApp Font', undefined);
+  assert.deepEqual(app, { tracked: false, cached: false });
+  tracker.takeTransfer('h');
+  assert.equal(tracker.complete('h', 'Cuplivo WebApp Font'), true);
+
+  // The same file is later assigned to the code role. The cached data URL
+  // means no transfer is queued and the new family must be registered.
+  tracker.expect('h', 'Cuplivo WebCode Font');
+  const code = tracker.begin('h', 'Cuplivo WebCode Font', 'data:font/ttf;base64,AA');
+  assert.deepEqual(code, { tracked: false, cached: true });
+  assert.equal(tracker.takeTransfer('h'), undefined);
+  assert.equal(tracker.complete('h', 'Cuplivo WebCode Font'), true);
+
+  assert.deepEqual(tracker.begin('h', 'Cuplivo WebApp Font', undefined), { tracked: true });
+  assert.deepEqual(tracker.begin('h', 'Cuplivo WebCode Font', undefined), { tracked: true });
+});
+
+test('font map: a transfer carries every queued family once', () => {
+  const tracker = createFontFaceTracker();
+  tracker.begin('h', 'Cuplivo WebApp Font', undefined);
+  tracker.begin('h', 'Cuplivo WebCode Font', undefined);
+  const queued = tracker.takeTransfer('h');
+  assert.equal(queued.size, 2);
+  assert.equal(tracker.takeTransfer('h'), undefined);
+});
+
+test('font map: failed roles do not retry until the session resets', () => {
+  const tracker = createFontFaceTracker();
+  tracker.expect('h', 'Cuplivo WebCode Font');
+  tracker.begin('h', 'Cuplivo WebCode Font', undefined);
+  tracker.failTransfer('h');
+  assert.deepEqual(tracker.begin('h', 'Cuplivo WebCode Font', undefined), { tracked: true });
+  assert.equal(tracker.takeTransfer('h'), undefined);
+
+  tracker.reset();
+  assert.deepEqual(tracker.begin('h', 'Cuplivo WebCode Font', undefined), { tracked: false, cached: false });
+});
+
+test('font map: replacing the file of a role evicts the previous face owner', () => {
+  const tracker = createFontFaceTracker();
+  tracker.expect('hA', 'Cuplivo WebApp Font');
+  tracker.begin('hA', 'Cuplivo WebApp Font', 'data:a');
+  assert.equal(tracker.complete('hA', 'Cuplivo WebApp Font'), true);
+  assert.equal(tracker.adopt('hA', 'Cuplivo WebApp Font'), null);
+
+  tracker.expect('hB', 'Cuplivo WebApp Font');
+  tracker.begin('hB', 'Cuplivo WebApp Font', 'data:b');
+  assert.equal(tracker.complete('hB', 'Cuplivo WebApp Font'), true);
+  assert.equal(tracker.adopt('hB', 'Cuplivo WebApp Font'), 'hA');
+
+  assert.equal(tracker.adopt('hB', 'Cuplivo WebApp Font'), null);
+});
+
+test('font map: inactive cancels stay retryable while hard failures do not', () => {
+  const tracker = createFontFaceTracker();
+  tracker.begin('h', 'Cuplivo WebApp Font', undefined);
+  tracker.cancel('h');
+  assert.deepEqual(tracker.begin('h', 'Cuplivo WebApp Font', undefined), { tracked: false, cached: false });
+
+  tracker.expect('h', 'Cuplivo WebApp Font');
+  tracker.begin('h', 'Cuplivo WebApp Font', undefined);
+  tracker.failTransfer('h');
+  assert.deepEqual(tracker.begin('h', 'Cuplivo WebApp Font', undefined), { tracked: true });
+});
+
+test('font map: a stale failure drops the pending state and stays retryable', () => {
+  const tracker = createFontFaceTracker();
+  tracker.expect('hA', 'Cuplivo WebApp Font');
+  tracker.begin('hA', 'Cuplivo WebApp Font', undefined);
+  tracker.expect(null, 'Cuplivo WebApp Font');
+  tracker.fail('hA', 'Cuplivo WebApp Font');
+  assert.deepEqual(
+    tracker.begin('hA', 'Cuplivo WebApp Font', 'data:a'),
+    { tracked: false, cached: true },
+  );
+});
+
+test('font map: cancel never resets a completed face', () => {
+  const tracker = createFontFaceTracker();
+  tracker.expect('h', 'Cuplivo WebApp Font');
+  tracker.begin('h', 'Cuplivo WebApp Font', 'data:cached');
+  assert.equal(tracker.complete('h', 'Cuplivo WebApp Font'), true);
+  tracker.cancel('h');
+  assert.deepEqual(tracker.begin('h', 'Cuplivo WebApp Font', undefined), { tracked: true });
+});
+
+test('font map: leaving the handle track invalidates in-flight tasks', () => {
+  const tracker = createFontFaceTracker();
+  tracker.expect('hA', 'Cuplivo WebApp Font');
+  tracker.begin('hA', 'Cuplivo WebApp Font', undefined);
+  tracker.expect(null, 'Cuplivo WebApp Font');
+  assert.equal(tracker.complete('hA', 'Cuplivo WebApp Font'), false);
+  assert.deepEqual(
+    tracker.begin('hA', 'Cuplivo WebApp Font', 'data:a'),
+    { tracked: false, cached: true },
+  );
+});
+
+class FakeFontSet {
+  constructor() {
+    this.faces = new Set();
+  }
+
+  add(face) {
+    this.faces.add(face);
+  }
+
+  delete(face) {
+    this.faces.delete(face);
+  }
+
+  has(face) {
+    return this.faces.has(face);
+  }
+
+  get size() {
+    return this.faces.size;
+  }
+}
+
+function createDeferredFontLoads() {
+  const pending = new Map();
+  return {
+    load: (family, dataUrl) => new Promise((resolve) => {
+      const list = pending.get(dataUrl) ?? [];
+      list.push(resolve);
+      pending.set(dataUrl, list);
+    }),
+    resolve: (dataUrl, face) => pending.get(dataUrl).shift()(face),
+  };
+}
+
+const flushMicrotasks = () => new Promise((resolve) => setImmediate(resolve));
+
+test('font registration: a late completion of a replaced handle never adopts', async () => {
+  const tracker = createFontFaceTracker();
+  const fonts = new FakeFontSet();
+  const registrar = createFontFaceRegistrator(tracker);
+  const loads = createDeferredFontLoads();
+  const faceA = { family: 'Cuplivo WebApp Font', name: 'face-a' };
+  const faceB = { family: 'Cuplivo WebApp Font', name: 'face-b' };
+
+  // A is selected, its media fetch starts, then the role moves to B before
+  // A's load finishes.
+  tracker.expect('hA', 'Cuplivo WebApp Font');
+  tracker.begin('hA', 'Cuplivo WebApp Font', undefined);
+  registrar.register({
+    fonts, load: loads.load,
+    handle: 'hA', families: ['Cuplivo WebApp Font'], dataUrl: 'data:a',
+  });
+  tracker.expect('hB', 'Cuplivo WebApp Font');
+  tracker.begin('hB', 'Cuplivo WebApp Font', undefined);
+  registrar.register({
+    fonts, load: loads.load,
+    handle: 'hB', families: ['Cuplivo WebApp Font'], dataUrl: 'data:b',
+  });
+
+  // B finishes first and owns the family.
+  loads.resolve('data:b', faceB);
+  await flushMicrotasks();
+  assert.equal(fonts.size, 1);
+  assert.equal(fonts.has(faceB), true);
+
+  // A finishes afterwards: stale, it must not adopt or evict B.
+  loads.resolve('data:a', faceA);
+  await flushMicrotasks();
+  assert.equal(fonts.has(faceB), true, 'the late completion must not evict the current face');
+  assert.equal(fonts.has(faceA), false, 'a stale face must never be registered');
+  assert.equal(fonts.size, 1);
+
+  // The stale task dropped its pending state, so re-selecting hA works.
+  assert.deepEqual(
+    tracker.begin('hA', 'Cuplivo WebApp Font', 'data:a'),
+    { tracked: false, cached: true },
+  );
+});
+
+test('font registration: re-selecting an evicted handle re-registers from cache', async () => {
+  const tracker = createFontFaceTracker();
+  const fonts = new FakeFontSet();
+  const registrar = createFontFaceRegistrator(tracker);
+  const loads = createDeferredFontLoads();
+  const faceA = { family: 'Cuplivo WebApp Font', name: 'face-a' };
+  const faceB = { family: 'Cuplivo WebApp Font', name: 'face-b' };
+  const faceA2 = { family: 'Cuplivo WebApp Font', name: 'face-a-2' };
+
+  tracker.expect('hA', 'Cuplivo WebApp Font');
+  tracker.begin('hA', 'Cuplivo WebApp Font', undefined);
+  registrar.register({
+    fonts, load: loads.load,
+    handle: 'hA', families: ['Cuplivo WebApp Font'], dataUrl: 'data:a',
+  });
+  loads.resolve('data:a', faceA);
+  await flushMicrotasks();
+  assert.equal(fonts.size, 1);
+  assert.equal(fonts.has(faceA), true);
+
+  // hB replaces A: the A face is evicted ...
+  tracker.expect('hB', 'Cuplivo WebApp Font');
+  tracker.begin('hB', 'Cuplivo WebApp Font', undefined);
+  registrar.register({
+    fonts, load: loads.load,
+    handle: 'hB', families: ['Cuplivo WebApp Font'], dataUrl: 'data:b',
+  });
+  loads.resolve('data:b', faceB);
+  await flushMicrotasks();
+  assert.equal(fonts.size, 1);
+  assert.equal(fonts.has(faceB), true);
+  assert.equal(fonts.has(faceA), false);
+
+  // ... so coming back to hA re-registers from the cached data URL.
+  tracker.expect('hA', 'Cuplivo WebApp Font');
+  assert.deepEqual(
+    tracker.begin('hA', 'Cuplivo WebApp Font', 'data:a'),
+    { tracked: false, cached: true },
+  );
+  registrar.register({
+    fonts, load: loads.load,
+    handle: 'hA', families: ['Cuplivo WebApp Font'], dataUrl: 'data:a',
+  });
+  loads.resolve('data:a', faceA2);
+  await flushMicrotasks();
+  assert.equal(fonts.size, 1);
+  assert.equal(fonts.has(faceA2), true);
+  assert.equal(fonts.has(faceB), false);
+});
+
+test('font registration: session reset removes faces and neuters in-flight tasks', async () => {
+  const tracker = createFontFaceTracker();
+  const fonts = new FakeFontSet();
+  const registrar = createFontFaceRegistrator(tracker);
+  const loads = createDeferredFontLoads();
+  const faceA = { family: 'Cuplivo WebApp Font', name: 'face-a' };
+  const faceB = { family: 'Cuplivo WebApp Font', name: 'face-b' };
+
+  tracker.expect('hA', 'Cuplivo WebApp Font');
+  tracker.begin('hA', 'Cuplivo WebApp Font', undefined);
+  registrar.register({
+    fonts, load: loads.load,
+    handle: 'hA', families: ['Cuplivo WebApp Font'], dataUrl: 'data:a',
+  });
+  loads.resolve('data:a', faceA);
+  await flushMicrotasks();
+  assert.equal(fonts.size, 1);
+
+  // A transfer is still in flight when the render session resets.
+  tracker.expect('hB', 'Cuplivo WebApp Font');
+  tracker.begin('hB', 'Cuplivo WebApp Font', undefined);
+  registrar.register({
+    fonts, load: loads.load,
+    handle: 'hB', families: ['Cuplivo WebApp Font'], dataUrl: 'data:b',
+  });
+  registrar.removeAll(fonts);
+  assert.equal(fonts.size, 0);
+  tracker.reset();
+
+  // The old session task resolves after the reset: it must not resurface.
+  loads.resolve('data:b', faceB);
+  await flushMicrotasks();
+  assert.equal(fonts.size, 0, 'a task from the old session must not re-register');
+});
+
 test('typed appearance maps only the three supported surfaces and clears defaults', () => {
   assert.match(appSource, /const appearanceSurfaces = \{[\s\S]*?userBubble: 'user'[\s\S]*?assistantBubble: 'assistant'[\s\S]*?processCard: 'process'/);
   assert.match(appSource, /\^#\[0-9a-f\]\{6\}/i);
@@ -205,7 +495,7 @@ test('typed appearance maps only the three supported surfaces and clears default
 
 test('same-session streaming snapshots preserve a newer live patch', () => {
   const state = {
-    type: 'snapshot', protocolVersion: 4, assetVersion: 'web-chat-v18',
+    type: 'snapshot', protocolVersion: 5, assetVersion: 'web-chat-v19',
     renderSessionId: 's', conversationId: 'c', renderRevision: 2,
     messages: [{ id: 'm', content: 'new', isStreaming: true, streamRevision: 7 }],
   };
@@ -220,7 +510,7 @@ test('same-session streaming snapshots preserve a newer live patch', () => {
 
 test('live translation survives unrelated snapshots until it is finalized', () => {
   const state = {
-    type: 'snapshot', protocolVersion: 4, assetVersion: 'web-chat-v18',
+    type: 'snapshot', protocolVersion: 5, assetVersion: 'web-chat-v19',
     renderSessionId: 's', conversationId: 'c', renderRevision: 2,
     messages: [{
       id: 'm', content: 'answer', isStreaming: false,

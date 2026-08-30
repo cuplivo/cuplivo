@@ -91,8 +91,8 @@ void main() {
     );
 
     final rendered = (snapshot['messages'] as List).single as Map;
-    expect(snapshot['protocolVersion'], 4);
-    expect(snapshot['assetVersion'], 'web-chat-v18');
+    expect(snapshot['protocolVersion'], 5);
+    expect(snapshot['assetVersion'], 'web-chat-v19');
     expect(snapshot['initialViewportMode'], 'anchor');
     expect(snapshot['locale'], 'zh-Hans');
     expect(snapshot['textDirection'], 'ltr');
@@ -654,6 +654,51 @@ void main() {
       isEmpty,
     );
   });
+
+  group('Web chat font faces', () {
+    test('local faces hand an opaque handle and register a media source', () {
+      const face = WebChatFontFace(
+        family: WebChatFontFace.appFaceFamily,
+        path: r'C:\appdata\fonts\demo_20260830.ttf',
+      );
+      final json = face.toDisplayJson();
+      expect(json['family'], WebChatFontFace.appFaceFamily);
+      expect(json['handle'], startsWith('local:'));
+      expect(json['handle'], isNot(contains('demo_20260830.ttf')));
+      final source = face.toMediaSource();
+      expect(source?.kind, WebChatMediaSourceKind.localFile);
+      expect(source?.value, r'C:\appdata\fonts\demo_20260830.ttf');
+    });
+
+    test('name-only faces pass the CSS family through without a source', () {
+      const face = WebChatFontFace(family: 'Noto Sans SC');
+      expect(face.toDisplayJson(), <String, dynamic>{'family': 'Noto Sans SC'});
+      expect(face.toMediaSource(), isNull);
+      expect(face.handle, isNull);
+    });
+
+    test('snapshot display carries font faces without leaking paths', () {
+      final snapshot = _minimalWebChatSnapshot(
+        const <ChatMessage>[],
+        display: <String, dynamic>{
+          'appFont': const WebChatFontFace(
+            family: WebChatFontFace.appFaceFamily,
+            path: r'C:\appdata\fonts\private.ttf',
+          ).toDisplayJson(),
+          'codeFont': const WebChatFontFace(
+            family: WebChatFontFace.codeFaceFamily,
+          ).toDisplayJson(),
+        },
+      );
+      final appFont = (snapshot['display'] as Map)['appFont'] as Map;
+      final codeFont = (snapshot['display'] as Map)['codeFont'] as Map;
+      expect(appFont['family'], WebChatFontFace.appFaceFamily);
+      expect(appFont['handle'], startsWith('local:'));
+      expect(codeFont['family'], WebChatFontFace.codeFaceFamily);
+      expect(codeFont.containsKey('handle'), isFalse);
+      expect(jsonEncode(snapshot), isNot(contains('private.ttf')));
+    });
+  });
 }
 
 Map<String, dynamic> _minimalWebChatSnapshot(
@@ -662,6 +707,7 @@ Map<String, dynamic> _minimalWebChatSnapshot(
       const <String, stream_ctrl.ReasoningData>{},
   Map<String, List<ToolUIPart>> toolParts = const <String, List<ToolUIPart>>{},
   Map<String, dynamic> appearance = const <String, dynamic>{},
+  Map<String, dynamic> display = const <String, dynamic>{},
 }) => const WebChatSnapshotBuilder().build(
   renderSessionId: 'test-session',
   conversationId: 'c1',
@@ -684,7 +730,7 @@ Map<String, dynamic> _minimalWebChatSnapshot(
   theme: const <String, String>{},
   appearance: appearance,
   user: const <String, dynamic>{'name': 'User'},
-  display: const <String, dynamic>{},
+  display: display,
   topContentPadding: 0,
   bottomContentPadding: 0,
   assistant: null,

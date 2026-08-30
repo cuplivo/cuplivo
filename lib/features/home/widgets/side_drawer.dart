@@ -10,6 +10,7 @@ import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/logging/flutter_logger.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/backup_reminder_provider.dart';
+import '../../backup/widgets/backup_reminder_helpers.dart';
 import '../../../core/models/chat_item.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../utils/utf16_safe_cut.dart';
@@ -1669,99 +1670,100 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     ).push(MaterialPageRoute(builder: (_) => const BackupPage()));
   }
 
-  Widget _buildBackupReminderBanner(
-    BuildContext context,
-    Color textBase, {
-    required bool topicsOnly,
-  }) {
-    if (widget.globalSearchMode || topicsOnly) return const SizedBox.shrink();
+  /// 备份快捷入口行：常驻（移动端底部用户栏上方 / 桌面端侧栏最底部，与更新入口
+  /// 并排）。提醒到期时在行内追加第二行小字（催办），图标染 warning 色；
+  /// 平时为紧凑行：标题 + 上次备份状态。从不切换成其他形态。
+  Widget _buildBackupEntryRow(BuildContext context) {
     final reminder = context.watch<BackupReminderProvider>();
-    if (!reminder.loaded || !reminder.shouldShowReminder) {
-      return const SizedBox.shrink();
-    }
-
+    if (!reminder.loaded) return const SizedBox.shrink();
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark
-        ? cs.primary.withValues(alpha: 0.18)
-        : cs.primary.withValues(alpha: 0.10);
-    final border = cs.primary.withValues(alpha: isDark ? 0.35 : 0.22);
+    final due = reminder.shouldShowReminder;
+    final iconColor = due ? context.appColors.warning : cs.primary;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Semantics(
-        button: true,
-        label: l10n.backupReminderSidebarTitle,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            border: Border.all(color: border, width: 0.6),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: IosCardPress(
-            baseColor: bg,
-            borderRadius: BorderRadius.circular(14),
-            padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-            onTap: _openBackupSettings,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Lucide.databaseBackup, size: 20, color: cs.primary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        l10n.backupReminderSidebarTitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: _isDesktop ? 13.5 : 14.5,
-                          fontWeight: AppFontWeights.emphasis,
-                          color: textBase.withValues(alpha: 0.92),
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        l10n.backupReminderSidebarSubtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: _isDesktop ? 12 : 12.5,
-                          height: 1.25,
-                          color: textBase.withValues(alpha: 0.68),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        l10n.backupReminderSidebarAction,
-                        style: TextStyle(
-                          fontSize: _isDesktop ? 12.5 : 13,
-                          fontWeight: AppFontWeights.emphasis,
-                          color: cs.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Tooltip(
-                  message: l10n.backupReminderSnoozeTooltip,
-                  child: IosIconButton(
-                    icon: Lucide.X,
-                    size: 16,
-                    color: textBase.withValues(alpha: 0.62),
-                    padding: const EdgeInsets.all(6),
-                    semanticLabel: l10n.backupReminderSnoozeTooltip,
-                    onTap: () => context
-                        .read<BackupReminderProvider>()
-                        .snoozeForSession(),
-                  ),
-                ),
-              ],
+      padding: const EdgeInsets.only(bottom: 8),
+      child: IosCardPress(
+        borderRadius: BorderRadius.circular(12),
+        baseColor: context.appColors.surfaceFill,
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        onTap: _openBackupSettings,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(Lucide.databaseBackup, size: 18, color: iconColor),
             ),
-          ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    l10n.settingsPageBackup,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: _isDesktop ? 13 : 14,
+                      fontWeight: AppFontWeights.medium,
+                      color: cs.onSurface.withValues(alpha: 0.9),
+                    ),
+                  ),
+                  if (due) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      l10n.backupEntryDueLine(
+                        backupReminderDateTimeLabel(
+                          context,
+                          reminder.lastBackupAt,
+                        ),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: AppFontWeights.medium,
+                        color: context.appColors.warning,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                backupReminderDateTimeLabel(context, reminder.lastBackupAt),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurface.withValues(alpha: 0.55),
+                ),
+              ),
+            ),
+            if (due) ...[
+              const SizedBox(width: 6),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Icon(
+                  Lucide.TriangleAlert,
+                  size: 14,
+                  color: context.appColors.warning,
+                ),
+              ),
+            ],
+            const SizedBox(width: 4),
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(
+                Lucide.ChevronRight,
+                size: 16,
+                color: cs.onSurface.withValues(alpha: 0.4),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1932,11 +1934,6 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildBackupReminderBanner(
-                      context,
-                      textBase,
-                      topicsOnly: topicsOnly,
-                    ),
                     // 1. 搜索框 + 历史按钮（固定头部）
                     if (_isDesktop)
                       // 桌面端
@@ -2674,6 +2671,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      _buildBackupEntryRow(context),
                       _buildUpdateEntryRow(context),
                       Row(
                         children: [
@@ -2764,12 +2762,18 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                   ),
                 ),
 
-              // 桌面端无底部用户栏：更新入口放侧栏最底部。
+              // 桌面端无底部用户栏：备份入口 + 更新入口放侧栏最底部。
               // 右侧话题面板（desktopTopicsOnly）不渲染入口，避免与主左栏重复。
               if (!showBottom && !widget.desktopTopicsOnly)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(8, 2, 8, 10),
-                  child: _buildUpdateEntryRow(context),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildBackupEntryRow(context),
+                      _buildUpdateEntryRow(context),
+                    ],
+                  ),
                 ),
             ],
           ),

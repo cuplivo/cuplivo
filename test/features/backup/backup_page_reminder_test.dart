@@ -60,6 +60,9 @@ void main() {
 
   group('BackupPage reminder settings', () {
     testWidgets('shows reminder switch while disabled', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(900, 2000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
       businessPrefs = BusinessPreferences.memoryForTests({});
       final settings = SettingsProvider(preferences: businessPrefs);
       final reminder = await _createReminderProvider();
@@ -72,11 +75,15 @@ void main() {
       expect(find.text('Backup Reminder'), findsOneWidget);
       expect(find.text('Remind me to back up'), findsOneWidget);
       expect(find.text('Frequency'), findsNothing);
+      expect(find.text('Backup Due'), findsNothing);
     });
 
     testWidgets('shows frequency and reminder status when enabled', (
       tester,
     ) async {
+      await tester.binding.setSurfaceSize(const Size(900, 2000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
       businessPrefs = BusinessPreferences.memoryForTests({});
       final settings = SettingsProvider(preferences: businessPrefs);
       final reminder = await _createReminderProvider(enabled: true);
@@ -89,8 +96,32 @@ void main() {
       expect(find.text('Backup Reminder'), findsOneWidget);
       expect(find.text('Frequency'), findsOneWidget);
       expect(find.text('Every week'), findsOneWidget);
-      expect(find.text('Last Backup'), findsOneWidget);
-      expect(find.text('Next Reminder'), findsOneWidget);
+      expect(find.text('Reminder Time'), findsOneWidget);
+      expect(find.text('Backup Contents'), findsOneWidget);
+    });
+
+    testWidgets('adds a due row to the reminder card when overdue', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(900, 2000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      businessPrefs = BusinessPreferences.memoryForTests({});
+      final settings = SettingsProvider(preferences: businessPrefs);
+      final reminder = await _createReminderProvider(enabled: true);
+      // The schedule anchored on 2026-05-05 09:00 with 7-day interval places
+      // the next reminder at 2026-05-12 08:30 — check that a due state only
+      // ADDS a row (the hero card is never swapped).
+      reminder.evaluateDue(DateTime(2026, 5, 15, 9));
+
+      await tester.pumpWidget(
+        _buildHarness(settings: settings, reminder: reminder),
+      );
+      await tester.pump();
+
+      expect(find.text('Backup Due'), findsOneWidget);
+      expect(find.text('Backup Now'), findsOneWidget);
+      expect(find.text('No Backup Yet'), findsOneWidget);
     });
   });
 }

@@ -25,7 +25,6 @@ class BackupReminderProvider extends ChangeNotifier {
   int? _reminderMinutesOfDay;
   DateTime? _enabledAt;
   DateTime? _lastBackupAt;
-  bool _snoozedForSession = false;
   bool _shouldShowReminder = false;
   Timer? _timer;
 
@@ -79,7 +78,6 @@ class BackupReminderProvider extends ChangeNotifier {
       _enabledAt = currentTime;
     }
     if (!enabled) {
-      _snoozedForSession = false;
       _shouldShowReminder = false;
     }
 
@@ -105,7 +103,6 @@ class BackupReminderProvider extends ChangeNotifier {
     }
 
     _enabled = false;
-    _snoozedForSession = false;
     _shouldShowReminder = false;
     await _persist();
     _schedule();
@@ -114,7 +111,6 @@ class BackupReminderProvider extends ChangeNotifier {
 
   Future<void> recordBackupCompleted({DateTime? now}) async {
     _lastBackupAt = now ?? DateTime.now();
-    _snoozedForSession = false;
     await _persist();
     evaluateDue(_lastBackupAt!, notify: false);
     _schedule();
@@ -123,19 +119,10 @@ class BackupReminderProvider extends ChangeNotifier {
 
   void evaluateDue(DateTime now, {bool notify = true}) {
     final next = nextReminderAt;
-    final nextShouldShow =
-        _enabled && !_snoozedForSession && next != null && !now.isBefore(next);
+    final nextShouldShow = _enabled && next != null && !now.isBefore(next);
     if (_shouldShowReminder == nextShouldShow) return;
     _shouldShowReminder = nextShouldShow;
     if (notify) notifyListeners();
-  }
-
-  void snoozeForSession() {
-    if (!_shouldShowReminder && _snoozedForSession) return;
-    _snoozedForSession = true;
-    _shouldShowReminder = false;
-    _schedule();
-    notifyListeners();
   }
 
   @override
@@ -158,12 +145,12 @@ class BackupReminderProvider extends ChangeNotifier {
   }
 
   /// Arms a one-shot timer for the next reminder instead of polling every
-  /// minute. Runs only while the reminder is enabled (and not snoozed); all
-  /// state changes reschedule, so the event loop stays idle between reminders.
+  /// minute. Runs only while the reminder is enabled; all state changes
+  /// reschedule, so the event loop stays idle between reminders.
   void _schedule() {
     _timer?.cancel();
     _timer = null;
-    if (!_enabled || _snoozedForSession) return;
+    if (!_enabled) return;
     final next = nextReminderAt;
     if (next == null) return;
     final now = DateTime.now();
@@ -175,7 +162,7 @@ class BackupReminderProvider extends ChangeNotifier {
     _timer = Timer(next.difference(now), () {
       evaluateDue(DateTime.now());
       // Re-arm instead of dead-ending: normally a no-op (reminder is due and
-      // stays visible until the user backs up or snoozes), but if the wall
+      // stays visible until the user backs up), but if the wall
       // clock moved backward since arming (DST fall-back, manual time/zone
       // change), the timer fired before `next` and this re-arms it.
       _schedule();

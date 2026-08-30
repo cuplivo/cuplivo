@@ -285,28 +285,52 @@ class DataSync {
     File? messagesTmp;
     File? legacyChatsTmp;
     File? deletedJsonTmp;
+    // Effective content scope. Kelivo-legacy exports are always whole-pack
+    // (their importer needs the full settings/chats shape).
+    final scope = format == BackupFormat.kelivoLegacy
+        ? const BackupContentScope()
+        : incremental?.effectiveScope ?? cfg.content;
+    // Scope-mode splits settings.json into section-wise payloads (assistant
+    // keys ride the chats bit). Legacy incremental runs (contentScope == null)
+    // keep the old contract: settings.json appears iff includeSettings.
+    final explicitScope =
+        format == BackupFormat.kelivoLegacy ||
+        incremental == null ||
+        incremental.contentScope != null;
     try {
       // --- Step 1: Prepare temp files that need ChatService (main isolate) ---
-      // settings.json — full backup always includes settings
-      if (incremental == null || incremental.includeSettings) {
+      // settings.json — section-aware: assistant keys ride the chats bit,
+      // everything else rides the settings bit.
+      if (explicitScope ? scope.anySettings : scope.settings) {
         final payloads = await _exportSettingsPayloads();
+        var settingsMap = payloads.settings;
+        var settingsMeta = payloads.updatedAt;
+        if (!scope.chatsAndAssistants || !scope.settings) {
+          final split = _splitSettingsSections(
+            settingsMap,
+            settingsMeta,
+            scope,
+          );
+          settingsMap = split.settings;
+          settingsMeta = split.updatedAt;
+        }
         settingsTmp = await _writeTempText(
           workDir,
           '_bk_settings.json',
-          jsonEncode(payloads.settings),
+          jsonEncode(settingsMap),
         );
-        if (payloads.updatedAt.isNotEmpty && format == BackupFormat.jsonl) {
+        if (settingsMeta.isNotEmpty && format == BackupFormat.jsonl) {
           settingsMetaTmp = await _writeTempText(
             workDir,
             '_bk_settings_meta.json',
-            jsonEncode(payloads.updatedAt),
+            jsonEncode(settingsMeta),
           );
         }
       }
 
       // chats payload — JSONL streams by default; single v1 blob for the
       // Kelivo-legacy format (whose importer cannot read JSONL).
-      if (cfg.includeChats) {
+      if (scope.chatsAndAssistants) {
         if (format == BackupFormat.kelivoLegacy) {
           legacyChatsTmp = await _exportChatsToLegacyFile(
             workDir,
@@ -332,7 +356,7 @@ class DataSync {
       }
 
       // deleted.json — id-only tombstones for sync/backup (origin='local' only)
-      if (cfg.includeChats) {
+      if (scope.chatsAndAssistants) {
         try {
           final deletedJson = await buildDeletedJson(chatService.repo.db);
           deletedJsonTmp = await _writeTempText(
@@ -360,9 +384,6 @@ class DataSync {
       final messagesPath = messagesTmp?.path;
       final legacyChatsPath = legacyChatsTmp?.path;
       final deletedJsonPath = deletedJsonTmp?.path;
-      final effectiveIncludeFiles = isIncremental
-          ? incremental.includeFiles
-          : cfg.includeFiles;
 
       // --- Step 2: Run CPU-heavy ZIP packing in a separate isolate ---
       onStage?.call(BackupStage.packing);
@@ -378,7 +399,7 @@ class DataSync {
           messagesPath: messagesPath,
           legacyChatsPath: legacyChatsPath,
           deletedJsonPath: deletedJsonPath,
-          includeFiles: effectiveIncludeFiles,
+          scope: scope,
           since: packSince,
           includeFilePaths: packIncludeFilePaths,
           uploadDirPath: uploadDirPath,
@@ -513,7 +534,7 @@ class DataSync {
     String? messagesPath,
     String? legacyChatsPath,
     String? deletedJsonPath,
-    required bool includeFiles,
+    required BackupContentScope scope,
     required String uploadDirPath,
     required String avatarsDirPath,
     required String imagesDirPath,
@@ -565,30 +586,25 @@ class DataSync {
         _addFileToZip(writer, deletedJsonPath, 'deleted.json');
       }
 
-      // skills/ — always included, independent of includeFiles
-      _addDirectoryToZip(
-        writer,
-        skillsDirPath,
-        'skills',
-        since: since,
-        includeFilePaths: includeFilePaths,
-        manifestOut: manifest,
-      );
-
-      // files under upload/, images/, avatars/
-      if (includeFiles) {
+      // skills/ — scope-gated (the "always included" rule was dropped when
+      // the backup content scope split into 6 sections).
+      if (scope.skills) {
         _addDirectoryToZip(
           writer,
-          uploadDirPath,
-          'upload',
+          skillsDirPath,
+          'skills',
           since: since,
           includeFilePaths: includeFilePaths,
           manifestOut: manifest,
         );
+      }
+
+      // files under upload/, images/ (附件)
+      if (scope.attachments) {
         _addDirectoryToZip(
           writer,
-          avatarsDirPath,
-          'avatars',
+          uploadDirPath,
+          'upload',
           since: since,
           includeFilePaths: includeFilePaths,
           manifestOut: manifest,
@@ -601,6 +617,18 @@ class DataSync {
           includeFilePaths: includeFilePaths,
           manifestOut: manifest,
         );
+      }
+
+      // fonts/ + avatars/ (字体与头像)
+      if (scope.fontsAndAvatars) {
+        _addDirectoryToZip(
+          writer,
+          avatarsDirPath,
+          'avatars',
+          since: since,
+          includeFilePaths: includeFilePaths,
+          manifestOut: manifest,
+        );
         _addDirectoryToZip(
           writer,
           fontsDirPath,
@@ -609,9 +637,12 @@ class DataSync {
           includeFilePaths: includeFilePaths,
           manifestOut: manifest,
         );
-        // workspaces/ — user content; dot-prefixed entries (e.g.
-        // .fetch_cache/) are excluded from backup/sync (one dotfile rule,
-        // same as the server's glob/grep convention).
+      }
+
+      // workspaces/ — user content; dot-prefixed entries (e.g.
+      // .fetch_cache/) are excluded from backup/sync (one dotfile rule,
+      // same as the server's glob/grep convention).
+      if (scope.workspaces) {
         _addDirectoryToZip(
           writer,
           workspacesDirPath,
@@ -1332,7 +1363,7 @@ class DataSync {
     final allConvs = chatService.getAllCompleteConversations();
     final since = config.since;
     final sinceCheck = config.sinceCheck;
-    final includeFiles = config.includeFiles;
+    final scope = config.effectiveScope;
 
     final newConvs = <Conversation>[];
     final updatedConvs = <Conversation>[];
@@ -1361,10 +1392,7 @@ class DataSync {
     newConvs.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     updatedConvs.sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-    final counted = await _countFilesForSince(
-      since,
-      includeFiles: includeFiles,
-    );
+    final counted = await _countFilesForSince(since, scope: scope);
 
     return IncrementalScope(
       newConversations: ConvRange(
@@ -1392,14 +1420,14 @@ class DataSync {
   /// actual zip payload.
   Future<({int fileCount, int totalBytes})> countFilesForSince(
     DateTime since,
-  ) => _countFilesForSince(since, includeFiles: true);
+  ) => _countFilesForSince(since, scope: const BackupContentScope());
 
   /// Shared implementation behind [countFilesForSince] and
-  /// [analyzeIncrementalScope]. When [includeFiles] is false only `skills/`
-  /// is counted, mirroring `_packZipSync`.
+  /// [analyzeIncrementalScope]. Counts each tree only when its section bit is
+  /// set, mirroring `_packZipSync`.
   Future<({int fileCount, int totalBytes})> _countFilesForSince(
     DateTime since, {
-    required bool includeFiles,
+    BackupContentScope scope = const BackupContentScope(),
   }) async {
     var fileCount = 0;
     var totalBytes = 0;
@@ -1431,16 +1459,20 @@ class DataSync {
       }
     }
 
-    if (includeFiles) {
+    if (scope.attachments) {
       await countDir(await _getUploadDir(), skipDot: false);
-      await countDir(await _getAvatarsDir(), skipDot: false);
       await countDir(await _getImagesDir(), skipDot: false);
+    }
+    if (scope.fontsAndAvatars) {
+      await countDir(await _getAvatarsDir(), skipDot: false);
       await countDir(await _getFontsDir(), skipDot: false);
+    }
+    if (scope.workspaces) {
       await countDir(await _getWorkspacesDir(), skipDot: true);
     }
-    // skills/ is always exported independent of includeFiles (see
-    // _packZipSync), so count it unconditionally to match the actual ZIP.
-    await countDir(await _getSkillsDir(), skipDot: false);
+    if (scope.skills) {
+      await countDir(await _getSkillsDir(), skipDot: false);
+    }
 
     return (fileCount: fileCount, totalBytes: totalBytes);
   }
@@ -1552,6 +1584,30 @@ class DataSync {
       if (ts != null) updatedAt[key] = ts;
     }
     return (settings: map, updatedAt: updatedAt);
+  }
+
+  /// Section-aware settings.json partition (backup content scope):
+  /// assistant-owned keys ride `chatsAndAssistants`, everything else rides
+  /// `settings`. The meta file only carries the written keys, so the LWW
+  /// merge stays key-exact with the payload.
+  ({Map<String, dynamic> settings, Map<String, int> updatedAt})
+  _splitSettingsSections(
+    Map<String, dynamic> settings,
+    Map<String, int> updatedAt,
+    BackupContentScope scope,
+  ) {
+    const assistantKeys = {'assistants_v1', 'assistant_memories_v1'};
+    final out = <String, dynamic>{};
+    final meta = <String, int>{};
+    for (final entry in settings.entries) {
+      final isAssistant = assistantKeys.contains(entry.key);
+      final bit = isAssistant ? scope.chatsAndAssistants : scope.settings;
+      if (!bit) continue;
+      out[entry.key] = entry.value;
+      final ts = updatedAt[entry.key];
+      if (ts != null) meta[entry.key] = ts;
+    }
+    return (settings: out, updatedAt: meta);
   }
 
   /// Local KV updated_at for [key], or null when the key has no business row
@@ -2088,6 +2144,9 @@ class DataSync {
       if (File(p.join(extractDir.path, 'manifest.json')).existsSync()) {
         throw KelivoV2BackupException();
       }
+      // Backup content scope: the channel's scope piece admits/declines each
+      // payload section (mirrors the exporter's gates).
+      final scope = cfg.content;
 
       // chats_meta.json sentinel → JSONL v2 format (issue #123)
       final chatsMetaFile = File(p.join(extractDir.path, 'chats_meta.json'));
@@ -2118,17 +2177,31 @@ class DataSync {
       Object? backupAssistantsRaw;
       Object? backupLegacyOcrEnabled;
       final settingsFile = File(p.join(extractDir.path, 'settings.json'));
-      if (await settingsFile.exists()) {
+      if (scope.anySettings && await settingsFile.exists()) {
         try {
           final txt = await settingsFile.readAsString();
           final map = jsonDecode(txt) as Map<String, dynamic>;
+          // Restore-side section gate (mirror of the exporter's
+          // `_splitSettingsSections`): assistant-owned keys ride the chats
+          // bit, everything else rides the settings bit. Whole-pack legacy
+          // zips carry BOTH sections in one settings.json — a partial scope
+          // must not smuggle in sections the user excluded.
+          const assistantKeys = {'assistants_v1', 'assistant_memories_v1'};
+          // Legacy global OCR toggle is an assistant-MIGRATION concern: it
+          // follows the chats bit and is always stripped afterwards, so the
+          // one-time per-assistant migration never re-runs on a later
+          // restore.
+          backupLegacyOcrEnabled = scope.chatsAndAssistants
+              ? map.remove('ocr_enabled_v1')
+              : null;
+          map.remove('ocr_enabled_v1');
+          for (final key in map.keys.toList()) {
+            final bit = assistantKeys.contains(key)
+                ? scope.chatsAndAssistants
+                : scope.settings;
+            if (!bit) map.remove(key);
+          }
           backupAssistantsRaw = map.remove('assistants_v1');
-          // Legacy global OCR toggle: capture it so assistants restored from a
-          // pre-v15 backup get the same ocrMode mapping as an in-place upgrade
-          // (true -> auto, false -> never). Never write it back into prefs, or
-          // the one-time per-assistant ocrMode migration would re-run and
-          // overwrite user per-assistant choices.
-          backupLegacyOcrEnabled = map.remove('ocr_enabled_v1');
           // Kelivo-originated backups carry upstream image-compression keys
           // (image_upload_quality_v1 et al.) instead of Cuplivo's native
           // one_click_compress_* keys. Translate them so the compression
@@ -2496,7 +2569,7 @@ class DataSync {
 
       // Restore chats
       final chatsFile = File(p.join(extractDir.path, 'chats.json'));
-      if (cfg.includeChats &&
+      if (scope.chatsAndAssistants &&
           (await chatsFile.exists() || await chatsMetaFile.exists())) {
         if (isJsonlFormat) {
           await _restoreChatsFromJsonl(
@@ -2743,7 +2816,7 @@ class DataSync {
       }
 
       // Restore deleted.json markers (merge mode only — overwrite wipes local)
-      if (cfg.includeChats && mode == RestoreMode.merge) {
+      if (scope.chatsAndAssistants && mode == RestoreMode.merge) {
         final deletedFile = File(p.join(extractDir.path, 'deleted.json'));
         if (await deletedFile.exists()) {
           try {
@@ -2808,7 +2881,7 @@ class DataSync {
       // Restore files. File copying is best-effort: a single locked or unusual
       // file must not abort the whole restore — conversations and assistants
       // are already committed at this point.
-      if (cfg.includeFiles) {
+      if (scope.anyFiles) {
         var totalFiles = 0;
         var totalBytes = 0;
         var copiedFiles = 0;
@@ -2855,7 +2928,7 @@ class DataSync {
             // Overwrite mode: Delete existing directories and copy all
             // Restore upload directory
             final uploadSrc = Directory(p.join(extractDir.path, 'upload'));
-            if (await uploadSrc.exists()) {
+            if (scope.attachments && await uploadSrc.exists()) {
               final entries = _listFiles(uploadSrc);
               final dst = await _getUploadDir();
               if (await dst.exists()) {
@@ -2888,7 +2961,7 @@ class DataSync {
 
             // Restore images directory
             final imagesSrc = Directory(p.join(extractDir.path, 'images'));
-            if (await imagesSrc.exists()) {
+            if (scope.attachments && await imagesSrc.exists()) {
               final entries = _listFiles(imagesSrc);
               final dst = await _getImagesDir();
               if (await dst.exists()) {
@@ -2921,7 +2994,7 @@ class DataSync {
 
             // Restore avatars directory
             final avatarsSrc = Directory(p.join(extractDir.path, 'avatars'));
-            if (await avatarsSrc.exists()) {
+            if (scope.fontsAndAvatars && await avatarsSrc.exists()) {
               final entries = _listFiles(avatarsSrc);
               final dst = await _getAvatarsDir();
               if (await dst.exists()) {
@@ -2954,7 +3027,7 @@ class DataSync {
 
             // Restore managed local fonts directory
             final fontsSrc = Directory(p.join(extractDir.path, 'fonts'));
-            if (await fontsSrc.exists()) {
+            if (scope.fontsAndAvatars && await fontsSrc.exists()) {
               final entries = _listFiles(fontsSrc);
               final dst = await _getFontsDir();
               if (await dst.exists()) {
@@ -2990,7 +3063,7 @@ class DataSync {
             final workspacesSrc = Directory(
               p.join(extractDir.path, 'workspaces'),
             );
-            if (await workspacesSrc.exists()) {
+            if (scope.workspaces && await workspacesSrc.exists()) {
               final entries = _listFiles(workspacesSrc, skipDot: true);
               final dst = await _getWorkspacesDir();
               if (await dst.exists()) {
@@ -3028,7 +3101,7 @@ class DataSync {
             // a peer's stale copy forever.
             // Merge upload directory
             final uploadSrc = Directory(p.join(extractDir.path, 'upload'));
-            if (await uploadSrc.exists()) {
+            if (scope.attachments && await uploadSrc.exists()) {
               final entries = _listFiles(uploadSrc);
               final dst = await _getUploadDir();
               if (!await dst.exists()) {
@@ -3079,7 +3152,7 @@ class DataSync {
 
             // Merge images directory
             final imagesSrc = Directory(p.join(extractDir.path, 'images'));
-            if (await imagesSrc.exists()) {
+            if (scope.attachments && await imagesSrc.exists()) {
               final entries = _listFiles(imagesSrc);
               final dst = await _getImagesDir();
               if (!await dst.exists()) {
@@ -3126,7 +3199,7 @@ class DataSync {
 
             // Merge avatars directory
             final avatarsSrc = Directory(p.join(extractDir.path, 'avatars'));
-            if (await avatarsSrc.exists()) {
+            if (scope.fontsAndAvatars && await avatarsSrc.exists()) {
               final entries = _listFiles(avatarsSrc);
               final dst = await _getAvatarsDir();
               if (!await dst.exists()) {
@@ -3173,7 +3246,7 @@ class DataSync {
 
             // Merge managed local fonts directory
             final fontsSrc = Directory(p.join(extractDir.path, 'fonts'));
-            if (await fontsSrc.exists()) {
+            if (scope.fontsAndAvatars && await fontsSrc.exists()) {
               final entries = _listFiles(fontsSrc);
               final dst = await _getFontsDir();
               if (!await dst.exists()) {
@@ -3226,7 +3299,7 @@ class DataSync {
             final workspacesSrc = Directory(
               p.join(extractDir.path, 'workspaces'),
             );
-            if (await workspacesSrc.exists()) {
+            if (scope.workspaces && await workspacesSrc.exists()) {
               final entries = _listFiles(workspacesSrc, skipDot: true);
               final dst = await _getWorkspacesDir();
               if (!await dst.exists()) {
@@ -3276,8 +3349,8 @@ class DataSync {
         }
       }
 
-      // Restore skills/ -- always exported independent of includeFiles (see
-      // _packZipSync), so restore it symmetrically and unconditionally.
+      // Restore skills/ -- scope-gated (the "always included" rule was
+      // dropped with the 6-section backup content scope).
       // Best-effort like files/: a skill-file failure must not abort the
       // whole restore.
       var skillTotalFiles = 0;
@@ -3302,7 +3375,7 @@ class DataSync {
 
       try {
         final skillsSrc = Directory(p.join(extractDir.path, 'skills'));
-        if (await skillsSrc.exists()) {
+        if (scope.skills && await skillsSrc.exists()) {
           final entries = _listFiles(skillsSrc);
           final dst = await _getSkillsDir();
           if (mode == RestoreMode.overwrite && await dst.exists()) {

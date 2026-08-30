@@ -37,12 +37,15 @@ class BackupProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> test() async {
+  /// Tests the connection. Pass [config] (an unconfirmed dialog draft) to
+  /// validate what the user typed WITHOUT persisting anything — only the
+  /// stored [config] is ever written, and only via [updateConfig].
+  Future<bool> test({WebDavConfig? config}) async {
     _busy = true;
     _message = null;
     notifyListeners();
     try {
-      await _dataSync.testWebdav(_cfg);
+      await _dataSync.testWebdav(config ?? _cfg);
       return true;
     } catch (e) {
       _message = e.toString();

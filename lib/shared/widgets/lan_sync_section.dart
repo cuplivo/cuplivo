@@ -196,7 +196,7 @@ class _LanSyncSectionState extends State<LanSyncSection> {
     try {
       await _dataSync.restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: true, includeFiles: true),
+        const WebDavConfig(),
         mode: RestoreMode.merge,
         onProgress: _setRestoreProgress,
       );

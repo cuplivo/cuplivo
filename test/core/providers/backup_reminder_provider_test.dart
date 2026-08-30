@@ -116,30 +116,6 @@ void main() {
     });
 
     test(
-      'snooze hides the reminder only for the current provider session',
-      () async {
-        businessPrefs = BusinessPreferences.memoryForTests({});
-        final provider = await _loadProvider();
-
-        await provider.saveSchedule(
-          enabled: true,
-          intervalDays: 1,
-          reminderMinutesOfDay: 9 * 60,
-          now: DateTime(2026, 5, 1, 8),
-        );
-        provider.evaluateDue(DateTime(2026, 5, 2, 9));
-        expect(provider.shouldShowReminder, isTrue);
-
-        provider.snoozeForSession();
-        expect(provider.shouldShowReminder, isFalse);
-
-        final loaded = await _loadProvider();
-        loaded.evaluateDue(DateTime(2026, 5, 2, 9));
-        expect(loaded.shouldShowReminder, isTrue);
-      },
-    );
-
-    test(
       'successful backup resets the next reminder from backup time',
       () async {
         businessPrefs = BusinessPreferences.memoryForTests({});

@@ -201,6 +201,9 @@ function loadShell({ userAgent, platform, maxTouchPoints }) {
       },
     },
     document: {
+      location: {
+        href: 'https://appassets.androidplatform.net/index.html',
+      },
       getElementById: (id) => elements.get(id) ?? makeElementStub(),
       createElement: () => makeElementStub(),
       querySelectorAll: () => [],
@@ -216,6 +219,7 @@ function loadShell({ userAgent, platform, maxTouchPoints }) {
     requestAnimationFrame: raf.raf,
     cancelAnimationFrame: raf.caf,
     performance,
+    URL,
     console,
     setTimeout,
     clearTimeout,

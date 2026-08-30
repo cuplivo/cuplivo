@@ -103,14 +103,14 @@ test('transfer chunks reassemble UTF-8 snapshots', () => {
 });
 
 test('snapshot reducer rejects an older revision in the same session', () => {
-  const current = { type: 'snapshot', protocolVersion: 4, assetVersion: 'web-chat-v17', renderSessionId: 's', renderRevision: 4, messages: [] };
+  const current = { type: 'snapshot', protocolVersion: 4, assetVersion: 'web-chat-v18', renderSessionId: 's', renderRevision: 4, messages: [] };
   const older = { ...current, renderRevision: 3, messages: [{ id: 'old' }] };
   assert.equal(reduceEnvelope(current, older), current);
 });
 
 test('new snapshots retain resolved opaque media only in the same session', () => {
   const current = {
-    type: 'snapshot', protocolVersion: 4, assetVersion: 'web-chat-v17',
+    type: 'snapshot', protocolVersion: 4, assetVersion: 'web-chat-v18',
     renderSessionId: 's', renderRevision: 4, messages: [],
     media: { 'asset:icon': 'data:image/svg+xml;base64,PHN2Zy8+' },
   };
@@ -205,7 +205,7 @@ test('typed appearance maps only the three supported surfaces and clears default
 
 test('same-session streaming snapshots preserve a newer live patch', () => {
   const state = {
-    type: 'snapshot', protocolVersion: 4, assetVersion: 'web-chat-v17',
+    type: 'snapshot', protocolVersion: 4, assetVersion: 'web-chat-v18',
     renderSessionId: 's', conversationId: 'c', renderRevision: 2,
     messages: [{ id: 'm', content: 'new', isStreaming: true, streamRevision: 7 }],
   };
@@ -220,7 +220,7 @@ test('same-session streaming snapshots preserve a newer live patch', () => {
 
 test('live translation survives unrelated snapshots until it is finalized', () => {
   const state = {
-    type: 'snapshot', protocolVersion: 4, assetVersion: 'web-chat-v17',
+    type: 'snapshot', protocolVersion: 4, assetVersion: 'web-chat-v18',
     renderSessionId: 's', conversationId: 'c', renderRevision: 2,
     messages: [{
       id: 'm', content: 'answer', isStreaming: false,
@@ -1080,6 +1080,19 @@ test('touch jitter below the Flutter slop keeps the scroll lock and blocks nativ
   assert.match(appSource, /let gestureIntent = 'idle'/);
   assert.match(appSource, /function stopScrolling[\s\S]*?gestureActive[\s\S]*?gestureIntent/);
   assert.match(appSource, /timeline\.addEventListener\('scroll'[\s\S]*?if \(scrollStopLock\)[\s\S]*?return;/);
+});
+
+test('mobile touch devices never arm the persistent lock from touch events', () => {
+  assert.match(appSource, /const isIosTouchDevice/);
+  assert.match(appSource, /const isAndroidTouchDevice/);
+  assert.match(appSource, /const isTouchNativeOwned = isIosTouchDevice \|\| isAndroidTouchDevice/);
+  assert.match(appSource, /function stopScrolling[\s\S]*?if \(isTouchNativeOwned && !scrollStopLock\) return;/);
+  assert.match(appSource, /function stopScrolling[\s\S]*?scrollStopLock = true/);
+  assert.match(appSource, /if \(!isTouchNativeOwned && event\.cancelable\) event\.preventDefault\(\)/);
+  assert.match(appSource, /if \(!isTouchNativeOwned && scrollStopLock && event\.cancelable\)/);
+  const touchStart = appSource.indexOf("timeline.addEventListener('touchstart'");
+  const touchStartBody = appSource.slice(touchStart, touchStart + 500);
+  assert.match(touchStartBody, /stopScrolling\(\)/);
 });
 
 test('code blocks use the Flutter surface, header, and code-view structure', () => {

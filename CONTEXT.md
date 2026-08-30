@@ -32,6 +32,33 @@
   defaults and only decorates three Web chat surfaces; it cannot recolor app
   navigation, settings, Flutter-rendered messages, or the viewport background.
 
+## Web Viewport Touch Ownership (移动触摸主权)
+
+- **移动触摸主权 (mobile touch ownership)**: On Android/iOS the platform
+  WebView owns panning inside the Web conversation viewport. Flutter's gesture
+  arena only arbitrates the split: the vertical drag recognizer registered on
+  the Android platform view wins verticals and hands the pointer stream to the
+  native view; horizontals stay in Flutter so `InteractiveDrawer` keeps its
+  full-area swipe gesture; taps resolve at pointer-up. The persistent
+  **scroll-stop lock** is therefore never armed from touch events on mobile —
+  it remains for the programmatic virtual-window clamp and desktop/legacy
+  pointer paths.
+- **迟发指针流 (delayed pointer stream)**: The Android platform view receives
+  the native touch stream only after the arena resolves (the vertical
+  recognizer winning means ~18px of movement already happened), so after the
+  handover the shell must never re-fight the live Chromium pan with a position
+  replay or `preventDefault` — that replay is precisely the "jelly" kick on
+  Android and the "page never pans" state on iOS WebKit.
+- **保留面 (preserved surfaces)**: `renderBlocked` during scroll, per-frame
+  `viewportMetrics`, and the 16ms streaming flush are deliberate and stay;
+  programmatic `clampVirtualScroll` (virtual-window loading) still arms the
+  scroll-stop lock; the Kotlin `flingScroll(0,0)` momentum cancel and all
+  stop-scroll call sites are retained.
+- **Not a Flutter-owned viewport**: The web timeline is its own DOM scroller
+  (ADR-0043). "Flutter owns the viewport" is false — only the vertical/horizontal
+  gesture arbitration happens in Flutter's arena, which is why the per-touch
+  compensation stack (this glossary's topic, ADR-0052) is thin on purpose.
+
 ## Title Preset System
 - **Hash Fingerprint matching**: `detect()` uses `trim()` only (conservative), exact character match after stripping leading/trailing whitespace.
 - **PromptPreset data class**: `id`, `label`, `prompt` fields only. No `recommendedThinking` — presets are style-only, Thinking is independently controlled.
@@ -948,7 +975,7 @@
 - **Render session (渲染会话)**: One ordered lifetime of a viewport bound to one conversation. Results and actions from an older render session are stale and must not affect the active conversation.
 - **Conversation-scoped fallback (会话级回退)**: A process-local choice that keeps one conversation on the Flutter viewport after a Web viewport failure or an unsupported MultiAI surface. It is not persisted.
 - **Rich content block (富内容块)**: An independently rendered unit inside a message, such as Markdown, code, math, Mermaid, SVG, HTML preview, an attachment, reasoning, or a tool card. Failure of one block does not invalidate the surrounding message.
-- **Web chat shell (Web 壳)**: The versioned bundled HTML/JS surface (`assets/web_chat/`, currently `web-chat-v17`) that a platform WebView renders inside the Web conversation viewport. It owns only DOM presentation, local interaction, and viewport scroll; it is a presentation layer, never a second chat client.
+- **Web chat shell (Web 壳)**: The versioned bundled HTML/JS surface (`assets/web_chat/`, currently `web-chat-v18`) that a platform WebView renders inside the Web conversation viewport. It owns only DOM presentation, local interaction, and viewport scroll; it is a presentation layer, never a second chat client.
 - **Shell origin (壳加载源)**: The URL origin from which the Web chat shell is loaded by the platform WebView — Windows: WebView2 HTTPS virtual host (`cuplivo-web-chat.invalid`), Android: `appassets.androidplatform.net` (secure asset origin), Darwin (iOS/macOS): loopback HTTP served by the in-process `LocalWebChatShellServer` with asset keys mapped to `/assets/...` paths. It is never a `file://` origin (ADR-0043; Darwin path in ADR-0051).
 
 ## Fork Conversation (创建分支)

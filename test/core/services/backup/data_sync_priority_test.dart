@@ -119,6 +119,34 @@ Future<File> _buildJsonlZip({
   return zipFile;
 }
 
+/// Legacy (pre-JSONL) chats payload: chats.json holds conversations/messages,
+/// no chats_meta.json — the restore picks the legacy branch (issue #615 tests).
+Future<File> _buildLegacyZip({
+  required String root,
+  List<Conversation> conversations = const [],
+  List<ChatMessage> messages = const [],
+}) async {
+  final zipFile = File('$root/legacy-direction.zip');
+  final encoder = ZipFileEncoder();
+  encoder.create(zipFile.path);
+
+  final settingsFile = File('$root/settings.json');
+  await settingsFile.writeAsString(jsonEncode(const <String, dynamic>{}));
+  encoder.addFileSync(settingsFile, 'settings.json');
+
+  final chatsFile = File('$root/chats.json');
+  await chatsFile.writeAsString(
+    jsonEncode({
+      'conversations': conversations.map((c) => c.toJson()).toList(),
+      'messages': messages.map((m) => m.toJson()).toList(),
+    }),
+  );
+  encoder.addFileSync(chatsFile, 'chats.json');
+
+  encoder.closeSync();
+  return zipFile;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -490,6 +518,149 @@ void main() {
         reason:
             'max(winner row, local updatedAt): the losing side newer activity '
             'must not sink the sort key',
+      );
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test('incomingWins lifts updatedAt past a newer exclusive message after '
+        'row replace (JSONL path)', () async {
+      // Review round 4: after replaceConversationRow, addMessageDirectly must
+      // still fire the #545 rider. messageIds is derived from message_rows
+      // (not a stored column), so the append path owns ID-append + the lift.
+      businessPrefs = BusinessPreferences.memoryForTests({});
+      final service = await createService();
+      await service.reloadCachesFromDb();
+      await service.repo.putConversation(
+        Conversation(
+          id: 'shared',
+          title: 'Local Title',
+          createdAt: DateTime(2020),
+          updatedAt: DateTime(2020),
+          messageIds: const ['local-msg'],
+        ),
+      );
+      await service.repo.putMessage(
+        ChatMessage(
+          id: 'local-msg',
+          role: 'user',
+          content: 'original',
+          conversationId: 'shared',
+        ),
+        messageOrder: 0,
+      );
+      await service.reloadCachesFromDb();
+
+      // Winner row AND local row are both earlier than the exclusive message.
+      final zipFile = await _buildJsonlZip(
+        root: root.path,
+        settings: const {},
+        conversations: [
+          Conversation(
+            id: 'shared',
+            title: 'Remote Title',
+            updatedAt: DateTime(2021),
+          ),
+        ],
+        messages: [
+          ChatMessage(
+            id: 'shared-msg',
+            role: 'user',
+            content: 'remote',
+            conversationId: 'shared',
+            timestamp: DateTime(2026),
+          ),
+        ],
+      );
+
+      final sync = DataSync(preferences: businessPrefs, chatService: service);
+      await sync.restoreFromLocalFile(
+        zipFile,
+        WebDavConfig(content: _chatsScope),
+        mode: RestoreMode.merge,
+        precedence: ConflictPrecedence.incomingWins,
+      );
+
+      final conv = service.getAllCompleteConversations().firstWhere(
+        (c) => c.id == 'shared',
+      );
+      expect(
+        conv.updatedAt.isAtSameMomentAs(DateTime(2026)),
+        isTrue,
+        reason:
+            'rider lifts updatedAt to the newest exclusive message even when '
+            'the winning row (2021) and the local row (2020) are both older',
+      );
+      expect(
+        conv.messageIds,
+        containsAll(['local-msg', 'shared-msg']),
+        reason: 'messageIds union survives the row replace',
+      );
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test('incomingWins lifts updatedAt past a newer exclusive message after '
+        'row replace (legacy chats.json path)', () async {
+      businessPrefs = BusinessPreferences.memoryForTests({});
+      final service = await createService();
+      await service.reloadCachesFromDb();
+      await service.repo.putConversation(
+        Conversation(
+          id: 'shared',
+          title: 'Local Title',
+          createdAt: DateTime(2020),
+          updatedAt: DateTime(2020),
+          messageIds: const ['local-msg'],
+        ),
+      );
+      await service.repo.putMessage(
+        ChatMessage(
+          id: 'local-msg',
+          role: 'user',
+          content: 'original',
+          conversationId: 'shared',
+        ),
+        messageOrder: 0,
+      );
+      await service.reloadCachesFromDb();
+
+      final zipFile = await _buildLegacyZip(
+        root: root.path,
+        conversations: [
+          Conversation(
+            id: 'shared',
+            title: 'Remote Title',
+            updatedAt: DateTime(2021),
+          ),
+        ],
+        messages: [
+          ChatMessage(
+            id: 'shared-msg',
+            role: 'user',
+            content: 'remote',
+            conversationId: 'shared',
+            timestamp: DateTime(2026),
+          ),
+        ],
+      );
+
+      final sync = DataSync(preferences: businessPrefs, chatService: service);
+      await sync.restoreFromLocalFile(
+        zipFile,
+        WebDavConfig(content: _chatsScope),
+        mode: RestoreMode.merge,
+        precedence: ConflictPrecedence.incomingWins,
+      );
+
+      final conv = service.getAllCompleteConversations().firstWhere(
+        (c) => c.id == 'shared',
+      );
+      expect(
+        conv.updatedAt.isAtSameMomentAs(DateTime(2026)),
+        isTrue,
+        reason: 'legacy restore path applies the same rider after row replace',
+      );
+      expect(
+        conv.messageIds,
+        containsAll(['local-msg', 'shared-msg']),
+        reason: 'messageIds union survives the row replace (legacy path)',
       );
     }, timeout: const Timeout(Duration(minutes: 2)));
   });

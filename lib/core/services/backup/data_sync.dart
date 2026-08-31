@@ -2064,9 +2064,10 @@ class DataSync {
           // and messageIds exempt). Runs even when the incoming payload
           // carries NO messages for this conversation — a metadata-only row
           // (identical message-ID lists, different row fields) ships without
-          // its messages, and must still apply the direction. Row-replace
-          // happens first: the append path then keeps the union list (the
-          // rider lifts updatedAt if a newly appended message is newer).
+          // its messages, and must still apply the direction. messageIds is
+          // NOT a stored column: the DB derives it from message_rows, so the
+          // row-replace persists only the 13 row fields and the append path
+          // below owns ID-append + the updatedAt rider.
           if (precedence == ConflictPrecedence.incomingWins) {
             final local = existingConvsById[c.id];
             await chatService.replaceConversationRow(
@@ -2076,15 +2077,13 @@ class DataSync {
                 // never regress below either side's updatedAt (winning copy
                 // could be from a stale peer while the losing side holds
                 // newer local-exclusive activity — the #545 sort sink would
-                // otherwise re-appear).
+                // otherwise re-appear). Incoming-exclusive message timestamps
+                // are lifted below by the rider in addMessageDirectly.
                 updatedAt:
                     (local != null && local.updatedAt.isAfter(c.updatedAt))
                     ? local.updatedAt
                     : c.updatedAt,
-                messageIds: [
-                  ...(local?.messageIds ?? const <String>[]),
-                  for (final msg in exclusiveMsgs) msg.id,
-                ],
+                messageIds: List.of(local?.messageIds ?? const <String>[]),
               ),
             );
           }
@@ -2798,7 +2797,9 @@ class DataSync {
                   final newMessages = byConv[c.id]!;
                   // Conversation metadata direction (issue #615, category D):
                   // with incomingWins the winner's row replaces the loser's
-                  // (id, createdAt and messageIds exempt).
+                  // (id, createdAt and messageIds exempt) — same semantics as
+                  // the JSONL branch: messageIds is derived from message_rows
+                  // (not stored), the append path owns ID-append + the rider.
                   if (precedence == ConflictPrecedence.incomingWins) {
                     final local = existingConvsById[c.id];
                     await chatService.replaceConversationRow(
@@ -2811,10 +2812,9 @@ class DataSync {
                                 local.updatedAt.isAfter(c.updatedAt))
                             ? local.updatedAt
                             : c.updatedAt,
-                        messageIds: [
-                          ...(local?.messageIds ?? const <String>[]),
-                          for (final msg in newMessages) msg.id,
-                        ],
+                        messageIds: List.of(
+                          local?.messageIds ?? const <String>[],
+                        ),
                       ),
                     );
                   }

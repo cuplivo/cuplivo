@@ -985,10 +985,12 @@ class ChatService extends ChangeNotifier {
   /// Replaces an existing conversation's row wholesale (same id).
   ///
   /// Used by LAN-sync direction merges (issue #615, category D): the winner's
-  /// conversation copy replaces the loser's fields. The caller is responsible
-  /// for preserving the locally-managed message list — `messageIds` must be
-  /// the local append-union, otherwise the loser's exclusive messages would
-  /// be dropped by the replace.
+  /// conversation copy replaces the loser's fields. Only the row fields are
+  /// persisted — `messageIds` is derived from message_rows by the repository
+  /// (no stored column), so the local message list survives the replace
+  /// regardless; the caller passes the local list to keep the in-memory row
+  /// truthful, and the message append path (addMessageDirectly) owns
+  /// ID-append plus the updatedAt rider (issue #545).
   Future<void> replaceConversationRow(Conversation updated) async {
     if (!_initialized) await init();
     await _saveConversation(updated);

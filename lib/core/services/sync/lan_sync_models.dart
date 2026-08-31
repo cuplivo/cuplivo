@@ -110,6 +110,13 @@ class SyncIndex {
   /// `since`-based packing path.
   final Map<String, FileManifestEntry>? fileManifest;
 
+  /// The initiator's conversation rows (id → `Conversation.toJson`), so a
+  /// modern server can detect metadata-only conflicts (identical message-ID
+  /// lists, different row fields — category D) in confirmed-direction
+  /// sessions. Null when sent by an old peer — the receiver then degrades
+  /// to message-ID-only planning.
+  final Map<String, Map<String, dynamic>>? conversationRows;
+
   /// The initiator's chosen conflict direction for this sync session.
   /// Null = auto/absent (old peer or no choice made).
   final SyncPriority? syncPriority;
@@ -118,6 +125,7 @@ class SyncIndex {
     required this.conversations,
     required this.assistantIds,
     this.fileManifest,
+    this.conversationRows,
     this.syncPriority,
   });
 
@@ -125,6 +133,7 @@ class SyncIndex {
     'conversations': conversations,
     'assistantIds': assistantIds,
     'fileManifest': fileManifest?.map((k, v) => MapEntry(k, v.toJson())),
+    if (conversationRows != null) 'conversationRows': conversationRows,
     if (syncPriority != null) 'syncPriority': syncPriority!.name,
   };
 
@@ -136,6 +145,7 @@ class SyncIndex {
       (k, v) => MapEntry(k, (v as List).cast<String>()),
     );
     final manifestRaw = json['fileManifest'] as Map<String, dynamic>?;
+    final rowsRaw = json['conversationRows'] as Map<String, dynamic>?;
     final rawPriority = json['syncPriority'] as String?;
     return SyncIndex(
       conversations: conversations,
@@ -145,6 +155,9 @@ class SyncIndex {
           k,
           FileManifestEntry.fromJson((v as Map).cast<String, dynamic>()),
         ),
+      ),
+      conversationRows: rowsRaw?.map(
+        (k, v) => MapEntry(k, (v as Map).cast<String, dynamic>()),
       ),
       syncPriority: SyncPriority.tryParse(rawPriority),
     );
@@ -194,6 +207,13 @@ class SyncConvPlan {
   /// and is exported in full).
   final DateTime? since;
 
+  /// Category D (issue #615): the message-ID lists are identical but the
+  /// conversation row differs (title, isPinned, assistantId, summary, …).
+  /// Confirmed-direction sessions ship the row (without its messages) so the
+  /// winner's metadata reaches the merge. False for message-diff states — a
+  /// forked/one-sided payload always carries its row anyway.
+  final bool metadataOnly;
+
   const SyncConvPlan({
     required this.conversationId,
     this.conversationTitle,
@@ -202,6 +222,7 @@ class SyncConvPlan {
     required this.initiatorIncrementCount,
     required this.serverIncrementCount,
     this.since,
+    this.metadataOnly = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -212,6 +233,7 @@ class SyncConvPlan {
     'initiatorIncrementCount': initiatorIncrementCount,
     'serverIncrementCount': serverIncrementCount,
     'since': since?.toIso8601String(),
+    'metadataOnly': metadataOnly,
   };
 
   static SyncConvPlan fromJson(Map<String, dynamic> json) {
@@ -224,6 +246,7 @@ class SyncConvPlan {
       initiatorIncrementCount: json['initiatorIncrementCount'] as int,
       serverIncrementCount: json['serverIncrementCount'] as int,
       since: sinceStr != null ? DateTime.parse(sinceStr) : null,
+      metadataOnly: json['metadataOnly'] as bool? ?? false,
     );
   }
 }
@@ -272,6 +295,11 @@ class SyncPlan {
   /// Convenience: total conversations with forks.
   int get forkCount =>
       conversations.where((c) => c.state == SyncConvState.fork).length;
+
+  /// Convenience: total metadata-only conflicts (identical message lists,
+  /// differing conversation rows).
+  int get metadataOnlyCount =>
+      conversations.where((c) => c.metadataOnly).length;
 
   const SyncPlan({
     required this.conversations,

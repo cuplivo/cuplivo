@@ -260,6 +260,16 @@ class LanSyncClient extends ChangeNotifier {
       final outboundDelta = _outboundDelta;
       final hasFileDelta = outboundDelta?.isNotEmpty ?? false;
       final forceSettings = forceSettingsExchange;
+      // Category D (issue #615): metadata-only conversations (identical
+      // message lists, different rows) ship their row without messages.
+      // Null when empty: a non-null set switches the export to per-conversation
+      // mode, which would otherwise skip every conversation (old-peer
+      // fallback must stay on the global `since`).
+      final metadataOnlySet = <String>{
+        for (final c in plan.conversations)
+          if (c.metadataOnly) c.conversationId,
+      };
+      final metadataOnlyIds = metadataOnlySet.isEmpty ? null : metadataOnlySet;
       if (hasConversationDelta || hasFileDelta || forceSettings) {
         // cfg content is irrelevant whenever a contentScope is present
         // (incremental.effectiveScope wins); the legacy mapped scope is
@@ -283,6 +293,7 @@ class LanSyncClient extends ChangeNotifier {
                 ),
                 conversationSince: const {},
                 includeFilePaths: null,
+                metadataOnlyConversationIds: metadataOnlyIds,
               )
             : IncrementalBackupConfig(
                 since: plan.since ?? DateTime(2000),
@@ -295,6 +306,7 @@ class LanSyncClient extends ChangeNotifier {
                 updateBackupTime: false,
                 conversationSince: _buildConversationSince(plan),
                 includeFilePaths: outboundDelta,
+                metadataOnlyConversationIds: metadataOnlyIds,
               );
         myZip = await _dataSync.exportToFile(cfg, incremental: incremental);
       }
@@ -376,8 +388,10 @@ class LanSyncClient extends ChangeNotifier {
   Future<SyncIndex> _buildIndex() async {
     final conversations = _chatService.getAllCompleteConversations();
     final convMap = <String, List<String>>{};
+    final conversationRows = <String, Map<String, dynamic>>{};
     for (final conv in conversations) {
       convMap[conv.id] = _chatService.repo.getMessageIdsSync(conv.id);
+      conversationRows[conv.id] = conv.toJson();
     }
     final assistantIds = (await _chatService.getAllAssistants())
         .map((a) => a.id)
@@ -388,6 +402,9 @@ class LanSyncClient extends ChangeNotifier {
       conversations: convMap,
       assistantIds: assistantIds,
       fileManifest: manifest,
+      // Category D (issue #615): row metadata rides the index so a modern
+      // server can detect same-message/different-row conversations.
+      conversationRows: conversationRows,
       syncPriority: _chosenPriority,
     );
   }

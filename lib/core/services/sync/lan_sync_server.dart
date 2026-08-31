@@ -107,6 +107,11 @@ class LanSyncServer extends ChangeNotifier {
   /// the zip then falls back to the single global `since`.
   Map<String, DateTime?>? _exchangeConversationSince;
 
+  /// Conversations whose message-ID lists are identical but whose rows differ
+  /// (category D): their row ships in round 2 without its messages, so the
+  /// chosen conflict direction reaches the merge.
+  Set<String> _exchangeMetadataOnlyConversationIds = const {};
+
   /// The server's outbound file delta (zip-entry paths to pack). Null when the
   /// initiator is an old peer → `since`-based file packing.
   Set<String>? _serverOutboundDelta;
@@ -309,6 +314,10 @@ class LanSyncServer extends ChangeNotifier {
     final cfg = const WebDavConfig();
     File? myZip;
     final outboundDelta = _serverOutboundDelta;
+    // Null when empty: a non-null set switches the export to per-conversation
+    // mode, which would otherwise skip every conversation.
+    final retained = _exchangeMetadataOnlyConversationIds;
+    final metadataOnlyIds = retained.isEmpty ? null : retained;
     // THIS side's delta only (server chat window / server file delta).
     final hasChatOrFileDelta =
         _exchangeSince != null ||
@@ -335,6 +344,8 @@ class LanSyncServer extends ChangeNotifier {
               ),
               conversationSince: const {},
               includeFilePaths: null,
+              // Category D: metadata-only rows still ship (without messages).
+              metadataOnlyConversationIds: metadataOnlyIds,
             )
           : IncrementalBackupConfig(
               since: _exchangeSince ?? since ?? DateTime(2000),
@@ -346,6 +357,7 @@ class LanSyncServer extends ChangeNotifier {
               updateBackupTime: false,
               conversationSince: _exchangeConversationSince,
               includeFilePaths: outboundDelta,
+              metadataOnlyConversationIds: metadataOnlyIds,
             );
       myZip = await _dataSync.exportToFile(cfg, incremental: incremental);
     }
@@ -465,14 +477,26 @@ class LanSyncServer extends ChangeNotifier {
 
     // Attach each conversation's own since for the per-conversation chat
     // export (null = one-sided conversation, exported in full; identical
-    // conversations are skipped by the transport).
+    // conversations are skipped by the transport). Category D (issue #615):
+    // in a confirmed-direction session, identical message-ID lists with
+    // differing rows are flagged so both peers ship the row without messages.
     final conversationSince = <String, DateTime?>{};
+    final metadataOnlyIds = <String>{};
     final plansWithSince = <SyncConvPlan>[];
     for (final plan in plans) {
       final forkId = plan.forkPointMessageId;
       final convSince = plan.state == SyncConvState.identical || forkId == null
           ? null
           : forkTsCache[plan.conversationId];
+      final metadataOnly = conversationIsMetadataOnlyConflict(
+        plan: plan,
+        theirRowJson: initiatorIndex.conversationRows?[plan.conversationId],
+        myRowJson: myConvsById[plan.conversationId]?.toJson(),
+        hasConfirmedDirection: initiatorIndex.syncPriority != null,
+      );
+      if (metadataOnly) {
+        metadataOnlyIds.add(plan.conversationId);
+      }
       if (plan.state != SyncConvState.identical) {
         conversationSince[plan.conversationId] = convSince;
       }
@@ -485,6 +509,7 @@ class LanSyncServer extends ChangeNotifier {
           initiatorIncrementCount: plan.initiatorIncrementCount,
           serverIncrementCount: plan.serverIncrementCount,
           since: convSince,
+          metadataOnly: metadataOnly,
         ),
       );
     }
@@ -517,6 +542,7 @@ class LanSyncServer extends ChangeNotifier {
         ? conversationSince
         : null;
     _serverOutboundDelta = peerManifest != null ? outboundDelta : null;
+    _exchangeMetadataOnlyConversationIds = metadataOnlyIds;
 
     // Assistant set differences.
     final theirSet = initiatorIndex.assistantIds.toSet();

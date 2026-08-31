@@ -1762,15 +1762,23 @@ class DataSync {
     }
     var conversations = chatService.getAllCompleteConversations();
     final perConvSince = incremental?.conversationSince;
-    if (incremental != null && perConvSince != null) {
+    final metadataOnly = incremental?.metadataOnlyConversationIds;
+    if (incremental != null && (perConvSince != null || metadataOnly != null)) {
       // LAN-sync per-conversation mode: export exactly the conversations that
-      // have a delta on this device (presence in the map); conversations
-      // absent from the map are identical on both peers and skipped entirely.
-      // Each exported conversation is then scoped to its own fork-point
-      // timestamp in the messages loop below (null → one-sided conversation,
-      // exported in full). This removes the global-since over/under-inclusion.
+      // have a delta on this device (presence in the map) plus the
+      // metadata-only conflicts (issue #615 category D — identical message
+      // lists, different row: the row ships but its messages must never
+      // duplicate or drop). Conversations absent from both are identical on
+      // both peers and skipped entirely. Each exported conversation is then
+      // scoped to its own fork-point timestamp in the messages loop below
+      // (null → one-sided conversation, exported in full). This removes the
+      // global-since over/under-inclusion.
       conversations = conversations
-          .where((c) => perConvSince.containsKey(c.id))
+          .where(
+            (c) =>
+                (perConvSince?.containsKey(c.id) ?? false) ||
+                (metadataOnly?.contains(c.id) ?? false),
+          )
           .toList();
     } else if (incremental != null) {
       final sinceCheck = incremental.sinceCheck;
@@ -1816,20 +1824,30 @@ class DataSync {
         // Group transcripts are all-or-nothing: a partial message list would
         // corrupt member assistants' private context after restore.
         if (incremental != null && !c.isGroup) {
-          final perConv = incremental.conversationSince;
-          if (perConv != null) {
-            // Per-conversation window (LAN sync): null since = one-sided
-            // conversation whose whole transcript is the increment — export
-            // every message.
-            final convSince = perConv[c.id];
-            if (convSince != null) {
+          // Category D (issue #615): metadata-only rows ship WITHOUT their
+          // messages — the message-ID lists are identical on both peers, so
+          // carrying them would only duplicate (and never resolve anything).
+          if (metadataOnly?.contains(c.id) ?? false) {
+            msgs = const <ChatMessage>[];
+          } else {
+            final perConv = incremental.conversationSince;
+            if (perConv != null) {
+              // Per-conversation window (LAN sync): null since = one-sided
+              // conversation whose whole transcript is the increment — export
+              // every message.
+              final convSince = perConv[c.id];
+              if (convSince != null) {
+                msgs = _incrementalQualifiedMessages(
+                  msgs,
+                  (t) => convSince.isBefore(t) || convSince.isAtSameMomentAs(t),
+                );
+              }
+            } else if (c.createdAt.isBefore(incremental.since)) {
               msgs = _incrementalQualifiedMessages(
                 msgs,
-                (t) => convSince.isBefore(t) || convSince.isAtSameMomentAs(t),
+                incremental.sinceCheck,
               );
             }
-          } else if (c.createdAt.isBefore(incremental.since)) {
-            msgs = _incrementalQualifiedMessages(msgs, incremental.sinceCheck);
           }
         }
         for (final m in msgs) {
@@ -2035,16 +2053,20 @@ class DataSync {
               batchGeminiSigs[msg.id] = geminiSigsByMessageId[msg.id]!;
             }
           }
-        } else if (byConv.containsKey(c.id)) {
+        } else if (existingConvIds.contains(c.id)) {
+          final incomingMsgs = byConv[c.id] ?? const <ChatMessage>[];
           final exclusiveMsgs = <ChatMessage>[
-            for (final msg in byConv[c.id]!)
+            for (final msg in incomingMsgs)
               if (!existingMsgIds.contains(msg.id)) msg,
           ];
           // Conversation metadata direction (issue #615, category D): with
           // incomingWins the winner's row replaces the loser's (id, createdAt
-          // and messageIds exempt). Row-replace happens first: the append
-          // path then keeps the union list (the rider lifts updatedAt if a
-          // newly appended message is newer).
+          // and messageIds exempt). Runs even when the incoming payload
+          // carries NO messages for this conversation — a metadata-only row
+          // (identical message-ID lists, different row fields) ships without
+          // its messages, and must still apply the direction. Row-replace
+          // happens first: the append path then keeps the union list (the
+          // rider lifts updatedAt if a newly appended message is newer).
           if (precedence == ConflictPrecedence.incomingWins) {
             final local = existingConvsById[c.id];
             await chatService.replaceConversationRow(

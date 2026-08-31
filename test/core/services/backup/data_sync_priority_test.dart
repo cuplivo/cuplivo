@@ -359,6 +359,71 @@ void main() {
       expect(msgs, hasLength(2));
     }, timeout: const Timeout(Duration(minutes: 2)));
 
+    test('incomingWins applies a metadata-only row (zero messages)', () async {
+      // Issue #615 category D protocol gap: identical message-ID lists with a
+      // differing row ship the ROW without messages — the merge must still
+      // replace the metadata, never touch the message list.
+      businessPrefs = BusinessPreferences.memoryForTests({});
+      final service = await seeded();
+      final sync = DataSync(preferences: businessPrefs, chatService: service);
+      await sync.restoreFromLocalFile(
+        await _buildJsonlZip(
+          root: root.path,
+          settings: const {},
+          conversations: [
+            Conversation(
+              id: 'shared',
+              title: 'Remote Title',
+              updatedAt: DateTime(2021),
+              messageIds: const ['local-msg'],
+            ),
+          ],
+          messages: const <ChatMessage>[],
+        ),
+        WebDavConfig(content: _chatsScope),
+        mode: RestoreMode.merge,
+        precedence: ConflictPrecedence.incomingWins,
+      );
+
+      final conv = service.getAllCompleteConversations().firstWhere(
+        (c) => c.id == 'shared',
+      );
+      expect(conv.title, 'Remote Title');
+      expect(conv.updatedAt, DateTime(2021));
+      final msgs = service.getMessages('shared');
+      expect(msgs.map((m) => m.id), ['local-msg']);
+      expect(msgs, hasLength(1), reason: 'no duplication, no loss');
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test('auto keeps the local row for a metadata-only payload (no crash, '
+        'no message change)', () async {
+      businessPrefs = BusinessPreferences.memoryForTests({});
+      final service = await seeded();
+      final sync = DataSync(preferences: businessPrefs, chatService: service);
+      await sync.restoreFromLocalFile(
+        await _buildJsonlZip(
+          root: root.path,
+          settings: const {},
+          conversations: [
+            Conversation(
+              id: 'shared',
+              title: 'Remote Title',
+              updatedAt: DateTime(2021),
+            ),
+          ],
+          messages: const <ChatMessage>[],
+        ),
+        WebDavConfig(content: _chatsScope),
+        mode: RestoreMode.merge,
+      );
+
+      final conv = service.getAllCompleteConversations().firstWhere(
+        (c) => c.id == 'shared',
+      );
+      expect(conv.title, 'Local Title');
+      expect(service.getMessages('shared'), hasLength(1));
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
     test('incomingWins never regresses updatedAt below local activity', () async {
       // Losing side holds newer local activity (updatedAt 2023); the winning
       // row is from a stale peer (2021) and its exclusive message is 2022.

@@ -253,6 +253,48 @@ Future<void> _seedChats(
   );
 }
 
+/// Seeds both devices with an identical conversation + message list but
+/// DIFFERENT row metadata (title / isPinned / summary) — the only delta in
+/// the session is metadata (issue #615 category D). No assistants, no files.
+Future<void> _seedMetadataConflictChats(
+  _Device initiator,
+  _Device server, {
+  required String initiatorTitle,
+  required String serverTitle,
+}) async {
+  final iRow = Conversation(
+    id: 'c1',
+    title: initiatorTitle,
+    isPinned: true,
+    summary: 'initiator summary',
+  );
+  final sRow = Conversation(id: 'c1', title: serverTitle, isPinned: false);
+  await initiator.repo.putConversation(iRow);
+  await server.repo.putConversation(sRow);
+  for (final device in [initiator, server]) {
+    await device.repo.putMessage(
+      ChatMessage(
+        id: 'm1',
+        role: 'user',
+        content: 'hello 1',
+        conversationId: 'c1',
+        timestamp: DateTime(2025, 1, 1),
+      ),
+    );
+    await device.repo.putMessage(
+      ChatMessage(
+        id: 'm2',
+        role: 'user',
+        content: 'hello 2',
+        conversationId: 'c1',
+        timestamp: DateTime(2025, 1, 2),
+      ),
+    );
+  }
+  initiator.chatService._conversations.add(iRow);
+  server.chatService._conversations.add(sRow);
+}
+
 Future<void> _closeDevice(_Device device) async {
   await device.repo.close();
 }
@@ -469,5 +511,183 @@ void main() {
     expect(serverAssistant?.name, 'Server Assistant');
     expect(initiatorAssistant?.name, 'Server Assistant');
     expect(initiatorAssistant?.name, serverAssistant?.name);
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
+  test('e2e: metadata-only row conflict + initiatorWins converges both peers '
+      'to the initiator metadata (review round 3 scenario 3)', () async {
+    await _seedMetadataConflictChats(
+      initiator,
+      server,
+      initiatorTitle: 'Initiator Chat',
+      serverTitle: 'Server Chat',
+    );
+    expect(initiator.repo.getMessageCountSync('c1'), 2);
+    expect(server.repo.getMessageCountSync('c1'), 2);
+
+    final lanServer = LanSyncServer(
+      chatService: server.chatService,
+      dataSync: server.dataSync,
+    );
+    await lanServer.start(preferredPort: 0);
+    addTearDown(lanServer.stop);
+
+    final lanClient = LanSyncClient(
+      chatService: initiator.chatService,
+      dataSync: initiator.dataSync,
+    );
+    addTearDown(lanClient.close);
+
+    final serverDone = Completer<void>();
+    var serverRestored = false;
+    lanServer.onZipReceived = (zip) async {
+      try {
+        await _restoreZip(
+          server,
+          zip,
+          lanServer.initiatorPriority,
+          isInitiator: false,
+        );
+      } catch (e) {
+        if (!serverDone.isCompleted) serverDone.completeError(e);
+        return;
+      }
+      serverRestored = true;
+      debugPrint(
+        '[e2e] scenario3 post-restore server conversation: '
+        '${server.repo.getConversationSync('c1')?.title}',
+      );
+      if (!serverDone.isCompleted) serverDone.complete();
+    };
+    var clientRestored = false;
+    lanClient.onZipReceived = (zip) async {
+      await _restoreZip(
+        initiator,
+        zip,
+        lanClient.effectivePriority,
+        isInitiator: true,
+      );
+      clientRestored = true;
+    };
+
+    await lanClient.negotiate(
+      host: '127.0.0.1',
+      port: lanServer.port!,
+      pin: lanServer.pin!,
+      syncPriority: SyncPriority.initiatorWins,
+    );
+    expect(lanClient.effectivePriority, SyncPriority.initiatorWins);
+    expect(lanClient.forceSettingsExchange, isTrue);
+
+    await lanClient.exchange(
+      host: '127.0.0.1',
+      port: lanServer.port!,
+      pin: lanServer.pin!,
+    );
+    expect(lanClient.phase, LanSyncPhase.done);
+    await serverDone.future.timeout(const Duration(seconds: 20));
+
+    expect(clientRestored, isTrue);
+    expect(serverRestored, isTrue);
+    final iConv = initiator.repo.getConversationSync('c1');
+    final sConv = server.repo.getConversationSync('c1');
+    expect(iConv?.title, 'Initiator Chat');
+    expect(sConv?.title, 'Initiator Chat');
+    expect(iConv?.isPinned, isTrue);
+    expect(sConv?.isPinned, isTrue);
+    expect(iConv?.summary, 'initiator summary');
+    expect(sConv?.summary, 'initiator summary');
+    for (final device in [initiator, server]) {
+      expect(device.repo.getMessageCountSync('c1'), 2);
+      expect(device.repo.getMessageIdsSync('c1'), ['m1', 'm2']);
+    }
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
+  test('e2e: metadata-only row conflict + serverWins converges both peers to '
+      'the server metadata (review round 3 scenario 4)', () async {
+    await _seedMetadataConflictChats(
+      initiator,
+      server,
+      initiatorTitle: 'Initiator Chat',
+      serverTitle: 'Server Chat',
+    );
+    expect(initiator.repo.getMessageCountSync('c1'), 2);
+    expect(server.repo.getMessageCountSync('c1'), 2);
+
+    final lanServer = LanSyncServer(
+      chatService: server.chatService,
+      dataSync: server.dataSync,
+    );
+    await lanServer.start(preferredPort: 0);
+    addTearDown(lanServer.stop);
+
+    final lanClient = LanSyncClient(
+      chatService: initiator.chatService,
+      dataSync: initiator.dataSync,
+    );
+    addTearDown(lanClient.close);
+
+    final serverDone = Completer<void>();
+    var serverRestored = false;
+    lanServer.onZipReceived = (zip) async {
+      try {
+        await _restoreZip(
+          server,
+          zip,
+          lanServer.initiatorPriority,
+          isInitiator: false,
+        );
+      } catch (e) {
+        if (!serverDone.isCompleted) serverDone.completeError(e);
+        return;
+      }
+      serverRestored = true;
+      debugPrint(
+        '[e2e] scenario4 post-restore server conversation: '
+        '${server.repo.getConversationSync('c1')?.title}',
+      );
+      if (!serverDone.isCompleted) serverDone.complete();
+    };
+    var clientRestored = false;
+    lanClient.onZipReceived = (zip) async {
+      await _restoreZip(
+        initiator,
+        zip,
+        lanClient.effectivePriority,
+        isInitiator: true,
+      );
+      clientRestored = true;
+    };
+
+    await lanClient.negotiate(
+      host: '127.0.0.1',
+      port: lanServer.port!,
+      pin: lanServer.pin!,
+      syncPriority: SyncPriority.serverWins,
+    );
+    expect(lanClient.effectivePriority, SyncPriority.serverWins);
+    expect(lanClient.forceSettingsExchange, isTrue);
+
+    await lanClient.exchange(
+      host: '127.0.0.1',
+      port: lanServer.port!,
+      pin: lanServer.pin!,
+    );
+    expect(lanClient.phase, LanSyncPhase.done);
+    await serverDone.future.timeout(const Duration(seconds: 20));
+
+    expect(clientRestored, isTrue);
+    expect(serverRestored, isTrue);
+    final iConv = initiator.repo.getConversationSync('c1');
+    final sConv = server.repo.getConversationSync('c1');
+    expect(iConv?.title, 'Server Chat');
+    expect(sConv?.title, 'Server Chat');
+    expect(iConv?.isPinned, isFalse);
+    expect(sConv?.isPinned, isFalse);
+    expect(iConv?.summary, isNull);
+    expect(sConv?.summary, isNull);
+    for (final device in [initiator, server]) {
+      expect(device.repo.getMessageCountSync('c1'), 2);
+      expect(device.repo.getMessageIdsSync('c1'), ['m1', 'm2']);
+    }
   }, timeout: const Timeout(Duration(minutes: 2)));
 }

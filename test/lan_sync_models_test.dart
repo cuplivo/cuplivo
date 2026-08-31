@@ -122,6 +122,53 @@ void main() {
       expect(restored.since, isNull);
     });
 
+    test('SyncConvPlan metadataOnly round-trips and defaults to false', () {
+      final flagged = SyncConvPlan.fromJson(
+        Map<String, dynamic>.from(
+          const SyncConvPlan(
+            conversationId: 'c1',
+            state: SyncConvState.identical,
+            initiatorIncrementCount: 0,
+            serverIncrementCount: 0,
+            metadataOnly: true,
+          ).toJson(),
+        ),
+      );
+      expect(flagged.metadataOnly, isTrue);
+      expect(
+        SyncConvPlan.fromJson({
+          'conversationId': 'c1',
+          'state': 'identical',
+          'forkPointMessageId': null,
+          'initiatorIncrementCount': 0,
+          'serverIncrementCount': 0,
+        }).metadataOnly,
+        isFalse,
+        reason: 'old-format JSON without the field degrades to false',
+      );
+    });
+
+    test('SyncIndex conversationRows round-trips and defaults to null', () {
+      final original = SyncIndex(
+        conversations: {
+          'c1': ['m1'],
+        },
+        assistantIds: const ['a1'],
+        conversationRows: {
+          'c1': {'title': 'Chat 1', 'isPinned': false},
+        },
+      );
+      final restored = SyncIndex.fromJsonString(original.toJsonString());
+      expect(restored.conversationRows?['c1']?['title'], 'Chat 1');
+      expect(
+        SyncIndex.fromJsonString(
+          '{"conversations":{"c1":["m1"]},"assistantIds":[],"fileManifest":null}',
+        ).conversationRows,
+        isNull,
+        reason: 'old-format JSON without conversationRows degrades to null',
+      );
+    });
+
     test('SyncPlan round-trips serverFileManifest', () {
       final original = SyncPlan(
         conversations: const [],

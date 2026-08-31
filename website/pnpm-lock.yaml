@@ -6,7 +6,9 @@ settings:
 
 importers:
 
-  .:
+  .: {}
+
+  apps/helper:
     dependencies:
       '@sqlite.org/sqlite-wasm':
         specifier: 3.49.2-build1

@@ -1061,7 +1061,7 @@
 - **Render session (渲染会话)**: One ordered lifetime of a viewport bound to one conversation. Results and actions from an older render session are stale and must not affect the active conversation.
 - **Conversation-scoped fallback (会话级回退)**: A process-local choice that keeps one conversation on the Flutter viewport after a Web viewport failure or an unsupported MultiAI surface. It is not persisted.
 - **Rich content block (富内容块)**: An independently rendered unit inside a message, such as Markdown, code, math, Mermaid, SVG, HTML preview, an attachment, reasoning, or a tool card. Failure of one block does not invalidate the surrounding message.
-- **Web chat shell (Web 壳)**: The versioned bundled HTML/JS surface (`assets/web_chat/`, currently `web-chat-v18`) that a platform WebView renders inside the Web conversation viewport. It owns only DOM presentation, local interaction, and viewport scroll; it is a presentation layer, never a second chat client.
+- **Web chat shell (Web 壳)**: The versioned bundled HTML/JS surface (`assets/web_chat/`, currently `web-chat-v19`) that a platform WebView renders inside the Web conversation viewport. It owns only DOM presentation, local interaction, and viewport scroll; it is a presentation layer, never a second chat client.
 - **Shell origin (壳加载源)**: The URL origin from which the Web chat shell is loaded by the platform WebView — Windows: WebView2 HTTPS virtual host (`cuplivo-web-chat.invalid`), Android: `appassets.androidplatform.net` (secure asset origin), Darwin (iOS/macOS): loopback HTTP served by the in-process `LocalWebChatShellServer` with asset keys mapped to `/assets/...` paths. It is never a `file://` origin (ADR-0043; Darwin path in ADR-0051).
 
 ## Fork Conversation (创建分支)

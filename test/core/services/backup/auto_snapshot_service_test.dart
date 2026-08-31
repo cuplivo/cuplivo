@@ -179,6 +179,83 @@ void main() {
     );
 
     test(
+      'eviction failure keeps pairs intact and a dedup tick repairs the cap',
+      () async {
+        final service = _service(root, exporter);
+        final names = <String>[];
+        for (var i = 0; i < 3; i++) {
+          if (i > 0) {
+            await Future<void>.delayed(const Duration(milliseconds: 1100));
+          }
+          exporter.payload = {
+            'chats_meta.json': utf8.encode(
+              jsonEncode({
+                'format_version': 2,
+                'conversation_count': i,
+                'message_count': i * 10,
+              }),
+            ),
+            'conversations.jsonl': utf8.encode('$i\n'),
+          };
+          final result = await service.createSnapshot();
+          expect(result.status, AutoSnapshotStatus.created);
+          names.add(result.metadata!.fileName);
+        }
+
+        final dir = await service.snapshotDirectory();
+        // Make the OLDEST zip un-deletable: replace the file with a
+        // non-empty directory. File.deleteSync on such a path throws on both
+        // Windows and POSIX, so eviction of this pair must fail.
+        final oldestZip = File('${dir.path}/${names.first}');
+        final oldestZipBytes = oldestZip.readAsBytesSync();
+        oldestZip.deleteSync();
+        Directory(oldestZip.path).createSync();
+        File('${oldestZip.path}/locked').writeAsStringSync('x');
+
+        // 4th snapshot commits fine; eviction of the oldest pair fails and
+        // must leave BOTH the zip-dir and its sidecar (no orphan half).
+        exporter.payload = {
+          'chats_meta.json': utf8.encode(
+            jsonEncode({'format_version': 2, 'conversation_count': 3}),
+          ),
+          'conversations.jsonl': utf8.encode('3\n'),
+        };
+        final fourth = await service.createSnapshot();
+        expect(fourth.status, AutoSnapshotStatus.created);
+        names.add(fourth.metadata!.fileName);
+
+        var snapshots = await service.listSnapshots();
+        expect(snapshots, hasLength(4));
+        expect(File('${dir.path}/${names.first}.json').existsSync(), isTrue);
+
+        // The transient problem clears: restore a real zip at the oldest
+        // path, then the same content as the newest snapshot triggers dedup —
+        // that tick must repair the cap back down to 3 pairs.
+        Directory(oldestZip.path).deleteSync(recursive: true);
+        oldestZip.writeAsBytesSync(oldestZipBytes);
+        final dedup = await service.createSnapshot();
+        expect(dedup.status, AutoSnapshotStatus.deduplicated);
+
+        snapshots = await service.listSnapshots();
+        expect(snapshots, hasLength(3));
+        expect(
+          snapshots.map((s) => s.fileName).toSet(),
+          names.sublist(1).toSet(),
+        );
+        expect(
+          dir
+              .listSync()
+              .whereType<File>()
+              .where((f) => f.path.endsWith('.json'))
+              .length,
+          3,
+        );
+        expect(File('${dir.path}/${names.first}.json').existsSync(), isFalse);
+        expect(File(oldestZip.path).existsSync(), isFalse);
+      },
+    );
+
+    test(
       'failed export leaves the snapshot store completely untouched',
       () async {
         final service = _service(root, exporter);

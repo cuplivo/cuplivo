@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../utils/app_directories.dart';
 
@@ -105,7 +105,8 @@ class AutoSnapshotException implements Exception {
 /// temporary file and leaves the existing snapshots untouched; a failure
 /// after the move (counts are computed before it, so the remaining risk is a
 /// sidecar write) rolls the committed zip + sidecar back, so the store stays
-/// byte-identical on every failed attempt.
+/// byte-identical on every failed attempt. Eviction failure is logged and
+/// retried on every subsequent attempt (create or dedup tick), never silent.
 class AutoSnapshotService {
   AutoSnapshotService({
     required this._exportBackup,
@@ -223,6 +224,10 @@ class AutoSnapshotService {
         } catch (_) {
           // Best effort; temp leftovers are cleaned by the OS eventually.
         }
+        // Over-cap state can persist from a previously failed eviction (the
+        // resulting files only get evicted on the next successful move into
+        // the store) — repair it here too, not only on the create path.
+        await _evict(dir);
         return const AutoSnapshotResult(AutoSnapshotStatus.deduplicated, null);
       }
 
@@ -324,23 +329,43 @@ class AutoSnapshotService {
   }
 
   /// FIFO eviction: delete oldest beyond [maxSnapshots]. Runs after the new
-  /// snapshot is durable, so a failure here can at worst leave one extra
-  /// snapshot (self-heals on the next cycle) — never data loss.
+  /// snapshot is durable, on every attempt (create AND dedup ticks), so a
+  /// transient failure is retried on the next attempt — never data loss.
+  ///
+  /// Never throws: eviction is not part of the atomic snapshot contract, but
+  /// a failure must not be silent — each one is logged so operators can see
+  /// why the store carries an extra snapshot and the next tick repairs it.
+  /// A pair (zip + sidecar) is only deleted together: if the zip delete
+  /// fails, its sidecar stays too, so no orphan half is left behind.
   Future<void> _evict(Directory dir) async {
+    final List<SnapshotMetadata> current;
     try {
-      final current = await listSnapshots();
-      if (current.length <= maxSnapshots) return;
-      for (final meta in current.skip(maxSnapshots)) {
-        try {
-          final zip = File('${dir.path}/${meta.fileName}');
-          if (zip.existsSync()) zip.deleteSync();
-          final sidecar = File('${dir.path}/${meta.fileName}.json');
-          if (sidecar.existsSync()) sidecar.deleteSync();
-        } catch (_) {}
+      current = await listSnapshots();
+    } catch (e) {
+      debugPrint('[AutoSnapshotService] eviction listing failed: $e');
+      return;
+    }
+    if (current.length <= maxSnapshots) return;
+    for (final meta in current.skip(maxSnapshots)) {
+      final zip = File('${dir.path}/${meta.fileName}');
+      try {
+        zip.deleteSync();
+      } catch (e) {
+        debugPrint(
+          '[AutoSnapshotService] failed to evict ZIP ${meta.fileName}: $e'
+          ' (sidecar kept together, retried next attempt)',
+        );
+        continue;
       }
-    } catch (_) {
-      // Best effort: evicting is not part of the atomic snapshot contract —
-      // a transient IO error leaves one extra snapshot, cleaned next cycle.
+      final sidecar = File('${dir.path}/${meta.fileName}.json');
+      try {
+        sidecar.deleteSync();
+      } catch (e) {
+        debugPrint(
+          '[AutoSnapshotService] failed to evict sidecar ${meta.fileName}.json: '
+          '$e',
+        );
+      }
     }
   }
 

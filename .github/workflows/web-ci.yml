@@ -1,0 +1,50 @@
+name: Web CI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'website/**'
+      - '.github/workflows/web-ci.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'website/**'
+      - '.github/workflows/web-ci.yml'
+
+jobs:
+  checks:
+    name: Check / Test / Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.22.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: website/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: website
+        run: pnpm install --frozen-lockfile
+
+      - name: Svelte check
+        working-directory: website
+        run: pnpm -r check
+
+      - name: Tests (e2e / compat)
+        working-directory: website
+        run: pnpm -r test
+
+      - name: Build
+        working-directory: website
+        run: pnpm -r build

@@ -2,10 +2,14 @@ import 'package:Cuplivo/features/home/utils/input_bar_button_layout.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('default order is canonical and complete (15 ids incl. customize)', () {
-    expect(defaultInputBarButtonIds, hasLength(15));
-    expect(defaultInputBarButtonIds.toSet(), hasLength(15));
+  test('default order is canonical and complete (16 ids incl. customize)', () {
+    expect(defaultInputBarButtonIds, hasLength(16));
+    expect(defaultInputBarButtonIds.toSet(), hasLength(16));
     expect(defaultInputBarButtonIds.first, inputBarButtonModel);
+    expect(
+      defaultInputBarButtonIds[defaultInputBarButtonIds.length - 2],
+      inputBarButtonProactiveCare,
+    );
     expect(defaultInputBarButtonIds.last, inputBarButtonCustomize);
   });
 
@@ -47,6 +51,7 @@ void main() {
       expect(layout.orderedIds, defaultInputBarButtonIds);
       expect(layout.moreIds, defaultInputBarButtonIds.skip(5).toSet());
       expect(layout.moreIds, contains(inputBarButtonCustomize));
+      expect(layout.moreIds, contains(inputBarButtonProactiveCare));
       expect(
         layout.orderedIds.where((id) => !layout.moreIds.contains(id)),
         defaultPhoneDirectInputBarButtonIds,
@@ -73,7 +78,10 @@ void main() {
         inputBarButtonModel,
         inputBarButtonCamera,
       ]);
-      expect(layout.moreIds, {inputBarButtonCamera});
+      expect(layout.moreIds, {
+        inputBarButtonCamera,
+        inputBarButtonProactiveCare,
+      });
     });
 
     test('unknown ids in saved more are dropped', () {
@@ -82,8 +90,37 @@ void main() {
         savedMoreIds: const ['future-button'],
         tabletLayout: false,
       );
-      expect(layout.moreIds, isEmpty);
+      expect(layout.moreIds, {inputBarButtonProactiveCare});
       expect(layout.orderedIds, defaultInputBarButtonIds);
+    });
+
+    test('new action appends into More for an existing saved layout', () {
+      final layout = resolveInputBarButtonLayout(
+        savedOrder: const [inputBarButtonModel, inputBarButtonCustomize],
+        savedMoreIds: const [inputBarButtonCustomize],
+        tabletLayout: true,
+      );
+
+      expect(layout.moreIds, contains(inputBarButtonProactiveCare));
+      expect(layout.orderedIds.first, inputBarButtonModel);
+      expect(layout.orderedIds[1], inputBarButtonCustomize);
+      expect(layout.orderedIds.last, inputBarButtonProactiveCare);
+    });
+
+    test('explicit direct placement of the new action is preserved', () {
+      final layout = resolveInputBarButtonLayout(
+        savedOrder: const [
+          inputBarButtonProactiveCare,
+          inputBarButtonModel,
+          inputBarButtonCustomize,
+        ],
+        savedMoreIds: const [inputBarButtonCustomize],
+        tabletLayout: false,
+      );
+
+      expect(layout.moreIds, isNot(contains(inputBarButtonProactiveCare)));
+      expect(layout.orderedIds.first, inputBarButtonProactiveCare);
+      expect(layout.orderedIds[2], inputBarButtonCustomize);
     });
   });
 }

@@ -426,6 +426,7 @@ void main() {
               modelId: 'test-model',
               assistant: assistant,
               userNickname: 'User',
+              currentNextCareTime: null,
               history: const [
                 {'role': 'user', 'content': 'first\n\n(Tue 26-08-18 09:00:00)'},
                 {'role': 'assistant', 'content': 'second'},

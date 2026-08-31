@@ -181,6 +181,7 @@ Future<void> main() async {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       // Android: start AlarmManager service for proactive care exact alarms
       if (!kIsWeb && Platform.isAndroid) {
+        await NotificationService.ensureInitialized();
         await ProactiveCareAlarmService.initialize();
       }
       // Start app (Flutter log capture is toggleable and off by default)

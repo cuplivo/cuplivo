@@ -260,5 +260,103 @@ void main() {
         );
       },
     );
+
+    test('proactive care fields round-trip and can be cleared', () async {
+      final nextMessageAt = DateTime.utc(2027, 3, 4, 5, 6, 7);
+      final conversation = Conversation(
+        title: 'Conversation',
+        proactiveCareEnabledOverride: false,
+        proactiveCareNextMessageAt: nextMessageAt,
+      );
+
+      await repo.putConversation(conversation);
+      final loaded = await repo.getConversation(conversation.id);
+      expect(loaded?.proactiveCareEnabledOverride, isFalse);
+      expect(
+        loaded?.proactiveCareNextMessageAt?.isAtSameMomentAs(nextMessageAt),
+        isTrue,
+      );
+
+      await repo.putConversation(
+        conversation.copyWith(
+          clearProactiveCareEnabledOverride: true,
+          clearProactiveCareNextMessageAt: true,
+        ),
+      );
+      final cleared = await repo.getConversation(conversation.id);
+      expect(cleared?.proactiveCareEnabledOverride, isNull);
+      expect(cleared?.proactiveCareNextMessageAt, isNull);
+    });
+
+    test('proactive care schedule claim is exact and single-use', () async {
+      final expectedAt = DateTime.utc(2027, 3, 4, 5, 6, 7);
+      final originalUpdatedAt = DateTime.utc(2020);
+      await repo.putAssistant(
+        Assistant(id: 'owner', name: 'Owner', enableProactiveCare: true),
+      );
+      final conversation = Conversation(
+        title: 'Conversation',
+        assistantId: 'owner',
+        updatedAt: originalUpdatedAt,
+        proactiveCareNextMessageAt: expectedAt,
+      );
+      await repo.putConversation(conversation);
+
+      expect(
+        await repo.claimConversationProactiveCareSchedule(
+          conversationId: conversation.id,
+          expectedAt: expectedAt.add(const Duration(seconds: 1)),
+        ),
+        isNull,
+      );
+      expect(
+        (await repo.getConversation(
+          conversation.id,
+        ))?.proactiveCareNextMessageAt?.isAtSameMomentAs(expectedAt),
+        isTrue,
+      );
+
+      final claimed = await repo.claimConversationProactiveCareSchedule(
+        conversationId: conversation.id,
+        expectedAt: expectedAt,
+      );
+      expect(claimed?.proactiveCareNextMessageAt, isNull);
+      expect(claimed?.updatedAt.isAfter(originalUpdatedAt), isTrue);
+      expect(
+        await repo.claimConversationProactiveCareSchedule(
+          conversationId: conversation.id,
+          expectedAt: expectedAt,
+        ),
+        isNull,
+      );
+    });
+
+    test('proactive care claim preserves a disabled schedule', () async {
+      final expectedAt = DateTime.utc(2027, 3, 4, 5, 6, 7);
+      await repo.putAssistant(
+        Assistant(id: 'owner', name: 'Owner', enableProactiveCare: true),
+      );
+      final conversation = Conversation(
+        title: 'Disabled',
+        assistantId: 'owner',
+        proactiveCareEnabledOverride: false,
+        proactiveCareNextMessageAt: expectedAt,
+      );
+      await repo.putConversation(conversation);
+
+      expect(
+        await repo.claimConversationProactiveCareSchedule(
+          conversationId: conversation.id,
+          expectedAt: expectedAt,
+        ),
+        isNull,
+      );
+      expect(
+        (await repo.getConversation(
+          conversation.id,
+        ))?.proactiveCareNextMessageAt?.isAtSameMomentAs(expectedAt),
+        isTrue,
+      );
+    });
   });
 }

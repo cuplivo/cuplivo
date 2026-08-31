@@ -3611,6 +3611,76 @@
   "@assistantEditProactiveCareEnableTitle": {
     "description": "Title for the proactive care enable switch"
   },
+  "assistantEditProactiveCareDefaultDescription": "Default for conversations without an override",
+  "@assistantEditProactiveCareDefaultDescription": {
+    "description": "Explains that the assistant proactive care switch is a conversation default"
+  },
+  "assistantEditProactiveCareConversationTimesTitle": "Conversation next-letter times",
+  "@assistantEditProactiveCareConversationTimesTitle": {
+    "description": "Title for the expandable conversation proactive care schedule section"
+  },
+  "assistantEditProactiveCareNoEligibleConversations": "No enabled conversations for this assistant",
+  "@assistantEditProactiveCareNoEligibleConversations": {
+    "description": "Empty state for the assistant conversation proactive care schedule list"
+  },
+  "assistantEditProactiveCareConversationTimeFuture": "Future · {time}",
+  "@assistantEditProactiveCareConversationTimeFuture": {
+    "description": "Status for a future conversation proactive care schedule",
+    "placeholders": {"time": {"type": "String"}}
+  },
+  "assistantEditProactiveCareConversationTimeExpired": "Expired · {time}",
+  "@assistantEditProactiveCareConversationTimeExpired": {
+    "description": "Status for an expired conversation proactive care schedule",
+    "placeholders": {"time": {"type": "String"}}
+  },
+  "assistantEditProactiveCareConversationTimeUnset": "Unset",
+  "@assistantEditProactiveCareConversationTimeUnset": {
+    "description": "Status for an enabled conversation without a proactive care schedule"
+  },
+  "assistantEditProactiveCarePermissionsTitle": "Android readiness",
+  "@assistantEditProactiveCarePermissionsTitle": {
+    "description": "Title for the expandable Android proactive care readiness section"
+  },
+  "assistantEditProactiveCareNotificationsTitle": "Notifications",
+  "@assistantEditProactiveCareNotificationsTitle": {
+    "description": "Android app and proactive care notification channel readiness row"
+  },
+  "assistantEditProactiveCareExactAlarmTitle": "Exact alarms",
+  "@assistantEditProactiveCareExactAlarmTitle": {
+    "description": "Android exact alarm readiness row"
+  },
+  "assistantEditProactiveCareAutoStartTitle": "Auto-start",
+  "@assistantEditProactiveCareAutoStartTitle": {
+    "description": "Android auto-start settings row"
+  },
+  "assistantEditProactiveCareBatteryTitle": "Battery optimization exemption",
+  "@assistantEditProactiveCareBatteryTitle": {
+    "description": "Android battery optimization exemption row"
+  },
+  "assistantEditProactiveCarePermissionRequired": "Required",
+  "@assistantEditProactiveCarePermissionRequired": {
+    "description": "Marks an Android proactive care setting as required"
+  },
+  "assistantEditProactiveCarePermissionRecommended": "Recommended",
+  "@assistantEditProactiveCarePermissionRecommended": {
+    "description": "Marks an Android proactive care setting as recommended"
+  },
+  "assistantEditProactiveCarePermissionReady": "Ready",
+  "@assistantEditProactiveCarePermissionReady": {
+    "description": "Android proactive care setting is ready"
+  },
+  "assistantEditProactiveCarePermissionMissing": "Tap to grant",
+  "@assistantEditProactiveCarePermissionMissing": {
+    "description": "Android proactive care setting is missing"
+  },
+  "assistantEditProactiveCarePermissionManual": "Manual",
+  "@assistantEditProactiveCarePermissionManual": {
+    "description": "Android proactive care setting must be checked manually"
+  },
+  "assistantEditProactiveCarePermissionUnknown": "Unknown",
+  "@assistantEditProactiveCarePermissionUnknown": {
+    "description": "Android proactive care setting could not be determined"
+  },
   "assistantEditProactiveCareNextMessageTimeTitle": "Next proactive message time",
   "@assistantEditProactiveCareNextMessageTimeTitle": {
     "description": "Label for the next proactive message time row"
@@ -3642,6 +3712,42 @@
   "assistantEditProactiveCareDateTimePickerTitle": "Choose date and time",
   "@assistantEditProactiveCareDateTimePickerTitle": {
     "description": "Title for the date/time picker bottom sheet"
+  },
+  "assistantEditProactiveCareTimeMustBeFuture": "Choose a time in the future.",
+  "@assistantEditProactiveCareTimeMustBeFuture": {
+    "description": "Warning when a proactive care time is no longer in the future"
+  },
+  "conversationProactiveCareTitle": "Conversation proactive care",
+  "@conversationProactiveCareTitle": {
+    "description": "Title and input action label for conversation-level proactive care"
+  },
+  "conversationProactiveCareFollowingAssistantOn": "Following assistant setting: On",
+  "@conversationProactiveCareFollowingAssistantOn": {
+    "description": "Status when conversation proactive care inherits an enabled assistant setting"
+  },
+  "conversationProactiveCareFollowingAssistantOff": "Following assistant setting: Off",
+  "@conversationProactiveCareFollowingAssistantOff": {
+    "description": "Status when conversation proactive care inherits a disabled assistant setting"
+  },
+  "conversationProactiveCareExplicitOn": "Conversation setting: On",
+  "@conversationProactiveCareExplicitOn": {
+    "description": "Status when conversation proactive care is explicitly enabled"
+  },
+  "conversationProactiveCareExplicitOff": "Conversation setting: Off",
+  "@conversationProactiveCareExplicitOff": {
+    "description": "Status when conversation proactive care is explicitly disabled"
+  },
+  "conversationProactiveCareRestoreFollowing": "Follow assistant setting",
+  "@conversationProactiveCareRestoreFollowing": {
+    "description": "Action that clears the conversation proactive care override"
+  },
+  "conversationProactiveCareClearTime": "Clear next message time",
+  "@conversationProactiveCareClearTime": {
+    "description": "Action that clears the conversation proactive care time"
+  },
+  "conversationProactiveCareUpdateFailed": "Couldn't update conversation proactive care.",
+  "@conversationProactiveCareUpdateFailed": {
+    "description": "Error shown when a conversation proactive care update fails"
   },
   "assistantEditProactiveCareExactAlarmPermissionDenied": "Exact alarm permission not granted. Proactive care cannot wake the app on time. Please allow \"Alarms & reminders\" in system settings.",
   "@assistantEditProactiveCareExactAlarmPermissionDenied": {
@@ -4169,4 +4275,3 @@
   "webConversationStylesDeleteAction": "Delete",
   "webConversationStylesNoDescription": "No description"
 }
-

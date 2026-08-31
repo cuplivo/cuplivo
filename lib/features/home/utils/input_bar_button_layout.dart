@@ -5,7 +5,7 @@
 /// saved order wins, missing ids are appended as defaults, and unknown ids are
 /// dropped. While nothing is saved (sentinel unset), every platform keeps its
 /// legacy split (phone = first 5 direct + rest in the More bucket; tablet /
-/// desktop = all direct).
+/// desktop = all direct except newly introduced default-More actions).
 library;
 
 const String inputBarButtonModel = 'model';
@@ -22,6 +22,7 @@ const String inputBarButtonSkills = 'skills';
 const String inputBarButtonContext = 'context';
 const String inputBarButtonMiniMap = 'miniMap';
 const String inputBarButtonDocument = 'document';
+const String inputBarButtonProactiveCare = 'proactiveCare';
 const String inputBarButtonCustomize = 'customize';
 
 /// Canonical order — matches the hardcoded order the row used before
@@ -42,6 +43,7 @@ const List<String> defaultInputBarButtonIds = [
   inputBarButtonContext,
   inputBarButtonMiniMap,
   inputBarButtonDocument,
+  inputBarButtonProactiveCare,
   inputBarButtonCustomize,
 ];
 
@@ -54,10 +56,10 @@ const List<String> defaultPhoneDirectInputBarButtonIds = [
   inputBarButtonQuickPhrase,
 ];
 
-/// Tablet/desktop legacy bucket when the user never customized: everything is
-/// direct except the customize entry, which always defaults into the More
-/// bucket for discoverability.
+/// Tablet/desktop bucket when the user never customized. Newly introduced
+/// opt-in actions and customize default into More for discoverability.
 const List<String> defaultTabletMoreInputBarButtonIds = [
+  inputBarButtonProactiveCare,
   inputBarButtonCustomize,
 ];
 
@@ -106,6 +108,11 @@ InputBarButtonLayout resolveInputBarButtonLayout({
   } else {
     final moreSet = savedMoreIds.toSet();
     more = ordered.where(moreSet.contains).toSet();
+    // New actions appended to an existing customized order start in More.
+    // Once present in the saved order, savedMoreIds is the explicit choice.
+    if (!savedOrder.contains(inputBarButtonProactiveCare)) {
+      more.add(inputBarButtonProactiveCare);
+    }
   }
   return InputBarButtonLayout(orderedIds: ordered, moreIds: more);
 }

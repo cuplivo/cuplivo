@@ -12,6 +12,7 @@ import '../models/group_chat.dart';
 import '../models/group_chat_member.dart';
 import '../models/assistant_detail_injection.dart';
 import '../models/preset_message.dart';
+import '../services/proactive_care_conversation_policy.dart';
 import 'app_database.dart';
 
 class ChatDatabaseRepository {
@@ -84,6 +85,11 @@ class ChatDatabaseRepository {
     } catch (_) {
       // Non-fatal: reopen still picks up committed schema changes.
     }
+    reopenSyncConnection();
+  }
+
+  Future<void> transferLegacyProactiveCareSchedules() async {
+    await _db.transferLegacyProactiveCareSchedules();
     reopenSyncConnection();
   }
 
@@ -279,6 +285,56 @@ class ChatDatabaseRepository {
     if (row == null) return null;
     return _conversationFromRow(row);
   }
+
+  /// Atomically consumes the exact proactive-care schedule represented by an
+  /// alarm. A null result means the schedule changed or was already claimed.
+  Future<Conversation?> claimConversationProactiveCareSchedule({
+    required String conversationId,
+    required DateTime expectedAt,
+  }) => _db.transaction(() async {
+    final current =
+        await (_db.select(_db.conversationRows)..where(
+              (row) =>
+                  row.id.equals(conversationId) &
+                  row.proactiveCareNextMessageAt.equals(expectedAt),
+            ))
+            .getSingleOrNull();
+    if (current == null) return null;
+
+    final conversation = await _conversationFromRow(current);
+    final assistantId = conversation.assistantId;
+    if (assistantId == null) return null;
+    final assistantRow = await (_db.select(
+      _db.assistantRows,
+    )..where((row) => row.id.equals(assistantId))).getSingleOrNull();
+    if (assistantRow == null ||
+        !ProactiveCareConversationPolicy.isEligible(
+          conversation,
+          _assistantFromRow(assistantRow),
+        )) {
+      return null;
+    }
+
+    final claimedAt = DateTime.now();
+    final changed =
+        await (_db.update(_db.conversationRows)..where(
+              (row) =>
+                  row.id.equals(conversationId) &
+                  row.proactiveCareNextMessageAt.equals(expectedAt),
+            ))
+            .write(
+              ConversationRowsCompanion(
+                proactiveCareNextMessageAt: const Value(null),
+                updatedAt: Value(claimedAt),
+              ),
+            );
+    if (changed != 1) return null;
+
+    final claimed = await (_db.select(
+      _db.conversationRows,
+    )..where((row) => row.id.equals(conversationId))).getSingle();
+    return _conversationFromRow(claimed);
+  });
 
   Conversation? getConversationSync(
     String id, {
@@ -1205,6 +1261,8 @@ class ChatDatabaseRepository {
       workspaceDirectoryOverrides: _decodeStringStringMap(
         row.workspaceDirectoryOverridesJson,
       ),
+      proactiveCareEnabledOverride: row.proactiveCareEnabledOverride,
+      proactiveCareNextMessageAt: row.proactiveCareNextMessageAt,
     );
   }
 
@@ -1254,6 +1312,14 @@ class ChatDatabaseRepository {
       workspaceDirectoryOverrides: _decodeStringStringMap(
         _readOptionalString(row, 'workspace_directory_overrides_json') ?? '{}',
       ),
+      proactiveCareEnabledOverride: _readOptionalBool(
+        row,
+        'proactive_care_enabled_override',
+      ),
+      proactiveCareNextMessageAt: _readOptionalDateTime(
+        row,
+        'proactive_care_next_message_at',
+      ),
     );
   }
 
@@ -1281,6 +1347,15 @@ class ChatDatabaseRepository {
     }
   }
 
+  DateTime? _readOptionalDateTime(sqlite.Row row, String column) {
+    try {
+      final value = row[column];
+      return value == null ? null : _dateTimeFromSqlite(value);
+    } catch (_) {
+      return null;
+    }
+  }
+
   ConversationRowsCompanion _conversationCompanion(Conversation conversation) {
     return ConversationRowsCompanion.insert(
       id: conversation.id,
@@ -1300,6 +1375,12 @@ class ChatDatabaseRepository {
       conversationKind: Value(conversation.conversationKind),
       workspaceDirectoryOverridesJson: Value(
         jsonEncode(conversation.workspaceDirectoryOverrides),
+      ),
+      proactiveCareEnabledOverride: Value(
+        conversation.proactiveCareEnabledOverride,
+      ),
+      proactiveCareNextMessageAt: Value(
+        conversation.proactiveCareNextMessageAt,
       ),
     );
   }

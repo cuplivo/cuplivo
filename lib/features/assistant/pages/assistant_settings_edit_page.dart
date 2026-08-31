@@ -37,7 +37,9 @@ import '../../../core/providers/world_book_provider.dart';
 import '../../../core/models/instruction_injection.dart';
 import '../../../core/models/world_book.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/services/android_proactive_care_settings_service.dart';
 import '../../../core/services/haptics.dart';
+import '../../../core/services/proactive_care_conversation_policy.dart';
 import '../../../desktop/desktop_context_menu.dart';
 import '../../../desktop/desktop_settings_navigation_bus.dart';
 import '../../home/services/local_tools_service.dart';
@@ -49,6 +51,7 @@ import '../../../shared/widgets/collapsible_group_header.dart';
 import '../../../shared/widgets/emoji_picker_dialog.dart';
 import '../../../shared/widgets/emoji_text.dart';
 import '../../../shared/widgets/ios_switch.dart';
+import '../../../shared/widgets/ios_expandable_section.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
@@ -163,7 +166,7 @@ List<_AssistantEditTabSpec> _assistantEditTabSpecs(
         id: assistantEditTabProactiveLetter,
         label: l10n.assistantEditPageProactiveLetterTab,
         icon: Lucide.HeartPulse,
-        child: _ProactiveLetterTab(assistantId: assistantId),
+        child: AssistantProactiveLetterTab(assistantId: assistantId),
       ),
   ];
 }

@@ -33,6 +33,8 @@ class ConversationRows extends Table {
       text().withDefault(const Constant('normal'))();
   TextColumn get workspaceDirectoryOverridesJson =>
       text().withDefault(const Constant('{}'))();
+  BoolColumn get proactiveCareEnabledOverride => boolean().nullable()();
+  DateTimeColumn get proactiveCareNextMessageAt => dateTime().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -460,7 +462,7 @@ class AppDatabase extends _$AppDatabase {
   // self-heal below repairs such gaps on every open; without it the gap is
   // permanent because later upgrades skip the failed step's `from < N` block.
   // See docs/adr/0019-schema-self-heal.md.
-  int get schemaVersion => 21;
+  int get schemaVersion => 22;
 
   /// Whether [table] has a physical column named [column] (sqlite name).
   Future<bool> _hasColumn(String table, String column) async {
@@ -513,7 +515,7 @@ class AppDatabase extends _$AppDatabase {
   /// Repair incomplete upgrades where user_version already advanced but some
   /// ALTER TABLE / CREATE TABLE steps were skipped/failed (silent catch).
   ///
-  /// Covers every column/table added by the v5–v20 migrations that are
+  /// Covers every column/table added by the v5–v22 migrations that are
   /// wrapped in silent try/catch — missing these makes inserts crash with
   /// "table X has no column named Y". Runs in beforeOpen (rescues existing
   /// broken DBs whose user_version already passed the failed step) and at the
@@ -673,6 +675,16 @@ class AppDatabase extends _$AppDatabase {
       'workspace_directory_overrides_json',
       "ALTER TABLE conversation_rows ADD COLUMN workspace_directory_overrides_json TEXT NOT NULL DEFAULT '{}'",
     );
+    await _ensureColumn(
+      'conversation_rows',
+      'proactive_care_enabled_override',
+      'ALTER TABLE conversation_rows ADD COLUMN proactive_care_enabled_override INTEGER NULL',
+    );
+    await _ensureColumn(
+      'conversation_rows',
+      'proactive_care_next_message_at',
+      'ALTER TABLE conversation_rows ADD COLUMN proactive_care_next_message_at INTEGER NULL',
+    );
     await customStatement(
       "UPDATE conversation_rows SET conversation_kind = 'normal' "
       "WHERE conversation_kind IS NULL OR conversation_kind = ''",
@@ -706,7 +718,62 @@ class AppDatabase extends _$AppDatabase {
 
     // --- preference_rows (schema v21, issue #123) ---
     await _ensureTable(preferenceRows, 'preference_rows');
+
+    await _transferLegacyProactiveCareSchedules();
   }
+
+  /// Moves each future assistant-level schedule to that assistant's most
+  /// recently updated normal conversation. The legacy value is cleared after
+  /// the transfer update succeeds, including when no eligible target exists.
+  Future<void> _transferLegacyProactiveCareSchedules() async {
+    final nowSeconds =
+        DateTime.now().millisecondsSinceEpoch ~/ Duration.millisecondsPerSecond;
+    final legacySchedules = await customSelect(
+      'SELECT 1 FROM assistant_rows '
+      'WHERE proactive_care_next_message_at > ? LIMIT 1',
+      variables: [Variable.withInt(nowSeconds)],
+    ).get();
+    if (legacySchedules.isEmpty) return;
+
+    await customStatement(
+      '''
+UPDATE conversation_rows
+SET proactive_care_next_message_at = (
+  SELECT assistant_rows.proactive_care_next_message_at
+  FROM assistant_rows
+  WHERE assistant_rows.id = conversation_rows.assistant_id
+)
+WHERE proactive_care_next_message_at IS NULL
+  AND conversation_kind = 'normal'
+  AND assistant_id IS NOT NULL
+  AND id = (
+    SELECT candidate.id
+    FROM conversation_rows AS candidate
+    WHERE candidate.assistant_id = conversation_rows.assistant_id
+      AND candidate.conversation_kind = 'normal'
+    ORDER BY candidate.updated_at DESC, candidate.id DESC
+    LIMIT 1
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM assistant_rows
+    WHERE assistant_rows.id = conversation_rows.assistant_id
+      AND assistant_rows.proactive_care_next_message_at > ?
+  )
+''',
+      [nowSeconds],
+    );
+    await customStatement(
+      'UPDATE assistant_rows SET proactive_care_next_message_at = NULL '
+      'WHERE proactive_care_next_message_at > ?',
+      [nowSeconds],
+    );
+  }
+
+  /// Replays the idempotent v22 assistant-to-conversation schedule transfer.
+  /// Used after importing backups created by pre-v22 versions.
+  Future<void> transferLegacyProactiveCareSchedules() =>
+      _transferLegacyProactiveCareSchedules();
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -983,6 +1050,30 @@ class AppDatabase extends _$AppDatabase {
         try {
           await migrator.createTable(preferenceRows);
         } catch (_) {}
+      }
+      if (from < 22) {
+        try {
+          await migrator.addColumn(
+            conversationRows,
+            conversationRows.proactiveCareEnabledOverride,
+          );
+        } catch (error) {
+          debugPrint(
+            'v22 migration could not add conversation proactive-care '
+            'override: $error',
+          );
+        }
+        try {
+          await migrator.addColumn(
+            conversationRows,
+            conversationRows.proactiveCareNextMessageAt,
+          );
+        } catch (error) {
+          debugPrint(
+            'v22 migration could not add conversation proactive-care '
+            'schedule: $error',
+          );
+        }
       }
       // Final pass: heal any column/table that still did not land.
       await _healSchemaIfNeeded();

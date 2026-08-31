@@ -13,6 +13,7 @@ import '../services/chat/chat_service.dart';
 import '../services/deleted_records_store.dart';
 import '../models/assistant.dart';
 import '../models/assistant_regex.dart';
+import '../models/conversation.dart';
 import '../models/preset_message.dart';
 import '../models/workspace.dart';
 import '../../l10n/app_localizations.dart';
@@ -767,23 +768,24 @@ class AssistantProvider extends ChangeNotifier {
     _assistants[idx] = next;
     await _persistSingle(next, sortOrder: idx);
     notifyListeners();
-    _syncProactiveCareAlarm(prev, next);
+    await _syncProactiveCareAlarms(prev, next);
   }
 
-  /// Schedule or cancel the proactive care alarm when relevant fields change.
-  void _syncProactiveCareAlarm(Assistant prev, Assistant next) {
+  /// Re-evaluate existing schedules that inherit this assistant's default.
+  Future<void> _syncProactiveCareAlarms(Assistant prev, Assistant next) async {
     if (!Platform.isAndroid || !ProactiveCareAlarmService.isSupported) return;
-    final wasEnabled = prev.enableProactiveCare;
-    final isEnabled = next.enableProactiveCare;
-    final timeChanged =
-        prev.proactiveCareNextMessageAt != next.proactiveCareNextMessageAt;
-    if (!isEnabled && wasEnabled) {
-      ProactiveCareAlarmService.cancelFor(next.id);
-    } else if (isEnabled && (!wasEnabled || timeChanged)) {
-      final at = next.proactiveCareNextMessageAt;
-      if (at != null) {
-        ProactiveCareAlarmService.sync(next);
+    if (prev.enableProactiveCare == next.enableProactiveCare) return;
+    final service = chatService;
+    if (service == null || !service.initialized) return;
+    for (final conversation in service.getAllConversations()) {
+      if (conversation.assistantId != next.id ||
+          conversation.conversationKind != Conversation.kindNormal) {
+        continue;
       }
+      await ProactiveCareAlarmService.sync(
+        conversation: conversation,
+        assistant: next,
+      );
     }
   }
 
@@ -843,11 +845,6 @@ class AssistantProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('deleteAssistant: remove from groups failed: $e');
     }
-    // Cancel any pending proactive care alarm for this assistant.
-    if (Platform.isAndroid && ProactiveCareAlarmService.isSupported) {
-      ProactiveCareAlarmService.cancelFor(id);
-    }
-
     final removingCurrent = _assistants[idx].id == _currentAssistantId;
     _assistants.removeAt(idx);
     if (removingCurrent) {

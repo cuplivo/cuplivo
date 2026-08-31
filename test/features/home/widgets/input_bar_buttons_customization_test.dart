@@ -62,6 +62,7 @@ void main() {
       await tester.pump();
 
       expect(settings.chatInputMoreButtonIds, contains(inputBarButtonModel));
+      expect(settings.chatInputButtonOrder, defaultInputBarButtonIds);
       final after = tester.widget<IosSwitch>(find.byType(IosSwitch).first);
       expect(after.value, isFalse);
 
@@ -89,5 +90,61 @@ void main() {
     await tester.pump();
     final switches = tester.widgetList<IosSwitch>(find.byType(IosSwitch));
     expect(switches.last.value, isFalse);
+  });
+
+  testWidgets('proactive care action is listed with its localized label', (
+    tester,
+  ) async {
+    await pumpContent(tester, size: const Size(400, 800));
+    final row = find.byKey(
+      const ValueKey('input-bar-button-layout-proactiveCare'),
+    );
+    await tester.scrollUntilVisible(
+      row,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pump();
+
+    final l10n = AppLocalizations.of(tester.element(row))!;
+    expect(row, findsOneWidget);
+    expect(
+      find.descendant(
+        of: row,
+        matching: find.text(l10n.conversationProactiveCareTitle),
+      ),
+      findsOneWidget,
+    );
+    final actionSwitch = find.descendant(
+      of: row,
+      matching: find.byType(IosSwitch),
+    );
+    expect(actionSwitch, findsOneWidget);
+    expect(tester.widget<IosSwitch>(actionSwitch).value, isFalse);
+  });
+
+  testWidgets('first reorder preserves the resolved More bucket', (
+    tester,
+  ) async {
+    await pumpContent(tester);
+    final element = tester.element(
+      find.byType(InputBarButtonsCustomizationContent),
+    );
+    final settings = element.read<SettingsProvider>();
+    final list = tester.widget<ReorderableListView>(
+      find.byType(ReorderableListView),
+    );
+
+    list.onReorderItem!(0, 1);
+    await tester.pumpAndSettle();
+
+    expect(settings.chatInputButtonOrder, isNotEmpty);
+    expect(
+      settings.chatInputMoreButtonIds,
+      containsAll(<String>[
+        inputBarButtonProactiveCare,
+        inputBarButtonCustomize,
+      ]),
+    );
   });
 }

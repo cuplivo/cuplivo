@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
+import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../theme/app_semantic_colors.dart';
 
@@ -101,8 +102,14 @@ class _ProactiveCareDateTimePanelState
   void _save() {
     final selected = _selectedDateTime;
     final now = DateTime.now();
-    if (selected.isBefore(now)) {
-      widget.onSave(now.add(const Duration(minutes: 1)));
+    if (!selected.isAfter(now)) {
+      showAppSnackBar(
+        context,
+        message: AppLocalizations.of(
+          context,
+        )!.assistantEditProactiveCareTimeMustBeFuture,
+        type: NotificationType.warning,
+      );
       return;
     }
     widget.onSave(selected);

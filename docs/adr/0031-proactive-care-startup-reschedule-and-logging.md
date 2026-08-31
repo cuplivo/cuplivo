@@ -1,5 +1,7 @@
 # ADR-0031: Proactive Care Startup Re-arm and Always-On Trigger-Path Logging
 
+> Schedule ownership, alarm identity, and the pending filter are superseded by ADR-0053. The startup re-arm point and always-on logging decisions remain active.
+
 Ta的来信 (Proactive Care) is an Android-only exact-alarm feature that wakes the app
 (`android_alarm_manager_plus`, one-shot, `exact: true, wakeup: true,
 allowWhileIdle: true`) and asks the LLM for a scheduled care reply. A user reported

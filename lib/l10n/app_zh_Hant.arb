@@ -3014,6 +3014,76 @@
   "@assistantEditProactiveCareEnableTitle": {
     "description": "主動關懷開關標題"
   },
+  "assistantEditProactiveCareDefaultDescription": "未單獨設定的對話預設跟隨此開關",
+  "@assistantEditProactiveCareDefaultDescription": {
+    "description": "說明助手主動關懷開關只是對話預設值"
+  },
+  "assistantEditProactiveCareConversationTimesTitle": "各對話下次來信時間",
+  "@assistantEditProactiveCareConversationTimesTitle": {
+    "description": "對話主動關懷時間摺疊區域標題"
+  },
+  "assistantEditProactiveCareNoEligibleConversations": "此助手暫無已開啟的對話",
+  "@assistantEditProactiveCareNoEligibleConversations": {
+    "description": "助手對話主動關懷時間列表空狀態"
+  },
+  "assistantEditProactiveCareConversationTimeFuture": "未來 · {time}",
+  "@assistantEditProactiveCareConversationTimeFuture": {
+    "description": "對話主動關懷時間為未來時的狀態",
+    "placeholders": {"time": {"type": "String"}}
+  },
+  "assistantEditProactiveCareConversationTimeExpired": "已過期 · {time}",
+  "@assistantEditProactiveCareConversationTimeExpired": {
+    "description": "對話主動關懷時間已過期時的狀態",
+    "placeholders": {"time": {"type": "String"}}
+  },
+  "assistantEditProactiveCareConversationTimeUnset": "未設定",
+  "@assistantEditProactiveCareConversationTimeUnset": {
+    "description": "已開啟對話未設定主動關懷時間時的狀態"
+  },
+  "assistantEditProactiveCarePermissionsTitle": "Android 執行條件",
+  "@assistantEditProactiveCarePermissionsTitle": {
+    "description": "Android 主動關懷執行條件摺疊區域標題"
+  },
+  "assistantEditProactiveCareNotificationsTitle": "通知",
+  "@assistantEditProactiveCareNotificationsTitle": {
+    "description": "Android 應用程式通知和主動關懷通知頻道狀態列"
+  },
+  "assistantEditProactiveCareExactAlarmTitle": "精確鬧鐘",
+  "@assistantEditProactiveCareExactAlarmTitle": {
+    "description": "Android 精確鬧鐘狀態列"
+  },
+  "assistantEditProactiveCareAutoStartTitle": "自動啟動",
+  "@assistantEditProactiveCareAutoStartTitle": {
+    "description": "Android 自動啟動設定列"
+  },
+  "assistantEditProactiveCareBatteryTitle": "忽略電池最佳化",
+  "@assistantEditProactiveCareBatteryTitle": {
+    "description": "Android 忽略電池最佳化狀態列"
+  },
+  "assistantEditProactiveCarePermissionRequired": "必需",
+  "@assistantEditProactiveCarePermissionRequired": {
+    "description": "標記 Android 主動關懷必需設定"
+  },
+  "assistantEditProactiveCarePermissionRecommended": "建議",
+  "@assistantEditProactiveCarePermissionRecommended": {
+    "description": "標記 Android 主動關懷建議設定"
+  },
+  "assistantEditProactiveCarePermissionReady": "已就緒",
+  "@assistantEditProactiveCarePermissionReady": {
+    "description": "Android 主動關懷設定已就緒"
+  },
+  "assistantEditProactiveCarePermissionMissing": "點擊取得權限",
+  "@assistantEditProactiveCarePermissionMissing": {
+    "description": "Android 主動關懷設定未開啟"
+  },
+  "assistantEditProactiveCarePermissionManual": "需手動確認",
+  "@assistantEditProactiveCarePermissionManual": {
+    "description": "Android 主動關懷設定需手動確認"
+  },
+  "assistantEditProactiveCarePermissionUnknown": "未知",
+  "@assistantEditProactiveCarePermissionUnknown": {
+    "description": "無法確定 Android 主動關懷設定狀態"
+  },
   "assistantEditProactiveCareNextMessageTimeTitle": "下次助手主動發訊息時間",
   "@assistantEditProactiveCareNextMessageTimeTitle": {
     "description": "下次主動發訊息時間標籤"
@@ -3045,6 +3115,42 @@
   "assistantEditProactiveCareDateTimePickerTitle": "選擇日期和時間",
   "@assistantEditProactiveCareDateTimePickerTitle": {
     "description": "日期時間選擇器標題"
+  },
+  "assistantEditProactiveCareTimeMustBeFuture": "請選擇未來的時間。",
+  "@assistantEditProactiveCareTimeMustBeFuture": {
+    "description": "主動關懷時間已不是未來時間時的提示"
+  },
+  "conversationProactiveCareTitle": "對話主動關懷",
+  "@conversationProactiveCareTitle": {
+    "description": "對話級主動關懷標題和輸入列操作標籤"
+  },
+  "conversationProactiveCareFollowingAssistantOn": "跟隨助手設定：已開啟",
+  "@conversationProactiveCareFollowingAssistantOn": {
+    "description": "對話繼承助手已開啟主動關懷設定時的狀態"
+  },
+  "conversationProactiveCareFollowingAssistantOff": "跟隨助手設定：已關閉",
+  "@conversationProactiveCareFollowingAssistantOff": {
+    "description": "對話繼承助手已關閉主動關懷設定時的狀態"
+  },
+  "conversationProactiveCareExplicitOn": "對話設定：已開啟",
+  "@conversationProactiveCareExplicitOn": {
+    "description": "對話主動關懷已明確開啟時的狀態"
+  },
+  "conversationProactiveCareExplicitOff": "對話設定：已關閉",
+  "@conversationProactiveCareExplicitOff": {
+    "description": "對話主動關懷已明確關閉時的狀態"
+  },
+  "conversationProactiveCareRestoreFollowing": "跟隨助手設定",
+  "@conversationProactiveCareRestoreFollowing": {
+    "description": "清除對話主動關懷覆寫設定的操作"
+  },
+  "conversationProactiveCareClearTime": "清除下次發訊息時間",
+  "@conversationProactiveCareClearTime": {
+    "description": "清除對話主動關懷時間的操作"
+  },
+  "conversationProactiveCareUpdateFailed": "無法更新對話主動關懷設定。",
+  "@conversationProactiveCareUpdateFailed": {
+    "description": "更新對話主動關懷失敗時的錯誤提示"
   },
   "assistantEditProactiveCareExactAlarmPermissionDenied": "未授予精確鬧鐘權限，主動關懷無法按時喚醒應用程式，請在系統設定中允許「鬧鐘和提醒」。",
   "@assistantEditProactiveCareExactAlarmPermissionDenied": {
@@ -3572,4 +3678,3 @@
   "webConversationStylesDeleteAction": "刪除",
   "webConversationStylesNoDescription": "無描述"
 }
-

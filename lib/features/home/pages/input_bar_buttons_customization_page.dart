@@ -206,9 +206,11 @@ class InputBarButtonsCustomizationContent extends StatelessWidget {
               final next = ordered.toList();
               final moved = next.removeAt(oldIndex);
               next.insert(newIndex, moved);
-              await context.read<SettingsProvider>().setChatInputButtonOrder(
-                next,
-              );
+              final settings = context.read<SettingsProvider>();
+              if (settings.chatInputButtonOrder.isEmpty) {
+                await settings.setChatInputMoreButtonIds(moreIds.toList());
+              }
+              await settings.setChatInputButtonOrder(next);
             },
             proxyDecorator: (child, index, animation) {
               return AnimatedBuilder(
@@ -251,9 +253,11 @@ class InputBarButtonsCustomizationContent extends StatelessWidget {
                     } else {
                       nextMore.add(id);
                     }
-                    await context
-                        .read<SettingsProvider>()
-                        .setChatInputMoreButtonIds(nextMore.toList());
+                    final settings = context.read<SettingsProvider>();
+                    if (settings.chatInputButtonOrder.isEmpty) {
+                      await settings.setChatInputButtonOrder(ordered);
+                    }
+                    await settings.setChatInputMoreButtonIds(nextMore.toList());
                   },
                 ),
               );
@@ -390,6 +394,10 @@ _ButtonSpec _specOf(String id, AppLocalizations l10n) {
     inputBarButtonDocument => _ButtonSpec(
       Lucide.FileText,
       l10n.documentProcessingTitle,
+    ),
+    inputBarButtonProactiveCare => _ButtonSpec(
+      Lucide.HeartPulse,
+      l10n.conversationProactiveCareTitle,
     ),
     inputBarButtonCustomize => _ButtonSpec(
       Lucide.Settings2,

@@ -1,0 +1,258 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelivo App 数据恢复工具</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- JSZip CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen py-12 px-4 sm:px-6 lg:px-8 text-gray-800">
+    <div class="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-100">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold text-blue-600 mb-2">Kelivo 助手恢复工具</h1>
+            <p class="text-gray-500 text-sm">通过重建丢失的 Assistant 配置，恢复历史对话的正常访问</p>
+        </div>
+
+        <!-- 限制说明 -->
+        <div class="mb-6 p-4 bg-amber-50 border-l-4 border-amber-500 rounded text-amber-900 text-xs leading-relaxed">
+            <h3 class="font-bold text-sm mb-1">⚠️ 程序恢复限制说明：</h3>
+            <ul class="list-disc pl-4 space-y-1">
+                <li>本工具仅通过扫描 <code class="bg-amber-100 px-1 rounded">chats.json</code> 中出现过的 <code class="bg-amber-100 px-1 rounded">assistantId</code> 来重建最基本的助手占位符。</li>
+                <li><strong>无法恢复</strong>原助手的真实提示词（System Prompt）、自定义头像、原设定模型参数、自定义 API Header/Body 等。</li>
+                <li>所有重建的助手将统一命名为 <code class="bg-amber-100 px-1 rounded">Found 01</code>, <code class="bg-amber-100 px-1 rounded">Found 02</code>... 并使用默认参数。</li>
+                <li>此操作<b>只读修改</b>并补全 <code class="bg-amber-100 px-1 rounded">settings.json</code> 中的助手列表，不会破坏或修改您的实际对话历史。其他文件原样保留。</li>
+            </ul>
+        </div>
+
+        <!-- 文件上传区 -->
+        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer relative" id="drop-zone">
+            <input type="file" id="file-input" accept=".zip" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+            <div class="space-y-2">
+                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="text-sm text-gray-600">
+                    <span class="font-medium text-blue-600 hover:underline">点击上传</span> 或拖拽 Kelivo 备份 ZIP 文件至此处
+                </div>
+                <p class="text-xs text-gray-400">仅支持 .zip 格式备份包</p>
+            </div>
+        </div>
+
+        <!-- 状态提示 -->
+        <div id="status" class="mt-4 text-center text-sm font-semibold text-blue-500 hidden">正在处理中，请稍候...</div>
+
+        <!-- 结果展示区 -->
+        <div id="result-container" class="mt-8 hidden border-t pt-6">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-bold text-gray-900">恢复结果摘要</h2>
+                <button id="download-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded text-sm shadow transition-colors">
+                    下载修复后的 ZIP 文件
+                </button>
+            </div>
+            
+            <div class="bg-gray-100 rounded-lg p-4 mb-4">
+                <p class="text-sm font-medium text-gray-700">共识别并重建助手数量：<span id="assistant-count" class="text-blue-600 font-bold text-lg">0</span> 个</p>
+            </div>
+
+            <div class="space-y-4 max-h-96 overflow-y-auto pr-2" id="assistant-list">
+                <!-- 动态生成助手和对话列表 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const dropZone = document.getElementById('drop-zone');
+        const status = document.getElementById('status');
+        const resultContainer = document.getElementById('result-container');
+        const assistantCountSpan = document.getElementById('assistant-count');
+        const assistantList = document.getElementById('assistant-list');
+        const downloadBtn = document.getElementById('download-btn');
+
+        let originalZip = null;
+        let outputBlob = null;
+
+        // 拖拽视觉反馈
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('border-blue-500', 'bg-blue-50/50'), false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('border-blue-500', 'bg-blue-50/50'), false);
+        });
+
+        fileInput.addEventListener('change', handleFile);
+
+        async function handleFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            status.classList.remove('hidden');
+            status.textContent = "正在解压并分析 ZIP 文件...";
+            resultContainer.classList.add('hidden');
+
+            try {
+                const zip = await JSZip.loadAsync(file);
+                originalZip = zip;
+
+                // 1. 读取 chats.json
+                const chatsFile = zip.file("chats.json");
+                if (!chatsFile) {
+                    throw new Error("未在压缩包根目录找到 chats.json，请确保是合法的 Kelivo 备份包。");
+                }
+                const chatsContent = await chatsFile.async("string");
+                const chatsData = JSON.parse(chatsContent);
+
+                // 2. 读取 settings.json
+                const settingsFile = zip.file("settings.json");
+                let settingsData = {};
+                if (settingsFile) {
+                    const settingsContent = await settingsFile.async("string");
+                    settingsData = JSON.parse(settingsContent);
+                }
+
+                const conversations = chatsData.conversations || [];
+
+                // 3. 统计并对助手 ID 进行聚类，同时收集对话标题
+                const assistantMap = new Map(); // id -> array of titles
+                conversations.forEach(conv => {
+                    const aid = conv.assistantId;
+                    if (aid) {
+                        if (!assistantMap.has(aid)) {
+                            assistantMap.set(aid, []);
+                        }
+                        const list = assistantMap.get(aid);
+                        if (list.length < 5 && conv.title) {
+                            list.push(conv.title);
+                        }
+                    }
+                });
+
+                const assistantIds = Array.from(assistantMap.keys());
+                
+                // 4. 解析原有 assistants，以便保留可能已存在的助手
+                let existingAssistants = [];
+                if (settingsData.assistants_v1) {
+                    try {
+                        existingAssistants = JSON.parse(settingsData.assistants_v1);
+                    } catch (e) {
+                        existingAssistants = [];
+                    }
+                }
+
+                // 5. 为缺失的 assistantId 创建默认助手配置
+                let newAssistantCount = 0;
+                const updatedAssistants = [...existingAssistants];
+
+                assistantIds.forEach((aid, index) => {
+                    // 如果 settings 中已经存在该 ID，则不覆盖，避免破坏用户现有的有效配置
+                    if (!updatedAssistants.some(ast => ast.id === aid)) {
+                        newAssistantCount++;
+                        const formattedNum = String(newAssistantCount).padStart(2, '0');
+                        
+                        // 构造默认的 ChatConfig
+                        const newAssistant = {
+                            id: aid,
+                            name: `Found ${formattedNum}`,
+                            avatar: '⭐',
+                            useAssistantAvatar: false,
+                            useAssistantName: false,
+                            chatModelProvider: 'deepseek',
+                            chatModelId: 'deepseek-v4-flash',
+                            temperature: null,
+                            topP: null,
+                            contextMessageSize: 1024,
+                            limitContextMessages: false,
+                            streamOutput: true,
+                            thinkingBudget: 1024,
+                            maxTokens: null,
+                            systemPrompt: 'You are a helpful assistant.',
+                            messageTemplate: '{{ message }}',
+                            searchEnabled: false,
+                            mcpServerIds: [],
+                            localToolIds: [], 
+                            background: null,
+                            customHeaders: [], 
+                            customBody: [],
+                            enableMemory: false,
+                            enableRecentChatsReference: false,
+                            recentChatsSummaryMessageCount: 5,
+                            presetMessages: [],   
+                            regexRules: []
+                        };
+                        updatedAssistants.push(newAssistant);
+                    }
+                });
+
+                // 6. 序列化 assistants_v1 回 settings.json
+                settingsData.assistants_v1 = JSON.stringify(updatedAssistants);
+                
+                // 7. 将更新后的 settings.json 写入 ZIP (透传其余所有文件和文件夹)
+                zip.file("settings.json", JSON.stringify(settingsData, null, 2));
+
+                // 8. 生成新的压缩文件
+                status.textContent = "正在重新打包 ZIP 文件...";
+                outputBlob = await zip.generateAsync({ type: "blob" });
+
+                // 9. UI 展示
+                assistantCountSpan.textContent = assistantIds.length;
+                assistantList.innerHTML = '';
+
+                assistantIds.forEach((aid, index) => {
+                    const titles = assistantMap.get(aid);
+                    const isNew = !existingAssistants.some(ast => ast.id === aid);
+                    const displayName = isNew ? `Found ${String(index + 1).padStart(2, '0')}` : '(已存在于原配置中)';
+
+                    const card = document.createElement('div');
+                    card.className = "bg-white border border-gray-200 rounded-lg p-4 shadow-sm";
+                    
+                    let titlesHtml = titles.map(t => `<li class="text-xs text-gray-600 truncate">• ${t}</li>`).join('');
+                    if (titles.length === 0) {
+                        titlesHtml = `<li class="text-xs text-gray-400 italic">无历史对话标题</li>`;
+                    }
+
+                    card.innerHTML = `
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-bold text-gray-800 text-sm">${displayName}</span>
+                            <span class="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-mono">${aid.slice(0, 8)}...</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mb-2 font-mono break-all">ID: ${aid}</p>
+                        <div class="bg-gray-50 p-2 rounded">
+                            <p class="text-[11px] font-semibold text-gray-500 mb-1">采样历史对话 (至多5个)：</p>
+                            <ul class="space-y-1">
+                                ${titlesHtml}
+                            </ul>
+                        </div>
+                    `;
+                    assistantList.appendChild(card);
+                });
+
+                status.classList.add('hidden');
+                resultContainer.classList.remove('hidden');
+
+            } catch (err) {
+                alert("处理出错: " + err.message);
+                status.textContent = "处理失败，请重试。";
+                console.error(err);
+            }
+        }
+
+        // 下载事件
+        downloadBtn.addEventListener('click', () => {
+            if (!outputBlob) return;
+            const url = URL.createObjectURL(outputBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "restored_kelivo_backup.zip";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    </script>
+</body>
+</html>
+

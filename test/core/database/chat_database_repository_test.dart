@@ -358,5 +358,84 @@ void main() {
         isTrue,
       );
     });
+
+    test(
+      'proactive care append atomically rechecks owner and enabled state',
+      () async {
+        await repo.putAssistant(
+          Assistant(id: 'owner', name: 'Owner', enableProactiveCare: true),
+        );
+        final conversation = Conversation(
+          title: 'Conversation',
+          assistantId: 'owner',
+        );
+        await repo.putConversation(conversation);
+
+        final appended = await repo.appendProactiveCareReplyIfEligible(
+          conversationId: conversation.id,
+          assistantId: 'owner',
+          content: 'Care reply',
+          modelId: 'model',
+          providerId: 'provider',
+        );
+        expect(appended?.conversationId, conversation.id);
+        expect(appended?.content, 'Care reply');
+        expect(
+          (await repo.getMessagesRange(
+            conversation.id,
+            start: 0,
+            limit: 10,
+          )).map((message) => message.content),
+          ['Care reply'],
+        );
+
+        expect(
+          await repo.appendProactiveCareReplyIfEligible(
+            conversationId: conversation.id,
+            assistantId: 'missing',
+            content: 'Missing assistant must not be stored',
+          ),
+          isNull,
+        );
+        await repo.putAssistant(
+          Assistant(
+            id: 'new-owner',
+            name: 'New owner',
+            enableProactiveCare: true,
+          ),
+        );
+        await repo.putConversation(
+          conversation.copyWith(assistantId: 'new-owner'),
+        );
+        expect(
+          await repo.appendProactiveCareReplyIfEligible(
+            conversationId: conversation.id,
+            assistantId: 'owner',
+            content: 'Old owner must not be stored',
+          ),
+          isNull,
+        );
+
+        await repo.putConversation(
+          conversation.copyWith(proactiveCareEnabledOverride: false),
+        );
+        expect(
+          await repo.appendProactiveCareReplyIfEligible(
+            conversationId: conversation.id,
+            assistantId: 'owner',
+            content: 'Must not be stored',
+          ),
+          isNull,
+        );
+        expect(
+          (await repo.getMessagesRange(
+            conversation.id,
+            start: 0,
+            limit: 10,
+          )).map((message) => message.content),
+          ['Care reply'],
+        );
+      },
+    );
   });
 }

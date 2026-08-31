@@ -336,6 +336,55 @@ class ChatDatabaseRepository {
     return _conversationFromRow(claimed);
   });
 
+  /// Appends a foreground proactive-care reply only while its conversation is
+  /// still owned by [assistantId] and effectively enabled. A null result means
+  /// that eligibility was lost; in that case this transaction makes no writes.
+  Future<ChatMessage?> appendProactiveCareReplyIfEligible({
+    required String conversationId,
+    required String assistantId,
+    required String content,
+    String? modelId,
+    String? providerId,
+  }) => _db.transaction(() async {
+    final conversationRow = await (_db.select(
+      _db.conversationRows,
+    )..where((row) => row.id.equals(conversationId))).getSingleOrNull();
+    if (conversationRow == null) return null;
+
+    final assistantRow = await (_db.select(
+      _db.assistantRows,
+    )..where((row) => row.id.equals(assistantId))).getSingleOrNull();
+    if (assistantRow == null) return null;
+
+    final conversation = await _conversationFromRow(
+      conversationRow,
+      includeMessageIds: false,
+    );
+    final assistant = _assistantFromRow(assistantRow);
+    if (!ProactiveCareConversationPolicy.isEligible(conversation, assistant)) {
+      return null;
+    }
+
+    final now = DateTime.now();
+    final message = ChatMessage(
+      role: 'assistant',
+      content: content,
+      conversationId: conversationId,
+      timestamp: now,
+      modelId: modelId,
+      providerId: providerId,
+    );
+    await _db
+        .into(_db.messageRows)
+        .insert(
+          _messageCompanion(message, await _nextMessageOrder(conversationId)),
+        );
+    await (_db.update(_db.conversationRows)
+          ..where((row) => row.id.equals(conversationId)))
+        .write(ConversationRowsCompanion(updatedAt: Value(now)));
+    return message;
+  });
+
   Conversation? getConversationSync(
     String id, {
     bool includeMessageIds = true,

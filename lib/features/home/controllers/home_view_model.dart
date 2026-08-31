@@ -1964,21 +1964,6 @@ class HomeViewModel extends ChangeNotifier {
         conversationId,
         newTime,
       );
-
-      final savedConversation = _chatService.getConversation(conversationId);
-      final savedOwner = assistantProvider.getById(ownerId);
-      if (savedConversation == null ||
-          savedOwner == null ||
-          !ProactiveCareConversationPolicy.isEligible(
-            savedConversation,
-            savedOwner,
-          )) {
-        return;
-      }
-      await ProactiveCareAlarmService.sync(
-        conversation: savedConversation,
-        assistant: savedOwner,
-      );
     } catch (e) {
       debugPrint(
         '[ProactiveCare] Decision request failed for ${assistant.id}: $e',
@@ -2114,27 +2099,20 @@ class HomeViewModel extends ChangeNotifier {
         throw StateError('model returned an empty proactive care reply');
       }
 
-      final latestConversation = _chatService.getConversation(convo.id);
-      final latestAssistant = assistantProvider.getById(assistantId);
-      if (latestConversation == null ||
-          latestAssistant == null ||
-          !ProactiveCareConversationPolicy.isEligible(
-            latestConversation,
-            latestAssistant,
-          )) {
-        debugPrint(
-          '[ProactiveCare] Owner/effective recheck failed before append for '
-          '${convo.id}',
-        );
-        return;
-      }
-      final message = await _chatService.addMessage(
+      final message = await _chatService.appendProactiveCareReplyIfEligible(
         conversationId: convo.id,
-        role: 'assistant',
+        assistantId: assistantId,
         content: reply,
         modelId: mdlId,
         providerId: provKey,
       );
+      if (message == null) {
+        debugPrint(
+          '[ProactiveCare] Owner/effective recheck rejected append for '
+          '${convo.id}',
+        );
+        return;
+      }
       if (this.currentConversation?.id == convo.id) {
         if (_chatController.appendPersistedTailMessage(message)) {
           restoreMessageUiState();
@@ -2142,7 +2120,7 @@ class HomeViewModel extends ChangeNotifier {
         notifyListeners();
       }
 
-      await _showProactiveCareNotification(latestAssistant, convo.id, reply);
+      await _showProactiveCareNotification(assistant, convo.id, reply);
       await _maybeUpdateProactiveCareFor(convo.id);
     } catch (e) {
       debugPrint(

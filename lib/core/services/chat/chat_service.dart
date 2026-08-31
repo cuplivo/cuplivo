@@ -37,6 +37,8 @@ class ChatService extends ChangeNotifier {
   final Map<String, Conversation> _conversationsCache = {};
   final Map<String, Conversation> _draftConversations = {};
   final Set<String> _temporaryConversationIds = <String>{};
+  final Map<String, Future<void>> _proactiveCareOperationTails =
+      <String, Future<void>>{};
   final Map<String, List<Map<String, dynamic>>> _temporaryToolEvents =
       <String, List<Map<String, dynamic>>>{};
   final Map<String, String> _temporaryGeminiThoughtSigs = <String, String>{};
@@ -1087,23 +1089,101 @@ class ChatService extends ChangeNotifier {
   Future<void> setConversationProactiveCareEnabledOverride(
     String conversationId,
     bool? value,
-  ) async {
-    await _updateConversationProactiveCare(
+  ) => _enqueueProactiveCareOperation(
+    conversationId,
+    () => _updateConversationProactiveCare(
       conversationId,
       enabledOverride: value,
       updateEnabledOverride: true,
-    );
-  }
+    ),
+  );
 
   Future<void> setConversationProactiveCareNextMessageAt(
     String conversationId,
     DateTime? value,
-  ) async {
-    await _updateConversationProactiveCare(
+  ) => _enqueueProactiveCareOperation(
+    conversationId,
+    () => _updateConversationProactiveCare(
       conversationId,
       nextMessageAt: value,
       updateNextMessageAt: true,
+    ),
+  );
+
+  /// Appends a foreground proactive-care reply only if the database still
+  /// considers the conversation eligible when the write is committed.
+  Future<ChatMessage?> appendProactiveCareReplyIfEligible({
+    required String conversationId,
+    required String assistantId,
+    required String content,
+    String? modelId,
+    String? providerId,
+  }) => _enqueueProactiveCareOperation(
+    conversationId,
+    () => _appendProactiveCareReplyIfEligible(
+      conversationId: conversationId,
+      assistantId: assistantId,
+      content: content,
+      modelId: modelId,
+      providerId: providerId,
+    ),
+  );
+
+  Future<ChatMessage?> _appendProactiveCareReplyIfEligible({
+    required String conversationId,
+    required String assistantId,
+    required String content,
+    String? modelId,
+    String? providerId,
+  }) async {
+    if (!_initialized) await init();
+    final message = await _repo.appendProactiveCareReplyIfEligible(
+      conversationId: conversationId,
+      assistantId: assistantId,
+      content: content,
+      modelId: modelId,
+      providerId: providerId,
     );
+    if (message == null) return null;
+
+    await _refreshConversation(conversationId);
+    final conversation = _conversationsCache[conversationId];
+    if (conversation != null && !conversation.messageIds.contains(message.id)) {
+      conversation.messageIds.add(message.id);
+    }
+    if (_messagesCache.containsKey(conversationId) &&
+        !_messagesCache[conversationId]!.any((item) => item.id == message.id)) {
+      _messagesCache[conversationId]!.add(message);
+    }
+    notifyListeners();
+    return message;
+  }
+
+  /// Serializes proactive-care writes for a single conversation. Failures are
+  /// still reported to the originating caller, but never block a later write.
+  Future<T> _enqueueProactiveCareOperation<T>(
+    String conversationId,
+    Future<T> Function() operation,
+  ) {
+    final previous =
+        _proactiveCareOperationTails[conversationId] ?? Future<void>.value();
+    final result = previous.then<T>(
+      (_) => operation(),
+      onError: (Object _, StackTrace __) => operation(),
+    );
+    final tail = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
+    _proactiveCareOperationTails[conversationId] = tail;
+    unawaited(
+      tail.then<void>((_) {
+        if (identical(_proactiveCareOperationTails[conversationId], tail)) {
+          _proactiveCareOperationTails.remove(conversationId);
+        }
+      }),
+    );
+    return result;
   }
 
   Future<({Conversation conversation, List<ChatMessage> messages})?>

@@ -389,5 +389,82 @@ void main() {
         );
       },
     );
+
+    test(
+      'concurrent proactive-care setting writes retain both fields',
+      () async {
+        final nextAt = DateTime.utc(2099, 3, 4, 5, 6, 7);
+        final convo = await service.createDraftConversation(
+          title: 'Target',
+          assistantId: 'assistant-1',
+        );
+        await service.addMessage(
+          conversationId: convo.id,
+          role: 'user',
+          content: 'persist conversation',
+        );
+
+        await Future.wait([
+          service.setConversationProactiveCareEnabledOverride(convo.id, false),
+          service.setConversationProactiveCareNextMessageAt(convo.id, nextAt),
+        ]);
+
+        final saved = await service.repo.getConversation(convo.id);
+        expect(saved?.proactiveCareEnabledOverride, isFalse);
+        expect(
+          saved?.proactiveCareNextMessageAt?.isAtSameMomentAs(nextAt),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'close queued before proactive-care append prevents delivery',
+      () async {
+        await service.putAssistant(
+          Assistant(
+            id: 'assistant-1',
+            name: 'Owner',
+            enableProactiveCare: true,
+          ),
+        );
+        final convo = await service.createDraftConversation(
+          title: 'Target',
+          assistantId: 'assistant-1',
+        );
+        await service.addMessage(
+          conversationId: convo.id,
+          role: 'user',
+          content: 'existing history',
+        );
+
+        final disable = service.setConversationProactiveCareEnabledOverride(
+          convo.id,
+          false,
+        );
+        final appended = service.appendProactiveCareReplyIfEligible(
+          conversationId: convo.id,
+          assistantId: 'assistant-1',
+          content: 'Must not be delivered',
+        );
+        await disable;
+
+        expect(await appended, isNull);
+        expect(
+          (await service.repo.getMessagesRange(
+            convo.id,
+            start: 0,
+            limit: 10,
+          )).map((message) => message.content),
+          ['existing history'],
+        );
+        expect(
+          (await service.repo.getConversation(
+            convo.id,
+          ))?.proactiveCareEnabledOverride,
+          isFalse,
+        );
+      },
+    );
   });
 }

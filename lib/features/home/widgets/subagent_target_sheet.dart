@@ -204,6 +204,8 @@ void showSubagentNoTargetSnackbar(
     SnackBar(
       content: Text(l10n.subagentNoTargetHint),
       duration: const Duration(seconds: 6),
+      behavior: SnackBarBehavior.floating,
+      showCloseIcon: true,
       action: SnackBarAction(label: l10n.subagentGoSetup, onPressed: onGoSetup),
     ),
   );

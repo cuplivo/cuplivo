@@ -1,9 +1,119 @@
+import 'dart:convert';
 import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+const proactiveCareNotificationChannelId = 'cuplivo_proactive_care';
+const proactiveCareNotificationPayloadType = 'proactiveCare';
+const proactiveCareNotificationPayloadVersion = 1;
+
+enum ProactiveCareNotificationPayloadKind {
+  proactiveCare,
+  nonProactive,
+  malformed,
+}
+
+class ProactiveCareNotificationPayloadResult {
+  const ProactiveCareNotificationPayloadResult._(
+    this.kind, [
+    this.conversationId,
+  ]);
+
+  const ProactiveCareNotificationPayloadResult.proactiveCare(
+    String conversationId,
+  ) : this._(
+        ProactiveCareNotificationPayloadKind.proactiveCare,
+        conversationId,
+      );
+
+  const ProactiveCareNotificationPayloadResult.nonProactive()
+    : this._(ProactiveCareNotificationPayloadKind.nonProactive);
+
+  const ProactiveCareNotificationPayloadResult.malformed()
+    : this._(ProactiveCareNotificationPayloadKind.malformed);
+
+  final ProactiveCareNotificationPayloadKind kind;
+  final String? conversationId;
+}
+
+String buildProactiveCareNotificationPayload(String conversationId) =>
+    jsonEncode(<String, Object>{
+      'type': proactiveCareNotificationPayloadType,
+      'version': proactiveCareNotificationPayloadVersion,
+      'conversationId': conversationId,
+    });
+
+ProactiveCareNotificationPayloadResult parseProactiveCareNotificationPayload(
+  String? payload,
+) {
+  if (payload == null || payload.trim().isEmpty) {
+    return const ProactiveCareNotificationPayloadResult.malformed();
+  }
+
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(payload);
+  } catch (_) {
+    return const ProactiveCareNotificationPayloadResult.malformed();
+  }
+  if (decoded is! Map<String, dynamic>) {
+    return const ProactiveCareNotificationPayloadResult.malformed();
+  }
+
+  final type = decoded['type'];
+  if (type is! String) {
+    return const ProactiveCareNotificationPayloadResult.malformed();
+  }
+  if (type != proactiveCareNotificationPayloadType) {
+    return const ProactiveCareNotificationPayloadResult.nonProactive();
+  }
+
+  final conversationId = decoded['conversationId'];
+  if (decoded['version'] != proactiveCareNotificationPayloadVersion ||
+      conversationId is! String ||
+      conversationId.trim().isEmpty) {
+    return const ProactiveCareNotificationPayloadResult.malformed();
+  }
+  return ProactiveCareNotificationPayloadResult.proactiveCare(conversationId);
+}
+
+class ProactiveCareNotificationTargetBuffer {
+  String? _pendingConversationId;
+  Object? _consumerOwner;
+  void Function(String conversationId)? _consumer;
+
+  String? get pendingConversationId => _pendingConversationId;
+
+  void add(String conversationId) {
+    final consumer = _consumer;
+    if (consumer == null) {
+      _pendingConversationId = conversationId;
+      return;
+    }
+    consumer(conversationId);
+  }
+
+  void attach(Object owner, void Function(String conversationId) consumer) {
+    _consumerOwner = owner;
+    _consumer = consumer;
+    final pending = _pendingConversationId;
+    _pendingConversationId = null;
+    if (pending != null) consumer(pending);
+  }
+
+  void detach(Object owner) {
+    if (!identical(_consumerOwner, owner)) return;
+    _consumerOwner = null;
+    _consumer = null;
+  }
+}
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
+  static final ProactiveCareNotificationTargetBuffer proactiveCareTargets =
+      ProactiveCareNotificationTargetBuffer();
   static bool _inited = false;
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
     'cuplivo_bg_chat_v2',
@@ -14,7 +124,7 @@ class NotificationService {
   );
   static const AndroidNotificationChannel _proactiveCareChannel =
       AndroidNotificationChannel(
-        'cuplivo_proactive_care',
+        proactiveCareNotificationChannelId,
         'Proactive Care',
         description: 'Proactive care messages from assistants',
         importance: Importance.high,
@@ -31,7 +141,10 @@ class NotificationService {
     const InitializationSettings init = InitializationSettings(
       android: androidInit,
     );
-    await _plugin.initialize(init);
+    await _plugin.initialize(
+      init,
+      onDidReceiveNotificationResponse: _handleNotificationResponse,
+    );
 
     // Create channels
     final android = _plugin
@@ -42,7 +155,31 @@ class NotificationService {
       await android.createNotificationChannel(_channel);
       await android.createNotificationChannel(_proactiveCareChannel);
     }
+    final launchDetails = await _plugin.getNotificationAppLaunchDetails();
+    if (launchDetails?.didNotificationLaunchApp == true) {
+      final response = launchDetails?.notificationResponse;
+      if (response != null) _handleNotificationResponse(response);
+    }
     _inited = true;
+  }
+
+  static void _handleNotificationResponse(NotificationResponse response) {
+    final parsed = parseProactiveCareNotificationPayload(response.payload);
+    switch (parsed.kind) {
+      case ProactiveCareNotificationPayloadKind.proactiveCare:
+        proactiveCareTargets.add(parsed.conversationId!);
+        return;
+      case ProactiveCareNotificationPayloadKind.nonProactive:
+        debugPrint(
+          '[NotificationService] Ignoring non-proactive notification payload',
+        );
+        return;
+      case ProactiveCareNotificationPayloadKind.malformed:
+        debugPrint(
+          '[NotificationService] Ignoring malformed notification payload',
+        );
+        return;
+    }
   }
 
   /// Ensure Android 13+ notifications permission is granted (no-op on lower versions/other platforms).
@@ -74,6 +211,7 @@ class NotificationService {
   /// notification's large icon.
   static Future<void> showProactiveCare({
     required int id,
+    required String conversationId,
     required String title,
     required String body,
     String? largeIconPath,
@@ -102,6 +240,7 @@ class NotificationService {
           styleInformation: BigTextStyleInformation(body),
         ),
       ),
+      payload: buildProactiveCareNotificationPayload(conversationId),
     );
   }
 

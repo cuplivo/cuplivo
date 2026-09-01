@@ -137,6 +137,7 @@ void main() {
           ],
           mcpServerIds: ['mcp-1'],
           localToolIds: ['tool-1'],
+          proactiveCareDecisionHistoryMessageLimit: 37,
         );
 
         await repo.putAssistants([assistant]);
@@ -161,6 +162,7 @@ void main() {
         ]);
         expect(a.mcpServerIds, ['mcp-1']);
         expect(a.localToolIds, ['tool-1']);
+        expect(a.proactiveCareDecisionHistoryMessageLimit, 37);
       },
     );
   });
@@ -257,6 +259,183 @@ void main() {
         await expectLater(
           repo.getAllConversations(),
           throwsA(isA<FormatException>()),
+        );
+      },
+    );
+
+    test('proactive care fields round-trip and can be cleared', () async {
+      final nextMessageAt = DateTime.utc(2027, 3, 4, 5, 6, 7);
+      final conversation = Conversation(
+        title: 'Conversation',
+        proactiveCareEnabledOverride: false,
+        proactiveCareNextMessageAt: nextMessageAt,
+      );
+
+      await repo.putConversation(conversation);
+      final loaded = await repo.getConversation(conversation.id);
+      expect(loaded?.proactiveCareEnabledOverride, isFalse);
+      expect(
+        loaded?.proactiveCareNextMessageAt?.isAtSameMomentAs(nextMessageAt),
+        isTrue,
+      );
+
+      await repo.putConversation(
+        conversation.copyWith(
+          clearProactiveCareEnabledOverride: true,
+          clearProactiveCareNextMessageAt: true,
+        ),
+      );
+      final cleared = await repo.getConversation(conversation.id);
+      expect(cleared?.proactiveCareEnabledOverride, isNull);
+      expect(cleared?.proactiveCareNextMessageAt, isNull);
+    });
+
+    test('proactive care schedule claim is exact and single-use', () async {
+      final expectedAt = DateTime.utc(2027, 3, 4, 5, 6, 7);
+      final originalUpdatedAt = DateTime.utc(2020);
+      await repo.putAssistant(
+        Assistant(id: 'owner', name: 'Owner', enableProactiveCare: true),
+      );
+      final conversation = Conversation(
+        title: 'Conversation',
+        assistantId: 'owner',
+        updatedAt: originalUpdatedAt,
+        proactiveCareNextMessageAt: expectedAt,
+      );
+      await repo.putConversation(conversation);
+
+      expect(
+        await repo.claimConversationProactiveCareSchedule(
+          conversationId: conversation.id,
+          expectedAt: expectedAt.add(const Duration(seconds: 1)),
+        ),
+        isNull,
+      );
+      expect(
+        (await repo.getConversation(
+          conversation.id,
+        ))?.proactiveCareNextMessageAt?.isAtSameMomentAs(expectedAt),
+        isTrue,
+      );
+
+      final claimed = await repo.claimConversationProactiveCareSchedule(
+        conversationId: conversation.id,
+        expectedAt: expectedAt,
+      );
+      expect(claimed?.proactiveCareNextMessageAt, isNull);
+      expect(claimed?.updatedAt.isAfter(originalUpdatedAt), isTrue);
+      expect(
+        await repo.claimConversationProactiveCareSchedule(
+          conversationId: conversation.id,
+          expectedAt: expectedAt,
+        ),
+        isNull,
+      );
+    });
+
+    test('proactive care claim preserves a disabled schedule', () async {
+      final expectedAt = DateTime.utc(2027, 3, 4, 5, 6, 7);
+      await repo.putAssistant(
+        Assistant(id: 'owner', name: 'Owner', enableProactiveCare: true),
+      );
+      final conversation = Conversation(
+        title: 'Disabled',
+        assistantId: 'owner',
+        proactiveCareEnabledOverride: false,
+        proactiveCareNextMessageAt: expectedAt,
+      );
+      await repo.putConversation(conversation);
+
+      expect(
+        await repo.claimConversationProactiveCareSchedule(
+          conversationId: conversation.id,
+          expectedAt: expectedAt,
+        ),
+        isNull,
+      );
+      expect(
+        (await repo.getConversation(
+          conversation.id,
+        ))?.proactiveCareNextMessageAt?.isAtSameMomentAs(expectedAt),
+        isTrue,
+      );
+    });
+
+    test(
+      'proactive care append atomically rechecks owner and enabled state',
+      () async {
+        await repo.putAssistant(
+          Assistant(id: 'owner', name: 'Owner', enableProactiveCare: true),
+        );
+        final conversation = Conversation(
+          title: 'Conversation',
+          assistantId: 'owner',
+        );
+        await repo.putConversation(conversation);
+
+        final appended = await repo.appendProactiveCareReplyIfEligible(
+          conversationId: conversation.id,
+          assistantId: 'owner',
+          content: 'Care reply',
+          modelId: 'model',
+          providerId: 'provider',
+        );
+        expect(appended?.conversationId, conversation.id);
+        expect(appended?.content, 'Care reply');
+        expect(
+          (await repo.getMessagesRange(
+            conversation.id,
+            start: 0,
+            limit: 10,
+          )).map((message) => message.content),
+          ['Care reply'],
+        );
+
+        expect(
+          await repo.appendProactiveCareReplyIfEligible(
+            conversationId: conversation.id,
+            assistantId: 'missing',
+            content: 'Missing assistant must not be stored',
+          ),
+          isNull,
+        );
+        await repo.putAssistant(
+          Assistant(
+            id: 'new-owner',
+            name: 'New owner',
+            enableProactiveCare: true,
+          ),
+        );
+        await repo.putConversation(
+          conversation.copyWith(assistantId: 'new-owner'),
+        );
+        expect(
+          await repo.appendProactiveCareReplyIfEligible(
+            conversationId: conversation.id,
+            assistantId: 'owner',
+            content: 'Old owner must not be stored',
+          ),
+          isNull,
+        );
+
+        await repo.putConversation(
+          conversation.copyWith(proactiveCareEnabledOverride: false),
+        );
+        expect(
+          await repo.appendProactiveCareReplyIfEligible(
+            conversationId: conversation.id,
+            assistantId: 'owner',
+            content: 'Must not be stored',
+          ),
+          isNull,
+        );
+        expect(
+          (await repo.getMessagesRange(
+            conversation.id,
+            start: 0,
+            limit: 10,
+          )).map((message) => message.content),
+          ['Care reply'],
         );
       },
     );

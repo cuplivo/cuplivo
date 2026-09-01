@@ -14713,6 +14713,120 @@ abstract class AppLocalizations {
   /// **'Proactive Care'**
   String get assistantEditProactiveCareEnableTitle;
 
+  /// Explains that the assistant proactive care switch is a conversation default
+  ///
+  /// In en, this message translates to:
+  /// **'Default for conversations without an override'**
+  String get assistantEditProactiveCareDefaultDescription;
+
+  /// Title for the proactive-care decision history message limit
+  ///
+  /// In en, this message translates to:
+  /// **'Messages used for time decisions'**
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle;
+
+  /// Description for the proactive-care decision history message limit
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum number of recent conversation messages sent to the model when deciding the next proactive message time'**
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription;
+
+  /// Title for the expandable conversation proactive care schedule section
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation next-letter times'**
+  String get assistantEditProactiveCareConversationTimesTitle;
+
+  /// Empty state for the assistant conversation proactive care schedule list
+  ///
+  /// In en, this message translates to:
+  /// **'No enabled conversations for this assistant'**
+  String get assistantEditProactiveCareNoEligibleConversations;
+
+  /// Status for a future conversation proactive care schedule
+  ///
+  /// In en, this message translates to:
+  /// **'Future · {time}'**
+  String assistantEditProactiveCareConversationTimeFuture(String time);
+
+  /// Status for an expired conversation proactive care schedule
+  ///
+  /// In en, this message translates to:
+  /// **'Expired · {time}'**
+  String assistantEditProactiveCareConversationTimeExpired(String time);
+
+  /// Status for an enabled conversation without a proactive care schedule
+  ///
+  /// In en, this message translates to:
+  /// **'Unset'**
+  String get assistantEditProactiveCareConversationTimeUnset;
+
+  /// Title for the expandable Android proactive care readiness section
+  ///
+  /// In en, this message translates to:
+  /// **'Android readiness'**
+  String get assistantEditProactiveCarePermissionsTitle;
+
+  /// Android app and proactive care notification channel readiness row
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get assistantEditProactiveCareNotificationsTitle;
+
+  /// Android exact alarm readiness row
+  ///
+  /// In en, this message translates to:
+  /// **'Exact alarms'**
+  String get assistantEditProactiveCareExactAlarmTitle;
+
+  /// Android auto-start settings row
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-start'**
+  String get assistantEditProactiveCareAutoStartTitle;
+
+  /// Android battery optimization exemption row
+  ///
+  /// In en, this message translates to:
+  /// **'Battery optimization exemption'**
+  String get assistantEditProactiveCareBatteryTitle;
+
+  /// Marks an Android proactive care setting as required
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get assistantEditProactiveCarePermissionRequired;
+
+  /// Marks an Android proactive care setting as recommended
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get assistantEditProactiveCarePermissionRecommended;
+
+  /// Android proactive care setting is ready
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get assistantEditProactiveCarePermissionReady;
+
+  /// Android proactive care setting is missing
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to grant'**
+  String get assistantEditProactiveCarePermissionMissing;
+
+  /// Android proactive care setting must be checked manually
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get assistantEditProactiveCarePermissionManual;
+
+  /// Android proactive care setting could not be determined
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get assistantEditProactiveCarePermissionUnknown;
+
   /// Label for the next proactive message time row
   ///
   /// In en, this message translates to:
@@ -14760,6 +14874,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Choose date and time'**
   String get assistantEditProactiveCareDateTimePickerTitle;
+
+  /// Warning when a proactive care time is no longer in the future
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a time in the future.'**
+  String get assistantEditProactiveCareTimeMustBeFuture;
+
+  /// Title and input action label for conversation-level proactive care
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation proactive care'**
+  String get conversationProactiveCareTitle;
+
+  /// Status when conversation proactive care inherits an enabled assistant setting
+  ///
+  /// In en, this message translates to:
+  /// **'Following assistant setting: On'**
+  String get conversationProactiveCareFollowingAssistantOn;
+
+  /// Status when conversation proactive care inherits a disabled assistant setting
+  ///
+  /// In en, this message translates to:
+  /// **'Following assistant setting: Off'**
+  String get conversationProactiveCareFollowingAssistantOff;
+
+  /// Status when conversation proactive care is explicitly enabled
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation setting: On'**
+  String get conversationProactiveCareExplicitOn;
+
+  /// Status when conversation proactive care is explicitly disabled
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation setting: Off'**
+  String get conversationProactiveCareExplicitOff;
+
+  /// Action that clears the conversation proactive care override
+  ///
+  /// In en, this message translates to:
+  /// **'Follow assistant setting'**
+  String get conversationProactiveCareRestoreFollowing;
+
+  /// Action that clears the conversation proactive care time
+  ///
+  /// In en, this message translates to:
+  /// **'Clear next message time'**
+  String get conversationProactiveCareClearTime;
+
+  /// Error shown when a conversation proactive care update fails
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update conversation proactive care.'**
+  String get conversationProactiveCareUpdateFailed;
 
   /// Warning when exact alarm permission is denied
   ///

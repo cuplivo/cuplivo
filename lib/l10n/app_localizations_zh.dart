@@ -7831,6 +7831,69 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assistantEditProactiveCareEnableTitle => '主动关怀';
 
   @override
+  String get assistantEditProactiveCareDefaultDescription => '未单独设置的对话默认跟随此开关';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      '时间决策所用消息条数';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      '决定下次主动发消息时间时，最多发送给决策模型的最近历史消息数量';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle => '各对话下次来信时间';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations => '此助手暂无已开启的对话';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return '未来 · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return '已过期 · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => '未设置';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android 运行条件';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => '通知';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => '精确闹钟';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => '自启动';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle => '忽略电池优化';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => '必需';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => '建议';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => '已就绪';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => '点击获取权限';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => '需手动确认';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => '未知';
+
+  @override
   String get assistantEditProactiveCareNextMessageTimeTitle => '下次助手主动发消息时间';
 
   @override
@@ -7855,6 +7918,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get assistantEditProactiveCareDateTimePickerTitle => '选择日期和时间';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture => '请选择未来的时间。';
+
+  @override
+  String get conversationProactiveCareTitle => '对话主动关怀';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn => '跟随助手设置：已开启';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff => '跟随助手设置：已关闭';
+
+  @override
+  String get conversationProactiveCareExplicitOn => '对话设置：已开启';
+
+  @override
+  String get conversationProactiveCareExplicitOff => '对话设置：已关闭';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing => '跟随助手设置';
+
+  @override
+  String get conversationProactiveCareClearTime => '清除下次发消息时间';
+
+  @override
+  String get conversationProactiveCareUpdateFailed => '无法更新对话主动关怀设置。';
 
   @override
   String get assistantEditProactiveCareExactAlarmPermissionDenied =>
@@ -16981,6 +17071,69 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get assistantEditProactiveCareEnableTitle => '主动关怀';
 
   @override
+  String get assistantEditProactiveCareDefaultDescription => '未单独设置的对话默认跟随此开关';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      '时间决策所用消息条数';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      '决定下次主动发消息时间时，最多发送给决策模型的最近历史消息数量';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle => '各对话下次来信时间';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations => '此助手暂无已开启的对话';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return '未来 · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return '已过期 · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => '未设置';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android 运行条件';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => '通知';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => '精确闹钟';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => '自启动';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle => '忽略电池优化';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => '必需';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => '建议';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => '已就绪';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => '点击获取权限';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => '需手动确认';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => '未知';
+
+  @override
   String get assistantEditProactiveCareNextMessageTimeTitle => '下次助手主动发消息时间';
 
   @override
@@ -17005,6 +17158,33 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assistantEditProactiveCareDateTimePickerTitle => '选择日期和时间';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture => '请选择未来的时间。';
+
+  @override
+  String get conversationProactiveCareTitle => '对话主动关怀';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn => '跟随助手设置：已开启';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff => '跟随助手设置：已关闭';
+
+  @override
+  String get conversationProactiveCareExplicitOn => '对话设置：已开启';
+
+  @override
+  String get conversationProactiveCareExplicitOff => '对话设置：已关闭';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing => '跟随助手设置';
+
+  @override
+  String get conversationProactiveCareClearTime => '清除下次发消息时间';
+
+  @override
+  String get conversationProactiveCareUpdateFailed => '无法更新对话主动关怀设置。';
 
   @override
   String get assistantEditProactiveCareExactAlarmPermissionDenied =>
@@ -26132,6 +26312,69 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get assistantEditProactiveCareEnableTitle => '主動關懷';
 
   @override
+  String get assistantEditProactiveCareDefaultDescription => '未單獨設定的對話預設跟隨此開關';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      '時間決策所用訊息條數';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      '決定下次主動發訊息時間時，最多傳送給決策模型的最近歷史訊息數量';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle => '各對話下次來信時間';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations => '此助手暫無已開啟的對話';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return '未來 · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return '已過期 · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => '未設定';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android 執行條件';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => '通知';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => '精確鬧鐘';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => '自動啟動';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle => '忽略電池最佳化';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => '必需';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => '建議';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => '已就緒';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => '點擊取得權限';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => '需手動確認';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => '未知';
+
+  @override
   String get assistantEditProactiveCareNextMessageTimeTitle => '下次助手主動發訊息時間';
 
   @override
@@ -26156,6 +26399,33 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantEditProactiveCareDateTimePickerTitle => '選擇日期和時間';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture => '請選擇未來的時間。';
+
+  @override
+  String get conversationProactiveCareTitle => '對話主動關懷';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn => '跟隨助手設定：已開啟';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff => '跟隨助手設定：已關閉';
+
+  @override
+  String get conversationProactiveCareExplicitOn => '對話設定：已開啟';
+
+  @override
+  String get conversationProactiveCareExplicitOff => '對話設定：已關閉';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing => '跟隨助手設定';
+
+  @override
+  String get conversationProactiveCareClearTime => '清除下次發訊息時間';
+
+  @override
+  String get conversationProactiveCareUpdateFailed => '無法更新對話主動關懷設定。';
 
   @override
   String get assistantEditProactiveCareExactAlarmPermissionDenied =>

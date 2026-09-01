@@ -8177,6 +8177,73 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assistantEditProactiveCareEnableTitle => 'Proactive Care';
 
   @override
+  String get assistantEditProactiveCareDefaultDescription =>
+      'Default for conversations without an override';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      'Messages used for time decisions';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      'Maximum number of recent conversation messages sent to the model when deciding the next proactive message time';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle =>
+      'Conversation next-letter times';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations =>
+      'No enabled conversations for this assistant';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return 'Future · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return 'Expired · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => 'Unset';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android readiness';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => 'Notifications';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => 'Exact alarms';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => 'Auto-start';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle =>
+      'Battery optimization exemption';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => 'Required';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => 'Recommended';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => 'Ready';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => 'Tap to grant';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => 'Manual';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => 'Unknown';
+
+  @override
   String get assistantEditProactiveCareNextMessageTimeTitle =>
       'Next proactive message time';
 
@@ -8205,6 +8272,39 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get assistantEditProactiveCareDateTimePickerTitle =>
       'Choose date and time';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture =>
+      'Choose a time in the future.';
+
+  @override
+  String get conversationProactiveCareTitle => 'Conversation proactive care';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn =>
+      'Following assistant setting: On';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff =>
+      'Following assistant setting: Off';
+
+  @override
+  String get conversationProactiveCareExplicitOn => 'Conversation setting: On';
+
+  @override
+  String get conversationProactiveCareExplicitOff =>
+      'Conversation setting: Off';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing =>
+      'Follow assistant setting';
+
+  @override
+  String get conversationProactiveCareClearTime => 'Clear next message time';
+
+  @override
+  String get conversationProactiveCareUpdateFailed =>
+      'Couldn\'t update conversation proactive care.';
 
   @override
   String get assistantEditProactiveCareExactAlarmPermissionDenied =>

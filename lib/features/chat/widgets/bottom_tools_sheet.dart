@@ -40,6 +40,7 @@ class BottomToolsSheet extends StatelessWidget {
     this.onConfigureReasoning,
     this.onQuickPhrase,
     this.onOpenToolsHub,
+    this.onConversationProactiveCare,
   });
 
   /// Bucket ids in configured order (resolved via
@@ -59,6 +60,7 @@ class BottomToolsSheet extends StatelessWidget {
   final VoidCallback? onConfigureReasoning;
   final VoidCallback? onQuickPhrase;
   final VoidCallback? onOpenToolsHub;
+  final VoidCallback? onConversationProactiveCare;
 
   @override
   Widget build(BuildContext context) {
@@ -188,6 +190,7 @@ class BottomToolsSheet extends StatelessWidget {
                       onConfigureReasoning: onConfigureReasoning,
                       onQuickPhrase: onQuickPhrase,
                       onOpenToolsHub: onOpenToolsHub,
+                      onConversationProactiveCare: onConversationProactiveCare,
                       onCustomize: onCustomize,
                     ),
                   ],
@@ -215,6 +218,7 @@ class _BucketSection extends StatefulWidget {
     this.onQuickPhrase,
     this.onOpenToolsHub,
     this.onCustomize,
+    this.onConversationProactiveCare,
   });
   final List<String> moreIds;
   final VoidCallback? onClear;
@@ -228,6 +232,7 @@ class _BucketSection extends StatefulWidget {
   final VoidCallback? onQuickPhrase;
   final VoidCallback? onOpenToolsHub;
   final VoidCallback? onCustomize;
+  final VoidCallback? onConversationProactiveCare;
 
   @override
   State<_BucketSection> createState() => _BucketSectionState();
@@ -483,6 +488,19 @@ class _BucketSectionState extends State<_BucketSection> {
                 Haptics.light();
                 widget.onSelectModel?.call();
               },
+            ),
+          );
+        case inputBarButtonProactiveCare:
+          if (widget.onConversationProactiveCare == null) break;
+          addRow(
+            _row(
+              icon: Lucide.HeartPulse,
+              label: l10n.conversationProactiveCareTitle,
+              onTap: () {
+                Haptics.light();
+                widget.onConversationProactiveCare?.call();
+              },
+              trailing: _chevron(context),
             ),
           );
         case inputBarButtonCustomize:

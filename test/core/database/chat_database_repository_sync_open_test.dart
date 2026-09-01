@@ -31,6 +31,8 @@ void main() {
       final conversation = Conversation(
         title: 'hello',
         conversationKind: Conversation.kindNormal,
+        proactiveCareEnabledOverride: true,
+        proactiveCareNextMessageAt: DateTime.utc(2027, 1, 2, 3, 4, 5),
       );
       await repo.putConversation(conversation);
 
@@ -39,6 +41,14 @@ void main() {
       expect(
         listed.singleWhere((c) => c.id == conversation.id).isGroup,
         isFalse,
+      );
+      final loaded = listed.singleWhere((c) => c.id == conversation.id);
+      expect(loaded.proactiveCareEnabledOverride, isTrue);
+      expect(
+        loaded.proactiveCareNextMessageAt?.isAtSameMomentAs(
+          DateTime.utc(2027, 1, 2, 3, 4, 5),
+        ),
+        isTrue,
       );
 
       final group = Conversation(

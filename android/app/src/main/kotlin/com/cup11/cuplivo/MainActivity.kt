@@ -37,6 +37,7 @@ class MainActivity : FlutterActivity() {
         deviceLocalToolsHandler = DeviceLocalToolsHandler(this).also {
             it.configure(flutterEngine.dartExecutor.binaryMessenger)
         }
+        ProactiveCareSettingsHandler(this).configure(flutterEngine.dartExecutor.binaryMessenger)
         processTextChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, processTextChannelName)
         processTextChannel?.setMethodCallHandler { call, result ->
             when (call.method) {

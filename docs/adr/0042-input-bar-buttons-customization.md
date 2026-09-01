@@ -1,5 +1,7 @@
 # ADR-0042: Input Bar Buttons Customization (order + direct/in-more)
 
+> ADR-0053 introduces one deliberate exception to the future-ID rule: the proactive-care action defaults to More when first discovered.
+
 Issue #282: the input bar's left action row (15 conditional buttons, incl. a
 dedicated **customize entry** that always defaults into the More bucket so
 users discover the feature from "+") becomes user-customizable in order and in

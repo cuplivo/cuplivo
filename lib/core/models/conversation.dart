@@ -44,6 +44,12 @@ class Conversation {
   /// A missing key means the assistant default is inherited dynamically.
   Map<String, String> workspaceDirectoryOverrides;
 
+  /// Null inherits the assistant's proactive-care enabled setting.
+  bool? proactiveCareEnabledOverride;
+
+  /// Next proactive-care message scheduled specifically for this conversation.
+  DateTime? proactiveCareNextMessageAt;
+
   static const String kindNormal = 'normal';
   static const String kindGroup = 'group';
 
@@ -66,6 +72,8 @@ class Conversation {
     List<String>? chatSuggestions,
     this.conversationKind = kindNormal,
     Map<String, String>? workspaceDirectoryOverrides,
+    this.proactiveCareEnabledOverride,
+    this.proactiveCareNextMessageAt,
   }) : id = id ?? const Uuid().v4(),
        createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now(),
@@ -97,6 +105,10 @@ class Conversation {
     bool clearSummary = false,
     String? conversationKind,
     Map<String, String>? workspaceDirectoryOverrides,
+    bool? proactiveCareEnabledOverride,
+    DateTime? proactiveCareNextMessageAt,
+    bool clearProactiveCareEnabledOverride = false,
+    bool clearProactiveCareNextMessageAt = false,
   }) {
     return Conversation(
       id: id ?? this.id,
@@ -117,6 +129,12 @@ class Conversation {
       conversationKind: conversationKind ?? this.conversationKind,
       workspaceDirectoryOverrides:
           workspaceDirectoryOverrides ?? this.workspaceDirectoryOverrides,
+      proactiveCareEnabledOverride: clearProactiveCareEnabledOverride
+          ? null
+          : (proactiveCareEnabledOverride ?? this.proactiveCareEnabledOverride),
+      proactiveCareNextMessageAt: clearProactiveCareNextMessageAt
+          ? null
+          : (proactiveCareNextMessageAt ?? this.proactiveCareNextMessageAt),
     );
   }
 
@@ -138,6 +156,9 @@ class Conversation {
       'chatSuggestions': chatSuggestions,
       'conversationKind': conversationKind,
       'workspaceDirectoryOverrides': workspaceDirectoryOverrides,
+      'proactiveCareEnabledOverride': proactiveCareEnabledOverride,
+      'proactiveCareNextMessageAt': proactiveCareNextMessageAt
+          ?.toIso8601String(),
     };
   }
 
@@ -170,6 +191,11 @@ class Conversation {
             (key, value) => MapEntry(key.toString(), value.toString()),
           ) ??
           <String, String>{},
+      proactiveCareEnabledOverride:
+          json['proactiveCareEnabledOverride'] as bool?,
+      proactiveCareNextMessageAt: json['proactiveCareNextMessageAt'] == null
+          ? null
+          : DateTime.parse(json['proactiveCareNextMessageAt'] as String),
     );
   }
 }

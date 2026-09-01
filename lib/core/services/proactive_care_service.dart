@@ -3,8 +3,8 @@ import 'proactive_care_decision_tools.dart';
 
 /// Pure logic for the proactive care ("Ta的来信") decision flow.
 ///
-/// After each completed assistant reply, the full conversation context plus
-/// the decision prompt built here is sent silently to the decision model.
+/// After each completed assistant reply, the configured conversation-history
+/// window plus the decision prompt built here is sent silently to the model.
 /// The model answers by calling one of the decision tools
 /// (`update_care_time` / `keep_care_time`); see
 /// `ProactiveCareDecisionTools`.
@@ -31,7 +31,7 @@ class ProactiveCareService {
   /// Prefix before the memory block in the decision request (LLM only).
   static const String memoriesReferencePrefix = '以下是供你参考的助手记忆';
 
-  /// Prefix inserted as a separate user message before chat history (LLM only).
+  /// Prefix inserted before chat history in its single user message (LLM only).
   static const String chatHistoryPrefix = '以下是用户与助手的聊天记录';
 
   /// Built-in suffix appended to the user-configured care prompt when the
@@ -54,9 +54,8 @@ class ProactiveCareService {
   /// 1. `system`: user decision prompt (when non-empty)
   /// 2. `user` (optional): persona reference prefix + assistant system prompt
   /// 3. `user` (optional): memories reference prefix + memory block
-  /// 4. `user`: chat history header (when [history] is non-empty)
-  /// 5. ...[history] (user/assistant turns, unchanged)
-  /// 6. `user`: next care time + current system time + tool reminder
+  /// 4. `user`: chat history header + role-labelled transcript (when non-empty)
+  /// 5. `user`: next care time + current system time + tool reminder
   ///    (always last)
   static List<Map<String, dynamic>> buildDecisionApiMessages({
     required String decisionPrompt,
@@ -90,8 +89,17 @@ class ProactiveCareService {
     }
 
     if (history.isNotEmpty) {
-      messages.add({'role': 'user', 'content': chatHistoryPrefix});
-      messages.addAll(history);
+      final transcript = history
+          .map(
+            (message) =>
+                '${message['role'] == 'assistant' ? 'Assistant' : 'User'}:\n'
+                '${message['content'] ?? ''}',
+          )
+          .join('\n\n');
+      messages.add({
+        'role': 'user',
+        'content': '$chatHistoryPrefix\n\n$transcript',
+      });
     }
 
     messages.add({

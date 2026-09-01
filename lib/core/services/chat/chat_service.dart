@@ -14,6 +14,7 @@ import '../../../utils/sandbox_path_resolver.dart';
 import '../../../utils/app_directories.dart';
 import '../../../utils/path_canon.dart';
 import '../deleted_records_store.dart';
+import '../proactive_care_alarm_service.dart';
 import '../workspace/linux_sandbox_service.dart';
 
 class ChatService extends ChangeNotifier {
@@ -36,6 +37,8 @@ class ChatService extends ChangeNotifier {
   final Map<String, Conversation> _conversationsCache = {};
   final Map<String, Conversation> _draftConversations = {};
   final Set<String> _temporaryConversationIds = <String>{};
+  final Map<String, Future<void>> _proactiveCareOperationTails =
+      <String, Future<void>>{};
   final Map<String, List<Map<String, dynamic>>> _temporaryToolEvents =
       <String, List<Map<String, dynamic>>>{};
   final Map<String, String> _temporaryGeminiThoughtSigs = <String, String>{};
@@ -54,6 +57,10 @@ class ChatService extends ChangeNotifier {
 
   bool isTemporaryConversation(String? id) {
     return id != null && _temporaryConversationIds.contains(id);
+  }
+
+  bool isDraftConversation(String? id) {
+    return id != null && _draftConversations.containsKey(id);
   }
 
   /// Single-flight guard for [init].
@@ -118,6 +125,15 @@ class ChatService extends ChangeNotifier {
     _repo.reopenSyncConnection();
     await _loadConversationsCache();
     _messagesCache.clear();
+    notifyListeners();
+  }
+
+  /// Refreshes one conversation after a background isolate wrote directly to
+  /// SQLite while the main isolate was starting.
+  Future<void> refreshConversationFromDb(String conversationId) async {
+    if (!_initialized) await init();
+    await _refreshConversation(conversationId);
+    _messagesCache.remove(conversationId);
     notifyListeners();
   }
 
@@ -578,6 +594,7 @@ class ChatService extends ChangeNotifier {
     // Build trash bundle BEFORE physical delete (messages won't exist after).
     await _recordConversationDeletion(conversation);
 
+    await ProactiveCareAlarmService.cancelFor(id);
     await _repo.deleteConversation(id);
     _conversationsCache.remove(id);
     _messagesCache.remove(id);
@@ -941,6 +958,13 @@ class ChatService extends ChangeNotifier {
       await _loadConversationsCache();
     }
 
+    for (final conversation in conversations) {
+      final restored = _conversationsCache[conversation.id];
+      if (restored != null) {
+        await _syncProactiveCareAlarm(restored);
+      }
+    }
+
     notifyListeners();
   }
 
@@ -1060,6 +1084,194 @@ class ChatService extends ChangeNotifier {
       await _saveConversation(conversation);
     }
     notifyListeners();
+  }
+
+  Future<void> setConversationProactiveCareEnabledOverride(
+    String conversationId,
+    bool? value,
+  ) => _enqueueProactiveCareOperation(
+    conversationId,
+    () => _updateConversationProactiveCare(
+      conversationId,
+      enabledOverride: value,
+      updateEnabledOverride: true,
+    ),
+  );
+
+  Future<void> setConversationProactiveCareNextMessageAt(
+    String conversationId,
+    DateTime? value,
+  ) => _enqueueProactiveCareOperation(
+    conversationId,
+    () => _updateConversationProactiveCare(
+      conversationId,
+      nextMessageAt: value,
+      updateNextMessageAt: true,
+    ),
+  );
+
+  /// Appends a foreground proactive-care reply only if the database still
+  /// considers the conversation eligible when the write is committed.
+  Future<ChatMessage?> appendProactiveCareReplyIfEligible({
+    required String conversationId,
+    required String assistantId,
+    required String content,
+    String? modelId,
+    String? providerId,
+  }) => _enqueueProactiveCareOperation(
+    conversationId,
+    () => _appendProactiveCareReplyIfEligible(
+      conversationId: conversationId,
+      assistantId: assistantId,
+      content: content,
+      modelId: modelId,
+      providerId: providerId,
+    ),
+  );
+
+  Future<ChatMessage?> _appendProactiveCareReplyIfEligible({
+    required String conversationId,
+    required String assistantId,
+    required String content,
+    String? modelId,
+    String? providerId,
+  }) async {
+    if (!_initialized) await init();
+    final message = await _repo.appendProactiveCareReplyIfEligible(
+      conversationId: conversationId,
+      assistantId: assistantId,
+      content: content,
+      modelId: modelId,
+      providerId: providerId,
+    );
+    if (message == null) return null;
+
+    await _refreshConversation(conversationId);
+    final conversation = _conversationsCache[conversationId];
+    if (conversation != null && !conversation.messageIds.contains(message.id)) {
+      conversation.messageIds.add(message.id);
+    }
+    if (_messagesCache.containsKey(conversationId) &&
+        !_messagesCache[conversationId]!.any((item) => item.id == message.id)) {
+      _messagesCache[conversationId]!.add(message);
+    }
+    notifyListeners();
+    return message;
+  }
+
+  /// Serializes proactive-care writes for a single conversation. Failures are
+  /// still reported to the originating caller, but never block a later write.
+  Future<T> _enqueueProactiveCareOperation<T>(
+    String conversationId,
+    Future<T> Function() operation,
+  ) {
+    final previous =
+        _proactiveCareOperationTails[conversationId] ?? Future<void>.value();
+    final result = previous.then<T>(
+      (_) => operation(),
+      onError: (Object _, StackTrace __) => operation(),
+    );
+    final tail = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
+    _proactiveCareOperationTails[conversationId] = tail;
+    unawaited(
+      tail.then<void>((_) {
+        if (identical(_proactiveCareOperationTails[conversationId], tail)) {
+          _proactiveCareOperationTails.remove(conversationId);
+        }
+      }),
+    );
+    return result;
+  }
+
+  Future<({Conversation conversation, List<ChatMessage> messages})?>
+  claimConversationProactiveCareSchedule({
+    required String conversationId,
+    required DateTime expectedAt,
+  }) async {
+    if (!_initialized) await init();
+    final conversation = await _repo.claimConversationProactiveCareSchedule(
+      conversationId: conversationId,
+      expectedAt: expectedAt,
+    );
+    if (conversation == null) return null;
+
+    _conversationsCache[conversationId] = conversation;
+    final count = await _repo.getMessageCount(conversationId);
+    final messages = await _repo.getMessagesRange(
+      conversationId,
+      start: 0,
+      limit: count,
+    );
+    _messagesCache.remove(conversationId);
+    notifyListeners();
+    return (conversation: conversation, messages: messages);
+  }
+
+  Future<void> _updateConversationProactiveCare(
+    String conversationId, {
+    bool? enabledOverride,
+    DateTime? nextMessageAt,
+    bool updateEnabledOverride = false,
+    bool updateNextMessageAt = false,
+  }) async {
+    if (!_initialized) await init();
+    if (_temporaryConversationIds.contains(conversationId)) {
+      throw StateError(
+        'Temporary conversations do not support proactive care.',
+      );
+    }
+    final draft = _draftConversations.containsKey(conversationId);
+    final current = draft
+        ? _draftConversations[conversationId]
+        : _conversationsCache[conversationId];
+    if (current == null) {
+      throw StateError('Conversation not found: $conversationId');
+    }
+    if (current.isGroup || (current.assistantId?.trim().isEmpty ?? true)) {
+      throw StateError(
+        'Proactive care requires a normal conversation with a fixed assistant.',
+      );
+    }
+
+    final updated = current.copyWith(
+      updatedAt: DateTime.now(),
+      proactiveCareEnabledOverride: updateEnabledOverride
+          ? enabledOverride
+          : null,
+      clearProactiveCareEnabledOverride:
+          updateEnabledOverride && enabledOverride == null,
+      proactiveCareNextMessageAt: updateNextMessageAt ? nextMessageAt : null,
+      clearProactiveCareNextMessageAt:
+          updateNextMessageAt && nextMessageAt == null,
+    );
+    if (draft) {
+      _draftConversations[conversationId] = updated;
+    } else {
+      await _saveConversation(updated);
+      await _syncProactiveCareAlarm(updated);
+    }
+    notifyListeners();
+  }
+
+  Future<void> _syncProactiveCareAlarm(Conversation conversation) async {
+    if (!ProactiveCareAlarmService.isSupported) return;
+    final assistantId = conversation.assistantId;
+    if (assistantId == null || assistantId.isEmpty) {
+      await ProactiveCareAlarmService.cancelFor(conversation.id);
+      return;
+    }
+    final assistant = await _repo.getAssistant(assistantId);
+    if (assistant == null) {
+      await ProactiveCareAlarmService.cancelFor(conversation.id);
+      return;
+    }
+    await ProactiveCareAlarmService.sync(
+      conversation: conversation,
+      assistant: assistant,
+    );
   }
 
   Future<List<Assistant>> getAllAssistants() => _repo.getAllAssistants();
@@ -1239,6 +1451,7 @@ class ChatService extends ChangeNotifier {
     if (!_initialized) await init();
 
     var conversation = _conversationsCache[conversationId];
+    var promotedDraft = false;
     final temporary = _temporaryConversationIds.contains(conversationId);
     // If conversation doesn't exist yet, persist draft (if any)
     if (conversation == null) {
@@ -1248,6 +1461,7 @@ class ChatService extends ChangeNotifier {
       if (draft != null) {
         if (!temporary) {
           await _saveConversation(draft);
+          promotedDraft = true;
         }
         conversation = draft;
       } else {
@@ -1301,6 +1515,9 @@ class ChatService extends ChangeNotifier {
       _messagesCache.putIfAbsent(conversationId, () => <ChatMessage>[]);
     } else {
       await _saveConversation(conversation);
+      if (promotedDraft) {
+        await _syncProactiveCareAlarm(conversation);
+      }
     }
 
     // Update cache
@@ -2106,6 +2323,9 @@ class ChatService extends ChangeNotifier {
   Future<void> clearAllData() async {
     if (!_initialized) return;
 
+    for (final conversationId in _conversationsCache.keys) {
+      await ProactiveCareAlarmService.cancelFor(conversationId);
+    }
     await _repo.clearAllData();
     _messagesCache.clear();
     _conversationsCache.clear();
@@ -2211,6 +2431,7 @@ class ChatService extends ChangeNotifier {
     c.assistantId = assistantId;
     c.updatedAt = DateTime.now();
     await _saveConversation(c);
+    await _syncProactiveCareAlarm(c);
     notifyListeners();
   }
 
@@ -2305,6 +2526,10 @@ class ChatService extends ChangeNotifier {
 
       // Reload cache.
       await _loadConversationsCache();
+      final restored = _conversationsCache[conversationId];
+      if (restored != null) {
+        await _syncProactiveCareAlarm(restored);
+      }
 
       // Purge the trash row.
       await store.purgeDeletedRecord(

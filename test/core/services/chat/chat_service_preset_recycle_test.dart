@@ -263,5 +263,208 @@ void main() {
         isFalse,
       );
     });
+
+    test(
+      'first message persists proactive-care settings from a draft',
+      () async {
+        final nextAt = DateTime.utc(2099, 1, 2, 3, 4, 5);
+        final convo = await service.createDraftConversation(
+          title: 'Draft',
+          assistantId: 'assistant-1',
+        );
+
+        await service.setConversationProactiveCareEnabledOverride(
+          convo.id,
+          false,
+        );
+        await service.setConversationProactiveCareNextMessageAt(
+          convo.id,
+          nextAt,
+        );
+
+        expect(service.isDraftConversation(convo.id), isTrue);
+        expect(
+          service.getConversation(convo.id)?.proactiveCareEnabledOverride,
+          isFalse,
+        );
+
+        await service.addMessage(
+          conversationId: convo.id,
+          role: 'user',
+          content: 'persist this draft',
+        );
+
+        final persisted = await service.repo.getConversation(convo.id);
+        expect(service.isDraftConversation(convo.id), isFalse);
+        expect(persisted?.proactiveCareEnabledOverride, isFalse);
+        expect(
+          persisted?.proactiveCareNextMessageAt?.isAtSameMomentAs(nextAt),
+          isTrue,
+        );
+      },
+    );
+
+    test('temporary conversations reject proactive-care settings', () async {
+      final convo = await service.createDraftConversation(
+        title: 'Temporary',
+        assistantId: 'assistant-1',
+        temporary: true,
+      );
+
+      await expectLater(
+        service.setConversationProactiveCareEnabledOverride(convo.id, true),
+        throwsStateError,
+      );
+      await expectLater(
+        service.setConversationProactiveCareNextMessageAt(
+          convo.id,
+          DateTime.utc(2099),
+        ),
+        throwsStateError,
+      );
+    });
+
+    test('ownerless and group conversations reject proactive care', () async {
+      final ownerless = await service.createDraftConversation(
+        title: 'No owner',
+      );
+      await expectLater(
+        service.setConversationProactiveCareEnabledOverride(ownerless.id, true),
+        throwsStateError,
+      );
+
+      final group = await service.createConversation(
+        title: 'Group',
+        assistantId: 'assistant-1',
+      );
+      group.conversationKind = Conversation.kindGroup;
+      await expectLater(
+        service.setConversationProactiveCareEnabledOverride(group.id, true),
+        throwsStateError,
+      );
+    });
+
+    test(
+      'foreground claim clears the cache and returns exact history',
+      () async {
+        final expectedAt = DateTime.utc(2099, 2, 3, 4, 5, 6);
+        await service.putAssistant(
+          Assistant(
+            id: 'assistant-1',
+            name: 'Owner',
+            enableProactiveCare: true,
+          ),
+        );
+        final convo = await service.createDraftConversation(
+          title: 'Target',
+          assistantId: 'assistant-1',
+        );
+        await service.setConversationProactiveCareNextMessageAt(
+          convo.id,
+          expectedAt,
+        );
+        await service.addMessage(
+          conversationId: convo.id,
+          role: 'user',
+          content: 'exact history',
+        );
+
+        final claim = await service.claimConversationProactiveCareSchedule(
+          conversationId: convo.id,
+          expectedAt: expectedAt,
+        );
+
+        expect(claim?.conversation.id, convo.id);
+        expect(claim?.messages.single.content, 'exact history');
+        expect(
+          service.getConversation(convo.id)?.proactiveCareNextMessageAt,
+          isNull,
+        );
+        expect(
+          await service.claimConversationProactiveCareSchedule(
+            conversationId: convo.id,
+            expectedAt: expectedAt,
+          ),
+          isNull,
+        );
+      },
+    );
+
+    test(
+      'concurrent proactive-care setting writes retain both fields',
+      () async {
+        final nextAt = DateTime.utc(2099, 3, 4, 5, 6, 7);
+        final convo = await service.createDraftConversation(
+          title: 'Target',
+          assistantId: 'assistant-1',
+        );
+        await service.addMessage(
+          conversationId: convo.id,
+          role: 'user',
+          content: 'persist conversation',
+        );
+
+        await Future.wait([
+          service.setConversationProactiveCareEnabledOverride(convo.id, false),
+          service.setConversationProactiveCareNextMessageAt(convo.id, nextAt),
+        ]);
+
+        final saved = await service.repo.getConversation(convo.id);
+        expect(saved?.proactiveCareEnabledOverride, isFalse);
+        expect(
+          saved?.proactiveCareNextMessageAt?.isAtSameMomentAs(nextAt),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'close queued before proactive-care append prevents delivery',
+      () async {
+        await service.putAssistant(
+          Assistant(
+            id: 'assistant-1',
+            name: 'Owner',
+            enableProactiveCare: true,
+          ),
+        );
+        final convo = await service.createDraftConversation(
+          title: 'Target',
+          assistantId: 'assistant-1',
+        );
+        await service.addMessage(
+          conversationId: convo.id,
+          role: 'user',
+          content: 'existing history',
+        );
+
+        final disable = service.setConversationProactiveCareEnabledOverride(
+          convo.id,
+          false,
+        );
+        final appended = service.appendProactiveCareReplyIfEligible(
+          conversationId: convo.id,
+          assistantId: 'assistant-1',
+          content: 'Must not be delivered',
+        );
+        await disable;
+
+        expect(await appended, isNull);
+        expect(
+          (await service.repo.getMessagesRange(
+            convo.id,
+            start: 0,
+            limit: 10,
+          )).map((message) => message.content),
+          ['existing history'],
+        );
+        expect(
+          (await service.repo.getConversation(
+            convo.id,
+          ))?.proactiveCareEnabledOverride,
+          isFalse,
+        );
+      },
+    );
   });
 }

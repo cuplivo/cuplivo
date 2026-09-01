@@ -11,6 +11,7 @@ import 'package:Cuplivo/core/services/api/chat_api_service.dart';
 import 'package:Cuplivo/core/services/chat/chat_context_transforms.dart';
 import 'package:Cuplivo/core/services/proactive_care_decision_tools.dart';
 import 'package:Cuplivo/core/services/proactive_care_message_flow.dart';
+import 'package:Cuplivo/core/services/proactive_care_service.dart';
 import 'package:Cuplivo/core/services/world_book_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
@@ -405,82 +406,292 @@ void main() {
       ]);
     });
 
+    test('care reply applies only persist-time assistant regexes', () async {
+      final assistant = Assistant(
+        id: 'assistant-1',
+        name: 'Assistant',
+        regexRules: const [
+          AssistantRegex(
+            id: 'persist',
+            name: 'Persist',
+            pattern: 'persist',
+            replacement: 'saved',
+            scopes: [AssistantRegexScope.assistant],
+          ),
+          AssistantRegex(
+            id: 'send',
+            name: 'Send',
+            pattern: 'send',
+            replacement: 'sent',
+            scopes: [AssistantRegexScope.assistant],
+            replaceOnly: true,
+          ),
+          AssistantRegex(
+            id: 'visual',
+            name: 'Visual',
+            pattern: 'visual',
+            replacement: 'shown',
+            scopes: [AssistantRegexScope.assistant],
+            visualOnly: true,
+          ),
+          AssistantRegex(
+            id: 'user-scope',
+            name: 'User scope',
+            pattern: 'user-scope',
+            replacement: 'replaced-user',
+            scopes: [AssistantRegexScope.user],
+          ),
+          AssistantRegex(
+            id: 'disabled',
+            name: 'Disabled',
+            pattern: 'disabled',
+            replacement: 'replaced-disabled',
+            scopes: [AssistantRegexScope.assistant],
+            enabled: false,
+          ),
+        ],
+      );
+
+      final reply = await ProactiveCareMessageFlow(preferences: businessPrefs)
+          .requestCareReply(
+            config: ProviderConfig.defaultsFor('TestProvider'),
+            modelId: 'test-model',
+            assistant: assistant,
+            apiMessages: const [
+              {'role': 'user', 'content': 'care'},
+            ],
+            sendMessageStream:
+                ({
+                  required config,
+                  required modelId,
+                  required messages,
+                  userMediaPaths,
+                  thinkingBudget,
+                  temperature,
+                  topP,
+                  maxTokens,
+                  tools,
+                  onToolCall,
+                  extraHeaders,
+                  extraBody,
+                  stream = true,
+                  requestId,
+                  allowImagesApiRouting = true,
+                  ocrActive = false,
+                }) => Stream<ChatStreamChunk>.value(
+                  ChatStreamChunk(
+                    content: ' persist send visual user-scope disabled ',
+                    isDone: false,
+                    totalTokens: 0,
+                  ),
+                ),
+          );
+
+      expect(reply, 'saved send visual user-scope disabled');
+    });
+
     test(
-      'decision adds only smart time context and does not crop history',
+      'care reply becomes empty when persist regex removes its content',
       () async {
-        List<Map<String, dynamic>>? capturedMessages;
         final assistant = Assistant(
           id: 'assistant-1',
           name: 'Assistant',
-          systemPrompt: 'persona-without-world-book',
-          enableTimeInjection: true,
-          contextMessageSize: 1,
-          limitContextMessages: true,
+          regexRules: const [
+            AssistantRegex(
+              id: 'remove',
+              name: 'Remove',
+              pattern: 'everything',
+              replacement: '',
+              scopes: [AssistantRegexScope.assistant],
+            ),
+          ],
         );
 
-        final result =
-            await ProactiveCareMessageFlow(
-              preferences: businessPrefs,
-            ).decideNextCareTime(
+        final reply = await ProactiveCareMessageFlow(preferences: businessPrefs)
+            .requestCareReply(
               config: ProviderConfig.defaultsFor('TestProvider'),
               modelId: 'test-model',
               assistant: assistant,
-              userNickname: 'User',
-              history: const [
-                {'role': 'user', 'content': 'first\n\n(Tue 26-08-18 09:00:00)'},
-                {'role': 'assistant', 'content': 'second'},
-                {'role': 'user', 'content': 'third\n\n(Tue 26-08-18 09:05:00)'},
+              apiMessages: const [
+                {'role': 'user', 'content': 'care'},
               ],
-              decisionPrompt: 'decide',
               sendMessageStream:
                   ({
                     required config,
                     required modelId,
                     required messages,
-                    tools,
-                    onToolCall,
+                    userMediaPaths,
                     thinkingBudget,
                     temperature,
                     topP,
                     maxTokens,
+                    tools,
+                    onToolCall,
+                    extraHeaders,
+                    extraBody,
                     stream = true,
                     requestId,
-                  }) {
-                    capturedMessages = messages;
-                    return Stream<ChatStreamChunk>.value(
-                      ChatStreamChunk(
-                        content: '',
-                        isDone: false,
-                        totalTokens: 0,
-                        toolCalls: [
-                          ToolCallInfo(
-                            id: 'keep',
-                            name: ProactiveCareDecisionTools.keepTime,
-                            arguments: <String, dynamic>{},
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                    allowImagesApiRouting = true,
+                    ocrActive = false,
+                  }) => Stream<ChatStreamChunk>.value(
+                    ChatStreamChunk(
+                      content: 'everything',
+                      isDone: false,
+                      totalTokens: 0,
+                    ),
+                  ),
             );
 
-        expect(result, isNull);
-        final captured = capturedMessages!;
-        expect(captured.first['role'], 'system');
-        expect(
-          captured.first['content'],
-          contains(ChatContextTransforms.timeNote),
+        expect(reply, isEmpty);
+      },
+    );
+
+    test('decision merges unlimited history into one user message', () async {
+      List<Map<String, dynamic>>? capturedMessages;
+      final assistant = Assistant(
+        id: 'assistant-1',
+        name: 'Assistant',
+        systemPrompt: 'persona-without-world-book',
+        enableTimeInjection: true,
+        contextMessageSize: 1,
+        limitContextMessages: true,
+      );
+
+      final result = await ProactiveCareMessageFlow(preferences: businessPrefs)
+          .decideNextCareTime(
+            config: ProviderConfig.defaultsFor('TestProvider'),
+            modelId: 'test-model',
+            assistant: assistant,
+            userNickname: 'User',
+            currentNextCareTime: null,
+            history: const [
+              {'role': 'user', 'content': 'first\n\n(Tue 26-08-18 09:00:00)'},
+              {'role': 'assistant', 'content': 'second'},
+              {'role': 'user', 'content': 'third\n\n(Tue 26-08-18 09:05:00)'},
+            ],
+            decisionPrompt: 'decide',
+            sendMessageStream:
+                ({
+                  required config,
+                  required modelId,
+                  required messages,
+                  tools,
+                  onToolCall,
+                  thinkingBudget,
+                  temperature,
+                  topP,
+                  maxTokens,
+                  stream = true,
+                  requestId,
+                }) {
+                  capturedMessages = messages;
+                  return Stream<ChatStreamChunk>.value(
+                    ChatStreamChunk(
+                      content: '',
+                      isDone: false,
+                      totalTokens: 0,
+                      toolCalls: [
+                        ToolCallInfo(
+                          id: 'keep',
+                          name: ProactiveCareDecisionTools.keepTime,
+                          arguments: <String, dynamic>{},
+                        ),
+                      ],
+                    ),
+                  );
+                },
+          );
+
+      expect(result, isNull);
+      final captured = capturedMessages!;
+      expect(captured.first['role'], 'system');
+      expect(
+        captured.first['content'],
+        contains(ChatContextTransforms.timeNote),
+      );
+      expect(captured.where((item) => item['role'] == 'assistant'), isEmpty);
+      final historyMessage = captured.singleWhere(
+        (item) => (item['content'] as String).startsWith(
+          ProactiveCareService.chatHistoryPrefix,
+        ),
+      );
+      expect(historyMessage, {
+        'role': 'user',
+        'content':
+            '${ProactiveCareService.chatHistoryPrefix}\n\n'
+            'User:\nfirst\n\n(Tue 26-08-18 09:00:00)\n\n'
+            'Assistant:\nsecond\n\n'
+            'User:\nthird\n\n(Tue 26-08-18 09:05:00)',
+      });
+      expect(captured.toString(), isNot(contains('world-book-hit')));
+      expect(captured.toString(), isNot(contains('<recent_chats>')));
+    });
+
+    test(
+      'decision keeps only the newest configured history messages',
+      () async {
+        List<Map<String, dynamic>>? capturedMessages;
+        final assistant = Assistant(
+          id: 'assistant-1',
+          name: 'Assistant',
+          proactiveCareDecisionHistoryMessageLimit: 2,
         );
-        expect(captured.any((item) => item['content'] == 'second'), isTrue);
-        expect(
-          captured.where(
-            (item) =>
-                (item['content'] ?? '').toString().contains('Tue 26-08-18'),
+
+        await ProactiveCareMessageFlow(
+          preferences: businessPrefs,
+        ).decideNextCareTime(
+          config: ProviderConfig.defaultsFor('TestProvider'),
+          modelId: 'test-model',
+          assistant: assistant,
+          userNickname: 'User',
+          currentNextCareTime: null,
+          history: const [
+            {'role': 'user', 'content': 'oldest'},
+            {'role': 'assistant', 'content': 'middle'},
+            {'role': 'user', 'content': 'newest'},
+          ],
+          decisionPrompt: 'decide',
+          sendMessageStream:
+              ({
+                required config,
+                required modelId,
+                required messages,
+                tools,
+                onToolCall,
+                thinkingBudget,
+                temperature,
+                topP,
+                maxTokens,
+                stream = true,
+                requestId,
+              }) {
+                capturedMessages = messages;
+                return Stream<ChatStreamChunk>.value(
+                  ChatStreamChunk(
+                    content: '',
+                    isDone: false,
+                    totalTokens: 0,
+                    toolCalls: [
+                      ToolCallInfo(
+                        id: 'keep',
+                        name: ProactiveCareDecisionTools.keepTime,
+                        arguments: <String, dynamic>{},
+                      ),
+                    ],
+                  ),
+                );
+              },
+        );
+
+        final historyMessage = capturedMessages!.singleWhere(
+          (item) => (item['content'] as String).startsWith(
+            ProactiveCareService.chatHistoryPrefix,
           ),
-          hasLength(2),
         );
-        expect(captured.toString(), isNot(contains('world-book-hit')));
-        expect(captured.toString(), isNot(contains('<recent_chats>')));
+        expect(historyMessage['role'], 'user');
+        expect(historyMessage['content'], isNot(contains('oldest')));
+        expect(historyMessage['content'], contains('Assistant:\nmiddle'));
+        expect(historyMessage['content'], contains('User:\nnewest'));
       },
     );
   });

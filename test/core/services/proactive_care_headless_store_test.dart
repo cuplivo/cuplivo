@@ -28,13 +28,11 @@ void main() {
     }
   });
 
-  test(
-    'recent references match foreground filters and map preset messages',
-    () async {
-      final database = sqlite.sqlite3.open(
-        p.join(tempDirectory.path, 'kelivo.sqlite'),
-      );
-      database.execute('''
+  test('recent references and exact load map persisted messages', () async {
+    final database = sqlite.sqlite3.open(
+      p.join(tempDirectory.path, 'kelivo.sqlite'),
+    );
+    database.execute('''
 CREATE TABLE conversation_rows (
   id TEXT NOT NULL PRIMARY KEY,
   title TEXT NOT NULL,
@@ -47,7 +45,9 @@ CREATE TABLE conversation_rows (
   summary TEXT NULL,
   last_summarized_message_count INTEGER NOT NULL DEFAULT 0,
   parent_conversation_id TEXT NULL,
-  conversation_kind TEXT NOT NULL DEFAULT 'normal'
+  conversation_kind TEXT NOT NULL DEFAULT 'normal',
+  proactive_care_enabled_override INTEGER NULL,
+  proactive_care_next_message_at INTEGER NULL
 );
 CREATE TABLE message_rows (
   id TEXT NOT NULL PRIMARY KEY,
@@ -67,96 +67,94 @@ CREATE TABLE message_rows (
 );
 ''');
 
-      const baseTimestamp = 1787011200;
+    const baseTimestamp = 1787011200;
 
-      void insertConversation({
-        required String id,
-        required String title,
-        required int updatedAt,
-        String assistantId = 'assistant-1',
-        String kind = Conversation.kindNormal,
-        String? summary,
-      }) {
-        database.execute(
-          'INSERT INTO conversation_rows '
-          '(id, title, created_at, updated_at, assistant_id, summary, '
-          'conversation_kind) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [id, title, baseTimestamp, updatedAt, assistantId, summary, kind],
-        );
-      }
-
-      for (var index = 0; index < 12; index++) {
-        insertConversation(
-          id: 'chat-$index',
-          title: 'Chat $index',
-          updatedAt: baseTimestamp + index,
-          summary: 'Summary $index',
-        );
-      }
-      insertConversation(
-        id: 'current',
-        title: 'Current',
-        updatedAt: baseTimestamp + 30,
-      );
-      insertConversation(
-        id: 'group',
-        title: 'Group',
-        updatedAt: baseTimestamp + 40,
-        kind: Conversation.kindGroup,
-      );
-      insertConversation(
-        id: 'other-assistant',
-        title: 'Other',
-        updatedAt: baseTimestamp + 50,
-        assistantId: 'assistant-2',
-      );
-      insertConversation(
-        id: 'empty-title',
-        title: '   ',
-        updatedAt: baseTimestamp + 25,
-      );
+    void insertConversation({
+      required String id,
+      required String title,
+      required int updatedAt,
+      String assistantId = 'assistant-1',
+      String kind = Conversation.kindNormal,
+      String? summary,
+    }) {
       database.execute(
-        'INSERT INTO message_rows '
-        '(id, conversation_id, role, content, timestamp, message_order, '
-        'is_preset) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [
-          'preset-message',
-          'current',
-          'user',
-          'preset content',
-          baseTimestamp,
-          0,
-          1,
-        ],
+        'INSERT INTO conversation_rows '
+        '(id, title, created_at, updated_at, assistant_id, summary, '
+        'conversation_kind) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id, title, baseTimestamp, updatedAt, assistantId, summary, kind],
       );
-      database.close();
+    }
 
-      final references =
-          await ProactiveCareHeadlessChatStore.loadRecentChatReferencesFor(
-            'assistant-1',
-            currentConversationId: 'current',
-          );
+    for (var index = 0; index < 12; index++) {
+      insertConversation(
+        id: 'chat-$index',
+        title: 'Chat $index',
+        updatedAt: baseTimestamp + index,
+        summary: 'Summary $index',
+      );
+    }
+    insertConversation(
+      id: 'current',
+      title: 'Current',
+      updatedAt: baseTimestamp + 30,
+    );
+    insertConversation(
+      id: 'group',
+      title: 'Group',
+      updatedAt: baseTimestamp + 40,
+      kind: Conversation.kindGroup,
+    );
+    insertConversation(
+      id: 'other-assistant',
+      title: 'Other',
+      updatedAt: baseTimestamp + 50,
+      assistantId: 'assistant-2',
+    );
+    insertConversation(
+      id: 'empty-title',
+      title: '   ',
+      updatedAt: baseTimestamp + 25,
+    );
+    database.execute(
+      'INSERT INTO message_rows '
+      '(id, conversation_id, role, content, timestamp, message_order, '
+      'is_preset) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        'preset-message',
+        'current',
+        'user',
+        'preset content',
+        baseTimestamp,
+        0,
+        1,
+      ],
+    );
+    database.close();
 
-      expect(references.map((conversation) => conversation.id), [
-        'chat-11',
-        'chat-10',
-        'chat-9',
-        'chat-8',
-        'chat-7',
-        'chat-6',
-        'chat-5',
-        'chat-4',
-        'chat-3',
-        'chat-2',
-      ]);
-      expect(references.first.summary, 'Summary 11');
+    final references =
+        await ProactiveCareHeadlessChatStore.loadRecentChatReferencesFor(
+          'assistant-1',
+          currentConversationId: 'current',
+        );
 
-      final recent =
-          await ProactiveCareHeadlessChatStore.loadRecentConversationFor(
-            'assistant-1',
-          );
-      expect(recent.conversation?.id, 'current');
-      expect(recent.messages.single.isPreset, isTrue);
-    },
-  );
+    expect(references.map((conversation) => conversation.id), [
+      'chat-11',
+      'chat-10',
+      'chat-9',
+      'chat-8',
+      'chat-7',
+      'chat-6',
+      'chat-5',
+      'chat-4',
+      'chat-3',
+      'chat-2',
+    ]);
+    expect(references.first.summary, 'Summary 11');
+
+    final exact = await ProactiveCareHeadlessChatStore.loadConversation(
+      'current',
+    );
+    expect(exact?.conversation.id, 'current');
+    expect(exact?.messages.single.isPreset, isTrue);
+  });
 }

@@ -1014,140 +1014,22 @@ class _BasicSettingsTabState extends State<_BasicSettingsTab> {
     );
   }
 
-  Future<void> _showContextMessagesSheet(
-    BuildContext context,
-    Assistant a,
-  ) async {
-    final cs = Theme.of(context).colorScheme;
+  Future<void> _showContextMessagesSheet(BuildContext context, Assistant a) {
     final l10n = AppLocalizations.of(context)!;
-    await showModalBottomSheet(
-      context: context,
-      backgroundColor: cs.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      isScrollControlled: false,
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
-            child: Builder(
-              builder: (context) {
-                final cs = Theme.of(context).colorScheme;
-                final value = _clampContextMessages(
-                  context
-                          .watch<AssistantProvider>()
-                          .getById(widget.assistantId)
-                          ?.contextMessageSize ??
-                      20,
-                );
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Drag handle
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: cs.onSurface.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            l10n.assistantEditContextMessagesTitle,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: AppFontWeights.semibold,
-                            ),
-                          ),
-                        ),
-                        IosSwitch(
-                          value: a.limitContextMessages,
-                          onChanged: (v) async {
-                            final assistantProvider = context
-                                .read<AssistantProvider>();
-                            final navigator = Navigator.of(ctx);
-                            final next =
-                                v && a.contextMessageSize < _contextMessageMin
-                                ? a.copyWith(
-                                    limitContextMessages: v,
-                                    contextMessageSize: _contextMessageMin,
-                                  )
-                                : a.copyWith(limitContextMessages: v);
-                            await assistantProvider.updateAssistant(next);
-                            if (navigator.mounted) navigator.pop();
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    if (a.limitContextMessages) ...[
-                      _SliderTileNew(
-                        value: value.toDouble(),
-                        min: _contextMessageMin.toDouble(),
-                        max: _contextMessageMax.toDouble(),
-                        divisions: _contextMessageMax - _contextMessageMin,
-                        label: value.toString(),
-                        customLabelStops: const <double>[
-                          1.0,
-                          64.0,
-                          128.0,
-                          256.0,
-                          512.0,
-                          1024.0,
-                        ],
-                        onLabelTap: () async {
-                          final assistantProvider = context
-                              .read<AssistantProvider>();
-                          final chosen = await _showContextMessageInputDialog(
-                            context,
-                            initialValue: value,
-                          );
-                          if (!context.mounted || chosen == null) return;
-                          await assistantProvider.updateAssistant(
-                            a.copyWith(contextMessageSize: chosen),
-                          );
-                        },
-                        onChanged: (v) =>
-                            context.read<AssistantProvider>().updateAssistant(
-                              a.copyWith(
-                                contextMessageSize: _clampContextMessages(v),
-                              ),
-                            ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        l10n.assistantEditContextMessagesDescription,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurface.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ] else ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          l10n.assistantEditParameterDisabled2,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: cs.onSurface.withValues(alpha: 0.6),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                );
-              },
-            ),
-          ),
-        );
+    return _showAssistantMessageLimitSheet(
+      context,
+      assistantId: a.id,
+      title: l10n.assistantEditContextMessagesTitle,
+      description: l10n.assistantEditContextMessagesDescription,
+      isEnabled: (assistant) => assistant.limitContextMessages,
+      readValue: (assistant) => assistant.contextMessageSize,
+      writeLimit: (assistant, limit) {
+        return limit == null
+            ? assistant.copyWith(limitContextMessages: false)
+            : assistant.copyWith(
+                limitContextMessages: true,
+                contextMessageSize: limit,
+              );
       },
     );
   }

@@ -15,6 +15,7 @@ import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/logging/flutter_logger.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/services/proactive_care_alarm_service.dart';
+import '../../../core/services/proactive_care_conversation_policy.dart';
 import '../../../core/services/proactive_care_message_flow.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../utils/utf16_safe_cut.dart';
@@ -367,6 +368,7 @@ class HomeViewModel extends ChangeNotifier {
     _chatActions.onStreamFinished = _onStreamFinished;
     _chatActions.onAssistantMessageFinished = _onAssistantMessageFinished;
     _chatActions.onMaybeUpdateProactiveCare = _onMaybeUpdateProactiveCare;
+    _chatActions.onMultiAISlotSettled = _onMultiAISlotSettled;
     _chatActions.onFileProcessingStarted = _onFileProcessingStarted;
     _chatActions.onFileProcessingFinished = _onFileProcessingFinished;
   }
@@ -439,6 +441,9 @@ class HomeViewModel extends ChangeNotifier {
 
   /// Called when a successful assistant reply is finalized.
   void Function(ChatMessage message)? onAssistantMessageFinished;
+
+  /// Routes actual Multi-AI slot outcomes to its operation-level aggregator.
+  void Function(String messageId, bool succeeded)? onMultiAISlotSettled;
 
   /// Called when scrolling to bottom is needed.
   VoidCallback? onScrollToBottom;
@@ -539,7 +544,15 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   void _onMaybeUpdateProactiveCare(String conversationId) {
-    _maybeUpdateProactiveCareFor(conversationId);
+    unawaited(_maybeUpdateProactiveCareFor(conversationId));
+  }
+
+  void maybeUpdateProactiveCareAfterMultiAI(String conversationId) {
+    unawaited(_maybeUpdateProactiveCareFor(conversationId));
+  }
+
+  void _onMultiAISlotSettled(String messageId, bool succeeded) {
+    onMultiAISlotSettled?.call(messageId, succeeded);
   }
 
   void _onFileProcessingStarted() {
@@ -1884,10 +1897,13 @@ class HomeViewModel extends ChangeNotifier {
     if (convo == null) return;
 
     final assistantProvider = _contextProvider.read<AssistantProvider>();
-    final assistant = convo.assistantId != null
-        ? assistantProvider.getById(convo.assistantId!)
-        : assistantProvider.currentAssistant;
-    if (assistant == null || !assistant.enableProactiveCare) return;
+    final ownerId = convo.assistantId;
+    if (ownerId == null) return;
+    final assistant = assistantProvider.getById(ownerId);
+    if (assistant == null ||
+        !ProactiveCareConversationPolicy.isEligible(convo, assistant)) {
+      return;
+    }
 
     final settings = _contextProvider.read<SettingsProvider>();
     final provKey =
@@ -1921,6 +1937,7 @@ class HomeViewModel extends ChangeNotifier {
         userNickname: _contextProvider.read<UserProvider>().name,
         history: history,
         decisionPrompt: decisionPrompt,
+        currentNextCareTime: convo.proactiveCareNextMessageAt,
         fallbackThinkingBudget: settings.thinkingBudget,
       );
       if (newTime == null) {
@@ -1931,14 +1948,21 @@ class HomeViewModel extends ChangeNotifier {
         return;
       }
 
-      final latest = assistantProvider.getById(assistant.id);
-      if (latest == null || !latest.enableProactiveCare) return;
-      await assistantProvider.updateAssistant(
-        latest.copyWith(proactiveCareNextMessageAt: newTime),
-      );
-      // Reschedule the alarm with the new time.
-      await ProactiveCareAlarmService.sync(
-        latest.copyWith(proactiveCareNextMessageAt: newTime),
+      // Completion-order last-write-wins: only the fixed owner/effective state
+      // is rechecked. A newer decision is never rejected by a request version.
+      final latestConversation = _chatService.getConversation(conversationId);
+      final latestOwner = assistantProvider.getById(ownerId);
+      if (latestConversation == null ||
+          latestOwner == null ||
+          !ProactiveCareConversationPolicy.isEligible(
+            latestConversation,
+            latestOwner,
+          )) {
+        return;
+      }
+      await _chatService.setConversationProactiveCareNextMessageAt(
+        conversationId,
+        newTime,
       );
     } catch (e) {
       debugPrint(
@@ -1954,29 +1978,74 @@ class HomeViewModel extends ChangeNotifier {
   /// Handles a proactive care alarm while the app process is alive.
   /// Builds the care prompt, streams a reply, persists it, notifies the user,
   /// and re-decides the next care time.
-  Future<void> handleProactiveCareTrigger(String assistantId) async {
-    debugPrint('[ProactiveCare] Trigger received for $assistantId');
+  Future<void> handleProactiveCareTrigger(
+    ProactiveCareAlarmTrigger trigger,
+  ) async {
     final assistantProvider = _contextProvider.read<AssistantProvider>();
-    final assistant = assistantProvider.getById(assistantId);
-    if (assistant == null) {
+    final settings = _contextProvider.read<SettingsProvider>();
+    final l10n = AppLocalizations.of(_contextProvider);
+    final userNickname = _contextProvider.read<UserProvider>().name;
+    debugPrint(
+      '[ProactiveCare] Trigger received for ${trigger.conversationId} at '
+      '${trigger.expectedAt.toIso8601String()}',
+    );
+    final currentConversation = _chatService.getConversation(
+      trigger.conversationId,
+    );
+    final currentAssistantId = currentConversation?.assistantId;
+    final currentAssistant = currentAssistantId == null
+        ? null
+        : assistantProvider.getById(currentAssistantId);
+    if (currentConversation == null ||
+        currentAssistant == null ||
+        !ProactiveCareConversationPolicy.isEligible(
+          currentConversation,
+          currentAssistant,
+        )) {
       debugPrint(
-        '[ProactiveCare] Assistant $assistantId not found, dropping trigger',
+        '[ProactiveCare] Owner/effective check failed for '
+        '${trigger.conversationId}, dropping trigger',
       );
       return;
     }
-    if (!assistant.enableProactiveCare) {
+
+    ({Conversation conversation, List<ChatMessage> messages})? claim;
+    try {
+      claim = await _chatService.claimConversationProactiveCareSchedule(
+        conversationId: trigger.conversationId,
+        expectedAt: trigger.expectedAt,
+      );
+    } catch (e) {
       debugPrint(
-        '[ProactiveCare] Proactive care disabled for $assistantId, '
+        '[ProactiveCare] Foreground schedule claim failed for '
+        '${trigger.conversationId}: $e',
+      );
+      return;
+    }
+    if (claim == null) {
+      debugPrint(
+        '[ProactiveCare] Schedule claim rejected for ${trigger.conversationId}',
+      );
+      return;
+    }
+
+    final convo = claim.conversation;
+    final assistantId = convo.assistantId;
+    if (assistantId == null) return;
+
+    final assistant = assistantProvider.getById(assistantId);
+    if (assistant == null ||
+        !ProactiveCareConversationPolicy.isEligible(convo, assistant)) {
+      debugPrint(
+        '[ProactiveCare] Owner/effective check failed for ${convo.id}, '
         'dropping trigger',
       );
       return;
     }
 
-    final settings = _contextProvider.read<SettingsProvider>();
     final provKey =
         assistant.chatModelProvider ?? settings.currentModelProvider;
     final mdlId = assistant.chatModelId ?? settings.currentModelId;
-    final l10n = AppLocalizations.of(_contextProvider);
     if (provKey == null || mdlId == null) {
       debugPrint('[ProactiveCare] No chat model configured for $assistantId');
       FlutterLogger.log(
@@ -1985,26 +2054,17 @@ class HomeViewModel extends ChangeNotifier {
       );
       await _showProactiveCareNotification(
         assistant,
+        convo.id,
         l10n?.proactiveCareFailedNotificationBody,
       );
       return;
     }
     final cfg = settings.getProviderConfig(provKey);
-    final userNickname = _contextProvider.read<UserProvider>().name;
 
     try {
-      Conversation? convo;
-      for (final c in _chatService.getAllConversations()) {
-        if (c.assistantId == assistantId) {
-          convo = c;
-          break;
-        }
-      }
-      convo ??= await _chatService.createConversation(assistantId: assistantId);
-
       final history = _proactiveCareFlow.buildHistory(
         conversation: convo,
-        messages: _chatService.getMessages(convo.id),
+        messages: claim.messages,
         assistant: assistant,
         applySendRegexes: true,
       );
@@ -2039,21 +2099,28 @@ class HomeViewModel extends ChangeNotifier {
         throw StateError('model returned an empty proactive care reply');
       }
 
-      final message = await _chatService.addMessage(
+      final message = await _chatService.appendProactiveCareReplyIfEligible(
         conversationId: convo.id,
-        role: 'assistant',
+        assistantId: assistantId,
         content: reply,
         modelId: mdlId,
         providerId: provKey,
       );
-      if (currentConversation?.id == convo.id) {
+      if (message == null) {
+        debugPrint(
+          '[ProactiveCare] Owner/effective recheck rejected append for '
+          '${convo.id}',
+        );
+        return;
+      }
+      if (this.currentConversation?.id == convo.id) {
         if (_chatController.appendPersistedTailMessage(message)) {
           restoreMessageUiState();
         }
         notifyListeners();
       }
 
-      await _showProactiveCareNotification(assistant, reply);
+      await _showProactiveCareNotification(assistant, convo.id, reply);
       await _maybeUpdateProactiveCareFor(convo.id);
     } catch (e) {
       debugPrint(
@@ -2065,6 +2132,7 @@ class HomeViewModel extends ChangeNotifier {
       );
       await _showProactiveCareNotification(
         assistant,
+        convo.id,
         l10n?.proactiveCareFailedNotificationBody,
       );
     }
@@ -2072,13 +2140,15 @@ class HomeViewModel extends ChangeNotifier {
 
   Future<void> _showProactiveCareNotification(
     Assistant assistant,
+    String conversationId,
     String? body,
   ) async {
     if (body == null || body.isEmpty) return;
     try {
-      final id = ProactiveCareAlarmService.alarmIdFor(assistant.id);
+      final id = ProactiveCareAlarmService.alarmIdFor(conversationId);
       await NotificationService.showProactiveCare(
         id: id,
+        conversationId: conversationId,
         title: assistant.name,
         body: body,
       );

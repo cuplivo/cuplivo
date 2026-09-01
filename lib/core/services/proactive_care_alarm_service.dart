@@ -6,7 +6,7 @@ import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show WidgetsFlutterBinding;
 import 'package:image/image.dart' as img;
-import 'package:permission_handler/permission_handler.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import '../../utils/app_directories.dart';
 import '../../utils/avatar_cache.dart';
@@ -17,11 +17,12 @@ import '../models/assistant.dart';
 import '../models/conversation.dart';
 import 'logging/flutter_logger.dart';
 import 'notification_service.dart';
+import 'proactive_care_conversation_policy.dart';
 import 'proactive_care_message_flow.dart';
 
 /// Name of the main-isolate port that handles proactive care triggers while
 /// the app process is alive. Registered by HomePageController on Android;
-/// the alarm background isolate forwards the assistantId to it.
+/// the alarm background isolate forwards a serializable trigger map to it.
 const String proactiveCareMainPortName = 'cuplivo_proactive_care_main_port';
 
 // User-visible only in the first-run edge where no l10n snapshot was saved
@@ -29,7 +30,48 @@ const String proactiveCareMainPortName = 'cuplivo_proactive_care_main_port';
 // scheduled through the UI).
 const String _failureBodyFallback =
     'Failed to generate the proactive care message. Open Cuplivo for details.';
-const String _conversationTitleFallback = 'New Chat';
+
+class ProactiveCareAlarmTrigger {
+  const ProactiveCareAlarmTrigger({
+    required this.conversationId,
+    required this.expectedAtSeconds,
+  });
+
+  factory ProactiveCareAlarmTrigger.fromSchedule({
+    required String conversationId,
+    required DateTime expectedAt,
+  }) => ProactiveCareAlarmTrigger(
+    conversationId: conversationId,
+    expectedAtSeconds:
+        expectedAt.millisecondsSinceEpoch ~/ Duration.millisecondsPerSecond,
+  );
+
+  factory ProactiveCareAlarmTrigger.fromMap(Map<Object?, Object?> map) {
+    final conversationId = map['conversationId'];
+    final expectedAtSeconds = map['expectedAtSeconds'];
+    if (conversationId is! String ||
+        conversationId.isEmpty ||
+        expectedAtSeconds is! int) {
+      throw const FormatException('invalid proactive care alarm trigger');
+    }
+    return ProactiveCareAlarmTrigger(
+      conversationId: conversationId,
+      expectedAtSeconds: expectedAtSeconds,
+    );
+  }
+
+  final String conversationId;
+  final int expectedAtSeconds;
+
+  DateTime get expectedAt => DateTime.fromMillisecondsSinceEpoch(
+    expectedAtSeconds * Duration.millisecondsPerSecond,
+  );
+
+  Map<String, Object> toMap() => <String, Object>{
+    'conversationId': conversationId,
+    'expectedAtSeconds': expectedAtSeconds,
+  };
+}
 
 /// Background entrypoint invoked by android_alarm_manager_plus when a
 /// proactive care alarm fires. It runs in a dedicated background isolate and
@@ -40,67 +82,103 @@ Future<void> proactiveCareAlarmCallback(
   Map<String, dynamic> params,
 ) async {
   WidgetsFlutterBinding.ensureInitialized();
-  // This isolate holds NO state from the main isolate: install its own
-  // BusinessPreferences over the same SQLite table (never SharedPreferences —
-  // the business data migrated out of it; a pre-migration fire degrades
-  // gracefully because reads return empty).
-  ProactiveCareMessageFlow? flow;
+  ProactiveCareAlarmTrigger trigger;
   try {
-    final db = await ProactiveCareHeadlessChatStore.openSharedSqlite();
-    final prefs = BusinessPreferences.open(RawSqliteBusinessStore(db));
+    trigger = ProactiveCareAlarmTrigger.fromMap(params);
+  } catch (error) {
+    debugPrint('[ProactiveCare] Invalid alarm payload (id=$id): $error');
+    return;
+  }
+  debugPrint(
+    '[ProactiveCare] Alarm fired (id=$id, '
+    'conversationId=${trigger.conversationId}, '
+    'expectedAt=${trigger.expectedAt.toIso8601String()})',
+  );
+
+  // App alive (foreground or background): send only isolate-serializable
+  // primitives. The main isolate applies the same exact claim contract.
+  if (_forwardToMainIsolate(trigger)) return;
+
+  ProactiveCareHeadlessClaim? claim;
+  try {
+    claim = await ProactiveCareHeadlessChatStore.claimConversationSchedule(
+      conversationId: trigger.conversationId,
+      expectedAt: trigger.expectedAt,
+    );
+  } catch (error, stackTrace) {
+    debugPrint(
+      '[ProactiveCare] Conversation claim failed: $error\n$stackTrace',
+    );
+  }
+  if (claim == null) {
+    debugPrint(
+      '[ProactiveCare] Schedule claim rejected for '
+      '${trigger.conversationId}',
+    );
+    await ProactiveCareHeadlessChatStore.close();
+    return;
+  }
+
+  // This isolate holds no state from the main isolate. Install its own
+  // BusinessPreferences over SQLite, never SharedPreferences.
+  sqlite.Database? preferencesDb;
+  ProactiveCareMessageFlow flow;
+  try {
+    preferencesDb = await ProactiveCareHeadlessChatStore.openSharedSqlite();
+    final prefs = BusinessPreferences.open(
+      RawSqliteBusinessStore(preferencesDb),
+    );
     await prefs.load();
     flow = ProactiveCareMessageFlow(preferences: prefs);
-  } catch (e, st) {
-    debugPrint('[ProactiveCare] business prefs open failed: $e\n$st');
+  } catch (error, stackTrace) {
+    debugPrint(
+      '[ProactiveCare] Business prefs open failed: $error\n$stackTrace',
+    );
+    preferencesDb?.close();
+    preferencesDb = null;
     flow = ProactiveCareMessageFlow(
       preferences: await BusinessPreferences.memoryFallback(),
     );
   }
-  final assistantId = params['assistantId'] as String?;
-  debugPrint('[ProactiveCare] Alarm fired (id=$id, assistantId=$assistantId)');
-  if (assistantId == null || assistantId.isEmpty) return;
 
-  // App alive (foreground or background): the main isolate owns the database
-  // and the provider stack, so hand the trigger over and let it run the full
-  // pipeline.
-  if (_forwardToMainIsolate(assistantId)) return;
-
-  final assistant = await ProactiveCareMessageFlow.loadAssistantFromDb(
-    assistantId,
-  );
-  if (assistant == null) {
-    debugPrint('[ProactiveCare] Assistant $assistantId not found, skipping');
-    return;
+  try {
+    await _runHeadlessCareFlow(claim, id, flow);
+  } finally {
+    await ProactiveCareHeadlessChatStore.close();
+    preferencesDb?.close();
   }
-  // The alarm and the toggle live in different processes, so a stale alarm
-  // may still fire after the feature was switched off. Re-check here.
-  if (!assistant.enableProactiveCare) {
-    debugPrint(
-      '[ProactiveCare] Proactive care disabled for $assistantId, skipping',
-    );
-    return;
-  }
-
-  await _runHeadlessCareFlow(assistant, id, flow);
+  _forwardRefreshToMainIsolate(claim.conversation.id);
 }
 
-bool _forwardToMainIsolate(String assistantId) {
+bool _forwardToMainIsolate(ProactiveCareAlarmTrigger trigger) {
   final port = IsolateNameServer.lookupPortByName(proactiveCareMainPortName);
   if (port == null) return false;
-  debugPrint('[ProactiveCare] App alive, forwarding $assistantId to main');
-  port.send(assistantId);
+  debugPrint(
+    '[ProactiveCare] App alive, forwarding ${trigger.conversationId} to main',
+  );
+  port.send(trigger.toMap());
   return true;
 }
 
-/// Killed-process path: builds the full context from SharedPreferences and
-/// SQLite, requests the care reply, appends it to the assistant's most recent
-/// conversation, shows the notification, and asks the model for the next
-/// care time to re-schedule the alarm.
+void _forwardRefreshToMainIsolate(String conversationId) {
+  final port = IsolateNameServer.lookupPortByName(proactiveCareMainPortName);
+  if (port == null) return;
+  port.send(<String, Object>{
+    'event': 'refresh',
+    'conversationId': conversationId,
+  });
+}
+
+/// Killed-process path: builds the full context from persisted settings and
+/// SQLite, requests the care reply, appends it to the claimed conversation,
+/// shows the notification, and decides that conversation's next care time.
 Future<void> _runHeadlessCareFlow(
-  Assistant assistant,
+  ProactiveCareHeadlessClaim claim,
   int alarmId,
   ProactiveCareMessageFlow flow,
 ) async {
+  final assistant = claim.assistant;
+  final conversation = claim.conversation;
   final snapshot = await flow.loadL10nSnapshot();
   final failureBody = (snapshot?.failureNotificationBody.isNotEmpty ?? false)
       ? snapshot!.failureNotificationBody
@@ -113,39 +191,27 @@ Future<void> _runHeadlessCareFlow(
       throw StateError('no chat model configured');
     }
 
-    // Narrow the race where the user launches the app while this isolate is
-    // running: re-check the main port right before touching the database.
-    if (_forwardToMainIsolate(assistant.id)) return;
-
     final fallbackThinkingBudget = await flow.loadThinkingBudgetFromPrefs();
 
-    final recent =
-        await ProactiveCareHeadlessChatStore.loadRecentConversationFor(
-          assistant.id,
-        );
-    final careHistory = recent.conversation == null
-        ? const <Map<String, dynamic>>[]
-        : flow.buildHistory(
-            conversation: recent.conversation!,
-            messages: recent.messages,
-            assistant: assistant,
-            applySendRegexes: true,
-          );
-    final decisionHistory = recent.conversation == null
-        ? const <Map<String, dynamic>>[]
-        : flow.buildHistory(
-            conversation: recent.conversation!,
-            messages: recent.messages,
-            assistant: assistant,
-            applySendRegexes: false,
-          );
+    final careHistory = flow.buildHistory(
+      conversation: conversation,
+      messages: claim.messages,
+      assistant: assistant,
+      applySendRegexes: true,
+    );
+    final decisionHistory = flow.buildHistory(
+      conversation: conversation,
+      messages: claim.messages,
+      assistant: assistant,
+      applySendRegexes: false,
+    );
     var recentChats = const <Conversation>[];
     if (assistant.enableRecentChatsReference) {
       try {
         recentChats =
             await ProactiveCareHeadlessChatStore.loadRecentChatReferencesFor(
               assistant.id,
-              currentConversationId: recent.conversation?.id,
+              currentConversationId: conversation.id,
             );
       } catch (e) {
         debugPrint('[ProactiveCare] Recent chat references load failed: $e');
@@ -177,16 +243,20 @@ Future<void> _runHeadlessCareFlow(
       throw StateError('model returned an empty proactive care reply');
     }
 
-    await ProactiveCareHeadlessChatStore.appendAssistantReply(
+    final appended = await ProactiveCareHeadlessChatStore.appendAssistantReply(
       assistantId: assistant.id,
-      conversation: recent.conversation,
+      conversationId: conversation.id,
       content: reply,
-      fallbackTitle: (snapshot?.defaultConversationTitle.isNotEmpty ?? false)
-          ? snapshot!.defaultConversationTitle
-          : _conversationTitleFallback,
       modelId: modelCfg.modelId,
       providerId: modelCfg.providerKey,
     );
+    if (appended == null) {
+      debugPrint(
+        '[ProactiveCare] Exact conversation ${conversation.id} no longer '
+        'eligible; dropping generated reply',
+      );
+      return;
+    }
     body = reply;
 
     // Ask the decision model for the next care time (continuous care). A
@@ -210,29 +280,32 @@ Future<void> _runHeadlessCareFlow(
             {'role': 'assistant', 'content': reply},
           ],
           decisionPrompt: decisionPrompt,
+          currentNextCareTime: null,
           fallbackThinkingBudget: fallbackThinkingBudget,
         );
         if (newTime != null) {
-          final persisted =
-              await ProactiveCareMessageFlow.updateAssistantNextCareTimeInDb(
-                assistant.id,
-                newTime,
+          final target =
+              await ProactiveCareHeadlessChatStore.updateConversationNextTime(
+                conversationId: conversation.id,
+                assistantId: assistant.id,
+                nextCareTime: newTime,
               );
-          if (persisted) {
+          if (target != null) {
             await ProactiveCareAlarmService.initialize();
             await ProactiveCareAlarmService.sync(
-              assistant.copyWith(proactiveCareNextMessageAt: newTime),
+              conversation: target.conversation,
+              assistant: target.assistant,
             );
           } else {
             debugPrint(
               '[ProactiveCare] Failed to persist next care time for '
-              '${assistant.id}',
+              '${conversation.id}',
             );
           }
         } else {
           debugPrint(
             '[ProactiveCare] Headless decision returned no next time for '
-            '${assistant.id}',
+            '${conversation.id}; consumed schedule remains null',
           );
         }
       }
@@ -242,8 +315,6 @@ Future<void> _runHeadlessCareFlow(
   } catch (e) {
     debugPrint('[ProactiveCare] Headless care flow failed: $e');
     body = failureBody;
-  } finally {
-    await ProactiveCareHeadlessChatStore.close();
   }
 
   final iconPath = await resolveProactiveCareNotificationIconPath(
@@ -253,6 +324,7 @@ Future<void> _runHeadlessCareFlow(
   try {
     await NotificationService.showProactiveCare(
       id: alarmId,
+      conversationId: conversation.id,
       title: assistant.name,
       body: body,
       largeIconPath: iconPath,
@@ -349,9 +421,6 @@ Uint8List? cropAvatarForNotification(Uint8List bytes, {int maxSize = 256}) {
   return img.encodePng(circled);
 }
 
-/// Result of the proactive care permission check on Android.
-typedef ProactiveCarePermissions = ({bool exactAlarm, bool notifications});
-
 /// Schedules Android exact alarms ("setExactAndAllowWhileIdle") that wake the
 /// app when an assistant's proactive care time arrives.
 ///
@@ -385,44 +454,46 @@ class ProactiveCareAlarmService {
     }
   }
 
-  /// Derives a stable 31-bit positive alarm id from [assistantId] using
+  /// Derives a stable 31-bit positive alarm id from [conversationId] using
   /// FNV-1a. `String.hashCode` is not guaranteed to be stable across runs,
   /// while the id must stay identical to cancel/replace a pending alarm.
-  static int alarmIdFor(String assistantId) {
+  static int alarmIdFor(String conversationId) {
     const int fnvPrime = 0x01000193;
     int hash = 0x811c9dc5; // FNV offset basis
-    for (final unit in assistantId.codeUnits) {
+    for (final unit in conversationId.codeUnits) {
       hash ^= unit;
       hash = (hash * fnvPrime) & 0xFFFFFFFF;
     }
     return hash & 0x7FFFFFFF;
   }
 
-  /// Returns the assistants whose proactive care alarm should be armed:
-  /// proactive care enabled with a future [Assistant.proactiveCareNextMessageAt].
+  /// Resolves future, effectively enabled schedules from persisted
+  /// conversations and their fixed owner assistants.
   @visibleForTesting
-  static List<Assistant> pendingForReschedule(
-    List<Assistant> assistants, {
+  static List<ProactiveCareConversationTarget> pendingForReschedule({
+    required List<Conversation> conversations,
+    required List<Assistant> assistants,
     DateTime? now,
-  }) {
-    final current = now ?? DateTime.now();
-    return <Assistant>[
-      for (final a in assistants)
-        if (a.enableProactiveCare &&
-            a.proactiveCareNextMessageAt != null &&
-            a.proactiveCareNextMessageAt!.isAfter(current))
-          a,
-    ];
-  }
+  }) => ProactiveCareConversationPolicy.pending(
+    conversations: conversations,
+    assistants: assistants,
+    now: now,
+  );
 
-  /// Schedules or cancels the exact alarm so it matches the assistant's
-  /// proactive care settings.
-  static Future<void> sync(Assistant assistant) async {
+  /// Schedules or cancels the exact alarm for one explicit conversation-owner
+  /// pair. This method never requests permissions.
+  static Future<void> sync({
+    required Conversation conversation,
+    required Assistant assistant,
+  }) async {
     if (!_isAndroid) return;
-    final at = assistant.proactiveCareNextMessageAt;
-    final id = alarmIdFor(assistant.id);
+    final at = conversation.proactiveCareNextMessageAt;
+    final id = alarmIdFor(conversation.id);
     try {
-      if (!assistant.enableProactiveCare ||
+      if (!ProactiveCareConversationPolicy.isEligible(
+            conversation,
+            assistant,
+          ) ||
           at == null ||
           !at.isAfter(DateTime.now())) {
         await AndroidAlarmManager.cancel(id);
@@ -436,98 +507,73 @@ class ProactiveCareAlarmService {
         wakeup: true,
         allowWhileIdle: true,
         rescheduleOnReboot: true,
-        params: <String, dynamic>{'assistantId': assistant.id},
+        params: ProactiveCareAlarmTrigger.fromSchedule(
+          conversationId: conversation.id,
+          expectedAt: at,
+        ).toMap(),
       );
       if (ok) {
         debugPrint(
-          '[ProactiveCare] Alarm scheduled for ${assistant.id} at '
+          '[ProactiveCare] Alarm scheduled for ${conversation.id} at '
           '${at.toIso8601String()} (id=$id)',
         );
       } else {
-        String exactAlarmPermission = 'unknown';
-        try {
-          exactAlarmPermission = (await Permission.scheduleExactAlarm.status)
-              .toString();
-        } catch (e) {
-          exactAlarmPermission = 'check failed: $e';
-        }
         debugPrint(
-          '[ProactiveCare] Alarm schedule FAILED for ${assistant.id} at '
-          '${at.toIso8601String()} (id=$id, '
-          'exactAlarmPermission=$exactAlarmPermission)',
+          '[ProactiveCare] Alarm schedule FAILED for ${conversation.id} at '
+          '${at.toIso8601String()} (id=$id)',
         );
       }
       FlutterLogger.log(
-        'Alarm ${ok ? 'scheduled' : 'schedule FAILED'} for assistant '
-        '${assistant.id} at ${at.toIso8601String()} (id=$id)',
+        'Alarm ${ok ? 'scheduled' : 'schedule FAILED'} for conversation '
+        '${conversation.id} at ${at.toIso8601String()} (id=$id)',
         tag: _logTag,
       );
     } catch (e) {
-      debugPrint('[ProactiveCare] Alarm sync failed for ${assistant.id}: $e');
+      debugPrint(
+        '[ProactiveCare] Alarm sync failed for ${conversation.id}: $e',
+      );
       FlutterLogger.log(
-        'Alarm sync failed for assistant ${assistant.id}: $e',
+        'Alarm sync failed for conversation ${conversation.id}: $e',
         tag: _logTag,
       );
     }
   }
 
-  /// Cancels the pending alarm for [assistantId], if any.
-  static Future<void> cancelFor(String assistantId) async {
+  /// Cancels the pending alarm for [conversationId], if any.
+  static Future<void> cancelFor(String conversationId) async {
     if (!_isAndroid) return;
     try {
-      await AndroidAlarmManager.cancel(alarmIdFor(assistantId));
+      await AndroidAlarmManager.cancel(alarmIdFor(conversationId));
     } catch (e) {
-      debugPrint('[ProactiveCare] Alarm cancel failed for $assistantId: $e');
+      debugPrint('[ProactiveCare] Alarm cancel failed for $conversationId: $e');
       FlutterLogger.log(
-        'Alarm cancel failed for assistant $assistantId: $e',
+        'Alarm cancel failed for conversation $conversationId: $e',
         tag: _logTag,
       );
     }
   }
 
-  /// Re-schedules alarms for all assistants that have proactive care enabled
-  /// and a future [proactiveCareNextMessageAt]. Call this on app startup to
-  /// recover alarms lost after force-stop or process death.
-  static Future<void> rescheduleAll(List<Assistant> assistants) async {
+  /// Re-schedules persisted, eligible conversation schedules on app startup.
+  static Future<void> rescheduleAll({
+    required List<Conversation> conversations,
+    required List<Assistant> assistants,
+  }) async {
     if (!_isAndroid) return;
-    final pending = pendingForReschedule(assistants);
+    final pending = pendingForReschedule(
+      conversations: conversations,
+      assistants: assistants,
+    );
     debugPrint(
-      '[ProactiveCare] rescheduleAll: ${pending.length}/${assistants.length} '
-      'assistants need re-arming',
+      '[ProactiveCare] rescheduleAll: ${pending.length}/'
+      '${conversations.length} conversations need re-arming',
     );
     // sync() never throws (all failures are caught and logged inside), so no
     // per-assistant try/catch is needed here.
-    for (final a in pending) {
-      await sync(a);
-    }
-  }
-
-  /// Ensures the exact alarm permission (Android 12+) and the notification
-  /// permission (Android 13+) are granted, requesting them when missing.
-  /// Requesting the exact alarm permission opens the system
-  /// "Alarms & reminders" settings page.
-  static Future<ProactiveCarePermissions> ensurePermissions() async {
-    if (!_isAndroid) return (exactAlarm: true, notifications: true);
-
-    bool exactAlarm;
-    try {
-      var status = await Permission.scheduleExactAlarm.status;
-      if (!status.isGranted) {
-        status = await Permission.scheduleExactAlarm.request();
-      }
-      exactAlarm = status.isGranted;
-    } catch (e) {
-      debugPrint('[ProactiveCare] Exact alarm permission request failed: $e');
-      FlutterLogger.log(
-        'Exact alarm permission request failed: $e',
-        tag: _logTag,
+    for (final target in pending) {
+      await sync(
+        conversation: target.conversation,
+        assistant: target.assistant,
       );
-      exactAlarm = false;
     }
-
-    final notifications =
-        await NotificationService.ensureAndroidNotificationsPermission();
-
-    return (exactAlarm: exactAlarm, notifications: notifications);
   }
 }

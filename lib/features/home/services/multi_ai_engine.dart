@@ -35,6 +35,62 @@ enum MultiAIMode {
   synthesize,
 }
 
+class _MultiAIResponseOperationTracker {
+  _MultiAIResponseOperationTracker(this.onSuccessfulOperation);
+
+  final void Function(String conversationId) onSuccessfulOperation;
+  final Map<String, _MultiAIResponseOperation> _operations = {};
+  final Map<String, String> _operationByMessageId = {};
+
+  void start(String operationId, String conversationId) {
+    _operations[operationId] = _MultiAIResponseOperation(conversationId);
+  }
+
+  void addSlot(String operationId, String messageId) {
+    final operation = _operations[operationId];
+    if (operation == null) return;
+    operation.pendingMessageIds.add(messageId);
+    _operationByMessageId[messageId] = operationId;
+  }
+
+  void seal(String operationId) {
+    final operation = _operations[operationId];
+    if (operation == null) return;
+    operation.sealed = true;
+    _finishIfSettled(operationId, operation);
+  }
+
+  void settle(String messageId, {required bool succeeded}) {
+    final operationId = _operationByMessageId.remove(messageId);
+    if (operationId == null) return;
+    final operation = _operations[operationId];
+    if (operation == null) return;
+    operation.pendingMessageIds.remove(messageId);
+    operation.anySucceeded |= succeeded;
+    _finishIfSettled(operationId, operation);
+  }
+
+  void _finishIfSettled(
+    String operationId,
+    _MultiAIResponseOperation operation,
+  ) {
+    if (!operation.sealed || operation.pendingMessageIds.isNotEmpty) return;
+    _operations.remove(operationId);
+    if (operation.anySucceeded) {
+      onSuccessfulOperation(operation.conversationId);
+    }
+  }
+}
+
+class _MultiAIResponseOperation {
+  _MultiAIResponseOperation(this.conversationId);
+
+  final String conversationId;
+  final Set<String> pendingMessageIds = {};
+  bool sealed = false;
+  bool anySucceeded = false;
+}
+
 class MultiAIEngine extends ChangeNotifier {
   MultiAIEngine({
     required ChatService chatService,
@@ -42,17 +98,24 @@ class MultiAIEngine extends ChangeNotifier {
     required MessageGenerationService messageGenerationService,
     required stream_ctrl.StreamController streamController,
     required MessagePipeline pipeline,
+    void Function(String conversationId)? onMaybeUpdateProactiveCare,
   }) : _chatService = chatService,
        _chatController = chatController,
        _messageGenerationService = messageGenerationService,
        _streamController = streamController,
-       _pipeline = pipeline;
+       _pipeline = pipeline,
+       _onMaybeUpdateProactiveCare = onMaybeUpdateProactiveCare;
 
   final ChatService _chatService;
   final ChatController _chatController;
   final MessageGenerationService _messageGenerationService;
   final stream_ctrl.StreamController _streamController;
   final MessagePipeline _pipeline;
+  final void Function(String conversationId)? _onMaybeUpdateProactiveCare;
+  late final _MultiAIResponseOperationTracker _responseOperationTracker =
+      _MultiAIResponseOperationTracker(
+        (conversationId) => _onMaybeUpdateProactiveCare?.call(conversationId),
+      );
 
   bool _isActive = false;
   List<ModelSelection> _models = [];
@@ -71,6 +134,10 @@ class MultiAIEngine extends ChangeNotifier {
 
   /// The currently displayed version index per thread (card view state).
   Map<String, int> get selectedVersionByThread => _selectedVersionByThread;
+
+  void handleSlotSettled(String messageId, {required bool succeeded}) {
+    _responseOperationTracker.settle(messageId, succeeded: succeeded);
+  }
 
   /// Get the selected version for a thread, falling back to [maxVersion].
   int getSelectedVersion(String threadId, int maxVersion) {
@@ -208,6 +275,8 @@ class MultiAIEngine extends ChangeNotifier {
             fallbackAllowImagesApiRouting: allowImagesApiRouting,
           );
     final convId = conversation.id;
+    final operationId = const Uuid().v4();
+    _responseOperationTracker.start(operationId, convId);
     var pending = _models.length;
     debugPrint(
       '[MultiAI][_executeThreads] models=${_models.length} roundGroupId=$roundGroupId',
@@ -275,6 +344,7 @@ class MultiAIEngine extends ChangeNotifier {
       _chatController.notifyListeners();
 
       _streamController.toolParts.remove(assistantMessage.id);
+      _responseOperationTracker.addSlot(operationId, assistantMessage.id);
 
       // Filter context per thread: keep user/non-subgroup messages +
       // only this thread's own subgroup messages.
@@ -286,19 +356,31 @@ class MultiAIEngine extends ChangeNotifier {
       // Per-thread loading increment matches the decrement in _finishStreaming.
       _chatController.setConversationLoading(convId, true);
 
-      await _pipeline.executeAssistantResponse(
-        assistantMessage: assistantMessage,
-        providerKey: model.providerKey,
-        modelId: model.modelId,
-        context: ctx,
-        completeMessages: threadMessages,
-        inputData: inputData,
-        allowImagesApiRouting: requestOptions.allowImagesApiRouting,
-        requestExtraBody: requestOptions.requestExtraBody,
-        generateTitleOnFinish: i == 0,
-        onStreamComplete: onThreadDone,
-      );
+      try {
+        await _pipeline.executeAssistantResponse(
+          assistantMessage: assistantMessage,
+          providerKey: model.providerKey,
+          modelId: model.modelId,
+          context: ctx,
+          completeMessages: threadMessages,
+          inputData: inputData,
+          allowImagesApiRouting: requestOptions.allowImagesApiRouting,
+          requestExtraBody: requestOptions.requestExtraBody,
+          generateTitleOnFinish: i == 0,
+          onStreamComplete: onThreadDone,
+        );
+      } catch (_) {
+        _responseOperationTracker.settle(assistantMessage.id, succeeded: false);
+        _responseOperationTracker.seal(operationId);
+        rethrow;
+      }
+      final stored = _storedMessage(convId, assistantMessage.id);
+      if (stored != null && !stored.isStreaming) {
+        _responseOperationTracker.settle(assistantMessage.id, succeeded: false);
+      }
     }
+
+    _responseOperationTracker.seal(operationId);
 
     _chatController.notifyListeners();
   }
@@ -576,16 +658,30 @@ class MultiAIEngine extends ChangeNotifier {
           fallbackAllowImagesApiRouting: true,
         );
 
-    await _pipeline.executeAssistantResponse(
-      assistantMessage: newMessage,
-      providerKey: model.providerKey,
-      modelId: model.modelId,
-      context: ctx,
-      completeMessages: threadMessages,
-      allowImagesApiRouting: requestOptions.allowImagesApiRouting,
-      requestExtraBody: requestOptions.requestExtraBody,
-      generateTitleOnFinish: false,
-    );
+    final operationId = const Uuid().v4();
+    _responseOperationTracker.start(operationId, conversation.id);
+    _responseOperationTracker.addSlot(operationId, newMessage.id);
+    try {
+      await _pipeline.executeAssistantResponse(
+        assistantMessage: newMessage,
+        providerKey: model.providerKey,
+        modelId: model.modelId,
+        context: ctx,
+        completeMessages: threadMessages,
+        allowImagesApiRouting: requestOptions.allowImagesApiRouting,
+        requestExtraBody: requestOptions.requestExtraBody,
+        generateTitleOnFinish: false,
+      );
+      final stored = _storedMessage(conversation.id, newMessage.id);
+      if (stored != null && !stored.isStreaming) {
+        _responseOperationTracker.settle(newMessage.id, succeeded: false);
+      }
+    } catch (_) {
+      _responseOperationTracker.settle(newMessage.id, succeeded: false);
+      rethrow;
+    } finally {
+      _responseOperationTracker.seal(operationId);
+    }
 
     _chatController.notifyListeners();
   }
@@ -652,42 +748,75 @@ class MultiAIEngine extends ChangeNotifier {
 
     _chatController.notifyListeners();
 
-    for (int i = 0; i < _threadIds.length; i++) {
-      final threadId = _threadIds[i];
-      final newMsg = newMsgByThread[threadId];
-      if (newMsg == null) continue;
-      final model = _models[i];
+    final operationId = const Uuid().v4();
+    _responseOperationTracker.start(operationId, conversation.id);
+    String? startingMessageId;
 
-      _streamController.markStreamingStarted(newMsg.id);
-      _streamController.toolParts.remove(newMsg.id);
+    try {
+      for (int i = 0; i < _threadIds.length; i++) {
+        final threadId = _threadIds[i];
+        final newMsg = newMsgByThread[threadId];
+        if (newMsg == null) continue;
+        final model = _models[i];
+        startingMessageId = newMsg.id;
+        _responseOperationTracker.addSlot(operationId, newMsg.id);
 
-      final completeMessages = _chatController
-          .messagesForCompleteHistoryContext(conversation);
+        _streamController.markStreamingStarted(newMsg.id);
+        _streamController.toolParts.remove(newMsg.id);
 
-      final threadMessages = completeMessages.where((m) {
-        if (m.subgroupId == null) return true;
-        return m.subgroupId == threadId;
-      }).toList();
+        final completeMessages = _chatController
+            .messagesForCompleteHistoryContext(conversation);
 
-      _chatController.setConversationLoading(conversation.id, true);
-      final requestOptions =
-          MessageGenerationService.resolveRequestOptionsFromMessages(
-            threadMessages,
-            fallbackAllowImagesApiRouting: true,
-          );
-      await _pipeline.executeAssistantResponse(
-        assistantMessage: newMsg,
-        providerKey: model.providerKey,
-        modelId: model.modelId,
-        context: ctx,
-        completeMessages: threadMessages,
-        allowImagesApiRouting: requestOptions.allowImagesApiRouting,
-        requestExtraBody: requestOptions.requestExtraBody,
-        generateTitleOnFinish: false,
-      );
+        final threadMessages = completeMessages.where((m) {
+          if (m.subgroupId == null) return true;
+          return m.subgroupId == threadId;
+        }).toList();
+
+        _chatController.setConversationLoading(conversation.id, true);
+        final requestOptions =
+            MessageGenerationService.resolveRequestOptionsFromMessages(
+              threadMessages,
+              fallbackAllowImagesApiRouting: true,
+            );
+        await _pipeline.executeAssistantResponse(
+          assistantMessage: newMsg,
+          providerKey: model.providerKey,
+          modelId: model.modelId,
+          context: ctx,
+          completeMessages: threadMessages,
+          allowImagesApiRouting: requestOptions.allowImagesApiRouting,
+          requestExtraBody: requestOptions.requestExtraBody,
+          generateTitleOnFinish: false,
+        );
+        final stored = _storedMessage(conversation.id, newMsg.id);
+        if (stored != null && !stored.isStreaming) {
+          _responseOperationTracker.settle(newMsg.id, succeeded: false);
+        }
+        startingMessageId = null;
+      }
+    } catch (_) {
+      final messageId = startingMessageId;
+      if (messageId != null) {
+        _responseOperationTracker.settle(messageId, succeeded: false);
+      }
+      rethrow;
+    } finally {
+      _responseOperationTracker.seal(operationId);
     }
 
     _chatController.notifyListeners();
+  }
+
+  ChatMessage? _storedMessage(String conversationId, String messageId) {
+    final persisted = _chatService.repo.getMessageSync(messageId);
+    if (persisted != null ||
+        !_chatService.isTemporaryConversation(conversationId)) {
+      return persisted;
+    }
+    for (final message in _chatService.getMessages(conversationId)) {
+      if (message.id == messageId) return message;
+    }
+    return null;
   }
 
   // ============================================================================

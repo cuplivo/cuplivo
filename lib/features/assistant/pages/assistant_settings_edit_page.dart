@@ -37,7 +37,9 @@ import '../../../core/providers/world_book_provider.dart';
 import '../../../core/models/instruction_injection.dart';
 import '../../../core/models/world_book.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/services/android_proactive_care_settings_service.dart';
 import '../../../core/services/haptics.dart';
+import '../../../core/services/proactive_care_conversation_policy.dart';
 import '../../../desktop/desktop_context_menu.dart';
 import '../../../desktop/desktop_settings_navigation_bus.dart';
 import '../../home/services/local_tools_service.dart';
@@ -49,6 +51,7 @@ import '../../../shared/widgets/collapsible_group_header.dart';
 import '../../../shared/widgets/emoji_picker_dialog.dart';
 import '../../../shared/widgets/emoji_text.dart';
 import '../../../shared/widgets/ios_switch.dart';
+import '../../../shared/widgets/ios_expandable_section.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
@@ -163,7 +166,7 @@ List<_AssistantEditTabSpec> _assistantEditTabSpecs(
         id: assistantEditTabProactiveLetter,
         label: l10n.assistantEditPageProactiveLetterTab,
         icon: Lucide.HeartPulse,
-        child: _ProactiveLetterTab(assistantId: assistantId),
+        child: AssistantProactiveLetterTab(assistantId: assistantId),
       ),
   ];
 }
@@ -204,6 +207,8 @@ int _clampContextMessages(num value) =>
 Future<int?> _showContextMessageInputDialog(
   BuildContext context, {
   required int initialValue,
+  required String title,
+  required String description,
 }) async {
   final cs = Theme.of(context).colorScheme;
   final l10n = AppLocalizations.of(context)!;
@@ -227,7 +232,7 @@ Future<int?> _showContextMessageInputDialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              title: Text(l10n.assistantEditContextMessagesTitle),
+              title: Text(title),
               content: SizedBox(
                 width: 360,
                 child: Column(
@@ -241,7 +246,7 @@ Future<int?> _showContextMessageInputDialog(
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: InputDecoration(
                         labelText:
-                            '${l10n.assistantEditContextMessagesTitle} ($_contextMessageMin-$_contextMessageMax)',
+                            '$title ($_contextMessageMin-$_contextMessageMax)',
                         helperText: '$_contextMessageMin-$_contextMessageMax',
                       ),
                       onChanged: (_) => setLocal(() {}),
@@ -249,7 +254,7 @@ Future<int?> _showContextMessageInputDialog(
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${l10n.assistantEditContextMessagesDescription} ($_contextMessageMin-$_contextMessageMax)',
+                      '$description ($_contextMessageMin-$_contextMessageMax)',
                       style: TextStyle(
                         fontSize: 12,
                         color: cs.onSurface.withValues(alpha: 0.65),
@@ -276,6 +281,148 @@ Future<int?> _showContextMessageInputDialog(
   } finally {
     WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
   }
+}
+
+Future<void> _showAssistantMessageLimitSheet(
+  BuildContext context, {
+  required String assistantId,
+  required String title,
+  required String description,
+  required bool Function(Assistant assistant) isEnabled,
+  required int Function(Assistant assistant) readValue,
+  required Assistant Function(Assistant assistant, int? limit) writeLimit,
+}) async {
+  final cs = Theme.of(context).colorScheme;
+  final l10n = AppLocalizations.of(context)!;
+  await showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: cs.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    isScrollControlled: false,
+    builder: (sheetContext) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+          child: Builder(
+            builder: (context) {
+              final cs = Theme.of(context).colorScheme;
+              final assistant = context.watch<AssistantProvider>().getById(
+                assistantId,
+              );
+              if (assistant == null) return const SizedBox.shrink();
+              final enabled = isEnabled(assistant);
+              final value = _clampContextMessages(readValue(assistant));
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: cs.onSurface.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: AppFontWeights.semibold,
+                          ),
+                        ),
+                      ),
+                      IosSwitch(
+                        value: enabled,
+                        onChanged: (nextEnabled) async {
+                          final provider = context.read<AssistantProvider>();
+                          final current = provider.getById(assistantId);
+                          if (current == null) return;
+                          final navigator = Navigator.of(sheetContext);
+                          await provider.updateAssistant(
+                            writeLimit(current, nextEnabled ? value : null),
+                          );
+                          if (navigator.mounted) navigator.pop();
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (enabled) ...[
+                    _SliderTileNew(
+                      value: value.toDouble(),
+                      min: _contextMessageMin.toDouble(),
+                      max: _contextMessageMax.toDouble(),
+                      divisions: _contextMessageMax - _contextMessageMin,
+                      label: value.toString(),
+                      customLabelStops: const <double>[
+                        1.0,
+                        64.0,
+                        128.0,
+                        256.0,
+                        512.0,
+                        1024.0,
+                      ],
+                      onLabelTap: () async {
+                        final chosen = await _showContextMessageInputDialog(
+                          context,
+                          initialValue: value,
+                          title: title,
+                          description: description,
+                        );
+                        if (!context.mounted || chosen == null) return;
+                        final provider = context.read<AssistantProvider>();
+                        final current = provider.getById(assistantId);
+                        if (current == null) return;
+                        await provider.updateAssistant(
+                          writeLimit(current, chosen),
+                        );
+                      },
+                      onChanged: (nextValue) {
+                        final provider = context.read<AssistantProvider>();
+                        final current = provider.getById(assistantId);
+                        if (current == null) return;
+                        provider.updateAssistant(
+                          writeLimit(current, _clampContextMessages(nextValue)),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ] else ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        l10n.assistantEditParameterDisabled2,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: cs.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ),
+      );
+    },
+  );
 }
 
 class AssistantSettingsEditPage extends StatefulWidget {
@@ -2167,6 +2314,10 @@ class _DesktopAssistantBasicPaneState
                                       initialValue: _clampContextMessages(
                                         a.contextMessageSize,
                                       ),
+                                      title: l10n
+                                          .assistantEditContextMessagesTitle,
+                                      description: l10n
+                                          .assistantEditContextMessagesDescription,
                                     );
                                 if (chosen != null) {
                                   await assistantProvider.updateAssistant(

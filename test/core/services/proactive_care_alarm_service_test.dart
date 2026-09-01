@@ -1,133 +1,177 @@
 import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/services/proactive_care_alarm_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('ProactiveCareAlarmService.pendingForReschedule', () {
-    final now = DateTime(2026, 8, 14, 12, 0, 0);
+    final now = DateTime(2026, 8, 14, 12);
 
-    Assistant assistant({
-      String id = 'a1',
-      bool enabled = true,
+    Assistant assistant({String id = 'a1', bool enabled = true}) =>
+        Assistant(id: id, name: 'Test', enableProactiveCare: enabled);
+
+    Conversation conversation({
+      String id = 'c1',
+      String? assistantId = 'a1',
+      String kind = Conversation.kindNormal,
+      bool? enabledOverride,
       DateTime? nextAt,
-    }) => Assistant(
+    }) => Conversation(
       id: id,
-      name: 'Test',
-      enableProactiveCare: enabled,
+      title: 'Chat',
+      assistantId: assistantId,
+      conversationKind: kind,
+      proactiveCareEnabledOverride: enabledOverride,
       proactiveCareNextMessageAt: nextAt,
     );
 
-    test('empty list yields nothing to re-arm', () {
+    List<String> pendingIds({
+      required List<Conversation> conversations,
+      required List<Assistant> assistants,
+    }) => ProactiveCareAlarmService.pendingForReschedule(
+      conversations: conversations,
+      assistants: assistants,
+      now: now,
+    ).map((target) => target.conversation.id).toList();
+
+    test('inherits enabled state from the fixed owner assistant', () {
       expect(
-        ProactiveCareAlarmService.pendingForReschedule(
-          const <Assistant>[],
-          now: now,
+        pendingIds(
+          conversations: [
+            conversation(nextAt: now.add(const Duration(minutes: 5))),
+          ],
+          assistants: [assistant()],
+        ),
+        ['c1'],
+      );
+      expect(
+        pendingIds(
+          conversations: [
+            conversation(nextAt: now.add(const Duration(minutes: 5))),
+          ],
+          assistants: [assistant(enabled: false)],
         ),
         isEmpty,
       );
     });
 
-    test('assistant with proactive care disabled is skipped', () {
-      final a = assistant(
-        enabled: false,
-        nextAt: now.add(const Duration(minutes: 5)),
+    test('conversation override wins over assistant state', () {
+      final nextAt = now.add(const Duration(minutes: 5));
+      expect(
+        pendingIds(
+          conversations: [conversation(enabledOverride: true, nextAt: nextAt)],
+          assistants: [assistant(enabled: false)],
+        ),
+        ['c1'],
       );
       expect(
-        ProactiveCareAlarmService.pendingForReschedule([a], now: now),
+        pendingIds(
+          conversations: [conversation(enabledOverride: false, nextAt: nextAt)],
+          assistants: [assistant(enabled: true)],
+        ),
         isEmpty,
       );
     });
 
-    test('assistant without a next time is skipped', () {
+    test('requires a normal conversation with an existing fixed owner', () {
+      final nextAt = now.add(const Duration(minutes: 5));
       expect(
-        ProactiveCareAlarmService.pendingForReschedule([
-          assistant(nextAt: null),
-        ], now: now),
+        pendingIds(
+          conversations: [
+            conversation(
+              id: 'group',
+              kind: Conversation.kindGroup,
+              nextAt: nextAt,
+            ),
+            conversation(id: 'unowned', assistantId: null, nextAt: nextAt),
+            conversation(id: 'missing', assistantId: 'missing', nextAt: nextAt),
+          ],
+          assistants: [assistant()],
+        ),
         isEmpty,
       );
     });
 
-    test('assistant with a past next time is skipped', () {
-      final a = assistant(nextAt: now.subtract(const Duration(minutes: 1)));
+    test('requires a strictly future conversation schedule', () {
       expect(
-        ProactiveCareAlarmService.pendingForReschedule([a], now: now),
-        isEmpty,
+        pendingIds(
+          conversations: [
+            conversation(id: 'null'),
+            conversation(
+              id: 'past',
+              nextAt: now.subtract(const Duration(seconds: 1)),
+            ),
+            conversation(id: 'now', nextAt: now),
+            conversation(
+              id: 'future',
+              nextAt: now.add(const Duration(seconds: 1)),
+            ),
+          ],
+          assistants: [assistant()],
+        ),
+        ['future'],
       );
     });
 
-    test('next time exactly at now is skipped (must be strictly after)', () {
+    test('preserves persisted conversation order', () {
+      final nextAt = now.add(const Duration(minutes: 5));
       expect(
-        ProactiveCareAlarmService.pendingForReschedule([
-          assistant(nextAt: now),
-        ], now: now),
-        isEmpty,
+        pendingIds(
+          conversations: [
+            conversation(id: 'c2', nextAt: nextAt),
+            conversation(id: 'c1', nextAt: nextAt),
+          ],
+          assistants: [assistant()],
+        ),
+        ['c2', 'c1'],
       );
     });
+  });
 
-    test('assistant with a future next time is re-armed', () {
-      final a = assistant(nextAt: now.add(const Duration(minutes: 5)));
-      expect(ProactiveCareAlarmService.pendingForReschedule([a], now: now), [
-        a,
-      ]);
-    });
+  group('ProactiveCareAlarmTrigger', () {
+    test(
+      'round-trips conversation and drift-compatible expected timestamp',
+      () {
+        final at = DateTime(2026, 8, 14, 12, 30, 45, 987);
+        final trigger = ProactiveCareAlarmTrigger.fromSchedule(
+          conversationId: 'conversation-1',
+          expectedAt: at,
+        );
 
-    test('mixed list filters to only the pending assistants', () {
-      final pending = assistant(nextAt: now.add(const Duration(minutes: 5)));
-      final disabled = assistant(
-        id: 'a2',
-        enabled: false,
-        nextAt: now.add(const Duration(minutes: 5)),
-      );
-      final noTime = assistant(id: 'a3', nextAt: null);
-      final past = assistant(
-        id: 'a4',
-        nextAt: now.subtract(const Duration(minutes: 1)),
-      );
+        final decoded = ProactiveCareAlarmTrigger.fromMap(trigger.toMap());
+
+        expect(decoded.conversationId, 'conversation-1');
+        expect(
+          decoded.expectedAtSeconds,
+          at.millisecondsSinceEpoch ~/ Duration.millisecondsPerSecond,
+        );
+        expect(decoded.expectedAt.millisecond, 0);
+      },
+    );
+
+    test('rejects missing or non-primitive fields', () {
       expect(
-        ProactiveCareAlarmService.pendingForReschedule([
-          pending,
-          disabled,
-          noTime,
-          past,
-        ], now: now),
-        [pending],
-      );
-    });
-
-    test('multiple pending assistants keep their original order', () {
-      final pending1 = assistant(
-        id: 'a1',
-        nextAt: now.add(const Duration(minutes: 3)),
-      );
-      final disabled = assistant(
-        id: 'a2',
-        enabled: false,
-        nextAt: now.add(const Duration(minutes: 5)),
-      );
-      final pending2 = assistant(
-        id: 'a3',
-        nextAt: now.add(const Duration(minutes: 9)),
-      );
-      final past = assistant(
-        id: 'a4',
-        nextAt: now.subtract(const Duration(minutes: 1)),
+        () => ProactiveCareAlarmTrigger.fromMap(<Object?, Object?>{}),
+        throwsFormatException,
       );
       expect(
-        ProactiveCareAlarmService.pendingForReschedule([
-          pending1,
-          disabled,
-          pending2,
-          past,
-        ], now: now),
-        [pending1, pending2],
+        () => ProactiveCareAlarmTrigger.fromMap(<Object?, Object?>{
+          'conversationId': 'c1',
+          'expectedAtSeconds': 'not-an-int',
+        }),
+        throwsFormatException,
       );
     });
+  });
 
-    test('uses the wall clock when now is not provided', () {
-      final a = assistant(
-        nextAt: DateTime.now().add(const Duration(minutes: 5)),
-      );
-      expect(ProactiveCareAlarmService.pendingForReschedule([a]), [a]);
-    });
+  test('alarm id is stable and conversation-owned', () {
+    expect(
+      ProactiveCareAlarmService.alarmIdFor('conversation-1'),
+      ProactiveCareAlarmService.alarmIdFor('conversation-1'),
+    );
+    expect(
+      ProactiveCareAlarmService.alarmIdFor('conversation-1'),
+      isNot(ProactiveCareAlarmService.alarmIdFor('conversation-2')),
+    );
   });
 }

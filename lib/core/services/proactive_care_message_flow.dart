@@ -21,6 +21,7 @@ import 'chat/prompt_transformer.dart';
 import 'instruction_injection_store.dart';
 import 'logging/flutter_logger.dart';
 import 'memory_store.dart';
+import 'proactive_care_conversation_policy.dart';
 import 'proactive_care_decision_tools.dart';
 import 'proactive_care_service.dart';
 import 'world_book_prompt_injector.dart';
@@ -147,37 +148,6 @@ class ProactiveCareMessageFlow {
   static const String _providerConfigsPrefsKey = 'provider_configs_v1';
   // Keep in sync with UserProvider.
   static const String _userNamePrefsKey = 'user_name';
-
-  /// Loads [assistantId] from SQLite (background isolate path).
-  static Future<Assistant?> loadAssistantFromDb(String assistantId) async {
-    try {
-      return await ProactiveCareHeadlessChatStore.loadAssistantFor(assistantId);
-    } catch (e) {
-      FlutterLogger.log('Load assistant from DB failed: $e', tag: _logTag);
-    }
-    return null;
-  }
-
-  /// Persists a new next-care time for [assistantId] in SQLite (background
-  /// isolate path; the app process is dead, so there is no concurrent writer).
-  static Future<bool> updateAssistantNextCareTimeInDb(
-    String assistantId,
-    DateTime nextCareTime,
-  ) async {
-    try {
-      await ProactiveCareHeadlessChatStore.updateNextCareTime(
-        assistantId,
-        nextCareTime,
-      );
-      return true;
-    } catch (e) {
-      FlutterLogger.log(
-        'Persist next care time to DB failed: $e',
-        tag: _logTag,
-      );
-      return false;
-    }
-  }
 
   /// Resolves the chat model for [assistant] from SharedPreferences:
   /// assistant-specific model first, then the globally selected model
@@ -550,22 +520,29 @@ class ProactiveCareMessageFlow {
     required Assistant assistant,
     required List<Map<String, dynamic>> apiMessages,
     int? fallbackThinkingBudget,
+    PlainTextStreamSender? sendMessageStream,
   }) async {
     // Layer-① collector (ADR-0034): accumulate the silent no-tool stream.
-    final text = await PlainTextCollector().collect(
-      config: config,
-      modelId: modelId,
-      messages: apiMessages,
-      thinkingBudget: assistant.thinkingBudget ?? fallbackThinkingBudget,
-      // No temperature: silent background generation — a rejected sampling
-      // parameter would fail the care reply invisibly (many models no longer
-      // support it). The assistant's temperature still applies to the main
-      // chat path.
-      topP: assistant.topP,
-      maxTokens: assistant.maxTokens,
-      stream: false,
-    );
-    return text.trim();
+    final text = await PlainTextCollector(sendMessageStream: sendMessageStream)
+        .collect(
+          config: config,
+          modelId: modelId,
+          messages: apiMessages,
+          thinkingBudget: assistant.thinkingBudget ?? fallbackThinkingBudget,
+          // No temperature: silent background generation — a rejected sampling
+          // parameter would fail the care reply invisibly (many models no longer
+          // support it). The assistant's temperature still applies to the main
+          // chat path.
+          topP: assistant.topP,
+          maxTokens: assistant.maxTokens,
+          stream: false,
+        );
+    return applyAssistantRegexes(
+      text,
+      assistant: assistant,
+      scope: AssistantRegexScope.assistant,
+      target: AssistantRegexTransformTarget.persist,
+    ).trim();
   }
 
   static const Duration _decisionTimeout = Duration(seconds: 45);
@@ -583,6 +560,7 @@ class ProactiveCareMessageFlow {
     required String userNickname,
     required List<Map<String, dynamic>> history,
     required String decisionPrompt,
+    required DateTime? currentNextCareTime,
     int? fallbackThinkingBudget,
     ProactiveCareDecisionSender? sendMessageStream,
     Duration decisionTimeout = _decisionTimeout,
@@ -615,11 +593,17 @@ class ProactiveCareMessageFlow {
       }
     }
 
+    final configuredLimit = assistant.proactiveCareDecisionHistoryMessageLimit;
+    final effectiveHistory =
+        configuredLimit == null || history.length <= configuredLimit
+        ? history
+        : history.sublist(history.length - configuredLimit);
+
     final apiMessages = ProactiveCareService.buildDecisionApiMessages(
       decisionPrompt: decisionPrompt,
-      currentNextCareTime: assistant.proactiveCareNextMessageAt,
+      currentNextCareTime: currentNextCareTime,
       now: now,
-      history: history,
+      history: effectiveHistory,
       personaPrompt: personaPrompt,
       memoriesBlock: memoriesBlock,
     );
@@ -799,10 +783,10 @@ class ProactiveCareMessageFlow {
   }
 }
 
-/// Direct SQLite access used ONLY by the proactive care background isolate
-/// when the app process is dead, so no ChatService instance has the database
-/// open. Never call this from the main isolate: SQLite WAL mode does not
-/// support concurrent multi-isolate writes to the same database file.
+/// Direct SQLite access used ONLY by the proactive care background isolate.
+/// Never call this from the main isolate; if the app starts while generation
+/// is running, WAL transactions serialize writes and the isolate asks the main
+/// port to refresh its cache after completion.
 class ProactiveCareHeadlessChatStore {
   const ProactiveCareHeadlessChatStore._();
 
@@ -860,8 +844,24 @@ class ProactiveCareHeadlessChatStore {
     }
   }
 
+  static int? _readOptionalInt(sqlite.Row row, String column) {
+    try {
+      return row[column] as int?;
+    } catch (error) {
+      FlutterLogger.log(
+        'Optional assistant column $column is unavailable: $error',
+        tag: _logTag,
+      );
+      return null;
+    }
+  }
+
   /// Converts [DateTime] to unix timestamp seconds for drift compatibility.
   static int _dateTimeToSql(DateTime dt) => dt.millisecondsSinceEpoch ~/ 1000;
+
+  static bool _hasColumn(sqlite.Database db, String table, String column) => db
+      .select('PRAGMA table_info($table)')
+      .any((row) => row['name'] == column);
 
   /// Loads a single assistant by id from the `assistant_rows` table.
   static Future<Assistant?> loadAssistantFor(String assistantId) async {
@@ -871,18 +871,6 @@ class ProactiveCareHeadlessChatStore {
     ]);
     if (rows.isEmpty) return null;
     return _assistantFromRow(rows.first);
-  }
-
-  /// Updates the proactive care next-message time for [assistantId].
-  static Future<void> updateNextCareTime(
-    String assistantId,
-    DateTime nextCareTime,
-  ) async {
-    final db = await _ensureDb();
-    db.execute(
-      'UPDATE assistant_rows SET proactive_care_next_message_at = ? WHERE id = ?',
-      [_dateTimeToSql(nextCareTime), assistantId],
-    );
   }
 
   /// Maps a raw sqlite3 row to an [Assistant] via its JSON constructor,
@@ -946,76 +934,336 @@ class ProactiveCareHeadlessChatStore {
       'proactiveCarePrompt': row['proactive_care_prompt'] as String,
       'proactiveCareDecisionPrompt':
           row['proactive_care_decision_prompt'] as String,
+      'proactiveCareDecisionHistoryMessageLimit': _readOptionalInt(
+        row,
+        'proactive_care_decision_history_message_limit',
+      ),
       'createdAt': _dateTimeFromSql(row['created_at']).toIso8601String(),
       'updatedAt': _dateTimeFromSql(row['updated_at']).toIso8601String(),
     });
   }
 
-  /// Returns the most recently active conversation of [assistantId] and its
-  /// messages, or a null conversation when the assistant has none.
-  static Future<({Conversation? conversation, List<ChatMessage> messages})>
-  loadRecentConversationFor(String assistantId) async {
+  /// Atomically consumes the exact persisted schedule represented by the
+  /// alarm. Returning null means another runner already claimed it, the owner
+  /// or policy is no longer eligible, or this is a pre-v22 database.
+  static Future<ProactiveCareHeadlessClaim?> claimConversationSchedule({
+    required String conversationId,
+    required DateTime expectedAt,
+  }) async {
     final db = await _ensureDb();
-
-    // Find the most recent non-group conversation for this assistant.
-    final convRows = db.select(
-      'SELECT * FROM conversation_rows '
-      'WHERE assistant_id = ? AND conversation_kind != ? '
-      'ORDER BY updated_at DESC LIMIT 1',
-      [assistantId, Conversation.kindGroup],
-    );
-    if (convRows.isEmpty) {
-      return (conversation: null, messages: const <ChatMessage>[]);
-    }
-
-    final row = convRows.first;
-    final conversation = Conversation(
-      id: row['id'] as String,
-      title: row['title'] as String,
-      createdAt: _dateTimeFromSql(row['created_at']),
-      updatedAt: _dateTimeFromSql(row['updated_at']),
-      isPinned: (row['is_pinned'] as int) != 0,
-      assistantId: row['assistant_id'] as String?,
-      truncateIndex: row['truncate_index'] as int? ?? -1,
-      versionSelections: _parseVersionSelections(
-        row['version_selections_json'] as String?,
-      ),
-      summary: row['summary'] as String?,
-      lastSummarizedMessageCount:
-          row['last_summarized_message_count'] as int? ?? 0,
-      parentConversationId: row['parent_conversation_id'] as String?,
-      conversationKind:
-          row['conversation_kind'] as String? ?? Conversation.kindNormal,
-    );
-
-    // Load messages for this conversation
-    final msgRows = db.select(
-      'SELECT * FROM message_rows WHERE conversation_id = ? ORDER BY message_order ASC',
-      [conversation.id],
-    );
-    final messages = <ChatMessage>[];
-    for (final mRow in msgRows) {
-      messages.add(
-        ChatMessage(
-          id: mRow['id'] as String,
-          role: mRow['role'] as String,
-          content: mRow['content'] as String,
-          timestamp: _dateTimeFromSql(mRow['timestamp']),
-          modelId: mRow['model_id'] as String?,
-          providerId: mRow['provider_id'] as String?,
-          totalTokens: mRow['total_tokens'] as int?,
-          conversationId: mRow['conversation_id'] as String,
-          isStreaming: (mRow['is_streaming'] as int? ?? 0) != 0,
-          groupId: mRow['group_id'] as String?,
-          subgroupId: mRow['subgroup_id'] as String?,
-          version: mRow['version'] as int? ?? 0,
-          isPreset: (mRow['is_preset'] as int? ?? 0) != 0,
-        ),
+    if (!_hasColumn(
+          db,
+          'conversation_rows',
+          'proactive_care_enabled_override',
+        ) ||
+        !_hasColumn(
+          db,
+          'conversation_rows',
+          'proactive_care_next_message_at',
+        )) {
+      debugPrint(
+        '[ProactiveCare] Conversation schedule columns unavailable; '
+        'skipping legacy database trigger',
       );
+      return null;
     }
 
-    return (conversation: conversation, messages: messages);
+    db.execute('BEGIN IMMEDIATE');
+    try {
+      final rows = db.select(
+        'SELECT * FROM conversation_rows '
+        'WHERE id = ? AND proactive_care_next_message_at = ? LIMIT 1',
+        [conversationId, _dateTimeToSql(expectedAt)],
+      );
+      if (rows.isEmpty) {
+        db.execute('COMMIT');
+        return null;
+      }
+      final conversation = _conversationFromRow(rows.first);
+      final assistantId = conversation.assistantId;
+      if (assistantId == null) {
+        db.execute('COMMIT');
+        return null;
+      }
+      final assistantRows = db.select(
+        'SELECT * FROM assistant_rows WHERE id = ? LIMIT 1',
+        [assistantId],
+      );
+      if (assistantRows.isEmpty) {
+        db.execute('COMMIT');
+        return null;
+      }
+      final assistant = _assistantFromRow(assistantRows.first);
+      if (!ProactiveCareConversationPolicy.isEligible(
+        conversation,
+        assistant,
+      )) {
+        db.execute('COMMIT');
+        return null;
+      }
+
+      final claimedAt = DateTime.now();
+      db.execute(
+        'UPDATE conversation_rows '
+        'SET proactive_care_next_message_at = NULL, updated_at = ? '
+        'WHERE id = ? AND proactive_care_next_message_at = ?',
+        [_dateTimeToSql(claimedAt), conversationId, _dateTimeToSql(expectedAt)],
+      );
+      final changed =
+          db.select('SELECT changes() AS count').first['count'] as int;
+      if (changed != 1) {
+        db.execute('ROLLBACK');
+        return null;
+      }
+      final messages = _loadMessages(db, conversationId);
+      db.execute('COMMIT');
+      debugPrint(
+        '[ProactiveCare] Claimed conversation $conversationId at '
+        '${expectedAt.toIso8601String()}',
+      );
+      return ProactiveCareHeadlessClaim(
+        conversation: conversation.copyWith(
+          updatedAt: claimedAt,
+          clearProactiveCareNextMessageAt: true,
+        ),
+        assistant: assistant,
+        messages: messages,
+        expectedAt: expectedAt,
+      );
+    } catch (error) {
+      try {
+        db.execute('ROLLBACK');
+      } catch (rollbackError) {
+        debugPrint('[ProactiveCare] Claim rollback failed: $rollbackError');
+      }
+      rethrow;
+    }
   }
+
+  /// Loads one exact conversation and its messages. No newest-conversation or
+  /// create fallback is allowed in the headless delivery path.
+  static Future<({Conversation conversation, List<ChatMessage> messages})?>
+  loadConversation(String conversationId) async {
+    final db = await _ensureDb();
+    final rows = db.select(
+      'SELECT * FROM conversation_rows WHERE id = ? LIMIT 1',
+      [conversationId],
+    );
+    if (rows.isEmpty) return null;
+    return (
+      conversation: _conversationFromRow(rows.first),
+      messages: _loadMessages(db, conversationId),
+    );
+  }
+
+  /// Appends only when [conversationId] is still a normal conversation owned
+  /// by [assistantId] and its effective proactive-care setting remains on.
+  static Future<ChatMessage?> appendAssistantReply({
+    required String conversationId,
+    required String assistantId,
+    required String content,
+    String? modelId,
+    String? providerId,
+  }) async {
+    final db = await _ensureDb();
+    db.execute('BEGIN IMMEDIATE');
+    try {
+      final conversationRows = db.select(
+        'SELECT * FROM conversation_rows WHERE id = ? LIMIT 1',
+        [conversationId],
+      );
+      final assistantRows = db.select(
+        'SELECT * FROM assistant_rows WHERE id = ? LIMIT 1',
+        [assistantId],
+      );
+      if (conversationRows.isEmpty || assistantRows.isEmpty) {
+        db.execute('COMMIT');
+        return null;
+      }
+      final conversation = _conversationFromRow(conversationRows.first);
+      final assistant = _assistantFromRow(assistantRows.first);
+      if (!ProactiveCareConversationPolicy.isEligible(
+        conversation,
+        assistant,
+      )) {
+        db.execute('COMMIT');
+        debugPrint(
+          '[ProactiveCare] Conversation $conversationId owner/effective '
+          'recheck failed before append',
+        );
+        return null;
+      }
+
+      final message = ChatMessage(
+        role: 'assistant',
+        content: content,
+        conversationId: conversationId,
+        modelId: modelId,
+        providerId: providerId,
+      );
+      final messageCount =
+          db.select(
+                'SELECT COUNT(*) AS count FROM message_rows '
+                'WHERE conversation_id = ?',
+                [conversationId],
+              ).first['count']
+              as int;
+      db.execute(
+        '''INSERT INTO message_rows
+           (id, conversation_id, role, content, timestamp, model_id, provider_id,
+            total_tokens, is_streaming, group_id, subgroup_id, version,
+            message_order)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        [
+          message.id,
+          conversationId,
+          message.role,
+          message.content,
+          _dateTimeToSql(message.timestamp),
+          message.modelId,
+          message.providerId,
+          message.totalTokens,
+          0,
+          message.groupId,
+          message.subgroupId,
+          message.version,
+          messageCount,
+        ],
+      );
+      db.execute('UPDATE conversation_rows SET updated_at = ? WHERE id = ?', [
+        _dateTimeToSql(DateTime.now()),
+        conversationId,
+      ]);
+      db.execute('COMMIT');
+      return message;
+    } catch (error) {
+      try {
+        db.execute('ROLLBACK');
+      } catch (rollbackError) {
+        debugPrint('[ProactiveCare] Append rollback failed: $rollbackError');
+      }
+      rethrow;
+    }
+  }
+
+  /// Stores the next schedule on the same claimed conversation. Model and
+  /// manual writes follow completion-order last-write-wins.
+  static Future<ProactiveCareConversationTarget?> updateConversationNextTime({
+    required String conversationId,
+    required String assistantId,
+    required DateTime nextCareTime,
+  }) async {
+    final db = await _ensureDb();
+    db.execute('BEGIN IMMEDIATE');
+    try {
+      final conversationRows = db.select(
+        'SELECT * FROM conversation_rows WHERE id = ? LIMIT 1',
+        [conversationId],
+      );
+      final assistantRows = db.select(
+        'SELECT * FROM assistant_rows WHERE id = ? LIMIT 1',
+        [assistantId],
+      );
+      if (conversationRows.isEmpty || assistantRows.isEmpty) {
+        db.execute('COMMIT');
+        return null;
+      }
+      final conversation = _conversationFromRow(conversationRows.first);
+      final assistant = _assistantFromRow(assistantRows.first);
+      if (!ProactiveCareConversationPolicy.isEligible(
+        conversation,
+        assistant,
+      )) {
+        db.execute('COMMIT');
+        return null;
+      }
+      final updatedAt = DateTime.now();
+      db.execute(
+        'UPDATE conversation_rows '
+        'SET proactive_care_next_message_at = ?, updated_at = ? '
+        'WHERE id = ? AND assistant_id = ?',
+        [
+          _dateTimeToSql(nextCareTime),
+          _dateTimeToSql(updatedAt),
+          conversationId,
+          assistantId,
+        ],
+      );
+      final changed =
+          db.select('SELECT changes() AS count').first['count'] as int;
+      if (changed != 1) {
+        db.execute('ROLLBACK');
+        return null;
+      }
+      db.execute('COMMIT');
+      return ProactiveCareConversationTarget(
+        conversation: conversation.copyWith(
+          updatedAt: updatedAt,
+          proactiveCareNextMessageAt: nextCareTime,
+        ),
+        assistant: assistant,
+      );
+    } catch (error) {
+      try {
+        db.execute('ROLLBACK');
+      } catch (rollbackError) {
+        debugPrint('[ProactiveCare] Schedule rollback failed: $rollbackError');
+      }
+      rethrow;
+    }
+  }
+
+  static Conversation _conversationFromRow(sqlite.Row row) => Conversation(
+    id: row['id'] as String,
+    title: row['title'] as String,
+    createdAt: _dateTimeFromSql(row['created_at']),
+    updatedAt: _dateTimeFromSql(row['updated_at']),
+    isPinned: (row['is_pinned'] as int? ?? 0) != 0,
+    assistantId: row['assistant_id'] as String?,
+    truncateIndex: row['truncate_index'] as int? ?? -1,
+    versionSelections: _parseVersionSelections(
+      row['version_selections_json'] as String?,
+    ),
+    summary: row['summary'] as String?,
+    lastSummarizedMessageCount:
+        row['last_summarized_message_count'] as int? ?? 0,
+    parentConversationId: row['parent_conversation_id'] as String?,
+    conversationKind:
+        row['conversation_kind'] as String? ?? Conversation.kindNormal,
+    proactiveCareEnabledOverride:
+        (row['proactive_care_enabled_override'] as int?)?.isOdd,
+    proactiveCareNextMessageAt: _dateTimeFromSqlNullable(
+      row['proactive_care_next_message_at'],
+    ),
+  );
+
+  static List<ChatMessage> _loadMessages(
+    sqlite.Database db,
+    String conversationId,
+  ) => db
+      .select(
+        'SELECT * FROM message_rows WHERE conversation_id = ? '
+        'ORDER BY message_order ASC',
+        [conversationId],
+      )
+      .map(
+        (row) => ChatMessage(
+          id: row['id'] as String,
+          role: row['role'] as String,
+          content: row['content'] as String,
+          timestamp: _dateTimeFromSql(row['timestamp']),
+          modelId: row['model_id'] as String?,
+          providerId: row['provider_id'] as String?,
+          totalTokens: row['total_tokens'] as int?,
+          conversationId: row['conversation_id'] as String,
+          isStreaming: (row['is_streaming'] as int? ?? 0) != 0,
+          groupId: row['group_id'] as String?,
+          subgroupId: row['subgroup_id'] as String?,
+          version: row['version'] as int? ?? 0,
+          isPreset: (row['is_preset'] as int? ?? 0) != 0,
+        ),
+      )
+      .toList(growable: false);
 
   /// Loads the same recent-chat references used by the foreground builder.
   static Future<List<Conversation>> loadRecentChatReferencesFor(
@@ -1053,93 +1301,6 @@ class ProactiveCareHeadlessChatStore {
         .toList(growable: false);
   }
 
-  /// Appends an assistant reply to [conversation], creating a new
-  /// conversation titled [fallbackTitle] when null.
-  static Future<({Conversation conversation, ChatMessage message})>
-  appendAssistantReply({
-    required String assistantId,
-    required Conversation? conversation,
-    required String content,
-    required String fallbackTitle,
-    String? modelId,
-    String? providerId,
-  }) async {
-    final db = await _ensureDb();
-
-    final convo =
-        conversation ??
-        Conversation(title: fallbackTitle, assistantId: assistantId);
-
-    final message = ChatMessage(
-      role: 'assistant',
-      content: content,
-      conversationId: convo.id,
-      modelId: modelId,
-      providerId: providerId,
-    );
-
-    // Insert message (id is always a fresh UUID, plain INSERT is safe)
-    final msgCount =
-        (db.select(
-              'SELECT COUNT(*) as cnt FROM message_rows WHERE conversation_id = ?',
-              [convo.id],
-            ).first['cnt']
-            as int);
-
-    db.execute(
-      '''INSERT INTO message_rows
-         (id, conversation_id, role, content, timestamp, model_id, provider_id,
-          total_tokens, is_streaming, group_id, subgroup_id, version, message_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-      [
-        message.id,
-        convo.id,
-        message.role,
-        message.content,
-        _dateTimeToSql(message.timestamp),
-        message.modelId,
-        message.providerId,
-        message.totalTokens,
-        0,
-        message.groupId,
-        message.subgroupId,
-        message.version,
-        msgCount,
-      ],
-    );
-
-    // Update conversation — use UPDATE for existing conversations to avoid
-    // INSERT OR REPLACE triggering ON DELETE CASCADE on message_rows.
-    convo.updatedAt = DateTime.now();
-    if (conversation != null) {
-      // Existing conversation: only touch updated_at.
-      db.execute('UPDATE conversation_rows SET updated_at = ? WHERE id = ?', [
-        _dateTimeToSql(convo.updatedAt),
-        convo.id,
-      ]);
-    } else {
-      // Brand-new conversation: safe to INSERT.
-      db.execute(
-        '''INSERT INTO conversation_rows
-           (id, title, created_at, updated_at, is_pinned, assistant_id,
-            truncate_index, version_selections_json)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-        [
-          convo.id,
-          convo.title,
-          _dateTimeToSql(convo.createdAt),
-          _dateTimeToSql(convo.updatedAt),
-          convo.isPinned ? 1 : 0,
-          convo.assistantId,
-          convo.truncateIndex,
-          jsonEncode(convo.versionSelections),
-        ],
-      );
-    }
-
-    return (conversation: convo, message: message);
-  }
-
   /// Flushes and closes the database so all writes hit disk before the
   /// background isolate is torn down.
   static Future<void> close() async {
@@ -1160,4 +1321,18 @@ class ProactiveCareHeadlessChatStore {
       return <String, int>{};
     }
   }
+}
+
+class ProactiveCareHeadlessClaim {
+  const ProactiveCareHeadlessClaim({
+    required this.conversation,
+    required this.assistant,
+    required this.messages,
+    required this.expectedAt,
+  });
+
+  final Conversation conversation;
+  final Assistant assistant;
+  final List<ChatMessage> messages;
+  final DateTime expectedAt;
 }

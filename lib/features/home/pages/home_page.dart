@@ -36,8 +36,10 @@ import '../../../core/models/quick_phrase.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
+import '../../../core/models/conversation.dart';
 import '../../../core/services/chat/external_chat_draft_handoff.dart';
 import '../../../core/services/android_process_text.dart';
+import '../../../core/services/proactive_care_conversation_policy.dart';
 import '../../../core/services/network/dio_http_client.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../utils/platform_utils.dart';
@@ -85,6 +87,7 @@ import '../services/multi_ai_engine.dart' show MultiAIMode;
 import '../services/ask_user_interaction_service.dart';
 import '../services/tool_approval_service.dart';
 import '../widgets/chat_input_section.dart';
+import '../widgets/conversation_proactive_care_sheet.dart';
 import '../widgets/chat_input_overlay_layout.dart';
 import '../widgets/chat_selection_action_bar.dart';
 import '../widgets/chat_selection_app_bar.dart';
@@ -2775,6 +2778,8 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _buildChatInputBar(BuildContext context, {required bool isTablet}) {
+    final conversation = _controller.currentConversation;
+    final assistant = context.watch<AssistantProvider>().currentAssistant;
     return ChatInputSection(
       inputBarKey: _inputBarKey,
       inputFocus: _inputFocus,
@@ -2854,6 +2859,10 @@ class _HomePageState extends State<HomePage>
         ).push(MaterialPageRoute(builder: (_) => const QuickPhrasesPage()));
       },
       onDocumentProcessing: () => _openDocumentProcessingPopover(),
+      onConversationProactiveCare:
+          _canOpenConversationProactiveCare(conversation, assistant)
+          ? _openConversationProactiveCare
+          : null,
       onOpenMiniMap: _openMiniMap,
       onPickCamera: _controller.onPickCamera,
       onPickPhotos: _controller.onPickPhotos,
@@ -3268,6 +3277,17 @@ class _HomePageState extends State<HomePage>
                       );
                     }
                   },
+            onConversationProactiveCare:
+                _canOpenConversationProactiveCare(
+                  _controller.currentConversation,
+                  a,
+                )
+                ? () async {
+                    await Navigator.of(ctx).maybePop();
+                    if (!mounted) return;
+                    await _openConversationProactiveCare();
+                  }
+                : null,
           ),
         );
       },
@@ -3277,6 +3297,40 @@ class _HomePageState extends State<HomePage>
   bool _toolsHubAvailable(String? pk, String? mid) {
     if (pk == null || mid == null) return false;
     return _controller.isToolModel(pk, mid);
+  }
+
+  bool _canOpenConversationProactiveCare(
+    Conversation? conversation,
+    Assistant? assistant,
+  ) {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return false;
+    if (conversation == null || assistant == null) return false;
+    final chatService = _controller.chatController.chatService;
+    if (chatService.isTemporaryConversation(conversation.id)) return false;
+    final isKnownConversation =
+        chatService.isDraftConversation(conversation.id) ||
+        chatService.getConversation(conversation.id) != null;
+    return isKnownConversation &&
+        ProactiveCareConversationPolicy.isOwnedNormalConversation(
+          conversation,
+          assistant,
+        );
+  }
+
+  Future<void> _openConversationProactiveCare() async {
+    final conversation = _controller.currentConversation;
+    final assistant = context.read<AssistantProvider>().currentAssistant;
+    if (!_canOpenConversationProactiveCare(conversation, assistant)) return;
+    final chatService = _controller.chatController.chatService;
+    await showConversationProactiveCareSheet(
+      context,
+      conversation: conversation!,
+      assistant: assistant!,
+      onOverrideChanged: (value) => chatService
+          .setConversationProactiveCareEnabledOverride(conversation.id, value),
+      onNextMessageAtChanged: (value) => chatService
+          .setConversationProactiveCareNextMessageAt(conversation.id, value),
+    );
   }
 
   bool _hasQuickPhrases(Assistant? a) {

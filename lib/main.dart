@@ -61,6 +61,7 @@ import 'package:system_fonts/system_fonts.dart';
 import 'dart:io'
     show Platform; // kept for global override usage inside provider
 import 'core/services/android_background.dart';
+import 'core/services/android_display_mode.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/proactive_care_alarm_service.dart';
 import 'core/services/proactive_care_message_flow.dart';
@@ -113,6 +114,9 @@ Future<void> main() async {
       WindowsPasteFix.instance.inject();
 
       FlutterLogger.installGlobalHandlers();
+      // Android: request the highest refresh rate now and again on every
+      // resume (fire-and-forget; failures never block startup).
+      AndroidDisplayModeService.instance.install();
       try {
         final prefs = await SharedPreferences.getInstance();
         final enabled = prefs.getBool('flutter_log_enabled_v1') ?? false;

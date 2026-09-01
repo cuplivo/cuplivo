@@ -154,11 +154,15 @@ class _ReadingModePageState extends State<ReadingModePage> {
               constraints: const BoxConstraints(
                 maxWidth: ReadingModePage.maxContentWidth,
               ),
-              child: MarkdownWithCodeHighlight(
-                text: _visualContent ?? '',
-                baseStyle: TextStyle(
-                  fontSize: ReadingModePage.defaultFontSize,
-                  height: 1.75,
+              // SelectionArea must live inside the scroll view so selections
+              // can span the whole document without a scrollable parent.
+              child: SelectionArea(
+                child: MarkdownWithCodeHighlight(
+                  text: _visualContent ?? '',
+                  baseStyle: TextStyle(
+                    fontSize: ReadingModePage.defaultFontSize,
+                    height: 1.75,
+                  ),
                 ),
               ),
             ),

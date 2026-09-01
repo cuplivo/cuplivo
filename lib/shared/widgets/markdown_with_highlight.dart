@@ -1043,9 +1043,7 @@ MarkdownCodePayload _preprocessFences(
       }
       buf.write(out.substring(cursor));
       out = _replaceInlineDollarMath(buf.toString());
-      out = out.replaceAllMapped(RegExp(r'__DISPLAY_MATH_MASK_\d+__'), (
-        match,
-      ) {
+      out = out.replaceAllMapped(RegExp(r'__DISPLAY_MATH_MASK_\d+__'), (match) {
         final key = match.group(0)!;
         return displayMathMap[key] ?? key;
       });
@@ -2403,11 +2401,10 @@ class _CollapsibleCodeBlockState extends State<_CollapsibleCodeBlock> {
     final highlightEnabled = !_shouldSkipHighlightWhileStreaming();
 
     Widget buildCodeView(String visibleCode) {
-      final codeView = SelectableHighlightView(
+      final codeView = CodeHighlightView(
         visibleCode,
         language: codeLanguage,
         theme: codeTheme,
-        padding: EdgeInsets.zero,
         textStyle: codeTextStyle,
         enableHighlight: highlightEnabled,
       );
@@ -3359,7 +3356,6 @@ class _MarkdownTableBlock extends StatelessWidget {
                   style: style,
                   config: config,
                   appFontFamily: appFontFamily,
-                  selectable: !compact,
                 ),
             ],
           ),
@@ -3610,7 +3606,6 @@ class _MarkdownTableCell extends StatelessWidget {
     required this.style,
     required this.config,
     required this.appFontFamily,
-    required this.selectable,
   });
 
   final _MarkdownTableCellData data;
@@ -3618,7 +3613,6 @@ class _MarkdownTableCell extends StatelessWidget {
   final TextStyle style;
   final GptMarkdownConfig config;
   final String? appFontFamily;
-  final bool selectable;
 
   @override
   Widget build(BuildContext context) {
@@ -3645,15 +3639,13 @@ class _MarkdownTableCell extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       child: Align(
         alignment: _alignmentFor(data.alignment),
-        child: selectable
-            ? SelectableText.rich(textSpan, textAlign: data.alignment)
-            : RichText(
-                text: textSpan,
-                textAlign: data.alignment,
-                softWrap: true,
-                overflow: TextOverflow.visible,
-                textWidthBasis: TextWidthBasis.parent,
-              ),
+        child: RichText(
+          text: textSpan,
+          textAlign: data.alignment,
+          softWrap: true,
+          overflow: TextOverflow.visible,
+          textWidthBasis: TextWidthBasis.parent,
+        ),
       ),
     );
   }
@@ -4319,13 +4311,12 @@ class _MermaidBlockState extends State<_MermaidBlock> {
   }
 
   Widget _buildMermaidCodeView(BuildContext context, bool isDark) {
-    final codeView = SelectableHighlightView(
+    final codeView = CodeHighlightView(
       widget.code,
       language: 'plaintext',
       theme: _transparentBgTheme(
         isDark ? atomOneDarkReasonableTheme : githubTheme,
       ),
-      padding: EdgeInsets.zero,
       textStyle: TextStyle(fontFamily: 'monospace', fontSize: 13, height: 1.5),
     );
 
@@ -6332,15 +6323,16 @@ class AllowedHtmlTagsMd extends InlineMd {
   }
 }
 
-/// A selectable version of HighlightView that allows users to select
-/// and copy portions of the code instead of just the entire block.
-class SelectableHighlightView extends StatefulWidget {
-  const SelectableHighlightView(
+/// Code block with per-token syntax highlight.
+///
+/// Rendered as a plain [RichText] so the code participates in the enclosing
+/// [SelectionArea] selection instead of owning its own selectable context.
+class CodeHighlightView extends StatefulWidget {
+  const CodeHighlightView(
     this.source, {
     super.key,
     this.language,
     this.theme = const {},
-    this.padding,
     this.textStyle,
     this.enableHighlight = true,
   });
@@ -6348,16 +6340,14 @@ class SelectableHighlightView extends StatefulWidget {
   final String source;
   final String? language;
   final Map<String, TextStyle> theme;
-  final EdgeInsetsGeometry? padding;
   final TextStyle? textStyle;
   final bool enableHighlight;
 
   @override
-  State<SelectableHighlightView> createState() =>
-      _SelectableHighlightViewState();
+  State<CodeHighlightView> createState() => _CodeHighlightViewState();
 }
 
-class _SelectableHighlightViewState extends State<SelectableHighlightView> {
+class _CodeHighlightViewState extends State<CodeHighlightView> {
   late List<TextSpan> _codeTextSpans;
 
   @override
@@ -6367,7 +6357,7 @@ class _SelectableHighlightViewState extends State<SelectableHighlightView> {
   }
 
   @override
-  void didUpdateWidget(covariant SelectableHighlightView oldWidget) {
+  void didUpdateWidget(covariant CodeHighlightView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.source == widget.source &&
         oldWidget.language == widget.language &&
@@ -6417,13 +6407,17 @@ class _SelectableHighlightViewState extends State<SelectableHighlightView> {
 
   @override
   Widget build(BuildContext context) {
-    return SelectableText.rich(
-      TextSpan(
-        style: widget.textStyle,
+    final ambient = DefaultTextStyle.of(context).style;
+    final textScaler =
+        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    return RichText(
+      text: TextSpan(
+        style: ambient.merge(widget.textStyle),
         children: _codeTextSpans.isEmpty
             ? [TextSpan(text: widget.source)]
             : _codeTextSpans,
       ),
+      textScaler: textScaler,
     );
   }
 }

@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 
+import '../../utils/markdown_code_scanner.dart';
 import '../../utils/utf16_safe_cut.dart';
 import '../services/network/logging_http_client.dart';
 import '../services/tts/network_tts.dart';
@@ -1032,9 +1033,7 @@ class TtsProvider extends ChangeNotifier {
   }
 
   static String _stripMarkdown(String input) {
-    var s = input;
-    s = s.replaceAll(RegExp(r'```[\s\S]*?```', multiLine: true), ' ');
-    s = s.replaceAll(RegExp(r'`[^`]*`'), ' ');
+    var s = markdownRemoveCode(input);
     s = s.replaceAllMapped(
       RegExp(r'\[([^\]]+)\]\([^\)]+\)'),
       (m) => m.group(1) ?? '',

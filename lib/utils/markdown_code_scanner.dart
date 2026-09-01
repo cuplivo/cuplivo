@@ -7,6 +7,8 @@
 /// - the display-math scanner in `widgets/markdown_line_lexer.dart` (
 ///   keep their own state machines; only the rules are shared)
 /// - the chat API image extractor in `services/api/chat_api_service.dart`
+/// - the TTS code removal in `services/tts/tts_text_selection.dart` and
+///   `providers/tts_provider.dart` ([markdownRemoveCode])
 ///
 /// Core rules (CommonMark except where noted):
 /// - A fence opens on a complete line holding a run of >= 3 backticks or
@@ -502,6 +504,28 @@ MarkdownCodeScanResult markdownCodeScan(String text) {
   }
 
   return MarkdownCodeScanResult(segments);
+}
+
+/// Returns [text] with every code region replaced by a single space,
+/// preserving the surrounding line structure.
+///
+/// Fence segments span opener-line start to closer-line end, so the line
+/// breaks before the opener and after the closer stay intact and adjacent
+/// lines are never joined. Inline spans are paired per line, so unmatched
+/// backtick runs never swallow prose.
+String markdownRemoveCode(String text) {
+  final segments = markdownCodeScan(text).segments;
+  if (segments.isEmpty) return text;
+  final buffer = StringBuffer();
+  var cursor = 0;
+  for (final segment in segments) {
+    buffer
+      ..write(text.substring(cursor, segment.start))
+      ..write(' ');
+    cursor = segment.end;
+  }
+  buffer.write(text.substring(cursor));
+  return buffer.toString();
 }
 
 String _interiorLine(String line, MarkdownCodeFenceContext context) {

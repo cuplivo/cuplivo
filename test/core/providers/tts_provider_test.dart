@@ -160,6 +160,30 @@ void main() {
     },
   );
 
+  test('system TTS strips supported Markdown code ranges', () async {
+    final provider = TtsProvider(preferences: businessPrefs);
+    addTearDown(provider.dispose);
+
+    await _waitUntil(() => provider.isAvailable);
+
+    unawaited(
+      provider.speakSystem(
+        '保留\n'
+        '``print("行内代码")``\n'
+        '~~~dart\n'
+        'print("波浪线围栏");\n'
+        '~~~\n'
+        '```dart\n'
+        'print("未闭合围栏");',
+      ),
+    );
+    await _waitUntil(
+      () => provider.playbackState.status == TtsPlaybackStatus.playing,
+    );
+
+    expect(spokenTexts.last, '保留');
+  });
+
   test(
     'int-stored rate/pitch from migrated backups are read as double',
     () async {

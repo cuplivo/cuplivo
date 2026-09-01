@@ -253,4 +253,35 @@ void main() {
       }
     });
   });
+
+  group('markdownRemoveCode', () {
+    test('returns text unchanged when no code is present', () {
+      final input = '旁白 “保留” 以及普通段落。';
+      expect(markdownRemoveCode(input), input);
+    });
+
+    test('replaces inline code with a space', () {
+      expect(markdownRemoveCode('旁白 `print("hi")` 结尾'), '旁白   结尾');
+    });
+
+    test('preserves the line structure around a fenced block', () {
+      expect(
+        markdownRemoveCode('保留\n```dart\nprint(x);\n```\n结束'),
+        '保留\n \n结束',
+      );
+    });
+
+    test('removes fences in blockquotes and unclosed fences', () {
+      expect(markdownRemoveCode('> ```\n> code\n> ```\nafter'), ' \nafter');
+      expect(markdownRemoveCode('x\n```dart\nprint(1);'), 'x\n ');
+    });
+
+    test('removes spans and fences in source order', () {
+      expect(markdownRemoveCode('`a`\n```b\nc\n```\n`d`'), ' \n \n ');
+    });
+
+    test('unmatched backtick runs across lines keep the prose', () {
+      expect(markdownRemoveCode('`第一行\n旁白\n第三行`'), '`第一行\n旁白\n第三行`');
+    });
+  });
 }

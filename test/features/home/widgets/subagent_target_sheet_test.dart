@@ -10,6 +10,11 @@ void main() {
     WidgetTester tester, {
     VoidCallback? onGoSetup,
   }) async {
+    // Use a tall, narrow phone-like viewport so the floating snackbar and its
+    // close affordance stay on-screen and hit-testable.
+    tester.view.physicalSize = const Size(1080, 1920);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -33,7 +38,9 @@ void main() {
       ),
     );
     await tester.tap(find.text('trigger'));
+    // Let the snackbar entrance animation settle.
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
   }
 
   testWidgets(
@@ -75,7 +82,10 @@ void main() {
       );
       expect(closeIcon, findsOneWidget);
 
-      await tester.tap(closeIcon);
+      // Ensure the close icon is within the hit-test area before tapping.
+      await tester.ensureVisible(closeIcon);
+      await tester.pump();
+      await tester.tap(closeIcon, warnIfMissed: false);
       // Drain the entrance and exit animations.
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));

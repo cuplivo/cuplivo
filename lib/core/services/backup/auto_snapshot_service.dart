@@ -141,6 +141,12 @@ class AutoSnapshotService {
   }
 
   /// Lists all snapshots, newest first.
+  ///
+  /// A snapshot is only listed when its zip is actually present: a sidecar
+  /// whose zip is gone (ghost, e.g. a previously interrupted eviction) is
+  /// skipped so it never occupies a retention slot, and is swept by the next
+  /// [_evict] run. Orphan zips (sidecar write interrupted) keep the
+  /// filesystem-derivation fallback — they are still restorable.
   Future<List<SnapshotMetadata>> listSnapshots() async {
     final dir = await snapshotDirectory();
     if (!dir.existsSync()) return const [];
@@ -149,7 +155,10 @@ class AutoSnapshotService {
       if (ent is! File || !ent.path.endsWith('.json')) continue;
       try {
         final json = jsonDecode(ent.readAsStringSync()) as Map<String, dynamic>;
-        result.add(SnapshotMetadata.fromJson(json));
+        final meta = SnapshotMetadata.fromJson(json);
+        // Verify the pair: a zip-less sidecar is a ghost, not a snapshot.
+        if (!File('${dir.path}/${meta.fileName}').existsSync()) continue;
+        result.add(meta);
       } catch (_) {
         // Corrupt sidecar: fall back to what the filesystem itself tells us
         // so the user still sees the snapshot instead of it vanishing.
@@ -314,17 +323,35 @@ class AutoSnapshotService {
 
   /// Removes every stored snapshot (zips + sidecars). Used when the feature
   /// is turned off — the user confirmed the destructive intent.
+  ///
+  /// Throws [AutoSnapshotException] when anything fails to delete, so the
+  /// caller can surface the failed "permanent delete" instead of silently
+  /// reporting success. Every entity is deleted independently and **non-
+  /// recursively** — the store only ever holds zip/sidecar files, so any
+  /// directory entry is an anomaly whose failure is reported, not force-
+  /// removed. Failures are logged, and whatever stayed behind remains
+  /// restorable: a zip without its sidecar is still listed through the
+  /// filesystem-derivation fallback.
   Future<void> deleteAllSnapshots() async {
     final dir = await snapshotDirectory();
     if (!dir.existsSync()) return;
+    var failures = 0;
+    String? firstError;
     await for (final entity in dir.list()) {
       try {
         if (entity is File || entity is Directory) {
-          await entity.delete(recursive: true);
+          await entity.delete();
         }
-      } catch (_) {
-        // Best effort; a leftover file is harmless.
+      } catch (e) {
+        failures++;
+        firstError ??= e.toString();
+        debugPrint('[AutoSnapshotService] failed to delete ${entity.path}: $e');
       }
+    }
+    if (failures > 0) {
+      throw AutoSnapshotException(
+        'failed to delete $failures snapshot file(s): ${firstError ?? ''}',
+      );
     }
   }
 
@@ -336,7 +363,10 @@ class AutoSnapshotService {
   /// a failure must not be silent — each one is logged so operators can see
   /// why the store carries an extra snapshot and the next tick repairs it.
   /// A pair (zip + sidecar) is only deleted together: if the zip delete
-  /// fails, its sidecar stays too, so no orphan half is left behind.
+  /// fails, its sidecar stays too, so no orphan half is left behind. When the
+  /// zip is already gone (ghost), the sidecar is still deleted, and a final
+  /// sweep removes every zip-less sidecar entry (file or directory), so the
+  /// store always converges to plain restorable pairs.
   Future<void> _evict(Directory dir) async {
     final List<SnapshotMetadata> current;
     try {
@@ -345,25 +375,65 @@ class AutoSnapshotService {
       debugPrint('[AutoSnapshotService] eviction listing failed: $e');
       return;
     }
-    if (current.length <= maxSnapshots) return;
-    for (final meta in current.skip(maxSnapshots)) {
-      final zip = File('${dir.path}/${meta.fileName}');
-      try {
-        zip.deleteSync();
-      } catch (e) {
-        debugPrint(
-          '[AutoSnapshotService] failed to evict ZIP ${meta.fileName}: $e'
-          ' (sidecar kept together, retried next attempt)',
-        );
+    if (current.length > maxSnapshots) {
+      for (final meta in current.skip(maxSnapshots)) {
+        final zip = File('${dir.path}/${meta.fileName}');
+        // typeSync distinguishes truthfully between "zip is gone" (ghost →
+        // still clean the sidecar below) and "zip is there but un-deletable"
+        // (e.g. an entry occupying the path that is not a plain file):
+        // File.existsSync reports false for both, while deleteSync throws
+        // for the latter — keep the pair intact there.
+        if (FileSystemEntity.typeSync(zip.path) !=
+            FileSystemEntityType.notFound) {
+          try {
+            zip.deleteSync();
+          } catch (e) {
+            debugPrint(
+              '[AutoSnapshotService] failed to evict ZIP ${meta.fileName}: $e'
+              ' (sidecar kept together, retried next attempt)',
+            );
+            continue;
+          }
+        }
+        final sidecar = File('${dir.path}/${meta.fileName}.json');
+        try {
+          sidecar.deleteSync();
+        } catch (e) {
+          debugPrint(
+            '[AutoSnapshotService] failed to evict sidecar '
+            '${meta.fileName}.json: $e',
+          );
+        }
+      }
+    }
+    await _sweepGhostSidecars(dir);
+  }
+
+  /// Deletes every zip-less `*.json` entry (a sidecar whose zip vanished —
+  /// leftover from an interrupted eviction or a failed delete). Handles both
+  /// files and directories occupying a sidecar path. Logs, never throws.
+  Future<void> _sweepGhostSidecars(Directory dir) async {
+    final List<FileSystemEntity> entries;
+    try {
+      entries = dir.listSync();
+    } catch (e) {
+      debugPrint('[AutoSnapshotService] ghost sweep listing failed: $e');
+      return;
+    }
+    for (final ent in entries) {
+      // A directory URI carries a trailing slash, so uri.pathSegments.last
+      // yields '' for it — take the basename from the path instead.
+      final name = ent.path.split(Platform.pathSeparator).last;
+      if (!name.endsWith('.json')) continue;
+      final zipPath = ent.path.substring(0, ent.path.length - 5);
+      if (File(zipPath).existsSync() || Directory(zipPath).existsSync()) {
         continue;
       }
-      final sidecar = File('${dir.path}/${meta.fileName}.json');
       try {
-        sidecar.deleteSync();
+        ent.deleteSync(recursive: true);
       } catch (e) {
         debugPrint(
-          '[AutoSnapshotService] failed to evict sidecar ${meta.fileName}.json: '
-          '$e',
+          '[AutoSnapshotService] failed to remove ghost sidecar $name: $e',
         );
       }
     }

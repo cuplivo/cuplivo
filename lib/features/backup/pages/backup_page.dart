@@ -57,6 +57,80 @@ class _BackupPageState extends State<BackupPage> {
   /// Hero card state: where the next backup goes.
   BackupDestination _destination = BackupDestination.local;
 
+  /// Auto-snapshot provider subscription: one-shot outcome notices produced by
+  /// background snapshots (baseline, due ticks) are consumed here and turned
+  /// into toasts — see [_onAutoSnapshotNotice].
+  AutoSnapshotProvider? _autoSnapshotProvider;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.read<AutoSnapshotProvider>();
+    if (!identical(provider, _autoSnapshotProvider)) {
+      _autoSnapshotProvider?.removeListener(_onAutoSnapshotNotice);
+      _autoSnapshotProvider = provider;
+      provider.addListener(_onAutoSnapshotNotice);
+      // A notice may have been stashed while this page was unmounted —
+      // surface it on (re)mount instead of waiting for the next notify.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _onAutoSnapshotNotice();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _autoSnapshotProvider?.removeListener(_onAutoSnapshotNotice);
+    _autoSnapshotProvider = null;
+    super.dispose();
+  }
+
+  /// Consumes exactly one pending auto-snapshot notice (if any) and shows its
+  /// toast. Skipped outcomes are never stashed, so they arrive as no-ops.
+  void _onAutoSnapshotNotice() {
+    final provider = _autoSnapshotProvider;
+    if (provider == null || !mounted) return;
+    final notice = provider.pendingNotice;
+    if (notice == null) return;
+    provider.consumeNotice();
+    final l10n = AppLocalizations.of(context)!;
+    final message = switch (notice.outcome) {
+      AutoSnapshotOutcome.created => l10n.autoSnapshotCreatedToast,
+      AutoSnapshotOutcome.deduplicated => l10n.autoSnapshotDedupedToast,
+      AutoSnapshotOutcome.failed => l10n.autoSnapshotFailedToast(
+        notice.error ?? '',
+      ),
+      AutoSnapshotOutcome.skipped => null,
+    };
+    if (message == null) return;
+    final type = switch (notice.outcome) {
+      AutoSnapshotOutcome.created => NotificationType.success,
+      AutoSnapshotOutcome.deduplicated => NotificationType.info,
+      AutoSnapshotOutcome.failed => NotificationType.error,
+      AutoSnapshotOutcome.skipped => NotificationType.info,
+    };
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showAppSnackBar(context, message: message, type: type);
+    });
+  }
+
+  /// Enables/disables auto snapshots, surfacing a failed permanent delete
+  /// (both files and the toggle state) as an error toast.
+  Future<void> _setAutoSnapshotEnabled(bool value) async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      await context.read<AutoSnapshotProvider>().setEnabled(value);
+    } catch (e) {
+      if (!mounted) return;
+      showAppSnackBar(
+        context,
+        message: l10n.autoSnapshotDisableDeleteFailed(e.toString()),
+        type: NotificationType.error,
+      );
+    }
+  }
+
   Future<bool?> _confirmCherryImport(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
@@ -770,7 +844,7 @@ class _BackupPageState extends State<BackupPage> {
               // Turning off with existing snapshots needs explicit consent —
               // the stored snapshots get permanently deleted.
               if (snapshotProvider.snapshots.isEmpty) {
-                snapshotProvider.setEnabled(false);
+                _setAutoSnapshotEnabled(false);
                 return;
               }
               showDialog<bool>(
@@ -795,7 +869,7 @@ class _BackupPageState extends State<BackupPage> {
                 ),
               ).then((confirmed) {
                 if (confirmed == true) {
-                  snapshotProvider.setEnabled(false);
+                  _setAutoSnapshotEnabled(false);
                 }
               });
             },
@@ -812,8 +886,10 @@ class _BackupPageState extends State<BackupPage> {
           BackupActionRow(
             icon: Lucide.History,
             label: l10n.autoSnapshotCreateNow,
-            enabled: !snapshotProvider.busy,
-            onTap: snapshotProvider.busy ? null : createNow,
+            enabled: snapshotProvider.enabled && !snapshotProvider.busy,
+            onTap: snapshotProvider.enabled && !snapshotProvider.busy
+                ? createNow
+                : null,
           ),
         ],
       ),

@@ -179,7 +179,7 @@ void main() {
     );
 
     test(
-      'eviction failure keeps pairs intact and a dedup tick repairs the cap',
+      'a sidecar delete failure mid-eviction still converges and stays stable',
       () async {
         final service = _service(root, exporter);
         final names = <String>[];
@@ -203,17 +203,16 @@ void main() {
         }
 
         final dir = await service.snapshotDirectory();
-        // Make the OLDEST zip un-deletable: replace the file with a
-        // non-empty directory. File.deleteSync on such a path throws on both
-        // Windows and POSIX, so eviction of this pair must fail.
-        final oldestZip = File('${dir.path}/${names.first}');
-        final oldestZipBytes = oldestZip.readAsBytesSync();
-        oldestZip.deleteSync();
-        Directory(oldestZip.path).createSync();
-        File('${oldestZip.path}/locked').writeAsStringSync('x');
+        // The oldest ZIP stays real (so I can inject failure mid-eviction),
+        // but its sidecar path is occupied by a non-empty directory: eviction
+        // deletes the ZIP and then fails on the sidecar, like a transient I/O
+        // failure would.
+        File('${dir.path}/${names.first}.json').deleteSync();
+        Directory('${dir.path}/${names.first}.json').createSync();
+        File('${dir.path}/${names.first}.json/locked').writeAsStringSync('x');
 
-        // 4th snapshot commits fine; eviction of the oldest pair fails and
-        // must leave BOTH the zip-dir and its sidecar (no orphan half).
+        // 4th snapshot commits; eviction hits the oldest pair, the zip goes,
+        // the sidecar delete fails, and the ghost is swept in the same tick.
         exporter.payload = {
           'chats_meta.json': utf8.encode(
             jsonEncode({'format_version': 2, 'conversation_count': 3}),
@@ -225,22 +224,15 @@ void main() {
         names.add(fourth.metadata!.fileName);
 
         var snapshots = await service.listSnapshots();
-        expect(snapshots, hasLength(4));
-        expect(File('${dir.path}/${names.first}.json').existsSync(), isTrue);
-
-        // The transient problem clears: restore a real zip at the oldest
-        // path, then the same content as the newest snapshot triggers dedup —
-        // that tick must repair the cap back down to 3 pairs.
-        Directory(oldestZip.path).deleteSync(recursive: true);
-        oldestZip.writeAsBytesSync(oldestZipBytes);
-        final dedup = await service.createSnapshot();
-        expect(dedup.status, AutoSnapshotStatus.deduplicated);
-
-        snapshots = await service.listSnapshots();
         expect(snapshots, hasLength(3));
         expect(
           snapshots.map((s) => s.fileName).toSet(),
           names.sublist(1).toSet(),
+        );
+        expect(
+          Directory('${dir.path}/${names.first}.json').existsSync(),
+          isFalse,
+          reason: 'the zip-less sidecar ghost must be swept',
         );
         expect(
           dir
@@ -250,8 +242,171 @@ void main() {
               .length,
           3,
         );
+
+        // A repeated tick with the newest payload just dedups — the store is
+        // already converged and stays that way (no resurrection, no ghosts).
+        final dedup = await service.createSnapshot();
+        expect(dedup.status, AutoSnapshotStatus.deduplicated);
+        snapshots = await service.listSnapshots();
+        expect(snapshots, hasLength(3));
+        expect(
+          dir
+              .listSync()
+              .whereType<File>()
+              .where((f) => f.path.endsWith('.json'))
+              .length,
+          3,
+        );
+      },
+    );
+
+    test(
+      'a zip-less sidecar ghost never occupies a slot and is swept away',
+      () async {
+        final service = _service(root, exporter);
+        final names = <String>[];
+        for (var i = 0; i < 3; i++) {
+          if (i > 0) {
+            await Future<void>.delayed(const Duration(milliseconds: 1100));
+          }
+          exporter.payload = {
+            'chats_meta.json': utf8.encode(
+              jsonEncode({
+                'format_version': 2,
+                'conversation_count': i,
+                'message_count': i * 10,
+              }),
+            ),
+            'conversations.jsonl': utf8.encode('$i\n'),
+          };
+          final result = await service.createSnapshot();
+          expect(result.status, AutoSnapshotStatus.created);
+          names.add(result.metadata!.fileName);
+        }
+
+        final dir = await service.snapshotDirectory();
+        // Simulate an eviction that already deleted the oldest ZIP but failed
+        // on its sidecar: a usable sidecar is left behind with no zip.
+        File('${dir.path}/${names.first}').deleteSync();
+
+        exporter.payload = {
+          'chats_meta.json': utf8.encode(
+            jsonEncode({'format_version': 2, 'conversation_count': 3}),
+          ),
+          'conversations.jsonl': utf8.encode('3\n'),
+        };
+        final fourth = await service.createSnapshot();
+        expect(fourth.status, AutoSnapshotStatus.created);
+        names.add(fourth.metadata!.fileName);
+
+        // The ghost does not count as a snapshot — the store holds exactly
+        // the 3 real pairs and the ghost sidecar is gone after the sweep.
+        final snapshots = await service.listSnapshots();
+        expect(snapshots, hasLength(3));
+        expect(
+          snapshots.map((s) => s.fileName).toSet(),
+          names.sublist(1).toSet(),
+        );
         expect(File('${dir.path}/${names.first}.json').existsSync(), isFalse);
-        expect(File(oldestZip.path).existsSync(), isFalse);
+        final leftovers = dir
+            .listSync()
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.json'))
+            .toList();
+        expect(leftovers, hasLength(3), reason: 'no ghost sidecars remain');
+      },
+    );
+
+    test(
+      'a sidecar ghost occupying a directory converges with no leftovers',
+      () async {
+        final service = _service(root, exporter);
+        final names = <String>[];
+        for (var i = 0; i < 3; i++) {
+          if (i > 0) {
+            await Future<void>.delayed(const Duration(milliseconds: 1100));
+          }
+          exporter.payload = {
+            'chats_meta.json': utf8.encode(
+              jsonEncode({
+                'format_version': 2,
+                'conversation_count': i,
+                'message_count': i * 10,
+              }),
+            ),
+            'conversations.jsonl': utf8.encode('$i\n'),
+          };
+          final result = await service.createSnapshot();
+          expect(result.status, AutoSnapshotStatus.created);
+          names.add(result.metadata!.fileName);
+        }
+
+        final dir = await service.snapshotDirectory();
+        // Oldest pair: zip removed and the sidecar path occupied by a
+        // directory (a previously failed delete that also cannot be undone
+        // via a plain File deleteSync).
+        File('${dir.path}/${names.first}').deleteSync();
+        File('${dir.path}/${names.first}.json').deleteSync();
+        Directory('${dir.path}/${names.first}.json').createSync();
+        File('${dir.path}/${names.first}.json/locked').writeAsStringSync('x');
+
+        exporter.payload = {
+          'chats_meta.json': utf8.encode(
+            jsonEncode({'format_version': 2, 'conversation_count': 3}),
+          ),
+          'conversations.jsonl': utf8.encode('3\n'),
+        };
+        final fourth = await service.createSnapshot();
+        expect(fourth.status, AutoSnapshotStatus.created);
+        names.add(fourth.metadata!.fileName);
+
+        final snapshots = await service.listSnapshots();
+        expect(snapshots, hasLength(3));
+        expect(
+          snapshots.map((s) => s.fileName).toSet(),
+          names.sublist(1).toSet(),
+        );
+        // The directory ghost was swept too: the store is fully converged.
+        expect(
+          Directory('${dir.path}/${names.first}.json').existsSync(),
+          isFalse,
+        );
+        expect(
+          dir.listSync(),
+          hasLength(6),
+        ); // 3 zips + 3 sidecars, nothing else
+      },
+    );
+
+    test(
+      'deleteAllSnapshots throws and keeps the restorable remainder',
+      () async {
+        final service = _service(root, exporter);
+        await service.createSnapshot();
+
+        final dir = await service.snapshotDirectory();
+        // Make the only zip un-deletable: replace it with a non-empty
+        // directory. deleteAllSnapshots deletes non-recursively, so a
+        // non-empty entry fails to go on both Windows (access denied) and
+        // POSIX (not empty) — the platform-faithful standing-in for a
+        // transient delete failure in production.
+        final zipPath = dir
+            .listSync()
+            .whereType<File>()
+            .firstWhere((f) => f.path.endsWith('.zip'))
+            .path;
+        File(zipPath).deleteSync();
+        Directory(zipPath).createSync();
+        File('$zipPath/locked').writeAsStringSync('x');
+
+        await expectLater(
+          service.deleteAllSnapshots(),
+          throwsA(isA<AutoSnapshotException>()),
+        );
+        // The failure is real, the ordinary sidecar still went, and the
+        // un-deletable artifact is left behind — nothing reported silently.
+        expect(File('$zipPath.json').existsSync(), isFalse);
+        expect(Directory(zipPath).existsSync(), isTrue);
       },
     );
 

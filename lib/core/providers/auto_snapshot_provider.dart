@@ -12,6 +12,19 @@ import '../services/chat/chat_service.dart';
 /// Outcome of one snapshot attempt, surfaced to the UI for its toast.
 enum AutoSnapshotOutcome { created, deduplicated, skipped, failed }
 
+/// One-shot outcome carried from an automatic snapshot attempt (baseline or
+/// due tick) to the UI. The page consumes it exactly once: [pendingNotice]
+/// reads the latest un-consumed notice, [consumeNotice] clears it so a page
+/// rebuild or re-mount never re-displays the same toast.
+class AutoSnapshotNotice {
+  const AutoSnapshotNotice(this.outcome, this.error);
+
+  final AutoSnapshotOutcome outcome;
+
+  /// Populated when [outcome] is [AutoSnapshotOutcome.failed].
+  final String? error;
+}
+
 /// Schedules and executes local auto snapshots.
 ///
 /// Trigger model (agreed design): a countdown from the last successful
@@ -53,8 +66,10 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
   int _intervalMinutes = 1440;
   DateTime? _lastSnapshotAt;
   bool _busy = false;
+  bool _teardown = false;
   Future<AutoSnapshotOutcome>? _inflight;
   String? _lastError;
+  AutoSnapshotNotice? _pendingNotice;
   List<SnapshotMetadata> _snapshots = const [];
   Timer? _ticker;
 
@@ -64,6 +79,7 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
   DateTime? get lastSnapshotAt => _lastSnapshotAt;
   bool get busy => _busy;
   String? get lastError => _lastError;
+  AutoSnapshotNotice? get pendingNotice => _pendingNotice;
   List<SnapshotMetadata> get snapshots => List.unmodifiable(_snapshots);
 
   Future<void> load() async {
@@ -99,10 +115,13 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// stored snapshots are removed for good — the UI prompts for this before
   /// calling. The schedule anchor is cleared either way.
   ///
-  /// A snapshot created by the enable baseline or a due tick may still be in
-  /// flight (exports take seconds to minutes); it is awaited first so the
-  /// delete can never race it and resurrect a snapshot the user confirmed to
-  /// be permanently removed.
+  /// Lifecycle guarantee: [createSnapshot] is rejected from the moment the
+  /// teardown starts ([_teardown] is set synchronously and re-checked inside
+  /// the gate), the previous in-flight attempt is awaited, and the deletion
+  /// itself runs under the same [BackupActivityGate] as every create path —
+  /// so no snapshot can be written before or after the delete. A failed
+  /// deletion throws (the feature stays off and the remaining store stays
+  /// restorable; the caller surfaces the error).
   Future<void> setEnabled(bool value, {bool deleteSnapshots = true}) async {
     if (value) {
       _enabled = true;
@@ -110,25 +129,48 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
       _startTicker();
       // Baseline snapshot the moment the feature is switched on, so there is
       // always at least one restore point without waiting a full interval.
-      unawaited(createSnapshot());
+      unawaited(createSnapshot().then(_setAutoNotice));
     } else {
       _stopTicker();
       _enabled = false;
+      _teardown = true;
       notifyListeners();
-      final inflight = _inflight;
-      if (inflight != null) {
-        // createSnapshot never throws on its own — failures surface as
-        // AutoSnapshotOutcome.failed — so awaiting is always safe.
-        await inflight;
+      try {
+        final inflight = _inflight;
+        if (inflight != null) {
+          // createSnapshot never throws on its own — failures surface as
+          // AutoSnapshotOutcome.failed — so awaiting is always safe. This
+          // awaits any attempt that cleared the _teardown check before we
+          // set it; attempts after it are already rejected.
+          await inflight;
+        }
+        await preferences.setBool(_enabledKey, false);
+        _lastSnapshotAt = null;
+        await preferences.remove(_lastSnapshotAtKey);
+        if (deleteSnapshots && _serviceBuilt) {
+          await BackupActivityGate.scoped(() => _service.deleteAllSnapshots());
+        }
+      } finally {
+        _teardown = false;
+        await refreshSnapshots();
+        notifyListeners();
       }
-      await preferences.setBool(_enabledKey, false);
-      _lastSnapshotAt = null;
-      await preferences.remove(_lastSnapshotAtKey);
-      if (deleteSnapshots && _serviceBuilt) {
-        await _service.deleteAllSnapshots();
-      }
-      await refreshSnapshots();
     }
+  }
+
+  /// Consumes the pending automatic-attempt notice so the UI shows it once.
+  void consumeNotice() {
+    if (_pendingNotice == null) return;
+    _pendingNotice = null;
+  }
+
+  /// Stashes the outcome of an automatic attempt (baseline, due tick) as a
+  /// one-shot notice for the page. Manual attempts keep using their return
+  /// value so the page does not get a duplicate toast. Skips when the attempt
+  /// never got to run (gate busy / teardown).
+  void _setAutoNotice(AutoSnapshotOutcome outcome) {
+    if (outcome == AutoSnapshotOutcome.skipped) return;
+    _pendingNotice = AutoSnapshotNotice(outcome, _lastError);
     notifyListeners();
   }
 
@@ -142,8 +184,15 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   /// Manual "create snapshot now" — always attempts regardless of schedule.
+  ///
+  /// Rejected (returns [AutoSnapshotOutcome.skipped]) while a teardown is in
+  /// flight, while the feature is off, while another attempt is busy, or when
+  /// the activity gate is held by another backup-family operation. The
+  /// [_teardown] rejection windows cannot be slipped: the check passes into
+  /// the gate synchronously (no await between here and [_inflight] being
+  /// set), and is re-checked as the first thing inside the scoped action.
   Future<AutoSnapshotOutcome> createSnapshot() async {
-    if (_busy || BackupActivityGate.active) {
+    if (_teardown || !_enabled || _busy || BackupActivityGate.active) {
       return AutoSnapshotOutcome.skipped;
     }
     _busy = true;
@@ -160,6 +209,12 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<AutoSnapshotOutcome> _createSnapshotInternal() async {
+    if (_teardown) {
+      // A teardown began after this attempt cleared the entry check (only
+      // possible for an attempt queued behind the gate) — aborted here, the
+      // disable flow owns the store from now on.
+      return AutoSnapshotOutcome.skipped;
+    }
     try {
       final result = await _service.createSnapshot();
       _lastError = null;
@@ -225,7 +280,8 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (last == null ||
         DateTime.now().difference(last) >=
             Duration(minutes: _intervalMinutes)) {
-      await createSnapshot();
+      final outcome = await createSnapshot();
+      _setAutoNotice(outcome);
     }
   }
 

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/providers/auto_snapshot_provider.dart';
 import 'package:Cuplivo/core/services/backup/auto_snapshot_service.dart';
+import 'package:Cuplivo/core/services/backup/backup_activity_gate.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 
 /// Timing-controllable fake: [createSnapshot] may be gated on a [Completer]
@@ -19,12 +20,16 @@ class _FakeAutoSnapshotService extends AutoSnapshotService {
       );
 
   Completer<void>? createGate;
+  Completer<void>? deleteGate;
   bool deleteWhileCreatePending = false;
+  bool failCreate = false;
+  bool failDelete = false;
   bool _createCompleted = false;
   final List<SnapshotMetadata> store = [];
 
   @override
   Future<AutoSnapshotResult> createSnapshot() async {
+    if (failCreate) throw StateError('export failed');
     final gate = createGate;
     if (gate != null) await gate.future;
     final meta = SnapshotMetadata(
@@ -48,6 +53,9 @@ class _FakeAutoSnapshotService extends AutoSnapshotService {
 
   @override
   Future<void> deleteAllSnapshots() async {
+    if (failDelete) throw StateError('disk locked');
+    final gate = deleteGate;
+    if (gate != null) await gate.future;
     deleteWhileCreatePending = !_createCompleted;
     store.clear();
   }
@@ -116,4 +124,153 @@ void main() {
       expect(provider.enabled, isFalse);
     },
   );
+
+  test(
+    'a manual create is rejected once a delete teardown has started',
+    () async {
+      final fake = _FakeAutoSnapshotService()..deleteGate = Completer<void>();
+      final provider = AutoSnapshotProvider(
+        preferences: BusinessPreferences.memoryForTests({}),
+        chatService: ChatService(),
+        autoLoad: false,
+        serviceFactory: () => fake,
+      );
+      await provider.load();
+
+      await provider.setEnabled(true);
+      await pumpEventQueue();
+      expect(provider.snapshots, hasLength(1));
+
+      final disableFuture = provider.setEnabled(false);
+      await pumpEventQueue();
+      expect(fake.store, hasLength(1), reason: 'delete still pending');
+
+      // The teardown has started: a new attempt (e.g. the manual button) is
+      // rejected before it can race the delete.
+      final outcome = await provider.createSnapshot();
+      expect(outcome, AutoSnapshotOutcome.skipped);
+      expect(fake.store, hasLength(1), reason: 'nothing new was written');
+
+      fake.deleteGate!.complete();
+      await disableFuture;
+      await pumpEventQueue();
+      expect(fake.store, isEmpty);
+
+      // With the feature off the manual attempt stays rejected too.
+      expect(await provider.createSnapshot(), AutoSnapshotOutcome.skipped);
+    },
+  );
+
+  test(
+    'a failed delete surfaces to the caller and keeps the store restorable',
+    () async {
+      final fake = _FakeAutoSnapshotService()..failDelete = true;
+      final provider = AutoSnapshotProvider(
+        preferences: BusinessPreferences.memoryForTests({}),
+        chatService: ChatService(),
+        autoLoad: false,
+        serviceFactory: () => fake,
+      );
+      await provider.load();
+
+      await provider.setEnabled(true);
+      await pumpEventQueue();
+      expect(provider.snapshots, hasLength(1));
+
+      await expectLater(provider.setEnabled(false), throwsA(isA<StateError>()));
+
+      // Disable still completes (feature off, prefs written); the failure is a
+      // surfaced error and the remaining snapshots stay visible/restorable.
+      expect(provider.enabled, isFalse);
+      expect(provider.snapshots, hasLength(1));
+    },
+  );
+
+  test('baseline success stashes a one-shot notice for the UI', () async {
+    final fake = _FakeAutoSnapshotService();
+    final provider = AutoSnapshotProvider(
+      preferences: BusinessPreferences.memoryForTests({}),
+      chatService: ChatService(),
+      autoLoad: false,
+      serviceFactory: () => fake,
+    );
+    await provider.load();
+
+    await provider.setEnabled(true);
+    await pumpEventQueue();
+
+    final notice = provider.pendingNotice;
+    expect(notice, isNotNull);
+    expect(notice!.outcome, AutoSnapshotOutcome.created);
+    expect(notice.error, isNull);
+    provider.consumeNotice();
+    expect(provider.pendingNotice, isNull);
+  });
+
+  test('baseline failure stashes a failed notice with the error', () async {
+    final fake = _FakeAutoSnapshotService()..failCreate = true;
+    final provider = AutoSnapshotProvider(
+      preferences: BusinessPreferences.memoryForTests({}),
+      chatService: ChatService(),
+      autoLoad: false,
+      serviceFactory: () => fake,
+    );
+    await provider.load();
+
+    await provider.setEnabled(true);
+    await pumpEventQueue();
+
+    final notice = provider.pendingNotice;
+    expect(notice, isNotNull);
+    expect(notice!.outcome, AutoSnapshotOutcome.failed);
+    expect(notice.error, isNotNull);
+    expect(provider.lastError, isNotNull);
+  });
+
+  test('a due tick stashes a one-shot notice via load', () async {
+    final fake = _FakeAutoSnapshotService();
+    final provider = AutoSnapshotProvider(
+      preferences: BusinessPreferences.memoryForTests({
+        'auto_snapshot_enabled_v1': true,
+      }),
+      chatService: ChatService(),
+      autoLoad: false,
+      serviceFactory: () => fake,
+    );
+    // No last-snapshot anchor → the first due evaluation fires a snapshot.
+    await provider.load();
+    await pumpEventQueue();
+
+    final notice = provider.pendingNotice;
+    expect(notice, isNotNull);
+    expect(notice!.outcome, AutoSnapshotOutcome.created);
+    expect(fake.store, hasLength(1));
+    provider.consumeNotice();
+    expect(provider.pendingNotice, isNull);
+  });
+
+  test('a skipped attempt never stashes a notice', () async {
+    final gateCompleter = Completer<void>();
+    final held = BackupActivityGate.scoped(() => gateCompleter.future);
+    final fake = _FakeAutoSnapshotService();
+    final provider = AutoSnapshotProvider(
+      preferences: BusinessPreferences.memoryForTests({
+        'auto_snapshot_enabled_v1': true,
+      }),
+      chatService: ChatService(),
+      autoLoad: false,
+      serviceFactory: () => fake,
+    );
+    await provider.load();
+    await pumpEventQueue();
+
+    // The due evaluation found the gate held by another backup-family op and
+    // deferred — no outcome was stashed.
+    expect(provider.pendingNotice, isNull);
+    expect(fake.store, isEmpty);
+
+    gateCompleter.complete();
+    await held;
+    await pumpEventQueue();
+  });
 }

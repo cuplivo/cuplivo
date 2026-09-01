@@ -1,13 +1,13 @@
 <script lang="ts">
   import type JSZip from 'jszip';
-  import ZipDropzone from '../lib/ui/ZipDropzone.svelte';
-  import { migrateRikkaHubToKelivo } from 'helper-core/migrate';
+  import ZipDropzone from '$lib/ui/ZipDropzone.svelte';
+  import { compatKelivoToCuplivo } from 'helper-core/compat';
   import { loadZip, downloadBlob, downloadText } from 'helper-core/zip';
-  import { reportToMarkdown, type MigrationReport } from 'helper-core/report';
+  import { compatReportToMarkdown, type CompatReport } from 'helper-core/compat/report';
 
   let processing = $state(false);
   let error = $state<string | null>(null);
-  let report = $state<MigrationReport | null>(null);
+  let report = $state<CompatReport | null>(null);
   let resultZip: JSZip | null = null;
   let outputName = '';
 
@@ -18,7 +18,7 @@
     resultZip = null;
     try {
       const zip = await loadZip(file);
-      const result = await migrateRikkaHubToKelivo(zip, file.name);
+      const result = await compatKelivoToCuplivo(zip, file.name);
       resultZip = result.outputZip;
       outputName = result.outputName;
       report = result.report;
@@ -30,31 +30,36 @@
     }
   }
 
-  async function downloadMigration() {
+  async function downloadCompat() {
     if (!resultZip) return;
     const blob = await resultZip.generateAsync({ type: 'blob' });
     downloadBlob(blob, outputName);
   }
 </script>
 
+<svelte:head>
+  <title>兼容 · Cuplivo 工具</title>
+</svelte:head>
+
 <div class="space-y-6">
   <header>
-    <h1 class="text-2xl font-bold text-gray-900">RikkaHub → Kelivo 迁移</h1>
+    <h1 class="text-2xl font-bold text-gray-900">Kelivo → Cuplivo 兼容</h1>
     <p class="mt-1 text-sm text-gray-500">
-      输入 RikkaHub 备份 zip（settings.json + rikka_hub.db + 媒体目录），输出 Kelivo 可恢复的备份包与迁移报告。
+      输入 Kelivo v1.2.0 备份 zip（manifest.json + database/kelivo.db + settings.json + 媒体目录），
+      输出 Cuplivo v2.7.1 可恢复的备份包与兼容报告。
     </p>
   </header>
 
   {#if !report}
     <ZipDropzone
-      label="仅支持 RikkaHub 备份 zip 文件"
+      label="仅支持 Kelivo v1.2.0 备份 zip 文件"
       onFile={handleFile}
     />
   {/if}
 
   {#if processing}
     <div class="text-center py-6 text-sm text-blue-600 font-medium">
-      正在解析 SQLite 并映射数据，请稍候…
+      正在解析 SQLite 快照并转换数据，请稍候…
     </div>
   {/if}
 
@@ -69,21 +74,21 @@
     <section class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
       <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 class="font-bold text-gray-900">迁移结果</h2>
+          <h2 class="font-bold text-gray-900">兼容结果</h2>
           <p class="text-xs text-gray-400 mt-0.5">
-            {report.source.fileName} · 数据库版本 {report.source.dbVersion ?? '未知'}
-            {report.source.walReplayed ? ' · WAL 已回放' : ''}
+            {report.source.fileName} · {report.source.format} v{report.source.formatVersion}
+            {report.source.appVersion ? ` · 源应用 ${report.source.appVersion}` : ''}
           </p>
         </div>
         <div class="flex gap-2">
           <button
             class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-            onclick={downloadMigration}
-          >下载迁移包</button>
+            onclick={downloadCompat}
+          >下载兼容包</button>
           <button
             class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-            onclick={() => downloadText(reportToMarkdown(report!), `${outputName.replace(/\.zip$/, '')}_迁移报告.md`, 'text/markdown;charset=utf-8')}
-          >下载迁移报告</button>
+            onclick={() => downloadText(compatReportToMarkdown(report!), `${outputName.replace(/\.zip$/, '')}_兼容报告.md`, 'text/markdown;charset=utf-8')}
+          >下载兼容报告</button>
         </div>
       </div>
 
@@ -97,28 +102,24 @@
           <div class="text-xs text-gray-500 mt-1">消息</div>
         </div>
         <div class="bg-gray-50 rounded-lg p-3">
-          <div class="text-2xl font-bold text-gray-900">{report.totals.assistants}</div>
-          <div class="text-xs text-gray-500 mt-1">助手（占位 {report.totals.placeholders}）</div>
-        </div>
-        <div class="bg-gray-50 rounded-lg p-3">
-          <div class="text-2xl font-bold text-gray-900">{report.totals.providers}</div>
-          <div class="text-xs text-gray-500 mt-1">提供商</div>
-        </div>
-        <div class="bg-gray-50 rounded-lg p-3">
           <div class="text-2xl font-bold text-gray-900">{report.totals.toolEvents}</div>
           <div class="text-xs text-gray-500 mt-1">工具事件</div>
         </div>
         <div class="bg-gray-50 rounded-lg p-3">
-          <div class="text-2xl font-bold text-gray-900">{report.totals.mediaFiles}</div>
-          <div class="text-xs text-gray-500 mt-1">媒体文件</div>
+          <div class="text-2xl font-bold text-gray-900">{report.totals.assistants}</div>
+          <div class="text-xs text-gray-500 mt-1">助手</div>
         </div>
         <div class="bg-gray-50 rounded-lg p-3">
           <div class="text-2xl font-bold text-gray-900">{report.totals.memories}</div>
           <div class="text-xs text-gray-500 mt-1">记忆</div>
         </div>
         <div class="bg-gray-50 rounded-lg p-3">
-          <div class="text-2xl font-bold text-gray-900">{report.droppedAlternatives}</div>
-          <div class="text-xs text-gray-500 mt-1">未选中版本（丢弃）</div>
+          <div class="text-2xl font-bold text-gray-900">{report.totals.mediaFiles}</div>
+          <div class="text-xs text-gray-500 mt-1">媒体文件</div>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+          <div class="text-2xl font-bold text-gray-900">{report.totals.geminiSignatures}</div>
+          <div class="text-xs text-gray-500 mt-1">Gemini 签名</div>
         </div>
       </div>
 
@@ -127,17 +128,6 @@
           <h3 class="text-sm font-semibold text-amber-700 mb-2">警告</h3>
           <ul class="space-y-1 text-xs text-amber-800 list-disc pl-4">
             {#each report.warnings as w}<li class="break-all">{w}</li>{/each}
-          </ul>
-        </div>
-      {/if}
-
-      {#if report.placeholderAssistants.length > 0}
-        <div class="px-6 py-3 border-t border-gray-100">
-          <h3 class="text-sm font-semibold text-gray-900 mb-2">占位助手（{report.placeholderAssistants.length}）</h3>
-          <ul class="space-y-1 text-xs text-gray-600 list-disc pl-4">
-            {#each report.placeholderAssistants as p}
-              <li><span class="font-mono">{p.name}</span> · {p.reason}</li>
-            {/each}
           </ul>
         </div>
       {/if}

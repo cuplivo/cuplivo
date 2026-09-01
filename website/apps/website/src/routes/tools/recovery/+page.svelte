@@ -1,5 +1,5 @@
 <script lang="ts">
-  import ZipDropzone from '../lib/ui/ZipDropzone.svelte';
+  import ZipDropzone from '$lib/ui/ZipDropzone.svelte';
   import { runRecovery, RECOVERY_ASSISTANT_NAME, type RecoveryResult } from 'helper-core/kelivo/recovery';
   import { loadZip, downloadBlob } from 'helper-core/zip';
 
@@ -28,6 +28,10 @@
     downloadBlob(blob, result.outputName);
   }
 </script>
+
+<svelte:head>
+  <title>恢复 · Cuplivo 工具</title>
+</svelte:head>
 
 <div class="space-y-6">
   <header>

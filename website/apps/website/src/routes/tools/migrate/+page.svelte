@@ -1,6 +1,6 @@
 <script lang="ts">
   import type JSZip from 'jszip';
-  import ZipDropzone from '../lib/ui/ZipDropzone.svelte';
+  import ZipDropzone from '$lib/ui/ZipDropzone.svelte';
   import { migrateRikkaHubToKelivo } from 'helper-core/migrate';
   import { loadZip, downloadBlob, downloadText } from 'helper-core/zip';
   import { reportToMarkdown, type MigrationReport } from 'helper-core/report';
@@ -36,6 +36,10 @@
     downloadBlob(blob, outputName);
   }
 </script>
+
+<svelte:head>
+  <title>迁移 · Cuplivo 工具</title>
+</svelte:head>
 
 <div class="space-y-6">
   <header>

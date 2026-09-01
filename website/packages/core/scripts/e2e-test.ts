@@ -6,17 +6,17 @@ import JSZip from 'jszip';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
-import { migrateRikkaHubToKelivo } from '../src/lib/migrate';
-import { runRecovery, RECOVERY_ASSISTANT_NAME } from '../src/lib/kelivo/recovery';
-import type { SettingsJson } from '../src/lib/kelivo/types';
-import { prepareRikkaHubDbBytes } from '../src/lib/rikkahub/wal';
+import { migrateRikkaHubToKelivo } from '../src/migrate';
+import { runRecovery, RECOVERY_ASSISTANT_NAME } from '../src/kelivo/recovery';
+import type { SettingsJson } from '../src/kelivo/types';
+import { prepareRikkaHubDbBytes } from '../src/rikkahub/wal';
 import {
   normalizePolymorphicType,
   resolveKelivoAsset,
   toKelivoLocalRef,
   toZipLocalPath,
-} from '../src/lib/rikkahub/util';
-import { mapLocalToolIds } from '../src/lib/migrate/assistants';
+} from '../src/rikkahub/util';
+import { mapLocalToolIds } from '../src/migrate/assistants';
 
 const sqlite3 = await sqlite3InitModule({ print: () => {}, printErr: () => {} });
 

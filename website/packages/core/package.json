@@ -1,0 +1,27 @@
+{
+  "name": "helper-core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    "./migrate": "./src/migrate/index.ts",
+    "./compat": "./src/compat/index.ts",
+    "./compat/report": "./src/compat/report.ts",
+    "./report": "./src/report.ts",
+    "./zip": "./src/zip.ts",
+    "./kelivo/recovery": "./src/kelivo/recovery.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "tsx scripts/e2e-test.ts && tsx scripts/compat-test.ts"
+  },
+  "dependencies": {
+    "@sqlite.org/sqlite-wasm": "3.49.2-build1",
+    "jszip": "^3.10.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.9",
+    "typescript": "^5.5.0"
+  }
+}

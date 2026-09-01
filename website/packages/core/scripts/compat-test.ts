@@ -6,11 +6,11 @@
 import JSZip from 'jszip';
 import assert from 'node:assert/strict';
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
-import { compatKelivoToCuplivo, compatOutputName } from '../src/lib/compat';
-import { transformAssistantsV1, transformSearchServicesV1 } from '../src/lib/cuplivo/settings';
-import { transformMemories } from '../src/lib/compat/memory';
-import { managedTail, portableSlash, relativeManaged } from '../src/lib/cuplivo/chats';
-import type { CompatReport } from '../src/lib/compat/report';
+import { compatKelivoToCuplivo, compatOutputName } from '../src/compat';
+import { transformAssistantsV1, transformSearchServicesV1 } from '../src/cuplivo/settings';
+import { transformMemories } from '../src/compat/memory';
+import { managedTail, portableSlash, relativeManaged } from '../src/cuplivo/chats';
+import type { CompatReport } from '../src/compat/report';
 
 const sqlite3 = await sqlite3InitModule({ print: () => {}, printErr: () => {} });
 

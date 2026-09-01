@@ -7,7 +7,7 @@
 
 ### 1.1 Overall
 
-- This is a Flutter app repository. Root `pubspec.yaml` declares `sdk: ^3.12.1` and `flutter: >=3.44.1` with `flutter.generate: true`.
+- This is a Flutter app repository. Root `pubspec.yaml` declares `sdk: ^3.12.1` and `flutter: >=3.44.9` with `flutter.generate: true`.
 - Main code lives in `lib/`, tests in `test/`. Local path dependencies exist:
   - `dependencies/mcp_client`
   - `dependencies/tray_manager/packages/tray_manager`

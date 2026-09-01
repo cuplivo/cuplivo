@@ -149,6 +149,7 @@ void main() {
     required String mimeType,
     required String uri,
     Uint8List? data,
+    required bool Function()? settled,
   }) async {
     await tester.runAsync(() async {
       tester
@@ -156,8 +157,18 @@ void main() {
           .insertContent(
             KeyboardInsertedContent(mimeType: mimeType, uri: uri, data: data),
           );
-      // Let the async save/attach flow in _handleInsertedContent settle.
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      if (settled == null) {
+        // Negative scenarios cannot assert "nothing happened" by polling;
+        // give the handler a fixed window to prove its no-op behavior.
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        return;
+      }
+      // Poll instead of a fixed delay: the async save/attach flow in
+      // _handleInsertedContent is real IO whose latency varies by runner.
+      final deadline = DateTime.now().add(const Duration(seconds: 5));
+      while (!settled() && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
     });
     await tester.pump();
   }
@@ -213,6 +224,7 @@ void main() {
       mimeType: 'image/png',
       uri: contentUri('paste.png'),
       data: pngBytes,
+      settled: () => mediaController.snapshotInput('').imagePaths.length == 1,
     );
 
     final paths = mediaController.snapshotInput('').imagePaths;
@@ -250,6 +262,7 @@ void main() {
       mimeType: 'image/jpg',
       uri: contentUri('paste.jpg'),
       data: Uint8List.fromList(const [0xFF, 0xD8, 0xFF, 0xE0]),
+      settled: () => mediaController.snapshotInput('').imagePaths.length == 1,
     );
 
     final paths = mediaController.snapshotInput('').imagePaths;
@@ -280,12 +293,14 @@ void main() {
       mimeType: 'image/png',
       uri: contentUri('one.png'),
       data: pngBytes,
+      settled: () => mediaController.snapshotInput('').imagePaths.length == 1,
     );
     await insertContent(
       tester,
       mimeType: 'image/webp',
       uri: contentUri('two.webp'),
       data: Uint8List.fromList(const [0x52, 0x49, 0x46, 0x46]),
+      settled: () => mediaController.snapshotInput('').imagePaths.length == 2,
     );
 
     final paths = mediaController.snapshotInput('').imagePaths;
@@ -354,6 +369,7 @@ void main() {
       tester,
       mimeType: 'image/png',
       uri: contentUri('hollow.png'),
+      settled: null,
     );
 
     expect(mediaController.snapshotInput('').imagePaths, isEmpty);

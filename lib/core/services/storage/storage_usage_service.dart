@@ -881,6 +881,145 @@ abstract final class StorageUsageService {
     return deleted;
   }
 
+  /// Lists every file [clearCache]/[clearOtherCache]/[clearSystemCache]/
+  /// [clearTmpCache] would delete for the given cache [subcategoryId], so the
+  /// storage page can show exactly which files are judged as cache before
+  /// clearing. Mirrors the clear methods' boundaries:
+  /// - 'avatar_cache': everything under `appData/cache/avatars`
+  /// - 'other_cache':  everything under `appData/cache` except avatars
+  /// - 'system_cache': platform application cache directory
+  /// - 'tmp_cache':    real iOS tmp dir (empty on other platforms)
+  ///
+  /// Sorted by size descending (largest first). Unknown ids return an empty
+  /// list. Unreadable entries or dirs are skipped, never thrown.
+  static Future<List<StorageFileEntry>> listCacheEntries({
+    required String subcategoryId,
+  }) async {
+    final out = <StorageFileEntry>[];
+
+    final cacheDir = await AppDirectories.getCacheDirectory();
+    final avatarCacheDir = await AppDirectories.getAvatarCacheDirectory();
+    final systemCacheDir = await AppDirectories.getSystemCacheDirectory();
+
+    Directory root;
+    String? excludedRoot;
+    switch (subcategoryId) {
+      case 'avatar_cache':
+        root = Directory(avatarCacheDir.path);
+        break;
+      case 'other_cache':
+        root = Directory(cacheDir.path);
+        excludedRoot = p.normalize(
+          Directory(avatarCacheDir.path).absolute.path,
+        );
+        break;
+      case 'system_cache':
+        root = Directory(systemCacheDir.path);
+        break;
+      case 'tmp_cache':
+        final iosTmpPath = await IosTmpDirectory.getPath();
+        if (iosTmpPath == null) return out;
+        root = Directory(iosTmpPath);
+        break;
+      default:
+        return out;
+    }
+
+    if (!await root.exists()) return out;
+
+    try {
+      await for (final ent in root.list(recursive: true, followLinks: false)) {
+        if (ent is! File) continue;
+        final abs = p.normalize(ent.absolute.path);
+        if (excludedRoot != null && p.isWithin(excludedRoot, abs)) continue;
+        int bytes = 0;
+        DateTime modifiedAt = DateTime.fromMillisecondsSinceEpoch(0);
+        try {
+          final stat = await ent.stat();
+          bytes = stat.size;
+          modifiedAt = stat.modified;
+        } catch (_) {
+          try {
+            bytes = await ent.length();
+          } catch (_) {}
+        }
+        out.add(
+          StorageFileEntry(
+            path: ent.path,
+            name: p.basename(ent.path),
+            bytes: bytes,
+            modifiedAt: modifiedAt,
+          ),
+        );
+      }
+    } catch (_) {
+      // Unreadable directory: return partial results instead of failing.
+    }
+
+    out.sort((a, b) {
+      final r = a.bytes.compareTo(b.bytes);
+      if (r != 0) return -r;
+      return a.modifiedAt.compareTo(b.modifiedAt);
+    });
+    return out;
+  }
+
+  /// Deletes the given files from one cache subcategory, validating every
+  /// path against the same roots [listCacheEntries] reports. Paths outside
+  /// the allowed root, or inside the excluded 'avatars' root for
+  /// 'other_cache', are skipped. Returns the number of files actually
+  /// deleted.
+  static Future<int> deleteCacheFiles(
+    Iterable<String> paths, {
+    required String subcategoryId,
+  }) async {
+    final cacheDir = await AppDirectories.getCacheDirectory();
+    final avatarCacheDir = await AppDirectories.getAvatarCacheDirectory();
+    final systemCacheDir = await AppDirectories.getSystemCacheDirectory();
+
+    final roots = <String>[];
+    String? excludedRoot;
+    switch (subcategoryId) {
+      case 'avatar_cache':
+        roots.add(p.normalize(Directory(avatarCacheDir.path).absolute.path));
+        break;
+      case 'other_cache':
+        roots.add(p.normalize(Directory(cacheDir.path).absolute.path));
+        excludedRoot = p.normalize(
+          Directory(avatarCacheDir.path).absolute.path,
+        );
+        break;
+      case 'system_cache':
+        roots.add(p.normalize(Directory(systemCacheDir.path).absolute.path));
+        break;
+      case 'tmp_cache':
+        final iosTmpPath = await IosTmpDirectory.getPath();
+        if (iosTmpPath == null) return 0;
+        roots.add(p.normalize(Directory(iosTmpPath).absolute.path));
+        break;
+      default:
+        return 0;
+    }
+
+    int deleted = 0;
+    for (final raw in paths) {
+      try {
+        final abs = p.normalize(File(raw).absolute.path);
+        final allowed = roots.any(
+          (root) => p.isWithin(root, abs) || abs == root,
+        );
+        if (!allowed) continue;
+        if (excludedRoot != null && p.isWithin(excludedRoot, abs)) continue;
+        final f = File(abs);
+        if (await f.exists()) {
+          await f.delete();
+          deleted += 1;
+        }
+      } catch (_) {}
+    }
+    return deleted;
+  }
+
   static Future<void> _deleteDirectoryContents(Directory dir) async {
     if (!await dir.exists()) return;
     try {

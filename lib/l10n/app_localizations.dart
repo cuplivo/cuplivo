@@ -723,6 +723,18 @@ abstract class AppLocalizations {
   /// **'By date'**
   String get storageSpaceSortByTime;
 
+  /// No description provided for @storageSpaceNoCacheFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'No cache files'**
+  String get storageSpaceNoCacheFiles;
+
+  /// No description provided for @storageSpaceDeletedCacheFilesDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted {count} cache files'**
+  String storageSpaceDeletedCacheFilesDone(Object count);
+
   /// No description provided for @storageWorkspaceEntryTitle.
   ///
   /// In en, this message translates to:

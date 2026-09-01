@@ -1469,6 +1469,19 @@ class _CategoryDetail extends StatelessWidget {
   final Future<void> Function() refreshReport;
   final Future<DbCompactResult> Function()? onCompactDb;
 
+  void _openCacheFiles(BuildContext context, StorageUsageSubcategory s) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _CacheFilesPage(
+          title: subTitleFor(s.id),
+          subcategoryId: s.id,
+          dirPath: s.path!,
+          refreshReport: refreshReport,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -1639,7 +1652,6 @@ class _CategoryDetail extends StatelessWidget {
                   for (final s in category.subcategories)
                     Container(
                       margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                       decoration: BoxDecoration(
                         color: cs.onSurface.withValues(alpha: 0.03),
                         borderRadius: BorderRadius.circular(10),
@@ -1647,87 +1659,115 @@ class _CategoryDetail extends StatelessWidget {
                           color: cs.onSurface.withValues(alpha: 0.08),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  subTitleFor(s.id),
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: AppFontWeights.semibold,
+                      clipBehavior: Clip.antiAlias,
+                      child: IosCardPress(
+                        onTap:
+                            category.key == StorageUsageCategoryKey.cache &&
+                                s.stats.fileCount > 0 &&
+                                s.path != null &&
+                                s.path!.isNotEmpty
+                            ? () => _openCacheFiles(context, s)
+                            : null,
+                        haptics: false,
+                        pressedScale: 1.0,
+                        borderRadius: BorderRadius.circular(10),
+                        baseColor: Colors.transparent,
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    subTitleFor(s.id),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: AppFontWeights.semibold,
+                                    ),
                                   ),
-                                ),
-                                if (subDescFor(s.id) case final desc?
-                                    when desc.isNotEmpty) ...[
+                                  if (subDescFor(s.id) case final desc?
+                                      when desc.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      desc,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: cs.onSurface.withValues(
+                                          alpha: 0.6,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 2),
                                   Text(
-                                    desc,
+                                    '${fmtBytes(s.stats.bytes)} · ${l10n.storageSpaceFilesCount(s.stats.fileCount)}',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: cs.onSurface.withValues(
-                                        alpha: 0.6,
+                                        alpha: 0.65,
                                       ),
                                     ),
                                   ),
-                                ],
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${fmtBytes(s.stats.bytes)} · ${l10n.storageSpaceFilesCount(s.stats.fileCount)}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: cs.onSurface.withValues(alpha: 0.65),
-                                  ),
-                                ),
-                                if (s.path != null && s.path!.isNotEmpty) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    s.path!,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      color: cs.onSurface.withValues(
-                                        alpha: 0.55,
+                                  if (s.path != null && s.path!.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      s.path!,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: cs.onSurface.withValues(
+                                          alpha: 0.55,
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
-                          ),
-                          if (category.key == StorageUsageCategoryKey.cache &&
-                              s.id == 'avatar_cache')
-                            _MiniActionButton(
-                              label: l10n.storageSpaceClearButton,
-                              enabled: !clearing,
-                              onTap: () =>
-                                  onClearCache?.call(avatarsOnly: true),
-                            ),
-                          if (category.key == StorageUsageCategoryKey.cache &&
-                              s.id == 'other_cache')
-                            _MiniActionButton(
-                              label: l10n.storageSpaceClearButton,
-                              enabled: !clearing,
-                              onTap: () => onClearOtherCache?.call(),
-                            ),
-                          if (category.key == StorageUsageCategoryKey.cache &&
-                              s.id == 'system_cache')
-                            _MiniActionButton(
-                              label: l10n.storageSpaceClearButton,
-                              enabled: !clearing,
-                              onTap: () => onClearSystemCache?.call(),
-                            ),
-                          if (category.key == StorageUsageCategoryKey.cache &&
-                              s.id == 'tmp_cache')
-                            _MiniActionButton(
-                              label: l10n.storageSpaceClearButton,
-                              enabled: !clearing,
-                              onTap: () => onClearTmpCache?.call(),
-                            ),
-                        ],
+                            if (category.key == StorageUsageCategoryKey.cache &&
+                                s.id == 'avatar_cache')
+                              _MiniActionButton(
+                                label: l10n.storageSpaceClearButton,
+                                enabled: !clearing,
+                                onTap: () =>
+                                    onClearCache?.call(avatarsOnly: true),
+                              ),
+                            if (category.key == StorageUsageCategoryKey.cache &&
+                                s.id == 'other_cache')
+                              _MiniActionButton(
+                                label: l10n.storageSpaceClearButton,
+                                enabled: !clearing,
+                                onTap: () => onClearOtherCache?.call(),
+                              ),
+                            if (category.key == StorageUsageCategoryKey.cache &&
+                                s.id == 'system_cache')
+                              _MiniActionButton(
+                                label: l10n.storageSpaceClearButton,
+                                enabled: !clearing,
+                                onTap: () => onClearSystemCache?.call(),
+                              ),
+                            if (category.key == StorageUsageCategoryKey.cache &&
+                                s.id == 'tmp_cache')
+                              _MiniActionButton(
+                                label: l10n.storageSpaceClearButton,
+                                enabled: !clearing,
+                                onTap: () => onClearTmpCache?.call(),
+                              ),
+                            if (category.key == StorageUsageCategoryKey.cache &&
+                                s.stats.fileCount > 0 &&
+                                s.path != null &&
+                                s.path!.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Icon(
+                                Lucide.ChevronRight,
+                                size: 16,
+                                color: cs.onSurface.withValues(alpha: 0.75),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
                 ],
@@ -2087,53 +2127,6 @@ class _UploadManagerState extends State<_UploadManager> {
     );
   }
 
-  Widget _buildSortSegment(ColorScheme cs) {
-    final border = cs.onSurface.withValues(alpha: 0.12);
-    final l10n = AppLocalizations.of(context)!;
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _sortCell(
-            label: _bySize
-                ? '${_descending ? '↓' : '↑'} ${l10n.storageSpaceSortBySize}'
-                : l10n.storageSpaceSortBySize,
-            active: _bySize,
-            cs: cs,
-            onTap: () => setState(() {
-              if (_bySize) {
-                _descending = !_descending;
-              } else {
-                _bySize = true;
-                _descending = true;
-              }
-            }),
-          ),
-          Container(width: 1, height: 20, color: border),
-          _sortCell(
-            label: !_bySize
-                ? '${_descending ? '↓' : '↑'} ${l10n.storageSpaceSortByTime}'
-                : l10n.storageSpaceSortByTime,
-            active: !_bySize,
-            cs: cs,
-            onTap: () => setState(() {
-              if (!_bySize) {
-                _descending = !_descending;
-              } else {
-                _bySize = false;
-                _descending = true;
-              }
-            }),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _togglePill(
     ColorScheme cs,
     String label,
@@ -2179,7 +2172,26 @@ class _UploadManagerState extends State<_UploadManager> {
       runSpacing: 10,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        _buildSortSegment(cs),
+        _SortControl(
+          bySize: _bySize,
+          descending: _descending,
+          onSortSize: () => setState(() {
+            if (_bySize) {
+              _descending = !_descending;
+            } else {
+              _bySize = true;
+              _descending = true;
+            }
+          }),
+          onSortTime: () => setState(() {
+            if (!_bySize) {
+              _descending = !_descending;
+            } else {
+              _bySize = false;
+              _descending = true;
+            }
+          }),
+        ),
         if (_refs != null && _orphanCount > 0)
           _togglePill(
             cs,
@@ -2367,6 +2379,288 @@ class _UploadManagerState extends State<_UploadManager> {
   }
 }
 
+/// Per-subcategory cache file list (issue #320): users can see exactly which
+/// files are judged as cache and delete selected ones before/without clearing
+/// the whole subcategory. Mirrors the upload list interactions (sort, select,
+/// delete) but for one cache directory.
+class _CacheFilesPage extends StatefulWidget {
+  const _CacheFilesPage({
+    required this.title,
+    required this.subcategoryId,
+    required this.dirPath,
+    required this.refreshReport,
+  });
+
+  final String title;
+  final String subcategoryId;
+  final String dirPath;
+  final Future<void> Function() refreshReport;
+
+  @override
+  State<_CacheFilesPage> createState() => _CacheFilesPageState();
+}
+
+class _CacheFilesPageState extends State<_CacheFilesPage> {
+  bool _loading = false;
+  List<StorageFileEntry> _entries = const <StorageFileEntry>[];
+  final Set<String> _selected = <String>{};
+  bool _bySize = true;
+  bool _descending = true;
+
+  bool get _selectMode => _selected.isNotEmpty;
+
+  List<StorageFileEntry> get _displayEntries {
+    final list = _entries.toList();
+    final cmp = _bySize
+        ? ((a, b) => a.bytes.compareTo(b.bytes))
+        : ((a, b) => a.modifiedAt.compareTo(b.modifiedAt));
+    list.sort((a, b) {
+      final r = cmp(a, b);
+      if (r != 0) return _descending ? -r : r;
+      return a.name.compareTo(b.name); // tie-break
+    });
+    return list;
+  }
+
+  /// Parent directory of [entry] relative to the subcategory root, so nested
+  /// cache content (e.g. request-log-analysis/*.json) is distinguishable.
+  /// Empty for files directly in the root.
+  String _relativePathFor(StorageFileEntry entry) {
+    final root = p.normalize(p.absolute(widget.dirPath));
+    final parent = p.normalize(p.absolute(p.dirname(entry.path)));
+    if (p.equals(root, parent)) return '';
+    return p.relative(parent, from: root);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      final list = await StorageUsageService.listCacheEntries(
+        subcategoryId: widget.subcategoryId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _entries = list;
+        final paths = _entries.map((e) => e.path).toSet();
+        _selected.removeWhere((p) => !paths.contains(p));
+      });
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _toggleSelect(String path) {
+    setState(() {
+      if (_selected.contains(path)) {
+        _selected.remove(path);
+      } else {
+        _selected.add(path);
+      }
+    });
+  }
+
+  void _selectAll() {
+    setState(() {
+      _selected
+        ..clear()
+        ..addAll(_displayEntries.map((e) => e.path));
+    });
+  }
+
+  void _clearSelection() {
+    setState(() => _selected.clear());
+  }
+
+  Future<void> _deleteSelected() async {
+    if (_selected.isEmpty) return;
+    final l10n = AppLocalizations.of(context)!;
+    final count = _selected.length;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(l10n.storageSpaceDeleteConfirmTitle),
+          content: Text(l10n.storageSpaceDeleteSimpleConfirm(count)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(l10n.homePageCancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(l10n.homePageDelete),
+            ),
+          ],
+        );
+      },
+    );
+    if (ok != true) return;
+
+    final deleted = await StorageUsageService.deleteCacheFiles(
+      _selected,
+      subcategoryId: widget.subcategoryId,
+    );
+    if (!mounted) return;
+
+    _clearSelection();
+    showAppSnackBar(
+      context,
+      message: l10n.storageSpaceDeletedCacheFilesDone(deleted),
+      type: NotificationType.success,
+    );
+    await _load();
+    await widget.refreshReport();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final display = _displayEntries;
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: Tooltip(
+          message: l10n.settingsPageBackButton,
+          child: _TactileIconButton(
+            icon: Lucide.ArrowLeft,
+            color: cs.onSurface,
+            size: 22,
+            onTap: () => Navigator.of(context).maybePop(),
+          ),
+        ),
+        title: Text(widget.title),
+        actions: [
+          IosIconButton(
+            icon: Lucide.RefreshCw,
+            size: 20,
+            minSize: 44,
+            enabled: !_loading,
+            onTap: _loading ? null : _load,
+            semanticLabel: l10n.storageSpaceRefreshTooltip,
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.dirPath,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                color: cs.onSurface.withValues(alpha: 0.55),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _SortControl(
+                  bySize: _bySize,
+                  descending: _descending,
+                  onSortSize: () => setState(() {
+                    if (_bySize) {
+                      _descending = !_descending;
+                    } else {
+                      _bySize = true;
+                      _descending = true;
+                    }
+                  }),
+                  onSortTime: () => setState(() {
+                    if (!_bySize) {
+                      _descending = !_descending;
+                    } else {
+                      _bySize = false;
+                      _descending = true;
+                    }
+                  }),
+                ),
+                IosTileButton(
+                  label: _selectMode
+                      ? l10n.storageSpaceClearSelection
+                      : l10n.storageSpaceSelectAll,
+                  icon: _selectMode ? Lucide.XCircle : Lucide.CheckSquare,
+                  backgroundColor: cs.primary,
+                  onTap: _selectMode ? _clearSelection : _selectAll,
+                ),
+                IosTileButton(
+                  label: l10n.homePageDelete,
+                  icon: Lucide.Trash2,
+                  backgroundColor: cs.error,
+                  enabled: _selected.isNotEmpty,
+                  onTap: _deleteSelected,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _selectMode
+                  ? l10n.storageSpaceSelectedCount(_selected.length)
+                  : l10n.storageSpaceFilesCount(display.length),
+              style: TextStyle(
+                fontSize: 12.5,
+                color: cs.onSurface.withValues(alpha: 0.65),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: _loading && _entries.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : _entries.isEmpty
+                  ? Center(
+                      child: Text(
+                        l10n.storageSpaceNoCacheFiles,
+                        style: TextStyle(
+                          color: cs.onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.zero,
+                      itemCount: display.length,
+                      itemBuilder: (context, index) {
+                        final e = display[index];
+                        final selected = _selected.contains(e.path);
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _FileRow(
+                            entry: e,
+                            selected: selected,
+                            icon: Lucide.FileText,
+                            relativePath: _relativePathFor(e),
+                            fmtBytes: formatBytes,
+                            onTap: () {
+                              if (_selectMode) {
+                                _toggleSelect(e.path);
+                              }
+                            },
+                            onLongPress: () => _toggleSelect(e.path),
+                            onToggle: () => _toggleSelect(e.path),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 Widget _sortCell({
   required String label,
   required bool active,
@@ -2388,6 +2682,55 @@ Widget _sortCell({
       ),
     ),
   );
+}
+
+class _SortControl extends StatelessWidget {
+  const _SortControl({
+    required this.bySize,
+    required this.descending,
+    required this.onSortSize,
+    required this.onSortTime,
+  });
+
+  final bool bySize;
+  final bool descending;
+  final VoidCallback onSortSize;
+  final VoidCallback onSortTime;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final border = cs.onSurface.withValues(alpha: 0.12);
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _sortCell(
+            label: bySize
+                ? '${descending ? '↓' : '↑'} ${l10n.storageSpaceSortBySize}'
+                : l10n.storageSpaceSortBySize,
+            active: bySize,
+            cs: cs,
+            onTap: onSortSize,
+          ),
+          Container(width: 1, height: 20, color: border),
+          _sortCell(
+            label: !bySize
+                ? '${descending ? '↓' : '↑'} ${l10n.storageSpaceSortByTime}'
+                : l10n.storageSpaceSortByTime,
+            active: !bySize,
+            cs: cs,
+            onTap: onSortTime,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ImageTile extends StatelessWidget {
@@ -2565,6 +2908,8 @@ class _FileRow extends StatelessWidget {
     required this.fmtBytes,
     this.refCount,
     this.isAiGenerated = false,
+    this.icon,
+    this.relativePath,
     required this.onTap,
     required this.onLongPress,
     required this.onToggle,
@@ -2576,6 +2921,8 @@ class _FileRow extends StatelessWidget {
   final String Function(int) fmtBytes;
   final int? refCount;
   final bool isAiGenerated;
+  final IconData? icon;
+  final String? relativePath;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final VoidCallback onToggle;
@@ -2615,7 +2962,7 @@ class _FileRow extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Icon(
-              Lucide.Paperclip,
+              icon ?? Lucide.Paperclip,
               size: 18,
               color: cs.onSurface.withValues(alpha: 0.82),
             ),
@@ -2634,6 +2981,18 @@ class _FileRow extends StatelessWidget {
                       color: cs.onSurface.withValues(alpha: 0.88),
                     ),
                   ),
+                  if (relativePath != null && relativePath!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      relativePath!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: cs.onSurface.withValues(alpha: 0.55),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 2),
                   Text(
                     '${fmtBytes(entry.bytes)} · ${_fmtTime(entry.modifiedAt)}',

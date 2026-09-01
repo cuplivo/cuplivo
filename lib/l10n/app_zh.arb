@@ -102,6 +102,8 @@
   "storageSpaceUploadsCount": "共 {count} 项",
   "storageSpaceSortBySize": "按大小",
   "storageSpaceSortByTime": "按时间",
+  "storageSpaceNoCacheFiles": "暂无缓存文件",
+  "storageSpaceDeletedCacheFilesDone": "已删除 {count} 个缓存文件",
   "storageWorkspaceEntryTitle": "工作区",
   "storageMountsTitle": "文件系统挂载",
   "storageMountsAddButton": "添加挂载",

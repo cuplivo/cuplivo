@@ -189,6 +189,8 @@
   },
   "storageSpaceSortBySize": "By size",
   "storageSpaceSortByTime": "By date",
+  "storageSpaceNoCacheFiles": "No cache files",
+  "storageSpaceDeletedCacheFilesDone": "Deleted {count} cache files",
   "storageWorkspaceEntryTitle": "Workspace",
   "storageMountsTitle": "Filesystem Mounts",
   "storageMountsAddButton": "Add mount",

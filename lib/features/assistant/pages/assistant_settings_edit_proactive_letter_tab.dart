@@ -479,6 +479,39 @@ class _AssistantProactiveLetterTabState
               onChanged: (v) => _onProactiveCareChanged(a, v),
               subtitle: l10n.assistantEditProactiveCareDefaultDescription,
             ),
+            _iosDivider(context),
+            KeyedSubtree(
+              key: const ValueKey('assistant-proactive-decision-history-limit'),
+              child: _iosNavRow(
+                context,
+                icon: Lucide.MessagesSquare,
+                label: l10n.assistantEditProactiveCareDecisionHistoryLimitTitle,
+                detailText:
+                    a.proactiveCareDecisionHistoryMessageLimit?.toString() ??
+                    l10n.assistantEditParameterDisabled2,
+                onTap: () => _showAssistantMessageLimitSheet(
+                  context,
+                  assistantId: a.id,
+                  title:
+                      l10n.assistantEditProactiveCareDecisionHistoryLimitTitle,
+                  description: l10n
+                      .assistantEditProactiveCareDecisionHistoryLimitDescription,
+                  isEnabled: (assistant) =>
+                      assistant.proactiveCareDecisionHistoryMessageLimit !=
+                      null,
+                  readValue: (assistant) =>
+                      assistant.proactiveCareDecisionHistoryMessageLimit ??
+                      Assistant.defaultContextMessageSize,
+                  writeLimit: (assistant, limit) => limit == null
+                      ? assistant.copyWith(
+                          clearProactiveCareDecisionHistoryMessageLimit: true,
+                        )
+                      : assistant.copyWith(
+                          proactiveCareDecisionHistoryMessageLimit: limit,
+                        ),
+                ),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 12),

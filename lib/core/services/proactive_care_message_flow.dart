@@ -520,22 +520,29 @@ class ProactiveCareMessageFlow {
     required Assistant assistant,
     required List<Map<String, dynamic>> apiMessages,
     int? fallbackThinkingBudget,
+    PlainTextStreamSender? sendMessageStream,
   }) async {
     // Layer-① collector (ADR-0034): accumulate the silent no-tool stream.
-    final text = await PlainTextCollector().collect(
-      config: config,
-      modelId: modelId,
-      messages: apiMessages,
-      thinkingBudget: assistant.thinkingBudget ?? fallbackThinkingBudget,
-      // No temperature: silent background generation — a rejected sampling
-      // parameter would fail the care reply invisibly (many models no longer
-      // support it). The assistant's temperature still applies to the main
-      // chat path.
-      topP: assistant.topP,
-      maxTokens: assistant.maxTokens,
-      stream: false,
-    );
-    return text.trim();
+    final text = await PlainTextCollector(sendMessageStream: sendMessageStream)
+        .collect(
+          config: config,
+          modelId: modelId,
+          messages: apiMessages,
+          thinkingBudget: assistant.thinkingBudget ?? fallbackThinkingBudget,
+          // No temperature: silent background generation — a rejected sampling
+          // parameter would fail the care reply invisibly (many models no longer
+          // support it). The assistant's temperature still applies to the main
+          // chat path.
+          topP: assistant.topP,
+          maxTokens: assistant.maxTokens,
+          stream: false,
+        );
+    return applyAssistantRegexes(
+      text,
+      assistant: assistant,
+      scope: AssistantRegexScope.assistant,
+      target: AssistantRegexTransformTarget.persist,
+    ).trim();
   }
 
   static const Duration _decisionTimeout = Duration(seconds: 45);
@@ -586,11 +593,17 @@ class ProactiveCareMessageFlow {
       }
     }
 
+    final configuredLimit = assistant.proactiveCareDecisionHistoryMessageLimit;
+    final effectiveHistory =
+        configuredLimit == null || history.length <= configuredLimit
+        ? history
+        : history.sublist(history.length - configuredLimit);
+
     final apiMessages = ProactiveCareService.buildDecisionApiMessages(
       decisionPrompt: decisionPrompt,
       currentNextCareTime: currentNextCareTime,
       now: now,
-      history: history,
+      history: effectiveHistory,
       personaPrompt: personaPrompt,
       memoriesBlock: memoriesBlock,
     );
@@ -831,6 +844,18 @@ class ProactiveCareHeadlessChatStore {
     }
   }
 
+  static int? _readOptionalInt(sqlite.Row row, String column) {
+    try {
+      return row[column] as int?;
+    } catch (error) {
+      FlutterLogger.log(
+        'Optional assistant column $column is unavailable: $error',
+        tag: _logTag,
+      );
+      return null;
+    }
+  }
+
   /// Converts [DateTime] to unix timestamp seconds for drift compatibility.
   static int _dateTimeToSql(DateTime dt) => dt.millisecondsSinceEpoch ~/ 1000;
 
@@ -909,6 +934,10 @@ class ProactiveCareHeadlessChatStore {
       'proactiveCarePrompt': row['proactive_care_prompt'] as String,
       'proactiveCareDecisionPrompt':
           row['proactive_care_decision_prompt'] as String,
+      'proactiveCareDecisionHistoryMessageLimit': _readOptionalInt(
+        row,
+        'proactive_care_decision_history_message_limit',
+      ),
       'createdAt': _dateTimeFromSql(row['created_at']).toIso8601String(),
       'updatedAt': _dateTimeFromSql(row['updated_at']).toIso8601String(),
     });

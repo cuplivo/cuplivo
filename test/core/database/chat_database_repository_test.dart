@@ -137,6 +137,7 @@ void main() {
           ],
           mcpServerIds: ['mcp-1'],
           localToolIds: ['tool-1'],
+          proactiveCareDecisionHistoryMessageLimit: 37,
         );
 
         await repo.putAssistants([assistant]);
@@ -161,6 +162,7 @@ void main() {
         ]);
         expect(a.mcpServerIds, ['mcp-1']);
         expect(a.localToolIds, ['tool-1']);
+        expect(a.proactiveCareDecisionHistoryMessageLimit, 37);
       },
     );
   });

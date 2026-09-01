@@ -14719,6 +14719,18 @@ abstract class AppLocalizations {
   /// **'Default for conversations without an override'**
   String get assistantEditProactiveCareDefaultDescription;
 
+  /// Title for the proactive-care decision history message limit
+  ///
+  /// In en, this message translates to:
+  /// **'Messages used for time decisions'**
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle;
+
+  /// Description for the proactive-care decision history message limit
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum number of recent conversation messages sent to the model when deciding the next proactive message time'**
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription;
+
   /// Title for the expandable conversation proactive care schedule section
   ///
   /// In en, this message translates to:

@@ -4,6 +4,7 @@ import 'preset_message.dart';
 
 class Assistant {
   static const int defaultRecentChatsSummaryMessageCount = 5;
+  static const int defaultContextMessageSize = 64;
   static const int minContextMessageSize = 1;
   static const int maxContextMessageSize = 1024;
   static const List<int> recentChatsSummaryMessageCountOptions = <int>[
@@ -98,6 +99,7 @@ Do **not** store sensitive information, including:
   final DateTime? proactiveCareNextMessageAt;
   final String proactiveCarePrompt;
   final String proactiveCareDecisionPrompt;
+  final int? proactiveCareDecisionHistoryMessageLimit;
   // File processing configuration (per assistant)
   // Values: 'extract' (parse locally / OCR), 'direct' (upload raw file), 'discard'
   final String docxMode;
@@ -125,7 +127,7 @@ Do **not** store sensitive information, including:
     this.chatModelId,
     this.temperature,
     this.topP,
-    this.contextMessageSize = 64,
+    this.contextMessageSize = defaultContextMessageSize,
     this.limitContextMessages = false,
     this.streamOutput = true,
     this.thinkingBudget,
@@ -154,6 +156,7 @@ Do **not** store sensitive information, including:
     this.proactiveCareNextMessageAt,
     this.proactiveCarePrompt = '',
     this.proactiveCareDecisionPrompt = '',
+    int? proactiveCareDecisionHistoryMessageLimit,
     this.docxMode = 'extract',
     this.pdfMode = 'extract',
     this.otherOfficeMode = 'direct',
@@ -164,7 +167,11 @@ Do **not** store sensitive information, including:
     this.handoffDescription,
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) : workspaceDefaultDirectories = Map.unmodifiable(
+  }) : proactiveCareDecisionHistoryMessageLimit =
+           proactiveCareDecisionHistoryMessageLimit
+               ?.clamp(minContextMessageSize, maxContextMessageSize)
+               .toInt(),
+       workspaceDefaultDirectories = Map.unmodifiable(
          Map<String, String>.of(
            workspaceDefaultDirectories ?? const <String, String>{},
          ),
@@ -225,6 +232,8 @@ Do **not** store sensitive information, including:
     String? proactiveCarePrompt,
     String? proactiveCareDecisionPrompt,
     bool clearProactiveCareNextMessageAt = false,
+    int? proactiveCareDecisionHistoryMessageLimit,
+    bool clearProactiveCareDecisionHistoryMessageLimit = false,
     String? docxMode,
     String? pdfMode,
     String? otherOfficeMode,
@@ -294,6 +303,11 @@ Do **not** store sensitive information, including:
       proactiveCarePrompt: proactiveCarePrompt ?? this.proactiveCarePrompt,
       proactiveCareDecisionPrompt:
           proactiveCareDecisionPrompt ?? this.proactiveCareDecisionPrompt,
+      proactiveCareDecisionHistoryMessageLimit:
+          clearProactiveCareDecisionHistoryMessageLimit
+          ? null
+          : (proactiveCareDecisionHistoryMessageLimit ??
+                this.proactiveCareDecisionHistoryMessageLimit),
       docxMode: docxMode ?? this.docxMode,
       pdfMode: pdfMode ?? this.pdfMode,
       otherOfficeMode: otherOfficeMode ?? this.otherOfficeMode,
@@ -348,6 +362,8 @@ Do **not** store sensitive information, including:
     'proactiveCareNextMessageAt': proactiveCareNextMessageAt?.toIso8601String(),
     'proactiveCarePrompt': proactiveCarePrompt,
     'proactiveCareDecisionPrompt': proactiveCareDecisionPrompt,
+    'proactiveCareDecisionHistoryMessageLimit':
+        proactiveCareDecisionHistoryMessageLimit,
     'docxMode': docxMode,
     'pdfMode': pdfMode,
     'otherOfficeMode': otherOfficeMode,
@@ -371,7 +387,9 @@ Do **not** store sensitive information, including:
     chatModelId: json['chatModelId'] as String?,
     temperature: (json['temperature'] as num?)?.toDouble(),
     topP: (json['topP'] as num?)?.toDouble(),
-    contextMessageSize: (json['contextMessageSize'] as num?)?.toInt() ?? 64,
+    contextMessageSize:
+        (json['contextMessageSize'] as num?)?.toInt() ??
+        defaultContextMessageSize,
     limitContextMessages: json['limitContextMessages'] as bool? ?? true,
     streamOutput: json['streamOutput'] as bool? ?? true,
     thinkingBudget: (json['thinkingBudget'] as num?)?.toInt(),
@@ -464,6 +482,8 @@ Do **not** store sensitive information, including:
     proactiveCarePrompt: (json['proactiveCarePrompt'] as String?) ?? '',
     proactiveCareDecisionPrompt:
         (json['proactiveCareDecisionPrompt'] as String?) ?? '',
+    proactiveCareDecisionHistoryMessageLimit:
+        (json['proactiveCareDecisionHistoryMessageLimit'] as num?)?.toInt(),
     docxMode: (json['docxMode'] as String?) ?? 'extract',
     pdfMode: (json['pdfMode'] as String?) ?? 'extract',
     otherOfficeMode: (json['otherOfficeMode'] as String?) ?? 'direct',

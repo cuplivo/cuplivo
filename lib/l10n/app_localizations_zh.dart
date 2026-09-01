@@ -7834,6 +7834,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assistantEditProactiveCareDefaultDescription => '未单独设置的对话默认跟随此开关';
 
   @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      '时间决策所用消息条数';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      '决定下次主动发消息时间时，最多发送给决策模型的最近历史消息数量';
+
+  @override
   String get assistantEditProactiveCareConversationTimesTitle => '各对话下次来信时间';
 
   @override
@@ -17064,6 +17072,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assistantEditProactiveCareDefaultDescription => '未单独设置的对话默认跟随此开关';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      '时间决策所用消息条数';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      '决定下次主动发消息时间时，最多发送给决策模型的最近历史消息数量';
 
   @override
   String get assistantEditProactiveCareConversationTimesTitle => '各对话下次来信时间';
@@ -26297,6 +26313,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantEditProactiveCareDefaultDescription => '未單獨設定的對話預設跟隨此開關';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      '時間決策所用訊息條數';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      '決定下次主動發訊息時間時，最多傳送給決策模型的最近歷史訊息數量';
 
   @override
   String get assistantEditProactiveCareConversationTimesTitle => '各對話下次來信時間';

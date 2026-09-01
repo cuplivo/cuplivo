@@ -1140,5 +1140,7 @@
 - **Conversation proactive-care policy (会话主动来信策略)**: A conversation chooses to follow its assistant default, explicitly enable proactive care, or explicitly disable it.
 - **Effective proactive-care state (有效主动来信状态)**: The enablement produced by the conversation policy and, when following, the assistant default.
 - **Conversation care schedule (会话来信计划)**: The conversation's single optional next delivery time. Disabling preserves it; an actual trigger consumes it.
+- **Proactive Care decision model (主动来信决策模型)**: The silent model that chooses whether a target conversation's next delivery time should change. It is distinct from the main model that writes the proactive letter.
+- **Decision history window (决策历史窗口)**: The newest eligible messages from the target conversation considered by the Proactive Care decision model. The assistant may limit this window; no limit means the full eligible history.
 - **Target conversation (目标会话)**: The fixed-assistant normal conversation that owns a care schedule and receives its generated letter. The currently viewed or most recently updated conversation is never a substitute.
 - **Android readiness (Android 运行条件)**: Application-wide notification, exact-alarm, auto-start, and battery conditions that affect delivery reliability. These conditions are not assistant or conversation settings.

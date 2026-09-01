@@ -3018,6 +3018,14 @@
   "@assistantEditProactiveCareDefaultDescription": {
     "description": "說明助手主動關懷開關只是對話預設值"
   },
+  "assistantEditProactiveCareDecisionHistoryLimitTitle": "時間決策所用訊息條數",
+  "@assistantEditProactiveCareDecisionHistoryLimitTitle": {
+    "description": "主動關懷時間決策歷史訊息數量限制標題"
+  },
+  "assistantEditProactiveCareDecisionHistoryLimitDescription": "決定下次主動發訊息時間時，最多傳送給決策模型的最近歷史訊息數量",
+  "@assistantEditProactiveCareDecisionHistoryLimitDescription": {
+    "description": "主動關懷時間決策歷史訊息數量限制說明"
+  },
   "assistantEditProactiveCareConversationTimesTitle": "各對話下次來信時間",
   "@assistantEditProactiveCareConversationTimesTitle": {
     "description": "對話主動關懷時間摺疊區域標題"

@@ -8181,6 +8181,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Default for conversations without an override';
 
   @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      'Messages used for time decisions';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      'Maximum number of recent conversation messages sent to the model when deciding the next proactive message time';
+
+  @override
   String get assistantEditProactiveCareConversationTimesTitle =>
       'Conversation next-letter times';
 

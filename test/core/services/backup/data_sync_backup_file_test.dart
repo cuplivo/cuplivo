@@ -2376,6 +2376,89 @@ void main() {
       },
     );
 
+    test(
+      'old backup defaults the proactive-care decision limit to unlimited',
+      () async {
+        final chatService = _InMemoryChatService();
+        addTearDown(chatService.closeDb);
+        final zipFile = await makeSettingsZip({
+          'assistants_v1': jsonEncode([
+            {'id': 'a1', 'name': 'Legacy A'},
+          ]),
+        });
+
+        await DataSync(
+          preferences: businessPrefs,
+          chatService: chatService,
+        ).restoreFromLocalFile(
+          zipFile,
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+              settings: true,
+              skills: true,
+            ),
+          ),
+          mode: RestoreMode.overwrite,
+        );
+
+        expect(
+          (await chatService.getAllAssistants())
+              .single
+              .proactiveCareDecisionHistoryMessageLimit,
+          isNull,
+        );
+      },
+    );
+
+    test(
+      'merge with an old backup preserves the local decision limit',
+      () async {
+        final chatService = _InMemoryChatService();
+        addTearDown(chatService.closeDb);
+        await chatService.putAssistants([
+          Assistant(
+            id: 'a1',
+            name: 'Local Alpha',
+            proactiveCareDecisionHistoryMessageLimit: 17,
+          ),
+        ]);
+        final zipFile = await makeSettingsZip({
+          'assistants_v1': jsonEncode([
+            {'id': 'a1', 'name': 'Incoming Alpha'},
+          ]),
+        });
+
+        await DataSync(
+          preferences: businessPrefs,
+          chatService: chatService,
+        ).restoreFromLocalFile(
+          zipFile,
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+              settings: true,
+              skills: true,
+            ),
+          ),
+          mode: RestoreMode.merge,
+        );
+
+        expect(
+          (await chatService.getAllAssistants())
+              .single
+              .proactiveCareDecisionHistoryMessageLimit,
+          17,
+        );
+      },
+    );
+
     test('merge restore keeps existing per-assistant ocrMode and maps only new '
         'incoming assistants', () async {
       final chatService = _InMemoryChatService();

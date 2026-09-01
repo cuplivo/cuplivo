@@ -3076,6 +3076,17 @@ class $AssistantRowsTable extends AssistantRows
         requiredDuringInsert: false,
         defaultValue: const Constant(''),
       );
+  static const VerificationMeta _proactiveCareDecisionHistoryMessageLimitMeta =
+      const VerificationMeta('proactiveCareDecisionHistoryMessageLimit');
+  @override
+  late final GeneratedColumn<int> proactiveCareDecisionHistoryMessageLimit =
+      GeneratedColumn<int>(
+        'proactive_care_decision_history_message_limit',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _enableMemoryMeta = const VerificationMeta(
     'enableMemory',
   );
@@ -3309,6 +3320,7 @@ class $AssistantRowsTable extends AssistantRows
     proactiveCareNextMessageAt,
     proactiveCarePrompt,
     proactiveCareDecisionPrompt,
+    proactiveCareDecisionHistoryMessageLimit,
     enableMemory,
     memoryMode,
     enableRecentChatsReference,
@@ -3618,6 +3630,15 @@ class $AssistantRowsTable extends AssistantRows
         ),
       );
     }
+    if (data.containsKey('proactive_care_decision_history_message_limit')) {
+      context.handle(
+        _proactiveCareDecisionHistoryMessageLimitMeta,
+        proactiveCareDecisionHistoryMessageLimit.isAcceptableOrUnknown(
+          data['proactive_care_decision_history_message_limit']!,
+          _proactiveCareDecisionHistoryMessageLimitMeta,
+        ),
+      );
+    }
     if (data.containsKey('enable_memory')) {
       context.handle(
         _enableMemoryMeta,
@@ -3885,6 +3906,10 @@ class $AssistantRowsTable extends AssistantRows
         DriftSqlType.string,
         data['${effectivePrefix}proactive_care_decision_prompt'],
       )!,
+      proactiveCareDecisionHistoryMessageLimit: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}proactive_care_decision_history_message_limit'],
+      ),
       enableMemory: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}enable_memory'],
@@ -3992,6 +4017,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
   final DateTime? proactiveCareNextMessageAt;
   final String proactiveCarePrompt;
   final String proactiveCareDecisionPrompt;
+  final int? proactiveCareDecisionHistoryMessageLimit;
   final bool enableMemory;
   final String memoryMode;
   final bool enableRecentChatsReference;
@@ -4042,6 +4068,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     this.proactiveCareNextMessageAt,
     required this.proactiveCarePrompt,
     required this.proactiveCareDecisionPrompt,
+    this.proactiveCareDecisionHistoryMessageLimit,
     required this.enableMemory,
     required this.memoryMode,
     required this.enableRecentChatsReference,
@@ -4121,6 +4148,11 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     map['proactive_care_decision_prompt'] = Variable<String>(
       proactiveCareDecisionPrompt,
     );
+    if (!nullToAbsent || proactiveCareDecisionHistoryMessageLimit != null) {
+      map['proactive_care_decision_history_message_limit'] = Variable<int>(
+        proactiveCareDecisionHistoryMessageLimit,
+      );
+    }
     map['enable_memory'] = Variable<bool>(enableMemory);
     map['memory_mode'] = Variable<String>(memoryMode);
     map['enable_recent_chats_reference'] = Variable<bool>(
@@ -4202,6 +4234,10 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
           : Value(proactiveCareNextMessageAt),
       proactiveCarePrompt: Value(proactiveCarePrompt),
       proactiveCareDecisionPrompt: Value(proactiveCareDecisionPrompt),
+      proactiveCareDecisionHistoryMessageLimit:
+          proactiveCareDecisionHistoryMessageLimit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(proactiveCareDecisionHistoryMessageLimit),
       enableMemory: Value(enableMemory),
       memoryMode: Value(memoryMode),
       enableRecentChatsReference: Value(enableRecentChatsReference),
@@ -4280,6 +4316,9 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       proactiveCareDecisionPrompt: serializer.fromJson<String>(
         json['proactiveCareDecisionPrompt'],
       ),
+      proactiveCareDecisionHistoryMessageLimit: serializer.fromJson<int?>(
+        json['proactiveCareDecisionHistoryMessageLimit'],
+      ),
       enableMemory: serializer.fromJson<bool>(json['enableMemory']),
       memoryMode: serializer.fromJson<String>(json['memoryMode']),
       enableRecentChatsReference: serializer.fromJson<bool>(
@@ -4351,6 +4390,9 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       'proactiveCareDecisionPrompt': serializer.toJson<String>(
         proactiveCareDecisionPrompt,
       ),
+      'proactiveCareDecisionHistoryMessageLimit': serializer.toJson<int?>(
+        proactiveCareDecisionHistoryMessageLimit,
+      ),
       'enableMemory': serializer.toJson<bool>(enableMemory),
       'memoryMode': serializer.toJson<String>(memoryMode),
       'enableRecentChatsReference': serializer.toJson<bool>(
@@ -4408,6 +4450,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     Value<DateTime?> proactiveCareNextMessageAt = const Value.absent(),
     String? proactiveCarePrompt,
     String? proactiveCareDecisionPrompt,
+    Value<int?> proactiveCareDecisionHistoryMessageLimit = const Value.absent(),
     bool? enableMemory,
     String? memoryMode,
     bool? enableRecentChatsReference,
@@ -4466,6 +4509,10 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     proactiveCarePrompt: proactiveCarePrompt ?? this.proactiveCarePrompt,
     proactiveCareDecisionPrompt:
         proactiveCareDecisionPrompt ?? this.proactiveCareDecisionPrompt,
+    proactiveCareDecisionHistoryMessageLimit:
+        proactiveCareDecisionHistoryMessageLimit.present
+        ? proactiveCareDecisionHistoryMessageLimit.value
+        : this.proactiveCareDecisionHistoryMessageLimit,
     enableMemory: enableMemory ?? this.enableMemory,
     memoryMode: memoryMode ?? this.memoryMode,
     enableRecentChatsReference:
@@ -4579,6 +4626,10 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       proactiveCareDecisionPrompt: data.proactiveCareDecisionPrompt.present
           ? data.proactiveCareDecisionPrompt.value
           : this.proactiveCareDecisionPrompt,
+      proactiveCareDecisionHistoryMessageLimit:
+          data.proactiveCareDecisionHistoryMessageLimit.present
+          ? data.proactiveCareDecisionHistoryMessageLimit.value
+          : this.proactiveCareDecisionHistoryMessageLimit,
       enableMemory: data.enableMemory.present
           ? data.enableMemory.value
           : this.enableMemory,
@@ -4655,6 +4706,9 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
           ..write('proactiveCareNextMessageAt: $proactiveCareNextMessageAt, ')
           ..write('proactiveCarePrompt: $proactiveCarePrompt, ')
           ..write('proactiveCareDecisionPrompt: $proactiveCareDecisionPrompt, ')
+          ..write(
+            'proactiveCareDecisionHistoryMessageLimit: $proactiveCareDecisionHistoryMessageLimit, ',
+          )
           ..write('enableMemory: $enableMemory, ')
           ..write('memoryMode: $memoryMode, ')
           ..write('enableRecentChatsReference: $enableRecentChatsReference, ')
@@ -4712,6 +4766,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     proactiveCareNextMessageAt,
     proactiveCarePrompt,
     proactiveCareDecisionPrompt,
+    proactiveCareDecisionHistoryMessageLimit,
     enableMemory,
     memoryMode,
     enableRecentChatsReference,
@@ -4768,6 +4823,8 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
           other.proactiveCarePrompt == this.proactiveCarePrompt &&
           other.proactiveCareDecisionPrompt ==
               this.proactiveCareDecisionPrompt &&
+          other.proactiveCareDecisionHistoryMessageLimit ==
+              this.proactiveCareDecisionHistoryMessageLimit &&
           other.enableMemory == this.enableMemory &&
           other.memoryMode == this.memoryMode &&
           other.enableRecentChatsReference == this.enableRecentChatsReference &&
@@ -4821,6 +4878,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
   final Value<DateTime?> proactiveCareNextMessageAt;
   final Value<String> proactiveCarePrompt;
   final Value<String> proactiveCareDecisionPrompt;
+  final Value<int?> proactiveCareDecisionHistoryMessageLimit;
   final Value<bool> enableMemory;
   final Value<String> memoryMode;
   final Value<bool> enableRecentChatsReference;
@@ -4872,6 +4930,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     this.proactiveCareNextMessageAt = const Value.absent(),
     this.proactiveCarePrompt = const Value.absent(),
     this.proactiveCareDecisionPrompt = const Value.absent(),
+    this.proactiveCareDecisionHistoryMessageLimit = const Value.absent(),
     this.enableMemory = const Value.absent(),
     this.memoryMode = const Value.absent(),
     this.enableRecentChatsReference = const Value.absent(),
@@ -4924,6 +4983,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     this.proactiveCareNextMessageAt = const Value.absent(),
     this.proactiveCarePrompt = const Value.absent(),
     this.proactiveCareDecisionPrompt = const Value.absent(),
+    this.proactiveCareDecisionHistoryMessageLimit = const Value.absent(),
     this.enableMemory = const Value.absent(),
     this.memoryMode = const Value.absent(),
     this.enableRecentChatsReference = const Value.absent(),
@@ -4980,6 +5040,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     Expression<DateTime>? proactiveCareNextMessageAt,
     Expression<String>? proactiveCarePrompt,
     Expression<String>? proactiveCareDecisionPrompt,
+    Expression<int>? proactiveCareDecisionHistoryMessageLimit,
     Expression<bool>? enableMemory,
     Expression<String>? memoryMode,
     Expression<bool>? enableRecentChatsReference,
@@ -5041,6 +5102,9 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
         'proactive_care_prompt': proactiveCarePrompt,
       if (proactiveCareDecisionPrompt != null)
         'proactive_care_decision_prompt': proactiveCareDecisionPrompt,
+      if (proactiveCareDecisionHistoryMessageLimit != null)
+        'proactive_care_decision_history_message_limit':
+            proactiveCareDecisionHistoryMessageLimit,
       if (enableMemory != null) 'enable_memory': enableMemory,
       if (memoryMode != null) 'memory_mode': memoryMode,
       if (enableRecentChatsReference != null)
@@ -5099,6 +5163,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     Value<DateTime?>? proactiveCareNextMessageAt,
     Value<String>? proactiveCarePrompt,
     Value<String>? proactiveCareDecisionPrompt,
+    Value<int?>? proactiveCareDecisionHistoryMessageLimit,
     Value<bool>? enableMemory,
     Value<String>? memoryMode,
     Value<bool>? enableRecentChatsReference,
@@ -5155,6 +5220,9 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
       proactiveCarePrompt: proactiveCarePrompt ?? this.proactiveCarePrompt,
       proactiveCareDecisionPrompt:
           proactiveCareDecisionPrompt ?? this.proactiveCareDecisionPrompt,
+      proactiveCareDecisionHistoryMessageLimit:
+          proactiveCareDecisionHistoryMessageLimit ??
+          this.proactiveCareDecisionHistoryMessageLimit,
       enableMemory: enableMemory ?? this.enableMemory,
       memoryMode: memoryMode ?? this.memoryMode,
       enableRecentChatsReference:
@@ -5289,6 +5357,11 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
         proactiveCareDecisionPrompt.value,
       );
     }
+    if (proactiveCareDecisionHistoryMessageLimit.present) {
+      map['proactive_care_decision_history_message_limit'] = Variable<int>(
+        proactiveCareDecisionHistoryMessageLimit.value,
+      );
+    }
     if (enableMemory.present) {
       map['enable_memory'] = Variable<bool>(enableMemory.value);
     }
@@ -5385,6 +5458,9 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
           ..write('proactiveCareNextMessageAt: $proactiveCareNextMessageAt, ')
           ..write('proactiveCarePrompt: $proactiveCarePrompt, ')
           ..write('proactiveCareDecisionPrompt: $proactiveCareDecisionPrompt, ')
+          ..write(
+            'proactiveCareDecisionHistoryMessageLimit: $proactiveCareDecisionHistoryMessageLimit, ',
+          )
           ..write('enableMemory: $enableMemory, ')
           ..write('memoryMode: $memoryMode, ')
           ..write('enableRecentChatsReference: $enableRecentChatsReference, ')
@@ -10919,6 +10995,7 @@ typedef $$AssistantRowsTableCreateCompanionBuilder =
       Value<DateTime?> proactiveCareNextMessageAt,
       Value<String> proactiveCarePrompt,
       Value<String> proactiveCareDecisionPrompt,
+      Value<int?> proactiveCareDecisionHistoryMessageLimit,
       Value<bool> enableMemory,
       Value<String> memoryMode,
       Value<bool> enableRecentChatsReference,
@@ -10972,6 +11049,7 @@ typedef $$AssistantRowsTableUpdateCompanionBuilder =
       Value<DateTime?> proactiveCareNextMessageAt,
       Value<String> proactiveCarePrompt,
       Value<String> proactiveCareDecisionPrompt,
+      Value<int?> proactiveCareDecisionHistoryMessageLimit,
       Value<bool> enableMemory,
       Value<String> memoryMode,
       Value<bool> enableRecentChatsReference,
@@ -11165,6 +11243,12 @@ class $$AssistantRowsTableFilterComposer
     column: $table.proactiveCareDecisionPrompt,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<int> get proactiveCareDecisionHistoryMessageLimit =>
+      $composableBuilder(
+        column: $table.proactiveCareDecisionHistoryMessageLimit,
+        builder: (column) => ColumnFilters(column),
+      );
 
   ColumnFilters<bool> get enableMemory => $composableBuilder(
     column: $table.enableMemory,
@@ -11423,6 +11507,12 @@ class $$AssistantRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get proactiveCareDecisionHistoryMessageLimit =>
+      $composableBuilder(
+        column: $table.proactiveCareDecisionHistoryMessageLimit,
+        builder: (column) => ColumnOrderings(column),
+      );
+
   ColumnOrderings<bool> get enableMemory => $composableBuilder(
     column: $table.enableMemory,
     builder: (column) => ColumnOrderings(column),
@@ -11670,6 +11760,12 @@ class $$AssistantRowsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get proactiveCareDecisionHistoryMessageLimit =>
+      $composableBuilder(
+        column: $table.proactiveCareDecisionHistoryMessageLimit,
+        builder: (column) => column,
+      );
+
   GeneratedColumn<bool> get enableMemory => $composableBuilder(
     column: $table.enableMemory,
     builder: (column) => column,
@@ -11804,6 +11900,8 @@ class $$AssistantRowsTableTableManager
                 Value<String> proactiveCarePrompt = const Value.absent(),
                 Value<String> proactiveCareDecisionPrompt =
                     const Value.absent(),
+                Value<int?> proactiveCareDecisionHistoryMessageLimit =
+                    const Value.absent(),
                 Value<bool> enableMemory = const Value.absent(),
                 Value<String> memoryMode = const Value.absent(),
                 Value<bool> enableRecentChatsReference = const Value.absent(),
@@ -11857,6 +11955,8 @@ class $$AssistantRowsTableTableManager
                 proactiveCareNextMessageAt: proactiveCareNextMessageAt,
                 proactiveCarePrompt: proactiveCarePrompt,
                 proactiveCareDecisionPrompt: proactiveCareDecisionPrompt,
+                proactiveCareDecisionHistoryMessageLimit:
+                    proactiveCareDecisionHistoryMessageLimit,
                 enableMemory: enableMemory,
                 memoryMode: memoryMode,
                 enableRecentChatsReference: enableRecentChatsReference,
@@ -11913,6 +12013,8 @@ class $$AssistantRowsTableTableManager
                 Value<String> proactiveCarePrompt = const Value.absent(),
                 Value<String> proactiveCareDecisionPrompt =
                     const Value.absent(),
+                Value<int?> proactiveCareDecisionHistoryMessageLimit =
+                    const Value.absent(),
                 Value<bool> enableMemory = const Value.absent(),
                 Value<String> memoryMode = const Value.absent(),
                 Value<bool> enableRecentChatsReference = const Value.absent(),
@@ -11966,6 +12068,8 @@ class $$AssistantRowsTableTableManager
                 proactiveCareNextMessageAt: proactiveCareNextMessageAt,
                 proactiveCarePrompt: proactiveCarePrompt,
                 proactiveCareDecisionPrompt: proactiveCareDecisionPrompt,
+                proactiveCareDecisionHistoryMessageLimit:
+                    proactiveCareDecisionHistoryMessageLimit,
                 enableMemory: enableMemory,
                 memoryMode: memoryMode,
                 enableRecentChatsReference: enableRecentChatsReference,

@@ -16,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:syncfusion_flutter_sliders/sliders.dart';
 
 const _assistantId = 'assistant-proactive-tab-test';
 
@@ -188,6 +189,94 @@ void main() {
   );
 
   testWidgets(
+    'decision history limit transitions between unlimited and count',
+    (tester) async {
+      final fixture = await _pumpTab(
+        tester,
+        assistant: Assistant(id: _assistantId, name: 'Assistant'),
+        chatService: _FakeChatService(),
+      );
+      const rowKey = ValueKey('assistant-proactive-decision-history-limit');
+
+      expect(find.text('Messages used for time decisions'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(rowKey),
+          matching: find.text('Disabled (no restrictions)'),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(rowKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(IosSwitch).last);
+      await tester.pumpAndSettle();
+
+      expect(
+        fixture.assistantProvider
+            .getById(_assistantId)!
+            .proactiveCareDecisionHistoryMessageLimit,
+        Assistant.defaultContextMessageSize,
+      );
+      expect(
+        find.descendant(of: find.byKey(rowKey), matching: find.text('64')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(rowKey));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(SfSlider), const Offset(120, 0));
+      await tester.pump(const Duration(milliseconds: 600));
+      final changedLimit = fixture.assistantProvider
+          .getById(_assistantId)!
+          .proactiveCareDecisionHistoryMessageLimit;
+      expect(changedLimit, isNotNull);
+      expect(changedLimit, isNot(Assistant.defaultContextMessageSize));
+      expect(
+        changedLimit,
+        inInclusiveRange(
+          Assistant.minContextMessageSize,
+          Assistant.maxContextMessageSize,
+        ),
+      );
+
+      await tester.tap(find.byType(IosSwitch).last);
+      await tester.pumpAndSettle();
+      expect(
+        fixture.assistantProvider
+            .getById(_assistantId)!
+            .proactiveCareDecisionHistoryMessageLimit,
+        isNull,
+      );
+    },
+  );
+
+  testWidgets('shared limit sheet preserves a disabled basic context value', (
+    tester,
+  ) async {
+    final fixture = await _pumpTab(
+      tester,
+      assistant: Assistant(
+        id: _assistantId,
+        name: 'Assistant',
+        contextMessageSize: 128,
+        limitContextMessages: false,
+      ),
+      chatService: _FakeChatService(),
+      home: const AssistantSettingsEditPage(assistantId: _assistantId),
+    );
+
+    await tester.tap(find.text('Context Messages'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(IosSwitch).last);
+    await tester.pumpAndSettle();
+
+    final assistant = fixture.assistantProvider.getById(_assistantId)!;
+    expect(assistant.limitContextMessages, isTrue);
+    expect(assistant.contextMessageSize, 128);
+  });
+
+  testWidgets(
     'permission section combines readiness and acts only on explicit row taps',
     (tester) async {
       final platform = _FakeAndroidSettingsPlatform(
@@ -326,6 +415,7 @@ Future<_TabFixture> _pumpTab(
   required Assistant assistant,
   required _FakeChatService chatService,
   _FakeAndroidSettingsPlatform? platform,
+  Widget? home,
 }) async {
   tester.view.physicalSize = const Size(900, 1800);
   tester.view.devicePixelRatio = 1;
@@ -355,14 +445,16 @@ Future<_TabFixture> _pumpTab(
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: AssistantProactiveLetterTab(
-            assistantId: _assistantId,
-            settingsService: AndroidProactiveCareSettingsService(
-              platform: settingsPlatform,
+        home:
+            home ??
+            Scaffold(
+              body: AssistantProactiveLetterTab(
+                assistantId: _assistantId,
+                settingsService: AndroidProactiveCareSettingsService(
+                  platform: settingsPlatform,
+                ),
+              ),
             ),
-          ),
-        ),
       ),
     ),
   );

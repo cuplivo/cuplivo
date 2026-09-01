@@ -597,6 +597,92 @@ CREATE TABLE group_chat_rows (
     await repo.close();
   });
 
+  test(
+    'v23 migration adds the proactive-care decision history limit',
+    () async {
+      _createLegacyDb(
+        dbFile,
+        userVersion: 22,
+        missingIsPreset: false,
+        missingHandoffColumns: false,
+        missingContextTokens: false,
+        missingV15RequestMetadata: false,
+        missingQuoteJson: false,
+        includeWorkspaceBindingColumns: true,
+        includeWorkspaceV20Columns: true,
+        includeConversationKindColumn: true,
+        includeConversationV22Columns: true,
+        missingPreferenceRows: false,
+      );
+      final raw = sqlite.sqlite3.open(dbFile.path);
+      raw.execute(
+        'INSERT INTO assistant_rows '
+        '(id, name, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+        ['legacy', 'Legacy', 0, 1, 1],
+      );
+      raw.close();
+
+      final repo = ChatDatabaseRepository.open(file: dbFile);
+      await repo.ensureReady();
+
+      final columns = await repo.db
+          .customSelect('PRAGMA table_info(assistant_rows)')
+          .get();
+      expect(
+        columns.map((row) => row.read<String>('name')),
+        contains('proactive_care_decision_history_message_limit'),
+      );
+      expect(
+        (await repo.getAssistant(
+          'legacy',
+        ))?.proactiveCareDecisionHistoryMessageLimit,
+        isNull,
+      );
+
+      await repo.close();
+    },
+  );
+
+  test(
+    'heal restores a missing v23 proactive-care decision history limit',
+    () async {
+      _createLegacyDb(
+        dbFile,
+        userVersion: 23,
+        missingIsPreset: false,
+        missingHandoffColumns: false,
+        missingContextTokens: false,
+        missingV15RequestMetadata: false,
+        missingQuoteJson: false,
+        includeWorkspaceBindingColumns: true,
+        includeWorkspaceV20Columns: true,
+        includeConversationKindColumn: true,
+        includeConversationV22Columns: true,
+        missingPreferenceRows: false,
+      );
+
+      final repo = ChatDatabaseRepository.open(file: dbFile);
+      await repo.ensureReady();
+      await repo.putAssistant(
+        Assistant(
+          id: 'healed-v23',
+          name: 'Healed',
+          proactiveCareDecisionHistoryMessageLimit: 19,
+        ),
+        sortOrder: 0,
+      );
+
+      expect(
+        (await repo.getAssistant(
+          'healed-v23',
+        ))?.proactiveCareDecisionHistoryMessageLimit,
+        19,
+      );
+
+      await repo.close();
+    },
+  );
+
   test('legacy transfer preserves conversation schedules and clears future '
       'assistant schedules without eligible targets', () async {
     _createLegacyDb(

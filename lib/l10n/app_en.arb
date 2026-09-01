@@ -3615,6 +3615,14 @@
   "@assistantEditProactiveCareDefaultDescription": {
     "description": "Explains that the assistant proactive care switch is a conversation default"
   },
+  "assistantEditProactiveCareDecisionHistoryLimitTitle": "Messages used for time decisions",
+  "@assistantEditProactiveCareDecisionHistoryLimitTitle": {
+    "description": "Title for the proactive-care decision history message limit"
+  },
+  "assistantEditProactiveCareDecisionHistoryLimitDescription": "Maximum number of recent conversation messages sent to the model when deciding the next proactive message time",
+  "@assistantEditProactiveCareDecisionHistoryLimitDescription": {
+    "description": "Description for the proactive-care decision history message limit"
+  },
   "assistantEditProactiveCareConversationTimesTitle": "Conversation next-letter times",
   "@assistantEditProactiveCareConversationTimesTitle": {
     "description": "Title for the expandable conversation proactive care schedule section"

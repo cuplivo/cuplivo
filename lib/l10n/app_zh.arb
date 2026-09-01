@@ -3017,6 +3017,14 @@
   "@assistantEditProactiveCareDefaultDescription": {
     "description": "说明助手主动关怀开关只是对话默认值"
   },
+  "assistantEditProactiveCareDecisionHistoryLimitTitle": "时间决策所用消息条数",
+  "@assistantEditProactiveCareDecisionHistoryLimitTitle": {
+    "description": "主动关怀时间决策历史消息数量限制标题"
+  },
+  "assistantEditProactiveCareDecisionHistoryLimitDescription": "决定下次主动发消息时间时，最多发送给决策模型的最近历史消息数量",
+  "@assistantEditProactiveCareDecisionHistoryLimitDescription": {
+    "description": "主动关怀时间决策历史消息数量限制说明"
+  },
   "assistantEditProactiveCareConversationTimesTitle": "各对话下次来信时间",
   "@assistantEditProactiveCareConversationTimesTitle": {
     "description": "对话主动关怀时间折叠区域标题"

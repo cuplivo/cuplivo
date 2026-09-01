@@ -39,7 +39,11 @@ void main() {
       final repository = ChatDatabaseRepository.open(file: dbFile);
       await repository.ensureReady();
       await repository.putAssistant(
-        Assistant(id: 'assistant-1', name: 'Legacy Assistant'),
+        Assistant(
+          id: 'assistant-1',
+          name: 'Legacy Assistant',
+          proactiveCareDecisionHistoryMessageLimit: 23,
+        ),
       );
       await repository.close();
 
@@ -47,6 +51,10 @@ void main() {
       rawDb.execute(
         'ALTER TABLE assistant_rows '
         'DROP COLUMN workspace_default_directories_json',
+      );
+      rawDb.execute(
+        'ALTER TABLE assistant_rows '
+        'DROP COLUMN proactive_care_decision_history_message_limit',
       );
       rawDb.close();
 
@@ -56,6 +64,7 @@ void main() {
 
       expect(assistant, isNotNull);
       expect(assistant!.workspaceDefaultDirectories, isEmpty);
+      expect(assistant.proactiveCareDecisionHistoryMessageLimit, isNull);
     },
   );
 

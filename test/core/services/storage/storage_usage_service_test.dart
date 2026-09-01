@@ -509,6 +509,41 @@ void main() {
         : false,
   );
 
+  test(
+    'listCacheEntries keeps listing files after an unreadable subdirectory',
+    () async {
+      final cacheDir = Directory(p.join(appDataDir.path, 'cache'));
+      final blocked = Directory(p.join(cacheDir.path, 'a_blocked'));
+      await Directory(p.join(blocked.path, 'inner')).create(recursive: true);
+      await _writeSizedFile(
+        Directory(p.join(blocked.path, 'inner')),
+        'hidden.bin',
+        10,
+      );
+      final readable = Directory(p.join(cacheDir.path, 'z_readable'));
+      await readable.create(recursive: true);
+      await _writeSizedFile(readable, 'icon.png', 5);
+      final chmod = await Process.run('chmod', ['000', blocked.path]);
+      expect(chmod.exitCode, 0);
+      addTearDown(() async {
+        final restore = await Process.run('chmod', ['700', blocked.path]);
+        expect(restore.exitCode, 0);
+      });
+
+      final entries = await StorageUsageService.listCacheEntries(
+        subcategoryId: 'other_cache',
+      );
+
+      // Files inside the unreadable dir are inaccessible, but the readable
+      // sibling after it must still be returned instead of being dropped by
+      // a terminated recursive stream.
+      expect(entries.map((e) => e.name), ['icon.png']);
+    },
+    skip: Platform.isWindows
+        ? 'chmod cannot revoke permissions on Windows; covered on POSIX CI'
+        : false,
+  );
+
   test('listCacheEntries splits avatar and other cache boundaries', () async {
     final cacheDir = Directory(p.join(appDataDir.path, 'cache'));
     await Directory(p.join(cacheDir.path, 'avatars')).create(recursive: true);

@@ -653,6 +653,36 @@ abstract final class StorageUsageService {
     progress.onEmit(progress.files, progress.bytes);
   }
 
+  /// Walks [dir] recursively, invoking [onFile] once per file.
+  ///
+  /// A single `list(recursive: true)` stream would abort at the first
+  /// unreadable subdirectory and silently drop every file traversed after
+  /// it — the same failure mode [listCacheEntries] used to have and the one
+  /// that produced the zero-usage incident documented on
+  /// [_scanFilesConcurrently]. Each subdirectory is therefore recursed
+  /// individually: a failing directory is logged and skipped while its
+  /// siblings keep being traversed. A failure to list the walked root itself
+  /// is not caught here — the caller logs it and returns partial results.
+  static Future<void> _listFilesTolerantly(
+    Directory dir, {
+    required Future<void> Function(File file) onFile,
+  }) async {
+    await for (final ent in dir.list(followLinks: false)) {
+      if (ent is Directory) {
+        try {
+          await _listFilesTolerantly(ent, onFile: onFile);
+        } catch (e) {
+          debugPrint(
+            'StorageUsageService: skipping unreadable directory '
+            '${ent.path}: $e',
+          );
+        }
+      } else if (ent is File) {
+        await onFile(ent);
+      }
+    }
+  }
+
   /// Categorizes a workspace tree entry: per-workspace Linux sandboxes
   /// (.sandbox: rootfs, tmp, staged dependency archives) are counted
   /// separately so they can be cleared; everything else under a workspace
@@ -813,34 +843,38 @@ abstract final class StorageUsageService {
     }) async {
       if (!await d.exists()) return;
       try {
-        await for (final ent in d.list(recursive: true, followLinks: false)) {
-          if (ent is! File) continue;
-          final name = p.basename(ent.path);
-          final isImg = _isImageExt(name);
-          if (isImg && !includeImages) continue;
-          if (!isImg && !includeNonImages) continue;
-          int bytes = 0;
-          DateTime modifiedAt = DateTime.fromMillisecondsSinceEpoch(0);
-          try {
-            final stat = await ent.stat();
-            bytes = stat.size;
-            modifiedAt = stat.modified;
-          } catch (_) {
+        await _listFilesTolerantly(
+          d,
+          onFile: (file) async {
+            final name = p.basename(file.path);
+            final isImg = _isImageExt(name);
+            if (isImg && !includeImages) return;
+            if (!isImg && !includeNonImages) return;
+            int bytes = 0;
+            DateTime modifiedAt = DateTime.fromMillisecondsSinceEpoch(0);
             try {
-              bytes = await ent.length();
-            } catch (_) {}
-          }
-          out.add(
-            StorageFileEntry(
-              path: ent.path,
-              name: name,
-              bytes: bytes,
-              modifiedAt: modifiedAt,
-            ),
-          );
-        }
-      } catch (_) {
-        // Ignore listing errors and return partial results.
+              final stat = await file.stat();
+              bytes = stat.size;
+              modifiedAt = stat.modified;
+            } catch (_) {
+              try {
+                bytes = await file.length();
+              } catch (_) {}
+            }
+            out.add(
+              StorageFileEntry(
+                path: file.path,
+                name: name,
+                bytes: bytes,
+                modifiedAt: modifiedAt,
+              ),
+            );
+          },
+        );
+      } catch (e) {
+        debugPrint(
+          'StorageUsageService: failed to list upload dir ${d.path}: $e',
+        );
       }
     }
 
@@ -876,7 +910,11 @@ abstract final class StorageUsageService {
           await f.delete();
           deleted += 1;
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint(
+          'StorageUsageService.deleteUploadFiles: failed to delete $raw: $e',
+        );
+      }
     }
     return deleted;
   }
@@ -891,7 +929,10 @@ abstract final class StorageUsageService {
   /// - 'tmp_cache':    real iOS tmp dir (empty on other platforms)
   ///
   /// Sorted by size descending (largest first). Unknown ids return an empty
-  /// list. Unreadable entries or dirs are skipped, never thrown.
+  /// list. Unreadable subdirectories are logged and skipped while their
+  /// siblings keep being traversed (see [_listFilesTolerantly]); a failure
+  /// to list the root itself is logged and the partial results are returned,
+  /// never thrown.
   static Future<List<StorageFileEntry>> listCacheEntries({
     required String subcategoryId,
   }) async {
@@ -928,32 +969,36 @@ abstract final class StorageUsageService {
     if (!await root.exists()) return out;
 
     try {
-      await for (final ent in root.list(recursive: true, followLinks: false)) {
-        if (ent is! File) continue;
-        final abs = p.normalize(ent.absolute.path);
-        if (excludedRoot != null && p.isWithin(excludedRoot, abs)) continue;
-        int bytes = 0;
-        DateTime modifiedAt = DateTime.fromMillisecondsSinceEpoch(0);
-        try {
-          final stat = await ent.stat();
-          bytes = stat.size;
-          modifiedAt = stat.modified;
-        } catch (_) {
+      await _listFilesTolerantly(
+        root,
+        onFile: (file) async {
+          final abs = p.normalize(file.absolute.path);
+          if (excludedRoot != null && p.isWithin(excludedRoot, abs)) return;
+          int bytes = 0;
+          DateTime modifiedAt = DateTime.fromMillisecondsSinceEpoch(0);
           try {
-            bytes = await ent.length();
-          } catch (_) {}
-        }
-        out.add(
-          StorageFileEntry(
-            path: ent.path,
-            name: p.basename(ent.path),
-            bytes: bytes,
-            modifiedAt: modifiedAt,
-          ),
-        );
-      }
-    } catch (_) {
-      // Unreadable directory: return partial results instead of failing.
+            final stat = await file.stat();
+            bytes = stat.size;
+            modifiedAt = stat.modified;
+          } catch (_) {
+            try {
+              bytes = await file.length();
+            } catch (_) {}
+          }
+          out.add(
+            StorageFileEntry(
+              path: file.path,
+              name: p.basename(file.path),
+              bytes: bytes,
+              modifiedAt: modifiedAt,
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint(
+        'StorageUsageService: failed to list cache dir ${root.path}: $e',
+      );
     }
 
     out.sort((a, b) {
@@ -1015,7 +1060,11 @@ abstract final class StorageUsageService {
           await f.delete();
           deleted += 1;
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint(
+          'StorageUsageService.deleteCacheFiles: failed to delete $raw: $e',
+        );
+      }
     }
     return deleted;
   }

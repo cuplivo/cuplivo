@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -152,6 +153,70 @@ void main() {
 
     debugDefaultTargetPlatformOverride = null;
   });
+
+  testWidgets(
+    'conflict priority picker sends the chosen syncPriority in the plan '
+    'request',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      String? planBody;
+      final client = MockClient((request) async {
+        if (request.url.path == '/sync/plan') {
+          planBody = request.body;
+          // Modern server: echo the accepted direction back.
+          final sent = jsonDecode(request.body) as Map<String, dynamic>;
+          final echo = sent['syncPriority'] as String?;
+          return http.Response(
+            jsonEncode({
+              'conversations': <dynamic>[],
+              'missingAssistantIds': <dynamic>[],
+              'remoteMissingAssistantIds': <dynamic>[],
+              'since': null,
+              if (echo != null) 'syncPriority': echo,
+            }),
+            200,
+          );
+        }
+        return http.Response('Not found', 404);
+      });
+
+      await openSheet(tester, client);
+
+      // Picker is visible pre-negotiate and defaults to auto.
+      expect(find.text('Conflict resolution'), findsOneWidget);
+      await tester.tap(find.text('This device wins'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      expect(planBody, isNotNull);
+      expect(
+        planBody,
+        contains('"syncPriority":"initiatorWins"'),
+        reason: 'chosen direction must ride the plan request',
+      );
+
+      // Confirmed direction + zero chat/file delta → the plan summary shows
+      // the forced settings-exchange note instead of "No changes to sync.".
+      expect(
+        find.text('No changes to sync.'),
+        findsNothing,
+        reason: 'forced settings exchange is a real sync',
+      );
+      expect(
+        find.text('Conflict direction chosen: settings will be exchanged.'),
+        findsOneWidget,
+      );
+
+      // After negotiate the picker is locked (choice fixed per session).
+      await tester.tap(find.text('Peer wins'));
+      await tester.pumpAndSettle();
+      expect(find.text('Peer wins'), findsOneWidget);
+
+      debugDefaultTargetPlatformOverride = null;
+    },
+  );
 
   group('shared LAN sync builders', () {
     /// Renders the output of a shared builder against the real l10n/theme.

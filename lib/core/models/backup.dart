@@ -128,6 +128,16 @@ class BackupContentScope {
   );
 }
 
+/// Conflict-direction for a merge restore (issue #615, LAN sync only).
+///
+/// Role-relative, derived per side from the wire's absolute [SyncPriority]:
+/// `localWins` keeps the device's own copy on id-conflicts (peer-exclusive
+/// data still merges in), `incomingWins` adopts the peer copy (local-exclusive
+/// data is kept). `auto` = the incumbent fixed-policy merge — the default for
+/// every non-LAN-sync caller (backup page, importers, S3, WebDAV) and the
+/// exact behavior those callers have today.
+enum ConflictPrecedence { auto, localWins, incomingWins }
+
 class WebDavConfig {
   final String url;
   final String username;

@@ -52,6 +52,13 @@ class IncrementalBackupConfig {
   /// the zip packer. Null → legacy mtime filter (normal backups / old peers).
   final Set<String>? includeFilePaths;
 
+  /// LAN-sync metadata-only conversations (issue #615 category D): the
+  /// conversation ROW is exported (so the merge can apply the chosen conflict
+  /// direction to title/isPinned/assistantId/summary …) but its MESSAGES are
+  /// deliberately excluded — identical message-ID lists must neither duplicate
+  /// nor drop anything. Only meaningful alongside [conversationSince].
+  final Set<String>? metadataOnlyConversationIds;
+
   const IncrementalBackupConfig({
     required this.since,
     this.includeSettings = true,
@@ -61,6 +68,7 @@ class IncrementalBackupConfig {
     this.contentScope,
     this.conversationSince,
     this.includeFilePaths,
+    this.metadataOnlyConversationIds,
   });
 
   /// The unified scope for this incremental run. Legacy fields map as:

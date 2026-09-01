@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
@@ -106,9 +107,19 @@ class LanSyncServer extends ChangeNotifier {
   /// the zip then falls back to the single global `since`.
   Map<String, DateTime?>? _exchangeConversationSince;
 
+  /// Conversations whose message-ID lists are identical but whose rows differ
+  /// (category D): their row ships in round 2 without its messages, so the
+  /// chosen conflict direction reaches the merge.
+  Set<String> _exchangeMetadataOnlyConversationIds = const {};
+
   /// The server's outbound file delta (zip-entry paths to pack). Null when the
   /// initiator is an old peer → `since`-based file packing.
   Set<String>? _serverOutboundDelta;
+
+  /// The initiator's chosen conflict direction for this session (issue #615).
+  /// Read from the plan request; null = auto / old peer.
+  SyncPriority? _initiatorPriority;
+  SyncPriority? get initiatorPriority => _initiatorPriority;
 
   LanSyncServer({required this._chatService, required this._dataSync});
 
@@ -151,6 +162,7 @@ class LanSyncServer extends ChangeNotifier {
     _receivedZip = null;
     _restoreProgress = null;
     _restoreError = null;
+    _initiatorPriority = null;
     notifyListeners();
   }
 
@@ -214,6 +226,8 @@ class LanSyncServer extends ChangeNotifier {
     final body = await _readBody(request);
     final index = SyncIndex.fromJsonString(body);
 
+    _initiatorPriority = index.syncPriority;
+
     // Build the server's own index.
     final myConversations = _chatService.getAllCompleteConversations();
     final myAssistantIds = (await _chatService.getAllAssistants())
@@ -263,7 +277,9 @@ class LanSyncServer extends ChangeNotifier {
       final tmpDir = await _getTempDir();
       final receivedPath = p.join(
         tmpDir.path,
-        'lan_sync_received_${DateTime.now().millisecondsSinceEpoch}.zip',
+        'lan_sync_received_'
+        '${DateTime.now().microsecondsSinceEpoch}_'
+        '${Random().nextInt(0xFFFFFF).toRadixString(16)}.zip',
       );
       receivedFile = File(receivedPath);
       await receivedFile.writeAsBytes(zipPart);
@@ -288,24 +304,61 @@ class LanSyncServer extends ChangeNotifier {
     // Build the server's incremental zip.
     // Modern peer (manifest present): exact per-file delta + per-conversation
     // chat window from the retained plan. Old peer: legacy single-`since`
-    // mtime/chat filter. No zip at all when there is nothing to send.
+    // mtime/chat filter. No zip at all when there is nothing to send —
+    // EXCEPT a non-auto sync priority session (the initiator accepted a
+    // conflict direction): the CONFIRMED session ships settings/assistants
+    // on BOTH sides, so the chosen direction actually reaches the merge
+    // (issue #615 P1). Our own delta carries settings; no delta of ours
+    // still builds a settings-only payload. Whether the INITIATOR has a
+    // delta is never a reason to suppress our side.
     final cfg = const WebDavConfig();
     File? myZip;
     final outboundDelta = _serverOutboundDelta;
-    final hasSomethingToSend =
+    // Null when empty: a non-null set switches the export to per-conversation
+    // mode, which would otherwise skip every conversation.
+    final retained = _exchangeMetadataOnlyConversationIds;
+    final metadataOnlyIds = retained.isEmpty ? null : retained;
+    // THIS side's delta only (server chat window / server file delta).
+    final hasChatOrFileDelta =
         _exchangeSince != null ||
         (outboundDelta != null && outboundDelta.isNotEmpty);
-    if (hasSomethingToSend) {
-      final incremental = IncrementalBackupConfig(
-        since: _exchangeSince ?? since ?? DateTime(2000),
-        // Settings (including assistants and providers) ride settings.json;
-        // merge restore unions them on the receiving side (issue #476).
-        includeSettings: true,
-        includeFiles: true,
-        updateBackupTime: false,
-        conversationSince: _exchangeConversationSince,
-        includeFilePaths: outboundDelta,
-      );
+    final forceSettingsExchange =
+        !hasChatOrFileDelta && _initiatorPriority != null;
+    if (hasChatOrFileDelta || forceSettingsExchange) {
+      final incremental = forceSettingsExchange
+          ? IncrementalBackupConfig(
+              since: DateTime(2000),
+              // Settings (and assistants — they ride the chats bit) are the
+              // whole payload; no chats (empty per-conversation window) and
+              // no file trees have anything to send in this session.
+              includeSettings: true,
+              includeFiles: false,
+              updateBackupTime: false,
+              contentScope: const BackupContentScope(
+                chatsAndAssistants: true,
+                settings: true,
+                attachments: false,
+                workspaces: false,
+                skills: false,
+                fontsAndAvatars: false,
+              ),
+              conversationSince: const {},
+              includeFilePaths: null,
+              // Category D: metadata-only rows still ship (without messages).
+              metadataOnlyConversationIds: metadataOnlyIds,
+            )
+          : IncrementalBackupConfig(
+              since: _exchangeSince ?? since ?? DateTime(2000),
+              // Settings (including assistants and providers) ride
+              // settings.json; merge restore unions them on the receiving
+              // side (issue #476).
+              includeSettings: true,
+              includeFiles: true,
+              updateBackupTime: false,
+              conversationSince: _exchangeConversationSince,
+              includeFilePaths: outboundDelta,
+              metadataOnlyConversationIds: metadataOnlyIds,
+            );
       myZip = await _dataSync.exportToFile(cfg, incremental: incremental);
     }
 
@@ -424,14 +477,26 @@ class LanSyncServer extends ChangeNotifier {
 
     // Attach each conversation's own since for the per-conversation chat
     // export (null = one-sided conversation, exported in full; identical
-    // conversations are skipped by the transport).
+    // conversations are skipped by the transport). Category D (issue #615):
+    // in a confirmed-direction session, identical message-ID lists with
+    // differing rows are flagged so both peers ship the row without messages.
     final conversationSince = <String, DateTime?>{};
+    final metadataOnlyIds = <String>{};
     final plansWithSince = <SyncConvPlan>[];
     for (final plan in plans) {
       final forkId = plan.forkPointMessageId;
       final convSince = plan.state == SyncConvState.identical || forkId == null
           ? null
           : forkTsCache[plan.conversationId];
+      final metadataOnly = conversationIsMetadataOnlyConflict(
+        plan: plan,
+        theirRowJson: initiatorIndex.conversationRows?[plan.conversationId],
+        myRowJson: myConvsById[plan.conversationId]?.toJson(),
+        hasConfirmedDirection: initiatorIndex.syncPriority != null,
+      );
+      if (metadataOnly) {
+        metadataOnlyIds.add(plan.conversationId);
+      }
       if (plan.state != SyncConvState.identical) {
         conversationSince[plan.conversationId] = convSince;
       }
@@ -444,6 +509,7 @@ class LanSyncServer extends ChangeNotifier {
           initiatorIncrementCount: plan.initiatorIncrementCount,
           serverIncrementCount: plan.serverIncrementCount,
           since: convSince,
+          metadataOnly: metadataOnly,
         ),
       );
     }
@@ -476,6 +542,7 @@ class LanSyncServer extends ChangeNotifier {
         ? conversationSince
         : null;
     _serverOutboundDelta = peerManifest != null ? outboundDelta : null;
+    _exchangeMetadataOnlyConversationIds = metadataOnlyIds;
 
     // Assistant set differences.
     final theirSet = initiatorIndex.assistantIds.toSet();
@@ -491,6 +558,11 @@ class LanSyncServer extends ChangeNotifier {
       serverFileCount: serverFileCount,
       serverFileSizeBytes: serverFileSizeBytes,
       serverFileManifest: peerManifest != null ? localManifest : null,
+      // Echo the accepted direction (issue #615 mixed-version symmetry):
+      // the initiator only applies its choice when the server echoes an
+      // identical non-null value — an old server (or an unknown value that
+      // degraded to auto) echoes null and both sides fall back to auto.
+      syncPriority: initiatorIndex.syncPriority,
     );
   }
 

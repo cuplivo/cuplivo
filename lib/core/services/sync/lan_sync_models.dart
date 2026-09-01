@@ -1,5 +1,9 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
+import '../../models/backup.dart';
+
 /// The current protocol phase of a LAN sync peer (server or client).
 ///
 /// UI-facing only: the widgets map a phase to a localized status line.
@@ -47,6 +51,50 @@ class FileManifestEntry {
   }
 }
 
+/// Per-session conflict-direction bit chosen by the initiator (issue #615).
+///
+/// Absolute, role-based: `initiatorWins` means "the device that started this
+/// sync keeps its copy on conflicts"; `serverWins` means "the listening device
+/// keeps its copy". Each side derives its role-relative
+/// [ConflictPrecedence] (localWins / incomingWins) from this value. Null /
+/// absent on the wire = auto (current fixed-policy merge, zero change).
+/// Old peers ignore the unknown field and degrade to auto silently.
+enum SyncPriority {
+  initiatorWins,
+  serverWins;
+
+  /// Parses the wire value. Unknown values degrade to null (auto) instead of
+  /// throwing: a newer peer introducing a future mode must not break the plan
+  /// request on an older build — symmetric with "absent field = auto".
+  static SyncPriority? tryParse(String? raw) {
+    if (raw == null) return null;
+    for (final value in SyncPriority.values) {
+      if (value.name == raw) return value;
+    }
+    debugPrint(
+      'lan sync: unknown syncPriority value "$raw", degrading to auto',
+    );
+    return null;
+  }
+}
+
+/// Resolves the role-relative restore precedence for this device.
+///
+/// [isInitiator] is true when this device started the sync; [priority] is the
+/// session's absolute choice (wire value). Null -> auto. The rule: local wins
+/// iff the absolute winner IS this device.
+ConflictPrecedence resolveSyncPrecedence(
+  SyncPriority? priority, {
+  required bool isInitiator,
+}) {
+  if (priority == null) return ConflictPrecedence.auto;
+  final thisDeviceWins =
+      (priority == SyncPriority.initiatorWins) == isInitiator;
+  return thisDeviceWins
+      ? ConflictPrecedence.localWins
+      : ConflictPrecedence.incomingWins;
+}
+
 /// Index sent from the initiator (device A) to the server (device B) in round 1.
 ///
 /// Contains per-conversation message IDs (ordered by messageOrder), the
@@ -62,16 +110,31 @@ class SyncIndex {
   /// `since`-based packing path.
   final Map<String, FileManifestEntry>? fileManifest;
 
+  /// The initiator's conversation rows (id → `Conversation.toJson`), so a
+  /// modern server can detect metadata-only conflicts (identical message-ID
+  /// lists, different row fields — category D) in confirmed-direction
+  /// sessions. Null when sent by an old peer — the receiver then degrades
+  /// to message-ID-only planning.
+  final Map<String, Map<String, dynamic>>? conversationRows;
+
+  /// The initiator's chosen conflict direction for this sync session.
+  /// Null = auto/absent (old peer or no choice made).
+  final SyncPriority? syncPriority;
+
   const SyncIndex({
     required this.conversations,
     required this.assistantIds,
     this.fileManifest,
+    this.conversationRows,
+    this.syncPriority,
   });
 
   Map<String, dynamic> toJson() => {
     'conversations': conversations,
     'assistantIds': assistantIds,
     'fileManifest': fileManifest?.map((k, v) => MapEntry(k, v.toJson())),
+    if (conversationRows != null) 'conversationRows': conversationRows,
+    if (syncPriority != null) 'syncPriority': syncPriority!.name,
   };
 
   String toJsonString() => jsonEncode(toJson());
@@ -82,6 +145,8 @@ class SyncIndex {
       (k, v) => MapEntry(k, (v as List).cast<String>()),
     );
     final manifestRaw = json['fileManifest'] as Map<String, dynamic>?;
+    final rowsRaw = json['conversationRows'] as Map<String, dynamic>?;
+    final rawPriority = json['syncPriority'] as String?;
     return SyncIndex(
       conversations: conversations,
       assistantIds: (json['assistantIds'] as List).cast<String>(),
@@ -91,6 +156,10 @@ class SyncIndex {
           FileManifestEntry.fromJson((v as Map).cast<String, dynamic>()),
         ),
       ),
+      conversationRows: rowsRaw?.map(
+        (k, v) => MapEntry(k, (v as Map).cast<String, dynamic>()),
+      ),
+      syncPriority: SyncPriority.tryParse(rawPriority),
     );
   }
 
@@ -138,6 +207,13 @@ class SyncConvPlan {
   /// and is exported in full).
   final DateTime? since;
 
+  /// Category D (issue #615): the message-ID lists are identical but the
+  /// conversation row differs (title, isPinned, assistantId, summary, …).
+  /// Confirmed-direction sessions ship the row (without its messages) so the
+  /// winner's metadata reaches the merge. False for message-diff states — a
+  /// forked/one-sided payload always carries its row anyway.
+  final bool metadataOnly;
+
   const SyncConvPlan({
     required this.conversationId,
     this.conversationTitle,
@@ -146,6 +222,7 @@ class SyncConvPlan {
     required this.initiatorIncrementCount,
     required this.serverIncrementCount,
     this.since,
+    this.metadataOnly = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -156,6 +233,7 @@ class SyncConvPlan {
     'initiatorIncrementCount': initiatorIncrementCount,
     'serverIncrementCount': serverIncrementCount,
     'since': since?.toIso8601String(),
+    'metadataOnly': metadataOnly,
   };
 
   static SyncConvPlan fromJson(Map<String, dynamic> json) {
@@ -168,6 +246,7 @@ class SyncConvPlan {
       initiatorIncrementCount: json['initiatorIncrementCount'] as int,
       serverIncrementCount: json['serverIncrementCount'] as int,
       since: sinceStr != null ? DateTime.parse(sinceStr) : null,
+      metadataOnly: json['metadataOnly'] as bool? ?? false,
     );
   }
 }
@@ -198,6 +277,13 @@ class SyncPlan {
   /// outbound per-file delta. Null when the peer is old (`since`-based flow).
   final Map<String, FileManifestEntry>? serverFileManifest;
 
+  /// The server's echo of the initiator's [SyncIndex.syncPriority] (issue
+  /// #615): non-null only when this server READ and accepted the sent value.
+  /// The initiator applies its chosen direction only after receiving an
+  /// identical echo — a mixed-version session (old server ignores the field)
+  /// must fall back to auto on BOTH sides, never apply asymmetric rules.
+  final SyncPriority? syncPriority;
+
   /// Convenience: total conversations with initiator-only increments.
   int get initiatorOnlyCount =>
       conversations.where((c) => c.state == SyncConvState.initiatorOnly).length;
@@ -210,6 +296,11 @@ class SyncPlan {
   int get forkCount =>
       conversations.where((c) => c.state == SyncConvState.fork).length;
 
+  /// Convenience: total metadata-only conflicts (identical message lists,
+  /// differing conversation rows).
+  int get metadataOnlyCount =>
+      conversations.where((c) => c.metadataOnly).length;
+
   const SyncPlan({
     required this.conversations,
     required this.missingAssistantIds,
@@ -218,6 +309,7 @@ class SyncPlan {
     this.serverFileCount,
     this.serverFileSizeBytes,
     this.serverFileManifest,
+    this.syncPriority,
   });
 
   Map<String, dynamic> toJson() => {
@@ -231,6 +323,7 @@ class SyncPlan {
       'serverFileManifest': serverFileManifest!.map(
         (k, v) => MapEntry(k, v.toJson()),
       ),
+    if (syncPriority != null) 'syncPriority': syncPriority!.name,
   };
 
   String toJsonString() => jsonEncode(toJson());
@@ -241,6 +334,7 @@ class SyncPlan {
         .toList();
     final sinceStr = json['since'] as String?;
     final manifestRaw = json['serverFileManifest'] as Map<String, dynamic>?;
+    final rawPriority = json['syncPriority'] as String?;
     return SyncPlan(
       conversations: convs,
       missingAssistantIds: (json['missingAssistantIds'] as List).cast<String>(),
@@ -255,6 +349,7 @@ class SyncPlan {
           FileManifestEntry.fromJson((v as Map).cast<String, dynamic>()),
         ),
       ),
+      syncPriority: SyncPriority.tryParse(rawPriority),
     );
   }
 

@@ -4905,6 +4905,42 @@ abstract class AppLocalizations {
   /// **'Start Sync'**
   String get lanSyncClientConfirm;
 
+  /// No description provided for @lanSyncPriorityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflict resolution'**
+  String get lanSyncPriorityLabel;
+
+  /// No description provided for @lanSyncPriorityAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto (default merge)'**
+  String get lanSyncPriorityAuto;
+
+  /// No description provided for @lanSyncPriorityInitiatorWins.
+  ///
+  /// In en, this message translates to:
+  /// **'This device wins'**
+  String get lanSyncPriorityInitiatorWins;
+
+  /// No description provided for @lanSyncPriorityServerWins.
+  ///
+  /// In en, this message translates to:
+  /// **'Peer wins'**
+  String get lanSyncPriorityServerWins;
+
+  /// No description provided for @lanSyncPeerPriorityInitiatorWins.
+  ///
+  /// In en, this message translates to:
+  /// **'Peer chose \"This device wins\": conflicting data will follow the peer\'s copy.'**
+  String get lanSyncPeerPriorityInitiatorWins;
+
+  /// No description provided for @lanSyncPeerPriorityServerWins.
+  ///
+  /// In en, this message translates to:
+  /// **'Peer chose \"Peer wins\": conflicting data will keep this device\'s copy.'**
+  String get lanSyncPeerPriorityServerWins;
+
   /// No description provided for @lanSyncClientExchanging.
   ///
   /// In en, this message translates to:
@@ -4958,6 +4994,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No changes to sync.'**
   String get lanSyncPlanNoChanges;
+
+  /// No description provided for @lanSyncPlanPrioritySettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflict direction chosen: settings will be exchanged.'**
+  String get lanSyncPlanPrioritySettings;
 
   /// No description provided for @lanSyncPlanToSendFiles.
   ///

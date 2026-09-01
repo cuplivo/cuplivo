@@ -84,6 +84,82 @@ SyncConvPlan computeConvPlan(ConvPlanInput input) {
   );
 }
 
+/// Row keys that never participate in metadata-conflict detection: `id` and
+/// `createdAt` are immutable identity, `messageIds` are already proven
+/// identical by the message-ID-list comparison, and `updatedAt` must not
+/// fabricate a conflict — it simply drifts with sync order across devices.
+const Set<String> metadataExcludedRowKeys = {
+  'id',
+  'createdAt',
+  'updatedAt',
+  'messageIds',
+};
+
+/// Deep equality for the row values compared by [conversationMetadataConflict]
+/// (nested maps/lists compare by content, not identity — e.g.
+/// `versionSelections`, `workspaceDirectoryOverrides`, `chatSuggestions`).
+bool _deepEquals(Object? a, Object? b) {
+  if (identical(a, b)) return true;
+  if (a is Map && b is Map) {
+    if (a.length != b.length) return false;
+    for (final entry in a.entries) {
+      if (!b.containsKey(entry.key)) return false;
+      if (!_deepEquals(entry.value, b[entry.key])) return false;
+    }
+    return true;
+  }
+  if (a is List && b is List) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!_deepEquals(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  return a == b;
+}
+
+/// Whether two serialized conversation rows differ as user-meaningful
+/// metadata (category D, issue #615). Excludes [metadataExcludedRowKeys].
+/// Missing keys only compare against present keys when the other side is
+/// missing them too — a one-sided extra field is still a difference.
+bool conversationMetadataConflict(
+  Map<String, dynamic> a,
+  Map<String, dynamic> b,
+) {
+  for (final key in a.keys) {
+    if (metadataExcludedRowKeys.contains(key)) continue;
+    if (!b.containsKey(key) || !_deepEquals(a[key], b[key])) return true;
+  }
+  for (final key in b.keys) {
+    if (metadataExcludedRowKeys.contains(key)) continue;
+    if (!a.containsKey(key)) return true;
+  }
+  return false;
+}
+
+/// Whether a conversation is a metadata-only conflict worth shipping its row
+/// in round 2 (issue #615 category D).
+///
+/// All conditions must hold: the session has a confirmed non-auto direction
+/// (auto sessions stay byte-identical — no payload shape change), the
+/// message-ID lists are identical (forked/one-sided rows already ride their
+/// delta payload), both sides' row JSONs are available (modern peers), the
+/// conversation is not a group (group payloads carry group metadata), and the
+/// rows actually differ under [conversationMetadataConflict].
+bool conversationIsMetadataOnlyConflict({
+  required SyncConvPlan plan,
+  required Map<String, dynamic>? theirRowJson,
+  required Map<String, dynamic>? myRowJson,
+  required bool hasConfirmedDirection,
+}) {
+  if (!hasConfirmedDirection) return false;
+  if (plan.state != SyncConvState.identical) return false;
+  if (plan.metadataOnly) return false;
+  if (theirRowJson == null || myRowJson == null) return false;
+  if (myRowJson['conversationKind'] == 'group') return false;
+  return conversationMetadataConflict(theirRowJson, myRowJson);
+}
+
 /// Computes the earliest `since` timestamp from a list of conversation plans
 /// and a timestamp lookup function.
 ///

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:Cuplivo/core/models/backup.dart';
 import 'package:Cuplivo/core/services/sync/lan_sync_models.dart';
 
 void main() {
@@ -121,6 +122,53 @@ void main() {
       expect(restored.since, isNull);
     });
 
+    test('SyncConvPlan metadataOnly round-trips and defaults to false', () {
+      final flagged = SyncConvPlan.fromJson(
+        Map<String, dynamic>.from(
+          const SyncConvPlan(
+            conversationId: 'c1',
+            state: SyncConvState.identical,
+            initiatorIncrementCount: 0,
+            serverIncrementCount: 0,
+            metadataOnly: true,
+          ).toJson(),
+        ),
+      );
+      expect(flagged.metadataOnly, isTrue);
+      expect(
+        SyncConvPlan.fromJson({
+          'conversationId': 'c1',
+          'state': 'identical',
+          'forkPointMessageId': null,
+          'initiatorIncrementCount': 0,
+          'serverIncrementCount': 0,
+        }).metadataOnly,
+        isFalse,
+        reason: 'old-format JSON without the field degrades to false',
+      );
+    });
+
+    test('SyncIndex conversationRows round-trips and defaults to null', () {
+      final original = SyncIndex(
+        conversations: {
+          'c1': ['m1'],
+        },
+        assistantIds: const ['a1'],
+        conversationRows: {
+          'c1': {'title': 'Chat 1', 'isPinned': false},
+        },
+      );
+      final restored = SyncIndex.fromJsonString(original.toJsonString());
+      expect(restored.conversationRows?['c1']?['title'], 'Chat 1');
+      expect(
+        SyncIndex.fromJsonString(
+          '{"conversations":{"c1":["m1"]},"assistantIds":[],"fileManifest":null}',
+        ).conversationRows,
+        isNull,
+        reason: 'old-format JSON without conversationRows degrades to null',
+      );
+    });
+
     test('SyncPlan round-trips serverFileManifest', () {
       final original = SyncPlan(
         conversations: const [],
@@ -144,6 +192,119 @@ void main() {
       );
       final restored = SyncPlan.fromJsonString(original.toJsonString());
       expect(restored.serverFileManifest, isNull);
+    });
+  });
+
+  group('SyncPriority (issue #615)', () {
+    SyncIndex index({SyncPriority? priority}) => SyncIndex(
+      conversations: {
+        'c1': ['m1'],
+      },
+      assistantIds: const ['a1'],
+      syncPriority: priority,
+    );
+
+    test('round-trips initiatorWins / serverWins', () {
+      for (final priority in [
+        SyncPriority.initiatorWins,
+        SyncPriority.serverWins,
+      ]) {
+        final restored = SyncIndex.fromJsonString(
+          index(priority: priority).toJsonString(),
+        );
+        expect(restored.syncPriority, priority);
+      }
+    });
+
+    test('null (auto) serializes without the key and parses as null', () {
+      final json = index().toJsonString();
+      expect(json, isNot(contains('syncPriority')));
+      expect(SyncIndex.fromJsonString(json).syncPriority, isNull);
+    });
+
+    test('old-format JSON without syncPriority parses as null', () {
+      final raw = jsonEncode({
+        'conversations': {
+          'c1': ['m1'],
+        },
+        'assistantIds': ['a1'],
+        'fileManifest': null,
+      });
+      expect(SyncIndex.fromJsonString(raw).syncPriority, isNull);
+    });
+
+    test('unknown syncPriority value degrades to auto (forward-compat)', () {
+      final raw = jsonEncode({
+        'conversations': {
+          'c1': ['m1'],
+        },
+        'assistantIds': ['a1'],
+        'syncPriority': 'bogus',
+      });
+      expect(SyncIndex.fromJsonString(raw).syncPriority, isNull);
+    });
+
+    test('resolveSyncPrecedence derives the role-relative direction', () {
+      expect(
+        resolveSyncPrecedence(null, isInitiator: true),
+        ConflictPrecedence.auto,
+      );
+      expect(
+        resolveSyncPrecedence(null, isInitiator: false),
+        ConflictPrecedence.auto,
+      );
+      expect(
+        resolveSyncPrecedence(SyncPriority.initiatorWins, isInitiator: true),
+        ConflictPrecedence.localWins,
+      );
+      expect(
+        resolveSyncPrecedence(SyncPriority.initiatorWins, isInitiator: false),
+        ConflictPrecedence.incomingWins,
+      );
+      expect(
+        resolveSyncPrecedence(SyncPriority.serverWins, isInitiator: true),
+        ConflictPrecedence.incomingWins,
+      );
+      expect(
+        resolveSyncPrecedence(SyncPriority.serverWins, isInitiator: false),
+        ConflictPrecedence.localWins,
+      );
+    });
+  });
+
+  group('SyncPlan syncPriority echo (issue #615)', () {
+    SyncPlan plan({SyncPriority? echo}) => SyncPlan(
+      conversations: const [],
+      missingAssistantIds: const [],
+      remoteMissingAssistantIds: const [],
+      since: null,
+      syncPriority: echo,
+    );
+
+    test('round-trips the echo', () {
+      final restored = SyncPlan.fromJsonString(
+        plan(echo: SyncPriority.serverWins).toJsonString(),
+      );
+      expect(restored.syncPriority, SyncPriority.serverWins);
+    });
+
+    test('absence serializes no key and parses as null (old peer)', () {
+      final json = plan().toJsonString();
+      expect(json, isNot(contains('syncPriority')));
+      expect(SyncPlan.fromJsonString(json).syncPriority, isNull);
+    });
+
+    test('unknown echo value degrades to null (auto)', () {
+      final restored = SyncPlan.fromJsonString(
+        jsonEncode({
+          'conversations': <dynamic>[],
+          'missingAssistantIds': <dynamic>[],
+          'remoteMissingAssistantIds': <dynamic>[],
+          'since': null,
+          'syncPriority': 'futureMode',
+        }),
+      );
+      expect(restored.syncPriority, isNull);
     });
   });
 }

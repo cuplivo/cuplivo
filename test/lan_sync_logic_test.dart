@@ -684,4 +684,170 @@ void main() {
       expect(parts['zip'], zipData);
     });
   });
+
+  group('conversationMetadataConflict (issue #615 category D)', () {
+    Map<String, dynamic> row({
+      String title = 'Chat',
+      bool isPinned = false,
+      Map<String, int> versionSelections = const {},
+      List<String> chatSuggestions = const [],
+    }) => {
+      'id': 'c1',
+      'title': title,
+      'createdAt': '2025-01-01T00:00:00.000',
+      'updatedAt': '2025-06-01T00:00:00.000',
+      'messageIds': <String>['m1', 'm2'],
+      'isPinned': isPinned,
+      'versionSelections': versionSelections,
+      'chatSuggestions': chatSuggestions,
+    };
+
+    test('identical metadata (and volatile fields) is NOT a conflict', () {
+      expect(conversationMetadataConflict(row(), row()), isFalse);
+    });
+
+    test('title difference is a conflict', () {
+      expect(conversationMetadataConflict(row(), row(title: 'Other')), isTrue);
+    });
+
+    test('isPinned difference is a conflict', () {
+      expect(conversationMetadataConflict(row(), row(isPinned: true)), isTrue);
+    });
+
+    test('nullable summary presence is a conflict', () {
+      final a = row()..['summary'] = 'short story';
+      expect(conversationMetadataConflict(a, row()), isTrue);
+    });
+
+    test('nested map/list values compare by content, not identity', () {
+      expect(
+        conversationMetadataConflict(
+          row(versionSelections: {'g1': 2}),
+          row(versionSelections: {'g1': 2}),
+        ),
+        isFalse,
+      );
+      expect(
+        conversationMetadataConflict(
+          row(chatSuggestions: ['a', 'b']),
+          row(chatSuggestions: ['a', 'b']),
+        ),
+        isFalse,
+      );
+      expect(
+        conversationMetadataConflict(
+          row(chatSuggestions: ['a', 'b']),
+          row(chatSuggestions: ['a', 'c']),
+        ),
+        isTrue,
+      );
+    });
+
+    test('id/createdAt/updatedAt/messageIds differences alone are NOT', () {
+      final a = row()..['messageIds'] = ['m1', 'm2', 'mine'];
+      final b = row()..['updatedAt'] = '2025-07-01T00:00:00.000';
+      expect(conversationMetadataConflict(a, b), isFalse);
+    });
+
+    test('missing key on one side is a conflict', () {
+      final a = row()..remove('isPinned');
+      expect(conversationMetadataConflict(a, row()), isTrue);
+    });
+  });
+
+  group('conversationIsMetadataOnlyConflict (issue #615 category D)', () {
+    SyncConvPlan identicalPlan() => const SyncConvPlan(
+      conversationId: 'c1',
+      state: SyncConvState.identical,
+      initiatorIncrementCount: 0,
+      serverIncrementCount: 0,
+    );
+    SyncConvPlan forkPlan() => const SyncConvPlan(
+      conversationId: 'c1',
+      state: SyncConvState.fork,
+      initiatorIncrementCount: 1,
+      serverIncrementCount: 0,
+      forkPointMessageId: 'm1',
+    );
+    Map<String, dynamic> row({String title = 'Chat'}) => {
+      'id': 'c1',
+      'title': title,
+      'createdAt': '2025-01-01T00:00:00.000',
+      'updatedAt': '2025-06-01T00:00:00.000',
+      'messageIds': <String>['m1'],
+      'isPinned': false,
+    };
+
+    test('identical messages + differing rows + confirmed => conflict', () {
+      expect(
+        conversationIsMetadataOnlyConflict(
+          plan: identicalPlan(),
+          theirRowJson: row(title: 'Phone'),
+          myRowJson: row(title: 'PC'),
+          hasConfirmedDirection: true,
+        ),
+        isTrue,
+      );
+    });
+
+    test('identical rows are never a conflict', () {
+      expect(
+        conversationIsMetadataOnlyConflict(
+          plan: identicalPlan(),
+          theirRowJson: row(),
+          myRowJson: row(),
+          hasConfirmedDirection: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('auto sessions never flag (payload shape stays byte-identical)', () {
+      expect(
+        conversationIsMetadataOnlyConflict(
+          plan: identicalPlan(),
+          theirRowJson: row(title: 'Phone'),
+          myRowJson: row(title: 'PC'),
+          hasConfirmedDirection: false,
+        ),
+        isFalse,
+      );
+    });
+
+    test('fork rows ride their delta; no metadata-only flag needed', () {
+      expect(
+        conversationIsMetadataOnlyConflict(
+          plan: forkPlan(),
+          theirRowJson: row(title: 'Phone'),
+          myRowJson: row(title: 'PC'),
+          hasConfirmedDirection: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('old peer without rows degrades to no conflict', () {
+      expect(
+        conversationIsMetadataOnlyConflict(
+          plan: identicalPlan(),
+          theirRowJson: null,
+          myRowJson: row(title: 'PC'),
+          hasConfirmedDirection: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('group conversations are excluded (group payload owns metadata)', () {
+      expect(
+        conversationIsMetadataOnlyConflict(
+          plan: identicalPlan(),
+          theirRowJson: row(),
+          myRowJson: row()..['conversationKind'] = 'group',
+          hasConfirmedDirection: true,
+        ),
+        isFalse,
+      );
+    });
+  });
 }

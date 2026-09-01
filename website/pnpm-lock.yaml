@@ -10,12 +10,9 @@ importers:
 
   apps/helper:
     dependencies:
-      '@sqlite.org/sqlite-wasm':
-        specifier: 3.49.2-build1
-        version: 3.49.2-build1
-      jszip:
-        specifier: ^3.10.1
-        version: 3.10.1
+      helper-core:
+        specifier: workspace:*
+        version: link:../../packages/core
     devDependencies:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^6.0.0
@@ -23,6 +20,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.1.0
         version: 4.3.3(vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.9))
+      jszip:
+        specifier: ^3.10.1
+        version: 3.10.1
       svelte:
         specifier: ^5.0.0
         version: 5.56.8
@@ -32,15 +32,28 @@ importers:
       tailwindcss:
         specifier: ^4.1.0
         version: 4.3.3
-      tsx:
-        specifier: ^4.23.9
-        version: 4.23.9
       typescript:
         specifier: ^5.5.0
         version: 5.9.3
       vite:
         specifier: ^7.0.0
         version: 7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.9)
+
+  packages/core:
+    dependencies:
+      '@sqlite.org/sqlite-wasm':
+        specifier: 3.49.2-build1
+        version: 3.49.2-build1
+      jszip:
+        specifier: ^3.10.1
+        version: 3.10.1
+    devDependencies:
+      tsx:
+        specifier: ^4.23.9
+        version: 4.23.9
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
 
 packages:
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import ZipDropzone from '../lib/ui/ZipDropzone.svelte';
-  import { runRecovery, RECOVERY_ASSISTANT_NAME, type RecoveryResult } from '../lib/kelivo/recovery';
-  import { loadZip, downloadBlob } from '../lib/zip';
+  import { runRecovery, RECOVERY_ASSISTANT_NAME, type RecoveryResult } from 'helper-core/kelivo/recovery';
+  import { loadZip, downloadBlob } from 'helper-core/zip';
 
   let processing = $state(false);
   let error = $state<string | null>(null);

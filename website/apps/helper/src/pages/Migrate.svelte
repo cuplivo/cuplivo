@@ -1,9 +1,9 @@
 <script lang="ts">
   import type JSZip from 'jszip';
   import ZipDropzone from '../lib/ui/ZipDropzone.svelte';
-  import { migrateRikkaHubToKelivo } from '../lib/migrate';
-  import { loadZip, downloadBlob, downloadText } from '../lib/zip';
-  import { reportToMarkdown, type MigrationReport } from '../lib/report';
+  import { migrateRikkaHubToKelivo } from 'helper-core/migrate';
+  import { loadZip, downloadBlob, downloadText } from 'helper-core/zip';
+  import { reportToMarkdown, type MigrationReport } from 'helper-core/report';
 
   let processing = $state(false);
   let error = $state<string | null>(null);

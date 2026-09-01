@@ -1,9 +1,9 @@
 <script lang="ts">
   import type JSZip from 'jszip';
   import ZipDropzone from '../lib/ui/ZipDropzone.svelte';
-  import { compatKelivoToCuplivo } from '../lib/compat';
-  import { loadZip, downloadBlob, downloadText } from '../lib/zip';
-  import { compatReportToMarkdown, type CompatReport } from '../lib/compat/report';
+  import { compatKelivoToCuplivo } from 'helper-core/compat';
+  import { loadZip, downloadBlob, downloadText } from 'helper-core/zip';
+  import { compatReportToMarkdown, type CompatReport } from 'helper-core/compat/report';
 
   let processing = $state(false);
   let error = $state<string | null>(null);

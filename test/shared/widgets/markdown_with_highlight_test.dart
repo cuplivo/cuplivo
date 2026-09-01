@@ -2236,6 +2236,69 @@ A-->B
     },
   );
 
+  testWidgets(
+    r'MarkdownWithCodeHighlight renders nested ovalbox and operatorname expressions',
+    (tester) async {
+      await tester.pumpWidget(
+        _markdownHarness(r'''
+标签\(\textbf{\small\colorbox{white}{\textcolor{#AEC6CF}{\ovalbox{\textcolor{#AEC6CF}{\textbf{示例文字}}}}}}\) 
+函数\(\operatorname{Function}\left(x\right)\)
+'''),
+      );
+      await tester.pump();
+
+      final mathWidgets = _mathWidgets(tester);
+      expect(mathWidgets, hasLength(2));
+      expect(
+        mathWidgets.map((widget) => widget.parseError),
+        everyElement(isNull),
+      );
+      expect(find.textContaining(r'\ovalbox'), findsNothing);
+      expect(find.textContaining(r'\operatorname'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    r'MarkdownWithCodeHighlight parses operatorname with scripts and limits',
+    (tester) async {
+      await tester.pumpWidget(
+        _markdownHarness(
+          r'$\operatorname{lim}_{x\to 0}$ 与 $\operatorname{sin}^2 x$',
+        ),
+      );
+      await tester.pump();
+
+      final mathWidgets = _mathWidgets(tester);
+      expect(mathWidgets, hasLength(2));
+      expect(
+        mathWidgets.map((widget) => widget.parseError),
+        everyElement(isNull),
+      );
+      expect(find.textContaining(r'\operatorname'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'display math block overlays the chat background without an opaque plate',
+    (tester) async {
+      await tester.pumpWidget(_markdownHarness(r'$$E = mc^2$$'));
+      await tester.pump();
+
+      expect(
+        find.ancestor(
+          of: _findMathWidget(),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Container &&
+                widget.color == Colors.transparent &&
+                widget.padding == const EdgeInsets.all(4),
+          ),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('MarkdownWithCodeHighlight baseline-aligns inline math', (
     tester,
   ) async {

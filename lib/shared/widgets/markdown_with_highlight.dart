@@ -5002,7 +5002,6 @@ class _LatexMathBlockState extends State<_LatexMathBlock> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final isDesktop = _markdownMathTargetPlatformIsDesktop();
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -5011,10 +5010,12 @@ class _LatexMathBlockState extends State<_LatexMathBlock> {
           ? (details) => _showDesktopMenu(details.globalPosition)
           : null,
       child: Container(
-        // Display-only: matches the chat surface so the box is invisible in
-        // the message. The background and padding intentionally live outside
-        // any capture boundary so they never leak into the exported PNG.
-        color: cs.surface,
+        // Fully transparent: the formula must overlay whatever sits behind it
+        // (chat surface, custom assistant background image with mask) without
+        // showing an opaque plate. The symmetric padding stays for export
+        // margins; the PNG is captured off-screen with its own transparent
+        // background, so no color is needed here.
+        color: Colors.transparent,
         padding: const EdgeInsets.all(4),
         child: _renderMath(widget.body, style: widget.style, displayMode: true),
       ),

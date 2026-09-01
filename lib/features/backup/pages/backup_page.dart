@@ -394,28 +394,32 @@ class _BackupPageState extends State<BackupPage> {
                 header(l10n.lanSyncSectionTitle),
                 const LanSyncSection(),
 
-                // ③ 数据迁移 — rare "move house" ops behind one row +
-                // grouped chooser dialog.
+                // ③ 数据迁移 — rare "move house" ops behind one row + flat
+                // chooser dialog.
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
-                  child: BackupActionRow(
-                    icon: Lucide.Import,
-                    label: l10n.backupMigrateTitle,
-                    subtitle: l10n.backupMigrateRowSubtitle,
-                    onTap: () => showBackupMigrationChooser(
-                      context,
-                      onExportKelivo: () => _doExport(
-                        context,
-                        vm,
-                        format: BackupFormat.kelivoLegacy,
+                  child: _iosSectionCard(
+                    children: [
+                      BackupActionRow(
+                        icon: Lucide.Import,
+                        label: l10n.backupMigrateTitle,
+                        subtitle: l10n.backupMigrateRowSubtitle,
+                        onTap: () => showBackupMigrationChooser(
+                          context,
+                          onExportKelivo: () => _doExport(
+                            context,
+                            vm,
+                            format: BackupFormat.kelivoLegacy,
+                          ),
+                          onImportKelivo: () =>
+                              showKelivoImportDialog(context: context),
+                          onImportRikkaHub: () =>
+                              showRikkaHubMigrateDialog(context: context),
+                          onImportCherryStudio: () => _doCherryImport(context),
+                          onImportChatbox: () => _doChatboxImport(context),
+                        ),
                       ),
-                      onImportKelivo: () =>
-                          showKelivoImportDialog(context: context),
-                      onImportRikkaHub: () =>
-                          showRikkaHubMigrateDialog(context: context),
-                      onImportCherryStudio: () => _doCherryImport(context),
-                      onImportChatbox: () => _doChatboxImport(context),
-                    ),
+                    ],
                   ),
                 ),
 
@@ -435,7 +439,7 @@ class _BackupPageState extends State<BackupPage> {
                           scope.skills,
                           scope.fontsAndAvatars,
                         ],
-                        itemsPerRow: 3,
+                        itemsPerRow: 2,
                         onChanged: (i) => _applyScopeBit(
                           context,
                           vm,
@@ -486,6 +490,18 @@ class _BackupPageState extends State<BackupPage> {
                           intervalDays: provider.intervalDays,
                           reminderMinutesOfDay: minutes,
                         );
+                      },
+                    ),
+                    _iosDivider(context),
+                    _iosSwitchRow(
+                      context,
+                      icon: Lucide.Pin,
+                      label: l10n.backupEntryAlwaysVisibleTitle,
+                      value: reminder.entryAlwaysVisible,
+                      onChanged: (value) async {
+                        await context
+                            .read<BackupReminderProvider>()
+                            .setEntryAlwaysVisible(value);
                       },
                     ),
                     if (reminder.enabled) ...[

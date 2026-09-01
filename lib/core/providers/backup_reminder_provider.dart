@@ -18,6 +18,8 @@ class BackupReminderProvider extends ChangeNotifier {
   static const String _minutesOfDayKey = 'backup_reminder_minutes_of_day_v1';
   static const String _enabledAtKey = 'backup_reminder_enabled_at_v1';
   static const String _lastBackupAtKey = 'backup_reminder_last_backup_at_v1';
+  static const String _entryAlwaysVisibleKey =
+      'backup_reminder_entry_always_v1';
 
   bool _loaded = false;
   bool _enabled = false;
@@ -26,6 +28,7 @@ class BackupReminderProvider extends ChangeNotifier {
   DateTime? _enabledAt;
   DateTime? _lastBackupAt;
   bool _shouldShowReminder = false;
+  bool _entryAlwaysVisible = true;
   Timer? _timer;
 
   bool get loaded => _loaded;
@@ -35,6 +38,10 @@ class BackupReminderProvider extends ChangeNotifier {
   DateTime? get enabledAt => _enabledAt;
   DateTime? get lastBackupAt => _lastBackupAt;
   bool get shouldShowReminder => _shouldShowReminder;
+
+  /// 首页抽屉备份入口是否常驻显示；false 时仅 [shouldShowReminder] 期间
+  /// 显示（见 side_drawer 入口行可见性门控）。
+  bool get entryAlwaysVisible => _entryAlwaysVisible;
 
   DateTime? get nextReminderAt {
     if (!_enabled || _reminderMinutesOfDay == null) return null;
@@ -54,10 +61,18 @@ class BackupReminderProvider extends ChangeNotifier {
     );
     _enabledAt = _parseDate(prefs.getString(_enabledAtKey));
     _lastBackupAt = _parseDate(prefs.getString(_lastBackupAtKey));
+    _entryAlwaysVisible = prefs.getBool(_entryAlwaysVisibleKey) ?? true;
     _loaded = true;
     evaluateDue(DateTime.now(), notify: false);
     if (startTimer) _schedule();
     notifyListeners();
+  }
+
+  Future<void> setEntryAlwaysVisible(bool value) async {
+    if (_entryAlwaysVisible == value) return;
+    _entryAlwaysVisible = value;
+    notifyListeners();
+    await _preferences.setBool(_entryAlwaysVisibleKey, value);
   }
 
   Future<void> saveSchedule({

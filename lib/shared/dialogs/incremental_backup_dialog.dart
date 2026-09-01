@@ -401,10 +401,11 @@ class _IncrementalBackupDialogBodyState
         if (widget.analyzer != null) _buildPreviewCard(cs, l10n),
         const SizedBox(height: 12),
         // Unified content scope (same 6 sections as the backup page).
+        // 移动 sheet 用 2 列×3 行（与备份页一致），桌面对话框保持 3 列。
         SegmentedToggleMulti(
           options: [for (final o in _scopeOptions(context)) o.$1],
           isSelected: [for (final o in _scopeOptions(context)) o.$2],
-          itemsPerRow: 3,
+          itemsPerRow: widget.isSheet ? 2 : 3,
           onChanged: _toggleScope,
         ),
         const SizedBox(height: 10),

@@ -221,7 +221,7 @@ void main() {
       // are gone (merged into the migration dialog / hero).
       expect(find.text('LAN Sync'), findsOneWidget);
       expect(find.text('Restore'), findsNothing);
-      expect(find.text('Migrate from Other Apps'), findsOneWidget);
+      expect(find.text('Migrate Data'), findsOneWidget);
       expect(
         find.text('Move data between Cuplivo and other apps'),
         findsOneWidget,
@@ -232,7 +232,7 @@ void main() {
       // One entry only: the channel card (restore card was removed).
       expect(find.text('WebDAV Backup'), findsOneWidget);
       expect(find.text('S3 Backup'), findsOneWidget);
-      _expectAbove(tester, 'Migrate from Other Apps', 'Backup Contents');
+      _expectAbove(tester, 'Migrate Data', 'Backup Contents');
       _expectAbove(tester, 'Backup Contents', 'Backup Reminder');
       _expectAbove(tester, 'Backup Reminder', 'Backup Channels');
     });
@@ -344,13 +344,13 @@ void main() {
       expect(find.text('Restore from Backup'), findsOneWidget);
       expect(tester.takeException(), isNull);
       expect(find.text('Restore'), findsNothing);
-      expect(find.text('Migrate from Other Apps'), findsOneWidget);
+      expect(find.text('Migrate Data'), findsOneWidget);
       expect(find.text('Backup Contents'), findsOneWidget);
       expect(find.text('Backup Reminder'), findsOneWidget);
       expect(find.text('Backup Channels'), findsOneWidget);
       expect(find.text('WebDAV Backup'), findsOneWidget);
       expect(find.text('S3 Backup'), findsOneWidget);
-      _expectAbove(tester, 'Migrate from Other Apps', 'Backup Contents');
+      _expectAbove(tester, 'Migrate Data', 'Backup Contents');
       _expectAbove(tester, 'Backup Reminder', 'Backup Channels');
     });
 
@@ -375,7 +375,7 @@ void main() {
       expect(find.text('WebDAV Server Settings'), findsOneWidget);
     });
 
-    testWidgets('migration row opens the grouped move-out/move-in dialog', (
+    testWidgets('migration row opens the flat export/import chooser', (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(const Size(900, 1800));
@@ -385,22 +385,25 @@ void main() {
 
       await _pumpBackupPage(tester, settings: settings);
 
-      await _openSettingsPage(tester, 'Migrate from Other Apps');
+      await _openSettingsPage(tester, 'Migrate Data');
 
-      // Two tinted groups; export entry in 搬去, four sources in 搬来.
-      expect(find.text('Move out to'), findsOneWidget);
-      expect(find.text('Move in from'), findsOneWidget);
-      expect(find.text('Kelivo / Older Cuplivo'), findsOneWidget);
+      // Flat list: no group headers; export entry + four import entries.
+      expect(find.text('Move out to'), findsNothing);
+      expect(find.text('Move in from'), findsNothing);
+      expect(find.text('Export Kelivo-Compatible Backup'), findsOneWidget);
       expect(find.text('Import from New Kelivo'), findsOneWidget);
       expect(find.text('Import from RikkaHub'), findsOneWidget);
       expect(find.text('Import from Cherry Studio'), findsOneWidget);
       expect(find.text('Import from Chatbox'), findsOneWidget);
-      _expectAbove(tester, 'Kelivo / Older Cuplivo', 'Import from New Kelivo');
-      _expectAbove(tester, 'Move out to', 'Move in from');
+      _expectAbove(
+        tester,
+        'Export Kelivo-Compatible Backup',
+        'Import from New Kelivo',
+      );
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
-      expect(find.text('Move in from'), findsNothing);
+      expect(find.text('Import from New Kelivo'), findsNothing);
     });
 
     testWidgets('desktop config dialog renders (Material shell regression)', (

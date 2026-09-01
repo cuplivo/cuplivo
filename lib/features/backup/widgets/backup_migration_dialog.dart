@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_font_weights.dart';
-import '../../../theme/app_semantic_colors.dart';
 import 'backup_action_row.dart';
 
 /// Centered chooser for all "migrate house" operations — exporting out to
 /// other apps (one entry: Kelivo / older Cuplivo) and importing in from other
-/// apps (Kelivo v1.2+ / RikkaHub / Cherry Studio / ChatBox) — as two tinted
-/// groups (搬去… / 从…搬来). Rare operations: one entry row on the page,
-/// options appear only after the user asks.
+/// apps (new Kelivo / RikkaHub / Cherry Studio / ChatBox) — as a flat list:
+/// no group headers, no tinted sub-groups; every row's label carries its own
+/// direction semantics (导出… / 从…导入). Rare operations: one entry row on
+/// the page, options appear only after the user asks.
 Future<void> showBackupMigrationChooser(
   BuildContext context, {
   required VoidCallback onExportKelivo,
@@ -43,60 +43,60 @@ Future<void> showBackupMigrationChooser(
                 ),
               ),
               const SizedBox(height: 10),
-              _MigrateGroup(
-                header: l10n.backupMigrateMoveOutHeader,
-                children: [
-                  BackupActionRow(
-                    icon: Lucide.Export,
-                    label: l10n.backupMigrateExportLabel,
-                    subtitle: l10n.backupPageExportKelivoCompatibleSubtitle,
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      onExportKelivo();
-                    },
-                  ),
-                ],
+              BackupActionRow(
+                icon: Lucide.Export,
+                label: l10n.backupMigrateExportLabel,
+                subtitle: l10n.backupPageExportKelivoCompatibleSubtitle,
+                labelMaxLines: 2,
+                subtitleMaxLines: 2,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  onExportKelivo();
+                },
               ),
-              const SizedBox(height: 10),
-              _MigrateGroup(
-                header: l10n.backupMigrateMoveInHeader,
-                children: [
-                  BackupActionRow(
-                    icon: Lucide.Import,
-                    label: l10n.backupPageImportFromKelivo,
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      onImportKelivo();
-                    },
-                  ),
-                  _groupDivider(context),
-                  BackupActionRow(
-                    icon: Lucide.Import,
-                    label: l10n.backupPageImportFromRikkaHub,
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      onImportRikkaHub();
-                    },
-                  ),
-                  _groupDivider(context),
-                  BackupActionRow(
-                    icon: Lucide.Import,
-                    label: l10n.backupPageImportFromCherryStudio,
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      onImportCherryStudio();
-                    },
-                  ),
-                  _groupDivider(context),
-                  BackupActionRow(
-                    icon: Lucide.Import,
-                    label: l10n.backupPageImportFromChatbox,
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      onImportChatbox();
-                    },
-                  ),
-                ],
+              _groupDivider(context),
+              BackupActionRow(
+                icon: Lucide.Import,
+                label: l10n.backupPageImportFromKelivo,
+                labelMaxLines: 2,
+                subtitleMaxLines: 2,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  onImportKelivo();
+                },
+              ),
+              _groupDivider(context),
+              BackupActionRow(
+                icon: Lucide.Import,
+                label: l10n.backupPageImportFromRikkaHub,
+                labelMaxLines: 2,
+                subtitleMaxLines: 2,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  onImportRikkaHub();
+                },
+              ),
+              _groupDivider(context),
+              BackupActionRow(
+                icon: Lucide.Import,
+                label: l10n.backupPageImportFromCherryStudio,
+                labelMaxLines: 2,
+                subtitleMaxLines: 2,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  onImportCherryStudio();
+                },
+              ),
+              _groupDivider(context),
+              BackupActionRow(
+                icon: Lucide.Import,
+                label: l10n.backupPageImportFromChatbox,
+                labelMaxLines: 2,
+                subtitleMaxLines: 2,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  onImportChatbox();
+                },
               ),
               const SizedBox(height: 6),
               Align(
@@ -112,45 +112,6 @@ Future<void> showBackupMigrationChooser(
       ),
     ),
   );
-}
-
-/// Tinted group (surfaceFill) with a small neutral header above the entries.
-class _MigrateGroup extends StatelessWidget {
-  const _MigrateGroup({required this.header, required this.children});
-
-  final String header;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
-          child: Text(
-            header,
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: AppFontWeights.semibold,
-              color: cs.onSurface.withValues(alpha: 0.5),
-            ),
-          ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: context.appColors.surfaceFill,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Column(mainAxisSize: MainAxisSize.min, children: children),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 Widget _groupDivider(BuildContext context) {

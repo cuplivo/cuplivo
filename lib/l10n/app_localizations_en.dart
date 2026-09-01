@@ -2454,20 +2454,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backupRestoreCloudNone => 'No cloud channel configured';
 
   @override
-  String get backupMigrateTitle => 'Migrate from Other Apps';
+  String get backupMigrateTitle => 'Migrate Data';
 
   @override
   String get backupMigrateRowSubtitle =>
       'Move data between Cuplivo and other apps';
 
   @override
-  String get backupMigrateMoveOutHeader => 'Move out to';
-
-  @override
-  String get backupMigrateMoveInHeader => 'Move in from';
-
-  @override
-  String get backupMigrateExportLabel => 'Kelivo / Older Cuplivo';
+  String get backupMigrateExportLabel => 'Export Kelivo-Compatible Backup';
 
   @override
   String get backupPageContentLabel => 'Backup Contents';
@@ -2495,7 +2489,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPageExportKelivoCompatibleSubtitle =>
-      'A backup that old Kelivo hosts can import';
+      'A full backup that old Kelivo or older Cuplivo builds can import';
 
   @override
   String get backupPageIncrementalDescription =>
@@ -2608,6 +2602,50 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupReminderCustomDaysInvalid => 'Enter a number from 1 to 365.';
+
+  @override
+  String get backupEntryAlwaysVisibleTitle => 'Always Show Backup Entry';
+
+  @override
+  String get backupEntryJustNow => 'Just now';
+
+  @override
+  String backupEntryMinutesAgo(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count min ago',
+      one: '1 min ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String backupEntryHoursAgo(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hr ago',
+      one: '1 hr ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String backupEntryDaysAgo(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days ago',
+      one: '1 day ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String backupEntryDateWithYear(Object date, Object year) {
+    return '$date, $year';
+  }
 
   @override
   String get lanSyncSectionTitle => 'LAN Sync';

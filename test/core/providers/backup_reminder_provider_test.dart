@@ -137,5 +137,23 @@ void main() {
         expect(provider.nextReminderAt, DateTime(2026, 6, 3, 21, 15));
       },
     );
+
+    test('entry-visibility flag defaults to always visible', () async {
+      businessPrefs = BusinessPreferences.memoryForTests({});
+      final provider = await _loadProvider();
+
+      expect(provider.entryAlwaysVisible, isTrue);
+    });
+
+    test('entry-visibility toggle persists across provider reload', () async {
+      businessPrefs = BusinessPreferences.memoryForTests({});
+      final provider = await _loadProvider();
+
+      await provider.setEntryAlwaysVisible(false);
+
+      final loaded = await _loadProvider();
+
+      expect(loaded.entryAlwaysVisible, isFalse);
+    });
   });
 }

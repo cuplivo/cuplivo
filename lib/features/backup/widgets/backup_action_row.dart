@@ -18,6 +18,8 @@ class BackupActionRow extends StatelessWidget {
     this.enabled = true,
     this.onTap,
     this.chevronRotation = 0,
+    this.labelMaxLines = 1,
+    this.subtitleMaxLines = 1,
   });
 
   final IconData? icon;
@@ -30,6 +32,11 @@ class BackupActionRow extends StatelessWidget {
 
   /// Rotates the trailing chevron (e.g. pi/2 for an expanding row).
   final double chevronRotation;
+
+  /// Label overflow cap. The migration chooser passes 2 so long localized
+  /// labels wrap instead of truncating.
+  final int labelMaxLines;
+  final int subtitleMaxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -61,64 +68,78 @@ class BackupActionRow extends StatelessWidget {
               const SizedBox(width: 12),
             ],
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+              // 内层 spaceBetween：label（Flexible 先缩）与尾部簇（自然宽）
+              // 之间的全部 slack 落进一个间隙，尾部簇永远 flush right。
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 15, color: titleColor),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12.5, color: subColor),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          label,
+                          maxLines: labelMaxLines,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 15, color: titleColor),
+                        ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle!,
+                            maxLines: subtitleMaxLines,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12.5, color: subColor),
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // value：自然宽度（有界短串），遇窄时由 label 先行
+                      // 省略；dot/chevron 跟随其后贴齐行右侧。
+                      if (value != null)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 10),
+                          child: Text(
+                            value!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 13, color: valueColor),
+                          ),
+                        ),
+                      if (dotColor != null && value != null) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: dotColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ],
+                      if (interactive) ...[
+                        const SizedBox(width: 4),
+                        AnimatedRotation(
+                          turns: chevronRotation / (2 * 3.141592653589793),
+                          duration: const Duration(milliseconds: 160),
+                          curve: Curves.easeOutCubic,
+                          child: Icon(
+                            Lucide.ChevronRight,
+                            size: 16,
+                            color: cs.onSurface.withValues(alpha: 0.32 * dim),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
               ),
             ),
-            if (value != null) ...[
-              const SizedBox(width: 10),
-              Flexible(
-                child: Text(
-                  value!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: TextStyle(fontSize: 13, color: valueColor),
-                ),
-              ),
-            ],
-            if (dotColor != null && value != null) ...[
-              const SizedBox(width: 6),
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: dotColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ],
-            if (interactive) ...[
-              const SizedBox(width: 4),
-              AnimatedRotation(
-                turns: chevronRotation / (2 * 3.141592653589793),
-                duration: const Duration(milliseconds: 160),
-                curve: Curves.easeOutCubic,
-                child: Icon(
-                  Lucide.ChevronRight,
-                  size: 16,
-                  color: cs.onSurface.withValues(alpha: 0.32 * dim),
-                ),
-              ),
-            ],
           ],
         ),
       ),

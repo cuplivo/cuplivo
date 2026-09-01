@@ -309,26 +309,30 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
               const SliverToBoxAdapter(child: LanSyncSection()),
               const SliverToBoxAdapter(child: SizedBox(height: 10)),
 
-              // ③ 数据迁移 — rare "move house" ops behind one row +
-              // grouped chooser dialog.
+              // ③ 数据迁移 — rare "move house" ops behind one row + flat
+              // chooser dialog.
               SliverToBoxAdapter(
-                child: BackupActionRow(
-                  icon: lucide.Lucide.Import,
-                  label: l10n.backupMigrateTitle,
-                  subtitle: l10n.backupMigrateRowSubtitle,
-                  onTap: () => showBackupMigrationChooser(
-                    context,
-                    onExportKelivo: () => _saveLocalZip(
-                      context,
-                      format: BackupFormat.kelivoLegacy,
+                child: _sectionCard(
+                  children: [
+                    BackupActionRow(
+                      icon: lucide.Lucide.Import,
+                      label: l10n.backupMigrateTitle,
+                      subtitle: l10n.backupMigrateRowSubtitle,
+                      onTap: () => showBackupMigrationChooser(
+                        context,
+                        onExportKelivo: () => _saveLocalZip(
+                          context,
+                          format: BackupFormat.kelivoLegacy,
+                        ),
+                        onImportKelivo: () =>
+                            showKelivoImportDialog(context: context),
+                        onImportRikkaHub: () =>
+                            showRikkaHubMigrateDialog(context: context),
+                        onImportCherryStudio: () => _importCherry(context, cs),
+                        onImportChatbox: () => _importChatbox(context, cs),
+                      ),
                     ),
-                    onImportKelivo: () =>
-                        showKelivoImportDialog(context: context),
-                    onImportRikkaHub: () =>
-                        showRikkaHubMigrateDialog(context: context),
-                    onImportCherryStudio: () => _importCherry(context, cs),
-                    onImportChatbox: () => _importChatbox(context, cs),
-                  ),
+                  ],
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 10)),
@@ -425,6 +429,19 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                             intervalDays: provider.intervalDays,
                             reminderMinutesOfDay: minutes,
                           );
+                        },
+                      ),
+                    ),
+                    _rowDivider(context),
+                    _ItemRow(
+                      label: l10n.backupEntryAlwaysVisibleTitle,
+                      vpad: 2,
+                      trailing: IosSwitch(
+                        value: reminder.entryAlwaysVisible,
+                        onChanged: (value) async {
+                          await context
+                              .read<BackupReminderProvider>()
+                              .setEntryAlwaysVisible(value);
                         },
                       ),
                     ),

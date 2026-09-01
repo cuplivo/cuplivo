@@ -11,6 +11,7 @@ import 'package:image/image.dart' as image_lib;
 import 'package:intl/intl.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -964,11 +965,15 @@ Future<void> exportChatMessagesPdf(
       message: l10n.messageExportSheetPdfUnsupported,
       type: NotificationType.info,
     );
-  } catch (e) {
+  } catch (error) {
+    debugPrint(
+      'MessageExportSheet: PDF export failed '
+      '(${error.runtimeType}: $error)',
+    );
     if (!context.mounted) return;
     showAppSnackBar(
       context,
-      message: l10n.messageExportSheetExportFailed('$e'),
+      message: _pdfExportFailureMessage(l10n, error),
       type: NotificationType.error,
     );
   } finally {
@@ -984,6 +989,21 @@ Future<void> exportChatMessagesPdf(
       }
     }
   }
+}
+
+String _pdfExportFailureMessage(AppLocalizations l10n, Object error) {
+  if (!Platform.isAndroid) {
+    return l10n.messageExportSheetExportFailed('$error');
+  }
+  if (error is PlatformException) {
+    return switch (error.code) {
+      'busy' => l10n.messageExportSheetPdfExportInProgress,
+      'web_message_listener_unsupported' =>
+        l10n.messageExportSheetPdfAndroidWebViewUnsupported,
+      _ => l10n.messageExportSheetPdfAndroidFailed,
+    };
+  }
+  return l10n.messageExportSheetPdfAndroidFailed;
 }
 
 Future<void> exportChatMessagesImage(

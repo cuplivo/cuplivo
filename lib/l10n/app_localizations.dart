@@ -6093,6 +6093,24 @@ abstract class AppLocalizations {
   /// **'PDF export is currently only available on Windows and Android'**
   String get messageExportSheetPdfUnsupported;
 
+  /// No description provided for @messageExportSheetPdfExportInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Another PDF export is already in progress.'**
+  String get messageExportSheetPdfExportInProgress;
+
+  /// No description provided for @messageExportSheetPdfAndroidWebViewUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Android System WebView to export PDFs.'**
+  String get messageExportSheetPdfAndroidWebViewUnsupported;
+
+  /// No description provided for @messageExportSheetPdfAndroidFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not export the PDF. Please try again.'**
+  String get messageExportSheetPdfAndroidFailed;
+
   /// No description provided for @messageExportSheetPlainText.
   ///
   /// In en, this message translates to:

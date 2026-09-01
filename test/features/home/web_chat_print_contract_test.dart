@@ -48,6 +48,31 @@ void main() {
     expect(kotlin, contains('disposeCurrentTask(cancelPrint = false)'));
   });
 
+  test('Android PDF failures are localized before reaching the SnackBar', () {
+    final source = File(
+      'lib/features/chat/widgets/message_export_sheet.dart',
+    ).readAsStringSync();
+    final pdfExport = RegExp(
+      r'Future<void> exportChatMessagesPdf\([\s\S]*?\n}\n\nFuture<void> exportChatMessagesImage',
+    ).firstMatch(source)?.group(0);
+
+    expect(pdfExport, isNotNull);
+    expect(
+      pdfExport,
+      contains('message: _pdfExportFailureMessage(l10n, error)'),
+    );
+    expect(pdfExport, isNot(contains("messageExportSheetExportFailed('\$e')")));
+    expect(
+      pdfExport,
+      contains("'busy' => l10n.messageExportSheetPdfExportInProgress"),
+    );
+    expect(
+      pdfExport,
+      contains('messageExportSheetPdfAndroidWebViewUnsupported'),
+    );
+    expect(pdfExport, contains('messageExportSheetPdfAndroidFailed'));
+  });
+
   test('print media bundle answers remote images inside tool results', () {
     const url = 'http://tools.example.test/result.webp';
     final message = ChatMessage(

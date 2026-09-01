@@ -3358,6 +3358,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'PDF export is currently only available on Windows and Android';
 
   @override
+  String get messageExportSheetPdfExportInProgress =>
+      'Another PDF export is already in progress.';
+
+  @override
+  String get messageExportSheetPdfAndroidWebViewUnsupported =>
+      'Update Android System WebView to export PDFs.';
+
+  @override
+  String get messageExportSheetPdfAndroidFailed =>
+      'Could not export the PDF. Please try again.';
+
+  @override
   String get messageExportSheetPlainText => 'Plain Text';
 
   @override

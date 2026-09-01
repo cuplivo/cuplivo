@@ -1153,7 +1153,10 @@
   "messageExportSheetPdf": "PDF",
   "messageExportSheetSingleMarkdownSubtitle": "将该消息导出为 Markdown 文件",
   "messageExportSheetPdfIncomplete": "PDF 已导出，部分图片或图表可能不完整",
-  "messageExportSheetPdfUnsupported": "PDF 导出目前仅支持 Windows",
+  "messageExportSheetPdfUnsupported": "PDF 导出目前仅支持 Windows 和 Android",
+  "messageExportSheetPdfExportInProgress": "另一个 PDF 导出正在进行中。",
+  "messageExportSheetPdfAndroidWebViewUnsupported": "请更新 Android System WebView 后再导出 PDF。",
+  "messageExportSheetPdfAndroidFailed": "无法导出 PDF，请重试。",
   "messageExportSheetPlainText": "纯文本",
   "messageExportSheetSinglePdfSubtitle": "将该消息导出为 PDF 文件",
   "messageExportSheetSingleTxtSubtitle": "将该消息导出为 TXT 文件",
@@ -3578,4 +3581,3 @@
   "webConversationStylesDeleteAction": "删除",
   "webConversationStylesNoDescription": "无描述"
 }
-

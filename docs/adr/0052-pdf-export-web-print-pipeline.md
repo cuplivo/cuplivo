@@ -5,8 +5,8 @@ Status: accepted
 Issue #293 asks for conversation PDF export. We decided to build it as a
 **static branch of the existing Web conversation shell** (ADR-0043): the same
 document loads through the same secure origin with a print mode that drives
-only the snapshot→DOM render path, then the platform web engine captures the
-full document offstage via browser print-to-PDF. We do not use the `printing`
+only the snapshot→DOM render path, then the platform web engine hands the full
+document to its PDF/print facility. We do not use the `printing`
 package, the Syncfusion PDF writer, or PNG-slice packing — each rejects the
 reproducibility of the web renderer or its print/pagination fidelity.
 
@@ -26,19 +26,22 @@ reproducibility of the web renderer or its print/pagination fidelity.
   + 14 mm margins set in the capture settings (CSS `@page` aligned to the
   same values); conversation-batch PDF and user-configurable page size are
   follow-ups.
-- **Capture platforms**: implemented = Windows; planned = Android.
+- **Capture platforms**: implemented = Windows and Android.
   - Windows: `webview_windows` is VENDORED and extended with a `PrintToPdf`
     bridge (its 0.4.0 API has zero print surface; NuGet lifted to
     1.0.2210.55 so `ICoreWebView2_7`/`ICoreWebView2PrintSettings` exist).
     Vendoring reuses the single existing WebView2 controller and its
     `cuplivo-web-chat.invalid` virtual-host secure origin — a separate plugin
     would duplicate both.
-  - Android (follow-up): `createPrintDocumentAdapter` writes a temp PDF,
-    delivered via the existing bytes-based `saveFile` flow; page size /
-    background follow the Android print manager quirks (unknown until a
-    spike).
+  - Android: a dedicated offscreen WebView reuses the HTTPS AssetLoader,
+    resource allowlist, origin-scoped message bridge, and navigation limits.
+    After the capability token plus render-session/conversation IDs validate,
+    `createPrintDocumentAdapter` is passed to `PrintManager.print`. Android's
+    official print UI owns the destination (including “Save as PDF”) and keeps
+    the WebView alive until the adapter's `onFinish`. A4 portrait, 600 DPI,
+    color, and 14 mm margins are defaults; the system UI may adjust them.
   - On un-implemented platforms the export row stays visible and answers
-    with an explicit "Windows only" notice — never silent.
+    with an explicit "Windows and Android only" notice — never silent.
 - **Precondition**: the iOS/macOS secure-origin gap. The shell must never run
   on a `file://` origin (ADR-0043), but iOS/macOS currently load via
   `loadFlutterAsset` (`loadFileURL` + `allowingReadAccessTo`) — there is no
@@ -60,6 +63,12 @@ reproducibility of the web renderer or its print/pagination fidelity.
 - **Reusing the interactive shell in place**: renderer unification risks
   pulling live-protocol behavior under print loads; a mode flag keeps the
   branch explicit and testable.
+- **Driving `PrintDocumentAdapter` directly into an app-owned file on
+  Android**: the public adapter API exposes `onLayout`/`onWrite`, but the
+  callback constructors an app would need to invoke them are hidden Android
+  framework APIs. Reflection or fake callbacks would be brittle and outside
+  the supported SDK contract, so Android uses `PrintManager` and its system
+  destination UI instead.
 
 ## Consequences
 
@@ -70,3 +79,6 @@ reproducibility of the web renderer or its print/pagination fidelity.
 - Print performance for very long conversations is bounded by full-DOM
   construction and the web engine's print layout — both single-pass, no
   pagination logic in Dart.
+- Android does not return an app-owned PDF path. Cancellation is handled by
+  the system UI, and the render WebView remains retained until the print
+  adapter finishes or the Flutter engine is detached.

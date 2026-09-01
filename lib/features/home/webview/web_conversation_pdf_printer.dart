@@ -4,7 +4,6 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:webview_windows/webview_windows.dart' as winweb;
@@ -20,17 +19,17 @@ import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/network/dio_http_client.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_semantic_colors.dart';
-import '../../../utils/sandbox_path_resolver.dart';
 import '../../chat/models/tool_ui_part.dart';
+import 'android_web_chat_pdf_controller.dart';
+import 'web_chat_pdf_bridge.dart';
 import 'web_chat_protocol.dart';
-import 'web_chat_remote_media.dart';
 import 'web_chat_shell_cache.dart';
 import 'web_chat_snapshot.dart';
 
 /// Renders a conversation (or message selection) to PDF using the web chat
 /// shell in print mode — the same DOM renderer + styles as the interactive
-/// Web viewport (ADR-0044). Windows only in v1; other platforms throw
-/// [PdfUnsupportedPlatformException] instead of silently degrading.
+/// Web viewport (ADR-0044). This is the Windows capture endpoint; Android uses
+/// [printConversationPdfOnAndroid] with the same snapshot and bridge.
 ///
 /// The flow:
 /// 1. build a static snapshot (collapsed messages, no streaming/patches);
@@ -48,23 +47,233 @@ Future<({File file, bool timedOut})> renderConversationPdf(
   if (!Platform.isWindows) {
     throw const PdfUnsupportedPlatformException();
   }
+  final render = _preparePdfRender(
+    context,
+    conversation: conversation,
+    messages: messages,
+    showThinkingAndToolCards: showThinkingAndToolCards,
+    expandThinkingContent: expandThinkingContent,
+  );
+
+  final outputDir = await getTemporaryDirectory();
+  final outputFile = File(
+    '${outputDir.path}/cuplivo-pdf-${DateTime.now().millisecondsSinceEpoch}.pdf',
+  );
+
+  final controller = winweb.WebviewController();
+  StreamSubscription<dynamic>? subscription;
+  final completer = Completer<({File file, bool timedOut})>();
+  late final WebChatPdfBridgeCoordinator bridge;
+  bridge = WebChatPdfBridgeCoordinator(
+    renderSessionId: render.sessionId,
+    conversationId: render.conversationId,
+    capabilityToken: render.capabilityToken,
+    snapshot: render.snapshot,
+    mediaRegistry: render.mediaRegistry,
+    clientFactory: () => _newMediaClient(render.settings),
+    sendEnvelope: (envelope) => controller.postWebMessage(jsonEncode(envelope)),
+    onRenderComplete: (timedOut) async {
+      try {
+        await controller.printToPdf(outputFile.path, printBackgrounds: true);
+        await _validatePdfFile(outputFile);
+        if (!completer.isCompleted) {
+          completer.complete((file: outputFile, timedOut: timedOut));
+        }
+      } catch (error) {
+        if (!completer.isCompleted) {
+          completer.completeError(
+            WebChatProtocolException('PDF capture failed: $error'),
+          );
+        }
+      }
+    },
+    onFailure: (error) {
+      if (!completer.isCompleted) completer.completeError(error);
+    },
+  );
+
+  var succeeded = false;
+  try {
+    await controller.initialize().timeout(const Duration(seconds: 20));
+    await controller.setBackgroundColor(const Color(0x00000000));
+    await controller.setPopupWindowPolicy(winweb.WebviewPopupWindowPolicy.deny);
+    subscription = controller.webMessage.listen(
+      (event) {
+        unawaited(bridge.handleMessage(_windowsMessageText(event)));
+      },
+      onError: (Object error) {
+        debugPrint(
+          'WebConversationPdfPrinter: bridge error (${error.runtimeType})',
+        );
+        if (!completer.isCompleted) completer.completeError(error);
+      },
+    );
+    final shell = await prepareWindowsWebChatShell();
+    await controller.addVirtualHostNameMapping(
+      webChatWindowsVirtualHost,
+      shell.parent.path,
+      winweb.WebviewHostResourceAccessKind.deny,
+    );
+    await controller.loadUrl(
+      Uri(
+        scheme: 'https',
+        host: webChatWindowsVirtualHost,
+        path: '/index.html',
+        queryParameters: <String, String>{
+          'platform': 'windows',
+          'mode': 'print',
+        },
+      ).toString(),
+    );
+
+    final result = await completer.future.timeout(const Duration(seconds: 90));
+    succeeded = true;
+    return result;
+  } finally {
+    bridge.dispose();
+    await subscription?.cancel();
+    try {
+      await controller.dispose();
+    } catch (error) {
+      debugPrint(
+        'WebConversationPdfPrinter: dispose failed (${error.runtimeType})',
+      );
+    }
+    if (!succeeded && await outputFile.exists()) {
+      try {
+        await outputFile.delete();
+      } catch (error) {
+        debugPrint(
+          'WebConversationPdfPrinter: partial PDF cleanup failed '
+          '(${error.runtimeType})',
+        );
+      }
+    }
+  }
+}
+
+class PdfUnsupportedPlatformException implements Exception {
+  const PdfUnsupportedPlatformException();
+
+  @override
+  String toString() => 'PDF export is only supported on Windows and Android';
+}
+
+/// Renders with the shared print snapshot/bridge, then opens Android's
+/// official system print UI. Android owns the destination and offers
+/// “Save as PDF” alongside installed print services.
+Future<({bool timedOut, bool cancelled})> printConversationPdfOnAndroid(
+  BuildContext context, {
+  required Conversation conversation,
+  required List<ChatMessage> messages,
+  bool showThinkingAndToolCards = false,
+  bool expandThinkingContent = false,
+}) async {
+  if (!Platform.isAndroid) {
+    throw const PdfUnsupportedPlatformException();
+  }
+  final render = _preparePdfRender(
+    context,
+    conversation: conversation,
+    messages: messages,
+    showThinkingAndToolCards: showThinkingAndToolCards,
+    expandThinkingContent: expandThinkingContent,
+  );
+  final renderComplete = Completer<bool>();
+  late final WebChatPdfBridgeCoordinator bridge;
+  late final AndroidWebChatPdfController controller;
+
+  void fail(Object error) {
+    if (!renderComplete.isCompleted) renderComplete.completeError(error);
+  }
+
+  controller = AndroidWebChatPdfController(
+    onMessage: (message) => bridge.handleMessage(message),
+    onResourceError: (errorCode) => fail(
+      WebChatProtocolException('Android PDF shell resource failed: $errorCode'),
+    ),
+    onDiagnostic: (code) {
+      debugPrint('WebConversationPdfPrinter: Android diagnostic $code');
+      if (code == 'render_process_gone') {
+        fail(
+          const WebChatProtocolException(
+            'Android PDF WebView render process exited',
+          ),
+        );
+      }
+    },
+  );
+  bridge = WebChatPdfBridgeCoordinator(
+    renderSessionId: render.sessionId,
+    conversationId: render.conversationId,
+    capabilityToken: render.capabilityToken,
+    snapshot: render.snapshot,
+    mediaRegistry: render.mediaRegistry,
+    clientFactory: () => _newMediaClient(render.settings),
+    sendEnvelope: controller.postEnvelope,
+    onRenderComplete: (timedOut) async {
+      if (!renderComplete.isCompleted) renderComplete.complete(timedOut);
+    },
+    onFailure: fail,
+  );
+
+  try {
+    await controller.start();
+    final timedOut = await renderComplete.future.timeout(
+      const Duration(seconds: 90),
+    );
+    final title = conversation.title.trim();
+    final status = await controller.print(
+      documentName: title.isEmpty ? 'Cuplivo' : title,
+    );
+    return (
+      timedOut: timedOut,
+      cancelled: status == AndroidPdfPrintStatus.cancelled,
+    );
+  } finally {
+    bridge.dispose();
+    await controller.dispose();
+  }
+}
+
+class _PreparedPdfRender {
+  const _PreparedPdfRender({
+    required this.settings,
+    required this.sessionId,
+    required this.conversationId,
+    required this.capabilityToken,
+    required this.snapshot,
+    required this.mediaRegistry,
+  });
+
+  final SettingsProvider settings;
+  final String sessionId;
+  final String conversationId;
+  final String capabilityToken;
+  final Map<String, dynamic> snapshot;
+  final Map<String, WebChatMediaSource> mediaRegistry;
+}
+
+_PreparedPdfRender _preparePdfRender(
+  BuildContext context, {
+  required Conversation conversation,
+  required List<ChatMessage> messages,
+  required bool showThinkingAndToolCards,
+  required bool expandThinkingContent,
+}) {
   final settings = context.read<SettingsProvider>();
   final userProvider = context.read<UserProvider>();
   final assistant = context.read<AssistantProvider>().currentAssistant;
   final chatService = context.read<ChatService>();
   final l10n = AppLocalizations.of(context)!;
   final themeData = Theme.of(context);
-  final colors = themeData.colorScheme;
-  final semantic = context.appColors;
   final isDark = themeData.brightness == Brightness.dark;
-
   final sessionId =
       'pdf-${DateTime.now().microsecondsSinceEpoch}-${conversation.id.hashCode}';
   final capabilityToken = _randomCapabilityToken();
   final toolParts = showThinkingAndToolCards
       ? _exportToolParts(chatService, messages)
       : <String, List<ToolUIPart>>{};
-
   final media = buildPdfMediaBundle(
     messages: messages,
     assistant: assistant,
@@ -72,8 +281,6 @@ Future<({File file, bool timedOut})> renderConversationPdf(
     userAvatarValue: userProvider.avatarValue,
     toolParts: toolParts,
   );
-  final registry = media.registry;
-
   final snapshot = const WebChatSnapshotBuilder().build(
     renderSessionId: sessionId,
     conversationId: conversation.id,
@@ -98,8 +305,8 @@ Future<({File file, bool timedOut})> renderConversationPdf(
     hasMoreAfter: false,
     strings: webChatUiStrings(l10n),
     theme: webChatThemeColors(
-      colors: colors,
-      semantic: semantic,
+      colors: themeData.colorScheme,
+      semantic: context.appColors,
       isDark: isDark,
       backgroundMaskStrength: settings.chatBackgroundMaskStrength,
     ),
@@ -132,168 +339,14 @@ Future<({File file, bool timedOut})> renderConversationPdf(
         : 'ltr',
     remoteMediaHandles: media.remoteMediaHandles,
   );
-
-  final outputDir = await getTemporaryDirectory();
-  final outputFile = File(
-    '${outputDir.path}/cuplivo-pdf-${DateTime.now().millisecondsSinceEpoch}.pdf',
+  return _PreparedPdfRender(
+    settings: settings,
+    sessionId: sessionId,
+    conversationId: conversation.id,
+    capabilityToken: capabilityToken,
+    snapshot: snapshot,
+    mediaRegistry: media.registry,
   );
-
-  final controller = winweb.WebviewController();
-  StreamSubscription<dynamic>? subscription;
-  var disposed = false;
-  final completer = Completer<({File file, bool timedOut})>();
-  var snapshotSent = false;
-
-  Future<void> sendEnvelope(Map<String, dynamic> envelope) async {
-    await controller.postWebMessage(jsonEncode(envelope));
-  }
-
-  Future<void> sendSnapshot() async {
-    if (snapshotSent) return;
-    final payload = Map<String, dynamic>.of(snapshot)
-      ..['capabilityToken'] = capabilityToken;
-    if (!completer.isCompleted && !disposed) {
-      snapshotSent = true;
-      for (final chunk in chunkWebChatEnvelope(
-        payload: payload,
-        transferId: 'pdf-snapshot:$sessionId',
-      )) {
-        await sendEnvelope(chunk);
-      }
-    }
-  }
-
-  Future<void> handleBridgeMessage(String raw) async {
-    Map<String, dynamic> message;
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map) return;
-      message = decoded.map((key, value) => MapEntry(key.toString(), value));
-    } catch (_) {
-      return;
-    }
-    final type = message['type']?.toString();
-    final authorized = message['capabilityToken'] == capabilityToken;
-    try {
-      switch (type) {
-        case 'ready':
-          if (!completer.isCompleted) await sendSnapshot();
-          return;
-        case 'mediaRequest':
-          if (!authorized) return;
-          await _answerMediaRequest(
-            message: message,
-            sessionId: sessionId,
-            conversationId: conversation.id,
-            registry: registry,
-            clientFactory: () => _newMediaClient(settings),
-            sendEnvelope: sendEnvelope,
-          );
-          return;
-        case 'printRenderComplete':
-          if (!authorized ||
-              message['renderSessionId'] != sessionId ||
-              message['conversationId'] != conversation.id) {
-            return;
-          }
-          final timedOut = message['timedOut'] == true;
-          if (timedOut) {
-            debugPrint(
-              'WebConversationPdfPrinter: shell print render completed with '
-              'timeout (media/renderers incomplete)',
-            );
-          }
-          try {
-            await controller.printToPdf(
-              outputFile.path,
-              printBackgrounds: true,
-            );
-          } catch (error) {
-            if (!completer.isCompleted) {
-              completer.completeError(
-                WebChatProtocolException('pdf capture failed: $error'),
-              );
-            }
-            return;
-          }
-          if (!completer.isCompleted) {
-            completer.complete((file: outputFile, timedOut: timedOut));
-          }
-          return;
-        case 'diagnostic':
-          debugPrint(
-            'WebConversationPdfPrinter: shell diagnostic '
-            '${message['code'] ?? message}',
-          );
-          return;
-      }
-    } catch (error) {
-      debugPrint(
-        'WebConversationPdfPrinter: bridge handling failed '
-        '(${error.runtimeType})',
-      );
-    }
-  }
-
-  try {
-    await controller.initialize().timeout(const Duration(seconds: 20));
-    await controller.setBackgroundColor(const Color(0x00000000));
-    await controller.setPopupWindowPolicy(winweb.WebviewPopupWindowPolicy.deny);
-    subscription = controller.webMessage.listen(
-      (event) {
-        try {
-          unawaited(handleBridgeMessage(_windowsMessageText(event)));
-        } catch (error) {
-          debugPrint(
-            'WebConversationPdfPrinter: bridge handling failed '
-            '(${error.runtimeType})',
-          );
-        }
-      },
-      onError: (Object error) {
-        debugPrint(
-          'WebConversationPdfPrinter: bridge error (${error.runtimeType})',
-        );
-      },
-    );
-    final shell = await prepareWindowsWebChatShell();
-    await controller.addVirtualHostNameMapping(
-      webChatWindowsVirtualHost,
-      shell.parent.path,
-      winweb.WebviewHostResourceAccessKind.deny,
-    );
-    await controller.loadUrl(
-      Uri(
-        scheme: 'https',
-        host: webChatWindowsVirtualHost,
-        path: '/index.html',
-        queryParameters: <String, String>{
-          'platform': 'windows',
-          'mode': 'print',
-        },
-      ).toString(),
-    );
-
-    final result = await completer.future.timeout(const Duration(seconds: 90));
-    return result;
-  } finally {
-    disposed = true;
-    await subscription?.cancel();
-    try {
-      await controller.dispose();
-    } catch (error) {
-      debugPrint(
-        'WebConversationPdfPrinter: dispose failed (${error.runtimeType})',
-      );
-    }
-  }
-}
-
-class PdfUnsupportedPlatformException implements Exception {
-  const PdfUnsupportedPlatformException();
-
-  @override
-  String toString() => 'PDF export is only supported on Windows in v1';
 }
 
 /// The media registry + remote-handle map backing [renderConversationPdf]'s
@@ -368,7 +421,7 @@ Map<String, List<ChatMessage>> _byGroup(List<ChatMessage> messages) {
 }
 
 String _randomCapabilityToken() {
-  final random = math.Random();
+  final random = math.Random.secure();
   final buffer = <int>[];
   for (var i = 0; i < 32; i++) {
     buffer.add(random.nextInt(256));
@@ -384,125 +437,19 @@ String _windowsMessageText(dynamic event) {
   return event?.toString() ?? '';
 }
 
-Future<void> _answerMediaRequest({
-  required Map<String, dynamic> message,
-  required String sessionId,
-  required String conversationId,
-  required Map<String, WebChatMediaSource> registry,
-  required WebChatHttpClientFactory clientFactory,
-  required Future<void> Function(Map<String, dynamic>) sendEnvelope,
-}) async {
-  final handle = message['handle']?.toString() ?? '';
-  final source = registry[handle];
-  if (source == null) {
-    await _sendMediaError(sendEnvelope, sessionId, conversationId, handle);
-    return;
+Future<void> _validatePdfFile(File file) async {
+  if (!await file.exists() || await file.length() < 5) {
+    throw const FileSystemException('PDF output is empty');
   }
+  final handle = await file.open();
   try {
-    String mime;
-    Uint8List bytes;
-    if (source.kind == WebChatMediaSourceKind.remoteImage) {
-      final remote = await WebChatRemoteImageLoader(
-        clientFactory: clientFactory,
-      ).load(source.value);
-      mime = remote.mime;
-      bytes = remote.bytes;
-    } else {
-      final extension = source.value.toLowerCase().split('.').last;
-      mime = switch (extension) {
-        'png' => 'image/png',
-        'jpg' || 'jpeg' => 'image/jpeg',
-        'gif' => 'image/gif',
-        'webp' => 'image/webp',
-        'svg' when source.kind == WebChatMediaSourceKind.bundledAsset =>
-          'image/svg+xml',
-        _ => '',
-      };
-      if (mime.isEmpty) {
-        await _sendMediaError(sendEnvelope, sessionId, conversationId, handle);
-        return;
-      }
-      bytes = switch (source.kind) {
-        WebChatMediaSourceKind.localFile => await _readLocalMedia(source.value),
-        WebChatMediaSourceKind.bundledAsset => await _readBundledMedia(
-          source.value,
-        ),
-        WebChatMediaSourceKind.remoteImage => throw StateError(
-          'remote media handled above',
-        ),
-      };
+    final header = await handle.read(5);
+    if (ascii.decode(header, allowInvalid: true) != '%PDF-') {
+      throw const FileSystemException('PDF output has an invalid header');
     }
-    final payload = <String, dynamic>{
-      'type': 'mediaResult',
-      'renderSessionId': sessionId,
-      'conversationId': conversationId,
-      'handle': handle,
-      'dataUrl': 'data:$mime;base64,${base64Encode(bytes)}',
-    };
-    for (final chunk in chunkWebChatEnvelope(
-      payload: payload,
-      transferId: 'pdf-media:$sessionId:${handle.hashCode}',
-    )) {
-      await sendEnvelope(chunk);
-    }
-  } catch (error) {
-    debugPrint(
-      'WebConversationPdfPrinter: media request failed for $handle '
-      '(${error.runtimeType}: $error)',
-    );
-    await _sendMediaError(sendEnvelope, sessionId, conversationId, handle);
+  } finally {
+    await handle.close();
   }
-}
-
-Future<void> _sendMediaError(
-  Future<void> Function(Map<String, dynamic>) sendEnvelope,
-  String sessionId,
-  String conversationId,
-  String handle,
-) async {
-  try {
-    await sendEnvelope(<String, dynamic>{
-      'type': 'mediaError',
-      'renderSessionId': sessionId,
-      'conversationId': conversationId,
-      'handle': handle,
-    });
-  } catch (error) {
-    debugPrint(
-      'WebConversationPdfPrinter: mediaError reply failed '
-      '(${error.runtimeType})',
-    );
-  }
-}
-
-Future<Uint8List> _readLocalMedia(String path) async {
-  final resolvedPath = SandboxPathResolver.fix(path);
-  final file = File(resolvedPath);
-  if (!await file.exists()) {
-    throw const FileSystemException('media file does not exist');
-  }
-  final length = await file.length();
-  if (length > 16 * 1024 * 1024) {
-    throw const WebChatProtocolException('local media exceeds size limit');
-  }
-  final bytes = await file.readAsBytes();
-  if (bytes.length > 16 * 1024 * 1024) {
-    throw const WebChatProtocolException('local media exceeds size limit');
-  }
-  return bytes;
-}
-
-Future<Uint8List> _readBundledMedia(String path) async {
-  if (!path.startsWith('assets/icons/') ||
-      path.contains('..') ||
-      path.contains(r'\')) {
-    throw const WebChatProtocolException('bundled media is not allowed');
-  }
-  final data = await rootBundle.load(path);
-  if (data.lengthInBytes > 2 * 1024 * 1024) {
-    throw const WebChatProtocolException('bundled media exceeds size limit');
-  }
-  return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
 }
 
 Map<String, List<ReasoningSegmentData>> _exportReasoningSegments(

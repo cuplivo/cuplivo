@@ -1361,7 +1361,10 @@
   "messageExportSheetPdf": "PDF",
   "messageExportSheetSingleMarkdownSubtitle": "Export this message as a Markdown file",
   "messageExportSheetPdfIncomplete": "PDF exported, but some images or diagrams may be incomplete",
-  "messageExportSheetPdfUnsupported": "PDF export is currently only available on Windows",
+  "messageExportSheetPdfUnsupported": "PDF export is currently only available on Windows and Android",
+  "messageExportSheetPdfExportInProgress": "Another PDF export is already in progress.",
+  "messageExportSheetPdfAndroidWebViewUnsupported": "Update Android System WebView to export PDFs.",
+  "messageExportSheetPdfAndroidFailed": "Could not export the PDF. Please try again.",
   "messageExportSheetPlainText": "Plain Text",
   "messageExportSheetSinglePdfSubtitle": "Export this message as a PDF file",
   "messageExportSheetSingleTxtSubtitle": "Export this message as a TXT file",
@@ -4176,4 +4179,3 @@
   "webConversationStylesDeleteAction": "Delete",
   "webConversationStylesNoDescription": "No description"
 }
-

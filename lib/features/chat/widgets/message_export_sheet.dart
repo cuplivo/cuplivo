@@ -11,6 +11,7 @@ import 'package:image/image.dart' as image_lib;
 import 'package:intl/intl.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -898,8 +899,9 @@ Future<void> exportChatMessagesPdf(
   bool expandThinkingContent = false,
 }) async {
   final l10n = AppLocalizations.of(context)!;
+  File? temporaryPdf;
   try {
-    if (!Platform.isWindows) {
+    if (!Platform.isWindows && !Platform.isAndroid) {
       showAppSnackBar(
         context,
         message: l10n.messageExportSheetPdfUnsupported,
@@ -912,6 +914,24 @@ Future<void> exportChatMessagesPdf(
       message: l10n.messageExportSheetExporting,
       type: NotificationType.info,
     );
+    if (Platform.isAndroid) {
+      final result = await printConversationPdfOnAndroid(
+        context,
+        conversation: conversation,
+        messages: messages,
+        showThinkingAndToolCards: showThinkingAndToolCards,
+        expandThinkingContent: expandThinkingContent,
+      );
+      if (!context.mounted || result.cancelled) return;
+      if (result.timedOut) {
+        showAppSnackBar(
+          context,
+          message: l10n.messageExportSheetPdfIncomplete,
+          type: NotificationType.warning,
+        );
+      }
+      return;
+    }
     final result = await renderConversationPdf(
       context,
       conversation: conversation,
@@ -919,6 +939,7 @@ Future<void> exportChatMessagesPdf(
       showThinkingAndToolCards: showThinkingAndToolCards,
       expandThinkingContent: expandThinkingContent,
     );
+    temporaryPdf = result.file;
     final String? savePath = await FilePicker.platform.saveFile(
       dialogTitle: l10n.backupPageExportToFile,
       fileName: 'chat-export-${DateTime.now().millisecondsSinceEpoch}.pdf',
@@ -944,14 +965,45 @@ Future<void> exportChatMessagesPdf(
       message: l10n.messageExportSheetPdfUnsupported,
       type: NotificationType.info,
     );
-  } catch (e) {
+  } catch (error) {
+    debugPrint(
+      'MessageExportSheet: PDF export failed '
+      '(${error.runtimeType}: $error)',
+    );
     if (!context.mounted) return;
     showAppSnackBar(
       context,
-      message: l10n.messageExportSheetExportFailed('$e'),
+      message: _pdfExportFailureMessage(l10n, error),
       type: NotificationType.error,
     );
+  } finally {
+    final file = temporaryPdf;
+    if (file != null && await file.exists()) {
+      try {
+        await file.delete();
+      } catch (error) {
+        debugPrint(
+          'MessageExportSheet: temporary PDF cleanup failed '
+          '(${error.runtimeType})',
+        );
+      }
+    }
   }
+}
+
+String _pdfExportFailureMessage(AppLocalizations l10n, Object error) {
+  if (!Platform.isAndroid) {
+    return l10n.messageExportSheetExportFailed('$error');
+  }
+  if (error is PlatformException) {
+    return switch (error.code) {
+      'busy' => l10n.messageExportSheetPdfExportInProgress,
+      'web_message_listener_unsupported' =>
+        l10n.messageExportSheetPdfAndroidWebViewUnsupported,
+      _ => l10n.messageExportSheetPdfAndroidFailed,
+    };
+  }
+  return l10n.messageExportSheetPdfAndroidFailed;
 }
 
 Future<void> exportChatMessagesImage(

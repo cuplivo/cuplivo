@@ -62,14 +62,12 @@
   line 3174, module top-level) never fires, and the 10s init timer fails to
   `shell_ready_timeout`. `web_chat_platform.dart` still advertises iOS as
   supported — paperwork support, not verified support.
-- **Scope rule**: PDF export rides the Web pipeline, so the secure origin
-  fix is its precondition. Implemented: Windows (vendored webview_windows
-  PrintToPdf bridge). Planned follow-ups: Android
-  (`createPrintDocumentAdapter` to temp file → bytes saveFile, page size /
-  background follow the Android print manager quirks), macOS/iOS PDF (waits
-  for the secure-origin fix), Linux stays excluded (no WebView in the app at
-  all). On un-implemented platforms the export row stays visible and
-  answers with an explicit "Windows only" notice — never silent.
+- **Scope rule**: PDF export rides the Web pipeline, so a secure origin is its
+  precondition. Implemented: Windows (WebView2 `PrintToPdf`) and Android
+  (dedicated WebView handed to the system print UI). macOS/iOS PDF waits for
+  the secure-origin fix; Linux stays excluded (no WebView in the app). On
+  un-implemented platforms the export row stays visible and answers with an
+  explicit "Windows and Android only" notice — never silent.
 - **Web 对话打印模式 (web chat print mode)**: the PDF export path loads the
   SAME shell document through the secure origin with a `?mode=print` (or
   equivalent static branch) and drives only its snapshot→DOM render path —
@@ -77,9 +75,9 @@
   or gesture handling. Single rendering codebase: print output shares the
   interactive viewport's DOM component markers and (ADR-0049) style
   resolution, and reuses `mediaRegistry` for local-attachment data URLs.
-  Platform capture then runs the browser print-to-PDF (Windows WebView2
-  `PrintToPdf` bridge; Android planned via `createPrintDocumentAdapter`)
-  offstage.
+  Platform capture then runs the browser print path offstage (Windows WebView2
+  `PrintToPdf`; Android `createPrintDocumentAdapter` through the system print
+  UI).
 - **PDF export (issue #293)**: rides the Web pipeline — v1 entry is the
   existing message export sheet plus a "PDF" format row + the share-bar
   PDF button (single/batch selection, reusing its thinking/tool-card
@@ -89,11 +87,10 @@
   page size are follow-ups. Implemented: Windows capture via a
   `PrintToPdf` bridge in VENDORED webview_windows (repo precedent and the
   only route that reuses the one WebView2 secure-origin instance; the
-  package has zero print API upstream). Planned: Android
-  (`createPrintDocumentAdapter` to a temp file then the bytes-based
-  `saveFile` flow), macOS/iOS PDF (waits on the secure-origin fix), Linux
-  excluded. Un-implemented platforms show the row but answer with an
-  explicit "Windows only" notice.
+  package has zero print API upstream), and Android through a dedicated
+  offscreen WebView plus the official system print UI. macOS/iOS PDF waits on
+  the secure-origin fix; Linux is excluded. Un-implemented platforms show the
+  row but answer with an explicit "Windows and Android only" notice.
 
 ## Web Viewport Touch Ownership (移动触摸主权)
 

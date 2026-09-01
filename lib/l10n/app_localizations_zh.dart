@@ -3255,7 +3255,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageExportSheetPdfIncomplete => 'PDF 已导出，部分图片或图表可能不完整';
 
   @override
-  String get messageExportSheetPdfUnsupported => 'PDF 导出目前仅支持 Windows';
+  String get messageExportSheetPdfUnsupported =>
+      'PDF 导出目前仅支持 Windows 和 Android';
+
+  @override
+  String get messageExportSheetPdfExportInProgress => '另一个 PDF 导出正在进行中。';
+
+  @override
+  String get messageExportSheetPdfAndroidWebViewUnsupported =>
+      '请更新 Android System WebView 后再导出 PDF。';
+
+  @override
+  String get messageExportSheetPdfAndroidFailed => '无法导出 PDF，请重试。';
 
   @override
   String get messageExportSheetPlainText => '纯文本';
@@ -12426,7 +12437,18 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageExportSheetPdfIncomplete => 'PDF 已导出，部分图片或图表可能不完整';
 
   @override
-  String get messageExportSheetPdfUnsupported => 'PDF 导出目前仅支持 Windows';
+  String get messageExportSheetPdfUnsupported =>
+      'PDF 导出目前仅支持 Windows 和 Android';
+
+  @override
+  String get messageExportSheetPdfExportInProgress => '另一个 PDF 导出正在进行中。';
+
+  @override
+  String get messageExportSheetPdfAndroidWebViewUnsupported =>
+      '请更新 Android System WebView 后再导出 PDF。';
+
+  @override
+  String get messageExportSheetPdfAndroidFailed => '无法导出 PDF，请重试。';
 
   @override
   String get messageExportSheetPlainText => '纯文本';
@@ -21596,7 +21618,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get messageExportSheetPdfIncomplete => 'PDF 已導出，部分圖片或圖表可能不完整';
 
   @override
-  String get messageExportSheetPdfUnsupported => 'PDF 匯出目前僅支援 Windows';
+  String get messageExportSheetPdfUnsupported =>
+      'PDF 匯出目前僅支援 Windows 和 Android';
+
+  @override
+  String get messageExportSheetPdfExportInProgress => '另一個 PDF 匯出正在進行中。';
+
+  @override
+  String get messageExportSheetPdfAndroidWebViewUnsupported =>
+      '請更新 Android System WebView 後再匯出 PDF。';
+
+  @override
+  String get messageExportSheetPdfAndroidFailed => '無法匯出 PDF，請再試一次。';
 
   @override
   String get messageExportSheetPlainText => '純文字';

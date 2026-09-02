@@ -17298,6 +17298,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No description'**
   String get webConversationStylesNoDescription;
+
+  /// No description provided for @messageStyleSettingsPageAssistantFitContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit assistant bubble to content'**
+  String get messageStyleSettingsPageAssistantFitContent;
+
+  /// No description provided for @messageStyleSettingsPageAssistantFitContentSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant bubbles hug their text instead of filling the row'**
+  String get messageStyleSettingsPageAssistantFitContentSubtitle;
+
+  /// No description provided for @messageStyleSettingsPageBackgroundColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Background'**
+  String get messageStyleSettingsPageBackgroundColor;
+
+  /// No description provided for @messageStyleSettingsPageBackgroundOpacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Background Opacity'**
+  String get messageStyleSettingsPageBackgroundOpacity;
+
+  /// No description provided for @messageStyleSettingsPageBlur.
+  ///
+  /// In en, this message translates to:
+  /// **'Blur'**
+  String get messageStyleSettingsPageBlur;
+
+  /// No description provided for @messageStyleSettingsPageBlurHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Blur applies to content behind the bubble. It is barely visible without a chat wallpaper.'**
+  String get messageStyleSettingsPageBlurHint;
+
+  /// No description provided for @messageStyleSettingsPageBorderColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Border'**
+  String get messageStyleSettingsPageBorderColor;
+
+  /// No description provided for @messageStyleSettingsPageBorderOpacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Border Opacity'**
+  String get messageStyleSettingsPageBorderOpacity;
+
+  /// No description provided for @messageStyleSettingsPageBorderWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'Border Width'**
+  String get messageStyleSettingsPageBorderWidth;
+
+  /// No description provided for @messageStyleSettingsPageCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get messageStyleSettingsPageCancel;
+
+  /// No description provided for @messageStyleSettingsPageCornerRadius.
+  ///
+  /// In en, this message translates to:
+  /// **'Corner Radius'**
+  String get messageStyleSettingsPageCornerRadius;
+
+  /// No description provided for @messageStyleSettingsPageDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get messageStyleSettingsPageDark;
+
+  /// No description provided for @messageStyleSettingsPageDefaultHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Default style follows the current theme and has no extra controls.'**
+  String get messageStyleSettingsPageDefaultHint;
+
+  /// No description provided for @messageStyleSettingsPageLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get messageStyleSettingsPageLight;
+
+  /// No description provided for @messageStyleSettingsPagePreviewAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'This is an assistant reply.'**
+  String get messageStyleSettingsPagePreviewAssistant;
+
+  /// No description provided for @messageStyleSettingsPagePreviewThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking'**
+  String get messageStyleSettingsPagePreviewThinking;
+
+  /// No description provided for @messageStyleSettingsPagePreviewUser.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a user message'**
+  String get messageStyleSettingsPagePreviewUser;
+
+  /// No description provided for @messageStyleSettingsPageReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get messageStyleSettingsPageReset;
+
+  /// No description provided for @messageStyleSettingsPageResetConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset all message style customizations?'**
+  String get messageStyleSettingsPageResetConfirm;
+
+  /// No description provided for @messageStyleSettingsPageRoleAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant'**
+  String get messageStyleSettingsPageRoleAssistant;
+
+  /// No description provided for @messageStyleSettingsPageRoleAssistantHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant settings also apply to thinking, tool-call, and translation cards.'**
+  String get messageStyleSettingsPageRoleAssistantHint;
+
+  /// No description provided for @messageStyleSettingsPageRoleUser.
+  ///
+  /// In en, this message translates to:
+  /// **'User'**
+  String get messageStyleSettingsPageRoleUser;
+
+  /// No description provided for @messageStyleSettingsPageStyleDefaultSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Follows the theme; not customizable'**
+  String get messageStyleSettingsPageStyleDefaultSubtitle;
+
+  /// No description provided for @messageStyleSettingsPageStyleFrostedSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Translucent frosted glass'**
+  String get messageStyleSettingsPageStyleFrostedSubtitle;
+
+  /// No description provided for @messageStyleSettingsPageStyleSolidSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Opaque solid fill'**
+  String get messageStyleSettingsPageStyleSolidSubtitle;
+
+  /// No description provided for @messageStyleSettingsPageTextColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get messageStyleSettingsPageTextColor;
+
+  /// No description provided for @messageStyleSettingsPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Message Style'**
+  String get messageStyleSettingsPageTitle;
 }
 
 class _AppLocalizationsDelegate

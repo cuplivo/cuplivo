@@ -54,6 +54,7 @@ import 'chat_suggestion_bubbles.dart';
 import 'token_display_widget.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../theme/app_semantic_colors.dart';
+import '../../../theme/chat_bubble_style.dart';
 import '../models/tool_ui_part.dart';
 
 export '../models/tool_ui_part.dart';
@@ -1381,7 +1382,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
             child: _buildBubbleContainer(
               context: context,
               isUser: true,
-              child: _buildUserTextContent(context, visualText, settings, cs),
+              child: _buildUserTextContent(context, visualText, settings),
             ),
           )
         : null;
@@ -1667,7 +1668,6 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     BuildContext context,
     String visualText,
     SettingsProvider settings,
-    ColorScheme cs,
   ) {
     final bool isDesktop =
         defaultTargetPlatform == TargetPlatform.macOS ||
@@ -1687,7 +1687,11 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     } else {
       content = Text(
         visualText,
-        style: TextStyle(fontSize: baseUser, height: 1.4, color: cs.onSurface),
+        style: TextStyle(
+          fontSize: baseUser,
+          height: 1.4,
+          color: _chatSurfacePlainTextColor(context, isUser: true),
+        ),
       );
     }
 
@@ -1898,6 +1902,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                 : cs.primary.withValues(alpha: 0.08))
           : null,
       bareOnDefault: !isUser,
+      isUser: isUser,
       child: child,
     );
   }
@@ -1945,7 +1950,6 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     String visualContent,
     SettingsProvider settings,
   ) {
-    final cs = Theme.of(context).colorScheme;
     final bool isDesktop =
         defaultTargetPlatform == TargetPlatform.macOS ||
         defaultTargetPlatform == TargetPlatform.windows ||
@@ -1966,7 +1970,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
         style: TextStyle(
           fontSize: baseAssistant,
           height: 1.5,
-          color: cs.onSurface,
+          color: _chatSurfacePlainTextColor(context),
         ),
       );
     }
@@ -2097,13 +2101,24 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     );
   }
 
+  /// Assistant blocks span the row by default. With the fit-content option
+  /// on, [Align] hands the bubble loose constraints so it hugs its text;
+  /// long text still wraps at the same max width.
+  Widget _assistantBlockWidth(BuildContext context, {required Widget child}) {
+    final fitContent = context.select<SettingsProvider, bool>(
+      (s) => s.assistantBubbleFitContent,
+    );
+    if (!fitContent) return SizedBox(width: double.infinity, child: child);
+    return Align(alignment: Alignment.centerLeft, child: child);
+  }
+
   Widget _buildAssistantTextBlock(
     BuildContext context,
     String visualContent,
     SettingsProvider settings,
   ) {
-    return SizedBox(
-      width: double.infinity,
+    return _assistantBlockWidth(
+      context,
       child: _buildAssistantBubbleContainer(
         context: context,
         child: _buildAssistantTextContent(context, visualContent, settings),
@@ -2538,12 +2553,16 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                 widget.message.isStreaming &&
                 visualContent.isEmpty) {
               return <Widget>[
-                SizedBox(
-                  width: double.infinity,
+                _assistantBlockWidth(
+                  context,
                   child: _buildAssistantBubbleContainer(
                     context: context,
                     child: Align(
                       alignment: Alignment.centerLeft,
+                      // widthFactor keeps the waiting bubble from filling a
+                      // loose row under the fit-content option; with tight
+                      // constraints (option off) Align ignores it.
+                      widthFactor: 1,
                       child: Semantics(
                         label: l10n.chatMessageWidgetThinking,
                         child: widget.hideStreamingIndicator
@@ -2714,7 +2733,9 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                                         style: TextStyle(
                                           fontSize: baseTranslation,
                                           height: 1.4,
-                                          color: cs.onSurface,
+                                          color: _chatSurfacePlainTextColor(
+                                            context,
+                                          ),
                                         ),
                                       );
                                     }
@@ -3259,6 +3280,34 @@ class _AnimatedPopupState extends State<_AnimatedPopup> {
   }
 }
 
+({ChatMessageBackgroundStyle style, ChatBubbleStyleOverrides overrides})
+_chatSurfaceStyleSelection(BuildContext context, {bool isUser = false}) {
+  return context.select<
+    SettingsProvider,
+    ({ChatMessageBackgroundStyle style, ChatBubbleStyleOverrides overrides})
+  >(
+    (s) => (
+      style: s.chatMessageBackgroundStyle,
+      overrides: s.chatBubbleStyleOverridesFor(isUser: isUser),
+    ),
+  );
+}
+
+Color _chatSurfacePlainTextColor(BuildContext context, {bool isUser = false}) {
+  final theme = Theme.of(context);
+  final cs = theme.colorScheme;
+  final selection = _chatSurfaceStyleSelection(context, isUser: isUser);
+  if (selection.style == ChatMessageBackgroundStyle.defaultStyle) {
+    return cs.onSurface;
+  }
+  return resolveBubbleStyle(
+    cs,
+    theme.brightness,
+    selection.style,
+    selection.overrides,
+  ).text;
+}
+
 Widget _buildSharedChatSurface(
   BuildContext context, {
   required Widget child,
@@ -3266,29 +3315,40 @@ Widget _buildSharedChatSurface(
   required EdgeInsetsGeometry padding,
   Color? defaultColor,
   bool bareOnDefault = false,
+  bool isUser = false,
 }) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
-  final isDark = theme.brightness == Brightness.dark;
-  final style = context.watch<SettingsProvider>().chatMessageBackgroundStyle;
-  final paddedChild = Padding(padding: padding, child: child);
+  final selection = _chatSurfaceStyleSelection(context, isUser: isUser);
+  final style = selection.style;
+  final overrides = selection.overrides;
+  final resolved = resolveBubbleStyle(cs, theme.brightness, style, overrides);
+  Widget paddedChild = Padding(padding: padding, child: child);
+  if (style != ChatMessageBackgroundStyle.defaultStyle &&
+      overrides.hasTextOverride(theme.brightness)) {
+    paddedChild = DefaultTextStyle.merge(
+      style: TextStyle(color: resolved.text),
+      child: paddedChild,
+    );
+  }
 
   switch (style) {
     case ChatMessageBackgroundStyle.frosted:
+      final radius = BorderRadius.circular(resolved.radius);
       return ClipRRect(
-        borderRadius: borderRadius,
+        borderRadius: radius,
         child: BackdropFilter.grouped(
-          filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          filter: ui.ImageFilter.blur(
+            sigmaX: resolved.blurSigma,
+            sigmaY: resolved.blurSigma,
+          ),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: isDark
-                  // color-gate: ignore
-                  ? const Color(0xFF1C1C1E).withValues(alpha: 0.66)
-                  : Colors.white.withValues(alpha: 0.66),
-              borderRadius: borderRadius,
+              color: resolved.background,
+              borderRadius: radius,
               border: Border.all(
-                color: cs.outlineVariant.withValues(alpha: 0.14),
-                width: 0.8,
+                color: resolved.border,
+                width: resolved.borderWidth,
               ),
             ),
             child: paddedChild,
@@ -3296,13 +3356,14 @@ Widget _buildSharedChatSurface(
         ),
       );
     case ChatMessageBackgroundStyle.solid:
+      final radius = BorderRadius.circular(resolved.radius);
       return DecoratedBox(
         decoration: BoxDecoration(
-          color: context.appColors.surfaceCard,
-          borderRadius: borderRadius,
+          color: resolved.background,
+          borderRadius: radius,
           border: Border.all(
-            color: cs.outlineVariant.withValues(alpha: 0.16),
-            width: 0.8,
+            color: resolved.border,
+            width: resolved.borderWidth,
           ),
         ),
         child: paddedChild,
@@ -3343,12 +3404,13 @@ class _ChatSurfaceForegroundPalette {
 }
 
 _ChatSurfaceForegroundPalette _chatSurfaceForegroundPalette(
-  BuildContext context,
-) {
+  BuildContext context, {
+  bool isUser = false,
+}) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
-  final style = context.watch<SettingsProvider>().chatMessageBackgroundStyle;
-  if (style == ChatMessageBackgroundStyle.defaultStyle) {
+  final selection = _chatSurfaceStyleSelection(context, isUser: isUser);
+  if (selection.style == ChatMessageBackgroundStyle.defaultStyle) {
     return _ChatSurfaceForegroundPalette(
       strong: cs.secondary,
       medium: cs.secondary.withValues(alpha: 0.9),

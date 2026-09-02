@@ -339,12 +339,15 @@ class ChatDatabaseRepository {
   /// Appends a foreground proactive-care reply only while its conversation is
   /// still owned by [assistantId] and effectively enabled. A null result means
   /// that eligibility was lost; in that case this transaction makes no writes.
+  /// When present, [geminiThoughtSignature] is stored atomically beside the
+  /// new message instead of being embedded in its visible content.
   Future<ChatMessage?> appendProactiveCareReplyIfEligible({
     required String conversationId,
     required String assistantId,
     required String content,
     String? modelId,
     String? providerId,
+    String? geminiThoughtSignature,
   }) => _db.transaction(() async {
     final conversationRow = await (_db.select(
       _db.conversationRows,
@@ -379,6 +382,16 @@ class ChatDatabaseRepository {
         .insert(
           _messageCompanion(message, await _nextMessageOrder(conversationId)),
         );
+    if (geminiThoughtSignature?.isNotEmpty == true) {
+      await _db
+          .into(_db.geminiThoughtSignatureRows)
+          .insert(
+            GeminiThoughtSignatureRowsCompanion.insert(
+              messageId: message.id,
+              signature: geminiThoughtSignature!,
+            ),
+          );
+    }
     await (_db.update(_db.conversationRows)
           ..where((row) => row.id.equals(conversationId)))
         .write(ConversationRowsCompanion(updatedAt: Value(now)));

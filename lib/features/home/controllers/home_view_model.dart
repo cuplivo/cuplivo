@@ -1922,6 +1922,7 @@ class HomeViewModel extends ChangeNotifier {
       messages: _chatService.getMessages(convo.id),
       assistant: assistant,
       applySendRegexes: false,
+      geminiThoughtSignatureForMessage: _chatService.getGeminiThoughtSignature,
     );
 
     final l10n = AppLocalizations.of(_contextProvider);
@@ -2067,6 +2068,8 @@ class HomeViewModel extends ChangeNotifier {
         messages: claim.messages,
         assistant: assistant,
         applySendRegexes: true,
+        geminiThoughtSignatureForMessage:
+            _chatService.getGeminiThoughtSignature,
       );
       final recentChats = assistant.enableRecentChatsReference
           ? ChatContextTransforms.selectRecentChats(
@@ -2095,16 +2098,17 @@ class HomeViewModel extends ChangeNotifier {
         apiMessages: apiMessages,
         fallbackThinkingBudget: settings.thinkingBudget,
       );
-      if (reply.isEmpty) {
+      if (reply.content.isEmpty) {
         throw StateError('model returned an empty proactive care reply');
       }
 
       final message = await _chatService.appendProactiveCareReplyIfEligible(
         conversationId: convo.id,
         assistantId: assistantId,
-        content: reply,
+        content: reply.content,
         modelId: mdlId,
         providerId: provKey,
+        geminiThoughtSignature: reply.geminiThoughtSignature,
       );
       if (message == null) {
         debugPrint(
@@ -2120,7 +2124,7 @@ class HomeViewModel extends ChangeNotifier {
         notifyListeners();
       }
 
-      await _showProactiveCareNotification(assistant, convo.id, reply);
+      await _showProactiveCareNotification(assistant, convo.id, reply.content);
       await _maybeUpdateProactiveCareFor(convo.id);
     } catch (e) {
       debugPrint(

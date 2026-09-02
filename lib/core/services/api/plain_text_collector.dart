@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../../providers/settings_provider.dart';
 import 'chat_api_service.dart';
+import 'gemini_thought_signature.dart';
 
 /// Stream sender signature used by [PlainTextCollector].
 typedef PlainTextStreamSender =
@@ -41,6 +42,9 @@ class PlainTextCollector {
 
   /// Runs the stream and returns the accumulated text.
   ///
+  /// Gemini thought-signature comments are removed from the returned text and
+  /// reported through [onGeminiThoughtSignature] when that callback is set.
+  ///
   /// [onAccumulated] fires per non-empty chunk with the full accumulated
   /// buffer (live-update hook for streaming UI). When [updateInterval] is
   /// provided, callbacks are coalesced to that cadence and flushed once after
@@ -59,6 +63,7 @@ class PlainTextCollector {
     String? requestId,
     Duration? updateInterval,
     void Function(String accumulated)? onAccumulated,
+    void Function(String signature)? onGeminiThoughtSignature,
   }) async {
     final buffer = StringBuffer();
     Timer? pendingUpdate;
@@ -124,7 +129,11 @@ class PlainTextCollector {
         ocrActive: ocrActive,
       )) {
         if (chunk.content.isEmpty) continue;
-        buffer.write(chunk.content);
+        final extracted = extractGeminiThoughtSignature(chunk.content);
+        final signature = extracted.signature;
+        if (signature != null) onGeminiThoughtSignature?.call(signature);
+        if (extracted.content.isEmpty) continue;
+        buffer.write(extracted.content);
         scheduleAccumulated();
       }
       streamCompleted = true;

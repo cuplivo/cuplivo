@@ -242,6 +242,10 @@ void main() {
   });
 
   test('appends and writes the next time to the exact conversation', () async {
+    const previousSignature =
+        '<!-- gemini_thought_signatures:{"text":{"k":"thoughtSignature","v":"previous"}} -->';
+    const deliveredSignature =
+        '<!-- gemini_thought_signatures:{"text":{"k":"thoughtSignature","v":"delivered"}} -->';
     final dbFile = File(p.join(tempDir.path, AppDatabase.databaseFileName));
     final repository = ChatDatabaseRepository.open(file: dbFile);
     await repository.ensureReady();
@@ -260,16 +264,33 @@ void main() {
     await repository.putConversation(
       Conversation(id: 'other', title: 'Other', assistantId: 'assistant-1'),
     );
-    await repository.close();
-    await ProactiveCareHeadlessChatStore.claimConversationSchedule(
-      conversationId: 'target',
-      expectedAt: expectedAt,
+    await repository.putMessage(
+      ChatMessage(
+        id: 'previous-message',
+        role: 'assistant',
+        content: 'Previous',
+        conversationId: 'target',
+      ),
     );
+    await repository.setGeminiThoughtSignature(
+      'previous-message',
+      previousSignature,
+    );
+    await repository.close();
+    final claim =
+        await ProactiveCareHeadlessChatStore.claimConversationSchedule(
+          conversationId: 'target',
+          expectedAt: expectedAt,
+        );
+    expect(claim?.geminiThoughtSignaturesByMessageId, {
+      'previous-message': previousSignature,
+    });
 
     final appended = await ProactiveCareHeadlessChatStore.appendAssistantReply(
       conversationId: 'target',
       assistantId: 'assistant-1',
       content: 'Delivered',
+      geminiThoughtSignature: deliveredSignature,
     );
     final nextAt = DateTime(2026, 8, 15, 9);
     final target =
@@ -285,7 +306,7 @@ void main() {
     expect(
       (await ProactiveCareHeadlessChatStore.loadConversation(
         'target',
-      ))?.messages.single.content,
+      ))?.messages.last.content,
       'Delivered',
     );
     expect(
@@ -306,6 +327,14 @@ void main() {
       laterCompletion,
       reason: 'the last completed write wins even when a schedule exists',
     );
+    await ProactiveCareHeadlessChatStore.close();
+    final verificationRepository = ChatDatabaseRepository.open(file: dbFile);
+    await verificationRepository.ensureReady();
+    expect(
+      await verificationRepository.getGeminiThoughtSignature(appended!.id),
+      deliveredSignature,
+    );
+    await verificationRepository.close();
   });
 
   test('pre-v22 database safely skips a conversation trigger', () async {

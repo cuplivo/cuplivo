@@ -5,6 +5,7 @@ import '../../../core/models/chat_message.dart';
 import '../../../core/models/reasoning_payload.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
+import '../../../core/services/api/gemini_thought_signature.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/generation_engine.dart';
 import '../../../core/services/streaming_content_notifier.dart';
@@ -103,12 +104,6 @@ class StreamController {
   /// reasoningSegmentsJson payload so they can be echoed back on later turns.
   final Map<String, dynamic> _reasoningDetails = <String, dynamic>{};
   Map<String, dynamic> get reasoningDetails => _reasoningDetails;
-
-  /// Regex to capture Gemini thought signature comments.
-  static final RegExp _geminiThoughtSigRe = RegExp(
-    r'<!--\s*gemini_thought_signatures:.*?-->',
-    dotAll: true,
-  );
 
   // ============================================================================
   // Public Methods - State Access
@@ -267,19 +262,15 @@ class StreamController {
 
   /// Capture and strip Gemini thought signature from content.
   String captureGeminiThoughtSignature(String content, String messageId) {
-    if (content.isEmpty) return content;
-    final m = _geminiThoughtSigRe.firstMatch(content);
-    if (m != null) {
-      final sig = m.group(0) ?? '';
-      if (sig.isNotEmpty) {
-        if (_geminiThoughtSigs[messageId] != sig) {
-          _geminiThoughtSigs[messageId] = sig;
-          unawaited(_chatService.setGeminiThoughtSignature(messageId, sig));
-        }
+    final extracted = extractGeminiThoughtSignature(content);
+    final signature = extracted.signature;
+    if (signature != null) {
+      if (_geminiThoughtSigs[messageId] != signature) {
+        _geminiThoughtSigs[messageId] = signature;
+        unawaited(_chatService.setGeminiThoughtSignature(messageId, signature));
       }
-      content = content.replaceAll(_geminiThoughtSigRe, '').trimRight();
     }
-    return content;
+    return extracted.content;
   }
 
   /// Append Gemini thought signature for API calls (when sending history).
@@ -289,13 +280,7 @@ class StreamController {
   ) {
     String? sig = _geminiThoughtSigs[message.id];
     sig ??= _chatService.getGeminiThoughtSignature(message.id);
-    if (sig != null &&
-        sig.isNotEmpty &&
-        !content.contains('gemini_thought_signatures:')) {
-      if (content.isEmpty) return sig;
-      return '$content\n$sig';
-    }
-    return content;
+    return appendGeminiThoughtSignature(content, sig);
   }
 
   /// Clear Gemini thought signatures map.

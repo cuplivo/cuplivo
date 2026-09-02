@@ -15,6 +15,7 @@ import '../database/business_preferences.dart';
 import '../database/business_preferences_store.dart';
 import '../models/assistant.dart';
 import '../models/conversation.dart';
+import 'api/gemini_thought_signature.dart';
 import 'logging/flutter_logger.dart';
 import 'notification_service.dart';
 import 'proactive_care_conversation_policy.dart';
@@ -198,12 +199,16 @@ Future<void> _runHeadlessCareFlow(
       messages: claim.messages,
       assistant: assistant,
       applySendRegexes: true,
+      geminiThoughtSignatureForMessage: (messageId) =>
+          claim.geminiThoughtSignaturesByMessageId[messageId],
     );
     final decisionHistory = flow.buildHistory(
       conversation: conversation,
       messages: claim.messages,
       assistant: assistant,
       applySendRegexes: false,
+      geminiThoughtSignatureForMessage: (messageId) =>
+          claim.geminiThoughtSignaturesByMessageId[messageId],
     );
     var recentChats = const <Conversation>[];
     if (assistant.enableRecentChatsReference) {
@@ -239,16 +244,17 @@ Future<void> _runHeadlessCareFlow(
       apiMessages: apiMessages,
       fallbackThinkingBudget: fallbackThinkingBudget,
     );
-    if (reply.isEmpty) {
+    if (reply.content.isEmpty) {
       throw StateError('model returned an empty proactive care reply');
     }
 
     final appended = await ProactiveCareHeadlessChatStore.appendAssistantReply(
       assistantId: assistant.id,
       conversationId: conversation.id,
-      content: reply,
+      content: reply.content,
       modelId: modelCfg.modelId,
       providerId: modelCfg.providerKey,
+      geminiThoughtSignature: reply.geminiThoughtSignature,
     );
     if (appended == null) {
       debugPrint(
@@ -257,7 +263,7 @@ Future<void> _runHeadlessCareFlow(
       );
       return;
     }
-    body = reply;
+    body = reply.content;
 
     // Ask the decision model for the next care time (continuous care). A
     // failure here must not hide the reply that was already produced.
@@ -277,7 +283,13 @@ Future<void> _runHeadlessCareFlow(
           userNickname: await flow.loadUserNicknameFromPrefs(),
           history: <Map<String, dynamic>>[
             ...decisionHistory,
-            {'role': 'assistant', 'content': reply},
+            {
+              'role': 'assistant',
+              'content': appendGeminiThoughtSignature(
+                reply.content,
+                reply.geminiThoughtSignature,
+              ),
+            },
           ],
           decisionPrompt: decisionPrompt,
           currentNextCareTime: null,

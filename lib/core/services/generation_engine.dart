@@ -13,6 +13,7 @@ import '../models/token_usage.dart';
 import '../providers/download_progress_store.dart';
 import '../providers/settings_provider.dart';
 import 'api/chat_api_service.dart';
+import 'api/gemini_thought_signature.dart';
 import 'chat/chat_service.dart';
 import 'workspace/linux_sandbox_service.dart';
 import 'streaming_content_notifier.dart';
@@ -948,29 +949,21 @@ class GenerationEngine extends ChangeNotifier {
     );
   }
 
-  static final RegExp _geminiThoughtSigRe = RegExp(
-    r'<!--\s*gemini_thought_signatures:.*?-->',
-    dotAll: true,
-  );
-
   /// Capture and strip a Gemini thought signature from content; persists it
   /// so follow-up API calls in the conversation can echo it.
   String _captureGeminiThoughtSignature(String content, _SlotRuntime rt) {
-    final m = _geminiThoughtSigRe.firstMatch(content);
-    if (m != null) {
-      final sig = m.group(0) ?? '';
-      if (sig.isNotEmpty) {
-        rt.geminiThoughtSig = sig;
-        unawaited(
-          _chatService.setGeminiThoughtSignature(
-            rt.slot.assistantMessageId,
-            sig,
-          ),
-        );
-        content = content.replaceAll(_geminiThoughtSigRe, '').trimRight();
-      }
+    final extracted = extractGeminiThoughtSignature(content);
+    final signature = extracted.signature;
+    if (signature != null) {
+      rt.geminiThoughtSig = signature;
+      unawaited(
+        _chatService.setGeminiThoughtSignature(
+          rt.slot.assistantMessageId,
+          signature,
+        ),
+      );
     }
-    return content;
+    return extracted.content;
   }
 
   /// Immediate inline base64 image sanitization (mirrors the page's

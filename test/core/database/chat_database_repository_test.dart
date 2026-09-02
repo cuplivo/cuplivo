@@ -379,9 +379,15 @@ void main() {
           content: 'Care reply',
           modelId: 'model',
           providerId: 'provider',
+          geminiThoughtSignature:
+              '<!-- gemini_thought_signatures:{"text":{"k":"thoughtSignature","v":"opaque"}} -->',
         );
         expect(appended?.conversationId, conversation.id);
         expect(appended?.content, 'Care reply');
+        expect(
+          await repo.getGeminiThoughtSignature(appended!.id),
+          '<!-- gemini_thought_signatures:{"text":{"k":"thoughtSignature","v":"opaque"}} -->',
+        );
         expect(
           (await repo.getMessagesRange(
             conversation.id,

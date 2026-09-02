@@ -91,6 +91,40 @@ void main() {
     expect(snapshots, ['ab', 'abc']);
   });
 
+  test('strips Gemini signatures and reports them separately', () async {
+    const firstSignature =
+        '<!-- gemini_thought_signatures:{"text":{"k":"thoughtSignature","v":"first"}} -->';
+    const lastSignature =
+        '<!-- gemini_thought_signatures:{"text":{"k":"thoughtSignature","v":"last"}} -->';
+    final chunks = StreamController<ChatStreamChunk>();
+    addTearDown(() => chunks.close());
+    final collector = PlainTextCollector(sendMessageStream: fakeSender(chunks));
+    final signatures = <String>[];
+
+    final future = collector.collect(
+      config: testConfig(),
+      modelId: 'gemini-3-pro',
+      messages: const [],
+      onGeminiThoughtSignature: signatures.add,
+    );
+    await pumpEventQueue();
+    chunks
+      ..add(
+        ChatStreamChunk(
+          content: 'visible reply$firstSignature',
+          isDone: false,
+          totalTokens: 0,
+        ),
+      )
+      ..add(
+        ChatStreamChunk(content: lastSignature, isDone: true, totalTokens: 1),
+      );
+    await chunks.close();
+
+    expect(await future, 'visible reply');
+    expect(signatures, [firstSignature, lastSignature]);
+  });
+
   test(
     'coalesces live updates and flushes the final accumulated value',
     () async {

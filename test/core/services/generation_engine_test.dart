@@ -16,6 +16,7 @@ import 'package:Cuplivo/core/providers/settings_provider.dart';
 class _FakeChatService extends ChatService {
   final messagesByConversation = <String, List<ChatMessage>>{};
   final toolEventsByMessage = <String, List<Map<String, dynamic>>>{};
+  final geminiThoughtSignaturesByMessage = <String, String>{};
   int _nextMessageId = 1;
 
   @override
@@ -26,6 +27,14 @@ class _FakeChatService extends ChatService {
     toolEventsByMessage[assistantMessageId] = List<Map<String, dynamic>>.of(
       events,
     );
+  }
+
+  @override
+  Future<void> setGeminiThoughtSignature(
+    String assistantMessageId,
+    String signature,
+  ) async {
+    geminiThoughtSignaturesByMessage[assistantMessageId] = signature;
   }
 
   @override
@@ -268,6 +277,28 @@ void main() {
         expect(slot.parentConversationId, 'parent-1');
       },
     );
+
+    test('Gemini signature is stripped and persisted separately', () async {
+      const signature =
+          '<!-- gemini_thought_signatures:{"text":{"k":"thoughtSignature","v":"opaque"}} -->';
+      final messageId = await startChild(id: 'child-1', parent: 'parent-1');
+      final future = service.waitFor('child-1');
+
+      pumpChunk('child-1', 'visible reply');
+      pumpChunk('child-1', signature);
+      await closeStream('child-1');
+
+      final result = await future;
+      expect(result.text, 'visible reply');
+      expect(
+        chatService.messagesByConversation['child-1']!.last.content,
+        'visible reply',
+      );
+      expect(
+        chatService.geminiThoughtSignaturesByMessage[messageId],
+        signature,
+      );
+    });
 
     test('slot tracks last tool call and result', () async {
       await startChild(id: 'child-1', parent: 'parent-1');

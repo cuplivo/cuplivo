@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -306,6 +307,71 @@ void main() {
     final paths = mediaController.snapshotInput('').imagePaths;
     expect(paths, hasLength(2));
     expect(paths.toSet(), hasLength(2));
+
+    controller.dispose();
+    focusNode.dispose();
+  });
+
+  testWidgets('concurrent IME inserts never overwrite each other', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    // Second payload is the same png plus extra bytes: the non-atomic
+    // filename race would make both paths point at one file, and exactly
+    // one byte set would remain.
+    final bytesA = pngBytes;
+    final bytesB = Uint8List.fromList([...pngBytes, 0x01, 0x02, 0x03]);
+
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+      ),
+    );
+
+    await tester.runAsync(() async {
+      final editable = tester.state<EditableTextState>(
+        find.byType(EditableText),
+      );
+      // Fire both insertions back-to-back without waiting for the first
+      // save to settle, so their file allocation can interleave.
+      editable.insertContent(
+        KeyboardInsertedContent(
+          mimeType: 'image/png',
+          uri: contentUri('a.png'),
+          data: bytesA,
+        ),
+      );
+      editable.insertContent(
+        KeyboardInsertedContent(
+          mimeType: 'image/png',
+          uri: contentUri('b.png'),
+          data: bytesB,
+        ),
+      );
+      final deadline = DateTime.now().add(const Duration(seconds: 5));
+      while (mediaController.snapshotInput('').imagePaths.length < 2 &&
+          DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+    });
+    await tester.pump();
+
+    final paths = mediaController.snapshotInput('').imagePaths;
+    expect(paths, hasLength(2));
+    expect(paths.toSet(), hasLength(2));
+    final expected = <List<int>>[bytesA, bytesB];
+    for (final path in paths) {
+      expect(path, endsWith('.png'));
+      final data = await tester.runAsync(() => File(path).readAsBytes());
+      expect(
+        expected.where((candidate) => listEquals(candidate, data)),
+        hasLength(1),
+      );
+    }
 
     controller.dispose();
     focusNode.dispose();

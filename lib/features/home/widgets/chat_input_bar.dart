@@ -1686,25 +1686,47 @@ class _ChatInputBarState extends State<ChatInputBar>
   }
 
   /// Persists pasted image bytes under the upload directory with a unique
-  /// `paste_<ts>.<ext>` name so the file outlives its temporary source.
+  /// `paste_<ts>[_n].<ext>` name so the file outlives its temporary source.
+  ///
+  /// Allocation is collision-safe under concurrent IME insertions: the name
+  /// is reserved atomically via exclusive create, and a numeric suffix is
+  /// retried on a name clash.
   Future<String?> _savePastedImageBytes(String format, Uint8List bytes) async {
+    File? reserved;
     try {
       final dir = await AppDirectories.getUploadDirectory();
       if (!await dir.exists()) {
         await dir.create(recursive: true);
       }
-      final ts = DateTime.now().millisecondsSinceEpoch;
       final ext = format.toLowerCase();
       final fileExt = ext == 'jpeg' ? 'jpg' : ext;
-      String name = 'paste_$ts.$fileExt';
-      String destPath = p.join(dir.path, name);
-      if (await File(destPath).exists()) {
-        name = 'paste_${ts}_${DateTime.now().microsecondsSinceEpoch}.$fileExt';
-        destPath = p.join(dir.path, name);
+      final baseName = 'paste_${DateTime.now().millisecondsSinceEpoch}';
+      var counter = 0;
+      while (true) {
+        final suffix = counter == 0 ? '' : '_$counter';
+        final file = File(p.join(dir.path, '$baseName$suffix.$fileExt'));
+        try {
+          await file.create(exclusive: true);
+          reserved = file;
+          break;
+        } on FileSystemException {
+          if (!await file.exists()) rethrow;
+          counter++;
+        }
       }
-      await File(destPath).writeAsBytes(bytes, flush: true);
-      return destPath;
+      await reserved.writeAsBytes(bytes, flush: true);
+      return reserved.path;
     } catch (e) {
+      if (reserved != null) {
+        try {
+          await reserved.delete();
+        } catch (cleanupError) {
+          debugPrint(
+            '[ChatInputBar] Failed to delete reserved upload '
+            '${reserved.path}: $cleanupError',
+          );
+        }
+      }
       debugPrint('[ChatInputBar] Failed to persist pasted image: $e');
       return null;
     }

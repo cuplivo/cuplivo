@@ -366,6 +366,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get storageSpaceSortByTime => 'By date';
 
   @override
+  String get storageSpaceNoCacheFiles => 'No cache files';
+
+  @override
+  String storageSpaceDeletedCacheFilesDone(Object count) {
+    return 'Deleted $count cache files';
+  }
+
+  @override
   String get storageWorkspaceEntryTitle => 'Workspace';
 
   @override

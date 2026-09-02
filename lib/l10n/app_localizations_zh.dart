@@ -355,6 +355,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get storageSpaceSortByTime => '按时间';
 
   @override
+  String get storageSpaceNoCacheFiles => '暂无缓存文件';
+
+  @override
+  String storageSpaceDeletedCacheFilesDone(Object count) {
+    return '已删除 $count 个缓存文件';
+  }
+
+  @override
   String get storageWorkspaceEntryTitle => '工作区';
 
   @override
@@ -9535,6 +9543,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get storageSpaceSortByTime => '按时间';
+
+  @override
+  String get storageSpaceNoCacheFiles => '暂无缓存文件';
+
+  @override
+  String storageSpaceDeletedCacheFilesDone(Object count) {
+    return '已删除 $count 个缓存文件';
+  }
 
   @override
   String get storageWorkspaceEntryTitle => '工作区';
@@ -18718,6 +18734,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get storageSpaceSortByTime => '按時間';
+
+  @override
+  String get storageSpaceNoCacheFiles => '暫無快取檔案';
+
+  @override
+  String storageSpaceDeletedCacheFilesDone(Object count) {
+    return '已刪除 $count 個快取檔案';
+  }
 
   @override
   String get storageWorkspaceEntryTitle => '工作區';

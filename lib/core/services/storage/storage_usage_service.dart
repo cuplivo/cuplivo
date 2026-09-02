@@ -653,6 +653,36 @@ abstract final class StorageUsageService {
     progress.onEmit(progress.files, progress.bytes);
   }
 
+  /// Walks [dir] recursively, invoking [onFile] once per file.
+  ///
+  /// A single `list(recursive: true)` stream would abort at the first
+  /// unreadable subdirectory and silently drop every file traversed after
+  /// it — the same failure mode [listCacheEntries] used to have and the one
+  /// that produced the zero-usage incident documented on
+  /// [_scanFilesConcurrently]. Each subdirectory is therefore recursed
+  /// individually: a failing directory is logged and skipped while its
+  /// siblings keep being traversed. A failure to list the walked root itself
+  /// is not caught here — the caller logs it and returns partial results.
+  static Future<void> _listFilesTolerantly(
+    Directory dir, {
+    required Future<void> Function(File file) onFile,
+  }) async {
+    await for (final ent in dir.list(followLinks: false)) {
+      if (ent is Directory) {
+        try {
+          await _listFilesTolerantly(ent, onFile: onFile);
+        } catch (e) {
+          debugPrint(
+            'StorageUsageService: skipping unreadable directory '
+            '${ent.path}: $e',
+          );
+        }
+      } else if (ent is File) {
+        await onFile(ent);
+      }
+    }
+  }
+
   /// Categorizes a workspace tree entry: per-workspace Linux sandboxes
   /// (.sandbox: rootfs, tmp, staged dependency archives) are counted
   /// separately so they can be cleared; everything else under a workspace
@@ -813,34 +843,38 @@ abstract final class StorageUsageService {
     }) async {
       if (!await d.exists()) return;
       try {
-        await for (final ent in d.list(recursive: true, followLinks: false)) {
-          if (ent is! File) continue;
-          final name = p.basename(ent.path);
-          final isImg = _isImageExt(name);
-          if (isImg && !includeImages) continue;
-          if (!isImg && !includeNonImages) continue;
-          int bytes = 0;
-          DateTime modifiedAt = DateTime.fromMillisecondsSinceEpoch(0);
-          try {
-            final stat = await ent.stat();
-            bytes = stat.size;
-            modifiedAt = stat.modified;
-          } catch (_) {
+        await _listFilesTolerantly(
+          d,
+          onFile: (file) async {
+            final name = p.basename(file.path);
+            final isImg = _isImageExt(name);
+            if (isImg && !includeImages) return;
+            if (!isImg && !includeNonImages) return;
+            int bytes = 0;
+            DateTime modifiedAt = DateTime.fromMillisecondsSinceEpoch(0);
             try {
-              bytes = await ent.length();
-            } catch (_) {}
-          }
-          out.add(
-            StorageFileEntry(
-              path: ent.path,
-              name: name,
-              bytes: bytes,
-              modifiedAt: modifiedAt,
-            ),
-          );
-        }
-      } catch (_) {
-        // Ignore listing errors and return partial results.
+              final stat = await file.stat();
+              bytes = stat.size;
+              modifiedAt = stat.modified;
+            } catch (_) {
+              try {
+                bytes = await file.length();
+              } catch (_) {}
+            }
+            out.add(
+              StorageFileEntry(
+                path: file.path,
+                name: name,
+                bytes: bytes,
+                modifiedAt: modifiedAt,
+              ),
+            );
+          },
+        );
+      } catch (e) {
+        debugPrint(
+          'StorageUsageService: failed to list upload dir ${d.path}: $e',
+        );
       }
     }
 
@@ -876,7 +910,161 @@ abstract final class StorageUsageService {
           await f.delete();
           deleted += 1;
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint(
+          'StorageUsageService.deleteUploadFiles: failed to delete $raw: $e',
+        );
+      }
+    }
+    return deleted;
+  }
+
+  /// Lists every file [clearCache]/[clearOtherCache]/[clearSystemCache]/
+  /// [clearTmpCache] would delete for the given cache [subcategoryId], so the
+  /// storage page can show exactly which files are judged as cache before
+  /// clearing. Mirrors the clear methods' boundaries:
+  /// - 'avatar_cache': everything under `appData/cache/avatars`
+  /// - 'other_cache':  everything under `appData/cache` except avatars
+  /// - 'system_cache': platform application cache directory
+  /// - 'tmp_cache':    real iOS tmp dir (empty on other platforms)
+  ///
+  /// Sorted by size descending (largest first). Unknown ids return an empty
+  /// list. Unreadable subdirectories are logged and skipped while their
+  /// siblings keep being traversed (see [_listFilesTolerantly]); a failure
+  /// to list the root itself is logged and the partial results are returned,
+  /// never thrown.
+  static Future<List<StorageFileEntry>> listCacheEntries({
+    required String subcategoryId,
+  }) async {
+    final out = <StorageFileEntry>[];
+
+    final cacheDir = await AppDirectories.getCacheDirectory();
+    final avatarCacheDir = await AppDirectories.getAvatarCacheDirectory();
+    final systemCacheDir = await AppDirectories.getSystemCacheDirectory();
+
+    Directory root;
+    String? excludedRoot;
+    switch (subcategoryId) {
+      case 'avatar_cache':
+        root = Directory(avatarCacheDir.path);
+        break;
+      case 'other_cache':
+        root = Directory(cacheDir.path);
+        excludedRoot = p.normalize(
+          Directory(avatarCacheDir.path).absolute.path,
+        );
+        break;
+      case 'system_cache':
+        root = Directory(systemCacheDir.path);
+        break;
+      case 'tmp_cache':
+        final iosTmpPath = await IosTmpDirectory.getPath();
+        if (iosTmpPath == null) return out;
+        root = Directory(iosTmpPath);
+        break;
+      default:
+        return out;
+    }
+
+    if (!await root.exists()) return out;
+
+    try {
+      await _listFilesTolerantly(
+        root,
+        onFile: (file) async {
+          final abs = p.normalize(file.absolute.path);
+          if (excludedRoot != null && p.isWithin(excludedRoot, abs)) return;
+          int bytes = 0;
+          DateTime modifiedAt = DateTime.fromMillisecondsSinceEpoch(0);
+          try {
+            final stat = await file.stat();
+            bytes = stat.size;
+            modifiedAt = stat.modified;
+          } catch (_) {
+            try {
+              bytes = await file.length();
+            } catch (_) {}
+          }
+          out.add(
+            StorageFileEntry(
+              path: file.path,
+              name: p.basename(file.path),
+              bytes: bytes,
+              modifiedAt: modifiedAt,
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint(
+        'StorageUsageService: failed to list cache dir ${root.path}: $e',
+      );
+    }
+
+    out.sort((a, b) {
+      final r = a.bytes.compareTo(b.bytes);
+      if (r != 0) return -r;
+      return a.modifiedAt.compareTo(b.modifiedAt);
+    });
+    return out;
+  }
+
+  /// Deletes the given files from one cache subcategory, validating every
+  /// path against the same roots [listCacheEntries] reports. Paths outside
+  /// the allowed root, or inside the excluded 'avatars' root for
+  /// 'other_cache', are skipped. Returns the number of files actually
+  /// deleted.
+  static Future<int> deleteCacheFiles(
+    Iterable<String> paths, {
+    required String subcategoryId,
+  }) async {
+    final cacheDir = await AppDirectories.getCacheDirectory();
+    final avatarCacheDir = await AppDirectories.getAvatarCacheDirectory();
+    final systemCacheDir = await AppDirectories.getSystemCacheDirectory();
+
+    final roots = <String>[];
+    String? excludedRoot;
+    switch (subcategoryId) {
+      case 'avatar_cache':
+        roots.add(p.normalize(Directory(avatarCacheDir.path).absolute.path));
+        break;
+      case 'other_cache':
+        roots.add(p.normalize(Directory(cacheDir.path).absolute.path));
+        excludedRoot = p.normalize(
+          Directory(avatarCacheDir.path).absolute.path,
+        );
+        break;
+      case 'system_cache':
+        roots.add(p.normalize(Directory(systemCacheDir.path).absolute.path));
+        break;
+      case 'tmp_cache':
+        final iosTmpPath = await IosTmpDirectory.getPath();
+        if (iosTmpPath == null) return 0;
+        roots.add(p.normalize(Directory(iosTmpPath).absolute.path));
+        break;
+      default:
+        return 0;
+    }
+
+    int deleted = 0;
+    for (final raw in paths) {
+      try {
+        final abs = p.normalize(File(raw).absolute.path);
+        final allowed = roots.any(
+          (root) => p.isWithin(root, abs) || abs == root,
+        );
+        if (!allowed) continue;
+        if (excludedRoot != null && p.isWithin(excludedRoot, abs)) continue;
+        final f = File(abs);
+        if (await f.exists()) {
+          await f.delete();
+          deleted += 1;
+        }
+      } catch (e) {
+        debugPrint(
+          'StorageUsageService.deleteCacheFiles: failed to delete $raw: $e',
+        );
+      }
     }
     return deleted;
   }

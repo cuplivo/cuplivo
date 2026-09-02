@@ -510,6 +510,173 @@ void main() {
   );
 
   test(
+    'listCacheEntries keeps listing files after an unreadable subdirectory',
+    () async {
+      final cacheDir = Directory(p.join(appDataDir.path, 'cache'));
+      final blocked = Directory(p.join(cacheDir.path, 'a_blocked'));
+      await Directory(p.join(blocked.path, 'inner')).create(recursive: true);
+      await _writeSizedFile(
+        Directory(p.join(blocked.path, 'inner')),
+        'hidden.bin',
+        10,
+      );
+      final readable = Directory(p.join(cacheDir.path, 'z_readable'));
+      await readable.create(recursive: true);
+      await _writeSizedFile(readable, 'icon.png', 5);
+      final chmod = await Process.run('chmod', ['000', blocked.path]);
+      expect(chmod.exitCode, 0);
+      addTearDown(() async {
+        final restore = await Process.run('chmod', ['700', blocked.path]);
+        expect(restore.exitCode, 0);
+      });
+
+      final entries = await StorageUsageService.listCacheEntries(
+        subcategoryId: 'other_cache',
+      );
+
+      // Files inside the unreadable dir are inaccessible, but the readable
+      // sibling after it must still be returned instead of being dropped by
+      // a terminated recursive stream.
+      expect(entries.map((e) => e.name), ['icon.png']);
+    },
+    skip: Platform.isWindows
+        ? 'chmod cannot revoke permissions on Windows; covered on POSIX CI'
+        : false,
+  );
+
+  test('listCacheEntries splits avatar and other cache boundaries', () async {
+    final cacheDir = Directory(p.join(appDataDir.path, 'cache'));
+    await Directory(p.join(cacheDir.path, 'avatars')).create(recursive: true);
+    await Directory(
+      p.join(cacheDir.path, 'request-log-analysis'),
+    ).create(recursive: true);
+    await _writeSizedFile(
+      Directory(p.join(cacheDir.path, 'avatars')),
+      'av_1.png',
+      10,
+    );
+    await _writeSizedFile(cacheDir, 'proactive_icon_1.png', 5);
+    await _writeSizedFile(
+      Directory(p.join(cacheDir.path, 'request-log-analysis')),
+      'draft.json',
+      7,
+    );
+
+    final avatars = await StorageUsageService.listCacheEntries(
+      subcategoryId: 'avatar_cache',
+    );
+    expect(avatars.map((e) => e.name), ['av_1.png']);
+    expect(avatars.single.bytes, 10);
+
+    final other = await StorageUsageService.listCacheEntries(
+      subcategoryId: 'other_cache',
+    );
+    expect(
+      other.map((e) => e.name),
+      containsAll(['proactive_icon_1.png', 'draft.json']),
+    );
+    expect(other.where((e) => e.name == 'av_1.png'), isEmpty);
+    expect(other.length, 2);
+  });
+
+  test(
+    'deleteCacheFiles validates paths against the subcategory root',
+    () async {
+      final cacheDir = Directory(p.join(appDataDir.path, 'cache'));
+      await Directory(p.join(cacheDir.path, 'avatars')).create(recursive: true);
+      await Directory(
+        p.join(cacheDir.path, 'request-log-analysis'),
+      ).create(recursive: true);
+      await _writeSizedFile(
+        Directory(p.join(cacheDir.path, 'avatars')),
+        'av_1.png',
+        10,
+      );
+      await _writeSizedFile(
+        Directory(p.join(cacheDir.path, 'request-log-analysis')),
+        'draft.json',
+        7,
+      );
+      await _writeSizedFile(appDataDir, 'notes.txt', 50);
+
+      final avatarPath = p.join(cacheDir.path, 'avatars', 'av_1.png');
+      final draftPath = p.join(
+        cacheDir.path,
+        'request-log-analysis',
+        'draft.json',
+      );
+      final notesPath = p.join(appDataDir.path, 'notes.txt');
+
+      // Avatar files must be refused by other_cache.
+      expect(
+        await StorageUsageService.deleteCacheFiles([
+          avatarPath,
+        ], subcategoryId: 'other_cache'),
+        0,
+      );
+      expect(File(avatarPath).existsSync(), isTrue);
+
+      // Paths outside the app cache roots must be refused.
+      expect(
+        await StorageUsageService.deleteCacheFiles([
+          notesPath,
+        ], subcategoryId: 'avatar_cache'),
+        0,
+      );
+      expect(File(notesPath).existsSync(), isTrue);
+
+      // In-root deletions return the count of actually deleted files.
+      expect(
+        await StorageUsageService.deleteCacheFiles([
+          draftPath,
+          notesPath,
+        ], subcategoryId: 'other_cache'),
+        1,
+      );
+      expect(File(draftPath).existsSync(), isFalse);
+      expect(File(notesPath).existsSync(), isTrue);
+    },
+  );
+
+  test('listCacheEntries lists the system cache directory', () async {
+    final sysCache = Directory(p.join(tempDir.path, 'cache'));
+    await sysCache.create(recursive: true);
+    await _writeSizedFile(sysCache, 'decoded.bin', 30);
+
+    final entries = await StorageUsageService.listCacheEntries(
+      subcategoryId: 'system_cache',
+    );
+
+    expect(entries.single.name, 'decoded.bin');
+    expect(entries.single.bytes, 30);
+  });
+
+  test('listCacheEntries and deleteCacheFiles are no-ops for unavailable '
+      'categories', () async {
+    // No iOS tmp channel (equivalent to non-iOS).
+    expect(
+      await StorageUsageService.listCacheEntries(subcategoryId: 'tmp_cache'),
+      isEmpty,
+    );
+    expect(
+      await StorageUsageService.deleteCacheFiles([
+        'x',
+      ], subcategoryId: 'tmp_cache'),
+      0,
+    );
+    expect(
+      await StorageUsageService.listCacheEntries(subcategoryId: 'unknown_id'),
+      isEmpty,
+    );
+    expect(
+      await StorageUsageService.deleteCacheFiles([
+        'x',
+      ], subcategoryId: 'unknown_id'),
+      0,
+    );
+  });
+
+  test(
     'relocated workspaces root inside app data keeps its category split',
     () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.windows;

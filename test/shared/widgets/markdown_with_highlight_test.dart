@@ -354,6 +354,19 @@ Widget _markdownHarness(
   );
 }
 
+/// [Text.rich] wraps the provided span in a style-merge [TextSpan]; descend
+/// through single-child wrapper spans to the span [CodeHighlightView] built.
+TextSpan _codeHighlightRootSpan(WidgetTester tester, Finder richTextFinder) {
+  var span = tester.widget<RichText>(richTextFinder).text as TextSpan;
+  while (span.text == null &&
+      span.children?.length == 1 &&
+      span.children!.single is TextSpan &&
+      (span.children!.single as TextSpan).text == null) {
+    span = span.children!.single as TextSpan;
+  }
+  return span;
+}
+
 Widget _selectableMarkdownHarness(
   String text, {
   double? width,
@@ -3039,8 +3052,7 @@ final price = "$12";
       ),
     );
 
-    final richText = tester.widget<RichText>(find.byType(RichText));
-    final root = richText.text as TextSpan;
+    final root = _codeHighlightRootSpan(tester, find.byType(RichText));
     final children = root.children ?? const <InlineSpan>[];
 
     expect(children, isNotEmpty);
@@ -3067,16 +3079,18 @@ final price = "$12";
       ),
     );
 
-    final before =
-        (tester.widget<RichText>(find.byType(RichText)).text as TextSpan)
-            .children;
+    final before = _codeHighlightRootSpan(
+      tester,
+      find.byType(RichText),
+    ).children;
 
     rebuild(() {});
     await tester.pump();
 
-    final after =
-        (tester.widget<RichText>(find.byType(RichText)).text as TextSpan)
-            .children;
+    final after = _codeHighlightRootSpan(
+      tester,
+      find.byType(RichText),
+    ).children;
 
     expect(identical(before, after), isTrue);
   });
@@ -3097,8 +3111,7 @@ final price = "$12";
       ),
     );
 
-    final richText = tester.widget<RichText>(find.byType(RichText));
-    final root = richText.text as TextSpan;
+    final root = _codeHighlightRootSpan(tester, find.byType(RichText));
     final children = root.children ?? const <InlineSpan>[];
 
     expect(children, hasLength(1));
@@ -3116,13 +3129,13 @@ final value = 1;
       );
       await tester.pump();
 
-      final richText = tester.widget<RichText>(
+      final root = _codeHighlightRootSpan(
+        tester,
         find.descendant(
           of: find.byType(CodeHighlightView),
           matching: find.byType(RichText),
         ),
       );
-      final root = richText.text as TextSpan;
       final children = root.children ?? const <InlineSpan>[];
 
       expect(children.length, greaterThan(1));
@@ -5270,15 +5283,16 @@ const answer = 42;
       );
       await tester.pump();
 
-      // A drag that spans the code block must be reported by the enclosing
-      // SelectionArea (the old SelectableText.rich owned its own context and
-      // would wall the selection off at the code block).
+      // A drag that crosses the code block must be reported by the enclosing
+      // SelectionArea and must include the code text (the old
+      // SelectableText.rich owned its own context and would wall the selection
+      // off at the code block; a bare RichText would not register at all).
       final start = tester.getTopLeft(find.text('Before the code block.'));
       final end =
-          tester.getCenter(
-            find.text('After the code block.', findRichText: true),
+          tester.getBottomRight(
+            find.textContaining('const answer = 42', findRichText: true),
           ) -
-          const Offset(20, 0);
+          const Offset(1, 1);
       final gesture = await tester.startGesture(
         start,
         kind: PointerDeviceKind.mouse,
@@ -5298,8 +5312,104 @@ const answer = 42;
       );
       expect(
         selected.last,
-        contains('After the'),
+        contains('const answer = 42'),
         reason: 'selection: ${selected.last}',
+      );
+    },
+  );
+
+  testWidgets('SelectionArea drag selects table cell content', (tester) async {
+    final selected = <String>[];
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => SettingsProvider(preferences: businessPrefs),
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SelectionArea(
+              onSelectionChanged: (s) =>
+                  selected.add(s?.plainText ?? '<cleared>'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Before the table.'),
+                  SizedBox(
+                    width: 340,
+                    child: Table(
+                      defaultColumnWidth: const FixedColumnWidth(170),
+                      defaultVerticalAlignment:
+                          TableCellVerticalAlignment.middle,
+                      children: const [
+                        TableRow(
+                          children: [
+                            Text.rich(TextSpan(text: 'Alpha')),
+                            Text.rich(TextSpan(text: 'Beta')),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final start = tester.getTopLeft(find.text('Before the table.'));
+    final end = tester.getCenter(
+      find.textContaining('Alpha', findRichText: true),
+    );
+    final gesture = await tester.startGesture(
+      start,
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(30, 10));
+    await tester.pump();
+    await gesture.moveTo(end);
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    expect(selected, isNotEmpty);
+    expect(
+      selected.last,
+      contains('Before the table.'),
+      reason: 'selection: ${selected.last}',
+    );
+    expect(
+      selected.last,
+      contains('Alpha'),
+      reason: 'selection: ${selected.last}',
+    );
+  });
+
+  testWidgets(
+    'MarkdownWithCodeHighlight excludes the table toolbar label from selection',
+    (tester) async {
+      _overrideMarkdownTablePlatform(TargetPlatform.windows);
+      await tester.pumpWidget(
+        _markdownHarness('''
+| Name | Value |
+| - | - |
+| Alpha | Beta |
+''', width: 600),
+      );
+      await tester.pump();
+
+      final selectionContainers = find.ancestor(
+        of: find.text('Table'),
+        matching: find.byType(SelectionContainer),
+      );
+      expect(
+        tester
+            .widgetList<SelectionContainer>(selectionContainers)
+            .any((widget) => widget.delegate == null),
+        isTrue,
+        reason: 'toolbar label must sit under a disabled selection container',
       );
     },
   );

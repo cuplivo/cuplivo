@@ -3639,8 +3639,8 @@ class _MarkdownTableCell extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       child: Align(
         alignment: _alignmentFor(data.alignment),
-        child: RichText(
-          text: textSpan,
+        child: Text.rich(
+          textSpan,
           textAlign: data.alignment,
           softWrap: true,
           overflow: TextOverflow.visible,
@@ -3715,60 +3715,64 @@ class _MarkdownTableToolbar extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
-      height: 38,
-      padding: const EdgeInsetsDirectional.only(start: 12, end: 6),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        border: Border(
-          bottom: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: isDark ? 0.20 : 0.28),
-            width: 0.6,
+    // Toolbar chrome must not join the enclosing message selection: it is
+    // inert UI, not content to copy.
+    return SelectionContainer.disabled(
+      child: Container(
+        height: 38,
+        padding: const EdgeInsetsDirectional.only(start: 12, end: 6),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          border: Border(
+            bottom: BorderSide(
+              color: cs.outlineVariant.withValues(alpha: isDark ? 0.20 : 0.28),
+              width: 0.6,
+            ),
           ),
         ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.80),
-                fontSize: 12,
-                fontWeight: AppFontWeights.semibold,
-                height: 1.0,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.80),
+                  fontSize: 12,
+                  fontWeight: AppFontWeights.semibold,
+                  height: 1.0,
+                ),
               ),
             ),
-          ),
-          _copyButton(context),
-          WindowsAxTreeSafeTooltip(
-            message: imageActionLabel,
-            child: IosIconButton(
-              icon: Lucide.ImageDown,
-              semanticLabel: imageActionLabel,
-              onTap: onImageAction,
-              onLongPress: onExportImage,
-              size: 15,
-              minSize: 32,
-              padding: const EdgeInsets.all(7),
-              color: cs.onSurfaceVariant.withValues(alpha: 0.68),
+            _copyButton(context),
+            WindowsAxTreeSafeTooltip(
+              message: imageActionLabel,
+              child: IosIconButton(
+                icon: Lucide.ImageDown,
+                semanticLabel: imageActionLabel,
+                onTap: onImageAction,
+                onLongPress: onExportImage,
+                size: 15,
+                minSize: 32,
+                padding: const EdgeInsets.all(7),
+                color: cs.onSurfaceVariant.withValues(alpha: 0.68),
+              ),
             ),
-          ),
-          WindowsAxTreeSafeTooltip(
-            message: exportLabel,
-            child: IosIconButton(
-              icon: Lucide.Download,
-              semanticLabel: exportLabel,
-              onTap: onExport,
-              size: 15,
-              minSize: 32,
-              padding: const EdgeInsets.all(7),
-              color: cs.onSurfaceVariant.withValues(alpha: 0.68),
+            WindowsAxTreeSafeTooltip(
+              message: exportLabel,
+              child: IosIconButton(
+                icon: Lucide.Download,
+                semanticLabel: exportLabel,
+                onTap: onExport,
+                size: 15,
+                minSize: 32,
+                padding: const EdgeInsets.all(7),
+                color: cs.onSurfaceVariant.withValues(alpha: 0.68),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -6325,8 +6329,10 @@ class AllowedHtmlTagsMd extends InlineMd {
 
 /// Code block with per-token syntax highlight.
 ///
-/// Rendered as a plain [RichText] so the code participates in the enclosing
+/// Rendered as a plain [Text.rich] so the code participates in the enclosing
 /// [SelectionArea] selection instead of owning its own selectable context.
+/// (A raw [RichText] would not wire [selectionRegistrar], leaving the code
+/// unselectable.)
 class CodeHighlightView extends StatefulWidget {
   const CodeHighlightView(
     this.source, {
@@ -6407,17 +6413,13 @@ class _CodeHighlightViewState extends State<CodeHighlightView> {
 
   @override
   Widget build(BuildContext context) {
-    final ambient = DefaultTextStyle.of(context).style;
-    final textScaler =
-        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
-    return RichText(
-      text: TextSpan(
-        style: ambient.merge(widget.textStyle),
+    return Text.rich(
+      TextSpan(
+        style: widget.textStyle,
         children: _codeTextSpans.isEmpty
             ? [TextSpan(text: widget.source)]
             : _codeTextSpans,
       ),
-      textScaler: textScaler,
     );
   }
 }

@@ -118,19 +118,25 @@ class ChatBubbleStyleOverrides {
   };
 
   factory ChatBubbleStyleOverrides.fromJson(Map<String, dynamic> json) {
+    // Fork-side hardening (upstream parses raw): persisted values may come
+    // from imports, old versions, or hand-edited backups, and non-finite /
+    // out-of-range numbers would later crash the paint path
+    // (BorderRadius/ImageFilter/Border/withValues). Normalize here so the
+    // model only ever holds values the renderer and the settings editors can
+    // express.
     return ChatBubbleStyleOverrides(
-      backgroundArgbLight: _asInt(json['backgroundArgbLight']),
-      backgroundArgbDark: _asInt(json['backgroundArgbDark']),
-      borderArgbLight: _asInt(json['borderArgbLight']),
-      borderArgbDark: _asInt(json['borderArgbDark']),
-      textArgbLight: _asInt(json['textArgbLight']),
-      textArgbDark: _asInt(json['textArgbDark']),
-      borderWidth: _asDouble(json['borderWidth']),
-      borderOpacity: _asDouble(json['borderOpacity']),
-      cornerRadius: _asDouble(json['cornerRadius']),
-      blurSigma: _asDouble(json['blurSigma']),
-      frostedOpacity: _asDouble(json['frostedOpacity']),
-      solidOpacity: _asDouble(json['solidOpacity']),
+      backgroundArgbLight: _asArgb(json['backgroundArgbLight']),
+      backgroundArgbDark: _asArgb(json['backgroundArgbDark']),
+      borderArgbLight: _asArgb(json['borderArgbLight']),
+      borderArgbDark: _asArgb(json['borderArgbDark']),
+      textArgbLight: _asArgb(json['textArgbLight']),
+      textArgbDark: _asArgb(json['textArgbDark']),
+      borderWidth: _asClampedDouble(json['borderWidth'], 0, 3),
+      borderOpacity: _asClampedDouble(json['borderOpacity'], 0, 1),
+      cornerRadius: _asClampedDouble(json['cornerRadius'], 0, 28),
+      blurSigma: _asClampedDouble(json['blurSigma'], 0, 30),
+      frostedOpacity: _asClampedDouble(json['frostedOpacity'], 0, 1),
+      solidOpacity: _asClampedDouble(json['solidOpacity'], 0, 1),
     );
   }
 
@@ -205,13 +211,26 @@ ResolvedBubbleStyle resolveBubbleStyle(
   final textArgb = isDark ? overrides.textArgbDark : overrides.textArgbLight;
 
   final opacity = switch (style) {
-    ChatMessageBackgroundStyle.frosted => overrides.frostedOpacity ?? 0.66,
-    ChatMessageBackgroundStyle.solid => overrides.solidOpacity ?? 1.0,
-    ChatMessageBackgroundStyle.defaultStyle => overrides.solidOpacity ?? 1.0,
+    ChatMessageBackgroundStyle.frosted => _sanitizeOpacity(
+      overrides.frostedOpacity,
+      0.66,
+    ),
+    ChatMessageBackgroundStyle.solid => _sanitizeOpacity(
+      overrides.solidOpacity,
+      1.0,
+    ),
+    ChatMessageBackgroundStyle.defaultStyle => _sanitizeOpacity(
+      overrides.solidOpacity,
+      1.0,
+    ),
   };
-  final borderOpacity =
-      overrides.borderOpacity ??
-      (style == ChatMessageBackgroundStyle.frosted ? 0.14 : 0.16);
+  final borderOpacity = _sanitizeOpacity(
+    overrides.borderOpacity,
+    style == ChatMessageBackgroundStyle.frosted ? 0.14 : 0.16,
+  );
+  final bgValue = bgArgb != null ? _sanitizeArgb(bgArgb) : null;
+  final borderValue = borderArgb != null ? _sanitizeArgb(borderArgb) : null;
+  final textValue = textArgb != null ? _sanitizeArgb(textArgb) : null;
 
   // Cuplivo defaults (not upstream's surfaceContainerHigh): match the pixels
   // of the previous hardcoded branches — frosted glass white/0xFF1C1C1E,
@@ -229,25 +248,51 @@ ResolvedBubbleStyle resolveBubbleStyle(
   }
 
   return ResolvedBubbleStyle(
-    background: (bgArgb != null ? Color(bgArgb) : defaultBackground).withValues(
-      alpha: opacity,
-    ),
-    border: (borderArgb != null ? Color(borderArgb) : cs.outlineVariant)
+    background: (bgValue != null ? Color(bgValue) : defaultBackground)
+        .withValues(alpha: opacity),
+    border: (borderValue != null ? Color(borderValue) : cs.outlineVariant)
         .withValues(alpha: borderOpacity),
-    text: textArgb != null ? Color(textArgb) : cs.onSurface,
-    borderWidth: overrides.borderWidth ?? 0.8,
-    radius: overrides.cornerRadius ?? 16,
-    blurSigma: overrides.blurSigma ?? 14,
+    text: textValue != null ? Color(textValue) : cs.onSurface,
+    borderWidth: _sanitizeNonNegative(overrides.borderWidth, 0.8),
+    radius: _sanitizeNonNegative(overrides.cornerRadius, 16),
+    blurSigma: _sanitizeNonNegative(overrides.blurSigma, 14),
   );
 }
 
-int? _asInt(Object? value) {
-  if (value is int) return value;
-  if (value is num) return value.toInt();
-  return null;
+/// Clamps a persisted value into its supported range; non-finite or missing
+/// values become `null` (meaning "use the default").
+double? _asClampedDouble(Object? value, double min, double max) {
+  if (value is! num) return null;
+  final v = value.toDouble();
+  if (!v.isFinite) return null;
+  return v.clamp(min, max);
 }
 
-double? _asDouble(Object? value) {
-  if (value is num) return value.toDouble();
-  return null;
+/// Validates a 32-bit ARGB literal from persistence.
+int? _asArgb(Object? value) {
+  if (value is! num) return null;
+  final v = value.toInt();
+  if (v < 0 || v > 0xFFFFFFFF) return null;
+  return v;
+}
+
+/// Render-boundary sanitizer: geometry values must be finite and >= 0,
+/// otherwise the paint path (BorderRadius/ImageFilter/Border) is unsafe.
+double _sanitizeNonNegative(double? value, double fallback) {
+  if (value == null || !value.isFinite || value < 0) return fallback;
+  return value;
+}
+
+/// Render-boundary sanitizer: opacity must be finite within 0..1
+/// ([Color.withValues] rejects out-of-range alpha channels).
+double _sanitizeOpacity(double? value, double fallback) {
+  if (value == null || !value.isFinite) return fallback;
+  return value.clamp(0.0, 1.0);
+}
+
+/// ARGB literals outside 32-bit are not renderable; drop them at the render
+/// boundary so the default color applies instead.
+int? _sanitizeArgb(int? value) {
+  if (value == null || value < 0 || value > 0xFFFFFFFF) return null;
+  return value;
 }

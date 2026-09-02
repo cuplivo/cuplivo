@@ -220,6 +220,24 @@ void main() {
     expect(prefs.getString('chat_bubble_style_overrides_v1'), '{}');
   });
 
+  test('corrupt or out-of-range overrides JSON loads safely', () async {
+    // 1e999 is valid JSON but parses to Infinity — non-finite entry vector
+    // for imports/hand-edited backups.
+    const raw =
+        '{"cornerRadius":-9,"blurSigma":1e999,"frostedOpacity":4,'
+        '"backgroundArgbLight":-1}';
+    final prefs = BusinessPreferences.memoryForTests();
+    await prefs.setString('chat_bubble_style_overrides_v1', raw);
+    final settings = SettingsProvider(preferences: prefs);
+    await settings.loaded;
+
+    final loaded = settings.chatBubbleStyleOverrides;
+    expect(loaded.cornerRadius, 0);
+    expect(loaded.blurSigma, isNull);
+    expect(loaded.frostedOpacity, 1.0);
+    expect(loaded.backgroundArgbLight, isNull);
+  });
+
   test('backup registry classifies the overrides keys as business', () {
     final dispositions = <String, BusinessKeyDisposition>{
       'chat_bubble_style_overrides_v1': BusinessKeyRegistry.classify(

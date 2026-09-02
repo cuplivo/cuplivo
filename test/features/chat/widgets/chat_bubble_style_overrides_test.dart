@@ -166,6 +166,37 @@ void main() {
     expect(heading.text.style?.color, const Color(0xFF224466));
   });
 
+  testWidgets('out-of-range persisted overrides render without crashing', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    businessPrefs = BusinessPreferences.memoryForTests({
+      'display_chat_message_background_style_v1': 'frosted',
+      // 1e999 parses to Infinity — simulates a hand-edited backup.
+      'chat_bubble_style_overrides_v1':
+          '{"cornerRadius":-9,"blurSigma":1e999,"borderWidth":-2,'
+          '"frostedOpacity":4}',
+    });
+    final settings = SettingsProvider(preferences: businessPrefs);
+
+    await tester.pumpWidget(
+      _buildHarness(
+        settings: settings,
+        child: ChatMessageWidget(
+          message: ChatMessage(
+            role: 'assistant',
+            content: 'Safe render',
+            conversationId: 'conversation-invalid-overrides',
+          ),
+          showModelIcon: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Safe render'), findsOneWidget);
+  });
+
   testWidgets(
     'user and assistant frosted overrides can differ in radius and text color',
     (tester) async {

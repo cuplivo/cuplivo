@@ -40,6 +40,47 @@ void main() {
     expect(parsed.backgroundArgbDark, 0xFFABCDEF);
   });
 
+  test('fromJson normalizes non-finite and out-of-range values', () {
+    final parsed = ChatBubbleStyleOverrides.fromJson({
+      'blurSigma': double.nan,
+      'cornerRadius': -5,
+      'borderWidth': 99,
+      'borderOpacity': double.infinity,
+      'frostedOpacity': 2.0,
+      'solidOpacity': -0.4,
+      'textArgbLight': -1,
+      'backgroundArgbLight': 0x1FFFFFFFF,
+    });
+    expect(parsed.blurSigma, isNull);
+    expect(parsed.cornerRadius, 0);
+    expect(parsed.borderWidth, 3);
+    expect(parsed.borderOpacity, isNull);
+    expect(parsed.frostedOpacity, 1.0);
+    expect(parsed.solidOpacity, 0.0);
+    expect(parsed.textArgbLight, isNull);
+    expect(parsed.backgroundArgbLight, isNull);
+  });
+
+  test('resolveBubbleStyle stays safe with programmatic bad values', () {
+    const overrides = ChatBubbleStyleOverrides(
+      cornerRadius: -4,
+      blurSigma: double.infinity,
+      borderWidth: -1,
+      frostedOpacity: 1.5,
+      solidOpacity: -1,
+    );
+    final resolved = resolveBubbleStyle(
+      cs,
+      Brightness.light,
+      ChatMessageBackgroundStyle.frosted,
+      overrides,
+    );
+    expect(resolved.radius, 16);
+    expect(resolved.blurSigma, 14);
+    expect(resolved.borderWidth, 0.8);
+    expect(resolved.background, Colors.white.withValues(alpha: 1.0));
+  });
+
   test('frosted light defaults match the previous hardcoded surface', () {
     const overrides = ChatBubbleStyleOverrides();
     final resolved = resolveBubbleStyle(

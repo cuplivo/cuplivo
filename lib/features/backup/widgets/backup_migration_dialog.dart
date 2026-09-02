@@ -28,7 +28,8 @@ Future<void> showBackupMigrationChooser(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minWidth: 320, maxWidth: 420),
-        child: Padding(
+        // 2 行换行在小窗口（如 420×480）会超高，纵向滚动兜底。
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
           child: Column(
             mainAxisSize: MainAxisSize.min,

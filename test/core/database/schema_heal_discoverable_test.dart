@@ -508,6 +508,7 @@ CREATE TABLE group_chat_rows (
       missingQuoteJson: false,
       includeWorkspaceBindingColumns: true,
       includeWorkspaceV20Columns: true,
+      includeConversationKindColumn: true,
       missingPreferenceRows: false,
     );
     final future = DateTime.utc(2099, 1, 2, 3, 4, 5);
@@ -598,11 +599,11 @@ CREATE TABLE group_chat_rows (
   });
 
   test(
-    'v23 migration adds the proactive-care decision history limit',
+    'v22 migration adds the proactive-care decision history limit',
     () async {
       _createLegacyDb(
         dbFile,
-        userVersion: 22,
+        userVersion: 21,
         missingIsPreset: false,
         missingHandoffColumns: false,
         missingContextTokens: false,
@@ -611,7 +612,6 @@ CREATE TABLE group_chat_rows (
         includeWorkspaceBindingColumns: true,
         includeWorkspaceV20Columns: true,
         includeConversationKindColumn: true,
-        includeConversationV22Columns: true,
         missingPreferenceRows: false,
       );
       final raw = sqlite.sqlite3.open(dbFile.path);
@@ -624,6 +624,9 @@ CREATE TABLE group_chat_rows (
 
       final repo = ChatDatabaseRepository.open(file: dbFile);
       await repo.ensureReady();
+
+      final version = await repo.db.customSelect('PRAGMA user_version').get();
+      expect(version.single.read<int>('user_version'), 22);
 
       final columns = await repo.db
           .customSelect('PRAGMA table_info(assistant_rows)')
@@ -644,11 +647,11 @@ CREATE TABLE group_chat_rows (
   );
 
   test(
-    'heal restores a missing v23 proactive-care decision history limit',
+    'heal restores a missing v22 proactive-care decision history limit',
     () async {
       _createLegacyDb(
         dbFile,
-        userVersion: 23,
+        userVersion: 22,
         missingIsPreset: false,
         missingHandoffColumns: false,
         missingContextTokens: false,
@@ -665,7 +668,7 @@ CREATE TABLE group_chat_rows (
       await repo.ensureReady();
       await repo.putAssistant(
         Assistant(
-          id: 'healed-v23',
+          id: 'healed-v22',
           name: 'Healed',
           proactiveCareDecisionHistoryMessageLimit: 19,
         ),
@@ -674,7 +677,7 @@ CREATE TABLE group_chat_rows (
 
       expect(
         (await repo.getAssistant(
-          'healed-v23',
+          'healed-v22',
         ))?.proactiveCareDecisionHistoryMessageLimit,
         19,
       );

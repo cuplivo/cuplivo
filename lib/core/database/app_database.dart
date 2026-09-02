@@ -464,7 +464,7 @@ class AppDatabase extends _$AppDatabase {
   // self-heal below repairs such gaps on every open; without it the gap is
   // permanent because later upgrades skip the failed step's `from < N` block.
   // See docs/adr/0019-schema-self-heal.md.
-  int get schemaVersion => 23;
+  int get schemaVersion => 22;
 
   /// Whether [table] has a physical column named [column] (sqlite name).
   Future<bool> _hasColumn(String table, String column) async {
@@ -517,7 +517,7 @@ class AppDatabase extends _$AppDatabase {
   /// Repair incomplete upgrades where user_version already advanced but some
   /// ALTER TABLE / CREATE TABLE steps were skipped/failed (silent catch).
   ///
-  /// Covers every column/table added by the v5–v23 migrations that are
+  /// Covers every column/table added by the v5–v22 migrations that are
   /// wrapped in silent try/catch — missing these makes inserts crash with
   /// "table X has no column named Y". Runs in beforeOpen (rescues existing
   /// broken DBs whose user_version already passed the failed step) and at the
@@ -527,7 +527,7 @@ class AppDatabase extends _$AppDatabase {
   /// this heal set and the regression tests in the same change. See AGENTS.md
   /// §3.20.
   Future<void> _healSchemaIfNeeded() async {
-    // --- assistant_rows (v5–v23) ---
+    // --- assistant_rows (v5–v22) ---
     await _ensureColumn(
       'assistant_rows',
       'memory_mode',
@@ -1081,8 +1081,6 @@ WHERE proactive_care_next_message_at IS NULL
             'schedule: $error',
           );
         }
-      }
-      if (from < 23) {
         try {
           await migrator.addColumn(
             assistantRows,
@@ -1090,7 +1088,7 @@ WHERE proactive_care_next_message_at IS NULL
           );
         } catch (error) {
           debugPrint(
-            'v23 migration could not add proactive-care decision history '
+            'v22 migration could not add proactive-care decision history '
             'message limit: $error',
           );
         }

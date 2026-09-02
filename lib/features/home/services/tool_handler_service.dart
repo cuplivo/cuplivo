@@ -700,8 +700,9 @@ class ToolHandlerService {
         if (hasMcpPrefix) {
           // Approval gate (using original unprefixed name)
           if (approvalService != null && mcp.toolNeedsApproval(resolvedName)) {
-            final callId =
-                '${resolvedName}_${DateTime.now().microsecondsSinceEpoch}';
+            final callId = (toolCallId?.trim().isNotEmpty == true)
+                ? toolCallId!.trim()
+                : '${resolvedName}_${DateTime.now().microsecondsSinceEpoch}';
             final result = await approvalService.requestApproval(
               toolCallId: callId,
               toolName: resolvedName,
@@ -851,7 +852,9 @@ class ToolHandlerService {
               boundWs?.isToolNeedsApproval(name) ??
               WorkspaceToolNames.defaultApprovalFor(name);
           if (approvalService != null && needsApproval) {
-            final callId = '${name}_${DateTime.now().microsecondsSinceEpoch}';
+            final callId = (toolCallId?.trim().isNotEmpty == true)
+                ? toolCallId!.trim()
+                : '${name}_${DateTime.now().microsecondsSinceEpoch}';
             final result = await approvalService.requestApproval(
               toolCallId: callId,
               toolName: name,
@@ -965,10 +968,11 @@ class ToolHandlerService {
 
         // Approval gate for MCP tools
         if (approvalService != null && mcp.toolNeedsApproval(name)) {
-          // Generate a unique id for this tool call approval request
-          final toolCallId = '${name}_${DateTime.now().microsecondsSinceEpoch}';
+          final approvalId = (toolCallId?.trim().isNotEmpty == true)
+              ? toolCallId!.trim()
+              : '${name}_${DateTime.now().microsecondsSinceEpoch}';
           final result = await approvalService.requestApproval(
-            toolCallId: toolCallId,
+            toolCallId: approvalId,
             toolName: name,
             arguments: args,
             conversationId: conversationId,

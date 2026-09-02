@@ -69,5 +69,30 @@ void main() {
 
       expect(service.pendingRequests.keys, ['call_1']);
     });
+
+    test('re-requesting an id completes the old request as replaced', () async {
+      final service = ToolApprovalService();
+      final firstFuture = service.requestApproval(
+        toolCallId: 'call_dup',
+        toolName: 'kelivo_delete',
+        arguments: const {'path': '/first/x'},
+      );
+      final secondFuture = service.requestApproval(
+        toolCallId: 'call_dup',
+        toolName: 'kelivo_delete',
+        arguments: const {'path': '/second/x'},
+      );
+
+      final firstResult = await firstFuture.timeout(const Duration(seconds: 1));
+      expect(firstResult.approved, isFalse);
+      expect(firstResult.denyReason, 'replaced');
+      expect(service.isPending('call_dup'), isTrue);
+
+      service.approve('call_dup');
+      final secondResult = await secondFuture.timeout(
+        const Duration(seconds: 1),
+      );
+      expect(secondResult.approved, isTrue);
+    });
   });
 }

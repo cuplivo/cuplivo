@@ -92,6 +92,59 @@ test('restore is idempotent and order-safe', () => {
   assert.equal(restoreMathText(restored, new Map()), restored);
 });
 
+test('delimiters never pair across a fenced code block', () => {
+  for (const [open, close] of [
+    ['$$', '$$'],
+    ['\\[', '\\]'],
+    ['\\(', '\\)'],
+  ]) {
+    const input = `before ${open}\n\`\`\`\nx = 1\n\`\`\`\n${close} after`;
+    const { source, slots } = extractMathSpans(input);
+    assert.equal(slots.size, 0, `${open}/${close} must not pair across a fence`);
+    assert.equal(source, input, `fence must be preserved verbatim: ${source}`);
+  }
+  // A multi-line math span within one text segment (no fence) still pairs.
+  const multi = '$$\na \\frac{b}{c}\n$$';
+  const paired = extractMathSpans(multi);
+  assert.equal(paired.slots.size, 1);
+  assert.equal(restoreMathText(paired.source, paired.slots), multi);
+});
+
+test('cross-fence pairing keeps the rendered code block intact', () => {
+  const input = '$$\n```\ncode\n```\n$$';
+  const { source } = extractMathSpans(input);
+  const html = marked.parse(source, markedOpts);
+  assert.ok(html.includes('<code>code'), `code block must survive: ${html}`);
+  assert.ok(!html.includes('m:'), 'no slot token may leak');
+});
+
+test('literal placeholder text never restores into math', () => {
+  const literal = stableMathSlotKey('$$x$$');
+  const input = `text $$x$$ and ${literal} literal`;
+  const { source, slots } = extractMathSpans(input);
+  assert.ok(slots.size === 1);
+  const key = source.match(/m:[0-9a-f]{8,}/)?.[0];
+  assert.ok(key, 'slot key must be present in source');
+  assert.equal(restoreMathText(source, slots), input,
+      'roundtrip must preserve the literal placeholder text');
+  assert.ok(restoreMathText(source, slots).includes(literal),
+      'literal placeholder text must survive as-is');
+});
+
+test('hash collisions are disambiguated deterministically', () => {
+  // Constant base key: any two distinct raws start with the same key, forcing
+  // the salted disambiguation path; the salted branch emits a distinct token.
+  const constant = (raw) =>
+    raw.includes('#') ? `m:cafebabe${raw.length}` : 'm:deadbeef';
+  const input = '$$a$$ and $$b$$';
+  const { source, slots } = extractMathSpans(input, { keyGenerator: constant });
+  assert.equal(slots.size, 2, 'two distinct raws must not overwrite each other');
+  assert.equal(restoreMathText(source, slots), input);
+  // Deterministic: same input + generator yields the same slotted source.
+  const again = extractMathSpans(input, { keyGenerator: constant });
+  assert.equal(source, again.source);
+});
+
 function slotKeys(source) {
   return /m:[0-9a-f]{8}/g[Symbol.match](source) ?? [];
 }

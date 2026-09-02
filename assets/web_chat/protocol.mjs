@@ -1114,6 +1114,17 @@ export function createViewportNavigationCoordinator({
 // survives marked + DOMPurify untouched, and restore the raw source as text
 // nodes before renderMathInElement.
 // ---------------------------------------------------------------------------
+// Math protection for the markdown pipeline.
+//
+// KaTeX runs only AFTER marked has processed the markdown, so math bodies
+// inside $$...$$ / \[...\] / \(...\) get mangled by marked first (backslash
+// escapes halve \\[10pt] into \[10pt]; underscore pairs become <em>, splitting
+// the text node so auto-render can no longer pair the delimiters). The fix
+// mirrors the Flutter markdown lexer: lift math spans out of the source
+// before marked runs, replace each with a deterministic placeholder that
+// survives marked + DOMPurify untouched, and restore the raw source as text
+// nodes before renderMathInElement.
+// ---------------------------------------------------------------------------
 
 export function stableMathSlotKey(source) {
   let hash = 2166136261;
@@ -1121,7 +1132,8 @@ export function stableMathSlotKey(source) {
     hash ^= source.charCodeAt(index);
     hash = Math.imul(hash, 16777619);
   }
-  return `m:${(hash >>> 0).toString(16)}`;
+  // Zero-padded: a padded token is never a prefix of another pad-8 token.
+  return `m:${(hash >>> 0).toString(16).padStart(8, '0')}`;
 }
 
 function isFenceOpen(line) {
@@ -1172,51 +1184,37 @@ function fencedRanges(source) {
   return ranges;
 }
 
-/** Lifts math spans out of [source], returning the slotted source plus the
- *  slot -> raw-span map. Fenced code blocks are excluded; inline code spans
- *  are copied verbatim so their `$` never pairs. Unclosed spans are left as
- *  written (streaming tails) and reach the renderer exactly like today. */
-export function extractMathSpans(source, { dollarMath = false } = {}) {
-  const text = String(source ?? '');
-  const slots = new Map();
-  const ranges = fencedRanges(text);
-  let rangeIndex = 0;
-  const protectAt = (index) => {
-    while (rangeIndex < ranges.length && ranges[rangeIndex][1] <= index) {
-      rangeIndex += 1;
+/** Splits the source into alternating text / fenced-code segments. Delimiter
+ *  matching is always bounded to the current text segment (a code fence is a
+ *  hard block boundary in markdown), so an opener before a fence can never
+ *  pair with a closer after it. */
+function splitSegments(text) {
+  const segments = [];
+  let cursor = 0;
+  for (const [start, end] of fencedRanges(text)) {
+    if (start > cursor) {
+      segments.push({ text: text.slice(cursor, start), fence: false });
     }
-    return rangeIndex < ranges.length && ranges[rangeIndex][0] <= index;
-  };
+    segments.push({ text: text.slice(start, end), fence: true });
+    cursor = end;
+  }
+  if (cursor < text.length) {
+    segments.push({ text: text.slice(cursor), fence: false });
+  }
+  return segments;
+}
 
-  const take = (start, end) => {
-    const raw = text.slice(start, end);
-    const key = stableMathSlotKey(raw);
-    slots.set(key, raw);
-    return raw.length;
-  };
-
-  const matchSingleDollar = (index) => {
-    if (isEscaped(text, index)) return 0;
-    const close = text.indexOf('$', index + 1);
-    if (close === -1) return 0;
-    const body = text.slice(index + 1, close);
-    if (body.includes('$') || body.includes('\n') || body.includes('\\$')) {
-      return 0;
-    }
-    return take(index, close + 1);
-  };
-
-  let out = '';
+/** Scans one text segment for math spans, pushing raw spans into [raws] in
+ *  document order and returning a piece list (strings verbatim, {slot: n}
+ *  placeholders for math spans). */
+function scanSegmentMath(text, raws, dollarMath) {
+  const pieces = [];
   let index = 0;
   while (index < text.length) {
-    if (protectAt(index)) {
-      out += text[index];
-      index += 1;
-      continue;
-    }
     const ch = text[index];
 
-    // Inline code: copy the whole span verbatim (balanced runs of backticks).
+    // Inline code: copy the whole span verbatim (balanced runs of backticks)
+    // so its `$` never pairs.
     if (ch === '`') {
       const run = /^`+/.exec(text.slice(index))[0];
       let cursor = index + run.length;
@@ -1224,7 +1222,7 @@ export function extractMathSpans(source, { dollarMath = false } = {}) {
         cursor += 1;
       }
       const end = cursor < text.length ? cursor + run.length : text.length;
-      out += text.slice(index, end);
+      pieces.push(text.slice(index, end));
       index = end;
       continue;
     }
@@ -1232,25 +1230,95 @@ export function extractMathSpans(source, { dollarMath = false } = {}) {
     let consumed = 0;
     if (text.startsWith('$$', index)) {
       const close = text.indexOf('$$', index + 2);
-      if (close !== -1) consumed = take(index, close + 2);
+      if (close !== -1) consumed = close + 2 - index;
     } else if (text.startsWith('\\[', index)) {
       const close = text.indexOf('\\]', index + 2);
-      if (close !== -1) consumed = take(index, close + 2);
+      if (close !== -1) consumed = close + 2 - index;
     } else if (text.startsWith('\\(', index)) {
       const close = text.indexOf('\\)', index + 2);
-      if (close !== -1) consumed = take(index, close + 2);
-    } else if (dollarMath && ch === '$') {
-      consumed = matchSingleDollar(index);
+      if (close !== -1) consumed = close + 2 - index;
+    } else if (dollarMath && ch === '$' && !isEscaped(text, index)) {
+      const close = text.indexOf('$', index + 1);
+      if (close !== -1) {
+        const body = text.slice(index + 1, close);
+        if (!body.includes('$') && !body.includes('\n') &&
+            !body.includes('\\$')) {
+          consumed = close + 1 - index;
+        }
+      }
     }
     if (consumed > 0) {
-      out += stableMathSlotKey(text.slice(index, index + consumed));
+      raws.push(text.slice(index, index + consumed));
+      pieces.push({ slot: raws.length - 1 });
       index += consumed;
       continue;
     }
-    out += ch;
+    pieces.push(ch);
     index += 1;
   }
+  return pieces;
+}
 
+/** Assigns deterministic, collision-free slot keys to [raws]. A key is
+ *  rejected when a DIFFERENT raw already owns it (hash collision), when the
+ *  source text already contains it verbatim (a user could type a literal
+ *  placeholder, or a math body could embed another span's key), or when it
+ *  is a prefix of / has a prefix among already assigned keys (restore would
+ *  replace the longer token's prefix and corrupt it). Disambiguation re-hashes
+ *  a salted form, which yields an independent token instead of an extension
+ *  of the rejected one. The derivation is deterministic for the same input,
+ *  which preserves streaming patch signature stability. */
+function assignSlotKeys(raws, source, keyGenerator) {
+  const owner = new Map();
+  const keys = [];
+  const assigned = [];
+  const fits = (key) => !assigned.some((other) =>
+    other.startsWith(key) || key.startsWith(other));
+  for (const raw of raws) {
+    let salt = 0;
+    let key = keyGenerator(raw);
+    while ((owner.has(key) && owner.get(key) !== raw) ||
+        source.includes(key) || !fits(key)) {
+      salt += 1;
+      key = keyGenerator(`${raw}#${salt}`);
+    }
+    if (!owner.has(key)) owner.set(key, raw);
+    assigned.push(key);
+    keys.push(key);
+  }
+  const slots = new Map();
+  for (const key of owner.keys()) slots.set(key, owner.get(key));
+  return { keys, slots };
+}
+
+/** Lifts math spans out of [source], returning the slotted source plus the
+ *  slot -> raw-span map. Fenced code blocks are hard boundaries (no cross-
+ *  fence pairing); inline code spans are copied verbatim. Unclosed spans are
+ *  left as written (streaming tails) and reach the renderer exactly like
+ *  today. */
+export function extractMathSpans(source, {
+  dollarMath = false,
+  keyGenerator = stableMathSlotKey,
+} = {}) {
+  const text = String(source ?? '');
+  const segments = splitSegments(text);
+  const raws = [];
+  const rendered = segments.map((segment) => {
+    if (segment.fence) return segment.text;
+    return scanSegmentMath(segment.text, raws, dollarMath);
+  });
+  const { keys, slots } = assignSlotKeys(raws, text, keyGenerator);
+  let rawIndex = 0;
+  let out = '';
+  for (const segment of rendered) {
+    if (typeof segment === 'string') {
+      out += segment;
+      continue;
+    }
+    for (const piece of segment) {
+      out += typeof piece === 'string' ? piece : keys[piece.slot];
+    }
+  }
   return { source: out, slots };
 }
 

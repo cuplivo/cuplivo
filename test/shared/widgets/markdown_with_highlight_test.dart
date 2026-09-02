@@ -354,6 +354,56 @@ Widget _markdownHarness(
   );
 }
 
+/// [Text.rich] wraps the provided span in a style-merge [TextSpan]; descend
+/// through single-child wrapper spans to the span [CodeHighlightView] built.
+TextSpan _codeHighlightRootSpan(WidgetTester tester, Finder richTextFinder) {
+  var span = tester.widget<RichText>(richTextFinder).text as TextSpan;
+  while (span.text == null &&
+      span.children?.length == 1 &&
+      span.children!.single is TextSpan &&
+      (span.children!.single as TextSpan).text == null) {
+    span = span.children!.single as TextSpan;
+  }
+  return span;
+}
+
+Widget _selectableMarkdownHarness(
+  String text, {
+  double? width,
+  Map<String, Object>? preferences,
+  required void Function(String?) onSelection,
+}) {
+  SharedPreferences.setMockInitialValues({});
+  businessPrefs = BusinessPreferences.memoryForTests(preferences ?? {});
+  final markdown = MarkdownWithCodeHighlight(text: text);
+  return ChangeNotifierProvider(
+    create: (_) => SettingsProvider(preferences: businessPrefs),
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(
+        body: width == null
+            ? SelectionArea(
+                onSelectionChanged: (selection) =>
+                    onSelection(selection?.plainText),
+                child: markdown,
+              )
+            : Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: width,
+                  child: SelectionArea(
+                    onSelectionChanged: (selection) =>
+                        onSelection(selection?.plainText),
+                    child: markdown,
+                  ),
+                ),
+              ),
+      ),
+    ),
+  );
+}
+
 void _overrideMarkdownTablePlatform(TargetPlatform platform) {
   markdownTableTargetPlatformOverride = platform;
   addTearDown(() => markdownTableTargetPlatformOverride = null);
@@ -519,8 +569,8 @@ Inline ***strong emphasis*** text.
       expect(find.textContaining('strong emphasis'), findsOneWidget);
       expect(
         find.descendant(
-          of: find.byType(SelectableHighlightView),
-          matching: find.textContaining('***'),
+          of: find.byType(CodeHighlightView),
+          matching: find.textContaining('***', findRichText: true),
         ),
         findsOneWidget,
       );
@@ -1552,23 +1602,26 @@ const greet = (name) => {
             .map((widget) => widget.text.toPlainText())
             .join('\n');
         final codeText = tester
-            .widgetList<SelectableText>(
+            .widgetList<RichText>(
               find.descendant(
-                of: find.byType(SelectableHighlightView),
-                matching: find.byType(SelectableText),
+                of: find.byType(CodeHighlightView),
+                matching: find.byType(RichText),
               ),
             )
-            .map((widget) => widget.textSpan?.toPlainText() ?? widget.data)
+            .map((widget) => widget.text.toPlainText())
             .join('\n');
         final blockquote = find.byKey(const ValueKey('markdown-blockquote'));
         final blockquoteCodeText = tester
-            .widgetList<SelectableText>(
+            .widgetList<RichText>(
               find.descendant(
                 of: blockquote,
-                matching: find.byType(SelectableText),
+                matching: find.descendant(
+                  of: find.byType(CodeHighlightView),
+                  matching: find.byType(RichText),
+                ),
               ),
             )
-            .map((widget) => widget.textSpan?.toPlainText() ?? widget.data)
+            .map((widget) => widget.text.toPlainText())
             .join('\n');
 
         expect(allText, isNot(contains('| 混合')), reason: frame);
@@ -1577,7 +1630,7 @@ const greet = (name) => {
         expect(
           find.descendant(
             of: blockquote,
-            matching: find.byType(SelectableHighlightView),
+            matching: find.byType(CodeHighlightView),
           ),
           findsOneWidget,
           reason: frame,
@@ -1608,13 +1661,13 @@ const greet = (name) => {
       await tester.pump();
 
       final codeText = tester
-          .widgetList<SelectableText>(
+          .widgetList<RichText>(
             find.descendant(
-              of: find.byType(SelectableHighlightView),
-              matching: find.byType(SelectableText),
+              of: find.byType(CodeHighlightView),
+              matching: find.byType(RichText),
             ),
           )
-          .map((widget) => widget.textSpan?.toPlainText() ?? widget.data)
+          .map((widget) => widget.text.toPlainText())
           .join('\n');
 
       expect(codeText, contains('> ```bash'));
@@ -1637,13 +1690,13 @@ final value = "$foo$";
       await tester.pump();
 
       final codeText = tester
-          .widgetList<SelectableText>(
+          .widgetList<RichText>(
             find.descendant(
-              of: find.byType(SelectableHighlightView),
-              matching: find.byType(SelectableText),
+              of: find.byType(CodeHighlightView),
+              matching: find.byType(RichText),
             ),
           )
-          .map((widget) => widget.textSpan?.toPlainText() ?? widget.data)
+          .map((widget) => widget.text.toPlainText())
           .join('\n');
 
       expect(_findMathWidget(), findsNothing);
@@ -1802,7 +1855,7 @@ $code
     await tester.pumpAndSettle();
 
     expect(find.byType(Image), findsNothing);
-    expect(find.textContaining('graph TD'), findsOneWidget);
+    expect(find.textContaining('graph TD', findRichText: true), findsOneWidget);
 
     await tester.tap(find.text('Image'));
     await tester.pumpAndSettle();
@@ -1871,7 +1924,10 @@ A-->
       await tester.tap(find.text('Code'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('graph TD'), findsOneWidget);
+      expect(
+        find.textContaining('graph TD', findRichText: true),
+        findsOneWidget,
+      );
     },
   );
 
@@ -2024,7 +2080,10 @@ A-->B
 
       expect(find.text('Generating image'), findsNothing);
       expect(find.byType(Image), findsNothing);
-      expect(find.textContaining('graph TD'), findsOneWidget);
+      expect(
+        find.textContaining('graph TD', findRichText: true),
+        findsOneWidget,
+      );
       expect(find.text('Open Preview'), findsNothing);
     },
   );
@@ -2922,8 +2981,17 @@ $$
       await tester.pump();
 
       expect(_findMathWidget(), findsOneWidget);
-      expect(find.textContaining(r'$a'), findsOneWidget);
-      expect(find.textContaining(r'b$'), findsOneWidget);
+      final tableText = tester
+          .widgetList<RichText>(
+            find.descendant(
+              of: find.byType(Table),
+              matching: find.byType(RichText),
+            ),
+          )
+          .map((widget) => widget.text.toPlainText())
+          .join('\n');
+      expect(tableText, contains(r'$a'));
+      expect(tableText, contains(r'b$'));
     },
   );
 
@@ -2964,15 +3032,18 @@ final price = "$12";
       await tester.pump();
 
       expect(_findMathWidget(), findsNothing);
-      expect(find.textContaining(r'final price = "$12";'), findsOneWidget);
+      expect(
+        find.textContaining(r'final price = "$12";', findRichText: true),
+        findsOneWidget,
+      );
     },
   );
 
-  testWidgets('SelectableHighlightView 为已注册语言生成高亮 span', (tester) async {
+  testWidgets('CodeHighlightView 为已注册语言生成高亮 span', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: SelectableHighlightView(
+          body: CodeHighlightView(
             'final value = 1;',
             language: 'dart',
             theme: {},
@@ -2981,15 +3052,14 @@ final price = "$12";
       ),
     );
 
-    final richText = tester.widget<SelectableText>(find.byType(SelectableText));
-    final root = richText.textSpan!;
+    final root = _codeHighlightRootSpan(tester, find.byType(RichText));
     final children = root.children ?? const <InlineSpan>[];
 
     expect(children, isNotEmpty);
     expect(children.length, greaterThan(1));
   });
 
-  testWidgets('SelectableHighlightView 同内容父级重建时复用高亮 span', (tester) async {
+  testWidgets('CodeHighlightView 同内容父级重建时复用高亮 span', (tester) async {
     late StateSetter rebuild;
 
     await tester.pumpWidget(
@@ -2998,7 +3068,7 @@ final price = "$12";
           body: StatefulBuilder(
             builder: (context, setState) {
               rebuild = setState;
-              return const SelectableHighlightView(
+              return const CodeHighlightView(
                 'final value = 1;',
                 language: 'dart',
                 theme: {},
@@ -3009,48 +3079,44 @@ final price = "$12";
       ),
     );
 
-    final before = tester
-        .widget<SelectableText>(find.byType(SelectableText))
-        .textSpan!
-        .children;
+    final before = _codeHighlightRootSpan(
+      tester,
+      find.byType(RichText),
+    ).children;
 
     rebuild(() {});
     await tester.pump();
 
-    final after = tester
-        .widget<SelectableText>(find.byType(SelectableText))
-        .textSpan!
-        .children;
+    final after = _codeHighlightRootSpan(
+      tester,
+      find.byType(RichText),
+    ).children;
 
     expect(identical(before, after), isTrue);
   });
 
-  testWidgets(
-    'SelectableHighlightView skips synchronous highlighting on demand',
-    (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: SelectableHighlightView(
-              'final value = 1;',
-              language: 'dart',
-              theme: {},
-              enableHighlight: false,
-            ),
+  testWidgets('CodeHighlightView skips synchronous highlighting on demand', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: CodeHighlightView(
+            'final value = 1;',
+            language: 'dart',
+            theme: {},
+            enableHighlight: false,
           ),
         ),
-      );
+      ),
+    );
 
-      final richText = tester.widget<SelectableText>(
-        find.byType(SelectableText),
-      );
-      final root = richText.textSpan!;
-      final children = root.children ?? const <InlineSpan>[];
+    final root = _codeHighlightRootSpan(tester, find.byType(RichText));
+    final children = root.children ?? const <InlineSpan>[];
 
-      expect(children, hasLength(1));
-      expect((children.single as TextSpan).text, 'final value = 1;');
-    },
-  );
+    expect(children, hasLength(1));
+    expect((children.single as TextSpan).text, 'final value = 1;');
+  });
 
   testWidgets(
     'MarkdownWithCodeHighlight highlights unclosed code fences after streaming stops',
@@ -3063,13 +3129,13 @@ final value = 1;
       );
       await tester.pump();
 
-      final richText = tester.widget<SelectableText>(
+      final root = _codeHighlightRootSpan(
+        tester,
         find.descendant(
-          of: find.byType(SelectableHighlightView),
-          matching: find.byType(SelectableText),
+          of: find.byType(CodeHighlightView),
+          matching: find.byType(RichText),
         ),
       );
-      final root = richText.textSpan!;
       final children = root.children ?? const <InlineSpan>[];
 
       expect(children.length, greaterThan(1));
@@ -3290,7 +3356,7 @@ line3
         tester.getTopLeft(find.text('dart')).dx,
         lessThan(tester.getTopLeft(find.byIcon(Lucide.ChevronRight)).dx),
       );
-      expect(find.textContaining('line3'), findsNothing);
+      expect(find.textContaining('line3', findRichText: true), findsNothing);
       expect(find.textContaining('folded'), findsNothing);
 
       await tester.tap(find.text('dart'));
@@ -3299,7 +3365,7 @@ line3
       expect(find.text('Expand'), findsNothing);
       expect(find.text('Collapse'), findsNothing);
       expect(find.byIcon(Lucide.ChevronRight), findsNothing);
-      expect(find.textContaining('line3'), findsOneWidget);
+      expect(find.textContaining('line3', findRichText: true), findsOneWidget);
     },
   );
 
@@ -3337,7 +3403,7 @@ fade3
         find.byKey(const ValueKey('code-block-collapsed-tail-fade')),
         findsNothing,
       );
-      expect(find.textContaining('fade3'), findsOneWidget);
+      expect(find.textContaining('fade3', findRichText: true), findsOneWidget);
     },
   );
 
@@ -3362,7 +3428,7 @@ exact2
         find.byKey(const ValueKey('code-block-collapsed-tail-fade')),
         findsNothing,
       );
-      expect(find.textContaining('exact2'), findsOneWidget);
+      expect(find.textContaining('exact2', findRichText: true), findsOneWidget);
     },
   );
 
@@ -3387,7 +3453,10 @@ disable3
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('disable3'), findsOneWidget);
+      expect(
+        find.textContaining('disable3', findRichText: true),
+        findsOneWidget,
+      );
 
       await settings.setAutoCollapseCodeBlockLines(2);
       await settings.setAutoCollapseCodeBlock(true);
@@ -3395,26 +3464,32 @@ disable3
 
       expect(find.text('Expand'), findsNothing);
       expect(find.text('Collapse'), findsNothing);
-      expect(find.textContaining('disable3'), findsNothing);
+      expect(find.textContaining('disable3', findRichText: true), findsNothing);
 
       await settings.setAutoCollapseCodeBlock(false);
       await tester.pumpAndSettle();
 
       expect(find.text('Expand'), findsNothing);
       expect(find.text('Collapse'), findsNothing);
-      expect(find.textContaining('disable3'), findsOneWidget);
+      expect(
+        find.textContaining('disable3', findRichText: true),
+        findsOneWidget,
+      );
 
       await tester.tap(find.text('dart'));
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Lucide.ChevronRight), findsOneWidget);
-      expect(find.textContaining('disable3'), findsNothing);
+      expect(find.textContaining('disable3', findRichText: true), findsNothing);
 
       await tester.tap(find.text('dart'));
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Lucide.ChevronRight), findsNothing);
-      expect(find.textContaining('disable3'), findsOneWidget);
+      expect(
+        find.textContaining('disable3', findRichText: true),
+        findsOneWidget,
+      );
     },
   );
 
@@ -3460,7 +3535,7 @@ alpha4
 
     expect(find.text('Expand'), findsNothing);
     expect(find.text('Collapse'), findsNothing);
-    expect(find.textContaining('alpha4'), findsOneWidget);
+    expect(find.textContaining('alpha4', findRichText: true), findsOneWidget);
 
     await tester.tap(find.text('dart'));
     await tester.pumpAndSettle();
@@ -3521,7 +3596,7 @@ press4
 
       expect(find.text('Expand'), findsNothing);
       expect(find.text('Collapse'), findsNothing);
-      expect(find.textContaining('press4'), findsOneWidget);
+      expect(find.textContaining('press4', findRichText: true), findsOneWidget);
 
       final collapseGesture = await tester.startGesture(
         tester.getCenter(find.text('dart')),
@@ -3907,7 +3982,10 @@ void main() {
       expect(plainText, contains('这里是折叠内容的第一段。'));
       expect(plainText, contains('details 内的 Markdown 列表'));
       expect(
-        find.textContaining("print('code block inside details');"),
+        find.textContaining(
+          "print('code block inside details');",
+          findRichText: true,
+        ),
         findsOneWidget,
       );
       expect(plainText, isNot(contains('<details>')));
@@ -5062,13 +5140,13 @@ $$
       await tester.pump();
 
       final codeText = tester
-          .widgetList<SelectableText>(
+          .widgetList<RichText>(
             find.descendant(
-              of: find.byType(SelectableHighlightView),
-              matching: find.byType(SelectableText),
+              of: find.byType(CodeHighlightView),
+              matching: find.byType(RichText),
             ),
           )
-          .map((widget) => widget.textSpan?.toPlainText() ?? widget.data ?? '')
+          .map((widget) => widget.text.toPlainText())
           .join('\n');
 
       expect(codeText, contains(r'Get-Content D:\ComfyUI\'));
@@ -5121,21 +5199,218 @@ $$
         await tester.pump();
         expect(
           find.descendant(
-            of: find.byType(SelectableHighlightView),
-            matching: find.textContaining('not-a-closer'),
+            of: find.byType(CodeHighlightView),
+            matching: find.textContaining('not-a-closer', findRichText: true),
           ),
           findsOneWidget,
           reason: source,
         );
         expect(
           find.descendant(
-            of: find.byType(SelectableHighlightView),
-            matching: find.textContaining('following'),
+            of: find.byType(CodeHighlightView),
+            matching: find.textContaining('following', findRichText: true),
           ),
           findsOneWidget,
           reason: source,
         );
       }
+    },
+  );
+
+  testWidgets(
+    'MarkdownWithCodeHighlight renders no SelectableText once wrapped in SelectionArea',
+    (tester) async {
+      _overrideMarkdownTablePlatform(TargetPlatform.windows);
+      await tester.pumpWidget(
+        _selectableMarkdownHarness(
+          '''
+Intro paragraph text.
+
+```dart
+const answer = 42;
+```
+
+| Name | Value |
+| - | - |
+| Alpha | Beta |
+''',
+          width: 600,
+          onSelection: (_) {},
+        ),
+      );
+      await tester.pump();
+
+      // The whole markdown tree must own a single selection context: no
+      // nested SelectableText (code block / table cell) may exist below it.
+      expect(find.byType(SelectableText), findsNothing);
+      expect(find.byType(CodeHighlightView), findsOneWidget);
+      final tableRichText = tester.widgetList<RichText>(
+        find.descendant(
+          of: find.byType(Table),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(tableRichText, isNotEmpty);
+    },
+  );
+
+  testWidgets(
+    'CodeHighlightView registers to the enclosing SelectionArea (no nested context)',
+    (tester) async {
+      final selected = <String>[];
+      await tester.pumpWidget(
+        ChangeNotifierProvider(
+          create: (_) => SettingsProvider(preferences: businessPrefs),
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SelectionArea(
+                onSelectionChanged: (s) =>
+                    selected.add(s?.plainText ?? '<cleared>'),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text('Before the code block.'),
+                    CodeHighlightView('const answer = 42;'),
+                    Text('After the code block.'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // A drag that crosses the code block must be reported by the enclosing
+      // SelectionArea and must include the code text (the old
+      // SelectableText.rich owned its own context and would wall the selection
+      // off at the code block; a bare RichText would not register at all).
+      final start = tester.getTopLeft(find.text('Before the code block.'));
+      final end =
+          tester.getBottomRight(
+            find.textContaining('const answer = 42', findRichText: true),
+          ) -
+          const Offset(1, 1);
+      final gesture = await tester.startGesture(
+        start,
+        kind: PointerDeviceKind.mouse,
+      );
+      await gesture.moveBy(const Offset(30, 10));
+      await tester.pump();
+      await gesture.moveTo(end);
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+
+      expect(selected, isNotEmpty);
+      expect(
+        selected.last,
+        contains('Before the code block.'),
+        reason: 'selection: ${selected.last}',
+      );
+      expect(
+        selected.last,
+        contains('const answer = 42'),
+        reason: 'selection: ${selected.last}',
+      );
+    },
+  );
+
+  testWidgets('SelectionArea drag selects table cell content', (tester) async {
+    final selected = <String>[];
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => SettingsProvider(preferences: businessPrefs),
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SelectionArea(
+              onSelectionChanged: (s) =>
+                  selected.add(s?.plainText ?? '<cleared>'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Before the table.'),
+                  SizedBox(
+                    width: 340,
+                    child: Table(
+                      defaultColumnWidth: const FixedColumnWidth(170),
+                      defaultVerticalAlignment:
+                          TableCellVerticalAlignment.middle,
+                      children: const [
+                        TableRow(
+                          children: [
+                            Text.rich(TextSpan(text: 'Alpha')),
+                            Text.rich(TextSpan(text: 'Beta')),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final start = tester.getTopLeft(find.text('Before the table.'));
+    final end = tester.getCenter(
+      find.textContaining('Alpha', findRichText: true),
+    );
+    final gesture = await tester.startGesture(
+      start,
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(30, 10));
+    await tester.pump();
+    await gesture.moveTo(end);
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    expect(selected, isNotEmpty);
+    expect(
+      selected.last,
+      contains('Before the table.'),
+      reason: 'selection: ${selected.last}',
+    );
+    expect(
+      selected.last,
+      contains('Alpha'),
+      reason: 'selection: ${selected.last}',
+    );
+  });
+
+  testWidgets(
+    'MarkdownWithCodeHighlight excludes the table toolbar label from selection',
+    (tester) async {
+      _overrideMarkdownTablePlatform(TargetPlatform.windows);
+      await tester.pumpWidget(
+        _markdownHarness('''
+| Name | Value |
+| - | - |
+| Alpha | Beta |
+''', width: 600),
+      );
+      await tester.pump();
+
+      final selectionContainers = find.ancestor(
+        of: find.text('Table'),
+        matching: find.byType(SelectionContainer),
+      );
+      expect(
+        tester
+            .widgetList<SelectionContainer>(selectionContainers)
+            .any((widget) => widget.delegate == null),
+        isTrue,
+        reason: 'toolbar label must sit under a disabled selection container',
+      );
     },
   );
 }

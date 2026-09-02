@@ -10,6 +10,7 @@ import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/chat/pages/reading_mode_page.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
 
 var businessPrefs = BusinessPreferences.memoryForTests();
 
@@ -88,6 +89,24 @@ void main() {
     // Let the snackbar duration elapse so its ticker is disposed cleanly.
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('wraps the markdown body in a single SelectionArea', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(_message('Hello world.\n\n```dart\nfinal x = 1;\n```')),
+    );
+
+    expect(
+      find.ancestor(
+        of: find.byType(MarkdownWithCodeHighlight),
+        matching: find.byType(SelectionArea),
+      ),
+      findsOneWidget,
+    );
+    // The code block must no longer own its own selectable context.
+    expect(find.byType(SelectableText), findsNothing);
   });
 
   testWidgets('font + and - step by 2 around the persisted value', (

@@ -72,7 +72,7 @@ void main() {
       await tester.pump();
 
       expect(find.byType(Table), findsOneWidget);
-      expect(find.textContaining('葡萄 🍇'), findsOneWidget);
+      expect(find.textContaining('葡萄 🍇', findRichText: true), findsOneWidget);
       expect(_allRichTextPlainText(tester), isNot(contains('| 葡萄 🍇')));
     },
   );

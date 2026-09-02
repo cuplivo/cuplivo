@@ -1043,9 +1043,7 @@ MarkdownCodePayload _preprocessFences(
       }
       buf.write(out.substring(cursor));
       out = _replaceInlineDollarMath(buf.toString());
-      out = out.replaceAllMapped(RegExp(r'__DISPLAY_MATH_MASK_\d+__'), (
-        match,
-      ) {
+      out = out.replaceAllMapped(RegExp(r'__DISPLAY_MATH_MASK_\d+__'), (match) {
         final key = match.group(0)!;
         return displayMathMap[key] ?? key;
       });
@@ -2403,11 +2401,10 @@ class _CollapsibleCodeBlockState extends State<_CollapsibleCodeBlock> {
     final highlightEnabled = !_shouldSkipHighlightWhileStreaming();
 
     Widget buildCodeView(String visibleCode) {
-      final codeView = SelectableHighlightView(
+      final codeView = CodeHighlightView(
         visibleCode,
         language: codeLanguage,
         theme: codeTheme,
-        padding: EdgeInsets.zero,
         textStyle: codeTextStyle,
         enableHighlight: highlightEnabled,
       );
@@ -3359,7 +3356,6 @@ class _MarkdownTableBlock extends StatelessWidget {
                   style: style,
                   config: config,
                   appFontFamily: appFontFamily,
-                  selectable: !compact,
                 ),
             ],
           ),
@@ -3610,7 +3606,6 @@ class _MarkdownTableCell extends StatelessWidget {
     required this.style,
     required this.config,
     required this.appFontFamily,
-    required this.selectable,
   });
 
   final _MarkdownTableCellData data;
@@ -3618,7 +3613,6 @@ class _MarkdownTableCell extends StatelessWidget {
   final TextStyle style;
   final GptMarkdownConfig config;
   final String? appFontFamily;
-  final bool selectable;
 
   @override
   Widget build(BuildContext context) {
@@ -3645,15 +3639,13 @@ class _MarkdownTableCell extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       child: Align(
         alignment: _alignmentFor(data.alignment),
-        child: selectable
-            ? SelectableText.rich(textSpan, textAlign: data.alignment)
-            : RichText(
-                text: textSpan,
-                textAlign: data.alignment,
-                softWrap: true,
-                overflow: TextOverflow.visible,
-                textWidthBasis: TextWidthBasis.parent,
-              ),
+        child: Text.rich(
+          textSpan,
+          textAlign: data.alignment,
+          softWrap: true,
+          overflow: TextOverflow.visible,
+          textWidthBasis: TextWidthBasis.parent,
+        ),
       ),
     );
   }
@@ -3723,60 +3715,64 @@ class _MarkdownTableToolbar extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
-      height: 38,
-      padding: const EdgeInsetsDirectional.only(start: 12, end: 6),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        border: Border(
-          bottom: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: isDark ? 0.20 : 0.28),
-            width: 0.6,
+    // Toolbar chrome must not join the enclosing message selection: it is
+    // inert UI, not content to copy.
+    return SelectionContainer.disabled(
+      child: Container(
+        height: 38,
+        padding: const EdgeInsetsDirectional.only(start: 12, end: 6),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          border: Border(
+            bottom: BorderSide(
+              color: cs.outlineVariant.withValues(alpha: isDark ? 0.20 : 0.28),
+              width: 0.6,
+            ),
           ),
         ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.80),
-                fontSize: 12,
-                fontWeight: AppFontWeights.semibold,
-                height: 1.0,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.80),
+                  fontSize: 12,
+                  fontWeight: AppFontWeights.semibold,
+                  height: 1.0,
+                ),
               ),
             ),
-          ),
-          _copyButton(context),
-          WindowsAxTreeSafeTooltip(
-            message: imageActionLabel,
-            child: IosIconButton(
-              icon: Lucide.ImageDown,
-              semanticLabel: imageActionLabel,
-              onTap: onImageAction,
-              onLongPress: onExportImage,
-              size: 15,
-              minSize: 32,
-              padding: const EdgeInsets.all(7),
-              color: cs.onSurfaceVariant.withValues(alpha: 0.68),
+            _copyButton(context),
+            WindowsAxTreeSafeTooltip(
+              message: imageActionLabel,
+              child: IosIconButton(
+                icon: Lucide.ImageDown,
+                semanticLabel: imageActionLabel,
+                onTap: onImageAction,
+                onLongPress: onExportImage,
+                size: 15,
+                minSize: 32,
+                padding: const EdgeInsets.all(7),
+                color: cs.onSurfaceVariant.withValues(alpha: 0.68),
+              ),
             ),
-          ),
-          WindowsAxTreeSafeTooltip(
-            message: exportLabel,
-            child: IosIconButton(
-              icon: Lucide.Download,
-              semanticLabel: exportLabel,
-              onTap: onExport,
-              size: 15,
-              minSize: 32,
-              padding: const EdgeInsets.all(7),
-              color: cs.onSurfaceVariant.withValues(alpha: 0.68),
+            WindowsAxTreeSafeTooltip(
+              message: exportLabel,
+              child: IosIconButton(
+                icon: Lucide.Download,
+                semanticLabel: exportLabel,
+                onTap: onExport,
+                size: 15,
+                minSize: 32,
+                padding: const EdgeInsets.all(7),
+                color: cs.onSurfaceVariant.withValues(alpha: 0.68),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -4319,13 +4315,12 @@ class _MermaidBlockState extends State<_MermaidBlock> {
   }
 
   Widget _buildMermaidCodeView(BuildContext context, bool isDark) {
-    final codeView = SelectableHighlightView(
+    final codeView = CodeHighlightView(
       widget.code,
       language: 'plaintext',
       theme: _transparentBgTheme(
         isDark ? atomOneDarkReasonableTheme : githubTheme,
       ),
-      padding: EdgeInsets.zero,
       textStyle: TextStyle(fontFamily: 'monospace', fontSize: 13, height: 1.5),
     );
 
@@ -6332,15 +6327,18 @@ class AllowedHtmlTagsMd extends InlineMd {
   }
 }
 
-/// A selectable version of HighlightView that allows users to select
-/// and copy portions of the code instead of just the entire block.
-class SelectableHighlightView extends StatefulWidget {
-  const SelectableHighlightView(
+/// Code block with per-token syntax highlight.
+///
+/// Rendered as a plain [Text.rich] so the code participates in the enclosing
+/// [SelectionArea] selection instead of owning its own selectable context.
+/// (A raw [RichText] would not wire [selectionRegistrar], leaving the code
+/// unselectable.)
+class CodeHighlightView extends StatefulWidget {
+  const CodeHighlightView(
     this.source, {
     super.key,
     this.language,
     this.theme = const {},
-    this.padding,
     this.textStyle,
     this.enableHighlight = true,
   });
@@ -6348,16 +6346,14 @@ class SelectableHighlightView extends StatefulWidget {
   final String source;
   final String? language;
   final Map<String, TextStyle> theme;
-  final EdgeInsetsGeometry? padding;
   final TextStyle? textStyle;
   final bool enableHighlight;
 
   @override
-  State<SelectableHighlightView> createState() =>
-      _SelectableHighlightViewState();
+  State<CodeHighlightView> createState() => _CodeHighlightViewState();
 }
 
-class _SelectableHighlightViewState extends State<SelectableHighlightView> {
+class _CodeHighlightViewState extends State<CodeHighlightView> {
   late List<TextSpan> _codeTextSpans;
 
   @override
@@ -6367,7 +6363,7 @@ class _SelectableHighlightViewState extends State<SelectableHighlightView> {
   }
 
   @override
-  void didUpdateWidget(covariant SelectableHighlightView oldWidget) {
+  void didUpdateWidget(covariant CodeHighlightView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.source == widget.source &&
         oldWidget.language == widget.language &&
@@ -6417,7 +6413,7 @@ class _SelectableHighlightViewState extends State<SelectableHighlightView> {
 
   @override
   Widget build(BuildContext context) {
-    return SelectableText.rich(
+    return Text.rich(
       TextSpan(
         style: widget.textStyle,
         children: _codeTextSpans.isEmpty

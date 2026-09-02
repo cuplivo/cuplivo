@@ -38,6 +38,27 @@ String backupReminderDateTimeLabel(BuildContext context, DateTime? value) {
   return '${material.formatMediumDate(local)} ${TimeOfDay.fromDateTime(local).format(context)}';
 }
 
+/// 首页抽屉备份入口行专用的相对时间：null→“从未”；<1 分钟→“刚刚”；
+/// <1 小时→“N 分钟前”；<24 小时→“N 小时前”；<7 天→“N 天前”；
+/// ≥7 天→短日期（同年无年份，跨年加年份）。备份页/面板保持
+/// [backupReminderDateTimeLabel] 的绝对时间，不在此处替换。
+String backupEntryRelativeTimeLabel(BuildContext context, DateTime? value) {
+  final l10n = AppLocalizations.of(context)!;
+  if (value == null) return l10n.backupReminderNever;
+  final local = value.toLocal();
+  final now = DateTime.now();
+  final diff = now.difference(local);
+  if (diff.inSeconds < 60) return l10n.backupEntryJustNow;
+  if (diff.inMinutes < 60) return l10n.backupEntryMinutesAgo(diff.inMinutes);
+  if (diff.inHours < 24) return l10n.backupEntryHoursAgo(diff.inHours);
+  if (diff.inDays < 7) return l10n.backupEntryDaysAgo(diff.inDays);
+  final shortDate = MaterialLocalizations.of(
+    context,
+  ).formatShortMonthDay(local);
+  if (local.year == now.year) return shortDate;
+  return l10n.backupEntryDateWithYear(shortDate, local.year.toString());
+}
+
 String backupReminderNextLabel(BuildContext context, DateTime? value) {
   final l10n = AppLocalizations.of(context)!;
   if (value == null) return l10n.backupReminderDisabled;

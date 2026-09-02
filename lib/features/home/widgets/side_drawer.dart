@@ -109,6 +109,45 @@ class SideDrawer extends StatefulWidget {
   State<SideDrawer> createState() => _SideDrawerState();
 }
 
+/// 相对时间标签：1 分钟周期 setState 刷新（相对时间只随流逝变化，提醒
+/// timer 仅在到期时触发，不覆盖平时口径）。行内可见时存在，行隐藏即销毁。
+class _BackupEntryRelativeTime extends StatefulWidget {
+  const _BackupEntryRelativeTime({required this.value, required this.builder});
+
+  final DateTime? value;
+  final Widget Function(BuildContext context, String label) builder;
+
+  @override
+  State<_BackupEntryRelativeTime> createState() =>
+      _BackupEntryRelativeTimeState();
+}
+
+class _BackupEntryRelativeTimeState extends State<_BackupEntryRelativeTime> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.builder(
+      context,
+      backupEntryRelativeTimeLabel(context, widget.value),
+    );
+  }
+}
+
 class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
   bool get _isDesktop =>
       defaultTargetPlatform == TargetPlatform.macOS ||
@@ -1670,16 +1709,29 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     ).push(MaterialPageRoute(builder: (_) => const BackupPage()));
   }
 
-  /// 备份快捷入口行：常驻（移动端底部用户栏上方 / 桌面端侧栏最底部，与更新入口
-  /// 并排）。提醒到期时在行内追加第二行小字（催办），图标染 warning 色；
-  /// 平时为紧凑行：标题 + 上次备份状态。从不切换成其他形态。
+  /// 备份快捷入口行（移动端底部用户栏上方 / 桌面端侧栏最底部，与更新入口
+  /// 并排）。可见性 = 常驻开关或提醒到期，二者其一。到期时行内追加第二行
+  /// 催办（相对时间，独占行宽，无尾部时间）；平时为紧凑行：标题固定自然
+  /// 宽度 + 相对时间右对齐（时间遇窄可省略，标题永不截断）。
   Widget _buildBackupEntryRow(BuildContext context) {
     final reminder = context.watch<BackupReminderProvider>();
     if (!reminder.loaded) return const SizedBox.shrink();
+    final due = reminder.shouldShowReminder;
+    if (!reminder.entryAlwaysVisible && !due) return const SizedBox.shrink();
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
-    final due = reminder.shouldShowReminder;
     final iconColor = due ? context.appColors.warning : cs.primary;
+
+    final title = Text(
+      l10n.settingsPageBackup,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: _isDesktop ? 13 : 14,
+        fontWeight: AppFontWeights.medium,
+        color: cs.onSurface.withValues(alpha: 0.9),
+      ),
+    );
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -1696,54 +1748,30 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
               child: Icon(Lucide.databaseBackup, size: 18, color: iconColor),
             ),
             const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    l10n.settingsPageBackup,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: _isDesktop ? 13 : 14,
-                      fontWeight: AppFontWeights.medium,
-                      color: cs.onSurface.withValues(alpha: 0.9),
-                    ),
-                  ),
-                  if (due) ...[
+            if (due) ...[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    title,
                     const SizedBox(height: 3),
-                    Text(
-                      l10n.backupEntryDueLine(
-                        backupReminderDateTimeLabel(
-                          context,
-                          reminder.lastBackupAt,
+                    _BackupEntryRelativeTime(
+                      value: reminder.lastBackupAt,
+                      builder: (context, label) => Text(
+                        l10n.backupEntryDueLine(label),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: AppFontWeights.medium,
+                          color: context.appColors.warning,
                         ),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: AppFontWeights.medium,
-                        color: context.appColors.warning,
                       ),
                     ),
                   ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                backupReminderDateTimeLabel(context, reminder.lastBackupAt),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: cs.onSurface.withValues(alpha: 0.55),
                 ),
               ),
-            ),
-            if (due) ...[
               const SizedBox(width: 6),
               Padding(
                 padding: const EdgeInsets.only(top: 2),
@@ -1751,6 +1779,26 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                   Lucide.TriangleAlert,
                   size: 14,
                   color: context.appColors.warning,
+                ),
+              ),
+            ] else ...[
+              title,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: _BackupEntryRelativeTime(
+                    value: reminder.lastBackupAt,
+                    builder: (context, label) => Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurface.withValues(alpha: 0.55),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -2777,31 +2825,6 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                 ),
             ],
           ),
-
-          // iOS-style blur/fade effect above user area
-          if (!widget.embedded)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 62, // Approximate height of user area
-              child: IgnorePointer(
-                child: Container(
-                  height: 20,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        cs.surface.withValues(alpha: 0.0),
-                        cs.surface.withValues(alpha: 0.8),
-                        cs.surface.withValues(alpha: 1.0),
-                      ],
-                      stops: const [0.0, 0.6, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );

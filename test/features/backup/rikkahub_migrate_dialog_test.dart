@@ -139,7 +139,7 @@ Future<void> _openMigrationChooser(
   WidgetTester tester,
   String optionLabel,
 ) async {
-  final summary = find.text('Migrate from Other Apps');
+  final summary = find.text('Migrate Data');
   await tester.scrollUntilVisible(
     summary,
     120,
@@ -178,7 +178,7 @@ void main() {
         final settings = SettingsProvider(preferences: businessPrefs);
         await _pumpBackupPage(tester, settings: settings);
 
-        final summary = find.text('Migrate from Other Apps');
+        final summary = find.text('Migrate Data');
         await tester.scrollUntilVisible(
           summary,
           120,

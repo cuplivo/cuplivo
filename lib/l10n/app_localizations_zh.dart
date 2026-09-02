@@ -2376,19 +2376,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupRestoreCloudNone => '尚未配置云端渠道';
 
   @override
-  String get backupMigrateTitle => '从其他应用迁移';
+  String get backupMigrateTitle => '数据迁移';
 
   @override
   String get backupMigrateRowSubtitle => '在 Cuplivo 与其他应用之间迁移数据';
 
   @override
-  String get backupMigrateMoveOutHeader => '搬去…';
-
-  @override
-  String get backupMigrateMoveInHeader => '从…搬来';
-
-  @override
-  String get backupMigrateExportLabel => 'Kelivo / Cuplivo 旧版';
+  String get backupMigrateExportLabel => '导出 Kelivo 兼容备份';
 
   @override
   String get backupPageContentLabel => '备份内容';
@@ -2415,7 +2409,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupDestLocal => '本地';
 
   @override
-  String get backupPageExportKelivoCompatibleSubtitle => '生成可供旧版 Kelivo 导入的备份';
+  String get backupPageExportKelivoCompatibleSubtitle =>
+      '生成可供旧版 Kelivo 或旧版 Cuplivo 导入的完整备份';
 
   @override
   String get backupPageIncrementalDescription => '仅导出某个日期之后的聊天数据。';
@@ -2526,6 +2521,32 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupReminderCustomDaysInvalid => '请输入 1 到 365 之间的数字。';
+
+  @override
+  String get backupEntryAlwaysVisibleTitle => '常驻显示备份入口';
+
+  @override
+  String get backupEntryJustNow => '刚刚';
+
+  @override
+  String backupEntryMinutesAgo(num count) {
+    return '$count 分钟前';
+  }
+
+  @override
+  String backupEntryHoursAgo(num count) {
+    return '$count 小时前';
+  }
+
+  @override
+  String backupEntryDaysAgo(num count) {
+    return '$count 天前';
+  }
+
+  @override
+  String backupEntryDateWithYear(Object date, Object year) {
+    return '$date（$year）';
+  }
 
   @override
   String get lanSyncSectionTitle => '局域网同步';
@@ -11566,19 +11587,13 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupRestoreCloudNone => '尚未配置云端渠道';
 
   @override
-  String get backupMigrateTitle => '从其他应用迁移';
+  String get backupMigrateTitle => '数据迁移';
 
   @override
   String get backupMigrateRowSubtitle => '在 Cuplivo 与其他应用之间迁移数据';
 
   @override
-  String get backupMigrateMoveOutHeader => '搬去…';
-
-  @override
-  String get backupMigrateMoveInHeader => '从…搬来';
-
-  @override
-  String get backupMigrateExportLabel => 'Kelivo / Cuplivo 旧版';
+  String get backupMigrateExportLabel => '导出 Kelivo 兼容备份';
 
   @override
   String get backupPageContentLabel => '备份内容';
@@ -11605,7 +11620,8 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupDestLocal => '本地';
 
   @override
-  String get backupPageExportKelivoCompatibleSubtitle => '生成可供旧版 Kelivo 导入的备份';
+  String get backupPageExportKelivoCompatibleSubtitle =>
+      '生成可供旧版 Kelivo 或旧版 Cuplivo 导入的完整备份';
 
   @override
   String get backupPageIncrementalDescription => '仅导出某个日期之后的聊天数据。';
@@ -11716,6 +11732,32 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupReminderCustomDaysInvalid => '请输入 1 到 365 之间的数字。';
+
+  @override
+  String get backupEntryAlwaysVisibleTitle => '常驻显示备份入口';
+
+  @override
+  String get backupEntryJustNow => '刚刚';
+
+  @override
+  String backupEntryMinutesAgo(num count) {
+    return '$count 分钟前';
+  }
+
+  @override
+  String backupEntryHoursAgo(num count) {
+    return '$count 小时前';
+  }
+
+  @override
+  String backupEntryDaysAgo(num count) {
+    return '$count 天前';
+  }
+
+  @override
+  String backupEntryDateWithYear(Object date, Object year) {
+    return '$date（$year）';
+  }
 
   @override
   String get lanSyncSectionTitle => '局域网同步';
@@ -20756,19 +20798,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupRestoreCloudNone => '尚未配置雲端渠道';
 
   @override
-  String get backupMigrateTitle => '從其他應用程式遷移';
+  String get backupMigrateTitle => '資料遷移';
 
   @override
   String get backupMigrateRowSubtitle => '在 Cuplivo 與其他應用之間遷移資料';
 
   @override
-  String get backupMigrateMoveOutHeader => '搬去…';
-
-  @override
-  String get backupMigrateMoveInHeader => '從…搬來';
-
-  @override
-  String get backupMigrateExportLabel => 'Kelivo / Cuplivo 舊版';
+  String get backupMigrateExportLabel => '匯出 Kelivo 相容備份';
 
   @override
   String get backupPageContentLabel => '備份內容';
@@ -20795,7 +20831,8 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupDestLocal => '本機';
 
   @override
-  String get backupPageExportKelivoCompatibleSubtitle => '產生可供舊版 Kelivo 匯入的備份';
+  String get backupPageExportKelivoCompatibleSubtitle =>
+      '產生可供舊版 Kelivo 或舊版 Cuplivo 匯入的完整備份';
 
   @override
   String get backupPageIncrementalDescription => '僅匯出某個日期之後的聊天資料。';
@@ -20906,6 +20943,32 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupReminderCustomDaysInvalid => '請輸入 1 到 365 之間的數字。';
+
+  @override
+  String get backupEntryAlwaysVisibleTitle => '常駐顯示備份入口';
+
+  @override
+  String get backupEntryJustNow => '剛剛';
+
+  @override
+  String backupEntryMinutesAgo(num count) {
+    return '$count 分鐘前';
+  }
+
+  @override
+  String backupEntryHoursAgo(num count) {
+    return '$count 小時前';
+  }
+
+  @override
+  String backupEntryDaysAgo(num count) {
+    return '$count 天前';
+  }
+
+  @override
+  String backupEntryDateWithYear(Object date, Object year) {
+    return '$date（$year）';
+  }
 
   @override
   String get lanSyncSectionTitle => '區域網路同步';

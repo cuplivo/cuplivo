@@ -123,5 +123,32 @@ void main() {
       expect(find.text('Backup Now'), findsOneWidget);
       expect(find.text('No Backup Yet'), findsOneWidget);
     });
+
+    testWidgets('entry-visibility switch toggles and persists the flag', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(900, 2000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      businessPrefs = BusinessPreferences.memoryForTests({});
+      final settings = SettingsProvider(preferences: businessPrefs);
+      final reminder = await _createReminderProvider();
+
+      await tester.pumpWidget(
+        _buildHarness(settings: settings, reminder: reminder),
+      );
+      await tester.pump();
+
+      expect(find.text('Always Show Backup Entry'), findsOneWidget);
+      expect(reminder.entryAlwaysVisible, isTrue);
+
+      await tester.tap(find.text('Always Show Backup Entry'));
+      await tester.pump();
+
+      expect(reminder.entryAlwaysVisible, isFalse);
+
+      final reloaded = await _createReminderProvider();
+      expect(reloaded.entryAlwaysVisible, isFalse);
+    });
   });
 }

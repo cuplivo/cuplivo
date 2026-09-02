@@ -26,7 +26,9 @@ class SegmentedToggle extends StatelessWidget {
 
   /// Trailing status-dot color per option (index-aligned); null entry = no
   /// dot. Used by the backup hero destination picker (green = configured,
-  /// grey = unconfigured) without affecting other call sites.
+  /// grey = unconfigured) without affecting other call sites. A dot only
+  /// renders on UNselected cells — the selected cell shows the check icon
+  /// instead (check and dot are mutually exclusive).
   final List<Color?>? dots;
 
   @override
@@ -181,7 +183,11 @@ class _SegmentedBase extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (dots != null && dots![j] != null) ...[
+                        // 就绪点：仅未选中 cell 渲染（选中时由 √ 替代，
+                        // 二者互斥，避免叠加挤压 label 宽度）。
+                        if (!isSelected[j] &&
+                            dots != null &&
+                            dots![j] != null) ...[
                           const SizedBox(width: 5),
                           Container(
                             width: 7,

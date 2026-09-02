@@ -4512,7 +4512,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupMigrateTitle.
   ///
   /// In en, this message translates to:
-  /// **'Migrate from Other Apps'**
+  /// **'Migrate Data'**
   String get backupMigrateTitle;
 
   /// No description provided for @backupMigrateRowSubtitle.
@@ -4521,22 +4521,10 @@ abstract class AppLocalizations {
   /// **'Move data between Cuplivo and other apps'**
   String get backupMigrateRowSubtitle;
 
-  /// No description provided for @backupMigrateMoveOutHeader.
-  ///
-  /// In en, this message translates to:
-  /// **'Move out to'**
-  String get backupMigrateMoveOutHeader;
-
-  /// No description provided for @backupMigrateMoveInHeader.
-  ///
-  /// In en, this message translates to:
-  /// **'Move in from'**
-  String get backupMigrateMoveInHeader;
-
   /// No description provided for @backupMigrateExportLabel.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo / Older Cuplivo'**
+  /// **'Export Kelivo-Compatible Backup'**
   String get backupMigrateExportLabel;
 
   /// No description provided for @backupPageContentLabel.
@@ -4590,7 +4578,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupPageExportKelivoCompatibleSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'A backup that old Kelivo hosts can import'**
+  /// **'A full backup that old Kelivo or older Cuplivo builds can import'**
   String get backupPageExportKelivoCompatibleSubtitle;
 
   /// No description provided for @backupPageIncrementalDescription.
@@ -4796,6 +4784,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter a number from 1 to 365.'**
   String get backupReminderCustomDaysInvalid;
+
+  /// No description provided for @backupEntryAlwaysVisibleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Always Show Backup Entry'**
+  String get backupEntryAlwaysVisibleTitle;
+
+  /// No description provided for @backupEntryJustNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Just now'**
+  String get backupEntryJustNow;
+
+  /// No description provided for @backupEntryMinutesAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 min ago} other{{count} min ago}}'**
+  String backupEntryMinutesAgo(num count);
+
+  /// No description provided for @backupEntryHoursAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 hr ago} other{{count} hr ago}}'**
+  String backupEntryHoursAgo(num count);
+
+  /// No description provided for @backupEntryDaysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 day ago} other{{count} days ago}}'**
+  String backupEntryDaysAgo(num count);
+
+  /// No description provided for @backupEntryDateWithYear.
+  ///
+  /// In en, this message translates to:
+  /// **'{date}, {year}'**
+  String backupEntryDateWithYear(Object date, Object year);
 
   /// No description provided for @lanSyncSectionTitle.
   ///

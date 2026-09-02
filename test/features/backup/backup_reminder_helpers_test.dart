@@ -199,6 +199,92 @@ void main() {
     await tester.pumpAndSettle();
     expect(selectedDays, isNull);
   });
+
+  testWidgets('entry relative time follows its thresholds', (tester) async {
+    Future<String> label(DateTime? value) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Text(backupEntryRelativeTimeLabel(context, value)),
+            ),
+          ),
+        ),
+      );
+      return (tester.widget<Text>(find.byType(Text))).data!;
+    }
+
+    expect(await label(null), 'Never');
+
+    final now = DateTime.now();
+    expect(await label(now.subtract(const Duration(seconds: 30))), 'Just now');
+    expect(await label(now.subtract(const Duration(minutes: 5))), '5 min ago');
+    expect(await label(now.subtract(const Duration(hours: 3))), '3 hr ago');
+    expect(await label(now.subtract(const Duration(days: 2))), '2 days ago');
+  });
+
+  testWidgets('entry relative time falls back to short date after 7 days', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    final tenDaysAgo = now.subtract(const Duration(days: 10));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) {
+            final label = backupEntryRelativeTimeLabel(context, tenDaysAgo);
+            return Scaffold(
+              body: Column(
+                children: [
+                  Text(label),
+                  Text(
+                    MaterialLocalizations.of(
+                      context,
+                    ).formatShortMonthDay(tenDaysAgo),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    final label = tester.widget<Text>(find.byType(Text).first).data!;
+    final shortDate = tester.widget<Text>(find.byType(Text).last).data!;
+    expect(label, shortDate);
+    expect(label.contains('ago'), isFalse);
+  });
+
+  testWidgets('entry relative time includes the year for cross-year dates', (
+    tester,
+  ) async {
+    final oldDate = DateTime.now().subtract(const Duration(days: 400));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Text(backupEntryRelativeTimeLabel(context, oldDate)),
+          ),
+        ),
+      ),
+    );
+
+    final label = tester.widget<Text>(find.byType(Text)).data!;
+    expect(label, contains(oldDate.year.toString()));
+    expect(label.contains('ago'), isFalse);
+  });
 }
 
 void _expectAllPickersLooping(WidgetTester tester) {

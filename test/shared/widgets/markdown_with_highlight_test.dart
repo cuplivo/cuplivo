@@ -2620,16 +2620,16 @@ $$
   );
 
   testWidgets(
-    r'MarkdownWithCodeHighlight keeps \tag{\alpha} untouched for fallback',
+    r'MarkdownWithCodeHighlight renders \tag{\alpha} labels without fallback',
     (tester) async {
       await tester.pumpWidget(_markdownHarness(r'$$\tag{\alpha} x = y$$'));
       await tester.pump();
 
       final mathWidgets = _mathWidgets(tester);
       expect(mathWidgets, hasLength(1));
-      expect(mathWidgets.single.parseError, isNotNull);
-      // The fallback shows the ORIGINAL tex, not the rewritten approximation.
-      expect(find.textContaining(r'\tag{\alpha}'), findsOneWidget);
+      expect(mathWidgets.single.parseError, isNull);
+      expect(_encodedMathTex(tester).first, contains(r'\alpha'));
+      expect(find.textContaining(r'\tag{\alpha}'), findsNothing);
     },
   );
 

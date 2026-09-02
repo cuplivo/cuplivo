@@ -80,10 +80,54 @@ class TexParser {
 
     this.expect('EOF');
 
+    // \tag capture must be read back before the current group unwinds
+    // (endGroup would restore \df@tag to its pre-parse state).
+    final tagged = this._applyCapturedTag(parse);
+
     if (!this.settings.globalGroup) {
       this.macroExpander.endGroup();
     }
-    return parse.wrapWithEquationRow();
+    return tagged;
+  }
+
+  /// Captures and strips a pending [\df@tag] label and returns it as a math
+  /// row (quad + label re-parsed in math mode, so arbitrary content such as
+  /// \tag{\alpha} or unbraced tags builds instead of failing the formula).
+  ///
+  /// Returns null when no meaningful tag was captured. Every row boundary
+  /// (root parse end and array row ends) must consume the capture, otherwise
+  /// the leftover definition would be live for the following row (and would
+  /// make the next \tag throw "Multiple \tag").
+  EquationRowNode? takeCapturedTagRow() {
+    final tagDef = this.macroExpander.macros.get('\\df@tag');
+    if (tagDef == null) return null;
+    final labelTokens = this.macroExpander.expandMacro('\\df@tag') ?? const [];
+    if (labelTokens.isEmpty) return null;
+    final label = labelTokens.map((token) => token.text).join();
+    // Trailing space separates \quad from a label that starts with a letter
+    // (\tag*{A} would otherwise lex as the unknown command \quadA).
+    final tagNodes =
+        TexParser('\\quad ' + label, this.settings).parseExpression(
+      breakOnInfix: false,
+    );
+    this.macroExpander.macros.set(
+          '\\df@tag',
+          MacroDefinition.fromMacroExpansion(
+            const MacroExpansion(tokens: [], numArgs: 0, unexpandable: true),
+          ),
+          global: true,
+        );
+    return EquationRowNode(children: tagNodes);
+  }
+
+  /// Appends a captured \tag (if any) to the finished root row.
+  EquationRowNode _applyCapturedTag(List<GreenNode> parse) {
+    final row = parse.wrapWithEquationRow();
+    final tagRow = this.takeCapturedTagRow();
+    if (tagRow == null) return row;
+    return EquationRowNode(
+      children: [...row.children, ...tagRow.children],
+    );
   }
 
   List<GreenNode> parseExpression({

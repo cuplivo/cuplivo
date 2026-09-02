@@ -2146,6 +2146,32 @@ void main() {
     });
   });
 
+  group("A tag", () {
+    test("should capture single display tags", () {
+      expect(r'\tag{1} E = mc^2', toParse());
+      expect(r'\tag{1} E = mc^2', toBuild);
+      expect(r'\tag*{A} x = y', toBuild);
+    });
+
+    test("should build arbitrary labels in math mode", () {
+      expect(r'\tag{\alpha} x = y', toBuild);
+      expect(r'\tag{A} x = y', toBuild);
+      expect(r'\tag{A 1} x = y', toBuild);
+      expect(r'\tag{a} \operatorname{Var}_\theta(x)', toBuild);
+    });
+
+    test("should reject multiple tags in one row", () {
+      expect(r'\tag{1} x = y \tag{2}', toNotParse());
+    });
+
+    test("should reset per row inside aligned", () {
+      expect(
+        r'\begin{aligned}E &= mc^2 \tag{1} \\ p &= mv \tag{2}\end{aligned}',
+        toBuild,
+      );
+    });
+  });
+
   group("An fcolorbox parser", () {
     test("should not fail, given a text argument", () {
       expect(r'\fcolorbox{blue}{yellow}{a b}', toParse());

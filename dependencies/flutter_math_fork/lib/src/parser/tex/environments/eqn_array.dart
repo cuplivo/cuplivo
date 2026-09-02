@@ -171,6 +171,7 @@ EquationArrayNode parseEqnArray(
 
   var row = <EquationRowNode>[];
   final body = [row];
+  final rowTags = <EquationRowNode?>[];
   final rowGaps = <Measurement>[];
   final hLinesBeforeRow = <MatrixSeparatorStyle>[];
 
@@ -198,6 +199,7 @@ EquationArrayNode parseEqnArray(
       if (row.length == 1 && cell is StyleNode && cell.children.isEmpty) {
         body.removeLast();
       }
+      rowTags.add(parser.takeCapturedTagRow());
       if (hLinesBeforeRow.length < body.length + 1) {
         hLinesBeforeRow.add(MatrixSeparatorStyle.none);
       }
@@ -205,6 +207,10 @@ EquationArrayNode parseEqnArray(
     } else if (next == '\\cr') {
       final cr = assertNodeType<CrNode>(parser.parseFunction(null, null, null));
       rowGaps.add(cr.size ?? Measurement.zero);
+
+      // Consume a per-row \tag before the row is completed: the tag was
+      // captured through the cell namespace via \df@tag (global set).
+      rowTags.add(parser.takeCapturedTagRow());
 
       // check for \hline(s) following the row separator
       hLinesBeforeRow
@@ -223,7 +229,14 @@ EquationArrayNode parseEqnArray(
   // End array group defining \\
   parser.macroExpander.endGroup();
 
-  final rows = body.map<EquationRowNode>(concatRow).toList();
+  final rows = body.mapIndexed((index, rowBody) {
+    final rowNode = concatRow(rowBody);
+    final tag = rowTags[index];
+    if (tag == null) return rowNode;
+    return EquationRowNode(
+      children: [...rowNode.children, ...tag.children],
+    );
+  }).toList();
 
   return EquationArrayNode(
     arrayStretch: arrayStretch,

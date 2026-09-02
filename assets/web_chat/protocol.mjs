@@ -1089,3 +1089,177 @@ export function createViewportNavigationCoordinator({
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Math protection for the markdown pipeline.
+//
+// KaTeX runs only AFTER marked has processed the markdown, so math bodies
+// inside $$...$$ / \[...\] / \(...\) get mangled by marked first (backslash
+// escapes halve \\[10pt] into \[10pt]; underscore pairs become <em>, splitting
+// the text node so auto-render can no longer pair the delimiters). The fix
+// mirrors the Flutter markdown lexer: lift math spans out of the source
+// before marked runs, replace each with a deterministic placeholder that
+// survives marked + DOMPurify untouched, and restore the raw source as text
+// nodes before renderMathInElement.
+
+// ---------------------------------------------------------------------------
+// Math protection for the markdown pipeline.
+//
+// KaTeX runs only AFTER marked has processed the markdown, so math bodies
+// inside $$...$$ / \[...\] / \(...\) get mangled by marked first (backslash
+// escapes halve \\[10pt] into \[10pt]; underscore pairs become <em>, splitting
+// the text node so auto-render can no longer pair the delimiters). The fix
+// mirrors the Flutter markdown lexer: lift math spans out of the source
+// before marked runs, replace each with a deterministic placeholder that
+// survives marked + DOMPurify untouched, and restore the raw source as text
+// nodes before renderMathInElement.
+// ---------------------------------------------------------------------------
+
+export function stableMathSlotKey(source) {
+  let hash = 2166136261;
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= source.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `m:${(hash >>> 0).toString(16)}`;
+}
+
+function isFenceOpen(line) {
+  const trimmed = line.trimStart();
+  const match = /^(`{3,}|~{3,})/.exec(trimmed);
+  return match ? match[1] : null;
+}
+
+function isFenceClose(line, fence) {
+  const trimmed = line.trimStart();
+  if (fence.startsWith('`')) return /^`{3,}/.test(trimmed);
+  if (fence.startsWith('~')) return /^~{3,}/.test(trimmed);
+  return false;
+}
+
+function isEscaped(text, index) {
+  let backslashes = 0;
+  for (let cursor = index - 1; cursor >= 0 && text[cursor] === '\\'; cursor -= 1) {
+    backslashes += 1;
+  }
+  return backslashes % 2 === 1;
+}
+
+/** Computes the [start, end] index ranges of fenced code blocks (including
+ *  the fence lines) so the scanner can pass them through verbatim. */
+function fencedRanges(source) {
+  const ranges = [];
+  const lines = source.split('\n');
+  let offset = 0;
+  let fence = null;
+  let start = 0;
+  for (const line of lines) {
+    if (fence) {
+      if (isFenceClose(line, fence)) {
+        ranges.push([start, offset + line.length]);
+        fence = null;
+      }
+    } else {
+      const opened = isFenceOpen(line);
+      if (opened) {
+        fence = opened;
+        start = offset;
+      }
+    }
+    offset += line.length + 1; // +1 for the newline
+  }
+  if (fence) ranges.push([start, source.length]);
+  return ranges;
+}
+
+/** Lifts math spans out of [source], returning the slotted source plus the
+ *  slot -> raw-span map. Fenced code blocks are excluded; inline code spans
+ *  are copied verbatim so their `$` never pairs. Unclosed spans are left as
+ *  written (streaming tails) and reach the renderer exactly like today. */
+export function extractMathSpans(source, { dollarMath = false } = {}) {
+  const text = String(source ?? '');
+  const slots = new Map();
+  const ranges = fencedRanges(text);
+  let rangeIndex = 0;
+  const protectAt = (index) => {
+    while (rangeIndex < ranges.length && ranges[rangeIndex][1] <= index) {
+      rangeIndex += 1;
+    }
+    return rangeIndex < ranges.length && ranges[rangeIndex][0] <= index;
+  };
+
+  const take = (start, end) => {
+    const raw = text.slice(start, end);
+    const key = stableMathSlotKey(raw);
+    slots.set(key, raw);
+    return raw.length;
+  };
+
+  const matchSingleDollar = (index) => {
+    if (isEscaped(text, index)) return 0;
+    const close = text.indexOf('$', index + 1);
+    if (close === -1) return 0;
+    const body = text.slice(index + 1, close);
+    if (body.includes('$') || body.includes('\n') || body.includes('\\$')) {
+      return 0;
+    }
+    return take(index, close + 1);
+  };
+
+  let out = '';
+  let index = 0;
+  while (index < text.length) {
+    if (protectAt(index)) {
+      out += text[index];
+      index += 1;
+      continue;
+    }
+    const ch = text[index];
+
+    // Inline code: copy the whole span verbatim (balanced runs of backticks).
+    if (ch === '`') {
+      const run = /^`+/.exec(text.slice(index))[0];
+      let cursor = index + run.length;
+      while (cursor < text.length && !text.startsWith(run, cursor)) {
+        cursor += 1;
+      }
+      const end = cursor < text.length ? cursor + run.length : text.length;
+      out += text.slice(index, end);
+      index = end;
+      continue;
+    }
+
+    let consumed = 0;
+    if (text.startsWith('$$', index)) {
+      const close = text.indexOf('$$', index + 2);
+      if (close !== -1) consumed = take(index, close + 2);
+    } else if (text.startsWith('\\[', index)) {
+      const close = text.indexOf('\\]', index + 2);
+      if (close !== -1) consumed = take(index, close + 2);
+    } else if (text.startsWith('\\(', index)) {
+      const close = text.indexOf('\\)', index + 2);
+      if (close !== -1) consumed = take(index, close + 2);
+    } else if (dollarMath && ch === '$') {
+      consumed = matchSingleDollar(index);
+    }
+    if (consumed > 0) {
+      out += stableMathSlotKey(text.slice(index, index + consumed));
+      index += consumed;
+      continue;
+    }
+    out += ch;
+    index += 1;
+  }
+
+  return { source: out, slots };
+}
+
+/** Restores every slot token in [text] back to its raw math source. */
+export function restoreMathText(text, slots) {
+  if (!slots || slots.size === 0) return text;
+  let result = String(text ?? '');
+  for (const [key, raw] of slots) {
+    result = result.split(key).join(raw);
+  }
+  return result;
+}

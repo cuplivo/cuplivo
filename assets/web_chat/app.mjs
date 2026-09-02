@@ -15,9 +15,11 @@ import {
   createRenderGate,
   createVirtualWindowCoordinator,
   createViewportNavigationCoordinator,
+  extractMathSpans,
   formatCountTemplate,
   formatReasoningElapsed,
   longestStablePrefix,
+  restoreMathText,
   mountCodeBlock,
   messageIndexAtOffset,
   normalizeMeasuredHeight,
@@ -57,6 +59,7 @@ const pendingMountedUpdates = new Set();
 const markdownHtmlCache = new Map();
 const streamingMarkdownStates = new WeakMap();
 const staticMarkdownStates = new WeakMap();
+const mathSlotsByRoot = new WeakMap();
 const streamStructureSignatureCache = new WeakMap();
 const expansionCoordinator = createExpansionCoordinator();
 const disclosureAnimations = new WeakMap();
@@ -181,9 +184,35 @@ function markdownSourceForRender(content) {
     const handle = state?.remoteMediaHandles?.[url];
     return handle ? `${prefix}${remoteImagePlaceholder(handle)}` : match;
   };
-  return String(content ?? '')
+  // Lift math spans out of the source BEFORE marked processes it: marked's
+  // backslash escaping and underscore emphasis would mangle the LaTeX and
+  // shatter the $$ pair auto-render scans for. The raw spans are slotted and
+  // restored as text nodes right before renderMathInElement.
+  const math = extractMathSpans(content ?? '', {
+    dollarMath: state.display?.dollarMath === true,
+  });
+  const source = String(math.source ?? '')
     .replace(/(!\[[^\]]*\]\(\s*<?)(http:\/\/[^\s>)]+)/gi, replace)
     .replace(/(<img\b[^>]*\bsrc\s*=\s*["'])(http:\/\/[^"']+)/gi, replace);
+  return { source, slots: math.slots };
+}
+
+/** Replaces every math slot token inside [root]'s text nodes with the raw
+ *  LaTeX source so renderMathInElement sees the untouched delimiters. */
+function restoreMathSlots(root, slots) {
+  if (!slots || slots.size === 0) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    textNodes.push(node);
+  }
+  for (const textNode of textNodes) {
+    const value = textNode.nodeValue ?? '';
+    if (!value.includes('m:')) continue;
+    const restored = restoreMathText(value, slots);
+    if (restored !== value) textNode.nodeValue = restored;
+  }
 }
 
 function rendererAssetUrl(relativePath) {
@@ -808,7 +837,10 @@ function patchStreamingMarkdownRoot(root, source, kind) {
     return;
   }
   const renderSource = markdownSourceForRender(source);
-  const tokens = window.marked.lexer(renderSource, { gfm: true, breaks: true });
+  const tokens = window.marked.lexer(renderSource.source, {
+    gfm: true,
+    breaks: true,
+  });
   const signatures = tokens.map((token) => `${token.type}\u0000${token.raw ?? ''}`);
   const previous = streamingMarkdownStates.get(root);
   const prefix = longestStablePrefix(previous?.signatures, signatures);
@@ -824,6 +856,10 @@ function patchStreamingMarkdownRoot(root, source, kind) {
     container.innerHTML = sanitizeMarkdownHtml(
       window.marked.parser([tokens[index]], { gfm: true, breaks: true }),
     );
+    // Streaming renders raw math text (KaTeX runs on the final static pass),
+    // so slot restores happen per container to keep the placeholder text
+    // invisible while the tail is still streaming.
+    restoreMathSlots(container, renderSource.slots);
     enhanceMarkdown(container, true, root.dataset.messageId || null);
     const nodes = [...container.childNodes];
     fragment.append(...nodes);
@@ -834,7 +870,7 @@ function patchStreamingMarkdownRoot(root, source, kind) {
   streamingMarkdownStates.set(root, {
     signatures,
     groups,
-    source: renderSource,
+    source: renderSource.source,
     kind,
   });
 }
@@ -872,8 +908,9 @@ function markdownNode(
       : null;
     const cached = cacheKey == null ? null : markdownHtmlCache.get(cacheKey);
     let sanitized = cached?.source === source ? cached.html : null;
+    const renderSource = markdownSourceForRender(source);
     if (sanitized == null) {
-      const html = window.marked.parse(markdownSourceForRender(source), {
+      const html = window.marked.parse(renderSource.source, {
         gfm: true,
         breaks: true,
       });
@@ -889,6 +926,9 @@ function markdownNode(
       markdownHtmlCache.set(cacheKey, cached);
     }
     root.innerHTML = sanitized;
+    if (renderSource.slots.size > 0) {
+      mathSlotsByRoot.set(root, renderSource.slots);
+    }
     staticMarkdownStates.set(root, {
       source,
       kind,
@@ -1043,6 +1083,10 @@ function enhanceMarkdown(root, streaming, messageId = null) {
     renderCodeBlock(pre, code, language, source, expansionKey);
   }
   try {
+    // Static renders: swap math slots back to the raw source BEFORE KaTeX
+    // auto-render runs (and before containsMath, which scans for delimiters).
+    restoreMathSlots(root, mathSlotsByRoot.get(root));
+    mathSlotsByRoot.delete(root);
     if (streaming || state.display?.math === false || !containsMath(root)) return;
     if (!readyRenderers.has('math')) {
       rerenderWhenRendererReady('math', ensureMathRenderer(), root);

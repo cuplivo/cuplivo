@@ -85,6 +85,15 @@ void defineMacro(String name, MacroDefinition body) {
   builtinMacros[name] = body;
 }
 
+/// True when a captured [\df@tag] still carries a label. After a row is
+/// consumed (array environments reset the tag at every row boundary) the
+/// namespace holds an empty expansion.
+bool _tagMacroIsMeaningful(
+  MacroDefinition macro,
+  MacroContext context,
+) =>
+    macro.expand(context).tokens.isNotEmpty;
+
 const digitToNumber = {
   "0": 0,
   "1": 1,
@@ -603,22 +612,39 @@ final Map<String, MacroDefinition> builtinMacros = {
 // \def\qquad{\hskip2em\relax}
   '\\qquad': MacroDefinition.fromString("\\hskip2em\\relax"),
 
-// \tag@in@display form of \tag
-// TODO tag
+// \tag@in@display form of \tag.
+// Capture the label directly into the \df@tag namespace instead of scaling
+// KaTeX's \gdef path (this renderer's macro expander has no \gdef). The
+// stored definition is unexpandable so the label tokens survive until the
+// parser finishes the display row, where they are appended after the
+// equation.
   '\\tag': MacroDefinition.fromString("\\@ifstar\\tag@literal\\tag@paren"),
-  '\\tag@paren': MacroDefinition.fromString("\\tag@literal{({#1})}"),
-  '\\tag@literal': MacroDefinition.fromCtxString((context) {
-    if (context.macros.get("\\df@tag") != null) {
-      throw ParseException("Multiple \\tag");
+  // The label itself gets parenthesized; literal braces would leak into the
+  // captured tokens (({1}) instead of (1)).
+  '\\tag@paren': MacroDefinition.fromString("\\tag@literal{(#1)}"),
+  '\\tag@literal': MacroDefinition((context) {
+    final args = context.consumeArgs(1);
+    final existing = context.macros.get("\\df@tag");
+    if (existing != null && _tagMacroIsMeaningful(existing, context)) {
+      throw ParseException('Multiple \\tag');
     }
-    return "\\gdef\\df@tag{\\text{#1}}";
+    // global=true keeps the capture alive across cell-group pops: array
+    // environments parse each cell in its own namespace, and the tag must
+    // survive until the row boundary consumes it.
+    context.macros.set(
+      '\\df@tag',
+      MacroDefinition.fromMacroExpansion(
+        MacroExpansion(tokens: args[0], numArgs: 0, unexpandable: true),
+      ),
+      global: true,
+    );
+    return const MacroExpansion(tokens: [], numArgs: 0);
   }),
 
 // KaTeX parity: \notag / \nonumber suppress equation numbering inside
 // display environments. This renderer has no numbering, so they are no-ops.
   '\\notag': MacroDefinition.fromString(""),
   '\\nonumber': MacroDefinition.fromString(""),
-
 // \renewcommand{\bmod}{\nonscript\mskip-\medmuskip\mkern5mu\mathbin
 //   {\operator@font mod}\penalty900
 //   \mkern5mu\nonscript\mskip-\medmuskip}

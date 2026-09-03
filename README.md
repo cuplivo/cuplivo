@@ -27,19 +27,9 @@ This fork is positioned as a **"new feature proving ground"**: it may adopt feat
 
 Unlike most personal-customization or single-feature forks, Cuplivo aims to add multiple features for a broader audience to try out. Some items may be removed as upstream (Kelivo) adds their counterparts.
 
-### Backup & Sync Enhancements
-
-1. **Incremental backup & LAN sync** — Uploads only conversations, messages and related attachments since a selected date; quickly sync two devices' state over LAN, avoiding the need to transfer huge zip files over the public internet on every sync.
-   - *In practice*: A 12.6 MB full backup is typically followed by incremental uploads of 50 KB to 1.5 MB. Savings become more apparent as attachments and images accumulate. This reduces bandwidth and storage overhead, encouraging more frequent backups.
-   - *Note*: Periodic full snapshots are still recommended to protect against large data loss.
-
-2. **Deletion recovery (trash bin)** — Deleted conversations go to a trash bin with configurable capacity (default 10 KB) to prevent accidental loss; sync carries deletion markers so content removed on one side is promptly purged on the other.
-
-3. **Import from RikkaHub** — Convert a RikkaHub backup into a Cuplivo-compatible backup through the migration website, then import it via "Import Backup File".
-
 ### Signature Chat Experience
 
-1. **Linux sandbox** — Run a full Linux sandbox: **Android** can select a distribution in-app, **iOS** runs the sandbox via iSH; users who complete the setup can execute command-line tools. Android can also open a Termux-like interactive terminal from workspace settings, independent of the model shell tool. Android can additionally mount external directories (SAF) into the workspace with scheduled syncing.
+1. **Flexible file system operations** — Weighty Linux sandbox and lightweight file system access: the full Linux sandbox on **Android** can select a distribution in-app and open a Termux-like interactive terminal from workspace settings (independent of the model shell tool), and can mount external directories (SAF) into the workspace with scheduled syncing; **iOS** runs the sandbox via iSH; users who complete the setup can execute command-line tools. For lighter tasks, the built-in filesystem MCP server reads, writes and regex-searches local files through an in-memory server and mounts local directories without a command line (security-first), with an in-app file browser, paginated grep results and context, code structure outlines, downloading internet resources into the workspace, and long-webpage workspace cache continuation; on desktop, the built-in workspace directory location is user-configurable, with open-externally and share actions for workspace files.
 
 2. **Proactive care** — AI can proactively send care messages to users on a configurable schedule (Android only).
    - *Android-only*: background alarm + notification channel; alarm persists through force-stop
@@ -47,10 +37,14 @@ Unlike most personal-customization or single-feature forks, Cuplivo aims to add 
 
 3. **Multi-assistant group chat** — Director-orchestrated group conversations: a background director model decides which assistant speaks, and each member chats in a shared thread with private context.
 
-4. **Built-in filesystem MCP server** — Read, write, and regex-search local files through an in-memory MCP server; mount local directories without a command line, security-first. Browse mounted directories in an in-app file browser, with paginated grep results and context, code structure outlines, downloading internet resources into the workspace, and long-webpage workspace cache continuation. On desktop, the built-in workspace directory location is user-configurable, with open-externally and share actions for workspace files.
+4. **Incremental backup & LAN sync** — Uploads only conversations, messages and related attachments since a selected date; quickly sync two devices' state over LAN, avoiding the need to transfer huge zip files over the public internet on every sync.
+   - *In practice*: A 12.6 MB full backup is typically followed by incremental uploads of 50 KB to 1.5 MB. Savings become more apparent as attachments and images accumulate. This reduces bandwidth and storage overhead, encouraging more frequent backups.
+   - *Note*: Periodic full snapshots are still recommended to protect against large data loss.
 
 5. **Multi-AI side-by-side comparison** — Select 2 or more models to answer simultaneously and compare their responses side by side — pick the best result, or synthesize them into a single reply via summary, fusion, or commentary (like a more flexible OpenRouter Fusion).
    - *Tip*: Multi-select models in the model picker before sending a message to activate this mode.
+
+6. **Import from RikkaHub** — Convert a RikkaHub backup into a Cuplivo-compatible backup through the migration website, then import it via "Import Backup File".
 
 ### Agent Capabilities
 
@@ -86,7 +80,7 @@ Unlike most personal-customization or single-feature forks, Cuplivo aims to add 
 
 8. **World book discovery** — Expanding the input bar shows world books grouped, and active assistants can be bound quickly while creating/editing entries.
 
-9. **Conversation export to PDF** — Export the current conversation to PDF (currently limited to Windows + WebView mode).
+9. **Conversation export to PDF** — Export the current conversation to PDF via the WebView renderer on Windows and Android.
 
 ### UI & Rendering
 
@@ -100,10 +94,8 @@ Unlike most personal-customization or single-feature forks, Cuplivo aims to add 
 
 ### Additional Fixes
 
-- Large base64 images no longer cause regex stack overflow
 - Markdown math formulas now render correctly: multi-line formulas inside lists, plus `\tag` support
 - Win+V clipboard history paste fix for Flutter engine bug on Windows
-- iOS: exported chat images now use 8-bit sRGB readback, fixing abnormal table background colors since v1.1.16
 - Kaomoji rendering — A bundled fallback font covers rare characters so kaomoji are no longer rendered incorrectly
 - Various other stability improvements
 

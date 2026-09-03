@@ -1,5 +1,25 @@
 # Changelog
 
+## [3.1.2] - 2026-09-03
+
+### Added
+
+- **Message bubble styles** — synced upstream bubbles (#667 by @cup113, @Chevey339)
+- Android IME image paste: chat bar supports pasting images from the IME clipboard (e.g. Gboard / WeChat) (#658 by @cup113, @Chevey339)
+- Android WebView PDF export: conversations can be exported/printed to PDF from WebView mode on Android (#627 by @Pheobe-Southwood)
+- Android high refresh rate: supported devices can request high refresh rate (#657 by @cup113)
+- LAN sync overwrite optimization: devices can be assigned a data weight to prevent old data from silently overwriting newer data (#622 by @cup113)
+- Cache file listings: storage page lists cache files per subcategory for viewing and selective cleanup (#653 by @cup113)
+- Backup entry redesign: quick entry can be disabled in settings; UI optimized against truncated display (#660 by @cup113)
+
+### Fixed
+
+- **Parallel tool approvals**: each tool call keeps its own approval state; UI no longer affected by same-named tools (#671 by @cup113)
+- **Markdown selection**: code blocks and table cells are selectable across boundaries (#659 by @cup113)
+- Markdown code fences: underscores adjacent to letters no longer misdetected as italics (#674 by @cup113)
+- TTS: read-aloud excludes markdown code (#654 by @cup113, @Chevey339)
+- Desktop WebView experience: quick toggle to enable WebView from the style config page on desktop (#684 by @Pheobe-Southwood)
+
 ## [3.1.1] - 2026-08-30
 
 ### Added

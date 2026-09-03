@@ -1137,16 +1137,21 @@ export function stableMathSlotKey(source) {
 }
 
 function isFenceOpen(line) {
-  const trimmed = line.trimStart();
-  const match = /^(`{3,}|~{3,})/.exec(trimmed);
-  return match ? match[1] : null;
+  // CommonMark: at most three leading spaces, marker run of >= 3, and a
+  // backtick fence's info string must not contain backticks.
+  const match = /^ {0,3}(`{3,}|~{3,})([^`]*)$/.exec(line);
+  if (!match) return null;
+  const run = match[1];
+  if (run.startsWith('`') && match[2].includes('`')) return null;
+  return run;
 }
 
 function isFenceClose(line, fence) {
-  const trimmed = line.trimStart();
-  if (fence.startsWith('`')) return /^`{3,}/.test(trimmed);
-  if (fence.startsWith('~')) return /^~{3,}/.test(trimmed);
-  return false;
+  // CommonMark: same marker character, at least as long as the opener, and
+  // only spaces/tabs after the run.
+  const match = /^ {0,3}(`{3,}|~{3,})([ \t]*)$/.exec(line);
+  if (!match || match[1][0] !== fence[0]) return false;
+  return match[1].length >= fence.length;
 }
 
 function isEscaped(text, index) {
@@ -1204,6 +1209,18 @@ function splitSegments(text) {
   return segments;
 }
 
+/** Finds the first occurrence of [pattern] at or after [from] that is not
+ *  preceded by an odd number of backslashes (a markdown-escaped delimiter is
+ *  literal prose, not a math closer). */
+function findUnescaped(text, pattern, from) {
+  let index = text.indexOf(pattern, from);
+  while (index !== -1) {
+    if (!isEscaped(text, index)) return index;
+    index = text.indexOf(pattern, index + pattern.length);
+  }
+  return -1;
+}
+
 /** Scans one text segment for math spans, pushing raw spans into [raws] in
  *  document order and returning a piece list (strings verbatim, {slot: n}
  *  placeholders for math spans). */
@@ -1228,22 +1245,27 @@ function scanSegmentMath(text, raws, dollarMath) {
     }
 
     let consumed = 0;
-    if (text.startsWith('$$', index)) {
-      const close = text.indexOf('$$', index + 2);
-      if (close !== -1) consumed = close + 2 - index;
-    } else if (text.startsWith('\\[', index)) {
-      const close = text.indexOf('\\]', index + 2);
-      if (close !== -1) consumed = close + 2 - index;
-    } else if (text.startsWith('\\(', index)) {
-      const close = text.indexOf('\\)', index + 2);
-      if (close !== -1) consumed = close + 2 - index;
-    } else if (dollarMath && ch === '$' && !isEscaped(text, index)) {
-      const close = text.indexOf('$', index + 1);
-      if (close !== -1) {
-        const body = text.slice(index + 1, close);
-        if (!body.includes('$') && !body.includes('\n') &&
-            !body.includes('\\$')) {
-          consumed = close + 1 - index;
+    // Every delimiter form is escape-aware at both ends: an opener preceded
+    // by an odd number of backslashes is markdown-escaped prose, and an
+    // escaped closer must not terminate a span early.
+    if (!isEscaped(text, index)) {
+      if (text.startsWith('$$', index)) {
+        const close = findUnescaped(text, '$$', index + 2);
+        if (close !== -1) consumed = close + 2 - index;
+      } else if (text.startsWith('\\[', index)) {
+        const close = findUnescaped(text, '\\]', index + 2);
+        if (close !== -1) consumed = close + 2 - index;
+      } else if (text.startsWith('\\(', index)) {
+        const close = findUnescaped(text, '\\)', index + 2);
+        if (close !== -1) consumed = close + 2 - index;
+      } else if (dollarMath && ch === '$') {
+        const close = findUnescaped(text, '$', index + 1);
+        if (close !== -1) {
+          const body = text.slice(index + 1, close);
+          if (!body.includes('$') && !body.includes('\n') &&
+              !body.includes('\\$')) {
+            consumed = close + 1 - index;
+          }
         }
       }
     }

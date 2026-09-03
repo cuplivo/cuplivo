@@ -145,6 +145,63 @@ test('hash collisions are disambiguated deterministically', () => {
   assert.equal(source, again.source);
 });
 
+test('escaped delimiters are literal prose, never slotted', () => {
+  for (const input of [
+    String.raw`before \$$x$$ after`,
+    String.raw`before \\[not math\\] after`,
+    String.raw`\\(x\\) inline`,
+  ]) {
+    const { source, slots } = extractMathSpans(input);
+    assert.equal(slots.size, 0, `escaped opener must stay prose: ${input}`);
+    assert.equal(source, input);
+    const html = marked.parse(source, markedOpts);
+    assert.ok(html.includes('m:') === false, 'no slot may leak into marked output');
+    assert.ok(html.includes('<em>') === false,
+        'escaped prose must not be italicized either');
+  }
+});
+
+test('an escaped closer does not terminate a span early', () => {
+  const input = '$$a \\$$ b$$';
+  const { source, slots } = extractMathSpans(input);
+  assert.equal(slots.size, 1, 'the whole span must remain protected');
+  assert.equal(restoreMathText(source, slots), input);
+});
+
+test('fence rules match marked: longer openers and trailing text', () => {
+  // A four-backtick opener only closes on a run of >= 4 backticks.
+  const four = ['````', 'x = 1', '```', 'y = 2', '````'].join('\n');
+  const { source, slots } = extractMathSpans(four + '\n$$m$$');
+  assert.ok(source.includes('````'), 'fence lines must be preserved');
+  const html = marked.parse(source, markedOpts);
+  // Marked keeps ``` inside the code block (closer must be >= opener length)...
+  assert.ok(html.includes('x = 1\n```\ny = 2') || html.includes('x = 1\n```\n'),
+      `code must stay one block: ${html}`);
+  assert.equal(slots.size, 1, 'math after the real close stays extractable');
+
+  // A closer with trailing text is not a closer.
+  const trailing = ['```', 'x', '```js', 'y', '```'].join('\n');
+  const emitted = extractMathSpans(trailing);
+  assert.equal(emitted.slots.size, 0);
+  const html2 = marked.parse(trailing, markedOpts);
+  assert.ok(html2.includes('```js'), 'trailing-text line stays inside code: ' +
+      html2);
+});
+
+test('over-indented markers are not fences', () => {
+  const input = ['    ```', '    $$x$$', '    ```'].join('\n');
+  const { source, slots } = extractMathSpans(input);
+  // Marked treats 4-space markers as indented code, not fences; the scanner's
+  // inline-code pass copies them verbatim, so the source stays byte-identical
+  // and the code block reaches the renderer untouched (auto-render ignores
+  // code/pre contents, net behavior preserved).
+  assert.equal(slots.size, 0);
+  assert.equal(source, input);
+  const html = marked.parse(input, markedOpts);
+  assert.ok(html.includes('$$x$$'), 'code content must stay inside the block');
+  assert.ok(html.includes('m:') === false, 'no slot may leak into the block');
+});
+
 function slotKeys(source) {
   return /m:[0-9a-f]{8}/g[Symbol.match](source) ?? [];
 }

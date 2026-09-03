@@ -531,6 +531,30 @@ class _WebConversationStylesPageState extends State<WebConversationStylesPage> {
         ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           children: [
+            if (widget.desktop) ...[
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: IosSettingsSection(
+                    children: [
+                      IosSettingsSwitchRow(
+                        icon: Lucide.Globe,
+                        label: l10n
+                            .displaySettingsPageExperimentalWebViewRenderingTitle,
+                        subtitle: l10n
+                            .displaySettingsPageExperimentalWebViewRenderingSubtitle,
+                        value: settings.experimentalWebViewRendering,
+                        onChanged: context
+                            .read<SettingsProvider>()
+                            .setExperimentalWebViewRendering,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             if (!settings.experimentalWebViewRendering)
               Container(
                 margin: const EdgeInsets.only(bottom: 12),

@@ -14,6 +14,7 @@ import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
 import 'theme_settings_page.dart';
 import 'message_style_settings_page.dart';
+import 'auto_retry_page.dart';
 import '../../../theme/palettes.dart';
 import '../../../theme/app_semantic_colors.dart';
 import '../../../l10n/app_localizations.dart';
@@ -149,6 +150,15 @@ class _DisplaySettingsPageState extends State<DisplaySettingsPage> {
                   MaterialPageRoute(
                     builder: (_) => const BehaviorStartupSettingsPage(),
                   ),
+                ),
+              ),
+              _iosDivider(context),
+              _iosNavRow(
+                context,
+                icon: Lucide.RefreshCw,
+                label: l10n.settingsPageAutoRetry,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AutoRetryPage()),
                 ),
               ),
               _iosDivider(context),

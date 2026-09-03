@@ -1709,6 +1709,7 @@ class _MessageListViewState extends State<MessageListView> {
             presentation: presentation,
             enableStreamingTextMotion: !deferUpdates,
             translationStreaming: data.translation != null,
+            retryStatus: data.retryStatus,
           ),
         );
       },
@@ -1735,12 +1736,14 @@ class _MessageListViewState extends State<MessageListView> {
     required _MessagePresentation presentation,
     bool enableStreamingTextMotion = true,
     bool translationStreaming = false,
+    RetryStatus? retryStatus,
   }) {
     final currentIdx = availableVersions.indexOf(selectedVersion);
     final chatWidget = ChatMessageWidget(
       message: message,
       enableStreamingTextMotion: enableStreamingTextMotion,
       translationStreaming: translationStreaming,
+      retryStatus: retryStatus,
       versionIndex: currentIdx < 0 ? selectedIdx : currentIdx,
       versionCount: total > 0 ? total : 1,
       onPrevVersion: (currentIdx > 0)

@@ -15,10 +15,12 @@ import '../services/tts/network_tts.dart';
 import '../services/tts/tts_text_selection.dart';
 import '../services/asr/asr_service_options.dart';
 import '../services/network/request_logger.dart';
+import '../services/api/retry_policy.dart';
 import '../services/logging/flutter_logger.dart';
 import '../services/backup/double_pref_keys.dart'
     show doublePrefKeys, businessPrefDouble;
 import '../models/api_keys.dart';
+import '../models/auto_retry_options.dart';
 import '../models/backup.dart';
 import '../models/provider_group.dart';
 import '../models/web_conversation_style.dart';
@@ -355,6 +357,8 @@ class SettingsProvider extends ChangeNotifier {
   static const String _globalProxyBypassKey = 'global_proxy_bypass_v1';
   static const String _defaultGlobalProxyBypassRules =
       'localhost,127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,::1';
+  // Auto-retry (exponential backoff) for chat / translate / OCR streams
+  static const String _autoRetryOptionsKey = 'auto_retry_options_v1';
   // TTS services (network)
   static const String _ttsServicesKey = 'tts_services_v1';
   static const String _ttsSelectedServiceIdKey = 'tts_selected_service_id_v1';
@@ -700,6 +704,10 @@ class SettingsProvider extends ChangeNotifier {
       List.unmodifiable(_searchServices);
   SearchCommonOptions _searchCommonOptions = const SearchCommonOptions();
   SearchCommonOptions get searchCommonOptions => _searchCommonOptions;
+  // Auto-retry (exponential backoff). Mirrored into [AutoRetryConfig.current]
+  // because the static ChatApiService has no provider access.
+  AutoRetryOptions _autoRetry = const AutoRetryOptions.defaults();
+  AutoRetryOptions get autoRetryOptions => _autoRetry;
   int _searchServiceSelected = 0;
   int get searchServiceSelected => _searchServiceSelected;
   bool _searchEnabled = false;
@@ -1646,6 +1654,23 @@ class SettingsProvider extends ChangeNotifier {
     } else {
       _globalProxyBypass = bypass;
     }
+
+    // load auto-retry options
+    _autoRetry = const AutoRetryOptions.defaults();
+    final autoRetryStr = prefs.getString(_autoRetryOptionsKey);
+    if (autoRetryStr != null && autoRetryStr.isNotEmpty) {
+      try {
+        _autoRetry = AutoRetryOptions.fromJson(
+          jsonDecode(autoRetryStr) as Map<String, dynamic>,
+        );
+      } catch (e) {
+        debugPrint(
+          '[Settings] failed to parse auto retry options '
+          '(falling back to defaults): $e',
+        );
+      }
+    }
+    AutoRetryConfig.current = _autoRetry;
 
     // load network TTS services
     try {
@@ -5408,6 +5433,14 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     notifyListeners();
     final prefs = _preferences;
     await prefs.setString(_searchCommonKey, jsonEncode(options.toJson()));
+  }
+
+  Future<void> setAutoRetryOptions(AutoRetryOptions options) async {
+    _autoRetry = options;
+    AutoRetryConfig.current = options;
+    notifyListeners();
+    final prefs = _preferences;
+    await prefs.setString(_autoRetryOptionsKey, jsonEncode(options.toJson()));
   }
 
   Future<void> setSearchServiceSelected(int index) async {

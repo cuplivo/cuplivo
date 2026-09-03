@@ -445,6 +445,7 @@ void main() {
                     maxTokens,
                     stream = true,
                     requestId,
+                    retryOverride,
                   }) {
                     capturedMessages = messages;
                     return Stream<ChatStreamChunk>.value(

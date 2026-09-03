@@ -10,6 +10,7 @@ import '../../utils/app_directories.dart';
 import '../../utils/assistant_regex.dart';
 import '../models/assistant.dart';
 import '../models/assistant_regex.dart';
+import '../models/auto_retry_options.dart';
 import '../models/chat_message.dart';
 import '../models/conversation.dart';
 import '../providers/settings_provider.dart';
@@ -44,6 +45,7 @@ typedef ProactiveCareDecisionSender =
       int? maxTokens,
       bool stream,
       String? requestId,
+      AutoRetryOptions? retryOverride,
     });
 
 /// Snapshot of localized strings needed by the proactive care background
@@ -763,6 +765,9 @@ class ProactiveCareMessageFlow {
         maxTokens: assistant.maxTokens,
         stream: false,
         requestId: requestId,
+        // This flow performs its own single retry ('-retry' suffix id); the
+        // user-configurable backoff would double attempts on free-tier limits.
+        retryOverride: const AutoRetryOptions.defaults(),
       );
 
       sub = stream.listen(

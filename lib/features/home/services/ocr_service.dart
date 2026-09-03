@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/plain_text_collector.dart';
+import '../../../core/services/api/retry_policy.dart';
 import '../../../core/services/chat/chat_service.dart';
 
 /// OCR 缓存条目
@@ -86,12 +87,15 @@ class OcrService {
   ///
   /// [imagePaths] 图片路径列表
   /// [context] BuildContext 用于获取 SettingsProvider
+  /// [requestId] requestId used for cancellation; passing the conversation id
+  /// lets Stop abort the OCR request (backoff waits included).
   ///
   /// 返回识别的文本内容，失败时返回 null
   Future<String?> runOcrForImages(
     List<String> imagePaths,
-    BuildContext context,
-  ) async {
+    BuildContext context, {
+    String? requestId,
+  }) async {
     if (imagePaths.isEmpty) return null;
 
     final settings = context.read<SettingsProvider>();
@@ -117,8 +121,11 @@ class OcrService {
         thinkingBudget: settings.ocrThinkingBudgetFor(null),
         stream: false,
         ocrActive: true,
+        requestId: requestId,
       );
-    } catch (_) {
+    } catch (e) {
+      if (isUserCancelError(e)) rethrow;
+      debugPrint('[OcrService] OCR failed: $e');
       return null;
     }
     out = out.trim();
@@ -165,12 +172,14 @@ class OcrService {
   ///
   /// [imagePaths] 图片路径列表
   /// [context] BuildContext 用于获取 SettingsProvider
+  /// [requestId] forwarded to [runOcrForImages] for cancellation.
   ///
   /// 返回合并后的 OCR 文本，失败时返回 null
   Future<String?> getOcrTextForImages(
     List<String> imagePaths,
-    BuildContext context,
-  ) async {
+    BuildContext context, {
+    String? requestId,
+  }) async {
     if (imagePaths.isEmpty) return null;
 
     final settings = context.read<SettingsProvider>();
@@ -208,7 +217,7 @@ class OcrService {
       }
 
       if (!context.mounted) break;
-      final text = await runOcrForImages([path], context);
+      final text = await runOcrForImages([path], context, requestId: requestId);
       if (text != null && text.trim().isNotEmpty) {
         t = text.trim();
         cacheOcrText(path, t);

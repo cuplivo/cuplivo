@@ -8,6 +8,7 @@ import '../../../core/models/conversation.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/services/api/retry_policy.dart';
 import '../../../core/services/generation_engine.dart';
 import '../../../core/services/ios_background_generation.dart';
 import '../../../core/services/ios_keep_alive.dart';
@@ -571,6 +572,12 @@ class ChatActions {
       // Ensure file processing indicator is cleared on error
       onFileProcessingFinished?.call();
       await _cleanupStreamingError(assistantMessage, conversation.id);
+      // User Stop during message preparation (e.g. OCR backoff wait) must not
+      // surface a raw cancel toast; same skip semantics as cancelled slots.
+      if (isUserCancelError(e)) {
+        debugPrint('[ChatActions] sendMessage cancelled during prepare: $e');
+        return ChatActionResult.success(assistantMessage);
+      }
       return ChatActionResult.error(e.toString());
     }
   }
@@ -892,6 +899,12 @@ class ChatActions {
         tag: 'ChatActions',
       );
       await _cleanupStreamingError(streamingMessage, conversation.id);
+      if (isUserCancelError(e)) {
+        debugPrint(
+          '[ChatActions] continue generation cancelled during prepare: $e',
+        );
+        return ChatActionResult.success(streamingMessage);
+      }
       return ChatActionResult.error(e.toString());
     }
   }

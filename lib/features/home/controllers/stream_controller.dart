@@ -216,6 +216,9 @@ class StreamController {
     if (state.geminiThoughtSig != null && state.geminiThoughtSig!.isNotEmpty) {
       _geminiThoughtSigs[messageId] = state.geminiThoughtSig!;
     }
+    // Auto-retry countdown is boundary-sensitive: publish even when null so a
+    // cleared countdown reaches the bubble. No-op when nobody is listening.
+    streamingContentNotifier.updateRetryStatus(messageId, state.retryStatus);
   }
 
   /// Maps persisted tool events (id/name/arguments/content/metadata) to UI

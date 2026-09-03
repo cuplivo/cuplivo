@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/auto_retry_options.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/api/chat_api_service.dart';
 import 'package:Cuplivo/core/services/proactive_care_decision_tools.dart';
@@ -44,6 +45,7 @@ class _FakeDecisionTransport {
     int? maxTokens,
     bool stream = true,
     String? requestId,
+    AutoRetryOptions? retryOverride,
   }) {
     final index = sendCount++;
     capturedMessages.add(messages);

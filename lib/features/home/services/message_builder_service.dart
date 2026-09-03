@@ -68,7 +68,8 @@ class MessageBuilderService {
   final BuildContext contextProvider;
 
   /// OCR handler for processing images (optional, injected from home_page)
-  final Future<String?> Function(List<String> imagePaths)? ocrHandler;
+  final Future<String?> Function(List<String> imagePaths, {String? requestId})?
+  ocrHandler;
 
   /// OCR text wrapper function
   String Function(String ocrText)? ocrTextWrapper;
@@ -440,6 +441,7 @@ class MessageBuilderService {
     Assistant? assistant, {
     required String providerKey,
     required String modelId,
+    String? requestId,
   }) async {
     final bool ocrActive = resolveOcrActive(
       settings: settings,
@@ -611,7 +613,7 @@ class MessageBuilderService {
             .toSet()
             .toList();
         if (ocrTargets.isNotEmpty) {
-          final ocrText = await ocrHandler!(ocrTargets);
+          final ocrText = await ocrHandler!(ocrTargets, requestId: requestId);
           if (ocrText != null && ocrText.trim().isNotEmpty) {
             final wrapped = ocrTextWrapper != null
                 ? ocrTextWrapper!(ocrText)

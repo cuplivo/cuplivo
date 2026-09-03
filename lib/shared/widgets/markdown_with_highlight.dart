@@ -7,7 +7,7 @@ import 'package:gpt_markdown/custom_widgets/markdown_config.dart'
 import 'package:flutter_highlight/themes/github.dart';
 import 'package:flutter_highlight/themes/atom-one-dark-reasonable.dart';
 import 'package:flutter/rendering.dart';
-import 'package:highlight/highlight.dart' show Node, highlight;
+import 'package:highlight/highlight.dart' show Mode, Node, highlight;
 import '../../icons/lucide_adapter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
@@ -6327,6 +6327,231 @@ class AllowedHtmlTagsMd extends InlineMd {
   }
 }
 
+/// The `markdown` highlight grammar rebuilt to honor CommonMark instead of
+/// the bundled naive rules (issue #662).
+///
+/// The bundled grammar's `_.+?_` / `[*_]{2}.+?[*_]{2}` rules match between
+/// any two underscores, including intraword ones (`a_b_c`), and the code
+/// themes style `emphasis`/`strong` as italic/bold — so a `markdown`-fenced
+/// code block rendered identifiers like `{model_name}` in italic (this
+/// issue). CommonMark never treats an intraword `_` as an emphasis delimiter
+/// and requires a space or tab (or end of line) after ATX `#` (§4.2):
+/// `#hashtag` is a literal line, `# Heading` a heading.
+///
+/// The underscore variants below intentionally only do structural matching
+/// (whitespace/underscore guards, no character classification): grammar
+/// regexes in the `highlight` engine are compiled without the Unicode flag,
+/// so delimiter flanking cannot be expressed there with `\p{...}` classes.
+/// [_underscoreFlankingInvalidNodes] applies the real CommonMark §6.2 rules
+/// with proper Unicode classification right after parsing.
+final Mode _commonMarkMarkdownLanguage = Mode(
+  refs: {},
+  aliases: const ['md', 'mkdown', 'mkd'],
+  contains: [
+    Mode(
+      className: 'section',
+      variants: [
+        Mode(begin: '^#{1,6}(?=[\\t ]|\$)', end: '\$'),
+        Mode(begin: '^.+?\\n[=-]{2,}\$'),
+      ],
+    ),
+    Mode(begin: '<', end: '>', subLanguage: const ['xml'], relevance: 0),
+    Mode(className: 'bullet', begin: '^\\s*([*+-]|(\\d+\\.))\\s+'),
+    Mode(
+      className: 'strong',
+      variants: [
+        Mode(begin: r'\*\*.+?\*\*'),
+        Mode(begin: '__(?![\\s_]).+?(?<=[^\\s_])__', relevance: 0),
+      ],
+    ),
+    Mode(
+      className: 'emphasis',
+      variants: [
+        Mode(begin: r'\*.+?\*'),
+        Mode(begin: '_(?![\\s_]).+?(?<=[^\\s_])_', relevance: 0),
+      ],
+    ),
+    Mode(className: 'quote', begin: '^>\\s+', end: '\$'),
+    Mode(
+      className: 'code',
+      variants: [
+        Mode(begin: '^```\\w*\\s*\$', end: '^```[ ]*\$'),
+        Mode(begin: r'`.+?`'),
+        Mode(begin: '^( {4}|\\t)', end: '\$', relevance: 0),
+      ],
+    ),
+    Mode(begin: '^[-\\*]{3,}', end: '\$'),
+    Mode(
+      begin: '\\[.+?\\][\\(\\[].*?[\\)\\]]',
+      returnBegin: true,
+      contains: [
+        Mode(
+          className: 'string',
+          begin: '\\[',
+          end: '\\]',
+          excludeBegin: true,
+          returnEnd: true,
+          relevance: 0,
+        ),
+        Mode(
+          className: 'link',
+          begin: '\\]\\(',
+          end: '\\)',
+          excludeBegin: true,
+          excludeEnd: true,
+        ),
+        Mode(
+          className: 'symbol',
+          begin: '\\]\\[',
+          end: '\\]',
+          excludeBegin: true,
+          excludeEnd: true,
+        ),
+      ],
+      relevance: 10,
+    ),
+    Mode(
+      begin: '^\\[[^\\n]+\\]:',
+      returnBegin: true,
+      contains: [
+        Mode(
+          className: 'symbol',
+          begin: '\\[',
+          end: '\\]',
+          excludeBegin: true,
+          excludeEnd: true,
+        ),
+        Mode(className: 'link', begin: ':\\s*', end: '\$', excludeBegin: true),
+      ],
+    ),
+  ],
+);
+
+bool _commonMarkMarkdownRegistered = false;
+
+/// Replaces the bundled `markdown` grammar with [_commonMarkMarkdownLanguage].
+/// Must run before the first markdown parse; the highlight singleton is
+/// process-wide and this file is its only consumer, so registration is safe
+/// and idempotent.
+void _ensureCommonMarkMarkdownGrammar() {
+  if (_commonMarkMarkdownRegistered) return;
+  _commonMarkMarkdownRegistered = true;
+  highlight.registerLanguage('markdown', _commonMarkMarkdownLanguage);
+}
+
+/// CommonMark §6.2 flanking classifications: "Unicode whitespace" is the `Z`
+/// categories plus tab/line terminators; "punctuation" is the Unicode `P`
+/// (punctuation) or `S` (symbol) general categories. These run with the
+/// Unicode flag, unlike the grammar regexes the engine compiles.
+final RegExp _unicodePunct = RegExp(r'[\p{P}\p{S}]', unicode: true);
+final RegExp _unicodeWhitespace = RegExp(r'[\p{Z}\t\n\v\f\r]', unicode: true);
+
+bool _isPunct(String char) => _unicodePunct.hasMatch(char);
+
+bool _isSpace(String char) => _unicodeWhitespace.hasMatch(char);
+
+/// Whether an underscore delimiter run can open emphasis per §6.2:
+/// left-flanking and either not right-flanking or preceded by punctuation.
+/// [prev]/[next] are the code points immediately outside the run; null
+/// means a text boundary, which CommonMark treats like whitespace.
+bool _underscoreCanOpen(String? prev, String? next) {
+  final prevWs = prev == null || _isSpace(prev);
+  final prevPunct = prev != null && _isPunct(prev);
+  final nextWs = next == null || _isSpace(next);
+  final nextPunct = next != null && _isPunct(next);
+  final leftFlanking = !nextWs && (!nextPunct || prevWs || prevPunct);
+  final rightFlanking = !prevWs && (!prevPunct || nextWs || nextPunct);
+  return leftFlanking && (!rightFlanking || prevPunct);
+}
+
+/// Whether an underscore delimiter run can close emphasis per §6.2:
+/// right-flanking and either not left-flanking or followed by punctuation.
+bool _underscoreCanClose(String? prev, String? next) {
+  final prevWs = prev == null || _isSpace(prev);
+  final prevPunct = prev != null && _isPunct(prev);
+  final nextWs = next == null || _isSpace(next);
+  final nextPunct = next != null && _isPunct(next);
+  final leftFlanking = !nextWs && (!nextPunct || prevWs || prevPunct);
+  final rightFlanking = !prevWs && (!prevPunct || nextWs || nextPunct);
+  return rightFlanking && (!leftFlanking || nextPunct);
+}
+
+/// The code point immediately before code-unit offset [index] in [text],
+/// or null at the start.
+String? _codePointBefore(String text, int index) {
+  if (index <= 0) return null;
+  return String.fromCharCode(text.substring(0, index).runes.last);
+}
+
+/// The code point immediately after code-unit offset [index] in [text],
+/// or null at the end.
+String? _codePointAfter(String text, int index) {
+  if (index >= text.length) return null;
+  return String.fromCharCode(text.substring(index).runes.first);
+}
+
+/// Walks the parsed node tree in document order and returns every
+/// `emphasis`/`strong` node whose `_` delimiters violate CommonMark flanking
+/// (§6.2). The grammar only matches _candidate_ delimiter pairs (its regexes
+/// cannot classify characters without the Unicode flag), so invalid pairs —
+/// e.g. `foo_bar_baz`, `α_β_γ`, `a__b__c` — are detected here by validating
+/// each candidate's surrounding code points, and rendered as plain text.
+///
+/// The engine puts a classed node's text in a child leaf (the container
+/// carries only the className), so runs are grouped by their nearest
+/// emphasis/strong ancestor before validation.
+Set<Node> _underscoreFlankingInvalidNodes(List<Node> nodes) {
+  final text = StringBuffer();
+  final extents = <Node, ({int start, int end})>{};
+  void walk(List<Node> list, Node? classed) {
+    for (final node in list) {
+      final value = node.value;
+      if (value != null && value.isNotEmpty) {
+        if (classed != null) {
+          final prior = extents[classed];
+          extents[classed] = (
+            start: prior?.start ?? text.length,
+            end: text.length + value.length,
+          );
+        }
+        text.write(value);
+      }
+      final children = node.children;
+      if (children != null) {
+        final nextClassed =
+            node.className == 'emphasis' || node.className == 'strong'
+            ? node
+            : classed;
+        walk(children, nextClassed);
+      }
+    }
+  }
+
+  walk(nodes, null);
+  final source = text.toString();
+  final invalid = <Node>{};
+  for (final entry in extents.entries) {
+    final node = entry.key;
+    final start = entry.value.start;
+    final end = entry.value.end;
+    final value = source.substring(start, end);
+    if (!value.startsWith('_') || !value.endsWith('_')) continue;
+    // The opener and closer delimiter runs flank with their own neighbors:
+    // opener uses the char before the run start and the first content char;
+    // closer uses the last content char and the char after the run end.
+    final runLength = value.startsWith('__') ? 2 : 1;
+    final openPrev = _codePointBefore(source, start);
+    final openNext = _codePointAfter(source, start + runLength);
+    final closePrev = _codePointBefore(source, end - runLength);
+    final closeNext = _codePointAfter(source, end);
+    if (!_underscoreCanOpen(openPrev, openNext) ||
+        !_underscoreCanClose(closePrev, closeNext)) {
+      invalid.add(node);
+    }
+  }
+  return invalid;
+}
+
 /// Code block with per-token syntax highlight.
 ///
 /// Rendered as a plain [Text.rich] so the code participates in the enclosing
@@ -6380,29 +6605,37 @@ class _CodeHighlightViewState extends State<CodeHighlightView> {
       return <TextSpan>[TextSpan(text: widget.source)];
     }
     try {
+      _ensureCommonMarkMarkdownGrammar();
       final result = highlight.parse(widget.source, language: widget.language);
-      return _convertNodes(result.nodes ?? const []);
+      final nodes = result.nodes ?? const [];
+      return _convertNodes(nodes, _underscoreFlankingInvalidNodes(nodes));
     } catch (_) {
       return const [];
     }
   }
 
-  /// Converts a highlight Node tree to a TextSpan tree with appropriate styling
-  List<TextSpan> _convertNodes(List<Node> nodes) {
+  /// Converts a highlight Node tree to a TextSpan tree with appropriate styling.
+  /// Nodes in [flankingInvalid] render plain (underscore emphasis that
+  /// CommonMark deems literal).
+  List<TextSpan> _convertNodes(List<Node> nodes, [Set<Node>? flankingInvalid]) {
     final List<TextSpan> spans = [];
 
     for (final node in nodes) {
+      final unclassed = flankingInvalid?.contains(node) ?? false;
       if (node.value != null) {
         // Leaf node with text content
         spans.add(
-          TextSpan(text: node.value, style: widget.theme[node.className]),
+          TextSpan(
+            text: node.value,
+            style: unclassed ? null : widget.theme[node.className],
+          ),
         );
       } else if (node.children != null) {
         // Node with children - recurse
         spans.add(
           TextSpan(
-            children: _convertNodes(node.children!),
-            style: widget.theme[node.className],
+            children: _convertNodes(node.children!, flankingInvalid),
+            style: unclassed ? null : widget.theme[node.className],
           ),
         );
       }

@@ -3160,6 +3160,216 @@ void main() {}
   });
 
   testWidgets(
+    'CodeHighlightView keeps intraword underscores literal in markdown fences (issue #662)',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: CodeHighlightView(
+              'identity is {assistant_name} based on {model_name}',
+              language: 'markdown',
+              theme: {
+                'emphasis': TextStyle(fontStyle: FontStyle.italic),
+                'strong': TextStyle(fontWeight: FontWeight.bold),
+              },
+            ),
+          ),
+        ),
+      );
+
+      final root = _codeHighlightRootSpan(tester, find.byType(RichText));
+      final spans = _collectResolvedTextSpans(root);
+
+      expect(
+        spans.where((span) => span.style.fontStyle == FontStyle.italic),
+        isEmpty,
+      );
+      expect(
+        spans.map((span) => span.text).join(),
+        contains('{assistant_name} based on {model_name}'),
+      );
+    },
+  );
+
+  testWidgets(
+    'CodeHighlightView keeps flanking-valid underscore emphasis italic',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: CodeHighlightView(
+              'a _b_ c and a_b_c\n'
+              '（_好_） and 爱_好_吗 and 文件_name_文件\n'
+              'α _β_ γ and α_β_γ\n'
+              'привет_мир_тест\n'
+              '\u0301_x_\u0302 and \u0301 _y_ \u0302',
+              language: 'markdown',
+              theme: {'emphasis': TextStyle(fontStyle: FontStyle.italic)},
+            ),
+          ),
+        ),
+      );
+
+      final root = _codeHighlightRootSpan(tester, find.byType(RichText));
+      final spans = _collectResolvedTextSpans(root);
+      final italicTexts = spans
+          .where((span) => span.style.fontStyle == FontStyle.italic)
+          .map((span) => span.text)
+          .toList();
+
+      // Flanking-valid: spaced word, CJK punctuation (（）), Greek word and
+      // spacing-adjacent combining marks still italic.
+      expect(italicTexts, contains('_b_'));
+      expect(italicTexts, contains('_β_'));
+      expect(italicTexts, contains('_y_'));
+      // Exactly one italic pair `_好_`: the valid （_好_）, never an extra one
+      // from intraword CJK (爱_好_吗).
+      expect(italicTexts.where((t) => t == '_好_'), hasLength(1));
+      // Below must render literal: no italic span containing these fragments.
+      expect(italicTexts.where((t) => t.contains('name')), isEmpty);
+      expect(italicTexts.where((t) => t.contains('_α_')), isEmpty);
+      expect(spans.map((span) => span.text).join(), contains('爱_好_吗'));
+      expect(spans.map((span) => span.text).join(), contains('文件_name_文件'));
+      expect(spans.map((span) => span.text).join(), contains('α_β_γ'));
+      expect(
+        spans.map((span) => span.text).join(),
+        contains('привет_мир_тест'),
+      );
+      expect(
+        spans.map((span) => span.text).join(),
+        contains('\u0301_x_\u0302'),
+      );
+    },
+  );
+
+  testWidgets(
+    'CodeHighlightView keeps flanking-valid strong bold and literal __',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: CodeHighlightView(
+              'a **b** c a __b__ c\n'
+              'a__b__c and α__β__γ and α __β__ γ',
+              language: 'markdown',
+              theme: {'strong': TextStyle(fontWeight: FontWeight.bold)},
+            ),
+          ),
+        ),
+      );
+
+      final root = _codeHighlightRootSpan(tester, find.byType(RichText));
+      final spans = _collectResolvedTextSpans(root);
+      final boldTexts = spans
+          .where(
+            (span) =>
+                (span.style.fontWeight ?? FontWeight.normal) == FontWeight.bold,
+          )
+          .map((span) => span.text)
+          .toList();
+
+      expect(boldTexts, contains('**b**'));
+      expect(boldTexts, contains('__b__'));
+      expect(boldTexts, contains('__β__'));
+      // Intraword __ is literal: no bold span asserting a__b__c content.
+      expect(boldTexts.where((t) => t == '__b__'), hasLength(1));
+      expect(boldTexts.where((t) => t == '__β__'), hasLength(1));
+      expect(spans.map((span) => span.text).join(), contains('a__b__c'));
+      expect(spans.map((span) => span.text).join(), contains('α__β__γ'));
+    },
+  );
+
+  testWidgets('CodeHighlightView requires a space or tab after ATX hashes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: CodeHighlightView(
+            '# Heading\n#hashtag\n#\tTabHeading',
+            language: 'markdown',
+            theme: {
+              'section': TextStyle(
+                color: Color(0xff990000),
+                fontWeight: FontWeight.bold,
+              ),
+            },
+          ),
+        ),
+      ),
+    );
+
+    final root = _codeHighlightRootSpan(tester, find.byType(RichText));
+    final spans = _collectResolvedTextSpans(root);
+    final boldTexts = spans
+        .where(
+          (span) =>
+              (span.style.fontWeight ?? FontWeight.normal) == FontWeight.bold,
+        )
+        .map((span) => span.text)
+        .toList();
+
+    expect(boldTexts, contains('# Heading'));
+    expect(boldTexts, contains('#\tTabHeading'));
+    expect(boldTexts, isNot(contains('#hashtag')));
+  });
+
+  testWidgets(
+    'CodeHighlightView md alias uses the CommonMark markdown grammar',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: CodeHighlightView(
+              'a_b_c',
+              language: 'md',
+              theme: {
+                'emphasis': TextStyle(fontStyle: FontStyle.italic),
+                'section': TextStyle(fontWeight: FontWeight.bold),
+              },
+            ),
+          ),
+        ),
+      );
+
+      final root = _codeHighlightRootSpan(tester, find.byType(RichText));
+      final spans = _collectResolvedTextSpans(root);
+
+      expect(
+        spans.where((span) => span.style.fontStyle == FontStyle.italic),
+        isEmpty,
+      );
+    },
+  );
+
+  testWidgets(
+    'CodeHighlightView keeps dart comment italics after grammar registration',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: CodeHighlightView(
+              '// note\nfinal value = 1;',
+              language: 'dart',
+              theme: {'comment': TextStyle(fontStyle: FontStyle.italic)},
+            ),
+          ),
+        ),
+      );
+
+      final root = _codeHighlightRootSpan(tester, find.byType(RichText));
+      final spans = _collectResolvedTextSpans(root);
+      final italicTexts = spans
+          .where((span) => span.style.fontStyle == FontStyle.italic)
+          .map((span) => span.text)
+          .toList();
+
+      expect(italicTexts, isNotEmpty);
+      expect(italicTexts.any((t) => t.contains('note')), isTrue);
+    },
+  );
+
+  testWidgets(
     'MarkdownWithCodeHighlight keeps details tags literal in html code blocks',
     (tester) async {
       await tester.pumpWidget(

@@ -6327,47 +6327,6 @@ class AllowedHtmlTagsMd extends InlineMd {
   }
 }
 
-/// Word characters for the CommonMark flanking checks in
-/// [_commonMarkMarkdownLanguage]. highlight grammar regexes are compiled
-/// without the Unicode flag, so `\p{L}` is unavailable; the explicit ranges
-/// cover CJK ideographs, kana, hangul and full-width alphanumerics so a CJK
-/// letter flanking a `_` counts as a word character (CommonMark classes CJK
-/// as letters: intraword underscores are not emphasis). Full-width `（）`
-/// and `・` are deliberately absent — they are punctuation, so `（_好_）`
-/// stays valid emphasis like `(_好_)`.
-const String _mdFenceWordClass =
-    'A-Za-z0-9_'
-    '\\u3400-\\u4DBF' // CJK Extension A
-    '\\u4E00-\\u9FFF' // CJK Unified Ideographs
-    '\\uF900-\\uFAFF' // CJK Compatibility Ideographs
-    '\\u3041-\\u309F' // Hiragana
-    // Katakana minus the U+30A0 hyphen and the U+30FB middle dot (punctuation).
-    '\\u30A1-\\u30FA\\u30FC-\\u30FF'
-    '\\u1100-\\u11FF\\u3130-\\u318F\\uAC00-\\uD7A3' // Hangul
-    '\\uFF10-\\uFF19\\uFF21-\\uFF3A\\uFF41-\\uFF5A'; // Full-width digits & Latin
-
-/// CommonMark §6.2 delimiter flanking for a single `_` emphasis pair: the
-/// opener must not be preceded by a word character (intraword `_` can never
-/// open), must not be followed by whitespace or another `_`; the closer must
-/// not be preceded by whitespace or another `_` and not be followed by a
-/// word character. `a _b_ c` matches; `a_b_c` stays literal.
-final String _mdFenceEmphasisUnderscore =
-    '(?<![$_mdFenceWordClass])'
-    '_(?![\\s_])'
-    '.+?'
-    '(?<=[^\\s_])_'
-    '(?![$_mdFenceWordClass])';
-
-/// Same flanking for a `__` strong pair: `a __b__ c` matches, `a__b__c`
-/// stays literal. (`*`/`**` are intentionally left intraword-valid: CommonMark
-/// permits asterisk emphasis inside words, e.g. `a*b*c`.)
-final String _mdFenceStrongUnderscore =
-    '(?<![$_mdFenceWordClass])'
-    '__(?![\\s_])'
-    '.+?'
-    '(?<=[^\\s_])__'
-    '(?![$_mdFenceWordClass])';
-
 /// The `markdown` highlight grammar rebuilt to honor CommonMark instead of
 /// the bundled naive rules (issue #662).
 ///
@@ -6376,8 +6335,15 @@ final String _mdFenceStrongUnderscore =
 /// themes style `emphasis`/`strong` as italic/bold — so a `markdown`-fenced
 /// code block rendered identifiers like `{model_name}` in italic (this
 /// issue). CommonMark never treats an intraword `_` as an emphasis delimiter
-/// and requires a space (or end of line) after ATX `#` (§4.2): `#hashtag`
-/// is a literal line, `# Heading` a heading.
+/// and requires a space or tab (or end of line) after ATX `#` (§4.2):
+/// `#hashtag` is a literal line, `# Heading` a heading.
+///
+/// The underscore variants below intentionally only do structural matching
+/// (whitespace/underscore guards, no character classification): grammar
+/// regexes in the `highlight` engine are compiled without the Unicode flag,
+/// so delimiter flanking cannot be expressed there with `\p{...}` classes.
+/// [_underscoreFlankingInvalidNodes] applies the real CommonMark §6.2 rules
+/// with proper Unicode classification right after parsing.
 final Mode _commonMarkMarkdownLanguage = Mode(
   refs: {},
   aliases: const ['md', 'mkdown', 'mkd'],
@@ -6385,7 +6351,7 @@ final Mode _commonMarkMarkdownLanguage = Mode(
     Mode(
       className: 'section',
       variants: [
-        Mode(begin: '^#{1,6}(?= |\$)', end: '\$'),
+        Mode(begin: '^#{1,6}(?=[\\t ]|\$)', end: '\$'),
         Mode(begin: '^.+?\\n[=-]{2,}\$'),
       ],
     ),
@@ -6395,14 +6361,14 @@ final Mode _commonMarkMarkdownLanguage = Mode(
       className: 'strong',
       variants: [
         Mode(begin: r'\*\*.+?\*\*'),
-        Mode(begin: _mdFenceStrongUnderscore, relevance: 0),
+        Mode(begin: '__(?![\\s_]).+?(?<=[^\\s_])__', relevance: 0),
       ],
     ),
     Mode(
       className: 'emphasis',
       variants: [
         Mode(begin: r'\*.+?\*'),
-        Mode(begin: _mdFenceEmphasisUnderscore, relevance: 0),
+        Mode(begin: '_(?![\\s_]).+?(?<=[^\\s_])_', relevance: 0),
       ],
     ),
     Mode(className: 'quote', begin: '^>\\s+', end: '\$'),
@@ -6473,6 +6439,119 @@ void _ensureCommonMarkMarkdownGrammar() {
   highlight.registerLanguage('markdown', _commonMarkMarkdownLanguage);
 }
 
+/// CommonMark §6.2 flanking classifications: "Unicode whitespace" is the `Z`
+/// categories plus tab/line terminators; "punctuation" is the Unicode `P`
+/// (punctuation) or `S` (symbol) general categories. These run with the
+/// Unicode flag, unlike the grammar regexes the engine compiles.
+final RegExp _unicodePunct = RegExp(r'[\p{P}\p{S}]', unicode: true);
+final RegExp _unicodeWhitespace = RegExp(r'[\p{Z}\t\n\v\f\r]', unicode: true);
+
+bool _isPunct(String char) => _unicodePunct.hasMatch(char);
+
+bool _isSpace(String char) => _unicodeWhitespace.hasMatch(char);
+
+/// Whether an underscore delimiter run can open emphasis per §6.2:
+/// left-flanking and either not right-flanking or preceded by punctuation.
+/// [prev]/[next] are the code points immediately outside the run; null
+/// means a text boundary, which CommonMark treats like whitespace.
+bool _underscoreCanOpen(String? prev, String? next) {
+  final prevWs = prev == null || _isSpace(prev);
+  final prevPunct = prev != null && _isPunct(prev);
+  final nextWs = next == null || _isSpace(next);
+  final nextPunct = next != null && _isPunct(next);
+  final leftFlanking = !nextWs && (!nextPunct || prevWs || prevPunct);
+  final rightFlanking = !prevWs && (!prevPunct || nextWs || nextPunct);
+  return leftFlanking && (!rightFlanking || prevPunct);
+}
+
+/// Whether an underscore delimiter run can close emphasis per §6.2:
+/// right-flanking and either not left-flanking or followed by punctuation.
+bool _underscoreCanClose(String? prev, String? next) {
+  final prevWs = prev == null || _isSpace(prev);
+  final prevPunct = prev != null && _isPunct(prev);
+  final nextWs = next == null || _isSpace(next);
+  final nextPunct = next != null && _isPunct(next);
+  final leftFlanking = !nextWs && (!nextPunct || prevWs || prevPunct);
+  final rightFlanking = !prevWs && (!prevPunct || nextWs || nextPunct);
+  return rightFlanking && (!leftFlanking || nextPunct);
+}
+
+/// The code point immediately before code-unit offset [index] in [text],
+/// or null at the start.
+String? _codePointBefore(String text, int index) {
+  if (index <= 0) return null;
+  return String.fromCharCode(text.substring(0, index).runes.last);
+}
+
+/// The code point immediately after code-unit offset [index] in [text],
+/// or null at the end.
+String? _codePointAfter(String text, int index) {
+  if (index >= text.length) return null;
+  return String.fromCharCode(text.substring(index).runes.first);
+}
+
+/// Walks the parsed node tree in document order and returns every
+/// `emphasis`/`strong` node whose `_` delimiters violate CommonMark flanking
+/// (§6.2). The grammar only matches _candidate_ delimiter pairs (its regexes
+/// cannot classify characters without the Unicode flag), so invalid pairs —
+/// e.g. `foo_bar_baz`, `α_β_γ`, `a__b__c` — are detected here by validating
+/// each candidate's surrounding code points, and rendered as plain text.
+///
+/// The engine puts a classed node's text in a child leaf (the container
+/// carries only the className), so runs are grouped by their nearest
+/// emphasis/strong ancestor before validation.
+Set<Node> _underscoreFlankingInvalidNodes(List<Node> nodes) {
+  final text = StringBuffer();
+  final extents = <Node, ({int start, int end})>{};
+  void walk(List<Node> list, Node? classed) {
+    for (final node in list) {
+      final value = node.value;
+      if (value != null && value.isNotEmpty) {
+        if (classed != null) {
+          final prior = extents[classed];
+          extents[classed] = (
+            start: prior?.start ?? text.length,
+            end: text.length + value.length,
+          );
+        }
+        text.write(value);
+      }
+      final children = node.children;
+      if (children != null) {
+        final nextClassed =
+            node.className == 'emphasis' || node.className == 'strong'
+            ? node
+            : classed;
+        walk(children, nextClassed);
+      }
+    }
+  }
+
+  walk(nodes, null);
+  final source = text.toString();
+  final invalid = <Node>{};
+  for (final entry in extents.entries) {
+    final node = entry.key;
+    final start = entry.value.start;
+    final end = entry.value.end;
+    final value = source.substring(start, end);
+    if (!value.startsWith('_') || !value.endsWith('_')) continue;
+    // The opener and closer delimiter runs flank with their own neighbors:
+    // opener uses the char before the run start and the first content char;
+    // closer uses the last content char and the char after the run end.
+    final runLength = value.startsWith('__') ? 2 : 1;
+    final openPrev = _codePointBefore(source, start);
+    final openNext = _codePointAfter(source, start + runLength);
+    final closePrev = _codePointBefore(source, end - runLength);
+    final closeNext = _codePointAfter(source, end);
+    if (!_underscoreCanOpen(openPrev, openNext) ||
+        !_underscoreCanClose(closePrev, closeNext)) {
+      invalid.add(node);
+    }
+  }
+  return invalid;
+}
+
 /// Code block with per-token syntax highlight.
 ///
 /// Rendered as a plain [Text.rich] so the code participates in the enclosing
@@ -6528,28 +6607,35 @@ class _CodeHighlightViewState extends State<CodeHighlightView> {
     try {
       _ensureCommonMarkMarkdownGrammar();
       final result = highlight.parse(widget.source, language: widget.language);
-      return _convertNodes(result.nodes ?? const []);
+      final nodes = result.nodes ?? const [];
+      return _convertNodes(nodes, _underscoreFlankingInvalidNodes(nodes));
     } catch (_) {
       return const [];
     }
   }
 
-  /// Converts a highlight Node tree to a TextSpan tree with appropriate styling
-  List<TextSpan> _convertNodes(List<Node> nodes) {
+  /// Converts a highlight Node tree to a TextSpan tree with appropriate styling.
+  /// Nodes in [flankingInvalid] render plain (underscore emphasis that
+  /// CommonMark deems literal).
+  List<TextSpan> _convertNodes(List<Node> nodes, [Set<Node>? flankingInvalid]) {
     final List<TextSpan> spans = [];
 
     for (final node in nodes) {
+      final unclassed = flankingInvalid?.contains(node) ?? false;
       if (node.value != null) {
         // Leaf node with text content
         spans.add(
-          TextSpan(text: node.value, style: widget.theme[node.className]),
+          TextSpan(
+            text: node.value,
+            style: unclassed ? null : widget.theme[node.className],
+          ),
         );
       } else if (node.children != null) {
         // Node with children - recurse
         spans.add(
           TextSpan(
-            children: _convertNodes(node.children!),
-            style: widget.theme[node.className],
+            children: _convertNodes(node.children!, flankingInvalid),
+            style: unclassed ? null : widget.theme[node.className],
           ),
         );
       }

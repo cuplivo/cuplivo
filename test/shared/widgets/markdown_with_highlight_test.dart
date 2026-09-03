@@ -3198,7 +3198,11 @@ void main() {}
         const MaterialApp(
           home: Scaffold(
             body: CodeHighlightView(
-              'a _b_ c and a_b_c\n（_好_） and 爱_好_吗 and 文件_name_文件',
+              'a _b_ c and a_b_c\n'
+              '（_好_） and 爱_好_吗 and 文件_name_文件\n'
+              'α _β_ γ and α_β_γ\n'
+              'привет_мир_тест\n'
+              '\u0301_x_\u0302 and \u0301 _y_ \u0302',
               language: 'markdown',
               theme: {'emphasis': TextStyle(fontStyle: FontStyle.italic)},
             ),
@@ -3213,15 +3217,28 @@ void main() {}
           .map((span) => span.text)
           .toList();
 
-      // Flanking-valid: spaced word and CJK punctuation (（）) still italic.
+      // Flanking-valid: spaced word, CJK punctuation (（）), Greek word and
+      // spacing-adjacent combining marks still italic.
       expect(italicTexts, contains('_b_'));
-      // Exactly one italic pair of underscores across both lines: the valid
-      // （_好_）, never an extra one from intraword CJK (爱_好_吗).
+      expect(italicTexts, contains('_β_'));
+      expect(italicTexts, contains('_y_'));
+      // Exactly one italic pair `_好_`: the valid （_好_）, never an extra one
+      // from intraword CJK (爱_好_吗).
       expect(italicTexts.where((t) => t == '_好_'), hasLength(1));
       // Below must render literal: no italic span containing these fragments.
       expect(italicTexts.where((t) => t.contains('name')), isEmpty);
+      expect(italicTexts.where((t) => t.contains('_α_')), isEmpty);
       expect(spans.map((span) => span.text).join(), contains('爱_好_吗'));
       expect(spans.map((span) => span.text).join(), contains('文件_name_文件'));
+      expect(spans.map((span) => span.text).join(), contains('α_β_γ'));
+      expect(
+        spans.map((span) => span.text).join(),
+        contains('привет_мир_тест'),
+      );
+      expect(
+        spans.map((span) => span.text).join(),
+        contains('\u0301_x_\u0302'),
+      );
     },
   );
 
@@ -3232,7 +3249,8 @@ void main() {}
         const MaterialApp(
           home: Scaffold(
             body: CodeHighlightView(
-              'a **b** c a __b__ c\na__b__c',
+              'a **b** c a __b__ c\n'
+              'a__b__c and α__β__γ and α __β__ γ',
               language: 'markdown',
               theme: {'strong': TextStyle(fontWeight: FontWeight.bold)},
             ),
@@ -3252,19 +3270,23 @@ void main() {}
 
       expect(boldTexts, contains('**b**'));
       expect(boldTexts, contains('__b__'));
+      expect(boldTexts, contains('__β__'));
       // Intraword __ is literal: no bold span asserting a__b__c content.
-      expect(boldTexts.where((t) => t.contains('__b__')), hasLength(1));
+      expect(boldTexts.where((t) => t == '__b__'), hasLength(1));
+      expect(boldTexts.where((t) => t == '__β__'), hasLength(1));
+      expect(spans.map((span) => span.text).join(), contains('a__b__c'));
+      expect(spans.map((span) => span.text).join(), contains('α__β__γ'));
     },
   );
 
-  testWidgets('CodeHighlightView requires a space after ATX heading hashes', (
+  testWidgets('CodeHighlightView requires a space or tab after ATX hashes', (
     tester,
   ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
           body: CodeHighlightView(
-            '# Heading\n#hashtag',
+            '# Heading\n#hashtag\n#\tTabHeading',
             language: 'markdown',
             theme: {
               'section': TextStyle(
@@ -3288,6 +3310,7 @@ void main() {}
         .toList();
 
     expect(boldTexts, contains('# Heading'));
+    expect(boldTexts, contains('#\tTabHeading'));
     expect(boldTexts, isNot(contains('#hashtag')));
   });
 

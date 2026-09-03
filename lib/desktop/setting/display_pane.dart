@@ -24,7 +24,7 @@ class _DisplaySettingsBody extends StatelessWidget {
                   _RowDivider(),
                   _ToggleRowPureBackground(),
                   _RowDivider(),
-                  _ChatMessageBackgroundRow(),
+                  _MessageStyleRow(),
                   _RowDivider(),
                   _TopicPositionRow(),
                 ],
@@ -738,14 +738,26 @@ class _ToggleRowPureBackground extends StatelessWidget {
   }
 }
 
-class _ChatMessageBackgroundRow extends StatelessWidget {
-  const _ChatMessageBackgroundRow();
+class _MessageStyleRow extends StatelessWidget {
+  const _MessageStyleRow();
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final sp = context.watch<SettingsProvider>();
+    final styleLabel = switch (sp.chatMessageBackgroundStyle) {
+      ChatMessageBackgroundStyle.frosted =>
+        l10n.displaySettingsPageChatMessageBackgroundFrosted,
+      ChatMessageBackgroundStyle.solid =>
+        l10n.displaySettingsPageChatMessageBackgroundSolid,
+      ChatMessageBackgroundStyle.defaultStyle =>
+        l10n.displaySettingsPageChatMessageBackgroundDefault,
+    };
     return _LabeledRow(
-      label: l10n.displaySettingsPageChatMessageBackgroundTitle,
-      trailing: const _BackgroundStyleDropdown(),
+      label: l10n.messageStyleSettingsPageTitle,
+      trailing: _DesktopFontDropdownButton(
+        display: styleLabel,
+        onTap: () => showMessageStyleSettingsDialog(context),
+      ),
     );
   }
 }
@@ -823,41 +835,6 @@ class _TopicPositionDropdownState extends State<_TopicPositionDropdown> {
       options: options,
       onSelected: (pos) =>
           context.read<SettingsProvider>().setDesktopTopicPosition(pos),
-    );
-  }
-}
-
-class _BackgroundStyleDropdown extends StatefulWidget {
-  const _BackgroundStyleDropdown();
-  @override
-  State<_BackgroundStyleDropdown> createState() =>
-      _BackgroundStyleDropdownState();
-}
-
-class _BackgroundStyleDropdownState extends State<_BackgroundStyleDropdown> {
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final sp = context.watch<SettingsProvider>();
-    final options = <DesktopSelectOption<ChatMessageBackgroundStyle>>[
-      DesktopSelectOption(
-        value: ChatMessageBackgroundStyle.defaultStyle,
-        label: l10n.displaySettingsPageChatMessageBackgroundDefault,
-      ),
-      DesktopSelectOption(
-        value: ChatMessageBackgroundStyle.frosted,
-        label: l10n.displaySettingsPageChatMessageBackgroundFrosted,
-      ),
-      DesktopSelectOption(
-        value: ChatMessageBackgroundStyle.solid,
-        label: l10n.displaySettingsPageChatMessageBackgroundSolid,
-      ),
-    ];
-    return DesktopSelectDropdown<ChatMessageBackgroundStyle>(
-      value: sp.chatMessageBackgroundStyle,
-      options: options,
-      onSelected: (style) =>
-          context.read<SettingsProvider>().setChatMessageBackgroundStyle(style),
     );
   }
 }

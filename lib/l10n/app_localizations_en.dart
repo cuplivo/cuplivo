@@ -9667,4 +9667,94 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get webConversationStylesNoDescription => 'No description';
+
+  @override
+  String get messageStyleSettingsPageAssistantFitContent =>
+      'Fit assistant bubble to content';
+
+  @override
+  String get messageStyleSettingsPageAssistantFitContentSubtitle =>
+      'Assistant bubbles hug their text instead of filling the row';
+
+  @override
+  String get messageStyleSettingsPageBackgroundColor => 'Background';
+
+  @override
+  String get messageStyleSettingsPageBackgroundOpacity => 'Background Opacity';
+
+  @override
+  String get messageStyleSettingsPageBlur => 'Blur';
+
+  @override
+  String get messageStyleSettingsPageBlurHint =>
+      'Blur applies to content behind the bubble. It is barely visible without a chat wallpaper.';
+
+  @override
+  String get messageStyleSettingsPageBorderColor => 'Border';
+
+  @override
+  String get messageStyleSettingsPageBorderOpacity => 'Border Opacity';
+
+  @override
+  String get messageStyleSettingsPageBorderWidth => 'Border Width';
+
+  @override
+  String get messageStyleSettingsPageCancel => 'Cancel';
+
+  @override
+  String get messageStyleSettingsPageCornerRadius => 'Corner Radius';
+
+  @override
+  String get messageStyleSettingsPageDark => 'Dark';
+
+  @override
+  String get messageStyleSettingsPageDefaultHint =>
+      'Default style follows the current theme and has no extra controls.';
+
+  @override
+  String get messageStyleSettingsPageLight => 'Light';
+
+  @override
+  String get messageStyleSettingsPagePreviewAssistant =>
+      'This is an assistant reply.';
+
+  @override
+  String get messageStyleSettingsPagePreviewThinking => 'Thinking';
+
+  @override
+  String get messageStyleSettingsPagePreviewUser => 'This is a user message';
+
+  @override
+  String get messageStyleSettingsPageReset => 'Reset';
+
+  @override
+  String get messageStyleSettingsPageResetConfirm =>
+      'Reset all message style customizations?';
+
+  @override
+  String get messageStyleSettingsPageRoleAssistant => 'Assistant';
+
+  @override
+  String get messageStyleSettingsPageRoleAssistantHint =>
+      'Assistant settings also apply to thinking, tool-call, and translation cards.';
+
+  @override
+  String get messageStyleSettingsPageRoleUser => 'User';
+
+  @override
+  String get messageStyleSettingsPageStyleDefaultSubtitle =>
+      'Follows the theme; not customizable';
+
+  @override
+  String get messageStyleSettingsPageStyleFrostedSubtitle =>
+      'Translucent frosted glass';
+
+  @override
+  String get messageStyleSettingsPageStyleSolidSubtitle => 'Opaque solid fill';
+
+  @override
+  String get messageStyleSettingsPageTextColor => 'Text';
+
+  @override
+  String get messageStyleSettingsPageTitle => 'Message Style';
 }

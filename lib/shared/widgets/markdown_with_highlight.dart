@@ -5421,8 +5421,7 @@ class AtxHeadingMd extends BlockMd {
     GptMarkdownConfig cfg,
     int level,
   ) {
-    final cs = Theme.of(ctx).colorScheme;
-    final isZh = _isZh(ctx);
+    final bool isZh = _isZh(ctx);
     final settings = ctx.read<SettingsProvider>();
     String? appFamily;
     if ((settings.appFontFamily ?? '').isNotEmpty) {
@@ -5480,7 +5479,6 @@ class AtxHeadingMd extends BlockMd {
       fontWeight: weight,
       height: h,
       letterSpacing: ls,
-      color: cs.onSurface,
       fontFamily: appFamily,
       fontFamilyFallback: getPlatformFontFallback(),
     );

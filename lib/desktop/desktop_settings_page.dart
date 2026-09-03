@@ -14,6 +14,8 @@ import '../theme/app_semantic_colors.dart';
 import '../theme/palettes.dart';
 import '../theme/custom_theme.dart';
 import '../features/settings/widgets/custom_theme_widgets.dart';
+import '../features/settings/pages/message_style_settings_page.dart'
+    show showMessageStyleSettingsDialog;
 import '../core/providers/settings_provider.dart';
 import '../core/providers/model_provider.dart';
 import '../core/providers/codex_device_code_controller.dart';

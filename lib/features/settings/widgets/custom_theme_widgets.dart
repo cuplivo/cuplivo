@@ -29,7 +29,7 @@ bool get _isDesktop =>
 
 /// Centered custom dialog: scrim barrier, fade+scale-in, rounded surface
 /// container with a subtle border (same look as the desktop dialogs).
-Future<T?> _showAppDialog<T>(
+Future<T?> showAppDialog<T>(
   BuildContext context, {
   required Widget child,
   double maxWidth = 420,
@@ -182,9 +182,10 @@ Future<T?> _showAppSheet<T>(
 }
 
 /// Dialog header (desktop): title + close button.
-class _DialogHeader extends StatelessWidget {
-  const _DialogHeader({required this.title});
+class AppDialogHeader extends StatelessWidget {
+  const AppDialogHeader({super.key, required this.title, this.actions});
   final String title;
+  final List<Widget>? actions;
 
   @override
   Widget build(BuildContext context) {
@@ -206,6 +207,7 @@ class _DialogHeader extends StatelessWidget {
                 ),
               ),
             ),
+            ...?actions,
             IosIconButton(
               icon: Lucide.X,
               size: 18,
@@ -649,7 +651,7 @@ class _HsvColorPickerState extends State<HsvColorPicker> {
 }
 
 /// Adaptive color picker (sheet on mobile, dialog on desktop).
-Future<Color?> _showColorPicker(
+Future<Color?> showAppColorPicker(
   BuildContext context, {
   required String title,
   required Color initial,
@@ -671,13 +673,13 @@ Future<Color?> _showColorPicker(
   );
 
   if (_isDesktop) {
-    return _showAppDialog<Color>(
+    return showAppDialog<Color>(
       context,
       maxWidth: 380,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _DialogHeader(title: title),
+          AppDialogHeader(title: title),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
             child: Builder(builder: content),
@@ -744,7 +746,7 @@ class _CustomThemeEditorState extends State<CustomThemeEditor> {
     required Color initial,
     required ValueChanged<Color> onResult,
   }) async {
-    final result = await _showColorPicker(
+    final result = await showAppColorPicker(
       context,
       title: title,
       initial: initial,
@@ -1031,12 +1033,12 @@ Future<void> showCustomThemeEditor(
   }
 
   if (_isDesktop) {
-    await _showAppDialog<void>(
+    await showAppDialog<void>(
       context,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _DialogHeader(title: title),
+          AppDialogHeader(title: title),
           Flexible(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
@@ -1066,12 +1068,12 @@ Future<void> showImportCustomThemeDialog(BuildContext context) async {
   final controller = TextEditingController();
 
   final imported = await (_isDesktop
-      ? _showAppDialog<CustomTheme>(
+      ? showAppDialog<CustomTheme>(
           context,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _DialogHeader(title: l10n.customThemeImportTheme),
+              AppDialogHeader(title: l10n.customThemeImportTheme),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                 child: _ImportThemeForm(controller: controller),
@@ -1148,7 +1150,7 @@ Future<bool> showCustomThemeConfirmDialog(
   required String message,
 }) async {
   final l10n = AppLocalizations.of(context)!;
-  final ok = await _showAppDialog<bool>(
+  final ok = await showAppDialog<bool>(
     context,
     maxWidth: 360,
     child: Padding(

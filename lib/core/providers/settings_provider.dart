@@ -31,6 +31,7 @@ import '../../utils/provider_grouping_logic.dart';
 import '../../utils/brand_assets.dart';
 import '../prompts/constants/compress_prompts.dart' as compress_prompts;
 import '../prompts/constants/ocr_prompts.dart' as ocr_prompts;
+import 'package:Cuplivo/theme/chat_bubble_style.dart';
 import 'package:Cuplivo/theme/custom_theme.dart';
 import 'package:Cuplivo/theme/palettes.dart';
 
@@ -260,6 +261,12 @@ class SettingsProvider extends ChangeNotifier {
       'display_use_pure_background_v1';
   static const String _displayChatMessageBackgroundStyleKey =
       'display_chat_message_background_style_v1';
+  static const String _displayAssistantBubbleFitContentKey =
+      'display_assistant_bubble_fit_content_v1';
+  static const String _chatBubbleStyleOverridesKey =
+      'chat_bubble_style_overrides_v1';
+  static const String _userChatBubbleStyleOverridesKey =
+      'chat_bubble_style_overrides_user_v1';
   static const String _mobileAssistantEditTabOrderKey =
       'mobile_assistant_edit_tab_order_v1';
   static const String _mobileAssistantEditTabHiddenKey =
@@ -1477,6 +1484,52 @@ class SettingsProvider extends ChangeNotifier {
         break;
       default:
         _chatMessageBackgroundStyle = ChatMessageBackgroundStyle.defaultStyle;
+    }
+    _assistantBubbleFitContent =
+        prefs.getBool(_displayAssistantBubbleFitContentKey) ?? false;
+    final bubbleOverridesRaw = prefs.getString(_chatBubbleStyleOverridesKey);
+    if (bubbleOverridesRaw != null && bubbleOverridesRaw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(bubbleOverridesRaw);
+        if (decoded is Map<String, dynamic>) {
+          _chatBubbleStyleOverrides = ChatBubbleStyleOverrides.fromJson(
+            decoded,
+          );
+        } else if (decoded is Map) {
+          _chatBubbleStyleOverrides = ChatBubbleStyleOverrides.fromJson(
+            Map<String, dynamic>.from(decoded),
+          );
+        }
+      } catch (e) {
+        debugPrint(
+          'SettingsProvider: failed to decode $_chatBubbleStyleOverridesKey: '
+          '$e',
+        );
+        _chatBubbleStyleOverrides = const ChatBubbleStyleOverrides();
+      }
+    }
+    final userBubbleOverridesRaw = prefs.getString(
+      _userChatBubbleStyleOverridesKey,
+    );
+    if (userBubbleOverridesRaw != null && userBubbleOverridesRaw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(userBubbleOverridesRaw);
+        if (decoded is Map<String, dynamic>) {
+          _userChatBubbleStyleOverrides = ChatBubbleStyleOverrides.fromJson(
+            decoded,
+          );
+        } else if (decoded is Map) {
+          _userChatBubbleStyleOverrides = ChatBubbleStyleOverrides.fromJson(
+            Map<String, dynamic>.from(decoded),
+          );
+        }
+      } catch (e) {
+        // Keep null so a corrupt user key still follows assistant.
+        debugPrint(
+          'SettingsProvider: failed to decode '
+          '$_userChatBubbleStyleOverridesKey: $e',
+        );
+      }
     }
     _mobileAssistantEditTabOrder = List.unmodifiable(
       prefs.getStringList(_mobileAssistantEditTabOrderKey) ?? const <String>[],
@@ -2958,6 +3011,89 @@ class SettingsProvider extends ChangeNotifier {
       ChatMessageBackgroundStyle.defaultStyle => 'default',
     };
     await prefs.setString(_displayChatMessageBackgroundStyleKey, v);
+  }
+
+  // When on, assistant bubbles hug their text instead of spanning the row.
+  bool _assistantBubbleFitContent = false;
+  bool get assistantBubbleFitContent => _assistantBubbleFitContent;
+  Future<void> setAssistantBubbleFitContent(bool v) async {
+    if (_assistantBubbleFitContent == v) return;
+    _assistantBubbleFitContent = v;
+    notifyListeners();
+    await _preferences.setBool(_displayAssistantBubbleFitContentKey, v);
+  }
+
+  ChatBubbleStyleOverrides _chatBubbleStyleOverrides =
+      const ChatBubbleStyleOverrides();
+  ChatBubbleStyleOverrides? _userChatBubbleStyleOverrides;
+  ChatBubbleStyleOverrides get chatBubbleStyleOverrides =>
+      _chatBubbleStyleOverrides;
+  ChatBubbleStyleOverrides get assistantChatBubbleStyleOverrides =>
+      _chatBubbleStyleOverrides;
+  ChatBubbleStyleOverrides get userChatBubbleStyleOverrides =>
+      _userChatBubbleStyleOverrides ?? _chatBubbleStyleOverrides;
+  ChatBubbleStyleOverrides chatBubbleStyleOverridesFor({
+    required bool isUser,
+  }) =>
+      isUser ? userChatBubbleStyleOverrides : assistantChatBubbleStyleOverrides;
+  Future<void> setChatBubbleStyleOverrides(ChatBubbleStyleOverrides v) async {
+    final assistantChanged = _chatBubbleStyleOverrides != v;
+    final hadUserSplit = _userChatBubbleStyleOverrides != null;
+    if (!assistantChanged && !hadUserSplit) return;
+    _chatBubbleStyleOverrides = v;
+    _userChatBubbleStyleOverrides = null;
+    notifyListeners();
+    if (assistantChanged) {
+      await _preferences.setString(
+        _chatBubbleStyleOverridesKey,
+        jsonEncode(v.toJson()),
+      );
+    }
+    if (hadUserSplit) {
+      await _preferences.remove(_userChatBubbleStyleOverridesKey);
+    }
+  }
+
+  Future<void> setChatBubbleStyleOverridesForRole({
+    required bool isUser,
+    required ChatBubbleStyleOverrides value,
+  }) async {
+    if (isUser) {
+      if (_userChatBubbleStyleOverrides == value) return;
+      _userChatBubbleStyleOverrides = value;
+      notifyListeners();
+      await _preferences.setString(
+        _userChatBubbleStyleOverridesKey,
+        jsonEncode(value.toJson()),
+      );
+      return;
+    }
+    if (_chatBubbleStyleOverrides == value) return;
+    if (_userChatBubbleStyleOverrides == null) {
+      // Snapshot the previous assistant (fallback) value onto user on the
+      // first assistant role write, so the pre-split shared style is kept.
+      // Write the assistant key before the user key: an overlapping second
+      // role write that runs between our awaits should win the assistant key.
+      final previous = _chatBubbleStyleOverrides;
+      _userChatBubbleStyleOverrides = previous;
+      _chatBubbleStyleOverrides = value;
+      notifyListeners();
+      await _preferences.setString(
+        _chatBubbleStyleOverridesKey,
+        jsonEncode(value.toJson()),
+      );
+      await _preferences.setString(
+        _userChatBubbleStyleOverridesKey,
+        jsonEncode(previous.toJson()),
+      );
+      return;
+    }
+    _chatBubbleStyleOverrides = value;
+    notifyListeners();
+    await _preferences.setString(
+      _chatBubbleStyleOverridesKey,
+      jsonEncode(value.toJson()),
+    );
   }
 
   List<String> _mobileAssistantEditTabOrder = const <String>[];
@@ -5438,6 +5574,9 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     copy._customThemes = _customThemes;
     copy._selectedCustomThemeId = _selectedCustomThemeId;
     copy._chatMessageBackgroundStyle = _chatMessageBackgroundStyle;
+    copy._assistantBubbleFitContent = _assistantBubbleFitContent;
+    copy._chatBubbleStyleOverrides = _chatBubbleStyleOverrides;
+    copy._userChatBubbleStyleOverrides = _userChatBubbleStyleOverrides;
     copy._mobileAssistantEditTabOrder = _mobileAssistantEditTabOrder;
     copy._hiddenMobileAssistantEditTabs = _hiddenMobileAssistantEditTabs;
     copy._chatInputButtonOrder = _chatInputButtonOrder;

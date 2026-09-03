@@ -1137,12 +1137,14 @@ export function stableMathSlotKey(source) {
 }
 
 function isFenceOpen(line) {
-  // CommonMark: at most three leading spaces, marker run of >= 3, and a
-  // backtick fence's info string must not contain backticks.
-  const match = /^ {0,3}(`{3,}|~{3,})([^`]*)$/.exec(line);
+  // CommonMark: at most three leading spaces, marker run of >= 3. Only
+  // backtick fences restrict the info string (no backticks); tilde-fence
+  // info strings may contain backticks.
+  const match = /^ {0,3}(`{3,}|~{3,})/.exec(line);
   if (!match) return null;
   const run = match[1];
-  if (run.startsWith('`') && match[2].includes('`')) return null;
+  const rest = line.slice(match[0].length);
+  if (run.startsWith('`') && rest.includes('`')) return null;
   return run;
 }
 

@@ -202,6 +202,19 @@ test('over-indented markers are not fences', () => {
   assert.ok(html.includes('m:') === false, 'no slot may leak into the block');
 });
 
+test('tilde fences may contain backticks in the info string', () => {
+  // CommonMark: only backtick-fence info strings forbid backticks; a tilde
+  // fence with a `lang` info string is a valid code block to marked, so the
+  // pre-lexer must not slot the $$...$$ inside it.
+  const input = ['~~~ `lang`', '$$not_math$$', '~~~'].join('\n');
+  const { source, slots } = extractMathSpans(input);
+  assert.equal(slots.size, 0, 'fenced code content must stay byte-for-byte');
+  assert.equal(source, input);
+  const html = marked.parse(input, markedOpts);
+  assert.ok(html.includes('$$not_math$$'), 'code content must reach marked');
+  assert.ok(html.includes('m:') === false, 'no slot may leak into the block');
+});
+
 function slotKeys(source) {
   return /m:[0-9a-f]{8}/g[Symbol.match](source) ?? [];
 }

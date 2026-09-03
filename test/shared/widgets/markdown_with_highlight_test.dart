@@ -3370,6 +3370,63 @@ void main() {}
   );
 
   testWidgets(
+    'CodeHighlightView keeps asciidoc a__b__c underscore emphasis styled (regression control)',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: CodeHighlightView(
+              'a__b__c',
+              language: 'asciidoc',
+              theme: {'emphasis': TextStyle(fontStyle: FontStyle.italic)},
+            ),
+          ),
+        ),
+      );
+
+      final root = _codeHighlightRootSpan(tester, find.byType(RichText));
+      final spans = _collectResolvedTextSpans(root);
+      final italicTexts = spans
+          .where((span) => span.style.fontStyle == FontStyle.italic)
+          .map((span) => span.text)
+          .join();
+
+      expect(italicTexts, contains('_b_'));
+      expect(spans.map((span) => span.text).join(), contains('a__b__c'));
+    },
+  );
+
+  testWidgets(
+    'CodeHighlightView keeps asciidoc intraword underscore emphasis styled (no markdown flanking)',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: CodeHighlightView(
+              'snake_case_word',
+              language: 'asciidoc',
+              theme: {'emphasis': TextStyle(fontStyle: FontStyle.italic)},
+            ),
+          ),
+        ),
+      );
+
+      final root = _codeHighlightRootSpan(tester, find.byType(RichText));
+      final spans = _collectResolvedTextSpans(root);
+      final italicTexts = spans
+          .where((span) => span.style.fontStyle == FontStyle.italic)
+          .map((span) => span.text)
+          .join();
+
+      expect(italicTexts, contains('_case_'));
+      expect(
+        spans.map((span) => span.text).join(),
+        contains('snake_case_word'),
+      );
+    },
+  );
+
+  testWidgets(
     'MarkdownWithCodeHighlight keeps details tags literal in html code blocks',
     (tester) async {
       await tester.pumpWidget(

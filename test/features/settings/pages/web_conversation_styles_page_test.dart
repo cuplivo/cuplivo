@@ -6,6 +6,7 @@ import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/settings/pages/display_settings_page.dart';
 import 'package:Cuplivo/features/settings/pages/web_conversation_styles_page.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -89,6 +90,16 @@ void main() {
     },
   );
 
+  testWidgets('mobile styles page does not duplicate the WebView toggle', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    await pumpPage(tester, const WebConversationStylesPage());
+
+    expect(find.text('Experimental: WebView rendering'), findsNothing);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
   testWidgets('desktop pane renders on forced Windows and macOS branches', (
     tester,
   ) async {
@@ -96,9 +107,40 @@ void main() {
       debugDefaultTargetPlatformOverride = platform;
       await pumpPage(tester, const WebConversationStylesPage(desktop: true));
       expect(find.text('Web conversation styles'), findsOneWidget);
+      expect(find.text('Experimental: WebView rendering'), findsOneWidget);
       expect(find.text('Default style'), findsOneWidget);
       expect(find.text('Import'), findsOneWidget);
     }
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('desktop WebView toggle controls the inactive-style notice', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    final settings = await pumpPage(
+      tester,
+      const WebConversationStylesPage(desktop: true),
+    );
+
+    final title = find.text('Experimental: WebView rendering');
+    final inactiveNotice = find.textContaining('WebView rendering is off');
+    final toggle = find.byType(IosSwitch);
+    expect(toggle, findsOneWidget);
+    expect(
+      tester.getTopLeft(title).dy,
+      lessThan(tester.getTopLeft(inactiveNotice).dy),
+    );
+
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(settings.experimentalWebViewRendering, isTrue);
+    expect(inactiveNotice, findsNothing);
+
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(settings.experimentalWebViewRendering, isFalse);
+    expect(inactiveNotice, findsOneWidget);
     debugDefaultTargetPlatformOverride = null;
   });
 

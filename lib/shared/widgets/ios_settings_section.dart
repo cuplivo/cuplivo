@@ -119,18 +119,21 @@ class IosSettingsNavRow extends StatelessWidget {
   }
 }
 
-/// A settings row with a leading icon, label and an [IosSwitch].
+/// A settings row with a leading icon, label, optional subtitle and an
+/// [IosSwitch].
 class IosSettingsSwitchRow extends StatelessWidget {
   const IosSettingsSwitchRow({
     super.key,
     required this.icon,
     required this.label,
+    this.subtitle,
     required this.value,
     required this.onChanged,
   });
 
   final IconData icon;
   final String label;
+  final String? subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
 
@@ -152,7 +155,22 @@ class IosSettingsSwitchRow extends StatelessWidget {
               SizedBox(width: 36, child: Icon(icon, size: 20, color: c)),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(label, style: TextStyle(fontSize: 15, color: c)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: TextStyle(fontSize: 15, color: c)),
+                    if (subtitle != null && subtitle!.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: cs.onSurface.withValues(alpha: 0.62),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
               IosSwitch(value: value, onChanged: onChanged),
             ],

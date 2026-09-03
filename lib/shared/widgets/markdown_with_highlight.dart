@@ -6439,6 +6439,20 @@ void _ensureCommonMarkMarkdownGrammar() {
   highlight.registerLanguage('markdown', _commonMarkMarkdownLanguage);
 }
 
+/// Whether [language] resolves to the CommonMark markdown grammar.
+///
+/// [_ensureCommonMarkMarkdownGrammar] registers it as `markdown` with the
+/// aliases listed on [_commonMarkMarkdownLanguage]. Any other grammar must
+/// keep the [highlight.parse] node tree untouched: languages such as AsciiDoc
+/// legitimately style underscore emphasis with their own rules, which the
+/// CommonMark intraword flanking would otherwise strip.
+bool _isMarkdownLanguage(String? language) {
+  if (language == null) return false;
+  final l = language.trim().toLowerCase();
+  return l == 'markdown' ||
+      (_commonMarkMarkdownLanguage.aliases ?? const <String>[]).contains(l);
+}
+
 /// CommonMark §6.2 flanking classifications: "Unicode whitespace" is the `Z`
 /// categories plus tab/line terminators; "punctuation" is the Unicode `P`
 /// (punctuation) or `S` (symbol) general categories. These run with the
@@ -6496,6 +6510,9 @@ String? _codePointAfter(String text, int index) {
 /// cannot classify characters without the Unicode flag), so invalid pairs —
 /// e.g. `foo_bar_baz`, `α_β_γ`, `a__b__c` — are detected here by validating
 /// each candidate's surrounding code points, and rendered as plain text.
+///
+/// Markdown-only: callers must gate this behind [_isMarkdownLanguage]; other
+/// grammars style underscore emphasis with their own (non-CommonMark) rules.
 ///
 /// The engine puts a classed node's text in a child leaf (the container
 /// carries only the className), so runs are grouped by their nearest
@@ -6608,7 +6625,12 @@ class _CodeHighlightViewState extends State<CodeHighlightView> {
       _ensureCommonMarkMarkdownGrammar();
       final result = highlight.parse(widget.source, language: widget.language);
       final nodes = result.nodes ?? const [];
-      return _convertNodes(nodes, _underscoreFlankingInvalidNodes(nodes));
+      // The CommonMark flanking fix (#662) is markdown-specific; other
+      // grammars (e.g. AsciiDoc) keep their original parse output.
+      final flankingInvalid = _isMarkdownLanguage(widget.language)
+          ? _underscoreFlankingInvalidNodes(nodes)
+          : null;
+      return _convertNodes(nodes, flankingInvalid);
     } catch (_) {
       return const [];
     }

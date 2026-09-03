@@ -97,6 +97,7 @@ void main() {
     await pumpPage(tester, const WebConversationStylesPage());
 
     expect(find.text('Experimental: WebView rendering'), findsNothing);
+    debugDefaultTargetPlatformOverride = null;
   });
 
   testWidgets('desktop pane renders on forced Windows and macOS branches', (
@@ -140,6 +141,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(settings.experimentalWebViewRendering, isFalse);
     expect(inactiveNotice, findsOneWidget);
+    debugDefaultTargetPlatformOverride = null;
   });
 
   testWidgets('imported style exposes activation, export and delete actions', (

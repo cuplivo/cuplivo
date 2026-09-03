@@ -55,6 +55,7 @@ import 'token_display_widget.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../theme/app_semantic_colors.dart';
 import '../models/tool_ui_part.dart';
+import 'tool_approval_binding.dart';
 
 export '../models/tool_ui_part.dart';
 
@@ -4150,30 +4151,6 @@ class _ChainOfThoughtToolStepState extends State<_ChainOfThoughtToolStep> {
   bool get _askUserAnswered =>
       widget.part.content?.trim().isNotEmpty == true && !widget.part.loading;
 
-  /// The approval request bound to this step, if any.
-  ///
-  /// Requests are keyed by the same stream tool-call id as the part;
-  /// matching only by id keeps resolved past steps non-interactive. When the
-  /// part has no id (no-id tool events are supported by the engine), fall
-  /// back to name binding so the current request stays renderable.
-  ToolApprovalRequest? _pendingApprovalRequest(
-    ToolApprovalService approvalService,
-    String partId,
-  ) {
-    if (!widget.part.loading) return null;
-    if (partId.isNotEmpty && approvalService.isPending(partId)) {
-      return approvalService.pendingRequests[partId];
-    }
-    if (partId.isEmpty) {
-      for (final request in approvalService.pendingRequests.values) {
-        if (request.toolName == widget.part.toolName) {
-          return request;
-        }
-      }
-    }
-    return null;
-  }
-
   @override
   void didUpdateWidget(covariant _ChainOfThoughtToolStep oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -4257,8 +4234,10 @@ class _ChainOfThoughtToolStepState extends State<_ChainOfThoughtToolStep> {
     final fg = _chatSurfaceForegroundPalette(context);
     final settings = context.watch<SettingsProvider>();
     final approvalService = context.watch<ToolApprovalService>();
-    final partId = widget.part.id.trim();
-    final approvalRequest = _pendingApprovalRequest(approvalService, partId);
+    final approvalRequest = pendingApprovalRequestFor(
+      approvalService,
+      widget.part,
+    );
     final isPendingApproval = approvalRequest != null;
 
     final icon = _isAskUser
@@ -4494,30 +4473,6 @@ class _ToolCallItemState extends State<_ToolCallItem> {
     return entries.join(', ') + suffix;
   }
 
-  /// The pending approval id bound to this part, if any.
-  ///
-  /// Requests are keyed by the same stream tool-call id as the part, so past
-  /// resolved tool calls never bind to a newer request. When the part has no
-  /// id (no-id tool events are supported by the engine), fall back to name
-  /// binding so the current request stays renderable.
-  String? _pendingToolCallIdFor(
-    ToolApprovalService approvalService,
-    String partId,
-  ) {
-    if (!widget.part.loading) return null;
-    if (partId.isNotEmpty && approvalService.isPending(partId)) {
-      return partId;
-    }
-    if (partId.isEmpty) {
-      for (final request in approvalService.pendingRequests.values) {
-        if (request.toolName == widget.part.toolName) {
-          return request.toolCallId;
-        }
-      }
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -4538,12 +4493,11 @@ class _ToolCallItemState extends State<_ToolCallItem> {
 
     // Check if this tool call is pending approval.
     final approvalService = context.watch<ToolApprovalService>();
-    final partId = widget.part.id.trim();
-    final String? pendingToolCallId = _pendingToolCallIdFor(
+    final approvalRequest = pendingApprovalRequestFor(
       approvalService,
-      partId,
+      widget.part,
     );
-    final isPendingApproval = pendingToolCallId != null;
+    final isPendingApproval = approvalRequest != null;
 
     return IosCardPress(
       borderRadius: BorderRadius.circular(16),
@@ -4690,7 +4644,7 @@ class _ToolCallItemState extends State<_ToolCallItem> {
               ),
             ],
             // Approval action buttons
-            if (isPendingApproval) ...[
+            if (approvalRequest != null) ...[
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -4702,7 +4656,7 @@ class _ToolCallItemState extends State<_ToolCallItem> {
                       onTap: () => _showDenyDialog(
                         context,
                         approvalService,
-                        pendingToolCallId,
+                        approvalRequest.toolCallId,
                       ),
                     ),
                   ),
@@ -4712,7 +4666,8 @@ class _ToolCallItemState extends State<_ToolCallItem> {
                       label: l10n.toolApprovalApprove,
                       color: fg.accent,
                       filled: true,
-                      onTap: () => approvalService.approve(pendingToolCallId),
+                      onTap: () =>
+                          approvalService.approve(approvalRequest.toolCallId),
                     ),
                   ),
                 ],

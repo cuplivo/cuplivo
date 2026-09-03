@@ -254,6 +254,22 @@ class ToolHandlerService {
     });
   }
 
+  /// Stable per-invocation id for a tool-call approval/interaction request.
+  ///
+  /// Streams normally provide a real tool-call id; the synthesized fallback
+  /// is a last resort for providers that hand none. It is logged, because
+  /// such a request key can never match a `ToolUIPart.id` — a future
+  /// provider regression must surface instead of silently unmatching.
+  static String _streamCallId(String? toolCallId, String fallbackName) {
+    final trimmed = toolCallId?.trim() ?? '';
+    if (trimmed.isNotEmpty) return trimmed;
+    debugPrint(
+      '[tool_handler] no stream tool-call id for "$fallbackName"; '
+      'synthesized request id',
+    );
+    return '${fallbackName}_${DateTime.now().microsecondsSinceEpoch}';
+  }
+
   // ============================================================================
   // Collision Detection & Prefix Validation
   // ============================================================================
@@ -700,9 +716,7 @@ class ToolHandlerService {
         if (hasMcpPrefix) {
           // Approval gate (using original unprefixed name)
           if (approvalService != null && mcp.toolNeedsApproval(resolvedName)) {
-            final callId = (toolCallId?.trim().isNotEmpty == true)
-                ? toolCallId!.trim()
-                : '${resolvedName}_${DateTime.now().microsecondsSinceEpoch}';
+            final callId = _streamCallId(toolCallId, resolvedName);
             final result = await approvalService.requestApproval(
               toolCallId: callId,
               toolName: resolvedName,
@@ -752,9 +766,7 @@ class ToolHandlerService {
             assistant != null &&
             assistant.localToolIds.contains(LocalToolNames.calendarCreate) &&
             approvalService != null) {
-          final approvalId = (toolCallId?.trim().isNotEmpty == true)
-              ? toolCallId!.trim()
-              : '${name}_${DateTime.now().microsecondsSinceEpoch}';
+          final approvalId = _streamCallId(toolCallId, name);
           final approval = await approvalService.requestApproval(
             toolCallId: approvalId,
             toolName: name,
@@ -852,9 +864,7 @@ class ToolHandlerService {
               boundWs?.isToolNeedsApproval(name) ??
               WorkspaceToolNames.defaultApprovalFor(name);
           if (approvalService != null && needsApproval) {
-            final callId = (toolCallId?.trim().isNotEmpty == true)
-                ? toolCallId!.trim()
-                : '${name}_${DateTime.now().microsecondsSinceEpoch}';
+            final callId = _streamCallId(toolCallId, name);
             final result = await approvalService.requestApproval(
               toolCallId: callId,
               toolName: name,
@@ -950,9 +960,7 @@ class ToolHandlerService {
           }
           try {
             final result = await askUserService.requestAnswer(
-              toolCallId: (toolCallId?.trim().isNotEmpty == true)
-                  ? toolCallId!.trim()
-                  : '${name}_${DateTime.now().microsecondsSinceEpoch}',
+              toolCallId: _streamCallId(toolCallId, name),
               arguments: args,
               conversationId: conversationId,
             );
@@ -968,9 +976,7 @@ class ToolHandlerService {
 
         // Approval gate for MCP tools
         if (approvalService != null && mcp.toolNeedsApproval(name)) {
-          final approvalId = (toolCallId?.trim().isNotEmpty == true)
-              ? toolCallId!.trim()
-              : '${name}_${DateTime.now().microsecondsSinceEpoch}';
+          final approvalId = _streamCallId(toolCallId, name);
           final result = await approvalService.requestApproval(
             toolCallId: approvalId,
             toolName: name,

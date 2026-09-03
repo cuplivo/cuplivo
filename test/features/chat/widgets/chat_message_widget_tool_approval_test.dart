@@ -94,6 +94,21 @@ const List<ToolUIPart> _resolvedNoIdAndPendingParts = [
   ),
 ];
 
+const List<ToolUIPart> _twoLoadingShellParts = [
+  ToolUIPart(
+    id: 'call-1',
+    toolName: 'shell',
+    arguments: {'command': 'echo one'},
+    loading: true,
+  ),
+  ToolUIPart(
+    id: 'call-2',
+    toolName: 'shell',
+    arguments: {'command': 'echo two'},
+    loading: true,
+  ),
+];
+
 ChatMessageWidget _toolMessage(List<ToolUIPart> parts) => ChatMessageWidget(
   message: ChatMessage(
     role: 'assistant',
@@ -167,8 +182,9 @@ void main() {
       expect(await approvalFuture, isNotNull);
     });
 
-    testWidgets('a no-id tool part binds the same-named pending request by '
-        'name', (tester) async {
+    testWidgets('a no-id tool part never shows approval buttons', (
+      tester,
+    ) async {
       Haptics.setEnabled(false);
       final settings = _createSettings();
       final approvalService = ToolApprovalService();
@@ -187,14 +203,11 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.widgetWithIcon(IosIconButton, Lucide.Check), findsOneWidget);
-      expect(find.widgetWithIcon(IosIconButton, Lucide.X), findsOneWidget);
+      expect(find.widgetWithIcon(IosIconButton, Lucide.Check), findsNothing);
+      expect(find.widgetWithIcon(IosIconButton, Lucide.X), findsNothing);
 
-      await tester.tap(find.widgetWithIcon(IosIconButton, Lucide.Check));
-      await tester.pump();
-
-      final result = await approvalFuture;
-      expect(result.approved, isTrue);
+      approvalService.approve('shell_1725000000000');
+      expect(await approvalFuture, isNotNull);
     });
 
     testWidgets('a whitespace-padded part id matches the trimmed request id', (
@@ -256,6 +269,65 @@ void main() {
 
       final result = await approvalFuture;
       expect(result.approved, isTrue);
+    });
+
+    testWidgets('concurrent same-name calls each target their own approval '
+        '(approve then deny)', (tester) async {
+      Haptics.setEnabled(false);
+      final settings = _createSettings();
+      final approvalService = ToolApprovalService();
+      final firstFuture = approvalService.requestApproval(
+        toolCallId: 'call-1',
+        toolName: 'shell',
+        arguments: const {'command': 'echo one'},
+      );
+      final secondFuture = approvalService.requestApproval(
+        toolCallId: 'call-2',
+        toolName: 'shell',
+        arguments: const {'command': 'echo two'},
+      );
+
+      await tester.pumpWidget(
+        _buildHarness(
+          settings: settings,
+          approvalService: approvalService,
+          child: _toolMessage(_twoLoadingShellParts),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.widgetWithIcon(IosIconButton, Lucide.Check),
+        findsNWidgets(2),
+      );
+      expect(find.widgetWithIcon(IosIconButton, Lucide.X), findsNWidgets(2));
+
+      await tester.tap(find.widgetWithIcon(IosIconButton, Lucide.Check).first);
+      await tester.pump();
+
+      final firstResult = await firstFuture;
+      expect(firstResult.approved, isTrue);
+      expect(approvalService.isPending('call-2'), isTrue);
+      expect(find.widgetWithIcon(IosIconButton, Lucide.Check), findsOneWidget);
+
+      await tester.tap(find.widgetWithIcon(IosIconButton, Lucide.X));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      final dialogContext = tester.element(find.byType(AlertDialog));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text(
+            AppLocalizations.of(dialogContext)!.toolApprovalDeny,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final secondResult = await secondFuture;
+      expect(secondResult.approved, isFalse);
+      expect(find.widgetWithIcon(IosIconButton, Lucide.X), findsNothing);
     });
   });
 }

@@ -7,7 +7,7 @@ import 'package:gpt_markdown/custom_widgets/markdown_config.dart'
 import 'package:flutter_highlight/themes/github.dart';
 import 'package:flutter_highlight/themes/atom-one-dark-reasonable.dart';
 import 'package:flutter/rendering.dart';
-import 'package:highlight/highlight.dart' show Node, highlight;
+import 'package:highlight/highlight.dart' show Mode, Node, highlight;
 import '../../icons/lucide_adapter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
@@ -6327,6 +6327,152 @@ class AllowedHtmlTagsMd extends InlineMd {
   }
 }
 
+/// Word characters for the CommonMark flanking checks in
+/// [_commonMarkMarkdownLanguage]. highlight grammar regexes are compiled
+/// without the Unicode flag, so `\p{L}` is unavailable; the explicit ranges
+/// cover CJK ideographs, kana, hangul and full-width alphanumerics so a CJK
+/// letter flanking a `_` counts as a word character (CommonMark classes CJK
+/// as letters: intraword underscores are not emphasis). Full-width `（）`
+/// and `・` are deliberately absent — they are punctuation, so `（_好_）`
+/// stays valid emphasis like `(_好_)`.
+const String _mdFenceWordClass =
+    'A-Za-z0-9_'
+    '\\u3400-\\u4DBF' // CJK Extension A
+    '\\u4E00-\\u9FFF' // CJK Unified Ideographs
+    '\\uF900-\\uFAFF' // CJK Compatibility Ideographs
+    '\\u3041-\\u309F' // Hiragana
+    // Katakana minus the U+30A0 hyphen and the U+30FB middle dot (punctuation).
+    '\\u30A1-\\u30FA\\u30FC-\\u30FF'
+    '\\u1100-\\u11FF\\u3130-\\u318F\\uAC00-\\uD7A3' // Hangul
+    '\\uFF10-\\uFF19\\uFF21-\\uFF3A\\uFF41-\\uFF5A'; // Full-width digits & Latin
+
+/// CommonMark §6.2 delimiter flanking for a single `_` emphasis pair: the
+/// opener must not be preceded by a word character (intraword `_` can never
+/// open), must not be followed by whitespace or another `_`; the closer must
+/// not be preceded by whitespace or another `_` and not be followed by a
+/// word character. `a _b_ c` matches; `a_b_c` stays literal.
+final String _mdFenceEmphasisUnderscore =
+    '(?<![$_mdFenceWordClass])'
+    '_(?![\\s_])'
+    '.+?'
+    '(?<=[^\\s_])_'
+    '(?![$_mdFenceWordClass])';
+
+/// Same flanking for a `__` strong pair: `a __b__ c` matches, `a__b__c`
+/// stays literal. (`*`/`**` are intentionally left intraword-valid: CommonMark
+/// permits asterisk emphasis inside words, e.g. `a*b*c`.)
+final String _mdFenceStrongUnderscore =
+    '(?<![$_mdFenceWordClass])'
+    '__(?![\\s_])'
+    '.+?'
+    '(?<=[^\\s_])__'
+    '(?![$_mdFenceWordClass])';
+
+/// The `markdown` highlight grammar rebuilt to honor CommonMark instead of
+/// the bundled naive rules (issue #662).
+///
+/// The bundled grammar's `_.+?_` / `[*_]{2}.+?[*_]{2}` rules match between
+/// any two underscores, including intraword ones (`a_b_c`), and the code
+/// themes style `emphasis`/`strong` as italic/bold — so a `markdown`-fenced
+/// code block rendered identifiers like `{model_name}` in italic (this
+/// issue). CommonMark never treats an intraword `_` as an emphasis delimiter
+/// and requires a space (or end of line) after ATX `#` (§4.2): `#hashtag`
+/// is a literal line, `# Heading` a heading.
+final Mode _commonMarkMarkdownLanguage = Mode(
+  refs: {},
+  aliases: const ['md', 'mkdown', 'mkd'],
+  contains: [
+    Mode(
+      className: 'section',
+      variants: [
+        Mode(begin: '^#{1,6}(?= |\$)', end: '\$'),
+        Mode(begin: '^.+?\\n[=-]{2,}\$'),
+      ],
+    ),
+    Mode(begin: '<', end: '>', subLanguage: const ['xml'], relevance: 0),
+    Mode(className: 'bullet', begin: '^\\s*([*+-]|(\\d+\\.))\\s+'),
+    Mode(
+      className: 'strong',
+      variants: [
+        Mode(begin: r'\*\*.+?\*\*'),
+        Mode(begin: _mdFenceStrongUnderscore, relevance: 0),
+      ],
+    ),
+    Mode(
+      className: 'emphasis',
+      variants: [
+        Mode(begin: r'\*.+?\*'),
+        Mode(begin: _mdFenceEmphasisUnderscore, relevance: 0),
+      ],
+    ),
+    Mode(className: 'quote', begin: '^>\\s+', end: '\$'),
+    Mode(
+      className: 'code',
+      variants: [
+        Mode(begin: '^```\\w*\\s*\$', end: '^```[ ]*\$'),
+        Mode(begin: r'`.+?`'),
+        Mode(begin: '^( {4}|\\t)', end: '\$', relevance: 0),
+      ],
+    ),
+    Mode(begin: '^[-\\*]{3,}', end: '\$'),
+    Mode(
+      begin: '\\[.+?\\][\\(\\[].*?[\\)\\]]',
+      returnBegin: true,
+      contains: [
+        Mode(
+          className: 'string',
+          begin: '\\[',
+          end: '\\]',
+          excludeBegin: true,
+          returnEnd: true,
+          relevance: 0,
+        ),
+        Mode(
+          className: 'link',
+          begin: '\\]\\(',
+          end: '\\)',
+          excludeBegin: true,
+          excludeEnd: true,
+        ),
+        Mode(
+          className: 'symbol',
+          begin: '\\]\\[',
+          end: '\\]',
+          excludeBegin: true,
+          excludeEnd: true,
+        ),
+      ],
+      relevance: 10,
+    ),
+    Mode(
+      begin: '^\\[[^\\n]+\\]:',
+      returnBegin: true,
+      contains: [
+        Mode(
+          className: 'symbol',
+          begin: '\\[',
+          end: '\\]',
+          excludeBegin: true,
+          excludeEnd: true,
+        ),
+        Mode(className: 'link', begin: ':\\s*', end: '\$', excludeBegin: true),
+      ],
+    ),
+  ],
+);
+
+bool _commonMarkMarkdownRegistered = false;
+
+/// Replaces the bundled `markdown` grammar with [_commonMarkMarkdownLanguage].
+/// Must run before the first markdown parse; the highlight singleton is
+/// process-wide and this file is its only consumer, so registration is safe
+/// and idempotent.
+void _ensureCommonMarkMarkdownGrammar() {
+  if (_commonMarkMarkdownRegistered) return;
+  _commonMarkMarkdownRegistered = true;
+  highlight.registerLanguage('markdown', _commonMarkMarkdownLanguage);
+}
+
 /// Code block with per-token syntax highlight.
 ///
 /// Rendered as a plain [Text.rich] so the code participates in the enclosing
@@ -6380,6 +6526,7 @@ class _CodeHighlightViewState extends State<CodeHighlightView> {
       return <TextSpan>[TextSpan(text: widget.source)];
     }
     try {
+      _ensureCommonMarkMarkdownGrammar();
       final result = highlight.parse(widget.source, language: widget.language);
       return _convertNodes(result.nodes ?? const []);
     } catch (_) {

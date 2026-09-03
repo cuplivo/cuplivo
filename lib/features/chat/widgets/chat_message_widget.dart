@@ -55,6 +55,7 @@ import 'token_display_widget.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../theme/app_semantic_colors.dart';
 import '../models/tool_ui_part.dart';
+import 'tool_approval_binding.dart';
 
 export '../models/tool_ui_part.dart';
 
@@ -4233,20 +4234,11 @@ class _ChainOfThoughtToolStepState extends State<_ChainOfThoughtToolStep> {
     final fg = _chatSurfaceForegroundPalette(context);
     final settings = context.watch<SettingsProvider>();
     final approvalService = context.watch<ToolApprovalService>();
-    ToolApprovalRequest? pendingRequest;
-    if (widget.part.id.isNotEmpty &&
-        approvalService.isPending(widget.part.id)) {
-      pendingRequest = approvalService.pendingRequests[widget.part.id];
-    } else {
-      for (final request in approvalService.pendingRequests.values) {
-        if (request.toolName == widget.part.toolName) {
-          pendingRequest = request;
-          break;
-        }
-      }
-    }
-    final isPendingApproval = pendingRequest != null;
-    final approvalRequest = pendingRequest;
+    final approvalRequest = pendingApprovalRequestFor(
+      approvalService,
+      widget.part,
+    );
+    final isPendingApproval = approvalRequest != null;
 
     final icon = _isAskUser
         ? Icon(
@@ -4499,23 +4491,13 @@ class _ToolCallItemState extends State<_ToolCallItem> {
       );
     }
 
-    // Check if this tool call is pending approval
+    // Check if this tool call is pending approval.
     final approvalService = context.watch<ToolApprovalService>();
-    final isPendingApproval =
-        widget.part.loading &&
-        approvalService.pendingRequests.values.any(
-          (req) => req.toolName == widget.part.toolName,
-        );
-    // Find the matching approval request
-    String? pendingToolCallId;
-    if (isPendingApproval) {
-      try {
-        final req = approvalService.pendingRequests.values.firstWhere(
-          (req) => req.toolName == widget.part.toolName,
-        );
-        pendingToolCallId = req.toolCallId;
-      } catch (_) {}
-    }
+    final approvalRequest = pendingApprovalRequestFor(
+      approvalService,
+      widget.part,
+    );
+    final isPendingApproval = approvalRequest != null;
 
     return IosCardPress(
       borderRadius: BorderRadius.circular(16),
@@ -4662,7 +4644,7 @@ class _ToolCallItemState extends State<_ToolCallItem> {
               ),
             ],
             // Approval action buttons
-            if (isPendingApproval && pendingToolCallId != null) ...[
+            if (approvalRequest != null) ...[
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -4674,7 +4656,7 @@ class _ToolCallItemState extends State<_ToolCallItem> {
                       onTap: () => _showDenyDialog(
                         context,
                         approvalService,
-                        pendingToolCallId!,
+                        approvalRequest.toolCallId,
                       ),
                     ),
                   ),
@@ -4684,7 +4666,8 @@ class _ToolCallItemState extends State<_ToolCallItem> {
                       label: l10n.toolApprovalApprove,
                       color: fg.accent,
                       filled: true,
-                      onTap: () => approvalService.approve(pendingToolCallId!),
+                      onTap: () =>
+                          approvalService.approve(approvalRequest.toolCallId),
                     ),
                   ),
                 ],

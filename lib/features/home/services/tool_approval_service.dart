@@ -65,6 +65,14 @@ class ToolApprovalService extends ChangeNotifier {
     required Map<String, dynamic> arguments,
     String? conversationId,
   }) {
+    // A provider retry can re-emit the same tool_call_id while the first
+    // request is still pending; silently overwriting would orphan the first
+    // completer and its awaiting handler could never resume. Complete it as
+    // replaced before inserting the new request.
+    final existing = _pending[toolCallId];
+    if (existing != null && !existing._completer.isCompleted) {
+      existing._completer.complete(ToolApprovalResult.denied('replaced'));
+    }
     final completer = Completer<ToolApprovalResult>();
     _pending[toolCallId] = ToolApprovalRequest(
       toolCallId: toolCallId,

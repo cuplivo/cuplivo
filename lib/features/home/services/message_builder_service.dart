@@ -651,10 +651,10 @@ class MessageBuilderService {
     // Apply message template to last user message (skipped when time injection active)
     if (lastUserIdx != -1 && (assistant?.enableTimeInjection != true)) {
       final userText = (apiMessages[lastUserIdx]['content'] ?? '').toString();
-      final templ =
-          (assistant?.messageTemplate ?? '{{ message }}').trim().isEmpty
+      final configuredTemplate = assistant?.messageTemplate ?? '{{ message }}';
+      final templ = configuredTemplate.trim().isEmpty
           ? '{{ message }}'
-          : (assistant!.messageTemplate);
+          : configuredTemplate;
       final templated = PromptTransformer.applyMessageTemplate(
         templ,
         role: 'user',

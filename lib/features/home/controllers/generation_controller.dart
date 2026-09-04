@@ -13,6 +13,7 @@ import '../../../utils/assistant_regex.dart';
 import '../../../core/models/assistant_regex.dart';
 import '../services/message_builder_service.dart';
 import '../services/ask_user_interaction_service.dart';
+import '../services/quick_instruction_execution_policy.dart';
 import '../services/tool_handler_service.dart';
 import '../services/tool_approval_service.dart';
 import 'chat_controller.dart';
@@ -172,6 +173,7 @@ class GenerationController {
     String? conversationId,
     Conversation? conversation,
     WorkspaceExecutionContext? workspaceExecutionContext,
+    QuickInstructionExecutionPolicy? quickInstructionPolicy,
   }) {
     return toolHandlerService.buildToolCallHandler(
       settings,
@@ -181,6 +183,7 @@ class GenerationController {
       conversationId: conversationId,
       conversation: conversation,
       workspaceExecutionContext: workspaceExecutionContext,
+      quickInstructionPolicy: quickInstructionPolicy,
     );
   }
 

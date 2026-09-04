@@ -97,7 +97,8 @@ const Set<String> metadataExcludedRowKeys = {
 
 /// Deep equality for the row values compared by [conversationMetadataConflict]
 /// (nested maps/lists compare by content, not identity — e.g.
-/// `versionSelections`, `workspaceDirectoryOverrides`, `chatSuggestions`).
+/// `versionSelections`, `workspaceDirectoryOverrides`, `chatSuggestions`,
+/// `persistentQuickInstructionIds`).
 bool _deepEquals(Object? a, Object? b) {
   if (identical(a, b)) return true;
   if (a is Map && b is Map) {

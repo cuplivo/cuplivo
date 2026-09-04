@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/models/chat_message.dart';
+import '../core/utils/quick_instruction_presentation.dart';
 import '../l10n/app_localizations.dart';
 import '../icons/lucide_adapter.dart';
 import '../shared/widgets/snackbar.dart';
@@ -49,7 +50,9 @@ class _SelectCopyDesktopDialogState extends State<_SelectCopyDesktopDialog> {
 
   Future<void> _copyAll(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
-    await Clipboard.setData(ClipboardData(text: widget.message.content));
+    await Clipboard.setData(
+      ClipboardData(text: quickInstructionDecoratedContent(widget.message)),
+    );
     if (!context.mounted) return;
     showAppSnackBar(
       context,
@@ -135,7 +138,7 @@ class _SelectCopyDesktopDialogState extends State<_SelectCopyDesktopDialog> {
                             primary: false,
                             padding: const EdgeInsets.all(12),
                             child: Text(
-                              widget.message.content,
+                              quickInstructionDecoratedContent(widget.message),
                               style: TextStyle(fontSize: 15, height: 1.5),
                             ),
                           ),

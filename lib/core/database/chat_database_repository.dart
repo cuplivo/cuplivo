@@ -577,12 +577,52 @@ class ChatDatabaseRepository {
           SELECT 1 FROM message_rows mx
           WHERE mx.conversation_id = c.id
             AND mx.role IN ('user', 'assistant')
-            AND LOWER(mx.content) LIKE ? ESCAPE '\\'
+            AND (
+              LOWER(mx.content) LIKE ? ESCAPE '\\'
+              OR EXISTS (
+                SELECT 1
+                FROM json_each(
+                  CASE
+                    WHEN json_valid(mx.quick_instruction_invocations_json)
+                      THEN mx.quick_instruction_invocations_json
+                    ELSE '[]'
+                  END
+                ) qi
+                WHERE LOWER(
+                  json_extract(
+                    CASE WHEN json_valid(qi.value) THEN qi.value ELSE '{}' END,
+                    '\$.title'
+                  )
+                )
+                  LIKE ? ESCAPE '\\'
+              )
+            )
         )
         ''');
-      existsArgs.add(pattern);
-      messageAnyClauses.add('LOWER(m.content) LIKE ? ESCAPE \'\\\'');
-      messageArgs.add(pattern);
+      existsArgs.addAll(<Object?>[pattern, pattern]);
+      messageAnyClauses.add('''
+        (
+          LOWER(m.content) LIKE ? ESCAPE '\\'
+          OR EXISTS (
+            SELECT 1
+            FROM json_each(
+              CASE
+                WHEN json_valid(m.quick_instruction_invocations_json)
+                  THEN m.quick_instruction_invocations_json
+                ELSE '[]'
+              END
+            ) qi
+            WHERE LOWER(
+              json_extract(
+                CASE WHEN json_valid(qi.value) THEN qi.value ELSE '{}' END,
+                '\$.title'
+              )
+            )
+              LIKE ? ESCAPE '\\'
+          )
+        )
+        ''');
+      messageArgs.addAll(<Object?>[pattern, pattern]);
     }
 
     final candidateLimit = (limit * candidateMultiplier)
@@ -597,6 +637,8 @@ class ChatDatabaseRepository {
         c.version_selections_json AS version_selections_json,
         m.id AS message_id,
         m.content AS message_content,
+        m.quick_instruction_invocations_json
+          AS quick_instruction_invocations_json,
         m.role AS message_role,
         m.group_id AS group_id,
         m.version AS version,
@@ -630,6 +672,8 @@ class ChatDatabaseRepository {
             ),
             messageId: row['message_id'] as String?,
             messageContent: row['message_content'] as String?,
+            quickInstructionInvocationsJson:
+                row['quick_instruction_invocations_json'] as String?,
             messageRole: row['message_role'] as String?,
             groupId: row['group_id'] as String?,
             version: row['version'] as int?,
@@ -1205,6 +1249,9 @@ class ChatDatabaseRepository {
       workspaceDirectoryOverrides: _decodeStringStringMap(
         row.workspaceDirectoryOverridesJson,
       ),
+      persistentQuickInstructionIds: _decodeStringList(
+        row.persistentQuickInstructionIdsJson,
+      ),
     );
   }
 
@@ -1254,6 +1301,10 @@ class ChatDatabaseRepository {
       workspaceDirectoryOverrides: _decodeStringStringMap(
         _readOptionalString(row, 'workspace_directory_overrides_json') ?? '{}',
       ),
+      persistentQuickInstructionIds: _decodeStringList(
+        _readOptionalString(row, 'persistent_quick_instruction_ids_json') ??
+            '[]',
+      ),
     );
   }
 
@@ -1301,6 +1352,9 @@ class ChatDatabaseRepository {
       workspaceDirectoryOverridesJson: Value(
         jsonEncode(conversation.workspaceDirectoryOverrides),
       ),
+      persistentQuickInstructionIdsJson: Value(
+        jsonEncode(conversation.persistentQuickInstructionIds),
+      ),
     );
   }
 
@@ -1333,6 +1387,7 @@ class ChatDatabaseRepository {
       requestAllowImagesApiRouting: row.requestAllowImagesApiRouting,
       requestExtraBodyJson: row.requestExtraBodyJson,
       quoteJson: row.quoteJson,
+      quickInstructionInvocationsJson: row.quickInstructionInvocationsJson,
     );
   }
 
@@ -1373,6 +1428,10 @@ class ChatDatabaseRepository {
       ),
       requestExtraBodyJson: _readOptionalString(row, 'request_extra_body_json'),
       quoteJson: _readOptionalString(row, 'quote_json'),
+      quickInstructionInvocationsJson: _readOptionalString(
+        row,
+        'quick_instruction_invocations_json',
+      ),
     );
   }
 
@@ -1422,6 +1481,9 @@ class ChatDatabaseRepository {
       requestAllowImagesApiRouting: Value(message.requestAllowImagesApiRouting),
       requestExtraBodyJson: Value(message.requestExtraBodyJson),
       quoteJson: Value(message.quoteJson),
+      quickInstructionInvocationsJson: Value(
+        message.quickInstructionInvocationsJson,
+      ),
       messageOrder: messageOrder,
     );
   }
@@ -1631,6 +1693,7 @@ class ConversationSearchMatch {
     required this.versionSelections,
     required this.messageId,
     required this.messageContent,
+    this.quickInstructionInvocationsJson,
     required this.messageRole,
     required this.groupId,
     required this.version,
@@ -1643,6 +1706,7 @@ class ConversationSearchMatch {
   final Map<String, int> versionSelections;
   final String? messageId;
   final String? messageContent;
+  final String? quickInstructionInvocationsJson;
   final String? messageRole;
   final String? groupId;
   final int? version;

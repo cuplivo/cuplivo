@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import '../../../core/models/chat_message.dart';
+import '../../../core/utils/quick_instruction_presentation.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/mini_map/mini_map_shared.dart';
@@ -455,7 +456,8 @@ class _MiniMapSearchRow extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isUser = message.role == 'user';
-    final snippet = miniMapHitSnippet(message.content, tokens);
+    final displayContent = quickInstructionDecoratedContent(message);
+    final snippet = miniMapHitSnippet(displayContent, tokens);
 
     final selected =
         selecting &&
@@ -515,7 +517,9 @@ class _MiniMapSearchRow extends StatelessWidget {
                   text: TextSpan(
                     children: buildMiniMapHighlightSpans(
                       snippet.isEmpty
-                          ? miniMapOneLine(message.content)
+                          ? miniMapOneLine(
+                              quickInstructionDecoratedContent(message),
+                            )
                           : snippet,
                       tokens,
                       baseStyle,
@@ -549,7 +553,9 @@ class _MiniMapRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final userText = pair.user?.content ?? '';
+    final userText = pair.user == null
+        ? ''
+        : quickInstructionDecoratedContent(pair.user!);
     final asstText = pair.assistant?.content ?? '';
 
     final bool userSelected =

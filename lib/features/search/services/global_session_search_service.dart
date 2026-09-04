@@ -1,5 +1,7 @@
 import '../../../core/database/chat_database_repository.dart';
+import '../../../core/models/quick_instruction.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/utils/quick_instruction_presentation.dart';
 
 class GlobalSessionSearchResult {
   const GlobalSessionSearchResult({
@@ -92,7 +94,16 @@ class GlobalSessionSearchService {
       // Only search visible conversation body: user + assistant messages.
       // Exclude tool/system-like messages and hidden reasoning/thought blocks.
       if (m.messageRole != 'user' && m.messageRole != 'assistant') continue;
-      final body = _searchableBody(m.messageContent ?? '');
+      final markers = quickInstructionSnapshotNameMarkers(
+        QuickInstructionInvocationSnapshot.decodeList(
+          m.quickInstructionInvocationsJson,
+        ),
+      );
+      final rawBody = <String>[
+        if (markers.isNotEmpty) markers,
+        m.messageContent ?? '',
+      ].join('\n');
+      final body = _searchableBody(rawBody);
       if (body.isEmpty) continue;
       final messageId = m.messageId;
       if (messageId == null || messageId.isEmpty) continue;

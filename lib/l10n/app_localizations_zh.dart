@@ -72,7 +72,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsPageQuickPhrase => '快捷短语';
 
   @override
-  String get settingsPageInstructionInjection => '指令注入';
+  String get settingsPageInstructionInjection => '快捷指令';
 
   @override
   String get settingsPageDataSection => '数据设置';
@@ -6418,28 +6418,28 @@ class AppLocalizationsZh extends AppLocalizations {
   String get quickPhraseSaveButton => '保存';
 
   @override
-  String get instructionInjectionTitle => '指令注入';
+  String get instructionInjectionTitle => '快捷指令';
 
   @override
   String get instructionInjectionBackTooltip => '返回';
 
   @override
-  String get instructionInjectionAddTooltip => '添加指令注入';
+  String get instructionInjectionAddTooltip => '添加快捷指令';
 
   @override
   String get instructionInjectionImportTooltip => '从文件导入';
 
   @override
-  String get instructionInjectionEmptyMessage => '暂无指令注入卡片';
+  String get instructionInjectionEmptyMessage => '暂无快捷指令';
 
   @override
   String get instructionInjectionDefaultTitle => '学习模式';
 
   @override
-  String get instructionInjectionAddTitle => '添加指令注入';
+  String get instructionInjectionAddTitle => '添加快捷指令';
 
   @override
-  String get instructionInjectionEditTitle => '编辑指令注入';
+  String get instructionInjectionEditTitle => '编辑快捷指令';
 
   @override
   String get instructionInjectionNameLabel => '名称';
@@ -6516,7 +6516,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get quickPhraseMenuTitle => '快捷短语';
 
   @override
-  String get chatInputBarQuickPhraseTooltip => '快捷短语';
+  String get chatInputBarQuickPhraseTooltip => '快捷指令';
 
   @override
   String get assistantEditQuickPhraseDescription => '管理该助手的快捷短语。点击下方按钮添加短语。';
@@ -7275,7 +7275,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get trashTypeWorldBook => 'World Book';
 
   @override
-  String get trashTypeQuickPhrase => '快捷短语';
+  String get trashTypeQuickPhrase => '快捷指令';
 
   @override
   String get trashTypeMcpServer => 'MCP 服务器';
@@ -8023,7 +8023,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assistantEditPageSkillsTab => '技能 (skills)';
 
   @override
-  String get assistantEditPageBindingsTab => '世界书与指令注入';
+  String get assistantEditPageBindingsTab => '世界书与快捷指令';
 
   @override
   String get settingsPageSkills => '技能 (skills)';
@@ -9296,6 +9296,118 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get messageStyleSettingsPageTitle => '消息样式';
+
+  @override
+  String get quickInstructionAdvancedSettings => '高级设置';
+
+  @override
+  String get quickInstructionPlacementTitle => '指令插入位置';
+
+  @override
+  String get quickInstructionPlacementSystem => '系统提示词中';
+
+  @override
+  String get quickInstructionPlacementBeforeUser => '用户消息前';
+
+  @override
+  String get quickInstructionPlacementAfterUser => '用户消息后';
+
+  @override
+  String get quickInstructionPlacementInputBox => '进入输入框';
+
+  @override
+  String get quickInstructionPlacementBeforeOneShot => '用户消息前 · 单轮生效';
+
+  @override
+  String get quickInstructionPlacementBeforePersistent => '用户消息前 · 持久生效';
+
+  @override
+  String get quickInstructionPlacementAfterOneShot => '用户消息后 · 单轮生效';
+
+  @override
+  String get quickInstructionPlacementAfterPersistent => '用户消息后 · 持久生效';
+
+  @override
+  String get quickInstructionTriggerTitle => '指令触发方式';
+
+  @override
+  String get quickInstructionTriggerOneShot => '触发时单轮对话生效';
+
+  @override
+  String get quickInstructionTriggerPersistent => '启用时持久生效';
+
+  @override
+  String get quickInstructionRetainHistoryTitle => '保留到历史上下文';
+
+  @override
+  String get quickInstructionRetainHistorySubtitle => '只要所属消息仍在上下文中，就会继续注入该指令';
+
+  @override
+  String get quickInstructionToolRestrictionTitle => '是否启用工具限制';
+
+  @override
+  String get quickInstructionToolRestrictionSubtitle =>
+      '仅限制受此快捷指令影响的请求，不修改助手设置';
+
+  @override
+  String get quickInstructionInputBoxNoTools => '进入输入框的指令不可限制工具';
+
+  @override
+  String get quickInstructionLocalToolsTitle => '本地工具';
+
+  @override
+  String get quickInstructionMcpServersTitle => 'MCP 服务器';
+
+  @override
+  String get quickInstructionFilesystemToolsTitle => '文件系统工具';
+
+  @override
+  String get quickInstructionDisableShellTitle => '禁用 Shell';
+
+  @override
+  String get quickInstructionSwitchOnMeansDisabled => '开表示禁用该工具';
+
+  @override
+  String get quickInstructionCommandLimitsTitle => '命令限制';
+
+  @override
+  String get quickInstructionCommandBlocklist => '命令黑名单';
+
+  @override
+  String get quickInstructionCommandPatternHint => '每行一个完整 glob，支持 * 和 ?';
+
+  @override
+  String get quickInstructionNoMcpServers => '尚未配置 MCP 服务器';
+
+  @override
+  String get quickInstructionRequiredField => '必填';
+
+  @override
+  String get quickInstructionManageButton => '管理快捷指令';
+
+  @override
+  String get quickInstructionCleanupTitle => '清理启用状态？';
+
+  @override
+  String quickInstructionCleanupMessage(
+    int assistantCount,
+    int conversationCount,
+  ) {
+    return '此变更会为 $assistantCount 个助手和 $conversationCount 个会话停用该指令；历史快照不会改变。';
+  }
+
+  @override
+  String get quickInstructionContinueButton => '继续';
+
+  @override
+  String quickInstructionToolUnavailable(String toolId) {
+    return '此设备不可用 · $toolId';
+  }
+
+  @override
+  String quickInstructionMcpOffline(String serverId) {
+    return '离线 · $serverId';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -9366,7 +9478,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get settingsPageQuickPhrase => '快捷短语';
 
   @override
-  String get settingsPageInstructionInjection => '指令注入';
+  String get settingsPageInstructionInjection => '快捷指令';
 
   @override
   String get settingsPageDataSection => '数据设置';
@@ -15712,28 +15824,28 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get quickPhraseSaveButton => '保存';
 
   @override
-  String get instructionInjectionTitle => '指令注入';
+  String get instructionInjectionTitle => '快捷指令';
 
   @override
   String get instructionInjectionBackTooltip => '返回';
 
   @override
-  String get instructionInjectionAddTooltip => '添加指令注入';
+  String get instructionInjectionAddTooltip => '添加快捷指令';
 
   @override
   String get instructionInjectionImportTooltip => '从文件导入';
 
   @override
-  String get instructionInjectionEmptyMessage => '暂无指令注入卡片';
+  String get instructionInjectionEmptyMessage => '暂无快捷指令';
 
   @override
   String get instructionInjectionDefaultTitle => '学习模式';
 
   @override
-  String get instructionInjectionAddTitle => '添加指令注入';
+  String get instructionInjectionAddTitle => '添加快捷指令';
 
   @override
-  String get instructionInjectionEditTitle => '编辑指令注入';
+  String get instructionInjectionEditTitle => '编辑快捷指令';
 
   @override
   String get instructionInjectionNameLabel => '名称';
@@ -15810,7 +15922,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get quickPhraseMenuTitle => '快捷短语';
 
   @override
-  String get chatInputBarQuickPhraseTooltip => '快捷短语';
+  String get chatInputBarQuickPhraseTooltip => '快捷指令';
 
   @override
   String get assistantEditQuickPhraseDescription => '管理该助手的快捷短语。点击下方按钮添加或编辑短语。';
@@ -16569,7 +16681,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get trashTypeWorldBook => 'World Book';
 
   @override
-  String get trashTypeQuickPhrase => '快捷短语';
+  String get trashTypeQuickPhrase => '快捷指令';
 
   @override
   String get trashTypeMcpServer => 'MCP 服务器';
@@ -17317,7 +17429,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get assistantEditPageSkillsTab => '技能 (skills)';
 
   @override
-  String get assistantEditPageBindingsTab => '世界书与指令注入';
+  String get assistantEditPageBindingsTab => '世界书与快捷指令';
 
   @override
   String get settingsPageSkills => '技能 (skills)';
@@ -18590,6 +18702,118 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get messageStyleSettingsPageTitle => '消息样式';
+
+  @override
+  String get quickInstructionAdvancedSettings => '高级设置';
+
+  @override
+  String get quickInstructionPlacementTitle => '指令插入位置';
+
+  @override
+  String get quickInstructionPlacementSystem => '系统提示词中';
+
+  @override
+  String get quickInstructionPlacementBeforeUser => '用户消息前';
+
+  @override
+  String get quickInstructionPlacementAfterUser => '用户消息后';
+
+  @override
+  String get quickInstructionPlacementInputBox => '进入输入框';
+
+  @override
+  String get quickInstructionPlacementBeforeOneShot => '用户消息前 · 单轮生效';
+
+  @override
+  String get quickInstructionPlacementBeforePersistent => '用户消息前 · 持久生效';
+
+  @override
+  String get quickInstructionPlacementAfterOneShot => '用户消息后 · 单轮生效';
+
+  @override
+  String get quickInstructionPlacementAfterPersistent => '用户消息后 · 持久生效';
+
+  @override
+  String get quickInstructionTriggerTitle => '指令触发方式';
+
+  @override
+  String get quickInstructionTriggerOneShot => '触发时单轮对话生效';
+
+  @override
+  String get quickInstructionTriggerPersistent => '启用时持久生效';
+
+  @override
+  String get quickInstructionRetainHistoryTitle => '保留到历史上下文';
+
+  @override
+  String get quickInstructionRetainHistorySubtitle => '只要所属消息仍在上下文中，就会继续注入该指令';
+
+  @override
+  String get quickInstructionToolRestrictionTitle => '是否启用工具限制';
+
+  @override
+  String get quickInstructionToolRestrictionSubtitle =>
+      '仅限制受此快捷指令影响的请求，不修改助手设置';
+
+  @override
+  String get quickInstructionInputBoxNoTools => '进入输入框的指令不可限制工具';
+
+  @override
+  String get quickInstructionLocalToolsTitle => '本地工具';
+
+  @override
+  String get quickInstructionMcpServersTitle => 'MCP 服务器';
+
+  @override
+  String get quickInstructionFilesystemToolsTitle => '文件系统工具';
+
+  @override
+  String get quickInstructionDisableShellTitle => '禁用 Shell';
+
+  @override
+  String get quickInstructionSwitchOnMeansDisabled => '开表示禁用该工具';
+
+  @override
+  String get quickInstructionCommandLimitsTitle => '命令限制';
+
+  @override
+  String get quickInstructionCommandBlocklist => '命令黑名单';
+
+  @override
+  String get quickInstructionCommandPatternHint => '每行一个完整 glob，支持 * 和 ?';
+
+  @override
+  String get quickInstructionNoMcpServers => '尚未配置 MCP 服务器';
+
+  @override
+  String get quickInstructionRequiredField => '必填';
+
+  @override
+  String get quickInstructionManageButton => '管理快捷指令';
+
+  @override
+  String get quickInstructionCleanupTitle => '清理启用状态？';
+
+  @override
+  String quickInstructionCleanupMessage(
+    int assistantCount,
+    int conversationCount,
+  ) {
+    return '此变更会为 $assistantCount 个助手和 $conversationCount 个会话停用该指令；历史快照不会改变。';
+  }
+
+  @override
+  String get quickInstructionContinueButton => '继续';
+
+  @override
+  String quickInstructionToolUnavailable(String toolId) {
+    return '此设备不可用 · $toolId';
+  }
+
+  @override
+  String quickInstructionMcpOffline(String serverId) {
+    return '离线 · $serverId';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -18660,7 +18884,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settingsPageQuickPhrase => '快捷短语';
 
   @override
-  String get settingsPageInstructionInjection => '指令注入';
+  String get settingsPageInstructionInjection => '快捷指令';
 
   @override
   String get settingsPageDataSection => '資料設定';
@@ -25005,28 +25229,28 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get quickPhraseSaveButton => '儲存';
 
   @override
-  String get instructionInjectionTitle => '指令注入';
+  String get instructionInjectionTitle => '快捷指令';
 
   @override
   String get instructionInjectionBackTooltip => '返回';
 
   @override
-  String get instructionInjectionAddTooltip => '新增指令注入';
+  String get instructionInjectionAddTooltip => '新增快捷指令';
 
   @override
   String get instructionInjectionImportTooltip => '從檔案匯入';
 
   @override
-  String get instructionInjectionEmptyMessage => '暫無指令注入卡片';
+  String get instructionInjectionEmptyMessage => '暫無快捷指令';
 
   @override
   String get instructionInjectionDefaultTitle => '學習模式';
 
   @override
-  String get instructionInjectionAddTitle => '新增指令注入';
+  String get instructionInjectionAddTitle => '新增快捷指令';
 
   @override
-  String get instructionInjectionEditTitle => '編輯指令注入';
+  String get instructionInjectionEditTitle => '編輯快捷指令';
 
   @override
   String get instructionInjectionNameLabel => '名稱';
@@ -25103,7 +25327,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get quickPhraseMenuTitle => '快捷片語';
 
   @override
-  String get chatInputBarQuickPhraseTooltip => '快捷片語';
+  String get chatInputBarQuickPhraseTooltip => '快捷指令';
 
   @override
   String get assistantEditQuickPhraseDescription =>
@@ -25864,7 +26088,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get trashTypeWorldBook => 'World Book';
 
   @override
-  String get trashTypeQuickPhrase => '快捷短語';
+  String get trashTypeQuickPhrase => '快捷指令';
 
   @override
   String get trashTypeMcpServer => 'MCP 伺服器';
@@ -26612,7 +26836,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get assistantEditPageSkillsTab => '技能 (skills)';
 
   @override
-  String get assistantEditPageBindingsTab => '世界書與指令注入';
+  String get assistantEditPageBindingsTab => '世界書與快捷指令';
 
   @override
   String get settingsPageSkills => '技能 (skills)';
@@ -27886,4 +28110,116 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get messageStyleSettingsPageTitle => '訊息樣式';
+
+  @override
+  String get quickInstructionAdvancedSettings => '進階設定';
+
+  @override
+  String get quickInstructionPlacementTitle => '指令插入位置';
+
+  @override
+  String get quickInstructionPlacementSystem => '系統提示詞中';
+
+  @override
+  String get quickInstructionPlacementBeforeUser => '使用者訊息前';
+
+  @override
+  String get quickInstructionPlacementAfterUser => '使用者訊息後';
+
+  @override
+  String get quickInstructionPlacementInputBox => '進入輸入框';
+
+  @override
+  String get quickInstructionPlacementBeforeOneShot => '使用者訊息前 · 單輪生效';
+
+  @override
+  String get quickInstructionPlacementBeforePersistent => '使用者訊息前 · 持久生效';
+
+  @override
+  String get quickInstructionPlacementAfterOneShot => '使用者訊息後 · 單輪生效';
+
+  @override
+  String get quickInstructionPlacementAfterPersistent => '使用者訊息後 · 持久生效';
+
+  @override
+  String get quickInstructionTriggerTitle => '指令觸發方式';
+
+  @override
+  String get quickInstructionTriggerOneShot => '觸發時單輪對話生效';
+
+  @override
+  String get quickInstructionTriggerPersistent => '啟用時持久生效';
+
+  @override
+  String get quickInstructionRetainHistoryTitle => '保留到歷史上下文';
+
+  @override
+  String get quickInstructionRetainHistorySubtitle => '只要所屬訊息仍在上下文中，就會繼續注入該指令';
+
+  @override
+  String get quickInstructionToolRestrictionTitle => '是否啟用工具限制';
+
+  @override
+  String get quickInstructionToolRestrictionSubtitle =>
+      '僅限制受此快捷指令影響的請求，不修改助手設定';
+
+  @override
+  String get quickInstructionInputBoxNoTools => '進入輸入框的指令不可限制工具';
+
+  @override
+  String get quickInstructionLocalToolsTitle => '本機工具';
+
+  @override
+  String get quickInstructionMcpServersTitle => 'MCP 伺服器';
+
+  @override
+  String get quickInstructionFilesystemToolsTitle => '檔案系統工具';
+
+  @override
+  String get quickInstructionDisableShellTitle => '停用 Shell';
+
+  @override
+  String get quickInstructionSwitchOnMeansDisabled => '開表示停用該工具';
+
+  @override
+  String get quickInstructionCommandLimitsTitle => '命令限制';
+
+  @override
+  String get quickInstructionCommandBlocklist => '命令黑名單';
+
+  @override
+  String get quickInstructionCommandPatternHint => '每行一個完整 glob，支援 * 和 ?';
+
+  @override
+  String get quickInstructionNoMcpServers => '尚未設定 MCP 伺服器';
+
+  @override
+  String get quickInstructionRequiredField => '必填';
+
+  @override
+  String get quickInstructionManageButton => '管理快捷指令';
+
+  @override
+  String get quickInstructionCleanupTitle => '清理啟用狀態？';
+
+  @override
+  String quickInstructionCleanupMessage(
+    int assistantCount,
+    int conversationCount,
+  ) {
+    return '此變更會為 $assistantCount 個助手和 $conversationCount 個對話停用該指令；歷史快照不會改變。';
+  }
+
+  @override
+  String get quickInstructionContinueButton => '繼續';
+
+  @override
+  String quickInstructionToolUnavailable(String toolId) {
+    return '此裝置不可用 · $toolId';
+  }
+
+  @override
+  String quickInstructionMcpOffline(String serverId) {
+    return '離線 · $serverId';
+  }
 }

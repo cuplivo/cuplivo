@@ -16,7 +16,6 @@ const String inputBarButtonQuickPhrase = 'quickPhrase';
 const String inputBarButtonCamera = 'camera';
 const String inputBarButtonPhotos = 'photos';
 const String inputBarButtonUpload = 'upload';
-const String inputBarButtonLearning = 'learning';
 const String inputBarButtonWorldBook = 'worldBook';
 const String inputBarButtonSkills = 'skills';
 const String inputBarButtonContext = 'context';
@@ -36,7 +35,6 @@ const List<String> defaultInputBarButtonIds = [
   inputBarButtonCamera,
   inputBarButtonPhotos,
   inputBarButtonUpload,
-  inputBarButtonLearning,
   inputBarButtonWorldBook,
   inputBarButtonSkills,
   inputBarButtonContext,
@@ -76,7 +74,7 @@ List<String> orderedInputBarButtonIds({required List<String> savedOrder}) {
   return List.unmodifiable(result);
 }
 
-/// Resolved platform layout: the full 15-button order plus the ids tucked into
+/// Resolved platform layout: the full canonical order plus the ids tucked into
 /// the platform More bucket.
 class InputBarButtonLayout {
   const InputBarButtonLayout({required this.orderedIds, required this.moreIds});

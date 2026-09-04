@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/message_quote.dart';
+import '../../../core/models/quick_instruction.dart';
 
 /// Persists the chat input bar's unsent content (`text` + media) across app
 /// restarts, under the single global key `chat_draft_v1`.
@@ -158,7 +159,8 @@ class InputDraftPersistence with WidgetsBindingObserver {
         input.text.trim().isEmpty &&
         input.imagePaths.isEmpty &&
         input.documents.isEmpty &&
-        input.quote == null;
+        input.quote == null &&
+        input.quickInstructions.isEmpty;
     if (empty) {
       prefs.remove(key);
       return;
@@ -176,6 +178,12 @@ class InputDraftPersistence with WidgetsBindingObserver {
       ],
       if (input.quote != null) 'quote': input.quote!.toJson(),
       if (input.quoteSnippet != null) 'quoteSnippet': input.quoteSnippet,
+      if (input.quickInstructions.isNotEmpty)
+        'quickInstructions': [
+          for (final instruction in input.quickInstructions)
+            instruction.toJson(),
+        ],
+      if (input.quickInstructionsFrozen) 'quickInstructionsFrozen': true,
     });
   }
 
@@ -221,6 +229,11 @@ class InputDraftPersistence with WidgetsBindingObserver {
         documents: parsedDocs,
         quote: quote,
         quoteSnippet: map['quoteSnippet'] as String?,
+        quickInstructions: QuickInstructionInvocationSnapshot.decodeList(
+          map['quickInstructions'],
+        ),
+        quickInstructionsFrozen:
+            map['quickInstructionsFrozen'] as bool? ?? false,
       );
     } catch (e) {
       debugPrint('[InputDraftPersistence] draft decode failed: $e');

@@ -12,11 +12,13 @@ import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/generation_engine.dart';
+import '../../../core/services/quick_instruction_store.dart';
 import '../../../utils/utf16_safe_cut.dart';
 import '../../chat/utils/thinking_tag_parser.dart';
 import 'ask_user_interaction_service.dart';
 import 'local_tools_service.dart';
 import 'message_builder_service.dart';
+import 'quick_instruction_execution_policy.dart';
 import 'tool_approval_service.dart';
 import 'tool_handler_service.dart';
 
@@ -221,6 +223,13 @@ class HandoffToolService {
       );
       // ignore: use_build_context_synchronously (root context)
       final toolHandler = ToolHandlerService(contextProvider: context);
+      final quickInstructionPolicy =
+          QuickInstructionExecutionPolicy.fromSources(
+            systemInstructions: await QuickInstructionStore.shared(
+              context.read<BusinessPreferences>(),
+            ).getActives(assistantId: target.id),
+            anchorInvocations: const [],
+          );
       final workspaceExecutionContext = toolHandler
           .resolveWorkspaceExecutionContext(target, conversation);
       messageBuilder.injectSystemPrompt(apiMessages, target, modelId);
@@ -271,6 +280,9 @@ class HandoffToolService {
               conversationId: conversation.id,
               conversation: conversation,
               workspaceExecutionContext: workspaceExecutionContext,
+              quickInstructionPolicy: quickInstructionPolicy.isEmpty
+                  ? null
+                  : quickInstructionPolicy,
             )
           : null;
 

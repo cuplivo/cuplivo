@@ -25,16 +25,14 @@ import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/models/preset_message.dart';
-import '../../../core/models/quick_phrase.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/mcp_provider.dart';
 import '../../../core/providers/memory_provider.dart';
-import '../../../core/providers/instruction_injection_provider.dart';
-import '../../../core/providers/quick_phrase_provider.dart';
+import '../../../core/providers/quick_instruction_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/workspace_provider.dart';
 import '../../../core/providers/world_book_provider.dart';
-import '../../../core/models/instruction_injection.dart';
+import '../../../core/models/quick_instruction.dart';
 import '../../../core/models/world_book.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/haptics.dart';
@@ -70,7 +68,6 @@ part 'assistant_settings_edit_prompt_tab.dart';
 part 'assistant_settings_edit_memory_tab.dart';
 part 'assistant_settings_edit_local_tools_tab.dart';
 part 'assistant_settings_edit_mcp_tab.dart';
-part 'assistant_settings_edit_quick_phrase_tab.dart';
 part 'assistant_settings_edit_custom_request_tab.dart';
 part 'assistant_settings_edit_proactive_letter_tab.dart';
 part 'assistant_settings_edit_skills_tab.dart';
@@ -139,12 +136,6 @@ List<_AssistantEditTabSpec> _assistantEditTabSpecs(
       label: l10n.assistantEditPageMcpTab,
       icon: Lucide.Terminal,
       child: _McpTab(assistantId: assistantId),
-    ),
-    _AssistantEditTabSpec(
-      id: assistantEditTabQuickPhrase,
-      label: l10n.assistantEditPageQuickPhraseTab,
-      icon: Lucide.Zap,
-      child: _QuickPhraseTab(assistantId: assistantId),
     ),
     _AssistantEditTabSpec(
       id: assistantEditTabCustom,
@@ -1481,7 +1472,6 @@ enum _AssistantDesktopMenu {
   skills,
   bindings,
   mcp,
-  quick,
   custom,
   regex,
 }
@@ -1605,8 +1595,6 @@ class _DesktopAssistantDialogShellState
                         return _BindingsTab(assistantId: widget.assistantId);
                       case _AssistantDesktopMenu.mcp:
                         return _McpTab(assistantId: widget.assistantId);
-                      case _AssistantDesktopMenu.quick:
-                        return _QuickPhraseTab(assistantId: widget.assistantId);
                       case _AssistantDesktopMenu.custom:
                         return _CustomRequestTab(
                           assistantId: widget.assistantId,
@@ -1650,7 +1638,6 @@ class _DesktopAssistantMenuState extends State<_DesktopAssistantMenu> {
       (_AssistantDesktopMenu.skills, l10n.assistantEditPageSkillsTab),
       (_AssistantDesktopMenu.bindings, l10n.assistantEditPageBindingsTab),
       (_AssistantDesktopMenu.mcp, l10n.assistantEditPageMcpTab),
-      (_AssistantDesktopMenu.quick, l10n.assistantEditPageQuickPhraseTab),
       (_AssistantDesktopMenu.custom, l10n.assistantEditPageCustomTab),
       (_AssistantDesktopMenu.regex, l10n.assistantEditPageRegexTab),
     ];

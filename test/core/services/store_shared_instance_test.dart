@@ -2,9 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/models/assistant_memory.dart';
 import 'package:Cuplivo/core/models/world_book.dart';
-import 'package:Cuplivo/core/services/instruction_injection_store.dart';
 import 'package:Cuplivo/core/services/memory_store.dart';
-import 'package:Cuplivo/core/services/quick_phrase_store.dart';
+import 'package:Cuplivo/core/services/quick_instruction_store.dart';
 import 'package:Cuplivo/core/services/world_book_store.dart';
 
 /// The stores bind their static `shared` instance to the FIRST facade they
@@ -31,26 +30,6 @@ void main() {
       );
     });
 
-    test('QuickPhraseStore.shared is bound to one facade per isolate', () {
-      final prefs = BusinessPreferences.memoryForTests();
-      expect(
-        identical(
-          QuickPhraseStore.shared(prefs),
-          QuickPhraseStore.shared(prefs),
-        ),
-        isTrue,
-      );
-
-      final otherPrefs = BusinessPreferences.memoryForTests();
-      expect(
-        identical(
-          QuickPhraseStore.shared(prefs),
-          QuickPhraseStore.shared(otherPrefs),
-        ),
-        isFalse,
-      );
-    });
-
     test('MemoryStore.shared is bound to one facade per isolate', () {
       final prefs = BusinessPreferences.memoryForTests();
       expect(
@@ -65,28 +44,25 @@ void main() {
       );
     });
 
-    test(
-      'InstructionInjectionStore.shared is bound to one facade per isolate',
-      () {
-        final prefs = BusinessPreferences.memoryForTests();
-        expect(
-          identical(
-            InstructionInjectionStore.shared(prefs),
-            InstructionInjectionStore.shared(prefs),
-          ),
-          isTrue,
-        );
+    test('QuickInstructionStore.shared is bound to one facade per isolate', () {
+      final prefs = BusinessPreferences.memoryForTests();
+      expect(
+        identical(
+          QuickInstructionStore.shared(prefs),
+          QuickInstructionStore.shared(prefs),
+        ),
+        isTrue,
+      );
 
-        final otherPrefs = BusinessPreferences.memoryForTests();
-        expect(
-          identical(
-            InstructionInjectionStore.shared(prefs),
-            InstructionInjectionStore.shared(otherPrefs),
-          ),
-          isFalse,
-        );
-      },
-    );
+      final otherPrefs = BusinessPreferences.memoryForTests();
+      expect(
+        identical(
+          QuickInstructionStore.shared(prefs),
+          QuickInstructionStore.shared(otherPrefs),
+        ),
+        isFalse,
+      );
+    });
 
     test(
       'deletion through one shared reference cannot be resurrected by another',

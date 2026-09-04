@@ -2,9 +2,9 @@ import 'package:Cuplivo/features/home/utils/input_bar_button_layout.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('default order is canonical and complete (15 ids incl. customize)', () {
-    expect(defaultInputBarButtonIds, hasLength(15));
-    expect(defaultInputBarButtonIds.toSet(), hasLength(15));
+  test('default order is canonical and complete (14 ids incl. customize)', () {
+    expect(defaultInputBarButtonIds, hasLength(14));
+    expect(defaultInputBarButtonIds.toSet(), hasLength(14));
     expect(defaultInputBarButtonIds.first, inputBarButtonModel);
     expect(defaultInputBarButtonIds.last, inputBarButtonCustomize);
   });

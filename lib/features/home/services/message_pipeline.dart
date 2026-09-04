@@ -25,6 +25,7 @@ class ModelExecutionContext {
     this.approvalService,
     this.askUserService,
     required this.versionSelections,
+    this.includeUserQuickInstructions = true,
   });
 
   final Conversation conversation;
@@ -33,6 +34,7 @@ class ModelExecutionContext {
   final ToolApprovalService? approvalService;
   final AskUserInteractionService? askUserService;
   final Map<String, int> versionSelections;
+  final bool includeUserQuickInstructions;
 
   String? get assistantId => assistant?.id;
 }
@@ -136,6 +138,7 @@ class MessagePipeline {
             modelId: modelId,
             approvalService: context.approvalService,
             askUserService: context.askUserService,
+            includeUserQuickInstructions: context.includeUserQuickInstructions,
           );
 
       final userMediaPaths = inputData != null

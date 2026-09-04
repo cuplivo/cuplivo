@@ -69,7 +69,6 @@ import 'setting/default_model_pane.dart';
 import 'setting/search_services_pane.dart';
 import 'setting/mcp_pane.dart';
 import 'setting/tts_services_pane.dart';
-import 'setting/quick_phrases_pane.dart';
 import 'setting/instruction_injection_pane.dart';
 import 'setting/world_book_pane.dart';
 import 'setting/backup_pane.dart';
@@ -114,8 +113,7 @@ enum _SettingsMenuItem {
   defaultModel,
   search,
   mcp,
-  quickPhrases,
-  instructionInjection,
+  quickInstructions,
   skills,
   webConversationStyles,
   worldBook,
@@ -245,13 +243,9 @@ class _DesktopSettingsPageState extends State<DesktopSettingsPage> {
                           return const DesktopHotkeysPane(
                             key: ValueKey('hotkeys'),
                           );
-                        case _SettingsMenuItem.quickPhrases:
-                          return const DesktopQuickPhrasesPane(
-                            key: ValueKey('quickPhrases'),
-                          );
-                        case _SettingsMenuItem.instructionInjection:
+                        case _SettingsMenuItem.quickInstructions:
                           return const DesktopInstructionInjectionPane(
-                            key: ValueKey('instructionInjection'),
+                            key: ValueKey('quickInstructions'),
                           );
                         case _SettingsMenuItem.skills:
                           return const DesktopSkillsPane(
@@ -323,13 +317,8 @@ class _SettingsMenu extends StatelessWidget {
       (_SettingsMenuItem.search, lucide.Lucide.Earth, l10n.settingsPageSearch),
       (_SettingsMenuItem.mcp, lucide.Lucide.Terminal, l10n.settingsPageMcp),
       (
-        _SettingsMenuItem.quickPhrases,
+        _SettingsMenuItem.quickInstructions,
         lucide.Lucide.Zap,
-        l10n.settingsPageQuickPhrase,
-      ),
-      (
-        _SettingsMenuItem.instructionInjection,
-        lucide.Lucide.Layers,
         l10n.settingsPageInstructionInjection,
       ),
       (

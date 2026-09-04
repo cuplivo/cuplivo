@@ -229,7 +229,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsPageInstructionInjection.
   ///
   /// In en, this message translates to:
-  /// **'Instruction Injection'**
+  /// **'Quick Instructions'**
   String get settingsPageInstructionInjection;
 
   /// No description provided for @settingsPageDataSection.
@@ -12097,7 +12097,7 @@ abstract class AppLocalizations {
   /// No description provided for @instructionInjectionTitle.
   ///
   /// In en, this message translates to:
-  /// **'Instruction Injection'**
+  /// **'Quick Instructions'**
   String get instructionInjectionTitle;
 
   /// No description provided for @instructionInjectionBackTooltip.
@@ -12109,7 +12109,7 @@ abstract class AppLocalizations {
   /// No description provided for @instructionInjectionAddTooltip.
   ///
   /// In en, this message translates to:
-  /// **'Add Instruction'**
+  /// **'Add Quick Instruction'**
   String get instructionInjectionAddTooltip;
 
   /// No description provided for @instructionInjectionImportTooltip.
@@ -12121,7 +12121,7 @@ abstract class AppLocalizations {
   /// No description provided for @instructionInjectionEmptyMessage.
   ///
   /// In en, this message translates to:
-  /// **'No instruction injection cards yet'**
+  /// **'No quick instructions yet'**
   String get instructionInjectionEmptyMessage;
 
   /// No description provided for @instructionInjectionDefaultTitle.
@@ -12133,13 +12133,13 @@ abstract class AppLocalizations {
   /// No description provided for @instructionInjectionAddTitle.
   ///
   /// In en, this message translates to:
-  /// **'Add Instruction Injection'**
+  /// **'Add Quick Instruction'**
   String get instructionInjectionAddTitle;
 
   /// No description provided for @instructionInjectionEditTitle.
   ///
   /// In en, this message translates to:
-  /// **'Edit Instruction Injection'**
+  /// **'Edit Quick Instruction'**
   String get instructionInjectionEditTitle;
 
   /// No description provided for @instructionInjectionNameLabel.
@@ -12289,7 +12289,7 @@ abstract class AppLocalizations {
   /// No description provided for @chatInputBarQuickPhraseTooltip.
   ///
   /// In en, this message translates to:
-  /// **'Quick Phrase'**
+  /// **'Quick Instructions'**
   String get chatInputBarQuickPhraseTooltip;
 
   /// No description provided for @assistantEditQuickPhraseDescription.
@@ -13702,7 +13702,7 @@ abstract class AppLocalizations {
   /// No description provided for @trashTypeQuickPhrase.
   ///
   /// In en, this message translates to:
-  /// **'Quick Phrase'**
+  /// **'Quick Instruction'**
   String get trashTypeQuickPhrase;
 
   /// No description provided for @trashTypeMcpServer.
@@ -15040,7 +15040,7 @@ abstract class AppLocalizations {
   /// No description provided for @assistantEditPageBindingsTab.
   ///
   /// In en, this message translates to:
-  /// **'WorldBook & Injections'**
+  /// **'WorldBook & Quick Instructions'**
   String get assistantEditPageBindingsTab;
 
   /// No description provided for @settingsPageSkills.
@@ -17460,6 +17460,213 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Message Style'**
   String get messageStyleSettingsPageTitle;
+
+  /// No description provided for @quickInstructionAdvancedSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced settings'**
+  String get quickInstructionAdvancedSettings;
+
+  /// No description provided for @quickInstructionPlacementTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Insertion position'**
+  String get quickInstructionPlacementTitle;
+
+  /// No description provided for @quickInstructionPlacementSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'In system prompt'**
+  String get quickInstructionPlacementSystem;
+
+  /// No description provided for @quickInstructionPlacementBeforeUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Before user message'**
+  String get quickInstructionPlacementBeforeUser;
+
+  /// No description provided for @quickInstructionPlacementAfterUser.
+  ///
+  /// In en, this message translates to:
+  /// **'After user message'**
+  String get quickInstructionPlacementAfterUser;
+
+  /// No description provided for @quickInstructionPlacementInputBox.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert into input box'**
+  String get quickInstructionPlacementInputBox;
+
+  /// No description provided for @quickInstructionPlacementBeforeOneShot.
+  ///
+  /// In en, this message translates to:
+  /// **'Before user message · one turn'**
+  String get quickInstructionPlacementBeforeOneShot;
+
+  /// No description provided for @quickInstructionPlacementBeforePersistent.
+  ///
+  /// In en, this message translates to:
+  /// **'Before user message · persistent'**
+  String get quickInstructionPlacementBeforePersistent;
+
+  /// No description provided for @quickInstructionPlacementAfterOneShot.
+  ///
+  /// In en, this message translates to:
+  /// **'After user message · one turn'**
+  String get quickInstructionPlacementAfterOneShot;
+
+  /// No description provided for @quickInstructionPlacementAfterPersistent.
+  ///
+  /// In en, this message translates to:
+  /// **'After user message · persistent'**
+  String get quickInstructionPlacementAfterPersistent;
+
+  /// No description provided for @quickInstructionTriggerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Trigger method'**
+  String get quickInstructionTriggerTitle;
+
+  /// No description provided for @quickInstructionTriggerOneShot.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to one turn when triggered'**
+  String get quickInstructionTriggerOneShot;
+
+  /// No description provided for @quickInstructionTriggerPersistent.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply persistently while enabled'**
+  String get quickInstructionTriggerPersistent;
+
+  /// No description provided for @quickInstructionRetainHistoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep in history'**
+  String get quickInstructionRetainHistoryTitle;
+
+  /// No description provided for @quickInstructionRetainHistorySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replay this instruction while its message remains in context'**
+  String get quickInstructionRetainHistorySubtitle;
+
+  /// No description provided for @quickInstructionToolRestrictionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable tool restrictions'**
+  String get quickInstructionToolRestrictionTitle;
+
+  /// No description provided for @quickInstructionToolRestrictionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restrict tools only for requests affected by this quick instruction'**
+  String get quickInstructionToolRestrictionSubtitle;
+
+  /// No description provided for @quickInstructionInputBoxNoTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Input-box instructions cannot restrict tools'**
+  String get quickInstructionInputBoxNoTools;
+
+  /// No description provided for @quickInstructionLocalToolsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Local tools'**
+  String get quickInstructionLocalToolsTitle;
+
+  /// No description provided for @quickInstructionMcpServersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'MCP servers'**
+  String get quickInstructionMcpServersTitle;
+
+  /// No description provided for @quickInstructionFilesystemToolsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'File system tools'**
+  String get quickInstructionFilesystemToolsTitle;
+
+  /// No description provided for @quickInstructionDisableShellTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable shell'**
+  String get quickInstructionDisableShellTitle;
+
+  /// No description provided for @quickInstructionSwitchOnMeansDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'On means this tool is disabled'**
+  String get quickInstructionSwitchOnMeansDisabled;
+
+  /// No description provided for @quickInstructionCommandLimitsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Command restrictions'**
+  String get quickInstructionCommandLimitsTitle;
+
+  /// No description provided for @quickInstructionCommandBlocklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Command blocklist'**
+  String get quickInstructionCommandBlocklist;
+
+  /// No description provided for @quickInstructionCommandPatternHint.
+  ///
+  /// In en, this message translates to:
+  /// **'One complete glob per line; supports * and ?'**
+  String get quickInstructionCommandPatternHint;
+
+  /// No description provided for @quickInstructionNoMcpServers.
+  ///
+  /// In en, this message translates to:
+  /// **'No MCP servers configured'**
+  String get quickInstructionNoMcpServers;
+
+  /// No description provided for @quickInstructionRequiredField.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get quickInstructionRequiredField;
+
+  /// No description provided for @quickInstructionManageButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage quick instructions'**
+  String get quickInstructionManageButton;
+
+  /// No description provided for @quickInstructionCleanupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove active references?'**
+  String get quickInstructionCleanupTitle;
+
+  /// No description provided for @quickInstructionCleanupMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This change will disable the instruction for {assistantCount} assistant(s) and {conversationCount} conversation(s). Historical snapshots will remain unchanged.'**
+  String quickInstructionCleanupMessage(
+    int assistantCount,
+    int conversationCount,
+  );
+
+  /// No description provided for @quickInstructionContinueButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get quickInstructionContinueButton;
+
+  /// No description provided for @quickInstructionToolUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable on this device · {toolId}'**
+  String quickInstructionToolUnavailable(String toolId);
+
+  /// No description provided for @quickInstructionMcpOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline · {serverId}'**
+  String quickInstructionMcpOffline(String serverId);
 }
 
 class _AppLocalizationsDelegate

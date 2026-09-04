@@ -5,6 +5,7 @@ import '../../database/business_preferences.dart';
 import '../../providers/assistant_provider.dart';
 import '../../providers/group_chat_provider.dart';
 import '../../providers/mcp_provider.dart';
+import '../../providers/quick_instruction_provider.dart';
 import '../../providers/workspace_provider.dart';
 import '../chat/chat_service.dart';
 import '../saf/saf_mount_sync_service.dart';
@@ -63,6 +64,13 @@ Future<void> refreshProvidersAfterRestore(BuildContext context) async {
     await assistantProvider.reloadFromRepo();
   } catch (e) {
     debugPrint('refreshProvidersAfterRestore: AssistantProvider: $e');
+  }
+  try {
+    // Reload after assistants so legacy assistant-scoped quick phrases can
+    // migrate with stable human-readable assistant names.
+    await context.read<QuickInstructionProvider>().loadAll();
+  } catch (e) {
+    debugPrint('refreshProvidersAfterRestore: QuickInstructionProvider: $e');
   }
   try {
     await groupChatProvider.load();

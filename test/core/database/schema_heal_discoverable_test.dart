@@ -314,6 +314,56 @@ void main() {
     await repo.close();
   });
 
+  test(
+    'heal adds quick-instruction columns on an incomplete v22 database',
+    () async {
+      _createLegacyDb(
+        dbFile,
+        userVersion: 22,
+        missingIsPreset: false,
+        missingHandoffColumns: false,
+        missingContextTokens: false,
+        missingV15RequestMetadata: false,
+        missingQuoteJson: false,
+        includeWorkspaceBindingColumns: true,
+        includeWorkspaceV20Columns: true,
+        missingPreferenceRows: false,
+      );
+
+      final repo = ChatDatabaseRepository.open(file: dbFile);
+      await repo.ensureReady();
+      final conversation = Conversation(
+        title: 'Quick instructions',
+        persistentQuickInstructionIds: const <String>['persistent-1'],
+      );
+      await repo.putConversation(conversation);
+      await repo.putMessage(
+        ChatMessage(
+          role: 'user',
+          content: 'hello',
+          conversationId: conversation.id,
+          quickInstructionInvocationsJson: '[{"instructionId":"once-1"}]',
+        ),
+      );
+
+      final loadedConversation = await repo.getConversation(conversation.id);
+      final loadedMessage = await repo.getMessagesRange(
+        conversation.id,
+        start: 0,
+        limit: 1,
+      );
+      expect(loadedConversation?.persistentQuickInstructionIds, const <String>[
+        'persistent-1',
+      ]);
+      expect(
+        loadedMessage.single.quickInstructionInvocationsJson,
+        '[{"instructionId":"once-1"}]',
+      );
+
+      await repo.close();
+    },
+  );
+
   test('heal adds inject_group_members column on group_chat_rows '
       '(v17 column shape)', () async {
     _createLegacyDb(

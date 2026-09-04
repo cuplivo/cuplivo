@@ -160,6 +160,7 @@ export async function runRecovery(zip: JSZip, sourceFileName: string): Promise<R
       lastSummarizedMessageCount: 0,
       chatSuggestions: [],
       conversationKind: 'normal',
+      persistentQuickInstructionIds: [],
     };
     conversations.push(shell);
   }

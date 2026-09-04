@@ -9,7 +9,7 @@ import 'ios_tactile.dart';
 
 /// Anchored info popover explaining the two image-sending routes (images API
 /// vs chat API / completions). Follows the established popover pattern
-/// (`showDesktopQuickPhrasePopover` et al.): anchor-rect positioning, opens
+/// (the shared desktop popover pattern): anchor-rect positioning, opens
 /// upward above the anchor, glass panel, fade+slide, outside-tap dismiss.
 /// One shared implementation for desktop and mobile — the LivePanel pills sit
 /// right above the input bar, so the panel always has message area to open

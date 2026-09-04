@@ -10,8 +10,8 @@ import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
-import 'package:Cuplivo/core/providers/instruction_injection_provider.dart';
 import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/quick_instruction_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/providers/world_book_provider.dart';
 import 'package:Cuplivo/core/services/api/chat_api_service.dart';
@@ -347,7 +347,7 @@ void main() {
             // does not suspend on real file I/O.
             ChangeNotifierProvider(
               create: (_) =>
-                  InstructionInjectionProvider(preferences: businessPrefs),
+                  QuickInstructionProvider(preferences: businessPrefs),
             ),
             ChangeNotifierProvider(
               create: (_) => WorldBookProvider(

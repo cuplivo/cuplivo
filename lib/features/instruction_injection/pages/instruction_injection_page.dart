@@ -1,25 +1,29 @@
-import 'dart:convert';
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../../core/models/quick_instruction.dart';
+import '../../../core/models/workspace.dart';
+import '../../../core/providers/assistant_provider.dart';
+import '../../../core/providers/instruction_injection_group_provider.dart';
+import '../../../core/providers/mcp_provider.dart';
+import '../../../core/providers/quick_instruction_provider.dart';
+import '../../../core/services/haptics.dart';
+import '../../../features/home/services/local_tools_service.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../core/models/instruction_injection.dart';
-import '../../../core/providers/instruction_injection_provider.dart';
-import '../../../core/providers/instruction_injection_group_provider.dart';
 import '../../../shared/widgets/assistant_bind_multi_select.dart';
-import 'package:uuid/uuid.dart';
-import '../../../core/services/haptics.dart';
-import '../../../shared/widgets/snackbar.dart';
+import '../../../shared/widgets/ios_expandable_section.dart';
+import '../../../shared/widgets/ios_switch.dart';
+import '../../../shared/widgets/ios_tactile.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../theme/app_semantic_colors.dart';
 
 class InstructionInjectionPage extends StatefulWidget {
-  const InstructionInjectionPage({super.key});
+  const InstructionInjectionPage({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   State<InstructionInjectionPage> createState() =>
@@ -27,155 +31,86 @@ class InstructionInjectionPage extends StatefulWidget {
 }
 
 class _InstructionInjectionPageState extends State<InstructionInjectionPage> {
-  static const List<String> _textExtensions = <String>[
-    'txt',
-    'json',
-    'yaml',
-    'yml',
-    'lua',
-    'md',
-    'log',
-    'ini',
-    'conf',
-    'cfg',
-    'csv',
-    'py',
-    'js',
-    'ts',
-    'toml',
-    'xml',
-    'sql',
-    'sh',
-  ];
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<InstructionInjectionProvider>().initialize();
+      context.read<QuickInstructionProvider>().initialize();
     });
   }
 
-  Future<void> _showAddEditSheet({InstructionInjection? item}) async {
+  Future<void> _showAddEditSheet({QuickInstruction? item}) async {
     final cs = Theme.of(context).colorScheme;
-    final provider = context.read<InstructionInjectionProvider>();
+    final provider = context.read<QuickInstructionProvider>();
 
-    final result =
-        await showModalBottomSheet<(Map<String, String>, Set<String>)?>(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: cs.surface,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-          ),
-          builder: (ctx) {
-            return InstructionInjectionEditSheet(item: item);
-          },
-        );
+    final result = await showModalBottomSheet<QuickInstructionEditResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: cs.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return InstructionInjectionEditSheet(item: item);
+      },
+    );
 
     if (!mounted) return;
     if (result == null) return;
-    final (fields, selection) = result;
-
-    final title = fields['title']?.trim() ?? '';
-    final prompt = fields['prompt']?.trim() ?? '';
-    final group = fields['group']?.trim() ?? '';
-    if (title.isEmpty || prompt.isEmpty) return;
-
-    String itemId;
-    if (item == null) {
-      final newItem = InstructionInjection(
-        id: fields['id'] ?? const Uuid().v4(),
-        title: title,
-        prompt: prompt,
-        group: group,
-      );
-      await provider.add(newItem);
-      itemId = newItem.id;
-    } else {
-      await provider.update(
-        item.copyWith(title: title, prompt: prompt, group: group),
-      );
-      itemId = item.id;
+    if (item != null &&
+        ((item.isSystem && !result.item.isSystem) ||
+            (item.isPersistent && !result.item.isPersistent))) {
+      final allowed = await _confirmReferenceCleanup(item);
+      if (allowed != true) return;
     }
+    item == null
+        ? await provider.add(result.item)
+        : await provider.update(result.item);
     if (!mounted) return;
     await applyInjectionBindings(
       context,
-      itemId: itemId,
-      selectedAssistantIds: selection,
+      itemId: result.item.id,
+      selectedAssistantIds: result.item.isSystem
+          ? result.assistantIds
+          : const <String>{},
     );
   }
 
-  Future<void> _deleteItem(InstructionInjection item) async {
-    await context.read<InstructionInjectionProvider>().delete(item.id);
-  }
-
-  Future<String?> _readPickedFileAsString(PlatformFile file) async {
-    try {
-      if (file.bytes != null && file.bytes!.isNotEmpty) {
-        return utf8.decode(file.bytes!, allowMalformed: true);
-      }
-    } catch (_) {}
-    final path = file.path;
-    if (path == null || path.isEmpty) return null;
-    try {
-      return await File(path).readAsString();
-    } catch (_) {
-      try {
-        final bytes = await File(path).readAsBytes();
-        return utf8.decode(bytes, allowMalformed: true);
-      } catch (_) {
-        return null;
-      }
-    }
-  }
-
-  Future<void> _importFromFiles() async {
-    FilePickerResult? result;
-    try {
-      result = await FilePicker.platform.pickFiles(
-        allowMultiple: true,
-        type: FileType.custom,
-        allowedExtensions: _textExtensions,
-        withData: true,
-      );
-    } catch (_) {
-      return;
-    }
-    if (!mounted) return;
-    if (result == null || result.files.isEmpty) return;
-
+  Future<bool?> _confirmReferenceCleanup(QuickInstruction item) async {
     final l10n = AppLocalizations.of(context)!;
-    final provider = context.read<InstructionInjectionProvider>();
-    final List<InstructionInjection> imports = [];
-
-    for (final file in result.files) {
-      final name = file.name.trim();
-      final ext = (file.extension ?? '').toLowerCase();
-      if (!_textExtensions.contains(ext)) continue;
-      final content = await _readPickedFileAsString(file);
-      final prompt = content ?? '';
-      if (name.isEmpty || prompt.trim().isEmpty) continue;
-      imports.add(
-        InstructionInjection(
-          id: const Uuid().v4(),
-          title: name,
-          prompt: prompt,
+    final provider = context.read<QuickInstructionProvider>();
+    final counts = await Future.wait<int>(<Future<int>>[
+      provider.activeAssistantReferenceCount(item.id),
+      provider.activeConversationReferenceCount(item.id),
+    ]);
+    if (!mounted) return false;
+    if (counts.every((count) => count == 0)) return true;
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.quickInstructionCleanupTitle),
+        content: Text(
+          l10n.quickInstructionCleanupMessage(counts[0], counts[1]),
         ),
-      );
-    }
-
-    await provider.addMany(imports);
-    if (!mounted) return;
-
-    showAppSnackBar(
-      context,
-      message: l10n.instructionInjectionImportSuccess(imports.length),
-      type: imports.isEmpty
-          ? NotificationType.warning
-          : NotificationType.success,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.quickPhraseCancelButton),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.quickInstructionContinueButton),
+          ),
+        ],
+      ),
     );
+  }
+
+  Future<void> _deleteItem(QuickInstruction item) async {
+    final allowed = await _confirmReferenceCleanup(item);
+    if (allowed != true || !mounted) return;
+    await context.read<QuickInstructionProvider>().delete(item.id);
   }
 
   @override
@@ -184,47 +119,34 @@ class _InstructionInjectionPageState extends State<InstructionInjectionPage> {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final provider = context.watch<InstructionInjectionProvider>();
+    final provider = context.watch<QuickInstructionProvider>();
     final groupUi = context.watch<InstructionInjectionGroupProvider>();
     final items = provider.items;
 
-    final Map<String, List<InstructionInjection>> grouped =
-        <String, List<InstructionInjection>>{};
+    final Map<String, List<QuickInstruction>> grouped =
+        <String, List<QuickInstruction>>{};
     for (final item in items) {
       final g = item.group.trim();
-      (grouped[g] ??= <InstructionInjection>[]).add(item);
+      (grouped[g] ??= <QuickInstruction>[]).add(item);
     }
-    final groupNames = grouped.keys.toList()
-      ..sort((a, b) {
-        final aa = a.trim();
-        final bb = b.trim();
-        if (aa.isEmpty && bb.isNotEmpty) return -1;
-        if (aa.isNotEmpty && bb.isEmpty) return 1;
-        return aa.toLowerCase().compareTo(bb.toLowerCase());
-      });
+    final groupNames = grouped.keys.toList(growable: false);
 
     return Scaffold(
       appBar: AppBar(
-        leading: Tooltip(
-          message: l10n.instructionInjectionBackTooltip,
-          child: _TactileIconButton(
-            icon: Lucide.ArrowLeft,
-            color: Theme.of(context).colorScheme.onSurface,
-            size: 22,
-            onTap: () => Navigator.of(context).maybePop(),
-          ),
-        ),
+        automaticallyImplyLeading: false,
+        leading: widget.embedded
+            ? null
+            : Tooltip(
+                message: l10n.instructionInjectionBackTooltip,
+                child: _TactileIconButton(
+                  icon: Lucide.ArrowLeft,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  size: 22,
+                  onTap: () => Navigator.of(context).maybePop(),
+                ),
+              ),
         title: Text(l10n.instructionInjectionTitle),
         actions: [
-          Tooltip(
-            message: l10n.instructionInjectionImportTooltip,
-            child: _TactileIconButton(
-              icon: Lucide.Import,
-              color: Theme.of(context).colorScheme.onSurface,
-              size: 22,
-              onTap: _importFromFiles,
-            ),
-          ),
           Tooltip(
             message: l10n.instructionInjectionAddTooltip,
             child: _TactileIconButton(
@@ -243,7 +165,7 @@ class _InstructionInjectionPageState extends State<InstructionInjectionPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    Lucide.Layers,
+                    Lucide.Zap,
                     size: 64,
                     color: cs.onSurface.withValues(alpha: 0.3),
                   ),
@@ -298,7 +220,7 @@ class _InstructionInjectionPageState extends State<InstructionInjectionPage> {
                             },
                             onReorderItem: (oldIndex, newIndex) {
                               context
-                                  .read<InstructionInjectionProvider>()
+                                  .read<QuickInstructionProvider>()
                                   .reorderWithinGroup(
                                     group: groupName,
                                     oldIndex: oldIndex,
@@ -423,7 +345,7 @@ class _InstructionInjectionPageState extends State<InstructionInjectionPage> {
                                                         Row(
                                                           children: [
                                                             Icon(
-                                                              Lucide.Layers,
+                                                              Lucide.Zap,
                                                               size: 18,
                                                               color: cs.primary,
                                                             ),
@@ -559,10 +481,20 @@ class _GroupHeader extends StatelessWidget {
   }
 }
 
+class QuickInstructionEditResult {
+  const QuickInstructionEditResult({
+    required this.item,
+    required this.assistantIds,
+  });
+
+  final QuickInstruction item;
+  final Set<String> assistantIds;
+}
+
 class InstructionInjectionEditSheet extends StatefulWidget {
   const InstructionInjectionEditSheet({super.key, required this.item});
 
-  final InstructionInjection? item;
+  final QuickInstruction? item;
 
   @override
   State<InstructionInjectionEditSheet> createState() =>
@@ -571,17 +503,66 @@ class InstructionInjectionEditSheet extends StatefulWidget {
 
 class _InstructionInjectionEditSheetState
     extends State<InstructionInjectionEditSheet> {
+  static const List<String> _localToolIds = LocalToolNames.toolsHubManaged;
+
   late final TextEditingController _titleController;
   late final TextEditingController _groupController;
   late final TextEditingController _promptController;
+  late final TextEditingController _blockController;
+  late QuickInstructionPlacement _placement;
+  late QuickInstructionTriggerMode _triggerMode;
+  late bool _retainInHistory;
+  late bool _toolPolicyEnabled;
+  late bool _shellDisabled;
+  late Set<String> _disabledLocalToolIds;
+  late Set<String> _disabledMcpServerIds;
+  late Set<String> _disabledFilesystemToolNames;
   Set<String> _assistantSelection = <String>{};
+  bool _advancedExpanded = false;
+  bool _placementExpanded = false;
+  bool _triggerExpanded = false;
+  bool _localToolsExpanded = false;
+  bool _mcpExpanded = false;
+  bool _filesystemExpanded = false;
+  bool _commandLimitsExpanded = false;
+  bool _showValidationErrors = false;
+  bool _assistantSelectionInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.item?.title ?? '');
-    _groupController = TextEditingController(text: widget.item?.group ?? '');
-    _promptController = TextEditingController(text: widget.item?.prompt ?? '');
+    final item = widget.item;
+    _titleController = TextEditingController(text: item?.title ?? '');
+    _groupController = TextEditingController(text: item?.group ?? '');
+    _promptController = TextEditingController(text: item?.prompt ?? '');
+    _placement = item?.placement ?? QuickInstructionPlacement.beforeUserMessage;
+    _triggerMode = item?.triggerMode ?? QuickInstructionTriggerMode.oneShot;
+    _retainInHistory = item?.retainInHistory ?? true;
+    final policy = item?.toolPolicy ?? QuickInstructionToolPolicy();
+    _toolPolicyEnabled = policy.enabled;
+    _shellDisabled = policy.shellDisabled;
+    _disabledLocalToolIds = policy.disabledLocalToolIds.toSet();
+    _disabledMcpServerIds = policy.disabledMcpServerIds.toSet();
+    _disabledFilesystemToolNames = policy.disabledFilesystemToolNames.toSet();
+    _blockController = TextEditingController(
+      text: policy.shellBlockPatterns.join('\n'),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_assistantSelectionInitialized) return;
+    _assistantSelectionInitialized = true;
+    final itemId = widget.item?.id;
+    if (itemId == null) return;
+    final provider = context.read<QuickInstructionProvider>();
+    _assistantSelection = {
+      for (final assistant in context.read<AssistantProvider>().assistants)
+        if (assistant.id.isNotEmpty &&
+            provider.activeIdsFor(assistant.id).contains(itemId))
+          assistant.id,
+    };
   }
 
   @override
@@ -589,40 +570,88 @@ class _InstructionInjectionEditSheetState
     _titleController.dispose();
     _groupController.dispose();
     _promptController.dispose();
+    _blockController.dispose();
     super.dispose();
+  }
+
+  List<String> _patterns(TextEditingController controller) {
+    return controller.text
+        .split(RegExp(r'\r?\n'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+  }
+
+  void _save() {
+    final title = _titleController.text.trim();
+    final prompt = _promptController.text.trim();
+    if (title.isEmpty || prompt.isEmpty) {
+      setState(() => _showValidationErrors = true);
+      return;
+    }
+    final item = QuickInstruction(
+      id: widget.item?.id ?? const Uuid().v4(),
+      title: title,
+      prompt: prompt,
+      group: _groupController.text.trim(),
+      placement: _placement,
+      triggerMode: _triggerMode,
+      retainInHistory: _retainInHistory,
+      toolPolicy: QuickInstructionToolPolicy(
+        enabled: _toolPolicyEnabled,
+        disabledLocalToolIds: _disabledLocalToolIds.toList(growable: false),
+        disabledMcpServerIds: _disabledMcpServerIds.toList(growable: false),
+        disabledFilesystemToolNames: _disabledFilesystemToolNames.toList(
+          growable: false,
+        ),
+        shellDisabled: _shellDisabled,
+        shellBlockPatterns: _patterns(_blockController),
+      ),
+    );
+    Navigator.of(context).pop(
+      QuickInstructionEditResult(
+        item: item,
+        assistantIds: Set<String>.from(_assistantSelection),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
+    final inputBox = _placement == QuickInstructionPlacement.inputBox;
+    final userPlacement =
+        _placement == QuickInstructionPlacement.beforeUserMessage ||
+        _placement == QuickInstructionPlacement.afterUserMessage;
+    final toolsEnabled = _toolPolicyEnabled && !inputBox;
 
     return SafeArea(
       top: false,
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 12,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: cs.onSurface.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(999),
+      child: FractionallySizedBox(
+        heightFactor: 0.94,
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 12,
+            bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
+          ),
+          child: Column(
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: cs.onSurface.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Center(
-              child: Text(
+              const SizedBox(height: 12),
+              Text(
                 widget.item == null
                     ? l10n.instructionInjectionAddTitle
                     : l10n.instructionInjectionEditTitle,
@@ -631,149 +660,515 @@ class _InstructionInjectionEditSheetState
                   fontWeight: AppFontWeights.semibold,
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _titleController,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: l10n.instructionInjectionNameLabel,
-                filled: true,
-                fillColor: context.appColors.surfaceFill,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: cs.outlineVariant.withValues(alpha: 0.4),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: cs.outlineVariant.withValues(alpha: 0.4),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: cs.primary.withValues(alpha: 0.5),
+              const SizedBox(height: 16),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _titleController,
+                        autofocus: true,
+                        decoration: _fieldDecoration(
+                          context,
+                          label: l10n.instructionInjectionNameLabel,
+                          errorText:
+                              _showValidationErrors &&
+                                  _titleController.text.trim().isEmpty
+                              ? l10n.quickInstructionRequiredField
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _groupController,
+                        decoration: _fieldDecoration(
+                          context,
+                          label: l10n.instructionInjectionGroupLabel,
+                          hint: l10n.instructionInjectionGroupHint,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _promptController,
+                        minLines: 4,
+                        maxLines: 8,
+                        decoration: _fieldDecoration(
+                          context,
+                          label: l10n.instructionInjectionPromptLabel,
+                          alignLabelWithHint: true,
+                          errorText:
+                              _showValidationErrors &&
+                                  _promptController.text.trim().isEmpty
+                              ? l10n.quickInstructionRequiredField
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      IosExpandableSection(
+                        icon: Lucide.Settings2,
+                        title: l10n.quickInstructionAdvancedSettings,
+                        expanded: _advancedExpanded,
+                        onToggle: () => setState(
+                          () => _advancedExpanded = !_advancedExpanded,
+                        ),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                            child: Column(
+                              children: [
+                                IosExpandableSection(
+                                  icon: Lucide.ListOrdered,
+                                  title: l10n.quickInstructionPlacementTitle,
+                                  expanded: _placementExpanded,
+                                  onToggle: () => setState(
+                                    () => _placementExpanded =
+                                        !_placementExpanded,
+                                  ),
+                                  children: [
+                                    for (final placement
+                                        in QuickInstructionPlacement.values)
+                                      _OptionRow(
+                                        title: _placementLabel(l10n, placement),
+                                        selected: _placement == placement,
+                                        onTap: () => setState(
+                                          () => _placement = placement,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                if (!inputBox) ...[
+                                  const SizedBox(height: 10),
+                                  IosExpandableSection(
+                                    icon: Lucide.Zap,
+                                    title: l10n.quickInstructionTriggerTitle,
+                                    expanded: _triggerExpanded,
+                                    onToggle: () => setState(
+                                      () =>
+                                          _triggerExpanded = !_triggerExpanded,
+                                    ),
+                                    children: [
+                                      if (_placement ==
+                                          QuickInstructionPlacement
+                                              .systemPrompt)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 8,
+                                          ),
+                                          child: AssistantBindMultiSelect(
+                                            itemId: widget.item?.id,
+                                            activeIdsFor: context
+                                                .watch<
+                                                  QuickInstructionProvider
+                                                >()
+                                                .activeIdsFor,
+                                            onSelectionChanged: (selection) =>
+                                                _assistantSelection = selection,
+                                          ),
+                                        )
+                                      else ...[
+                                        _OptionRow(
+                                          title: l10n
+                                              .quickInstructionTriggerOneShot,
+                                          selected:
+                                              _triggerMode ==
+                                              QuickInstructionTriggerMode
+                                                  .oneShot,
+                                          onTap: () => setState(
+                                            () => _triggerMode =
+                                                QuickInstructionTriggerMode
+                                                    .oneShot,
+                                          ),
+                                        ),
+                                        _OptionRow(
+                                          title: l10n
+                                              .quickInstructionTriggerPersistent,
+                                          selected:
+                                              _triggerMode ==
+                                              QuickInstructionTriggerMode
+                                                  .persistent,
+                                          onTap: () => setState(
+                                            () => _triggerMode =
+                                                QuickInstructionTriggerMode
+                                                    .persistent,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ],
+                                if (userPlacement) ...[
+                                  const SizedBox(height: 10),
+                                  _SwitchRow(
+                                    title:
+                                        l10n.quickInstructionRetainHistoryTitle,
+                                    subtitle: l10n
+                                        .quickInstructionRetainHistorySubtitle,
+                                    value: _retainInHistory,
+                                    onChanged: (value) => setState(
+                                      () => _retainInHistory = value,
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 10),
+                                Opacity(
+                                  opacity: inputBox ? 0.45 : 1,
+                                  child: _SwitchRow(
+                                    title: l10n
+                                        .quickInstructionToolRestrictionTitle,
+                                    subtitle: inputBox
+                                        ? l10n.quickInstructionInputBoxNoTools
+                                        : l10n.quickInstructionToolRestrictionSubtitle,
+                                    value: _toolPolicyEnabled,
+                                    onChanged: inputBox
+                                        ? null
+                                        : (value) => setState(
+                                            () => _toolPolicyEnabled = value,
+                                          ),
+                                  ),
+                                ),
+                                if (_toolPolicyEnabled) ...[
+                                  const SizedBox(height: 10),
+                                  Opacity(
+                                    opacity: toolsEnabled ? 1 : 0.45,
+                                    child: IgnorePointer(
+                                      ignoring: !toolsEnabled,
+                                      child: _buildToolSettings(context),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _groupController,
-              decoration: InputDecoration(
-                labelText: l10n.instructionInjectionGroupLabel,
-                hintText: l10n.instructionInjectionGroupHint,
-                filled: true,
-                fillColor: context.appColors.surfaceFill,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: cs.outlineVariant.withValues(alpha: 0.4),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _IosOutlineButton(
+                      label: l10n.quickPhraseCancelButton,
+                      onTap: () => Navigator.of(context).pop(),
+                    ),
                   ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: cs.outlineVariant.withValues(alpha: 0.4),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _IosFilledButton(
+                      label: l10n.quickPhraseSaveButton,
+                      onTap: _save,
+                    ),
                   ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: cs.primary.withValues(alpha: 0.5),
-                  ),
-                ),
+                ],
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _promptController,
-              maxLines: 8,
-              decoration: InputDecoration(
-                labelText: l10n.instructionInjectionPromptLabel,
-                alignLabelWithHint: true,
-                filled: true,
-                fillColor: context.appColors.surfaceFill,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: cs.outlineVariant.withValues(alpha: 0.4),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: cs.outlineVariant.withValues(alpha: 0.4),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: cs.primary.withValues(alpha: 0.5),
-                  ),
-                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToolSettings(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final mcp = context.watch<McpProvider>();
+    return Column(
+      children: [
+        IosExpandableSection(
+          icon: Lucide.Wrench,
+          title: l10n.quickInstructionLocalToolsTitle,
+          expanded: _localToolsExpanded,
+          onToggle: () =>
+              setState(() => _localToolsExpanded = !_localToolsExpanded),
+          children: [
+            _InfoRow(text: l10n.quickInstructionSwitchOnMeansDisabled),
+            for (final id in _localToolIds)
+              _SwitchRow(
+                title: _localToolLabel(l10n, id),
+                subtitle: _localToolSupported(id)
+                    ? id
+                    : l10n.quickInstructionToolUnavailable(id),
+                value: _disabledLocalToolIds.contains(id),
+                onChanged: (value) => setState(() {
+                  value
+                      ? _disabledLocalToolIds.add(id)
+                      : _disabledLocalToolIds.remove(id);
+                }),
               ),
-            ),
-            const SizedBox(height: 16),
-            const Divider(height: 1),
-            const SizedBox(height: 4),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 220),
-              child: SingleChildScrollView(
-                child: AssistantBindMultiSelect(
-                  itemId: widget.item?.id,
-                  activeIdsFor: context
-                      .watch<InstructionInjectionProvider>()
-                      .activeIdsFor,
-                  onSelectionChanged: (selection) =>
-                      _assistantSelection = selection,
+          ],
+        ),
+        const SizedBox(height: 10),
+        IosExpandableSection(
+          icon: Lucide.Network,
+          title: l10n.quickInstructionMcpServersTitle,
+          expanded: _mcpExpanded,
+          onToggle: () => setState(() => _mcpExpanded = !_mcpExpanded),
+          children: [
+            _InfoRow(text: l10n.quickInstructionSwitchOnMeansDisabled),
+            if (mcp.servers.isEmpty)
+              _InfoRow(text: l10n.quickInstructionNoMcpServers)
+            else
+              for (final server in mcp.servers)
+                _SwitchRow(
+                  title: server.name,
+                  subtitle: mcp.statusFor(server.id) == McpStatus.connected
+                      ? server.id
+                      : l10n.quickInstructionMcpOffline(server.id),
+                  value: _disabledMcpServerIds.contains(server.id),
+                  onChanged: (value) => setState(() {
+                    value
+                        ? _disabledMcpServerIds.add(server.id)
+                        : _disabledMcpServerIds.remove(server.id);
+                  }),
                 ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        IosExpandableSection(
+          icon: Lucide.Folder,
+          title: l10n.quickInstructionFilesystemToolsTitle,
+          expanded: _filesystemExpanded,
+          onToggle: () =>
+              setState(() => _filesystemExpanded = !_filesystemExpanded),
+          children: [
+            _InfoRow(text: l10n.quickInstructionSwitchOnMeansDisabled),
+            for (final name in WorkspaceToolNames.filesystemTools)
+              _SwitchRow(
+                title: _filesystemToolLabel(l10n, name),
+                subtitle: name,
+                value: _disabledFilesystemToolNames.contains(name),
+                onChanged: (value) => setState(() {
+                  value
+                      ? _disabledFilesystemToolNames.add(name)
+                      : _disabledFilesystemToolNames.remove(name);
+                }),
               ),
-            ),
-            const SizedBox(height: 16),
-            Row(
+          ],
+        ),
+        const SizedBox(height: 10),
+        _SwitchRow(
+          title: l10n.quickInstructionDisableShellTitle,
+          subtitle: l10n.quickInstructionSwitchOnMeansDisabled,
+          value: _shellDisabled,
+          onChanged: (value) => setState(() => _shellDisabled = value),
+        ),
+        const SizedBox(height: 10),
+        Opacity(
+          opacity: _shellDisabled ? 0.45 : 1,
+          child: IgnorePointer(
+            ignoring: _shellDisabled,
+            child: IosExpandableSection(
+              icon: Lucide.Terminal,
+              title: l10n.quickInstructionCommandLimitsTitle,
+              expanded: _commandLimitsExpanded,
+              onToggle: () => setState(
+                () => _commandLimitsExpanded = !_commandLimitsExpanded,
+              ),
               children: [
-                Expanded(
-                  child: _IosOutlineButton(
-                    label: l10n.quickPhraseCancelButton,
-                    onTap: () => Navigator.of(context).pop(),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _IosFilledButton(
-                    label: l10n.quickPhraseSaveButton,
-                    onTap: () {
-                      final title = _titleController.text.trim();
-                      final prompt = _promptController.text.trim();
-                      if (title.isEmpty || prompt.isEmpty) {
-                        Navigator.of(context).pop();
-                        return;
-                      }
-                      final itemId = widget.item?.id ?? const Uuid().v4();
-                      Navigator.of(context).pop((
-                        <String, String>{
-                          'id': itemId,
-                          'title': _titleController.text,
-                          'group': _groupController.text,
-                          'prompt': _promptController.text,
-                        },
-                        Set<String>.from(_assistantSelection),
-                      ));
-                    },
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _blockController,
+                        minLines: 3,
+                        maxLines: 6,
+                        decoration: _fieldDecoration(
+                          context,
+                          label: l10n.quickInstructionCommandBlocklist,
+                          hint: l10n.quickInstructionCommandPatternHint,
+                          alignLabelWithHint: true,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+InputDecoration _fieldDecoration(
+  BuildContext context, {
+  required String label,
+  String? hint,
+  String? errorText,
+  bool alignLabelWithHint = false,
+}) {
+  final cs = Theme.of(context).colorScheme;
+  final border = OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.4)),
+  );
+  return InputDecoration(
+    labelText: label,
+    hintText: hint,
+    errorText: errorText,
+    alignLabelWithHint: alignLabelWithHint,
+    filled: true,
+    fillColor: context.appColors.surfaceFill,
+    border: border,
+    enabledBorder: border,
+    focusedBorder: border.copyWith(
+      borderSide: BorderSide(color: cs.primary.withValues(alpha: 0.5)),
+    ),
+  );
+}
+
+class _OptionRow extends StatelessWidget {
+  const _OptionRow({
+    required this.title,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return IosCardPress(
+      haptics: false,
+      baseColor: Colors.transparent,
+      borderRadius: BorderRadius.zero,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      onTap: onTap,
+      child: Row(
+        children: [
+          Expanded(child: Text(title)),
+          Icon(
+            selected ? Lucide.CheckCircle : Lucide.eclipse,
+            size: 19,
+            color: selected ? cs.primary : cs.onSurface.withValues(alpha: 0.4),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SwitchRow extends StatelessWidget {
+  const _SwitchRow({
+    required this.title,
+    required this.value,
+    required this.onChanged,
+    this.subtitle,
+  });
+
+  final String title;
+  final String? subtitle;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title),
+                if (subtitle != null && subtitle!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: cs.onSurface.withValues(alpha: 0.58),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          IosSwitch(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
         ),
       ),
     );
   }
 }
+
+String _placementLabel(
+  AppLocalizations l10n,
+  QuickInstructionPlacement placement,
+) => switch (placement) {
+  QuickInstructionPlacement.systemPrompt =>
+    l10n.quickInstructionPlacementSystem,
+  QuickInstructionPlacement.beforeUserMessage =>
+    l10n.quickInstructionPlacementBeforeUser,
+  QuickInstructionPlacement.afterUserMessage =>
+    l10n.quickInstructionPlacementAfterUser,
+  QuickInstructionPlacement.inputBox => l10n.quickInstructionPlacementInputBox,
+};
+
+String _localToolLabel(AppLocalizations l10n, String id) => switch (id) {
+  LocalToolNames.timeInfo => l10n.assistantEditLocalToolTimeInfoTitle,
+  LocalToolNames.clipboard => l10n.assistantEditLocalToolClipboardTitle,
+  LocalToolNames.textToSpeech => l10n.assistantEditLocalToolTextToSpeechTitle,
+  LocalToolNames.askUser => l10n.assistantEditLocalToolAskUserTitle,
+  LocalToolNames.calculate => l10n.assistantEditLocalToolCalculateTitle,
+  LocalToolNames.screenTime => l10n.assistantEditLocalToolScreenTimeTitle,
+  LocalToolNames.calendarQuery => l10n.assistantEditLocalToolCalendarQueryTitle,
+  LocalToolNames.calendarCreate =>
+    l10n.assistantEditLocalToolCalendarCreateTitle,
+  LocalToolNames.handoff => l10n.assistantEditLocalToolHandoffTitle,
+  _ => id,
+};
+
+bool _localToolSupported(String id) => switch (id) {
+  LocalToolNames.screenTime => DeviceLocalTools.screenTimeSupported,
+  LocalToolNames.calendarQuery ||
+  LocalToolNames.calendarCreate => DeviceLocalTools.calendarSupported,
+  _ => true,
+};
+
+String _filesystemToolLabel(AppLocalizations l10n, String name) =>
+    switch (name) {
+      WorkspaceToolNames.read => l10n.workspaceToolReadTitle,
+      WorkspaceToolNames.write => l10n.workspaceToolWriteTitle,
+      WorkspaceToolNames.patch => l10n.workspaceToolPatchTitle,
+      WorkspaceToolNames.delete => l10n.workspaceToolDeleteTitle,
+      WorkspaceToolNames.glob => l10n.workspaceToolGlobTitle,
+      WorkspaceToolNames.grep => l10n.workspaceToolGrepTitle,
+      WorkspaceToolNames.outline => l10n.workspaceToolOutlineTitle,
+      WorkspaceToolNames.mkdir => l10n.workspaceToolMkdirTitle,
+      WorkspaceToolNames.move => l10n.workspaceToolMoveTitle,
+      WorkspaceToolNames.zip => l10n.workspaceToolZipTitle,
+      WorkspaceToolNames.unzip => l10n.workspaceToolUnzipTitle,
+      WorkspaceToolNames.download => l10n.workspaceToolDownloadTitle,
+      _ => name,
+    };
 
 class _TactileIconButton extends StatefulWidget {
   const _TactileIconButton({

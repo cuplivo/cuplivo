@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:uuid/uuid.dart';
 
 import 'message_quote.dart';
+import 'quick_instruction.dart';
 
 class ChatMessage {
   final String id;
@@ -81,9 +82,18 @@ class ChatMessage {
   /// (user-originated replies only, schema v20). Null = no reply.
   final String? quoteJson;
 
+  /// Frozen user-message quick-instruction invocations for this exact message
+  /// version. System-prompt instructions stay live and are not stored here.
+  final String? quickInstructionInvocationsJson;
+
   /// Parsed representation of [quoteJson]; null if absent or malformed.
   /// Malformed historical rows are treated as absent — never throw.
   MessageQuote? get quote => _parseQuote();
+
+  List<QuickInstructionInvocationSnapshot> get quickInstructionInvocations =>
+      QuickInstructionInvocationSnapshot.decodeList(
+        quickInstructionInvocationsJson,
+      );
 
   MessageQuote? _parseQuote() {
     final raw = quoteJson?.trim();
@@ -142,6 +152,7 @@ class ChatMessage {
     bool? requestAllowImagesApiRouting,
     String? requestExtraBodyJson,
     String? quoteJson,
+    String? quickInstructionInvocationsJson,
   }) {
     final resolvedId = id ?? const Uuid().v4();
     return ChatMessage._(
@@ -172,6 +183,7 @@ class ChatMessage {
       requestAllowImagesApiRouting: requestAllowImagesApiRouting,
       requestExtraBodyJson: requestExtraBodyJson,
       quoteJson: quoteJson,
+      quickInstructionInvocationsJson: quickInstructionInvocationsJson,
     );
   }
 
@@ -203,6 +215,7 @@ class ChatMessage {
     this.requestAllowImagesApiRouting,
     this.requestExtraBodyJson,
     this.quoteJson,
+    this.quickInstructionInvocationsJson,
   });
 
   // Sentinel for copyWith — not passed vs explicitly null.
@@ -236,6 +249,7 @@ class ChatMessage {
     Object? requestAllowImagesApiRouting = sentinel,
     Object? requestExtraBodyJson = sentinel,
     Object? quoteJson = sentinel,
+    Object? quickInstructionInvocationsJson = sentinel,
   }) {
     return ChatMessage(
       id: identical(id, sentinel) ? this.id : id as String,
@@ -308,6 +322,10 @@ class ChatMessage {
       quoteJson: identical(quoteJson, sentinel)
           ? this.quoteJson
           : quoteJson as String?,
+      quickInstructionInvocationsJson:
+          identical(quickInstructionInvocationsJson, sentinel)
+          ? this.quickInstructionInvocationsJson
+          : quickInstructionInvocationsJson as String?,
     );
   }
 
@@ -340,6 +358,7 @@ class ChatMessage {
       'requestAllowImagesApiRouting': requestAllowImagesApiRouting,
       'requestExtraBodyJson': requestExtraBodyJson,
       'quoteJson': quoteJson,
+      'quickInstructionInvocationsJson': quickInstructionInvocationsJson,
     };
   }
 
@@ -377,6 +396,8 @@ class ChatMessage {
           json['requestAllowImagesApiRouting'] as bool?,
       requestExtraBodyJson: json['requestExtraBodyJson'] as String?,
       quoteJson: json['quoteJson'] as String?,
+      quickInstructionInvocationsJson:
+          json['quickInstructionInvocationsJson'] as String?,
     );
   }
 }

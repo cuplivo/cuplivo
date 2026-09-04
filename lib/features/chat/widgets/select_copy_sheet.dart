@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/models/chat_message.dart';
+import '../../../core/utils/quick_instruction_presentation.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../shared/widgets/ios_tactile.dart';
@@ -30,7 +31,9 @@ class _SelectCopySheet extends StatelessWidget {
 
   Future<void> _copyAll(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
-    await Clipboard.setData(ClipboardData(text: message.content));
+    await Clipboard.setData(
+      ClipboardData(text: quickInstructionDecoratedContent(message)),
+    );
     if (!context.mounted) return;
     showAppSnackBar(
       context,
@@ -134,7 +137,7 @@ class _SelectCopySheet extends StatelessWidget {
                     controller: sc,
                     primary: false,
                     child: Text(
-                      message.content,
+                      quickInstructionDecoratedContent(message),
                       style: TextStyle(fontSize: 15, height: 1.5),
                     ),
                   ),

@@ -7,7 +7,7 @@ import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_quote.dart';
 import '../../../core/models/conversation.dart';
-import '../../../core/models/instruction_injection.dart';
+import '../../../core/models/quick_instruction.dart';
 import '../../../core/models/world_book.dart';
 import '../../../core/models/assistant_memory.dart';
 import '../../../core/providers/memory_provider.dart';
@@ -20,10 +20,10 @@ import '../../../core/services/chat/document_text_extractor.dart';
 import '../../../core/services/chat/prompt_transformer.dart';
 import '../../../core/services/workspace/workspace_execution_context.dart';
 import '../../../core/database/business_preferences.dart';
-import '../../../core/services/instruction_injection_store.dart';
+import '../../../core/services/quick_instruction_store.dart';
 import '../../../core/services/world_book_store.dart';
 import '../../../core/services/world_book_prompt_injector.dart';
-import '../../../core/providers/instruction_injection_provider.dart';
+import '../../../core/providers/quick_instruction_provider.dart';
 import '../../../core/providers/world_book_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/services/api/builtin_tools.dart';
@@ -50,6 +50,8 @@ class MessageBuilderService {
   static const String internalMediaPathsKey = multimodalInternalMediaPathsKey;
   static const String _isPresetKey = '_isPreset';
   static const String _timestampKey = '_timestamp';
+  static const String _quickInstructionInvocationsKey =
+      '_quickInstructionInvocations';
 
   MessageBuilderService({
     required this.chatService,
@@ -58,9 +60,7 @@ class MessageBuilderService {
     this.ocrHandler,
     this.geminiThoughtSignatureHandler,
   }) : _worldBookStore = WorldBookStore.shared(preferences),
-       _instructionInjectionStore = InstructionInjectionStore.shared(
-         preferences,
-       );
+       _instructionInjectionStore = QuickInstructionStore.shared(preferences);
 
   final ChatService chatService;
 
@@ -78,7 +78,7 @@ class MessageBuilderService {
   geminiThoughtSignatureHandler;
 
   final WorldBookStore _worldBookStore;
-  final InstructionInjectionStore _instructionInjectionStore;
+  final QuickInstructionStore _instructionInjectionStore;
 
   /// Cache for document text extraction to avoid re-reading files on every message
   /// Keyed by path, validated with (modified + size) to avoid stale reuse.
@@ -127,7 +127,8 @@ class MessageBuilderService {
   /// Applies truncation, version collapsing, and strips [image:] / [file:] markers.
   ///
   /// Contract: this returns an *intermediate* list. Every user message carries
-  /// internal metadata keys ([_isPresetKey], [_timestampKey]) consumed downstream
+  /// internal metadata keys ([_isPresetKey], [_timestampKey], and
+  /// [_quickInstructionInvocationsKey]) consumed downstream
   /// by [processUserMessagesForApi] to inject timestamps and skip presets.
   /// These keys are stripped before reaching the provider *only* inside
   /// [processUserMessagesForApi]. Do NOT forward the output of this method
@@ -233,8 +234,11 @@ class MessageBuilderService {
       if (m.role == 'assistant' && geminiThoughtSignatureHandler != null) {
         content = geminiThoughtSignatureHandler!(m, content);
       }
-      if (content.isEmpty) continue;
       final isUser = m.role != 'assistant';
+      final quickInstructions = isUser
+          ? m.quickInstructionInvocations
+          : const <QuickInstructionInvocationSnapshot>[];
+      if (content.isEmpty && quickInstructions.isEmpty) continue;
       if (isUser && content.trim().isNotEmpty) {
         final quote = m.quote;
         if (quote != null) {
@@ -251,6 +255,9 @@ class MessageBuilderService {
       if (isUser) {
         message[_isPresetKey] = m.isPreset;
         message[_timestampKey] = m.timestamp.toIso8601String();
+        if (quickInstructions.isNotEmpty) {
+          message[_quickInstructionInvocationsKey] = quickInstructions;
+        }
       }
       if (assistantReasoningContent?.isNotEmpty == true) {
         message['reasoning_content'] = assistantReasoningContent;
@@ -427,7 +434,8 @@ class MessageBuilderService {
   /// Returns the image paths from the last user message (for API call).
   ///
   /// Boundary: this is the sole point where internal `_`-prefixed keys
-  /// ([_isPresetKey], [_timestampKey]) attached by [buildApiMessages] are
+  /// ([_isPresetKey], [_timestampKey], and
+  /// [_quickInstructionInvocationsKey]) attached by [buildApiMessages] are
   /// consumed and stripped. After this method returns, the list is safe to send
   /// to a provider.
   Future<List<String>> processUserMessagesForApi(
@@ -436,6 +444,7 @@ class MessageBuilderService {
     Assistant? assistant, {
     required String providerKey,
     required String modelId,
+    bool includeUserQuickInstructions = false,
   }) async {
     final bool ocrActive = resolveOcrActive(
       settings: settings,
@@ -655,7 +664,94 @@ class MessageBuilderService {
       apiMessages[lastUserIdx]['content'] = templated;
     }
 
+    injectUserQuickInstructionPrompts(
+      apiMessages,
+      enabled: includeUserQuickInstructions,
+    );
+
     return lastUserImagePaths ?? <String>[];
+  }
+
+  /// Returns the frozen invocations on the current anchor user message before
+  /// [processUserMessagesForApi] consumes its internal metadata. Historical
+  /// snapshots are deliberately ignored for request-level tool permissions.
+  List<QuickInstructionInvocationSnapshot> anchorQuickInstructionInvocations(
+    List<Map<String, dynamic>> apiMessages,
+  ) {
+    for (var index = apiMessages.length - 1; index >= 0; index--) {
+      final message = apiMessages[index];
+      if (message['role'] != 'user') continue;
+      final raw = message[_quickInstructionInvocationsKey];
+      if (raw is! List) {
+        return const <QuickInstructionInvocationSnapshot>[];
+      }
+      return raw.whereType<QuickInstructionInvocationSnapshot>().toList(
+        growable: false,
+      );
+    }
+    return const <QuickInstructionInvocationSnapshot>[];
+  }
+
+  @visibleForTesting
+  void injectUserQuickInstructionPrompts(
+    List<Map<String, dynamic>> apiMessages, {
+    required bool enabled,
+  }) {
+    var lastUserIndex = -1;
+    for (var index = apiMessages.length - 1; index >= 0; index--) {
+      if (apiMessages[index]['role'] == 'user') {
+        lastUserIndex = index;
+        break;
+      }
+    }
+
+    for (var index = 0; index < apiMessages.length; index++) {
+      final message = apiMessages[index];
+      final raw = message.remove(_quickInstructionInvocationsKey);
+      if (!enabled || message['role'] != 'user' || raw is! List) continue;
+      final snapshots =
+          raw
+              .whereType<QuickInstructionInvocationSnapshot>()
+              .where(
+                (snapshot) =>
+                    snapshot.placement ==
+                        QuickInstructionPlacement.beforeUserMessage ||
+                    snapshot.placement ==
+                        QuickInstructionPlacement.afterUserMessage,
+              )
+              .where(
+                (snapshot) =>
+                    index == lastUserIndex || snapshot.retainInHistory,
+              )
+              .toList(growable: false)
+            ..sort((a, b) => a.order.compareTo(b.order));
+      if (snapshots.isEmpty) continue;
+
+      final before = snapshots
+          .where(
+            (snapshot) =>
+                snapshot.placement ==
+                QuickInstructionPlacement.beforeUserMessage,
+          )
+          .map((snapshot) => snapshot.prompt.trim())
+          .where((prompt) => prompt.isNotEmpty)
+          .join('\n\n');
+      final after = snapshots
+          .where(
+            (snapshot) =>
+                snapshot.placement ==
+                QuickInstructionPlacement.afterUserMessage,
+          )
+          .map((snapshot) => snapshot.prompt.trim())
+          .where((prompt) => prompt.isNotEmpty)
+          .join('\n\n');
+      final body = (message['content'] ?? '').toString().trim();
+      message['content'] = <String>[
+        if (before.isNotEmpty) before,
+        if (body.isNotEmpty) body,
+        if (after.isNotEmpty) after,
+      ].join('\n\n');
+    }
   }
 
   /// Default OCR text wrapper
@@ -755,7 +851,12 @@ These memories are automatically included in future conversation contexts within
           );
         }
       }
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      debugPrint(
+        'MessageBuilderService.injectMemoryAndRecentChats failed: '
+        '$error\n$stackTrace',
+      );
+    }
   }
 
   String _formatCurrentHour(DateTime now) {
@@ -808,16 +909,20 @@ These memories are automatically included in future conversation contexts within
     String? assistantId,
   ) async {
     try {
-      List<InstructionInjection> actives = const <InstructionInjection>[];
+      List<QuickInstruction> actives = const <QuickInstruction>[];
       try {
-        final ip = contextProvider.read<InstructionInjectionProvider>();
+        final ip = contextProvider.read<QuickInstructionProvider>();
         actives = ip.activesFor(assistantId);
         if (actives.isEmpty) {
           actives = await _instructionInjectionStore.getActives(
             assistantId: assistantId,
           );
         }
-      } catch (_) {
+      } on ProviderNotFoundException catch (error) {
+        debugPrint(
+          'Instruction provider unavailable; reading the store directly: '
+          '$error',
+        );
         actives = await _instructionInjectionStore.getActives(
           assistantId: assistantId,
         );
@@ -830,7 +935,12 @@ These memories are automatically included in future conversation contexts within
         final lp = prompts.join('\n\n');
         _appendToSystemMessage(apiMessages, lp);
       }
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      debugPrint(
+        'MessageBuilderService.injectInstructionPrompts failed: '
+        '$error\n$stackTrace',
+      );
+    }
   }
 
   /// Inject project-level AGENTS.md instructions for the effective workspace

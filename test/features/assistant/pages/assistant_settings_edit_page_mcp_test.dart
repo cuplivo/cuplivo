@@ -8,7 +8,7 @@ import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/memory_provider.dart';
-import 'package:Cuplivo/core/providers/quick_phrase_provider.dart';
+import 'package:Cuplivo/core/providers/quick_instruction_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/assistant/pages/assistant_settings_edit_page.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
@@ -51,7 +51,7 @@ Widget _buildHarness({
         create: (_) => MemoryProvider(preferences: businessPrefs),
       ),
       ChangeNotifierProvider(
-        create: (_) => QuickPhraseProvider(preferences: businessPrefs),
+        create: (_) => QuickInstructionProvider(preferences: businessPrefs),
       ),
     ],
     child: MaterialApp(

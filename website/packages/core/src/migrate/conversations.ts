@@ -238,6 +238,7 @@ function mapMessage(
     durationMs: null,
     isPreset: false,
     speakerAssistantId: null,
+    quickInstructionInvocationsJson: null,
   };
 
   if (events.length > 0) toolEvents[message.id] = events;
@@ -343,6 +344,7 @@ export function mapDataLayer(ctx: MigrateContext): DataLayerOutput {
       lastSummarizedMessageCount: 0,
       chatSuggestions: tryParse<string[]>(c.suggestions, []),
       conversationKind: 'normal',
+      persistentQuickInstructionIds: [],
     });
   }
 

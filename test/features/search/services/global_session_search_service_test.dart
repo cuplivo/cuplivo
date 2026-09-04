@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/quick_instruction.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/features/search/services/global_session_search_service.dart';
 
@@ -24,6 +25,7 @@ ConversationSearchMatch _match({
   required String content,
   String role = 'assistant',
   String title = 'Conversation',
+  String? quickInstructionInvocationsJson,
 }) {
   return ConversationSearchMatch(
     conversationId: 'conv-1',
@@ -32,6 +34,7 @@ ConversationSearchMatch _match({
     versionSelections: const <String, int>{},
     messageId: 'msg-1',
     messageContent: content,
+    quickInstructionInvocationsJson: quickInstructionInvocationsJson,
     messageRole: role,
     groupId: 'msg-1',
     version: 0,
@@ -128,5 +131,37 @@ void main() {
       );
       expect(results, hasLength(1));
     });
+  });
+
+  test('quick-instruction names are searchable without exposing prompts', () {
+    final snapshot = QuickInstructionInvocationSnapshot.fromInstruction(
+      QuickInstruction(
+        id: 'review',
+        title: 'Careful review',
+        prompt: 'private prompt needle',
+      ),
+      order: 0,
+    );
+    chatService.matches = [
+      _match(
+        role: 'user',
+        content: 'visible question',
+        quickInstructionInvocationsJson:
+            QuickInstructionInvocationSnapshot.encodeList([snapshot]),
+      ),
+    ];
+
+    final byName = GlobalSessionSearchService.search(
+      chatService: chatService,
+      query: 'careful',
+    );
+    final byPrompt = GlobalSessionSearchService.search(
+      chatService: chatService,
+      query: 'needle',
+    );
+
+    expect(byName.single.snippet, contains('Careful review'));
+    expect(byName.single.snippet, isNot(contains('private prompt')));
+    expect(byPrompt, isEmpty);
   });
 }

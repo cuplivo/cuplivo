@@ -20,6 +20,7 @@ import 'image_preview_sheet.dart';
 
 import '../../../icons/lucide_adapter.dart';
 import '../../../core/models/chat_message.dart';
+import '../../../core/utils/quick_instruction_presentation.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/model_provider.dart';
@@ -534,7 +535,8 @@ Future<String> buildMarkdownExportBody({
     final exportData = (msg.role == 'assistant')
         ? _thinkingExportDataForMessage(msg)
         : null;
-    final contentForExport = exportData?.cleanedContent ?? msg.content;
+    final contentForExport =
+        exportData?.cleanedContent ?? quickInstructionDecoratedContent(msg);
 
     final parsed = _parseContent(contentForExport);
     if (parsed.text.isNotEmpty) {
@@ -847,7 +849,8 @@ Future<void> exportChatMessagesTxt(
       final exportData = (msg.role == 'assistant')
           ? _thinkingExportDataForMessage(msg)
           : null;
-      final contentForExport = exportData?.cleanedContent ?? msg.content;
+      final contentForExport =
+          exportData?.cleanedContent ?? quickInstructionDecoratedContent(msg);
 
       final parsed = _parseContent(contentForExport);
       if (parsed.text.isNotEmpty) {
@@ -2787,7 +2790,9 @@ class _ExportedBubble extends StatelessWidget {
         isAssistant && (assistant?.useAssistantAvatar == true);
     final useAssistName = isAssistant && (assistant?.useAssistantName == true);
 
-    final parsed = _parseContent(messageForExport.content);
+    final parsed = _parseContent(
+      quickInstructionDecoratedContent(messageForExport),
+    );
     final mdText = StringBuffer();
     if (parsed.text.isNotEmpty) mdText.writeln(_softBreakMd(parsed.text));
     for (final p in parsed.images) {

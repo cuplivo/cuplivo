@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/models/chat_message.dart';
+import '../core/utils/quick_instruction_presentation.dart';
 import '../icons/lucide_adapter.dart';
 import '../l10n/app_localizations.dart';
 import '../shared/widgets/mini_map/mini_map_shared.dart';
@@ -583,7 +584,8 @@ class _MiniMapSearchRowState extends State<_MiniMapSearchRow> {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isUser = widget.message.role == 'user';
-    final snippet = miniMapHitSnippet(widget.message.content, widget.tokens);
+    final displayContent = quickInstructionDecoratedContent(widget.message);
+    final snippet = miniMapHitSnippet(displayContent, widget.tokens);
 
     final selected =
         widget.selecting &&
@@ -650,7 +652,7 @@ class _MiniMapSearchRowState extends State<_MiniMapSearchRow> {
                   text: TextSpan(
                     children: buildMiniMapHighlightSpans(
                       snippet.isEmpty
-                          ? miniMapOneLine(widget.message.content)
+                          ? miniMapOneLine(displayContent)
                           : snippet,
                       widget.tokens,
                       baseStyle,
@@ -693,7 +695,9 @@ class _MiniMapRowState extends State<_MiniMapRow> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final userText = widget.user?.content ?? '';
+    final userText = widget.user == null
+        ? ''
+        : quickInstructionDecoratedContent(widget.user!);
     final asstText = widget.assistant?.content ?? '';
     final userBorder = cs.primary.withValues(alpha: isDark ? 0.45 : 0.35);
 

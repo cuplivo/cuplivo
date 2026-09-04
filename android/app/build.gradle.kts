@@ -69,6 +69,12 @@ android {
     }
 }
 
+// AndroidX brings the standalone ListenableFuture stub transitively, while
+// termux-shared supplies Guava, which contains the same class.
+configurations.configureEach {
+    exclude(group = "com.google.guava", module = "listenablefuture")
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11

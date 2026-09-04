@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/chat/widgets/frosted/chat_frosted_backdrop.dart';
 import 'package:Cuplivo/theme/chat_bubble_style.dart';
 
 void main() {
@@ -161,5 +162,13 @@ void main() {
     expect(dark.text, const Color(0xFF00FF00));
     expect(overrides.hasTextOverride(Brightness.light), isFalse);
     expect(overrides.hasTextOverride(Brightness.dark), isTrue);
+  });
+
+  test('frosted sample scale uses inverse sigma and clamps to dpr', () {
+    expect(frostedSampleScale(sigma: 0, dpr: 3), 0);
+    expect(frostedSampleScale(sigma: -1, dpr: 3), 0);
+    expect(frostedSampleScale(sigma: 14, dpr: 3), closeTo(6 / 14, 1e-9));
+    expect(frostedSampleScale(sigma: 1, dpr: 0.5), 0.5);
+    expect(frostedSampleScale(sigma: 200, dpr: 3), 0.05);
   });
 }

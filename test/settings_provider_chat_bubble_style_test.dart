@@ -37,6 +37,26 @@ void main() {
       settings.chatBubbleStyleOverridesFor(isUser: true),
       settings.chatBubbleStyleOverridesFor(isUser: false),
     );
+    expect(settings.assistantBubbleSplitParagraphs, isFalse);
+  });
+
+  test('assistant paragraph splitting persists, reloads, and copies', () async {
+    final prefs = BusinessPreferences.memoryForTests();
+    final settings = SettingsProvider(preferences: prefs);
+    await settings.loaded;
+
+    await settings.setAssistantBubbleSplitParagraphs(true);
+
+    expect(settings.assistantBubbleSplitParagraphs, isTrue);
+    expect(
+      prefs.getBool('display_assistant_bubble_split_paragraphs_v1'),
+      isTrue,
+    );
+    expect(settings.copyWith().assistantBubbleSplitParagraphs, isTrue);
+
+    final reloaded = SettingsProvider(preferences: prefs);
+    await reloaded.loaded;
+    expect(reloaded.assistantBubbleSplitParagraphs, isTrue);
   });
 
   test(
@@ -249,6 +269,10 @@ void main() {
       'display_assistant_bubble_fit_content_v1': BusinessKeyRegistry.classify(
         'display_assistant_bubble_fit_content_v1',
       ),
+      'display_assistant_bubble_split_paragraphs_v1':
+          BusinessKeyRegistry.classify(
+            'display_assistant_bubble_split_paragraphs_v1',
+          ),
     };
     for (final entry in dispositions.entries) {
       expect(

@@ -63,6 +63,7 @@ class _FakeChatService extends ChatService {
     String? parentConversationId,
     String conversationKind = Conversation.kindNormal,
     bool setAsCurrent = true,
+    List<String>? persistentQuickInstructionIds,
   }) async {
     _createdCount++;
     lastCreatedId = 'conv-$_createdCount';
@@ -73,6 +74,7 @@ class _FakeChatService extends ChatService {
       mcpServerIds: mcpServerIds,
       parentConversationId: parentConversationId,
       conversationKind: conversationKind,
+      persistentQuickInstructionIds: persistentQuickInstructionIds,
     );
   }
 
@@ -97,6 +99,7 @@ class _FakeChatService extends ChatService {
     bool isPreset = false,
     String? speakerAssistantId,
     String? quoteJson,
+    String? quickInstructionInvocationsJson,
   }) async {
     final message = ChatMessage(
       id: 'msg-${_nextMessageId++}',
@@ -105,6 +108,7 @@ class _FakeChatService extends ChatService {
       conversationId: conversationId,
       totalTokens: totalTokens,
       isStreaming: isStreaming,
+      quickInstructionInvocationsJson: quickInstructionInvocationsJson,
     );
     (messagesByConversation[conversationId] ??= []).add(message);
     return message;
@@ -141,6 +145,7 @@ class _FakeChatService extends ChatService {
     Object? version = ChatMessage.sentinel,
     Object? requestAllowImagesApiRouting = ChatMessage.sentinel,
     Object? requestExtraBody = ChatMessage.sentinel,
+    Object? quickInstructionInvocationsJson = ChatMessage.sentinel,
   }) async {
     for (final list in messagesByConversation.values) {
       for (int i = 0; i < list.length; i++) {
@@ -154,6 +159,7 @@ class _FakeChatService extends ChatService {
             reasoningStartAt: reasoningStartAt,
             reasoningFinishedAt: reasoningFinishedAt,
             reasoningSegmentsJson: reasoningSegmentsJson,
+            quickInstructionInvocationsJson: quickInstructionInvocationsJson,
           );
         }
       }

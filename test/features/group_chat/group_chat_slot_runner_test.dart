@@ -58,6 +58,7 @@ class _RecordingChatService extends ChatService {
     Object? version = ChatMessage.sentinel,
     Object? requestAllowImagesApiRouting = ChatMessage.sentinel,
     Object? requestExtraBody = ChatMessage.sentinel,
+    Object? quickInstructionInvocationsJson = ChatMessage.sentinel,
   }) async {
     updates.add((
       messageId: messageId,

@@ -25,6 +25,7 @@ Future<void> refreshProvidersAfterRestore(BuildContext context) async {
   final mcpProvider = context.read<McpProvider>();
   final workspaceProvider = context.read<WorkspaceProvider>();
   final safMounts = context.read<SafMountSyncService>();
+  final quickInstructionProvider = context.read<QuickInstructionProvider>();
   // Business preferences: the facade cache must re-read the KV table — a
   // restored/merged settings payload was written through the facade, so the
   // cache is already co-evolved, but a wipe+restore (or import) may have
@@ -68,7 +69,7 @@ Future<void> refreshProvidersAfterRestore(BuildContext context) async {
   try {
     // Reload after assistants so legacy assistant-scoped quick phrases can
     // migrate with stable human-readable assistant names.
-    await context.read<QuickInstructionProvider>().loadAll();
+    await quickInstructionProvider.loadAll();
   } catch (e) {
     debugPrint('refreshProvidersAfterRestore: QuickInstructionProvider: $e');
   }

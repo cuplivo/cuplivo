@@ -358,58 +358,46 @@ class MessageGenerationService {
             snapshot.placement == QuickInstructionPlacement.afterUserMessage,
       ),
     ];
+    QuickInstructionProvider? provider;
+    QuickInstructionStore? fallbackStore;
     try {
-      final provider = contextProvider.read<QuickInstructionProvider>();
-      await provider.initialize();
-      final existingIds = snapshots
-          .map((snapshot) => snapshot.instructionId)
-          .toSet();
-      final persistentIds =
-          conversation?.persistentQuickInstructionIds.toSet() ??
-          const <String>{};
-      for (var index = 0; index < provider.items.length; index++) {
-        final instruction = provider.items[index];
-        if (!instruction.isPersistent ||
-            !persistentIds.contains(instruction.id) ||
-            existingIds.contains(instruction.id)) {
-          continue;
-        }
-        snapshots.add(
-          QuickInstructionInvocationSnapshot.fromInstruction(
-            instruction,
-            order: index,
-          ),
-        );
-        existingIds.add(instruction.id);
-      }
+      provider = contextProvider.read<QuickInstructionProvider>();
     } on ProviderNotFoundException catch (error, stackTrace) {
       debugPrint(
         'QuickInstructionProvider unavailable while freezing input: '
         '$error\n$stackTrace',
       );
-      final preferences = contextProvider.read<BusinessPreferences>();
-      final items = await QuickInstructionStore.shared(preferences).getAll();
-      final existingIds = snapshots
-          .map((snapshot) => snapshot.instructionId)
-          .toSet();
-      final persistentIds =
-          conversation?.persistentQuickInstructionIds.toSet() ??
-          const <String>{};
-      for (var index = 0; index < items.length; index++) {
-        final instruction = items[index];
-        if (!instruction.isPersistent ||
-            !persistentIds.contains(instruction.id) ||
-            existingIds.contains(instruction.id)) {
-          continue;
-        }
-        snapshots.add(
-          QuickInstructionInvocationSnapshot.fromInstruction(
-            instruction,
-            order: index,
-          ),
-        );
-        existingIds.add(instruction.id);
+      fallbackStore = QuickInstructionStore.shared(
+        contextProvider.read<BusinessPreferences>(),
+      );
+    }
+
+    final List<QuickInstruction> items;
+    if (provider != null) {
+      await provider.initialize();
+      items = provider.items;
+    } else {
+      items = await fallbackStore!.getAll();
+    }
+    final existingIds = snapshots
+        .map((snapshot) => snapshot.instructionId)
+        .toSet();
+    final persistentIds =
+        conversation?.persistentQuickInstructionIds.toSet() ?? const <String>{};
+    for (var index = 0; index < items.length; index++) {
+      final instruction = items[index];
+      if (!instruction.isPersistent ||
+          !persistentIds.contains(instruction.id) ||
+          existingIds.contains(instruction.id)) {
+        continue;
       }
+      snapshots.add(
+        QuickInstructionInvocationSnapshot.fromInstruction(
+          instruction,
+          order: index,
+        ),
+      );
+      existingIds.add(instruction.id);
     }
     snapshots.sort((a, b) => a.order.compareTo(b.order));
     return input.copyWith(
@@ -424,29 +412,34 @@ class MessageGenerationService {
     required String? assistantId,
     required List<QuickInstructionInvocationSnapshot> anchorInvocations,
   }) async {
+    QuickInstructionProvider? provider;
+    QuickInstructionStore? fallbackStore;
     try {
-      final provider = contextProvider.read<QuickInstructionProvider>();
-      await provider.initialize();
-      final policy = QuickInstructionExecutionPolicy.fromSources(
-        systemInstructions: provider.activesFor(assistantId),
-        anchorInvocations: anchorInvocations,
-      );
-      return policy.isEmpty ? null : policy;
+      provider = contextProvider.read<QuickInstructionProvider>();
     } on ProviderNotFoundException catch (error, stackTrace) {
       debugPrint(
         'QuickInstructionProvider unavailable while building tool policy: '
         '$error\n$stackTrace',
       );
-      final preferences = contextProvider.read<BusinessPreferences>();
-      final systemInstructions = await QuickInstructionStore.shared(
-        preferences,
-      ).getActives(assistantId: assistantId);
-      final policy = QuickInstructionExecutionPolicy.fromSources(
-        systemInstructions: systemInstructions,
-        anchorInvocations: anchorInvocations,
+      fallbackStore = QuickInstructionStore.shared(
+        contextProvider.read<BusinessPreferences>(),
       );
-      return policy.isEmpty ? null : policy;
     }
+
+    final List<QuickInstruction> systemInstructions;
+    if (provider != null) {
+      await provider.initialize();
+      systemInstructions = provider.activesFor(assistantId);
+    } else {
+      systemInstructions = await fallbackStore!.getActives(
+        assistantId: assistantId,
+      );
+    }
+    final policy = QuickInstructionExecutionPolicy.fromSources(
+      systemInstructions: systemInstructions,
+      anchorInvocations: anchorInvocations,
+    );
+    return policy.isEmpty ? null : policy;
   }
 
   /// Build the persisted content string for a user message.

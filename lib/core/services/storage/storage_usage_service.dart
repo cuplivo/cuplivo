@@ -9,6 +9,7 @@ import '../../../utils/avatar_cache.dart';
 import '../logging/flutter_logger.dart';
 import '../network/request_logger.dart';
 import '../workspace/linux_sandbox_service.dart';
+import '../workspace/workspace_terminal_native_bridge.dart';
 import 'ios_tmp_directory.dart';
 
 enum StorageUsageCategoryKey {
@@ -795,7 +796,15 @@ abstract final class StorageUsageService {
   /// ChatService.clearAllData).
   static Future<bool> clearSandbox({
     required List<String> workspaceHostPaths,
+    Future<void> Function()? stopTerminals,
   }) async {
+    try {
+      await (stopTerminals ??
+          WorkspaceTerminalNativeBridge.instance.stopAllSessions)();
+    } catch (error) {
+      if (error is WorkspaceTerminalStopException) rethrow;
+      throw WorkspaceTerminalStopException(error);
+    }
     for (final host in workspaceHostPaths) {
       final sandboxDir = Directory(p.join(host, '.sandbox'));
       if (!await sandboxDir.exists()) continue;

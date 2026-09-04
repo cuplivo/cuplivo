@@ -21,6 +21,7 @@ import 'package:Cuplivo/core/services/backup/data_sync.dart';
 import 'package:Cuplivo/core/services/backup/kelivo_v2_exception.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/search/search_service.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_terminal_native_bridge.dart';
 
 var businessPrefs = BusinessPreferences.memoryForTests();
 
@@ -252,6 +253,52 @@ void main() {
         List<int>.filled(128, 5),
       );
     });
+
+    test(
+      'overwrite aborts before writes when workspace terminals cannot stop',
+      () async {
+        final settingsSource = File('${root.path}/incoming_settings.json');
+        await settingsSource.writeAsString(
+          jsonEncode(<String, Object?>{'backup_test_key': 'incoming'}),
+        );
+        final zipFile = File('${root.path}/blocked_overwrite.zip');
+        final encoder = ZipFileEncoder();
+        encoder.create(zipFile.path);
+        encoder.addFileSync(settingsSource, 'settings.json');
+        encoder.closeSync();
+
+        var stopCalls = 0;
+        final sync = DataSync(
+          preferences: businessPrefs,
+          chatService: ChatService(),
+          stopWorkspaceTerminals: () async {
+            stopCalls++;
+            throw StateError('terminal still running');
+          },
+        );
+
+        await expectLater(
+          sync.restoreFromLocalFile(
+            zipFile,
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: false,
+                attachments: false,
+                workspaces: true,
+                fontsAndAvatars: false,
+                settings: true,
+                skills: false,
+              ),
+            ),
+            mode: RestoreMode.overwrite,
+          ),
+          throwsA(isA<WorkspaceTerminalStopException>()),
+        );
+
+        expect(stopCalls, 1);
+        expect(businessPrefs.getString('backup_test_key'), 'value');
+      },
+    );
 
     test('restores skill files in overwrite and merge modes', () async {
       final sourceDir = Directory('${root.path}/source_skills');

@@ -125,6 +125,8 @@ class WorkspaceSafMountsPage extends StatelessWidget {
                               l10n.safMountErrorAliasDuplicate,
                             SafMountSyncService.errorUriDuplicate =>
                               l10n.safMountErrorUriDuplicate,
+                            SafMountSyncService.errorTerminalStopFailed =>
+                              l10n.workspaceTerminalStopFailed,
                             _ => l10n.safMountErrorAddFailed,
                           };
                         });
@@ -167,10 +169,17 @@ class WorkspaceSafMountsPage extends StatelessWidget {
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    await context.read<SafMountSyncService>().removeMount(
-      workspaceId,
-      entry.id,
-    );
+    try {
+      await context.read<SafMountSyncService>().removeMount(
+        workspaceId,
+        entry.id,
+      );
+    } catch (error) {
+      debugPrint('WorkspaceSafMountsPage._confirmRemove: $error');
+      if (context.mounted) {
+        showAppSnackBar(context, message: l10n.workspaceTerminalStopFailed);
+      }
+    }
   }
 
   String _statusLabel(AppLocalizations l10n, SafMountState state) =>

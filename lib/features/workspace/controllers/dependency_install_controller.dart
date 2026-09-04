@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/models/workspace.dart';
 import '../../../core/services/workspace/linux_sandbox_service.dart';
+import '../../../core/services/workspace/workspace_terminal_native_bridge.dart';
 
 /// Per-dependency install state inside a workspace's install queue.
 enum DepInstallStatus {
@@ -34,10 +35,16 @@ typedef DependencyInstallRunner =
 /// inside one rootfs), and the rest wait in order. Cross-workspace installs
 /// are independent (each workspace owns its own rootfs).
 class DependencyInstallController extends ChangeNotifier {
-  DependencyInstallController({DependencyInstallRunner? installer})
-    : _runner = installer ?? LinuxSandboxService.instance.installPackage;
+  DependencyInstallController({
+    DependencyInstallRunner? installer,
+    Future<void> Function(String workspaceHostPath)? beforeBaseMutation,
+  }) : _runner = installer ?? LinuxSandboxService.instance.installPackage,
+       _beforeBaseMutation =
+           beforeBaseMutation ??
+           WorkspaceTerminalNativeBridge.instance.stopSessionForWorkspacePath;
 
   final DependencyInstallRunner _runner;
+  final Future<void> Function(String workspaceHostPath) _beforeBaseMutation;
 
   final Map<String, List<_DepEntry>> _queues = <String, List<_DepEntry>>{};
   final Set<String> _running = <String>{};
@@ -103,6 +110,13 @@ class DependencyInstallController extends ChangeNotifier {
         notifyListeners();
         Object? error;
         try {
+          if (entry.depId == WorkspaceDependencyIds.base) {
+            try {
+              await _beforeBaseMutation(entry.hostPath);
+            } catch (error) {
+              throw WorkspaceTerminalStopException(error);
+            }
+          }
           await _runner(
             workspaceHostPath: entry.hostPath,
             depId: entry.depId,

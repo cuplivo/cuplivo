@@ -68,7 +68,11 @@ class WorkspaceListPage extends StatelessWidget {
                           if (err != null && context.mounted) {
                             showAppSnackBar(
                               context,
-                              message: l10n.workspaceCannotDeleteDefault,
+                              message:
+                                  err ==
+                                      WorkspaceProvider.errorTerminalStopFailed
+                                  ? l10n.workspaceTerminalStopFailed
+                                  : l10n.workspaceCannotDeleteDefault,
                             );
                           }
                         },

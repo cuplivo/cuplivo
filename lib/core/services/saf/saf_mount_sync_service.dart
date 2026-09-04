@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 import '../../models/workspace.dart';
 import '../../providers/workspace_provider.dart';
 import '../mcp/kelivo_filesystem/kelivo_filesystem_server.dart';
+import '../workspace/workspace_terminal_native_bridge.dart';
 import '../../../utils/app_directories.dart';
 
 enum SafMountStatus {
@@ -163,6 +164,7 @@ class SafMountSyncService extends ChangeNotifier with WidgetsBindingObserver {
   static const String errorAliasDuplicate = 'alias_duplicate';
   static const String errorUriDuplicate = 'uri_duplicate';
   static const String errorUnsupported = 'unsupported';
+  static const String errorTerminalStopFailed = 'terminal_stop_failed';
 
   static const Duration mutationDebounce = Duration(milliseconds: 500);
   static const Duration foregroundPollInterval = Duration(seconds: 60);
@@ -178,6 +180,7 @@ class SafMountSyncService extends ChangeNotifier with WidgetsBindingObserver {
   static const Duration mtimeTolerance = Duration(milliseconds: 1500);
 
   final WorkspaceProvider workspaces;
+  final Future<void> Function(String workspaceId) _stopWorkspaceTerminal;
   final Map<String, SafMountState> _states = <String, SafMountState>{};
   final Set<String> _running = <String>{};
   final Map<String, Timer> _debounceTimers = <String, Timer>{};
@@ -194,7 +197,11 @@ class SafMountSyncService extends ChangeNotifier with WidgetsBindingObserver {
     required this.workspaces,
     required this.preferences,
     SafChannel? channel,
-  }) : channel = channel ?? SafChannel() {
+    Future<void> Function(String workspaceId)? stopWorkspaceTerminal,
+  }) : channel = channel ?? SafChannel(),
+       _stopWorkspaceTerminal =
+           stopWorkspaceTerminal ??
+           WorkspaceTerminalNativeBridge.instance.stopSession {
     unawaited(init());
   }
 
@@ -371,6 +378,15 @@ class SafMountSyncService extends ChangeNotifier with WidgetsBindingObserver {
     if (_allEntries.any((e) => e.uri == trimmedUri)) {
       return errorUriDuplicate;
     }
+    try {
+      await _stopWorkspaceTerminal(workspaceId);
+    } catch (error, stackTrace) {
+      debugPrint(
+        'SafMountSyncService: failed to stop terminal before addMount: '
+        '$error\n$stackTrace',
+      );
+      return errorTerminalStopFailed;
+    }
     final entry = WorkspaceSafMount(
       id: const Uuid().v4(),
       alias: trimmed,
@@ -403,6 +419,7 @@ class SafMountSyncService extends ChangeNotifier with WidgetsBindingObserver {
         ?.safMounts
         .any((entry) => entry.id == mountId);
     if (ownsMount != true) return;
+    await _stopWorkspaceTerminal(workspaceId);
     _knownMountIds.remove(mountId);
     await workspaces.removeSafMount(workspaceId, mountId);
     await _cleanupMount(mountId);

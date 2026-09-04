@@ -1,5 +1,7 @@
 # Workspace Terminal is an Android proot PTY, not exec
 
+Status: superseded by [ADR-0054](0054-termux-owned-workspace-terminal-sessions.md)
+
 The mobile Linux sandbox already exposes a one-shot `exec` for the model Shell
 tool (no stdin, 128K cap, timeout). A human Termux-like terminal needs a real
 PTY. Decision: add an Android-only interactive session (host PTY + proot

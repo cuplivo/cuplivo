@@ -382,6 +382,54 @@ void main() {
       expect(err, SafMountSyncService.errorAliasInvalid);
     });
 
+    test('terminal stop failure cancels adding a SAF binding', () async {
+      final guarded = SafMountSyncService(
+        preferences: businessPrefs,
+        workspaces: workspaces,
+        channel: channel,
+        stopWorkspaceTerminal: (_) async => throw StateError('stop failed'),
+      );
+      addTearDown(guarded.dispose);
+      await guarded.init();
+
+      final error = await guarded.addMount(
+        workspaceId: Workspace.defaultId,
+        alias: 'blocked',
+        uri: 'content://blocked',
+        displayName: 'Blocked',
+      );
+
+      expect(error, SafMountSyncService.errorTerminalStopFailed);
+      expect(guarded.entriesFor(Workspace.defaultId), isEmpty);
+    });
+
+    test('terminal stop failure cancels removing a SAF binding', () async {
+      expect(
+        await service.addMount(
+          alias: 'notes',
+          uri: 'content://tree',
+          displayName: 'Notes',
+        ),
+        isNull,
+      );
+      final entry = service.entryByAlias('notes')!;
+      final guarded = SafMountSyncService(
+        preferences: businessPrefs,
+        workspaces: workspaces,
+        channel: channel,
+        stopWorkspaceTerminal: (_) async => throw StateError('stop failed'),
+      );
+      addTearDown(guarded.dispose);
+      await guarded.init();
+
+      await expectLater(
+        guarded.removeMount(Workspace.defaultId, entry.id),
+        throwsStateError,
+      );
+
+      expect(workspaces.getById(Workspace.defaultId)!.safMounts, hasLength(1));
+    });
+
     test('rejects a reserved alias colliding with a workspace', () async {
       final err = await service.addMount(
         alias: 'default',

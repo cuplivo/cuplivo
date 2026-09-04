@@ -16,6 +16,7 @@ import '../../workspace/pages/workspace_detail_page.dart';
 import '../../workspace/pages/workspace_list_page.dart';
 import '../../../core/services/storage/message_locate_bus.dart';
 import '../../../core/services/storage/storage_usage_service.dart';
+import '../../../core/services/workspace/workspace_terminal_native_bridge.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/database_compact_button.dart';
@@ -546,7 +547,9 @@ class _StorageSpacePageState extends State<StorageSpacePage> {
       if (!mounted) return;
       showAppSnackBar(
         context,
-        message: l10n.storageSpaceClearFailed(e.toString()),
+        message: e is WorkspaceTerminalStopException
+            ? l10n.workspaceTerminalStopFailed
+            : l10n.storageSpaceClearFailed(e.toString()),
         type: NotificationType.error,
       );
     } finally {
@@ -1183,7 +1186,9 @@ class _StorageCategoryPageState extends State<_StorageCategoryPage> {
       if (!mounted) return;
       showAppSnackBar(
         context,
-        message: l10n.storageSpaceClearFailed(e.toString()),
+        message: e is WorkspaceTerminalStopException
+            ? l10n.workspaceTerminalStopFailed
+            : l10n.storageSpaceClearFailed(e.toString()),
         type: NotificationType.error,
       );
     } finally {
@@ -3350,7 +3355,10 @@ class _MountsPanel extends StatelessWidget {
                         if (err != null && context.mounted) {
                           showAppSnackBar(
                             context,
-                            message: l10n.workspaceCannotDeleteDefault,
+                            message:
+                                err == WorkspaceProvider.errorTerminalStopFailed
+                                ? l10n.workspaceTerminalStopFailed
+                                : l10n.workspaceCannotDeleteDefault,
                           );
                         }
                       },

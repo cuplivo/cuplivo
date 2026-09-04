@@ -16369,6 +16369,84 @@ abstract class AppLocalizations {
   /// **'Copy'**
   String get workspaceTerminalCopy;
 
+  /// No description provided for @workspaceTerminalPersistenceSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Sandbox and terminal persistence'**
+  String get workspaceTerminalPersistenceSettings;
+
+  /// No description provided for @workspaceKeepTerminalAfterExit.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep terminal running after leaving'**
+  String get workspaceKeepTerminalAfterExit;
+
+  /// No description provided for @workspaceKeepTerminalAfterExitDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep this workspace\'s PTY and terminal contents so you can resume them later.'**
+  String get workspaceKeepTerminalAfterExitDescription;
+
+  /// No description provided for @workspaceTerminalPersistentKeepAlive.
+  ///
+  /// In en, this message translates to:
+  /// **'Persistent terminal keep-alive'**
+  String get workspaceTerminalPersistentKeepAlive;
+
+  /// No description provided for @workspaceTerminalPersistentKeepAliveDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a foreground notification to keep the terminal alive after the app task is removed. This uses more power.'**
+  String get workspaceTerminalPersistentKeepAliveDescription;
+
+  /// No description provided for @workspaceAutoStartLinuxSandbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Linux sandbox when the app starts'**
+  String get workspaceAutoStartLinuxSandbox;
+
+  /// No description provided for @workspaceAutoStartLinuxSandboxDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Start this workspace\'s Linux login shell after Cuplivo starts.'**
+  String get workspaceAutoStartLinuxSandboxDescription;
+
+  /// No description provided for @workspaceTerminalSettingFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to update terminal settings: {error}'**
+  String workspaceTerminalSettingFailed(String error);
+
+  /// No description provided for @workspaceTerminalStopFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The workspace terminal could not be stopped. The operation was cancelled.'**
+  String get workspaceTerminalStopFailed;
+
+  /// No description provided for @workspaceTerminalNotificationPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification permission is required to enable persistent terminal keep-alive.'**
+  String get workspaceTerminalNotificationPermissionDenied;
+
+  /// No description provided for @workspaceTerminalNotificationChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Persistent terminal sessions'**
+  String get workspaceTerminalNotificationChannel;
+
+  /// No description provided for @workspaceTerminalNotificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace terminal is running'**
+  String get workspaceTerminalNotificationTitle;
+
+  /// No description provided for @workspaceTerminalNotificationText.
+  ///
+  /// In en, this message translates to:
+  /// **'Cuplivo is keeping a Linux workspace terminal alive.'**
+  String get workspaceTerminalNotificationText;
+
   /// No description provided for @workspaceFilesEntry.
   ///
   /// In en, this message translates to:

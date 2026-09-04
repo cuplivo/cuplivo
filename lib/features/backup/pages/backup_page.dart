@@ -23,6 +23,7 @@ import '../../../core/services/trash_restore_coordinator.dart';
 import '../../../core/services/backup/data_sync.dart';
 import '../../../core/services/backup/restore_refresher.dart';
 import '../../../core/services/native_file_save.dart';
+import '../../../core/services/workspace/workspace_terminal_native_bridge.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../shared/dialogs/incremental_backup_dialog.dart';
 import '../../../shared/dialogs/restart_required_dialog.dart';
@@ -53,6 +54,11 @@ class BackupPage extends StatefulWidget {
 class _BackupPageState extends State<BackupPage> {
   /// Hero card state: where the next backup goes.
   BackupDestination _destination = BackupDestination.local;
+
+  String _restoreFailureMessage(BuildContext context, Object error) =>
+      error is WorkspaceTerminalStopException
+      ? AppLocalizations.of(context)!.workspaceTerminalStopFailed
+      : error.toString();
 
   Future<bool?> _confirmCherryImport(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
@@ -268,7 +274,7 @@ class _BackupPageState extends State<BackupPage> {
       if (!context.mounted) return;
       showAppSnackBar(
         context,
-        message: e.toString(),
+        message: _restoreFailureMessage(context, e),
         type: NotificationType.error,
       );
       return;
@@ -869,7 +875,7 @@ class _BackupPageState extends State<BackupPage> {
       if (!context.mounted) return;
       showAppSnackBar(
         context,
-        message: e.toString(),
+        message: _restoreFailureMessage(context, e),
         type: NotificationType.error,
       );
       return;
@@ -1107,7 +1113,7 @@ class _BackupPageState extends State<BackupPage> {
               if (context.mounted) {
                 showAppSnackBar(
                   context,
-                  message: e.toString(),
+                  message: _restoreFailureMessage(context, e),
                   type: NotificationType.error,
                 );
               }
@@ -1139,7 +1145,7 @@ class _BackupPageState extends State<BackupPage> {
               if (!context.mounted) return;
               showAppSnackBar(
                 context,
-                message: e.toString(),
+                message: _restoreFailureMessage(context, e),
                 type: NotificationType.error,
               );
               return;
@@ -1214,7 +1220,7 @@ class _BackupPageState extends State<BackupPage> {
         if (!context.mounted) return;
         showAppSnackBar(
           context,
-          message: e.toString(),
+          message: _restoreFailureMessage(context, e),
           type: NotificationType.error,
         );
       }
@@ -1279,7 +1285,7 @@ class _BackupPageState extends State<BackupPage> {
         if (!context.mounted) return;
         showAppSnackBar(
           context,
-          message: e.toString(),
+          message: _restoreFailureMessage(context, e),
           type: NotificationType.error,
         );
       }

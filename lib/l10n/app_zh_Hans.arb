@@ -3420,6 +3420,26 @@
     }
   },
   "workspaceTerminalCopy": "复制",
+  "workspaceTerminalPersistenceSettings": "沙箱与终端持久化设置",
+  "workspaceKeepTerminalAfterExit": "退出终端后不关闭终端",
+  "workspaceKeepTerminalAfterExitDescription": "保留此工作区的 PTY 和终端内容，以便稍后继续使用。",
+  "workspaceTerminalPersistentKeepAlive": "终端持久保活",
+  "workspaceTerminalPersistentKeepAliveDescription": "通过前台通知在划掉应用任务后继续保留终端，会增加耗电。",
+  "workspaceAutoStartLinuxSandbox": "软件启动时打开 Linux 沙箱",
+  "workspaceAutoStartLinuxSandboxDescription": "Cuplivo 启动后自动运行此工作区的 Linux 登录 Shell。",
+  "workspaceTerminalSettingFailed": "无法更新终端设置：{error}",
+  "@workspaceTerminalSettingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "workspaceTerminalStopFailed": "无法停止工作区终端，操作已取消。",
+  "workspaceTerminalNotificationPermissionDenied": "需要通知权限才能开启终端持久保活。",
+  "workspaceTerminalNotificationChannel": "终端持久会话",
+  "workspaceTerminalNotificationTitle": "工作区终端正在运行",
+  "workspaceTerminalNotificationText": "Cuplivo 正在保活 Linux 工作区终端。",
   "workspaceFilesEntry": "工作区文件",
   "workspaceFilesystemTools": "文件系统工具",
   "workspaceInstallDeps": "安装依赖",

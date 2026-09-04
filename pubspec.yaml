@@ -117,9 +117,6 @@ dependencies:
   image: ^4.8.0
   math_expressions: ^2.6.2
   yaml: ^3.1.2
-  xterm: ^4.0.0
-  flutter_pty: ^0.4.2
-
   restart_app: ^1.8.3
   drift: ^2.34.0
   sqlite3: ^3.3.3

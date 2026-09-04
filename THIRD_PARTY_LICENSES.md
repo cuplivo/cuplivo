@@ -1,5 +1,27 @@
 # Third-party licenses
 
+## Termux Android terminal libraries
+
+Cuplivo vendors the `terminal-emulator`, `terminal-view`, and `termux-shared`
+modules from [`termux/termux-app`](https://github.com/termux/termux-app) at
+commit `30ebb2dee381d292ade0f2868cfde0f9f20b89fe`.
+
+- `terminal-emulator` and `terminal-view` contain Android Terminal Emulator
+  code distributed under Apache License 2.0.
+- `termux-shared` is primarily MIT licensed. Its
+  `src/main/java/com/termux/shared/termux/` subtree is GPLv3-only, with the
+  MIT, GPLv2-with-Classpath-exception, and Apache-2.0 exceptions documented in
+  the vendored `termux-shared/LICENSE.md`.
+- The pinned transitive dependency
+  [`termux-am-library:v2.0.0`](https://github.com/termux/termux-am-library) is
+  distributed under Apache License 2.0.
+
+Cuplivo's integration code is distributed with the rest of Cuplivo under
+AGPL-3.0. The upstream license notices and source attribution are retained in
+`android/third_party/termux-app/`. Complete Apache-2.0, MIT, GPL-3.0-only, and
+GPL-2.0-with-Classpath-exception texts are retained in its `licenses/`
+directory.
+
 ## Pi — OpenAI Codex device-code OAuth implementation
 
 Cuplivo's Codex device-code OAuth flow is adapted from

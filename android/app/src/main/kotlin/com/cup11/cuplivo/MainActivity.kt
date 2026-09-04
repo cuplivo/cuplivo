@@ -67,6 +67,7 @@ class MainActivity : FlutterActivity() {
         )
         flutterEngine.plugins.add(LinuxSandboxPlugin())
         flutterEngine.plugins.add(SafMountPlugin())
+        flutterEngine.plugins.add(WorkspaceTerminalPlugin())
         deviceLocalToolsHandler = DeviceLocalToolsHandler(this).also {
             it.configure(flutterEngine.dartExecutor.binaryMessenger)
         }

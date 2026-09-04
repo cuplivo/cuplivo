@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/workspace.dart';
 import '../services/mcp/kelivo_filesystem/kelivo_filesystem_server.dart';
+import '../services/workspace/workspace_terminal_native_bridge.dart';
 import '../../utils/app_directories.dart';
 import '../../utils/platform_utils.dart';
 
@@ -32,6 +33,9 @@ class WorkspaceProvider extends ChangeNotifier {
   static const String errorDestinationNotEmpty = 'destination_not_empty';
   static const String errorCannotDeleteDefault = 'cannot_delete_default';
   static const String errorNameEmpty = 'name_empty';
+  static const String errorTerminalStopFailed = 'terminal_stop_failed';
+
+  final WorkspaceTerminalPort _terminal;
 
   final List<Workspace> _workspaces = <Workspace>[];
   String? _rootPath;
@@ -88,7 +92,10 @@ class WorkspaceProvider extends ChangeNotifier {
     return p.join(host, '.sandbox');
   }
 
-  WorkspaceProvider({required this._preferences}) {
+  WorkspaceProvider({
+    required this._preferences,
+    WorkspaceTerminalPort? terminal,
+  }) : _terminal = terminal ?? WorkspaceTerminalNativeBridge.instance {
     unawaited(init());
   }
 
@@ -421,6 +428,27 @@ class WorkspaceProvider extends ChangeNotifier {
     await updateWorkspace(ws.copyWith(dependencyPrefs: prefs));
   }
 
+  /// Atomically persists the three terminal-lifecycle settings.
+  ///
+  /// [Workspace] normalizes child flags to false when the parent flag is off,
+  /// so legacy or restored invalid combinations cannot escape this boundary.
+  Future<void> setTerminalPersistenceSettings(
+    String id, {
+    required bool keepTerminalAfterExit,
+    required bool terminalPersistentKeepAlive,
+    required bool autoStartLinuxSandbox,
+  }) async {
+    final ws = getById(id);
+    if (ws == null) return;
+    await updateWorkspace(
+      ws.copyWith(
+        keepTerminalAfterExit: keepTerminalAfterExit,
+        terminalPersistentKeepAlive: terminalPersistentKeepAlive,
+        autoStartLinuxSandbox: autoStartLinuxSandbox,
+      ),
+    );
+  }
+
   Future<void> addSafMount(String workspaceId, WorkspaceSafMount mount) async {
     final ws = getById(workspaceId);
     if (ws == null) return;
@@ -469,6 +497,9 @@ class WorkspaceProvider extends ChangeNotifier {
     if (ws == null) return null;
     if (ws.alias == Workspace.defaultAlias || ws.id == Workspace.defaultId) {
       return errorCannotDeleteDefault;
+    }
+    if (!await _stopTerminalForMutation(ws.id)) {
+      return errorTerminalStopFailed;
     }
     _workspaces.removeWhere((w) => w.id == id);
     if (ws.customHostPath == null) {
@@ -555,6 +586,9 @@ class WorkspaceProvider extends ChangeNotifier {
     final ws = getById(workspaceId);
     if (ws == null) return errorPathInvalid;
     if (path == null || path.trim().isEmpty) {
+      if (!await _stopTerminalForMutation(workspaceId)) {
+        return errorTerminalStopFailed;
+      }
       // Revert to managed path under root.
       final managed = p.join(_rootPath!, ws.alias);
       if (moveFiles && ws.customHostPath != null) {
@@ -571,6 +605,9 @@ class WorkspaceProvider extends ChangeNotifier {
     final trimmed = path.trim();
     final err = await _validateCustomPath(trimmed, excludeId: workspaceId);
     if (err != null) return err;
+    if (!await _stopTerminalForMutation(workspaceId)) {
+      return errorTerminalStopFailed;
+    }
     if (moveFiles) {
       final from = hostPathFor(ws);
       if (from != null &&
@@ -589,6 +626,19 @@ class WorkspaceProvider extends ChangeNotifier {
     }
     await updateWorkspace(ws.copyWith(customHostPath: trimmed));
     return null;
+  }
+
+  Future<bool> _stopTerminalForMutation(String workspaceId) async {
+    try {
+      await _terminal.stopSession(workspaceId);
+      return true;
+    } catch (error, stackTrace) {
+      debugPrint(
+        'WorkspaceProvider: failed to stop terminal for $workspaceId: '
+        '$error\n$stackTrace',
+      );
+      return false;
+    }
   }
 
   Future<String?> _validateRootLocation(String path) async {

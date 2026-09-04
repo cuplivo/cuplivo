@@ -3589,6 +3589,8 @@
   "webConversationStylesNoDescription": "無描述",
   "messageStyleSettingsPageAssistantFitContent": "助手氣泡貼合內容",
   "messageStyleSettingsPageAssistantFitContentSubtitle": "助手氣泡按文字寬度收縮，不再佔滿整行",
+  "messageStyleSettingsPageAssistantSplitParagraphs": "分段顯示為多個氣泡",
+  "messageStyleSettingsPageAssistantSplitParagraphsSubtitle": "助手回覆遇到空行時拆分，每段單獨一個氣泡",
   "messageStyleSettingsPageBackgroundColor": "背景顏色",
   "messageStyleSettingsPageBackgroundOpacity": "背景不透明度",
   "messageStyleSettingsPageBlur": "模糊強度",

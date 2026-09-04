@@ -263,6 +263,8 @@ class SettingsProvider extends ChangeNotifier {
       'display_chat_message_background_style_v1';
   static const String _displayAssistantBubbleFitContentKey =
       'display_assistant_bubble_fit_content_v1';
+  static const String _displayAssistantBubbleSplitParagraphsKey =
+      'display_assistant_bubble_split_paragraphs_v1';
   static const String _chatBubbleStyleOverridesKey =
       'chat_bubble_style_overrides_v1';
   static const String _userChatBubbleStyleOverridesKey =
@@ -1487,6 +1489,8 @@ class SettingsProvider extends ChangeNotifier {
     }
     _assistantBubbleFitContent =
         prefs.getBool(_displayAssistantBubbleFitContentKey) ?? false;
+    _assistantBubbleSplitParagraphs =
+        prefs.getBool(_displayAssistantBubbleSplitParagraphsKey) ?? false;
     final bubbleOverridesRaw = prefs.getString(_chatBubbleStyleOverridesKey);
     if (bubbleOverridesRaw != null && bubbleOverridesRaw.isNotEmpty) {
       try {
@@ -3021,6 +3025,16 @@ class SettingsProvider extends ChangeNotifier {
     _assistantBubbleFitContent = v;
     notifyListeners();
     await _preferences.setBool(_displayAssistantBubbleFitContentKey, v);
+  }
+
+  // When on, blank lines split assistant text into one bubble per paragraph.
+  bool _assistantBubbleSplitParagraphs = false;
+  bool get assistantBubbleSplitParagraphs => _assistantBubbleSplitParagraphs;
+  Future<void> setAssistantBubbleSplitParagraphs(bool v) async {
+    if (_assistantBubbleSplitParagraphs == v) return;
+    _assistantBubbleSplitParagraphs = v;
+    notifyListeners();
+    await _preferences.setBool(_displayAssistantBubbleSplitParagraphsKey, v);
   }
 
   ChatBubbleStyleOverrides _chatBubbleStyleOverrides =
@@ -5575,6 +5589,7 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     copy._selectedCustomThemeId = _selectedCustomThemeId;
     copy._chatMessageBackgroundStyle = _chatMessageBackgroundStyle;
     copy._assistantBubbleFitContent = _assistantBubbleFitContent;
+    copy._assistantBubbleSplitParagraphs = _assistantBubbleSplitParagraphs;
     copy._chatBubbleStyleOverrides = _chatBubbleStyleOverrides;
     copy._userChatBubbleStyleOverrides = _userChatBubbleStyleOverrides;
     copy._mobileAssistantEditTabOrder = _mobileAssistantEditTabOrder;

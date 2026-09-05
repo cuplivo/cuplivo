@@ -231,3 +231,67 @@ test('ovalbox macro renders math content instead of erroring', () => {
   assert.ok(html.includes('fbox'), 'macro must expand to the boxed geometry');
   assert.ok(!html.includes('katex-error'), 'must not fall into the error renderer');
 });
+
+test('fences nested in block quotes and lists are recognized', () => {
+  // marked strips container prefixes before it sees fence markers; the
+  // pre-lexer must do the same on fence lines only.
+  const quoted = [
+    '$$',
+    '> ```',
+    '> code',
+    '> ```',
+    '$$',
+  ].join('\n');
+  const { source, slots } = extractMathSpans(quoted);
+  assert.equal(slots.size, 0, 'delimiters must not pair across a quoted fence');
+  assert.equal(source, quoted, 'the quoted fence must stay byte-for-byte');
+  const html = marked.parse(source, markedOpts);
+  assert.ok(html.includes('<blockquote>'), 'marked must see the quote: ' +
+      html);
+  assert.ok(html.includes('<pre><code'), 'quoted fence must stay a code block');
+  assert.ok(html.includes('$$'), 'unmatched delimiters stay literal');
+  assert.ok(html.includes('m:') === false, 'no slot may leak into the quote');
+
+  const listed = [
+    '$$',
+    '- ```',
+    '  code',
+    '  ```',
+    '$$',
+  ].join('\n');
+  const listedResult = extractMathSpans(listed);
+  assert.equal(listedResult.slots.size, 0,
+      'delimiters must not pair across a list fence');
+  assert.equal(listedResult.source, listed);
+  const listedHtml = marked.parse(listed, markedOpts);
+  assert.ok(listedHtml.includes('<ul>'), 'marked must see the list: ' +
+      listedHtml);
+  assert.ok(listedHtml.includes('<pre><code'),
+      'list fence must stay a code block');
+  assert.ok(listedHtml.includes('m:') === false,
+      'no slot may leak into the list');
+});
+
+test('container fences bound every delimiter family', () => {
+  for (const [name, open, close] of [
+    ['dollarBlock', '$$', '$$'],
+    ['bracketBlock', '\\[', '\\]'],
+    ['parenInline', '\\(', '\\)'],
+    ['singleDollar', '$', '$'],
+  ]) {
+    const input = [
+      open,
+      '> ```',
+      '> code',
+      '> ```',
+      close,
+    ].join('\n');
+    const { source, slots } = extractMathSpans(input);
+    assert.equal(source, input, `${name}: source must stay byte-for-byte`);
+    assert.equal(slots.size, 0,
+        `${name}: opener/closer must not pair across the quoted fence`);
+    const html = marked.parse(source, markedOpts);
+    assert.ok(html.includes('m:') === false,
+        `${name}: no slot may leak (${html})`);
+  }
+});

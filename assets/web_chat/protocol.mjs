@@ -1,5 +1,5 @@
 export const PROTOCOL_VERSION = 5;
-export const ASSET_VERSION = 'web-chat-v21';
+export const ASSET_VERSION = 'web-chat-v22';
 
 const transfers = new Map();
 
@@ -1136,6 +1136,22 @@ export function stableMathSlotKey(source) {
   return `m:${(hash >>> 0).toString(16).padStart(8, '0')}`;
 }
 
+/** Strips Markdown container prefixes from a fence-bearing line so fence
+ *  detection agrees with marked, which recognizes fences after removing
+ *  block-quote prefixes (`> `, nested) and list-item markers (`- `, `* `,
+ *  `+ `, `1. `) plus their indentation. Non-container lines are untouched. */
+function stripContainerPrefixes(line) {
+  let rest = line;
+  for (let depth = 0; depth < 8; depth += 1) {
+    const stripped = rest
+        .replace(/^ {0,3}>[ \t]?/, '')
+        .replace(/^ {0,3}(?:\d{1,9}[.)]|[-*+])[ \t]+/, '');
+    if (stripped === rest) break;
+    rest = stripped;
+  }
+  return rest;
+}
+
 function isFenceOpen(line) {
   // CommonMark: at most three leading spaces, marker run of >= 3. Only
   // backtick fences restrict the info string (no backticks); tilde-fence
@@ -1174,12 +1190,12 @@ function fencedRanges(source) {
   let start = 0;
   for (const line of lines) {
     if (fence) {
-      if (isFenceClose(line, fence)) {
+      if (isFenceClose(stripContainerPrefixes(line), fence)) {
         ranges.push([start, offset + line.length]);
         fence = null;
       }
     } else {
-      const opened = isFenceOpen(line);
+      const opened = isFenceOpen(stripContainerPrefixes(line));
       if (opened) {
         fence = opened;
         start = offset;

@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_preferences_store.dart';
 import 'package:Cuplivo/core/providers/auto_snapshot_provider.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
 import 'package:Cuplivo/core/services/backup/auto_snapshot_service.dart';
 import 'package:Cuplivo/core/services/backup/backup_activity_gate.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
@@ -59,6 +61,33 @@ class _FakeAutoSnapshotService extends AutoSnapshotService {
     deleteWhileCreatePending = !_createCompleted;
     store.clear();
   }
+}
+
+/// A store whose writes can be made to fail on demand — the persistence
+/// equivalent of the delete/create gates. Mirrors [MemoryBusinessStore] so
+/// the facade behaves exactly like `memoryForTests` otherwise.
+class _ThrowingBusinessStore implements BusinessPreferencesStore {
+  final MemoryBusinessStore _inner = MemoryBusinessStore();
+
+  bool throwOnWrite = false;
+
+  @override
+  Future<List<BusinessPreferenceEntry>> readAll() => _inner.readAll();
+
+  @override
+  Future<void> write(String key, Object value, {required int updatedAt}) async {
+    if (throwOnWrite) throw StateError('disk error');
+    await _inner.write(key, value, updatedAt: updatedAt);
+  }
+
+  @override
+  Future<void> remove(String key) => _inner.remove(key);
+
+  @override
+  Future<void> clear() => _inner.clear();
+
+  Future<void> seed(String key, Object value, {int? updatedAt}) =>
+      _inner.seed(key, value, updatedAt: updatedAt);
 }
 
 void main() {
@@ -226,6 +255,89 @@ void main() {
     await pumpEventQueue();
     expect(fake.store, hasLength(1));
   });
+
+  test(
+    'a failed enable persistence write leaves the toggle retryable',
+    () async {
+      final store = _ThrowingBusinessStore();
+      await store.seed('auto_snapshot_enabled_v1', false);
+      final prefs = BusinessPreferences.open(store);
+      await prefs.load();
+      final fake = _FakeAutoSnapshotService();
+      final provider = AutoSnapshotProvider(
+        preferences: prefs,
+        chatService: ChatService(),
+        autoLoad: false,
+        serviceFactory: () => fake,
+      );
+      await provider.load();
+      expect(provider.enabled, isFalse);
+
+      // The durable write fails: nothing may be published in memory, no
+      // ticker/baseline may start, and a retry must be accepted.
+      store.throwOnWrite = true;
+      await expectLater(provider.setEnabled(true), throwsA(isA<StateError>()));
+      expect(provider.enabled, isFalse, reason: 'in-memory state untouched');
+      expect(prefs.getBool('auto_snapshot_enabled_v1'), isFalse);
+      expect(fake.store, isEmpty, reason: 'no baseline ran');
+      expect(provider.snapshots, isEmpty);
+
+      store.throwOnWrite = false;
+      await provider.setEnabled(true);
+      await pumpEventQueue();
+      expect(provider.enabled, isTrue);
+      expect(prefs.getBool('auto_snapshot_enabled_v1'), isTrue);
+      expect(
+        fake.store,
+        hasLength(1),
+        reason: 'baseline snapshot created on the retried enable',
+      );
+    },
+  );
+
+  test(
+    'a failed disable persistence write rolls back and stays retryable',
+    () async {
+      final store = _ThrowingBusinessStore();
+      final prefs = BusinessPreferences.open(store);
+      await prefs.load();
+      final fake = _FakeAutoSnapshotService();
+      final provider = AutoSnapshotProvider(
+        preferences: prefs,
+        chatService: ChatService(),
+        autoLoad: false,
+        serviceFactory: () => fake,
+      );
+      await provider.load();
+      expect(provider.enabled, isFalse);
+
+      // Session start: enabled, with a baseline snapshot (and anchor) to be
+      // deleted by the disable retry.
+      await provider.setEnabled(true);
+      await pumpEventQueue();
+      expect(provider.enabled, isTrue);
+      expect(fake.store, hasLength(1));
+
+      store.throwOnWrite = true;
+      await expectLater(provider.setEnabled(false), throwsA(isA<StateError>()));
+      expect(
+        provider.enabled,
+        isTrue,
+        reason: 'in-memory state rolled back to enabled',
+      );
+      expect(prefs.getBool('auto_snapshot_enabled_v1'), isTrue);
+      expect(fake.store, hasLength(1), reason: 'delete never ran');
+      expect(provider.lastSnapshotAt, isNotNull);
+
+      store.throwOnWrite = false;
+      await provider.setEnabled(false);
+      await pumpEventQueue();
+      expect(provider.enabled, isFalse);
+      expect(prefs.getBool('auto_snapshot_enabled_v1'), isFalse);
+      expect(fake.store, isEmpty, reason: 'delete ran on the retry');
+      expect(provider.lastSnapshotAt, isNull, reason: 'anchor cleared');
+    },
+  );
 
   test(
     'a failed delete surfaces to the caller and keeps the store restorable',

@@ -9395,6 +9395,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String autoSnapshotDisableDeleteFailed(String error) {
     return '删除存储的快照失败：$error。快照文件仍保留在磁盘上。';
   }
+
+  @override
+  String autoSnapshotToggleFailed(String error) {
+    return '无法保存「自动快照」设置：$error。请重试。';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -18787,6 +18792,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String autoSnapshotDisableDeleteFailed(String error) {
     return '删除存储的快照失败：$error。快照文件仍保留在磁盘上。';
+  }
+
+  @override
+  String autoSnapshotToggleFailed(String error) {
+    return '无法保存「自动快照」设置：$error。请重试。';
   }
 }
 
@@ -28182,5 +28192,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String autoSnapshotDisableDeleteFailed(String error) {
     return '刪除儲存的快照失敗：$error。快照檔案仍保留在磁碟上。';
+  }
+
+  @override
+  String autoSnapshotToggleFailed(String error) {
+    return '無法儲存「自動快照」設定：$error。請重試。';
   }
 }

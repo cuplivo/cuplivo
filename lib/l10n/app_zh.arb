@@ -3642,5 +3642,6 @@
     "autoSnapshotDisableTitle": "关闭自动快照？",
     "autoSnapshotDisableBody": "关闭会永久删除已有的 {count} 份快照。确定继续吗？",
     "autoSnapshotDisableConfirm": "关闭并删除",
-    "autoSnapshotDisableDeleteFailed": "删除存储的快照失败：{error}。快照文件仍保留在磁盘上。"
+    "autoSnapshotDisableDeleteFailed": "删除存储的快照失败：{error}。快照文件仍保留在磁盘上。",
+    "autoSnapshotToggleFailed": "无法保存「自动快照」设置：{error}。请重试。"
 }

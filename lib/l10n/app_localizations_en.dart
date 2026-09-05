@@ -9860,4 +9860,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String autoSnapshotDisableDeleteFailed(String error) {
     return 'Failed to delete stored snapshots: $error. They are kept on disk.';
   }
+
+  @override
+  String autoSnapshotToggleFailed(String error) {
+    return 'Could not save the Auto Snapshots setting: $error. Please try again.';
+  }
 }

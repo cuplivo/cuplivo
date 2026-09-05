@@ -155,20 +155,38 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
   }) async {
     // Runtime idempotence: a queued transition may find the state already at
     // the requested value (e.g. enable+disable+enable stacking) — only the
-    // first no-op-on-change transition run matters.
+    // first no-op-on-change transition run matters. Because failures roll the
+    // mutated fields back (or — enable — commit durability before publishing
+    // the in-memory state), a failed transition never leaves the state at the
+    // requested value, so a retry always passes this guard.
     if (value == _enabled) return;
     if (value) {
-      _enabled = true;
+      // Durable first: if the write is rejected the in-memory state stays
+      // off, no ticker/baseline was started, and a retry is accepted — no
+      // split where the UI reports enabled but persistence says disabled.
       await preferences.setBool(_enabledKey, true);
+      _enabled = true;
       _startTicker();
       // Baseline snapshot the moment the feature is switched on, so there is
       // always at least one restore point without waiting a full interval.
       unawaited(createSnapshot().then(_setAutoNotice));
     } else {
-      _stopTicker();
+      // Publish the off-state synchronously first — it is what blocks new
+      // create attempts — then make the durable write; on failure roll the
+      // in-memory state back so the transition stays retryable and the
+      // persisted key (still true) matches. The persist-failure window is
+      // safe on its own: createSnapshot is guarded by `!_enabled`.
       _enabled = false;
-      _teardown = true;
       notifyListeners();
+      try {
+        await preferences.setBool(_enabledKey, false);
+      } catch (e) {
+        _enabled = true;
+        notifyListeners();
+        rethrow;
+      }
+      _stopTicker();
+      _teardown = true;
       try {
         final inflight = _inflight;
         if (inflight != null) {
@@ -178,7 +196,6 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
           // set it; attempts after it are already rejected.
           await inflight;
         }
-        await preferences.setBool(_enabledKey, false);
         _lastSnapshotAt = null;
         await preferences.remove(_lastSnapshotAtKey);
         if (deleteSnapshots && _serviceBuilt) {

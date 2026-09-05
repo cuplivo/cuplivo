@@ -17640,6 +17640,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to delete stored snapshots: {error}. They are kept on disk.'**
   String autoSnapshotDisableDeleteFailed(String error);
+
+  /// No description provided for @autoSnapshotToggleFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the Auto Snapshots setting: {error}. Please try again.'**
+  String autoSnapshotToggleFailed(String error);
 }
 
 class _AppLocalizationsDelegate

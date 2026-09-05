@@ -4244,5 +4244,7 @@
     "@autoSnapshotDisableBody": {"placeholders": {"count": {"type": "int"}}},
     "autoSnapshotDisableConfirm": "Turn off & Delete",
     "autoSnapshotDisableDeleteFailed": "Failed to delete stored snapshots: {error}. They are kept on disk.",
-    "@autoSnapshotDisableDeleteFailed": {"placeholders": {"error": {"type": "String"}}}
+    "@autoSnapshotDisableDeleteFailed": {"placeholders": {"error": {"type": "String"}}},
+    "autoSnapshotToggleFailed": "Could not save the Auto Snapshots setting: {error}. Please try again.",
+    "@autoSnapshotToggleFailed": {"placeholders": {"error": {"type": "String"}}}
 }

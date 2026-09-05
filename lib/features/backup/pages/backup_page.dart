@@ -115,8 +115,10 @@ class _BackupPageState extends State<BackupPage> {
     });
   }
 
-  /// Enables/disables auto snapshots, surfacing a failed permanent delete
-  /// (both files and the toggle state) as an error toast.
+  /// Enables/disables auto snapshots, surfacing failures as an error toast:
+  /// a rejected enable (durable write failed) uses the general toggle
+  /// message, a failed permanent delete keeps its specific message (the
+  /// store stays restorable on disk).
   Future<void> _setAutoSnapshotEnabled(bool value) async {
     final l10n = AppLocalizations.of(context)!;
     try {
@@ -125,7 +127,9 @@ class _BackupPageState extends State<BackupPage> {
       if (!mounted) return;
       showAppSnackBar(
         context,
-        message: l10n.autoSnapshotDisableDeleteFailed(e.toString()),
+        message: value
+            ? l10n.autoSnapshotToggleFailed(e.toString())
+            : l10n.autoSnapshotDisableDeleteFailed(e.toString()),
         type: NotificationType.error,
       );
     }
@@ -838,7 +842,7 @@ class _BackupPageState extends State<BackupPage> {
             value: snapshotProvider.enabled,
             onChanged: (v) {
               if (v) {
-                snapshotProvider.setEnabled(true);
+                _setAutoSnapshotEnabled(true);
                 return;
               }
               // Turning off with existing snapshots needs explicit consent —

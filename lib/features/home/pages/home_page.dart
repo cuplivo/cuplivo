@@ -24,18 +24,17 @@ import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/tts_provider.dart';
 import '../../../core/providers/user_provider.dart';
-import '../../../core/providers/quick_phrase_provider.dart';
-import '../../../core/providers/instruction_injection_provider.dart';
+import '../../../core/providers/quick_instruction_provider.dart';
 import '../../../core/providers/world_book_provider.dart';
 import '../../../core/services/trash_restore_coordinator.dart';
 import '../../../core/services/streaming_content_notifier.dart';
 import '../../settings/pages/trash_detail_page.dart';
 import '../widgets/live_panel.dart';
 import '../widgets/image_generation_options.dart';
-import '../../../core/models/quick_phrase.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
+import '../../../core/utils/quick_instruction_presentation.dart';
 import '../../../core/services/chat/external_chat_draft_handoff.dart';
 import '../../../core/services/android_process_text.dart';
 import '../../../core/services/network/dio_http_client.dart';
@@ -45,8 +44,6 @@ import '../../../desktop/search_provider_popover.dart';
 import '../../../desktop/reasoning_budget_popover.dart';
 import '../../../desktop/tools_hub_popover.dart';
 import '../../../desktop/mini_map_popover.dart';
-import '../../../desktop/quick_phrase_popover.dart';
-import '../../../desktop/instruction_injection_popover.dart';
 import '../../../desktop/skills_popover.dart';
 import '../../../desktop/world_book_popover.dart';
 import '../../../desktop/document_processing_popover.dart';
@@ -68,9 +65,9 @@ import '../../model/widgets/model_select_sheet.dart';
 import '../../mcp/pages/mcp_page.dart';
 import '../../provider/pages/providers_page.dart';
 import '../../home/widgets/tools_hub_sheet.dart';
-import '../../quick_phrase/pages/quick_phrases_page.dart';
-import '../../quick_phrase/widgets/quick_phrase_menu.dart';
+import '../../instruction_injection/pages/instruction_injection_page.dart';
 import '../widgets/chat_input_bar.dart';
+import '../widgets/quick_instruction_editing_controller.dart';
 import '../widgets/mini_map_sheet.dart';
 import '../widgets/instruction_injection_sheet.dart';
 import '../../skills/pages/skills_page.dart';
@@ -78,7 +75,6 @@ import '../../skills/skill_manager.dart';
 import '../../skills/widgets/skills_sheet.dart';
 import '../widgets/world_book_sheet.dart';
 import '../widgets/document_processing_sheet.dart';
-import '../widgets/learning_prompt_sheet.dart';
 import '../widgets/scroll_nav_buttons.dart';
 import '../widgets/message_list_view.dart';
 import '../widgets/multi_ai_comparison_view.dart';
@@ -610,7 +606,8 @@ class _HomePageState extends State<HomePage>
       InteractiveDrawerController();
   final ValueNotifier<int> _assistantPickerCloseTick = ValueNotifier<int>(0);
   final FocusNode _inputFocus = FocusNode();
-  final TextEditingController _inputController = TextEditingController();
+  final QuickInstructionEditingController _inputController =
+      QuickInstructionEditingController();
   final ChatInputBarController _mediaController = ChatInputBarController();
   final ImageGenerationOptionsController _imageGenController =
       ImageGenerationOptionsController();
@@ -799,8 +796,8 @@ class _HomePageState extends State<HomePage>
     if (!mounted) return;
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
-    final current = _inputController.text;
-    final selection = _inputController.selection;
+    final current = _inputController.bodyText;
+    final selection = _inputController.bodySelection;
     final start = (selection.start >= 0 && selection.start <= current.length)
         ? selection.start
         : current.length;
@@ -811,10 +808,12 @@ class _HomePageState extends State<HomePage>
         ? selection.end
         : start;
     final next = current.replaceRange(start, end, trimmed);
-    _inputController.value = _inputController.value.copyWith(
-      text: next,
-      selection: TextSelection.collapsed(offset: start + trimmed.length),
-      composing: TextRange.empty,
+    _inputController.setBodyValue(
+      _inputController.bodyValue.copyWith(
+        text: next,
+        selection: TextSelection.collapsed(offset: start + trimmed.length),
+        composing: TextRange.empty,
+      ),
     );
     _mediaController.syncDraft();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -2092,7 +2091,12 @@ class _HomePageState extends State<HomePage>
     switch (request.action) {
       case 'copy':
         await Clipboard.setData(
-          ClipboardData(text: messageVisualContent(message)),
+          ClipboardData(
+            text: quickInstructionDecorateText(
+              message,
+              messageVisualContent(message),
+            ),
+          ),
         );
         return;
       case 'edit':
@@ -2836,19 +2840,17 @@ class _HomePageState extends State<HomePage>
       onCancelQueuedInput: _controller.cancelQueuedMessage,
       onQuickPhrase: _showQuickPhraseMenu,
       onLongPressQuickPhrase: () {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const QuickPhrasesPage()));
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const InstructionInjectionPage()),
+        );
       },
       onDocumentProcessing: () => _openDocumentProcessingPopover(),
       onOpenMiniMap: _openMiniMap,
       onPickCamera: _controller.onPickCamera,
       onPickPhotos: _controller.onPickPhotos,
       onUploadFiles: _controller.onPickFiles,
-      onToggleLearningMode: _openInstructionInjectionPopover,
       onOpenWorldBook: _openWorldBookPopover,
       onOpenSkills: _openSkillsPopover,
-      onLongPressLearning: _showLearningPromptSheet,
       onClearContext: _controller.clearContext,
       onCompressContext: _handleDesktopCompressContext,
       backgroundImageActive: _assistantBackgroundActive(context),
@@ -3062,27 +3064,6 @@ class _HomePageState extends State<HomePage>
     }
   }
 
-  Future<void> _openInstructionInjectionPopover() async {
-    final isDesktop = PlatformUtils.isDesktop;
-    final assistantId = context.read<AssistantProvider>().currentAssistantId;
-    final provider = context.read<InstructionInjectionProvider>();
-    await provider.initialize();
-    if (!mounted) return;
-    final items = provider.items;
-    if (items.isEmpty) return;
-
-    if (isDesktop) {
-      await showDesktopInstructionInjectionPopover(
-        context,
-        anchorKey: _inputBarKey,
-        items: items,
-        assistantId: assistantId,
-      );
-    } else {
-      await showInstructionInjectionSheet(context, assistantId: assistantId);
-    }
-  }
-
   Future<void> _openSkillsPopover() async {
     final isDesktop = PlatformUtils.isDesktop;
     final assistantId = context.read<AssistantProvider>().currentAssistantId;
@@ -3142,10 +3123,6 @@ class _HomePageState extends State<HomePage>
     }
   }
 
-  Future<void> _showLearningPromptSheet() async {
-    await showLearningPromptSheet(context);
-  }
-
   void _toggleTools() async {
     _controller.dismissKeyboard();
     final cs = Theme.of(context).colorScheme;
@@ -3171,7 +3148,6 @@ class _HomePageState extends State<HomePage>
     final mid = modelIds.modelId;
     final supportsReasoning = pk != null && mid != null;
     final toolsGate = _toolsHubAvailable(pk, mid);
-    final quickPhraseGate = _hasQuickPhrases(a);
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -3237,12 +3213,18 @@ class _HomePageState extends State<HomePage>
                     Navigator.of(ctx).maybePop();
                     await _configureReasoning();
                   },
-            onQuickPhrase: !quickPhraseGate
-                ? null
-                : () {
-                    Navigator.of(ctx).maybePop();
-                    _showQuickPhraseMenu();
-                  },
+            onQuickPhrase: () {
+              Navigator.of(ctx).maybePop();
+              _showQuickPhraseMenu();
+            },
+            onLongPressQuickPhrase: () {
+              Navigator.of(ctx).maybePop();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const InstructionInjectionPage(),
+                ),
+              );
+            },
             onOpenToolsHub: !toolsGate
                 ? null
                 : () {
@@ -3264,13 +3246,6 @@ class _HomePageState extends State<HomePage>
   bool _toolsHubAvailable(String? pk, String? mid) {
     if (pk == null || mid == null) return false;
     return _controller.isToolModel(pk, mid);
-  }
-
-  bool _hasQuickPhrases(Assistant? a) {
-    final quickPhraseProvider = context.read<QuickPhraseProvider>();
-    if (quickPhraseProvider.globalPhrases.isNotEmpty) return true;
-    if (a == null) return false;
-    return quickPhraseProvider.getForAssistant(a.id).isNotEmpty;
   }
 
   void _showContextManagementSheet() async {
@@ -3347,43 +3322,22 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _showQuickPhraseMenu() async {
-    final assistant = context.read<AssistantProvider>().currentAssistant;
-    final quickPhraseProvider = context.read<QuickPhraseProvider>();
-    final globalPhrases = quickPhraseProvider.globalPhrases;
-    final assistantPhrases = assistant != null
-        ? quickPhraseProvider.getForAssistant(assistant.id)
-        : <QuickPhrase>[];
-
-    final allAvailable = [...globalPhrases, ...assistantPhrases];
-    if (allAvailable.isEmpty) return;
-
-    final RenderBox? inputBox =
-        _inputBarKey.currentContext?.findRenderObject() as RenderBox?;
-    if (inputBox == null) return;
-
-    final inputBarHeight = inputBox.size.height;
-    final topLeft = inputBox.localToGlobal(Offset.zero);
-    final position = Offset(topLeft.dx, inputBarHeight);
-
+    final provider = context.read<QuickInstructionProvider>();
+    await provider.initialize();
+    if (!mounted) return;
     _controller.dismissKeyboard();
-
-    QuickPhrase? selected;
-    if (PlatformUtils.isDesktop) {
-      selected = await showDesktopQuickPhrasePopover(
-        context,
-        anchorKey: _inputBarKey,
-        phrases: allAvailable,
-      );
-    } else {
-      selected = await showQuickPhraseMenu(
-        context: context,
-        phrases: allAvailable,
-        position: position,
-      );
-    }
-
+    final selected = await showInstructionInjectionSheet(
+      context,
+      assistantId: context.read<AssistantProvider>().currentAssistantId,
+      conversationId: _controller.currentConversation?.id,
+      selectedInvocationIds: _mediaController.quickInstructions
+          .map((snapshot) => snapshot.instructionId)
+          .toSet(),
+      onToggleInvocation: _mediaController.toggleQuickInstruction,
+      editingUserMessage: _controller.isUserMessageEditActive,
+    );
     if (selected != null && mounted) {
-      await _controller.handleQuickPhraseSelection(selected);
+      await _controller.insertQuickInstruction(selected);
     }
   }
 

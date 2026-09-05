@@ -5,18 +5,18 @@ import '../database/chat_database_repository.dart';
 import '../providers/assistant_provider.dart';
 import '../providers/mcp_provider.dart';
 import '../providers/memory_provider.dart';
-import '../providers/quick_phrase_provider.dart';
+import '../providers/quick_instruction_provider.dart';
 import '../providers/world_book_provider.dart';
 import '../services/chat/chat_service.dart';
 import '../services/deleted_records_store.dart';
 import '../services/memory_store.dart';
-import '../services/quick_phrase_store.dart';
+import '../services/quick_instruction_store.dart';
 import '../services/world_book_store.dart';
 import '../models/assistant.dart';
 import '../models/assistant_memory.dart';
 import '../models/group_chat.dart';
 import '../models/group_chat_member.dart';
-import '../models/quick_phrase.dart';
+import '../models/quick_instruction.dart';
 import '../models/world_book.dart';
 
 /// Central coordinator for restore / local-delete / local-id-resolution
@@ -30,20 +30,20 @@ class TrashRestoreCoordinator {
     required BusinessPreferences preferences,
     this.assistantProvider,
     this.worldBookProvider,
-    this.quickPhraseProvider,
+    this.quickInstructionProvider,
     this.mcpProvider,
     this.memoryProvider,
   }) : _worldBookStore = WorldBookStore.shared(preferences),
-       _quickPhraseStore = QuickPhraseStore.shared(preferences),
+       _quickInstructionStore = QuickInstructionStore.shared(preferences),
        _memoryStore = MemoryStore.shared(preferences);
 
   final WorldBookStore _worldBookStore;
-  final QuickPhraseStore _quickPhraseStore;
+  final QuickInstructionStore _quickInstructionStore;
   final MemoryStore _memoryStore;
   final ChatService chatService;
   final AssistantProvider? assistantProvider;
   final WorldBookProvider? worldBookProvider;
-  final QuickPhraseProvider? quickPhraseProvider;
+  final QuickInstructionProvider? quickInstructionProvider;
   final McpProvider? mcpProvider;
   final MemoryProvider? memoryProvider;
 
@@ -136,11 +136,22 @@ class TrashRestoreCoordinator {
     );
     if (record == null) return 'Record not found in trash';
     try {
-      final phrase = QuickPhrase.fromJson(
-        (jsonDecode(record.recoveryJson) as Map).cast<String, dynamic>(),
-      );
-      await _quickPhraseStore.add(phrase);
-      await quickPhraseProvider?.loadAll();
+      final json = (jsonDecode(record.recoveryJson) as Map)
+          .cast<String, dynamic>();
+      final legacyTitle = (json['title'] ?? json['name'] ?? '')
+          .toString()
+          .trim();
+      final item = json.containsKey('placement')
+          ? QuickInstruction.fromJson(json)
+          : QuickInstruction(
+              id: json['id']?.toString() ?? id,
+              title: legacyTitle.isEmpty ? 'Untitled' : legacyTitle,
+              prompt: (json['content'] ?? json['prompt'] ?? '').toString(),
+              group: QuickInstructionStore.migratedQuickPhraseGroup,
+              placement: QuickInstructionPlacement.inputBox,
+            );
+      await _quickInstructionStore.add(item);
+      await quickInstructionProvider?.loadAll();
       await store.purgeDeletedRecord(id, DeletionEntityType.quickPhrase);
       return null;
     } catch (e) {
@@ -209,7 +220,7 @@ class TrashRestoreCoordinator {
         await worldBookProvider?.deleteBook(id);
         return true;
       case DeletionEntityType.quickPhrase:
-        await quickPhraseProvider?.delete(id);
+        await quickInstructionProvider?.delete(id);
         return true;
       case DeletionEntityType.mcpServer:
         await mcpProvider?.removeServer(id);
@@ -252,7 +263,8 @@ class TrashRestoreCoordinator {
       case DeletionEntityType.worldBook:
         return worldBookProvider?.books.map((b) => b.id).toSet() ?? {};
       case DeletionEntityType.quickPhrase:
-        return quickPhraseProvider?.phrases.map((p) => p.id).toSet() ?? {};
+        return quickInstructionProvider?.items.map((item) => item.id).toSet() ??
+            {};
       case DeletionEntityType.mcpServer:
         return mcpProvider?.servers.map((s) => s.id).toSet() ?? {};
       case DeletionEntityType.memory:
@@ -303,8 +315,8 @@ class TrashRestoreCoordinator {
             .firstOrNull
             ?.name;
       case DeletionEntityType.quickPhrase:
-        return quickPhraseProvider?.phrases
-            .where((p) => p.id == id)
+        return quickInstructionProvider?.items
+            .where((item) => item.id == id)
             .firstOrNull
             ?.title;
       case DeletionEntityType.mcpServer:

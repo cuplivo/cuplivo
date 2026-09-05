@@ -1797,6 +1797,18 @@ function renderMessage(message, isLast = false) {
   bubble.dataset.component = 'message-bubble';
   if (header) header.dataset.viewportAnchorKey = `${message.id}:header`;
   attachments.dataset.viewportAnchorKey = `${message.id}:attachments`;
+  if (message.role === 'user' && (message.quickInstructions?.length ?? 0) > 0) {
+    const instructions = document.createElement('div');
+    instructions.className = 'quick-instructions';
+    instructions.dataset.component = 'quick-instructions';
+    for (const title of message.quickInstructions) {
+      const chip = document.createElement('span');
+      chip.className = 'quick-instruction-chip';
+      chip.textContent = String(title ?? '');
+      instructions.append(chip);
+    }
+    bubble.append(instructions);
+  }
   renderConversationBlocks(message, bubble);
   groupChainCards(bubble);
   applyThinkingStepCollapse(message, bubble);

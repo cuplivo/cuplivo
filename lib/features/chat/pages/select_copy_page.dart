@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../core/models/chat_message.dart';
+import '../../../core/utils/quick_instruction_presentation.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/snackbar.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
@@ -14,7 +15,9 @@ class SelectCopyPage extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     // Ensure there is a text input connection on iOS before showing system copy UI
     // Here we bypass system menu by writing directly to clipboard and showing a snackbar
-    await Clipboard.setData(ClipboardData(text: message.content));
+    await Clipboard.setData(
+      ClipboardData(text: quickInstructionDecoratedContent(message)),
+    );
     if (!context.mounted) return;
     showAppSnackBar(
       context,
@@ -51,7 +54,7 @@ class SelectCopyPage extends StatelessWidget {
             child: SingleChildScrollView(
               child: SelectionArea(
                 child: Text(
-                  message.content,
+                  quickInstructionDecoratedContent(message),
                   style: TextStyle(fontSize: 15, height: 1.5),
                 ),
               ),

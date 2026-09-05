@@ -41,6 +41,8 @@ export interface Conversation {
   lastSummarizedMessageCount: number;
   chatSuggestions: string[];
   conversationKind: string;
+  /** Conversation-scoped persistent quick-instruction activations. */
+  persistentQuickInstructionIds: string[];
   /** kelivo v1.2.0 独有（兼容保真透传；Cuplivo 读取时忽略） */
   injectedMemoryHash?: string | null;
   lastMemoryExtractedOrder?: number;
@@ -70,6 +72,8 @@ export interface ChatMessage {
   durationMs: number | null;
   isPreset: boolean;
   speakerAssistantId: string | null;
+  /** JSON-encoded immutable QuickInstructionInvocationSnapshot[]. */
+  quickInstructionInvocationsJson: string | null;
 }
 
 export interface GroupChat {
@@ -286,13 +290,39 @@ export interface WorldBook {
   entries: WorldBookEntry[];
 }
 
+export type QuickInstructionPlacement =
+  | 'systemPrompt'
+  | 'beforeUserMessage'
+  | 'afterUserMessage'
+  | 'inputBox';
+
+export type QuickInstructionTriggerMode = 'oneShot' | 'persistent';
+
+export interface QuickInstructionToolPolicy {
+  enabled: boolean;
+  disabledLocalToolIds: string[];
+  disabledMcpServerIds: string[];
+  disabledFilesystemToolNames: string[];
+  shellDisabled: boolean;
+  shellBlockPatterns: string[];
+}
+
+/**
+ * Unified quick instruction stored under the legacy-compatible
+ * `instruction_injections_v1` key.
+ */
 export interface InstructionInjection {
   id: string;
   title: string;
   prompt: string;
   group: string;
+  placement: QuickInstructionPlacement;
+  triggerMode: QuickInstructionTriggerMode;
+  retainInHistory: boolean;
+  toolPolicy: QuickInstructionToolPolicy;
 }
 
+/** Legacy migration input only. */
 export interface QuickPhrase {
   id: string;
   title: string;

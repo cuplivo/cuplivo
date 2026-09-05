@@ -249,6 +249,7 @@ function buildConversation(
     lastSummarizedMessageCount: row.last_summarized_message_count,
     chatSuggestions: parseJsonOr<string[]>(row.chat_suggestions_json, []),
     conversationKind: 'normal',
+    persistentQuickInstructionIds: [],
     // kelivo v1.2.0 独有（保真透传；Cuplivo 忽略）
     injectedMemoryHash: row.injected_memory_hash,
     lastMemoryExtractedOrder: row.last_memory_extracted_order,
@@ -298,6 +299,7 @@ function buildMessage(row: MessageRow, parts: MessagePartRow[], ctx: FlattenCont
       durationMs: row.duration_ms,
       isPreset: false,
       speakerAssistantId: null,
+      quickInstructionInvocationsJson: null,
     },
     toolEvents,
   };

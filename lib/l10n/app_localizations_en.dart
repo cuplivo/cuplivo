@@ -75,7 +75,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsPageQuickPhrase => 'Quick Phrase';
 
   @override
-  String get settingsPageInstructionInjection => 'Instruction Injection';
+  String get settingsPageInstructionInjection => 'Quick Instructions';
 
   @override
   String get settingsPageDataSection => 'Data';
@@ -6720,29 +6720,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get quickPhraseSaveButton => 'Save';
 
   @override
-  String get instructionInjectionTitle => 'Instruction Injection';
+  String get instructionInjectionTitle => 'Quick Instructions';
 
   @override
   String get instructionInjectionBackTooltip => 'Back';
 
   @override
-  String get instructionInjectionAddTooltip => 'Add Instruction';
+  String get instructionInjectionAddTooltip => 'Add Quick Instruction';
 
   @override
   String get instructionInjectionImportTooltip => 'Import from files';
 
   @override
-  String get instructionInjectionEmptyMessage =>
-      'No instruction injection cards yet';
+  String get instructionInjectionEmptyMessage => 'No quick instructions yet';
 
   @override
   String get instructionInjectionDefaultTitle => 'Learning Mode';
 
   @override
-  String get instructionInjectionAddTitle => 'Add Instruction Injection';
+  String get instructionInjectionAddTitle => 'Add Quick Instruction';
 
   @override
-  String get instructionInjectionEditTitle => 'Edit Instruction Injection';
+  String get instructionInjectionEditTitle => 'Edit Quick Instruction';
 
   @override
   String get instructionInjectionNameLabel => 'Name';
@@ -6820,7 +6819,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get quickPhraseMenuTitle => 'Quick Phrase';
 
   @override
-  String get chatInputBarQuickPhraseTooltip => 'Quick Phrase';
+  String get chatInputBarQuickPhraseTooltip => 'Quick Instructions';
 
   @override
   String get assistantEditQuickPhraseDescription =>
@@ -7612,7 +7611,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get trashTypeWorldBook => 'World Book';
 
   @override
-  String get trashTypeQuickPhrase => 'Quick Phrase';
+  String get trashTypeQuickPhrase => 'Quick Instruction';
 
   @override
   String get trashTypeMcpServer => 'MCP Server';
@@ -8401,7 +8400,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assistantEditPageSkillsTab => 'Skills';
 
   @override
-  String get assistantEditPageBindingsTab => 'WorldBook & Injections';
+  String get assistantEditPageBindingsTab => 'WorldBook & Quick Instructions';
 
   @override
   String get settingsPageSkills => 'Skills';
@@ -9765,4 +9764,126 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get messageStyleSettingsPageTitle => 'Message Style';
+
+  @override
+  String get quickInstructionAdvancedSettings => 'Advanced settings';
+
+  @override
+  String get quickInstructionPlacementTitle => 'Insertion position';
+
+  @override
+  String get quickInstructionPlacementSystem => 'In system prompt';
+
+  @override
+  String get quickInstructionPlacementBeforeUser => 'Before user message';
+
+  @override
+  String get quickInstructionPlacementAfterUser => 'After user message';
+
+  @override
+  String get quickInstructionPlacementInputBox => 'Insert into input box';
+
+  @override
+  String get quickInstructionPlacementBeforeOneShot =>
+      'Before user message · one turn';
+
+  @override
+  String get quickInstructionPlacementBeforePersistent =>
+      'Before user message · persistent';
+
+  @override
+  String get quickInstructionPlacementAfterOneShot =>
+      'After user message · one turn';
+
+  @override
+  String get quickInstructionPlacementAfterPersistent =>
+      'After user message · persistent';
+
+  @override
+  String get quickInstructionTriggerTitle => 'Trigger method';
+
+  @override
+  String get quickInstructionTriggerOneShot =>
+      'Apply to one turn when triggered';
+
+  @override
+  String get quickInstructionTriggerPersistent =>
+      'Apply persistently while enabled';
+
+  @override
+  String get quickInstructionRetainHistoryTitle => 'Keep in history';
+
+  @override
+  String get quickInstructionRetainHistorySubtitle =>
+      'Replay this instruction while its message remains in context';
+
+  @override
+  String get quickInstructionToolRestrictionTitle => 'Enable tool restrictions';
+
+  @override
+  String get quickInstructionToolRestrictionSubtitle =>
+      'Restrict tools only for requests affected by this quick instruction';
+
+  @override
+  String get quickInstructionInputBoxNoTools =>
+      'Input-box instructions cannot restrict tools';
+
+  @override
+  String get quickInstructionLocalToolsTitle => 'Local tools';
+
+  @override
+  String get quickInstructionMcpServersTitle => 'MCP servers';
+
+  @override
+  String get quickInstructionFilesystemToolsTitle => 'File system tools';
+
+  @override
+  String get quickInstructionDisableShellTitle => 'Disable shell';
+
+  @override
+  String get quickInstructionSwitchOnMeansDisabled =>
+      'On means this tool is disabled';
+
+  @override
+  String get quickInstructionCommandLimitsTitle => 'Command restrictions';
+
+  @override
+  String get quickInstructionCommandBlocklist => 'Command blocklist';
+
+  @override
+  String get quickInstructionCommandPatternHint =>
+      'One complete glob per line; supports * and ?';
+
+  @override
+  String get quickInstructionNoMcpServers => 'No MCP servers configured';
+
+  @override
+  String get quickInstructionRequiredField => 'Required';
+
+  @override
+  String get quickInstructionManageButton => 'Manage quick instructions';
+
+  @override
+  String get quickInstructionCleanupTitle => 'Remove active references?';
+
+  @override
+  String quickInstructionCleanupMessage(
+    int assistantCount,
+    int conversationCount,
+  ) {
+    return 'This change will disable the instruction for $assistantCount assistant(s) and $conversationCount conversation(s). Historical snapshots will remain unchanged.';
+  }
+
+  @override
+  String get quickInstructionContinueButton => 'Continue';
+
+  @override
+  String quickInstructionToolUnavailable(String toolId) {
+    return 'Unavailable on this device · $toolId';
+  }
+
+  @override
+  String quickInstructionMcpOffline(String serverId) {
+    return 'Offline · $serverId';
+  }
 }

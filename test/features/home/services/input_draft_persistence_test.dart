@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/models/message_quote.dart';
+import 'package:Cuplivo/core/models/quick_instruction.dart';
 import 'package:Cuplivo/features/home/services/input_draft_persistence.dart';
 
 void main() {
@@ -247,6 +248,37 @@ void main() {
             const Duration(milliseconds: 100),
       );
       expect(prefs.getString(InputDraftPersistence.key), isNotNull);
+    });
+
+    test('quick-instruction-only draft preserves frozen invocations', () async {
+      final service = buildService();
+      final snapshot = QuickInstructionInvocationSnapshot.fromInstruction(
+        QuickInstruction(
+          id: 'once-1',
+          title: 'Concise',
+          prompt: 'Keep the answer short.',
+          placement: QuickInstructionPlacement.beforeUserMessage,
+        ),
+        order: 1,
+      );
+      service.save(
+        ChatInputData(
+          text: '',
+          quickInstructions: [snapshot],
+          quickInstructionsFrozen: true,
+        ),
+      );
+      service.flushNow();
+
+      final restored = buildService().takeDraftForRestore();
+
+      expect(restored?.text, isEmpty);
+      expect(restored?.quickInstructions.single.title, 'Concise');
+      expect(
+        restored?.quickInstructions.single.prompt,
+        'Keep the answer short.',
+      );
+      expect(restored?.quickInstructionsFrozen, isTrue);
     });
   });
 

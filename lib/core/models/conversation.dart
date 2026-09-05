@@ -44,6 +44,10 @@ class Conversation {
   /// A missing key means the assistant default is inherited dynamically.
   Map<String, String> workspaceDirectoryOverrides;
 
+  /// Conversation-scoped quick instructions attached to each new ordinary
+  /// user turn. Draft conversations retain this list in memory until landed.
+  List<String> persistentQuickInstructionIds;
+
   static const String kindNormal = 'normal';
   static const String kindGroup = 'group';
 
@@ -66,6 +70,7 @@ class Conversation {
     List<String>? chatSuggestions,
     this.conversationKind = kindNormal,
     Map<String, String>? workspaceDirectoryOverrides,
+    List<String>? persistentQuickInstructionIds,
   }) : id = id ?? const Uuid().v4(),
        createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now(),
@@ -77,6 +82,9 @@ class Conversation {
        chatSuggestions = chatSuggestions ?? [],
        workspaceDirectoryOverrides = Map<String, String>.of(
          workspaceDirectoryOverrides ?? const <String, String>{},
+       ),
+       persistentQuickInstructionIds = List<String>.of(
+         persistentQuickInstructionIds ?? const <String>[],
        );
 
   Conversation copyWith({
@@ -97,6 +105,7 @@ class Conversation {
     bool clearSummary = false,
     String? conversationKind,
     Map<String, String>? workspaceDirectoryOverrides,
+    List<String>? persistentQuickInstructionIds,
   }) {
     return Conversation(
       id: id ?? this.id,
@@ -117,6 +126,8 @@ class Conversation {
       conversationKind: conversationKind ?? this.conversationKind,
       workspaceDirectoryOverrides:
           workspaceDirectoryOverrides ?? this.workspaceDirectoryOverrides,
+      persistentQuickInstructionIds:
+          persistentQuickInstructionIds ?? this.persistentQuickInstructionIds,
     );
   }
 
@@ -138,6 +149,7 @@ class Conversation {
       'chatSuggestions': chatSuggestions,
       'conversationKind': conversationKind,
       'workspaceDirectoryOverrides': workspaceDirectoryOverrides,
+      'persistentQuickInstructionIds': persistentQuickInstructionIds,
     };
   }
 
@@ -170,6 +182,11 @@ class Conversation {
             (key, value) => MapEntry(key.toString(), value.toString()),
           ) ??
           <String, String>{},
+      persistentQuickInstructionIds:
+          (json['persistentQuickInstructionIds'] as List?)
+              ?.map((value) => value.toString())
+              .toList(growable: false) ??
+          const <String>[],
     );
   }
 }

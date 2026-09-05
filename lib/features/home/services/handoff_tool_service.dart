@@ -12,10 +12,12 @@ import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/generation_engine.dart';
+import '../../../core/services/quick_instruction_store.dart';
 import '../../../utils/utf16_safe_cut.dart';
 import 'ask_user_interaction_service.dart';
 import 'local_tools_service.dart';
 import 'message_builder_service.dart';
+import 'quick_instruction_execution_policy.dart';
 import 'tool_approval_service.dart';
 import 'tool_handler_service.dart';
 
@@ -192,6 +194,11 @@ class HandoffToolService {
           target.chatModelProvider ?? settings.currentModelProvider ?? '';
       final modelId = target.chatModelId ?? settings.currentModelId ?? '';
       final config = settings.getProviderConfig(providerKey);
+      final preferences = context.read<BusinessPreferences>();
+      final toolHandler = ToolHandlerService(contextProvider: context);
+      final quickInstructionStore = QuickInstructionStore.shared(preferences);
+      final approvalService = context.read<ToolApprovalService>();
+      final askUserService = context.read<AskUserInteractionService>();
 
       debugPrint(
         '[HandoffTool] building pipeline for ${conversation.id} '
@@ -202,8 +209,7 @@ class HandoffToolService {
         chatService: chatService,
         // ignore: use_build_context_synchronously (root context)
         contextProvider: context,
-        // ignore: use_build_context_synchronously (root context)
-        preferences: context.read<BusinessPreferences>(),
+        preferences: preferences,
       );
       final allMessages = chatService.getMessages(conversation.id);
       final apiMessages = messageBuilder.buildApiMessages(
@@ -218,8 +224,13 @@ class HandoffToolService {
         providerKey: providerKey,
         modelId: modelId,
       );
-      // ignore: use_build_context_synchronously (root context)
-      final toolHandler = ToolHandlerService(contextProvider: context);
+      final quickInstructionPolicy =
+          QuickInstructionExecutionPolicy.fromSources(
+            systemInstructions: await quickInstructionStore.getActives(
+              assistantId: target.id,
+            ),
+            anchorInvocations: const [],
+          );
       final workspaceExecutionContext = toolHandler
           .resolveWorkspaceExecutionContext(target, conversation);
       messageBuilder.injectSystemPrompt(apiMessages, target, modelId);
@@ -263,13 +274,14 @@ class HandoffToolService {
               target,
               // Approval/ask_user must be answerable from the parent panel
               // and the child conversation (dual visibility).
-              // ignore: use_build_context_synchronously (root context)
-              approvalService: context.read<ToolApprovalService>(),
-              // ignore: use_build_context_synchronously (root context)
-              askUserService: context.read<AskUserInteractionService>(),
+              approvalService: approvalService,
+              askUserService: askUserService,
               conversationId: conversation.id,
               conversation: conversation,
               workspaceExecutionContext: workspaceExecutionContext,
+              quickInstructionPolicy: quickInstructionPolicy.isEmpty
+                  ? null
+                  : quickInstructionPolicy,
             )
           : null;
 

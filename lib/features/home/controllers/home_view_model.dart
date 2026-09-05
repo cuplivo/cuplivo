@@ -7,6 +7,7 @@ import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/conversation.dart';
+import '../../../core/models/quick_instruction.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
@@ -558,7 +559,8 @@ class HomeViewModel extends ChangeNotifier {
     final content = input.text.trim();
     if (content.isEmpty &&
         input.imagePaths.isEmpty &&
-        input.documents.isEmpty) {
+        input.documents.isEmpty &&
+        input.quickInstructions.isEmpty) {
       return ChatInputSubmissionResult.rejected;
     }
 
@@ -633,7 +635,8 @@ class HomeViewModel extends ChangeNotifier {
     final content = input.text.trim();
     if (content.isEmpty &&
         input.imagePaths.isEmpty &&
-        input.documents.isEmpty) {
+        input.documents.isEmpty &&
+        input.quickInstructions.isEmpty) {
       return false;
     }
 
@@ -672,6 +675,11 @@ class HomeViewModel extends ChangeNotifier {
       allowImagesApiRouting: input.allowImagesApiRouting,
       extraBody: Map<String, dynamic>.of(input.extraBody),
       quote: input.quote,
+      quoteSnippet: input.quoteSnippet,
+      quickInstructions: List<QuickInstructionInvocationSnapshot>.of(
+        input.quickInstructions,
+      ),
+      quickInstructionsFrozen: input.quickInstructionsFrozen,
     );
   }
 

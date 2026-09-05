@@ -1,5 +1,13 @@
 # Cuplivo Domain Glossary
 
+## Quick Instructions (快捷指令)
+
+- **快捷指令 (Quick Instruction)**: A globally managed, reusable named prompt. Its placement determines whether it joins the system prompt, wraps a user message, or is inserted into the composer as editable text.
+- **激活 (Activation)**: A live reference that makes a Quick Instruction apply to future generations. System-prompt activation belongs to an assistant (or the global fallback); persistent user-message activation belongs to a conversation; one-shot activation belongs to the next successful send.
+- **调用快照 (Invocation Snapshot)**: The immutable copy of a user-message Quick Instruction frozen for one message version. It keeps the name, full prompt, placement, trigger semantics, ordering, history-retention choice, and request tool policy even if the global definition is later edited or deleted.
+- **历史保留 (History Retention)**: Whether a non-anchor message re-expands its Invocation Snapshot when that message remains in model context. It does not keep a snapshot alive after the message is truncated, deleted, or excluded by branching.
+- **工具限制 (Tool Restriction)**: Request-scoped negative permissions contributed by active system instructions and the current anchor's Invocation Snapshots. Restrictions can deny tools or shell commands for that generation, but never mutate an assistant's enabled-tool configuration.
+
 ## Provider Management (供应商管理)
 
 - **内置供应商 (built-in provider)**: One of the 12 statically seeded providers (`_builtInProviderKeysInOrder`, `settings_provider.dart:71`). Guaranteed to appear in the providers list even with no persisted config — a config-less built-in resolves to `ProviderConfig.defaultsFor` (never implicitly persisted on read paths). Known parallel surface: the static seed list vs `defaultsFor`'s `defaultEnabled` heuristic — keep in sync.
@@ -436,7 +444,7 @@
 
 ### Relationship to Existing Concepts
 
-- **Skill vs InstructionInjection**: Both provide instructions to the model. **InstructionInjection** follows `memory 'injection'` mode: full prompt is injected into every system message regardless of relevance. **Skill** follows `memory 'tool'` mode: only metadata (name/description) is injected; the model must choose to call `load_skill` to read the full body. This is the key structural distinction — `InstructionInjection : injection mode :: Skill : tool mode`.
+- **Skill vs Quick Instruction**: Both provide instructions to the model. An active **Quick Instruction** supplies its full prompt at its configured placement without model selection. **Skill** follows `memory 'tool'` mode: only metadata (name/description) is injected; the model must choose to call `load_skill` to read the full body.
 - **Skill vs WorldBook**: **WorldBook** entries are triggered by keyword/regex matching against conversation context and injected at specific positions (after system prompt, top of chat, bottom of chat, at depth). **Skill** has no keyword triggering — the model decides based on the `<available_skills>` descriptions.
 - **Skill vs LocalTool/MCP**: **LocalTool** and **MCP** are executable tools: model calls them → something happens (read clipboard, execute code). **Skill**'s `load_skill` is a "knowledge tool": model calls it → receives instruction text → nothing executes. Same tool dispatch pathway, different semantics.
 
@@ -546,8 +554,8 @@
 
 ### Example Dialogue
 
-> **Dev:** "A user pasted a long workflow prompt into InstructionInjection expecting the model to use it only when working on that specific task. Should this be a Skill instead?"
-> **Domain expert:** "Correct. InstructionInjection always injects into every system prompt — it's `memory 'injection'` mode. The model gets that prompt unconditionally, even for unrelated queries. Skill only exposes its name and description in `<available_skills>`; the model reads the full body only when it calls `load_skill`. This way the instruction stays out of context until it's actually needed."
+> **Dev:** "A user enabled a long system-position Quick Instruction but expects the model to choose it only for relevant tasks. Should this be a Skill instead?"
+> **Domain expert:** "Correct. An active system-position Quick Instruction is supplied unconditionally. A Skill initially exposes only its name and description, and the model reads the full body only after choosing `load_skill`."
 
 ## Custom Request Layers (Headers & Body)
 
@@ -1097,12 +1105,12 @@
 - "引用" was used to mean both the message-level reply's **Quote** and the pre-existing text-selection 引用 paste — resolved: two features sharing only the Chinese word; internal term is always **Quote** (reply) vs 引用-paste.
 - "display-only" was floated mid-design and retracted: the quote is a display citation **plus** a context-carrier via `<reply-to>`; it is never wire-structural (no thread/tree, no role change).
 
-## WorldBook & InstructionInjection Binding (世界书与指令注入绑定) — issue #501
+## WorldBook & Quick Instruction Binding (世界书与快捷指令绑定) — issue #501
 
-- **Per-assistant binding (按助手绑定)**: WorldBook and InstructionInjection are bound to ASSISTANTS, not conversations — one map per feature (`_activeIdsByAssistant` in `WorldBookStore` / `InstructionInjectionProvider`), keyed by assistantId with a `__global__` fallback for null. Every binding surface (chat input bar, assistant editor tab, edit-sheet multi-select) reads/writes this same map.
-- **助手侧入口 (assistant-side entry)**: A combined bindings tab in the assistant editor (`_assistantEditTabSpecs` on mobile + `_AssistantDesktopMenu` on desktop — one widget, two shells, Skills-tab precedent) that inlines the 世界书 section and the 指令注入 section. Mirrors the `_SkillsTab` pattern: master enable-all row, collapsible groups, `IosSwitch` toggle rows, inline (never opens the modal sheet). The legacy conversation-bound entry (input-bar + menu) stays.
-- **条目侧多选 (item-side assignment)**: The book-config sheet/dialog and the instruction-injection edit sheet/dialog additionally offer "为哪些助手启用" — an explicit multi-select of CURRENT assistants per item. Writes/removes per-assistant bindings directly; deliberately NO "all future assistants" global option (the `__global__` fallback is never written by this UI).
-- **WorldBook group (世界书分组)**: `WorldBook.group` — free-form string on the BOOK level (never entry level; entries are never bound individually), default `''` = 未分组, mirroring `InstructionInjection.group`'s conventions. At WorldBook the bindable item IS the book.
+- **Per-assistant binding (按助手绑定)**: WorldBook and system-position Quick Instructions are bound to ASSISTANTS — one map per feature, keyed by assistantId with a `__global__` fallback for null. Persistent user-message Quick Instructions are conversation activations instead, and one-shot/input-box instructions have no assistant binding.
+- **助手侧入口 (assistant-side entry)**: The assistant editor's combined bindings tab inlines the 世界书 section and a 快捷指令 section containing only system-position items. It mirrors the Skills-tab pattern with collapsible groups and `IosSwitch` rows.
+- **条目侧多选 (item-side assignment)**: The book editor and a system-position Quick Instruction editor offer "为哪些助手启用", an explicit multi-select of CURRENT assistants. Other Quick Instruction placements do not show assistant assignment.
+- **WorldBook group (世界书分组)**: `WorldBook.group` is a free-form string on the BOOK level (never entry level), default `''` = 未分组, mirroring `QuickInstruction.group`. At WorldBook the bindable item IS the book.
 - **Grouping surfaces (分组显示面)**: Grouped renders appear ONLY in bind surfaces — mobile binding sheet, desktop binding popover, and the assistant-editor bindings-tab sections. The WorldBook manage page (mobile page + desktop pane) deliberately stays FLAT: it already provides book drag-reorder + per-book collapse, and group headers there would create 3-level nesting (group→book→entries) + across-group reorder semantics with no gain.
 - **Collapse-state split (折叠状态分层)**: bind sheet/popover group headers persist collapse state (`world_books_group_collapsed_v1`, mirroring `InstructionInjectionGroupProvider`); the assistant-editor tab sections use session-scoped `CollapsibleGroupsMixin` (mirroring the Skills tab).
 - **Compatibility**: `group` is a new optional JSON field — absent on old data / old backups defaults to `''`. The RikkaHub lorebook export carries it (upstream ignores unknown keys; a Cuplivo re-import restores it via `fromJson`).

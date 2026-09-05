@@ -18,7 +18,7 @@ import 'api/plain_text_collector.dart';
 import 'chat/chat_context_transforms.dart';
 import 'chat/chat_service.dart';
 import 'chat/prompt_transformer.dart';
-import 'instruction_injection_store.dart';
+import 'quick_instruction_store.dart';
 import 'logging/flutter_logger.dart';
 import 'memory_store.dart';
 import 'proactive_care_decision_tools.dart';
@@ -97,14 +97,12 @@ class ProactiveCareMessageFlow {
     : _preferences = preferences,
       _memoryStore = MemoryStore.shared(preferences),
       _worldBookStore = WorldBookStore.shared(preferences),
-      _instructionInjectionStore = InstructionInjectionStore.shared(
-        preferences,
-      );
+      _instructionInjectionStore = QuickInstructionStore.shared(preferences);
 
   final BusinessPreferences _preferences;
   final MemoryStore _memoryStore;
   final WorldBookStore _worldBookStore;
-  final InstructionInjectionStore _instructionInjectionStore;
+  final QuickInstructionStore _instructionInjectionStore;
   Future<void> saveL10nSnapshot({
     required String defaultConversationTitle,
     required String carePromptDefault,

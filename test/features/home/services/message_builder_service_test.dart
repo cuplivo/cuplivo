@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/quick_instruction.dart';
 import 'package:Cuplivo/core/models/workspace.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/workspace/workspace_execution_context.dart';
 import 'package:Cuplivo/features/home/services/message_builder_service.dart';
@@ -834,4 +836,217 @@ void main() {
       expect(apiMessages.single['content'], 'assistant instructions');
     },
   );
+
+  group('user-message quick instruction snapshots', () {
+    QuickInstructionInvocationSnapshot snapshot({
+      required String id,
+      required String prompt,
+      required QuickInstructionPlacement placement,
+      required int order,
+      bool retainInHistory = true,
+    }) {
+      return QuickInstructionInvocationSnapshot.fromInstruction(
+        QuickInstruction(
+          id: id,
+          title: id,
+          prompt: prompt,
+          placement: placement,
+          retainInHistory: retainInHistory,
+        ),
+        order: order,
+      );
+    }
+
+    Future<List<Map<String, dynamic>>> process(
+      MessageBuilderService service,
+      List<ChatMessage> messages, {
+      bool enabled = true,
+      int truncateIndex = -1,
+    }) async {
+      final apiMessages = service.buildApiMessages(
+        messages: messages,
+        versionSelections: const {},
+        currentConversation: Conversation(
+          title: 'test',
+          truncateIndex: truncateIndex,
+        ),
+      );
+      await service.processUserMessagesForApi(
+        apiMessages,
+        SettingsProvider(preferences: businessPrefs),
+        null,
+        providerKey: 'test-provider',
+        modelId: 'test-model',
+        includeUserQuickInstructions: enabled,
+      );
+      return apiMessages;
+    }
+
+    test(
+      'anchor always expands while history obeys retention and order',
+      () async {
+        final service = MessageBuilderService(
+          preferences: businessPrefs,
+          chatService: _FakeChatService(const {}),
+          contextProvider: _FakeBuildContext(),
+        );
+        final messages = <ChatMessage>[
+          ChatMessage(
+            id: 'history-retained',
+            role: 'user',
+            content: 'old',
+            conversationId: 'conversation-1',
+            quickInstructionInvocationsJson:
+                QuickInstructionInvocationSnapshot.encodeList([
+                  snapshot(
+                    id: 'history',
+                    prompt: 'remember',
+                    placement: QuickInstructionPlacement.beforeUserMessage,
+                    order: 0,
+                  ),
+                ]),
+          ),
+          ChatMessage(
+            id: 'history-not-retained',
+            role: 'user',
+            content: 'middle',
+            conversationId: 'conversation-1',
+            quickInstructionInvocationsJson:
+                QuickInstructionInvocationSnapshot.encodeList([
+                  snapshot(
+                    id: 'ephemeral-history',
+                    prompt: 'do not replay',
+                    placement: QuickInstructionPlacement.afterUserMessage,
+                    order: 0,
+                    retainInHistory: false,
+                  ),
+                ]),
+          ),
+          ChatMessage(
+            id: 'anchor',
+            role: 'user',
+            content: 'now',
+            conversationId: 'conversation-1',
+            quickInstructionInvocationsJson:
+                QuickInstructionInvocationSnapshot.encodeList([
+                  snapshot(
+                    id: 'before-b',
+                    prompt: 'B',
+                    placement: QuickInstructionPlacement.beforeUserMessage,
+                    order: 2,
+                    retainInHistory: false,
+                  ),
+                  snapshot(
+                    id: 'after-c',
+                    prompt: 'C',
+                    placement: QuickInstructionPlacement.afterUserMessage,
+                    order: 3,
+                    retainInHistory: false,
+                  ),
+                  snapshot(
+                    id: 'before-a',
+                    prompt: 'A',
+                    placement: QuickInstructionPlacement.beforeUserMessage,
+                    order: 1,
+                    retainInHistory: false,
+                  ),
+                ]),
+          ),
+        ];
+
+        final beforeProcessing = service.buildApiMessages(
+          messages: messages,
+          versionSelections: const {},
+          currentConversation: Conversation(title: 'test'),
+        );
+        expect(
+          service
+              .anchorQuickInstructionInvocations(beforeProcessing)
+              .map((item) => item.instructionId),
+          ['before-b', 'after-c', 'before-a'],
+        );
+
+        final processed = await process(service, messages);
+        final users = processed
+            .where((message) => message['role'] == 'user')
+            .toList();
+
+        expect(users[0]['content'], 'remember\n\nold');
+        expect(users[1]['content'], 'middle');
+        expect(users[2]['content'], 'A\n\nB\n\nnow\n\nC');
+        expect(
+          users.every(
+            (message) => !message.keys.any((key) => key.startsWith('_')),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'disabled chat modes strip metadata without expanding prompts',
+      () async {
+        final service = MessageBuilderService(
+          preferences: businessPrefs,
+          chatService: _FakeChatService(const {}),
+          contextProvider: _FakeBuildContext(),
+        );
+        final processed = await process(service, [
+          ChatMessage(
+            id: 'anchor',
+            role: 'user',
+            content: 'body',
+            conversationId: 'conversation-1',
+            quickInstructionInvocationsJson:
+                QuickInstructionInvocationSnapshot.encodeList([
+                  snapshot(
+                    id: 'ignored',
+                    prompt: 'must not appear',
+                    placement: QuickInstructionPlacement.beforeUserMessage,
+                    order: 0,
+                  ),
+                ]),
+          ),
+        ], enabled: false);
+
+        expect(processed.single['content'], 'body');
+        expect(
+          processed.single.keys.any((key) => key.startsWith('_')),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'context truncation removes the discarded message snapshots',
+      () async {
+        final service = MessageBuilderService(
+          preferences: businessPrefs,
+          chatService: _FakeChatService(const {}),
+          contextProvider: _FakeBuildContext(),
+        );
+        final processed = await process(service, [
+          ChatMessage(
+            id: 'discarded',
+            role: 'user',
+            content: 'old',
+            conversationId: 'conversation-1',
+            quickInstructionInvocationsJson:
+                QuickInstructionInvocationSnapshot.encodeList([
+                  snapshot(
+                    id: 'discarded-rule',
+                    prompt: 'discarded prompt',
+                    placement: QuickInstructionPlacement.beforeUserMessage,
+                    order: 0,
+                  ),
+                ]),
+          ),
+          _message(id: 'anchor', role: 'user', content: 'current'),
+        ], truncateIndex: 1);
+
+        expect(processed, hasLength(1));
+        expect(processed.single['content'], 'current');
+      },
+    );
+  });
 }

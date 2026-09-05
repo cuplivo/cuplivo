@@ -152,7 +152,6 @@ void main() {
           onPickCamera: () {},
           onPickPhotos: () {},
           onUploadFiles: () {},
-          onToggleLearningMode: () {},
           onOpenSkills: () {},
           onClearContext: () {},
           onDocumentProcessing: () {},

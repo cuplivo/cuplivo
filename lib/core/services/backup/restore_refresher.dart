@@ -5,6 +5,7 @@ import '../../database/business_preferences.dart';
 import '../../providers/assistant_provider.dart';
 import '../../providers/group_chat_provider.dart';
 import '../../providers/mcp_provider.dart';
+import '../../providers/quick_instruction_provider.dart';
 import '../../providers/workspace_provider.dart';
 import '../chat/chat_service.dart';
 import '../saf/saf_mount_sync_service.dart';
@@ -24,6 +25,7 @@ Future<void> refreshProvidersAfterRestore(BuildContext context) async {
   final mcpProvider = context.read<McpProvider>();
   final workspaceProvider = context.read<WorkspaceProvider>();
   final safMounts = context.read<SafMountSyncService>();
+  final quickInstructionProvider = context.read<QuickInstructionProvider>();
   // Business preferences: the facade cache must re-read the KV table — a
   // restored/merged settings payload was written through the facade, so the
   // cache is already co-evolved, but a wipe+restore (or import) may have
@@ -63,6 +65,13 @@ Future<void> refreshProvidersAfterRestore(BuildContext context) async {
     await assistantProvider.reloadFromRepo();
   } catch (e) {
     debugPrint('refreshProvidersAfterRestore: AssistantProvider: $e');
+  }
+  try {
+    // Reload after assistants so legacy assistant-scoped quick phrases can
+    // migrate with stable human-readable assistant names.
+    await quickInstructionProvider.loadAll();
+  } catch (e) {
+    debugPrint('refreshProvidersAfterRestore: QuickInstructionProvider: $e');
   }
   try {
     await groupChatProvider.load();

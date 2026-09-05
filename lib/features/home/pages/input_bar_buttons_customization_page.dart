@@ -376,10 +376,6 @@ _ButtonSpec _specOf(String id, AppLocalizations l10n) {
       Lucide.Paperclip,
       l10n.bottomToolsSheetUpload,
     ),
-    inputBarButtonLearning => _ButtonSpec(
-      Lucide.Layers,
-      l10n.instructionInjectionTitle,
-    ),
     inputBarButtonWorldBook => _ButtonSpec(
       Lucide.BookOpen,
       l10n.worldBookTitle,

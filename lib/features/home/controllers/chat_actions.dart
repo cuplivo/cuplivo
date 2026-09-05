@@ -421,7 +421,8 @@ class ChatActions {
     final content = input.text.trim();
     if (content.isEmpty &&
         input.imagePaths.isEmpty &&
-        input.documents.isEmpty) {
+        input.documents.isEmpty &&
+        input.quickInstructions.isEmpty) {
       return ChatActionResult.error('empty_input');
     }
 

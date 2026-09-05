@@ -26,6 +26,7 @@ import '../../../core/services/workspace/workspace_tools_service.dart';
 import 'ask_user_interaction_service.dart';
 import 'handoff_tool_service.dart';
 import 'local_tools_service.dart';
+import 'quick_instruction_execution_policy.dart';
 import 'tool_approval_service.dart';
 
 /// 工具调用处理服务
@@ -244,6 +245,7 @@ class ToolHandlerService {
     required String message,
     required String tool,
     String? instruction,
+    List<String>? quickInstructions,
   }) {
     return jsonEncode({
       'type': 'tool_error',
@@ -251,7 +253,26 @@ class ToolHandlerService {
       'message': message,
       'tool': tool,
       if (instruction != null) 'instruction': instruction,
+      if (quickInstructions != null && quickInstructions.isNotEmpty)
+        'quick_instructions': quickInstructions,
     });
+  }
+
+  static String _quickInstructionPolicyError({
+    required String tool,
+    required QuickInstructionPolicyRejection rejection,
+  }) {
+    return _toolError(
+      error: 'quick_instruction_tool_disabled',
+      message:
+          'This tool call is disabled by the active quick instruction policy '
+          '(${rejection.reason}).',
+      tool: tool,
+      quickInstructions: rejection.instructionTitles,
+      instruction:
+          'Continue without this tool, choose an allowed tool, or explain '
+          'that the active quick instruction blocked the call.',
+    );
   }
 
   /// Stable per-invocation id for a tool-call approval/interaction request.
@@ -652,6 +673,7 @@ class ToolHandlerService {
     String? conversationId,
     Conversation? conversation,
     WorkspaceExecutionContext? workspaceExecutionContext,
+    QuickInstructionExecutionPolicy? quickInstructionPolicy,
   }) {
     final mcp = contextProvider.read<McpProvider>();
     final toolSvc = contextProvider.read<McpToolService>();
@@ -714,6 +736,16 @@ class ToolHandlerService {
         // If the tool name has a known MCP prefix, bypass built-in tools
         // and route directly to that MCP server
         if (hasMcpPrefix) {
+          final rejection = quickInstructionPolicy?.checkTool(
+            kind: QuickInstructionToolKind.mcpServer,
+            id: mcpServer!.id,
+          );
+          if (rejection != null) {
+            return _quickInstructionPolicyError(
+              tool: resolvedName,
+              rejection: rejection,
+            );
+          }
           // Approval gate (using original unprefixed name)
           if (approvalService != null && mcp.toolNeedsApproval(resolvedName)) {
             final callId = _streamCallId(toolCallId, resolvedName);
@@ -758,6 +790,19 @@ class ToolHandlerService {
         final memoryResult = await _handleMemoryToolCall(name, args, assistant);
         if (memoryResult != null) {
           return memoryResult;
+        }
+
+        final localRejection = assistant?.localToolIds.contains(name) == true
+            ? quickInstructionPolicy?.checkTool(
+                kind: QuickInstructionToolKind.local,
+                id: name,
+              )
+            : null;
+        if (localRejection != null) {
+          return _quickInstructionPolicyError(
+            tool: name,
+            rejection: localRejection,
+          );
         }
 
         // Creating calendar events modifies user data, so it always requires
@@ -851,6 +896,38 @@ class ToolHandlerService {
         // Workspace tools (filesystem + shell)
         if (WorkspaceToolNames.isWorkspaceTool(name) &&
             assistant?.workspaceEnabled == true) {
+          if (name == WorkspaceToolNames.shell) {
+            final disabled = quickInstructionPolicy?.checkTool(
+              kind: QuickInstructionToolKind.shell,
+              id: name,
+            );
+            if (disabled != null) {
+              return _quickInstructionPolicyError(
+                tool: name,
+                rejection: disabled,
+              );
+            }
+            final commandRejection = quickInstructionPolicy?.checkShellCommand(
+              (args['command'] ?? '').toString(),
+            );
+            if (commandRejection != null) {
+              return _quickInstructionPolicyError(
+                tool: name,
+                rejection: commandRejection,
+              );
+            }
+          } else {
+            final disabled = quickInstructionPolicy?.checkTool(
+              kind: QuickInstructionToolKind.filesystem,
+              id: name,
+            );
+            if (disabled != null) {
+              return _quickInstructionPolicyError(
+                tool: name,
+                rejection: disabled,
+              );
+            }
+          }
           final wp = workspaceProvider;
           if (wp == null) {
             return _toolError(
@@ -975,6 +1052,31 @@ class ToolHandlerService {
         }
 
         // Approval gate for MCP tools
+        McpServerConfig? fallbackMcpServer;
+        for (final connected in <bool>[true, false]) {
+          for (final server in mcp.servers) {
+            if (!server.enabled || !boundIds.contains(server.id)) continue;
+            final isConnected = mcp.statusFor(server.id) == McpStatus.connected;
+            if (isConnected != connected) continue;
+            if (server.tools.any((tool) => tool.enabled && tool.name == name)) {
+              fallbackMcpServer = server;
+              break;
+            }
+          }
+          if (fallbackMcpServer != null) break;
+        }
+        if (fallbackMcpServer != null) {
+          final rejection = quickInstructionPolicy?.checkTool(
+            kind: QuickInstructionToolKind.mcpServer,
+            id: fallbackMcpServer.id,
+          );
+          if (rejection != null) {
+            return _quickInstructionPolicyError(
+              tool: name,
+              rejection: rejection,
+            );
+          }
+        }
         if (approvalService != null && mcp.toolNeedsApproval(name)) {
           final approvalId = _streamCallId(toolCallId, name);
           final result = await approvalService.requestApproval(
@@ -999,6 +1101,7 @@ class ToolHandlerService {
           assistantId: assistant?.id,
           toolName: name,
           arguments: args,
+          targetServerId: fallbackMcpServer?.id,
         );
         return text;
       } catch (e) {

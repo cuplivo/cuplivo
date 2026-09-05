@@ -393,6 +393,7 @@ class ChatService extends ChangeNotifier {
     String? parentConversationId,
     String conversationKind = Conversation.kindNormal,
     bool setAsCurrent = true,
+    List<String>? persistentQuickInstructionIds,
   }) async {
     if (!_initialized) await init();
     if (setAsCurrent) {
@@ -405,6 +406,7 @@ class ChatService extends ChangeNotifier {
       mcpServerIds: mcpServerIds,
       parentConversationId: parentConversationId,
       conversationKind: conversationKind,
+      persistentQuickInstructionIds: persistentQuickInstructionIds,
     );
 
     await _saveConversation(conversation);
@@ -462,6 +464,70 @@ class ChatService extends ChangeNotifier {
     }
     await _repo.putConversation(conversation);
     _conversationsCache[conversation.id] = conversation;
+  }
+
+  Future<void> setPersistentQuickInstructionIds(
+    String conversationId,
+    List<String> ids,
+  ) async {
+    if (!_initialized) await init();
+    final conversation =
+        _conversationsCache[conversationId] ??
+        _draftConversations[conversationId];
+    if (conversation == null || conversation.isGroup) return;
+    conversation.persistentQuickInstructionIds = ids.toSet().toList();
+    conversation.updatedAt = DateTime.now();
+    if (!_draftConversations.containsKey(conversationId)) {
+      await _saveConversation(conversation);
+    }
+    notifyListeners();
+  }
+
+  Future<int> countConversationsUsingQuickInstruction(String id) async {
+    if (!_initialized) await init();
+    return <Conversation>{
+      ..._conversationsCache.values,
+      ..._draftConversations.values,
+    }.where((conversation) {
+      return conversation.persistentQuickInstructionIds.contains(id);
+    }).length;
+  }
+
+  Future<void> removeQuickInstructionFromAllConversations(String id) async {
+    if (!_initialized) await init();
+    final conversations = <Conversation>{
+      ..._conversationsCache.values,
+      ..._draftConversations.values,
+    };
+    var changed = false;
+    for (final conversation in conversations) {
+      if (!conversation.persistentQuickInstructionIds.remove(id)) continue;
+      conversation.updatedAt = DateTime.now();
+      if (!_draftConversations.containsKey(conversation.id)) {
+        await _saveConversation(conversation);
+      }
+      changed = true;
+    }
+    if (changed) notifyListeners();
+  }
+
+  Future<void> clearPersistentQuickInstructions() async {
+    if (!_initialized) await init();
+    final conversations = <Conversation>{
+      ..._conversationsCache.values,
+      ..._draftConversations.values,
+    };
+    var changed = false;
+    for (final conversation in conversations) {
+      if (conversation.persistentQuickInstructionIds.isEmpty) continue;
+      conversation.persistentQuickInstructionIds.clear();
+      conversation.updatedAt = DateTime.now();
+      if (!_draftConversations.containsKey(conversation.id)) {
+        await _saveConversation(conversation);
+      }
+      changed = true;
+    }
+    if (changed) notifyListeners();
   }
 
   Future<void> _refreshConversation(String conversationId) async {
@@ -1257,6 +1323,7 @@ class ChatService extends ChangeNotifier {
     bool isPreset = false,
     String? speakerAssistantId,
     String? quoteJson,
+    String? quickInstructionInvocationsJson,
   }) async {
     if (!_initialized) await init();
 
@@ -1303,6 +1370,7 @@ class ChatService extends ChangeNotifier {
       isPreset: isPreset,
       speakerAssistantId: speakerAssistantId,
       quoteJson: quoteJson,
+      quickInstructionInvocationsJson: quickInstructionInvocationsJson,
     );
 
     if (!temporary) {
@@ -1384,6 +1452,7 @@ class ChatService extends ChangeNotifier {
     Object? version = ChatMessage.sentinel,
     Object? requestAllowImagesApiRouting = ChatMessage.sentinel,
     Object? requestExtraBody = ChatMessage.sentinel,
+    Object? quickInstructionInvocationsJson = ChatMessage.sentinel,
   }) async {
     if (!_initialized) return;
 
@@ -1416,6 +1485,7 @@ class ChatService extends ChangeNotifier {
       requestExtraBodyJson: identical(requestExtraBody, ChatMessage.sentinel)
           ? message.requestExtraBodyJson
           : _encodeRequestExtraBody(requestExtraBody as Map<String, dynamic>?),
+      quickInstructionInvocationsJson: quickInstructionInvocationsJson,
     );
 
     if (isTemporaryConversation(message.conversationId)) {
@@ -1639,10 +1709,24 @@ class ChatService extends ChangeNotifier {
         forkTargetMessageId: forkTargetMessageId,
       );
     }
+    // Capture conversation-scoped activations before createConversation()
+    // changes the current conversation and may discard a temporary source.
+    // An empty message prefix (for example, synthesize at the first Multi-AI
+    // round) still represents a branch of the current source conversation.
+    final sourceConversationId = sourceMessages.isNotEmpty
+        ? sourceMessages.first.conversationId
+        : _currentConversationId;
+    final sourcePersistentIds = sourceConversationId == null
+        ? const <String>[]
+        : getCompleteConversation(
+                sourceConversationId,
+              )?.persistentQuickInstructionIds ??
+              const <String>[];
     // Create new conversation first
     final convo = await createConversation(
       title: title,
       assistantId: assistantId,
+      persistentQuickInstructionIds: sourcePersistentIds,
     );
     final ids = <String>[];
     final clones = <ChatMessage>[];
@@ -1665,6 +1749,7 @@ class ChatService extends ChangeNotifier {
         requestAllowImagesApiRouting: src.requestAllowImagesApiRouting,
         requestExtraBodyJson: src.requestExtraBodyJson,
         quoteJson: src.quoteJson,
+        quickInstructionInvocationsJson: src.quickInstructionInvocationsJson,
       );
       await _repo.putMessage(clone, messageOrder: ids.length);
       ids.add(clone.id);
@@ -1710,10 +1795,20 @@ class ChatService extends ChangeNotifier {
       if (signature != null) geminiBySource[src.id] = signature;
     }
 
+    final sourceConversationId = sourceMessages.isNotEmpty
+        ? sourceMessages.first.conversationId
+        : _currentConversationId;
+    final sourcePersistentIds = sourceConversationId == null
+        ? const <String>[]
+        : getCompleteConversation(
+                sourceConversationId,
+              )?.persistentQuickInstructionIds ??
+              const <String>[];
     // Create new conversation first
     final convo = await createConversation(
       title: title,
       assistantId: assistantId,
+      persistentQuickInstructionIds: sourcePersistentIds,
     );
 
     final ids = _buildForkIdMaps(sourceMessages);
@@ -1749,6 +1844,8 @@ class ChatService extends ChangeNotifier {
         speakerAssistantId: src.speakerAssistantId,
         requestAllowImagesApiRouting: src.requestAllowImagesApiRouting,
         requestExtraBodyJson: src.requestExtraBodyJson,
+        quoteJson: src.quoteJson,
+        quickInstructionInvocationsJson: src.quickInstructionInvocationsJson,
       );
       clones.add(clone);
       final events = toolEventsBySource[src.id];
@@ -1858,6 +1955,7 @@ class ChatService extends ChangeNotifier {
     required String messageId,
     required String content,
     DateTime? timestamp,
+    Object? quickInstructionInvocationsJson = ChatMessage.sentinel,
   }) async {
     if (!_initialized) await init();
     final original =
@@ -1896,6 +1994,10 @@ class ChatService extends ChangeNotifier {
       // Quote is part of the user message's content identity: a retry/edit
       // version carries the citation with it (docs/adr/0046).
       quoteJson: original.quoteJson,
+      quickInstructionInvocationsJson:
+          identical(quickInstructionInvocationsJson, ChatMessage.sentinel)
+          ? original.quickInstructionInvocationsJson
+          : quickInstructionInvocationsJson as String?,
       timestamp: timestamp,
     );
     // Append to conversation order at the end (we'll group when rendering)

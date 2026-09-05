@@ -359,6 +359,10 @@ class WebChatSnapshotBuilder {
       'index': index,
       'role': message.role,
       'content': visualContent,
+      'quickInstructions': message.quickInstructionInvocations
+          .map((snapshot) => snapshot.title)
+          .where((title) => title.trim().isNotEmpty)
+          .toList(growable: false),
       'timestamp': message.timestamp.toIso8601String(),
       'timestampLabel': _webChatTimestampFormat.format(message.timestamp),
       'modelId': message.modelId,

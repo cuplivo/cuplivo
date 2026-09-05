@@ -71,6 +71,8 @@ interface Conversation {
   chatSuggestions: string[];
   /** v2 新增；'normal' | 'group' */
   conversationKind: string;
+  /** 会话级持久快捷指令激活 */
+  persistentQuickInstructionIds: string[];
 }
 
 interface ChatMessage {
@@ -99,6 +101,8 @@ interface ChatMessage {
   isPreset: boolean;
   /** v2 新增：组聊发言者助手 id */
   speakerAssistantId: string | null;
+  /** 不可变 QuickInstructionInvocationSnapshot[] 的 JSON 字符串 */
+  quickInstructionInvocationsJson: string | null;
 }
 
 /** 事件为流式层写出的不透明 JSON，无固定 schema，典型形态如下 */
@@ -796,7 +800,25 @@ interface WorldBookEntry {
   keywords: string[]; useRegex: boolean; caseSensitive: boolean;
   scanDepth: number; constantActive: boolean;
 }
-interface InstructionInjection { id: string; title: string; prompt: string; group: string; }
+type QuickInstructionPlacement =
+  | 'systemPrompt' | 'beforeUserMessage' | 'afterUserMessage' | 'inputBox';
+type QuickInstructionTriggerMode = 'oneShot' | 'persistent';
+interface QuickInstructionToolPolicy {
+  enabled: boolean;
+  disabledLocalToolIds: string[];
+  disabledMcpServerIds: string[];
+  disabledFilesystemToolNames: string[];
+  shellDisabled: boolean;
+  shellBlockPatterns: string[];
+}
+interface InstructionInjection {
+  id: string; title: string; prompt: string; group: string;
+  placement: QuickInstructionPlacement;
+  triggerMode: QuickInstructionTriggerMode;
+  retainInHistory: boolean;
+  toolPolicy: QuickInstructionToolPolicy;
+}
+/** 仅作为旧备份迁移输入保留 */
 interface QuickPhrase {
   id: string; title: string; content: string;
   isGlobal: boolean; assistantId?: string | null;

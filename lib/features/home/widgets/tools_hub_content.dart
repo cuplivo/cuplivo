@@ -317,67 +317,18 @@ class _ToolsHubContentState extends State<ToolsHubContent>
     );
     final handoffEnabled = a.localToolIds.contains(LocalToolNames.handoff);
     final rows = <Widget>[
-      _localToolRow(
-        a,
-        icon: Lucide.clock,
-        title: l10n.assistantEditLocalToolTimeInfoTitle,
-        toolId: LocalToolNames.timeInfo,
-      ),
-      _localToolRow(
-        a,
-        icon: Lucide.Clipboard,
-        title: l10n.assistantEditLocalToolClipboardTitle,
-        toolId: LocalToolNames.clipboard,
-      ),
-      _localToolRow(
-        a,
-        icon: Lucide.Volume2,
-        title: l10n.assistantEditLocalToolTextToSpeechTitle,
-        toolId: LocalToolNames.textToSpeech,
-      ),
-      _localToolRow(
-        a,
-        icon: Lucide.MessageCircleQuestionMark,
-        title: l10n.assistantEditLocalToolAskUserTitle,
-        toolId: LocalToolNames.askUser,
-      ),
-      _localToolRow(
-        a,
-        icon: Lucide.Calculator,
-        title: l10n.assistantEditLocalToolCalculateTitle,
-        toolId: LocalToolNames.calculate,
-      ),
-      _localToolRow(
-        a,
-        icon: Lucide.Bot,
-        title: l10n.assistantEditLocalToolHandoffTitle,
-        toolId: LocalToolNames.handoff,
-        targetBadge: targets.length,
-      ),
-      if (DeviceLocalTools.screenTimeSupported)
-        _localToolRow(
-          a,
-          icon: Lucide.Smartphone,
-          title: l10n.assistantEditLocalToolScreenTimeTitle,
-          toolId: LocalToolNames.screenTime,
-          deviceTool: true,
-        ),
-      if (DeviceLocalTools.calendarSupported) ...[
-        _localToolRow(
-          a,
-          icon: Lucide.Calendar,
-          title: l10n.assistantEditLocalToolCalendarQueryTitle,
-          toolId: LocalToolNames.calendarQuery,
-          deviceTool: true,
-        ),
-        _localToolRow(
-          a,
-          icon: Lucide.CalendarPlus,
-          title: l10n.assistantEditLocalToolCalendarCreateTitle,
-          toolId: LocalToolNames.calendarCreate,
-          deviceTool: true,
-        ),
-      ],
+      for (final toolId in LocalToolNames.toolsHubManaged)
+        if (_localToolVisibleOnThisDevice(toolId))
+          _localToolRow(
+            a,
+            icon: _localToolIcon(toolId),
+            title: _localToolTitle(l10n, toolId),
+            toolId: toolId,
+            deviceTool: _isDeviceLocalTool(toolId),
+            targetBadge: toolId == LocalToolNames.handoff
+                ? targets.length
+                : null,
+          ),
     ];
     final toolCount = rows.length;
     if (!PlatformUtils.isMobile &&
@@ -398,6 +349,48 @@ class _ToolsHubContentState extends State<ToolsHubContent>
       children: rows,
     );
   }
+
+  bool _isDeviceLocalTool(String toolId) =>
+      toolId == LocalToolNames.screenTime ||
+      toolId == LocalToolNames.calendarQuery ||
+      toolId == LocalToolNames.calendarCreate;
+
+  bool _localToolVisibleOnThisDevice(String toolId) => switch (toolId) {
+    LocalToolNames.screenTime => DeviceLocalTools.screenTimeSupported,
+    LocalToolNames.calendarQuery ||
+    LocalToolNames.calendarCreate => DeviceLocalTools.calendarSupported,
+    _ => true,
+  };
+
+  IconData _localToolIcon(String toolId) => switch (toolId) {
+    LocalToolNames.timeInfo => Lucide.clock,
+    LocalToolNames.clipboard => Lucide.Clipboard,
+    LocalToolNames.textToSpeech => Lucide.Volume2,
+    LocalToolNames.askUser => Lucide.MessageCircleQuestionMark,
+    LocalToolNames.calculate => Lucide.Calculator,
+    LocalToolNames.handoff => Lucide.Bot,
+    LocalToolNames.screenTime => Lucide.Smartphone,
+    LocalToolNames.calendarQuery => Lucide.Calendar,
+    LocalToolNames.calendarCreate => Lucide.CalendarPlus,
+    _ => Lucide.Wrench,
+  };
+
+  String _localToolTitle(AppLocalizations l10n, String toolId) =>
+      switch (toolId) {
+        LocalToolNames.timeInfo => l10n.assistantEditLocalToolTimeInfoTitle,
+        LocalToolNames.clipboard => l10n.assistantEditLocalToolClipboardTitle,
+        LocalToolNames.textToSpeech =>
+          l10n.assistantEditLocalToolTextToSpeechTitle,
+        LocalToolNames.askUser => l10n.assistantEditLocalToolAskUserTitle,
+        LocalToolNames.calculate => l10n.assistantEditLocalToolCalculateTitle,
+        LocalToolNames.handoff => l10n.assistantEditLocalToolHandoffTitle,
+        LocalToolNames.screenTime => l10n.assistantEditLocalToolScreenTimeTitle,
+        LocalToolNames.calendarQuery =>
+          l10n.assistantEditLocalToolCalendarQueryTitle,
+        LocalToolNames.calendarCreate =>
+          l10n.assistantEditLocalToolCalendarCreateTitle,
+        _ => toolId,
+      };
 
   Widget _buildMcpGroup(
     AppLocalizations l10n,

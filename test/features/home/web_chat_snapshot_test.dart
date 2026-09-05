@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/quick_instruction.dart';
 import 'package:Cuplivo/features/chat/models/tool_ui_part.dart';
 import 'package:Cuplivo/features/home/controllers/stream_controller.dart'
     as stream_ctrl;
@@ -92,7 +93,7 @@ void main() {
 
     final rendered = (snapshot['messages'] as List).single as Map;
     expect(snapshot['protocolVersion'], 5);
-    expect(snapshot['assetVersion'], 'web-chat-v20');
+    expect(snapshot['assetVersion'], 'web-chat-v21');
     expect(snapshot['initialViewportMode'], 'anchor');
     expect(snapshot['locale'], 'zh-Hans');
     expect(snapshot['textDirection'], 'ltr');
@@ -166,6 +167,36 @@ void main() {
       expect(encoded, isNot(contains('"raw"')));
     },
   );
+
+  test('user snapshot exposes quick-instruction names but not prompts', () {
+    final message = ChatMessage(
+      id: 'quick-instruction-user',
+      role: 'user',
+      content: 'Visible body',
+      conversationId: 'c1',
+      quickInstructionInvocationsJson:
+          QuickInstructionInvocationSnapshot.encodeList(
+            <QuickInstructionInvocationSnapshot>[
+              QuickInstructionInvocationSnapshot(
+                instructionId: 'instruction-1',
+                title: 'Review carefully',
+                prompt: 'private frozen prompt',
+                placement: QuickInstructionPlacement.beforeUserMessage,
+                triggerMode: QuickInstructionTriggerMode.oneShot,
+                retainInHistory: true,
+                toolPolicy: QuickInstructionToolPolicy(),
+                order: 0,
+              ),
+            ],
+          ),
+    );
+
+    final snapshot = _minimalWebChatSnapshot(<ChatMessage>[message]);
+    final rendered = (snapshot['messages'] as List).single as Map;
+
+    expect(rendered['quickInstructions'], <String>['Review carefully']);
+    expect(jsonEncode(rendered), isNot(contains('private frozen prompt')));
+  });
 
   test('snapshot defaults a fresh conversation to the bottom edge', () {
     final snapshot = const WebChatSnapshotBuilder().build(

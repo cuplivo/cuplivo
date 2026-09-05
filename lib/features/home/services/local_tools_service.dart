@@ -32,6 +32,20 @@ class LocalToolNames {
   static const String screenTime = 'get_screen_time';
   static const String calendarQuery = 'calendar_query';
   static const String calendarCreate = 'calendar_create';
+
+  /// Canonical registry for user-configurable local tools shown by Tools Hub.
+  /// Search, memory, and skill tools intentionally live outside this list.
+  static const List<String> toolsHubManaged = <String>[
+    timeInfo,
+    clipboard,
+    textToSpeech,
+    askUser,
+    calculate,
+    handoff,
+    screenTime,
+    calendarQuery,
+    calendarCreate,
+  ];
 }
 
 /// Outcome of the platform permission flow when a device-backed local tool

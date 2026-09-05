@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/models/assistant.dart';
 import '../../core/providers/assistant_provider.dart';
-import '../../core/providers/instruction_injection_provider.dart';
+import '../../core/providers/quick_instruction_provider.dart';
 import '../../core/providers/world_book_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_font_weights.dart';
@@ -226,7 +226,7 @@ Future<void> applyInjectionBindings(
       .map((a) => a.id)
       .toList(growable: false);
   if (assistantIds.isEmpty) return;
-  final provider = context.read<InstructionInjectionProvider>();
+  final provider = context.read<QuickInstructionProvider>();
   await applyAssistantBindStates(
     itemId: itemId,
     selectedAssistantIds: selectedAssistantIds,

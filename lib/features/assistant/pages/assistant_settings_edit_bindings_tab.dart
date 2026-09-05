@@ -20,7 +20,7 @@ class _BindingsTabState extends State<_BindingsTab>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final wb = context.read<WorldBookProvider>();
-      final ii = context.read<InstructionInjectionProvider>();
+      final ii = context.read<QuickInstructionProvider>();
       await wb.initialize();
       await ii.initialize();
     });
@@ -149,15 +149,15 @@ class _BindingsTabState extends State<_BindingsTab>
   }
 
   Widget _buildInjectionSection(BuildContext context, AppLocalizations l10n) {
-    final provider = context.watch<InstructionInjectionProvider>();
-    final items = provider.items;
+    final provider = context.watch<QuickInstructionProvider>();
+    final items = provider.systemItems;
     final activeIds = provider.activeIdsFor(widget.assistantId).toSet();
 
-    final Map<String, List<InstructionInjection>> grouped =
-        <String, List<InstructionInjection>>{};
+    final Map<String, List<QuickInstruction>> grouped =
+        <String, List<QuickInstruction>>{};
     for (final item in items) {
       final g = item.group.trim();
-      (grouped[g] ??= <InstructionInjection>[]).add(item);
+      (grouped[g] ??= <QuickInstruction>[]).add(item);
     }
     final groupNames = grouped.keys.toList()
       ..sort((a, b) {
@@ -171,7 +171,7 @@ class _BindingsTabState extends State<_BindingsTab>
     return _iosSectionCard(
       children: [
         _BindSectionHeader(
-          icon: Lucide.Layers,
+          icon: Lucide.Zap,
           title: l10n.instructionInjectionTitle,
         ),
         _iosDivider(context),
@@ -196,7 +196,7 @@ class _BindingsTabState extends State<_BindingsTab>
             allEnabled: boundCount == items.length,
             onChanged: (value) {
               final ids = value ? items.map((i) => i.id).toSet() : <String>{};
-              context.read<InstructionInjectionProvider>().setActiveIds(
+              context.read<QuickInstructionProvider>().setActiveIds(
                 ids.toList(growable: false),
                 assistantId: widget.assistantId,
               );
@@ -221,18 +221,16 @@ class _BindingsTabState extends State<_BindingsTab>
                   for (int i = 0; i < grouped[groupName]!.length; i++) ...[
                     if (i > 0) _iosDivider(context),
                     _BindSwitchRow(
-                      icon: Lucide.Layers,
+                      icon: Lucide.Zap,
                       title: grouped[groupName]![i].title.trim().isEmpty
                           ? l10n.instructionInjectionDefaultTitle
                           : grouped[groupName]![i].title.trim(),
                       value: activeIds.contains(grouped[groupName]![i].id),
                       onChanged: (value) {
-                        context
-                            .read<InstructionInjectionProvider>()
-                            .toggleActiveId(
-                              grouped[groupName]![i].id,
-                              assistantId: widget.assistantId,
-                            );
+                        context.read<QuickInstructionProvider>().toggleActiveId(
+                          grouped[groupName]![i].id,
+                          assistantId: widget.assistantId,
+                        );
                       },
                     ),
                   ],

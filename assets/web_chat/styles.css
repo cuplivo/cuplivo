@@ -992,3 +992,26 @@ body[data-style-process-shadow="true"] :is(
   size: A4;
   margin: 14mm;
 }
+[data-component="quick-instructions"] {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.quick-instruction-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 4px 9px;
+  overflow: hidden;
+  color: var(--primary, currentColor);
+  font-size: 12px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--primary, currentColor) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary, currentColor) 22%, transparent);
+  border-radius: 999px;
+}

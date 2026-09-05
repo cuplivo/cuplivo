@@ -169,6 +169,18 @@ class $ConversationRowsTable extends ConversationRows
         requiredDuringInsert: false,
         defaultValue: const Constant('{}'),
       );
+  static const VerificationMeta _persistentQuickInstructionIdsJsonMeta =
+      const VerificationMeta('persistentQuickInstructionIdsJson');
+  @override
+  late final GeneratedColumn<String> persistentQuickInstructionIdsJson =
+      GeneratedColumn<String>(
+        'persistent_quick_instruction_ids_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('[]'),
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -185,6 +197,7 @@ class $ConversationRowsTable extends ConversationRows
     parentConversationId,
     conversationKind,
     workspaceDirectoryOverridesJson,
+    persistentQuickInstructionIdsJson,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -311,6 +324,15 @@ class $ConversationRowsTable extends ConversationRows
         ),
       );
     }
+    if (data.containsKey('persistent_quick_instruction_ids_json')) {
+      context.handle(
+        _persistentQuickInstructionIdsJsonMeta,
+        persistentQuickInstructionIdsJson.isAcceptableOrUnknown(
+          data['persistent_quick_instruction_ids_json']!,
+          _persistentQuickInstructionIdsJsonMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -376,6 +398,10 @@ class $ConversationRowsTable extends ConversationRows
         DriftSqlType.string,
         data['${effectivePrefix}workspace_directory_overrides_json'],
       )!,
+      persistentQuickInstructionIdsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}persistent_quick_instruction_ids_json'],
+      )!,
     );
   }
 
@@ -402,6 +428,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
   /// 'normal' | 'group' — group public transcripts use kind=group.
   final String conversationKind;
   final String workspaceDirectoryOverridesJson;
+  final String persistentQuickInstructionIdsJson;
   const ConversationRow({
     required this.id,
     required this.title,
@@ -417,6 +444,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
     this.parentConversationId,
     required this.conversationKind,
     required this.workspaceDirectoryOverridesJson,
+    required this.persistentQuickInstructionIdsJson,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -445,6 +473,9 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
     map['workspace_directory_overrides_json'] = Variable<String>(
       workspaceDirectoryOverridesJson,
     );
+    map['persistent_quick_instruction_ids_json'] = Variable<String>(
+      persistentQuickInstructionIdsJson,
+    );
     return map;
   }
 
@@ -470,6 +501,9 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
           : Value(parentConversationId),
       conversationKind: Value(conversationKind),
       workspaceDirectoryOverridesJson: Value(workspaceDirectoryOverridesJson),
+      persistentQuickInstructionIdsJson: Value(
+        persistentQuickInstructionIdsJson,
+      ),
     );
   }
 
@@ -503,6 +537,9 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
       workspaceDirectoryOverridesJson: serializer.fromJson<String>(
         json['workspaceDirectoryOverridesJson'],
       ),
+      persistentQuickInstructionIdsJson: serializer.fromJson<String>(
+        json['persistentQuickInstructionIdsJson'],
+      ),
     );
   }
   @override
@@ -527,6 +564,9 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
       'workspaceDirectoryOverridesJson': serializer.toJson<String>(
         workspaceDirectoryOverridesJson,
       ),
+      'persistentQuickInstructionIdsJson': serializer.toJson<String>(
+        persistentQuickInstructionIdsJson,
+      ),
     };
   }
 
@@ -545,6 +585,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
     Value<String?> parentConversationId = const Value.absent(),
     String? conversationKind,
     String? workspaceDirectoryOverridesJson,
+    String? persistentQuickInstructionIdsJson,
   }) => ConversationRow(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -564,6 +605,9 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
     conversationKind: conversationKind ?? this.conversationKind,
     workspaceDirectoryOverridesJson:
         workspaceDirectoryOverridesJson ?? this.workspaceDirectoryOverridesJson,
+    persistentQuickInstructionIdsJson:
+        persistentQuickInstructionIdsJson ??
+        this.persistentQuickInstructionIdsJson,
   );
   ConversationRow copyWithCompanion(ConversationRowsCompanion data) {
     return ConversationRow(
@@ -598,6 +642,10 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
           data.workspaceDirectoryOverridesJson.present
           ? data.workspaceDirectoryOverridesJson.value
           : this.workspaceDirectoryOverridesJson,
+      persistentQuickInstructionIdsJson:
+          data.persistentQuickInstructionIdsJson.present
+          ? data.persistentQuickInstructionIdsJson.value
+          : this.persistentQuickInstructionIdsJson,
     );
   }
 
@@ -618,7 +666,10 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
           ..write('parentConversationId: $parentConversationId, ')
           ..write('conversationKind: $conversationKind, ')
           ..write(
-            'workspaceDirectoryOverridesJson: $workspaceDirectoryOverridesJson',
+            'workspaceDirectoryOverridesJson: $workspaceDirectoryOverridesJson, ',
+          )
+          ..write(
+            'persistentQuickInstructionIdsJson: $persistentQuickInstructionIdsJson',
           )
           ..write(')'))
         .toString();
@@ -640,6 +691,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
     parentConversationId,
     conversationKind,
     workspaceDirectoryOverridesJson,
+    persistentQuickInstructionIdsJson,
   );
   @override
   bool operator ==(Object other) =>
@@ -659,7 +711,9 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
           other.parentConversationId == this.parentConversationId &&
           other.conversationKind == this.conversationKind &&
           other.workspaceDirectoryOverridesJson ==
-              this.workspaceDirectoryOverridesJson);
+              this.workspaceDirectoryOverridesJson &&
+          other.persistentQuickInstructionIdsJson ==
+              this.persistentQuickInstructionIdsJson);
 }
 
 class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
@@ -677,6 +731,7 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
   final Value<String?> parentConversationId;
   final Value<String> conversationKind;
   final Value<String> workspaceDirectoryOverridesJson;
+  final Value<String> persistentQuickInstructionIdsJson;
   final Value<int> rowid;
   const ConversationRowsCompanion({
     this.id = const Value.absent(),
@@ -693,6 +748,7 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
     this.parentConversationId = const Value.absent(),
     this.conversationKind = const Value.absent(),
     this.workspaceDirectoryOverridesJson = const Value.absent(),
+    this.persistentQuickInstructionIdsJson = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ConversationRowsCompanion.insert({
@@ -710,6 +766,7 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
     this.parentConversationId = const Value.absent(),
     this.conversationKind = const Value.absent(),
     this.workspaceDirectoryOverridesJson = const Value.absent(),
+    this.persistentQuickInstructionIdsJson = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
@@ -730,6 +787,7 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
     Expression<String>? parentConversationId,
     Expression<String>? conversationKind,
     Expression<String>? workspaceDirectoryOverridesJson,
+    Expression<String>? persistentQuickInstructionIdsJson,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -752,6 +810,9 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
       if (conversationKind != null) 'conversation_kind': conversationKind,
       if (workspaceDirectoryOverridesJson != null)
         'workspace_directory_overrides_json': workspaceDirectoryOverridesJson,
+      if (persistentQuickInstructionIdsJson != null)
+        'persistent_quick_instruction_ids_json':
+            persistentQuickInstructionIdsJson,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -771,6 +832,7 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
     Value<String?>? parentConversationId,
     Value<String>? conversationKind,
     Value<String>? workspaceDirectoryOverridesJson,
+    Value<String>? persistentQuickInstructionIdsJson,
     Value<int>? rowid,
   }) {
     return ConversationRowsCompanion(
@@ -792,6 +854,9 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
       workspaceDirectoryOverridesJson:
           workspaceDirectoryOverridesJson ??
           this.workspaceDirectoryOverridesJson,
+      persistentQuickInstructionIdsJson:
+          persistentQuickInstructionIdsJson ??
+          this.persistentQuickInstructionIdsJson,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -851,6 +916,11 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
         workspaceDirectoryOverridesJson.value,
       );
     }
+    if (persistentQuickInstructionIdsJson.present) {
+      map['persistent_quick_instruction_ids_json'] = Variable<String>(
+        persistentQuickInstructionIdsJson.value,
+      );
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -875,6 +945,9 @@ class ConversationRowsCompanion extends UpdateCompanion<ConversationRow> {
           ..write('conversationKind: $conversationKind, ')
           ..write(
             'workspaceDirectoryOverridesJson: $workspaceDirectoryOverridesJson, ',
+          )
+          ..write(
+            'persistentQuickInstructionIdsJson: $persistentQuickInstructionIdsJson, ',
           )
           ..write('rowid: $rowid')
           ..write(')'))
@@ -1208,6 +1281,17 @@ class $MessageRowsTable extends MessageRows
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _quickInstructionInvocationsJsonMeta =
+      const VerificationMeta('quickInstructionInvocationsJson');
+  @override
+  late final GeneratedColumn<String> quickInstructionInvocationsJson =
+      GeneratedColumn<String>(
+        'quick_instruction_invocations_json',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1238,6 +1322,7 @@ class $MessageRowsTable extends MessageRows
     requestAllowImagesApiRouting,
     requestExtraBodyJson,
     quoteJson,
+    quickInstructionInvocationsJson,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1476,6 +1561,15 @@ class $MessageRowsTable extends MessageRows
         quoteJson.isAcceptableOrUnknown(data['quote_json']!, _quoteJsonMeta),
       );
     }
+    if (data.containsKey('quick_instruction_invocations_json')) {
+      context.handle(
+        _quickInstructionInvocationsJsonMeta,
+        quickInstructionInvocationsJson.isAcceptableOrUnknown(
+          data['quick_instruction_invocations_json']!,
+          _quickInstructionInvocationsJsonMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1597,6 +1691,10 @@ class $MessageRowsTable extends MessageRows
         DriftSqlType.string,
         data['${effectivePrefix}quote_json'],
       ),
+      quickInstructionInvocationsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}quick_instruction_invocations_json'],
+      ),
     );
   }
 
@@ -1644,6 +1742,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
   /// JSON-encoded MessageQuote citation reference (schema v20, issue #312).
   /// Nullable TEXT so existing rows and non-reply messages stay untouched.
   final String? quoteJson;
+
+  /// Frozen quick-instruction invocations for this user-message version.
+  final String? quickInstructionInvocationsJson;
   const MessageRow({
     required this.id,
     required this.conversationId,
@@ -1673,6 +1774,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     this.requestAllowImagesApiRouting,
     this.requestExtraBodyJson,
     this.quoteJson,
+    this.quickInstructionInvocationsJson,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1744,6 +1846,11 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     }
     if (!nullToAbsent || quoteJson != null) {
       map['quote_json'] = Variable<String>(quoteJson);
+    }
+    if (!nullToAbsent || quickInstructionInvocationsJson != null) {
+      map['quick_instruction_invocations_json'] = Variable<String>(
+        quickInstructionInvocationsJson,
+      );
     }
     return map;
   }
@@ -1817,6 +1924,10 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       quoteJson: quoteJson == null && nullToAbsent
           ? const Value.absent()
           : Value(quoteJson),
+      quickInstructionInvocationsJson:
+          quickInstructionInvocationsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(quickInstructionInvocationsJson),
     );
   }
 
@@ -1866,6 +1977,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
         json['requestExtraBodyJson'],
       ),
       quoteJson: serializer.fromJson<String?>(json['quoteJson']),
+      quickInstructionInvocationsJson: serializer.fromJson<String?>(
+        json['quickInstructionInvocationsJson'],
+      ),
     );
   }
   @override
@@ -1904,6 +2018,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       ),
       'requestExtraBodyJson': serializer.toJson<String?>(requestExtraBodyJson),
       'quoteJson': serializer.toJson<String?>(quoteJson),
+      'quickInstructionInvocationsJson': serializer.toJson<String?>(
+        quickInstructionInvocationsJson,
+      ),
     };
   }
 
@@ -1936,6 +2053,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     Value<bool?> requestAllowImagesApiRouting = const Value.absent(),
     Value<String?> requestExtraBodyJson = const Value.absent(),
     Value<String?> quoteJson = const Value.absent(),
+    Value<String?> quickInstructionInvocationsJson = const Value.absent(),
   }) => MessageRow(
     id: id ?? this.id,
     conversationId: conversationId ?? this.conversationId,
@@ -1983,6 +2101,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
         ? requestExtraBodyJson.value
         : this.requestExtraBodyJson,
     quoteJson: quoteJson.present ? quoteJson.value : this.quoteJson,
+    quickInstructionInvocationsJson: quickInstructionInvocationsJson.present
+        ? quickInstructionInvocationsJson.value
+        : this.quickInstructionInvocationsJson,
   );
   MessageRow copyWithCompanion(MessageRowsCompanion data) {
     return MessageRow(
@@ -2052,6 +2173,10 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           ? data.requestExtraBodyJson.value
           : this.requestExtraBodyJson,
       quoteJson: data.quoteJson.present ? data.quoteJson.value : this.quoteJson,
+      quickInstructionInvocationsJson:
+          data.quickInstructionInvocationsJson.present
+          ? data.quickInstructionInvocationsJson.value
+          : this.quickInstructionInvocationsJson,
     );
   }
 
@@ -2087,7 +2212,10 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
             'requestAllowImagesApiRouting: $requestAllowImagesApiRouting, ',
           )
           ..write('requestExtraBodyJson: $requestExtraBodyJson, ')
-          ..write('quoteJson: $quoteJson')
+          ..write('quoteJson: $quoteJson, ')
+          ..write(
+            'quickInstructionInvocationsJson: $quickInstructionInvocationsJson',
+          )
           ..write(')'))
         .toString();
   }
@@ -2122,6 +2250,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     requestAllowImagesApiRouting,
     requestExtraBodyJson,
     quoteJson,
+    quickInstructionInvocationsJson,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -2155,7 +2284,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           other.requestAllowImagesApiRouting ==
               this.requestAllowImagesApiRouting &&
           other.requestExtraBodyJson == this.requestExtraBodyJson &&
-          other.quoteJson == this.quoteJson);
+          other.quoteJson == this.quoteJson &&
+          other.quickInstructionInvocationsJson ==
+              this.quickInstructionInvocationsJson);
 }
 
 class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
@@ -2187,6 +2318,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
   final Value<bool?> requestAllowImagesApiRouting;
   final Value<String?> requestExtraBodyJson;
   final Value<String?> quoteJson;
+  final Value<String?> quickInstructionInvocationsJson;
   final Value<int> rowid;
   const MessageRowsCompanion({
     this.id = const Value.absent(),
@@ -2217,6 +2349,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     this.requestAllowImagesApiRouting = const Value.absent(),
     this.requestExtraBodyJson = const Value.absent(),
     this.quoteJson = const Value.absent(),
+    this.quickInstructionInvocationsJson = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MessageRowsCompanion.insert({
@@ -2248,6 +2381,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     this.requestAllowImagesApiRouting = const Value.absent(),
     this.requestExtraBodyJson = const Value.absent(),
     this.quoteJson = const Value.absent(),
+    this.quickInstructionInvocationsJson = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        conversationId = Value(conversationId),
@@ -2284,6 +2418,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     Expression<bool>? requestAllowImagesApiRouting,
     Expression<String>? requestExtraBodyJson,
     Expression<String>? quoteJson,
+    Expression<String>? quickInstructionInvocationsJson,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2320,6 +2455,8 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
       if (requestExtraBodyJson != null)
         'request_extra_body_json': requestExtraBodyJson,
       if (quoteJson != null) 'quote_json': quoteJson,
+      if (quickInstructionInvocationsJson != null)
+        'quick_instruction_invocations_json': quickInstructionInvocationsJson,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2353,6 +2490,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     Value<bool?>? requestAllowImagesApiRouting,
     Value<String?>? requestExtraBodyJson,
     Value<String?>? quoteJson,
+    Value<String?>? quickInstructionInvocationsJson,
     Value<int>? rowid,
   }) {
     return MessageRowsCompanion(
@@ -2386,6 +2524,9 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
           requestAllowImagesApiRouting ?? this.requestAllowImagesApiRouting,
       requestExtraBodyJson: requestExtraBodyJson ?? this.requestExtraBodyJson,
       quoteJson: quoteJson ?? this.quoteJson,
+      quickInstructionInvocationsJson:
+          quickInstructionInvocationsJson ??
+          this.quickInstructionInvocationsJson,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2485,6 +2626,11 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     if (quoteJson.present) {
       map['quote_json'] = Variable<String>(quoteJson.value);
     }
+    if (quickInstructionInvocationsJson.present) {
+      map['quick_instruction_invocations_json'] = Variable<String>(
+        quickInstructionInvocationsJson.value,
+      );
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2524,6 +2670,9 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
           )
           ..write('requestExtraBodyJson: $requestExtraBodyJson, ')
           ..write('quoteJson: $quoteJson, ')
+          ..write(
+            'quickInstructionInvocationsJson: $quickInstructionInvocationsJson, ',
+          )
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8992,6 +9141,7 @@ typedef $$ConversationRowsTableCreateCompanionBuilder =
       Value<String?> parentConversationId,
       Value<String> conversationKind,
       Value<String> workspaceDirectoryOverridesJson,
+      Value<String> persistentQuickInstructionIdsJson,
       Value<int> rowid,
     });
 typedef $$ConversationRowsTableUpdateCompanionBuilder =
@@ -9010,6 +9160,7 @@ typedef $$ConversationRowsTableUpdateCompanionBuilder =
       Value<String?> parentConversationId,
       Value<String> conversationKind,
       Value<String> workspaceDirectoryOverridesJson,
+      Value<String> persistentQuickInstructionIdsJson,
       Value<int> rowid,
     });
 
@@ -9163,6 +9314,12 @@ class $$ConversationRowsTableFilterComposer
   ColumnFilters<String> get workspaceDirectoryOverridesJson =>
       $composableBuilder(
         column: $table.workspaceDirectoryOverridesJson,
+        builder: (column) => ColumnFilters(column),
+      );
+
+  ColumnFilters<String> get persistentQuickInstructionIdsJson =>
+      $composableBuilder(
+        column: $table.persistentQuickInstructionIdsJson,
         builder: (column) => ColumnFilters(column),
       );
 
@@ -9323,6 +9480,12 @@ class $$ConversationRowsTableOrderingComposer
         column: $table.workspaceDirectoryOverridesJson,
         builder: (column) => ColumnOrderings(column),
       );
+
+  ColumnOrderings<String> get persistentQuickInstructionIdsJson =>
+      $composableBuilder(
+        column: $table.persistentQuickInstructionIdsJson,
+        builder: (column) => ColumnOrderings(column),
+      );
 }
 
 class $$ConversationRowsTableAnnotationComposer
@@ -9390,6 +9553,12 @@ class $$ConversationRowsTableAnnotationComposer
   GeneratedColumn<String> get workspaceDirectoryOverridesJson =>
       $composableBuilder(
         column: $table.workspaceDirectoryOverridesJson,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<String> get persistentQuickInstructionIdsJson =>
+      $composableBuilder(
+        column: $table.persistentQuickInstructionIdsJson,
         builder: (column) => column,
       );
 
@@ -9520,6 +9689,8 @@ class $$ConversationRowsTableTableManager
                 Value<String> conversationKind = const Value.absent(),
                 Value<String> workspaceDirectoryOverridesJson =
                     const Value.absent(),
+                Value<String> persistentQuickInstructionIdsJson =
+                    const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ConversationRowsCompanion(
                 id: id,
@@ -9537,6 +9708,8 @@ class $$ConversationRowsTableTableManager
                 conversationKind: conversationKind,
                 workspaceDirectoryOverridesJson:
                     workspaceDirectoryOverridesJson,
+                persistentQuickInstructionIdsJson:
+                    persistentQuickInstructionIdsJson,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -9556,6 +9729,8 @@ class $$ConversationRowsTableTableManager
                 Value<String> conversationKind = const Value.absent(),
                 Value<String> workspaceDirectoryOverridesJson =
                     const Value.absent(),
+                Value<String> persistentQuickInstructionIdsJson =
+                    const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ConversationRowsCompanion.insert(
                 id: id,
@@ -9573,12 +9748,14 @@ class $$ConversationRowsTableTableManager
                 conversationKind: conversationKind,
                 workspaceDirectoryOverridesJson:
                     workspaceDirectoryOverridesJson,
+                persistentQuickInstructionIdsJson:
+                    persistentQuickInstructionIdsJson,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$ConversationRowsTable, ConversationRow>(table),
                   $$ConversationRowsTableReferences(db, table, e),
                 ),
               )
@@ -9719,6 +9896,7 @@ typedef $$MessageRowsTableCreateCompanionBuilder =
       Value<bool?> requestAllowImagesApiRouting,
       Value<String?> requestExtraBodyJson,
       Value<String?> quoteJson,
+      Value<String?> quickInstructionInvocationsJson,
       Value<int> rowid,
     });
 typedef $$MessageRowsTableUpdateCompanionBuilder =
@@ -9751,6 +9929,7 @@ typedef $$MessageRowsTableUpdateCompanionBuilder =
       Value<bool?> requestAllowImagesApiRouting,
       Value<String?> requestExtraBodyJson,
       Value<String?> quoteJson,
+      Value<String?> quickInstructionInvocationsJson,
       Value<int> rowid,
     });
 
@@ -9964,6 +10143,12 @@ class $$MessageRowsTableFilterComposer
     column: $table.quoteJson,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<String> get quickInstructionInvocationsJson =>
+      $composableBuilder(
+        column: $table.quickInstructionInvocationsJson,
+        builder: (column) => ColumnFilters(column),
+      );
 
   $$ConversationRowsTableFilterComposer get conversationId {
     final $$ConversationRowsTableFilterComposer composer = $composerBuilder(
@@ -10185,6 +10370,12 @@ class $$MessageRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get quickInstructionInvocationsJson =>
+      $composableBuilder(
+        column: $table.quickInstructionInvocationsJson,
+        builder: (column) => ColumnOrderings(column),
+      );
+
   $$ConversationRowsTableOrderingComposer get conversationId {
     final $$ConversationRowsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -10335,6 +10526,12 @@ class $$MessageRowsTableAnnotationComposer
   GeneratedColumn<String> get quoteJson =>
       $composableBuilder(column: $table.quoteJson, builder: (column) => column);
 
+  GeneratedColumn<String> get quickInstructionInvocationsJson =>
+      $composableBuilder(
+        column: $table.quickInstructionInvocationsJson,
+        builder: (column) => column,
+      );
+
   $$ConversationRowsTableAnnotationComposer get conversationId {
     final $$ConversationRowsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -10474,6 +10671,8 @@ class $$MessageRowsTableTableManager
                     const Value.absent(),
                 Value<String?> requestExtraBodyJson = const Value.absent(),
                 Value<String?> quoteJson = const Value.absent(),
+                Value<String?> quickInstructionInvocationsJson =
+                    const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MessageRowsCompanion(
                 id: id,
@@ -10504,6 +10703,8 @@ class $$MessageRowsTableTableManager
                 requestAllowImagesApiRouting: requestAllowImagesApiRouting,
                 requestExtraBodyJson: requestExtraBodyJson,
                 quoteJson: quoteJson,
+                quickInstructionInvocationsJson:
+                    quickInstructionInvocationsJson,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -10537,6 +10738,8 @@ class $$MessageRowsTableTableManager
                     const Value.absent(),
                 Value<String?> requestExtraBodyJson = const Value.absent(),
                 Value<String?> quoteJson = const Value.absent(),
+                Value<String?> quickInstructionInvocationsJson =
+                    const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MessageRowsCompanion.insert(
                 id: id,
@@ -10567,12 +10770,14 @@ class $$MessageRowsTableTableManager
                 requestAllowImagesApiRouting: requestAllowImagesApiRouting,
                 requestExtraBodyJson: requestExtraBodyJson,
                 quoteJson: quoteJson,
+                quickInstructionInvocationsJson:
+                    quickInstructionInvocationsJson,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$MessageRowsTable, MessageRow>(table),
                   $$MessageRowsTableReferences(db, table, e),
                 ),
               )
@@ -11795,7 +12000,16 @@ class $$AssistantRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$AssistantRowsTable, AssistantRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $AssistantRowsTable,
+                    AssistantRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -12059,7 +12273,10 @@ class $$ConversationMcpServerRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $ConversationMcpServerRowsTable,
+                    ConversationMcpServerRow
+                  >(table),
                   $$ConversationMcpServerRowsTableReferences(db, table, e),
                 ),
               )
@@ -12327,7 +12544,7 @@ class $$ToolEventRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$ToolEventRowsTable, ToolEventRow>(table),
                   $$ToolEventRowsTableReferences(db, table, e),
                 ),
               )
@@ -12612,7 +12829,10 @@ class $$GeminiThoughtSignatureRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $GeminiThoughtSignatureRowsTable,
+                    GeminiThoughtSignatureRow
+                  >(table),
                   $$GeminiThoughtSignatureRowsTableReferences(db, table, e),
                 ),
               )
@@ -12832,7 +13052,16 @@ class $$CacheRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$CacheRowsTable, CacheRow>(table),
+                  BaseReferences<_$AppDatabase, $CacheRowsTable, CacheRow>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -12984,7 +13213,18 @@ class $$ChatStorageMetaRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$ChatStorageMetaRowsTable, ChatStorageMetaRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ChatStorageMetaRowsTable,
+                    ChatStorageMetaRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -13218,7 +13458,16 @@ class $$DeletedRecordRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$DeletedRecordRowsTable, DeletedRecordRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DeletedRecordRowsTable,
+                    DeletedRecordRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -13412,7 +13661,18 @@ class $$DeletionMarkerRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$DeletionMarkerRowsTable, DeletionMarkerRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DeletionMarkerRowsTable,
+                    DeletionMarkerRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -13999,7 +14259,7 @@ class $$GroupChatRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$GroupChatRowsTable, GroupChatRow>(table),
                   $$GroupChatRowsTableReferences(db, table, e),
                 ),
               )
@@ -14348,7 +14608,9 @@ class $$GroupChatMemberRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$GroupChatMemberRowsTable, GroupChatMemberRow>(
+                    table,
+                  ),
                   $$GroupChatMemberRowsTableReferences(db, table, e),
                 ),
               )
@@ -14554,7 +14816,16 @@ class $$PreferenceRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$PreferenceRowsTable, PreferenceRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $PreferenceRowsTable,
+                    PreferenceRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),

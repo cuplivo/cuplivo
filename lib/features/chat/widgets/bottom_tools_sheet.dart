@@ -11,9 +11,7 @@ import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../home/utils/input_bar_button_layout.dart';
-import '../../home/widgets/instruction_injection_sheet.dart';
 import '../../home/widgets/world_book_sheet.dart';
-import '../../instruction_injection/pages/instruction_injection_page.dart';
 import '../../skills/pages/skills_page.dart';
 import '../../world_book/pages/world_book_page.dart';
 
@@ -39,6 +37,7 @@ class BottomToolsSheet extends StatelessWidget {
     this.onOpenSearch,
     this.onConfigureReasoning,
     this.onQuickPhrase,
+    this.onLongPressQuickPhrase,
     this.onOpenToolsHub,
   });
 
@@ -58,6 +57,7 @@ class BottomToolsSheet extends StatelessWidget {
   final VoidCallback? onOpenSearch;
   final VoidCallback? onConfigureReasoning;
   final VoidCallback? onQuickPhrase;
+  final VoidCallback? onLongPressQuickPhrase;
   final VoidCallback? onOpenToolsHub;
 
   @override
@@ -187,6 +187,7 @@ class BottomToolsSheet extends StatelessWidget {
                       onOpenSearch: onOpenSearch,
                       onConfigureReasoning: onConfigureReasoning,
                       onQuickPhrase: onQuickPhrase,
+                      onLongPressQuickPhrase: onLongPressQuickPhrase,
                       onOpenToolsHub: onOpenToolsHub,
                       onCustomize: onCustomize,
                     ),
@@ -213,6 +214,7 @@ class _BucketSection extends StatefulWidget {
     this.onOpenSearch,
     this.onConfigureReasoning,
     this.onQuickPhrase,
+    this.onLongPressQuickPhrase,
     this.onOpenToolsHub,
     this.onCustomize,
   });
@@ -226,6 +228,7 @@ class _BucketSection extends StatefulWidget {
   final VoidCallback? onOpenSearch;
   final VoidCallback? onConfigureReasoning;
   final VoidCallback? onQuickPhrase;
+  final VoidCallback? onLongPressQuickPhrase;
   final VoidCallback? onOpenToolsHub;
   final VoidCallback? onCustomize;
 
@@ -366,34 +369,10 @@ class _BucketSectionState extends State<_BucketSection> {
                 Haptics.light();
                 widget.onQuickPhrase?.call();
               },
-            ),
-          );
-        case inputBarButtonLearning:
-          addRow(
-            _row(
-              icon: Lucide.Layers,
-              label: l10n.instructionInjectionTitle,
-              selected: false,
-              onTap: () async {
-                Haptics.light();
-                await showInstructionInjectionSheet(
-                  context,
-                  assistantId: widget.assistantId,
-                );
-              },
               onLongPress: () {
                 Haptics.light();
-                final rootNav = Navigator.of(context, rootNavigator: true);
-                Navigator.of(context).maybePop();
-                Future.microtask(() {
-                  rootNav.push(
-                    MaterialPageRoute(
-                      builder: (_) => const InstructionInjectionPage(),
-                    ),
-                  );
-                });
+                widget.onLongPressQuickPhrase?.call();
               },
-              trailing: _chevron(context),
             ),
           );
         case inputBarButtonWorldBook:

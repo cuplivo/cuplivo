@@ -1,14 +1,19 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/widgets.dart';
+import 'package:provider/provider.dart';
+import '../../../core/database/business_preferences.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/conversation.dart';
+import '../../../core/models/quick_instruction.dart';
+import '../../../core/providers/quick_instruction_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/model_override_payload_parser.dart';
+import '../../../core/services/quick_instruction_store.dart';
 import '../../../core/utils/multimodal_input_utils.dart';
 import '../../../core/utils/openai_model_compat.dart';
 import '../../model/utils/ocr_model_capability.dart';
@@ -18,6 +23,7 @@ import '../controllers/stream_controller.dart' as stream_ctrl;
 import '../controllers/generation_controller.dart';
 import 'ask_user_interaction_service.dart';
 import 'message_builder_service.dart';
+import 'quick_instruction_execution_policy.dart';
 import 'tool_approval_service.dart';
 
 /// Callback types for UI updates from MessageGenerationService
@@ -123,6 +129,7 @@ class MessageGenerationService {
     required String modelId,
     ToolApprovalService? approvalService,
     AskUserInteractionService? askUserService,
+    bool includeUserQuickInstructions = true,
   }) async {
     final cfg = settings.getProviderConfig(providerKey);
     final kind = ProviderConfig.classify(
@@ -142,6 +149,9 @@ class MessageGenerationService {
       currentConversation: currentConversation,
       includeToolMessages: includeToolMessages,
     );
+    final anchorQuickInstructions = includeUserQuickInstructions
+        ? messageBuilderService.anchorQuickInstructionInvocations(apiMessages)
+        : const <QuickInstructionInvocationSnapshot>[];
 
     // Apply assistant replace-only regexes at send-time (visual stays unchanged).
     if (assistant != null && assistant.regexRules.isNotEmpty) {
@@ -167,6 +177,7 @@ class MessageGenerationService {
           assistant,
           providerKey: providerKey,
           modelId: modelId,
+          includeUserQuickInstructions: includeUserQuickInstructions,
         );
 
     // Signal processing finished
@@ -243,6 +254,10 @@ class MessageGenerationService {
             conversationId: currentConversation?.id,
             conversation: currentConversation,
             workspaceExecutionContext: workspaceExecutionContext,
+            quickInstructionPolicy: await _buildExecutionPolicy(
+              assistantId: assistantId,
+              anchorInvocations: anchorQuickInstructions,
+            ),
           )
         : null;
 
@@ -288,25 +303,143 @@ class MessageGenerationService {
     required Assistant? assistant,
     String? groupId,
   }) async {
+    final frozenInput = await freezeUserQuickInstructions(
+      conversationId: conversationId,
+      input: input,
+    );
     final message = await chatService.addMessage(
       conversationId: conversationId,
       role: 'user',
       content: MessageGenerationService.buildPersistedUserMessageContent(
-        input,
+        frozenInput,
         assistant: assistant,
       ),
       groupId: groupId,
-      quoteJson: input.quote == null ? null : jsonEncode(input.quote!.toJson()),
+      quoteJson: frozenInput.quote == null
+          ? null
+          : jsonEncode(frozenInput.quote!.toJson()),
+      quickInstructionInvocationsJson: frozenInput.quickInstructions.isEmpty
+          ? null
+          : QuickInstructionInvocationSnapshot.encodeList(
+              frozenInput.quickInstructions,
+            ),
     );
     // Persist per-message request metadata (routing decision + image options
     // body) so regenerate/continue can replay them. See
     // docs/adr/0033-per-message-request-metadata.md.
     await chatService.updateMessage(
       message.id,
-      requestAllowImagesApiRouting: input.allowImagesApiRouting,
-      requestExtraBody: input.extraBody,
+      requestAllowImagesApiRouting: frozenInput.allowImagesApiRouting,
+      requestExtraBody: frozenInput.extraBody,
     );
     return message;
+  }
+
+  /// Freezes one-shot selections plus the conversation's currently active
+  /// persistent instructions. Calling this repeatedly is idempotent, which is
+  /// important for queued inputs.
+  Future<ChatInputData> freezeUserQuickInstructions({
+    required String conversationId,
+    required ChatInputData input,
+  }) async {
+    if (input.quickInstructionsFrozen) return input;
+    final conversation = chatService.getCompleteConversation(conversationId);
+    if (conversation?.isGroup == true) {
+      return input.copyWith(
+        quickInstructions: const <QuickInstructionInvocationSnapshot>[],
+        quickInstructionsFrozen: true,
+      );
+    }
+
+    final snapshots = <QuickInstructionInvocationSnapshot>[
+      ...input.quickInstructions.where(
+        (snapshot) =>
+            snapshot.placement == QuickInstructionPlacement.beforeUserMessage ||
+            snapshot.placement == QuickInstructionPlacement.afterUserMessage,
+      ),
+    ];
+    QuickInstructionProvider? provider;
+    QuickInstructionStore? fallbackStore;
+    try {
+      provider = contextProvider.read<QuickInstructionProvider>();
+    } on ProviderNotFoundException catch (error, stackTrace) {
+      debugPrint(
+        'QuickInstructionProvider unavailable while freezing input: '
+        '$error\n$stackTrace',
+      );
+      fallbackStore = QuickInstructionStore.shared(
+        contextProvider.read<BusinessPreferences>(),
+      );
+    }
+
+    final List<QuickInstruction> items;
+    if (provider != null) {
+      await provider.initialize();
+      items = provider.items;
+    } else {
+      items = await fallbackStore!.getAll();
+    }
+    final existingIds = snapshots
+        .map((snapshot) => snapshot.instructionId)
+        .toSet();
+    final persistentIds =
+        conversation?.persistentQuickInstructionIds.toSet() ?? const <String>{};
+    for (var index = 0; index < items.length; index++) {
+      final instruction = items[index];
+      if (!instruction.isPersistent ||
+          !persistentIds.contains(instruction.id) ||
+          existingIds.contains(instruction.id)) {
+        continue;
+      }
+      snapshots.add(
+        QuickInstructionInvocationSnapshot.fromInstruction(
+          instruction,
+          order: index,
+        ),
+      );
+      existingIds.add(instruction.id);
+    }
+    snapshots.sort((a, b) => a.order.compareTo(b.order));
+    return input.copyWith(
+      quickInstructions: List<QuickInstructionInvocationSnapshot>.unmodifiable(
+        snapshots,
+      ),
+      quickInstructionsFrozen: true,
+    );
+  }
+
+  Future<QuickInstructionExecutionPolicy?> _buildExecutionPolicy({
+    required String? assistantId,
+    required List<QuickInstructionInvocationSnapshot> anchorInvocations,
+  }) async {
+    QuickInstructionProvider? provider;
+    QuickInstructionStore? fallbackStore;
+    try {
+      provider = contextProvider.read<QuickInstructionProvider>();
+    } on ProviderNotFoundException catch (error, stackTrace) {
+      debugPrint(
+        'QuickInstructionProvider unavailable while building tool policy: '
+        '$error\n$stackTrace',
+      );
+      fallbackStore = QuickInstructionStore.shared(
+        contextProvider.read<BusinessPreferences>(),
+      );
+    }
+
+    final List<QuickInstruction> systemInstructions;
+    if (provider != null) {
+      await provider.initialize();
+      systemInstructions = provider.activesFor(assistantId);
+    } else {
+      systemInstructions = await fallbackStore!.getActives(
+        assistantId: assistantId,
+      );
+    }
+    final policy = QuickInstructionExecutionPolicy.fromSources(
+      systemInstructions: systemInstructions,
+      anchorInvocations: anchorInvocations,
+    );
+    return policy.isEmpty ? null : policy;
   }
 
   /// Build the persisted content string for a user message.

@@ -19,6 +19,7 @@ import 'dart:io';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/message_quote.dart';
+import '../../../core/models/quick_instruction.dart';
 import '../../../core/services/model_override_payload_parser.dart';
 import 'image_generation_options.dart';
 import '../../../utils/clipboard_images.dart';
@@ -47,6 +48,7 @@ import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import '../../group_chat/models/chat_input_mode.dart';
 import '../utils/input_bar_button_layout.dart';
 import '../pages/input_bar_buttons_customization_page.dart';
+import 'quick_instruction_editing_controller.dart';
 
 class ChatInputBarController {
   _ChatInputBarState? _state;
@@ -66,6 +68,14 @@ class ChatInputBarController {
   ChatInputData snapshotInput(String text) =>
       _state?._snapshotInput(text) ?? ChatInputData(text: text.trim());
   void clearDraft() => _state?._clearDraft();
+  List<QuickInstructionInvocationSnapshot> get quickInstructions =>
+      _state?._quickInstructionSnapshot ??
+      const <QuickInstructionInvocationSnapshot>[];
+  void toggleQuickInstruction(QuickInstructionInvocationSnapshot snapshot) =>
+      _state?._toggleQuickInstruction(snapshot);
+  void setQuickInstructions(
+    List<QuickInstructionInvocationSnapshot> snapshots,
+  ) => _state?._setQuickInstructions(snapshots);
 
   /// Sets (or clears) the pending reply citation. [snippet] is the
   /// display-ready preview text; null keeps the current preview (used by
@@ -121,13 +131,10 @@ class ChatInputBar extends StatefulWidget {
     this.onPickCamera,
     this.onPickPhotos,
     this.onUploadFiles,
-    this.onToggleLearningMode,
     this.onOpenWorldBook,
     this.onOpenSkills,
     this.onClearContext,
     this.onCompressContext,
-    this.onLongPressLearning,
-    this.learningModeActive = false,
     this.worldBookActive = false,
     this.skillsActive = false,
     this.showMoreButton = true,
@@ -187,13 +194,10 @@ class ChatInputBar extends StatefulWidget {
   final VoidCallback? onPickCamera;
   final VoidCallback? onPickPhotos;
   final VoidCallback? onUploadFiles;
-  final VoidCallback? onToggleLearningMode;
   final VoidCallback? onOpenWorldBook;
   final VoidCallback? onOpenSkills;
   final VoidCallback? onClearContext;
   final VoidCallback? onCompressContext;
-  final VoidCallback? onLongPressLearning;
-  final bool learningModeActive;
   final bool worldBookActive;
   final bool skillsActive;
   final bool showMoreButton;
@@ -251,6 +255,64 @@ class _ChatInputBarState extends State<ChatInputBar>
   final Map<String, int> _imageSizes = <String, int>{}; // path -> bytes
   final List<DocumentAttachment> _docs =
       <DocumentAttachment>[]; // files to upload
+  final List<QuickInstructionInvocationSnapshot> _quickInstructions =
+      <QuickInstructionInvocationSnapshot>[];
+  bool _quickInstructionsFrozen = false;
+
+  QuickInstructionEditingController? get _quickEditingController =>
+      _controller is QuickInstructionEditingController
+      ? _controller as QuickInstructionEditingController
+      : null;
+  String get _bodyText => _quickEditingController?.bodyText ?? _controller.text;
+  TextEditingValue get _bodyValue =>
+      _quickEditingController?.bodyValue ?? _controller.value;
+  TextSelection get _bodySelection =>
+      _quickEditingController?.bodySelection ?? _controller.selection;
+
+  void _setBodyValue(TextEditingValue value) {
+    final quickController = _quickEditingController;
+    if (quickController != null) {
+      quickController.setBodyValue(value);
+    } else {
+      _controller.value = value;
+    }
+  }
+
+  void _setBodyText(String text) {
+    final quickController = _quickEditingController;
+    if (quickController != null) {
+      quickController.setBodyText(text);
+    } else {
+      _controller.text = text;
+      _controller.selection = TextSelection.collapsed(offset: text.length);
+    }
+  }
+
+  void _setBodySelection(TextSelection selection) {
+    final quickController = _quickEditingController;
+    if (quickController != null) {
+      quickController.setBodySelection(selection);
+    } else {
+      _controller.selection = selection;
+    }
+  }
+
+  void _syncInlineQuickInstructions() {
+    _quickEditingController?.setInstructions(_quickInstructions);
+  }
+
+  void _handleInlineInstructionsChanged(
+    List<QuickInstructionInvocationSnapshot> instructions,
+  ) {
+    if (!mounted) return;
+    setState(() {
+      _quickInstructions
+        ..clear()
+        ..addAll(instructions);
+    });
+    scheduleMicrotask(_scheduleDraftSave);
+  }
+
   final Map<LogicalKeyboardKey, Timer?> _repeatTimers = {};
   static const Duration _repeatInitialDelay = Duration(milliseconds: 300);
   static const Duration _repeatPeriod = Duration(milliseconds: 35);
@@ -472,7 +534,10 @@ class _ChatInputBarState extends State<ChatInputBar>
     return _imageGenController.toExtraBody();
   }
 
-  bool get _hasDraftMedia => _images.isNotEmpty || _docs.isNotEmpty;
+  bool get _hasDraftMedia =>
+      _images.isNotEmpty || _docs.isNotEmpty || _quickInstructions.isNotEmpty;
+  List<QuickInstructionInvocationSnapshot> get _quickInstructionSnapshot =>
+      List<QuickInstructionInvocationSnapshot>.unmodifiable(_quickInstructions);
 
   // Instance method for onChanged to avoid recreating the callback on every build
   void _onTextChanged(String _) {
@@ -505,14 +570,15 @@ class _ChatInputBarState extends State<ChatInputBar>
     if (draft.text.trim().isEmpty &&
         images.isEmpty &&
         documents.isEmpty &&
-        draft.quote == null) {
+        draft.quote == null &&
+        draft.quickInstructions.isEmpty) {
       // Everything was filtered out (whitespace-only text, media files
       // deleted on disk) — drop the stale draft instead of leaving it to
       // nag the storage guardrail forever.
       _clearPersistedDraft();
       return;
     }
-    _controller.text = draft.text;
+    _setBodyText(draft.text);
     _images.addAll(images);
     for (final p in images) {
       _imageSizes[p] = _fileSize(p);
@@ -520,6 +586,11 @@ class _ChatInputBarState extends State<ChatInputBar>
     _docs.addAll(documents);
     _quoteDraft = draft.quote;
     _quoteSnippet = draft.quoteSnippet;
+    _quickInstructions
+      ..clear()
+      ..addAll(draft.quickInstructions);
+    _quickInstructionsFrozen = draft.quickInstructionsFrozen;
+    _syncInlineQuickInstructions();
     // Re-persist the filtered content so storage stays in sync with the bar.
     _scheduleDraftSave();
   }
@@ -530,11 +601,15 @@ class _ChatInputBarState extends State<ChatInputBar>
     if (widget.mode == ChatInputMode.groupChat) return;
     _draftPersistence.save(
       ChatInputData(
-        text: _controller.text,
+        text: _bodyText,
         imagePaths: List<String>.of(_images),
         documents: List<DocumentAttachment>.of(_docs),
         quote: _quoteDraft,
         quoteSnippet: _quoteSnippet,
+        quickInstructions: List<QuickInstructionInvocationSnapshot>.of(
+          _quickInstructions,
+        ),
+        quickInstructionsFrozen: _quickInstructionsFrozen,
       ),
     );
   }
@@ -620,6 +695,11 @@ class _ChatInputBarState extends State<ChatInputBar>
       _imageGenController.restoreFromBody(input.extraBody);
       _quoteDraft = input.quote;
       _quoteSnippet = input.quoteSnippet;
+      _quickInstructions
+        ..clear()
+        ..addAll(input.quickInstructions);
+      _quickInstructionsFrozen = input.quickInstructionsFrozen;
+      _syncInlineQuickInstructions();
     });
     _scheduleDraftSave();
   }
@@ -633,17 +713,53 @@ class _ChatInputBarState extends State<ChatInputBar>
       extraBody: _imageGenerationExtraBody(),
       quote: _quoteDraft,
       quoteSnippet: _quoteSnippet,
+      quickInstructions: List<QuickInstructionInvocationSnapshot>.of(
+        _quickInstructions,
+      ),
+      quickInstructionsFrozen: _quickInstructionsFrozen,
     );
   }
 
   void _clearDraft() {
     setState(() {
-      _controller.clear();
       _resetMedia(images: true, docs: true);
       _quoteDraft = null;
       _quoteSnippet = null;
+      _quickInstructions.clear();
+      _quickInstructionsFrozen = false;
+      _syncInlineQuickInstructions();
+      _setBodyValue(const TextEditingValue());
     });
     _clearPersistedDraft();
+  }
+
+  void _toggleQuickInstruction(QuickInstructionInvocationSnapshot snapshot) {
+    setState(() {
+      final index = _quickInstructions.indexWhere(
+        (item) => item.instructionId == snapshot.instructionId,
+      );
+      if (index >= 0) {
+        _quickInstructions.removeAt(index);
+      } else {
+        _quickInstructions.add(snapshot);
+        _quickInstructions.sort((a, b) => a.order.compareTo(b.order));
+      }
+      _syncInlineQuickInstructions();
+    });
+    _scheduleDraftSave();
+  }
+
+  void _setQuickInstructions(
+    List<QuickInstructionInvocationSnapshot> snapshots,
+  ) {
+    setState(() {
+      _quickInstructions
+        ..clear()
+        ..addAll(snapshots)
+        ..sort((a, b) => a.order.compareTo(b.order));
+      _syncInlineQuickInstructions();
+    });
+    _scheduleDraftSave();
   }
 
   /// Immediate draft removal, gated so a group-chat bar never touches the
@@ -895,7 +1011,9 @@ class _ChatInputBarState extends State<ChatInputBar>
   @override
   void initState() {
     super.initState();
-    _controller = widget.controller ?? TextEditingController();
+    _controller = widget.controller ?? QuickInstructionEditingController();
+    _quickEditingController?.onInstructionsChangedByEditing =
+        _handleInlineInstructionsChanged;
     widget.mediaController?._bind(this);
     widget.asrProvider?.addListener(_handleAsrChanged);
     WidgetsBinding.instance.addObserver(this);
@@ -944,6 +1062,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     }
     _repeatTimers.clear();
     widget.mediaController?._unbind(this);
+    _quickEditingController?.onInstructionsChangedByEditing = null;
     if (widget.controller == null) {
       _controller.dispose();
     }
@@ -962,7 +1081,7 @@ class _ChatInputBarState extends State<ChatInputBar>
       if (_ownsVoiceSession && oldWidget.asrProvider != null) {
         unawaited(oldWidget.asrProvider!.cancel());
         final original = _voiceBaseValue;
-        if (original != null) _controller.value = original;
+        if (original != null) _setBodyValue(original);
         _voiceBaseValue = null;
         _ownsVoiceSession = false;
         _finishingVoice = false;
@@ -979,7 +1098,7 @@ class _ChatInputBarState extends State<ChatInputBar>
 
   /// Returns the number of lines in the input text (minimum 1).
   int get _lineCount {
-    final text = _controller.text;
+    final text = _bodyText;
     if (text.isEmpty) return 1;
     return text.split('\n').length;
   }
@@ -1004,7 +1123,7 @@ class _ChatInputBarState extends State<ChatInputBar>
       return;
     }
 
-    _voiceBaseValue = _controller.value;
+    _voiceBaseValue = _bodyValue;
     _ownsVoiceSession = true;
     _finishingVoice = false;
     _lastReportedVoiceError = null;
@@ -1024,7 +1143,7 @@ class _ChatInputBarState extends State<ChatInputBar>
       // the fallback for errors raised before the provider can publish state.
       if (_ownsVoiceSession) {
         final original = _voiceBaseValue;
-        if (original != null) _controller.value = original;
+        if (original != null) _setBodyValue(original);
         _voiceBaseValue = null;
         _ownsVoiceSession = false;
         _finishingVoice = false;
@@ -1086,11 +1205,13 @@ class _ChatInputBarState extends State<ChatInputBar>
     final baseValue = _voiceBaseValue;
     if (baseValue == null) return;
     final text = _joinVoiceText(baseValue.text, transcript);
-    if (_controller.text == text) return;
-    _controller.value = TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: text.length),
-      composing: TextRange.empty,
+    if (_bodyText == text) return;
+    _setBodyValue(
+      TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+        composing: TextRange.empty,
+      ),
     );
   }
 
@@ -1119,7 +1240,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     _ownsVoiceSession = false;
     _finishingVoice = false;
     _voiceLevels.clear();
-    if (original != null) _controller.value = original;
+    if (original != null) _setBodyValue(original);
     if (mounted) setState(() {});
     try {
       await asr?.cancel();
@@ -1148,7 +1269,7 @@ class _ChatInputBarState extends State<ChatInputBar>
       _ensureCaretVisible();
       if (!detectedSpeech) {
         _reportNoSpeech();
-      } else if (sendAfter && _controller.text.trim().isNotEmpty) {
+      } else if (sendAfter && _bodyText.trim().isNotEmpty) {
         await _handleSend();
       }
     } catch (error) {
@@ -1286,22 +1407,34 @@ class _ChatInputBarState extends State<ChatInputBar>
     if (_isSubmitting) return;
     if (_oneClickCompressing) return;
     if (_ownsVoiceSession || _finishingVoice) return;
-    final text = _controller.text.trim();
-    if (text.isEmpty && _images.isEmpty && _docs.isEmpty) return;
+    final text = _bodyText.trim();
+    if (text.isEmpty &&
+        _images.isEmpty &&
+        _docs.isEmpty &&
+        _quickInstructions.isEmpty) {
+      return;
+    }
     final images = List.of(_images);
     final docs = List.of(_docs);
     final quoted = _quoteDraft;
     final quoteSnippet = _quoteSnippet;
-    final submittedValue = _controller.value;
+    final quickInstructions = List<QuickInstructionInvocationSnapshot>.of(
+      _quickInstructions,
+    );
+    final quickInstructionsFrozen = _quickInstructionsFrozen;
+    final submittedValue = _bodyValue;
     // The content has moved into the conversation or the queue — clear the
     // input before awaiting so the composer shrink and the message growth
     // never land in separate frames (the cause of the visible send bounce).
     _isSubmitting = true;
     setState(() {
-      _controller.clear();
       _resetMedia(images: true, docs: true);
       _quoteDraft = null;
       _quoteSnippet = null;
+      _quickInstructions.clear();
+      _quickInstructionsFrozen = false;
+      _syncInlineQuickInstructions();
+      _setBodyValue(const TextEditingValue());
     });
     try {
       final result =
@@ -1314,6 +1447,8 @@ class _ChatInputBarState extends State<ChatInputBar>
               extraBody: _imageGenerationExtraBody(),
               quote: quoted,
               quoteSnippet: quoteSnippet,
+              quickInstructions: quickInstructions,
+              quickInstructionsFrozen: quickInstructionsFrozen,
             ),
           ) ??
           ChatInputSubmissionResult.rejected;
@@ -1342,14 +1477,16 @@ class _ChatInputBarState extends State<ChatInputBar>
         // The submit was rejected — the content is still the user's, so put
         // the submitted text/media back into the bar and re-persist the
         // draft. Newer user input typed during the flight is preserved.
-        if (_controller.text.isEmpty) {
+        if (_bodyText.isEmpty) {
           setState(() {
-            _controller.value = TextEditingValue(
-              text: submittedValue.text,
-              selection: TextSelection.collapsed(
-                offset: submittedValue.text.length,
+            _setBodyValue(
+              TextEditingValue(
+                text: submittedValue.text,
+                selection: TextSelection.collapsed(
+                  offset: submittedValue.text.length,
+                ),
+                composing: TextRange.empty,
               ),
-              composing: TextRange.empty,
             );
             _images
               ..clear()
@@ -1363,6 +1500,26 @@ class _ChatInputBarState extends State<ChatInputBar>
               ..addAll(docs);
             _quoteDraft = quoted;
             _quoteSnippet = quoteSnippet;
+            _quickInstructions
+              ..clear()
+              ..addAll(quickInstructions);
+            _quickInstructionsFrozen = quickInstructionsFrozen;
+            _syncInlineQuickInstructions();
+          });
+          _scheduleDraftSave();
+        } else if (quickInstructions.isNotEmpty) {
+          setState(() {
+            final currentIds = _quickInstructions
+                .map((item) => item.instructionId)
+                .toSet();
+            _quickInstructions.addAll(
+              quickInstructions.where(
+                (item) => currentIds.add(item.instructionId),
+              ),
+            );
+            _quickInstructions.sort((a, b) => a.order.compareTo(b.order));
+            _quickInstructionsFrozen = false;
+            _syncInlineQuickInstructions();
           });
           _scheduleDraftSave();
         }
@@ -1373,22 +1530,21 @@ class _ChatInputBarState extends State<ChatInputBar>
   }
 
   void _insertNewlineAtCursor() {
-    final value = _controller.value;
+    final value = _bodyValue;
     final selection = value.selection;
     final text = value.text;
     if (!selection.isValid) {
-      _controller.text = '$text\n';
-      _controller.selection = TextSelection.collapsed(
-        offset: _controller.text.length,
-      );
+      _setBodyText('$text\n');
     } else {
       final start = selection.start;
       final end = selection.end;
       final newText = text.replaceRange(start, end, '\n');
-      _controller.value = value.copyWith(
-        text: newText,
-        selection: TextSelection.collapsed(offset: start + 1),
-        composing: TextRange.empty,
+      _setBodyValue(
+        value.copyWith(
+          text: newText,
+          selection: TextSelection.collapsed(offset: start + 1),
+          composing: TextRange.empty,
+        ),
       );
     }
     setState(() {});
@@ -1423,12 +1579,15 @@ class _ChatInputBarState extends State<ChatInputBar>
     if (_suppressContextMenu) {
       return const SizedBox.shrink();
     }
-    if (Platform.isIOS) {
+    // Inline quick-instruction labels are backed by object-replacement
+    // characters. Always use the body-aware menu when they are supported so
+    // those implementation markers can never reach the clipboard.
+    if (Platform.isIOS || _quickEditingController != null) {
       final items = <ContextMenuButtonItem>[];
       try {
         final appL10n = AppLocalizations.of(context)!;
         final materialL10n = MaterialLocalizations.of(context);
-        final value = _controller.value;
+        final value = _bodyValue;
         final selection = value.selection;
         final hasSelection = selection.isValid && !selection.isCollapsed;
         final hasText = value.text.isNotEmpty;
@@ -1444,9 +1603,11 @@ class _ChatInputBarState extends State<ChatInputBar>
                   final text = value.text.substring(start, end);
                   await Clipboard.setData(ClipboardData(text: text));
                   final newText = value.text.replaceRange(start, end, '');
-                  _controller.value = value.copyWith(
-                    text: newText,
-                    selection: TextSelection.collapsed(offset: start),
+                  _setBodyValue(
+                    value.copyWith(
+                      text: newText,
+                      selection: TextSelection.collapsed(offset: start),
+                    ),
                   );
                   _scheduleDraftSave();
                 } catch (_) {}
@@ -1503,9 +1664,11 @@ class _ChatInputBarState extends State<ChatInputBar>
             ContextMenuButtonItem(
               onPressed: () {
                 try {
-                  _controller.selection = TextSelection(
-                    baseOffset: 0,
-                    extentOffset: value.text.length,
+                  _setBodySelection(
+                    TextSelection(
+                      baseOffset: 0,
+                      extentOffset: value.text.length,
+                    ),
                   );
                 } catch (_) {}
                 state.hideToolbar();
@@ -1544,6 +1707,59 @@ class _ChatInputBarState extends State<ChatInputBar>
         key == LogicalKeyboardKey.arrowLeft ||
         key == LogicalKeyboardKey.arrowRight;
     final isPasteV = key == LogicalKeyboardKey.keyV;
+    final pressedKeys = HardwareKeyboard.instance.logicalKeysPressed;
+    final ctrlOrMeta =
+        pressedKeys.contains(LogicalKeyboardKey.controlLeft) ||
+        pressedKeys.contains(LogicalKeyboardKey.controlRight) ||
+        pressedKeys.contains(LogicalKeyboardKey.metaLeft) ||
+        pressedKeys.contains(LogicalKeyboardKey.metaRight);
+
+    if (isDown && _quickEditingController != null && ctrlOrMeta) {
+      if (key == LogicalKeyboardKey.keyA) {
+        _setBodySelection(
+          TextSelection(baseOffset: 0, extentOffset: _bodyText.length),
+        );
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.keyC || key == LogicalKeyboardKey.keyX) {
+        final value = _bodyValue;
+        final selection = value.selection;
+        if (selection.isValid && !selection.isCollapsed) {
+          final selected = value.text.substring(selection.start, selection.end);
+          unawaited(Clipboard.setData(ClipboardData(text: selected)));
+          if (key == LogicalKeyboardKey.keyX) {
+            final next = value.text.replaceRange(
+              selection.start,
+              selection.end,
+              '',
+            );
+            _setBodyValue(
+              value.copyWith(
+                text: next,
+                selection: TextSelection.collapsed(offset: selection.start),
+                composing: TextRange.empty,
+              ),
+            );
+            setState(() {});
+            _scheduleDraftSave();
+          }
+        }
+        return KeyEventResult.handled;
+      }
+    }
+
+    if (isDown &&
+        key == LogicalKeyboardKey.backspace &&
+        _quickInstructions.isNotEmpty &&
+        _bodySelection.isCollapsed &&
+        (_bodyText.isEmpty || _bodySelection.start == 0)) {
+      setState(() {
+        _quickInstructions.removeLast();
+        _syncInlineQuickInstructions();
+      });
+      _scheduleDraftSave();
+      return KeyEventResult.handled;
+    }
 
     // Enter handling on tablet/desktop: configurable shortcut
     if (isEnter && isTabletOrDesktop) {
@@ -1552,7 +1768,7 @@ class _ChatInputBarState extends State<ChatInputBar>
       final composing = _controller.value.composing;
       final composingActive = composing.isValid && !composing.isCollapsed;
       if (composingActive) return KeyEventResult.ignored;
-      final keys = HardwareKeyboard.instance.logicalKeysPressed;
+      final keys = pressedKeys;
       final shift =
           keys.contains(LogicalKeyboardKey.shiftLeft) ||
           keys.contains(LogicalKeyboardKey.shiftRight);
@@ -1562,7 +1778,7 @@ class _ChatInputBarState extends State<ChatInputBar>
       final meta =
           keys.contains(LogicalKeyboardKey.metaLeft) ||
           keys.contains(LogicalKeyboardKey.metaRight);
-      final ctrlOrMeta = ctrl || meta;
+      final sendModifierPressed = ctrl || meta;
       // Get send shortcut setting
       final sendShortcut = Provider.of<SettingsProvider>(
         node.context!,
@@ -1570,7 +1786,7 @@ class _ChatInputBarState extends State<ChatInputBar>
       ).desktopSendShortcut;
       if (sendShortcut == DesktopSendShortcut.ctrlEnter) {
         // Ctrl/Cmd+Enter to send, Enter to newline
-        if (ctrlOrMeta) {
+        if (sendModifierPressed) {
           unawaited(_handleSend());
         } else if (!shift) {
           _insertNewlineAtCursor();
@@ -1580,7 +1796,7 @@ class _ChatInputBarState extends State<ChatInputBar>
         }
       } else {
         // Enter to send, Shift+Enter or Ctrl/Cmd+Enter to newline (default)
-        if (shift || ctrlOrMeta) {
+        if (shift || sendModifierPressed) {
           _insertNewlineAtCursor();
         } else {
           unawaited(_handleSend());
@@ -1591,7 +1807,7 @@ class _ChatInputBarState extends State<ChatInputBar>
 
     // Paste handling for images on iOS/macOS (tablet/desktop)
     if (isDown && isPasteV) {
-      final keys = HardwareKeyboard.instance.logicalKeysPressed;
+      final keys = pressedKeys;
       final meta =
           keys.contains(LogicalKeyboardKey.metaLeft) ||
           keys.contains(LogicalKeyboardKey.metaRight);
@@ -1607,7 +1823,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     // Arrow repeat fix only needed on iOS tablets
     if (!isIosTablet || !isArrow) return KeyEventResult.ignored;
 
-    final keys = HardwareKeyboard.instance.logicalKeysPressed;
+    final keys = pressedKeys;
     final shift =
         keys.contains(LogicalKeyboardKey.shiftLeft) ||
         keys.contains(LogicalKeyboardKey.shiftRight);
@@ -1825,23 +2041,22 @@ class _ChatInputBarState extends State<ChatInputBar>
           try {
             final String? text = await reader.readValue(Formats.plainText);
             if (text != null && text.isNotEmpty) {
-              final value = _controller.value;
+              final value = _bodyValue;
               final sel = value.selection;
               if (!sel.isValid) {
-                _controller.text = value.text + text;
-                _controller.selection = TextSelection.collapsed(
-                  offset: _controller.text.length,
-                );
+                _setBodyText(value.text + text);
               } else {
                 final start = sel.start;
                 final end = sel.end;
                 final newText = value.text.replaceRange(start, end, text);
-                _controller.value = value.copyWith(
-                  text: newText,
-                  selection: TextSelection.collapsed(
-                    offset: start + text.length,
+                _setBodyValue(
+                  value.copyWith(
+                    text: newText,
+                    selection: TextSelection.collapsed(
+                      offset: start + text.length,
+                    ),
+                    composing: TextRange.empty,
                   ),
-                  composing: TextRange.empty,
                 );
               }
               setState(() {});
@@ -1883,21 +2098,20 @@ class _ChatInputBarState extends State<ChatInputBar>
       final data = await Clipboard.getData(Clipboard.kTextPlain);
       final text = data?.text ?? '';
       if (text.isEmpty) return;
-      final value = _controller.value;
+      final value = _bodyValue;
       final sel = value.selection;
       if (!sel.isValid) {
-        _controller.text = value.text + text;
-        _controller.selection = TextSelection.collapsed(
-          offset: _controller.text.length,
-        );
+        _setBodyText(value.text + text);
       } else {
         final start = sel.start;
         final end = sel.end;
         final newText = value.text.replaceRange(start, end, text);
-        _controller.value = value.copyWith(
-          text: newText,
-          selection: TextSelection.collapsed(offset: start + text.length),
-          composing: TextRange.empty,
+        _setBodyValue(
+          value.copyWith(
+            text: newText,
+            selection: TextSelection.collapsed(offset: start + text.length),
+            composing: TextRange.empty,
+          ),
         );
       }
       setState(() {});
@@ -2272,25 +2486,6 @@ class _ChatInputBarState extends State<ChatInputBar>
           );
         }
 
-        if (widget.onToggleLearningMode != null) {
-          addAction(
-            inputBarButtonLearning,
-            normalButtonW,
-            builder: () => _CompactIconButton(
-              tooltip: l10n.instructionInjectionTitle,
-              icon: Lucide.Layers,
-              active: widget.learningModeActive,
-              onTap: lockTap(widget.onToggleLearningMode),
-              onLongPress: lockTap(widget.onLongPressLearning),
-            ),
-            menu: DesktopContextMenuItem(
-              icon: Lucide.Layers,
-              label: l10n.instructionInjectionTitle,
-              onTap: lockTap(widget.onToggleLearningMode),
-            ),
-          );
-        }
-
         if (widget.onOpenWorldBook != null) {
           addAction(
             inputBarButtonWorldBook,
@@ -2611,12 +2806,12 @@ class _ChatInputBarState extends State<ChatInputBar>
   }
 
   void _moveCaret(int dir, {bool extend = false, bool byWord = false}) {
-    final text = _controller.text;
+    final text = _bodyText;
     if (text.isEmpty) return;
-    TextSelection sel = _controller.selection;
+    TextSelection sel = _bodySelection;
     if (!sel.isValid) {
       final off = dir < 0 ? text.length : 0;
-      _controller.selection = TextSelection.collapsed(offset: off);
+      _setBodySelection(TextSelection.collapsed(offset: off));
       return;
     }
 
@@ -2646,11 +2841,11 @@ class _ChatInputBarState extends State<ChatInputBar>
 
     if (extend) {
       final newExtent = nextOffset(sel.extentOffset, dir);
-      _controller.selection = sel.copyWith(extentOffset: newExtent);
+      _setBodySelection(sel.copyWith(extentOffset: newExtent));
     } else {
       final base = dir < 0 ? sel.start : sel.end;
       final collapsed = nextOffset(base, dir);
-      _controller.selection = TextSelection.collapsed(offset: collapsed);
+      _setBodySelection(TextSelection.collapsed(offset: collapsed));
     }
     setState(() {});
   }
@@ -2961,6 +3156,55 @@ class _ChatInputBarState extends State<ChatInputBar>
     }
   }
 
+  Widget _buildQuickInstructionChips(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.md,
+        0,
+      ),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final snapshot in _quickInstructions)
+              Semantics(
+                label: snapshot.title,
+                child: Container(
+                  key: ValueKey(
+                    'quick-instruction-chip:${snapshot.instructionId}',
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: cs.primary.withValues(alpha: 0.22),
+                    ),
+                  ),
+                  child: Text(
+                    snapshot.title,
+                    style: TextStyle(
+                      color: cs.onPrimaryContainer,
+                      fontSize: 12,
+                      fontWeight: AppFontWeights.medium,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _onOneClickTap() {
     if (_oneClickConfirming) {
       _confirmTimer?.cancel();
@@ -3076,9 +3320,10 @@ class _ChatInputBarState extends State<ChatInputBar>
       lightOpacity: widget.inputBackgroundOpacityLight,
       darkOpacity: widget.inputBackgroundOpacityDark,
     );
-    final hasText = _controller.text.trim().isNotEmpty;
+    final hasText = _bodyText.trim().isNotEmpty;
     final hasImages = _images.isNotEmpty;
     final hasDocs = _docs.isNotEmpty;
+    final hasQuickInstructions = _quickInstructions.isNotEmpty;
     _supportsImagesApiRouting(context);
     _checkImageWarning(context);
     final size = MediaQuery.sizeOf(context);
@@ -3167,6 +3412,9 @@ class _ChatInputBarState extends State<ChatInputBar>
                           if (widget.livePanel != null) widget.livePanel!,
                           if (_quoteDraft != null)
                             _buildQuotePreviewRow(context, isDark),
+                          if (_quickInstructions.isNotEmpty &&
+                              _quickEditingController == null)
+                            _buildQuickInstructionChips(context),
                           if (hasDocs || hasImages)
                             _buildInlineAttachmentPreviews(context, isDark),
                           // Input field with expand/collapse button
@@ -3263,6 +3511,21 @@ class _ChatInputBarState extends State<ChatInputBar>
                                           child: TextField(
                                             controller: _controller,
                                             focusNode: widget.focusNode,
+                                            inputFormatters:
+                                                _quickEditingController == null
+                                                ? null
+                                                : <TextInputFormatter>[
+                                                    QuickInstructionEditingFormatter(
+                                                      _quickEditingController!,
+                                                    ),
+                                                  ],
+                                            onTap: () {
+                                              WidgetsBinding.instance
+                                                  .addPostFrameCallback((_) {
+                                                    _quickEditingController
+                                                        ?.clampSelectionToBody();
+                                                  });
+                                            },
                                             onChanged: _onTextChanged,
                                             // Android only: accepts image content
                                             // pushed by IMEs (Gboard / WeChat
@@ -3466,7 +3729,8 @@ class _ChatInputBarState extends State<ChatInputBar>
                                               enabled:
                                                   (hasText ||
                                                       hasImages ||
-                                                      hasDocs) &&
+                                                      hasDocs ||
+                                                      hasQuickInstructions) &&
                                                   !widget.loading &&
                                                   !_oneClickCompressing,
                                               loading: widget.loading,

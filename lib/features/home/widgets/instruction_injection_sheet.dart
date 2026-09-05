@@ -1,25 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../icons/lucide_adapter.dart';
-import '../../../core/models/instruction_injection.dart';
-import '../../../core/providers/instruction_injection_provider.dart';
+import '../../../core/models/quick_instruction.dart';
 import '../../../core/providers/instruction_injection_group_provider.dart';
-import '../../../l10n/app_localizations.dart';
-import '../../../shared/widgets/ios_tactile.dart';
+import '../../../core/providers/quick_instruction_provider.dart';
 import '../../../core/services/haptics.dart';
-import '../../../features/instruction_injection/pages/instruction_injection_page.dart';
-import '../../../shared/widgets/assistant_bind_multi_select.dart';
+import '../../../icons/lucide_adapter.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../shared/widgets/ios_switch.dart';
+import '../../../shared/widgets/ios_tactile.dart';
 import '../../../theme/app_font_weights.dart';
+import '../../instruction_injection/pages/instruction_injection_page.dart';
 
-/// Bottom sheet for displaying instruction injection items on mobile/tablet.
-///
-/// This widget shows a list of instruction injection prompts that can be
-/// toggled on/off for the current assistant.
-class InstructionInjectionSheet extends StatelessWidget {
-  const InstructionInjectionSheet({super.key, required this.assistantId});
+class InstructionInjectionSheet extends StatefulWidget {
+  const InstructionInjectionSheet({
+    super.key,
+    required this.assistantId,
+    required this.conversationId,
+    required this.selectedInvocationIds,
+    required this.onToggleInvocation,
+    this.editingUserMessage = false,
+  });
 
   final String? assistantId;
+  final String? conversationId;
+  final Set<String> selectedInvocationIds;
+  final ValueChanged<QuickInstructionInvocationSnapshot> onToggleInvocation;
+  final bool editingUserMessage;
+
+  @override
+  State<InstructionInjectionSheet> createState() =>
+      _InstructionInjectionSheetState();
+}
+
+class _InstructionInjectionSheetState extends State<InstructionInjectionSheet> {
+  late final Set<String> _selectedInvocationIds = widget.selectedInvocationIds
+      .toSet();
 
   @override
   Widget build(BuildContext context) {
@@ -28,177 +44,129 @@ class InstructionInjectionSheet extends StatelessWidget {
       top: false,
       child: DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.5,
-        maxChildSize: 0.85,
-        minChildSize: 0.45,
-        builder: (ctx, controller) {
-          final cs = Theme.of(ctx).colorScheme;
-          final provider = ctx.watch<InstructionInjectionProvider>();
-          final groupUi = ctx.watch<InstructionInjectionGroupProvider>();
-
-          final items = provider.items;
-          final activeIds = provider.activeIdsFor(assistantId).toSet();
-
-          final Map<String, List<InstructionInjection>> grouped =
-              <String, List<InstructionInjection>>{};
-          for (final item in items) {
-            final g = item.group.trim();
-            (grouped[g] ??= <InstructionInjection>[]).add(item);
+        initialChildSize: 0.58,
+        maxChildSize: 0.88,
+        minChildSize: 0.42,
+        builder: (sheetContext, scrollController) {
+          final provider = sheetContext.watch<QuickInstructionProvider>();
+          final groupUi = sheetContext
+              .watch<InstructionInjectionGroupProvider>();
+          final activeSystemIds = provider
+              .activeIdsFor(widget.assistantId)
+              .toSet();
+          final activePersistentIds = provider
+              .persistentIdsFor(widget.conversationId)
+              .toSet();
+          final grouped = <String, List<QuickInstruction>>{};
+          for (final item in provider.items) {
+            (grouped[item.group.trim()] ??= <QuickInstruction>[]).add(item);
           }
-          final groupNames = grouped.keys.toList()
-            ..sort((a, b) {
-              final aa = a.trim();
-              final bb = b.trim();
-              if (aa.isEmpty && bb.isNotEmpty) return -1;
-              if (aa.isNotEmpty && bb.isEmpty) return 1;
-              return aa.toLowerCase().compareTo(bb.toLowerCase());
-            });
 
           return Column(
             children: [
               _SheetTopBar(
                 title: l10n.instructionInjectionTitle,
-                onBack: () => Navigator.of(ctx).maybePop(),
+                onClose: () => Navigator.of(sheetContext).maybePop(),
+                onManage: () {
+                  Navigator.of(sheetContext).maybePop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const InstructionInjectionPage(),
+                    ),
+                  );
+                },
               ),
               Expanded(
-                child: ListView(
-                  controller: controller,
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  children: [
-                    if (items.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 32, bottom: 24),
-                        child: Center(
-                          child: Text(
-                            l10n.instructionInjectionEmptyMessage,
-                            style: TextStyle(
-                              color: cs.onSurface.withValues(alpha: 0.6),
+                child: provider.items.isEmpty
+                    ? _EmptyState(
+                        onManage: () {
+                          Navigator.of(sheetContext).maybePop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const InstructionInjectionPage(),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       )
-                    else
-                      for (final groupName in groupNames) ...[
-                        _GroupHeader(
-                          title: groupName.trim().isEmpty
-                              ? l10n.instructionInjectionUngroupedGroup
-                              : groupName.trim(),
-                          collapsed: groupUi.isCollapsed(groupName),
-                          onToggle: () => ctx
-                              .read<InstructionInjectionGroupProvider>()
-                              .toggleCollapsed(groupName),
-                        ),
-                        AnimatedSize(
-                          duration: const Duration(milliseconds: 260),
-                          curve: Curves.easeInOutCubic,
-                          alignment: Alignment.topCenter,
-                          child: groupUi.isCollapsed(groupName)
-                              ? const SizedBox.shrink()
-                              : Column(
-                                  children: [
-                                    for (
-                                      int i = 0;
-                                      i < (grouped[groupName]?.length ?? 0);
-                                      i++
-                                    )
-                                      Padding(
-                                        padding: EdgeInsets.only(
-                                          bottom:
-                                              i ==
-                                                  (grouped[groupName]!.length -
-                                                      1)
-                                              ? 12
-                                              : 8,
-                                        ),
-                                        child: _InstructionInjectionRow(
-                                          label:
-                                              (grouped[groupName]![i].title)
-                                                  .trim()
-                                                  .isEmpty
-                                              ? l10n.instructionInjectionDefaultTitle
-                                              : grouped[groupName]![i].title,
-                                          selected: activeIds.contains(
-                                            grouped[groupName]![i].id,
+                    : ListView(
+                        controller: scrollController,
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                        children: [
+                          for (final entry in grouped.entries) ...[
+                            _GroupHeader(
+                              title: entry.key.isEmpty
+                                  ? l10n.instructionInjectionUngroupedGroup
+                                  : entry.key,
+                              collapsed: groupUi.isCollapsed(entry.key),
+                              onToggle: () => sheetContext
+                                  .read<InstructionInjectionGroupProvider>()
+                                  .toggleCollapsed(entry.key),
+                            ),
+                            if (!groupUi.isCollapsed(entry.key))
+                              for (final item in entry.value)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: _QuickInstructionRow(
+                                    item: item,
+                                    subtitle: _placementLabel(l10n, item),
+                                    active: item.isSystem
+                                        ? activeSystemIds.contains(item.id)
+                                        : item.isPersistent &&
+                                              !widget.editingUserMessage
+                                        ? activePersistentIds.contains(item.id)
+                                        : _selectedInvocationIds.contains(
+                                            item.id,
                                           ),
-                                          onTap: () async {
-                                            Haptics.light();
-                                            final prov = ctx
-                                                .read<
-                                                  InstructionInjectionProvider
-                                                >();
-                                            await prov.toggleActiveId(
-                                              grouped[groupName]![i].id,
-                                              assistantId: assistantId,
-                                            );
-                                          },
-                                          onLongPress: () async {
-                                            Haptics.medium();
-                                            final item = grouped[groupName]![i];
-                                            final result =
-                                                await showModalBottomSheet<
-                                                  (
-                                                    Map<String, String>,
-                                                    Set<String>,
-                                                  )?
-                                                >(
-                                                  context: ctx,
-                                                  isScrollControlled: true,
-                                                  backgroundColor: cs.surface,
-                                                  shape: const RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.vertical(
-                                                          top: Radius.circular(
-                                                            16,
-                                                          ),
-                                                        ),
-                                                  ),
-                                                  builder: (_) =>
-                                                      InstructionInjectionEditSheet(
-                                                        item: item,
-                                                      ),
-                                                );
-                                            if (result != null) {
-                                              if (!ctx.mounted) return;
-                                              final (fields, selection) =
-                                                  result;
-                                              final title =
-                                                  fields['title']?.trim() ?? '';
-                                              final prompt =
-                                                  fields['prompt']?.trim() ??
-                                                  '';
-                                              final group =
-                                                  fields['group']?.trim() ?? '';
-                                              if (title.isEmpty ||
-                                                  prompt.isEmpty) {
-                                                return;
-                                              }
-                                              await ctx
-                                                  .read<
-                                                    InstructionInjectionProvider
-                                                  >()
-                                                  .update(
-                                                    item.copyWith(
-                                                      title: title,
-                                                      prompt: prompt,
-                                                      group: group,
-                                                    ),
-                                                  );
-                                              if (!ctx.mounted) return;
-                                              await applyInjectionBindings(
-                                                ctx,
-                                                itemId: item.id,
-                                                selectedAssistantIds: selection,
-                                              );
-                                            }
-                                          },
-                                        ),
-                                      ),
-                                  ],
+                                    onTap: () async {
+                                      Haptics.light();
+                                      if (item.isInputBox) {
+                                        Navigator.of(sheetContext).pop(item);
+                                        return;
+                                      }
+                                      final current = sheetContext
+                                          .read<QuickInstructionProvider>();
+                                      if (item.isSystem) {
+                                        await current.toggleActiveId(
+                                          item.id,
+                                          assistantId: widget.assistantId,
+                                        );
+                                        return;
+                                      }
+                                      if (item.isPersistent &&
+                                          !widget.editingUserMessage) {
+                                        final id = widget.conversationId;
+                                        if (id != null) {
+                                          await current.togglePersistent(
+                                            item.id,
+                                            conversationId: id,
+                                          );
+                                        }
+                                        return;
+                                      }
+                                      final snapshot =
+                                          QuickInstructionInvocationSnapshot.fromInstruction(
+                                            item,
+                                            order: provider.items.indexWhere(
+                                              (candidate) =>
+                                                  candidate.id == item.id,
+                                            ),
+                                          );
+                                      setState(() {
+                                        if (!_selectedInvocationIds.add(
+                                          item.id,
+                                        )) {
+                                          _selectedInvocationIds.remove(
+                                            item.id,
+                                          );
+                                        }
+                                      });
+                                      widget.onToggleInvocation(snapshot);
+                                    },
+                                  ),
                                 ),
-                        ),
-                      ],
-                  ],
-                ),
+                          ],
+                        ],
+                      ),
               ),
             ],
           );
@@ -209,10 +177,15 @@ class InstructionInjectionSheet extends StatelessWidget {
 }
 
 class _SheetTopBar extends StatelessWidget {
-  const _SheetTopBar({required this.title, required this.onBack});
+  const _SheetTopBar({
+    required this.title,
+    required this.onClose,
+    required this.onManage,
+  });
 
   final String title;
-  final VoidCallback onBack;
+  final VoidCallback onClose;
+  final VoidCallback onManage;
 
   @override
   Widget build(BuildContext context) {
@@ -220,54 +193,33 @@ class _SheetTopBar extends StatelessWidget {
     return SizedBox(
       height: 52,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Row(
           children: [
-            _NavIconButton(icon: Lucide.ArrowLeft, onTap: onBack),
+            IosIconButton(
+              icon: Lucide.X,
+              size: 20,
+              color: cs.onSurface,
+              onTap: onClose,
+            ),
             Expanded(
-              child: Center(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: AppFontWeights.emphasis,
-                    color: cs.onSurface,
-                  ),
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: AppFontWeights.emphasis,
                 ),
               ),
             ),
-            const SizedBox(width: 40),
+            IosIconButton(
+              icon: Lucide.Settings2,
+              size: 20,
+              color: cs.onSurface,
+              onTap: onManage,
+            ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _NavIconButton extends StatelessWidget {
-  const _NavIconButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return SizedBox(
-      width: 40,
-      height: 40,
-      child: IosCardPress(
-        borderRadius: BorderRadius.circular(12),
-        baseColor: Colors.transparent,
-        duration: const Duration(milliseconds: 200),
-        padding: EdgeInsets.zero,
-        onTap: () {
-          Haptics.light();
-          onTap();
-        },
-        child: Center(child: Icon(icon, size: 20, color: cs.onSurface)),
       ),
     );
   }
@@ -287,97 +239,135 @@ class _GroupHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final textBase = cs.onSurface;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return IosCardPress(
+      haptics: false,
+      baseColor: Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       onTap: onToggle,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: Center(
-                child: AnimatedRotation(
-                  turns: collapsed ? 0.0 : 0.25, // right -> down
-                  duration: const Duration(milliseconds: 260),
-                  curve: Curves.easeOutCubic,
-                  child: Icon(
-                    Lucide.ChevronRight,
-                    size: 16,
-                    color: textBase.withValues(alpha: 0.7),
-                  ),
-                ),
+      child: Row(
+        children: [
+          AnimatedRotation(
+            turns: collapsed ? 0 : 0.25,
+            duration: const Duration(milliseconds: 200),
+            child: Icon(
+              Lucide.ChevronRight,
+              size: 16,
+              color: cs.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: AppFontWeights.emphasis,
+                color: cs.onSurface.withValues(alpha: 0.8),
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: AppFontWeights.emphasis,
-                  color: textBase,
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _InstructionInjectionRow extends StatelessWidget {
-  const _InstructionInjectionRow({
-    required this.label,
-    required this.selected,
+class _QuickInstructionRow extends StatelessWidget {
+  const _QuickInstructionRow({
+    required this.item,
+    required this.subtitle,
+    required this.active,
     required this.onTap,
-    this.onLongPress,
   });
 
-  final String label;
-  final bool selected;
+  final QuickInstruction item;
+  final String subtitle;
+  final bool active;
   final VoidCallback onTap;
-  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final onColor = selected ? cs.primary : cs.onSurface;
-    final radius = BorderRadius.circular(14);
-    return SizedBox(
-      height: 48,
-      child: IosCardPress(
-        borderRadius: radius,
-        baseColor: Theme.of(context).colorScheme.surface,
-        duration: const Duration(milliseconds: 260),
-        onTap: onTap,
-        onLongPress: onLongPress,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          children: [
-            Icon(Lucide.Layers, size: 20, color: onColor),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: AppFontWeights.medium,
-                  color: onColor,
+    return IosCardPress(
+      baseColor: cs.surface,
+      borderRadius: BorderRadius.circular(14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      onTap: onTap,
+      child: Row(
+        children: [
+          Icon(Lucide.Zap, size: 19, color: cs.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontWeight: AppFontWeights.medium),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: cs.onSurface.withValues(alpha: 0.56),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (item.isInputBox)
+            Icon(
+              Lucide.ChevronRight,
+              size: 18,
+              color: cs.onSurface.withValues(alpha: 0.45),
+            )
+          else
+            IgnorePointer(
+              child: IosSwitch(value: active, onChanged: (_) {}),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.onManage});
+
+  final VoidCallback onManage;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Lucide.Zap,
+              size: 48,
+              color: cs.onSurface.withValues(alpha: 0.3),
+            ),
+            const SizedBox(height: 12),
+            Text(l10n.instructionInjectionEmptyMessage),
+            const SizedBox(height: 14),
+            IosCardPress(
+              baseColor: cs.primaryContainer,
+              borderRadius: BorderRadius.circular(12),
+              onTap: onManage,
+              child: Text(
+                l10n.quickInstructionManageButton,
+                style: TextStyle(color: cs.onPrimaryContainer),
               ),
             ),
-            if (selected)
-              Icon(Lucide.Check, size: 18, color: cs.primary)
-            else
-              const SizedBox(width: 18),
           ],
         ),
       ),
@@ -385,23 +375,45 @@ class _InstructionInjectionRow extends StatelessWidget {
   }
 }
 
-/// Shows the instruction injection bottom sheet.
-///
-/// This is a convenience function to show the sheet with proper styling.
-Future<void> showInstructionInjectionSheet(
+String _placementLabel(AppLocalizations l10n, QuickInstruction item) {
+  return switch (item.placement) {
+    QuickInstructionPlacement.systemPrompt =>
+      l10n.quickInstructionPlacementSystem,
+    QuickInstructionPlacement.beforeUserMessage =>
+      item.isPersistent
+          ? l10n.quickInstructionPlacementBeforePersistent
+          : l10n.quickInstructionPlacementBeforeOneShot,
+    QuickInstructionPlacement.afterUserMessage =>
+      item.isPersistent
+          ? l10n.quickInstructionPlacementAfterPersistent
+          : l10n.quickInstructionPlacementAfterOneShot,
+    QuickInstructionPlacement.inputBox =>
+      l10n.quickInstructionPlacementInputBox,
+  };
+}
+
+Future<QuickInstruction?> showInstructionInjectionSheet(
   BuildContext context, {
   required String? assistantId,
-}) async {
+  required String? conversationId,
+  required Set<String> selectedInvocationIds,
+  required ValueChanged<QuickInstructionInvocationSnapshot> onToggleInvocation,
+  bool editingUserMessage = false,
+}) {
   final cs = Theme.of(context).colorScheme;
-  await showModalBottomSheet<void>(
+  return showModalBottomSheet<QuickInstruction>(
     context: context,
     isScrollControlled: true,
     backgroundColor: cs.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (sheetCtx) {
-      return InstructionInjectionSheet(assistantId: assistantId);
-    },
+    builder: (_) => InstructionInjectionSheet(
+      assistantId: assistantId,
+      conversationId: conversationId,
+      selectedInvocationIds: selectedInvocationIds,
+      onToggleInvocation: onToggleInvocation,
+      editingUserMessage: editingUserMessage,
+    ),
   );
 }

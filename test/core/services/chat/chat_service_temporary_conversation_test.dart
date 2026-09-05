@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
+import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 
 class _FakePathProviderPlatform extends PathProviderPlatform {
@@ -358,11 +359,15 @@ void main() {
         final service = createService();
         await service.init();
 
-        final source = await service.createConversation(title: 'Source');
+        final source = await service.createConversation(
+          title: 'Source',
+          persistentQuickInstructionIds: const <String>['persistent-1'],
+        );
         final original = await service.addMessage(
           conversationId: source.id,
           role: 'assistant',
           content: 'original answer',
+          quickInstructionInvocationsJson: '[{"instructionId":"snapshot-1"}]',
         );
         final edited = await service.appendMessageVersion(
           messageId: original.id,
@@ -380,12 +385,42 @@ void main() {
         expect(forkMessages, hasLength(1));
         expect(forkMessages.single.conversationId, fork.id);
         expect(forkMessages.single.content, 'edited answer');
+        expect(fork.persistentQuickInstructionIds, const <String>[
+          'persistent-1',
+        ]);
+        expect(
+          forkMessages.single.quickInstructionInvocationsJson,
+          '[{"instructionId":"snapshot-1"}]',
+        );
         expect(
           forkMessages.single.groupId ?? forkMessages.single.id,
           forkMessages.single.id,
         );
         expect(forkMessages.single.version, 0);
         expect(service.getVersionSelections(fork.id), isEmpty);
+      },
+    );
+
+    test(
+      'empty-prefix fork inherits current conversation activations',
+      () async {
+        final service = createService();
+        await service.init();
+
+        await service.createConversation(
+          title: 'Source',
+          persistentQuickInstructionIds: const <String>['persistent-1'],
+        );
+
+        final fork = await service.forkConversation(
+          title: 'Fork',
+          assistantId: null,
+          sourceMessages: const <ChatMessage>[],
+        );
+
+        expect(fork.persistentQuickInstructionIds, const <String>[
+          'persistent-1',
+        ]);
       },
     );
 

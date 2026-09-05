@@ -10,8 +10,8 @@ import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
-import 'package:Cuplivo/core/providers/instruction_injection_provider.dart';
 import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/quick_instruction_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/providers/world_book_provider.dart';
 import 'package:Cuplivo/core/services/api/chat_api_service.dart';
@@ -63,6 +63,7 @@ class _FakeChatService extends ChatService {
     String? parentConversationId,
     String conversationKind = Conversation.kindNormal,
     bool setAsCurrent = true,
+    List<String>? persistentQuickInstructionIds,
   }) async {
     _createdCount++;
     lastCreatedId = 'conv-$_createdCount';
@@ -73,6 +74,7 @@ class _FakeChatService extends ChatService {
       mcpServerIds: mcpServerIds,
       parentConversationId: parentConversationId,
       conversationKind: conversationKind,
+      persistentQuickInstructionIds: persistentQuickInstructionIds,
     );
   }
 
@@ -97,6 +99,7 @@ class _FakeChatService extends ChatService {
     bool isPreset = false,
     String? speakerAssistantId,
     String? quoteJson,
+    String? quickInstructionInvocationsJson,
   }) async {
     final message = ChatMessage(
       id: 'msg-${_nextMessageId++}',
@@ -105,6 +108,7 @@ class _FakeChatService extends ChatService {
       conversationId: conversationId,
       totalTokens: totalTokens,
       isStreaming: isStreaming,
+      quickInstructionInvocationsJson: quickInstructionInvocationsJson,
     );
     (messagesByConversation[conversationId] ??= []).add(message);
     return message;
@@ -141,6 +145,7 @@ class _FakeChatService extends ChatService {
     Object? version = ChatMessage.sentinel,
     Object? requestAllowImagesApiRouting = ChatMessage.sentinel,
     Object? requestExtraBody = ChatMessage.sentinel,
+    Object? quickInstructionInvocationsJson = ChatMessage.sentinel,
   }) async {
     for (final list in messagesByConversation.values) {
       for (int i = 0; i < list.length; i++) {
@@ -154,6 +159,7 @@ class _FakeChatService extends ChatService {
             reasoningStartAt: reasoningStartAt,
             reasoningFinishedAt: reasoningFinishedAt,
             reasoningSegmentsJson: reasoningSegmentsJson,
+            quickInstructionInvocationsJson: quickInstructionInvocationsJson,
           );
         }
       }
@@ -347,7 +353,7 @@ void main() {
             // does not suspend on real file I/O.
             ChangeNotifierProvider(
               create: (_) =>
-                  InstructionInjectionProvider(preferences: businessPrefs),
+                  QuickInstructionProvider(preferences: businessPrefs),
             ),
             ChangeNotifierProvider(
               create: (_) => WorldBookProvider(

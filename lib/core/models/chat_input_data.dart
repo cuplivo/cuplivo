@@ -1,4 +1,5 @@
 import 'message_quote.dart';
+import 'quick_instruction.dart';
 
 /// SharedPreferences key of the persisted chat input draft. Single global
 /// draft — the input is shared across conversations. Local-only: excluded
@@ -33,6 +34,15 @@ class ChatInputData {
   /// the send pipeline.
   final String? quoteSnippet;
 
+  /// Frozen one-shot invocations selected in the composer. Persistent
+  /// invocations are merged into this list at send/queue snapshot time.
+  final List<QuickInstructionInvocationSnapshot> quickInstructions;
+
+  /// Whether the conversation's persistent activations have already been
+  /// frozen into [quickInstructions]. Queued and edited inputs set this so a
+  /// later send cannot absorb newly enabled instructions.
+  final bool quickInstructionsFrozen;
+
   const ChatInputData({
     required this.text,
     this.imagePaths = const [],
@@ -41,7 +51,39 @@ class ChatInputData {
     this.extraBody = const {},
     this.quote,
     this.quoteSnippet,
+    this.quickInstructions = const <QuickInstructionInvocationSnapshot>[],
+    this.quickInstructionsFrozen = false,
   });
+
+  ChatInputData copyWith({
+    String? text,
+    List<String>? imagePaths,
+    List<DocumentAttachment>? documents,
+    bool? allowImagesApiRouting,
+    Map<String, dynamic>? extraBody,
+    Object? quote = _sentinel,
+    Object? quoteSnippet = _sentinel,
+    List<QuickInstructionInvocationSnapshot>? quickInstructions,
+    bool? quickInstructionsFrozen,
+  }) {
+    return ChatInputData(
+      text: text ?? this.text,
+      imagePaths: imagePaths ?? this.imagePaths,
+      documents: documents ?? this.documents,
+      allowImagesApiRouting:
+          allowImagesApiRouting ?? this.allowImagesApiRouting,
+      extraBody: extraBody ?? this.extraBody,
+      quote: identical(quote, _sentinel) ? this.quote : quote as MessageQuote?,
+      quoteSnippet: identical(quoteSnippet, _sentinel)
+          ? this.quoteSnippet
+          : quoteSnippet as String?,
+      quickInstructions: quickInstructions ?? this.quickInstructions,
+      quickInstructionsFrozen:
+          quickInstructionsFrozen ?? this.quickInstructionsFrozen,
+    );
+  }
+
+  static const Object _sentinel = Object();
 }
 
 enum ChatInputSubmissionResult { sent, queued, rejected }

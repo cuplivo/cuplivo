@@ -2938,6 +2938,186 @@ abstract class AppLocalizations {
   /// **'Keeping chat generation alive in background'**
   String get androidBackgroundNotificationText;
 
+  /// No description provided for @keepAliveGuidePageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Background Keep-Alive Guide'**
+  String get keepAliveGuidePageTitle;
+
+  /// No description provided for @keepAliveGuideIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'To keep chat generation running in the background, enable the background chat mode, allow battery optimization, grant notification access, and whitelist Cuplivo in your manufacturer\'s power settings. Chinese OEM ROMs kill foreground services unless the app is whitelisted.'**
+  String get keepAliveGuideIntro;
+
+  /// No description provided for @keepAliveGuideBatteryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Battery Optimization'**
+  String get keepAliveGuideBatteryTitle;
+
+  /// No description provided for @keepAliveGuideBatteryStep.
+  ///
+  /// In en, this message translates to:
+  /// **'If the status is not \"Unrestricted\", tap the row to allow Cuplivo to ignore battery optimization so background generation can finish.'**
+  String get keepAliveGuideBatteryStep;
+
+  /// No description provided for @keepAliveGuideStatusIgnored.
+  ///
+  /// In en, this message translates to:
+  /// **'Unrestricted'**
+  String get keepAliveGuideStatusIgnored;
+
+  /// No description provided for @keepAliveGuideStatusNotIgnored.
+  ///
+  /// In en, this message translates to:
+  /// **'Optimized'**
+  String get keepAliveGuideStatusNotIgnored;
+
+  /// No description provided for @keepAliveGuideStatusUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking…'**
+  String get keepAliveGuideStatusUnknown;
+
+  /// No description provided for @keepAliveGuideStatusGranted.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed'**
+  String get keepAliveGuideStatusGranted;
+
+  /// No description provided for @keepAliveGuideStatusDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Denied'**
+  String get keepAliveGuideStatusDenied;
+
+  /// No description provided for @keepAliveGuideStatusQueryFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Query failed'**
+  String get keepAliveGuideStatusQueryFailed;
+
+  /// No description provided for @keepAliveGuideNotificationsDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are still blocked. You can enable them in system settings.'**
+  String get keepAliveGuideNotificationsDenied;
+
+  /// No description provided for @keepAliveGuideNotificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get keepAliveGuideNotificationTitle;
+
+  /// No description provided for @keepAliveGuideNotificationStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification permission (Android 13+) is required for background completion notifications. If blocked, tap the row and follow the system prompt.'**
+  String get keepAliveGuideNotificationStep;
+
+  /// No description provided for @keepAliveGuideVendorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manufacturer Settings'**
+  String get keepAliveGuideVendorTitle;
+
+  /// No description provided for @keepAliveGuideVendorNotDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not detected'**
+  String get keepAliveGuideVendorNotDetected;
+
+  /// No description provided for @keepAliveGuideXiaomiHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Xiaomi: Settings → Apps → Autostart → enable Cuplivo; Settings → Battery → Battery saver policy for Cuplivo → No restrictions.'**
+  String get keepAliveGuideXiaomiHint;
+
+  /// No description provided for @keepAliveGuideHuaweiHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Huawei: Settings → Apps → Launch management → Cuplivo → Manage manually, allow self-launch, associate launch and background activity.'**
+  String get keepAliveGuideHuaweiHint;
+
+  /// No description provided for @keepAliveGuideHonorHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Honor: Settings → Apps → App launch management → Cuplivo → Manage manually, allow background activity.'**
+  String get keepAliveGuideHonorHint;
+
+  /// No description provided for @keepAliveGuideOppoHint.
+  ///
+  /// In en, this message translates to:
+  /// **'OPPO: Settings → Apps → App management → Cuplivo → Autostart, enable; Battery → App battery usage → Unlimited.'**
+  String get keepAliveGuideOppoHint;
+
+  /// No description provided for @keepAliveGuideOneplusHint.
+  ///
+  /// In en, this message translates to:
+  /// **'OnePlus: Settings → Battery → App power management → Cuplivo → Don\'t restrict; enable Self-startup under Settings → Apps.'**
+  String get keepAliveGuideOneplusHint;
+
+  /// No description provided for @keepAliveGuideVivoHint.
+  ///
+  /// In en, this message translates to:
+  /// **'vivo: Settings → Apps → App management → Cuplivo → Autostart, enable; i Manager → Power management → background auto-start, allow.'**
+  String get keepAliveGuideVivoHint;
+
+  /// No description provided for @keepAliveGuideSamsungHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Samsung: Settings → Battery and device care → Battery → Background usage limits; ensure Cuplivo is not in the sleeping apps list.'**
+  String get keepAliveGuideSamsungHint;
+
+  /// No description provided for @keepAliveGuideMeizuHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Meizu: Settings → Apps → Rights management → background; or Security center → App power saving.'**
+  String get keepAliveGuideMeizuHint;
+
+  /// No description provided for @keepAliveGuideOtherVendorHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your manufacturer is not recognized. Find the app\'s power management under system settings (usually Apps → Cuplivo → Power/Battery) and set it to Unrestricted; many ROMs also provide a lock in the recent-apps list.'**
+  String get keepAliveGuideOtherVendorHint;
+
+  /// No description provided for @keepAliveGuideAutostartAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Autostart'**
+  String get keepAliveGuideAutostartAction;
+
+  /// No description provided for @keepAliveGuidePowerAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Power Settings'**
+  String get keepAliveGuidePowerAction;
+
+  /// No description provided for @keepAliveGuideLockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock in Recent Apps'**
+  String get keepAliveGuideLockTitle;
+
+  /// No description provided for @keepAliveGuideLockStep.
+  ///
+  /// In en, this message translates to:
+  /// **'In the recent-apps list, long-press the Cuplivo card and choose lock (pin) so one-tap cleanup does not kill it. Xiaomi: long-press → lock; Huawei/Honor: pull the card down; OPPO/OnePlus: long-press → lock; vivo: tap the lock icon.'**
+  String get keepAliveGuideLockStep;
+
+  /// No description provided for @keepAliveGuideFallbackOpened.
+  ///
+  /// In en, this message translates to:
+  /// **'Opened a generic settings page. If you cannot find the option, follow the steps below.'**
+  String get keepAliveGuideFallbackOpened;
+
+  /// No description provided for @keepAliveGuideOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open any settings page. Please follow the steps below manually.'**
+  String get keepAliveGuideOpenFailed;
+
   /// No description provided for @assistantEditEmojiDialogTitle.
   ///
   /// In en, this message translates to:

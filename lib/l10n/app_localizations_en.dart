@@ -1609,6 +1609,112 @@ class AppLocalizationsEn extends AppLocalizations {
       'Keeping chat generation alive in background';
 
   @override
+  String get keepAliveGuidePageTitle => 'Background Keep-Alive Guide';
+
+  @override
+  String get keepAliveGuideIntro =>
+      'To keep chat generation running in the background, enable the background chat mode, allow battery optimization, grant notification access, and whitelist Cuplivo in your manufacturer\'s power settings. Chinese OEM ROMs kill foreground services unless the app is whitelisted.';
+
+  @override
+  String get keepAliveGuideBatteryTitle => 'Battery Optimization';
+
+  @override
+  String get keepAliveGuideBatteryStep =>
+      'If the status is not \"Unrestricted\", tap the row to allow Cuplivo to ignore battery optimization so background generation can finish.';
+
+  @override
+  String get keepAliveGuideStatusIgnored => 'Unrestricted';
+
+  @override
+  String get keepAliveGuideStatusNotIgnored => 'Optimized';
+
+  @override
+  String get keepAliveGuideStatusUnknown => 'Checking…';
+
+  @override
+  String get keepAliveGuideStatusGranted => 'Allowed';
+
+  @override
+  String get keepAliveGuideStatusDenied => 'Denied';
+
+  @override
+  String get keepAliveGuideStatusQueryFailed => 'Query failed';
+
+  @override
+  String get keepAliveGuideNotificationsDenied =>
+      'Notifications are still blocked. You can enable them in system settings.';
+
+  @override
+  String get keepAliveGuideNotificationTitle => 'Notifications';
+
+  @override
+  String get keepAliveGuideNotificationStep =>
+      'Notification permission (Android 13+) is required for background completion notifications. If blocked, tap the row and follow the system prompt.';
+
+  @override
+  String get keepAliveGuideVendorTitle => 'Manufacturer Settings';
+
+  @override
+  String get keepAliveGuideVendorNotDetected => 'Not detected';
+
+  @override
+  String get keepAliveGuideXiaomiHint =>
+      'Xiaomi: Settings → Apps → Autostart → enable Cuplivo; Settings → Battery → Battery saver policy for Cuplivo → No restrictions.';
+
+  @override
+  String get keepAliveGuideHuaweiHint =>
+      'Huawei: Settings → Apps → Launch management → Cuplivo → Manage manually, allow self-launch, associate launch and background activity.';
+
+  @override
+  String get keepAliveGuideHonorHint =>
+      'Honor: Settings → Apps → App launch management → Cuplivo → Manage manually, allow background activity.';
+
+  @override
+  String get keepAliveGuideOppoHint =>
+      'OPPO: Settings → Apps → App management → Cuplivo → Autostart, enable; Battery → App battery usage → Unlimited.';
+
+  @override
+  String get keepAliveGuideOneplusHint =>
+      'OnePlus: Settings → Battery → App power management → Cuplivo → Don\'t restrict; enable Self-startup under Settings → Apps.';
+
+  @override
+  String get keepAliveGuideVivoHint =>
+      'vivo: Settings → Apps → App management → Cuplivo → Autostart, enable; i Manager → Power management → background auto-start, allow.';
+
+  @override
+  String get keepAliveGuideSamsungHint =>
+      'Samsung: Settings → Battery and device care → Battery → Background usage limits; ensure Cuplivo is not in the sleeping apps list.';
+
+  @override
+  String get keepAliveGuideMeizuHint =>
+      'Meizu: Settings → Apps → Rights management → background; or Security center → App power saving.';
+
+  @override
+  String get keepAliveGuideOtherVendorHint =>
+      'Your manufacturer is not recognized. Find the app\'s power management under system settings (usually Apps → Cuplivo → Power/Battery) and set it to Unrestricted; many ROMs also provide a lock in the recent-apps list.';
+
+  @override
+  String get keepAliveGuideAutostartAction => 'Open Autostart';
+
+  @override
+  String get keepAliveGuidePowerAction => 'Open Power Settings';
+
+  @override
+  String get keepAliveGuideLockTitle => 'Lock in Recent Apps';
+
+  @override
+  String get keepAliveGuideLockStep =>
+      'In the recent-apps list, long-press the Cuplivo card and choose lock (pin) so one-tap cleanup does not kill it. Xiaomi: long-press → lock; Huawei/Honor: pull the card down; OPPO/OnePlus: long-press → lock; vivo: tap the lock icon.';
+
+  @override
+  String get keepAliveGuideFallbackOpened =>
+      'Opened a generic settings page. If you cannot find the option, follow the steps below.';
+
+  @override
+  String get keepAliveGuideOpenFailed =>
+      'Could not open any settings page. Please follow the steps below manually.';
+
+  @override
   String get assistantEditEmojiDialogTitle => 'Choose Emoji';
 
   @override

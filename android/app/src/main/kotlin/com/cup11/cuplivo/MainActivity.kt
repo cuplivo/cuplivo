@@ -35,6 +35,7 @@ class MainActivity : FlutterActivity() {
     var volumeCtrlPlugin: LinuxSandboxPlugin? = null
     private var deviceLocalToolsHandler: DeviceLocalToolsHandler? = null
     private var webChatPdfHandler: AndroidWebChatPdfHandler? = null
+    private var backgroundProtectionHandler: BackgroundProtectionHandler? = null
 
     override fun onFlutterSurfaceViewCreated(flutterSurfaceView: FlutterSurfaceView) {
         super.onFlutterSurfaceViewCreated(flutterSurfaceView)
@@ -71,6 +72,9 @@ class MainActivity : FlutterActivity() {
             it.configure(flutterEngine.dartExecutor.binaryMessenger)
         }
         webChatPdfHandler = AndroidWebChatPdfHandler(this).also {
+            it.configure(flutterEngine.dartExecutor.binaryMessenger)
+        }
+        backgroundProtectionHandler = BackgroundProtectionHandler(this).also {
             it.configure(flutterEngine.dartExecutor.binaryMessenger)
         }
         processTextChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, processTextChannelName)

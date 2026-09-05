@@ -7,6 +7,7 @@ import '../../../core/services/android_background.dart';
 import '../../../core/services/ios_background_generation.dart';
 import '../../../core/services/ios_keep_alive.dart';
 import '../../../core/services/notification_service.dart';
+import 'background_keep_alive_guide_page.dart';
 import '../../../icons/lucide_adapter.dart';
 import 'package:syncfusion_flutter_sliders/sliders.dart';
 import 'package:syncfusion_flutter_core/theme.dart';
@@ -217,6 +218,17 @@ class _DisplaySettingsPageState extends State<DisplaySettingsPage> {
                     }
                   },
                   onTap: () => _showAndroidBackgroundChatSheet(context),
+                ),
+              if (Platform.isAndroid)
+                _iosNavRow(
+                  context,
+                  icon: Lucide.Shield,
+                  label: l10n.keepAliveGuidePageTitle,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const BackgroundKeepAliveGuidePage(),
+                    ),
+                  ),
                 ),
               if (Platform.isAndroid) _iosDivider(context),
               if (Platform.isIOS)
@@ -608,6 +620,14 @@ class _DisplaySettingsPageState extends State<DisplaySettingsPage> {
         try {
           await AndroidBackgroundManager.setEnabled(false);
         } catch (_) {}
+    }
+    if (choice != 'off' && context.mounted) {
+      // After enabling, lead the user into the keep-alive guide so they can
+      // whitelist Cuplivo on their OEM ROM (the foreground service alone is
+      // often killed without battery/autostart exemptions).
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const BackgroundKeepAliveGuidePage()),
+      );
     }
   }
 

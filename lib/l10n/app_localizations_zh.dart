@@ -1545,6 +1545,133 @@ class AppLocalizationsZh extends AppLocalizations {
   String get androidBackgroundNotificationText => '后台保持聊天生成';
 
   @override
+  String get keepAliveGuidePageTitle => '后台保活引导';
+
+  @override
+  String get keepAliveGuideIntro =>
+      '如需在后台继续聊天生成：开启后台聊天模式、允许电池优化、授予通知权限，并在厂商省电管理中为 Cuplivo 添加白名单。国产 ROM 会回收未入白名单的前台服务。';
+
+  @override
+  String get keepAliveGuideBatteryTitle => '电池优化';
+
+  @override
+  String get keepAliveGuideBatteryStep =>
+      '若状态不是「无限制」，点击此行允许 Cuplivo 忽略电池优化，后台生成才能顺利完成。';
+
+  @override
+  String get keepAliveGuideStatusIgnored => '无限制';
+
+  @override
+  String get keepAliveGuideStatusNotIgnored => '受优化限制';
+
+  @override
+  String get keepAliveGuideStatusUnknown => '检查中…';
+
+  @override
+  String get keepAliveGuideStatusGranted => '已允许';
+
+  @override
+  String get keepAliveGuideStatusDenied => '未允许';
+
+  @override
+  String get keepAliveGuideStatusQueryFailed => '查询失败';
+
+  @override
+  String get keepAliveGuideNotificationsDenied => '通知仍被禁用，可在系统设置中开启。';
+
+  @override
+  String get keepAliveGuideNotificationTitle => '通知权限';
+
+  @override
+  String get keepAliveGuideNotificationStep =>
+      'Android 13+ 需要通知权限才能发送后台完成通知。若被禁用，点击此行按系统提示授权。';
+
+  @override
+  String get keepAliveGuideVendorTitle => '厂商电源管理';
+
+  @override
+  String get keepAliveGuideVendorNotDetected => '未识别';
+
+  @override
+  String get keepAliveGuideVendorXiaomi => 'Xiaomi / HyperOS';
+
+  @override
+  String get keepAliveGuideVendorHuawei => 'Huawei / HarmonyOS';
+
+  @override
+  String get keepAliveGuideVendorHonor => 'Honor / MagicOS';
+
+  @override
+  String get keepAliveGuideVendorOppo => 'OPPO / ColorOS';
+
+  @override
+  String get keepAliveGuideVendorOneplus => 'OnePlus';
+
+  @override
+  String get keepAliveGuideVendorVivo => 'vivo / OriginOS';
+
+  @override
+  String get keepAliveGuideVendorSamsung => 'Samsung / One UI';
+
+  @override
+  String get keepAliveGuideVendorMeizu => 'Meizu / Flyme';
+
+  @override
+  String get keepAliveGuideXiaomiHint =>
+      '小米：设置 → 应用设置 → 自启动管理，开启 Cuplivo；设置 → 省电与电池 → 省电策略，将 Cuplivo 设为「无限制」。';
+
+  @override
+  String get keepAliveGuideHuaweiHint =>
+      '华为：设置 → 应用 → 应用启动管理 → Cuplivo → 手动管理，允许自启动、关联启动与后台活动。';
+
+  @override
+  String get keepAliveGuideHonorHint =>
+      '荣耀：设置 → 应用 → 应用启动管理 → Cuplivo → 手动管理，允许后台活动。';
+
+  @override
+  String get keepAliveGuideOppoHint =>
+      'OPPO：设置 → 应用 → 应用管理 → Cuplivo → 自启动，开启；电池 → 应用耗电 → 无限制。';
+
+  @override
+  String get keepAliveGuideOneplusHint =>
+      '一加：设置 → 电池 → 应用耗电管理 → Cuplivo → 不限制；应用 → 自启动，开启。';
+
+  @override
+  String get keepAliveGuideVivoHint =>
+      'vivo：设置 → 应用 → 应用管理 → Cuplivo → 自启动，开启；i 管家 → 耗电管理 → 后台起动，允许。';
+
+  @override
+  String get keepAliveGuideSamsungHint =>
+      '三星：设置 → 电池和日常维护 → 电池 → 后台使用限制；确保 Cuplivo 未在「休眠的应用」列表中。';
+
+  @override
+  String get keepAliveGuideMeizuHint =>
+      '魅族：设置 → 应用管理 → 权限管理 → 后台权限；或手机管家 → 电量管理。';
+
+  @override
+  String get keepAliveGuideOtherVendorHint =>
+      '未能识别您的手机品牌。可在系统设置的「应用 → Cuplivo → 耗电/电池」中将电源改为「无限制」；多数系统在最近任务列表中还可将应用「锁定」防止被清理。';
+
+  @override
+  String get keepAliveGuideAutostartAction => '前往自启动';
+
+  @override
+  String get keepAliveGuidePowerAction => '前往省电设置';
+
+  @override
+  String get keepAliveGuideLockTitle => '后台锁定';
+
+  @override
+  String get keepAliveGuideLockStep =>
+      '在最近任务列表中长按 Cuplivo 卡片并选择「锁定」，避免一键清理将其杀死。小米：长按卡片 → 锁定；华为/荣耀：下拉卡片；OPPO/一加：长按 → 锁定；vivo：点击右上角锁形图标。';
+
+  @override
+  String get keepAliveGuideFallbackOpened => '已打开通用设置页。若找不到对应选项，请按下方步骤操作。';
+
+  @override
+  String get keepAliveGuideOpenFailed => '无法打开任何设置页，请按下方步骤手动操作。';
+
+  @override
   String get assistantEditEmojiDialogTitle => '选择表情';
 
   @override
@@ -10926,6 +11053,133 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get androidBackgroundNotificationText => '后台保持聊天生成';
 
   @override
+  String get keepAliveGuidePageTitle => '后台保活引导';
+
+  @override
+  String get keepAliveGuideIntro =>
+      '如需在后台继续聊天生成：开启后台聊天模式、允许电池优化、授予通知权限，并在厂商省电管理中为 Cuplivo 添加白名单。国产 ROM 会回收未入白名单的前台服务。';
+
+  @override
+  String get keepAliveGuideBatteryTitle => '电池优化';
+
+  @override
+  String get keepAliveGuideBatteryStep =>
+      '若状态不是「无限制」，点击此行允许 Cuplivo 忽略电池优化，后台生成才能顺利完成。';
+
+  @override
+  String get keepAliveGuideStatusIgnored => '无限制';
+
+  @override
+  String get keepAliveGuideStatusNotIgnored => '受优化限制';
+
+  @override
+  String get keepAliveGuideStatusUnknown => '检查中…';
+
+  @override
+  String get keepAliveGuideStatusGranted => '已允许';
+
+  @override
+  String get keepAliveGuideStatusDenied => '未允许';
+
+  @override
+  String get keepAliveGuideStatusQueryFailed => '查询失败';
+
+  @override
+  String get keepAliveGuideNotificationsDenied => '通知仍被禁用，可在系统设置中开启。';
+
+  @override
+  String get keepAliveGuideNotificationTitle => '通知权限';
+
+  @override
+  String get keepAliveGuideNotificationStep =>
+      'Android 13+ 需要通知权限才能发送后台完成通知。若被禁用，点击此行按系统提示授权。';
+
+  @override
+  String get keepAliveGuideVendorTitle => '厂商电源管理';
+
+  @override
+  String get keepAliveGuideVendorNotDetected => '未识别';
+
+  @override
+  String get keepAliveGuideVendorXiaomi => 'Xiaomi / HyperOS';
+
+  @override
+  String get keepAliveGuideVendorHuawei => 'Huawei / HarmonyOS';
+
+  @override
+  String get keepAliveGuideVendorHonor => 'Honor / MagicOS';
+
+  @override
+  String get keepAliveGuideVendorOppo => 'OPPO / ColorOS';
+
+  @override
+  String get keepAliveGuideVendorOneplus => 'OnePlus';
+
+  @override
+  String get keepAliveGuideVendorVivo => 'vivo / OriginOS';
+
+  @override
+  String get keepAliveGuideVendorSamsung => 'Samsung / One UI';
+
+  @override
+  String get keepAliveGuideVendorMeizu => 'Meizu / Flyme';
+
+  @override
+  String get keepAliveGuideXiaomiHint =>
+      '小米：设置 → 应用设置 → 自启动管理，开启 Cuplivo；设置 → 省电与电池 → 省电策略，将 Cuplivo 设为「无限制」。';
+
+  @override
+  String get keepAliveGuideHuaweiHint =>
+      '华为：设置 → 应用 → 应用启动管理 → Cuplivo → 手动管理，允许自启动、关联启动与后台活动。';
+
+  @override
+  String get keepAliveGuideHonorHint =>
+      '荣耀：设置 → 应用 → 应用启动管理 → Cuplivo → 手动管理，允许后台活动。';
+
+  @override
+  String get keepAliveGuideOppoHint =>
+      'OPPO：设置 → 应用 → 应用管理 → Cuplivo → 自启动，开启；电池 → 应用耗电 → 无限制。';
+
+  @override
+  String get keepAliveGuideOneplusHint =>
+      '一加：设置 → 电池 → 应用耗电管理 → Cuplivo → 不限制；应用 → 自启动，开启。';
+
+  @override
+  String get keepAliveGuideVivoHint =>
+      'vivo：设置 → 应用 → 应用管理 → Cuplivo → 自启动，开启；i 管家 → 耗电管理 → 后台起动，允许。';
+
+  @override
+  String get keepAliveGuideSamsungHint =>
+      '三星：设置 → 电池和日常维护 → 电池 → 后台使用限制；确保 Cuplivo 未在「休眠的应用」列表中。';
+
+  @override
+  String get keepAliveGuideMeizuHint =>
+      '魅族：设置 → 应用管理 → 权限管理 → 后台权限；或手机管家 → 电量管理。';
+
+  @override
+  String get keepAliveGuideOtherVendorHint =>
+      '未能识别您的手机品牌。可在系统设置的「应用 → Cuplivo → 耗电/电池」中将电源改为「无限制」；多数系统在最近任务列表中还可将应用「锁定」防止被清理。';
+
+  @override
+  String get keepAliveGuideAutostartAction => '前往自启动';
+
+  @override
+  String get keepAliveGuidePowerAction => '前往省电设置';
+
+  @override
+  String get keepAliveGuideLockTitle => '后台锁定';
+
+  @override
+  String get keepAliveGuideLockStep =>
+      '在最近任务列表中长按 Cuplivo 卡片并选择「锁定」，避免一键清理将其杀死。小米：长按卡片 → 锁定；华为/荣耀：下拉卡片；OPPO/一加：长按 → 锁定；vivo：点击右上角锁形图标。';
+
+  @override
+  String get keepAliveGuideFallbackOpened => '已打开通用设置页。若找不到对应选项，请按下方步骤操作。';
+
+  @override
+  String get keepAliveGuideOpenFailed => '无法打开任何设置页，请按下方步骤手动操作。';
+
+  @override
   String get assistantEditEmojiDialogTitle => '选择表情';
 
   @override
@@ -20305,6 +20559,133 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get androidBackgroundNotificationText => '後台保持聊天生成';
+
+  @override
+  String get keepAliveGuidePageTitle => '後台保活引導';
+
+  @override
+  String get keepAliveGuideIntro =>
+      '如需在後台繼續聊天生成：開啟後台聊天模式、允許電池最佳化、授予通知權限，並在廠商省電管理中為 Cuplivo 加入白名單。國產 ROM 會回收未入白名單的前台服務。';
+
+  @override
+  String get keepAliveGuideBatteryTitle => '電池最佳化';
+
+  @override
+  String get keepAliveGuideBatteryStep =>
+      '若狀態不是「無限制」，點擊此行允許 Cuplivo 忽略電池最佳化，後台生成才能順利完成。';
+
+  @override
+  String get keepAliveGuideStatusIgnored => '無限制';
+
+  @override
+  String get keepAliveGuideStatusNotIgnored => '受最佳化限制';
+
+  @override
+  String get keepAliveGuideStatusUnknown => '檢查中…';
+
+  @override
+  String get keepAliveGuideStatusGranted => '已允許';
+
+  @override
+  String get keepAliveGuideStatusDenied => '未允許';
+
+  @override
+  String get keepAliveGuideStatusQueryFailed => '查詢失敗';
+
+  @override
+  String get keepAliveGuideNotificationsDenied => '通知仍被停用，可在系統設定中開啟。';
+
+  @override
+  String get keepAliveGuideNotificationTitle => '通知權限';
+
+  @override
+  String get keepAliveGuideNotificationStep =>
+      'Android 13+ 需要通知權限才能發送後台完成通知。若被停用，點擊此行按系統提示授權。';
+
+  @override
+  String get keepAliveGuideVendorTitle => '廠商電源管理';
+
+  @override
+  String get keepAliveGuideVendorNotDetected => '未識別';
+
+  @override
+  String get keepAliveGuideVendorXiaomi => 'Xiaomi / HyperOS';
+
+  @override
+  String get keepAliveGuideVendorHuawei => 'Huawei / HarmonyOS';
+
+  @override
+  String get keepAliveGuideVendorHonor => 'Honor / MagicOS';
+
+  @override
+  String get keepAliveGuideVendorOppo => 'OPPO / ColorOS';
+
+  @override
+  String get keepAliveGuideVendorOneplus => 'OnePlus';
+
+  @override
+  String get keepAliveGuideVendorVivo => 'vivo / OriginOS';
+
+  @override
+  String get keepAliveGuideVendorSamsung => 'Samsung / One UI';
+
+  @override
+  String get keepAliveGuideVendorMeizu => 'Meizu / Flyme';
+
+  @override
+  String get keepAliveGuideXiaomiHint =>
+      '小米：設定 → 應用程式設定 → 自啟動管理，開啟 Cuplivo；設定 → 省電與電池 → 省電策略，將 Cuplivo 設為「無限制」。';
+
+  @override
+  String get keepAliveGuideHuaweiHint =>
+      '華為：設定 → 應用程式 → 應用程式啟動管理 → Cuplivo → 手動管理，允許自啟動、關聯啟動與後台活動。';
+
+  @override
+  String get keepAliveGuideHonorHint =>
+      '榮耀：設定 → 應用程式 → 應用程式啟動管理 → Cuplivo → 手動管理，允許後台活動。';
+
+  @override
+  String get keepAliveGuideOppoHint =>
+      'OPPO：設定 → 應用程式 → 應用程式管理 → Cuplivo → 自啟動，開啟；電池 → 應用程式耗電 → 無限制。';
+
+  @override
+  String get keepAliveGuideOneplusHint =>
+      '一加：設定 → 電池 → 應用程式耗電管理 → Cuplivo → 不限制；應用程式 → 自啟動，開啟。';
+
+  @override
+  String get keepAliveGuideVivoHint =>
+      'vivo：設定 → 應用程式 → 應用程式管理 → Cuplivo → 自啟動，開啟；i 管家 → 耗電管理 → 後台啟動，允許。';
+
+  @override
+  String get keepAliveGuideSamsungHint =>
+      '三星：設定 → 電池與日常維護 → 電池 → 後台使用限制；確保 Cuplivo 不在「休眠的應用程式」清單中。';
+
+  @override
+  String get keepAliveGuideMeizuHint =>
+      '魅族：設定 → 應用程式管理 → 權限管理 → 後台權限；或手機管家 → 電量管理。';
+
+  @override
+  String get keepAliveGuideOtherVendorHint =>
+      '無法辨識您的手機品牌。可在系統設定的「應用程式 → Cuplivo → 耗電/電池」中將電源改為「無限制」；多數系統在最近任務清單中還可將應用程式「鎖定」防止被清理。';
+
+  @override
+  String get keepAliveGuideAutostartAction => '前往自啟動';
+
+  @override
+  String get keepAliveGuidePowerAction => '前往省電設定';
+
+  @override
+  String get keepAliveGuideLockTitle => '後台鎖定';
+
+  @override
+  String get keepAliveGuideLockStep =>
+      '在最近任務清單中長按 Cuplivo 卡片並選擇「鎖定」，避免一鍵清理將其殺死。小米：長按卡片 → 鎖定；華為/榮耀：下拉卡片；OPPO/一加：長按 → 鎖定；vivo：點擊右上角鎖形圖示。';
+
+  @override
+  String get keepAliveGuideFallbackOpened => '已開啟通用設定頁。若找不到對應選項，請按下方步驟操作。';
+
+  @override
+  String get keepAliveGuideOpenFailed => '無法開啟任何設定頁，請按下方步驟手動操作。';
 
   @override
   String get assistantEditEmojiDialogTitle => '選擇表情';

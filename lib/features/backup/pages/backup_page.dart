@@ -827,7 +827,16 @@ class _BackupPageState extends State<BackupPage> {
         ),
       );
       if (selected != null) {
-        await snapshotProvider.setIntervalMinutes(selected);
+        try {
+          await snapshotProvider.setIntervalMinutes(selected);
+        } catch (e) {
+          if (!context.mounted) return;
+          showAppSnackBar(
+            context,
+            message: l10n.autoSnapshotToggleFailed(e.toString()),
+            type: NotificationType.error,
+          );
+        }
       }
     }
 
@@ -846,8 +855,12 @@ class _BackupPageState extends State<BackupPage> {
                 return;
               }
               // Turning off with existing snapshots needs explicit consent —
-              // the stored snapshots get permanently deleted.
-              if (snapshotProvider.snapshots.isEmpty) {
+              // the stored snapshots get permanently deleted. An empty list
+              // only skips the dialog when emptiness was ESTABLISHED (a
+              // listing failure keeps the last known list and leaves
+              // listError set, so the unknown state always confirms).
+              if (snapshotProvider.snapshots.isEmpty &&
+                  snapshotProvider.listError == null) {
                 _setAutoSnapshotEnabled(false);
                 return;
               }

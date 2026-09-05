@@ -71,6 +71,7 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
   String? _lastError;
   AutoSnapshotNotice? _pendingNotice;
   List<SnapshotMetadata> _snapshots = const [];
+  Object? _listError;
   Timer? _ticker;
 
   /// Serializes [setEnabled] transitions (FIFO); the stored future is the
@@ -86,6 +87,11 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
   String? get lastError => _lastError;
   AutoSnapshotNotice? get pendingNotice => _pendingNotice;
   List<SnapshotMetadata> get snapshots => List.unmodifiable(_snapshots);
+
+  /// Set when the last listing failed: [snapshots] then holds the last known
+  /// state and must NOT be treated as "no snapshots" (used by the page to
+  /// require confirmation before a destructive delete).
+  Object? get listError => _listError;
 
   Future<void> load() async {
     _enabled = preferences.getBool(_enabledKey) ?? false;
@@ -187,6 +193,7 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
       }
       _stopTicker();
       _teardown = true;
+      var cleanupFailed = false;
       try {
         final inflight = _inflight;
         if (inflight != null) {
@@ -201,8 +208,28 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
         if (deleteSnapshots && _serviceBuilt) {
           await BackupActivityGate.scoped(() => _service.deleteAllSnapshots());
         }
+      } catch (e) {
+        // The confirmed cleanup (anchor removal / permanent delete) did not
+        // finish. The disable as a whole must fail — not a half-disabled
+        // state the user can never re-invoke from the switch. Roll back to
+        // enabled so tapping the switch off again retries the same intent
+        // (remove/deleteAll are idempotent, and the confirmation dialog is
+        // shown again, re-establishing consent).
+        cleanupFailed = true;
+        rethrow;
       } finally {
         _teardown = false;
+        if (cleanupFailed) {
+          _enabled = true;
+          try {
+            await preferences.setBool(_enabledKey, true);
+          } catch (_) {
+            // Best effort: the durable key stays false (restart will keep
+            // the feature off), but the in-memory state keeps a retry
+            // possible in-session.
+          }
+          _startTicker();
+        }
         await refreshSnapshots();
         notifyListeners();
       }
@@ -226,8 +253,12 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> setIntervalMinutes(int minutes) async {
-    _intervalMinutes = _normalizeInterval(minutes);
-    await preferences.setInt(_intervalMinutesKey, _intervalMinutes);
+    // Durable first, same failure-safety rule as setEnabled: a rejected
+    // write must leave the published interval untouched and the transition
+    // retryable.
+    final normalized = _normalizeInterval(minutes);
+    await preferences.setInt(_intervalMinutesKey, normalized);
+    _intervalMinutes = normalized;
     // Changing the cadence does not snapshot immediately; it only recomputes
     // when the next tick is due.
     unawaited(_evaluateDue());
@@ -266,38 +297,56 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
       // disable flow owns the store from now on.
       return AutoSnapshotOutcome.skipped;
     }
+    // Phase 1: the store work. A throw here means nothing was committed —
+    // this is the only path that is a hard failure for the attempt.
+    final AutoSnapshotResult result;
     try {
-      final result = await _service.createSnapshot();
-      _lastError = null;
-      // The schedule anchor advances on *every* successful attempt — both a
-      // created snapshot and a deduplicated skip (identical payload) mean the
-      // cadence has been satisfied; only a hard failure keeps the anchor so
-      // the next tick retries.
-      _lastSnapshotAt = result.status == AutoSnapshotStatus.created
-          ? result.metadata!.createdAt
-          : DateTime.now();
-      await preferences.setString(
-        _lastSnapshotAtKey,
-        _lastSnapshotAt!.toIso8601String(),
-      );
-      await refreshSnapshots();
-      return result.status == AutoSnapshotStatus.created
-          ? AutoSnapshotOutcome.created
-          : AutoSnapshotOutcome.deduplicated;
+      result = await _service.createSnapshot();
     } catch (e) {
       // Atomic failure: the snapshot store is untouched; only the error is
-      // surfaced. The schedule anchor is intentionally not advanced so the
-      // next tick retries.
+      // surfaced. The schedule anchor is not touched so the next tick
+      // retries.
       _lastError = e.toString();
       return AutoSnapshotOutcome.failed;
     }
+    // Phase 2: the store DID change (or was deduplicated — which also evicts
+    // over-cap pairs since the repair fix). The cadence anchor persistence is
+    // a separate outcome from the snapshot itself: a failed anchor write
+    // must not report the committed snapshot as failed, must keep the list
+    // truthful, and must leave scheduling state so persistence is retried on
+    // the next (cheap dedup) attempt.
+    _lastError = null;
+    final anchor = result.status == AutoSnapshotStatus.created
+        ? result.metadata!.createdAt
+        : DateTime.now();
+    final previousAnchor = _lastSnapshotAt;
+    _lastSnapshotAt = anchor;
+    try {
+      await preferences.setString(_lastSnapshotAtKey, anchor.toIso8601String());
+    } catch (e) {
+      debugPrint(
+        '[AutoSnapshotProvider] anchor persistence failed (snapshot is '
+        'committed): $e',
+      );
+      // Restore the previous anchor so the next due tick re-attempts the
+      // durable write as a dedup, instead of waiting a full interval while
+      // scheduling state and persistence disagree.
+      _lastSnapshotAt = previousAnchor;
+    }
+    await refreshSnapshots();
+    return result.status == AutoSnapshotStatus.created
+        ? AutoSnapshotOutcome.created
+        : AutoSnapshotOutcome.deduplicated;
   }
 
   Future<void> refreshSnapshots() async {
     try {
       _snapshots = await _service.listSnapshots();
-    } catch (_) {
-      _snapshots = const [];
+      _listError = null;
+    } catch (e) {
+      // Keep the last known list: an unknown store must never be presented
+      // as "no snapshots", or the page would skip deletion consent.
+      _listError = e;
     }
   }
 

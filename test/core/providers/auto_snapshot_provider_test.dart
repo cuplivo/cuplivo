@@ -26,6 +26,7 @@ class _FakeAutoSnapshotService extends AutoSnapshotService {
   bool deleteWhileCreatePending = false;
   bool failCreate = false;
   bool failDelete = false;
+  int failListTimes = 0;
   bool _createCompleted = false;
   final List<SnapshotMetadata> store = [];
 
@@ -51,7 +52,13 @@ class _FakeAutoSnapshotService extends AutoSnapshotService {
   }
 
   @override
-  Future<List<SnapshotMetadata>> listSnapshots() async => List.of(store);
+  Future<List<SnapshotMetadata>> listSnapshots() async {
+    if (failListTimes > 0) {
+      failListTimes--;
+      throw StateError('listing failed');
+    }
+    return List.of(store);
+  }
 
   @override
   Future<void> deleteAllSnapshots() async {
@@ -70,6 +77,7 @@ class _ThrowingBusinessStore implements BusinessPreferencesStore {
   final MemoryBusinessStore _inner = MemoryBusinessStore();
 
   bool throwOnWrite = false;
+  bool throwOnRemove = false;
 
   @override
   Future<List<BusinessPreferenceEntry>> readAll() => _inner.readAll();
@@ -81,7 +89,10 @@ class _ThrowingBusinessStore implements BusinessPreferencesStore {
   }
 
   @override
-  Future<void> remove(String key) => _inner.remove(key);
+  Future<void> remove(String key) async {
+    if (throwOnRemove) throw StateError('remove failed');
+    await _inner.remove(key);
+  }
 
   @override
   Future<void> clear() => _inner.clear();
@@ -339,10 +350,118 @@ void main() {
     },
   );
 
+  test('a failed delete rolls back to enabled, keeps the store restorable, and '
+      'retries on the next toggle', () async {
+    final fake = _FakeAutoSnapshotService()..failDelete = true;
+    final prefs = BusinessPreferences.memoryForTests({});
+    final provider = AutoSnapshotProvider(
+      preferences: prefs,
+      chatService: ChatService(),
+      autoLoad: false,
+      serviceFactory: () => fake,
+    );
+    await provider.load();
+
+    await provider.setEnabled(true);
+    await pumpEventQueue();
+    expect(provider.snapshots, hasLength(1));
+
+    // The confirmed deletion did not finish: the disable as a whole fails
+    // and rolls back to enabled — the switch shows on, so the user can
+    // re-tap OFF to retry the same intent (consent is re-requested by the
+    // page confirmation dialog).
+    await expectLater(provider.setEnabled(false), throwsA(isA<StateError>()));
+    expect(provider.enabled, isTrue);
+    expect(prefs.getBool('auto_snapshot_enabled_v1'), isTrue);
+    expect(provider.snapshots, hasLength(1), reason: 'files kept');
+
+    fake.failDelete = false;
+    await provider.setEnabled(false);
+    await pumpEventQueue();
+    expect(provider.enabled, isFalse);
+    expect(prefs.getBool('auto_snapshot_enabled_v1'), isFalse);
+    expect(fake.store, isEmpty, reason: 'retry completed the deletion');
+  });
+
+  test('an anchor write failure reports the committed snapshot as success and '
+      'keeps the list truthful', () async {
+    final store = _ThrowingBusinessStore();
+    await store.seed('auto_snapshot_enabled_v1', false);
+    final prefs = BusinessPreferences.open(store);
+    await prefs.load();
+    final fake = _FakeAutoSnapshotService();
+    final provider = AutoSnapshotProvider(
+      preferences: prefs,
+      chatService: ChatService(),
+      autoLoad: false,
+      serviceFactory: () => fake,
+    );
+    await provider.load();
+    await provider.setEnabled(true);
+    await pumpEventQueue();
+    final baselineAt = provider.lastSnapshotAt;
+    expect(provider.snapshots, hasLength(1));
+    expect(baselineAt, isNotNull);
+
+    // The snapshot commits, the cadence-anchor write is rejected.
+    store.throwOnWrite = true;
+    final outcome = await provider.createSnapshot();
+    expect(outcome, AutoSnapshotOutcome.created);
+    expect(
+      provider.lastSnapshotAt,
+      baselineAt,
+      reason: 'scheduling anchor restored so the next tick can retry',
+    );
+    expect(provider.snapshots, hasLength(1), reason: 'list refreshed');
+    expect(fake.store, hasLength(1));
+
+    // Fault clears: the next attempt persists the anchor again.
+    store.throwOnWrite = false;
+    await provider.createSnapshot();
+    expect(provider.lastSnapshotAt, isNotNull);
+    expect(prefs.getString('auto_snapshot_last_snapshot_at_v1'), isNotNull);
+    provider.dispose();
+  });
+
+  test('a failed interval write leaves the published interval untouched and '
+      'retryable', () async {
+    final store = _ThrowingBusinessStore();
+    final prefs = BusinessPreferences.open(store);
+    await prefs.load();
+    final provider = AutoSnapshotProvider(
+      preferences: prefs,
+      chatService: ChatService(),
+      autoLoad: false,
+      serviceFactory: () => _FakeAutoSnapshotService(),
+    );
+    await provider.load();
+    expect(
+      provider.intervalMinutes,
+      AutoSnapshotProvider.presetIntervalMinutes[1],
+    );
+
+    store.throwOnWrite = true;
+    await expectLater(
+      provider.setIntervalMinutes(720),
+      throwsA(isA<StateError>()),
+    );
+    expect(
+      provider.intervalMinutes,
+      AutoSnapshotProvider.presetIntervalMinutes[1],
+      reason: 'nothing published on a rejected write',
+    );
+
+    store.throwOnWrite = false;
+    await provider.setIntervalMinutes(720);
+    expect(provider.intervalMinutes, 720);
+    expect(prefs.getInt('auto_snapshot_interval_minutes_v1'), 720);
+    provider.dispose();
+  });
+
   test(
-    'a failed delete surfaces to the caller and keeps the store restorable',
+    'a listing failure keeps the last known list and later refresh clears it',
     () async {
-      final fake = _FakeAutoSnapshotService()..failDelete = true;
+      final fake = _FakeAutoSnapshotService();
       final provider = AutoSnapshotProvider(
         preferences: BusinessPreferences.memoryForTests({}),
         chatService: ChatService(),
@@ -350,19 +469,62 @@ void main() {
         serviceFactory: () => fake,
       );
       await provider.load();
-
       await provider.setEnabled(true);
       await pumpEventQueue();
       expect(provider.snapshots, hasLength(1));
 
-      await expectLater(provider.setEnabled(false), throwsA(isA<StateError>()));
+      fake.failListTimes = 1;
+      await provider.refreshSnapshots();
+      expect(provider.listError, isNotNull);
+      expect(
+        provider.snapshots,
+        hasLength(1),
+        reason: 'an unknown store is never presented as empty',
+      );
 
-      // Disable still completes (feature off, prefs written); the failure is a
-      // surfaced error and the remaining snapshots stay visible/restorable.
-      expect(provider.enabled, isFalse);
+      await provider.refreshSnapshots();
+      expect(provider.listError, isNull);
       expect(provider.snapshots, hasLength(1));
+
+      await provider.setEnabled(false);
+      await pumpEventQueue();
+      expect(fake.store, isEmpty);
     },
   );
+
+  test('a failed anchor removal during disable rolls back and retries on the '
+      'next toggle', () async {
+    final store = _ThrowingBusinessStore();
+    final prefs = BusinessPreferences.open(store);
+    await prefs.load();
+    final fake = _FakeAutoSnapshotService();
+    final provider = AutoSnapshotProvider(
+      preferences: prefs,
+      chatService: ChatService(),
+      autoLoad: false,
+      serviceFactory: () => fake,
+    );
+    await provider.load();
+    await provider.setEnabled(true);
+    await pumpEventQueue();
+    expect(provider.enabled, isTrue);
+    expect(provider.snapshots, hasLength(1));
+
+    store.throwOnRemove = true;
+    await expectLater(provider.setEnabled(false), throwsA(isA<StateError>()));
+    expect(provider.enabled, isTrue, reason: 'rolled back to enabled');
+    expect(prefs.getBool('auto_snapshot_enabled_v1'), isTrue);
+    expect(fake.store, hasLength(1), reason: 'delete never ran');
+
+    store.throwOnRemove = false;
+    await provider.setEnabled(false);
+    await pumpEventQueue();
+    expect(provider.enabled, isFalse);
+    expect(prefs.getBool('auto_snapshot_enabled_v1'), isFalse);
+    expect(fake.store, isEmpty);
+    expect(provider.lastSnapshotAt, isNull);
+    provider.dispose();
+  });
 
   test('baseline success stashes a one-shot notice for the UI', () async {
     final fake = _FakeAutoSnapshotService();

@@ -202,10 +202,26 @@ class AutoSnapshotService {
         // The zip must pass the same baseline invariant as an orphan —
         // a corrupted store entry would otherwise count toward the cap and
         // push eviction into a healthy pair.
-        if (_validatedEntriesOf(File('${dir.path}/$expectedZip')) == null) {
-          continue;
-        }
-        result.add(meta);
+        final zip = File('${dir.path}/$expectedZip');
+        final entries = _validatedEntriesOf(zip);
+        if (entries == null) continue;
+        // Semantic fields are DERIVED from the zip and its filename, never
+        // trusted from the JSON: a stale/forged sidecar could otherwise set
+        // a future created_at (retaining an old pair while eviction removes
+        // a newer healthy one) or a forged content_hash (false dedup that
+        // skips the only snapshot of changed data). Counts are
+        // display-only and stay from the sidecar.
+        result.add(
+          SnapshotMetadata(
+            fileName: expectedZip,
+            createdAt: _derivedTimeOf(zip, expectedZip),
+            sizeBytes: zip.statSync().size,
+            assistantCount: meta.assistantCount,
+            conversationCount: meta.conversationCount,
+            messageCount: meta.messageCount,
+            contentHash: _hashEntries(entries),
+          ),
+        );
       } catch (_) {
         // Corrupt sidecar: fall back to what the filesystem itself tells us
         // so the user still sees the snapshot instead of it vanishing — but
@@ -233,7 +249,15 @@ class AutoSnapshotService {
       if (entries == null) continue;
       result.add(_fallbackMetadata(ent, entries));
     }
-    result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    // Newest first. Filename timestamps are second-precision, so same-second
+    // snapshots (uniquified by an _N suffix produced by createSnapshot) tie
+    // on createdAt — the suffix ascending order re-establishes creation
+    // order, keeping `newest` (dedup) and eviction targets deterministic.
+    result.sort((a, b) {
+      final byTime = b.createdAt.compareTo(a.createdAt);
+      if (byTime != 0) return byTime;
+      return b.fileName.compareTo(a.fileName);
+    });
     return result;
   }
 
@@ -252,12 +276,38 @@ class AutoSnapshotService {
     final stat = zip.statSync();
     return SnapshotMetadata(
       fileName: zip.uri.pathSegments.last,
-      createdAt: stat.modified,
+      createdAt: _derivedTimeOf(zip, zip.uri.pathSegments.last),
       sizeBytes: stat.size,
       assistantCount: 0,
       conversationCount: 0,
       messageCount: 0,
       contentHash: _hashEntries(entries),
+    );
+  }
+
+  /// Truthful retention ordering: the creation timestamp embedded in the
+  /// filename (`auto_snapshot_<yyyyMMddTHHmmss>([_N]).zip`) is written by us
+  /// at snapshot time in the same clock as the metadata — never the sidecar
+  /// JSON (future timestamps would invert FIFO and evict the wrong pair) and
+  /// never the mtime alone (copy fallbacks update it, and anyone can touch
+  /// it). Falls back to the filesystem modified time when the name cannot be
+  /// parsed.
+  static DateTime _derivedTimeOf(File zip, String basename) {
+    return _timestampFromName(basename) ?? zip.statSync().modified;
+  }
+
+  static DateTime? _timestampFromName(String name) {
+    final m = RegExp(
+      r'_(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})',
+    ).firstMatch(name);
+    if (m == null) return null;
+    return DateTime(
+      int.parse(m.group(1)!),
+      int.parse(m.group(2)!),
+      int.parse(m.group(3)!),
+      int.parse(m.group(4)!),
+      int.parse(m.group(5)!),
+      int.parse(m.group(6)!),
     );
   }
 

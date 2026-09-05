@@ -434,6 +434,156 @@ void main() {
       expect(snapshots, isEmpty, reason: 'no restorable partner at all');
     });
 
+    test('a forged sidecar hash cannot produce a false dedup', () async {
+      final service = _service(root, exporter);
+      Map<String, List<int>> payload(int n) => {
+        'chats_meta.json': utf8.encode(
+          jsonEncode({
+            'format_version': 2,
+            'conversation_count': n,
+            'message_count': n * 10,
+          }),
+        ),
+        'conversations.jsonl': utf8.encode('$n\n'),
+      };
+
+      exporter.payload = payload(1);
+      await service.createSnapshot();
+      // Second snapshot with a different payload — the newest pair.
+      await Future<void>.delayed(const Duration(milliseconds: 1100));
+      exporter.payload = payload(2);
+      final newestResult = await service.createSnapshot();
+      expect(newestResult.status, AutoSnapshotStatus.created);
+      final newestName = newestResult.metadata!.fileName;
+
+      final dir = await service.snapshotDirectory();
+      var snapshots = await service.listSnapshots();
+      final forgedHash = snapshots
+          .firstWhere((s) => s.contentHash != snapshots.first.contentHash)
+          .contentHash;
+      // Forge the NEWEST sidecar's hash to the OLDEST snapshot's real hash:
+      // the next export has the same payload as the oldest, so the old code
+      // would dedup against the forged value and skip snapshotting.
+      File('${dir.path}/$newestName.json').writeAsStringSync(
+        jsonEncode({
+          'file_name': newestName,
+          'created_at': DateTime.now().toIso8601String(),
+          'size_bytes': 1,
+          'assistant_count': 0,
+          'conversation_count': 0,
+          'message_count': 0,
+          'content_hash': forgedHash,
+        }),
+      );
+
+      exporter.payload = payload(1); // content actually changed vs newest
+      final result = await service.createSnapshot();
+      expect(
+        result.status,
+        AutoSnapshotStatus.created,
+        reason: 'newest real hash is recomputed from the zip, not forgeable',
+      );
+      snapshots = await service.listSnapshots();
+      expect(
+        snapshots.firstWhere((s) => s.fileName == newestName).contentHash,
+        isNot(forgedHash),
+        reason: 'listing derives the hash from the zip central directory',
+      );
+    });
+
+    test(
+      'a forged future timestamp cannot invert retention ordering',
+      () async {
+        final service = _service(root, exporter);
+        final names = <String>[];
+        for (var i = 0; i < 3; i++) {
+          if (i > 0) {
+            await Future<void>.delayed(const Duration(milliseconds: 1100));
+          }
+          exporter.payload = {
+            'chats_meta.json': utf8.encode(
+              jsonEncode({
+                'format_version': 2,
+                'conversation_count': i,
+                'message_count': i * 10,
+              }),
+            ),
+            'conversations.jsonl': utf8.encode('$i\n'),
+          };
+          final result = await service.createSnapshot();
+          expect(result.status, AutoSnapshotStatus.created);
+          names.add(result.metadata!.fileName);
+        }
+
+        final dir = await service.snapshotDirectory();
+        // Forge the OLDEST sidecar's created_at a year into the future: the
+        // derived ordering comes from the filename, so the old pair still
+        // loses the over-cap eviction to the newer healthy ones.
+        File('${dir.path}/${names.first}.json').writeAsStringSync(
+          jsonEncode({
+            'file_name': names.first,
+            'created_at': DateTime.now()
+                .add(const Duration(days: 365))
+                .toIso8601String(),
+            'size_bytes': 1,
+            'assistant_count': 0,
+            'conversation_count': 0,
+            'message_count': 0,
+            'content_hash': 'x',
+          }),
+        );
+
+        final before = await service.listSnapshots();
+        expect(
+          before.first.fileName,
+          names.last,
+          reason: 'ordering follows the filename timestamp, not the JSON',
+        );
+
+        exporter.payload = {
+          'chats_meta.json': utf8.encode(
+            jsonEncode({'format_version': 2, 'conversation_count': 3}),
+          ),
+          'conversations.jsonl': utf8.encode('3\n'),
+        };
+        final fourth = await service.createSnapshot();
+        final after = await service.listSnapshots();
+        expect(after, hasLength(3));
+        expect(after.map((s) => s.fileName).toSet(), {
+          ...names.sublist(1),
+          fourth.metadata!.fileName,
+        }, reason: 'the elderly pair was evicted, not a healthy newer one');
+        expect(File('${dir.path}/${names.first}').existsSync(), isFalse);
+        expect(File('${dir.path}/${names.first}.json').existsSync(), isFalse);
+      },
+    );
+
+    test('a forged size is overridden by the actual zip size', () async {
+      final service = _service(root, exporter);
+      final result = await service.createSnapshot();
+      expect(result.status, AutoSnapshotStatus.created);
+
+      final dir = await service.snapshotDirectory();
+      final name = result.metadata!.fileName;
+      final actualSize = File('${dir.path}/$name').lengthSync();
+      File('${dir.path}/$name.json').writeAsStringSync(
+        jsonEncode({
+          'file_name': name,
+          'created_at': DateTime.now().toIso8601String(),
+          'size_bytes': 999999,
+          'assistant_count': 0,
+          'conversation_count': 0,
+          'message_count': 0,
+          'content_hash': 'x',
+        }),
+      );
+
+      final snapshots = await service.listSnapshots();
+      expect(snapshots, hasLength(1));
+      expect(snapshots.first.sizeBytes, actualSize);
+      expect(snapshots.first.sizeBytes, isNot(999999));
+    });
+
     test('creates a snapshot with sidecar metadata on first run', () async {
       final service = _service(root, exporter);
       final result = await service.createSnapshot();

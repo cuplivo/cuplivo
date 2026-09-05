@@ -2605,9 +2605,9 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                         label: widget.retryStatus == null
                             ? l10n.chatMessageWidgetThinking
                             : l10n.autoRetryCountdown(
-                                _retrySecondsLeft(widget.retryStatus!),
                                 widget.retryStatus!.attempt,
                                 widget.retryStatus!.maxRetries,
+                                _retrySecondsLeft(widget.retryStatus!),
                               ),
                         child: widget.hideStreamingIndicator
                             ? const SizedBox(height: 16)
@@ -3566,7 +3566,7 @@ class _RetryCountdownHint extends StatelessWidget {
     );
     if (startSeconds <= 0) {
       return Text(
-        l10n.autoRetryCountdown(0, status.attempt, status.maxRetries),
+        l10n.autoRetryCountdown(status.attempt, status.maxRetries, 0),
         style: style,
       );
     }
@@ -3577,7 +3577,7 @@ class _RetryCountdownHint extends StatelessWidget {
       builder: (context, value, _) {
         final seconds = value <= 0 ? 0 : value.ceil();
         return Text(
-          l10n.autoRetryCountdown(seconds, status.attempt, status.maxRetries),
+          l10n.autoRetryCountdown(status.attempt, status.maxRetries, seconds),
           style: style,
         );
       },

@@ -10,29 +10,39 @@ import 'package:super_sliver_list/super_sliver_list.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
+import '../../../core/models/quick_phrase.dart';
+import '../../../core/providers/asr_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/group_chat_provider.dart';
+import '../../../core/providers/quick_phrase_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/generation_engine.dart';
 import '../../../desktop/message_edit_dialog.dart';
+import '../../../desktop/quick_phrase_popover.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
+import '../../../utils/platform_utils.dart';
 import '../../chat/models/message_edit_result.dart';
 import '../../chat/widgets/message_edit_sheet.dart';
 import '../../chat/widgets/message_more_sheet.dart';
 import '../../home/controllers/chat_controller.dart';
 import '../../home/controllers/generation_controller.dart';
+import '../../home/controllers/home_view_model.dart';
 import '../../home/controllers/stream_controller.dart' as stream_ctrl;
 import '../../home/services/ask_user_interaction_service.dart';
+import '../../home/services/file_upload_service.dart';
 import '../../home/services/message_builder_service.dart';
 import '../../home/services/message_generation_service.dart';
+import '../../home/services/ocr_service.dart';
 import '../../home/services/tool_approval_service.dart';
 import '../../home/widgets/chat_input_bar.dart';
 import '../../home/widgets/message_list_view.dart';
+import '../../quick_phrase/pages/quick_phrases_page.dart';
+import '../../quick_phrase/widgets/quick_phrase_menu.dart';
 import '../controllers/group_chat_orchestrator.dart';
 import '../models/chat_input_mode.dart';
 import '../services/group_chat_slot_runner.dart';
@@ -48,6 +58,8 @@ class GroupChatPage extends StatefulWidget {
 
 class _GroupChatPageState extends State<GroupChatPage> {
   final _inputController = TextEditingController();
+  final _mediaController = ChatInputBarController();
+  final _inputBarKey = GlobalKey();
   final _scrollController = ScrollController();
   final _inputFocus = FocusNode();
   final _isProcessingFiles = ValueNotifier<bool>(false);
@@ -62,9 +74,16 @@ class _GroupChatPageState extends State<GroupChatPage> {
   late MessageGenerationService _messageGenerationService;
   late GroupChatSlotRunner _slotRunner;
   late GroupChatOrchestrator _orchestrator;
+  late FileUploadService _fileUploadService;
+  late OcrService _ocrService;
 
   bool _loading = false;
   bool _initialized = false;
+
+  /// One-slot pending send while a round is running (mirrors single-chat
+  /// per-conversation queue semantics — see queueIfCurrentConversationBusy).
+  /// Drained by [_maybeDrainQueue] when the round ends.
+  ChatInputData? _queuedInput;
 
   bool get _isDesktop =>
       defaultTargetPlatform == TargetPlatform.macOS ||
@@ -78,6 +97,12 @@ class _GroupChatPageState extends State<GroupChatPage> {
     _initialized = true;
     _listController = ListController();
     _chatService = context.read<ChatService>();
+    _ocrService = OcrService(chatService: _chatService);
+    _fileUploadService = FileUploadService(
+      getContext: () => context,
+      mediaController: _mediaController,
+      preferences: context.read<BusinessPreferences>(),
+    );
     _streamController = stream_ctrl.StreamController(
       chatService: _chatService,
       onStateChanged: () {
@@ -98,7 +123,13 @@ class _GroupChatPageState extends State<GroupChatPage> {
       chatService: _chatService,
       contextProvider: context,
       preferences: context.read<BusinessPreferences>(),
+      ocrHandler: (imagePaths, {requestId}) => _ocrService.getOcrTextForImages(
+        imagePaths,
+        context,
+        requestId: requestId,
+      ),
     );
+    _messageBuilderService.ocrTextWrapper = _ocrService.wrapOcrBlock;
     _generationController = GenerationController(
       chatService: _chatService,
       chatController: _chatController,
@@ -169,16 +200,39 @@ class _GroupChatPageState extends State<GroupChatPage> {
     if (convo != null) {
       _chatController.setCurrentConversation(convo);
     }
-    // KNOWN GAP: normal chat restores per-message UI state (reasoning text /
-    // timers, tool events, content splits, gemini thought signatures) on
-    // conversation open via home_view_model._restoreMessageUiState ->
-    // StreamController.restoreMessageUiState, which copies the persisted
-    // message-row fields back into the in-memory maps the widgets read.
-    // This page never calls it, so reopening a group chat loses the
-    // reasoning panels of historical assistant messages. The equivalent
-    // hook here is _bindConversation (NOT _refreshList, which would clobber
-    // live streaming state). Not fixed yet — tracked as a comment per user
-    // decision.
+    // Restore per-message UI state (reasoning panels, tool events, content
+    // splits, Gemini thought signatures, translation markers) exactly like
+    // normal chat does via home_view_model._restoreMessageUiState. This hook
+    // is _bindConversation (NOT _refreshList; the latter must not clobber
+    // live streaming state after send/regenerate).
+    _restoreMessageUiState();
+  }
+
+  void _restoreMessageUiState() {
+    final messages = _chatController.messages;
+    for (var i = 0; i < messages.length; i++) {
+      final m = messages[i];
+      if (m.role == 'assistant') {
+        _streamController.restoreMessageUiState(
+          m,
+          getToolEventsFromDb: (id) => _chatService.getToolEvents(id),
+          getGeminiThoughtSigFromDb: (id) =>
+              _chatService.getGeminiThoughtSignature(id),
+        );
+        final cleanedContent = _streamController.captureGeminiThoughtSignature(
+          m.content,
+          m.id,
+        );
+        if (cleanedContent != m.content) {
+          final updated = m.copyWith(content: cleanedContent);
+          messages[i] = updated;
+          unawaited(_chatService.updateMessage(m.id, content: cleanedContent));
+        }
+      }
+      if (m.translation != null && m.translation!.isNotEmpty) {
+        _translations[m.id] = const TranslationUiState(expanded: false);
+      }
+    }
   }
 
   void _refreshList() {
@@ -231,10 +285,10 @@ class _GroupChatPageState extends State<GroupChatPage> {
 
     setState(() => _loading = true);
     try {
-      final userMsg = await _chatService.addMessage(
+      final userMsg = await _messageGenerationService.createUserMessage(
         conversationId: group.conversationId,
-        role: 'user',
-        content: text,
+        input: data,
+        assistant: null,
       );
       await gp.touchUpdatedAt(group.id);
       _refreshList();
@@ -251,7 +305,87 @@ class _GroupChatPageState extends State<GroupChatPage> {
         });
         _refreshList();
       }
+      _maybeDrainQueue();
     }
+  }
+
+  /// Fires the queued send (if any) once the current round has fully ended.
+  /// Mirrors the single-chat drain hook (_onLoadingChanged). Calls [_send]
+  /// which re-set [_loading] synchronously, so the queue slot can never
+  /// double-drain.
+  void _maybeDrainQueue() {
+    if (!mounted) return;
+    if (_queuedInput == null) return;
+    if (_loading || _orchestrator.isBusy) return;
+    final q = _queuedInput!;
+    _queuedInput = null;
+    setState(() {});
+    unawaited(_send(q));
+  }
+
+  /// Restores a cancelled queued send back into the composer (text + media),
+  /// mirroring single-chat cancelQueuedMessage.
+  void _cancelQueuedInput() {
+    final q = _queuedInput;
+    if (q == null) return;
+    _queuedInput = null;
+    _inputController.value = TextEditingValue(
+      text: q.text,
+      selection: TextSelection.collapsed(offset: q.text.length),
+      composing: TextRange.empty,
+    );
+    _mediaController.restoreInput(q);
+    if (mounted) setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _inputFocus.requestFocus();
+    });
+  }
+
+  Future<void> _showQuickPhraseMenu() async {
+    final quickPhraseProvider = context.read<QuickPhraseProvider>();
+    final phrases = quickPhraseProvider.globalPhrases;
+    if (phrases.isEmpty) return;
+
+    final RenderBox? inputBox =
+        _inputBarKey.currentContext?.findRenderObject() as RenderBox?;
+    if (inputBox == null) return;
+    final topLeft = inputBox.localToGlobal(Offset.zero);
+    final position = Offset(topLeft.dx, inputBox.size.height);
+
+    _inputFocus.unfocus();
+
+    final QuickPhrase? selected;
+    if (PlatformUtils.isDesktop) {
+      selected = await showDesktopQuickPhrasePopover(
+        context,
+        anchorKey: _inputBarKey,
+        phrases: phrases,
+      );
+    } else {
+      selected = await showQuickPhraseMenu(
+        context: context,
+        phrases: phrases,
+        position: position,
+      );
+    }
+    if (selected == null || !mounted) return;
+
+    final text = _inputController.text;
+    final sel = _inputController.selection;
+    final start = (sel.start >= 0 && sel.start <= text.length)
+        ? sel.start
+        : text.length;
+    final end = (sel.end >= 0 && sel.end <= text.length && sel.end >= start)
+        ? sel.end
+        : start;
+    final newText = text.replaceRange(start, end, selected.content);
+    _inputController.value = _inputController.value.copyWith(
+      text: newText,
+      selection: TextSelection.collapsed(
+        offset: start + selected.content.length,
+      ),
+      composing: TextRange.empty,
+    );
   }
 
   Assistant? _resolveSpeaker(ChatMessage m) {
@@ -280,6 +414,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
         setState(() => _loading = false);
         _refreshList();
       }
+      _maybeDrainQueue();
     }
   }
 
@@ -294,6 +429,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
         setState(() => _loading = false);
         _refreshList();
       }
+      _maybeDrainQueue();
     }
   }
 
@@ -344,6 +480,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
         setState(() => _loading = false);
         _refreshList();
       }
+      _maybeDrainQueue();
     }
   }
 
@@ -374,6 +511,21 @@ class _GroupChatPageState extends State<GroupChatPage> {
     }
   }
 
+  /// Maps the persisted raw-space truncation index (set by "clear context")
+  /// to a collapsed message index for the context boundary divider. Reuses
+  /// the canonical single-chat mapping; group chat has no preset folding or
+  /// paged window, so those adjustments do not apply.
+  int _computeTruncCollapsedIndex() {
+    final g = context.read<GroupChatProvider>().getById(widget.groupChatId);
+    if (g == null) return -1;
+    final convo = _chatService.getConversation(g.conversationId);
+    if (convo == null || convo.truncateIndex <= 0) return -1;
+    return HomeViewModel.computeTruncCollapsedIndex(
+      truncRaw: convo.truncateIndex,
+      rawMessages: _chatService.getMessages(g.conversationId),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -394,6 +546,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
     final currentAssistant = context
         .watch<AssistantProvider>()
         .currentAssistant;
+    final quickPhrases = context.watch<QuickPhraseProvider>().globalPhrases;
 
     return Scaffold(
       appBar: AppBar(
@@ -439,6 +592,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
                     messages: messages,
                     byGroup: byGroup,
                     versionSelections: _chatController.versionSelections,
+                    truncCollapsedIndex: _computeTruncCollapsedIndex(),
                     reasoning: _streamController.reasoning,
                     reasoningSegments: _streamController.reasoningSegments,
                     contentSplits: _streamController.contentSplits,
@@ -498,14 +652,33 @@ class _GroupChatPageState extends State<GroupChatPage> {
           SafeArea(
             top: false,
             child: ChatInputBar(
+              key: _inputBarKey,
               controller: _inputController,
+              mediaController: _mediaController,
               focusNode: _inputFocus,
               loading: _loading || _orchestrator.isBusy,
               mode: ChatInputMode.groupChat,
               showToolsHubButton: false,
               supportsReasoning: false,
               showMoreButton: false,
-              showQuickPhraseButton: false,
+              showQuickPhraseButton: quickPhrases.isNotEmpty,
+              asrProvider: context.read<AsrProvider>(),
+              onQuickPhrase: () => unawaited(_showQuickPhraseMenu()),
+              onLongPressQuickPhrase: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const QuickPhrasesPage()),
+                );
+              },
+              onPickCamera: _isDesktop
+                  ? null
+                  : () => _fileUploadService.onPickCamera(context),
+              onPickPhotos: _isDesktop
+                  ? null
+                  : () => _fileUploadService.onPickPhotos(),
+              onUploadFiles: () => _fileUploadService.onPickFiles(),
+              hasQueuedInput: _queuedInput != null,
+              queuedPreviewText: _queuedInput?.text,
+              onCancelQueuedInput: _cancelQueuedInput,
               onStop: () {
                 _orchestrator.requestStop();
                 setState(() => _loading = false);
@@ -514,6 +687,14 @@ class _GroupChatPageState extends State<GroupChatPage> {
                 unawaited(_clearContext());
               },
               onSend: (data) async {
+                if (_loading || _orchestrator.isBusy) {
+                  if (_queuedInput != null) {
+                    return ChatInputSubmissionResult.rejected;
+                  }
+                  _queuedInput = data;
+                  if (mounted) setState(() {});
+                  return ChatInputSubmissionResult.queued;
+                }
                 unawaited(_send(data));
                 return ChatInputSubmissionResult.sent;
               },

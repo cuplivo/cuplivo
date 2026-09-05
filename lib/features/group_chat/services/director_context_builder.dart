@@ -13,6 +13,22 @@ class DirectorContextBuilder {
   static const toolOnlyReminder =
       'Respond only by calling select_speaker or end_turn.';
 
+  /// Strips in-band media markers (`[image:...]` / `[file:...]`) from a user
+  /// message before it enters the Director's text-only protocol, replacing
+  /// each with a bare placeholder. The Director never sees the raw content
+  /// (it only produces speaker-selection tool calls), so the actual image
+  /// bytes are handled per member by the private context pipeline.
+  ///
+  /// Deliberately NOT applied inside [contentForDirector]: that method is
+  /// also used by [AssistantPrivateContextBuilder] to rebuild the member
+  /// private context, where the markers MUST survive so the pipeline can
+  /// parse them back into per-message media paths.
+  static String plainTextForDirector(String content) {
+    return content
+        .replaceAllMapped(RegExp(r'\[image:[^\]]*\]'), (_) => '[image]')
+        .replaceAllMapped(RegExp(r'\[file:[^\]]*\]'), (_) => '[file]');
+  }
+
   /// Tool titles only — shared with private context builder.
   String contentForDirector(ChatMessage message) {
     final body = message.content.trim();
@@ -143,34 +159,16 @@ class DirectorContextBuilder {
         .length;
   }
 
-  /// Collapse using index-into-sorted-versions (default last).
+  /// Collapse using index-into-sorted-versions (default last). Delegates to
+  /// the canonical [ChatService.collapseMessageVersions].
   List<ChatMessage> collapsePublicVersions(
     List<ChatMessage> publicMessages,
     Map<String, int> versionSelections,
   ) {
-    final byGroup = <String, List<ChatMessage>>{};
-    final order = <String>[];
-    for (final m in publicMessages) {
-      final gid = m.groupId ?? m.id;
-      final list = byGroup.putIfAbsent(gid, () {
-        order.add(gid);
-        return <ChatMessage>[];
-      });
-      list.add(m);
-    }
-    for (final e in byGroup.entries) {
-      e.value.sort((a, b) => a.version.compareTo(b.version));
-    }
-    final out = <ChatMessage>[];
-    for (final gid in order) {
-      final vers = byGroup[gid]!;
-      final sel = versionSelections[gid];
-      final idx = (sel != null && sel >= 0 && sel < vers.length)
-          ? sel
-          : (vers.length - 1);
-      out.add(vers[idx]);
-    }
-    return out;
+    return ChatService.collapseMessageVersions(
+      publicMessages,
+      versionSelections,
+    );
   }
 
   /// Build API messages from the public transcript (no director DB history).
@@ -247,7 +245,7 @@ class DirectorContextBuilder {
           'role': 'user',
           'content': buildUserTurnE1(
             userName: userName,
-            userMessageText: contentFor(m),
+            userMessageText: plainTextForDirector(contentFor(m)),
           ),
         });
       } else if (m.role == 'assistant') {

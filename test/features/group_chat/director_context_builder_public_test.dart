@@ -219,4 +219,53 @@ void main() {
     expect(userContents[0], contains('[Alice]: new version'));
     expect(userContents[0], isNot(contains('Old start')));
   });
+
+  test('director history strips media markers from historical user turns', () {
+    final service = _FakeChatService();
+    final builder = DirectorContextBuilder(chatService: service);
+    final alice = Assistant(id: 'a1', name: 'Alice', systemPrompt: 'A');
+    final group = GroupChat(
+      id: 'g1',
+      name: 'Room',
+      conversationId: 'c1',
+      directorSystemPrompt: 'You are the director.',
+    );
+
+    final u0 = ChatMessage(
+      id: 'u0',
+      role: 'user',
+      content:
+          '看图 [image:C:/tmp/photo.png]\n附件 [file:/tmp/r.pdf|r.pdf|application/pdf]',
+      conversationId: 'c1',
+    );
+    final a0 = ChatMessage(
+      id: 'a0',
+      role: 'assistant',
+      content: '好的',
+      conversationId: 'c1',
+      speakerAssistantId: 'a1',
+    );
+
+    final api = builder.buildApiMessagesFromPublic(
+      group: group,
+      publicMessages: [u0, a0],
+      versionSelections: const {},
+      newUserContent: 'tip',
+      rosterAssistants: [alice],
+      userName: 'User',
+      memberNames: const ['User', 'Alice'],
+      assistantsById: {'a1': alice},
+    );
+
+    final userContents = api
+        .where((m) => m['role'] == 'user')
+        .map((m) => m['content'] as String)
+        .toList();
+    expect(userContents.length, 3); // E1 history, E2, tip
+    // Raw local paths must never leak into the Director's request.
+    expect(userContents[0], isNot(contains('C:/tmp/photo.png')));
+    expect(userContents[0], isNot(contains('r.pdf')));
+    expect(userContents[0], contains('[image]'));
+    expect(userContents[0], contains('[file]'));
+  });
 }

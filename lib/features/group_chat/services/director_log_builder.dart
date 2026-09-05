@@ -104,11 +104,15 @@ class DirectorLogBuilder {
                   lastAssistant,
                 ),
                 userName: userName,
-                newUserMessageText: message.content,
+                newUserMessageText: DirectorContextBuilder.plainTextForDirector(
+                  message.content,
+                ),
               )
             : _contextBuilder.buildUserTurnE1(
                 userName: userName,
-                userMessageText: message.content,
+                userMessageText: DirectorContextBuilder.plainTextForDirector(
+                  message.content,
+                ),
               );
         final apiMessages = _buildApiMessages(
           group: group,
@@ -129,7 +133,9 @@ class DirectorLogBuilder {
             sourceMessageId: message.id,
             timestamp: message.timestamp,
             trigger: trigger,
-            triggerContent: message.content,
+            triggerContent: DirectorContextBuilder.plainTextForDirector(
+              message.content,
+            ),
             contextMessages: _contextMessages(apiMessages),
             outcome: nextAssistant == null
                 ? DirectorLogOutcome.noObservedFollowUp

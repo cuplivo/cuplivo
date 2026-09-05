@@ -391,6 +391,17 @@ class _ChatInputBarState extends State<ChatInputBar>
   }
 
   bool _supportsImagesApiRouting(BuildContext context) {
+    // Group chat chooses the generating model per member assistant, so the
+    // global 1:1 model is meaningless here. Every member resolves image
+    // routing against its own model inside the API layer; the composer keeps
+    // the default allow (single ChatInputData produced by _handleSend).
+    if (widget.mode == ChatInputMode.groupChat) {
+      _inputStatus.updateImageModeKey(
+        null,
+        conversationId: widget.conversationId,
+      );
+      return false;
+    }
     final settings = context.watch<SettingsProvider>();
     final ap = context.watch<AssistantProvider>();
     final a = ap.currentAssistant;
@@ -423,6 +434,10 @@ class _ChatInputBarState extends State<ChatInputBar>
   }
 
   void _checkImageWarning(BuildContext context) {
+    if (widget.mode == ChatInputMode.groupChat) {
+      _inputStatus.updateImageWarningKey(null);
+      return;
+    }
     if (_images.isEmpty) {
       _inputStatus.updateImageWarningKey(null);
       return;

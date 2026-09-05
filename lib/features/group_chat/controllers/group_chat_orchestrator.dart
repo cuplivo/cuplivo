@@ -143,7 +143,9 @@ class GroupChatOrchestrator {
               ? ''
               : _contextBuilder.contentForDirector(pending),
           userName: userName,
-          newUserMessageText: userMessage.content,
+          newUserMessageText: DirectorContextBuilder.plainTextForDirector(
+            userMessage.content,
+          ),
         );
         g = g.copyWith(
           pendingCapAssistantMessageId: null,
@@ -153,7 +155,9 @@ class GroupChatOrchestrator {
       } else {
         directorUserContent = _contextBuilder.buildUserTurnE1(
           userName: userName,
-          userMessageText: userMessage.content,
+          userMessageText: DirectorContextBuilder.plainTextForDirector(
+            userMessage.content,
+          ),
         );
         g = g.copyWith(assistantMessagesThisRound: 0);
         await groupChatProvider.persistGroupState(g);
@@ -676,6 +680,7 @@ class GroupChatOrchestrator {
       ),
       completeMessages: privateMessages,
       inputData: inputData,
+      allowImagesApiRouting: inputData?.allowImagesApiRouting ?? true,
       generateTitleOnFinish: false,
       onStreamComplete: () {
         if (!done.isCompleted) done.complete();

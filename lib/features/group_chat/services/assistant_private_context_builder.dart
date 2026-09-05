@@ -29,6 +29,10 @@ class AssistantPrivateContextBuilder {
   final ChatService chatService;
   final DirectorContextBuilder _directorCtx;
 
+  /// In-band media markers ([image:...] / [file:...]). Same form the app
+  /// persists and MessageBuilderService.parseInputFromRaw parses.
+  static final RegExp _mediaMarkerRe = RegExp(r'\[(?:image|file):[^\]]*\]');
+
   /// Returns logical ChatMessages for MessagePipeline (user/assistant roles
   /// from the selected speaker's POV).
   List<ChatMessage> build({
@@ -38,8 +42,8 @@ class AssistantPrivateContextBuilder {
     required String userName,
     required Map<String, Assistant> assistantsById,
   }) {
-    // Version collapse
-    final selected = _collapseVersions(
+    // Version collapse (canonical implementation in ChatService).
+    final selected = ChatService.collapseMessageVersions(
       publicMessages,
       conversation.versionSelections,
     );
@@ -57,22 +61,63 @@ class AssistantPrivateContextBuilder {
     final out = <ChatMessage>[];
     final speakerId = speaker.id;
 
+    // Per-message request metadata (AD-0033) rides on the original public
+    // user message; the rewritten user bubble must carry it so the pipeline
+    // can replay the send-time routing decision and extra body on later
+    // turns, resend and regenerate. The values always describe the LATEST
+    // real human user message seen so far: a real user line overwrites them,
+    // but a flush never resets them, so a trailing buffer that contains only
+    // intervening member output (user -> Alice -> Bob -> Alice) still
+    // inherits the current human turn's request options. This matches the
+    // "last user message" rule
+    // MessageGenerationService.resolveRequestOptionsFromMessages applies to
+    // the rewritten history.
+    bool? bufferedAllowImagesApiRouting;
+    String? bufferedRequestExtraBodyJson;
+
+    // Same principle for in-band media markers ([image:...] / [file:...]):
+    // the last user message in the rewritten list is the only one whose
+    // markers MessageBuilderService.processUserMessagesForApi turns into
+    // lastUserMediaPaths (which becomes GenerationContext.userMediaPaths
+    // when the pipeline runs with inputData == null). A trailing member-only
+    // bubble therefore re-attaches the current human turn's markers, or the
+    // repeated member turn silently loses the uploaded media. A real user
+    // line overwrites the markers (empty when that message has no media);
+    // null means no real user line was seen yet (truncation window).
+    String? latestHumanMediaMarkers;
+    var bufferHasHumanLine = false;
+
     void flushBufferAsUser() {
       if (buffer.isEmpty) return;
+      var content = buffer.join('\n');
+      if (!bufferHasHumanLine &&
+          (latestHumanMediaMarkers?.isNotEmpty ?? false)) {
+        content = '$content\n$latestHumanMediaMarkers';
+      }
       out.add(
         ChatMessage(
           role: 'user',
-          content: buffer.join('\n'),
+          content: content,
           conversationId: conversation.id,
+          requestAllowImagesApiRouting: bufferedAllowImagesApiRouting,
+          requestExtraBodyJson: bufferedRequestExtraBodyJson,
         ),
       );
       buffer.clear();
+      bufferHasHumanLine = false;
     }
 
     for (final msg in slice) {
       if (msg.role == 'user') {
         final text = _directorCtx.contentForDirector(msg);
         buffer.add('[$userName]: $text');
+        bufferHasHumanLine = true;
+        latestHumanMediaMarkers = _mediaMarkerRe
+            .allMatches(msg.content)
+            .map((match) => match.group(0)!)
+            .join('\n');
+        bufferedAllowImagesApiRouting = msg.requestAllowImagesApiRouting;
+        bufferedRequestExtraBodyJson = msg.requestExtraBodyJson;
       } else if (msg.role == 'assistant') {
         final sid = msg.speakerAssistantId;
         final content = _directorCtx.contentForDirector(msg);
@@ -101,36 +146,6 @@ class AssistantPrivateContextBuilder {
         speaker.contextMessageSize > 0 &&
         out.length > speaker.contextMessageSize) {
       return out.sublist(out.length - speaker.contextMessageSize);
-    }
-    return out;
-  }
-
-  /// Index into sorted versions; default last (matches ChatController).
-  List<ChatMessage> _collapseVersions(
-    List<ChatMessage> messages,
-    Map<String, int> versionSelections,
-  ) {
-    final byGroup = <String, List<ChatMessage>>{};
-    final order = <String>[];
-    for (final m in messages) {
-      final gid = m.groupId ?? m.id;
-      final list = byGroup.putIfAbsent(gid, () {
-        order.add(gid);
-        return <ChatMessage>[];
-      });
-      list.add(m);
-    }
-    for (final e in byGroup.entries) {
-      e.value.sort((a, b) => a.version.compareTo(b.version));
-    }
-    final out = <ChatMessage>[];
-    for (final gid in order) {
-      final vers = byGroup[gid]!;
-      final sel = versionSelections[gid];
-      final idx = (sel != null && sel >= 0 && sel < vers.length)
-          ? sel
-          : (vers.length - 1);
-      out.add(vers[idx]);
     }
     return out;
   }

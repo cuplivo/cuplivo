@@ -275,51 +275,60 @@ void main() {
       ]);
     });
 
-    test('handoffTargets filters discoverable, non-empty ids and self', () {
-      final delegating = Assistant(
-        id: 'delegator',
-        name: 'Delegator',
-        localToolIds: [LocalToolNames.handoff],
-      );
-      final targets = LocalToolsService.handoffTargets([
-        delegating,
-        Assistant(id: 'plain', name: 'Plain'),
-        Assistant(
-          id: 'visible',
-          name: 'Visible',
+    test(
+      'handoffTargets filters discoverable, non-empty ids and includes self',
+      () {
+        final delegating = Assistant(
+          id: 'delegator',
+          name: 'Delegator',
+          localToolIds: [LocalToolNames.handoff],
           discoverable: true,
-          handoffId: 'visible-bot',
-        ),
-        Assistant(id: 'empty-id', name: 'Empty', discoverable: true),
-      ], excludeId: 'delegator');
-      expect(targets.map((t) => t.id), const ['visible']);
-    });
-
-    test('handoff target lists exclude the delegating assistant itself', () {
-      final delegating = Assistant(
-        id: 'delegator',
-        name: 'Delegator',
-        discoverable: true,
-        handoffId: 'delegator',
-        localToolIds: [LocalToolNames.handoff],
-      );
-      final defs = LocalToolsService.buildToolDefinitions(
-        assistant: delegating,
-        supportsTools: true,
-        discoverableAssistants: [
+          handoffId: 'delegator',
+        );
+        final targets = LocalToolsService.handoffTargets([
           delegating,
+          Assistant(id: 'plain', name: 'Plain'),
           Assistant(
-            id: 'other',
-            name: 'Other',
+            id: 'visible',
+            name: 'Visible',
             discoverable: true,
-            handoffId: 'other-bot',
+            handoffId: 'visible-bot',
           ),
-        ],
-      );
-      final desc = defs.first['function']['description'] as String;
-      expect(desc, contains('other-bot'));
-      expect(desc, isNot(contains('delegator')));
-    });
+          Assistant(id: 'empty-id', name: 'Empty', discoverable: true),
+        ]);
+        expect(targets.map((t) => t.id), const ['delegator', 'visible']);
+      },
+    );
+
+    test(
+      'handoff target description lists the delegating assistant itself',
+      () {
+        final delegating = Assistant(
+          id: 'delegator',
+          name: 'Delegator',
+          discoverable: true,
+          handoffId: 'delegator',
+          localToolIds: [LocalToolNames.handoff],
+        );
+        final defs = LocalToolsService.buildToolDefinitions(
+          assistant: delegating,
+          supportsTools: true,
+          discoverableAssistants: [
+            delegating,
+            Assistant(
+              id: 'other',
+              name: 'Other',
+              discoverable: true,
+              handoffId: 'other-bot',
+            ),
+          ],
+        );
+        final desc = defs.first['function']['description'] as String;
+        expect(desc, contains('other-bot'));
+        // Self-delegation is allowed: the delegating assistant is listed too.
+        expect(desc, contains('delegator'));
+      },
+    );
 
     test('text to speech call starts playback and returns success', () async {
       final spokenTexts = <String>[];

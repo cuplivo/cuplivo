@@ -16,10 +16,12 @@ Three real-world failure classes, all observed in support interviews:
    was told 「去开启同步交接的本地工具」 — a word they never saw again; they then
    flipped 「可被其他助手发现」 (the *target-side* toggle) because "被发现" was the
    only knob that looked related, and concluded "该开的都开了" without anything working.
-2. **Invisible prerequisite graph.** Setup needs ≥2 assistants (self-delegation is
-   rejected), a target with 「可被其他助手发现」 + a unique 「交接标识」, *and* a source
-   with the handoff local tool enabled — spread across two tabs of the assistant editor
-   plus the Tools Hub, with zero UI stating "you are missing X".
+ 2. **Invisible prerequisite graph.** Setup needs a target with 「可被其他助手发现」 +
+    a unique 「交接标识」, *and* a source with the handoff local tool enabled — spread
+    across two tabs of the assistant editor plus the Tools Hub, with zero UI stating
+    "you are missing X". Self-delegation is allowed; the chain is bounded by
+    `HandoffToolService.maxDelegationDepth` (3 nested sub-agents, enforced at
+    execution time).
 3. **Model-side ambiguity.** Two near-identical tool definitions forced the model to
    choose between "no result returned" and "block until result" semantics; models regularly
    picked the wrong one (or the user experienced v1 as "it didn't do anything").

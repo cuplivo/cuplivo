@@ -45,6 +45,8 @@ class _FakeChatService extends ChatService {
 
   final messagesByConversation = <String, List<ChatMessage>>{};
   final toolEventsByMessage = <String, List<Map<String, dynamic>>>{};
+  Map<String, Conversation> conversationsById = {};
+  String currentConvId = 'parent-conv';
   int _createdCount = 0;
   int _nextMessageId = 1;
 
@@ -66,7 +68,7 @@ class _FakeChatService extends ChatService {
   }) async {
     _createdCount++;
     lastCreatedId = 'conv-$_createdCount';
-    return Conversation(
+    final conversation = Conversation(
       id: lastCreatedId!,
       title: title ?? 'Untitled',
       assistantId: assistantId,
@@ -74,10 +76,15 @@ class _FakeChatService extends ChatService {
       parentConversationId: parentConversationId,
       conversationKind: conversationKind,
     );
+    conversationsById[conversation.id] = conversation;
+    return conversation;
   }
 
   @override
-  String? get currentConversationId => 'parent-conv';
+  String? get currentConversationId => currentConvId;
+
+  @override
+  Conversation? getConversation(String id) => conversationsById[id];
 
   @override
   Future<ChatMessage> addMessage({
@@ -190,14 +197,14 @@ void main() {
 
   Future<String> callTool(
     Map<String, dynamic> args, {
-    Assistant? delegatingAssistant,
+    String? delegatingConversationId,
   }) {
     return HandoffToolService.execute(
       args: args,
       assistants: assistants,
       chatService: chatService,
       engine: engine,
-      delegatingAssistant: delegatingAssistant,
+      delegatingConversationId: delegatingConversationId,
       context: _FakeBuildContext(),
     );
   }
@@ -238,7 +245,7 @@ void main() {
       expect((err['message'] as String), contains('code-helper'));
     });
 
-    test('rejects self-delegation and lists the remaining targets', () async {
+    test('allows self-delegation to the delegating assistant', () async {
       final self = discoverable('self-bot');
       assistants = _FakeAssistantProvider(businessPrefs, [
         self,
@@ -248,14 +255,74 @@ void main() {
       final result = await callTool({
         'assistant': 'self-bot',
         'task': 'do the thing',
-      }, delegatingAssistant: self);
+      });
       final err = decoded(result);
-      expect(err['error'], 'handoff_target_not_found');
-      final message = err['message'] as String;
-      // The requested id appears in the error text itself; the *available*
-      // list must not contain the delegating assistant.
-      expect(message, contains('Available: [research-bot].'));
+      // No longer rejected: the request reaches the child-creation stage
+      // (the fake generation fails synchronously → subagent_error marker).
+      expect(err['error'], isNot('handoff_target_not_found'));
+      expect(err['error'], 'subagent_error');
+      expect(chatService.lastCreatedId, isNotNull);
+      expect(
+        chatService.getMessages(chatService.lastCreatedId!).first.content,
+        'do the thing',
+      );
     });
+
+    test(
+      'nested handoffs chain parents from the delegating conversation and '
+      'hit the depth cap while the global current stays at the root',
+      () async {
+        // Production condition: every child is created with setAsCurrent:
+        // false, so the global current conversation remains the root while
+        // successive nested handoffs run from the child tool handlers.
+        chatService.currentConvId = 'root';
+        chatService.conversationsById['root'] = Conversation(
+          id: 'root',
+          title: 'Root',
+          parentConversationId: null,
+        );
+
+        // 1st handoff: root delegates → conv-1 (parent root).
+        final result1 = await callTool({
+          'assistant': 'research-bot',
+          'task': 'task 1',
+        }, delegatingConversationId: 'root');
+        expect(decoded(result1)['error'], isNot('subagent_max_depth'));
+        final a = chatService.lastCreatedId!;
+        expect(chatService.conversationsById[a]!.parentConversationId, 'root');
+
+        // 2nd handoff: conv-1 delegates → conv-2 (parent conv-1).
+        final result2 = await callTool({
+          'assistant': 'research-bot',
+          'task': 'task 2',
+        }, delegatingConversationId: a);
+        expect(decoded(result2)['error'], isNot('subagent_max_depth'));
+        final b = chatService.lastCreatedId!;
+        expect(chatService.conversationsById[b]!.parentConversationId, a);
+
+        // 3rd handoff: conv-2 delegates → conv-3 (parent conv-2); allowed at
+        // 2 links below the cap.
+        final result3 = await callTool({
+          'assistant': 'research-bot',
+          'task': 'task 3',
+        }, delegatingConversationId: b);
+        expect(decoded(result3)['error'], isNot('subagent_max_depth'));
+        final c = chatService.lastCreatedId!;
+        expect(chatService.conversationsById[c]!.parentConversationId, b);
+
+        // 4th handoff: conv-3 at 3 links → rejected before child creation.
+        final childCountBefore = chatService.lastCreatedId;
+        final result4 = await callTool({
+          'assistant': 'research-bot',
+          'task': 'task 4',
+        }, delegatingConversationId: c);
+        final err = decoded(result4);
+        expect(err['type'], 'tool_error');
+        expect(err['error'], 'subagent_max_depth');
+        expect(err['message'] as String, contains('maximum depth of 3'));
+        expect(chatService.lastCreatedId, childCountBefore);
+      },
+    );
 
     test('handoff creates the child with the task as first message', () async {
       final result = await callTool({

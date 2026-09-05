@@ -15451,29 +15451,89 @@ abstract class AppLocalizations {
   /// **'{count, plural, =0{0 targets} =1{1 target} other{{count} targets}}'**
   String subagentTargetBadge(num count);
 
-  /// No description provided for @subagentNoTargetHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Sub-agent delegation is on, but no sub-agent targets are available. Enable “Delegateable as a sub-agent” on another assistant first.'**
-  String get subagentNoTargetHint;
-
   /// No description provided for @subagentGoSetup.
   ///
   /// In en, this message translates to:
   /// **'Set up'**
   String get subagentGoSetup;
 
-  /// No description provided for @subagentTargetListTitle.
+  /// No description provided for @subagentPageTitle.
   ///
   /// In en, this message translates to:
-  /// **'Delegatable assistants'**
-  String get subagentTargetListTitle;
+  /// **'Sub-agent Delegation'**
+  String get subagentPageTitle;
 
-  /// No description provided for @subagentTargetListEmpty.
+  /// No description provided for @subagentPageExplainer.
   ///
   /// In en, this message translates to:
-  /// **'No delegatable assistants yet.'**
-  String get subagentTargetListEmpty;
+  /// **'With Sub-agent Delegation enabled, the current assistant can delegate tasks to other assistants and wait for their sub-agent result. To become a delegatable target, an assistant must:\n1. Have “Discoverable” enabled\n2. Set a non-empty delegation ID'**
+  String get subagentPageExplainer;
+
+  /// No description provided for @subagentPageStatusEmptySub.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable “Discoverable” and set a delegation ID first'**
+  String get subagentPageStatusEmptySub;
+
+  /// No description provided for @subagentPageEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No assistants to configure yet. Create one in Assistant settings first.'**
+  String get subagentPageEmpty;
+
+  /// No description provided for @subagentSectionDelegatable.
+  ///
+  /// In en, this message translates to:
+  /// **'Delegatable'**
+  String get subagentSectionDelegatable;
+
+  /// No description provided for @subagentSectionUnconfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured'**
+  String get subagentSectionUnconfigured;
+
+  /// No description provided for @subagentReasonNoId.
+  ///
+  /// In en, this message translates to:
+  /// **'No delegation ID'**
+  String get subagentReasonNoId;
+
+  /// No description provided for @subagentReasonNotDiscoverable.
+  ///
+  /// In en, this message translates to:
+  /// **'Discoverability is off'**
+  String get subagentReasonNotDiscoverable;
+
+  /// No description provided for @subagentEditorStateOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Delegatable'**
+  String get subagentEditorStateOk;
+
+  /// No description provided for @subagentEditorOkSub.
+  ///
+  /// In en, this message translates to:
+  /// **'All conditions met'**
+  String get subagentEditorOkSub;
+
+  /// No description provided for @subagentEditorNoIdSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a delegation ID to enable'**
+  String get subagentEditorNoIdSub;
+
+  /// No description provided for @subagentEditorNotDiscSub.
+  ///
+  /// In en, this message translates to:
+  /// **'“Discoverable” must be enabled first'**
+  String get subagentEditorNotDiscSub;
+
+  /// No description provided for @subagentIdConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'ID conflict'**
+  String get subagentIdConflict;
 
   /// No description provided for @groupChatCreate.
   ///

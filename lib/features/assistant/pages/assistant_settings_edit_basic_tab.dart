@@ -616,9 +616,11 @@ class _BasicSettingsTabState extends State<_BasicSettingsTab> {
                                 : null,
                           );
                         }
-                        context.read<AssistantProvider>().updateAssistant(
-                          a.copyWith(handoffId: sanitized),
-                        );
+                        if (_handoffIdError == null) {
+                          context.read<AssistantProvider>().updateAssistant(
+                            a.copyWith(handoffId: sanitized),
+                          );
+                        }
                       },
                     ),
                   ],

@@ -11,6 +11,7 @@ import 'package:Cuplivo/core/providers/memory_provider.dart';
 import 'package:Cuplivo/core/providers/quick_phrase_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/assistant/pages/assistant_settings_edit_page.dart';
+import 'package:Cuplivo/features/home/services/local_tools_service.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
@@ -188,6 +189,19 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Sub-agent Delegation'), findsOneWidget);
+    // The status row only renders once the handoff tool is enabled.
+    // Initially disabled: the seed assistant has no local tool ids. Enable it
+    // through the provider (the toggle row itself sits below the 600px test
+    // window in this tab).
+    final seeded = assistantProvider.getById(_assistantId)!;
+    await assistantProvider.updateAssistant(
+      seeded.copyWith(
+        localToolIds: [...seeded.localToolIds, LocalToolNames.handoff],
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
     expect(find.text('No sub-agent targets available'), findsOneWidget);
   });
 

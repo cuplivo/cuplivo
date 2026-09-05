@@ -16,6 +16,9 @@ void main() {
     expect(ws.isToolNeedsApproval(WorkspaceToolNames.download), isFalse);
     expect(ws.isToolNeedsApproval(WorkspaceToolNames.read), isFalse);
     expect(ws.alias, Workspace.defaultAlias);
+    expect(ws.keepTerminalAfterExit, isFalse);
+    expect(ws.terminalPersistentKeepAlive, isFalse);
+    expect(ws.autoStartLinuxSandbox, isFalse);
   });
 
   group('workspace dependency prerequisites', () {
@@ -98,6 +101,9 @@ void main() {
         WorkspaceToolNames.write: true,
       },
       shellEnabled: true,
+      keepTerminalAfterExit: true,
+      terminalPersistentKeepAlive: true,
+      autoStartLinuxSandbox: true,
       safMounts: const [
         WorkspaceSafMount(
           id: 'mount-id',
@@ -116,6 +122,9 @@ void main() {
     expect(back.displayName, '测试');
     expect(back.isToolEnabled(WorkspaceToolNames.write), isTrue);
     expect(back.shellEnabled, isTrue);
+    expect(back.keepTerminalAfterExit, isTrue);
+    expect(back.terminalPersistentKeepAlive, isTrue);
+    expect(back.autoStartLinuxSandbox, isTrue);
     expect(back.prefFor(WorkspaceDependencyIds.python).sourceId, 'tuna');
     expect(back.isToolNeedsApproval(WorkspaceToolNames.write), isTrue);
     expect(back.isToolNeedsApproval(WorkspaceToolNames.delete), isFalse);
@@ -132,6 +141,39 @@ void main() {
       'alias': 'legacy',
     });
     expect(ws.safMounts, isEmpty);
+    expect(ws.keepTerminalAfterExit, isFalse);
+    expect(ws.terminalPersistentKeepAlive, isFalse);
+    expect(ws.autoStartLinuxSandbox, isFalse);
+  });
+
+  test('terminal child flags are normalized off when parent is disabled', () {
+    final ws = Workspace.fromJson({
+      'id': 'invalid-terminal-settings',
+      'displayName': 'Invalid',
+      'alias': 'invalid',
+      'keepTerminalAfterExit': false,
+      'terminalPersistentKeepAlive': true,
+      'autoStartLinuxSandbox': true,
+    });
+
+    expect(ws.keepTerminalAfterExit, isFalse);
+    expect(ws.terminalPersistentKeepAlive, isFalse);
+    expect(ws.autoStartLinuxSandbox, isFalse);
+    expect(ws.toJson()['terminalPersistentKeepAlive'], isFalse);
+    expect(ws.toJson()['autoStartLinuxSandbox'], isFalse);
+  });
+
+  test('copyWith parent-off cascades both terminal child flags', () {
+    final ws = Workspace.createDefault().copyWith(
+      keepTerminalAfterExit: true,
+      terminalPersistentKeepAlive: true,
+      autoStartLinuxSandbox: true,
+    );
+    final disabled = ws.copyWith(keepTerminalAfterExit: false);
+
+    expect(disabled.keepTerminalAfterExit, isFalse);
+    expect(disabled.terminalPersistentKeepAlive, isFalse);
+    expect(disabled.autoStartLinuxSandbox, isFalse);
   });
 
   test('legacy kelivo tool keys map to short names', () {

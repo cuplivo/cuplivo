@@ -25,6 +25,9 @@ import 'core/providers/grok_device_code_controller.dart';
 import 'core/providers/mcp_provider.dart';
 import 'core/providers/workspace_provider.dart';
 import 'core/services/saf/saf_mount_sync_service.dart';
+import 'core/services/workspace/linux_sandbox_service.dart';
+import 'core/services/workspace/workspace_terminal_coordinator.dart';
+import 'core/services/workspace/workspace_terminal_native_bridge.dart';
 import 'features/workspace/controllers/dependency_install_controller.dart';
 import 'core/providers/tts_provider.dart';
 import 'core/providers/asr_provider.dart';
@@ -77,6 +80,7 @@ final RouteObserver<ModalRoute<dynamic>> routeObserver =
     RouteObserver<ModalRoute<dynamic>>();
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 bool _didCheckUpdates = false; // one-time update check flag
+bool _didInitializeWorkspaceTerminal = false;
 
 /// Builds an HTTP client for MCP OAuth discovery/registration/loopback
 /// traffic, honoring the app's global proxy setting. The MCP transport
@@ -261,6 +265,18 @@ class MyApp extends StatelessWidget {
           create: (ctx) => SafMountSyncService(
             workspaces: ctx.read<WorkspaceProvider>(),
             preferences: preferences,
+          ),
+        ),
+        Provider(
+          create: (ctx) => WorkspaceTerminalCoordinator(
+            workspaces: WorkspaceProviderTerminalStore(
+              ctx.read<WorkspaceProvider>(),
+            ),
+            sandbox: WorkspaceTerminalSandboxGateway(
+              sandbox: LinuxSandboxService.instance,
+              safMounts: ctx.read<SafMountSyncService>(),
+            ),
+            terminal: WorkspaceTerminalNativeBridge.instance,
           ),
         ),
         ChangeNotifierProvider(create: (_) => DependencyInstallController()),
@@ -665,6 +681,31 @@ class MyApp extends StatelessWidget {
 
                   // Desktop tray + close behaviour (minimize to tray) sync
                   final l10n = AppLocalizations.of(ctx);
+                  if (l10n != null &&
+                      Platform.isAndroid &&
+                      !_didInitializeWorkspaceTerminal) {
+                    _didInitializeWorkspaceTerminal = true;
+                    WidgetsBinding.instance.addPostFrameCallback((_) async {
+                      try {
+                        await ctx
+                            .read<WorkspaceTerminalCoordinator>()
+                            .initialize(
+                              WorkspaceTerminalNotificationStrings(
+                                channelName:
+                                    l10n.workspaceTerminalNotificationChannel,
+                                title: l10n.workspaceTerminalNotificationTitle,
+                                text: l10n.workspaceTerminalNotificationText,
+                              ),
+                            );
+                      } catch (error, stackTrace) {
+                        _didInitializeWorkspaceTerminal = false;
+                        debugPrint(
+                          '[WorkspaceTerminal] startup failed: '
+                          '$error\n$stackTrace',
+                        );
+                      }
+                    });
+                  }
                   if (l10n != null) {
                     WidgetsBinding.instance.addPostFrameCallback((_) async {
                       try {

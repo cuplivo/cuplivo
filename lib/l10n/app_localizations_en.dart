@@ -9157,6 +9157,59 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workspaceTerminalCopy => 'Copy';
 
   @override
+  String get workspaceTerminalPersistenceSettings =>
+      'Sandbox and terminal persistence';
+
+  @override
+  String get workspaceKeepTerminalAfterExit =>
+      'Keep terminal running after leaving';
+
+  @override
+  String get workspaceKeepTerminalAfterExitDescription =>
+      'Keep this workspace\'s PTY and terminal contents so you can resume them later.';
+
+  @override
+  String get workspaceTerminalPersistentKeepAlive =>
+      'Persistent terminal keep-alive';
+
+  @override
+  String get workspaceTerminalPersistentKeepAliveDescription =>
+      'Use a foreground notification to keep the terminal alive after the app task is removed. This uses more power.';
+
+  @override
+  String get workspaceAutoStartLinuxSandbox =>
+      'Open Linux sandbox when the app starts';
+
+  @override
+  String get workspaceAutoStartLinuxSandboxDescription =>
+      'Start this workspace\'s Linux login shell after Cuplivo starts.';
+
+  @override
+  String workspaceTerminalSettingFailed(String error) {
+    return 'Unable to update terminal settings: $error';
+  }
+
+  @override
+  String get workspaceTerminalStopFailed =>
+      'The workspace terminal could not be stopped. The operation was cancelled.';
+
+  @override
+  String get workspaceTerminalNotificationPermissionDenied =>
+      'Notification permission is required to enable persistent terminal keep-alive.';
+
+  @override
+  String get workspaceTerminalNotificationChannel =>
+      'Persistent terminal sessions';
+
+  @override
+  String get workspaceTerminalNotificationTitle =>
+      'Workspace terminal is running';
+
+  @override
+  String get workspaceTerminalNotificationText =>
+      'Cuplivo is keeping a Linux workspace terminal alive.';
+
+  @override
   String get workspaceFilesEntry => 'Workspace files';
 
   @override

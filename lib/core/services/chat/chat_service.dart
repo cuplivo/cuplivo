@@ -15,8 +15,16 @@ import '../../../utils/app_directories.dart';
 import '../../../utils/path_canon.dart';
 import '../deleted_records_store.dart';
 import '../workspace/linux_sandbox_service.dart';
+import '../workspace/workspace_terminal_native_bridge.dart';
 
 class ChatService extends ChangeNotifier {
+  ChatService({Future<void> Function()? stopWorkspaceTerminals})
+    : _stopWorkspaceTerminals =
+          stopWorkspaceTerminals ??
+          WorkspaceTerminalNativeBridge.instance.stopAllSessions;
+
+  final Future<void> Function() _stopWorkspaceTerminals;
+
   static const int defaultInitialMessageMin = 2;
   static const int defaultInitialMessageMax = 240;
   static const int defaultInitialTextBudget = 20000;
@@ -2128,6 +2136,12 @@ class ChatService extends ChangeNotifier {
   Future<void> clearAllData() async {
     if (!_initialized) return;
 
+    try {
+      await _stopWorkspaceTerminals();
+    } catch (error) {
+      if (error is WorkspaceTerminalStopException) rethrow;
+      throw WorkspaceTerminalStopException(error);
+    }
     await _repo.clearAllData();
     _messagesCache.clear();
     _conversationsCache.clear();

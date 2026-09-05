@@ -3420,6 +3420,26 @@
     }
   },
   "workspaceTerminalCopy": "複製",
+  "workspaceTerminalPersistenceSettings": "沙箱與終端持久化設定",
+  "workspaceKeepTerminalAfterExit": "離開終端後不關閉終端",
+  "workspaceKeepTerminalAfterExitDescription": "保留此工作區的 PTY 與終端內容，以便稍後繼續使用。",
+  "workspaceTerminalPersistentKeepAlive": "終端持續保活",
+  "workspaceTerminalPersistentKeepAliveDescription": "透過前台通知在移除應用程式工作後繼續保留終端，會增加耗電。",
+  "workspaceAutoStartLinuxSandbox": "軟體啟動時開啟 Linux 沙箱",
+  "workspaceAutoStartLinuxSandboxDescription": "Cuplivo 啟動後自動執行此工作區的 Linux 登入 Shell。",
+  "workspaceTerminalSettingFailed": "無法更新終端設定：{error}",
+  "@workspaceTerminalSettingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "workspaceTerminalStopFailed": "無法停止工作區終端，操作已取消。",
+  "workspaceTerminalNotificationPermissionDenied": "需要通知權限才能開啟終端持續保活。",
+  "workspaceTerminalNotificationChannel": "終端持久工作階段",
+  "workspaceTerminalNotificationTitle": "工作區終端正在執行",
+  "workspaceTerminalNotificationText": "Cuplivo 正在保活 Linux 工作區終端。",
   "workspaceFilesEntry": "工作區檔案",
   "workspaceFilesystemTools": "檔案系統工具",
   "workspaceInstallDeps": "安裝依賴",

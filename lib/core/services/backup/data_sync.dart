@@ -22,6 +22,7 @@ import '../deleted_records_store.dart';
 import '../mcp/kelivo_filesystem/kelivo_filesystem_server.dart'
     show isSafeWireSegment;
 import '../sync/lan_sync_models.dart' show FileManifestEntry;
+import '../workspace/workspace_terminal_native_bridge.dart';
 import '../../database/business_preferences.dart';
 import '../../database/business_key_registry.dart';
 import 'kelivo_image_settings_mapper.dart';
@@ -110,12 +111,16 @@ enum BackupFormat {
 class DataSync {
   final ChatService chatService;
   final Future<Set<String>> Function(String type)? _localIdResolver;
+  final Future<void> Function() _stopWorkspaceTerminals;
   final BusinessPreferences _preferences;
   DataSync({
     required this.chatService,
     required this._preferences,
     this._localIdResolver,
-  });
+    Future<void> Function()? stopWorkspaceTerminals,
+  }) : _stopWorkspaceTerminals =
+           stopWorkspaceTerminals ??
+           WorkspaceTerminalNativeBridge.instance.stopAllSessions;
 
   // Kelivo's legacy chats.json importer only accepts version 1 (or a missing
   // field); anything else is rejected with FormatException. The legacy
@@ -2236,6 +2241,18 @@ class DataSync {
         );
         if (expected is int && expected != actual) {
           throw StateError('backup_chats_count_mismatch');
+        }
+      }
+
+      // An overwrite can replace workspace metadata and recursively delete
+      // the @workspaces tree. Stop process-owned terminals before the first
+      // settings/database/file write so a failure leaves local data intact.
+      if (mode == RestoreMode.overwrite) {
+        try {
+          await _stopWorkspaceTerminals();
+        } catch (error) {
+          if (error is WorkspaceTerminalStopException) rethrow;
+          throw WorkspaceTerminalStopException(error);
         }
       }
 

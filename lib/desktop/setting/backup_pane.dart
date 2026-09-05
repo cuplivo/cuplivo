@@ -17,6 +17,7 @@ import '../../core/services/backup/chatbox_importer.dart';
 import '../../core/services/backup/cherry_importer.dart';
 import '../../core/services/backup/data_sync.dart';
 import '../../core/services/backup/restore_refresher.dart';
+import '../../core/services/workspace/workspace_terminal_native_bridge.dart';
 import '../../utils/platform_utils.dart';
 import '../../shared/widgets/ios_switch.dart';
 import '../../shared/widgets/loading_dialog_card.dart';
@@ -38,6 +39,11 @@ import '../../core/models/incremental_backup.dart';
 import '../widgets/desktop_select_dropdown.dart';
 import '../../theme/app_font_weights.dart';
 import '../../theme/app_semantic_colors.dart';
+
+String _restoreFailureMessage(BuildContext context, Object error) =>
+    error is WorkspaceTerminalStopException
+    ? AppLocalizations.of(context)!.workspaceTerminalStopFailed
+    : error.toString();
 
 class DesktopBackupPane extends StatefulWidget {
   const DesktopBackupPane({super.key});
@@ -199,7 +205,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
       if (!rootCtx.mounted) return;
       showAppSnackBar(
         rootCtx,
-        message: e.toString(),
+        message: _restoreFailureMessage(rootCtx, e),
         type: NotificationType.error,
       );
       return;
@@ -899,7 +905,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
             borderRadius: BorderRadius.circular(16),
           ),
           title: Text(l10n.backupPageImportFromCherryStudio),
-          content: Text(e.toString()),
+          content: Text(_restoreFailureMessage(rootCtx, e)),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dctx).pop(),
@@ -979,7 +985,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
             borderRadius: BorderRadius.circular(16),
           ),
           title: Text(l10n.backupPageImportFromChatbox),
-          content: Text(e.toString()),
+          content: Text(_restoreFailureMessage(rootCtx, e)),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dctx).pop(),
@@ -1191,7 +1197,7 @@ class _RemoteBackupsDialogState extends State<_RemoteBackupsDialog> {
         });
         showAppSnackBar(
           context,
-          message: e.toString(),
+          message: _restoreFailureMessage(context, e),
           type: NotificationType.error,
         );
       }
@@ -1222,7 +1228,7 @@ class _RemoteBackupsDialogState extends State<_RemoteBackupsDialog> {
       if (!rootCtx.mounted) return;
       showAppSnackBar(
         rootCtx,
-        message: e.toString(),
+        message: _restoreFailureMessage(rootCtx, e),
         type: NotificationType.error,
       );
       return;
@@ -1260,7 +1266,7 @@ class _RemoteBackupsDialogState extends State<_RemoteBackupsDialog> {
       if (!rootCtx.mounted) return;
       showAppSnackBar(
         rootCtx,
-        message: e.toString(),
+        message: _restoreFailureMessage(rootCtx, e),
         type: NotificationType.error,
       );
       return;

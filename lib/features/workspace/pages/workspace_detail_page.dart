@@ -11,6 +11,8 @@ import '../../../core/providers/workspace_provider.dart';
 import '../../../core/services/mcp/kelivo_filesystem/kelivo_filesystem_server.dart';
 import '../../../core/services/saf/saf_mount_sync_service.dart';
 import '../../../core/services/workspace/linux_sandbox_service.dart';
+import '../../../core/services/workspace/workspace_terminal_coordinator.dart';
+import '../../../core/services/workspace/workspace_terminal_native_bridge.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_expandable_section.dart';
@@ -21,6 +23,7 @@ import '../../../theme/app_font_weights.dart';
 import '../../../theme/app_semantic_colors.dart';
 import '../../settings/pages/mount_files_page.dart';
 import '../controllers/dependency_install_controller.dart';
+import '../widgets/workspace_terminal_persistence_section.dart';
 import 'sandbox_files_page.dart';
 import 'workspace_terminal_page.dart';
 import 'workspace_saf_mounts_page.dart';
@@ -38,6 +41,8 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
     with RouteAware {
   bool _toolsExpanded = false;
   bool _depsExpanded = false;
+  bool _terminalPersistenceExpanded = false;
+  bool _terminalPersistenceBusy = false;
   final Map<String, bool> _depInstalled = <String, bool>{};
   bool _depStatusLoading = false;
   bool _depProbeFailed = false;
@@ -91,7 +96,12 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
       for (final e in done.entries) {
         final error = e.value;
         if (error != null) {
-          showAppSnackBar(context, message: error.toString());
+          showAppSnackBar(
+            context,
+            message: error is WorkspaceTerminalStopException
+                ? l10n.workspaceTerminalStopFailed
+                : error.toString(),
+          );
         } else if (e.key == WorkspaceDependencyIds.base) {
           // Base install may succeed while the native runtime is missing.
           LinuxSandboxService.instance.hasRuntime().then((runtime) {
@@ -172,7 +182,7 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
             icon: Icon(Lucide.Pencil, size: 20, color: cs.onSurface),
             onPressed: () => _rename(context, ws),
           ),
-          if (Platform.isAndroid || Platform.isIOS)
+          if (Platform.isAndroid)
             IconButton(
               tooltip: l10n.workspaceTerminal,
               icon: Icon(Lucide.Terminal, size: 20, color: cs.onSurface),
@@ -286,6 +296,37 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
                   _depRow(context, ws, depId),
               ],
             ),
+            if (Platform.isAndroid) ...[
+              const SizedBox(height: 12),
+              WorkspaceTerminalPersistenceSection(
+                workspace: ws,
+                expanded: _terminalPersistenceExpanded,
+                busy: _terminalPersistenceBusy,
+                onToggle: () => setState(
+                  () => _terminalPersistenceExpanded =
+                      !_terminalPersistenceExpanded,
+                ),
+                onKeepChanged: (enabled) => unawaited(
+                  _updateTerminalSetting(
+                    l10n,
+                    (coordinator) =>
+                        coordinator.setKeepTerminalAfterExit(ws.id, enabled),
+                  ),
+                ),
+                onDurableChanged: (enabled) => unawaited(
+                  _updateTerminalSetting(
+                    l10n,
+                    (coordinator) => coordinator.setDurable(ws.id, enabled),
+                  ),
+                ),
+                onAutoStartChanged: (enabled) => unawaited(
+                  _updateTerminalSetting(
+                    l10n,
+                    (coordinator) => coordinator.setAutoStart(ws.id, enabled),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             _sectionCard(
               children: [
@@ -303,6 +344,57 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
         ],
       ),
     );
+  }
+
+  Future<void> _updateTerminalSetting(
+    AppLocalizations l10n,
+    Future<void> Function(WorkspaceTerminalCoordinator coordinator) update,
+  ) async {
+    if (_terminalPersistenceBusy) return;
+    setState(() => _terminalPersistenceBusy = true);
+    try {
+      final coordinator = context.read<WorkspaceTerminalCoordinator>();
+      coordinator.updateNotificationStrings(
+        WorkspaceTerminalNotificationStrings(
+          channelName: l10n.workspaceTerminalNotificationChannel,
+          title: l10n.workspaceTerminalNotificationTitle,
+          text: l10n.workspaceTerminalNotificationText,
+        ),
+      );
+      await update(coordinator);
+    } catch (error) {
+      debugPrint('WorkspaceDetailPage terminal setting failed: $error');
+      if (mounted) {
+        showAppSnackBar(
+          context,
+          message: _terminalSettingErrorMessage(l10n, error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _terminalPersistenceBusy = false);
+    }
+  }
+
+  String _terminalSettingErrorMessage(AppLocalizations l10n, Object error) {
+    if (error is WorkspaceTerminalNotificationPermissionException) {
+      return l10n.workspaceTerminalNotificationPermissionDenied;
+    }
+    if (error is WorkspaceTerminalStopException) {
+      return l10n.workspaceTerminalStopFailed;
+    }
+    if (error is WorkspaceTerminalStartException) {
+      return switch (error.status) {
+        SandboxStatus.disabled => l10n.workspaceSandboxBaseRequired,
+        SandboxStatus.runtimeMissing => l10n.workspaceSandboxRuntimeMissing,
+        SandboxStatus.installing => l10n.workspaceDepInstalling,
+        SandboxStatus.broken => l10n.workspaceTerminalOpenFailed('broken'),
+        SandboxStatus.unsupported => l10n.workspaceTerminalAndroidOnly,
+        SandboxStatus.ready => l10n.workspaceTerminalSettingFailed(
+          error.toString(),
+        ),
+      };
+    }
+    return l10n.workspaceTerminalSettingFailed(error.toString());
   }
 
   /// Sandbox dir entry subtitle: "Title ✓ · Title ✓" for every installed

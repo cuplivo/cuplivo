@@ -69,6 +69,12 @@ android {
     }
 }
 
+// AndroidX brings the standalone ListenableFuture stub transitively, while
+// termux-shared supplies Guava, which contains the same class.
+configurations.configureEach {
+    exclude(group = "com.google.guava", module = "listenablefuture")
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
@@ -84,7 +90,11 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     // Secure HTTPS-origin loading for the Android Web conversation shell.
     implementation("androidx.webkit:webkit:1.15.0")
+    implementation("androidx.core:core:1.13.1")
     // SAF document-tree access for external-directory mounts (ADR-0037)
     implementation("androidx.documentfile:documentfile:1.0.1")
+    implementation(project(":terminal-emulator"))
+    implementation(project(":terminal-view"))
+    implementation(project(":termux-shared"))
     testImplementation("junit:junit:4.13.2")
 }

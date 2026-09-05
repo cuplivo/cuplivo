@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:Cuplivo/core/models/workspace.dart';
 import 'package:Cuplivo/core/services/workspace/linux_sandbox_service.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_terminal_native_bridge.dart';
 import 'package:Cuplivo/features/workspace/controllers/dependency_install_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -337,5 +338,71 @@ void main() {
     expect(fake.order, containsAll([WorkspaceDependencyIds.git, 'git2']));
     // Each workspace's install must run against its own rootfs path.
     expect(fake.hostPaths, containsAll(['/ws_a', '/ws_b']));
+  });
+
+  test('base reinstall stops the workspace terminal before mutation', () async {
+    final events = <String>[];
+    final controller = DependencyInstallController(
+      beforeBaseMutation: (hostPath) async {
+        events.add('stop:$hostPath');
+      },
+      installer:
+          ({
+            required workspaceHostPath,
+            required depId,
+            required pref,
+            onProgress,
+          }) async {
+            events.add('install:$workspaceHostPath:$depId');
+          },
+    );
+
+    controller.enqueue(
+      workspaceId: wsId,
+      depId: WorkspaceDependencyIds.base,
+      hostPath: '/ws',
+      pref: pref,
+    );
+    await _pumpUntil(
+      () =>
+          controller.statusFor(wsId, WorkspaceDependencyIds.base) ==
+          DepInstallStatus.idle,
+    );
+
+    expect(events, <String>['stop:/ws', 'install:/ws:base']);
+  });
+
+  test('base reinstall is cancelled when terminal stop fails', () async {
+    var installerCalled = false;
+    final controller = DependencyInstallController(
+      beforeBaseMutation: (_) async => throw StateError('stop failed'),
+      installer:
+          ({
+            required workspaceHostPath,
+            required depId,
+            required pref,
+            onProgress,
+          }) async {
+            installerCalled = true;
+          },
+    );
+
+    controller.enqueue(
+      workspaceId: wsId,
+      depId: WorkspaceDependencyIds.base,
+      hostPath: '/ws',
+      pref: pref,
+    );
+    await _pumpUntil(
+      () =>
+          controller.statusFor(wsId, WorkspaceDependencyIds.base) ==
+          DepInstallStatus.idle,
+    );
+
+    expect(installerCalled, isFalse);
+    expect(
+      controller.takeCompleted(wsId)[WorkspaceDependencyIds.base],
+      isA<WorkspaceTerminalStopException>(),
+    );
   });
 }

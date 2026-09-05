@@ -182,6 +182,9 @@ class Workspace {
   final bool shellEnabled;
   final String? customHostPath;
   final bool readOnly;
+  final bool keepTerminalAfterExit;
+  final bool terminalPersistentKeepAlive;
+  final bool autoStartLinuxSandbox;
   final List<WorkspaceSafMount> safMounts;
   final Map<String, DependencyInstallPref> dependencyPrefs;
   final DateTime createdAt;
@@ -197,11 +200,17 @@ class Workspace {
     this.shellEnabled = false,
     this.customHostPath,
     this.readOnly = false,
+    this.keepTerminalAfterExit = false,
+    bool terminalPersistentKeepAlive = false,
+    bool autoStartLinuxSandbox = false,
     List<WorkspaceSafMount>? safMounts,
     Map<String, DependencyInstallPref>? dependencyPrefs,
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) : tools = Map<String, bool>.unmodifiable(
+  }) : terminalPersistentKeepAlive =
+           keepTerminalAfterExit && terminalPersistentKeepAlive,
+       autoStartLinuxSandbox = keepTerminalAfterExit && autoStartLinuxSandbox,
+       tools = Map<String, bool>.unmodifiable(
          tools ??
              {
                for (final t in WorkspaceToolNames.filesystemTools)
@@ -260,6 +269,9 @@ class Workspace {
     bool? shellEnabled,
     String? customHostPath,
     bool? readOnly,
+    bool? keepTerminalAfterExit,
+    bool? terminalPersistentKeepAlive,
+    bool? autoStartLinuxSandbox,
     List<WorkspaceSafMount>? safMounts,
     Map<String, DependencyInstallPref>? dependencyPrefs,
     DateTime? createdAt,
@@ -278,6 +290,12 @@ class Workspace {
           ? null
           : (customHostPath ?? this.customHostPath),
       readOnly: readOnly ?? this.readOnly,
+      keepTerminalAfterExit:
+          keepTerminalAfterExit ?? this.keepTerminalAfterExit,
+      terminalPersistentKeepAlive:
+          terminalPersistentKeepAlive ?? this.terminalPersistentKeepAlive,
+      autoStartLinuxSandbox:
+          autoStartLinuxSandbox ?? this.autoStartLinuxSandbox,
       safMounts: safMounts ?? this.safMounts,
       dependencyPrefs: dependencyPrefs ?? this.dependencyPrefs,
       createdAt: createdAt ?? this.createdAt,
@@ -295,6 +313,9 @@ class Workspace {
     'shellEnabled': shellEnabled,
     if (customHostPath != null) 'customHostPath': customHostPath,
     'readOnly': readOnly,
+    'keepTerminalAfterExit': keepTerminalAfterExit,
+    'terminalPersistentKeepAlive': terminalPersistentKeepAlive,
+    'autoStartLinuxSandbox': autoStartLinuxSandbox,
     'safMounts': safMounts.map((e) => e.toJson()).toList(),
     'dependencyPrefs': {
       for (final e in dependencyPrefs.entries) e.key: e.value.toJson(),
@@ -397,6 +418,10 @@ class Workspace {
           ? (json['customHostPath'] as String).trim()
           : null,
       readOnly: json['readOnly'] as bool? ?? false,
+      keepTerminalAfterExit: json['keepTerminalAfterExit'] as bool? ?? false,
+      terminalPersistentKeepAlive:
+          json['terminalPersistentKeepAlive'] as bool? ?? false,
+      autoStartLinuxSandbox: json['autoStartLinuxSandbox'] as bool? ?? false,
       safMounts: safMounts,
       dependencyPrefs: prefs,
       createdAt:

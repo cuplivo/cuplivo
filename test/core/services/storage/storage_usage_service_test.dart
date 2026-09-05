@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/services/storage/storage_usage_service.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_terminal_native_bridge.dart';
 
 const MethodChannel _iosTmpChannel = MethodChannel('app.ios_tmp_directory');
 
@@ -363,6 +364,26 @@ void main() {
 
     expect(await File(p.join(wsDir.path, 'notes.txt')).exists(), isTrue);
   });
+
+  test(
+    'clearSandbox does not delete anything when terminal stop fails',
+    () async {
+      final wsDir = Directory(p.join(appDataDir.path, 'workspaces', 'default'));
+      final sandboxDir = Directory(p.join(wsDir.path, '.sandbox', 'linux'));
+      await sandboxDir.create(recursive: true);
+      await _writeSizedFile(sandboxDir, 'marker', 1);
+
+      await expectLater(
+        StorageUsageService.clearSandbox(
+          workspaceHostPaths: <String>[wsDir.path],
+          stopTerminals: () async => throw StateError('stop failed'),
+        ),
+        throwsA(isA<WorkspaceTerminalStopException>()),
+      );
+
+      expect(await Directory(p.join(wsDir.path, '.sandbox')).exists(), isTrue);
+    },
+  );
 
   test(
     'customHostPath workspaces are scanned and split into categories',

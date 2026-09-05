@@ -8733,6 +8733,51 @@ class AppLocalizationsZh extends AppLocalizations {
   String get workspaceTerminalCopy => '复制';
 
   @override
+  String get workspaceTerminalPersistenceSettings => '沙箱与终端持久化设置';
+
+  @override
+  String get workspaceKeepTerminalAfterExit => '退出终端后不关闭终端';
+
+  @override
+  String get workspaceKeepTerminalAfterExitDescription =>
+      '保留此工作区的 PTY 和终端内容，以便稍后继续使用。';
+
+  @override
+  String get workspaceTerminalPersistentKeepAlive => '终端持久保活';
+
+  @override
+  String get workspaceTerminalPersistentKeepAliveDescription =>
+      '通过前台通知在划掉应用任务后继续保留终端，会增加耗电。';
+
+  @override
+  String get workspaceAutoStartLinuxSandbox => '软件启动时打开 Linux 沙箱';
+
+  @override
+  String get workspaceAutoStartLinuxSandboxDescription =>
+      'Cuplivo 启动后自动运行此工作区的 Linux 登录 Shell。';
+
+  @override
+  String workspaceTerminalSettingFailed(String error) {
+    return '无法更新终端设置：$error';
+  }
+
+  @override
+  String get workspaceTerminalStopFailed => '无法停止工作区终端，操作已取消。';
+
+  @override
+  String get workspaceTerminalNotificationPermissionDenied =>
+      '需要通知权限才能开启终端持久保活。';
+
+  @override
+  String get workspaceTerminalNotificationChannel => '终端持久会话';
+
+  @override
+  String get workspaceTerminalNotificationTitle => '工作区终端正在运行';
+
+  @override
+  String get workspaceTerminalNotificationText => 'Cuplivo 正在保活 Linux 工作区终端。';
+
+  @override
   String get workspaceFilesEntry => '工作区文件';
 
   @override
@@ -18032,6 +18077,51 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get workspaceTerminalCopy => '复制';
+
+  @override
+  String get workspaceTerminalPersistenceSettings => '沙箱与终端持久化设置';
+
+  @override
+  String get workspaceKeepTerminalAfterExit => '退出终端后不关闭终端';
+
+  @override
+  String get workspaceKeepTerminalAfterExitDescription =>
+      '保留此工作区的 PTY 和终端内容，以便稍后继续使用。';
+
+  @override
+  String get workspaceTerminalPersistentKeepAlive => '终端持久保活';
+
+  @override
+  String get workspaceTerminalPersistentKeepAliveDescription =>
+      '通过前台通知在划掉应用任务后继续保留终端，会增加耗电。';
+
+  @override
+  String get workspaceAutoStartLinuxSandbox => '软件启动时打开 Linux 沙箱';
+
+  @override
+  String get workspaceAutoStartLinuxSandboxDescription =>
+      'Cuplivo 启动后自动运行此工作区的 Linux 登录 Shell。';
+
+  @override
+  String workspaceTerminalSettingFailed(String error) {
+    return '无法更新终端设置：$error';
+  }
+
+  @override
+  String get workspaceTerminalStopFailed => '无法停止工作区终端，操作已取消。';
+
+  @override
+  String get workspaceTerminalNotificationPermissionDenied =>
+      '需要通知权限才能开启终端持久保活。';
+
+  @override
+  String get workspaceTerminalNotificationChannel => '终端持久会话';
+
+  @override
+  String get workspaceTerminalNotificationTitle => '工作区终端正在运行';
+
+  @override
+  String get workspaceTerminalNotificationText => 'Cuplivo 正在保活 Linux 工作区终端。';
 
   @override
   String get workspaceFilesEntry => '工作区文件';
@@ -27335,6 +27425,51 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get workspaceTerminalCopy => '複製';
+
+  @override
+  String get workspaceTerminalPersistenceSettings => '沙箱與終端持久化設定';
+
+  @override
+  String get workspaceKeepTerminalAfterExit => '離開終端後不關閉終端';
+
+  @override
+  String get workspaceKeepTerminalAfterExitDescription =>
+      '保留此工作區的 PTY 與終端內容，以便稍後繼續使用。';
+
+  @override
+  String get workspaceTerminalPersistentKeepAlive => '終端持續保活';
+
+  @override
+  String get workspaceTerminalPersistentKeepAliveDescription =>
+      '透過前台通知在移除應用程式工作後繼續保留終端，會增加耗電。';
+
+  @override
+  String get workspaceAutoStartLinuxSandbox => '軟體啟動時開啟 Linux 沙箱';
+
+  @override
+  String get workspaceAutoStartLinuxSandboxDescription =>
+      'Cuplivo 啟動後自動執行此工作區的 Linux 登入 Shell。';
+
+  @override
+  String workspaceTerminalSettingFailed(String error) {
+    return '無法更新終端設定：$error';
+  }
+
+  @override
+  String get workspaceTerminalStopFailed => '無法停止工作區終端，操作已取消。';
+
+  @override
+  String get workspaceTerminalNotificationPermissionDenied =>
+      '需要通知權限才能開啟終端持續保活。';
+
+  @override
+  String get workspaceTerminalNotificationChannel => '終端持久工作階段';
+
+  @override
+  String get workspaceTerminalNotificationTitle => '工作區終端正在執行';
+
+  @override
+  String get workspaceTerminalNotificationText => 'Cuplivo 正在保活 Linux 工作區終端。';
 
   @override
   String get workspaceFilesEntry => '工作區檔案';

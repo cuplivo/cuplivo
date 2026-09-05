@@ -30,13 +30,35 @@ import 'tool_handler_service.dart';
 class HandoffToolService {
   const HandoffToolService._();
 
+  /// Maximum number of nested sub-agent layers (chain of parent links).
+  /// A delegating conversation at this depth is rejected: deeper chains are
+  /// treated as unbounded recursion (A → B → C → D stops at D).
+  static const int maxDelegationDepth = 3;
+
+  /// Depth of the delegating conversation = number of ancestor links, walking
+  /// `Conversation.parentConversationId` (written by every handoff; nothing
+  /// else creates parent links). Root conversation = 0.
+  static int _delegationDepth(ChatService chatService) {
+    var depth = 0;
+    var currentId = chatService.currentConversationId;
+    final visited = <String>{};
+    while (currentId != null && visited.add(currentId)) {
+      if (depth >= maxDelegationDepth) break;
+      final parentId = chatService
+          .getConversation(currentId)
+          ?.parentConversationId;
+      currentId = parentId;
+      if (parentId != null) depth++;
+    }
+    return depth;
+  }
+
   static Future<String> execute({
     required Map<String, dynamic> args,
     required AssistantProvider assistants,
     required ChatService chatService,
     required GenerationEngine engine,
     required BuildContext context,
-    Assistant? delegatingAssistant,
   }) async {
     final handoffId = (args['assistant'] ?? '').toString().trim();
     final task = (args['task'] ?? '').toString().trim();
@@ -61,14 +83,8 @@ class HandoffToolService {
       );
     }
 
-    // Self-delegation is rejected: delegating a task to your own assistant
-    // is equivalent to doing it yourself and can spin into unbounded
-    // recursion, so the current assistant is never a valid target.
     final matches = assistants.assistants.where(
-      (a) =>
-          a.discoverable &&
-          a.handoffId == handoffId &&
-          a.id != delegatingAssistant?.id,
+      (a) => a.discoverable && a.handoffId == handoffId,
     );
     final target = matches.isNotEmpty ? matches.first : null;
 
@@ -78,8 +94,7 @@ class HandoffToolService {
             (a) =>
                 a.discoverable &&
                 a.handoffId != null &&
-                a.handoffId!.isNotEmpty &&
-                a.id != delegatingAssistant?.id,
+                a.handoffId!.isNotEmpty,
           )
           .map((a) => a.handoffId!)
           .toList();
@@ -92,6 +107,22 @@ class HandoffToolService {
         message:
             'Error: no discoverable assistant with id \'$handoffId\'. '
             'Available: [${shown.isEmpty ? 'none' : shown}$truncated].',
+        tool: LocalToolNames.handoff,
+      );
+    }
+
+    // Hard depth cap: bound the delegation chain the model could create with
+    // repeated handoffs (self-delegation is allowed and would otherwise spin
+    // A → A → A → … forever).
+    final depth = _delegationDepth(chatService);
+    if (depth >= maxDelegationDepth) {
+      return _toolError(
+        error: 'subagent_max_depth',
+        message:
+            'Error: the sub-agent delegation chain already reached the '
+            'maximum depth of $maxDelegationDepth nested sub-agents. '
+            'Do not delegate further — run the work directly or ask the '
+            'user.',
         tool: LocalToolNames.handoff,
       );
     }

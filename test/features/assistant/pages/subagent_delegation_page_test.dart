@@ -224,4 +224,83 @@ void main() {
     // No crash: vanished target closes the editor.
     expect(find.text('Save'), findsNothing);
   });
+
+  testWidgets('single delegatable assistant (self) is listed as a target', (
+    tester,
+  ) async {
+    _seedPrefs([
+      Assistant(
+        id: _idTranslator,
+        name: 'Translator',
+        discoverable: true,
+        handoffId: 'translator',
+      ),
+    ]);
+    final provider = await _createProvider();
+
+    await tester.pumpWidget(
+      _harness(provider, child: const SubagentDelegationPage()),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(SubagentDelegationPage)),
+    )!;
+    expect(find.text('Translator'), findsOneWidget);
+    expect(find.text('translator'), findsOneWidget);
+    expect(find.text('Delegatable'), findsOneWidget);
+    expect(find.text(l10n.subagentTargetStatus(1)), findsOneWidget);
+    expect(find.text(l10n.subagentReasonNoId), findsNothing);
+  });
+
+  testWidgets('editor blocks saving a pre-existing id conflict without edits', (
+    tester,
+  ) async {
+    _seedPrefs([
+      Assistant(
+        id: _idTranslator,
+        name: 'Translator',
+        discoverable: true,
+        handoffId: 'twin-bot',
+      ),
+      Assistant(
+        id: _idResearcher,
+        name: 'Researcher',
+        discoverable: true,
+        handoffId: 'twin-bot',
+      ),
+    ]);
+    final provider = await _createProvider();
+
+    await tester.pumpWidget(
+      _harness(provider, child: const SubagentDelegationPage()),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('Translator'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(SubagentDelegationPage)),
+    )!;
+    // The conflict is detected on open, not only after an edit.
+    expect(find.text(l10n.assistantEditHandoffIdUnique), findsOneWidget);
+
+    final save = find.text('Save');
+    await tester.ensureVisible(save);
+    await tester.pump();
+    await tester.tap(save);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Blocked: sheet stays open, id unchanged.
+    expect(find.text(l10n.assistantEditHandoffIdUnique), findsOneWidget);
+    expect(provider.getById(_idTranslator)!.handoffId, 'twin-bot');
+  });
+
+  test('explainer renders real newlines, not literal backslash-n', () async {
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    expect(l10n.subagentPageExplainer, contains('\n1.'));
+    expect(l10n.subagentPageExplainer, contains('\n2.'));
+    expect(l10n.subagentPageExplainer, isNot(contains(r'\n')));
+  });
 }

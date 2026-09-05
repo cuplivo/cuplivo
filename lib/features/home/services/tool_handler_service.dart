@@ -829,7 +829,6 @@ class ToolHandlerService {
             chatService: contextProvider.read<ChatService>(),
             // ignore: use_build_context_synchronously (root context, valid for app lifetime)
             engine: contextProvider.read<GenerationEngine>(),
-            delegatingAssistant: assistant,
             // ignore: use_build_context_synchronously (root context, valid for app lifetime)
             context: contextProvider,
           );

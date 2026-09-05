@@ -421,6 +421,7 @@ class _SubagentEditorState extends State<_SubagentEditor> {
   late bool _discoverable;
   String? _idError;
   bool _saving = false;
+  bool _initialValidationDone = false;
 
   @override
   void initState() {
@@ -433,6 +434,18 @@ class _SubagentEditorState extends State<_SubagentEditor> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialValidationDone) {
+      _initialValidationDone = true;
+      // Pre-existing conflicts (e.g. a duplicate delegation ID restored from
+      // a backup) must be surfaced immediately, not only after an onChanged
+      // edit. Inherited lookups (l10n) are only allowed in dependencies.
+      _idError = _idValidationError(_idCtrl.text);
+    }
+  }
+
+  @override
   void dispose() {
     _idCtrl.dispose();
     _descCtrl.dispose();
@@ -442,26 +455,36 @@ class _SubagentEditorState extends State<_SubagentEditor> {
   static String _sanitize(String v) =>
       v.toLowerCase().replaceAll(RegExp(r'[^a-z0-9-]'), '');
 
-  void _onIdChanged(String v) {
+  /// Validation against the CURRENT provider state (recomputed at init, on
+  /// every edit, and again immediately before persisting).
+  String? _idValidationError(String v) {
     final l10n = AppLocalizations.of(context)!;
     final sanitized = _sanitize(v);
-    String? error;
     if (sanitized != v.toLowerCase()) {
-      error = l10n.assistantEditHandoffIdInvalid;
-    } else {
-      final dup = context.read<AssistantProvider>().assistants.any(
-        (o) =>
-            o.id != widget.assistant.id &&
-            o.handoffId == sanitized &&
-            sanitized.isNotEmpty,
-      );
-      if (dup) error = l10n.assistantEditHandoffIdUnique;
+      return l10n.assistantEditHandoffIdInvalid;
     }
-    setState(() => _idError = error);
+    final dup = context.read<AssistantProvider>().assistants.any(
+      (o) =>
+          o.id != widget.assistant.id &&
+          o.handoffId == sanitized &&
+          sanitized.isNotEmpty,
+    );
+    return dup ? l10n.assistantEditHandoffIdUnique : null;
+  }
+
+  void _onIdChanged(String v) {
+    setState(() => _idError = _idValidationError(v));
   }
 
   Future<void> _save() async {
-    if (_saving || _idError != null) return;
+    if (_saving) return;
+    // Re-validate at save time: provider state (or the initial value) may
+    // have changed since the editor was opened.
+    final saveError = _idValidationError(_idCtrl.text);
+    if (saveError != null) {
+      setState(() => _idError = saveError);
+      return;
+    }
     setState(() => _saving = true);
     final ap = context.read<AssistantProvider>();
     final fresh = ap.getById(widget.assistant.id);

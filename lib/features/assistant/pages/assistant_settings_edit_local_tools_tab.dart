@@ -27,10 +27,7 @@ class _LocalToolsTab extends StatelessWidget {
     final handoffEnabled = assistant.localToolIds.contains(
       LocalToolNames.handoff,
     );
-    final handoffTargets = LocalToolsService.handoffTargets(
-      ap.assistants,
-      excludeId: assistant.id,
-    );
+    final handoffTargets = LocalToolsService.handoffTargets(ap.assistants);
     final screenTimeEnabled = assistant.localToolIds.contains(
       LocalToolNames.screenTime,
     );

@@ -280,7 +280,6 @@ class _ToolsHubContentState extends State<ToolsHubContent>
   ) {
     final targets = LocalToolsService.handoffTargets(
       context.read<AssistantProvider>().assistants,
-      excludeId: a.id,
     );
     final handoffEnabled = a.localToolIds.contains(LocalToolNames.handoff);
     final rows = <Widget>[

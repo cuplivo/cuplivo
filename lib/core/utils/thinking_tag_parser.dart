@@ -56,4 +56,37 @@ class ThinkingTagParser {
       thinkingTexts: List.unmodifiable(thinkingTexts),
     );
   }
+
+  /// Utility-text variant of [parseLegacyInlineBlocks]: same visible content,
+  /// but an unclosed open tag (e.g. thinking truncated before `</think>`)
+  /// discards the remainder instead of exposing raw CoT. For titles, summaries
+  /// and suggestions.
+  static String stripUtilityThinking(String input) {
+    final visible = StringBuffer();
+    var cursor = 0;
+
+    while (cursor < input.length) {
+      final openMatch = _openTagRe.firstMatch(input.substring(cursor));
+      if (openMatch == null) {
+        visible.write(input.substring(cursor));
+        break;
+      }
+
+      final openStart = cursor + openMatch.start;
+      final openEnd = cursor + openMatch.end;
+      final tagName = (openMatch.group(1) ?? '').toLowerCase();
+      final closeTag = '</$tagName>';
+      final closeStart = input.toLowerCase().indexOf(closeTag, openEnd);
+
+      if (closeStart == -1) {
+        visible.write(input.substring(cursor, openStart));
+        break;
+      }
+
+      visible.write(input.substring(cursor, openStart));
+      cursor = closeStart + closeTag.length;
+    }
+
+    return visible.toString().trim();
+  }
 }

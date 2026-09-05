@@ -12,7 +12,7 @@ import '../../../theme/app_semantic_colors.dart';
 import '../../../utils/brand_assets.dart';
 import '../../chat/models/tool_ui_part.dart';
 import '../../chat/utils/message_visual_content.dart';
-import '../../chat/utils/thinking_tag_parser.dart';
+import '../../../core/utils/thinking_tag_parser.dart';
 import '../controllers/stream_controller.dart' as stream_ctrl;
 import 'web_chat_protocol.dart';
 

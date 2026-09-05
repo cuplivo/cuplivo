@@ -13,7 +13,6 @@ import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/generation_engine.dart';
 import '../../../utils/utf16_safe_cut.dart';
-import '../../chat/utils/thinking_tag_parser.dart';
 import 'ask_user_interaction_service.dart';
 import 'local_tools_service.dart';
 import 'message_builder_service.dart';
@@ -371,15 +370,12 @@ class HandoffToolService {
           .replaceAll('{locale}', locale)
           .replaceAll('{content}', content);
 
-      final raw = (await ChatApiService.generateText(
+      final title = (await ChatApiService.generateText(
         config: cfg,
         modelId: mdlId,
         prompt: prompt,
         thinkingBudget: budget,
       )).trim();
-      final title = ThinkingTagParser.parseLegacyInlineBlocks(
-        raw,
-      ).visibleContent;
       if (title.isNotEmpty) {
         await chatService.renameConversation(conversationId, title);
         debugPrint('[HandoffTool] title generated for $conversationId: $title');

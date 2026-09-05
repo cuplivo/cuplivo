@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Cuplivo/features/chat/utils/thinking_tag_parser.dart';
+import 'package:Cuplivo/core/utils/thinking_tag_parser.dart';
 
 void main() {
   group('ThinkingTagParser', () {
@@ -89,6 +89,57 @@ void main() {
 
       expect(parsed.visibleContent, input);
       expect(parsed.thinkingTexts, isEmpty);
+    });
+  });
+
+  group('ThinkingTagParser.stripUtilityThinking', () {
+    test('strips closed block and keeps visible content', () {
+      expect(
+        ThinkingTagParser.stripUtilityThinking('<think>why</think>Title'),
+        'Title',
+      );
+    });
+
+    test('strips multiple interleaved blocks', () {
+      expect(
+        ThinkingTagParser.stripUtilityThinking(
+          '<think>a</think>mid<thought>b</thought>end',
+        ),
+        'midend',
+      );
+    });
+
+    test('drops unclosed trailing block to end', () {
+      expect(
+        ThinkingTagParser.stripUtilityThinking('<think>partial reasoning'),
+        '',
+      );
+    });
+
+    test('unclosed block truncates visible content after it', () {
+      expect(
+        ThinkingTagParser.stripUtilityThinking('Title<think>truncated'),
+        'Title',
+      );
+    });
+
+    test('only-thinking closed block yields empty string', () {
+      expect(
+        ThinkingTagParser.stripUtilityThinking('<thinking>done</thinking>'),
+        '',
+      );
+    });
+
+    test('mixed-case tags stripped', () {
+      expect(
+        ThinkingTagParser.stripUtilityThinking('<THINK>hmm</THINK>answer'),
+        'answer',
+      );
+    });
+
+    test('plain text passes through unchanged', () {
+      const input = 'just a normal message';
+      expect(ThinkingTagParser.stripUtilityThinking(input), input);
     });
   });
 }

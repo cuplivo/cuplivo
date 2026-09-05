@@ -39,7 +39,7 @@ import '../../../theme/app_font_weights.dart';
 import '../../home/widgets/model_icon.dart';
 import '../../home/controllers/chat_controller.dart';
 import '../../home/webview/web_conversation_pdf_printer.dart';
-import '../utils/thinking_tag_parser.dart';
+import '../../../core/utils/thinking_tag_parser.dart';
 import '../models/tool_ui_part.dart';
 import 'chat_message_widget.dart' show ChatMessageWidget, ReasoningSegment;
 

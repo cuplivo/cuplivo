@@ -3,8 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 
 import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/features/group_chat/services/assistant_private_context_builder.dart';
 import 'package:Cuplivo/features/home/services/message_builder_service.dart';
 
 var businessPrefs = BusinessPreferences.memoryForTests();
@@ -213,5 +216,74 @@ void main() {
         expect(content, startsWith('[User]:'));
       },
     );
+
+    // Reviewer scenario: the human image survives Alice's first turn, but a
+    // repeat-select of Alice after Bob (user -> Alice -> Bob -> Alice) hands
+    // the pipeline a trailing member-only user bubble. The rewritten bubble
+    // must re-attach the human turn's media marker, otherwise
+    // processUserMessagesForApi (which only inspects the last user message)
+    // returns no lastUserImagePaths and GenerationContext.userMediaPaths is
+    // empty on that repeated turn.
+    test('vision member repeated turn keeps the uploaded image across a '
+        'member-only trailing bubble', () async {
+      final settings = await _settingsWithOcrModel();
+      final conv = Conversation(
+        id: 'c1',
+        title: 'g',
+        conversationKind: Conversation.kindGroup,
+      );
+      final alice = Assistant(id: 'a1', name: 'Alice', ocrMode: 'auto');
+      final bob = Assistant(id: 'a2', name: 'Bob');
+      final public = [
+        ChatMessage(
+          role: 'user',
+          content: '看看这张 $_imageMarker',
+          conversationId: 'c1',
+        ),
+        ChatMessage(
+          role: 'assistant',
+          content: '好的',
+          conversationId: 'c1',
+          speakerAssistantId: 'a1',
+        ),
+        ChatMessage(
+          role: 'assistant',
+          content: '补充一点',
+          conversationId: 'c1',
+          speakerAssistantId: 'a2',
+        ),
+      ];
+
+      final private =
+          AssistantPrivateContextBuilder(chatService: _FakeChatService()).build(
+            conversation: conv,
+            publicMessages: public,
+            speaker: alice,
+            userName: 'User',
+            assistantsById: {'a1': alice, 'a2': bob},
+          );
+      final apiMessages = <Map<String, dynamic>>[
+        for (final m in private) {'role': m.role, 'content': m.content},
+      ];
+
+      final messageBuilder = MessageBuilderService(
+        preferences: businessPrefs,
+        chatService: _FakeChatService(),
+        contextProvider: _FakeBuildContext(),
+        ocrHandler: (_) async => 'no ocr',
+      );
+      final lastUserImagePaths = await messageBuilder.processUserMessagesForApi(
+        apiMessages,
+        settings,
+        alice,
+        providerKey: 'OcrProvider',
+        modelId: 'vision-model',
+      );
+
+      // This return value is PreparedGeneration.lastUserImagePaths and,
+      // with inputData == null, the direct source of
+      // GenerationContext.userMediaPaths.
+      expect(lastUserImagePaths, contains('C:/tmp/photo.png'));
+    });
   });
 }

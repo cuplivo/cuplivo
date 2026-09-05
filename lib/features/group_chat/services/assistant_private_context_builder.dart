@@ -29,6 +29,10 @@ class AssistantPrivateContextBuilder {
   final ChatService chatService;
   final DirectorContextBuilder _directorCtx;
 
+  /// In-band media markers ([image:...] / [file:...]). Same form the app
+  /// persists and MessageBuilderService.parseInputFromRaw parses.
+  static final RegExp _mediaMarkerRe = RegExp(r'\[(?:image|file):[^\]]*\]');
+
   /// Returns logical ChatMessages for MessagePipeline (user/assistant roles
   /// from the selected speaker's POV).
   List<ChatMessage> build({
@@ -71,24 +75,47 @@ class AssistantPrivateContextBuilder {
     bool? bufferedAllowImagesApiRouting;
     String? bufferedRequestExtraBodyJson;
 
+    // Same principle for in-band media markers ([image:...] / [file:...]):
+    // the last user message in the rewritten list is the only one whose
+    // markers MessageBuilderService.processUserMessagesForApi turns into
+    // lastUserMediaPaths (which becomes GenerationContext.userMediaPaths
+    // when the pipeline runs with inputData == null). A trailing member-only
+    // bubble therefore re-attaches the current human turn's markers, or the
+    // repeated member turn silently loses the uploaded media. A real user
+    // line overwrites the markers (empty when that message has no media);
+    // null means no real user line was seen yet (truncation window).
+    String? latestHumanMediaMarkers;
+    var bufferHasHumanLine = false;
+
     void flushBufferAsUser() {
       if (buffer.isEmpty) return;
+      var content = buffer.join('\n');
+      if (!bufferHasHumanLine &&
+          (latestHumanMediaMarkers?.isNotEmpty ?? false)) {
+        content = '$content\n$latestHumanMediaMarkers';
+      }
       out.add(
         ChatMessage(
           role: 'user',
-          content: buffer.join('\n'),
+          content: content,
           conversationId: conversation.id,
           requestAllowImagesApiRouting: bufferedAllowImagesApiRouting,
           requestExtraBodyJson: bufferedRequestExtraBodyJson,
         ),
       );
       buffer.clear();
+      bufferHasHumanLine = false;
     }
 
     for (final msg in slice) {
       if (msg.role == 'user') {
         final text = _directorCtx.contentForDirector(msg);
         buffer.add('[$userName]: $text');
+        bufferHasHumanLine = true;
+        latestHumanMediaMarkers = _mediaMarkerRe
+            .allMatches(msg.content)
+            .map((match) => match.group(0)!)
+            .join('\n');
         bufferedAllowImagesApiRouting = msg.requestAllowImagesApiRouting;
         bufferedRequestExtraBodyJson = msg.requestExtraBodyJson;
       } else if (msg.role == 'assistant') {

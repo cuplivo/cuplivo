@@ -65,15 +65,19 @@ Future<String> _processContent({
   required SettingsProvider settings,
   required Assistant? assistant,
   required String modelId,
+  bool provideOcrHandler = true,
+  String rawContent = 'hello $_imageMarker',
 }) async {
   final builder = MessageBuilderService(
     preferences: businessPrefs,
     chatService: _FakeChatService(),
     contextProvider: _FakeBuildContext(),
-    ocrHandler: (_, {requestId}) async => _ocrText,
+    ocrHandler: provideOcrHandler
+        ? (_, {requestId}) async => _ocrText
+        : null,
   );
   final apiMessages = <Map<String, dynamic>>[
-    {'role': 'user', 'content': 'hello $_imageMarker'},
+    {'role': 'user', 'content': rawContent},
   ];
   await builder.processUserMessagesForApi(
     apiMessages,
@@ -155,5 +159,59 @@ void main() {
       expect(content, contains(_imageMarker));
       expect(content, isNot(contains('<image_file_ocr>')));
     });
+  });
+
+  group('processUserMessagesForApi — group chat private context', () {
+    // Group user messages are persisted with the raw `[image:]` marker and
+    // rewritten by AssistantPrivateContextBuilder as `[User]: content`; the
+    // pipeline must parse it out of that prefixed shape.
+    const groupContent = '[User]: 看看这张 $_imageMarker';
+
+    test('vision member keeps the marker through the [User]: prefix', () async {
+      final settings = await _settingsWithOcrModel();
+      final content = await _processContent(
+        settings: settings,
+        assistant: Assistant(id: 'g1', name: 'Vision', ocrMode: 'auto'),
+        modelId: 'vision-model',
+        rawContent: groupContent,
+      );
+      expect(content, contains(_imageMarker));
+      expect(content, isNot(contains('<image_file_ocr>')));
+    });
+
+    test(
+      'text member OCRs the image inside the [User]: prefixed message',
+      () async {
+        final settings = await _settingsWithOcrModel();
+        final content = await _processContent(
+          settings: settings,
+          assistant: Assistant(id: 'g2', name: 'Text', ocrMode: 'auto'),
+          modelId: 'text-model',
+          rawContent: groupContent,
+        );
+        expect(content, isNot(contains(_imageMarker)));
+        expect(content, contains('<image_file_ocr>'));
+        expect(content, contains(_ocrText));
+      },
+    );
+
+    test(
+      'text member without an OCR handler loses the image (B4 guard)',
+      () async {
+        final settings = await _settingsWithOcrModel();
+        final content = await _processContent(
+          settings: settings,
+          assistant: Assistant(id: 'g3', name: 'NoOcr', ocrMode: 'auto'),
+          modelId: 'text-model',
+          rawContent: groupContent,
+          provideOcrHandler: false,
+        );
+        // ocrActive is true but no handler: markers are dropped and no OCR
+        // text is injected — must at least not crash, and the request keeps
+        // the role prefix with the remaining text.
+        expect(content, isNot(contains(_imageMarker)));
+        expect(content, startsWith('[User]:'));
+      },
+    );
   });
 }

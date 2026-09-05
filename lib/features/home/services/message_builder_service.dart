@@ -88,40 +88,12 @@ class MessageBuilderService {
       <String, _DocTextCacheEntry>{};
 
   /// Collapse message versions to show only selected version per group.
+  /// Delegates to the canonical [ChatService.collapseMessageVersions].
   List<ChatMessage> collapseVersions(
     List<ChatMessage> items,
     Map<String, int> versionSelections,
   ) {
-    final Map<String, List<ChatMessage>> byGroup =
-        <String, List<ChatMessage>>{};
-    final List<String> order = <String>[];
-
-    for (final m in items) {
-      final gid = (m.groupId ?? m.id);
-      final list = byGroup.putIfAbsent(gid, () {
-        order.add(gid);
-        return <ChatMessage>[];
-      });
-      list.add(m);
-    }
-
-    // Sort each group by version
-    for (final e in byGroup.entries) {
-      e.value.sort((a, b) => a.version.compareTo(b.version));
-    }
-
-    // Select the appropriate version from each group
-    final out = <ChatMessage>[];
-    for (final gid in order) {
-      final vers = byGroup[gid]!;
-      final sel = versionSelections[gid];
-      final idx = (sel != null && sel >= 0 && sel < vers.length)
-          ? sel
-          : (vers.length - 1);
-      out.add(vers[idx]);
-    }
-
-    return out;
+    return ChatService.collapseMessageVersions(items, versionSelections);
   }
 
   /// Build API messages list from current conversation state.

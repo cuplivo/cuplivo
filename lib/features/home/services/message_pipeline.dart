@@ -138,16 +138,14 @@ class MessagePipeline {
             askUserService: context.askUserService,
           );
 
-      final userMediaPaths = inputData != null
-          ? _messageGenerationService.buildUserMediaPaths(
-              input: inputData,
-              lastUserMediaPaths: prepared.lastUserImagePaths,
-              settings: settings,
-              providerKey: providerKey,
-              modelId: modelId,
-              assistant: assistant,
-            )
-          : const <String>[];
+      final userMediaPaths = _messageGenerationService.buildUserMediaPaths(
+        input: inputData,
+        lastUserMediaPaths: prepared.lastUserImagePaths,
+        settings: settings,
+        providerKey: providerKey,
+        modelId: modelId,
+        assistant: assistant,
+      );
 
       final ctx = _messageGenerationService.buildGenerationContext(
         assistantMessage: assistantMessage,

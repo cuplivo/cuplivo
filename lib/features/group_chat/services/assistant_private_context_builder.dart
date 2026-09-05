@@ -38,8 +38,8 @@ class AssistantPrivateContextBuilder {
     required String userName,
     required Map<String, Assistant> assistantsById,
   }) {
-    // Version collapse
-    final selected = _collapseVersions(
+    // Version collapse (canonical implementation in ChatService).
+    final selected = ChatService.collapseMessageVersions(
       publicMessages,
       conversation.versionSelections,
     );
@@ -101,36 +101,6 @@ class AssistantPrivateContextBuilder {
         speaker.contextMessageSize > 0 &&
         out.length > speaker.contextMessageSize) {
       return out.sublist(out.length - speaker.contextMessageSize);
-    }
-    return out;
-  }
-
-  /// Index into sorted versions; default last (matches ChatController).
-  List<ChatMessage> _collapseVersions(
-    List<ChatMessage> messages,
-    Map<String, int> versionSelections,
-  ) {
-    final byGroup = <String, List<ChatMessage>>{};
-    final order = <String>[];
-    for (final m in messages) {
-      final gid = m.groupId ?? m.id;
-      final list = byGroup.putIfAbsent(gid, () {
-        order.add(gid);
-        return <ChatMessage>[];
-      });
-      list.add(m);
-    }
-    for (final e in byGroup.entries) {
-      e.value.sort((a, b) => a.version.compareTo(b.version));
-    }
-    final out = <ChatMessage>[];
-    for (final gid in order) {
-      final vers = byGroup[gid]!;
-      final sel = versionSelections[gid];
-      final idx = (sel != null && sel >= 0 && sel < vers.length)
-          ? sel
-          : (vers.length - 1);
-      out.add(vers[idx]);
     }
     return out;
   }

@@ -8,6 +8,7 @@ import 'package:Cuplivo/core/services/streaming_content_notifier.dart';
 import 'package:Cuplivo/features/chat/models/tool_ui_part.dart';
 import 'package:Cuplivo/features/home/controllers/stream_controller.dart'
     as stream_ctrl;
+import 'package:Cuplivo/features/home/controllers/tool_extent_invalidation_port.dart';
 import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
 import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
 import 'package:Cuplivo/features/home/widgets/message_list_view.dart';
@@ -246,7 +247,7 @@ void main() {
     },
   );
 
-  testWidgets('controller swap mid-stream drains the queue and stays usable', (
+  testWidgets('detached-window event queues and drains after re-attach', (
     tester,
   ) async {
     final notifier = StreamingContentNotifier();
@@ -292,22 +293,33 @@ void main() {
       ],
     };
 
+    // The seam: the test controls the detached/locked view the coordinator
+    // reads, while invalidations are forwarded to the real controller so the
+    // extent effect is observable.
+    final controller = ListController();
+    final port = _RecordingExtentPort(controller);
     await tester.pumpWidget(
       _Harness(
         key: key,
         notifier: notifier,
         messages: messages,
         toolParts: toolParts,
+        toolExtentPort: port,
+        listController: controller,
       ),
     );
     await tester.pump();
 
-    // A fresh controller replaces the current one while a tool height change
-    // is in flight. The swap runs through MessageListView.didUpdateWidget and
-    // the attach-aware scheduler; a regression that strands the queue or spins
-    // the retry loop would deadlock the post-frame callbacks here.
-    final fresh = ListController();
-    key.currentState!.replaceListController(fresh);
+    // Row 0 is laid out and its extent is measured; scroll it out of the
+    // cache area so it stays unbuilt but keeps its stored measured extent.
+    expect(controller.extentForIndex(0).$2, isFalse);
+    key.currentState!.jumpToBottom();
+    await tester.pump();
+    expect(controller.extentForIndex(0).$2, isFalse);
+
+    // Force the detached window (unreachable through real frame timing) and
+    // stream an answer that keeps the visible tool count but changes height.
+    port.forceAttached = false;
     toolParts['tool-1'] = [
       ToolUIPart(
         id: 'ask',
@@ -318,23 +330,80 @@ void main() {
     ];
     notifier.notifyToolPartsUpdated('tool-1');
     await tester.pump();
+    expect(port.invalidations, isEmpty, reason: 'must hold while detached');
+
+    // Re-attach: the queued invalidation must drain through the coordinator.
+    port.forceAttached = null;
     await tester.pump();
     await tester.pump();
 
-    final attached = tester
-        .widget<SuperListView>(find.byType(SuperListView))
-        .listController!;
-    expect(identical(attached, fresh), isTrue);
+    expect(port.invalidations, contains(0));
+    expect(
+      controller.extentForIndex(0).$2,
+      isTrue,
+      reason: 'stale measured extent must be dropped after re-attach',
+    );
+  });
 
-    // Queue semantics themselves (detached/locked hold, drain on attach) are
-    // unit-covered in test/features/home/controllers/
-    // tool_extent_invalidation_queue_test.dart; this guard only verifies the
-    // widget-level integration remains functional: jumping to the bottom still
-    // renders the tail through the last row.
-    key.currentState!.jumpToBottom();
+  testWidgets('locked-window event queues and drains after unlock', (
+    tester,
+  ) async {
+    final notifier = StreamingContentNotifier();
+    addTearDown(notifier.dispose);
+    notifier.getNotifier('tool-1');
+
+    final key = GlobalKey<_HarnessState>();
+    final lockedController = ListController();
+    final port = _RecordingExtentPort(lockedController);
+    final toolParts = <String, List<ToolUIPart>>{
+      'tool-1': const [
+        ToolUIPart(
+          id: 'ask',
+          toolName: 'ask_user_input_v0',
+          arguments: {},
+          loading: true,
+        ),
+      ],
+    };
+
+    await tester.pumpWidget(
+      _Harness(
+        key: key,
+        notifier: notifier,
+        messages: [
+          ChatMessage(
+            id: 'tool-1',
+            role: 'assistant',
+            content: '',
+            conversationId: 'conversation-1',
+            isStreaming: true,
+          ),
+        ],
+        toolParts: toolParts,
+        toolExtentPort: port,
+        listController: lockedController,
+      ),
+    );
     await tester.pump();
-    final tail = fresh.visibleRange!;
-    expect(tail.$2, greaterThanOrEqualTo(messages.length - 1));
+
+    port.forceLocked = true;
+    toolParts['tool-1'] = [
+      ToolUIPart(
+        id: 'ask',
+        toolName: 'ask_user_input_v0',
+        arguments: const {},
+        content: '{"answers":{}}',
+      ),
+    ];
+    notifier.notifyToolPartsUpdated('tool-1');
+    await tester.pump();
+    expect(port.invalidations, isEmpty, reason: 'must hold while locked');
+
+    port.forceLocked = null;
+    await tester.pump();
+    await tester.pump();
+
+    expect(port.invalidations, isNotEmpty);
   });
 
   testWidgets('recovered tool signature change invalidates extent on rebuild', (
@@ -433,11 +502,15 @@ class _Harness extends StatefulWidget {
     required this.messages,
     required this.toolParts,
     this.notifier,
+    this.toolExtentPort,
+    this.listController,
   });
 
   final List<ChatMessage> messages;
   final Map<String, List<ToolUIPart>> toolParts;
   final StreamingContentNotifier? notifier;
+  final ToolExtentInvalidationPort? toolExtentPort;
+  final ListController? listController;
 
   @override
   State<_Harness> createState() => _HarnessState();
@@ -445,7 +518,7 @@ class _Harness extends StatefulWidget {
 
 class _HarnessState extends State<_Harness> {
   late final ScrollController scrollController;
-  late ListController listController;
+  late final ListController listController;
   late final ValueNotifier<bool> isProcessingFiles;
   late Map<String, List<ToolUIPart>> toolParts;
 
@@ -453,7 +526,7 @@ class _HarnessState extends State<_Harness> {
   void initState() {
     super.initState();
     scrollController = ScrollController();
-    listController = ListController();
+    listController = widget.listController ?? ListController();
     isProcessingFiles = ValueNotifier<bool>(false);
     // Share the same mutable map as production: stream updates replace the
     // list in place instead of rebuilding MessageListView.
@@ -464,10 +537,6 @@ class _HarnessState extends State<_Harness> {
     setState(() => toolParts = next);
   }
 
-  void replaceListController(ListController next) {
-    setState(() => listController = next);
-  }
-
   void jumpToBottom() {
     if (!scrollController.hasClients) return;
     scrollController.jumpTo(scrollController.position.maxScrollExtent);
@@ -476,7 +545,7 @@ class _HarnessState extends State<_Harness> {
   @override
   void dispose() {
     scrollController.dispose();
-    listController.dispose();
+    if (widget.listController == null) listController.dispose();
     isProcessingFiles.dispose();
     super.dispose();
   }
@@ -522,9 +591,44 @@ class _HarnessState extends State<_Harness> {
             dividerPadding: EdgeInsets.zero,
             isProcessingFiles: isProcessingFiles,
             streamingContentNotifier: widget.notifier,
+            toolExtentPort: widget.toolExtentPort,
           ),
         ),
       ),
     );
+  }
+}
+
+/// Test port: the test owns the detached/locked view while invalidations are
+/// forwarded to the real [ListController] so the extent effect stays real.
+class _RecordingExtentPort implements ToolExtentInvalidationPort {
+  _RecordingExtentPort(this._controller);
+
+  final ListController _controller;
+
+  /// When set, the coordinator sees this value instead of the controller's
+  /// real attach state.
+  bool? forceAttached;
+
+  /// When set, the coordinator sees this value instead of the controller's
+  /// real lock state.
+  bool? forceLocked;
+
+  /// Indices whose invalidation reached the coordinator.
+  final List<int> invalidations = <int>[];
+
+  @override
+  bool get isAttached => forceAttached ?? _controller.isAttached;
+
+  @override
+  bool get isLocked => forceLocked ?? _controller.isLocked;
+
+  @override
+  (int, int)? get visibleRange => _controller.visibleRange;
+
+  @override
+  void invalidateExtent(int index) {
+    invalidations.add(index);
+    _controller.invalidateExtent(index);
   }
 }

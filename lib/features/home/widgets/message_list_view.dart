@@ -27,6 +27,7 @@ import '../../chat/widgets/message_more_sheet.dart';
 import '../controllers/stream_controller.dart' as stream_ctrl;
 import '../controllers/message_render_model.dart';
 import '../controllers/scroll_controller.dart' as scroll_ctrl;
+import '../controllers/tool_extent_invalidation_port.dart';
 import '../controllers/tool_extent_invalidation_queue.dart';
 import '../services/ask_user_interaction_service.dart';
 import '../utils/chat_layout_constants.dart';
@@ -134,6 +135,7 @@ class MessageListView extends StatefulWidget {
     this.isPinnedIndicatorActive = false,
     required this.isProcessingFiles,
     this.streamingContentNotifier,
+    @visibleForTesting this.toolExtentPort,
     this.spotlightMessageId,
     this.spotlightToken = 0,
     this.removingSlotIds = const <String>{},
@@ -215,6 +217,12 @@ class MessageListView extends StatefulWidget {
   /// When provided, streaming messages will use ValueListenableBuilder
   /// to avoid full page rebuilds.
   final StreamingContentNotifier? streamingContentNotifier;
+
+  /// Tests inject a controllable view over the list controller so the
+  /// detached/lock windows of the extent coordinator can be driven
+  /// deterministically. Production builds the default wrapper.
+  @visibleForTesting
+  final ToolExtentInvalidationPort? toolExtentPort;
 
   /// When set, the message with this ID will receive a spotlight pulse animation.
   final String? spotlightMessageId;
@@ -321,6 +329,7 @@ class _MessageListViewState extends State<MessageListView> {
   final Map<String, int> _lastToolSignatures = <String, int>{};
   final ToolExtentInvalidationQueue _toolExtentQueue =
       ToolExtentInvalidationQueue();
+  late ToolExtentInvalidationPort _extentPort;
   bool _toolExtentFlushScheduled = false;
   bool _awaitingAttachFlush = false;
   bool _attachFlushScheduled = false;
@@ -360,6 +369,9 @@ class _MessageListViewState extends State<MessageListView> {
   @override
   void initState() {
     super.initState();
+    _extentPort =
+        widget.toolExtentPort ??
+        _ListControllerExtentPort(widget.listController);
     _refreshRenderModels();
     _snapshotToolSignatures();
     widget.streamingContentNotifier?.toolHeightEvents.addListener(
@@ -370,6 +382,12 @@ class _MessageListViewState extends State<MessageListView> {
   @override
   void didUpdateWidget(covariant MessageListView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.toolExtentPort, widget.toolExtentPort) ||
+        !identical(oldWidget.listController, widget.listController)) {
+      _extentPort =
+          widget.toolExtentPort ??
+          _ListControllerExtentPort(widget.listController);
+    }
     if (oldWidget.streamingContentNotifier != widget.streamingContentNotifier) {
       oldWidget.streamingContentNotifier?.toolHeightEvents.removeListener(
         _handleToolHeightEvent,
@@ -459,14 +477,14 @@ class _MessageListViewState extends State<MessageListView> {
   /// leave the stale extent in place until the user scrolls.
   void _invalidateToolExtentForMessage(String messageId) {
     _extentEstimateCache.remove(messageId);
-    final controller = widget.listController;
-    if (!controller.isAttached) {
+    final port = _extentPort;
+    if (!port.isAttached) {
       _toolExtentQueue.enqueue(messageId);
       _awaitingAttachFlush = true;
       _scheduleAttachAwareFlush();
       return;
     }
-    if (!controller.isLocked) {
+    if (!port.isLocked) {
       _applyToolExtentInvalidation(messageId);
       return;
     }
@@ -482,7 +500,7 @@ class _MessageListViewState extends State<MessageListView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _attachFlushScheduled = false;
       if (!mounted) return;
-      if (!widget.listController.isAttached) {
+      if (!_extentPort.isAttached) {
         // Cold window load still in flight: the controller attaches in a later
         // frame. Retry while work is pending instead of stranding the queue.
         if (_toolExtentQueue.hasPending) {
@@ -494,6 +512,10 @@ class _MessageListViewState extends State<MessageListView> {
       if (!_toolExtentQueue.hasPending) return;
       _flushToolExtentIds();
     });
+    // The chained post-frame callback only runs when a frame is scheduled;
+    // drive frames itself so a pending invalidation cannot stall silently while
+    // the controller is still detached or locked.
+    WidgetsBinding.instance.scheduleFrame();
   }
 
   void _scheduleToolExtentFlush() {
@@ -504,13 +526,13 @@ class _MessageListViewState extends State<MessageListView> {
       if (!mounted) return;
       _flushToolExtentIds();
     });
+    WidgetsBinding.instance.scheduleFrame();
   }
 
   void _flushToolExtentIds() {
-    final controller = widget.listController;
     final result = _toolExtentQueue.takeForFlush(
-      isAttached: controller.isAttached,
-      isLocked: controller.isLocked,
+      isAttached: _extentPort.isAttached,
+      isLocked: _extentPort.isLocked,
     );
     for (final id in result.ids) {
       _applyToolExtentInvalidation(id);
@@ -526,11 +548,11 @@ class _MessageListViewState extends State<MessageListView> {
   }
 
   void _applyToolExtentInvalidation(String messageId) {
-    final controller = widget.listController;
-    if (!controller.isAttached || controller.isLocked) return;
+    final port = _extentPort;
+    if (!port.isAttached || port.isLocked) return;
     final index = _messageIndexById[messageId];
     if (index == null) return;
-    final visible = controller.visibleRange;
+    final visible = port.visibleRange;
     final scrollController = widget.scrollController;
     if (visible != null &&
         index < visible.$1 &&
@@ -550,7 +572,7 @@ class _MessageListViewState extends State<MessageListView> {
         tag: 'TimelineExtent',
       );
     }
-    controller.invalidateExtent(index);
+    port.invalidateExtent(index);
   }
 
   /// Header row + action bar + vertical margins around a bubble.
@@ -2185,6 +2207,25 @@ class _MessageListViewState extends State<MessageListView> {
       ),
     );
   }
+}
+
+/// Production view of the list controller behind [ToolExtentInvalidationPort].
+class _ListControllerExtentPort implements ToolExtentInvalidationPort {
+  _ListControllerExtentPort(this._controller);
+
+  final ListController _controller;
+
+  @override
+  bool get isAttached => _controller.isAttached;
+
+  @override
+  bool get isLocked => _controller.isLocked;
+
+  @override
+  (int, int)? get visibleRange => _controller.visibleRange;
+
+  @override
+  void invalidateExtent(int index) => _controller.invalidateExtent(index);
 }
 
 /// Display settings that change how tall a message renders.

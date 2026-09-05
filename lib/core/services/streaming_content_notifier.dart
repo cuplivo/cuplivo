@@ -1,4 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+
+import 'logging/flutter_logger.dart';
+
+/// Lightweight tool-height signal for [MessageListView] extent invalidation.
+///
+/// The list must not compare [oldWidget.toolParts] — that map is mutated in
+/// place. This event is the streaming path; a stored signature snapshot covers
+/// non-streaming rebuilds.
+@immutable
+class ToolHeightEvent {
+  const ToolHeightEvent({required this.messageId, required this.version});
+
+  final String messageId;
+  final int version;
+}
 
 /// Lightweight notifier for streaming message content updates.
 ///
@@ -16,6 +33,15 @@ class StreamingContentNotifier {
   /// Each streaming message has its own `ValueNotifier<String>`.
   final Map<String, ValueNotifier<StreamingContentData>> _notifiers =
       <String, ValueNotifier<StreamingContentData>>{};
+
+  /// Coalesced tool-height events. Listeners must not rebuild the page.
+  final ValueNotifier<ToolHeightEvent?> toolHeightEvents =
+      ValueNotifier<ToolHeightEvent?>(null);
+
+  int _toolHeightVersion = 0;
+  final Set<String> _pendingHeightIds = <String>{};
+  bool _heightFlushScheduled = false;
+  bool _disposed = false;
 
   /// Get or create a notifier for a message.
   ValueNotifier<StreamingContentData> getNotifier(String messageId) {
@@ -47,7 +73,7 @@ class StreamingContentNotifier {
     final notifier = _notifiers[messageId];
     if (notifier != null) {
       final current = notifier.value;
-      notifier.value = StreamingContentData(
+      final next = StreamingContentData(
         content: content,
         totalTokens: totalTokens,
         reasoningText: current.reasoningText,
@@ -66,8 +92,29 @@ class StreamingContentNotifier {
         translation: current.translation,
         retryStatus: current.retryStatus,
       );
+      notifier.value = next;
+      if (_structureSignatureChanged(current, next)) {
+        notifyToolHeightChanged(messageId);
+      }
     }
   }
+
+  /// Whether the timeline block structure changed between two streaming
+  /// snapshots. Pure text growth keeps the split counter stable — the built
+  /// row re-measures itself — but a new thinking or tool block adds rows the
+  /// list must be told about, or its extent stays stale.
+  static bool _structureSignatureChanged(
+    StreamingContentData a,
+    StreamingContentData b,
+  ) {
+    return _splitCount(a.contentSplitOffsets) !=
+            _splitCount(b.contentSplitOffsets) ||
+        _splitCount(a.reasoningCountAtSplit) !=
+            _splitCount(b.reasoningCountAtSplit) ||
+        _splitCount(a.toolCountAtSplit) != _splitCount(b.toolCountAtSplit);
+  }
+
+  static int _splitCount(List<int>? offsets) => offsets?.length ?? 0;
 
   /// Update only the live translation for a message. This keeps translation
   /// streaming local to the message row instead of rebuilding HomePage.
@@ -134,7 +181,7 @@ class StreamingContentNotifier {
     final notifier = _notifiers[messageId];
     if (notifier != null) {
       final current = notifier.value;
-      notifier.value = StreamingContentData(
+      final next = StreamingContentData(
         content: current.content,
         totalTokens: current.totalTokens,
         reasoningText: reasoningText ?? current.reasoningText,
@@ -153,6 +200,10 @@ class StreamingContentNotifier {
         translation: current.translation,
         retryStatus: current.retryStatus,
       );
+      notifier.value = next;
+      if (_structureSignatureChanged(current, next)) {
+        notifyToolHeightChanged(messageId);
+      }
     }
   }
 
@@ -185,6 +236,35 @@ class StreamingContentNotifier {
         durationMs: current.durationMs,
         translation: current.translation,
         retryStatus: current.retryStatus,
+      );
+    }
+    notifyToolHeightChanged(messageId);
+  }
+
+  /// Emit a coalesced tool-height event. Safe to call without a content notifier.
+  void notifyToolHeightChanged(String messageId) {
+    if (_disposed || !_pendingHeightIds.add(messageId)) return;
+    if (_heightFlushScheduled) return;
+    _heightFlushScheduled = true;
+    scheduleMicrotask(_flushToolHeightEvents);
+  }
+
+  void _flushToolHeightEvents() {
+    _heightFlushScheduled = false;
+    if (_disposed) return;
+    final ids = List<String>.of(_pendingHeightIds);
+    _pendingHeightIds.clear();
+    for (final id in ids) {
+      _toolHeightVersion += 1;
+      toolHeightEvents.value = ToolHeightEvent(
+        messageId: id,
+        version: _toolHeightVersion,
+      );
+    }
+    if (FlutterLogger.enabled) {
+      FlutterLogger.log(
+        'tool height events flushed: ids=$ids',
+        tag: 'TimelineExtent',
       );
     }
   }
@@ -229,7 +309,10 @@ class StreamingContentNotifier {
 
   /// Dispose all resources.
   void dispose() {
+    _disposed = true;
+    _pendingHeightIds.clear();
     clear();
+    toolHeightEvents.dispose();
   }
 }
 

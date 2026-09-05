@@ -13,6 +13,7 @@ import '../../../core/models/chat_message.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/services/logging/flutter_logger.dart';
 import '../../../core/services/storage/message_locate_bus.dart';
 import '../../../core/services/streaming_content_notifier.dart';
 import '../../../icons/lucide_adapter.dart';
@@ -26,6 +27,8 @@ import '../../chat/widgets/message_more_sheet.dart';
 import '../controllers/stream_controller.dart' as stream_ctrl;
 import '../controllers/message_render_model.dart';
 import '../controllers/scroll_controller.dart' as scroll_ctrl;
+import '../controllers/tool_extent_invalidation_port.dart';
+import '../controllers/tool_extent_invalidation_queue.dart';
 import '../services/ask_user_interaction_service.dart';
 import '../utils/chat_layout_constants.dart';
 import 'model_icon.dart';
@@ -132,6 +135,7 @@ class MessageListView extends StatefulWidget {
     this.isPinnedIndicatorActive = false,
     required this.isProcessingFiles,
     this.streamingContentNotifier,
+    @visibleForTesting this.toolExtentPort,
     this.spotlightMessageId,
     this.spotlightToken = 0,
     this.removingSlotIds = const <String>{},
@@ -213,6 +217,12 @@ class MessageListView extends StatefulWidget {
   /// When provided, streaming messages will use ValueListenableBuilder
   /// to avoid full page rebuilds.
   final StreamingContentNotifier? streamingContentNotifier;
+
+  /// Tests inject a controllable view over the list controller so the
+  /// detached/lock windows of the extent coordinator can be driven
+  /// deterministically. Production builds the default wrapper.
+  @visibleForTesting
+  final ToolExtentInvalidationPort? toolExtentPort;
 
   /// When set, the message with this ID will receive a spotlight pulse animation.
   final String? spotlightMessageId;
@@ -315,6 +325,14 @@ class _MessageListViewState extends State<MessageListView> {
   bool _pointerScrollActivityCheckScheduled = false;
   late List<MessageRenderModel> _effectiveRenderModels;
   late Map<String, int> _slotIndexById;
+  late Map<String, int> _messageIndexById;
+  final Map<String, int> _lastToolSignatures = <String, int>{};
+  final ToolExtentInvalidationQueue _toolExtentQueue =
+      ToolExtentInvalidationQueue();
+  late ToolExtentInvalidationPort _extentPort;
+  bool _toolExtentFlushScheduled = false;
+  bool _awaitingAttachFlush = false;
+  bool _attachFlushScheduled = false;
   final FocusNode _keyboardFocusNode = FocusNode(
     debugLabel: 'timeline-keyboard-scroll-region',
   );
@@ -351,15 +369,41 @@ class _MessageListViewState extends State<MessageListView> {
   @override
   void initState() {
     super.initState();
+    _extentPort =
+        widget.toolExtentPort ??
+        _ListControllerExtentPort(widget.listController);
     _refreshRenderModels();
+    _snapshotToolSignatures();
+    widget.streamingContentNotifier?.toolHeightEvents.addListener(
+      _handleToolHeightEvent,
+    );
   }
 
   @override
   void didUpdateWidget(covariant MessageListView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.toolExtentPort, widget.toolExtentPort) ||
+        !identical(oldWidget.listController, widget.listController)) {
+      _extentPort =
+          widget.toolExtentPort ??
+          _ListControllerExtentPort(widget.listController);
+    }
+    if (oldWidget.streamingContentNotifier != widget.streamingContentNotifier) {
+      oldWidget.streamingContentNotifier?.toolHeightEvents.removeListener(
+        _handleToolHeightEvent,
+      );
+      widget.streamingContentNotifier?.toolHeightEvents.addListener(
+        _handleToolHeightEvent,
+      );
+    }
+    if (!identical(oldWidget.listController, widget.listController)) {
+      _awaitingAttachFlush = _toolExtentQueue.hasPending;
+      _scheduleAttachAwareFlush();
+    }
     final oldRenderModels = _effectiveRenderModels;
     _refreshRenderModels();
     _synchronizeExtentCache(oldWidget, oldRenderModels);
+    _snapshotToolSignatures();
   }
 
   void _refreshRenderModels() {
@@ -375,6 +419,160 @@ class _MessageListViewState extends State<MessageListView> {
       for (var index = 0; index < _effectiveRenderModels.length; index++)
         _effectiveRenderModels[index].slotId: index + _headerOffset,
     };
+    _messageIndexById = <String, int>{
+      for (var index = 0; index < _effectiveRenderModels.length; index++)
+        _effectiveRenderModels[index].message.id: index + _headerOffset,
+    };
+  }
+
+  /// Number of timeline-visible tools, mirroring the renderer's builtin_search
+  /// exclusion.
+  ///
+  /// The estimate depends only on this count, so the signature that keys the
+  /// memo must be the count too: stream updates replace each [ToolUIPart] with
+  /// a new instance on every chunk, so object identity would churn the memo
+  /// and invalidate every tool-bearing message on every rebuild.
+  int _visibleToolCount(List<ToolUIPart>? parts) {
+    if (parts == null || parts.isEmpty) return 0;
+    var count = 0;
+    for (final part in parts) {
+      if (part.toolName == 'builtin_search') continue;
+      count++;
+    }
+    return count;
+  }
+
+  /// Stores per-message visible tool counts. Ids whose count changed since the
+  /// last rebuild carried an in-place mutation the list could not otherwise
+  /// see, so their extents are invalidated here (streaming emits the dedicated
+  /// event; this covers non-streaming rebuilds).
+  void _snapshotToolSignatures() {
+    final next = <String, int>{};
+    final changed = <String>[];
+    for (final model in _effectiveRenderModels) {
+      final id = model.message.id;
+      final count = _visibleToolCount(widget.toolParts[id]);
+      final previous = _lastToolSignatures[id];
+      next[id] = count;
+      if (previous != null && previous != count) changed.add(id);
+    }
+    _lastToolSignatures
+      ..clear()
+      ..addAll(next);
+    for (final id in changed) {
+      _invalidateToolExtentForMessage(id);
+    }
+  }
+
+  void _handleToolHeightEvent() {
+    final event = widget.streamingContentNotifier?.toolHeightEvents.value;
+    if (event == null) return;
+    _invalidateToolExtentForMessage(event.messageId);
+  }
+
+  /// Drops the estimate for [messageId] and schedules an extent invalidation
+  /// against the list controller. When the controller is not attached (cold
+  /// window load still in flight) or locked by layout, the invalidation is
+  /// queued and flushed when it becomes available — a dropped event would
+  /// leave the stale extent in place until the user scrolls.
+  void _invalidateToolExtentForMessage(String messageId) {
+    _extentEstimateCache.remove(messageId);
+    final port = _extentPort;
+    if (!port.isAttached) {
+      _toolExtentQueue.enqueue(messageId);
+      _awaitingAttachFlush = true;
+      _scheduleAttachAwareFlush();
+      return;
+    }
+    if (!port.isLocked) {
+      _applyToolExtentInvalidation(messageId);
+      return;
+    }
+    if (_toolExtentQueue.enqueue(messageId)) {
+      _scheduleToolExtentFlush();
+    }
+  }
+
+  void _scheduleAttachAwareFlush() {
+    if (_attachFlushScheduled) return;
+    if (!_awaitingAttachFlush && !_toolExtentQueue.hasPending) return;
+    _attachFlushScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _attachFlushScheduled = false;
+      if (!mounted) return;
+      if (!_extentPort.isAttached) {
+        // Cold window load still in flight: the controller attaches in a later
+        // frame. Retry while work is pending instead of stranding the queue.
+        if (_toolExtentQueue.hasPending) {
+          _scheduleAttachAwareFlush();
+        }
+        return;
+      }
+      _awaitingAttachFlush = false;
+      if (!_toolExtentQueue.hasPending) return;
+      _flushToolExtentIds();
+    });
+    // The chained post-frame callback only runs when a frame is scheduled;
+    // drive frames itself so a pending invalidation cannot stall silently while
+    // the controller is still detached or locked.
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
+  void _scheduleToolExtentFlush() {
+    if (_toolExtentFlushScheduled) return;
+    _toolExtentFlushScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _toolExtentFlushScheduled = false;
+      if (!mounted) return;
+      _flushToolExtentIds();
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
+  void _flushToolExtentIds() {
+    final result = _toolExtentQueue.takeForFlush(
+      isAttached: _extentPort.isAttached,
+      isLocked: _extentPort.isLocked,
+    );
+    for (final id in result.ids) {
+      _applyToolExtentInvalidation(id);
+    }
+    if (result.reschedule) {
+      _scheduleToolExtentFlush();
+    } else if (_toolExtentQueue.hasPending) {
+      // A new invalidation raced in while draining; hand it to the
+      // attach-aware path in case the controller detached again.
+      _awaitingAttachFlush = true;
+      _scheduleAttachAwareFlush();
+    }
+  }
+
+  void _applyToolExtentInvalidation(String messageId) {
+    final port = _extentPort;
+    if (!port.isAttached || port.isLocked) return;
+    final index = _messageIndexById[messageId];
+    if (index == null) return;
+    final visible = port.visibleRange;
+    final scrollController = widget.scrollController;
+    if (visible != null &&
+        index < visible.$1 &&
+        scrollController is scroll_ctrl.ChatAutoFollowScrollController) {
+      final request = scrollController
+          .requestPreserveDistanceFromEndDuringLayout();
+      if (request != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          scrollController.finishPreserveDistanceFromEndDuringLayout(request);
+        });
+      }
+    }
+    if (FlutterLogger.enabled) {
+      FlutterLogger.log(
+        'tool extent invalidated: message=$messageId index=$index '
+        'positionRequestActive=${scrollController is scroll_ctrl.ChatAutoFollowScrollController ? scrollController.hasActiveLayoutPositioningRequest : false}',
+        tag: 'TimelineExtent',
+      );
+    }
+    port.invalidateExtent(index);
   }
 
   /// Header row + action bar + vertical margins around a bubble.
@@ -464,7 +662,11 @@ class _MessageListViewState extends State<MessageListView> {
     final hasReasoning =
         (reasoning?.text.isNotEmpty ?? false) ||
         (reasoningSegments?.isNotEmpty ?? false);
-    if (text.isEmpty && !hasReasoning) return _estimateChrome;
+    final toolParts = message.role == 'assistant'
+        ? widget.toolParts[message.id]
+        : null;
+    final hasTools = toolParts != null && toolParts.isNotEmpty;
+    if (text.isEmpty && !hasReasoning && !hasTools) return _estimateChrome;
 
     // Layout asks for the same item repeatedly (every resize, every window
     // change), and the scan below is linear in the message length, so a memo
@@ -477,13 +679,15 @@ class _MessageListViewState extends State<MessageListView> {
       reasoning,
       reasoningSegments,
     );
+    final toolSignature = _visibleToolCount(toolParts);
     final cached = _extentEstimateCache[message.id];
     if (cached != null &&
         identical(cached.content, text) &&
         cached.crossAxisExtent == crossAxisExtent &&
         cached.fontScale == fontScale &&
         cached.settings == settings &&
-        cached.reasoningSignature == reasoningSignature) {
+        cached.reasoningSignature == reasoningSignature &&
+        cached.toolSignature == toolSignature) {
       return cached.extent;
     }
 
@@ -516,17 +720,19 @@ class _MessageListViewState extends State<MessageListView> {
     // column and stacks at a different row height than the body text.
     final codeFontSize = _estimateCodeFontSize * fontScale;
     final codeCharsPerLine = math.max(1.0, textWidth / (codeFontSize * 0.6));
+    // An empty body still reports one wrapped line; skip it so a tools-only
+    // assistant turn is chrome + cards, not chrome + a phantom text row.
+    final bodyLines = body.isEmpty
+        ? 0.0
+        : _wrappedLineCount(
+            body,
+            charsPerLine: charsPerLine,
+            codeCharsPerLine: settings.wrapCodeBlocks ? codeCharsPerLine : null,
+            codeLineRatio: codeFontSize / fontSize,
+            collapsedCodeLines: settings.collapsedCodeLines,
+          );
     final extent =
-        _wrappedLineCount(
-              body,
-              charsPerLine: charsPerLine,
-              codeCharsPerLine: settings.wrapCodeBlocks
-                  ? codeCharsPerLine
-                  : null,
-              codeLineRatio: codeFontSize / fontSize,
-              collapsedCodeLines: settings.collapsedCodeLines,
-            ) *
-            lineHeight +
+        bodyLines * lineHeight +
         _estimateChrome +
         collapsedCards * _estimateCollapsedCard +
         _estimateReasoningExtent(
@@ -534,7 +740,8 @@ class _MessageListViewState extends State<MessageListView> {
           reasoningSegments,
           textWidth: textWidth,
           fontScale: fontScale,
-        );
+        ) +
+        _estimateToolExtent(toolParts);
 
     if (_extentEstimateCache.length > _extentEstimateCacheLimit) {
       _extentEstimateCache.clear();
@@ -545,9 +752,20 @@ class _MessageListViewState extends State<MessageListView> {
       fontScale: fontScale,
       settings: settings,
       reasoningSignature: reasoningSignature,
+      toolSignature: toolSignature,
       extent: extent,
     );
     return extent;
+  }
+
+  /// Estimated height of the tool cards rendered in the timeline.
+  ///
+  /// Tool parts live outside [ChatMessage.content], so a content-only estimate
+  /// used to treat a tools-only assistant turn as [_estimateChrome]. Every
+  /// visible tool is one collapsed step — a header row — which is the same
+  /// height constant as a collapsed thinking card.
+  double _estimateToolExtent(List<ToolUIPart>? parts) {
+    return _visibleToolCount(parts) * _estimateCollapsedCard;
   }
 
   /// Estimated height of the reasoning card(s) rendered above the answer.
@@ -1118,6 +1336,9 @@ class _MessageListViewState extends State<MessageListView> {
     _scrollIdleTimer?.cancel();
     _deferStreamingMessageUpdates.dispose();
     _keyboardFocusNode.dispose();
+    widget.streamingContentNotifier?.toolHeightEvents.removeListener(
+      _handleToolHeightEvent,
+    );
     super.dispose();
   }
 
@@ -1991,6 +2212,25 @@ class _MessageListViewState extends State<MessageListView> {
   }
 }
 
+/// Production view of the list controller behind [ToolExtentInvalidationPort].
+class _ListControllerExtentPort implements ToolExtentInvalidationPort {
+  _ListControllerExtentPort(this._controller);
+
+  final ListController _controller;
+
+  @override
+  bool get isAttached => _controller.isAttached;
+
+  @override
+  bool get isLocked => _controller.isLocked;
+
+  @override
+  (int, int)? get visibleRange => _controller.visibleRange;
+
+  @override
+  void invalidateExtent(int index) => _controller.invalidateExtent(index);
+}
+
 /// Display settings that change how tall a message renders.
 final class _EstimateSettings {
   const _EstimateSettings({
@@ -2028,6 +2268,7 @@ final class _ExtentEstimate {
     required this.fontScale,
     required this.settings,
     required this.reasoningSignature,
+    required this.toolSignature,
     required this.extent,
   });
 
@@ -2036,6 +2277,7 @@ final class _ExtentEstimate {
   final double fontScale;
   final _EstimateSettings settings;
   final int reasoningSignature;
+  final int toolSignature;
   final double extent;
 }
 

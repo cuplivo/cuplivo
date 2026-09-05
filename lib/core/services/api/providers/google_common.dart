@@ -202,6 +202,22 @@ Map<String, dynamic>? _googleFunctionCallPartFromToolCall(Map toolCall) {
   return part;
 }
 
+/// The thought signatures a history message carries: the stored payload under
+/// [multimodalInternalGeminiThoughtSignatureKey], or — for messages saved
+/// before the payload existed — the comment still embedded in its text.
+GeminiSignatureMeta _geminiHistoryMeta(Map<String, dynamic> msg) {
+  final fromText = extractGeminiThoughtMeta((msg['content'] ?? '').toString());
+  return decodeGeminiThoughtSignature(
+        msg[multimodalInternalGeminiThoughtSignatureKey],
+        cleanedText: fromText.cleanedText,
+      ) ??
+      fromText;
+}
+
+/// A history message's text without any legacy signature comment.
+String _geminiHistoryText(Map<String, dynamic> msg) =>
+    extractGeminiThoughtMeta((msg['content'] ?? '').toString()).cleanedText;
+
 /// Gemini 3 validates that the first functionCall part of a replayed model
 /// turn carries a thought signature; a missing one fails the whole request
 /// with "Function call is missing a thought_signature in functionCall parts".
@@ -385,9 +401,7 @@ Stream<ChatStreamChunk> _sendGoogleStream(
       final role = roleRaw == 'assistant' ? 'model' : 'user';
       if (roleRaw == 'assistant' && msg['tool_calls'] is List) {
         final parts = <Map<String, dynamic>>[];
-        final raw = _extractGeminiThoughtMeta(
-          (msg['content'] ?? '').toString(),
-        ).cleanedText;
+        final raw = _geminiHistoryText(msg);
         if (raw.trim().isNotEmpty && raw.trim() != '\n\n') {
           parts.add({'text': raw});
         }
@@ -404,7 +418,7 @@ Stream<ChatStreamChunk> _sendGoogleStream(
       }
       final isLast = i == messages.length - 1;
       final parts = <Map<String, dynamic>>[];
-      final meta = _extractGeminiThoughtMeta((msg['content'] ?? '').toString());
+      final meta = _geminiHistoryMeta(msg);
       final raw = meta.cleanedText;
       final seenSources = <String>{};
       String normalizeSrc(String src) {
@@ -779,7 +793,9 @@ Stream<ChatStreamChunk> _sendGoogleStream(
       }
       var contentStr = buf.toString();
       if (persistGeminiThoughtSigs) {
-        final metaComment = _collectThoughtSigCommentFromParts(parts);
+        final metaComment = _wrapGeminiThoughtSigComment(
+          collectGeminiThoughtSignatureFromParts(parts),
+        );
         if (metaComment.isNotEmpty) contentStr += metaComment;
       }
       final fr = (cand['finishReason'] ?? cand['finish_reason'] ?? '')
@@ -853,7 +869,7 @@ Stream<ChatStreamChunk> _sendGoogleStream(
     final role = roleRaw == 'assistant' ? 'model' : 'user';
     if (roleRaw == 'assistant' && msg['tool_calls'] is List) {
       final parts = <Map<String, dynamic>>[];
-      final raw = (msg['content'] ?? '').toString();
+      final raw = _geminiHistoryText(msg);
       if (raw.trim().isNotEmpty && raw.trim() != '\n\n') {
         parts.add({'text': raw});
       }
@@ -868,7 +884,7 @@ Stream<ChatStreamChunk> _sendGoogleStream(
     }
     final isLast = i == messages.length - 1;
     final parts = <Map<String, dynamic>>[];
-    final meta = _extractGeminiThoughtMeta((msg['content'] ?? '').toString());
+    final meta = _geminiHistoryMeta(msg);
     final raw = meta.cleanedText;
     final seenSources = <String>{};
     String normalizeSrc(String src) {
@@ -1267,21 +1283,28 @@ Stream<ChatStreamChunk> _sendGoogleStream(
                 final t = (p['text'] ?? '') as String? ?? '';
                 final thought = p['thought'] as bool? ?? false;
                 final fc = p['functionCall'];
+                final inline = (p['inlineData'] ?? p['inline_data']);
+                final hasFile = p['fileData'] is Map || p['file_data'] is Map;
                 final rawPart = Map<String, dynamic>.from(p);
 
                 if (isGemini3 && !thought && rawPart.isNotEmpty) {
                   roundModelParts.add(rawPart);
                 }
 
-                // Capture thought signature for text part (Gemini 3 image/editing)
+                // Capture thought signature for text parts (Gemini 3 hangs the
+                // turn's signature on a trailing part whose text may be empty,
+                // so the text guard must not require a body). One text
+                // signature is kept per turn — the first.
                 if (persistGeminiThoughtSigs &&
                     !thought &&
+                    fc == null &&
+                    inline is! Map &&
+                    !hasFile &&
                     partThoughtSigKey != null &&
-                    partThoughtSigVal != null) {
-                  if (t.isNotEmpty && responseTextThoughtSigKey == null) {
-                    responseTextThoughtSigKey = partThoughtSigKey;
-                    responseTextThoughtSigVal = partThoughtSigVal;
-                  }
+                    partThoughtSigVal != null &&
+                    responseTextThoughtSigKey == null) {
+                  responseTextThoughtSigKey = partThoughtSigKey;
+                  responseTextThoughtSigVal = partThoughtSigVal;
                 }
 
                 if (t.isNotEmpty) {
@@ -1295,7 +1318,6 @@ Stream<ChatStreamChunk> _sendGoogleStream(
                 }
                 // Parse inline image data from Gemini (inlineData)
                 // Response shape: { inlineData: { mimeType: 'image/png', data: '...base64...' } }
-                final inline = (p['inlineData'] ?? p['inline_data']);
                 if (inline is Map) {
                   final mime =
                       (inline['mimeType'] ?? inline['mime_type'] ?? 'image/png')
@@ -1590,10 +1612,12 @@ Stream<ChatStreamChunk> _sendGoogleStream(
                 );
               }
               if (persistGeminiThoughtSigs) {
-                final metaComment = _buildGeminiThoughtSigComment(
-                  textKey: responseTextThoughtSigKey,
-                  textValue: responseTextThoughtSigVal,
-                  imageSigs: responseImageThoughtSigs,
+                final metaComment = _wrapGeminiThoughtSigComment(
+                  encodeGeminiThoughtSignature(
+                    textKey: responseTextThoughtSigKey,
+                    textValue: responseTextThoughtSigVal,
+                    imageSigs: responseImageThoughtSigs,
+                  ),
                 );
                 if (metaComment.isNotEmpty) {
                   yield ChatStreamChunk(
@@ -1638,10 +1662,12 @@ Stream<ChatStreamChunk> _sendGoogleStream(
     if (calls.isEmpty) {
       // No tool calls; this round finished
       if (persistGeminiThoughtSigs) {
-        final metaComment = _buildGeminiThoughtSigComment(
-          textKey: responseTextThoughtSigKey,
-          textValue: responseTextThoughtSigVal,
-          imageSigs: responseImageThoughtSigs,
+        final metaComment = _wrapGeminiThoughtSigComment(
+          encodeGeminiThoughtSignature(
+            textKey: responseTextThoughtSigKey,
+            textValue: responseTextThoughtSigVal,
+            imageSigs: responseImageThoughtSigs,
+          ),
         );
         if (metaComment.isNotEmpty) {
           yield ChatStreamChunk(

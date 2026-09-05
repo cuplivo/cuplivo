@@ -5,8 +5,10 @@ import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/workspace.dart';
+import 'package:Cuplivo/core/services/api/providers/gemini_thought_signature.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/workspace/workspace_execution_context.dart';
+import 'package:Cuplivo/core/utils/multimodal_input_utils.dart';
 import 'package:Cuplivo/features/home/services/message_builder_service.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 
@@ -320,6 +322,77 @@ void main() {
       // carry it.
       expect(assistantToolMessage.containsKey('reasoning_details'), isFalse);
       expect(finalAssistantMessage['reasoning_details'], reasoningDetails);
+    });
+
+    test('Gemini 签名经内部 key 只挂最终 assistant 消息', () {
+      final payload = encodeGeminiThoughtSignature(
+        textKey: 'thoughtSignature',
+        textValue: 'sig-stored',
+      );
+      final service = MessageBuilderService(
+        preferences: businessPrefs,
+        chatService: _FakeChatService({
+          'a1': [
+            {
+              'id': 'call_1',
+              'name': 'get_weather',
+              'arguments': {'location': 'Hangzhou'},
+              'content': 'Cloudy 7~13°C',
+            },
+          ],
+        }),
+        contextProvider: _FakeBuildContext(),
+        geminiThoughtSignatureProvider: (message) =>
+            message.id == 'a1' ? payload : null,
+      );
+
+      final apiMessages = service.buildApiMessages(
+        messages: [
+          _message(id: 'u1', role: 'user', content: '杭州明天天气怎么样？'),
+          _message(id: 'a1', role: 'assistant', content: '明天多云，7 到 13 度。'),
+          _message(id: 'a2', role: 'assistant', content: '好的，随时再问。'),
+        ],
+        versionSelections: const {},
+        currentConversation: Conversation(title: 'test'),
+        includeToolMessages: true,
+      );
+
+      final signedMessage = apiMessages.firstWhere(
+        (message) => message['content'] == '明天多云，7 到 13 度。',
+      );
+      final toolCallStub = apiMessages.firstWhere(
+        (message) =>
+            message['role'] == 'assistant' && message['tool_calls'] is List,
+      );
+      final unsignedMessage = apiMessages.firstWhere(
+        (message) => message['content'] == '好的，随时再问。',
+      );
+      final userMessage = apiMessages.firstWhere(
+        (message) => message['role'] == 'user',
+      );
+
+      expect(
+        signedMessage[multimodalInternalGeminiThoughtSignatureKey],
+        payload,
+      );
+      expect(
+        signedMessage[multimodalInternalGeminiThoughtSignatureKey],
+        isNot(contains('<!--')),
+      );
+      expect(
+        toolCallStub.containsKey(multimodalInternalGeminiThoughtSignatureKey),
+        isFalse,
+      );
+      expect(
+        unsignedMessage.containsKey(
+          multimodalInternalGeminiThoughtSignatureKey,
+        ),
+        isFalse,
+      );
+      expect(
+        userMessage.containsKey(multimodalInternalGeminiThoughtSignatureKey),
+        isFalse,
+      );
     });
 
     test('恢复工具回答续写时只发送 tool call 和 tool result', () {

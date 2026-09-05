@@ -23,6 +23,7 @@ import '../../../utils/markdown_code_scanner.dart';
 import '../../../utils/unicode_sanitizer.dart';
 import 'builtin_tools.dart';
 import 'gemini_tool_config.dart';
+import 'providers/gemini_thought_signature.dart';
 import '../logging/flutter_logger.dart';
 import '../model_override_resolver.dart';
 import '../model_override_payload_parser.dart';
@@ -1581,23 +1582,6 @@ class _ParsedTextAndImages {
   final String text;
   final List<_ImageRef> images;
   const _ParsedTextAndImages(this.text, this.images);
-}
-
-class _GeminiSignatureMeta {
-  final String cleanedText;
-  final String? textKey;
-  final dynamic textValue;
-  final List<Map<String, dynamic>> images;
-  const _GeminiSignatureMeta({
-    required this.cleanedText,
-    this.textKey,
-    this.textValue,
-    this.images = const <Map<String, dynamic>>[],
-  });
-
-  bool get hasText => (textKey ?? '').isNotEmpty && textValue != null;
-  bool get hasImages => images.isNotEmpty;
-  bool get hasAny => hasText || hasImages;
 }
 
 class _ResponsesImageGenerationResult {

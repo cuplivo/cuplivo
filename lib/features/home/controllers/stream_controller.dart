@@ -5,6 +5,7 @@ import '../../../core/models/chat_message.dart';
 import '../../../core/models/reasoning_payload.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
+import '../../../core/services/api/providers/gemini_thought_signature.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/generation_engine.dart';
 import '../../../core/services/streaming_content_notifier.dart';
@@ -265,16 +266,30 @@ class StreamController {
   // Gemini Thought Signature Handling
   // ============================================================================
 
-  /// Capture and strip Gemini thought signature from content.
+  /// Capture and strip Gemini thought signature from content; persists the
+  /// normalized payload (bare JSON) so follow-up API calls in the conversation
+  /// can echo it without leaking the comment into message text.
   String captureGeminiThoughtSignature(String content, String messageId) {
     if (content.isEmpty) return content;
     final m = _geminiThoughtSigRe.firstMatch(content);
     if (m != null) {
       final sig = m.group(0) ?? '';
       if (sig.isNotEmpty) {
-        if (_geminiThoughtSigs[messageId] != sig) {
-          _geminiThoughtSigs[messageId] = sig;
-          unawaited(_chatService.setGeminiThoughtSignature(messageId, sig));
+        final meta = decodeGeminiThoughtSignature(sig, cleanedText: '');
+        final payload = meta == null
+            ? ''
+            : encodeGeminiThoughtSignature(
+                textKey: meta.textKey,
+                textValue: meta.textValue,
+                imageSigs: meta.images,
+              );
+        if (payload.isNotEmpty) {
+          if (_geminiThoughtSigs[messageId] != payload) {
+            _geminiThoughtSigs[messageId] = payload;
+            unawaited(
+              _chatService.setGeminiThoughtSignature(messageId, payload),
+            );
+          }
         }
       }
       content = content.replaceAll(_geminiThoughtSigRe, '').trimRight();
@@ -282,20 +297,14 @@ class StreamController {
     return content;
   }
 
-  /// Append Gemini thought signature for API calls (when sending history).
-  String appendGeminiThoughtSignatureForApi(
-    ChatMessage message,
-    String content,
-  ) {
-    String? sig = _geminiThoughtSigs[message.id];
-    sig ??= _chatService.getGeminiThoughtSignature(message.id);
-    if (sig != null &&
-        sig.isNotEmpty &&
-        !content.contains('gemini_thought_signatures:')) {
-      if (content.isEmpty) return sig;
-      return '$content\n$sig';
-    }
-    return content;
+  /// The Gemini thought signature payload for [message], or null. Reads the
+  /// in-memory capture first, then the persisted row. Legacy comment shells
+  /// are decoded at the Google history builder, so both formats are
+  /// faithfully returned as-is.
+  String? geminiThoughtSignatureForApi(ChatMessage message) {
+    final sig = _geminiThoughtSigs[message.id];
+    if (sig != null && sig.isNotEmpty) return sig;
+    return _chatService.getGeminiThoughtSignature(message.id);
   }
 
   /// Clear Gemini thought signatures map.

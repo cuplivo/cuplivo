@@ -56,7 +56,7 @@ class MessageBuilderService {
     required this.contextProvider,
     required BusinessPreferences preferences,
     this.ocrHandler,
-    this.geminiThoughtSignatureHandler,
+    this.geminiThoughtSignatureProvider,
   }) : _worldBookStore = WorldBookStore.shared(preferences),
        _instructionInjectionStore = InstructionInjectionStore.shared(
          preferences,
@@ -73,9 +73,10 @@ class MessageBuilderService {
   /// OCR text wrapper function
   String Function(String ocrText)? ocrTextWrapper;
 
-  /// Handler to append Gemini thought signatures for API calls
-  final String Function(ChatMessage message, String content)?
-  geminiThoughtSignatureHandler;
+  /// Handler to provide the Gemini thought signature payload (artifact JSON or
+  /// legacy comment shell) for API calls; carried under an internal key so the
+  /// message text stays clean for every provider.
+  final String? Function(ChatMessage message)? geminiThoughtSignatureProvider;
 
   final WorldBookStore _worldBookStore;
   final InstructionInjectionStore _instructionInjectionStore;
@@ -230,9 +231,6 @@ class MessageBuilderService {
       }
 
       var content = m.content;
-      if (m.role == 'assistant' && geminiThoughtSignatureHandler != null) {
-        content = geminiThoughtSignatureHandler!(m, content);
-      }
       if (content.isEmpty) continue;
       final isUser = m.role != 'assistant';
       if (isUser && content.trim().isNotEmpty) {
@@ -248,6 +246,12 @@ class MessageBuilderService {
         'role': isUser ? 'user' : 'assistant',
         'content': content,
       };
+      if (!isUser && geminiThoughtSignatureProvider != null) {
+        final payload = geminiThoughtSignatureProvider!(m);
+        if (payload != null && payload.trim().isNotEmpty) {
+          message[multimodalInternalGeminiThoughtSignatureKey] = payload;
+        }
+      }
       if (isUser) {
         message[_isPresetKey] = m.isPreset;
         message[_timestampKey] = m.timestamp.toIso8601String();

@@ -1061,6 +1061,33 @@ class LinuxSandboxService {
     'aliyun': 'https://mirrors.aliyun.com/alpine',
   };
 
+  /// Official Alpine repository base (what the bundled fakefs ships,
+  /// `tools/ios_rootfs/prepare_alpine_fakefs.py`).
+  static const String apkOfficialBaseUrl =
+      'https://dl-cdn.alpinelinux.org/alpine';
+
+  /// Resolve the Alpine repository base URL a per-dependency install must
+  /// use for [pref]. Named sources map to [apkMirrorBaseUrls], a non-empty
+  /// custom URL is sanitized and used as-is, and every other mode ('auto',
+  /// 'official', unknown or empty custom) resolves to [apkOfficialBaseUrl] so
+  /// a previous dependency's mirror is never left active for the next one; a
+  /// malformed custom URL throws instead of silently falling back. Exposed
+  /// for tests.
+  static String resolveApkMirrorFor(DependencyInstallPref pref) {
+    final named = apkMirrorBaseUrls[pref.sourceId.trim()];
+    if (named != null) return named;
+    if (pref.sourceId == 'custom' &&
+        pref.customUrl != null &&
+        pref.customUrl!.trim().isNotEmpty) {
+      final mirror = _sanitizeMirrorUrl(pref.customUrl!.trim());
+      if (mirror == null) {
+        throw StateError('Invalid custom mirror URL');
+      }
+      return mirror;
+    }
+    return apkOfficialBaseUrl;
+  }
+
   /// apk mirror setup: rewrite /etc/apk/repositories for the bundled
   /// Alpine version. [mirrorUrl] must be the repository base (e.g.
   /// `https://mirrors.aliyun.com/alpine`).
@@ -1088,17 +1115,42 @@ class LinuxSandboxService {
     },
   };
 
+  /// Official Ubuntu repository base+security URLs by sandbox ABI, matching
+  /// what the corresponding ubuntu-base tarball ships (verified against
+  /// ubuntu-base-24.04.3): armhf/arm64 use `ports.ubuntu.com` for all suites,
+  /// amd64 splits security onto `security.ubuntu.com`.
+  static const Map<String, ({String base, String security})>
+  aptOfficialBaseUrls = {
+    'arm64-v8a': (
+      base: 'http://ports.ubuntu.com/ubuntu-ports',
+      security: 'http://ports.ubuntu.com/ubuntu-ports',
+    ),
+    'armeabi-v7a': (
+      base: 'http://ports.ubuntu.com/ubuntu-ports',
+      security: 'http://ports.ubuntu.com/ubuntu-ports',
+    ),
+    'x86_64': (
+      base: 'http://archive.ubuntu.com/ubuntu',
+      security: 'http://security.ubuntu.com/ubuntu',
+    ),
+  };
+
   /// Android apt mirror setup: rewrite the deb822 sources file the Ubuntu
   /// base rootfs ships (`/etc/apt/sources.list.d/ubuntu.sources`) with
   /// [mirrorUrl] as the sole repository, and drop the legacy one-line
   /// `/etc/apt/sources.list` (noble only carries a comment stub there, but a
   /// leftover one-line file would add the default mirror back as a second
   /// source). All four suites and the full component set are kept so the
-  /// mirrored archive behaves like the default sources. [mirrorUrl] must be
-  /// the repository base (e.g. `https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports`)
-  /// and must have been passed through [_sanitizeMirrorUrl].
-  static String aptMirrorSetup(String mirrorUrl) {
+  /// mirrored archive behaves like the default sources. [securityMirrorUrl]
+  /// defaults to [mirrorUrl] (mirrors serve every suite from one base); the
+  /// amd64 official setup passes a distinct security URL. The whole block is
+  /// run under `set -e` so a failed rewrite aborts `apt-get update` instead
+  /// of updating the package lists from stale or merged sources. [mirrorUrl]
+  /// must have been passed through [_sanitizeMirrorUrl].
+  static String aptMirrorSetup(String mirrorUrl, {String? securityMirrorUrl}) {
+    final security = securityMirrorUrl ?? mirrorUrl;
     final buffer = StringBuffer()
+      ..writeln('set -e')
       ..writeln("cat > /etc/apt/sources.list.d/ubuntu.sources <<'EOF'")
       ..writeln('Types: deb')
       ..writeln('URIs: $mirrorUrl/')
@@ -1107,7 +1159,7 @@ class LinuxSandboxService {
       ..writeln('Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg')
       ..writeln()
       ..writeln('Types: deb')
-      ..writeln('URIs: $mirrorUrl/')
+      ..writeln('URIs: $security/')
       ..writeln('Suites: noble-security')
       ..writeln('Components: main universe restricted multiverse')
       ..writeln('Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg')
@@ -1116,19 +1168,20 @@ class LinuxSandboxService {
     return buffer.toString();
   }
 
-  /// Resolve the Android apt repository base URL a per-dependency install
-  /// should use for [pref] on [abi]. Returns null for 'auto'/'official'
-  /// (keep the rebuilt sources from the rootfs) and for unknown named
-  /// sources; named sources fall back to the ABI mirror map, a non-empty
-  /// custom URL is sanitized and used as-is, and a malformed custom URL
-  /// throws so the user sees the misconfiguration instead of a silent
-  /// slow-and-failing update. Exposed for tests.
-  static String? resolveAptMirrorFor({
+  /// Resolve the Android apt repository URLs a per-dependency install must
+  /// use for [pref] on [abi]. Named sources map per ABI, a non-empty custom
+  /// URL is sanitized and used for all suites, and every other mode
+  /// ('auto', 'official', unknown or empty custom) resolves to the
+  /// ABI-appropriate official archive so a previous dependency's mirror is
+  /// never left active for the next one; a malformed custom URL throws so
+  /// the user sees the misconfiguration instead of a silent slow-and-failing
+  /// update. Exposed for tests.
+  static ({String base, String security}) resolveAptMirrorFor({
     required String abi,
     required DependencyInstallPref pref,
   }) {
     final named = aptMirrorBaseUrls[abi]?[pref.sourceId.trim()];
-    if (named != null) return named;
+    if (named != null) return (base: named, security: named);
     if (pref.sourceId == 'custom' &&
         pref.customUrl != null &&
         pref.customUrl!.trim().isNotEmpty) {
@@ -1136,9 +1189,9 @@ class LinuxSandboxService {
       if (mirror == null) {
         throw StateError('Invalid custom mirror URL');
       }
-      return mirror;
+      return (base: mirror, security: mirror);
     }
-    return null;
+    return aptOfficialBaseUrls[abi] ?? aptOfficialBaseUrls['arm64-v8a']!;
   }
 
   static String packageNamesForDependency(
@@ -1194,32 +1247,23 @@ class LinuxSandboxService {
     onProgress?.call(const SandboxInstallProgress(stage: 'installing'));
     final ios = Platform.isIOS;
     final packages = packageNamesForDependency(depId, ios: ios);
-    var mirrorSetup = '';
+    String mirrorSetup;
     if (ios) {
-      if (pref.sourceId == 'custom' &&
-          pref.customUrl != null &&
-          pref.customUrl!.trim().isNotEmpty) {
-        final url = _sanitizeMirrorUrl(pref.customUrl!.trim());
-        if (url == null) {
-          throw StateError('Invalid custom mirror URL');
-        }
-        mirrorSetup = apkMirrorSetup(url);
-      } else {
-        final named = apkMirrorBaseUrls[pref.sourceId.trim()];
-        if (named != null) {
-          mirrorSetup = apkMirrorSetup(named);
-        }
-      }
+      // Deterministic per-install repositories: a named or custom mirror of
+      // a previous dependency must never stay active for this one, so every
+      // mode (including 'official') rewrites /etc/apk/repositories.
+      mirrorSetup = apkMirrorSetup(resolveApkMirrorFor(pref));
     } else {
-      // Android: a stored named source must actually rewrite the apt
-      // sources, or apt keeps fetching the ports.ubuntu.com default shipped
-      // in the rootfs deb822 file and the whole `apt-get update` stalls on
-      // slow paths then fails the step timeout (issue #531).
+      // Android: every mode must deterministically establish the intended
+      // apt sources — or apt keeps the mirror the previous dependency left
+      // in the workspace-global deb822 file and `apt-get update` stalls on
+      // a stale/slow path then fails the step timeout (issue #531).
       final abi = await detectAbi();
       final mirror = resolveAptMirrorFor(abi: abi, pref: pref);
-      if (mirror != null) {
-        mirrorSetup = aptMirrorSetup(mirror);
-      }
+      mirrorSetup = aptMirrorSetup(
+        mirror.base,
+        securityMirrorUrl: mirror.security,
+      );
     }
     final steps = ios
         ? buildApkInstallSteps(

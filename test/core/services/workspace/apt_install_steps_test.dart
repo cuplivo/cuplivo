@@ -139,7 +139,6 @@ void main() {
       expect(steps[2].timeoutSeconds, 1800);
     });
   });
-
   group('LinuxSandboxService.aptMirrorSetup', () {
     const tuna = 'https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports';
 
@@ -164,6 +163,26 @@ void main() {
       // The legacy one-line file must go, or apt merges the default archive
       // back in alongside the configured mirror.
       expect(setup, contains('rm -f /etc/apt/sources.list'));
+    });
+
+    test('runs fail-fast under set -e', () {
+      final setup = LinuxSandboxService.aptMirrorSetup(tuna);
+      expect(setup, startsWith('set -e\n'));
+      // A failed rewrite must abort the chained apt-get update instead of
+      // refreshing package lists from stale or merged sources.
+      expect(
+        setup,
+        startsWith('set -e\ncat > /etc/apt/sources.list.d/ubuntu.sources'),
+      );
+    });
+
+    test('splits the security suite onto its own mirror URL when provided', () {
+      final setup = LinuxSandboxService.aptMirrorSetup(
+        'http://archive.ubuntu.com/ubuntu',
+        securityMirrorUrl: 'http://security.ubuntu.com/ubuntu',
+      );
+      expect(setup, contains('URIs: http://archive.ubuntu.com/ubuntu/'));
+      expect(setup, contains('URIs: http://security.ubuntu.com/ubuntu/'));
     });
 
     test('composes with the update command on a new line', () {
@@ -203,36 +222,61 @@ void main() {
           abi: 'armeabi-v7a',
           pref: const DependencyInstallPref(sourceId: 'tuna'),
         ),
-        'https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports',
+        (
+          base: 'https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports',
+          security: 'https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports',
+        ),
       );
       expect(
         LinuxSandboxService.resolveAptMirrorFor(
           abi: 'x86_64',
           pref: const DependencyInstallPref(sourceId: 'aliyun'),
         ),
-        'https://mirrors.aliyun.com/ubuntu',
+        (
+          base: 'https://mirrors.aliyun.com/ubuntu',
+          security: 'https://mirrors.aliyun.com/ubuntu',
+        ),
       );
     });
 
-    test('auto and official keep the rootfs default sources', () {
+    test('auto and official restore the ABI official archive', () {
       for (final source in ['auto', 'official']) {
         expect(
           LinuxSandboxService.resolveAptMirrorFor(
             abi: 'arm64-v8a',
             pref: DependencyInstallPref(sourceId: source),
           ),
-          isNull,
+          (
+            base: 'http://ports.ubuntu.com/ubuntu-ports',
+            security: 'http://ports.ubuntu.com/ubuntu-ports',
+          ),
         );
       }
     });
 
-    test('unknown named sources fall back to the default sources', () {
+    test('amd64 official splits the security suite', () {
+      expect(
+        LinuxSandboxService.resolveAptMirrorFor(
+          abi: 'x86_64',
+          pref: const DependencyInstallPref(sourceId: 'official'),
+        ),
+        (
+          base: 'http://archive.ubuntu.com/ubuntu',
+          security: 'http://security.ubuntu.com/ubuntu',
+        ),
+      );
+    });
+
+    test('unknown named sources restore the official archive', () {
       expect(
         LinuxSandboxService.resolveAptMirrorFor(
           abi: 'arm64-v8a',
           pref: const DependencyInstallPref(sourceId: 'somebody'),
         ),
-        isNull,
+        (
+          base: 'http://ports.ubuntu.com/ubuntu-ports',
+          security: 'http://ports.ubuntu.com/ubuntu-ports',
+        ),
       );
     });
 
@@ -245,11 +289,38 @@ void main() {
             customUrl: 'https://mirror.example/ubuntu-ports',
           ),
         ),
-        'https://mirror.example/ubuntu-ports',
+        (
+          base: 'https://mirror.example/ubuntu-ports',
+          security: 'https://mirror.example/ubuntu-ports',
+        ),
       );
     });
 
-    test('malformed custom URL throws instead of silently using defaults', () {
+    test(
+      'a mirror set by one dependency never leaks into the next install',
+      () {
+        // Sequence regression (issue #531 review): dependency 1 picks TUNA,
+        // dependency 2 picks Official — the generated sources must restore
+        // ports.ubuntu.com, not keep the TUNA rewrite the first install left
+        // in the workspace-global deb822 file.
+        final first = LinuxSandboxService.resolveAptMirrorFor(
+          abi: 'armeabi-v7a',
+          pref: const DependencyInstallPref(sourceId: 'tuna'),
+        );
+        final second = LinuxSandboxService.resolveAptMirrorFor(
+          abi: 'armeabi-v7a',
+          pref: const DependencyInstallPref(sourceId: 'official'),
+        );
+        expect(first.base, contains('tuna'));
+        expect(second.base, 'http://ports.ubuntu.com/ubuntu-ports');
+        expect(
+          LinuxSandboxService.aptMirrorSetup(second.base),
+          contains('URIs: http://ports.ubuntu.com/ubuntu-ports/'),
+        );
+      },
+    );
+
+    test('malformed custom URL throws instead of silently falling back', () {
       expect(
         () => LinuxSandboxService.resolveAptMirrorFor(
           abi: 'arm64-v8a',
@@ -262,13 +333,16 @@ void main() {
       );
     });
 
-    test('empty custom URL behaves like no mirror', () {
+    test('empty custom URL restores the official archive', () {
       expect(
         LinuxSandboxService.resolveAptMirrorFor(
           abi: 'arm64-v8a',
           pref: const DependencyInstallPref(sourceId: 'custom'),
         ),
-        isNull,
+        (
+          base: 'http://ports.ubuntu.com/ubuntu-ports',
+          security: 'http://ports.ubuntu.com/ubuntu-ports',
+        ),
       );
     });
   });

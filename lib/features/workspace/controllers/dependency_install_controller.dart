@@ -27,17 +27,37 @@ typedef DependencyInstallRunner =
       void Function(SandboxInstallProgress)? onProgress,
     });
 
+/// Keep-screen-on switch for one workspace queue, injectable so tests can
+/// record holds without platform channels. [hold] true = acquire, false =
+/// release (ref-counted in the service, so multiple concurrent holders —
+/// other workspace queues and the terminal session — compose).
+typedef KeepScreenOnSwitch = Future<void> Function(bool hold);
+
 /// Serialized per-workspace dependency install queue.
 ///
 /// Users may tap "Install" on several dependencies in a row; each workspace
 /// runs at most one `apt-get` at a time (apt/dpkg are not concurrency-safe
 /// inside one rootfs), and the rest wait in order. Cross-workspace installs
 /// are independent (each workspace owns its own rootfs).
+///
+/// The queue itself owns the keep-screen-on hold (acquired when a workspace
+/// starts pumping, released when its queue drains — success or failure), so
+/// a long install keeps the screen on even after the observing detail page
+/// is gone, which aggressive One UI app freezing would otherwise stall
+/// mid-transaction.
 class DependencyInstallController extends ChangeNotifier {
-  DependencyInstallController({DependencyInstallRunner? installer})
-    : _runner = installer ?? LinuxSandboxService.instance.installPackage;
+  DependencyInstallController({
+    DependencyInstallRunner? installer,
+    KeepScreenOnSwitch? keepScreenOn,
+  }) : _runner = installer ?? LinuxSandboxService.instance.installPackage,
+       _keepScreenOn = keepScreenOn ?? _serviceKeepScreenOn;
+
+  static Future<void> _serviceKeepScreenOn(bool hold) => hold
+      ? LinuxSandboxService.instance.acquireKeepScreenOn()
+      : LinuxSandboxService.instance.releaseKeepScreenOn();
 
   final DependencyInstallRunner _runner;
+  final KeepScreenOnSwitch _keepScreenOn;
 
   final Map<String, List<_DepEntry>> _queues = <String, List<_DepEntry>>{};
   final Set<String> _running = <String>{};
@@ -95,6 +115,15 @@ class DependencyInstallController extends ChangeNotifier {
   Future<void> _pump(String workspaceId) async {
     if (!_running.add(workspaceId)) return;
     try {
+      try {
+        await _keepScreenOn(true);
+      } catch (e) {
+        // The hold failing must not abort installs: the queue can still
+        // work, it just stops keeping the screen up.
+        debugPrint(
+          'DependencyInstallController: keep-screen-on acquire failed: $e',
+        );
+      }
       final queue = _queues[workspaceId];
       while (queue != null && queue.isNotEmpty) {
         final entry = queue.removeAt(0);
@@ -131,11 +160,17 @@ class DependencyInstallController extends ChangeNotifier {
         }
       }
     } finally {
+      try {
+        await _keepScreenOn(false);
+      } catch (e) {
+        debugPrint(
+          'DependencyInstallController: keep-screen-on release failed: $e',
+        );
+      }
       _running.remove(workspaceId);
       // The queue list is empty here (loop drained it); drop it so the
       // controller does not accumulate per-workspace entries over the app
-      // lifetime. The next enqueue recreates it via putIfAbsent. No awaits
-      // below this point, so no enqueue can interleave.
+      // lifetime. The next enqueue recreates it via putIfAbsent.
       _queues.remove(workspaceId);
     }
   }

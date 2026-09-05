@@ -2,6 +2,7 @@ package com.cup11.cuplivo
 
 import android.app.Activity
 import android.content.Context
+import android.net.ConnectivityManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -171,6 +172,24 @@ class LinuxSandboxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activ
         }
         val linuxDir = File(workspace, ".sandbox/linux")
         result.success(rootfsHasCompatibleShell(linuxDir, currentSandboxAbi()))
+      }
+      "refreshDns" -> {
+        val workspace = call.argument<String>("workspacePath")
+        if (workspace.isNullOrBlank()) {
+          result.error("bad_args", "workspacePath required", null)
+          return
+        }
+        val linuxDir = File(workspace, ".sandbox/linux")
+        if (!linuxDir.isDirectory) {
+          result.success(false)
+          return
+        }
+        try {
+          patchDns(linuxDir, force = true)
+          result.success(true)
+        } catch (e: Exception) {
+          result.error("dns_refresh_failed", e.message ?: "failed", null)
+        }
       }
       "extractRootfs" -> {
         val workspace = call.argument<String>("workspacePath")
@@ -545,20 +564,64 @@ class LinuxSandboxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activ
     }
   }
 
-  /** Rewrite resolv.conf unless it already points at a usable DNS. */
-  private fun patchDns(linuxDir: File) {
+  /**
+   * Rewrite resolv.conf with the active network's DNS first and the public
+   * resolvers as fallback. The tarball ships an empty resolv.conf, so the
+   * first extract always writes; [force] (refreshDns) rewrites an existing
+   * file so a device that changed networks after extraction picks up the
+   * current resolver instead of a dead first one.
+   */
+  private fun patchDns(linuxDir: File, force: Boolean = false) {
     val etc = File(linuxDir, "etc")
     etc.mkdirs()
     val resolv = File(etc, "resolv.conf")
-    val body = if (resolv.isFile) resolv.readText() else ""
-    val hasNameserver = body.lineSequence().any { it.trimStart().startsWith("nameserver") }
-    val pointsAtStub = body.contains("127.0.0.53") || body.contains("systemd")
-    if (hasNameserver && !pointsAtStub) return
+    if (!force && resolv.isFile) {
+      val body = try {
+        resolv.readText()
+      } catch (e: Exception) {
+        ""
+      }
+      val hasNameserver = body.lineSequence().any { it.trimStart().startsWith("nameserver") }
+      val pointsAtStub = body.contains("127.0.0.53") || body.contains("systemd")
+      if (hasNameserver && !pointsAtStub) return
+    }
     resolv.writeText(
       buildString {
-        PUBLIC_DNS.forEach { append("nameserver $it\n") }
+        resolveNameservers().forEach { append("nameserver $it\n") }
       },
     )
+  }
+
+  /**
+   * Active-network DNS (Android resolver) first, then PUBLIC_DNS as
+   * fallback, capped at glibc MAXNS (3). glibc tries resolvers in order, so
+   * a blackholed first resolver would make every lookup pay its full
+   * timeout. IPv4 resolvers go first: on some mobile networks a hanging
+   * AAAA query stalls lookups even when IPv4 works.
+   */
+  private fun resolveNameservers(): List<String> {
+    val system = mutableListOf<String>()
+    try {
+      val cm =
+        appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+      val link = cm?.activeNetwork?.let { cm.getLinkProperties(it) }
+      link?.dnsServers?.forEach { dns ->
+        val host = dns.hostAddress ?: return@forEach
+        if (host.contains(':')) system.add(host) else system.add(0, host)
+      }
+    } catch (t: Throwable) {
+      Log.w(TAG, "query system DNS: ${t.message}")
+    }
+    val out = LinkedHashSet<String>()
+    for (dns in system) {
+      out.add(dns)
+      if (out.size >= 3) break
+    }
+    for (dns in PUBLIC_DNS) {
+      out.add(dns)
+      if (out.size >= 3) break
+    }
+    return out.toList()
   }
 
   private fun ensureGuestDirs(linuxDir: File) {

@@ -124,4 +124,92 @@ void main() {
     expect(LinuxSandboxService.apkMirrorBaseUrls, isNot(contains('auto')));
     expect(LinuxSandboxService.apkMirrorBaseUrls, isNot(contains('official')));
   });
+
+  group('LinuxSandboxService.resolveApkMirrorFor', () {
+    test('resolves a named mirror', () {
+      expect(
+        LinuxSandboxService.resolveApkMirrorFor(
+          const DependencyInstallPref(sourceId: 'aliyun'),
+        ),
+        'https://mirrors.aliyun.com/alpine',
+      );
+    });
+
+    test('auto and official restore the official Alpine CDN', () {
+      for (final source in ['auto', 'official']) {
+        expect(
+          LinuxSandboxService.resolveApkMirrorFor(
+            DependencyInstallPref(sourceId: source),
+          ),
+          'https://dl-cdn.alpinelinux.org/alpine',
+        );
+      }
+    });
+
+    test('unknown named sources restore the official CDN', () {
+      expect(
+        LinuxSandboxService.resolveApkMirrorFor(
+          const DependencyInstallPref(sourceId: 'somebody'),
+        ),
+        'https://dl-cdn.alpinelinux.org/alpine',
+      );
+    });
+
+    test('custom URL is used after sanitization', () {
+      expect(
+        LinuxSandboxService.resolveApkMirrorFor(
+          const DependencyInstallPref(
+            sourceId: 'custom',
+            customUrl: 'https://mirror.example/alpine',
+          ),
+        ),
+        'https://mirror.example/alpine',
+      );
+    });
+
+    test(
+      'a mirror set by one dependency never leaks into the next install',
+      () {
+        // Sequence regression (issue #531 review, iOS parity): a named mirror
+        // chosen for one dependency must not stay active when the next one
+        // selects the official CDN.
+        final first = LinuxSandboxService.resolveApkMirrorFor(
+          const DependencyInstallPref(sourceId: 'tuna'),
+        );
+        final second = LinuxSandboxService.resolveApkMirrorFor(
+          const DependencyInstallPref(sourceId: 'official'),
+        );
+        expect(first, contains('tuna'));
+        expect(second, 'https://dl-cdn.alpinelinux.org/alpine');
+        expect(
+          LinuxSandboxService.apkMirrorSetup(second),
+          contains(
+            'https://dl-cdn.alpinelinux.org/alpine/v'
+            '${LinuxSandboxService.alpineVersion}/main',
+          ),
+        );
+      },
+    );
+
+    test('malformed custom URL throws instead of silently falling back', () {
+      expect(
+        () => LinuxSandboxService.resolveApkMirrorFor(
+          const DependencyInstallPref(
+            sourceId: 'custom',
+            customUrl: 'https://mirror.example/alpine; rm -rf /',
+          ),
+        ),
+        throwsStateError,
+      );
+    });
+
+    test('empty custom URL restores the official CDN', () {
+      expect(
+        LinuxSandboxService.resolveApkMirrorFor(
+          const DependencyInstallPref(sourceId: 'custom'),
+        ),
+        'https://dl-cdn.alpinelinux.org/alpine',
+      );
+    });
+  });
 }

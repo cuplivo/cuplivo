@@ -303,6 +303,12 @@ class LinuxSandboxService {
       <String, CancelToken>{};
   int _requestCounter = 0;
 
+  /// Ref-counted keep-screen-on: the window flag is activity-global, so the
+  /// dependency-install queue (detail page) and the terminal session both
+  /// hold it concurrently; the flag stays on while any holder is active and
+  /// turns off only when the last one releases.
+  int _keepScreenOnCount = 0;
+
   String _newRequestId(String prefix) {
     _requestCounter++;
     return '${prefix}_${DateTime.now().microsecondsSinceEpoch}_$_requestCounter';
@@ -1000,7 +1006,10 @@ class LinuxSandboxService {
       ),
       PackageInstallStep(
         stage: 'update',
-        timeoutSeconds: 600,
+        // ports.ubuntu.com can be slow enough on 32-bit/arm64 that 600s
+        // kills a healthy slow-but-progressing `apt-get update` on a low-end
+        // device (issue #531); the native exec cap stays at 3600s.
+        timeoutSeconds: 1200,
         command:
             '${mirrorSetup.isEmpty ? '' : mirrorSetup}'
             'apt-get $lockTimeout update -y',
@@ -1052,12 +1061,137 @@ class LinuxSandboxService {
     'aliyun': 'https://mirrors.aliyun.com/alpine',
   };
 
+  /// Official Alpine repository base (what the bundled fakefs ships,
+  /// `tools/ios_rootfs/prepare_alpine_fakefs.py`).
+  static const String apkOfficialBaseUrl =
+      'https://dl-cdn.alpinelinux.org/alpine';
+
+  /// Resolve the Alpine repository base URL a per-dependency install must
+  /// use for [pref]. Named sources map to [apkMirrorBaseUrls], a non-empty
+  /// custom URL is sanitized and used as-is, and every other mode ('auto',
+  /// 'official', unknown or empty custom) resolves to [apkOfficialBaseUrl] so
+  /// a previous dependency's mirror is never left active for the next one; a
+  /// malformed custom URL throws instead of silently falling back. Exposed
+  /// for tests.
+  static String resolveApkMirrorFor(DependencyInstallPref pref) {
+    final named = apkMirrorBaseUrls[pref.sourceId.trim()];
+    if (named != null) return named;
+    if (pref.sourceId == 'custom' &&
+        pref.customUrl != null &&
+        pref.customUrl!.trim().isNotEmpty) {
+      final mirror = _sanitizeMirrorUrl(pref.customUrl!.trim());
+      if (mirror == null) {
+        throw StateError('Invalid custom mirror URL');
+      }
+      return mirror;
+    }
+    return apkOfficialBaseUrl;
+  }
+
   /// apk mirror setup: rewrite /etc/apk/repositories for the bundled
   /// Alpine version. [mirrorUrl] must be the repository base (e.g.
   /// `https://mirrors.aliyun.com/alpine`).
   static String apkMirrorSetup(String mirrorUrl) {
     return "printf '%s\\n' '$mirrorUrl/v$alpineVersion/main' "
         "'$mirrorUrl/v$alpineVersion/community' > /etc/apk/repositories && ";
+  }
+
+  /// Android apt repository base URLs for named sources by sandbox ABI.
+  ///
+  /// Ubuntu serves non-amd64 architectures (armhf, arm64) from the
+  /// `ubuntu-ports` mirror family; amd64 from `ubuntu`.
+  static const Map<String, Map<String, String>> aptMirrorBaseUrls = {
+    'arm64-v8a': {
+      'tuna': 'https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports',
+      'aliyun': 'https://mirrors.aliyun.com/ubuntu-ports',
+    },
+    'armeabi-v7a': {
+      'tuna': 'https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports',
+      'aliyun': 'https://mirrors.aliyun.com/ubuntu-ports',
+    },
+    'x86_64': {
+      'tuna': 'https://mirrors.tuna.tsinghua.edu.cn/ubuntu',
+      'aliyun': 'https://mirrors.aliyun.com/ubuntu',
+    },
+  };
+
+  /// Official Ubuntu repository base+security URLs by sandbox ABI, matching
+  /// what the corresponding ubuntu-base tarball ships (verified against
+  /// ubuntu-base-24.04.3): armhf/arm64 use `ports.ubuntu.com` for all suites,
+  /// amd64 splits security onto `security.ubuntu.com`.
+  static const Map<String, ({String base, String security})>
+  aptOfficialBaseUrls = {
+    'arm64-v8a': (
+      base: 'http://ports.ubuntu.com/ubuntu-ports',
+      security: 'http://ports.ubuntu.com/ubuntu-ports',
+    ),
+    'armeabi-v7a': (
+      base: 'http://ports.ubuntu.com/ubuntu-ports',
+      security: 'http://ports.ubuntu.com/ubuntu-ports',
+    ),
+    'x86_64': (
+      base: 'http://archive.ubuntu.com/ubuntu',
+      security: 'http://security.ubuntu.com/ubuntu',
+    ),
+  };
+
+  /// Android apt mirror setup: rewrite the deb822 sources file the Ubuntu
+  /// base rootfs ships (`/etc/apt/sources.list.d/ubuntu.sources`) with
+  /// [mirrorUrl] as the sole repository, and drop the legacy one-line
+  /// `/etc/apt/sources.list` (noble only carries a comment stub there, but a
+  /// leftover one-line file would add the default mirror back as a second
+  /// source). All four suites and the full component set are kept so the
+  /// mirrored archive behaves like the default sources. [securityMirrorUrl]
+  /// defaults to [mirrorUrl] (mirrors serve every suite from one base); the
+  /// amd64 official setup passes a distinct security URL. The whole block is
+  /// run under `set -e` so a failed rewrite aborts `apt-get update` instead
+  /// of updating the package lists from stale or merged sources. [mirrorUrl]
+  /// must have been passed through [_sanitizeMirrorUrl].
+  static String aptMirrorSetup(String mirrorUrl, {String? securityMirrorUrl}) {
+    final security = securityMirrorUrl ?? mirrorUrl;
+    final buffer = StringBuffer()
+      ..writeln('set -e')
+      ..writeln("cat > /etc/apt/sources.list.d/ubuntu.sources <<'EOF'")
+      ..writeln('Types: deb')
+      ..writeln('URIs: $mirrorUrl/')
+      ..writeln('Suites: noble noble-updates noble-backports')
+      ..writeln('Components: main universe restricted multiverse')
+      ..writeln('Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg')
+      ..writeln()
+      ..writeln('Types: deb')
+      ..writeln('URIs: $security/')
+      ..writeln('Suites: noble-security')
+      ..writeln('Components: main universe restricted multiverse')
+      ..writeln('Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg')
+      ..writeln('EOF')
+      ..writeln('rm -f /etc/apt/sources.list');
+    return buffer.toString();
+  }
+
+  /// Resolve the Android apt repository URLs a per-dependency install must
+  /// use for [pref] on [abi]. Named sources map per ABI, a non-empty custom
+  /// URL is sanitized and used for all suites, and every other mode
+  /// ('auto', 'official', unknown or empty custom) resolves to the
+  /// ABI-appropriate official archive so a previous dependency's mirror is
+  /// never left active for the next one; a malformed custom URL throws so
+  /// the user sees the misconfiguration instead of a silent slow-and-failing
+  /// update. Exposed for tests.
+  static ({String base, String security}) resolveAptMirrorFor({
+    required String abi,
+    required DependencyInstallPref pref,
+  }) {
+    final named = aptMirrorBaseUrls[abi]?[pref.sourceId.trim()];
+    if (named != null) return (base: named, security: named);
+    if (pref.sourceId == 'custom' &&
+        pref.customUrl != null &&
+        pref.customUrl!.trim().isNotEmpty) {
+      final mirror = _sanitizeMirrorUrl(pref.customUrl!.trim());
+      if (mirror == null) {
+        throw StateError('Invalid custom mirror URL');
+      }
+      return (base: mirror, security: mirror);
+    }
+    return aptOfficialBaseUrls[abi] ?? aptOfficialBaseUrls['arm64-v8a']!;
   }
 
   static String packageNamesForDependency(
@@ -1113,22 +1247,23 @@ class LinuxSandboxService {
     onProgress?.call(const SandboxInstallProgress(stage: 'installing'));
     final ios = Platform.isIOS;
     final packages = packageNamesForDependency(depId, ios: ios);
-    var mirrorSetup = '';
-    if (pref.sourceId == 'custom' &&
-        pref.customUrl != null &&
-        pref.customUrl!.trim().isNotEmpty) {
-      final url = _sanitizeMirrorUrl(pref.customUrl!.trim());
-      if (url == null) {
-        throw StateError('Invalid custom mirror URL');
-      }
-      mirrorSetup = ios
-          ? apkMirrorSetup(url)
-          : "printf '%s\\n' 'deb $url noble main universe' > /etc/apt/sources.list && ";
-    } else if (ios) {
-      final named = apkMirrorBaseUrls[pref.sourceId.trim()];
-      if (named != null) {
-        mirrorSetup = apkMirrorSetup(named);
-      }
+    String mirrorSetup;
+    if (ios) {
+      // Deterministic per-install repositories: a named or custom mirror of
+      // a previous dependency must never stay active for this one, so every
+      // mode (including 'official') rewrites /etc/apk/repositories.
+      mirrorSetup = apkMirrorSetup(resolveApkMirrorFor(pref));
+    } else {
+      // Android: every mode must deterministically establish the intended
+      // apt sources — or apt keeps the mirror the previous dependency left
+      // in the workspace-global deb822 file and `apt-get update` stalls on
+      // a stale/slow path then fails the step timeout (issue #531).
+      final abi = await detectAbi();
+      final mirror = resolveAptMirrorFor(abi: abi, pref: pref);
+      mirrorSetup = aptMirrorSetup(
+        mirror.base,
+        securityMirrorUrl: mirror.security,
+      );
     }
     final steps = ios
         ? buildApkInstallSteps(
@@ -1145,6 +1280,13 @@ class LinuxSandboxService {
                 ? 2700
                 : 1800,
           );
+    if (Platform.isAndroid) {
+      // Re-patch the resolver before touching the network: the rootfs was
+      // fixed at extraction time with the DNS active then, and a device
+      // that changed networks since keeps a dead first resolver that makes
+      // every lookup pay its full timeout (issue #531).
+      await refreshSandboxDns(workspaceHostPath);
+    }
     final requestId = _newRequestId('install_$depId');
     await _withWorkspaceExecution<void>(
       workspaceHostPath: workspaceHostPath,
@@ -1328,6 +1470,50 @@ class LinuxSandboxService {
       map,
       fallbackWorkingDirectory: workspaceHostPath,
     );
+  }
+
+  /// Refresh the guest resolv.conf with the host's current resolvers
+  /// (active-network DNS first, public DNS fallback). The rootfs is patched
+  /// once at extraction; a device that changed networks afterwards keeps a
+  /// stale resolver, so installs re-invoke this before apt touches the
+  /// network. Failures are non-fatal: the existing resolv.conf was written
+  /// by the same logic at extraction time.
+  Future<void> refreshSandboxDns(String workspaceHostPath) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod<void>('refreshDns', {
+        'workspacePath': workspaceHostPath,
+      });
+    } on MissingPluginException {
+      // Custom/legacy build without native sandbox glue: installs will fail
+      // later with a clear 'runtime missing' state anyway.
+    } on PlatformException catch (e) {
+      debugPrint(
+        'LinuxSandboxService.refreshSandboxDns: ${e.code} ${e.message}',
+      );
+    } catch (e) {
+      debugPrint('LinuxSandboxService.refreshSandboxDns: $e');
+    }
+  }
+
+  /// Hold the keep-screen-on flag. Safe to call multiple times; each holder
+  /// pairs the call with [releaseKeepScreenOn].
+  Future<void> acquireKeepScreenOn() async {
+    _keepScreenOnCount++;
+    if (_keepScreenOnCount == 1) {
+      await setKeepScreenOn(true);
+    }
+  }
+
+  /// Release one keep-screen-on hold from [acquireKeepScreenOn]. The flag
+  /// turns off only when the last holder releases, so an install queue
+  /// finishing underneath an open terminal cannot switch the screen off
+  /// mid-session.
+  Future<void> releaseKeepScreenOn() async {
+    if (_keepScreenOnCount > 0) _keepScreenOnCount--;
+    if (_keepScreenOnCount == 0) {
+      await setKeepScreenOn(false);
+    }
   }
 
   Future<void> setKeepScreenOn(bool enabled) async {

@@ -495,5 +495,71 @@ void main() {
         isNull,
       );
     });
+
+    test('an enqueue during the async release runs in a fresh pump', () async {
+      // Regression (review): the pump used to await `keepScreenOn(false)`
+      // BEFORE releasing worker ownership, so a dependency enqueued while
+      // that release was in flight landed in a queue the finishing pump was
+      // about to delete — it stayed idle forever. The first release is
+      // gated to widen that window deterministically.
+      final holds = <bool>[];
+      final gateRelease = Completer<void>();
+      var releases = 0;
+      final fake = _FakeInstaller()
+        ..gate[WorkspaceDependencyIds.git] = Completer<void>();
+      final controller = DependencyInstallController(
+        installer: fake.call,
+        keepScreenOn: (hold) async {
+          holds.add(hold);
+          if (!hold) {
+            releases++;
+            if (releases == 1) await gateRelease.future;
+          }
+        },
+      );
+
+      controller.enqueue(
+        workspaceId: wsId,
+        depId: WorkspaceDependencyIds.git,
+        hostPath: '/ws',
+        pref: pref,
+      );
+      await _pumpUntil(
+        () =>
+            controller.statusFor(wsId, WorkspaceDependencyIds.git) ==
+            DepInstallStatus.installing,
+      );
+      fake.gate[WorkspaceDependencyIds.git]!.complete();
+      // The drain finished and the release is in flight, still gated.
+      await _pumpUntil(() => holds.contains(false));
+
+      controller.enqueue(
+        workspaceId: wsId,
+        depId: WorkspaceDependencyIds.python,
+        hostPath: '/ws',
+        pref: pref,
+      );
+      gateRelease.complete();
+      await _pumpUntil(
+        () =>
+            controller.statusFor(wsId, WorkspaceDependencyIds.python) ==
+            DepInstallStatus.idle,
+      );
+      expect(fake.order, [
+        WorkspaceDependencyIds.git,
+        WorkspaceDependencyIds.python,
+      ]);
+      expect(
+        controller.statusFor(wsId, WorkspaceDependencyIds.python),
+        DepInstallStatus.idle,
+      );
+      expect(
+        controller.takeCompleted(wsId)[WorkspaceDependencyIds.python],
+        isNull,
+      );
+      // Holds stay balanced: one acquire/release per queue the controller
+      // actually ran.
+      expect(holds, [true, false, true, false]);
+    });
   });
 }

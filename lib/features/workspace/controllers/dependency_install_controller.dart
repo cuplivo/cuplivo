@@ -160,6 +160,16 @@ class DependencyInstallController extends ChangeNotifier {
         }
       }
     } finally {
+      // Hand worker ownership back BEFORE the asynchronous release: an
+      // enqueue landing while `_keepScreenOn(false)` is awaiting the method
+      // channel must create a fresh queue and start its own pump, not be
+      // appended to a queue this pump is about to delete (review race: a
+      // dep enqueued during the release window was left idle forever).
+      _running.remove(workspaceId);
+      // The queue list is empty here (loop drained it); drop it so the
+      // controller does not accumulate per-workspace entries over the app
+      // lifetime. The next enqueue recreates it via putIfAbsent.
+      _queues.remove(workspaceId);
       try {
         await _keepScreenOn(false);
       } catch (e) {
@@ -167,11 +177,6 @@ class DependencyInstallController extends ChangeNotifier {
           'DependencyInstallController: keep-screen-on release failed: $e',
         );
       }
-      _running.remove(workspaceId);
-      // The queue list is empty here (loop drained it); drop it so the
-      // controller does not accumulate per-workspace entries over the app
-      // lifetime. The next enqueue recreates it via putIfAbsent.
-      _queues.remove(workspaceId);
     }
   }
 }

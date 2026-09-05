@@ -132,11 +132,144 @@ void main() {
       expect(steps.last.command, contains('pandoc poppler-utils'));
     });
 
-    test('uses fixed staged timeouts', () {
+    test('uses fixed staged timings', () {
       final steps = LinuxSandboxService.buildAptInstallSteps(packages: 'git');
       expect(steps[0].timeoutSeconds, 900);
-      expect(steps[1].timeoutSeconds, 600);
+      expect(steps[1].timeoutSeconds, 1200);
       expect(steps[2].timeoutSeconds, 1800);
+    });
+  });
+
+  group('LinuxSandboxService.aptMirrorSetup', () {
+    const tuna = 'https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports';
+
+    test('rewrites the deb822 sources file with the given mirror', () {
+      final setup = LinuxSandboxService.aptMirrorSetup(tuna);
+      expect(
+        setup,
+        contains("cat > /etc/apt/sources.list.d/ubuntu.sources <<'EOF'"),
+      );
+      expect(setup, contains('URIs: $tuna/'));
+      expect(setup, contains('Types: deb'));
+      expect(setup, contains('Suites: noble noble-updates noble-backports'));
+      expect(setup, contains('Suites: noble-security'));
+      expect(
+        setup,
+        contains('Components: main universe restricted multiverse'),
+      );
+      expect(
+        setup,
+        contains('Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg'),
+      );
+      // The legacy one-line file must go, or apt merges the default archive
+      // back in alongside the configured mirror.
+      expect(setup, contains('rm -f /etc/apt/sources.list'));
+    });
+
+    test('composes with the update command on a new line', () {
+      final setup = LinuxSandboxService.aptMirrorSetup(tuna);
+      final steps = LinuxSandboxService.buildAptInstallSteps(
+        packages: 'git',
+        mirrorSetup: setup,
+      );
+      expect(steps[1].command, startsWith(setup));
+      expect(
+        steps[1].command,
+        contains('\napt-get -o Acquire::Lock::Timeout=600 update -y'),
+      );
+      expect(setup.endsWith('\n'), isTrue);
+    });
+
+    test('maps named mirrors per ABI: ports for ARM, ubuntu for amd64', () {
+      expect(
+        LinuxSandboxService.aptMirrorBaseUrls['armeabi-v7a']?['tuna'],
+        'https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports',
+      );
+      expect(
+        LinuxSandboxService.aptMirrorBaseUrls['arm64-v8a']?['aliyun'],
+        'https://mirrors.aliyun.com/ubuntu-ports',
+      );
+      expect(
+        LinuxSandboxService.aptMirrorBaseUrls['x86_64']?['tuna'],
+        'https://mirrors.tuna.tsinghua.edu.cn/ubuntu',
+      );
+    });
+  });
+
+  group('LinuxSandboxService.resolveAptMirrorFor', () {
+    test('resolves a named mirror for the ABI', () {
+      expect(
+        LinuxSandboxService.resolveAptMirrorFor(
+          abi: 'armeabi-v7a',
+          pref: const DependencyInstallPref(sourceId: 'tuna'),
+        ),
+        'https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports',
+      );
+      expect(
+        LinuxSandboxService.resolveAptMirrorFor(
+          abi: 'x86_64',
+          pref: const DependencyInstallPref(sourceId: 'aliyun'),
+        ),
+        'https://mirrors.aliyun.com/ubuntu',
+      );
+    });
+
+    test('auto and official keep the rootfs default sources', () {
+      for (final source in ['auto', 'official']) {
+        expect(
+          LinuxSandboxService.resolveAptMirrorFor(
+            abi: 'arm64-v8a',
+            pref: DependencyInstallPref(sourceId: source),
+          ),
+          isNull,
+        );
+      }
+    });
+
+    test('unknown named sources fall back to the default sources', () {
+      expect(
+        LinuxSandboxService.resolveAptMirrorFor(
+          abi: 'arm64-v8a',
+          pref: const DependencyInstallPref(sourceId: 'somebody'),
+        ),
+        isNull,
+      );
+    });
+
+    test('custom URL is used after sanitization', () {
+      expect(
+        LinuxSandboxService.resolveAptMirrorFor(
+          abi: 'arm64-v8a',
+          pref: const DependencyInstallPref(
+            sourceId: 'custom',
+            customUrl: 'https://mirror.example/ubuntu-ports',
+          ),
+        ),
+        'https://mirror.example/ubuntu-ports',
+      );
+    });
+
+    test('malformed custom URL throws instead of silently using defaults', () {
+      expect(
+        () => LinuxSandboxService.resolveAptMirrorFor(
+          abi: 'arm64-v8a',
+          pref: const DependencyInstallPref(
+            sourceId: 'custom',
+            customUrl: 'https://mirror.example/ubuntu; rm -rf /',
+          ),
+        ),
+        throwsStateError,
+      );
+    });
+
+    test('empty custom URL behaves like no mirror', () {
+      expect(
+        LinuxSandboxService.resolveAptMirrorFor(
+          abi: 'arm64-v8a',
+          pref: const DependencyInstallPref(sourceId: 'custom'),
+        ),
+        isNull,
+      );
     });
   });
 }

@@ -67,6 +67,7 @@ class _WorkspaceTerminalPageState extends State<WorkspaceTerminalPage>
   String? _startError;
   bool _exited = false;
   bool _starting = false;
+  bool _keepOnHeld = false;
   double _fontSize = 12;
   double _pinchBase = 12;
   StreamSubscription<bool>? _volumeSub;
@@ -97,16 +98,29 @@ class _WorkspaceTerminalPageState extends State<WorkspaceTerminalPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Re-assert on resume (the OS may have cleared the flag while the app
+    // was backgrounded), drop on any other transition. The hold participates
+    // in the service-wide refcount, so it never stomps a dependency-install
+    // hold held by the pages below this route.
     final keepOn =
         state == AppLifecycleState.resumed &&
         _gate == WorkspaceTerminalGate.ready &&
         !_exited;
-    unawaited(_sandbox.setKeepScreenOn(keepOn));
+    if (keepOn && !_keepOnHeld) {
+      _keepOnHeld = true;
+      unawaited(_sandbox.acquireKeepScreenOn());
+    } else if (!keepOn && _keepOnHeld) {
+      _keepOnHeld = false;
+      unawaited(_sandbox.releaseKeepScreenOn());
+    }
   }
 
   Future<void> _teardownNative() async {
     await _sandbox.setVolumeCtrlIntercept(false);
-    await _sandbox.setKeepScreenOn(false);
+    if (_keepOnHeld) {
+      _keepOnHeld = false;
+      await _sandbox.releaseKeepScreenOn();
+    }
   }
 
   Future<void> _evaluateAndMaybeStart() async {
@@ -191,10 +205,16 @@ class _WorkspaceTerminalPageState extends State<WorkspaceTerminalPage>
           debugPrint('WorkspaceTerminalPage.exit: $code');
           if (!mounted) return;
           setState(() => _exited = true);
-          unawaited(_sandbox.setKeepScreenOn(false));
+          if (_keepOnHeld) {
+            _keepOnHeld = false;
+            unawaited(_sandbox.releaseKeepScreenOn());
+          }
         }),
       );
-      await _sandbox.setKeepScreenOn(true);
+      if (!_keepOnHeld) {
+        _keepOnHeld = true;
+        await _sandbox.acquireKeepScreenOn();
+      }
       await _volumeSub?.cancel();
       _volumeSub = _sandbox.volumeCtrlEvents().listen(
         (down) {

@@ -303,6 +303,12 @@ class LinuxSandboxService {
       <String, CancelToken>{};
   int _requestCounter = 0;
 
+  /// Ref-counted keep-screen-on: the window flag is activity-global, so the
+  /// dependency-install queue (detail page) and the terminal session both
+  /// hold it concurrently; the flag stays on while any holder is active and
+  /// turns off only when the last one releases.
+  int _keepScreenOnCount = 0;
+
   String _newRequestId(String prefix) {
     _requestCounter++;
     return '${prefix}_${DateTime.now().microsecondsSinceEpoch}_$_requestCounter';
@@ -1000,7 +1006,10 @@ class LinuxSandboxService {
       ),
       PackageInstallStep(
         stage: 'update',
-        timeoutSeconds: 600,
+        // ports.ubuntu.com can be slow enough on 32-bit/arm64 that 600s
+        // kills a healthy slow-but-progressing `apt-get update` on a low-end
+        // device (issue #531); the native exec cap stays at 3600s.
+        timeoutSeconds: 1200,
         command:
             '${mirrorSetup.isEmpty ? '' : mirrorSetup}'
             'apt-get $lockTimeout update -y',
@@ -1060,6 +1069,78 @@ class LinuxSandboxService {
         "'$mirrorUrl/v$alpineVersion/community' > /etc/apk/repositories && ";
   }
 
+  /// Android apt repository base URLs for named sources by sandbox ABI.
+  ///
+  /// Ubuntu serves non-amd64 architectures (armhf, arm64) from the
+  /// `ubuntu-ports` mirror family; amd64 from `ubuntu`.
+  static const Map<String, Map<String, String>> aptMirrorBaseUrls = {
+    'arm64-v8a': {
+      'tuna': 'https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports',
+      'aliyun': 'https://mirrors.aliyun.com/ubuntu-ports',
+    },
+    'armeabi-v7a': {
+      'tuna': 'https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports',
+      'aliyun': 'https://mirrors.aliyun.com/ubuntu-ports',
+    },
+    'x86_64': {
+      'tuna': 'https://mirrors.tuna.tsinghua.edu.cn/ubuntu',
+      'aliyun': 'https://mirrors.aliyun.com/ubuntu',
+    },
+  };
+
+  /// Android apt mirror setup: rewrite the deb822 sources file the Ubuntu
+  /// base rootfs ships (`/etc/apt/sources.list.d/ubuntu.sources`) with
+  /// [mirrorUrl] as the sole repository, and drop the legacy one-line
+  /// `/etc/apt/sources.list` (noble only carries a comment stub there, but a
+  /// leftover one-line file would add the default mirror back as a second
+  /// source). All four suites and the full component set are kept so the
+  /// mirrored archive behaves like the default sources. [mirrorUrl] must be
+  /// the repository base (e.g. `https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports`)
+  /// and must have been passed through [_sanitizeMirrorUrl].
+  static String aptMirrorSetup(String mirrorUrl) {
+    final buffer = StringBuffer()
+      ..writeln("cat > /etc/apt/sources.list.d/ubuntu.sources <<'EOF'")
+      ..writeln('Types: deb')
+      ..writeln('URIs: $mirrorUrl/')
+      ..writeln('Suites: noble noble-updates noble-backports')
+      ..writeln('Components: main universe restricted multiverse')
+      ..writeln('Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg')
+      ..writeln()
+      ..writeln('Types: deb')
+      ..writeln('URIs: $mirrorUrl/')
+      ..writeln('Suites: noble-security')
+      ..writeln('Components: main universe restricted multiverse')
+      ..writeln('Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg')
+      ..writeln('EOF')
+      ..writeln('rm -f /etc/apt/sources.list');
+    return buffer.toString();
+  }
+
+  /// Resolve the Android apt repository base URL a per-dependency install
+  /// should use for [pref] on [abi]. Returns null for 'auto'/'official'
+  /// (keep the rebuilt sources from the rootfs) and for unknown named
+  /// sources; named sources fall back to the ABI mirror map, a non-empty
+  /// custom URL is sanitized and used as-is, and a malformed custom URL
+  /// throws so the user sees the misconfiguration instead of a silent
+  /// slow-and-failing update. Exposed for tests.
+  static String? resolveAptMirrorFor({
+    required String abi,
+    required DependencyInstallPref pref,
+  }) {
+    final named = aptMirrorBaseUrls[abi]?[pref.sourceId.trim()];
+    if (named != null) return named;
+    if (pref.sourceId == 'custom' &&
+        pref.customUrl != null &&
+        pref.customUrl!.trim().isNotEmpty) {
+      final mirror = _sanitizeMirrorUrl(pref.customUrl!.trim());
+      if (mirror == null) {
+        throw StateError('Invalid custom mirror URL');
+      }
+      return mirror;
+    }
+    return null;
+  }
+
   static String packageNamesForDependency(
     String dependencyId, {
     required bool ios,
@@ -1114,20 +1195,30 @@ class LinuxSandboxService {
     final ios = Platform.isIOS;
     final packages = packageNamesForDependency(depId, ios: ios);
     var mirrorSetup = '';
-    if (pref.sourceId == 'custom' &&
-        pref.customUrl != null &&
-        pref.customUrl!.trim().isNotEmpty) {
-      final url = _sanitizeMirrorUrl(pref.customUrl!.trim());
-      if (url == null) {
-        throw StateError('Invalid custom mirror URL');
+    if (ios) {
+      if (pref.sourceId == 'custom' &&
+          pref.customUrl != null &&
+          pref.customUrl!.trim().isNotEmpty) {
+        final url = _sanitizeMirrorUrl(pref.customUrl!.trim());
+        if (url == null) {
+          throw StateError('Invalid custom mirror URL');
+        }
+        mirrorSetup = apkMirrorSetup(url);
+      } else {
+        final named = apkMirrorBaseUrls[pref.sourceId.trim()];
+        if (named != null) {
+          mirrorSetup = apkMirrorSetup(named);
+        }
       }
-      mirrorSetup = ios
-          ? apkMirrorSetup(url)
-          : "printf '%s\\n' 'deb $url noble main universe' > /etc/apt/sources.list && ";
-    } else if (ios) {
-      final named = apkMirrorBaseUrls[pref.sourceId.trim()];
-      if (named != null) {
-        mirrorSetup = apkMirrorSetup(named);
+    } else {
+      // Android: a stored named source must actually rewrite the apt
+      // sources, or apt keeps fetching the ports.ubuntu.com default shipped
+      // in the rootfs deb822 file and the whole `apt-get update` stalls on
+      // slow paths then fails the step timeout (issue #531).
+      final abi = await detectAbi();
+      final mirror = resolveAptMirrorFor(abi: abi, pref: pref);
+      if (mirror != null) {
+        mirrorSetup = aptMirrorSetup(mirror);
       }
     }
     final steps = ios
@@ -1145,6 +1236,13 @@ class LinuxSandboxService {
                 ? 2700
                 : 1800,
           );
+    if (Platform.isAndroid) {
+      // Re-patch the resolver before touching the network: the rootfs was
+      // fixed at extraction time with the DNS active then, and a device
+      // that changed networks since keeps a dead first resolver that makes
+      // every lookup pay its full timeout (issue #531).
+      await refreshSandboxDns(workspaceHostPath);
+    }
     final requestId = _newRequestId('install_$depId');
     await _withWorkspaceExecution<void>(
       workspaceHostPath: workspaceHostPath,
@@ -1328,6 +1426,50 @@ class LinuxSandboxService {
       map,
       fallbackWorkingDirectory: workspaceHostPath,
     );
+  }
+
+  /// Refresh the guest resolv.conf with the host's current resolvers
+  /// (active-network DNS first, public DNS fallback). The rootfs is patched
+  /// once at extraction; a device that changed networks afterwards keeps a
+  /// stale resolver, so installs re-invoke this before apt touches the
+  /// network. Failures are non-fatal: the existing resolv.conf was written
+  /// by the same logic at extraction time.
+  Future<void> refreshSandboxDns(String workspaceHostPath) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod<void>('refreshDns', {
+        'workspacePath': workspaceHostPath,
+      });
+    } on MissingPluginException {
+      // Custom/legacy build without native sandbox glue: installs will fail
+      // later with a clear 'runtime missing' state anyway.
+    } on PlatformException catch (e) {
+      debugPrint(
+        'LinuxSandboxService.refreshSandboxDns: ${e.code} ${e.message}',
+      );
+    } catch (e) {
+      debugPrint('LinuxSandboxService.refreshSandboxDns: $e');
+    }
+  }
+
+  /// Hold the keep-screen-on flag. Safe to call multiple times; each holder
+  /// pairs the call with [releaseKeepScreenOn].
+  Future<void> acquireKeepScreenOn() async {
+    _keepScreenOnCount++;
+    if (_keepScreenOnCount == 1) {
+      await setKeepScreenOn(true);
+    }
+  }
+
+  /// Release one keep-screen-on hold from [acquireKeepScreenOn]. The flag
+  /// turns off only when the last holder releases, so an install queue
+  /// finishing underneath an open terminal cannot switch the screen off
+  /// mid-session.
+  Future<void> releaseKeepScreenOn() async {
+    if (_keepScreenOnCount > 0) _keepScreenOnCount--;
+    if (_keepScreenOnCount == 0) {
+      await setKeepScreenOn(false);
+    }
   }
 
   Future<void> setKeepScreenOn(bool enabled) async {

@@ -43,6 +43,7 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
   bool _depProbeFailed = false;
   bool _hasRuntime = true;
   int _depStatusRefreshGeneration = 0;
+  bool _keepScreenOnHeld = false;
   DependencyInstallController? _installController;
 
   @override
@@ -75,7 +76,53 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
   void dispose() {
     routeObserver.unsubscribe(this);
     _installController?.removeListener(_onInstallChanged);
+    // Release a keep-screen-on held for dependency installs (the window
+    // flag is activity-global, ref-counted in the service, and the terminal
+    // page holds its own session flag through the same counter).
+    if (_keepScreenOnHeld) {
+      _keepScreenOnHeld = false;
+      LinuxSandboxService.instance.releaseKeepScreenOn().catchError((Object e) {
+        debugPrint('WorkspaceDetailPage.releaseKeepScreenOn(dispose): $e');
+      });
+    }
     super.dispose();
+  }
+
+  /// Keep the screen on while a dependency install is queued or running so
+  /// aggressive One UI app freezing (Samsung Android 14) cannot stall apt
+  /// mid-transaction, then release when the queue drains. The hold is
+  /// ref-counted together with the terminal page's session flag in
+  /// [LinuxSandboxService], so releasing here never clears a flag an open
+  /// terminal still owns.
+  void _syncKeepScreenOn(
+    DependencyInstallController controller,
+    String workspaceId,
+  ) {
+    final anyWorking = WorkspaceDependencyIds.ordered.any((id) {
+      final status = controller.statusFor(workspaceId, id);
+      return status == DepInstallStatus.queued ||
+          status == DepInstallStatus.installing;
+    });
+    if (anyWorking && !_keepScreenOnHeld) {
+      _keepScreenOnHeld = true;
+      unawaited(
+        LinuxSandboxService.instance.acquireKeepScreenOn().catchError((
+          Object e,
+        ) {
+          _keepScreenOnHeld = false;
+          debugPrint('WorkspaceDetailPage.acquireKeepScreenOn: $e');
+        }),
+      );
+    } else if (!anyWorking && _keepScreenOnHeld) {
+      _keepScreenOnHeld = false;
+      unawaited(
+        LinuxSandboxService.instance.releaseKeepScreenOn().catchError((
+          Object e,
+        ) {
+          debugPrint('WorkspaceDetailPage.releaseKeepScreenOn: $e');
+        }),
+      );
+    }
   }
 
   void _onInstallChanged() {
@@ -108,6 +155,7 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
         }
       }
     }
+    _syncKeepScreenOn(controller, ws.id);
     setState(() {});
   }
 

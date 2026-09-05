@@ -4,6 +4,7 @@ import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/group_chat.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/features/group_chat/services/assistant_private_context_builder.dart';
+import 'package:Cuplivo/features/home/services/message_generation_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeChatService extends ChatService {
@@ -206,5 +207,54 @@ void main() {
     );
     expect(injection, isNotNull);
     expect(injection, contains('Alpha'));
+  });
+
+  test('private rewrite preserves send-time request metadata and the pipeline '
+      'resolver replays it', () {
+    final service = _FakeChatService();
+    final builder = AssistantPrivateContextBuilder(chatService: service);
+    final conv = Conversation(
+      id: 'c1',
+      title: 'g',
+      conversationKind: Conversation.kindGroup,
+    );
+    final alice = Assistant(id: 'a1', name: 'Alice', systemPrompt: 'A');
+    final public = [
+      ChatMessage(
+        role: 'user',
+        content: '看图 [image:C:/tmp/photo.png]',
+        conversationId: 'c1',
+        requestAllowImagesApiRouting: false,
+        requestExtraBodyJson: '{"quality":"high"}',
+      ),
+      ChatMessage(
+        role: 'assistant',
+        content: '好的',
+        conversationId: 'c1',
+        speakerAssistantId: 'a1',
+      ),
+    ];
+
+    final private = builder.build(
+      conversation: conv,
+      publicMessages: public,
+      speaker: alice,
+      userName: 'User',
+      assistantsById: {'a1': alice},
+    );
+
+    // The rewritten user bubble must keep the anchor's metadata (this is the
+    // exact history the pipeline resolves against when inputData == null).
+    final rewrittenUser = private.where((m) => m.role == 'user').single;
+    expect(rewrittenUser.content, contains('[User]: 看图'));
+    expect(rewrittenUser.requestAllowImagesApiRouting, isFalse);
+    expect(rewrittenUser.requestExtraBody, {'quality': 'high'});
+
+    final options = MessageGenerationService.resolveRequestOptionsFromMessages(
+      private,
+      fallbackAllowImagesApiRouting: true,
+    );
+    expect(options.allowImagesApiRouting, isFalse);
+    expect(options.requestExtraBody, {'quality': 'high'});
   });
 }

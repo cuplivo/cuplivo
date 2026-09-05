@@ -57,6 +57,16 @@ class AssistantPrivateContextBuilder {
     final out = <ChatMessage>[];
     final speakerId = speaker.id;
 
+    // Per-message request metadata (AD-0033) rides on the original public
+    // user message; the rewritten user bubble must carry it so the pipeline
+    // can replay the send-time routing decision and extra body on later
+    // turns, resend and regenerate. When several user lines coalesce into
+    // one buffer, the LAST user message's metadata wins — the same "last
+    // user message" rule MessageGenerationService.resolveRequestOptionsFromMessages
+    // applies to the rewritten history.
+    bool? bufferedAllowImagesApiRouting;
+    String? bufferedRequestExtraBodyJson;
+
     void flushBufferAsUser() {
       if (buffer.isEmpty) return;
       out.add(
@@ -64,15 +74,21 @@ class AssistantPrivateContextBuilder {
           role: 'user',
           content: buffer.join('\n'),
           conversationId: conversation.id,
+          requestAllowImagesApiRouting: bufferedAllowImagesApiRouting,
+          requestExtraBodyJson: bufferedRequestExtraBodyJson,
         ),
       );
       buffer.clear();
+      bufferedAllowImagesApiRouting = null;
+      bufferedRequestExtraBodyJson = null;
     }
 
     for (final msg in slice) {
       if (msg.role == 'user') {
         final text = _directorCtx.contentForDirector(msg);
         buffer.add('[$userName]: $text');
+        bufferedAllowImagesApiRouting = msg.requestAllowImagesApiRouting;
+        bufferedRequestExtraBodyJson = msg.requestExtraBodyJson;
       } else if (msg.role == 'assistant') {
         final sid = msg.speakerAssistantId;
         final content = _directorCtx.contentForDirector(msg);

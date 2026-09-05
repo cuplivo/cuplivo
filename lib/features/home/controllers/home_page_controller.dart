@@ -441,7 +441,7 @@ class HomePageController extends ChangeNotifier {
       preferences: _context.read<BusinessPreferences>(),
       ocrHandler: (imagePaths) =>
           _ocrService.getOcrTextForImages(imagePaths, _context),
-      geminiThoughtSignatureHandler: _appendGeminiThoughtSignatureForApi,
+      geminiThoughtSignatureProvider: _geminiThoughtSignatureForApi,
     );
     _messageBuilderService.ocrTextWrapper = _ocrService.wrapOcrBlock;
     _generationController = GenerationController(
@@ -2887,15 +2887,8 @@ class HomePageController extends ChangeNotifier {
     }
   }
 
-  String _appendGeminiThoughtSignatureForApi(
-    ChatMessage message,
-    String content,
-  ) {
-    return _streamController.appendGeminiThoughtSignatureForApi(
-      message,
-      content,
-    );
-  }
+  String? _geminiThoughtSignatureForApi(ChatMessage message) =>
+      _streamController.geminiThoughtSignatureForApi(message);
 
   Future<void> _onMcpChanged() async {
     // Kept for potential future use

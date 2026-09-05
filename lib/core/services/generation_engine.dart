@@ -13,6 +13,7 @@ import '../models/token_usage.dart';
 import '../providers/download_progress_store.dart';
 import '../providers/settings_provider.dart';
 import 'api/chat_api_service.dart';
+import 'api/providers/gemini_thought_signature.dart';
 import 'chat/chat_service.dart';
 import 'workspace/linux_sandbox_service.dart';
 import 'streaming_content_notifier.dart';
@@ -953,20 +954,31 @@ class GenerationEngine extends ChangeNotifier {
     dotAll: true,
   );
 
-  /// Capture and strip a Gemini thought signature from content; persists it
-  /// so follow-up API calls in the conversation can echo it.
+  /// Capture and strip a Gemini thought signature from content; persists the
+  /// normalized payload (bare JSON) so follow-up API calls in the conversation
+  /// can echo it without leaking the comment into message text.
   String _captureGeminiThoughtSignature(String content, _SlotRuntime rt) {
     final m = _geminiThoughtSigRe.firstMatch(content);
     if (m != null) {
       final sig = m.group(0) ?? '';
       if (sig.isNotEmpty) {
-        rt.geminiThoughtSig = sig;
-        unawaited(
-          _chatService.setGeminiThoughtSignature(
-            rt.slot.assistantMessageId,
-            sig,
-          ),
-        );
+        final meta = decodeGeminiThoughtSignature(sig);
+        final payload = meta == null
+            ? ''
+            : encodeGeminiThoughtSignature(
+                textKey: meta.textKey,
+                textValue: meta.textValue,
+                imageSigs: meta.images,
+              );
+        if (payload.isNotEmpty) {
+          rt.geminiThoughtSig = payload;
+          unawaited(
+            _chatService.setGeminiThoughtSignature(
+              rt.slot.assistantMessageId,
+              payload,
+            ),
+          );
+        }
         content = content.replaceAll(_geminiThoughtSigRe, '').trimRight();
       }
     }
@@ -1388,7 +1400,7 @@ class _SlotRuntime {
   /// `max_tokens` / `context_exceeded` when the response was truncated.
   String? truncationReason;
 
-  /// Gemini thought signature captured from the stream, if any.
+  /// Gemini thought signature payload captured from the stream, if any.
   String? geminiThoughtSig;
 
   Timer? reasoningFlushTimer;

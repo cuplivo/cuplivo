@@ -2,6 +2,12 @@ import '../models/chat_input_data.dart';
 
 const String multimodalInternalMediaPathsKey = '_kelivo_media_paths';
 
+/// Provider state stored against an assistant message and carried into the
+/// next request under an internal key, which every provider strips before
+/// anything reaches the wire.
+const String multimodalInternalGeminiThoughtSignatureKey =
+    '_kelivo_gemini_thought_signature';
+
 bool isImageMime(String mime) => mime.toLowerCase().startsWith('image/');
 
 bool isAudioMime(String mime) => mime.toLowerCase().startsWith('audio/');

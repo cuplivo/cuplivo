@@ -49,6 +49,7 @@ import '../../home/services/local_tools_service.dart';
 import 'screen_time_tool_ui.dart';
 import '../../home/services/tool_approval_service.dart';
 import '../../../core/utils/thinking_tag_parser.dart';
+import '../utils/assistant_paragraph_splitter.dart';
 import 'citation_sources_sheet.dart';
 import 'chat_suggestion_bubbles.dart';
 import 'token_display_widget.dart';
@@ -56,6 +57,7 @@ import '../../../theme/app_font_weights.dart';
 import '../../../theme/app_semantic_colors.dart';
 import '../../../theme/chat_bubble_style.dart';
 import '../models/tool_ui_part.dart';
+import 'frosted/frosted_surface.dart';
 import 'tool_approval_binding.dart';
 
 export '../models/tool_ui_part.dart';
@@ -1949,8 +1951,9 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
   Widget _buildAssistantTextContent(
     BuildContext context,
     String visualContent,
-    SettingsProvider settings,
-  ) {
+    SettingsProvider settings, {
+    String contentKey = '',
+  }) {
     final bool isDesktop =
         defaultTargetPlatform == TargetPlatform.macOS ||
         defaultTargetPlatform == TargetPlatform.windows ||
@@ -1991,7 +1994,11 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
 
     return RepaintBoundary(
       child: SelectionArea(
-        key: ValueKey('assistant_${widget.message.id}'),
+        key: ValueKey(
+          contentKey.isEmpty
+              ? 'assistant_${widget.message.id}'
+              : 'assistant_${widget.message.id}_$contentKey',
+        ),
         onSelectionChanged: (selection) {
           _selectedPlainText = selection?.plainText;
         },
@@ -2116,15 +2123,41 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
   Widget _buildAssistantTextBlock(
     BuildContext context,
     String visualContent,
-    SettingsProvider settings,
-  ) {
+    SettingsProvider settings, {
+    String contentKey = '',
+  }) {
     return _assistantBlockWidth(
       context,
       child: _buildAssistantBubbleContainer(
         context: context,
-        child: _buildAssistantTextContent(context, visualContent, settings),
+        child: _buildAssistantTextContent(
+          context,
+          visualContent,
+          settings,
+          contentKey: contentKey,
+        ),
       ),
     );
+  }
+
+  List<Widget> _buildAssistantTextBubbles(
+    BuildContext context,
+    String visualContent,
+    SettingsProvider settings, {
+    required String blockKey,
+  }) {
+    final parts = settings.assistantBubbleSplitParagraphs
+        ? splitAssistantParagraphs(visualContent)
+        : <String>[visualContent];
+    return <Widget>[
+      for (var i = 0; i < parts.length; i++)
+        _buildAssistantTextBlock(
+          context,
+          parts[i],
+          settings,
+          contentKey: parts.length == 1 ? '' : '$blockKey.$i',
+        ),
+    ];
   }
 
   List<_TimelineStepData> _buildTimelineSteps(
@@ -2577,22 +2610,31 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
             }
 
             final widgets = <Widget>[];
+            void addVisible(Widget child) {
+              if (widgets.isNotEmpty) {
+                widgets.add(const SizedBox(height: 8));
+              }
+              widgets.add(child);
+            }
+
             for (int i = 0; i < renderBlocks.length; i++) {
               final block = renderBlocks[i];
               if (block.type == _RenderBlockType.text && block.text != null) {
-                widgets.add(
-                  _buildAssistantTextBlock(context, block.text!, settings),
-                );
+                for (final bubble in _buildAssistantTextBubbles(
+                  context,
+                  block.text!,
+                  settings,
+                  blockKey: 'text$i',
+                )) {
+                  addVisible(bubble);
+                }
               } else if (block.steps.isNotEmpty) {
-                widgets.add(
+                addVisible(
                   _ChainOfThoughtCard(
                     steps: block.steps,
                     onRecoveredAnswer: widget.onRecoveredAskUserAnswer,
                   ),
                 );
-              }
-              if (i != renderBlocks.length - 1) {
-                widgets.add(const SizedBox(height: 8));
               }
             }
 
@@ -3336,25 +3378,11 @@ Widget _buildSharedChatSurface(
   switch (style) {
     case ChatMessageBackgroundStyle.frosted:
       final radius = BorderRadius.circular(resolved.radius);
-      return ClipRRect(
+      return FrostedSurface(
+        style: resolved,
         borderRadius: radius,
-        child: BackdropFilter.grouped(
-          filter: ui.ImageFilter.blur(
-            sigmaX: resolved.blurSigma,
-            sigmaY: resolved.blurSigma,
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: resolved.background,
-              borderRadius: radius,
-              border: Border.all(
-                color: resolved.border,
-                width: resolved.borderWidth,
-              ),
-            ),
-            child: paddedChild,
-          ),
-        ),
+        isUser: isUser,
+        child: paddedChild,
       );
     case ChatMessageBackgroundStyle.solid:
       final radius = BorderRadius.circular(resolved.radius);

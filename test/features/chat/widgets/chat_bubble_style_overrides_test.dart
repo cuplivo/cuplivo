@@ -10,6 +10,7 @@ import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/providers/tts_provider.dart';
 import 'package:Cuplivo/core/providers/user_provider.dart';
 import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart';
+import 'package:Cuplivo/features/chat/widgets/frosted/frosted_surface.dart';
 import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
 import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
@@ -91,13 +92,14 @@ void main() {
       _clipAncestorOf('Plain override text'),
     );
     expect(clip.borderRadius, BorderRadius.circular(4));
-    expect(
+    final surface = tester.widget<FrostedSurface>(
       find.ancestor(
         of: find.text('Plain override text'),
-        matching: find.byType(BackdropFilter),
+        matching: find.byType(FrostedSurface),
       ),
-      findsOneWidget,
     );
+    expect(surface.style.blurSigma, 3);
+    expect(find.byType(BackdropFilter), findsNothing);
     expect(
       tester.widget<Text>(find.text('Plain override text')).style?.color,
       const Color(0xFF224466),

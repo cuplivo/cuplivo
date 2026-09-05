@@ -8,6 +8,7 @@ import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/settings/pages/message_style_settings_page.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
 
 var businessPrefs = BusinessPreferences.memoryForTests();
 
@@ -84,6 +85,27 @@ void main() {
     expect(find.text('Blur'), findsOneWidget);
     expect(find.text('Background'), findsOneWidget);
     expect(find.text('This is a user message'), findsWidgets);
+  });
+
+  testWidgets('paragraph split switch updates the setting', (tester) async {
+    final settings = await createSettings();
+
+    await pumpPage(tester, settings: settings);
+
+    final label = find.text('Split paragraphs into bubbles');
+    await tester.ensureVisible(label);
+    await tester.pump();
+    expect(label, findsOneWidget);
+    expect(settings.assistantBubbleSplitParagraphs, isFalse);
+
+    await tester.tap(find.byType(IosSwitch).at(1));
+    await tester.pump();
+
+    expect(settings.assistantBubbleSplitParagraphs, isTrue);
+    expect(
+      businessPrefs.getBool('display_assistant_bubble_split_paragraphs_v1'),
+      isTrue,
+    );
   });
 
   testWidgets('light and dark preview labels stay after switching', (

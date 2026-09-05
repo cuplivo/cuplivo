@@ -12,6 +12,7 @@ import 'package:Cuplivo/core/providers/tts_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/generation_engine.dart';
 import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart';
+import 'package:Cuplivo/features/chat/widgets/frosted/frosted_surface.dart';
 import 'package:Cuplivo/features/home/controllers/stream_controller.dart'
     as home_stream;
 import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
@@ -362,7 +363,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byType(BackdropFilter), findsOneWidget);
+      expect(find.byType(FrostedSurface), findsOneWidget);
+      expect(find.byType(BackdropFilter), findsNothing);
       expect(
         tester.widget<Text>(find.text('Deep Thinking')).style?.color,
         _expectedNeutralStrong(),
@@ -410,7 +412,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byType(BackdropFilter), findsNothing);
+      expect(find.byType(FrostedSurface), findsNothing);
       expect(
         tester.widget<Text>(find.text('Deep Thinking')).style?.color,
         _expectedNeutralStrong(),
@@ -443,7 +445,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byType(BackdropFilter), findsOneWidget);
+      expect(find.byType(FrostedSurface), findsOneWidget);
+      expect(find.byType(BackdropFilter), findsNothing);
       expect(
         tester.widget<Text>(find.text('Web Search: Kelivo')).style?.color,
         _expectedNeutralStrong(),
@@ -474,7 +477,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byType(BackdropFilter), findsNothing);
+      expect(find.byType(FrostedSurface), findsNothing);
       expect(
         tester.widget<Text>(find.text('Web Search: Kelivo')).style?.color,
         _expectedNeutralStrong(),
@@ -504,7 +507,8 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
-        expect(find.byType(BackdropFilter), findsNWidgets(2));
+        expect(find.byType(FrostedSurface), findsNWidgets(2));
+        expect(find.byType(BackdropFilter), findsNothing);
         expect(
           tester.widget<Text>(find.text('Translation')).style?.color,
           _expectedNeutralStrong(),
@@ -533,7 +537,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byType(BackdropFilter), findsNothing);
+      expect(find.byType(FrostedSurface), findsNothing);
       expect(
         tester.widget<Text>(find.text('Translation')).style?.color,
         _expectedNeutralStrong(),

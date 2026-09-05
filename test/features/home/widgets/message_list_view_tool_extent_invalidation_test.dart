@@ -142,6 +142,197 @@ void main() {
     expect(after, isNot(96));
   });
 
+  testWidgets(
+    'streaming height change invalidates an already measured extent',
+    (tester) async {
+      final notifier = StreamingContentNotifier();
+      addTearDown(notifier.dispose);
+      notifier.getNotifier('tool-1');
+
+      final key = GlobalKey<_HarnessState>();
+      final messages = <ChatMessage>[
+        ChatMessage(
+          id: 'tool-1',
+          role: 'assistant',
+          content: '',
+          conversationId: 'conversation-1',
+          isStreaming: true,
+        ),
+        ChatMessage(
+          id: 'text-1',
+          role: 'assistant',
+          content: 'A' * 1800,
+          conversationId: 'conversation-1',
+        ),
+        ChatMessage(
+          id: 'text-2',
+          role: 'assistant',
+          content: 'B' * 1800,
+          conversationId: 'conversation-1',
+        ),
+        ChatMessage(
+          id: 'text-3',
+          role: 'assistant',
+          content: 'C' * 1800,
+          conversationId: 'conversation-1',
+        ),
+      ];
+      final toolParts = <String, List<ToolUIPart>>{
+        'tool-1': const [
+          ToolUIPart(
+            id: 'ask',
+            toolName: 'ask_user_input_v0',
+            arguments: {},
+            loading: true,
+          ),
+        ],
+      };
+
+      await tester.pumpWidget(
+        _Harness(
+          key: key,
+          notifier: notifier,
+          messages: messages,
+          toolParts: toolParts,
+        ),
+      );
+      await tester.pump();
+
+      // Row 0 is laid out at the top: the controller holds its measured extent.
+      final listController = tester
+          .widget<SuperListView>(find.byType(SuperListView))
+          .listController!;
+      expect(listController.extentForIndex(0).$2, isFalse);
+
+      // Scroll the tail into view: row 0 leaves the cache area and is no longer
+      // built, but its measured extent stays stored in the controller.
+      key.currentState!.jumpToBottom();
+      await tester.pump();
+      final visible = listController.visibleRange;
+      expect(visible, isNotNull);
+      expect(visible!.$1, greaterThanOrEqualTo(1));
+      expect(listController.extentForIndex(0).$2, isFalse);
+
+      // Streaming answer arrives: the visible tool count stays 1, only the
+      // rendered height of the card changes. No rebuild reaches row 0, so the
+      // height event is the only signal that its stored extent is stale.
+      toolParts['tool-1'] = [
+        ToolUIPart(
+          id: 'ask',
+          toolName: 'ask_user_input_v0',
+          arguments: const {},
+          content: '{"answers":{}}',
+        ),
+      ];
+      notifier.notifyToolPartsUpdated('tool-1');
+      await tester.pump();
+      await tester.pump();
+
+      // The stale measured extent must have been replaced by a fresh estimate.
+      // Without the event subscription and the invalidateExtent call this
+      // assertion stays false — the stored extent survives untouched.
+      final updated = listController.extentForIndex(0);
+      expect(
+        updated.$2,
+        isTrue,
+        reason: 'stale measured extent was not dropped',
+      );
+
+      // Functional consequence: bottom rendering still lands on the tail.
+      key.currentState!.jumpToBottom();
+      await tester.pump();
+      final tail = listController.visibleRange!;
+      expect(tail.$2, greaterThanOrEqualTo(messages.length - 1));
+    },
+  );
+
+  testWidgets('events queued across a controller swap flush after re-attach', (
+    tester,
+  ) async {
+    final notifier = StreamingContentNotifier();
+    addTearDown(notifier.dispose);
+    notifier.getNotifier('tool-1');
+
+    final key = GlobalKey<_HarnessState>();
+    final messages = <ChatMessage>[
+      ChatMessage(
+        id: 'tool-1',
+        role: 'assistant',
+        content: '',
+        conversationId: 'conversation-1',
+        isStreaming: true,
+      ),
+      ChatMessage(
+        id: 'text-1',
+        role: 'assistant',
+        content: 'A' * 1800,
+        conversationId: 'conversation-1',
+      ),
+      ChatMessage(
+        id: 'text-2',
+        role: 'assistant',
+        content: 'B' * 1800,
+        conversationId: 'conversation-1',
+      ),
+      ChatMessage(
+        id: 'text-3',
+        role: 'assistant',
+        content: 'C' * 1800,
+        conversationId: 'conversation-1',
+      ),
+    ];
+    final toolParts = <String, List<ToolUIPart>>{
+      'tool-1': const [
+        ToolUIPart(
+          id: 'ask',
+          toolName: 'ask_user_input_v0',
+          arguments: {},
+          loading: true,
+        ),
+      ],
+    };
+
+    await tester.pumpWidget(
+      _Harness(
+        key: key,
+        notifier: notifier,
+        messages: messages,
+        toolParts: toolParts,
+      ),
+    );
+    await tester.pump();
+
+    // Swap to a fresh controller; the height event fires in the same window,
+    // before the new controller attaches. It must queue and flush post-attach
+    // instead of being dropped or spinning the retry loop forever.
+    final fresh = ListController();
+    key.currentState!.replaceListController(fresh);
+    toolParts['tool-1'] = [
+      ToolUIPart(
+        id: 'ask',
+        toolName: 'ask_user_input_v0',
+        arguments: const {},
+        content: '{"answers":{}}',
+      ),
+    ];
+    notifier.notifyToolPartsUpdated('tool-1');
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+
+    final attached = tester
+        .widget<SuperListView>(find.byType(SuperListView))
+        .listController!;
+    expect(identical(attached, fresh), isTrue);
+
+    // The queue drained and the list stays fully functional: jumping to the
+    // bottom still renders the tail through the last row.
+    key.currentState!.jumpToBottom();
+    await tester.pump();
+    final tail = fresh.visibleRange!;
+    expect(tail.$2, greaterThanOrEqualTo(messages.length - 1));
+  });
+
   testWidgets('recovered tool signature change invalidates extent on rebuild', (
     tester,
   ) async {
@@ -250,7 +441,7 @@ class _Harness extends StatefulWidget {
 
 class _HarnessState extends State<_Harness> {
   late final ScrollController scrollController;
-  late final ListController listController;
+  late ListController listController;
   late final ValueNotifier<bool> isProcessingFiles;
   late Map<String, List<ToolUIPart>> toolParts;
 
@@ -267,6 +458,15 @@ class _HarnessState extends State<_Harness> {
 
   void replaceTools(Map<String, List<ToolUIPart>> next) {
     setState(() => toolParts = next);
+  }
+
+  void replaceListController(ListController next) {
+    setState(() => listController = next);
+  }
+
+  void jumpToBottom() {
+    if (!scrollController.hasClients) return;
+    scrollController.jumpTo(scrollController.position.maxScrollExtent);
   }
 
   @override

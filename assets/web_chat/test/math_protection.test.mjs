@@ -10,6 +10,7 @@ import {
 
 const require = createRequire(import.meta.url);
 const { marked } = require('../vendor/marked.min.js');
+const katex = require('../vendor/katex.min.js');
 
 const SM = [
   '$$',
@@ -218,3 +219,15 @@ test('tilde fences may contain backticks in the info string', () => {
 function slotKeys(source) {
   return /m:[0-9a-f]{8}/g[Symbol.match](source) ?? [];
 }
+
+test('ovalbox macro renders math content instead of erroring', () => {
+  const html = katex.renderToString('\\ovalbox{1+\\frac{1}{2}}', {
+    throwOnError: false,
+    macros: { '\\ovalbox': '\\htmlClass{ovalbox}{\\boxed{#1}}' },
+    trust: (ctx) => ctx.command === '\\htmlClass',
+    displayMode: true,
+  });
+  assert.ok(html.includes('ovalbox'), 'macro must keep the oval class');
+  assert.ok(html.includes('fbox'), 'macro must expand to the boxed geometry');
+  assert.ok(!html.includes('katex-error'), 'must not fall into the error renderer');
+});

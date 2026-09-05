@@ -2133,6 +2133,51 @@ void main() {
       expect(r'\ovalbox{example}', toParse());
       expect(r'\ovalbox{\textcolor{#AEC6CF}{\textbf{示例文字}}}', toBuild);
     });
+    test("should parse and build math content", () {
+      expect(r'\ovalbox{1+\frac{1}{2}}', toParse());
+      expect(r'\ovalbox{1+\frac{1}{2}}', toBuild);
+    });
+  });
+
+  group("AMS environments", () {
+    test("should parse and build equation and starred form", () {
+      final tex = r'\begin{equation}a^2 + b^2 = c^2\end{equation}';
+      expect(tex, toParse());
+      expect(tex, toBuild);
+      final starred = r'\begin{equation*}a^2 + b^2 = c^2\end{equation*}';
+      expect(starred, toParse());
+      expect(starred, toBuild);
+    });
+    test("should parse and build align and starred form", () {
+      final tex = r'\begin{align}a &= b \\ c &= d\end{align}';
+      expect(tex, toParse());
+      expect(tex, toBuild);
+      final starred = r'\begin{align*}f(x) &= x^2 \\ g(x) &= x^3\end{align*}';
+      expect(starred, toParse());
+      expect(starred, toBuild);
+    });
+    test("should parse and build gather and starred form", () {
+      final tex = r'\begin{gather}a = b \\ c = d\end{gather}';
+      expect(tex, toParse());
+      expect(tex, toBuild);
+      final starred = r'\begin{gather*}a = b \\ c = d\end{gather*}';
+      expect(starred, toParse());
+      expect(starred, toBuild);
+    });
+    test("should parse and build gathered", () {
+      final tex = r'\begin{gathered}a = b \\ c = d\end{gathered}';
+      expect(tex, toParse());
+      expect(tex, toBuild);
+    });
+    test("should keep per-row tags inside equation and align", () {
+      final equation = r'\begin{equation}x + y = 1\tag{5.1}\end{equation}';
+      expect(equation, toParse());
+      expect(equation, toBuild);
+      final align =
+          r'\begin{align}a &= b \tag{A} \\ c &= d \tag*{[B]}\end{align}';
+      expect(align, toParse());
+      expect(align, toBuild);
+    });
   });
 
   group("Notag and nonumber", () {

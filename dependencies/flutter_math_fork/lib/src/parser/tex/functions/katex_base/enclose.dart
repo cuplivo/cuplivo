@@ -85,7 +85,7 @@ GreenNode _fboxHandler(TexParser parser, FunctionContext context) {
 }
 
 GreenNode _ovalboxHandler(TexParser parser, FunctionContext context) {
-  final body = parser.parseArgHbox(optional: false);
+  final body = parser.parseArgNode(mode: null, optional: false)!;
   return EnclosureNode(
     hasBorder: true,
     base: body.wrapWithEquationRow(),

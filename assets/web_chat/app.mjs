@@ -1094,6 +1094,8 @@ function enhanceMarkdown(root, streaming, messageId = null) {
     }
     window.renderMathInElement(root, {
       throwOnError: false,
+      macros: { '\\ovalbox': '\\htmlClass{ovalbox}{\\boxed{#1}}' },
+      trust: (ctx) => ctx.command === '\\htmlClass',
       delimiters: [
         { left: '$$', right: '$$', display: true },
         ...(state.display?.dollarMath === true ? [{ left: '$', right: '$', display: false }] : []),

@@ -38,6 +38,8 @@
 
 * { box-sizing: border-box; }
 html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+
+.katex .ovalbox .fbox { border-radius: 0.5em; }
 body {
   position: relative;
   background: transparent;

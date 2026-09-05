@@ -8605,17 +8605,49 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get subagentNoTargetHint =>
-      'Sub-agent delegation is on, but no sub-agent targets are available. Enable “Delegateable as a sub-agent” on another assistant first.';
-
-  @override
   String get subagentGoSetup => 'Set up';
 
   @override
-  String get subagentTargetListTitle => 'Delegatable assistants';
+  String get subagentPageTitle => 'Sub-agent Delegation';
 
   @override
-  String get subagentTargetListEmpty => 'No delegatable assistants yet.';
+  String get subagentPageExplainer =>
+      'With Sub-agent Delegation enabled, the current assistant can delegate tasks to other assistants and wait for their sub-agent result. To become a delegatable target, an assistant must:\n1. Have “Discoverable” enabled\n2. Set a non-empty delegation ID';
+
+  @override
+  String get subagentPageStatusEmptySub =>
+      'Enable “Discoverable” and set a delegation ID first';
+
+  @override
+  String get subagentPageEmpty =>
+      'No assistants to configure yet. Create one in Assistant settings first.';
+
+  @override
+  String get subagentSectionDelegatable => 'Delegatable';
+
+  @override
+  String get subagentSectionUnconfigured => 'Not configured';
+
+  @override
+  String get subagentReasonNoId => 'No delegation ID';
+
+  @override
+  String get subagentReasonNotDiscoverable => 'Discoverability is off';
+
+  @override
+  String get subagentEditorStateOk => 'Delegatable';
+
+  @override
+  String get subagentEditorOkSub => 'All conditions met';
+
+  @override
+  String get subagentEditorNoIdSub => 'Set a delegation ID to enable';
+
+  @override
+  String get subagentEditorNotDiscSub => '“Discoverable” must be enabled first';
+
+  @override
+  String get subagentIdConflict => 'ID conflict';
 
   @override
   String get groupChatCreate => 'New group chat';

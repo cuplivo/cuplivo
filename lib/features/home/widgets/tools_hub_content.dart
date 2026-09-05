@@ -20,15 +20,14 @@ import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../utils/platform_utils.dart';
-import '../../../desktop/desktop_settings_navigation_bus.dart';
+import '../../../shared/widgets/subagent_delegation_status_row.dart';
 import '../../mcp/pages/mcp_page.dart';
 import '../../workspace/pages/workspace_list_page.dart';
 import '../../workspace/pages/workspace_terminal_page.dart';
 import '../../workspace/widgets/workspace_bind_sheet.dart';
-import '../../assistant/pages/assistant_settings_page.dart';
+import '../../assistant/pages/subagent_delegation_page.dart';
 import '../../workspace/widgets/workspace_settings_sheet.dart';
 import '../services/local_tools_service.dart';
-import 'subagent_target_sheet.dart';
 
 /// The shared Tools Hub content: local tools / MCP servers / workspace
 /// management grouped with collapsible headers. Used by both the mobile
@@ -63,9 +62,6 @@ class _ToolsHubContentState extends State<ToolsHubContent>
   static const String _mcpKey = 'mcp';
   static const String _workspaceKey = 'workspace';
 
-  /// Desktop popover inline hint: dismissed per-open (transient surface).
-  bool _subagentHintDismissed = false;
-
   @override
   Set<String> get initialCollapsedGroups => {_localToolsKey};
 
@@ -77,20 +73,6 @@ class _ToolsHubContentState extends State<ToolsHubContent>
     }
   }
 
-  void _goAssistantSettings() {
-    widget.onClose?.call();
-    if (PlatformUtils.isDesktop) {
-      // Desktop deep link mirrors the backup-reminder pattern: the settings
-      // shell owns the assistant list pane; pushing a mobile-style route on
-      // desktop is wrong (see side_drawer._openBackupSettings).
-      DesktopSettingsNavigationBus.instance.openAssistants();
-      return;
-    }
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const AssistantSettingsPage()),
-    );
-  }
-
   void _toggleLocalTool(Assistant a, String toolId, bool value) {
     Haptics.light();
     final ids = a.localToolIds.toSet();
@@ -100,21 +82,6 @@ class _ToolsHubContentState extends State<ToolsHubContent>
       ids.remove(toolId);
     }
     _updateAssistant(a.copyWith(localToolIds: ids.toList(growable: false)));
-    if (toolId == LocalToolNames.handoff && value) {
-      final targets = LocalToolsService.handoffTargets(
-        context.read<AssistantProvider>().assistants,
-        excludeId: a.id,
-      );
-      if (targets.isEmpty) {
-        setState(() => _subagentHintDismissed = false);
-        if (PlatformUtils.isMobile) {
-          showSubagentNoTargetSnackbar(
-            context,
-            onGoSetup: _goAssistantSettings,
-          );
-        }
-      }
-    }
   }
 
   Future<void> _toggleDeviceTool(Assistant a, String toolId, bool value) async {
@@ -380,14 +347,15 @@ class _ToolsHubContentState extends State<ToolsHubContent>
       ],
     ];
     final toolCount = rows.length;
-    if (!PlatformUtils.isMobile &&
-        handoffEnabled &&
-        targets.isEmpty &&
-        !_subagentHintDismissed) {
+    if (handoffEnabled) {
       rows.add(
-        SubagentNoTargetHintRow(
-          onGoSetup: _goAssistantSettings,
-          onDismiss: () => setState(() => _subagentHintDismissed = true),
+        SubagentDelegationStatusRow(
+          count: targets.length,
+          onTap: () {
+            widget.onClose?.call();
+            if (!context.mounted) return;
+            pushSubagentDelegationPage(context);
+          },
         ),
       );
     }

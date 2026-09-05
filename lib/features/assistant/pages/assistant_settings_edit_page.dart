@@ -39,7 +39,6 @@ import '../../../core/models/world_book.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/haptics.dart';
 import '../../../desktop/desktop_context_menu.dart';
-import '../../../desktop/desktop_settings_navigation_bus.dart';
 import '../../home/services/local_tools_service.dart';
 import '../../skills/skill_manager.dart';
 import '../../workspace/widgets/workspace_settings_sheet.dart';
@@ -56,15 +55,14 @@ import '../../../theme/app_semantic_colors.dart';
 import '../../../theme/design_tokens.dart';
 import '../../../utils/avatar_cache.dart';
 import '../../../utils/brand_assets.dart';
-import '../../../utils/platform_utils.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../core/services/proactive_care_alarm_service.dart';
 import '../utils/assistant_edit_tab_layout.dart';
 import '../widgets/proactive_care_datetime_picker.dart';
 import '../../workspace/widgets/workspace_bind_sheet.dart';
-import '../../home/widgets/subagent_target_sheet.dart';
+import '../../../shared/widgets/subagent_delegation_status_row.dart';
 import 'assistant_regex_tab.dart';
-import 'assistant_settings_page.dart';
+import 'subagent_delegation_page.dart';
 part 'assistant_settings_edit_basic_tab.dart';
 part 'assistant_settings_edit_prompt_tab.dart';
 part 'assistant_settings_edit_memory_tab.dart';
@@ -2601,9 +2599,13 @@ class _DesktopAssistantBasicPaneState
                                       : null,
                                 );
                               }
-                              context.read<AssistantProvider>().updateAssistant(
-                                a.copyWith(handoffId: sanitized),
-                              );
+                              if (_handoffIdError == null) {
+                                context
+                                    .read<AssistantProvider>()
+                                    .updateAssistant(
+                                      a.copyWith(handoffId: sanitized),
+                                    );
+                              }
                             },
                           ),
                           const SizedBox(height: 12),

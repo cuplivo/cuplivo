@@ -70,13 +70,6 @@ class _LocalToolsTab extends StatelessWidget {
       } catch (e) {
         debugPrint('Failed to persist local tool switch: $e');
       }
-      if (toolId == LocalToolNames.handoff && value && handoffTargets.isEmpty) {
-        if (!context.mounted) return;
-        showSubagentNoTargetSnackbar(
-          context,
-          onGoSetup: () => _goAssistantSettings(context),
-        );
-      }
     }
 
     Future<void> toggleTool(String toolId, bool value) async {
@@ -247,68 +240,14 @@ class _LocalToolsTab extends StatelessWidget {
               onChanged: (value) => updateTool(LocalToolNames.handoff, value),
             ),
             _iosDivider(context),
-            _SubagentTargetStatusRow(targets: handoffTargets),
+            if (handoffEnabled)
+              SubagentDelegationStatusRow(
+                count: handoffTargets.length,
+                onTap: () => pushSubagentDelegationPage(context),
+              ),
           ],
         ),
       ],
-    );
-  }
-}
-
-/// Footer row under the Sub-agent Delegation toggle: live target count that
-/// opens the shared target list sheet (names + delegation IDs + purposes).
-class _SubagentTargetStatusRow extends StatelessWidget {
-  const _SubagentTargetStatusRow({required this.targets});
-
-  final List<Assistant> targets;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final cs = Theme.of(context).colorScheme;
-    final muted = cs.onSurface.withValues(alpha: 0.62);
-    return _TactileRow(
-      onTap: () => showSubagentTargetSheet(context, targets),
-      builder: (pressed) {
-        return _AnimatedPressColor(
-          pressed: pressed,
-          base: cs.onSurface.withValues(alpha: 0.9),
-          builder: (color) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 36,
-                    child: Icon(
-                      Lucide.ListChecks,
-                      size: 20,
-                      color: targets.isEmpty ? cs.error : cs.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      l10n.subagentTargetStatus(targets.length),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: targets.isEmpty ? cs.error : muted,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    Lucide.ChevronRight,
-                    size: 18,
-                    color: cs.onSurface.withValues(alpha: 0.35),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
     );
   }
 }
@@ -475,19 +414,4 @@ class _LocalToolRow extends StatelessWidget {
       },
     );
   }
-}
-
-void _goAssistantSettings(BuildContext context) {
-  if (PlatformUtils.isDesktop) {
-    // The desktop shell owns the assistant list pane (settings menu →
-    // assistants); dismiss the edit dialog first, then deep-link via the
-    // settings navigation bus (backup-reminder pattern).
-    // ignore: use_build_context_synchronously
-    Navigator.of(context).maybePop();
-    DesktopSettingsNavigationBus.instance.openAssistants();
-    return;
-  }
-  Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => const AssistantSettingsPage()),
-  );
 }

@@ -8214,17 +8214,47 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get subagentNoTargetHint =>
-      '子代理委派已开启，但还没有可委派的目标助手。请在另一个助手上开启「可作为子代理被其他助手委派」。';
+  String get subagentGoSetup => '去配置';
 
   @override
-  String get subagentGoSetup => '去设置';
+  String get subagentPageTitle => '子智能体委派';
 
   @override
-  String get subagentTargetListTitle => '可委派的目标助手';
+  String get subagentPageExplainer =>
+      '开启子智能体委派后，当前助手可以把任务委派给其他助手，并等待其作为子智能体返回结果。要成为可委派目标，助手需要同时满足：\n1. 开启「可被发现」\n2. 设置非空的「委派 ID」';
 
   @override
-  String get subagentTargetListEmpty => '还没有可委派的目标助手。';
+  String get subagentPageStatusEmptySub => '开启「可被发现」并设置委派 ID 后即可';
+
+  @override
+  String get subagentPageEmpty => '还没有助手。请先到「助手设置」创建助手。';
+
+  @override
+  String get subagentSectionDelegatable => '可委派';
+
+  @override
+  String get subagentSectionUnconfigured => '未配置';
+
+  @override
+  String get subagentReasonNoId => '未设置委派 ID';
+
+  @override
+  String get subagentReasonNotDiscoverable => '未开启可被发现';
+
+  @override
+  String get subagentEditorStateOk => '可委派';
+
+  @override
+  String get subagentEditorOkSub => '已满足全部条件';
+
+  @override
+  String get subagentEditorNoIdSub => '补全委派 ID 后即可被委派';
+
+  @override
+  String get subagentEditorNotDiscSub => '需先开启「可被发现」';
+
+  @override
+  String get subagentIdConflict => 'ID 冲突';
 
   @override
   String get groupChatCreate => '新建群聊';
@@ -17425,17 +17455,47 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get subagentNoTargetHint =>
-      '子代理委派已开启，但还没有可委派的目标助手。请在另一个助手上开启「可作为子代理被其他助手委派」。';
+  String get subagentGoSetup => '去配置';
 
   @override
-  String get subagentGoSetup => '去设置';
+  String get subagentPageTitle => '子智能体委派';
 
   @override
-  String get subagentTargetListTitle => '可委派的目标助手';
+  String get subagentPageExplainer =>
+      '开启子智能体委派后，当前助手可以把任务委派给其他助手，并等待其作为子智能体返回结果。要成为可委派目标，助手需要同时满足：\n1. 开启「可被发现」\n2. 设置非空的「委派 ID」';
 
   @override
-  String get subagentTargetListEmpty => '还没有可委派的目标助手。';
+  String get subagentPageStatusEmptySub => '开启「可被发现」并设置委派 ID 后即可';
+
+  @override
+  String get subagentPageEmpty => '还没有助手。请先到「助手设置」创建助手。';
+
+  @override
+  String get subagentSectionDelegatable => '可委派';
+
+  @override
+  String get subagentSectionUnconfigured => '未配置';
+
+  @override
+  String get subagentReasonNoId => '未设置委派 ID';
+
+  @override
+  String get subagentReasonNotDiscoverable => '未开启可被发现';
+
+  @override
+  String get subagentEditorStateOk => '可委派';
+
+  @override
+  String get subagentEditorOkSub => '已满足全部条件';
+
+  @override
+  String get subagentEditorNoIdSub => '补全委派 ID 后即可被委派';
+
+  @override
+  String get subagentEditorNotDiscSub => '需先开启「可被发现」';
+
+  @override
+  String get subagentIdConflict => 'ID 冲突';
 
   @override
   String get groupChatCreate => '新建群聊';
@@ -26637,17 +26697,47 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get subagentNoTargetHint =>
-      '子代理委派已開啟，但還沒有可委派的目標助手。請在另一個助手上開啟「可作為子代理被其他助手委派」。';
-
-  @override
   String get subagentGoSetup => '去設定';
 
   @override
-  String get subagentTargetListTitle => '可委派的目標助手';
+  String get subagentPageTitle => '子智能體委派';
 
   @override
-  String get subagentTargetListEmpty => '還沒有可委派的目標助手。';
+  String get subagentPageExplainer =>
+      '開啟子智能體委派後，目前助手可以把任務委派給其他助手，並等待其作為子智能體返回結果。要成為可委派目標，助手需要同時滿足：\n1. 開啟「可被發現」\n2. 設定非空的「委派 ID」';
+
+  @override
+  String get subagentPageStatusEmptySub => '開啟「可被發現」並設定委派 ID 後即可';
+
+  @override
+  String get subagentPageEmpty => '還沒有助手。請先到「助手設定」建立助手。';
+
+  @override
+  String get subagentSectionDelegatable => '可委派';
+
+  @override
+  String get subagentSectionUnconfigured => '未設定';
+
+  @override
+  String get subagentReasonNoId => '未設定委派 ID';
+
+  @override
+  String get subagentReasonNotDiscoverable => '未開啟可被發現';
+
+  @override
+  String get subagentEditorStateOk => '可委派';
+
+  @override
+  String get subagentEditorOkSub => '已滿足全部條件';
+
+  @override
+  String get subagentEditorNoIdSub => '補全委派 ID 後即可被委派';
+
+  @override
+  String get subagentEditorNotDiscSub => '需先開啟「可被發現」';
+
+  @override
+  String get subagentIdConflict => 'ID 衝突';
 
   @override
   String get groupChatCreate => '新建群聊';

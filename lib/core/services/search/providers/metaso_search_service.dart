@@ -4,6 +4,8 @@ import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
 class MetasoSearchService extends SearchService<MetasoOptions> {
+  MetasoSearchService({super.client});
+
   @override
   String get name => 'Metaso (秘塔)';
 

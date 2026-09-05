@@ -61,49 +61,53 @@ abstract class SearchService<T extends SearchServiceOptions> {
     throw UnsupportedError('$name does not provide native web fetch');
   }
 
-  // Factory method to get service instance based on options type
-  static SearchService getService(SearchServiceOptions options) {
+  // Factory method to get service instance based on options type. Tests may
+  // inject a mock [client]; production callers use the shared default.
+  static SearchService getService(
+    SearchServiceOptions options, {
+    http.Client? client,
+  }) {
     switch (options) {
       case BingLocalOptions _:
-        return BingSearchService() as SearchService;
+        return BingSearchService(client: client) as SearchService;
       case TavilyOptions _:
-        return TavilySearchService() as SearchService;
+        return TavilySearchService(client: client) as SearchService;
       case ExaOptions _:
-        return ExaSearchService() as SearchService;
+        return ExaSearchService(client: client) as SearchService;
       case ZhipuOptions _:
-        return ZhipuSearchService() as SearchService;
+        return ZhipuSearchService(client: client) as SearchService;
       case SearXNGOptions _:
-        return SearXNGSearchService() as SearchService;
+        return SearXNGSearchService(client: client) as SearchService;
       case LinkUpOptions _:
-        return LinkUpSearchService() as SearchService;
+        return LinkUpSearchService(client: client) as SearchService;
       case BraveOptions _:
-        return BraveSearchService() as SearchService;
+        return BraveSearchService(client: client) as SearchService;
       case MetasoOptions _:
-        return MetasoSearchService() as SearchService;
+        return MetasoSearchService(client: client) as SearchService;
       case OllamaOptions _:
-        return OllamaSearchService() as SearchService;
+        return OllamaSearchService(client: client) as SearchService;
       case JinaOptions _:
-        return JinaSearchService() as SearchService;
+        return JinaSearchService(client: client) as SearchService;
       case BochaOptions _:
-        return BochaSearchService() as SearchService;
+        return BochaSearchService(client: client) as SearchService;
       case PerplexityOptions _:
-        return PerplexitySearchService() as SearchService;
+        return PerplexitySearchService(client: client) as SearchService;
       case DuckDuckGoOptions _:
-        return DuckDuckGoSearchService() as SearchService;
+        return DuckDuckGoSearchService(client: client) as SearchService;
       case SerperOptions _:
-        return SerperSearchService() as SearchService;
+        return SerperSearchService(client: client) as SearchService;
       case GrokOptions _:
-        return GrokSearchService() as SearchService;
+        return GrokSearchService(client: client) as SearchService;
       case QueritOptions _:
-        return QueritSearchService() as SearchService;
+        return QueritSearchService(client: client) as SearchService;
       case StepFunOptions _:
-        return StepFunSearchService() as SearchService;
+        return StepFunSearchService(client: client) as SearchService;
       case FirecrawlOptions _:
-        return FirecrawlSearchService() as SearchService;
+        return FirecrawlSearchService(client: client) as SearchService;
       case TinyFishOptions _:
-        return TinyFishSearchService() as SearchService;
+        return TinyFishSearchService(client: client) as SearchService;
       case DoubaoOptions _:
-        return DoubaoSearchService() as SearchService;
+        return DoubaoSearchService(client: client) as SearchService;
       default:
         return BingSearchService() as SearchService;
     }

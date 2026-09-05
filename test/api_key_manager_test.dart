@@ -19,6 +19,7 @@ ProviderConfig _provider({
   required String id,
   required List<ApiKeyConfig> keys,
   LoadBalanceStrategy strategy = LoadBalanceStrategy.roundRobin,
+  KeyManagementConfig? keyManagement,
 }) {
   return ProviderConfig(
     id: id,
@@ -29,7 +30,7 @@ ProviderConfig _provider({
     providerType: ProviderKind.openai,
     multiKeyEnabled: true,
     apiKeys: keys,
-    keyManagement: KeyManagementConfig(strategy: strategy),
+    keyManagement: keyManagement ?? KeyManagementConfig(strategy: strategy),
   );
 }
 
@@ -134,6 +135,116 @@ void main() {
       final result = ApiKeyManager().selectForProvider(provider);
 
       expect(result.key?.key, 'idle');
+    });
+
+    test('error key is selectable again once its cooldown has elapsed', () {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final key = _key(
+        'key_a',
+        'recovered',
+      ).copyWith(status: ApiKeyStatus.error, updatedAt: now - 10 * 60 * 1000);
+      final provider = _provider(
+        id: 'cooldown-expired',
+        keys: [key],
+        keyManagement: const KeyManagementConfig(
+          failureRecoveryTimeMinutes: 5,
+          enableAutoRecovery: false,
+        ),
+      );
+
+      final result = ApiKeyManager().selectForProvider(provider);
+
+      expect(result.key?.key, 'recovered');
+      expect(result.reason, 'strategy_roundRobin');
+    });
+
+    test(
+      'error key inside its cooldown is skipped when auto recovery is off',
+      () {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final key = _key(
+          'key_a',
+          'cooling',
+        ).copyWith(status: ApiKeyStatus.error, updatedAt: now - 60 * 1000);
+        final provider = _provider(
+          id: 'cooldown-active',
+          keys: [key],
+          keyManagement: const KeyManagementConfig(
+            failureRecoveryTimeMinutes: 5,
+            enableAutoRecovery: false,
+          ),
+        );
+
+        final result = ApiKeyManager().selectForProvider(provider);
+
+        expect(result.key, isNull);
+        expect(result.reason, 'no_available_keys');
+      },
+    );
+
+    test('all-error pool escalates to the key with the earliest failure', () {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      // Both inside the 5-minute cooldown; oldest failure is last in the
+      // list to prove escalation is ordered by recency, not list order.
+      final provider = _provider(
+        id: 'escalation-oldest',
+        keys: [
+          _key(
+            'key_b',
+            'fresh-fail',
+          ).copyWith(status: ApiKeyStatus.error, updatedAt: now - 60 * 1000),
+          _key('key_a', 'old-fail').copyWith(
+            status: ApiKeyStatus.error,
+            updatedAt: now - 4 * 60 * 1000,
+          ),
+        ],
+      );
+
+      final result = ApiKeyManager().selectForProvider(provider);
+
+      expect(result.key?.key, 'old-fail');
+      expect(result.reason, 'escalation_all_error');
+    });
+
+    test('escalation is disabled by enableAutoRecovery=false', () {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final provider = _provider(
+        id: 'escalation-disabled',
+        keys: [
+          _key('key_a', 'failing').copyWith(
+            status: ApiKeyStatus.error,
+            updatedAt: now - 3 * 60 * 1000,
+          ),
+        ],
+        keyManagement: const KeyManagementConfig(
+          failureRecoveryTimeMinutes: 5,
+          enableAutoRecovery: false,
+        ),
+      );
+
+      final result = ApiKeyManager().selectForProvider(provider);
+
+      expect(result.key, isNull);
+      expect(result.reason, 'no_available_keys');
+    });
+
+    test('active keys take precedence over escalation candidates', () {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final provider = _provider(
+        id: 'escalation-not-triggered',
+        keys: [
+          _key(
+            'key_a',
+            'cooling',
+          ).copyWith(status: ApiKeyStatus.error, updatedAt: now - 60 * 1000),
+          _key('key_b', 'healthy'),
+        ],
+      );
+
+      final result = ApiKeyManager().selectForProvider(provider);
+
+      expect(result.key?.key, 'healthy');
+      expect(result.reason, 'strategy_roundRobin');
     });
   });
 }

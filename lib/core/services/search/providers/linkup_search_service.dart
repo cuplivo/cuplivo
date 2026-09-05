@@ -5,6 +5,8 @@ import '../../../../l10n/app_localizations.dart';
 import '../search_service.dart';
 
 class LinkUpSearchService extends SearchService<LinkUpOptions> {
+  LinkUpSearchService({super.client});
+
   @override
   String get name => 'LinkUp';
 

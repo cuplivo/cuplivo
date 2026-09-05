@@ -38,16 +38,16 @@ class HandoffToolService {
   /// Depth of the delegating conversation = number of ancestor links, walking
   /// `Conversation.parentConversationId` (written by every handoff; nothing
   /// else creates parent links). Root conversation = 0.
-  static int _delegationDepth(ChatService chatService) {
+  static int _delegationDepth(ChatService chatService, String startId) {
     var depth = 0;
-    var currentId = chatService.currentConversationId;
+    var currentId = startId;
     final visited = <String>{};
-    while (currentId != null && visited.add(currentId)) {
+    while (currentId.isNotEmpty && visited.add(currentId)) {
       if (depth >= maxDelegationDepth) break;
       final parentId = chatService
           .getConversation(currentId)
           ?.parentConversationId;
-      currentId = parentId;
+      currentId = parentId ?? '';
       if (parentId != null) depth++;
     }
     return depth;
@@ -59,6 +59,7 @@ class HandoffToolService {
     required ChatService chatService,
     required GenerationEngine engine,
     required BuildContext context,
+    String? delegatingConversationId,
   }) async {
     final handoffId = (args['assistant'] ?? '').toString().trim();
     final task = (args['task'] ?? '').toString().trim();
@@ -114,7 +115,9 @@ class HandoffToolService {
     // Hard depth cap: bound the delegation chain the model could create with
     // repeated handoffs (self-delegation is allowed and would otherwise spin
     // A → A → A → … forever).
-    final depth = _delegationDepth(chatService);
+    final parentConversationId =
+        delegatingConversationId ?? chatService.currentConversationId;
+    final depth = _delegationDepth(chatService, parentConversationId ?? '');
     if (depth >= maxDelegationDepth) {
       return _toolError(
         error: 'subagent_max_depth',
@@ -127,16 +130,18 @@ class HandoffToolService {
       );
     }
 
-    final parentConversationId = chatService.currentConversationId;
-
     final conversation = await chatService.createConversation(
       assistantId: target.id,
       mcpServerIds: target.mcpServerIds,
       parentConversationId: parentConversationId,
-      // The delegating conversation stays "current": the subagent panel keys
-      // off ChatService.currentConversationId, and nested handoffs must
-      // attribute their parent to the real delegating conversation, not to
-      // whichever child was created last.
+      // The parent is the conversation whose generation issued this tool
+      // call (the tool handler's captured context) — NOT the global current
+      // conversation: children are created with setAsCurrent: false, so a
+      // nested handoff would otherwise attach to the root forever. The
+      // subagent panel keys off ChatService.currentConversationId and
+      // shows wait-mode rounds whose parent matches it, so the real
+      // delegator keeps its own children; deeper layers are visible from
+      // their delegator's conversation view.
       setAsCurrent: false,
     );
     await chatService.addMessage(

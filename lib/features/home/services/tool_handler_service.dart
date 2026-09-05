@@ -829,6 +829,10 @@ class ToolHandlerService {
             chatService: contextProvider.read<ChatService>(),
             // ignore: use_build_context_synchronously (root context, valid for app lifetime)
             engine: contextProvider.read<GenerationEngine>(),
+            // The real delegating conversation (generation context), not the
+            // global current one — children are created with setAsCurrent:
+            // false, so nested handoffs would otherwise attach to the root.
+            delegatingConversationId: conversationId ?? conversation?.id,
             // ignore: use_build_context_synchronously (root context, valid for app lifetime)
             context: contextProvider,
           );

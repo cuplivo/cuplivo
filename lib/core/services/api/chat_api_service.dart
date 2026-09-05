@@ -13,6 +13,7 @@ import '../../models/token_usage.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../utils/app_directories.dart';
 import '../../utils/openai_model_compat.dart';
+import '../../utils/thinking_tag_parser.dart';
 import '../network/dio_http_client.dart';
 import 'google_service_account_auth.dart';
 import '../../services/api_key_manager.dart';
@@ -759,6 +760,27 @@ class ChatApiService {
 
   // Non-streaming text generation for utilities like title summarization
   static Future<String> generateText({
+    required ProviderConfig config,
+    required String modelId,
+    required String prompt,
+    Map<String, String>? extraHeaders,
+    Map<String, dynamic>? extraBody,
+    int? thinkingBudget,
+  }) async {
+    final raw = await _generateTextRaw(
+      config: config,
+      modelId: modelId,
+      prompt: prompt,
+      extraHeaders: extraHeaders,
+      extraBody: extraBody,
+      thinkingBudget: thinkingBudget,
+    );
+    // Strip <think>...</think> (and truncated CoT) so utility text like titles
+    // never exposes raw reasoning (issue #579).
+    return ThinkingTagParser.stripUtilityThinking(raw);
+  }
+
+  static Future<String> _generateTextRaw({
     required ProviderConfig config,
     required String modelId,
     required String prompt,

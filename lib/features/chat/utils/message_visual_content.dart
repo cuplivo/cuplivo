@@ -9,7 +9,7 @@ import '../../../core/models/chat_message.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../utils/assistant_regex.dart';
-import 'thinking_tag_parser.dart';
+import '../../../core/utils/thinking_tag_parser.dart';
 
 /// Minimum visual-content length (characters) for the reading-mode entry to
 /// appear in the message "More" menu.

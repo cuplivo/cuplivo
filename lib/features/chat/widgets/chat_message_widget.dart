@@ -48,7 +48,7 @@ import '../../home/services/ask_user_interaction_service.dart';
 import '../../home/services/local_tools_service.dart';
 import 'screen_time_tool_ui.dart';
 import '../../home/services/tool_approval_service.dart';
-import '../utils/thinking_tag_parser.dart';
+import '../../../core/utils/thinking_tag_parser.dart';
 import 'citation_sources_sheet.dart';
 import 'chat_suggestion_bubbles.dart';
 import 'token_display_widget.dart';

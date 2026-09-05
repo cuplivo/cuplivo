@@ -89,5 +89,53 @@ void main() {
       expect(options.allowImagesApiRouting, isTrue);
       expect(options.requestExtraBody, isNull);
     });
+
+    test(
+      'group resend: [User]: prefixed anchor message replays routing=false and body',
+      () {
+        final anchor = userMessage(
+          id: 'anchor',
+          requestAllowImagesApiRouting: false,
+          requestExtraBodyJson: '{"quality":"high"}',
+        ).copyWith(content: '[User]: 看图 [image:C:/tmp/photo.png]');
+        final options =
+            MessageGenerationService.resolveRequestOptionsFromMessages([
+              ChatMessage(
+                role: 'assistant',
+                content: '[Alice]: 好的',
+                conversationId: 'c1',
+                speakerAssistantId: 'a1',
+              ),
+              anchor,
+            ], fallbackAllowImagesApiRouting: true);
+
+        expect(options.allowImagesApiRouting, isFalse);
+        expect(options.requestExtraBody, {'quality': 'high'});
+      },
+    );
+
+    test(
+      'group regenerate: prefix-truncated history replays the anchor metadata',
+      () {
+        final options =
+            MessageGenerationService.resolveRequestOptionsFromMessages([
+              userMessage(),
+              ChatMessage(
+                role: 'assistant',
+                content: '旧回答',
+                conversationId: 'c1',
+                speakerAssistantId: 'a1',
+              ),
+              userMessage(
+                id: 'anchor',
+                requestAllowImagesApiRouting: false,
+                requestExtraBodyJson: '{"size":"1024x1024"}',
+              ).copyWith(content: '[User]: 再来一张'),
+            ], fallbackAllowImagesApiRouting: true);
+
+        expect(options.allowImagesApiRouting, isFalse);
+        expect(options.requestExtraBody, {'size': '1024x1024'});
+      },
+    );
   });
 }

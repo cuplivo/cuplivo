@@ -680,6 +680,7 @@ class GroupChatOrchestrator {
       ),
       completeMessages: privateMessages,
       inputData: inputData,
+      allowImagesApiRouting: inputData?.allowImagesApiRouting ?? true,
       generateTitleOnFinish: false,
       onStreamComplete: () {
         if (!done.isCompleted) done.complete();

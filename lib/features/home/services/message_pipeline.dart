@@ -147,11 +147,30 @@ class MessagePipeline {
         assistant: assistant,
       );
 
+      // When there is no live composer input (group second turns, resend,
+      // regenerate or Multi-AI retries), the per-message request metadata
+      // persisted at send time (AD-0033) is the source of truth: replay it
+      // from the history like single chat's regenerate/continue paths do.
+      // The skip-free list keeps the anchor bounding: the last user message
+      // in [completeMessages] is the one that produced this turn.
+      final (
+        allowImagesApiRouting: resolvedRouting,
+        requestExtraBody: resolvedExtraBody,
+      ) = inputData == null
+          ? MessageGenerationService.resolveRequestOptionsFromMessages(
+              completeMessages,
+              fallbackAllowImagesApiRouting: allowImagesApiRouting,
+            )
+          : (
+              allowImagesApiRouting: allowImagesApiRouting,
+              requestExtraBody: requestExtraBody ?? inputData.extraBody,
+            );
+
       final ctx = _messageGenerationService.buildGenerationContext(
         assistantMessage: assistantMessage,
         prepared: prepared,
         userMediaPaths: userMediaPaths,
-        allowImagesApiRouting: allowImagesApiRouting,
+        allowImagesApiRouting: resolvedRouting,
         providerKey: providerKey,
         modelId: modelId,
         assistant: assistant,
@@ -159,7 +178,7 @@ class MessagePipeline {
         supportsReasoning: supportsReasoning,
         enableReasoning: enableReasoning,
         generateTitleOnFinish: generateTitleOnFinish,
-        requestExtraBody: requestExtraBody ?? inputData?.extraBody,
+        requestExtraBody: resolvedExtraBody,
       );
 
       unawaited(

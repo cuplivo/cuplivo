@@ -60,10 +60,14 @@ class AssistantPrivateContextBuilder {
     // Per-message request metadata (AD-0033) rides on the original public
     // user message; the rewritten user bubble must carry it so the pipeline
     // can replay the send-time routing decision and extra body on later
-    // turns, resend and regenerate. When several user lines coalesce into
-    // one buffer, the LAST user message's metadata wins — the same "last
-    // user message" rule MessageGenerationService.resolveRequestOptionsFromMessages
-    // applies to the rewritten history.
+    // turns, resend and regenerate. The values always describe the LATEST
+    // real human user message seen so far: a real user line overwrites them,
+    // but a flush never resets them, so a trailing buffer that contains only
+    // intervening member output (user -> Alice -> Bob -> Alice) still
+    // inherits the current human turn's request options. This matches the
+    // "last user message" rule
+    // MessageGenerationService.resolveRequestOptionsFromMessages applies to
+    // the rewritten history.
     bool? bufferedAllowImagesApiRouting;
     String? bufferedRequestExtraBodyJson;
 
@@ -79,8 +83,6 @@ class AssistantPrivateContextBuilder {
         ),
       );
       buffer.clear();
-      bufferedAllowImagesApiRouting = null;
-      bufferedRequestExtraBodyJson = null;
     }
 
     for (final msg in slice) {

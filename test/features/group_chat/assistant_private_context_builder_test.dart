@@ -257,4 +257,64 @@ void main() {
     expect(options.allowImagesApiRouting, isFalse);
     expect(options.requestExtraBody, {'quality': 'high'});
   });
+
+  test('private rewrite keeps the human turn request metadata on trailing '
+      'member-only user bubbles (user -> Alice -> Bob)', () {
+    final service = _FakeChatService();
+    final builder = AssistantPrivateContextBuilder(chatService: service);
+    final conv = Conversation(
+      id: 'c1',
+      title: 'g',
+      conversationKind: Conversation.kindGroup,
+    );
+    final alice = Assistant(id: 'a1', name: 'Alice', systemPrompt: 'A');
+    final bob = Assistant(id: 'a2', name: 'Bob', systemPrompt: 'B');
+    final public = [
+      ChatMessage(
+        role: 'user',
+        content: '看图 [image:C:/tmp/photo.png]',
+        conversationId: 'c1',
+        requestAllowImagesApiRouting: false,
+        requestExtraBodyJson: '{"quality":"high"}',
+      ),
+      ChatMessage(
+        role: 'assistant',
+        content: '好的',
+        conversationId: 'c1',
+        speakerAssistantId: 'a1',
+      ),
+      ChatMessage(
+        role: 'assistant',
+        content: '补充一点',
+        conversationId: 'c1',
+        speakerAssistantId: 'a2',
+      ),
+    ];
+
+    final private = builder.build(
+      conversation: conv,
+      publicMessages: public,
+      speaker: alice,
+      userName: 'User',
+      assistantsById: {'a1': alice, 'a2': bob},
+    );
+
+    // Both user bubbles — the one flushed before Alice's message AND the
+    // trailing Bob-only bubble — must inherit the current human turn's
+    // request metadata. The resolver stops at the trailing bubble, so if
+    // its metadata got reset, the rewrite would fall back to routing=true.
+    final userBubbles = private.where((m) => m.role == 'user').toList();
+    expect(userBubbles, hasLength(2));
+    for (final bubble in userBubbles) {
+      expect(bubble.requestAllowImagesApiRouting, isFalse);
+      expect(bubble.requestExtraBody, {'quality': 'high'});
+    }
+
+    final options = MessageGenerationService.resolveRequestOptionsFromMessages(
+      private,
+      fallbackAllowImagesApiRouting: true,
+    );
+    expect(options.allowImagesApiRouting, isFalse);
+    expect(options.requestExtraBody, {'quality': 'high'});
+  });
 }

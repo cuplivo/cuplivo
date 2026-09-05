@@ -3028,6 +3028,54 @@ abstract class AppLocalizations {
   /// **'Not detected'**
   String get keepAliveGuideVendorNotDetected;
 
+  /// No description provided for @keepAliveGuideVendorXiaomi.
+  ///
+  /// In en, this message translates to:
+  /// **'Xiaomi / HyperOS'**
+  String get keepAliveGuideVendorXiaomi;
+
+  /// No description provided for @keepAliveGuideVendorHuawei.
+  ///
+  /// In en, this message translates to:
+  /// **'Huawei / HarmonyOS'**
+  String get keepAliveGuideVendorHuawei;
+
+  /// No description provided for @keepAliveGuideVendorHonor.
+  ///
+  /// In en, this message translates to:
+  /// **'Honor / MagicOS'**
+  String get keepAliveGuideVendorHonor;
+
+  /// No description provided for @keepAliveGuideVendorOppo.
+  ///
+  /// In en, this message translates to:
+  /// **'OPPO / ColorOS'**
+  String get keepAliveGuideVendorOppo;
+
+  /// No description provided for @keepAliveGuideVendorOneplus.
+  ///
+  /// In en, this message translates to:
+  /// **'OnePlus'**
+  String get keepAliveGuideVendorOneplus;
+
+  /// No description provided for @keepAliveGuideVendorVivo.
+  ///
+  /// In en, this message translates to:
+  /// **'vivo / OriginOS'**
+  String get keepAliveGuideVendorVivo;
+
+  /// No description provided for @keepAliveGuideVendorSamsung.
+  ///
+  /// In en, this message translates to:
+  /// **'Samsung / One UI'**
+  String get keepAliveGuideVendorSamsung;
+
+  /// No description provided for @keepAliveGuideVendorMeizu.
+  ///
+  /// In en, this message translates to:
+  /// **'Meizu / Flyme'**
+  String get keepAliveGuideVendorMeizu;
+
   /// No description provided for @keepAliveGuideXiaomiHint.
   ///
   /// In en, this message translates to:

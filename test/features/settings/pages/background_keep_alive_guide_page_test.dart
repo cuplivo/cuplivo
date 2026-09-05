@@ -105,7 +105,7 @@ void main() {
       final l10n = AppLocalizations.of(
         tester.element(find.byType(BackgroundKeepAliveGuidePage)),
       )!;
-      expect(find.text('Xiaomi / HyperOS'), findsOneWidget);
+      expect(find.text(l10n.keepAliveGuideVendorXiaomi), findsOneWidget);
       expect(find.text(l10n.keepAliveGuideXiaomiHint), findsOneWidget);
       expect(find.text(l10n.keepAliveGuideAutostartAction), findsOneWidget);
       expect(find.text(l10n.keepAliveGuidePowerAction), findsOneWidget);

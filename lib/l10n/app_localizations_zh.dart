@@ -1593,6 +1593,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get keepAliveGuideVendorNotDetected => '未识别';
 
   @override
+  String get keepAliveGuideVendorXiaomi => 'Xiaomi / HyperOS';
+
+  @override
+  String get keepAliveGuideVendorHuawei => 'Huawei / HarmonyOS';
+
+  @override
+  String get keepAliveGuideVendorHonor => 'Honor / MagicOS';
+
+  @override
+  String get keepAliveGuideVendorOppo => 'OPPO / ColorOS';
+
+  @override
+  String get keepAliveGuideVendorOneplus => 'OnePlus';
+
+  @override
+  String get keepAliveGuideVendorVivo => 'vivo / OriginOS';
+
+  @override
+  String get keepAliveGuideVendorSamsung => 'Samsung / One UI';
+
+  @override
+  String get keepAliveGuideVendorMeizu => 'Meizu / Flyme';
+
+  @override
   String get keepAliveGuideXiaomiHint =>
       '小米：设置 → 应用设置 → 自启动管理，开启 Cuplivo；设置 → 省电与电池 → 省电策略，将 Cuplivo 设为「无限制」。';
 
@@ -10990,6 +11014,30 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get keepAliveGuideVendorNotDetected => '未识别';
 
   @override
+  String get keepAliveGuideVendorXiaomi => 'Xiaomi / HyperOS';
+
+  @override
+  String get keepAliveGuideVendorHuawei => 'Huawei / HarmonyOS';
+
+  @override
+  String get keepAliveGuideVendorHonor => 'Honor / MagicOS';
+
+  @override
+  String get keepAliveGuideVendorOppo => 'OPPO / ColorOS';
+
+  @override
+  String get keepAliveGuideVendorOneplus => 'OnePlus';
+
+  @override
+  String get keepAliveGuideVendorVivo => 'vivo / OriginOS';
+
+  @override
+  String get keepAliveGuideVendorSamsung => 'Samsung / One UI';
+
+  @override
+  String get keepAliveGuideVendorMeizu => 'Meizu / Flyme';
+
+  @override
   String get keepAliveGuideXiaomiHint =>
       '小米：设置 → 应用设置 → 自启动管理，开启 Cuplivo；设置 → 省电与电池 → 省电策略，将 Cuplivo 设为「无限制」。';
 
@@ -20385,6 +20433,30 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get keepAliveGuideVendorNotDetected => '未識別';
+
+  @override
+  String get keepAliveGuideVendorXiaomi => 'Xiaomi / HyperOS';
+
+  @override
+  String get keepAliveGuideVendorHuawei => 'Huawei / HarmonyOS';
+
+  @override
+  String get keepAliveGuideVendorHonor => 'Honor / MagicOS';
+
+  @override
+  String get keepAliveGuideVendorOppo => 'OPPO / ColorOS';
+
+  @override
+  String get keepAliveGuideVendorOneplus => 'OnePlus';
+
+  @override
+  String get keepAliveGuideVendorVivo => 'vivo / OriginOS';
+
+  @override
+  String get keepAliveGuideVendorSamsung => 'Samsung / One UI';
+
+  @override
+  String get keepAliveGuideVendorMeizu => 'Meizu / Flyme';
 
   @override
   String get keepAliveGuideXiaomiHint =>

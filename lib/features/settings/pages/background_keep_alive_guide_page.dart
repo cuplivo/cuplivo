@@ -143,21 +143,21 @@ class _BackgroundKeepAliveGuidePageState
   String _vendorLabel(AppLocalizations l10n, KeepAliveVendor vendor) {
     switch (vendor) {
       case KeepAliveVendor.xiaomi:
-        return 'Xiaomi / HyperOS';
+        return l10n.keepAliveGuideVendorXiaomi;
       case KeepAliveVendor.huawei:
-        return 'Huawei / HarmonyOS';
+        return l10n.keepAliveGuideVendorHuawei;
       case KeepAliveVendor.honor:
-        return 'Honor / MagicOS';
+        return l10n.keepAliveGuideVendorHonor;
       case KeepAliveVendor.oppo:
-        return 'OPPO / ColorOS';
+        return l10n.keepAliveGuideVendorOppo;
       case KeepAliveVendor.oneplus:
-        return 'OnePlus';
+        return l10n.keepAliveGuideVendorOneplus;
       case KeepAliveVendor.vivo:
-        return 'vivo / OriginOS';
+        return l10n.keepAliveGuideVendorVivo;
       case KeepAliveVendor.samsung:
-        return 'Samsung / One UI';
+        return l10n.keepAliveGuideVendorSamsung;
       case KeepAliveVendor.meizu:
-        return 'Meizu / Flyme';
+        return l10n.keepAliveGuideVendorMeizu;
       case KeepAliveVendor.other:
         return l10n.keepAliveGuideVendorNotDetected;
     }

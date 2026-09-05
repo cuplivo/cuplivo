@@ -27,6 +27,7 @@ import '../../chat/widgets/message_more_sheet.dart';
 import '../controllers/stream_controller.dart' as stream_ctrl;
 import '../controllers/message_render_model.dart';
 import '../controllers/scroll_controller.dart' as scroll_ctrl;
+import '../controllers/tool_extent_invalidation_queue.dart';
 import '../services/ask_user_interaction_service.dart';
 import '../utils/chat_layout_constants.dart';
 import 'model_icon.dart';
@@ -318,7 +319,8 @@ class _MessageListViewState extends State<MessageListView> {
   late Map<String, int> _slotIndexById;
   late Map<String, int> _messageIndexById;
   final Map<String, int> _lastToolSignatures = <String, int>{};
-  final Set<String> _pendingToolExtentIds = <String>{};
+  final ToolExtentInvalidationQueue _toolExtentQueue =
+      ToolExtentInvalidationQueue();
   bool _toolExtentFlushScheduled = false;
   bool _awaitingAttachFlush = false;
   bool _attachFlushScheduled = false;
@@ -377,7 +379,7 @@ class _MessageListViewState extends State<MessageListView> {
       );
     }
     if (!identical(oldWidget.listController, widget.listController)) {
-      _awaitingAttachFlush = _pendingToolExtentIds.isNotEmpty;
+      _awaitingAttachFlush = _toolExtentQueue.hasPending;
       _scheduleAttachAwareFlush();
     }
     final oldRenderModels = _effectiveRenderModels;
@@ -459,7 +461,7 @@ class _MessageListViewState extends State<MessageListView> {
     _extentEstimateCache.remove(messageId);
     final controller = widget.listController;
     if (!controller.isAttached) {
-      _pendingToolExtentIds.add(messageId);
+      _toolExtentQueue.enqueue(messageId);
       _awaitingAttachFlush = true;
       _scheduleAttachAwareFlush();
       return;
@@ -468,14 +470,14 @@ class _MessageListViewState extends State<MessageListView> {
       _applyToolExtentInvalidation(messageId);
       return;
     }
-    if (_pendingToolExtentIds.add(messageId)) {
+    if (_toolExtentQueue.enqueue(messageId)) {
       _scheduleToolExtentFlush();
     }
   }
 
   void _scheduleAttachAwareFlush() {
     if (_attachFlushScheduled) return;
-    if (!_awaitingAttachFlush && _pendingToolExtentIds.isEmpty) return;
+    if (!_awaitingAttachFlush && !_toolExtentQueue.hasPending) return;
     _attachFlushScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _attachFlushScheduled = false;
@@ -483,13 +485,13 @@ class _MessageListViewState extends State<MessageListView> {
       if (!widget.listController.isAttached) {
         // Cold window load still in flight: the controller attaches in a later
         // frame. Retry while work is pending instead of stranding the queue.
-        if (_pendingToolExtentIds.isNotEmpty) {
+        if (_toolExtentQueue.hasPending) {
           _scheduleAttachAwareFlush();
         }
         return;
       }
       _awaitingAttachFlush = false;
-      if (_pendingToolExtentIds.isEmpty) return;
+      if (!_toolExtentQueue.hasPending) return;
       _flushToolExtentIds();
     });
   }
@@ -506,16 +508,20 @@ class _MessageListViewState extends State<MessageListView> {
 
   void _flushToolExtentIds() {
     final controller = widget.listController;
-    if (!controller.isAttached || controller.isLocked) {
-      if (_pendingToolExtentIds.isNotEmpty) {
-        _scheduleToolExtentFlush();
-      }
-      return;
-    }
-    final ids = _pendingToolExtentIds.toList();
-    _pendingToolExtentIds.clear();
-    for (final id in ids) {
+    final result = _toolExtentQueue.takeForFlush(
+      isAttached: controller.isAttached,
+      isLocked: controller.isLocked,
+    );
+    for (final id in result.ids) {
       _applyToolExtentInvalidation(id);
+    }
+    if (result.reschedule) {
+      _scheduleToolExtentFlush();
+    } else if (_toolExtentQueue.hasPending) {
+      // A new invalidation raced in while draining; hand it to the
+      // attach-aware path in case the controller detached again.
+      _awaitingAttachFlush = true;
+      _scheduleAttachAwareFlush();
     }
   }
 

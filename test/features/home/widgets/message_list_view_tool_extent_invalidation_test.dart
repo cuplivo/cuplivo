@@ -246,7 +246,7 @@ void main() {
     },
   );
 
-  testWidgets('events queued across a controller swap flush after re-attach', (
+  testWidgets('controller swap mid-stream drains the queue and stays usable', (
     tester,
   ) async {
     final notifier = StreamingContentNotifier();
@@ -302,9 +302,10 @@ void main() {
     );
     await tester.pump();
 
-    // Swap to a fresh controller; the height event fires in the same window,
-    // before the new controller attaches. It must queue and flush post-attach
-    // instead of being dropped or spinning the retry loop forever.
+    // A fresh controller replaces the current one while a tool height change
+    // is in flight. The swap runs through MessageListView.didUpdateWidget and
+    // the attach-aware scheduler; a regression that strands the queue or spins
+    // the retry loop would deadlock the post-frame callbacks here.
     final fresh = ListController();
     key.currentState!.replaceListController(fresh);
     toolParts['tool-1'] = [
@@ -325,8 +326,11 @@ void main() {
         .listController!;
     expect(identical(attached, fresh), isTrue);
 
-    // The queue drained and the list stays fully functional: jumping to the
-    // bottom still renders the tail through the last row.
+    // Queue semantics themselves (detached/locked hold, drain on attach) are
+    // unit-covered in test/features/home/controllers/
+    // tool_extent_invalidation_queue_test.dart; this guard only verifies the
+    // widget-level integration remains functional: jumping to the bottom still
+    // renders the tail through the last row.
     key.currentState!.jumpToBottom();
     await tester.pump();
     final tail = fresh.visibleRange!;

@@ -2236,6 +2236,185 @@ A-->B
     },
   );
 
+  testWidgets(
+    r'MarkdownWithCodeHighlight renders nested ovalbox and operatorname expressions',
+    (tester) async {
+      await tester.pumpWidget(
+        _markdownHarness(r'''
+标签\(\textbf{\small\colorbox{white}{\textcolor{#AEC6CF}{\ovalbox{\textcolor{#AEC6CF}{\textbf{示例文字}}}}}}\) 
+函数\(\operatorname{Function}\left(x\right)\)
+'''),
+      );
+      await tester.pump();
+
+      final mathWidgets = _mathWidgets(tester);
+      expect(mathWidgets, hasLength(2));
+      expect(
+        mathWidgets.map((widget) => widget.parseError),
+        everyElement(isNull),
+      );
+      expect(find.textContaining(r'\ovalbox'), findsNothing);
+      expect(find.textContaining(r'\operatorname'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    r'MarkdownWithCodeHighlight parses operatorname with scripts and limits',
+    (tester) async {
+      await tester.pumpWidget(
+        _markdownHarness(
+          r'$\operatorname{lim}_{x\to 0}$ 与 $\operatorname{sin}^2 x$',
+        ),
+      );
+      await tester.pump();
+
+      final mathWidgets = _mathWidgets(tester);
+      expect(mathWidgets, hasLength(2));
+      expect(
+        mathWidgets.map((widget) => widget.parseError),
+        everyElement(isNull),
+      );
+      expect(find.textContaining(r'\operatorname'), findsNothing);
+    },
+  );
+
+  testWidgets(r'MarkdownWithCodeHighlight renders ovalbox with math content', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _markdownHarness(r'''
+$$\ovalbox{1+\frac{1}{2}}$$
+'''),
+    );
+    await tester.pump();
+
+    final mathWidgets = _mathWidgets(tester);
+    expect(mathWidgets, hasLength(1));
+    expect(mathWidgets.single.parseError, isNull);
+    expect(find.textContaining(r'\ovalbox'), findsNothing);
+  });
+
+  for (final entry in <String, String>{
+    'equation': r'a^2+b^2=c^2',
+    'align': r'a&=b\\c&=d',
+    'gather': r'a=b\\c=d',
+  }.entries) {
+    testWidgets(
+      r'MarkdownWithCodeHighlight renders dollar-wrapped ${entry.key} math environment',
+      (tester) async {
+        await tester.pumpWidget(
+          _markdownHarness(
+            'Before\n\n\$\$\\begin{${entry.key}}\n${entry.value}\n\\end{${entry.key}}\$\$\n\nAfter',
+          ),
+        );
+        await tester.pump();
+
+        final mathWidgets = _mathWidgets(tester);
+        expect(mathWidgets, hasLength(1));
+        expect(mathWidgets.single.parseError, isNull);
+        expect(mathWidgets.single.mathStyle, MathStyle.display);
+        expect(find.textContaining(r'\begin'), findsNothing);
+        expect(find.textContaining('Before'), findsOneWidget);
+        expect(find.textContaining('After'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'MarkdownWithCodeHighlight renders a tagged equation environment',
+    (tester) async {
+      await tester.pumpWidget(
+        _markdownHarness(r'''
+$$
+\begin{equation}
+f(x) = x^2\tag{Pythagoras}
+\end{equation}
+$$
+'''),
+      );
+      await tester.pump();
+
+      final mathWidgets = _mathWidgets(tester);
+      expect(mathWidgets, hasLength(1));
+      expect(mathWidgets.single.parseError, isNull);
+      expect(find.textContaining(r'\tag'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'MarkdownWithCodeHighlight renders complex operatorname expressions from issue 960',
+    (tester) async {
+      await tester.pumpWidget(
+        _markdownHarness(r'''
+$\operatorname{Var}\left( \frac{1}{n}\sum_{i=1}^n a_i X_i \right)$
+
+$\operatorname{Var}\left( \prod_{j=1}^m \exp\left( \beta_j Z_j \right) \right)$
+
+$\operatorname{Var}\left( \hat{\theta}_{\mathrm{MLE}} \right)$
+
+$\operatorname{Var}_{\theta}\left( \frac{\partial}{\partial \theta} \log L(\theta; \mathbf{x}) \right)$
+
+$\operatorname{Var}\left( \sqrt{n}\left( \bar{X} - \mu \right) \right)$
+
+$\operatorname{Var}\left( \frac{1}{N} \sum_{k=1}^{N} \left( f(X_k) - \frac{1}{N}\sum_{j=1}^{N} f(X_j) \right)^2 \right)$
+'''),
+      );
+      await tester.pump();
+
+      final widgets = _mathWidgets(tester);
+      expect(widgets, hasLength(6));
+      expect(widgets.map((widget) => widget.parseError), everyElement(isNull));
+      expect(find.textContaining(r'\operatorname'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'MarkdownWithCodeHighlight preserves spaced starred command arguments',
+    (tester) async {
+      await tester.pumpWidget(
+        _markdownHarness(r'''
+\[x=1\tag *{A,B}\]
+
+\[\operatorname *{arg\,max}_{x} f(x)\]
+'''),
+      );
+      await tester.pump();
+
+      final mathWidgets = _mathWidgets(tester);
+      expect(mathWidgets, hasLength(2));
+      expect(
+        mathWidgets.map((widget) => widget.parseError),
+        everyElement(isNull),
+      );
+      expect(_encodedMathTex(tester).first, contains('A,B'));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'display math block overlays the chat background without an opaque plate',
+    (tester) async {
+      await tester.pumpWidget(_markdownHarness(r'$$E = mc^2$$'));
+      await tester.pump();
+
+      expect(
+        find.ancestor(
+          of: _findMathWidget(),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Container &&
+                widget.color == Colors.transparent &&
+                widget.padding == const EdgeInsets.all(4),
+          ),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('MarkdownWithCodeHighlight baseline-aligns inline math', (
     tester,
   ) async {
@@ -2526,14 +2705,14 @@ $$
     'MarkdownWithCodeHighlight keeps unknown TeX as raw-text fallback',
     (tester) async {
       await tester.pumpWidget(
-        _markdownHarness(r'$$\begin{equation}x\end{equation}$$'),
+        _markdownHarness(r'$$\begin{document}x\end{document}$$'),
       );
       await tester.pump();
 
       final mathWidgets = _mathWidgets(tester);
       expect(mathWidgets, hasLength(1));
       expect(mathWidgets.single.parseError, isNotNull);
-      expect(find.textContaining(r'\begin{equation}'), findsOneWidget);
+      expect(find.textContaining(r'\begin{document}'), findsOneWidget);
     },
   );
 
@@ -2557,16 +2736,16 @@ $$
   );
 
   testWidgets(
-    r'MarkdownWithCodeHighlight keeps \tag{\alpha} untouched for fallback',
+    r'MarkdownWithCodeHighlight renders \tag{\alpha} labels without fallback',
     (tester) async {
       await tester.pumpWidget(_markdownHarness(r'$$\tag{\alpha} x = y$$'));
       await tester.pump();
 
       final mathWidgets = _mathWidgets(tester);
       expect(mathWidgets, hasLength(1));
-      expect(mathWidgets.single.parseError, isNotNull);
-      // The fallback shows the ORIGINAL tex, not the rewritten approximation.
-      expect(find.textContaining(r'\tag{\alpha}'), findsOneWidget);
+      expect(mathWidgets.single.parseError, isNull);
+      expect(_encodedMathTex(tester).first, contains(r'\alpha'));
+      expect(find.textContaining(r'\tag{\alpha}'), findsNothing);
     },
   );
 

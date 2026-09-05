@@ -1,5 +1,5 @@
 export const PROTOCOL_VERSION = 5;
-export const ASSET_VERSION = 'web-chat-v20';
+export const ASSET_VERSION = 'web-chat-v22';
 
 const transfers = new Map();
 
@@ -1088,4 +1088,286 @@ export function createViewportNavigationCoordinator({
       setRenderBlocked(false);
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Math protection for the markdown pipeline.
+//
+// KaTeX runs only AFTER marked has processed the markdown, so math bodies
+// inside $$...$$ / \[...\] / \(...\) get mangled by marked first (backslash
+// escapes halve \\[10pt] into \[10pt]; underscore pairs become <em>, splitting
+// the text node so auto-render can no longer pair the delimiters). The fix
+// mirrors the Flutter markdown lexer: lift math spans out of the source
+// before marked runs, replace each with a deterministic placeholder that
+// survives marked + DOMPurify untouched, and restore the raw source as text
+// nodes before renderMathInElement.
+
+// ---------------------------------------------------------------------------
+// Math protection for the markdown pipeline.
+//
+// KaTeX runs only AFTER marked has processed the markdown, so math bodies
+// inside $$...$$ / \[...\] / \(...\) get mangled by marked first (backslash
+// escapes halve \\[10pt] into \[10pt]; underscore pairs become <em>, splitting
+// the text node so auto-render can no longer pair the delimiters). The fix
+// mirrors the Flutter markdown lexer: lift math spans out of the source
+// before marked runs, replace each with a deterministic placeholder that
+// survives marked + DOMPurify untouched, and restore the raw source as text
+// nodes before renderMathInElement.
+// ---------------------------------------------------------------------------
+// Math protection for the markdown pipeline.
+//
+// KaTeX runs only AFTER marked has processed the markdown, so math bodies
+// inside $$...$$ / \[...\] / \(...\) get mangled by marked first (backslash
+// escapes halve \\[10pt] into \[10pt]; underscore pairs become <em>, splitting
+// the text node so auto-render can no longer pair the delimiters). The fix
+// mirrors the Flutter markdown lexer: lift math spans out of the source
+// before marked runs, replace each with a deterministic placeholder that
+// survives marked + DOMPurify untouched, and restore the raw source as text
+// nodes before renderMathInElement.
+// ---------------------------------------------------------------------------
+
+export function stableMathSlotKey(source) {
+  let hash = 2166136261;
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= source.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  // Zero-padded: a padded token is never a prefix of another pad-8 token.
+  return `m:${(hash >>> 0).toString(16).padStart(8, '0')}`;
+}
+
+/** Strips Markdown container prefixes from a fence-bearing line so fence
+ *  detection agrees with marked, which recognizes fences after removing
+ *  block-quote prefixes (`> `, nested) and list-item markers (`- `, `* `,
+ *  `+ `, `1. `) plus their indentation. Non-container lines are untouched. */
+function stripContainerPrefixes(line) {
+  let rest = line;
+  for (let depth = 0; depth < 8; depth += 1) {
+    const stripped = rest
+        .replace(/^ {0,3}>[ \t]?/, '')
+        .replace(/^ {0,3}(?:\d{1,9}[.)]|[-*+])[ \t]+/, '');
+    if (stripped === rest) break;
+    rest = stripped;
+  }
+  return rest;
+}
+
+function isFenceOpen(line) {
+  // CommonMark: at most three leading spaces, marker run of >= 3. Only
+  // backtick fences restrict the info string (no backticks); tilde-fence
+  // info strings may contain backticks.
+  const match = /^ {0,3}(`{3,}|~{3,})/.exec(line);
+  if (!match) return null;
+  const run = match[1];
+  const rest = line.slice(match[0].length);
+  if (run.startsWith('`') && rest.includes('`')) return null;
+  return run;
+}
+
+function isFenceClose(line, fence) {
+  // CommonMark: same marker character, at least as long as the opener, and
+  // only spaces/tabs after the run.
+  const match = /^ {0,3}(`{3,}|~{3,})([ \t]*)$/.exec(line);
+  if (!match || match[1][0] !== fence[0]) return false;
+  return match[1].length >= fence.length;
+}
+
+function isEscaped(text, index) {
+  let backslashes = 0;
+  for (let cursor = index - 1; cursor >= 0 && text[cursor] === '\\'; cursor -= 1) {
+    backslashes += 1;
+  }
+  return backslashes % 2 === 1;
+}
+
+/** Computes the [start, end] index ranges of fenced code blocks (including
+ *  the fence lines) so the scanner can pass them through verbatim. */
+function fencedRanges(source) {
+  const ranges = [];
+  const lines = source.split('\n');
+  let offset = 0;
+  let fence = null;
+  let start = 0;
+  for (const line of lines) {
+    if (fence) {
+      if (isFenceClose(stripContainerPrefixes(line), fence)) {
+        ranges.push([start, offset + line.length]);
+        fence = null;
+      }
+    } else {
+      const opened = isFenceOpen(stripContainerPrefixes(line));
+      if (opened) {
+        fence = opened;
+        start = offset;
+      }
+    }
+    offset += line.length + 1; // +1 for the newline
+  }
+  if (fence) ranges.push([start, source.length]);
+  return ranges;
+}
+
+/** Splits the source into alternating text / fenced-code segments. Delimiter
+ *  matching is always bounded to the current text segment (a code fence is a
+ *  hard block boundary in markdown), so an opener before a fence can never
+ *  pair with a closer after it. */
+function splitSegments(text) {
+  const segments = [];
+  let cursor = 0;
+  for (const [start, end] of fencedRanges(text)) {
+    if (start > cursor) {
+      segments.push({ text: text.slice(cursor, start), fence: false });
+    }
+    segments.push({ text: text.slice(start, end), fence: true });
+    cursor = end;
+  }
+  if (cursor < text.length) {
+    segments.push({ text: text.slice(cursor), fence: false });
+  }
+  return segments;
+}
+
+/** Finds the first occurrence of [pattern] at or after [from] that is not
+ *  preceded by an odd number of backslashes (a markdown-escaped delimiter is
+ *  literal prose, not a math closer). */
+function findUnescaped(text, pattern, from) {
+  let index = text.indexOf(pattern, from);
+  while (index !== -1) {
+    if (!isEscaped(text, index)) return index;
+    index = text.indexOf(pattern, index + pattern.length);
+  }
+  return -1;
+}
+
+/** Scans one text segment for math spans, pushing raw spans into [raws] in
+ *  document order and returning a piece list (strings verbatim, {slot: n}
+ *  placeholders for math spans). */
+function scanSegmentMath(text, raws, dollarMath) {
+  const pieces = [];
+  let index = 0;
+  while (index < text.length) {
+    const ch = text[index];
+
+    // Inline code: copy the whole span verbatim (balanced runs of backticks)
+    // so its `$` never pairs.
+    if (ch === '`') {
+      const run = /^`+/.exec(text.slice(index))[0];
+      let cursor = index + run.length;
+      while (cursor < text.length && !text.startsWith(run, cursor)) {
+        cursor += 1;
+      }
+      const end = cursor < text.length ? cursor + run.length : text.length;
+      pieces.push(text.slice(index, end));
+      index = end;
+      continue;
+    }
+
+    let consumed = 0;
+    // Every delimiter form is escape-aware at both ends: an opener preceded
+    // by an odd number of backslashes is markdown-escaped prose, and an
+    // escaped closer must not terminate a span early.
+    if (!isEscaped(text, index)) {
+      if (text.startsWith('$$', index)) {
+        const close = findUnescaped(text, '$$', index + 2);
+        if (close !== -1) consumed = close + 2 - index;
+      } else if (text.startsWith('\\[', index)) {
+        const close = findUnescaped(text, '\\]', index + 2);
+        if (close !== -1) consumed = close + 2 - index;
+      } else if (text.startsWith('\\(', index)) {
+        const close = findUnescaped(text, '\\)', index + 2);
+        if (close !== -1) consumed = close + 2 - index;
+      } else if (dollarMath && ch === '$') {
+        const close = findUnescaped(text, '$', index + 1);
+        if (close !== -1) {
+          const body = text.slice(index + 1, close);
+          if (!body.includes('$') && !body.includes('\n') &&
+              !body.includes('\\$')) {
+            consumed = close + 1 - index;
+          }
+        }
+      }
+    }
+    if (consumed > 0) {
+      raws.push(text.slice(index, index + consumed));
+      pieces.push({ slot: raws.length - 1 });
+      index += consumed;
+      continue;
+    }
+    pieces.push(ch);
+    index += 1;
+  }
+  return pieces;
+}
+
+/** Assigns deterministic, collision-free slot keys to [raws]. A key is
+ *  rejected when a DIFFERENT raw already owns it (hash collision), when the
+ *  source text already contains it verbatim (a user could type a literal
+ *  placeholder, or a math body could embed another span's key), or when it
+ *  is a prefix of / has a prefix among already assigned keys (restore would
+ *  replace the longer token's prefix and corrupt it). Disambiguation re-hashes
+ *  a salted form, which yields an independent token instead of an extension
+ *  of the rejected one. The derivation is deterministic for the same input,
+ *  which preserves streaming patch signature stability. */
+function assignSlotKeys(raws, source, keyGenerator) {
+  const owner = new Map();
+  const keys = [];
+  const assigned = [];
+  const fits = (key) => !assigned.some((other) =>
+    other.startsWith(key) || key.startsWith(other));
+  for (const raw of raws) {
+    let salt = 0;
+    let key = keyGenerator(raw);
+    while ((owner.has(key) && owner.get(key) !== raw) ||
+        source.includes(key) || !fits(key)) {
+      salt += 1;
+      key = keyGenerator(`${raw}#${salt}`);
+    }
+    if (!owner.has(key)) owner.set(key, raw);
+    assigned.push(key);
+    keys.push(key);
+  }
+  const slots = new Map();
+  for (const key of owner.keys()) slots.set(key, owner.get(key));
+  return { keys, slots };
+}
+
+/** Lifts math spans out of [source], returning the slotted source plus the
+ *  slot -> raw-span map. Fenced code blocks are hard boundaries (no cross-
+ *  fence pairing); inline code spans are copied verbatim. Unclosed spans are
+ *  left as written (streaming tails) and reach the renderer exactly like
+ *  today. */
+export function extractMathSpans(source, {
+  dollarMath = false,
+  keyGenerator = stableMathSlotKey,
+} = {}) {
+  const text = String(source ?? '');
+  const segments = splitSegments(text);
+  const raws = [];
+  const rendered = segments.map((segment) => {
+    if (segment.fence) return segment.text;
+    return scanSegmentMath(segment.text, raws, dollarMath);
+  });
+  const { keys, slots } = assignSlotKeys(raws, text, keyGenerator);
+  let rawIndex = 0;
+  let out = '';
+  for (const segment of rendered) {
+    if (typeof segment === 'string') {
+      out += segment;
+      continue;
+    }
+    for (const piece of segment) {
+      out += typeof piece === 'string' ? piece : keys[piece.slot];
+    }
+  }
+  return { source: out, slots };
+}
+
+/** Restores every slot token in [text] back to its raw math source. */
+export function restoreMathText(text, slots) {
+  if (!slots || slots.size === 0) return text;
+  let result = String(text ?? '');
+  for (const [key, raw] of slots) {
+    result = result.split(key).join(raw);
+  }
+  return result;
 }

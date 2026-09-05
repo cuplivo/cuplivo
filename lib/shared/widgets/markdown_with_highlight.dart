@@ -1847,8 +1847,7 @@ bool _isCjkCodeUnit(int codeUnit) {
 }
 
 String _normalizeMathTex(String tex) {
-  final tagRewritten = _rewriteTagCommands(tex);
-  final escapedSpecials = _escapeInlineMathSpecials(tagRewritten);
+  final escapedSpecials = _escapeInlineMathSpecials(tex);
   final normalizedBraces = _escapeLikelyLiteralMathBraces(escapedSpecials);
   return normalizedBraces.replaceAllMapped(RegExp(r'\\\|([\s\S]*?)\\\|'), (
     match,
@@ -1857,36 +1856,6 @@ String _normalizeMathTex(String tex) {
     return r'\lVert '
         '$body'
         r' \rVert';
-  });
-}
-
-// flutter_math_fork 0.7.4 (latest) stubs \tag: it expands to
-// \gdef\df@tag{...}, but \gdef is undefined → ParseException → the WHOLE
-// formula falls back to raw plain text. Rewrite \tag{X} → \qquad\text{(X)}
-// and \tag*{X} → \qquad\text{X} so the number renders inline right after the
-// equation — an approximation, NOT right-aligned at the margin like real
-// LaTeX (proper tags via a vendored flutter_math_fork are a deferred task).
-// \notag/\nonumber produce nothing by design → strip. Only flat labels
-// without backslashes are rewritten: labels with nested braces or TeX
-// commands (e.g. \tag{\alpha} — \text cannot parse math commands) and
-// unbraced \tag 1 stay untouched (raw-text fallback keeps the original tex).
-String _rewriteTagCommands(String tex) {
-  final tag = RegExp(
-    r'(?<!\\)\\tag(\*?)\{([^{}\\]*)\}'
-    r'|(?<!\\)\\notag(?![a-zA-Z])'
-    r'|(?<!\\)\\nonumber(?![a-zA-Z])',
-  );
-  return tex.replaceAllMapped(tag, (m) {
-    final label = (m.group(2) ?? '').trim();
-    if (label.isEmpty) return '';
-    final starred = m.group(1) == '*';
-    return starred
-        ? r'\qquad\text{'
-              '$label'
-              '}'
-        : r'\qquad\text{'
-              '($label)'
-              '}';
   });
 }
 
@@ -2105,6 +2074,11 @@ bool _looksLikeLiteralMathBraceGroup(String tex, int open, int close) {
 bool _isCommandArgumentBrace(String tex, int open) {
   final prev = _previousNonWhitespaceIndex(tex, open - 1);
   if (prev == -1) return false;
+
+  if (tex.codeUnitAt(prev) == 0x2A &&
+      _endsControlWordAt(tex, _previousNonWhitespaceIndex(tex, prev - 1))) {
+    return true;
+  }
 
   if (tex.codeUnitAt(prev) == 0x5D) {
     final optionalOpen = _findMatchingOpenBracket(tex, prev);
@@ -5002,7 +4976,6 @@ class _LatexMathBlockState extends State<_LatexMathBlock> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final isDesktop = _markdownMathTargetPlatformIsDesktop();
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -5011,10 +4984,12 @@ class _LatexMathBlockState extends State<_LatexMathBlock> {
           ? (details) => _showDesktopMenu(details.globalPosition)
           : null,
       child: Container(
-        // Display-only: matches the chat surface so the box is invisible in
-        // the message. The background and padding intentionally live outside
-        // any capture boundary so they never leak into the exported PNG.
-        color: cs.surface,
+        // Fully transparent: the formula must overlay whatever sits behind it
+        // (chat surface, custom assistant background image with mask) without
+        // showing an opaque plate. The symmetric padding stays for export
+        // margins; the PNG is captured off-screen with its own transparent
+        // background, so no color is needed here.
+        color: Colors.transparent,
         padding: const EdgeInsets.all(4),
         child: _renderMath(widget.body, style: widget.style, displayMode: true),
       ),

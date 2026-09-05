@@ -161,6 +161,72 @@ void main() {
     },
   );
 
+  test('an enable requested during teardown queues behind the disable and '
+      'then owns state, persistence, and the baseline', () async {
+    final fake = _FakeAutoSnapshotService()..deleteGate = Completer<void>();
+    final prefs = BusinessPreferences.memoryForTests({});
+    final provider = AutoSnapshotProvider(
+      preferences: prefs,
+      chatService: ChatService(),
+      autoLoad: false,
+      serviceFactory: () => fake,
+    );
+    await provider.load();
+
+    await provider.setEnabled(true);
+    await pumpEventQueue();
+    expect(provider.snapshots, hasLength(1), reason: 'baseline snapshot');
+
+    final disableFuture = provider.setEnabled(false, deleteSnapshots: true);
+    await pumpEventQueue();
+    expect(provider.enabled, isFalse);
+    expect(
+      prefs.getBool('auto_snapshot_enabled_v1'),
+      isFalse,
+      reason: 'disable persisted before the gated delete',
+    );
+    expect(fake.store, hasLength(1), reason: 'delete still pending');
+
+    // Enable arrives while the teardown is inside the gated delete: it
+    // must not touch any state or run a baseline while the delete is still
+    // to complete.
+    final enableFuture = provider.setEnabled(true);
+    await pumpEventQueue();
+    expect(
+      provider.enabled,
+      isFalse,
+      reason: 'enable is queued, not applied during teardown',
+    );
+    expect(
+      prefs.getBool('auto_snapshot_enabled_v1'),
+      isFalse,
+      reason: 'no persisted write happened while queued',
+    );
+    expect(fake.store, hasLength(1), reason: 'no baseline while queued');
+
+    fake.deleteGate!.complete();
+    await disableFuture;
+    // The enable runs as soon as the disable completes (FIFO). Whether the
+    // delete truly happened BEFORE the queued baseline is proven by the
+    // final `hasLength(1)` below: a baseline written first would have been
+    // wiped by the delete and the store would end up empty.
+    await enableFuture;
+    await pumpEventQueue();
+    expect(provider.enabled, isTrue);
+    expect(prefs.getBool('auto_snapshot_enabled_v1'), isTrue);
+    expect(
+      fake.store,
+      hasLength(1),
+      reason: 'exactly one surviving baseline snapshot',
+    );
+    expect(provider.lastSnapshotAt, isNotNull);
+    expect(provider.snapshots, hasLength(1));
+    // The queued enable started its own ticker; no second snapshot fires
+    // within this test's window (the 1-minute cadence is not due).
+    await pumpEventQueue();
+    expect(fake.store, hasLength(1));
+  });
+
   test(
     'a failed delete surfaces to the caller and keeps the store restorable',
     () async {

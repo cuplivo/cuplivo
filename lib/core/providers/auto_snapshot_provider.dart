@@ -73,6 +73,11 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
   List<SnapshotMetadata> _snapshots = const [];
   Timer? _ticker;
 
+  /// Serializes [setEnabled] transitions (FIFO); the stored future is the
+  /// error-swallowed chain, so a failed transition never dead-locks the next
+  /// toggle, while each caller awaits the real [setEnabled] future.
+  Future<void>? _transition;
+
   bool get loaded => _loaded;
   bool get enabled => _enabled;
   int get intervalMinutes => _intervalMinutes;
@@ -111,18 +116,47 @@ class AutoSnapshotProvider extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
-  /// Turns the feature off. If [deleteSnapshots] is true (default), all
-  /// stored snapshots are removed for good — the UI prompts for this before
-  /// calling. The schedule anchor is cleared either way.
+  /// Turns the feature on or off. If [value] is false and [deleteSnapshots]
+  /// is true (default), all stored snapshots are removed for good — the UI
+  /// prompts for this before calling. The schedule anchor is cleared either
+  /// way.
   ///
-  /// Lifecycle guarantee: [createSnapshot] is rejected from the moment the
-  /// teardown starts ([_teardown] is set synchronously and re-checked inside
-  /// the gate), the previous in-flight attempt is awaited, and the deletion
-  /// itself runs under the same [BackupActivityGate] as every create path —
-  /// so no snapshot can be written before or after the delete. A failed
-  /// deletion throws (the feature stays off and the remaining store stays
-  /// restorable; the caller surfaces the error).
-  Future<void> setEnabled(bool value, {bool deleteSnapshots = true}) async {
+  /// Transitions are FIFO-serialized through [_transition]: an enable issued
+  /// while a disable (teardown) is still awaiting an in-flight create, gate,
+  /// or deletion does not touch any state until the disable fully completes,
+  /// and then runs its own full lifecycle — persisted key, ticker, and the
+  /// baseline snapshot — so the last accepted toggle owns both persisted
+  /// state and the baseline guarantee.
+  ///
+  /// Lifecycle guarantee (disable): [createSnapshot] is rejected from the
+  /// moment the teardown starts ([_teardown] is set synchronously and
+  /// re-checked inside the gate), the previous in-flight attempt is awaited,
+  /// and the deletion itself runs under the same [BackupActivityGate] as
+  /// every create path — so no snapshot can be written before or after the
+  /// delete. A failed deletion throws (the feature stays off and the
+  /// remaining store stays restorable; the caller surfaces the error).
+  Future<void> setEnabled(bool value, {bool deleteSnapshots = true}) {
+    final prev = _transition;
+    final next = prev == null
+        ? _applySetEnabled(value, deleteSnapshots: deleteSnapshots)
+        : prev.then(
+            (_) => _applySetEnabled(value, deleteSnapshots: deleteSnapshots),
+          );
+    // The chain itself never fails — a throwing transition would otherwise
+    // dead-lock every later toggle. Callers still see the real outcome
+    // through `next`.
+    _transition = next.catchError((_) {});
+    return next;
+  }
+
+  Future<void> _applySetEnabled(
+    bool value, {
+    bool deleteSnapshots = true,
+  }) async {
+    // Runtime idempotence: a queued transition may find the state already at
+    // the requested value (e.g. enable+disable+enable stacking) — only the
+    // first no-op-on-change transition run matters.
+    if (value == _enabled) return;
     if (value) {
       _enabled = true;
       await preferences.setBool(_enabledKey, true);

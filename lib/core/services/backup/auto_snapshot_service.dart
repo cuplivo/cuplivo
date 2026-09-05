@@ -165,11 +165,16 @@ class AutoSnapshotService {
 
   /// Lists all snapshots, newest first.
   ///
-  /// A snapshot is only listed when its zip is actually present: a sidecar
-  /// whose zip is gone (ghost, e.g. a previously interrupted eviction) is
-  /// skipped so it never occupies a retention slot, and is swept by the next
-  /// [_evict] run. Orphan zips (sidecar write interrupted) keep the
-  /// filesystem-derivation fallback — they are still restorable.
+  /// A snapshot is only listed when its zip is actually present AND provably
+  /// one of ours: a sidecar whose zip is gone (ghost, e.g. a previously
+  /// interrupted eviction) is skipped so it never occupies a retention slot,
+  /// and is swept by the next [_evict] run. Orphan zips (sidecar write
+  /// interrupted) are listed through the filesystem-derivation fallback only
+  /// after the same baseline validation createSnapshot applies — safe
+  /// `auto_snapshot_*.zip` basename plus the `chats_meta.json` sentinel in
+  /// the parsed central directory. Corrupt, truncated, or foreign zips are
+  /// left alone on disk but never listed or counted, so they cannot shadow
+  /// the newest snapshot hash (dedup) nor displace a healthy pair (eviction).
   Future<List<SnapshotMetadata>> listSnapshots() async {
     final dir = await snapshotDirectory();
     if (!dir.existsSync()) return const [];
@@ -194,30 +199,57 @@ class AutoSnapshotService {
         if (meta.fileName != expectedZip) continue;
         // Verify the pair: a zip-less sidecar is a ghost, not a snapshot.
         if (!File('${dir.path}/$expectedZip').existsSync()) continue;
+        // The zip must pass the same baseline invariant as an orphan —
+        // a corrupted store entry would otherwise count toward the cap and
+        // push eviction into a healthy pair.
+        if (_validatedEntriesOf(File('${dir.path}/$expectedZip')) == null) {
+          continue;
+        }
         result.add(meta);
       } catch (_) {
         // Corrupt sidecar: fall back to what the filesystem itself tells us
-        // so the user still sees the snapshot instead of it vanishing.
+        // so the user still sees the snapshot instead of it vanishing — but
+        // only when the zip itself passes the same baseline validation as
+        // createSnapshot (safe basename + sentinel in the central directory).
         final zip = File(ent.path.substring(0, ent.path.length - 5));
         if (!zip.existsSync()) continue;
-        result.add(_fallbackMetadata(zip));
+        final fallbackEntries = _validatedEntriesOf(zip);
+        if (fallbackEntries == null) continue;
+        result.add(_fallbackMetadata(zip, fallbackEntries));
       }
     }
     // Orphan zips (sidecar write interrupted): derive metadata on the fly.
     final known = result.map((m) => m.fileName).toSet();
     for (final ent in dir.listSync()) {
       if (ent is! File || !ent.path.endsWith('.zip')) continue;
-      final name = ent.uri.pathSegments.last;
+      final name = ent.path.split(Platform.pathSeparator).last;
       if (known.contains(name)) continue;
-      result.add(_fallbackMetadata(ent));
+      // An orphan is only a snapshot when it is provably one of ours: a
+      // truncated/corrupt zip that fails the sentinel invariant is not listed
+      // and never counts toward the retention cap (a newer one with a broken
+      // hash would shadow the real newest snapshot and push eviction into a
+      // healthy pair). Foreign/unsafe basenames stay untouched on disk.
+      final entries = _validatedEntriesOf(ent);
+      if (entries == null) continue;
+      result.add(_fallbackMetadata(ent, entries));
     }
     result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return result;
   }
 
-  SnapshotMetadata _fallbackMetadata(File zip) {
-    final stat = zip.statSync();
+  /// Returns the parsed central-directory entries of [zip] when it passes the
+  /// same baseline invariant createSnapshot enforces before committing —
+  /// plain `auto_snapshot_*.zip` basename plus the `chats_meta.json` sentinel
+  /// entry — or null when the zip is corrupt, truncated, or foreign.
+  static List<_ZipEntryInfo>? _validatedEntriesOf(File zip) {
+    if (!_isSafeSnapshotFileName(zip.uri.pathSegments.last)) return null;
     final entries = _readZipEntries(zip.path);
+    if (!entries.any((e) => e.name == _sentinelEntryName)) return null;
+    return entries;
+  }
+
+  SnapshotMetadata _fallbackMetadata(File zip, List<_ZipEntryInfo> entries) {
+    final stat = zip.statSync();
     return SnapshotMetadata(
       fileName: zip.uri.pathSegments.last,
       createdAt: stat.modified,

@@ -325,6 +325,115 @@ void main() {
       },
     );
 
+    test('corrupt and foreign orphan zips are never listed and never displace '
+        'a healthy pair', () async {
+      final service = _service(root, exporter);
+      final healthy = <String>[];
+      for (var i = 0; i < 3; i++) {
+        if (i > 0) {
+          await Future<void>.delayed(const Duration(milliseconds: 1100));
+        }
+        exporter.payload = {
+          'chats_meta.json': utf8.encode(
+            jsonEncode({
+              'format_version': 2,
+              'conversation_count': i,
+              'message_count': i * 10,
+            }),
+          ),
+          'conversations.jsonl': utf8.encode('$i\n'),
+        };
+        final result = await service.createSnapshot();
+        expect(result.status, AutoSnapshotStatus.created);
+        healthy.add(result.metadata!.fileName);
+      }
+
+      final dir = await service.snapshotDirectory();
+      // (a) truncated zip left by an interrupted copy fallback: safe
+      // basename, no parseable EOCD, newer mtime — would previously be
+      // listed first and counted toward the cap.
+      final truncated = File('${dir.path}/auto_snapshot_truncated.zip');
+      truncated.writeAsBytesSync([0x50, 0x4b, 0x03, 0x04, 1, 2, 3, 4]);
+      truncated.setLastModifiedSync(
+        DateTime.now().add(const Duration(minutes: 5)),
+      );
+      // (b) foreign zip with healthy archive content but an unsafe
+      // basename — must never even be parsed into a snapshot.
+      final victimZip = File('${dir.path}/${healthy.first}');
+      final foreign = File('${dir.path}/notes.zip');
+      foreign.writeAsBytesSync(victimZip.readAsBytesSync());
+
+      var snapshots = await service.listSnapshots();
+      expect(
+        snapshots.map((s) => s.fileName).toSet(),
+        healthy.toSet(),
+        reason: 'strays are not listed; only the three healthy pairs',
+      );
+      expect(
+        snapshots.map((s) => s.contentHash).toSet(),
+        hasLength(3),
+        reason: 'the newest hash is never shadowed by a broken hash',
+      );
+
+      // A 4th real snapshot over the cap: the elderly healthy pair is
+      // evicted — never a healthy one displaced by the strays.
+      exporter.payload = {
+        'chats_meta.json': utf8.encode(
+          jsonEncode({'format_version': 2, 'conversation_count': 3}),
+        ),
+        'conversations.jsonl': utf8.encode('3\n'),
+      };
+      final fourth = await service.createSnapshot();
+      expect(fourth.status, AutoSnapshotStatus.created);
+      snapshots = await service.listSnapshots();
+      expect(snapshots, hasLength(3));
+      expect(snapshots.map((s) => s.fileName).toSet(), {
+        healthy[1],
+        healthy[2],
+        fourth.metadata!.fileName,
+      });
+      // Strays are ignored — never listed, never counted, never deleted.
+      expect(truncated.existsSync(), isTrue);
+      expect(foreign.existsSync(), isTrue);
+
+      // A dedup tick sees the same three healthy pairs, not the strays.
+      final dedup = await service.createSnapshot();
+      expect(dedup.status, AutoSnapshotStatus.deduplicated);
+      expect(await service.listSnapshots(), hasLength(3));
+    });
+
+    test('a corrupt sidecar only falls back when its zip passes the baseline '
+        'validation', () async {
+      final service = _service(root, exporter);
+      final result = await service.createSnapshot();
+      expect(result.status, AutoSnapshotStatus.created);
+
+      final dir = await service.snapshotDirectory();
+      final name = result.metadata!.fileName;
+      // Corrupt the sidecar JSON while the zip stays valid: the
+      // filesystem-derived fallback still lists it (restorable).
+      File('${dir.path}/$name.json').writeAsStringSync('{not json');
+      var snapshots = await service.listSnapshots();
+      expect(snapshots, hasLength(1));
+      expect(snapshots.first.fileName, name);
+
+      // Corrupt the zip too: no sentinel, no fallback — not a snapshot.
+      File('${dir.path}/$name').writeAsBytesSync([0x50, 0x4b, 9, 9]);
+      File('${dir.path}/$name.json').writeAsStringSync(
+        jsonEncode({
+          'file_name': name,
+          'created_at': DateTime.now().toIso8601String(),
+          'size_bytes': 1,
+          'assistant_count': 0,
+          'conversation_count': 0,
+          'message_count': 0,
+          'content_hash': 'x',
+        }),
+      );
+      snapshots = await service.listSnapshots();
+      expect(snapshots, isEmpty, reason: 'no restorable partner at all');
+    });
+
     test('creates a snapshot with sidecar metadata on first run', () async {
       final service = _service(root, exporter);
       final result = await service.createSnapshot();

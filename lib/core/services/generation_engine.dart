@@ -169,6 +169,7 @@ class GenerationSlotUiState {
     this.cachedTokens,
     this.durationMs = 0,
     this.truncationReason,
+    this.retryStatus,
   });
 
   final String reasoningText;
@@ -204,6 +205,9 @@ class GenerationSlotUiState {
 
   /// `max_tokens` / `context_exceeded` when the response was truncated.
   final String? truncationReason;
+
+  /// In-bubble auto-retry countdown, or null while generation proceeds.
+  final RetryStatus? retryStatus;
 }
 
 /// Live per-slot state (子代理面板 binding + live rendering).
@@ -633,6 +637,11 @@ class GenerationEngine extends ChangeNotifier {
           cancelSlot(slot.assistantMessageId);
         }
       }
+      // Cancel the conversation-level requestId too: image-OCR runs inside
+      // message preparation BEFORE any slot starts, with the conversation id
+      // as its own requestId, so Stop must abort an in-progress (or backoff
+      // waiting) OCR as well.
+      ChatApiService.cancelRequest(id);
       // Abort any in-flight workspace download the stopped conversation was
       // running (its raw HttpClient is independent of the Dio CancelToken —
       // ADR-0036).
@@ -726,6 +735,18 @@ class GenerationEngine extends ChangeNotifier {
         ocrActive: req.ocrActive,
         partialImageNotice: req.partialImageNotice,
       )) {
+        if (chunk.retryPending != null) {
+          runtime.retryStatus = RetryStatus(
+            attempt: chunk.retryPending!.attempt,
+            maxRetries: chunk.retryPending!.maxRetries,
+            retryAt: chunk.retryPending!.deadlineAt(),
+          );
+          req.onUiState?.call(runtime.buildUiState());
+          continue;
+        }
+        if (chunk.retryAttemptStart) {
+          runtime.retryStatus = null;
+        }
         var chunkContent = chunk.content;
         if (chunkContent.isNotEmpty) {
           chunkContent = _captureGeminiThoughtSignature(chunkContent, runtime);
@@ -1190,6 +1211,11 @@ class GenerationEngine extends ChangeNotifier {
             .content;
       }
       rt.pacing.wasAttached = true;
+      // Re-seed the retry countdown on (re)attach: backoff emits no chunks, so
+      // a viewer returning mid-backoff would otherwise see a plain spinner.
+      if (rt.retryStatus != null) {
+        notifier.updateRetryStatus(rt.slot.assistantMessageId, rt.retryStatus);
+      }
       final next = rt.pacing.takeNextContentSlice(
         minCount: _rampSmoothMinCount,
         baseCount: _rampSmoothBaseCount,
@@ -1289,6 +1315,7 @@ class GenerationEngine extends ChangeNotifier {
     }
     _flushLiveContent(rt);
     _flushLiveReasoning(rt);
+    rt.retryStatus = null;
     final state = rt.buildUiState(
       reasoningFinishedAt: reasoningFinishedAt,
       durationMs: DateTime.now().difference(slot.startedAt).inMilliseconds,
@@ -1332,6 +1359,7 @@ class GenerationEngine extends ChangeNotifier {
     slot.finalText = content;
     _flushLiveContent(rt);
     _flushLiveReasoning(rt);
+    rt.retryStatus = null;
     final state = rt.buildUiState(
       reasoningFinishedAt: rt.reasoningStartAt != null ? DateTime.now() : null,
       durationMs: DateTime.now().difference(slot.startedAt).inMilliseconds,
@@ -1403,6 +1431,9 @@ class _SlotRuntime {
   /// Gemini thought signature payload captured from the stream, if any.
   String? geminiThoughtSig;
 
+  /// Auto-retry countdown while the request waits in backoff.
+  RetryStatus? retryStatus;
+
   Timer? reasoningFlushTimer;
   var reasoningFlushDirty = false;
 
@@ -1441,6 +1472,7 @@ class _SlotRuntime {
       cachedTokens: consumed?.cachedTokens,
       durationMs: durationMs,
       truncationReason: truncationReason,
+      retryStatus: retryStatus,
     );
   }
 }

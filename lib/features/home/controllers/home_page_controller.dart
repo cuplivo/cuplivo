@@ -439,8 +439,11 @@ class HomePageController extends ChangeNotifier {
       chatService: _chatService,
       contextProvider: _context,
       preferences: _context.read<BusinessPreferences>(),
-      ocrHandler: (imagePaths) =>
-          _ocrService.getOcrTextForImages(imagePaths, _context),
+      ocrHandler: (imagePaths, {requestId}) => _ocrService.getOcrTextForImages(
+        imagePaths,
+        _context,
+        requestId: requestId,
+      ),
       geminiThoughtSignatureProvider: _geminiThoughtSignatureForApi,
     );
     _messageBuilderService.ocrTextWrapper = _ocrService.wrapOcrBlock;

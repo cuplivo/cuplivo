@@ -64,6 +64,7 @@ class StreamingContentNotifier {
         cachedTokens: cachedTokens ?? current.cachedTokens,
         durationMs: durationMs ?? current.durationMs,
         translation: current.translation,
+        retryStatus: current.retryStatus,
       );
     }
   }
@@ -90,6 +91,33 @@ class StreamingContentNotifier {
       cachedTokens: current.cachedTokens,
       durationMs: current.durationMs,
       translation: translation,
+      retryStatus: current.retryStatus,
+    );
+  }
+
+  /// Set or clear the in-bubble auto-retry countdown for a message.
+  void updateRetryStatus(String messageId, RetryStatus? status) {
+    final notifier = _notifiers[messageId];
+    if (notifier == null) return;
+    final current = notifier.value;
+    if (current.retryStatus == status) return;
+    notifier.value = StreamingContentData(
+      content: current.content,
+      totalTokens: current.totalTokens,
+      reasoningText: current.reasoningText,
+      reasoningStartAt: current.reasoningStartAt,
+      reasoningFinishedAt: current.reasoningFinishedAt,
+      contentSplitOffsets: current.contentSplitOffsets,
+      reasoningCountAtSplit: current.reasoningCountAtSplit,
+      toolCountAtSplit: current.toolCountAtSplit,
+      toolPartsVersion: current.toolPartsVersion,
+      uiVersion: current.uiVersion,
+      promptTokens: current.promptTokens,
+      completionTokens: current.completionTokens,
+      cachedTokens: current.cachedTokens,
+      durationMs: current.durationMs,
+      translation: current.translation,
+      retryStatus: status,
     );
   }
 
@@ -123,6 +151,7 @@ class StreamingContentNotifier {
         cachedTokens: current.cachedTokens,
         durationMs: current.durationMs,
         translation: current.translation,
+        retryStatus: current.retryStatus,
       );
     }
   }
@@ -155,6 +184,7 @@ class StreamingContentNotifier {
         cachedTokens: current.cachedTokens,
         durationMs: current.durationMs,
         translation: current.translation,
+        retryStatus: current.retryStatus,
       );
     }
   }
@@ -178,6 +208,7 @@ class StreamingContentNotifier {
         cachedTokens: current.cachedTokens,
         durationMs: current.durationMs,
         translation: current.translation,
+        retryStatus: current.retryStatus,
       );
     }
   }
@@ -202,6 +233,35 @@ class StreamingContentNotifier {
   }
 }
 
+/// In-bubble countdown while auto-retry waits for the next attempt.
+///
+/// UI-facing copy of the API's [RetryPendingInfo]: [retryAt] is the absolute
+/// deadline stamped when the backoff sleep starts, so the countdown stays
+/// correct even after a delayed consumer applies the update.
+@immutable
+class RetryStatus {
+  const RetryStatus({
+    required this.attempt,
+    required this.maxRetries,
+    required this.retryAt,
+  });
+
+  final int attempt;
+  final int maxRetries;
+  final DateTime retryAt;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RetryStatus &&
+          attempt == other.attempt &&
+          maxRetries == other.maxRetries &&
+          retryAt == other.retryAt;
+
+  @override
+  int get hashCode => Object.hash(attempt, maxRetries, retryAt);
+}
+
 /// Data class for streaming content.
 @immutable
 class StreamingContentData {
@@ -221,6 +281,7 @@ class StreamingContentData {
     this.cachedTokens,
     this.durationMs,
     this.translation,
+    this.retryStatus,
   });
 
   final String content;
@@ -245,6 +306,9 @@ class StreamingContentData {
   final int? durationMs;
   final String? translation;
 
+  /// Auto-retry countdown, or null while generation proceeds.
+  final RetryStatus? retryStatus;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -264,7 +328,8 @@ class StreamingContentData {
           completionTokens == other.completionTokens &&
           cachedTokens == other.cachedTokens &&
           durationMs == other.durationMs &&
-          translation == other.translation;
+          translation == other.translation &&
+          retryStatus == other.retryStatus;
 
   @override
   int get hashCode =>
@@ -282,5 +347,6 @@ class StreamingContentData {
       completionTokens.hashCode ^
       cachedTokens.hashCode ^
       durationMs.hashCode ^
-      translation.hashCode;
+      translation.hashCode ^
+      retryStatus.hashCode;
 }

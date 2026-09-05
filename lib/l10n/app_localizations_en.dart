@@ -7317,6 +7317,57 @@ class AppLocalizationsEn extends AppLocalizations {
       'When both global and provider proxies are enabled, provider-level proxy takes priority.';
 
   @override
+  String get settingsPageAutoRetry => 'Auto Retry';
+
+  @override
+  String get autoRetryEnableLabel => 'Enable auto-retry';
+
+  @override
+  String get autoRetryMaxRetries => 'Max retries';
+
+  @override
+  String get autoRetryInitialDelay => 'Initial delay (ms)';
+
+  @override
+  String get autoRetryMultiplier => 'Backoff multiplier';
+
+  @override
+  String get autoRetryMaxDelay => 'Max delay (ms)';
+
+  @override
+  String get autoRetryJitter => 'Jitter';
+
+  @override
+  String get autoRetryJitterSubtitle => 'Randomize each wait by ±20%';
+
+  @override
+  String get autoRetryOnNetworkError => 'Retry on network errors';
+
+  @override
+  String get autoRetryStatusCodes => 'Retry status codes';
+
+  @override
+  String get autoRetryKeywords => 'Retry keywords';
+
+  @override
+  String get autoRetryStopKeywords => 'Stop keywords';
+
+  @override
+  String get autoRetryAddHint => 'Add';
+
+  @override
+  String get autoRetryRestoreDefaults => 'Restore defaults';
+
+  @override
+  String get autoRetryFooter =>
+      'Auto-retry only runs if this request has not produced any output yet.';
+
+  @override
+  String autoRetryCountdown(Object attempt, Object maxRetries, Object seconds) {
+    return '${seconds}s until retry ($attempt/$maxRetries)';
+  }
+
+  @override
   String get desktopShowProviderInModelCapsule =>
       'Show provider in model capsule';
 

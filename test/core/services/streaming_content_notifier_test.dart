@@ -26,4 +26,46 @@ void main() {
 
     expect(streaming.hasNotifier('missing'), isFalse);
   });
+
+  test('updateRetryStatus sets and clears the countdown', () {
+    final streaming = StreamingContentNotifier();
+    addTearDown(streaming.dispose);
+    final notifier = streaming.getNotifier('m1');
+    streaming.updateContent('m1', 'text', 4);
+    final status = RetryStatus(
+      attempt: 1,
+      maxRetries: 2,
+      retryAt: DateTime.now().add(const Duration(seconds: 5)),
+    );
+
+    streaming.updateRetryStatus('m1', status);
+    expect(notifier.value.retryStatus, status);
+
+    streaming.updateRetryStatus('m1', null);
+    expect(notifier.value.retryStatus, isNull);
+    // Other fields survive the retry update.
+    expect(notifier.value.content, 'text');
+    expect(notifier.value.totalTokens, 4);
+  });
+
+  test('retryStatus survives content updates and re-creation after clear', () {
+    final streaming = StreamingContentNotifier();
+    addTearDown(streaming.dispose);
+    final status = RetryStatus(
+      attempt: 2,
+      maxRetries: 3,
+      retryAt: DateTime.now().add(const Duration(seconds: 3)),
+    );
+    final notifier = streaming.getNotifier('m2');
+    streaming.updateRetryStatus('m2', status);
+    streaming.updateContent('m2', 'hello', 7);
+    expect(notifier.value.retryStatus, status);
+
+    streaming.clear();
+    var fresh = streaming.getNotifier('m2');
+    expect(fresh.value.retryStatus, isNull);
+    streaming.updateRetryStatus('m2', status);
+    fresh = streaming.getNotifier('m2');
+    expect(fresh.value.retryStatus, status);
+  });
 }

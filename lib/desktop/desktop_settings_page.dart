@@ -30,6 +30,10 @@ import 'widgets/desktop_select_dropdown.dart';
 import '../shared/widgets/ios_labeled_switch_row.dart';
 import '../shared/widgets/ios_switch.dart';
 import '../shared/widgets/ios_checkbox.dart';
+import '../shared/widgets/ios_tactile.dart';
+import '../shared/widgets/ios_chip_input.dart';
+import '../shared/widgets/ios_number_field.dart';
+import '../core/models/auto_retry_options.dart';
 import '../shared/widgets/sf_slider_tile.dart';
 import '../shared/widgets/custom_key_value_editor.dart';
 import '../shared/widgets/create_action_icon_button.dart';
@@ -94,6 +98,7 @@ import '../utils/provider_grouping_logic.dart';
 part 'setting/assistants_pane.dart';
 part 'setting/providers_pane.dart';
 part 'setting/display_pane.dart';
+part 'setting/auto_retry_pane.dart';
 
 /// Desktop settings layout: left menu + vertical divider + right content.
 /// For now, only the left menu and the Display Settings content are implemented.

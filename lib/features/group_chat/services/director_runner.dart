@@ -8,6 +8,7 @@ import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/group_chat.dart';
 import '../../../core/models/group_chat_director_log.dart';
+import '../../../core/models/auto_retry_options.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/chat/chat_service.dart';
@@ -33,6 +34,7 @@ typedef DirectorStreamSender =
       String? requestId,
       bool allowImagesApiRouting,
       bool ocrActive,
+      AutoRetryOptions? retryOverride,
     });
 
 typedef DirectorRuntimeLogSink = void Function(GroupChatDirectorRuntimeLog log);
@@ -282,6 +284,9 @@ class DirectorRunner {
         maxTokens: maxTokens,
         stream: false,
         requestId: requestId,
+        // DirectorRunner has its own retry loop; an additional auto-retry
+        // would multiply attempts (own-loop x backoff) on free-tier limits.
+        retryOverride: const AutoRetryOptions.defaults(),
       );
 
       sub = stream.listen(

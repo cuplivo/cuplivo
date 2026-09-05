@@ -1192,4 +1192,67 @@ void main() {
       expect(wakeLockCalls, isEmpty);
     });
   });
+
+  group('auto-retry UI state forwarding', () {
+    test(
+      'retry chunks publish countdown state and never become content',
+      () async {
+        final uiStates = <GenerationSlotUiState>[];
+        final placeholder = await chatService.addMessage(
+          conversationId: 'retry-1',
+          role: 'assistant',
+          content: '',
+          isStreaming: true,
+        );
+        service.prepareRound(
+          conversationId: 'retry-1',
+          assistantMessageId: placeholder.id,
+          parentConversationId: null,
+          wait: false,
+        );
+        service.startRound(
+          conversationId: 'retry-1',
+          slots: [
+            GenerationSlotRequest(
+              assistantMessageId: placeholder.id,
+              apiMessages: const [],
+              config: config,
+              modelId: 'model-1',
+              onUiState: (state) => uiStates.add(state),
+            ),
+          ],
+          parentConversationId: null,
+          wait: false,
+        );
+        await pumpEventQueue();
+
+        final controller = controllerFor(placeholder.id);
+        controller.add(
+          const ChatStreamChunk.retryPending(
+            RetryPendingInfo(
+              attempt: 1,
+              maxRetries: 3,
+              delay: Duration(seconds: 2),
+              retryAt: null,
+            ),
+          ),
+        );
+        await pumpEventQueue();
+        expect(uiStates, isNotEmpty);
+        expect(uiStates.last.retryStatus, isNotNull);
+        expect(uiStates.last.retryStatus!.attempt, 1);
+        expect(
+          chatService.messagesByConversation['retry-1']?.last.content,
+          isEmpty,
+        );
+
+        controller.add(const ChatStreamChunk.retryAttemptStart());
+        await pumpEventQueue();
+        expect(uiStates.last.retryStatus, isNull);
+
+        await controller.close();
+        await pumpEventQueue();
+      },
+    );
+  });
 }

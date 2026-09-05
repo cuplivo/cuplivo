@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'dart:math' as math;
 import 'package:flutter/services.dart';
 import '../../../core/services/haptics.dart';
+import '../../../core/services/streaming_content_notifier.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
@@ -762,6 +763,8 @@ class ChatMessageWidget extends StatefulWidget {
   // Whether files are currently being processed
   final bool isProcessingFiles;
   final bool enableStreamingTextMotion;
+  // Auto-retry countdown while the request waits in backoff
+  final RetryStatus? retryStatus;
   final List<String> suggestions;
   final ValueChanged<String>? onSuggestionTap;
   final ValueChanged<String>? onQuoteSelection;
@@ -816,6 +819,7 @@ class ChatMessageWidget extends StatefulWidget {
     this.toolCountAtSplit,
     this.hideStreamingIndicator = false,
     this.isProcessingFiles = false,
+    this.retryStatus,
     this.enableStreamingTextMotion = true,
     this.suggestions = const <String>[],
     this.onSuggestionTap,
@@ -2598,10 +2602,27 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                       // constraints (option off) Align ignores it.
                       widthFactor: 1,
                       child: Semantics(
-                        label: l10n.chatMessageWidgetThinking,
+                        label: widget.retryStatus == null
+                            ? l10n.chatMessageWidgetThinking
+                            : l10n.autoRetryCountdown(
+                                widget.retryStatus!.attempt,
+                                widget.retryStatus!.maxRetries,
+                                _retrySecondsLeft(widget.retryStatus!),
+                              ),
                         child: widget.hideStreamingIndicator
                             ? const SizedBox(height: 16)
-                            : const LoadingIndicator(),
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const LoadingIndicator(),
+                                  if (widget.retryStatus != null) ...[
+                                    const SizedBox(width: 8),
+                                    _RetryCountdownHint(
+                                      status: widget.retryStatus!,
+                                    ),
+                                  ],
+                                ],
+                              ),
                       ),
                     ),
                   ),
@@ -3518,6 +3539,52 @@ class _MenuItem extends StatelessWidget {
 }
 
 // Pulsing 3-dot loading indicator for chat thinking states (shared)
+int _retrySecondsLeft(RetryStatus status) {
+  final remaining = status.retryAt.difference(DateTime.now());
+  if (remaining.isNegative) return 0;
+  return remaining.inMilliseconds == 0
+      ? 0
+      : (remaining.inMilliseconds / 1000).ceil();
+}
+
+/// One-shot countdown next to the thinking indicator while auto-retry waits.
+/// A fresh [RetryStatus] (new [RetryStatus.retryAt]) restarts the animation.
+class _RetryCountdownHint extends StatelessWidget {
+  const _RetryCountdownHint({required this.status});
+
+  final RetryStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final remaining = status.retryAt.difference(DateTime.now());
+    final startSeconds = remaining.inMilliseconds / 1000.0;
+    final style = TextStyle(
+      fontSize: 12,
+      color: cs.onSurface.withValues(alpha: 0.55),
+    );
+    if (startSeconds <= 0) {
+      return Text(
+        l10n.autoRetryCountdown(status.attempt, status.maxRetries, 0),
+        style: style,
+      );
+    }
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(status.retryAt),
+      tween: Tween<double>(begin: startSeconds, end: 0),
+      duration: remaining,
+      builder: (context, value, _) {
+        final seconds = value <= 0 ? 0 : value.ceil();
+        return Text(
+          l10n.autoRetryCountdown(status.attempt, status.maxRetries, seconds),
+          style: style,
+        );
+      },
+    );
+  }
+}
+
 class LoadingIndicator extends StatefulWidget {
   const LoadingIndicator({
     super.key,

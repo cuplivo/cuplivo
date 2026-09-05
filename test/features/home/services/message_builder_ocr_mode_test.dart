@@ -70,7 +70,7 @@ Future<String> _processContent({
     preferences: businessPrefs,
     chatService: _FakeChatService(),
     contextProvider: _FakeBuildContext(),
-    ocrHandler: (_) async => _ocrText,
+    ocrHandler: (_, {requestId}) async => _ocrText,
   );
   final apiMessages = <Map<String, dynamic>>[
     {'role': 'user', 'content': 'hello $_imageMarker'},

@@ -217,6 +217,7 @@ class HandoffToolService {
         target,
         providerKey: providerKey,
         modelId: modelId,
+        requestId: conversation.id,
       );
       // ignore: use_build_context_synchronously (root context)
       final toolHandler = ToolHandlerService(contextProvider: context);

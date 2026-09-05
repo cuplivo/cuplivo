@@ -9,6 +9,7 @@ import '../../providers/settings_provider.dart';
 import '../../providers/model_provider.dart';
 import '../../providers/codex_device_code_controller.dart';
 import '../../providers/grok_device_code_controller.dart';
+import '../../models/auto_retry_options.dart';
 import '../../models/token_usage.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../utils/app_directories.dart';
@@ -24,6 +25,8 @@ import '../../../utils/unicode_sanitizer.dart';
 import 'builtin_tools.dart';
 import 'gemini_tool_config.dart';
 import 'providers/gemini_thought_signature.dart';
+import 'retry_policy.dart';
+import 'retrying_stream.dart';
 import '../logging/flutter_logger.dart';
 import '../model_override_resolver.dart';
 import '../model_override_payload_parser.dart';
@@ -581,19 +584,23 @@ class ChatApiService {
     bool allowImagesApiRouting = true,
     bool ocrActive = false,
     String Function(int received, int requested)? partialImageNotice,
+    AutoRetryOptions? retryOverride,
   }) async* {
+    final options = retryOverride ?? AutoRetryConfig.current;
     final kind = ProviderConfig.classify(
       config.id,
       explicitType: config.providerType,
     );
-    final cancelToken = CancelToken();
+    // Session token outlives individual attempts: retries reuse it so
+    // [cancelRequest] / a replacing request aborts the whole backoff cycle.
+    final sessionToken = CancelToken();
     final rid = (requestId ?? '').trim();
     if (rid.isNotEmpty) {
       final prev = _activeCancelTokens.remove(rid);
       try {
         prev?.cancel('replaced');
       } catch (_) {}
-      _activeCancelTokens[rid] = cancelToken;
+      _activeCancelTokens[rid] = sessionToken;
     }
     final useOpenAIImagesApi =
         kind == ProviderKind.openai &&
@@ -612,6 +619,136 @@ class ChatApiService {
     final safeUserMediaPaths = stripUnsupportedImageInputs
         ? const <String>[]
         : userMediaPaths;
+    // Requests whose output the user may already have seen (image
+    // generation) or that carry non-replayable parser state are never retried
+    // on transport failures.
+    final imageOutput = _effectiveModelInfo(
+      config,
+      modelId,
+    ).output.contains(Modality.image);
+    final retryNetworkErrors =
+        !useOpenAIImagesApi && !useZhipuLayoutParsing && !imageOutput;
+
+    try {
+      yield* retryingStream<ChatStreamChunk>(
+        options: options,
+        isCancelled: () => sessionToken.isCancelled,
+        shouldRetry: (error) => shouldRetryError(
+          error,
+          options,
+          retryOnNetworkError: retryNetworkErrors ? null : false,
+        ),
+        isOutput: (chunk) => chunk.hasVisibleSideEffect,
+        retryEvent: (attempt, delay, error) => ChatStreamChunk.retryPending(
+          RetryPendingInfo(
+            attempt: attempt + 1,
+            maxRetries: options.maxRetries,
+            delay: delay,
+            retryAt: DateTime.now().add(delay),
+          ),
+        ),
+        attemptStartEvent: () => const ChatStreamChunk.retryAttemptStart(),
+        cancelled: _whenCancelled(sessionToken),
+        attempt: (_) => _sendOnce(
+          config: config,
+          modelId: modelId,
+          messages: safeMessages,
+          userMediaPaths: safeUserMediaPaths,
+          thinkingBudget: thinkingBudget,
+          temperature: temperature,
+          topP: topP,
+          maxTokens: maxTokens,
+          tools: tools,
+          onToolCall: onToolCall,
+          extraHeaders: extraHeaders,
+          extraBody: extraBody,
+          stream: stream,
+          useOpenAIImagesApi: useOpenAIImagesApi,
+          useZhipuLayoutParsing: useZhipuLayoutParsing,
+          partialImageNotice: partialImageNotice,
+          sessionToken: sessionToken,
+        ),
+      );
+    } finally {
+      if (rid.isNotEmpty) {
+        final cur = _activeCancelTokens[rid];
+        debugPrint(
+          '[CancelTrace] sendMessageStream finally: rid=$rid curIdentical=${identical(cur, sessionToken)}',
+        );
+        if (identical(cur, sessionToken)) {
+          _activeCancelTokens.remove(rid);
+        }
+      }
+    }
+  }
+
+  static Future<void> _whenCancelled(CancelToken token) async {
+    try {
+      await token.whenCancel;
+    } catch (_) {}
+  }
+
+  /// Bridges the session cancel to one attempt's token: when the session is
+  /// cancelled, every in-flight (or later) attempt cancels too — but a failed
+  /// attempt's own client close never kills the session.
+  static void _bridgeCancel(CancelToken parent, CancelToken child) {
+    if (parent.isCancelled) {
+      if (!child.isCancelled) {
+        try {
+          child.cancel('cancelled');
+        } catch (_) {}
+      }
+      return;
+    }
+    parent.whenCancel.then(
+      (_) {
+        if (!child.isCancelled) {
+          try {
+            child.cancel('cancelled');
+          } catch (_) {}
+        }
+      },
+      onError: (_) {
+        if (!child.isCancelled) {
+          try {
+            child.cancel('cancelled');
+          } catch (_) {}
+        }
+      },
+    );
+  }
+
+  /// One HTTP attempt inside the retry loop. A fresh [CancelToken] per
+  /// attempt keeps the session's [CancelToken] untouched for the lifetime of
+  /// the retrying run.
+  static Stream<ChatStreamChunk> _sendOnce({
+    required ProviderConfig config,
+    required String modelId,
+    required List<Map<String, dynamic>> messages,
+    List<String>? userMediaPaths,
+    int? thinkingBudget,
+    double? temperature,
+    double? topP,
+    int? maxTokens,
+    List<Map<String, dynamic>>? tools,
+    ToolCallHandler? onToolCall,
+    Map<String, String>? extraHeaders,
+    Map<String, dynamic>? extraBody,
+    required bool stream,
+    required bool useOpenAIImagesApi,
+    required bool useZhipuLayoutParsing,
+    String Function(int received, int requested)? partialImageNotice,
+    required CancelToken sessionToken,
+  }) async* {
+    if (sessionToken.isCancelled) {
+      throw http.ClientException('cancelled');
+    }
+    final kind = ProviderConfig.classify(
+      config.id,
+      explicitType: config.providerType,
+    );
+    final cancelToken = CancelToken();
+    _bridgeCancel(sessionToken, cancelToken);
     final client = _clientFor(config, cancelToken);
 
     try {
@@ -620,8 +757,8 @@ class ChatApiService {
           client,
           config,
           modelId,
-          safeMessages,
-          userMediaPaths: safeUserMediaPaths,
+          messages,
+          userMediaPaths: userMediaPaths,
           extraHeaders: extraHeaders,
         );
       } else if (kind == ProviderKind.openai) {
@@ -630,8 +767,8 @@ class ChatApiService {
             client,
             config,
             modelId,
-            safeMessages,
-            userMediaPaths: safeUserMediaPaths,
+            messages,
+            userMediaPaths: userMediaPaths,
             extraHeaders: extraHeaders,
             extraBody: extraBody,
             partialImageNotice: partialImageNotice,
@@ -641,8 +778,8 @@ class ChatApiService {
             client,
             config,
             modelId,
-            safeMessages,
-            userMediaPaths: safeUserMediaPaths,
+            messages,
+            userMediaPaths: userMediaPaths,
             thinkingBudget: thinkingBudget,
             temperature: temperature,
             topP: topP,
@@ -658,8 +795,8 @@ class ChatApiService {
             client,
             config,
             modelId,
-            safeMessages,
-            userMediaPaths: safeUserMediaPaths,
+            messages,
+            userMediaPaths: userMediaPaths,
             thinkingBudget: thinkingBudget,
             temperature: temperature,
             topP: topP,
@@ -676,8 +813,8 @@ class ChatApiService {
           client,
           config,
           modelId,
-          safeMessages,
-          userMediaPaths: safeUserMediaPaths,
+          messages,
+          userMediaPaths: userMediaPaths,
           thinkingBudget: thinkingBudget,
           temperature: temperature,
           topP: topP,
@@ -697,8 +834,8 @@ class ChatApiService {
             client: client,
             config: config,
             modelId: modelId,
-            messages: safeMessages,
-            userMediaPaths: safeUserMediaPaths,
+            messages: messages,
+            userMediaPaths: userMediaPaths,
             thinkingBudget: thinkingBudget,
             temperature: temperature,
             topP: topP,
@@ -714,8 +851,8 @@ class ChatApiService {
             client,
             config,
             modelId,
-            safeMessages,
-            userMediaPaths: safeUserMediaPaths,
+            messages,
+            userMediaPaths: userMediaPaths,
             thinkingBudget: thinkingBudget,
             temperature: temperature,
             topP: topP,
@@ -731,8 +868,8 @@ class ChatApiService {
             client,
             config,
             modelId,
-            safeMessages,
-            userMediaPaths: safeUserMediaPaths,
+            messages,
+            userMediaPaths: userMediaPaths,
             thinkingBudget: thinkingBudget,
             temperature: temperature,
             topP: topP,
@@ -747,15 +884,6 @@ class ChatApiService {
       }
     } finally {
       client.close();
-      if (rid.isNotEmpty) {
-        final cur = _activeCancelTokens[rid];
-        debugPrint(
-          '[CancelTrace] sendMessageStream finally: rid=$rid curIdentical=${identical(cur, cancelToken)}',
-        );
-        if (identical(cur, cancelToken)) {
-          _activeCancelTokens.remove(rid);
-        }
-      }
     }
   }
 
@@ -1614,6 +1742,41 @@ class ChatStreamChunk {
   // Value maps to ARB key suffixes: 'max_tokens' or 'context_exceeded'.
   final String? truncationReason;
 
+  /// Set between attempts while auto-retry waits to try again. Not message
+  /// content — consumers must not fold it into parts.
+  final RetryPendingInfo? retryPending;
+
+  /// True when backoff has finished and the next attempt is starting.
+  final bool retryAttemptStart;
+
+  const ChatStreamChunk.retryPending(RetryPendingInfo info)
+    : content = '',
+      reasoning = null,
+      reasoningDetails = null,
+      isDone = false,
+      totalTokens = 0,
+      usage = null,
+      consumedUsage = null,
+      toolCalls = null,
+      toolResults = null,
+      truncationReason = null,
+      retryPending = info,
+      retryAttemptStart = false;
+
+  const ChatStreamChunk.retryAttemptStart()
+    : content = '',
+      reasoning = null,
+      reasoningDetails = null,
+      isDone = false,
+      totalTokens = 0,
+      usage = null,
+      consumedUsage = null,
+      toolCalls = null,
+      toolResults = null,
+      truncationReason = null,
+      retryPending = null,
+      retryAttemptStart = true;
+
   ChatStreamChunk({
     required this.content,
     this.reasoning,
@@ -1625,7 +1788,43 @@ class ChatStreamChunk {
     this.toolCalls,
     this.toolResults,
     this.truncationReason,
+    this.retryPending,
+    this.retryAttemptStart = false,
   });
+
+  /// True when this chunk carries a user-visible side effect (text, reasoning,
+  /// or tool activity) that makes replaying the attempt unsafe. Usage-only or
+  /// keep-alive chunks never block an auto-retry.
+  bool get hasVisibleSideEffect =>
+      content.isNotEmpty ||
+      (reasoning ?? '').isNotEmpty ||
+      reasoningDetails != null ||
+      (toolCalls ?? const <ToolCallInfo>[]).isNotEmpty ||
+      (toolResults ?? const <ToolResultInfo>[]).isNotEmpty;
+}
+
+/// Auto-retry countdown payload carried between attempts on
+/// [ChatStreamChunk.retryPending].
+class RetryPendingInfo {
+  const RetryPendingInfo({
+    required this.attempt,
+    required this.maxRetries,
+    required this.delay,
+    this.retryAt,
+  });
+
+  /// 1-based extra-attempt index, matching "retry (2/3)" in the UI.
+  final int attempt;
+  final int maxRetries;
+  final Duration delay;
+
+  /// Absolute time when backoff ends, stamped when the sleep starts. UI
+  /// countdown must use this instead of `DateTime.now() + delay` after a
+  /// delayed consumer applies the event.
+  final DateTime? retryAt;
+
+  DateTime deadlineAt([DateTime? now]) =>
+      retryAt ?? (now ?? DateTime.now()).add(delay);
 }
 
 class ToolCallInfo {

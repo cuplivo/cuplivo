@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/auto_retry_options.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/group_chat.dart';
 import 'package:Cuplivo/core/models/group_chat_director_log.dart';
@@ -46,6 +47,7 @@ class _FakeDirectorTransport {
     String? requestId,
     bool allowImagesApiRouting = true,
     bool ocrActive = false,
+    AutoRetryOptions? retryOverride,
   }) {
     toolCallHandler = onToolCall;
     return controller.stream;
@@ -73,6 +75,7 @@ class _SequencedDirectorTransport {
     String? requestId,
     bool allowImagesApiRouting = true,
     bool ocrActive = false,
+    AutoRetryOptions? retryOverride,
   }) {
     final controller = StreamController<ChatStreamChunk>();
     controllers.add(controller);

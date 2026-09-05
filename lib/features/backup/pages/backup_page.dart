@@ -1044,7 +1044,18 @@ class _BackupPageState extends State<BackupPage> {
     BackupProvider vm,
   ) async {
     final l10n = AppLocalizations.of(context)!;
-    final file = await AutoSnapshotService.resolveSnapshotFile(meta.fileName);
+    final File file;
+    try {
+      file = await AutoSnapshotService.resolveSnapshotFile(meta.fileName);
+    } catch (e) {
+      if (!context.mounted) return;
+      showAppSnackBar(
+        context,
+        message: l10n.autoSnapshotFailedToast(e.toString()),
+        type: NotificationType.error,
+      );
+      return;
+    }
     if (!await file.exists()) {
       if (!context.mounted) return;
       showAppSnackBar(

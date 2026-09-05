@@ -99,6 +99,232 @@ void main() {
       }
     });
 
+    test(
+      'a sidecar with an absolute-path file_name never leaks the store',
+      () async {
+        final service = _service(root, exporter);
+        await service.createSnapshot(); // one legit pair A
+
+        final dir = await service.snapshotDirectory();
+        // A real ZIP outside the store, plus a sidecar whose file_name is an
+        // absolute path into it. Cross-platform: use POSIX-style separators
+        // (invalid on both conventions) plus a fully-qualified drive path.
+        final outside = File('${root.path}/outside_victim.zip');
+        outside.writeAsBytesSync([1, 2, 3]);
+        final malicious = File('${dir.path}/auto_snapshot_evil_abs.zip.json');
+        malicious.writeAsStringSync(
+          jsonEncode({
+            'file_name': outside.path.replaceAll('\\', '/'),
+            'created_at': '2026-01-01T00:00:00',
+            'size_bytes': 0,
+            'assistant_count': 0,
+            'conversation_count': 0,
+            'message_count': 0,
+            'content_hash': 'evil',
+          }),
+        );
+
+        var snapshots = await service.listSnapshots();
+        expect(snapshots, hasLength(1), reason: 'evil sidecar is not listed');
+
+        // Over-cap eviction (via 3 more real snapshots) must keep the
+        // outside file intact; only in-store pairs are touched.
+        exporter.payload = {
+          'chats_meta.json': utf8.encode(
+            jsonEncode({'format_version': 2, 'conversation_count': 1}),
+          ),
+          'conversations.jsonl': utf8.encode('1\n'),
+        };
+        await service.createSnapshot();
+        exporter.payload = {
+          'chats_meta.json': utf8.encode(
+            jsonEncode({'format_version': 2, 'conversation_count': 2}),
+          ),
+          'conversations.jsonl': utf8.encode('2\n'),
+        };
+        await service.createSnapshot();
+        exporter.payload = {
+          'chats_meta.json': utf8.encode(
+            jsonEncode({'format_version': 2, 'conversation_count': 3}),
+          ),
+          'conversations.jsonl': utf8.encode('3\n'),
+        };
+        await service.createSnapshot();
+
+        expect(outside.existsSync(), isTrue);
+        snapshots = await service.listSnapshots();
+        expect(snapshots, hasLength(3));
+        expect(
+          snapshots.map((s) => s.fileName),
+          isNot(contains(outside.uri.pathSegments.last)),
+        );
+        await expectLater(
+          AutoSnapshotService.resolveSnapshotFile(
+            outside.path.replaceAll('\\', '/'),
+          ),
+          throwsA(isA<AutoSnapshotException>()),
+        );
+      },
+    );
+
+    test(
+      'a sidecar with a ../ traversal file_name cannot escape the store',
+      () async {
+        final service = _service(root, exporter);
+        await service.createSnapshot(); // one legit pair A
+
+        final dir = await service.snapshotDirectory();
+        // A real ZIP just outside the store (parent of auto_snapshots), and a
+        // sidecar pointing at it with a relative traversal.
+        final outside = File('${root.path}/traverse_victim.zip');
+        outside.writeAsBytesSync([1, 2, 3]);
+        File('${dir.path}/auto_snapshot_evil_relative.zip.json').writeAsString(
+          jsonEncode({
+            'file_name': '../traverse_victim.zip',
+            'created_at': '2026-01-01T00:00:00',
+            'size_bytes': 0,
+            'assistant_count': 0,
+            'conversation_count': 0,
+            'message_count': 0,
+            'content_hash': 'evil',
+          }),
+        );
+
+        var snapshots = await service.listSnapshots();
+        expect(snapshots, hasLength(1), reason: 'traversal sidecar dropped');
+
+        exporter.payload = {
+          'chats_meta.json': utf8.encode(
+            jsonEncode({'format_version': 2, 'conversation_count': 1}),
+          ),
+          'conversations.jsonl': utf8.encode('1\n'),
+        };
+        await service.createSnapshot();
+        exporter.payload = {
+          'chats_meta.json': utf8.encode(
+            jsonEncode({'format_version': 2, 'conversation_count': 2}),
+          ),
+          'conversations.jsonl': utf8.encode('2\n'),
+        };
+        await service.createSnapshot();
+        exporter.payload = {
+          'chats_meta.json': utf8.encode(
+            jsonEncode({'format_version': 2, 'conversation_count': 3}),
+          ),
+          'conversations.jsonl': utf8.encode('3\n'),
+        };
+        await service.createSnapshot();
+
+        // Eviction happened (4 real entries → 3) but the traversal target
+        // survived untouched.
+        snapshots = await service.listSnapshots();
+        expect(snapshots, hasLength(3));
+        expect(outside.existsSync(), isTrue);
+      },
+    );
+
+    test(
+      'an aliasing sidecar cannot double-count or misdirect eviction',
+      () async {
+        final service = _service(root, exporter);
+        final names = <String>[];
+        for (var i = 0; i < 3; i++) {
+          if (i > 0) {
+            await Future<void>.delayed(const Duration(milliseconds: 1100));
+          }
+          exporter.payload = {
+            'chats_meta.json': utf8.encode(
+              jsonEncode({
+                'format_version': 2,
+                'conversation_count': i,
+                'message_count': i * 10,
+              }),
+            ),
+            'conversations.jsonl': utf8.encode('$i\n'),
+          };
+          final result = await service.createSnapshot();
+          expect(result.status, AutoSnapshotStatus.created);
+          names.add(result.metadata!.fileName);
+        }
+
+        final dir = await service.snapshotDirectory();
+        // A sidecar whose name derives zip `auto_snapshot_alias.zip` but
+        // whose JSON claims the file_name of the NEWEST real snapshot.
+        File('${dir.path}/auto_snapshot_alias.zip.json').writeAsStringSync(
+          jsonEncode({
+            'file_name': names.last,
+            'created_at': '2026-01-01T00:00:00',
+            'size_bytes': 1,
+            'assistant_count': 0,
+            'conversation_count': 0,
+            'message_count': 0,
+            'content_hash': 'evil',
+          }),
+        );
+
+        final snapshots = await service.listSnapshots();
+        expect(snapshots, hasLength(3), reason: 'alias is not double-counted');
+        expect(
+          snapshots.map((s) => s.fileName).toSet(),
+          names.toSet(),
+          reason: 'the real newest pair keeps its own entry',
+        );
+
+        // A 4th snapshot over the cap evicts the OLDEST real pair, not the
+        // aliased newest one.
+        exporter.payload = {
+          'chats_meta.json': utf8.encode(
+            jsonEncode({'format_version': 2, 'conversation_count': 3}),
+          ),
+          'conversations.jsonl': utf8.encode('3\n'),
+        };
+        final fourth = await service.createSnapshot();
+        expect(fourth.status, AutoSnapshotStatus.created);
+        final after = await service.listSnapshots();
+        expect(after, hasLength(3));
+        expect(after.map((s) => s.fileName).toSet(), {
+          ...names.sublist(1),
+          fourth.metadata!.fileName,
+        });
+        expect(
+          File('${dir.path}/auto_snapshot_alias.zip.json').existsSync(),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'resolveSnapshotFile rejects traversal payloads and accepts real names',
+      () async {
+        final service = _service(root, exporter);
+        final result = await service.createSnapshot();
+        expect(result.status, AutoSnapshotStatus.created);
+
+        expect(
+          await AutoSnapshotService.resolveSnapshotFile(
+            result.metadata!.fileName,
+          ),
+          isA<File>(),
+        );
+        await expectLater(
+          AutoSnapshotService.resolveSnapshotFile('../evil.zip'),
+          throwsA(isA<AutoSnapshotException>()),
+        );
+        await expectLater(
+          AutoSnapshotService.resolveSnapshotFile('/abs/evil.zip'),
+          throwsA(isA<AutoSnapshotException>()),
+        );
+        await expectLater(
+          AutoSnapshotService.resolveSnapshotFile('C:\\evil.zip'),
+          throwsA(isA<AutoSnapshotException>()),
+        );
+        await expectLater(
+          AutoSnapshotService.resolveSnapshotFile('auto_snapshot_.._x.zip'),
+          throwsA(isA<AutoSnapshotException>()),
+        );
+      },
+    );
+
     test('creates a snapshot with sidecar metadata on first run', () async {
       final service = _service(root, exporter);
       final result = await service.createSnapshot();

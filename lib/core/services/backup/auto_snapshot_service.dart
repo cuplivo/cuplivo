@@ -123,9 +123,32 @@ class AutoSnapshotService {
   static const String _dirName = 'auto_snapshots';
 
   /// Resolves the stored zip for [fileName] (e.g. when restoring).
+  ///
+  /// Rejects anything that is not a plain zip basename — no separators, no
+  /// absolute paths, no `.`/`..` segments — so restore can never leave the
+  /// snapshot store through sidecar data.
   static Future<File> resolveSnapshotFile(String fileName) async {
+    if (!_isSafeSnapshotFileName(fileName)) {
+      throw AutoSnapshotException('invalid snapshot file name: "$fileName"');
+    }
     final root = await AppDirectories.getAppDataDirectory();
     return File('${root.path}/$_dirName/$fileName');
+  }
+
+  /// True when [name] is a plain zip basename usable inside the snapshot
+  /// store: exactly an `auto_snapshot_*.zip` name with no path separators,
+  /// no drive/colon, and no `.`/`..` segments (which would escape the
+  /// directory through the sidecar's `file_name` JSON field).
+  static bool _isSafeSnapshotFileName(String name) {
+    if (name.isEmpty) return false;
+    if (!name.startsWith(_zipPrefix) || !name.endsWith('.zip')) return false;
+    if (name.contains('/') || name.contains('\\') || name.contains(':')) {
+      return false;
+    }
+    for (final segment in name.split('.')) {
+      if (segment.isEmpty) return false;
+    }
+    return !name.contains('..') && !name.startsWith('.');
   }
 
   final Future<File> Function() _exportBackup;
@@ -153,11 +176,24 @@ class AutoSnapshotService {
     final result = <SnapshotMetadata>[];
     for (final ent in dir.listSync()) {
       if (ent is! File || !ent.path.endsWith('.json')) continue;
+      // The zip name is DERIVED from the sidecar path, never trusted from
+      // the JSON: `file_name` is arbitrary attacker-controlled data inside
+      // the store, and could point outside the directory (absolute paths,
+      // `../` traversal) or alias another snapshot pair.
+      final sidecarBasename = ent.path.split(Platform.pathSeparator).last;
+      final expectedZip = sidecarBasename.substring(
+        0,
+        sidecarBasename.length - '.json'.length,
+      );
+      if (!_isSafeSnapshotFileName(expectedZip)) continue;
       try {
         final json = jsonDecode(ent.readAsStringSync()) as Map<String, dynamic>;
         final meta = SnapshotMetadata.fromJson(json);
+        // Self-heal: the listed metadata always uses the derived zip name;
+        // a mismatching `file_name` makes the sidecar untrustworthy.
+        if (meta.fileName != expectedZip) continue;
         // Verify the pair: a zip-less sidecar is a ghost, not a snapshot.
-        if (!File('${dir.path}/${meta.fileName}').existsSync()) continue;
+        if (!File('${dir.path}/$expectedZip').existsSync()) continue;
         result.add(meta);
       } catch (_) {
         // Corrupt sidecar: fall back to what the filesystem itself tells us
@@ -377,6 +413,16 @@ class AutoSnapshotService {
     }
     if (current.length > maxSnapshots) {
       for (final meta in current.skip(maxSnapshots)) {
+        // Defense in depth: eviction walks listing-derived names only, but an
+        // untrusted `file_name` must never turn into a filesystem path — skip
+        // anything that fails the same containment check as restore.
+        if (!_isSafeSnapshotFileName(meta.fileName)) {
+          debugPrint(
+            '[AutoSnapshotService] skipping eviction of unsafe file name '
+            '"${meta.fileName}"',
+          );
+          continue;
+        }
         final zip = File('${dir.path}/${meta.fileName}');
         // typeSync distinguishes truthfully between "zip is gone" (ghost →
         // still clean the sidecar below) and "zip is there but un-deletable"
@@ -425,6 +471,11 @@ class AutoSnapshotService {
       // yields '' for it — take the basename from the path instead.
       final name = ent.path.split(Platform.pathSeparator).last;
       if (!name.endsWith('.json')) continue;
+      // The zip name is derived from the entry path, never from the sidecar
+      // JSON — see listSnapshots for the untrusted-field rationale.
+      if (!_isSafeSnapshotFileName(name.substring(0, name.length - 5))) {
+        continue;
+      }
       final zipPath = ent.path.substring(0, ent.path.length - 5);
       if (File(zipPath).existsSync() || Directory(zipPath).existsSync()) {
         continue;

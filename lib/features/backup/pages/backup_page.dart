@@ -6,6 +6,7 @@ import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../shared/widgets/loading_dialog_card.dart';
@@ -16,11 +17,13 @@ import '../../../core/services/haptics.dart';
 import '../../../core/models/backup.dart';
 import '../../../core/providers/backup_provider.dart';
 import '../../../core/providers/backup_reminder_provider.dart';
+import '../../../core/providers/auto_snapshot_provider.dart';
 import '../../../core/providers/s3_backup_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/trash_restore_coordinator.dart';
 import '../../../core/services/backup/data_sync.dart';
+import '../../../core/services/backup/auto_snapshot_service.dart';
 import '../../../core/services/backup/restore_refresher.dart';
 import '../../../core/services/native_file_save.dart';
 import '../../../shared/widgets/ios_switch.dart';
@@ -53,6 +56,84 @@ class BackupPage extends StatefulWidget {
 class _BackupPageState extends State<BackupPage> {
   /// Hero card state: where the next backup goes.
   BackupDestination _destination = BackupDestination.local;
+
+  /// Auto-snapshot provider subscription: one-shot outcome notices produced by
+  /// background snapshots (baseline, due ticks) are consumed here and turned
+  /// into toasts — see [_onAutoSnapshotNotice].
+  AutoSnapshotProvider? _autoSnapshotProvider;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.read<AutoSnapshotProvider>();
+    if (!identical(provider, _autoSnapshotProvider)) {
+      _autoSnapshotProvider?.removeListener(_onAutoSnapshotNotice);
+      _autoSnapshotProvider = provider;
+      provider.addListener(_onAutoSnapshotNotice);
+      // A notice may have been stashed while this page was unmounted —
+      // surface it on (re)mount instead of waiting for the next notify.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _onAutoSnapshotNotice();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _autoSnapshotProvider?.removeListener(_onAutoSnapshotNotice);
+    _autoSnapshotProvider = null;
+    super.dispose();
+  }
+
+  /// Consumes exactly one pending auto-snapshot notice (if any) and shows its
+  /// toast. Skipped outcomes are never stashed, so they arrive as no-ops.
+  void _onAutoSnapshotNotice() {
+    final provider = _autoSnapshotProvider;
+    if (provider == null || !mounted) return;
+    final notice = provider.pendingNotice;
+    if (notice == null) return;
+    provider.consumeNotice();
+    final l10n = AppLocalizations.of(context)!;
+    final message = switch (notice.outcome) {
+      AutoSnapshotOutcome.created => l10n.autoSnapshotCreatedToast,
+      AutoSnapshotOutcome.deduplicated => l10n.autoSnapshotDedupedToast,
+      AutoSnapshotOutcome.failed => l10n.autoSnapshotFailedToast(
+        notice.error ?? '',
+      ),
+      AutoSnapshotOutcome.skipped => null,
+    };
+    if (message == null) return;
+    final type = switch (notice.outcome) {
+      AutoSnapshotOutcome.created => NotificationType.success,
+      AutoSnapshotOutcome.deduplicated => NotificationType.info,
+      AutoSnapshotOutcome.failed => NotificationType.error,
+      AutoSnapshotOutcome.skipped => NotificationType.info,
+    };
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showAppSnackBar(context, message: message, type: type);
+    });
+  }
+
+  /// Enables/disables auto snapshots, surfacing failures as an error toast:
+  /// a rejected enable (durable write failed) uses the general toggle
+  /// message, a failed permanent delete keeps its specific message (the
+  /// store stays restorable on disk).
+  Future<void> _setAutoSnapshotEnabled(bool value) async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      await context.read<AutoSnapshotProvider>().setEnabled(value);
+    } catch (e) {
+      if (!mounted) return;
+      showAppSnackBar(
+        context,
+        message: value
+            ? l10n.autoSnapshotToggleFailed(e.toString())
+            : l10n.autoSnapshotDisableDeleteFailed(e.toString()),
+        type: NotificationType.error,
+      );
+    }
+  }
 
   Future<bool?> _confirmCherryImport(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
@@ -542,6 +623,9 @@ class _BackupPageState extends State<BackupPage> {
                   ],
                 ),
 
+                // ⑥b 自动快照 — 本机全量快照,独立于任何备份渠道
+                ..._buildAutoSnapshotSection(context, l10n, vm, header),
+
                 // ⑦ 备份渠道 — WebDAV/S3 own card
                 header(l10n.backupPageChannelManagement),
                 _iosSectionCard(
@@ -657,6 +741,372 @@ class _BackupPageState extends State<BackupPage> {
     final newS = s3Vm.config.copyWith(content: next);
     await settings.setS3Config(newS);
     s3Vm.updateConfig(newS);
+  }
+
+  List<Widget> _buildAutoSnapshotSection(
+    BuildContext context,
+    AppLocalizations l10n,
+    BackupProvider vm,
+    Widget Function(String text, {bool first}) header,
+  ) {
+    final snapshotProvider = context.watch<AutoSnapshotProvider>();
+    final snapshots = snapshotProvider.snapshots;
+
+    String intervalLabel(int minutes) {
+      switch (minutes) {
+        case 720:
+          return l10n.autoSnapshotFrequencyEvery12h;
+        case 1440:
+          return l10n.autoSnapshotFrequencyDaily;
+        case 4320:
+          return l10n.autoSnapshotFrequencyEvery3Days;
+        default:
+          return l10n.autoSnapshotFrequencyEvery5Days;
+      }
+    }
+
+    Future<void> createNow() async {
+      final outcome = await snapshotProvider.createSnapshot();
+      if (!context.mounted) return;
+      switch (outcome) {
+        case AutoSnapshotOutcome.created:
+          showAppSnackBar(
+            context,
+            message: l10n.autoSnapshotCreatedToast,
+            type: NotificationType.success,
+          );
+        case AutoSnapshotOutcome.deduplicated:
+          showAppSnackBar(
+            context,
+            message: l10n.autoSnapshotDedupedToast,
+            type: NotificationType.info,
+          );
+        case AutoSnapshotOutcome.skipped:
+          showAppSnackBar(
+            context,
+            message: l10n.autoSnapshotBusyToast,
+            type: NotificationType.warning,
+          );
+        case AutoSnapshotOutcome.failed:
+          showAppSnackBar(
+            context,
+            message: l10n.autoSnapshotFailedToast(
+              snapshotProvider.lastError ?? '',
+            ),
+            type: NotificationType.error,
+          );
+      }
+    }
+
+    Future<void> chooseFrequency() async {
+      final current = snapshotProvider.intervalMinutes;
+      final cs = Theme.of(context).colorScheme;
+      final selected = await showDialog<int>(
+        context: context,
+        builder: (ctx) => SimpleDialog(
+          title: Text(l10n.autoSnapshotFrequencyTitle),
+          children: [
+            for (final minutes in AutoSnapshotProvider.presetIntervalMinutes)
+              SimpleDialogOption(
+                onPressed: () => Navigator.of(ctx).pop(minutes),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Text(
+                    intervalLabel(minutes),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: minutes == current
+                          ? AppFontWeights.semibold
+                          : AppFontWeights.regular,
+                      color: minutes == current ? cs.primary : cs.onSurface,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+      if (selected != null) {
+        try {
+          await snapshotProvider.setIntervalMinutes(selected);
+        } catch (e) {
+          if (!context.mounted) return;
+          showAppSnackBar(
+            context,
+            message: l10n.autoSnapshotToggleFailed(e.toString()),
+            type: NotificationType.error,
+          );
+        }
+      }
+    }
+
+    return [
+      header(l10n.autoSnapshotSectionTitle),
+      _iosSectionCard(
+        children: [
+          _iosSwitchRow(
+            context,
+            icon: Lucide.Camera,
+            label: l10n.autoSnapshotEnableTitle,
+            value: snapshotProvider.enabled,
+            onChanged: (v) {
+              if (v) {
+                _setAutoSnapshotEnabled(true);
+                return;
+              }
+              // Turning off with existing snapshots needs explicit consent —
+              // the stored snapshots get permanently deleted. An empty list
+              // only skips the dialog when emptiness was ESTABLISHED (a
+              // listing failure keeps the last known list and leaves
+              // listError set, so the unknown state always confirms).
+              if (snapshotProvider.snapshots.isEmpty &&
+                  snapshotProvider.listError == null) {
+                _setAutoSnapshotEnabled(false);
+                return;
+              }
+              showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: Text(l10n.autoSnapshotDisableTitle),
+                  content: Text(
+                    l10n.autoSnapshotDisableBody(
+                      snapshotProvider.snapshots.length,
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: Text(l10n.backupPageCancel),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      child: Text(l10n.autoSnapshotDisableConfirm),
+                    ),
+                  ],
+                ),
+              ).then((confirmed) {
+                if (confirmed == true) {
+                  _setAutoSnapshotEnabled(false);
+                }
+              });
+            },
+          ),
+          _iosDivider(context),
+          BackupActionRow(
+            icon: Lucide.Timer,
+            label: l10n.autoSnapshotFrequencyTitle,
+            value: intervalLabel(snapshotProvider.intervalMinutes),
+            enabled: snapshotProvider.enabled,
+            onTap: snapshotProvider.enabled ? chooseFrequency : null,
+          ),
+          _iosDivider(context),
+          BackupActionRow(
+            icon: Lucide.History,
+            label: l10n.autoSnapshotCreateNow,
+            enabled: snapshotProvider.enabled && !snapshotProvider.busy,
+            onTap: snapshotProvider.enabled && !snapshotProvider.busy
+                ? createNow
+                : null,
+          ),
+        ],
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            l10n.autoSnapshotEnableSubtitle,
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.55),
+            ),
+          ),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            l10n.autoSnapshotListTitle,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: AppFontWeights.semibold,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.8),
+            ),
+          ),
+        ),
+      ),
+      if (snapshots.isEmpty)
+        _iosSectionCard(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 36,
+                    child: Icon(
+                      Lucide.History,
+                      size: 20,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      l10n.autoSnapshotEmpty,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        )
+      else
+        _iosSectionCard(
+          children: [
+            for (var i = 0; i < snapshots.length; i++) ...[
+              if (i > 0) _iosDivider(context),
+              _buildSnapshotListRow(context, snapshots[i], vm),
+            ],
+          ],
+        ),
+    ];
+  }
+
+  Widget _buildSnapshotListRow(
+    BuildContext context,
+    SnapshotMetadata meta,
+    BackupProvider vm,
+  ) {
+    final cs = Theme.of(context).colorScheme;
+    final dateText = DateFormat('yyyy-MM-dd HH:mm').format(meta.createdAt);
+    final countsText = AppLocalizations.of(
+      context,
+    )!.autoSnapshotMetaCounts(meta.assistantCount, meta.conversationCount);
+    final sizeText = formatBytes(meta.sizeBytes);
+    return _TactileRow(
+      onTap: () => _restoreAutoSnapshot(context, meta, vm),
+      pressedScale: 1.00,
+      builder: (pressed) {
+        return _AnimatedPressColor(
+          pressed: pressed,
+          base: cs.onSurface.withValues(alpha: 0.9),
+          builder: (c) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 36,
+                    child: Icon(Lucide.History, size: 20, color: c),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          dateText,
+                          style: TextStyle(fontSize: 15, color: c),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          countsText,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: c.withValues(alpha: 0.55),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    sizeText,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: c.withValues(alpha: 0.55),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _restoreAutoSnapshot(
+    BuildContext context,
+    SnapshotMetadata meta,
+    BackupProvider vm,
+  ) async {
+    final l10n = AppLocalizations.of(context)!;
+    final File file;
+    try {
+      file = await AutoSnapshotService.resolveSnapshotFile(meta.fileName);
+    } catch (e) {
+      if (!context.mounted) return;
+      showAppSnackBar(
+        context,
+        message: l10n.autoSnapshotFailedToast(e.toString()),
+        type: NotificationType.error,
+      );
+      return;
+    }
+    if (!await file.exists()) {
+      if (!context.mounted) return;
+      showAppSnackBar(
+        context,
+        message: l10n.autoSnapshotFailedToast('file not found'),
+        type: NotificationType.error,
+      );
+      return;
+    }
+    if (!context.mounted) return;
+
+    final mode = await _chooseImportModeDialog(context);
+    if (mode == null) return;
+    if (!context.mounted) return;
+
+    try {
+      await _runWithImportingOverlay(
+        context,
+        (onProgress) =>
+            vm.restoreFromLocalFile(file, mode: mode, onProgress: onProgress),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      if (await maybeShowKelivoCompatError(context, e)) return;
+      if (!context.mounted) return;
+      showAppSnackBar(
+        context,
+        message: e.toString(),
+        type: NotificationType.error,
+      );
+      return;
+    }
+    if (!context.mounted) return;
+    await _afterSuccessfulRestore(context);
   }
 
   Future<void> _openWebDavConfig(BuildContext context) async {

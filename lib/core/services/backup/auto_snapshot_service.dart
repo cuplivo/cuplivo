@@ -1,0 +1,664 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
+
+import '../../../utils/app_directories.dart';
+
+/// Metadata describing one stored auto snapshot. Persisted as a JSON sidecar
+/// (`<zipName>.json`) next to the snapshot zip so the list view can render
+/// counts and sizes without opening the zip.
+class SnapshotMetadata {
+  const SnapshotMetadata({
+    required this.fileName,
+    required this.createdAt,
+    required this.sizeBytes,
+    required this.assistantCount,
+    required this.conversationCount,
+    required this.messageCount,
+    required this.contentHash,
+  });
+
+  final String fileName;
+  final DateTime createdAt;
+  final int sizeBytes;
+  final int assistantCount;
+  final int conversationCount;
+  final int messageCount;
+
+  /// Deterministic digest of the backup payload (entry name + uncompressed
+  /// size + CRC32 per zip entry). Zip headers carry volatile mtimes, so a
+  /// whole-file hash can never be stable; this digest is.
+  final String contentHash;
+
+  Map<String, dynamic> toJson() => {
+    'file_name': fileName,
+    'created_at': createdAt.toIso8601String(),
+    'size_bytes': sizeBytes,
+    'assistant_count': assistantCount,
+    'conversation_count': conversationCount,
+    'message_count': messageCount,
+    'content_hash': contentHash,
+  };
+
+  static SnapshotMetadata fromJson(Map<String, dynamic> json) =>
+      SnapshotMetadata(
+        fileName: json['file_name'] as String,
+        createdAt: DateTime.parse(json['created_at'] as String),
+        sizeBytes: json['size_bytes'] as int? ?? 0,
+        assistantCount: json['assistant_count'] as int? ?? 0,
+        conversationCount: json['conversation_count'] as int? ?? 0,
+        messageCount: json['message_count'] as int? ?? 0,
+        contentHash: json['content_hash'] as String? ?? '',
+      );
+
+  SnapshotMetadata copyWith({DateTime? createdAt}) => SnapshotMetadata(
+    fileName: fileName,
+    createdAt: createdAt ?? this.createdAt,
+    sizeBytes: sizeBytes,
+    assistantCount: assistantCount,
+    conversationCount: conversationCount,
+    messageCount: messageCount,
+    contentHash: contentHash,
+  );
+}
+
+/// Result of one [AutoSnapshotService.createSnapshot] attempt.
+enum AutoSnapshotStatus { created, deduplicated }
+
+class AutoSnapshotResult {
+  const AutoSnapshotResult(this.status, this.metadata);
+
+  final AutoSnapshotStatus status;
+  final SnapshotMetadata? metadata;
+}
+
+/// One parsed zip central-directory entry: the stable, payload-derived facts
+/// used for sentinel checks and content hashing.
+class _ZipEntryInfo {
+  const _ZipEntryInfo(this.name, this.uncompressedSize, this.crc32);
+
+  final String name;
+  final int uncompressedSize;
+  final int crc32;
+}
+
+/// Result of a failed snapshot attempt: the local snapshot store must remain
+/// completely untouched (atomic "as if it never happened" semantics).
+class AutoSnapshotException implements Exception {
+  AutoSnapshotException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// Creates and manages local auto snapshots: full backups, same payload as
+/// the manual "Export to File" flow, capped at [maxSnapshots] with FIFO
+/// eviction.
+///
+/// Atomicity contract: a snapshot only becomes visible after its zip has been
+/// fully written elsewhere and moved into place; the sidecar is written after
+/// the move, and eviction runs last. Any failure before the move deletes the
+/// temporary file and leaves the existing snapshots untouched; a failure
+/// after the move (counts are computed before it, so the remaining risk is a
+/// sidecar write) rolls the committed zip + sidecar back, so the store stays
+/// byte-identical on every failed attempt. Eviction failure is logged and
+/// retried on every subsequent attempt (create or dedup tick), never silent.
+class AutoSnapshotService {
+  AutoSnapshotService({
+    required this._exportBackup,
+    required this._assistantCount,
+    required this._conversationCount,
+    required this._messageCount,
+    Future<Directory> Function()? rootDirectoryResolver,
+    this.maxSnapshots = 3,
+  }) : _rootDirectoryResolver =
+           rootDirectoryResolver ?? AppDirectories.getAppDataDirectory;
+
+  static const String _zipPrefix = 'auto_snapshot_';
+  static const String _sentinelEntryName = 'chats_meta.json';
+  static const String _dirName = 'auto_snapshots';
+
+  /// Resolves the stored zip for [fileName] (e.g. when restoring).
+  ///
+  /// Rejects anything that is not a plain zip basename — no separators, no
+  /// absolute paths, no `.`/`..` segments — so restore can never leave the
+  /// snapshot store through sidecar data.
+  static Future<File> resolveSnapshotFile(String fileName) async {
+    if (!_isSafeSnapshotFileName(fileName)) {
+      throw AutoSnapshotException('invalid snapshot file name: "$fileName"');
+    }
+    final root = await AppDirectories.getAppDataDirectory();
+    return File('${root.path}/$_dirName/$fileName');
+  }
+
+  /// True when [name] is a plain zip basename usable inside the snapshot
+  /// store: exactly an `auto_snapshot_*.zip` name with no path separators,
+  /// no drive/colon, and no `.`/`..` segments (which would escape the
+  /// directory through the sidecar's `file_name` JSON field).
+  static bool _isSafeSnapshotFileName(String name) {
+    if (name.isEmpty) return false;
+    if (!name.startsWith(_zipPrefix) || !name.endsWith('.zip')) return false;
+    if (name.contains('/') || name.contains('\\') || name.contains(':')) {
+      return false;
+    }
+    for (final segment in name.split('.')) {
+      if (segment.isEmpty) return false;
+    }
+    return !name.contains('..') && !name.startsWith('.');
+  }
+
+  final Future<File> Function() _exportBackup;
+  final Future<int> Function() _assistantCount;
+  final Future<int> Function() _conversationCount;
+  final Future<int> Function() _messageCount;
+  final Future<Directory> Function() _rootDirectoryResolver;
+  final int maxSnapshots;
+
+  Future<Directory> snapshotDirectory() async {
+    final root = await _rootDirectoryResolver();
+    return Directory('${root.path}/$_dirName');
+  }
+
+  /// Lists all snapshots, newest first.
+  ///
+  /// A snapshot is only listed when its zip is actually present AND provably
+  /// one of ours: a sidecar whose zip is gone (ghost, e.g. a previously
+  /// interrupted eviction) is skipped so it never occupies a retention slot,
+  /// and is swept by the next [_evict] run. Orphan zips (sidecar write
+  /// interrupted) are listed through the filesystem-derivation fallback only
+  /// after the same baseline validation createSnapshot applies — safe
+  /// `auto_snapshot_*.zip` basename plus the `chats_meta.json` sentinel in
+  /// the parsed central directory. Corrupt, truncated, or foreign zips are
+  /// left alone on disk but never listed or counted, so they cannot shadow
+  /// the newest snapshot hash (dedup) nor displace a healthy pair (eviction).
+  Future<List<SnapshotMetadata>> listSnapshots() async {
+    final dir = await snapshotDirectory();
+    if (!dir.existsSync()) return const [];
+    final result = <SnapshotMetadata>[];
+    for (final ent in dir.listSync()) {
+      if (ent is! File || !ent.path.endsWith('.json')) continue;
+      // The zip name is DERIVED from the sidecar path, never trusted from
+      // the JSON: `file_name` is arbitrary attacker-controlled data inside
+      // the store, and could point outside the directory (absolute paths,
+      // `../` traversal) or alias another snapshot pair.
+      final sidecarBasename = ent.path.split(Platform.pathSeparator).last;
+      final expectedZip = sidecarBasename.substring(
+        0,
+        sidecarBasename.length - '.json'.length,
+      );
+      if (!_isSafeSnapshotFileName(expectedZip)) continue;
+      try {
+        final json = jsonDecode(ent.readAsStringSync()) as Map<String, dynamic>;
+        final meta = SnapshotMetadata.fromJson(json);
+        // Self-heal: the listed metadata always uses the derived zip name;
+        // a mismatching `file_name` makes the sidecar untrustworthy.
+        if (meta.fileName != expectedZip) continue;
+        // Verify the pair: a zip-less sidecar is a ghost, not a snapshot.
+        if (!File('${dir.path}/$expectedZip').existsSync()) continue;
+        // The zip must pass the same baseline invariant as an orphan —
+        // a corrupted store entry would otherwise count toward the cap and
+        // push eviction into a healthy pair.
+        final zip = File('${dir.path}/$expectedZip');
+        final entries = _validatedEntriesOf(zip);
+        if (entries == null) continue;
+        // Semantic fields are DERIVED from the zip and its filename, never
+        // trusted from the JSON: a stale/forged sidecar could otherwise set
+        // a future created_at (retaining an old pair while eviction removes
+        // a newer healthy one) or a forged content_hash (false dedup that
+        // skips the only snapshot of changed data). Counts are
+        // display-only and stay from the sidecar.
+        result.add(
+          SnapshotMetadata(
+            fileName: expectedZip,
+            createdAt: _derivedTimeOf(zip, expectedZip),
+            sizeBytes: zip.statSync().size,
+            assistantCount: meta.assistantCount,
+            conversationCount: meta.conversationCount,
+            messageCount: meta.messageCount,
+            contentHash: _hashEntries(entries),
+          ),
+        );
+      } catch (_) {
+        // Corrupt sidecar: fall back to what the filesystem itself tells us
+        // so the user still sees the snapshot instead of it vanishing — but
+        // only when the zip itself passes the same baseline validation as
+        // createSnapshot (safe basename + sentinel in the central directory).
+        final zip = File(ent.path.substring(0, ent.path.length - 5));
+        if (!zip.existsSync()) continue;
+        final fallbackEntries = _validatedEntriesOf(zip);
+        if (fallbackEntries == null) continue;
+        result.add(_fallbackMetadata(zip, fallbackEntries));
+      }
+    }
+    // Orphan zips (sidecar write interrupted): derive metadata on the fly.
+    final known = result.map((m) => m.fileName).toSet();
+    for (final ent in dir.listSync()) {
+      if (ent is! File || !ent.path.endsWith('.zip')) continue;
+      final name = ent.path.split(Platform.pathSeparator).last;
+      if (known.contains(name)) continue;
+      // An orphan is only a snapshot when it is provably one of ours: a
+      // truncated/corrupt zip that fails the sentinel invariant is not listed
+      // and never counts toward the retention cap (a newer one with a broken
+      // hash would shadow the real newest snapshot and push eviction into a
+      // healthy pair). Foreign/unsafe basenames stay untouched on disk.
+      final entries = _validatedEntriesOf(ent);
+      if (entries == null) continue;
+      result.add(_fallbackMetadata(ent, entries));
+    }
+    // Newest first. Filename timestamps are second-precision, so same-second
+    // snapshots (uniquified by an _N suffix produced by createSnapshot) tie
+    // on createdAt — the suffix ascending order re-establishes creation
+    // order, keeping `newest` (dedup) and eviction targets deterministic.
+    result.sort((a, b) {
+      final byTime = b.createdAt.compareTo(a.createdAt);
+      if (byTime != 0) return byTime;
+      return b.fileName.compareTo(a.fileName);
+    });
+    return result;
+  }
+
+  /// Returns the parsed central-directory entries of [zip] when it passes the
+  /// same baseline invariant createSnapshot enforces before committing —
+  /// plain `auto_snapshot_*.zip` basename plus the `chats_meta.json` sentinel
+  /// entry — or null when the zip is corrupt, truncated, or foreign.
+  static List<_ZipEntryInfo>? _validatedEntriesOf(File zip) {
+    if (!_isSafeSnapshotFileName(zip.uri.pathSegments.last)) return null;
+    final entries = _readZipEntries(zip.path);
+    if (!entries.any((e) => e.name == _sentinelEntryName)) return null;
+    return entries;
+  }
+
+  SnapshotMetadata _fallbackMetadata(File zip, List<_ZipEntryInfo> entries) {
+    final stat = zip.statSync();
+    return SnapshotMetadata(
+      fileName: zip.uri.pathSegments.last,
+      createdAt: _derivedTimeOf(zip, zip.uri.pathSegments.last),
+      sizeBytes: stat.size,
+      assistantCount: 0,
+      conversationCount: 0,
+      messageCount: 0,
+      contentHash: _hashEntries(entries),
+    );
+  }
+
+  /// Truthful retention ordering: the creation timestamp embedded in the
+  /// filename (`auto_snapshot_<yyyyMMddTHHmmss>([_N]).zip`) is written by us
+  /// at snapshot time in the same clock as the metadata — never the sidecar
+  /// JSON (future timestamps would invert FIFO and evict the wrong pair) and
+  /// never the mtime alone (copy fallbacks update it, and anyone can touch
+  /// it). Falls back to the filesystem modified time when the name cannot be
+  /// parsed.
+  static DateTime _derivedTimeOf(File zip, String basename) {
+    return _timestampFromName(basename) ?? zip.statSync().modified;
+  }
+
+  static DateTime? _timestampFromName(String name) {
+    final m = RegExp(
+      r'_(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})',
+    ).firstMatch(name);
+    if (m == null) return null;
+    return DateTime(
+      int.parse(m.group(1)!),
+      int.parse(m.group(2)!),
+      int.parse(m.group(3)!),
+      int.parse(m.group(4)!),
+      int.parse(m.group(5)!),
+      int.parse(m.group(6)!),
+    );
+  }
+
+  /// Runs one snapshot attempt end to end.
+  ///
+  /// Returns [AutoSnapshotStatus.deduplicated] when the payload is identical
+  /// to the newest existing snapshot; in that case nothing is written and the
+  /// caller should treat the attempt as successful for anchor-reset purposes.
+  Future<AutoSnapshotResult> createSnapshot() async {
+    final dir = await snapshotDirectory();
+    dir.createSync(recursive: true);
+
+    final existing = await listSnapshots();
+    final newestHash = existing.isEmpty ? null : existing.first.contentHash;
+
+    final File tempBackup;
+    try {
+      tempBackup = await _exportBackup();
+    } catch (e) {
+      throw AutoSnapshotException(e.toString());
+    }
+
+    try {
+      if (!tempBackup.existsSync()) {
+        throw AutoSnapshotException('Backup export produced no file');
+      }
+      final entries = _readZipEntries(tempBackup.path);
+      final names = entries.map((e) => e.name).toSet();
+      if (!names.contains(_sentinelEntryName)) {
+        // Sentinel is packed last — its absence means the zip is truncated.
+        throw AutoSnapshotException('Backup zip is incomplete (no sentinel)');
+      }
+      final hash = _hashEntries(entries);
+
+      if (newestHash != null && newestHash == hash) {
+        // Payload identical to the newest snapshot — discard the temp export
+        // (avoid a disk leak per dedup tick) and skip creation entirely. The
+        // caller still resets its schedule anchor on this path.
+        try {
+          tempBackup.deleteSync();
+        } catch (_) {
+          // Best effort; temp leftovers are cleaned by the OS eventually.
+        }
+        // Over-cap state can persist from a previously failed eviction (the
+        // resulting files only get evicted on the next successful move into
+        // the store) — repair it here too, not only on the create path.
+        await _evict(dir);
+        return const AutoSnapshotResult(AutoSnapshotStatus.deduplicated, null);
+      }
+
+      final now = DateTime.now();
+
+      // Counts run BEFORE the commit point: they read the database and may
+      // fail (or be slow). A failure here must leave the store untouched —
+      // never after the zip has already been moved into place.
+      final int assistantCount;
+      final int conversationCount;
+      final int messageCount;
+      try {
+        assistantCount = await _assistantCount();
+        conversationCount = await _conversationCount();
+        messageCount = await _messageCount();
+      } catch (e) {
+        throw AutoSnapshotException(
+          'Snapshot metadata failed: ${e.toString()}',
+        );
+      }
+
+      final baseName = '$_zipPrefix${_fileTimestamp(now)}';
+      var fileName = '$baseName.zip';
+      // Second-precision timestamps can collide on rapid consecutive
+      // snapshots — uniquify instead of silently overwriting.
+      var counter = 1;
+      while (File('${dir.path}/$fileName').existsSync()) {
+        counter++;
+        fileName = '${baseName}_$counter.zip';
+      }
+      final target = File('${dir.path}/$fileName');
+
+      final SnapshotMetadata meta;
+      try {
+        // Same-volume atomic move; fall back to copy+delete across volumes.
+        try {
+          tempBackup.renameSync(target.path);
+        } catch (_) {
+          tempBackup.copySync(target.path);
+          tempBackup.deleteSync();
+        }
+        if (!target.existsSync()) {
+          throw AutoSnapshotException('Snapshot move failed');
+        }
+
+        meta = SnapshotMetadata(
+          fileName: fileName,
+          createdAt: now,
+          sizeBytes: target.lengthSync(),
+          assistantCount: assistantCount,
+          conversationCount: conversationCount,
+          messageCount: messageCount,
+          contentHash: hash,
+        );
+        File(
+          '${dir.path}/$fileName.json',
+        ).writeAsStringSync(jsonEncode(meta.toJson()));
+      } catch (e) {
+        // Post-commit failure (move, sidecar write, disk full, ...): roll the
+        // pair back so the store stays byte-identical to the pre-attempt
+        // state — the caller reports failure but no orphan survives.
+        try {
+          target.deleteSync();
+        } catch (_) {}
+        try {
+          File('${dir.path}/$fileName.json').deleteSync();
+        } catch (_) {}
+        throw e is AutoSnapshotException
+            ? e
+            : AutoSnapshotException('Snapshot commit failed: ${e.toString()}');
+      }
+
+      await _evict(dir);
+      return AutoSnapshotResult(AutoSnapshotStatus.created, meta);
+    } finally {
+      // The temp file only still exists on failure paths — clean it up.
+      if (tempBackup.existsSync()) {
+        try {
+          tempBackup.deleteSync();
+        } catch (_) {}
+      }
+    }
+  }
+
+  /// Removes every stored snapshot (zips + sidecars). Used when the feature
+  /// is turned off — the user confirmed the destructive intent.
+  ///
+  /// Throws [AutoSnapshotException] when anything fails to delete, so the
+  /// caller can surface the failed "permanent delete" instead of silently
+  /// reporting success. Every entity is deleted independently and **non-
+  /// recursively** — the store only ever holds zip/sidecar files, so any
+  /// directory entry is an anomaly whose failure is reported, not force-
+  /// removed. Failures are logged, and whatever stayed behind remains
+  /// restorable: a zip without its sidecar is still listed through the
+  /// filesystem-derivation fallback.
+  Future<void> deleteAllSnapshots() async {
+    final dir = await snapshotDirectory();
+    if (!dir.existsSync()) return;
+    var failures = 0;
+    String? firstError;
+    await for (final entity in dir.list()) {
+      try {
+        if (entity is File || entity is Directory) {
+          await entity.delete();
+        }
+      } catch (e) {
+        failures++;
+        firstError ??= e.toString();
+        debugPrint('[AutoSnapshotService] failed to delete ${entity.path}: $e');
+      }
+    }
+    if (failures > 0) {
+      throw AutoSnapshotException(
+        'failed to delete $failures snapshot file(s): ${firstError ?? ''}',
+      );
+    }
+  }
+
+  /// FIFO eviction: delete oldest beyond [maxSnapshots]. Runs after the new
+  /// snapshot is durable, on every attempt (create AND dedup ticks), so a
+  /// transient failure is retried on the next attempt — never data loss.
+  ///
+  /// Never throws: eviction is not part of the atomic snapshot contract, but
+  /// a failure must not be silent — each one is logged so operators can see
+  /// why the store carries an extra snapshot and the next tick repairs it.
+  /// A pair (zip + sidecar) is only deleted together: if the zip delete
+  /// fails, its sidecar stays too, so no orphan half is left behind. When the
+  /// zip is already gone (ghost), the sidecar is still deleted, and a final
+  /// sweep removes every zip-less sidecar entry (file or directory), so the
+  /// store always converges to plain restorable pairs.
+  Future<void> _evict(Directory dir) async {
+    final List<SnapshotMetadata> current;
+    try {
+      current = await listSnapshots();
+    } catch (e) {
+      debugPrint('[AutoSnapshotService] eviction listing failed: $e');
+      return;
+    }
+    if (current.length > maxSnapshots) {
+      for (final meta in current.skip(maxSnapshots)) {
+        // Defense in depth: eviction walks listing-derived names only, but an
+        // untrusted `file_name` must never turn into a filesystem path — skip
+        // anything that fails the same containment check as restore.
+        if (!_isSafeSnapshotFileName(meta.fileName)) {
+          debugPrint(
+            '[AutoSnapshotService] skipping eviction of unsafe file name '
+            '"${meta.fileName}"',
+          );
+          continue;
+        }
+        final zip = File('${dir.path}/${meta.fileName}');
+        // typeSync distinguishes truthfully between "zip is gone" (ghost →
+        // still clean the sidecar below) and "zip is there but un-deletable"
+        // (e.g. an entry occupying the path that is not a plain file):
+        // File.existsSync reports false for both, while deleteSync throws
+        // for the latter — keep the pair intact there.
+        if (FileSystemEntity.typeSync(zip.path) !=
+            FileSystemEntityType.notFound) {
+          try {
+            zip.deleteSync();
+          } catch (e) {
+            debugPrint(
+              '[AutoSnapshotService] failed to evict ZIP ${meta.fileName}: $e'
+              ' (sidecar kept together, retried next attempt)',
+            );
+            continue;
+          }
+        }
+        final sidecar = File('${dir.path}/${meta.fileName}.json');
+        try {
+          sidecar.deleteSync();
+        } catch (e) {
+          debugPrint(
+            '[AutoSnapshotService] failed to evict sidecar '
+            '${meta.fileName}.json: $e',
+          );
+        }
+      }
+    }
+    await _sweepGhostSidecars(dir);
+  }
+
+  /// Deletes every zip-less `*.json` entry (a sidecar whose zip vanished —
+  /// leftover from an interrupted eviction or a failed delete). Handles both
+  /// files and directories occupying a sidecar path. Logs, never throws.
+  Future<void> _sweepGhostSidecars(Directory dir) async {
+    final List<FileSystemEntity> entries;
+    try {
+      entries = dir.listSync();
+    } catch (e) {
+      debugPrint('[AutoSnapshotService] ghost sweep listing failed: $e');
+      return;
+    }
+    for (final ent in entries) {
+      // A directory URI carries a trailing slash, so uri.pathSegments.last
+      // yields '' for it — take the basename from the path instead.
+      final name = ent.path.split(Platform.pathSeparator).last;
+      if (!name.endsWith('.json')) continue;
+      // The zip name is derived from the entry path, never from the sidecar
+      // JSON — see listSnapshots for the untrusted-field rationale.
+      if (!_isSafeSnapshotFileName(name.substring(0, name.length - 5))) {
+        continue;
+      }
+      final zipPath = ent.path.substring(0, ent.path.length - 5);
+      if (File(zipPath).existsSync() || Directory(zipPath).existsSync()) {
+        continue;
+      }
+      try {
+        ent.deleteSync(recursive: true);
+      } catch (e) {
+        debugPrint(
+          '[AutoSnapshotService] failed to remove ghost sidecar $name: $e',
+        );
+      }
+    }
+  }
+
+  /// Hashes the payload identity of a backup zip: sorted
+  /// `name:size:crc32` lines fed to SHA-256. Independent of zip header
+  /// mtimes and compression metadata.
+  String _hashEntries(List<_ZipEntryInfo> entries) {
+    final lines =
+        entries
+            .map((e) => '${e.name}:${e.uncompressedSize}:${e.crc32}')
+            .toList()
+          ..sort();
+    return sha256.convert(utf8.encode(lines.join('\n'))).toString();
+  }
+
+  /// Parses the zip central directory (header metadata only — no payload
+  /// decompression, cheap even for large backups). Returns entries in file
+  /// order.
+  static List<_ZipEntryInfo> _readZipEntries(String zipPath) {
+    final raf = File(zipPath).openSync();
+    try {
+      final length = raf.lengthSync();
+      if (length < 22) return const [];
+      // EOCD (22 bytes) + max comment (65535): read the whole tail.
+      final tailLen = length - 22 > 0xffff ? 22 + 0xffff : length;
+      raf.setPositionSync(length - tailLen);
+      final tail = raf.readSync(tailLen);
+      // Scan backwards for the last EOCD signature (0x06054b50).
+      var eocdPos = -1;
+      for (var i = tail.length - 22; i >= 0; i--) {
+        if (tail[i] == 0x50 &&
+            tail[i + 1] == 0x4b &&
+            tail[i + 2] == 0x05 &&
+            tail[i + 3] == 0x06) {
+          eocdPos = i;
+          break;
+        }
+      }
+      if (eocdPos < 0) return const [];
+      final view = ByteData.sublistView(tail);
+      final cdSize = view.getUint32(eocdPos + 12, Endian.little);
+      final cdOffset = view.getUint32(eocdPos + 16, Endian.little);
+      if (cdOffset + cdSize > length) return const [];
+
+      raf.setPositionSync(cdOffset);
+      final cd = raf.readSync(cdSize);
+      final cdView = ByteData.sublistView(cd);
+      final result = <_ZipEntryInfo>[];
+      var pos = 0;
+      while (pos + 46 <= cd.length) {
+        // Central directory header signature (0x02014b50).
+        if (cdView.getUint32(pos, Endian.little) != 0x02014b50) break;
+        final nameLen = cdView.getUint16(pos + 28, Endian.little);
+        final extraLen = cdView.getUint16(pos + 30, Endian.little);
+        final commentLen = cdView.getUint16(pos + 32, Endian.little);
+        final crc32 = cdView.getUint32(pos + 16, Endian.little);
+        final uncompressedSize = cdView.getUint32(pos + 24, Endian.little);
+        final nameStart = pos + 46;
+        final next = nameStart + nameLen + extraLen + commentLen;
+        if (next > cd.length) break;
+        final name = _decodeZipName(cd.sublist(nameStart, nameStart + nameLen));
+        if (name != null) {
+          result.add(_ZipEntryInfo(name, uncompressedSize, crc32));
+        }
+        pos = next;
+      }
+      return result;
+    } finally {
+      raf.closeSync();
+    }
+  }
+
+  static String? _decodeZipName(List<int> bytes) {
+    if (bytes.isEmpty) return null;
+    try {
+      return utf8.decode(bytes);
+    } catch (_) {
+      return String.fromCharCodes(bytes);
+    }
+  }
+
+  /// Compact sortable timestamp for snapshot file names:
+  /// `20260829T153004` (local time; uniqueness comes from second precision
+  /// plus caller-side single-flight, collisions fall through to dedup).
+  static String _fileTimestamp(DateTime dt) {
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    final h = dt.hour.toString().padLeft(2, '0');
+    final min = dt.minute.toString().padLeft(2, '0');
+    final s = dt.second.toString().padLeft(2, '0');
+    return '${dt.year}$m${d}T$h$min$s';
+  }
+}

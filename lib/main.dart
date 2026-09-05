@@ -40,6 +40,7 @@ import 'core/providers/memory_provider.dart';
 import 'core/providers/backup_provider.dart';
 import 'core/providers/s3_backup_provider.dart';
 import 'core/providers/backup_reminder_provider.dart';
+import 'core/providers/auto_snapshot_provider.dart';
 import 'core/providers/hotkey_provider.dart';
 import 'core/providers/download_progress_store.dart';
 import 'core/providers/input_status_provider.dart';
@@ -351,6 +352,12 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => BackupReminderProvider(preferences: preferences),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => AutoSnapshotProvider(
+            preferences: preferences,
+            chatService: ctx.read<ChatService>(),
+          ),
         ),
         // Desktop hotkeys provider
         ChangeNotifierProvider(create: (_) => HotkeyProvider()),

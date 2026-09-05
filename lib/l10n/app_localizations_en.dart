@@ -9848,4 +9848,104 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get messageStyleSettingsPageTitle => 'Message Style';
+
+  @override
+  String get backupMigrateMoveOutHeader => 'Move out to';
+
+  @override
+  String get backupMigrateMoveInHeader => 'Move in from';
+
+  @override
+  String get backupPageExportKelivoCompatible => 'Export for Kelivo';
+
+  @override
+  String get backupPageImportFromOtherApps => 'Import from Other Apps';
+
+  @override
+  String get backupReminderSidebarTitle => 'Backup reminder';
+
+  @override
+  String get backupReminderSidebarSubtitle =>
+      'Your backup interval has arrived.';
+
+  @override
+  String get backupReminderSidebarAction => 'Go to backup';
+
+  @override
+  String get backupReminderSnoozeTooltip => 'Remind me later';
+
+  @override
+  String get autoSnapshotSectionTitle => 'Auto Snapshots';
+
+  @override
+  String get autoSnapshotEnableTitle => 'Enable Auto Snapshots';
+
+  @override
+  String get autoSnapshotEnableSubtitle =>
+      'Keep up to 3 full snapshots on this device. Snapshots are independent of backups and are never uploaded.';
+
+  @override
+  String get autoSnapshotFrequencyTitle => 'Snapshot Frequency';
+
+  @override
+  String get autoSnapshotFrequencyEvery12h => 'Every 12 hours';
+
+  @override
+  String get autoSnapshotFrequencyDaily => 'Every day';
+
+  @override
+  String get autoSnapshotFrequencyEvery3Days => 'Every 3 days';
+
+  @override
+  String get autoSnapshotFrequencyEvery5Days => 'Every 5 days';
+
+  @override
+  String get autoSnapshotCreateNow => 'Create Snapshot Now';
+
+  @override
+  String get autoSnapshotListTitle => 'Snapshots';
+
+  @override
+  String get autoSnapshotEmpty => 'No snapshots yet';
+
+  @override
+  String autoSnapshotMetaCounts(int assistants, int conversations) {
+    return '$assistants assistants · $conversations chats';
+  }
+
+  @override
+  String get autoSnapshotCreatedToast => 'Snapshot created';
+
+  @override
+  String get autoSnapshotDedupedToast => 'Data unchanged — snapshot skipped';
+
+  @override
+  String get autoSnapshotBusyToast =>
+      'Another backup task is running. Try again later.';
+
+  @override
+  String autoSnapshotFailedToast(String error) {
+    return 'Snapshot failed: $error';
+  }
+
+  @override
+  String get autoSnapshotDisableTitle => 'Turn off Auto Snapshots?';
+
+  @override
+  String autoSnapshotDisableBody(int count) {
+    return 'Turning off will permanently delete $count existing snapshot(s). Continue?';
+  }
+
+  @override
+  String get autoSnapshotDisableConfirm => 'Turn off & Delete';
+
+  @override
+  String autoSnapshotDisableDeleteFailed(String error) {
+    return 'Failed to delete stored snapshots: $error. They are kept on disk.';
+  }
+
+  @override
+  String autoSnapshotToggleFailed(String error) {
+    return 'Could not save the Auto Snapshots setting: $error. Please try again.';
+  }
 }

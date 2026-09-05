@@ -17628,6 +17628,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Message Style'**
   String get messageStyleSettingsPageTitle;
+
+  /// No description provided for @backupMigrateMoveOutHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Move out to'**
+  String get backupMigrateMoveOutHeader;
+
+  /// No description provided for @backupMigrateMoveInHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Move in from'**
+  String get backupMigrateMoveInHeader;
+
+  /// No description provided for @backupPageExportKelivoCompatible.
+  ///
+  /// In en, this message translates to:
+  /// **'Export for Kelivo'**
+  String get backupPageExportKelivoCompatible;
+
+  /// No description provided for @backupPageImportFromOtherApps.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from Other Apps'**
+  String get backupPageImportFromOtherApps;
+
+  /// No description provided for @backupReminderSidebarTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup reminder'**
+  String get backupReminderSidebarTitle;
+
+  /// No description provided for @backupReminderSidebarSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your backup interval has arrived.'**
+  String get backupReminderSidebarSubtitle;
+
+  /// No description provided for @backupReminderSidebarAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to backup'**
+  String get backupReminderSidebarAction;
+
+  /// No description provided for @backupReminderSnoozeTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind me later'**
+  String get backupReminderSnoozeTooltip;
+
+  /// No description provided for @autoSnapshotSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto Snapshots'**
+  String get autoSnapshotSectionTitle;
+
+  /// No description provided for @autoSnapshotEnableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Auto Snapshots'**
+  String get autoSnapshotEnableTitle;
+
+  /// No description provided for @autoSnapshotEnableSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep up to 3 full snapshots on this device. Snapshots are independent of backups and are never uploaded.'**
+  String get autoSnapshotEnableSubtitle;
+
+  /// No description provided for @autoSnapshotFrequencyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Snapshot Frequency'**
+  String get autoSnapshotFrequencyTitle;
+
+  /// No description provided for @autoSnapshotFrequencyEvery12h.
+  ///
+  /// In en, this message translates to:
+  /// **'Every 12 hours'**
+  String get autoSnapshotFrequencyEvery12h;
+
+  /// No description provided for @autoSnapshotFrequencyDaily.
+  ///
+  /// In en, this message translates to:
+  /// **'Every day'**
+  String get autoSnapshotFrequencyDaily;
+
+  /// No description provided for @autoSnapshotFrequencyEvery3Days.
+  ///
+  /// In en, this message translates to:
+  /// **'Every 3 days'**
+  String get autoSnapshotFrequencyEvery3Days;
+
+  /// No description provided for @autoSnapshotFrequencyEvery5Days.
+  ///
+  /// In en, this message translates to:
+  /// **'Every 5 days'**
+  String get autoSnapshotFrequencyEvery5Days;
+
+  /// No description provided for @autoSnapshotCreateNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Snapshot Now'**
+  String get autoSnapshotCreateNow;
+
+  /// No description provided for @autoSnapshotListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Snapshots'**
+  String get autoSnapshotListTitle;
+
+  /// No description provided for @autoSnapshotEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No snapshots yet'**
+  String get autoSnapshotEmpty;
+
+  /// No description provided for @autoSnapshotMetaCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'{assistants} assistants · {conversations} chats'**
+  String autoSnapshotMetaCounts(int assistants, int conversations);
+
+  /// No description provided for @autoSnapshotCreatedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Snapshot created'**
+  String get autoSnapshotCreatedToast;
+
+  /// No description provided for @autoSnapshotDedupedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Data unchanged — snapshot skipped'**
+  String get autoSnapshotDedupedToast;
+
+  /// No description provided for @autoSnapshotBusyToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Another backup task is running. Try again later.'**
+  String get autoSnapshotBusyToast;
+
+  /// No description provided for @autoSnapshotFailedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Snapshot failed: {error}'**
+  String autoSnapshotFailedToast(String error);
+
+  /// No description provided for @autoSnapshotDisableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off Auto Snapshots?'**
+  String get autoSnapshotDisableTitle;
+
+  /// No description provided for @autoSnapshotDisableBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Turning off will permanently delete {count} existing snapshot(s). Continue?'**
+  String autoSnapshotDisableBody(int count);
+
+  /// No description provided for @autoSnapshotDisableConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off & Delete'**
+  String get autoSnapshotDisableConfirm;
+
+  /// No description provided for @autoSnapshotDisableDeleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete stored snapshots: {error}. They are kept on disk.'**
+  String autoSnapshotDisableDeleteFailed(String error);
+
+  /// No description provided for @autoSnapshotToggleFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the Auto Snapshots setting: {error}. Please try again.'**
+  String autoSnapshotToggleFailed(String error);
 }
 
 class _AppLocalizationsDelegate

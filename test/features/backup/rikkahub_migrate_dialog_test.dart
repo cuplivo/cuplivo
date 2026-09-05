@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 
+import 'package:Cuplivo/core/providers/auto_snapshot_provider.dart';
 import 'package:Cuplivo/core/providers/backup_provider.dart';
 import 'package:Cuplivo/core/providers/backup_reminder_provider.dart';
 import 'package:Cuplivo/core/providers/s3_backup_provider.dart';
@@ -42,6 +43,13 @@ Future<void> _pumpBackupPage(
         ChangeNotifierProvider<SettingsProvider>.value(value: settings),
         ChangeNotifierProvider<ChatService>.value(value: chatService),
         ChangeNotifierProvider<BackupReminderProvider>.value(value: reminder),
+      ChangeNotifierProvider<AutoSnapshotProvider>(
+        create: (_) => AutoSnapshotProvider(
+          preferences: businessPrefs,
+          chatService: chatService,
+          autoLoad: false,
+        ),
+      ),
       ],
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -77,6 +85,13 @@ Future<void> _pumpDesktopBackupPane(
           ),
         ),
         ChangeNotifierProvider<BackupReminderProvider>.value(value: reminder),
+      ChangeNotifierProvider<AutoSnapshotProvider>(
+        create: (_) => AutoSnapshotProvider(
+          preferences: businessPrefs,
+          chatService: chatService,
+          autoLoad: false,
+        ),
+      ),
         ChangeNotifierProvider<BackupProvider>(
           create: (_) => BackupProvider(
             preferences: businessPrefs,

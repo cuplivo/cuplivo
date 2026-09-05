@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:xml/xml.dart';
 
+import 'backup_activity_gate.dart';
 import '../../models/assistant.dart';
 import '../../models/backup.dart';
 import '../../models/chat_message.dart';
@@ -257,7 +258,28 @@ class DataSync {
     }
   }
 
+  /// Runs [action] while holding the cross-feature backup activity gate, so
+  /// an auto snapshot never overlaps a backup/restore/export and vice versa.
+  /// The gate is a FIFO exclusive permit; nested calls along the same async
+  /// chain (e.g. `backupToWebDav` -> `prepareBackupFile`) re-enter safely.
+  Future<T> _gated<T>(Future<T> Function() action) =>
+      BackupActivityGate.scoped(action);
+
   Future<File> prepareBackupFile(
+    WebDavConfig cfg, {
+    IncrementalBackupConfig? incremental,
+    BackupStageCallback? onStage,
+    BackupFormat format = BackupFormat.jsonl,
+  }) => _gated(
+    () => _prepareBackupFile(
+      cfg,
+      incremental: incremental,
+      onStage: onStage,
+      format: format,
+    ),
+  );
+
+  Future<File> _prepareBackupFile(
     WebDavConfig cfg, {
     IncrementalBackupConfig? incremental,
     BackupStageCallback? onStage,
@@ -989,6 +1011,14 @@ class DataSync {
     WebDavConfig cfg, {
     IncrementalBackupConfig? incremental,
     BackupStageCallback? onStage,
+  }) => _gated(
+    () => _backupToWebDav(cfg, incremental: incremental, onStage: onStage),
+  );
+
+  Future<void> _backupToWebDav(
+    WebDavConfig cfg, {
+    IncrementalBackupConfig? incremental,
+    BackupStageCallback? onStage,
   }) async {
     final file = await prepareBackupFile(
       cfg,
@@ -1154,6 +1184,15 @@ class DataSync {
     BackupFileItem item, {
     RestoreMode mode = RestoreMode.overwrite,
     RestoreProgressCallback? onProgress,
+  }) => _gated(
+    () => _restoreFromWebDav(cfg, item, mode: mode, onProgress: onProgress),
+  );
+
+  Future<void> _restoreFromWebDav(
+    WebDavConfig cfg,
+    BackupFileItem item, {
+    RestoreMode mode = RestoreMode.overwrite,
+    RestoreProgressCallback? onProgress,
   }) async {
     // Stream the download to a file instead of buffering in memory.
     final client = http.Client();
@@ -1208,6 +1247,22 @@ class DataSync {
   );
 
   Future<void> restoreFromLocalFile(
+    File file,
+    WebDavConfig cfg, {
+    RestoreMode mode = RestoreMode.overwrite,
+    RestoreProgressCallback? onProgress,
+    ConflictPrecedence precedence = ConflictPrecedence.auto,
+  }) => _gated(
+    () => _restoreFromLocalFile(
+      file,
+      cfg,
+      mode: mode,
+      onProgress: onProgress,
+      precedence: precedence,
+    ),
+  );
+
+  Future<void> _restoreFromLocalFile(
     File file,
     WebDavConfig cfg, {
     RestoreMode mode = RestoreMode.overwrite,

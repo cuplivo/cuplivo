@@ -123,8 +123,11 @@ class _GroupChatPageState extends State<GroupChatPage> {
       chatService: _chatService,
       contextProvider: context,
       preferences: context.read<BusinessPreferences>(),
-      ocrHandler: (imagePaths) =>
-          _ocrService.getOcrTextForImages(imagePaths, context),
+      ocrHandler: (imagePaths, {requestId}) => _ocrService.getOcrTextForImages(
+        imagePaths,
+        context,
+        requestId: requestId,
+      ),
     );
     _messageBuilderService.ocrTextWrapper = _ocrService.wrapOcrBlock;
     _generationController = GenerationController(

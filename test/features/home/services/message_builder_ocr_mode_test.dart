@@ -75,9 +75,7 @@ Future<String> _processContent({
     preferences: businessPrefs,
     chatService: _FakeChatService(),
     contextProvider: _FakeBuildContext(),
-    ocrHandler: provideOcrHandler
-        ? (_, {requestId}) async => _ocrText
-        : null,
+    ocrHandler: provideOcrHandler ? (_, {requestId}) async => _ocrText : null,
   );
   final apiMessages = <Map<String, dynamic>>[
     {'role': 'user', 'content': rawContent},
@@ -270,7 +268,7 @@ void main() {
         preferences: businessPrefs,
         chatService: _FakeChatService(),
         contextProvider: _FakeBuildContext(),
-        ocrHandler: (_) async => 'no ocr',
+        ocrHandler: (_, {requestId}) async => 'no ocr',
       );
       final lastUserImagePaths = await messageBuilder.processUserMessagesForApi(
         apiMessages,

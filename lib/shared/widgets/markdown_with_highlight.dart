@@ -2075,6 +2075,11 @@ bool _isCommandArgumentBrace(String tex, int open) {
   final prev = _previousNonWhitespaceIndex(tex, open - 1);
   if (prev == -1) return false;
 
+  if (tex.codeUnitAt(prev) == 0x2A &&
+      _endsControlWordAt(tex, _previousNonWhitespaceIndex(tex, prev - 1))) {
+    return true;
+  }
+
   if (tex.codeUnitAt(prev) == 0x5D) {
     final optionalOpen = _findMatchingOpenBracket(tex, prev);
     if (optionalOpen != -1) {

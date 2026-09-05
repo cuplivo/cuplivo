@@ -55,8 +55,23 @@ const eqnArrayEntries = {
     numArgs: 0,
     handler: _alignedHandler,
   ),
-  // ['gathered']: EnvSpec(numArgs: 0, handler: _gatheredHandler),
+  ['gathered']: EnvSpec(
+    numArgs: 0,
+    handler: _gatheredHandler,
+  ),
   ['alignedat']: EnvSpec(numArgs: 1, handler: _alignedAtHandler),
+  ['align', 'align*']: EnvSpec(
+    numArgs: 0,
+    handler: _alignHandler,
+  ),
+  ['equation', 'equation*']: EnvSpec(
+    numArgs: 0,
+    handler: _equationHandler,
+  ),
+  ['gather', 'gather*']: EnvSpec(
+    numArgs: 0,
+    handler: _gatherHandler,
+  ),
 };
 
 GreenNode _casesHandler(TexParser parser, EnvContext context) {
@@ -114,7 +129,41 @@ GreenNode _alignedHandler(TexParser parser, EnvContext context) =>
       },
     );
 
-// GreenNode _gatheredHandler(TexParser parser, EnvContext context) {}
+/// Standalone align/align*: like [aligned] but positioned as a display
+/// environment block (the renderer supplies display style).
+GreenNode _alignHandler(TexParser parser, EnvContext context) =>
+    _alignedHandler(parser, context);
+
+/// gather/gather*: centered display rows.
+GreenNode _gatherHandler(TexParser parser, EnvContext context) => parseEqnArray(
+      parser,
+      addJot: true,
+      concatRow: _centeredEqnRow,
+    );
+
+/// gathered: inline-able centered rows (the counterpart of [aligned]).
+GreenNode _gatheredHandler(TexParser parser, EnvContext context) =>
+    parseEqnArray(
+      parser,
+      addJot: true,
+      concatRow: _centeredEqnRow,
+    );
+
+/// equation/equation*: a single centered display row.
+GreenNode _equationHandler(TexParser parser, EnvContext context) =>
+    parseEqnArray(
+      parser,
+      concatRow: _centeredEqnRow,
+    );
+
+EquationRowNode _centeredEqnRow(List<EquationRowNode> cells) {
+  final children = cells.expand((cell) => cell.children).toList(growable: true);
+  return EquationRowNode(children: [
+    SpaceNode.alignerOrSpacer(),
+    ...children,
+    SpaceNode.alignerOrSpacer(),
+  ]);
+}
 
 GreenNode _alignedAtHandler(TexParser parser, EnvContext context) {
   final arg = parser.parseArgNode(mode: null, optional: false);

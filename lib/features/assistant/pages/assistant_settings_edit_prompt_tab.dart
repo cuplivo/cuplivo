@@ -100,6 +100,7 @@ class _PromptTabState extends State<_PromptTab> {
       return _promptSaveChain;
     }
     _promptSaveChain = _promptSaveChain.then((_) async {
+      if (!mounted) return;
       final provider = context.read<AssistantProvider>();
       final current = provider.getById(widget.assistantId);
       if (current == null) return;

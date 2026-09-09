@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:re_editor/re_editor.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -14,6 +15,7 @@ import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/assistant_bind_multi_select.dart';
 import '../../../shared/widgets/ios_form_text_field.dart';
+import '../../../shared/widgets/plain_text_code_editor.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
@@ -976,6 +978,48 @@ class _IosEntryRow extends StatelessWidget {
   }
 }
 
+class _PlainTextFormSection extends StatelessWidget {
+  const _PlainTextFormSection({
+    required this.label,
+    required this.controller,
+    required this.height,
+  });
+
+  final String label;
+  final CodeLineEditingController controller;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: AppFontWeights.emphasis,
+              color: cs.onSurface.withValues(alpha: 0.85),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: height,
+            child: PlainTextCodeEditor(
+              controller: controller,
+              padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _IosSectionCard extends StatelessWidget {
   const _IosSectionCard({required this.children});
 
@@ -1308,7 +1352,7 @@ class _WorldBookEntryEditSheetState extends State<_WorldBookEntryEditSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _keywordInputController;
   final FocusNode _keywordFocusNode = FocusNode();
-  late final TextEditingController _contentController;
+  late final CodeLineEditingController _contentController;
   late final TextEditingController _priorityController;
   late final TextEditingController _scanDepthController;
   late final TextEditingController _injectDepthController;
@@ -1327,7 +1371,7 @@ class _WorldBookEntryEditSheetState extends State<_WorldBookEntryEditSheet> {
     final entry = widget.entry;
     _nameController = TextEditingController(text: entry?.name ?? '');
     _keywordInputController = TextEditingController();
-    _contentController = TextEditingController(text: entry?.content ?? '');
+    _contentController = CodeLineEditingController.fromText(entry?.content ?? '');
     _priorityController = TextEditingController(
       text: (entry?.priority ?? 0).toString(),
     );
@@ -1808,14 +1852,10 @@ class _WorldBookEntryEditSheetState extends State<_WorldBookEntryEditSheet> {
                     const SizedBox(height: 12),
                     _IosSectionCard(
                       children: [
-                        IosFormTextField(
+                        _PlainTextFormSection(
                           label: l10n.worldBookEntryContentLabel,
                           controller: _contentController,
-                          maxLines: 12,
-                          minLines: 8,
-                          inlineLabel: false,
-                          textAlign: TextAlign.start,
-                          textInputAction: TextInputAction.newline,
+                          height: 240,
                         ),
                       ],
                     ),

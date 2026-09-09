@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:re_editor/re_editor.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -12,6 +13,7 @@ import '../../core/providers/world_book_provider.dart';
 import '../../icons/lucide_adapter.dart' as lucide;
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/assistant_bind_multi_select.dart';
+import '../../shared/widgets/plain_text_code_editor.dart';
 import '../../shared/widgets/ios_switch.dart';
 import '../../shared/widgets/snackbar.dart';
 import '../widgets/desktop_select_dropdown.dart';
@@ -1006,7 +1008,7 @@ class _WorldBookEntryEditDialog extends StatefulWidget {
 
 class _WorldBookEntryEditDialogState extends State<_WorldBookEntryEditDialog> {
   late final TextEditingController _nameController;
-  late final TextEditingController _contentController;
+  late final CodeLineEditingController _contentController;
   late final TextEditingController _priorityController;
   late final TextEditingController _scanDepthController;
   late final TextEditingController _injectDepthController;
@@ -1026,7 +1028,7 @@ class _WorldBookEntryEditDialogState extends State<_WorldBookEntryEditDialog> {
     super.initState();
     final base = widget.entry;
     _nameController = TextEditingController(text: base?.name ?? '');
-    _contentController = TextEditingController(text: base?.content ?? '');
+    _contentController = CodeLineEditingController.fromText(base?.content ?? '');
     _priorityController = TextEditingController(
       text: (base?.priority ?? 0).toString(),
     );
@@ -1405,15 +1407,18 @@ class _WorldBookEntryEditDialogState extends State<_WorldBookEntryEditDialog> {
                             child: _labeledField(
                               cs: cs,
                               label: l10n.worldBookEntryContentLabel,
-                              child: TextField(
-                                controller: _contentController,
-                                minLines: 12,
-                                maxLines: 18,
-                                keyboardType: TextInputType.multiline,
-                                decoration: _deskInputDecoration(context)
-                                    .copyWith(
-                                      hintText: l10n.worldBookEntryContentLabel,
-                                    ),
+                              child: Container(
+                                height: 300,
+                                decoration: BoxDecoration(
+                                  color: context.appColors.surfaceFill,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: PlainTextCodeEditor(
+                                  controller: _contentController,
+                                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                                  hint: l10n.worldBookEntryContentLabel,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                             ),
                           );

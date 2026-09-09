@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:re_editor/re_editor.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -15,6 +16,7 @@ import '../../../features/home/services/local_tools_service.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/assistant_bind_multi_select.dart';
+import '../../../shared/widgets/plain_text_code_editor.dart';
 import '../../../shared/widgets/ios_expandable_section.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../shared/widgets/ios_tactile.dart';
@@ -619,7 +621,7 @@ class _InstructionInjectionEditSheetState
 
   late final TextEditingController _titleController;
   late final TextEditingController _groupController;
-  late final TextEditingController _promptController;
+  late final CodeLineEditingController _promptController;
   late final TextEditingController _blockController;
   late QuickInstructionPlacement _placement;
   late QuickInstructionTriggerMode _triggerMode;
@@ -646,7 +648,7 @@ class _InstructionInjectionEditSheetState
     final item = widget.item ?? widget.initialItem;
     _titleController = TextEditingController(text: item?.title ?? '');
     _groupController = TextEditingController(text: item?.group ?? '');
-    _promptController = TextEditingController(text: item?.prompt ?? '');
+    _promptController = CodeLineEditingController.fromText(item?.prompt ?? '');
     _placement = item?.placement ?? QuickInstructionPlacement.beforeUserMessage;
     _triggerMode = item?.triggerMode ?? QuickInstructionTriggerMode.oneShot;
     _retainInHistory = item?.retainInHistory ?? true;
@@ -800,10 +802,7 @@ class _InstructionInjectionEditSheetState
                         ),
                       ),
                       const SizedBox(height: 12),
-                      TextField(
-                        controller: _promptController,
-                        minLines: 4,
-                        maxLines: 8,
+                      InputDecorator(
                         decoration: _fieldDecoration(
                           context,
                           label: l10n.instructionInjectionPromptLabel,
@@ -813,6 +812,14 @@ class _InstructionInjectionEditSheetState
                                   _promptController.text.trim().isEmpty
                               ? l10n.quickInstructionRequiredField
                               : null,
+                        ),
+                        child: SizedBox(
+                          height: 180,
+                          child: PlainTextCodeEditor(
+                            controller: _promptController,
+                            onChanged: (_) => setState(() {}),
+                            padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 14),

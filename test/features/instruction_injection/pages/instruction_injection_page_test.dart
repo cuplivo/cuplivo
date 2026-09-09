@@ -7,6 +7,7 @@ import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/quick_instruction_store.dart';
 import 'package:Cuplivo/features/instruction_injection/pages/instruction_injection_page.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/shared/widgets/plain_text_code_editor.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -153,13 +154,19 @@ Future<QuickInstruction> _createInstruction(
   await tester.pumpAndSettle();
 
   final fields = find.byType(TextField);
-  expect(fields, findsNWidgets(3));
+  expect(fields, findsNWidgets(2));
   expect(
     tester.widget<TextField>(fields.at(1)).controller?.text,
     expectedGroup,
   );
   await tester.enterText(fields.at(0), title);
-  await tester.enterText(fields.at(2), prompt);
+  final promptEditor = find.byType(PlainTextCodeEditor);
+  expect(promptEditor, findsOneWidget);
+  final promptController = tester
+      .widget<PlainTextCodeEditor>(promptEditor)
+      .controller;
+  promptController.text = prompt;
+  await tester.pump();
   await tester.tap(find.text('Save'));
   await tester.pumpAndSettle();
 

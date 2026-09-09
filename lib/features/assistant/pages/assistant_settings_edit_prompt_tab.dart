@@ -419,8 +419,8 @@ class _PromptTabState extends State<_PromptTab> {
                 hint: l10n.assistantEditSystemPromptHint,
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                 borderRadius: BorderRadius.circular(12),
-                onChanged: (value) =>
-                    _schedulePromptSave(systemPrompt: value.text),
+                onChanged: (_) =>
+                    _schedulePromptSave(systemPrompt: _sysCtrl.text),
               ),
             ),
             const SizedBox(height: 8),
@@ -558,8 +558,8 @@ class _PromptTabState extends State<_PromptTab> {
                     hint: '{{ message }}',
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                     borderRadius: BorderRadius.circular(12),
-                    onChanged: (value) =>
-                        _schedulePromptSave(messageTemplate: value.text),
+                    onChanged: (_) =>
+                        _schedulePromptSave(messageTemplate: _tmplCtrl.text),
                   ),
                 ),
               ),

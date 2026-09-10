@@ -65,10 +65,10 @@ class _PromptTabState extends State<_PromptTab> {
 
   void _insertAtCursor(
     CodeLineEditingController controller,
+    FocusNode focusNode,
     String toInsert,
   ) {
-    final selection = controller.selection;
-    if (selection.index < 0 || selection.offset < 0) {
+    if (!focusNode.hasFocus) {
       controller.selection = CodeLineSelection.collapsed(
         index: controller.lineCount - 1,
         offset: controller.endLine.text.length,
@@ -475,7 +475,7 @@ class _PromptTabState extends State<_PromptTab> {
               },
               cacheWarningTooltip: l10n.assistantEditPromptTimeVarWarning,
               onTapVar: (v) {
-                _insertAtCursor(_sysCtrl, v);
+                _insertAtCursor(_sysCtrl, _sysFocus, v);
                 _schedulePromptSave(systemPrompt: _sysCtrl.text);
                 // Restore focus to the input to keep cursor active
                 Future.microtask(() => _sysFocus.requestFocus());
@@ -600,7 +600,7 @@ class _PromptTabState extends State<_PromptTab> {
                 onTapVar: a.enableTimeInjection
                     ? (_) {}
                     : (v) {
-                        _insertAtCursor(_tmplCtrl, v);
+                        _insertAtCursor(_tmplCtrl, _tmplFocus, v);
                         _schedulePromptSave(messageTemplate: _tmplCtrl.text);
                         Future.microtask(() => _tmplFocus.requestFocus());
                       },

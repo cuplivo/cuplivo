@@ -220,6 +220,24 @@ void main() {
     expect(find.textContaining('(Mon 26-08-08 14:30:05)'), findsOneWidget);
   });
 
+
+  testWidgets('inserts a variable at the end before the editor is focused', (
+    tester,
+  ) async {
+    _seedPreferences(systemPrompt: 'existing prompt');
+    await _openPromptsTab(tester);
+
+    final editor = tester.widget<PlainTextCodeEditor>(
+      find.byType(PlainTextCodeEditor).first,
+    );
+    expect(editor.focusNode?.hasFocus, isFalse);
+
+    await tester.tap(find.text('{model_id}'));
+    await tester.pump();
+
+    expect(editor.controller.text, 'existing prompt{model_id}');
+  });
+
   testWidgets('flushes pending prompt when the page is disposed', (
     tester,
   ) async {

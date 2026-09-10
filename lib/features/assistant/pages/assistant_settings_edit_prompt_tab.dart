@@ -41,7 +41,8 @@ class _PromptTabState extends State<_PromptTab> {
   void didUpdateWidget(covariant _PromptTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.assistantId != widget.assistantId) {
-      unawaited(_flushPromptChanges());
+      final oldAssistantId = oldWidget.assistantId;
+      unawaited(_flushPromptChanges(assistantId: oldAssistantId));
       final ap = context.read<AssistantProvider>();
       final a = ap.getById(widget.assistantId)!;
       _sysCtrl.text = a.systemPrompt;
@@ -64,6 +65,13 @@ class _PromptTabState extends State<_PromptTab> {
     CodeLineEditingController controller,
     String toInsert,
   ) {
+    final selection = controller.selection;
+    if (!selection.isValid) {
+      controller.selection = CodeLineSelection.collapsed(
+        index: controller.lineCount - 1,
+        offset: controller.endLine.text.length,
+      );
+    }
     controller.replaceSelection(toInsert);
   }
 
@@ -85,13 +93,14 @@ class _PromptTabState extends State<_PromptTab> {
     });
   }
 
-  Future<void> _flushPromptChanges() {
+  Future<void> _flushPromptChanges({String? assistantId}) {
     _promptSaveTimer?.cancel();
     _promptSaveTimer = null;
     final systemPrompt = _pendingSystemPrompt;
     final messageTemplate = _pendingMessageTemplate;
     final hasSystemPrompt = _hasPendingSystemPrompt;
     final hasMessageTemplate = _hasPendingMessageTemplate;
+    final targetAssistantId = assistantId ?? widget.assistantId;
     _pendingSystemPrompt = null;
     _pendingMessageTemplate = null;
     _hasPendingSystemPrompt = false;
@@ -99,10 +108,13 @@ class _PromptTabState extends State<_PromptTab> {
     if (!hasSystemPrompt && !hasMessageTemplate) {
       return _promptSaveChain;
     }
+
+    // Capture both provider and assistant id before this State can unmount or
+    // receive a new widget. The provider outlives the editor, and the target
+    // id must remain the id that owned the pending text.
+    final provider = context.read<AssistantProvider>();
     _promptSaveChain = _promptSaveChain.then((_) async {
-      if (!mounted) return;
-      final provider = context.read<AssistantProvider>();
-      final current = provider.getById(widget.assistantId);
+      final current = provider.getById(targetAssistantId);
       if (current == null) return;
       await provider.updateAssistant(
         current.copyWith(

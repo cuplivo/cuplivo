@@ -24,11 +24,13 @@ class _PromptTabState extends State<_PromptTab> {
   bool _hasPendingMessageTemplate = false;
   int _promptSaveGeneration = 0;
   Future<void> _promptSaveChain = Future<void>.value();
+  late AssistantProvider _assistantProvider;
 
   @override
   void initState() {
     super.initState();
-    final ap = context.read<AssistantProvider>();
+    _assistantProvider = context.read<AssistantProvider>();
+    final ap = _assistantProvider;
     final a = ap.getById(widget.assistantId)!;
     _sysCtrl = CodeLineEditingController.fromText(a.systemPrompt);
     _tmplCtrl = CodeLineEditingController.fromText(a.messageTemplate);
@@ -112,7 +114,7 @@ class _PromptTabState extends State<_PromptTab> {
     // Capture both provider and assistant id before this State can unmount or
     // receive a new widget. The provider outlives the editor, and the target
     // id must remain the id that owned the pending text.
-    final provider = context.read<AssistantProvider>();
+    final provider = _assistantProvider;
     _promptSaveChain = _promptSaveChain.then((_) async {
       final current = provider.getById(targetAssistantId);
       if (current == null) return;

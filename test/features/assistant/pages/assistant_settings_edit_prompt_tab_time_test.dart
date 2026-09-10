@@ -18,10 +18,12 @@ import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:Cuplivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/shared/widgets/plain_text_code_editor.dart';
 
 var businessPrefs = BusinessPreferences.memoryForTests();
 
 const _assistantId = 'assistant-time-test';
+const _secondAssistantId = 'assistant-time-test-2';
 
 class _FakeTtsProvider extends ChangeNotifier implements TtsProvider {
   @override
@@ -42,16 +44,24 @@ class _StubChatService extends ChatService {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-void _seedPreferences({String systemPrompt = ''}) {
-  SharedPreferences.setMockInitialValues({
-    'assistants_v1': Assistant.encodeList([
+void _seedPreferences({String systemPrompt = '', bool includeSecond = false}) {
+  final assistants = <Assistant>[
+    Assistant(
+      id: _assistantId,
+      name: 'Test Assistant',
+      temperature: 0.6,
+      systemPrompt: systemPrompt,
+    ),
+    if (includeSecond)
       Assistant(
-        id: _assistantId,
-        name: 'Test Assistant',
+        id: _secondAssistantId,
+        name: 'Second Assistant',
         temperature: 0.6,
-        systemPrompt: systemPrompt,
+        systemPrompt: 'second original',
       ),
-    ]),
+  ];
+  SharedPreferences.setMockInitialValues({
+    'assistants_v1': Assistant.encodeList(assistants),
   });
   businessPrefs = BusinessPreferences.memoryForTests();
 }
@@ -208,5 +218,63 @@ void main() {
 
     expect(find.text('Appended time format'), findsOneWidget);
     expect(find.textContaining('(Mon 26-08-08 14:30:05)'), findsOneWidget);
+  });
+
+  testWidgets('flushes pending prompt when the page is disposed', (
+    tester,
+  ) async {
+    _seedPreferences();
+    final provider = await _createAssistantProvider(preferences: businessPrefs);
+    await tester.pumpWidget(
+      _buildHarness(
+        assistantProvider: provider,
+        child: const AssistantSettingsEditPage(assistantId: _assistantId),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Prompts'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final editor = tester.widget<PlainTextCodeEditor>(
+      find.byType(PlainTextCodeEditor).first,
+    );
+    editor.controller.text = 'saved before leaving';
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+
+    expect(provider.getById(_assistantId)?.systemPrompt, 'saved before leaving');
+  });
+
+  testWidgets('flushes pending prompt to the previous assistant on switch', (
+    tester,
+  ) async {
+    _seedPreferences(includeSecond: true);
+    final provider = await _createAssistantProvider(preferences: businessPrefs);
+    await tester.pumpWidget(
+      _buildHarness(
+        assistantProvider: provider,
+        child: const AssistantSettingsEditPage(assistantId: _assistantId),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Prompts'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final editor = tester.widget<PlainTextCodeEditor>(
+      find.byType(PlainTextCodeEditor).first,
+    );
+    editor.controller.text = 'assistant one pending';
+    await tester.pump();
+    await tester.pumpWidget(
+      _buildHarness(
+        assistantProvider: provider,
+        child: const AssistantSettingsEditPage(assistantId: _secondAssistantId),
+      ),
+    );
+    await tester.pump();
+
+    expect(provider.getById(_assistantId)?.systemPrompt, 'assistant one pending');
+    expect(provider.getById(_secondAssistantId)?.systemPrompt, 'second original');
   });
 }

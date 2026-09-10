@@ -1219,6 +1219,9 @@ class ChatDatabaseRepository {
 
   Assistant _assistantFromRow(AssistantRow row) {
     return Assistant.fromJson({
+      // Gradient blob is spread first so the explicit column-derived keys
+      // below always win on a corrupted/duplicated storage blob.
+      ...Assistant.decodeGradientBackgroundStorage(row.gradientBackgroundJson),
       'id': row.id,
       'name': row.name,
       'avatar': row.avatar,
@@ -1283,6 +1286,7 @@ class ChatDatabaseRepository {
       useAssistantAvatar: Value(a.useAssistantAvatar),
       useAssistantName: Value(a.useAssistantName),
       background: Value(a.background),
+      gradientBackgroundJson: Value(jsonEncode(a.gradientBackgroundToJson())),
       chatModelProvider: Value(a.chatModelProvider),
       chatModelId: Value(a.chatModelId),
       temperature: Value(a.temperature),

@@ -17,9 +17,9 @@ import '../../../theme/chat_bubble_style.dart';
 import '../../../theme/custom_theme.dart';
 import '../../../theme/palettes.dart';
 import '../../../theme/theme_factory.dart';
+import '../../chat/widgets/chat_assistant_background.dart';
 import '../../chat/widgets/frosted/chat_frosted_backdrop.dart';
 import '../../chat/widgets/frosted/frosted_surface.dart';
-import '../../home/pages/home_mobile_layout.dart';
 import '../widgets/custom_theme_widgets.dart';
 
 class MessageStyleSettingsPage extends StatelessWidget {
@@ -1157,7 +1157,7 @@ class _PreviewScene extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           ColoredBox(color: cs.surface),
-          const MobileBackgroundLayer(),
+          const ChatAssistantBackground(),
         ],
       ),
       child: Stack(

@@ -713,8 +713,9 @@ CREATE TABLE group_chat_rows (
 
       final version = await repo.db.customSelect('PRAGMA user_version').get();
       // The v22 migration block runs, then the ADR-0055 binding columns land
-      // under v23, so a v21 database ends at the current version 23.
-      expect(version.single.read<int>('user_version'), 23);
+      // under v23 and the gradient blob under v24, so a v21 database ends at
+      // the current version 24.
+      expect(version.single.read<int>('user_version'), 24);
 
       final columns = await repo.db
           .customSelect('PRAGMA table_info(assistant_rows)')
@@ -729,6 +730,103 @@ CREATE TABLE group_chat_rows (
         ))?.proactiveCareDecisionHistoryMessageLimit,
         isNull,
       );
+
+      await repo.close();
+    },
+  );
+
+  test('v24 migration adds the assistant gradient background blob', () async {
+    _createLegacyDb(
+      dbFile,
+      userVersion: 23,
+      missingIsPreset: false,
+      missingHandoffColumns: false,
+      missingContextTokens: false,
+      missingV15RequestMetadata: false,
+      missingQuoteJson: false,
+      includeWorkspaceBindingColumns: true,
+      includeWorkspaceV20Columns: true,
+      includeConversationKindColumn: true,
+      includeConversationV22Columns: true,
+      missingConversationModelBinding: false,
+      missingPreferenceRows: false,
+    );
+    final raw = sqlite.sqlite3.open(dbFile.path);
+    raw.execute(
+      'INSERT INTO assistant_rows '
+      '(id, name, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      ['legacy-v23', 'Legacy', 0, 1, 1],
+    );
+    raw.close();
+
+    final repo = ChatDatabaseRepository.open(file: dbFile);
+    await repo.ensureReady();
+
+    final version = await repo.db.customSelect('PRAGMA user_version').get();
+    expect(version.single.read<int>('user_version'), 24);
+
+    final columns = await repo.db
+        .customSelect('PRAGMA table_info(assistant_rows)')
+        .get();
+    expect(
+      columns.map((row) => row.read<String>('name')),
+      contains('gradient_background_json'),
+    );
+    final loaded = await repo.getAssistant('legacy-v23');
+    expect(loaded?.useGradientBackground, isFalse);
+    expect(loaded?.gradientBackgroundAnimated, isTrue);
+    expect(
+      loaded?.gradientBackgroundPhase,
+      Assistant.defaultGradientBackgroundPhase,
+    );
+    expect(loaded?.gradientBackgroundOffsetX, 0);
+    expect(loaded?.gradientBackgroundOffsetY, 0);
+
+    await repo.close();
+  });
+
+  test(
+    'heal restores a missing v24 assistant gradient background blob',
+    () async {
+      _createLegacyDb(
+        dbFile,
+        userVersion: 24,
+        missingIsPreset: false,
+        missingHandoffColumns: false,
+        missingContextTokens: false,
+        missingV15RequestMetadata: false,
+        missingQuoteJson: false,
+        includeWorkspaceBindingColumns: true,
+        includeWorkspaceV20Columns: true,
+        includeConversationKindColumn: true,
+        includeConversationV22Columns: true,
+        missingConversationModelBinding: false,
+        missingPreferenceRows: false,
+      );
+
+      final repo = ChatDatabaseRepository.open(file: dbFile);
+      await repo.ensureReady();
+
+      // Must succeed: heal adds gradient_background_json before Drift INSERT,
+      // and a real value round-trips through the JSON blob column.
+      await repo.putAssistant(
+        Assistant(
+          id: 'healed-v24',
+          name: 'Healed',
+          useGradientBackground: true,
+          gradientBackgroundAnimated: false,
+          gradientBackgroundPhase: 9.5,
+          gradientBackgroundOffsetX: -0.25,
+          gradientBackgroundOffsetY: 0.75,
+        ),
+        sortOrder: 0,
+      );
+      final loaded = await repo.getAssistant('healed-v24');
+      expect(loaded?.useGradientBackground, isTrue);
+      expect(loaded?.gradientBackgroundAnimated, isFalse);
+      expect(loaded?.gradientBackgroundPhase, 9.5);
+      expect(loaded?.gradientBackgroundOffsetX, -0.25);
+      expect(loaded?.gradientBackgroundOffsetY, 0.75);
 
       await repo.close();
     },

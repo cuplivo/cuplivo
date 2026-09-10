@@ -13,6 +13,7 @@ import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/assistant/pages/assistant_settings_edit_page.dart';
 import 'package:Cuplivo/features/home/services/local_tools_service.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 
@@ -237,4 +238,67 @@ void main() {
 
     expect(find.text('MCP'), findsOneWidget);
   });
+
+  testWidgets(
+    'desktop dialog exposes gradient settings and hides the image chooser',
+    (tester) async {
+      _seedPreferences();
+      final assistantProvider = await _createAssistantProvider(
+        preferences: businessPrefs,
+      );
+
+      await tester.pumpWidget(
+        _buildHarness(
+          assistantProvider: assistantProvider,
+          child: Scaffold(
+            body: Builder(
+              builder: (context) {
+                return TextButton(
+                  onPressed: () => showAssistantDesktopDialog(
+                    context,
+                    assistantId: _assistantId,
+                  ),
+                  child: const Text('open'),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('open'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Chat Background'), findsOneWidget);
+      expect(find.byType(AssistantGradientSettings), findsOneWidget);
+      expect(find.text('Gradient background'), findsOneWidget);
+      expect(find.text('Choose Image'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Gradient background'));
+      await tester.pump();
+      await tester.tap(
+        find
+            .descendant(
+              of: find.byType(AssistantGradientSettings),
+              matching: find.byType(IosSwitch),
+            )
+            .first,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        assistantProvider.getById(_assistantId)!.useGradientBackground,
+        isTrue,
+      );
+      expect(find.text('Static mode'), findsOneWidget);
+      // The image chooser is replaced by the gradient artwork while enabled.
+      expect(find.text('Choose Image'), findsNothing);
+
+      // Dispose the dialog and its animated-preview pulse timer.
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 }

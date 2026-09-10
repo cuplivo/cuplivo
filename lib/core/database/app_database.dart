@@ -116,6 +116,11 @@ class AssistantRows extends Table {
   BoolColumn get useAssistantName =>
       boolean().withDefault(const Constant(false))();
   TextColumn get background => text().nullable()();
+  // Assistant gradient background config (schema v24): JSON blob holding the
+  // five gradient keys from `Assistant.gradientBackgroundToJson`. Kept as one
+  // column deliberately — see docs/adr/0064-gradient-config-json-column.md.
+  TextColumn get gradientBackgroundJson =>
+      text().withDefault(const Constant('{}'))();
 
   // --- Model Selection ---
   TextColumn get chatModelProvider => text().nullable()();
@@ -475,7 +480,7 @@ class AppDatabase extends _$AppDatabase {
   // self-heal below repairs such gaps on every open; without it the gap is
   // permanent because later upgrades skip the failed step's `from < N` block.
   // See docs/adr/0019-schema-self-heal.md.
-  int get schemaVersion => 23;
+  int get schemaVersion => 24;
 
   /// Whether [table] has a physical column named [column] (sqlite name).
   Future<bool> _hasColumn(String table, String column) async {
@@ -637,6 +642,12 @@ class AppDatabase extends _$AppDatabase {
       'assistant_rows',
       'auto_load_agents_md',
       'ALTER TABLE assistant_rows ADD COLUMN auto_load_agents_md INTEGER NOT NULL DEFAULT 1',
+    );
+    // Assistant gradient background (schema v24)
+    await _ensureColumn(
+      'assistant_rows',
+      'gradient_background_json',
+      "ALTER TABLE assistant_rows ADD COLUMN gradient_background_json TEXT NOT NULL DEFAULT '{}'",
     );
 
     // --- message_rows ---
@@ -1168,6 +1179,22 @@ WHERE proactive_care_next_message_at IS NULL
             conversationRows.chatModelId,
           );
         } catch (_) {}
+      }
+      if (from < 24) {
+        // Assistant dynamic gradient background (ADR-0064). Single JSON blob
+        // column; heal covers a skipped ALTER (kept in the heal set as the
+        // backstop).
+        try {
+          await migrator.addColumn(
+            assistantRows,
+            assistantRows.gradientBackgroundJson,
+          );
+        } catch (error) {
+          debugPrint(
+            'v24 migration could not add assistant gradient background '
+            'column: $error',
+          );
+        }
       }
       // Final pass: heal any column/table that still did not land.
       await _healSchemaIfNeeded();

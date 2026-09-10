@@ -4508,5 +4508,12 @@
     "autoSnapshotDisableDeleteFailed": "Failed to delete stored snapshots: {error}. They are kept on disk.",
     "@autoSnapshotDisableDeleteFailed": {"placeholders": {"error": {"type": "String"}}},
     "autoSnapshotToggleFailed": "Could not save the Auto Snapshots setting: {error}. Please try again.",
-    "@autoSnapshotToggleFailed": {"placeholders": {"error": {"type": "String"}}}
+    "@autoSnapshotToggleFailed": {"placeholders": {"error": {"type": "String"}}},
+    "assistantEditGradientBackgroundTitle": "Gradient background",
+    "assistantEditGradientStaticTitle": "Static mode",
+    "assistantEditGradientStaticDescription": "Saves power during long chats and streaming.",
+    "assistantEditGradientHorizontal": "Horizontal position",
+    "assistantEditGradientVertical": "Vertical position",
+    "assistantEditGradientPreview": "Preview",
+    "assistantEditGradientNextFrame": "Another frame"
 }

@@ -1,4 +1,7 @@
 import 'dart:convert';
+
+import 'package:flutter/foundation.dart' show debugPrint;
+
 import 'assistant_regex.dart';
 import 'preset_message.dart';
 
@@ -7,6 +10,7 @@ class Assistant {
   static const int defaultContextMessageSize = 64;
   static const int minContextMessageSize = 1;
   static const int maxContextMessageSize = 1024;
+  static const double defaultGradientBackgroundPhase = 7.0;
   static const List<int> recentChatsSummaryMessageCountOptions = <int>[
     1,
     3,
@@ -78,6 +82,13 @@ Do **not** store sensitive information, including:
   /// Whether project-level AGENTS.md files are added to the system prompt.
   final bool autoLoadAgentsMd;
   final String? background; // chat background (color/image ref)
+  // Assistant-scoped dynamic gradient background. When enabled it takes
+  // precedence over [background] (the image wallpaper is masked, not cleared).
+  final bool useGradientBackground;
+  final bool gradientBackgroundAnimated;
+  final double gradientBackgroundPhase;
+  final double gradientBackgroundOffsetX;
+  final double gradientBackgroundOffsetY;
   // Custom request overrides (per assistant)
   final List<Map<String, String>>
   customHeaders; // [{name:'X-Header', value:'v'}]
@@ -143,6 +154,11 @@ Do **not** store sensitive information, including:
     Map<String, String>? workspaceDefaultDirectories,
     this.autoLoadAgentsMd = true,
     this.background,
+    this.useGradientBackground = false,
+    this.gradientBackgroundAnimated = true,
+    this.gradientBackgroundPhase = defaultGradientBackgroundPhase,
+    this.gradientBackgroundOffsetX = 0,
+    this.gradientBackgroundOffsetY = 0,
     this.customHeaders = const <Map<String, String>>[],
     this.customBody = const <Map<String, String>>[],
     this.enableMemory = false,
@@ -218,6 +234,11 @@ Do **not** store sensitive information, including:
     bool? autoLoadAgentsMd,
     bool clearWorkspaceId = false,
     String? background,
+    bool? useGradientBackground,
+    bool? gradientBackgroundAnimated,
+    double? gradientBackgroundPhase,
+    double? gradientBackgroundOffsetX,
+    double? gradientBackgroundOffsetY,
     List<Map<String, String>>? customHeaders,
     List<Map<String, String>>? customBody,
     bool? enableMemory,
@@ -285,6 +306,16 @@ Do **not** store sensitive information, including:
           workspaceDefaultDirectories ?? this.workspaceDefaultDirectories,
       autoLoadAgentsMd: autoLoadAgentsMd ?? this.autoLoadAgentsMd,
       background: clearBackground ? null : (background ?? this.background),
+      useGradientBackground:
+          useGradientBackground ?? this.useGradientBackground,
+      gradientBackgroundAnimated:
+          gradientBackgroundAnimated ?? this.gradientBackgroundAnimated,
+      gradientBackgroundPhase:
+          gradientBackgroundPhase ?? this.gradientBackgroundPhase,
+      gradientBackgroundOffsetX:
+          gradientBackgroundOffsetX ?? this.gradientBackgroundOffsetX,
+      gradientBackgroundOffsetY:
+          gradientBackgroundOffsetY ?? this.gradientBackgroundOffsetY,
       customHeaders: customHeaders ?? this.customHeaders,
       customBody: customBody ?? this.customBody,
       enableMemory: enableMemory ?? this.enableMemory,
@@ -349,6 +380,11 @@ Do **not** store sensitive information, including:
     'workspaceDefaultDirectories': workspaceDefaultDirectories,
     'autoLoadAgentsMd': autoLoadAgentsMd,
     'background': background,
+    'useGradientBackground': useGradientBackground,
+    'gradientBackgroundAnimated': gradientBackgroundAnimated,
+    'gradientBackgroundPhase': gradientBackgroundPhase,
+    'gradientBackgroundOffsetX': gradientBackgroundOffsetX,
+    'gradientBackgroundOffsetY': gradientBackgroundOffsetY,
     'customHeaders': customHeaders,
     'customBody': customBody,
     'enableMemory': enableMemory,
@@ -376,6 +412,54 @@ Do **not** store sensitive information, including:
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
   };
+
+  static double _readGradientBackgroundPhase(Object? value) =>
+      value is num && value.isFinite && value >= 0
+      ? value.toDouble()
+      : defaultGradientBackgroundPhase;
+
+  /// Reads a stored blob/wire bool defensively: a non-bool value (e.g. `1`
+  /// from a hand-edited DB row or a malformed backup) falls back to
+  /// [fallback] instead of throwing out of [fromJson].
+  static bool _readGradientBackgroundBool(Object? value, bool fallback) =>
+      value is bool ? value : fallback;
+
+  /// Finite guard on top of upstream's clamp: a non-finite offset would
+  /// poison the gradient shader transform, so it falls back to 0 like a
+  /// missing key (acceptance: non-finite/out-of-range values never break).
+  static double _readGradientBackgroundOffset(Object? value) =>
+      value is num && value.isFinite ? value.toDouble().clamp(-1.0, 1.0) : 0.0;
+
+  /// Gradient sub-map of [toJson], persisted in the SQLite
+  /// `gradient_background_json` column. Sharing the codec on the model keeps
+  /// both row mappers (`ChatDatabaseRepository` and
+  /// `ProactiveCareMessageFlow`) in lock-step (AGENTS.md §1.1 mirror).
+  Map<String, dynamic> gradientBackgroundToJson() => {
+    'useGradientBackground': useGradientBackground,
+    'gradientBackgroundAnimated': gradientBackgroundAnimated,
+    'gradientBackgroundPhase': gradientBackgroundPhase,
+    'gradientBackgroundOffsetX': gradientBackgroundOffsetX,
+    'gradientBackgroundOffsetY': gradientBackgroundOffsetY,
+  };
+
+  /// Decodes the stored gradient blob; malformed/missing blobs fall back to
+  /// defaults via [fromJson] (never throws).
+  static Map<String, dynamic> decodeGradientBackgroundStorage(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return const <String, dynamic>{};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) return decoded.cast<String, dynamic>();
+      debugPrint(
+        'Assistant: gradient background storage is not a JSON object; '
+        'using defaults',
+      );
+    } catch (error) {
+      debugPrint(
+        'Assistant: failed to decode gradient background storage: $error',
+      );
+    }
+    return const <String, dynamic>{};
+  }
 
   static Assistant fromJson(Map<String, dynamic> json) => Assistant(
     id: json['id'] as String,
@@ -413,6 +497,23 @@ Do **not** store sensitive information, including:
     })(),
     autoLoadAgentsMd: json['autoLoadAgentsMd'] as bool? ?? true,
     background: json['background'] as String?,
+    useGradientBackground: _readGradientBackgroundBool(
+      json['useGradientBackground'],
+      false,
+    ),
+    gradientBackgroundAnimated: _readGradientBackgroundBool(
+      json['gradientBackgroundAnimated'],
+      true,
+    ),
+    gradientBackgroundPhase: _readGradientBackgroundPhase(
+      json['gradientBackgroundPhase'],
+    ),
+    gradientBackgroundOffsetX: _readGradientBackgroundOffset(
+      json['gradientBackgroundOffsetX'],
+    ),
+    gradientBackgroundOffsetY: _readGradientBackgroundOffset(
+      json['gradientBackgroundOffsetY'],
+    ),
     customHeaders: (() {
       final raw = json['customHeaders'];
       if (raw is List) {

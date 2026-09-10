@@ -52,6 +52,7 @@ import '../../../desktop/world_book_popover.dart';
 import '../../../desktop/document_processing_popover.dart';
 import '../../../desktop/html_preview_dialog.dart';
 import '../../../icons/lucide_adapter.dart';
+import '../../chat/widgets/chat_assistant_background.dart';
 import '../../chat/widgets/bottom_tools_sheet.dart';
 import '../../chat/widgets/context_management_sheet.dart';
 import '../../chat/widgets/message_more_sheet.dart';
@@ -958,11 +959,11 @@ class _HomePageState extends State<HomePage>
               onInvertSelection: _controller.invertSelection,
             )
           : null,
-      body: _wrapWithDropTarget(_buildMobileBody(context, cs)),
+      body: _wrapWithDropTarget(_buildMobileBody(context)),
     );
   }
 
-  Widget _buildMobileBody(BuildContext context, ColorScheme cs) {
+  Widget _buildMobileBody(BuildContext context) {
     final bottomContentPadding = _controller.inputBarHeight + 16;
     final topContentPadding = _chatTopOverlayInset(context) + 8;
     final backgroundImageActive = _assistantBackgroundActive(context);
@@ -970,10 +971,11 @@ class _HomePageState extends State<HomePage>
     return ChatInputOverlayLayout(
       topInset: _chatTopOverlayInset(context),
       // The full-window artwork already sits behind the Scaffold
-      // (MobileBackgroundLayer); painting it again inside the body would only
-      // duplicate it in a box that shrinks with the keyboard.
+      // (ChatAssistantBackground pinned to the backdrop); painting it again
+      // inside the body would only duplicate it in a box that shrinks with
+      // the keyboard.
       topBackground: backgroundImageActive
-          ? _buildChatBackground(context, cs)
+          ? const ChatAssistantBackground(expand: false, pinnedToBackdrop: true)
           : null,
       backgroundImageActive: backgroundImageActive,
       content: Builder(
@@ -1108,7 +1110,11 @@ class _HomePageState extends State<HomePage>
       onSidebarWidthChangeEnd: _controller.saveSidebarWidth,
       onRightSidebarWidthChanged: _controller.updateRightSidebarWidth,
       onRightSidebarWidthChangeEnd: _controller.saveRightSidebarWidth,
-      buildAssistantBackground: _buildAssistantBackground,
+      buildAssistantBackground: (context) => const ChatAssistantBackground(
+        desktop: true,
+        includeSurfaceFill: true,
+        applyMaskStrength: false,
+      ),
       appBarOverride: groupChatMode
           ? _GroupChatDesktopAppBar(
               groupChatId: groupChatId,
@@ -1130,7 +1136,7 @@ class _HomePageState extends State<HomePage>
                     onInvertSelection: _controller.invertSelection,
                   )
                 : null),
-      body: _buildTabletBodyWithGroupChat(context, cs, groupChatId),
+      body: _buildTabletBodyWithGroupChat(context, groupChatId),
     );
   }
 
@@ -1145,7 +1151,6 @@ class _HomePageState extends State<HomePage>
   /// deletion does not remount it.
   Widget _buildTabletBodyWithGroupChat(
     BuildContext context,
-    ColorScheme cs,
     String? groupChatId,
   ) {
     // The inner Scaffold uses extendBodyBehindAppBar; offset the group
@@ -1159,7 +1164,7 @@ class _HomePageState extends State<HomePage>
     return IndexedStack(
       index: index,
       children: [
-        _wrapWithDropTarget(_buildTabletBody(context, cs)),
+        _wrapWithDropTarget(_buildTabletBody(context)),
         for (final id in openedIds)
           Padding(
             padding: EdgeInsets.only(top: topPadding),
@@ -1224,7 +1229,7 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildTabletBody(BuildContext context, ColorScheme cs) {
+  Widget _buildTabletBody(BuildContext context) {
     final bottomContentPadding = _controller.inputBarHeight + 16;
     final topContentPadding = _chatTopOverlayInset(context) + 8;
     final backgroundImageActive = _assistantBackgroundActive(context);
@@ -1232,7 +1237,12 @@ class _HomePageState extends State<HomePage>
     return ChatInputOverlayLayout(
       topInset: _chatTopOverlayInset(context),
       topBackground: backgroundImageActive
-          ? _buildAssistantBackground(context)
+          ? const ChatAssistantBackground(
+              desktop: true,
+              includeSurfaceFill: true,
+              applyMaskStrength: false,
+              pinnedToBackdrop: true,
+            )
           : null,
       backgroundImageActive: backgroundImageActive,
       content: FadeTransition(
@@ -1297,113 +1307,6 @@ class _HomePageState extends State<HomePage>
   // ============================================================================
   // UI Component Builders
   // ============================================================================
-
-  Widget _buildChatBackground(BuildContext context, ColorScheme cs) {
-    return Builder(
-      builder: (context) {
-        final bg = context
-            .watch<AssistantProvider>()
-            .currentAssistant
-            ?.background;
-        final maskStrength = context
-            .watch<SettingsProvider>()
-            .chatBackgroundMaskStrength;
-        if (bg == null || bg.trim().isEmpty) return const SizedBox.shrink();
-        ImageProvider provider;
-        if (bg.startsWith('http')) {
-          provider = NetworkImage(bg);
-        } else {
-          final localPath = SandboxPathResolver.fix(bg);
-          final file = File(localPath);
-          if (!file.existsSync()) return const SizedBox.shrink();
-          provider = FileImage(file);
-        }
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: provider,
-                    fit: BoxFit.cover,
-                    colorFilter: ColorFilter.mode(
-                      Colors.black.withValues(alpha: 0.04),
-                      BlendMode.srcATop,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: () {
-                        final top = (0.20 * maskStrength).clamp(0.0, 1.0);
-                        final bottom = (0.50 * maskStrength).clamp(0.0, 1.0);
-                        return [
-                          cs.surface.withValues(alpha: top),
-                          cs.surface.withValues(alpha: bottom),
-                        ];
-                      }(),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildAssistantBackground(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final assistant = context.watch<AssistantProvider>().currentAssistant;
-    final bgRaw = (assistant?.background ?? '').trim();
-    Widget? bg;
-    if (bgRaw.isNotEmpty) {
-      if (bgRaw.startsWith('http')) {
-        bg = Image.network(
-          bgRaw,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-        );
-      } else {
-        try {
-          final fixed = SandboxPathResolver.fix(bgRaw);
-          final f = File(fixed);
-          if (f.existsSync()) {
-            bg = Image(image: FileImage(f), fit: BoxFit.cover);
-          }
-        } catch (_) {}
-      }
-    }
-    return IgnorePointer(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          ColoredBox(color: cs.surface),
-          if (bg != null) Opacity(opacity: 0.9, child: bg),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  cs.surface.withValues(alpha: 0.08),
-                  cs.surface.withValues(alpha: 0.36),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   bool _assistantBackgroundActive(BuildContext context) {
     return ChatBackdropSpec.resolve(context).active;

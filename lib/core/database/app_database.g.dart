@@ -3011,6 +3011,18 @@ class $AssistantRowsTable extends AssistantRows
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _gradientBackgroundJsonMeta =
+      const VerificationMeta('gradientBackgroundJson');
+  @override
+  late final GeneratedColumn<String> gradientBackgroundJson =
+      GeneratedColumn<String>(
+        'gradient_background_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('{}'),
+      );
   static const VerificationMeta _chatModelProviderMeta = const VerificationMeta(
     'chatModelProvider',
   );
@@ -3559,6 +3571,7 @@ class $AssistantRowsTable extends AssistantRows
     useAssistantAvatar,
     useAssistantName,
     background,
+    gradientBackgroundJson,
     chatModelProvider,
     chatModelId,
     temperature,
@@ -3657,6 +3670,15 @@ class $AssistantRowsTable extends AssistantRows
       context.handle(
         _backgroundMeta,
         background.isAcceptableOrUnknown(data['background']!, _backgroundMeta),
+      );
+    }
+    if (data.containsKey('gradient_background_json')) {
+      context.handle(
+        _gradientBackgroundJsonMeta,
+        gradientBackgroundJson.isAcceptableOrUnknown(
+          data['gradient_background_json']!,
+          _gradientBackgroundJsonMeta,
+        ),
       );
     }
     if (data.containsKey('chat_model_provider')) {
@@ -4064,6 +4086,10 @@ class $AssistantRowsTable extends AssistantRows
         DriftSqlType.string,
         data['${effectivePrefix}background'],
       ),
+      gradientBackgroundJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}gradient_background_json'],
+      )!,
       chatModelProvider: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}chat_model_provider'],
@@ -4256,6 +4282,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
   final bool useAssistantAvatar;
   final bool useAssistantName;
   final String? background;
+  final String gradientBackgroundJson;
   final String? chatModelProvider;
   final String? chatModelId;
   final double? temperature;
@@ -4307,6 +4334,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     required this.useAssistantAvatar,
     required this.useAssistantName,
     this.background,
+    required this.gradientBackgroundJson,
     this.chatModelProvider,
     this.chatModelId,
     this.temperature,
@@ -4365,6 +4393,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     if (!nullToAbsent || background != null) {
       map['background'] = Variable<String>(background);
     }
+    map['gradient_background_json'] = Variable<String>(gradientBackgroundJson);
     if (!nullToAbsent || chatModelProvider != null) {
       map['chat_model_provider'] = Variable<String>(chatModelProvider);
     }
@@ -4458,6 +4487,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       background: background == null && nullToAbsent
           ? const Value.absent()
           : Value(background),
+      gradientBackgroundJson: Value(gradientBackgroundJson),
       chatModelProvider: chatModelProvider == null && nullToAbsent
           ? const Value.absent()
           : Value(chatModelProvider),
@@ -4539,6 +4569,9 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       useAssistantAvatar: serializer.fromJson<bool>(json['useAssistantAvatar']),
       useAssistantName: serializer.fromJson<bool>(json['useAssistantName']),
       background: serializer.fromJson<String?>(json['background']),
+      gradientBackgroundJson: serializer.fromJson<String>(
+        json['gradientBackgroundJson'],
+      ),
       chatModelProvider: serializer.fromJson<String?>(
         json['chatModelProvider'],
       ),
@@ -4623,6 +4656,9 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       'useAssistantAvatar': serializer.toJson<bool>(useAssistantAvatar),
       'useAssistantName': serializer.toJson<bool>(useAssistantName),
       'background': serializer.toJson<String?>(background),
+      'gradientBackgroundJson': serializer.toJson<String>(
+        gradientBackgroundJson,
+      ),
       'chatModelProvider': serializer.toJson<String?>(chatModelProvider),
       'chatModelId': serializer.toJson<String?>(chatModelId),
       'temperature': serializer.toJson<double?>(temperature),
@@ -4689,6 +4725,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     bool? useAssistantAvatar,
     bool? useAssistantName,
     Value<String?> background = const Value.absent(),
+    String? gradientBackgroundJson,
     Value<String?> chatModelProvider = const Value.absent(),
     Value<String?> chatModelId = const Value.absent(),
     Value<double?> temperature = const Value.absent(),
@@ -4740,6 +4777,8 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     useAssistantAvatar: useAssistantAvatar ?? this.useAssistantAvatar,
     useAssistantName: useAssistantName ?? this.useAssistantName,
     background: background.present ? background.value : this.background,
+    gradientBackgroundJson:
+        gradientBackgroundJson ?? this.gradientBackgroundJson,
     chatModelProvider: chatModelProvider.present
         ? chatModelProvider.value
         : this.chatModelProvider,
@@ -4814,6 +4853,9 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       background: data.background.present
           ? data.background.value
           : this.background,
+      gradientBackgroundJson: data.gradientBackgroundJson.present
+          ? data.gradientBackgroundJson.value
+          : this.gradientBackgroundJson,
       chatModelProvider: data.chatModelProvider.present
           ? data.chatModelProvider.value
           : this.chatModelProvider,
@@ -4943,6 +4985,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
           ..write('useAssistantAvatar: $useAssistantAvatar, ')
           ..write('useAssistantName: $useAssistantName, ')
           ..write('background: $background, ')
+          ..write('gradientBackgroundJson: $gradientBackgroundJson, ')
           ..write('chatModelProvider: $chatModelProvider, ')
           ..write('chatModelId: $chatModelId, ')
           ..write('temperature: $temperature, ')
@@ -5005,6 +5048,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     useAssistantAvatar,
     useAssistantName,
     background,
+    gradientBackgroundJson,
     chatModelProvider,
     chatModelId,
     temperature,
@@ -5060,6 +5104,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
           other.useAssistantAvatar == this.useAssistantAvatar &&
           other.useAssistantName == this.useAssistantName &&
           other.background == this.background &&
+          other.gradientBackgroundJson == this.gradientBackgroundJson &&
           other.chatModelProvider == this.chatModelProvider &&
           other.chatModelId == this.chatModelId &&
           other.temperature == this.temperature &&
@@ -5117,6 +5162,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
   final Value<bool> useAssistantAvatar;
   final Value<bool> useAssistantName;
   final Value<String?> background;
+  final Value<String> gradientBackgroundJson;
   final Value<String?> chatModelProvider;
   final Value<String?> chatModelId;
   final Value<double?> temperature;
@@ -5169,6 +5215,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     this.useAssistantAvatar = const Value.absent(),
     this.useAssistantName = const Value.absent(),
     this.background = const Value.absent(),
+    this.gradientBackgroundJson = const Value.absent(),
     this.chatModelProvider = const Value.absent(),
     this.chatModelId = const Value.absent(),
     this.temperature = const Value.absent(),
@@ -5222,6 +5269,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     this.useAssistantAvatar = const Value.absent(),
     this.useAssistantName = const Value.absent(),
     this.background = const Value.absent(),
+    this.gradientBackgroundJson = const Value.absent(),
     this.chatModelProvider = const Value.absent(),
     this.chatModelId = const Value.absent(),
     this.temperature = const Value.absent(),
@@ -5279,6 +5327,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     Expression<bool>? useAssistantAvatar,
     Expression<bool>? useAssistantName,
     Expression<String>? background,
+    Expression<String>? gradientBackgroundJson,
     Expression<String>? chatModelProvider,
     Expression<String>? chatModelId,
     Expression<double>? temperature,
@@ -5333,6 +5382,8 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
         'use_assistant_avatar': useAssistantAvatar,
       if (useAssistantName != null) 'use_assistant_name': useAssistantName,
       if (background != null) 'background': background,
+      if (gradientBackgroundJson != null)
+        'gradient_background_json': gradientBackgroundJson,
       if (chatModelProvider != null) 'chat_model_provider': chatModelProvider,
       if (chatModelId != null) 'chat_model_id': chatModelId,
       if (temperature != null) 'temperature': temperature,
@@ -5402,6 +5453,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     Value<bool>? useAssistantAvatar,
     Value<bool>? useAssistantName,
     Value<String?>? background,
+    Value<String>? gradientBackgroundJson,
     Value<String?>? chatModelProvider,
     Value<String?>? chatModelId,
     Value<double?>? temperature,
@@ -5455,6 +5507,8 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
       useAssistantAvatar: useAssistantAvatar ?? this.useAssistantAvatar,
       useAssistantName: useAssistantName ?? this.useAssistantName,
       background: background ?? this.background,
+      gradientBackgroundJson:
+          gradientBackgroundJson ?? this.gradientBackgroundJson,
       chatModelProvider: chatModelProvider ?? this.chatModelProvider,
       chatModelId: chatModelId ?? this.chatModelId,
       temperature: temperature ?? this.temperature,
@@ -5531,6 +5585,11 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     }
     if (background.present) {
       map['background'] = Variable<String>(background.value);
+    }
+    if (gradientBackgroundJson.present) {
+      map['gradient_background_json'] = Variable<String>(
+        gradientBackgroundJson.value,
+      );
     }
     if (chatModelProvider.present) {
       map['chat_model_provider'] = Variable<String>(chatModelProvider.value);
@@ -5695,6 +5754,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
           ..write('useAssistantAvatar: $useAssistantAvatar, ')
           ..write('useAssistantName: $useAssistantName, ')
           ..write('background: $background, ')
+          ..write('gradientBackgroundJson: $gradientBackgroundJson, ')
           ..write('chatModelProvider: $chatModelProvider, ')
           ..write('chatModelId: $chatModelId, ')
           ..write('temperature: $temperature, ')
@@ -10180,7 +10240,7 @@ class $$ConversationRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$ConversationRowsTable, ConversationRow>(table),
                   $$ConversationRowsTableReferences(db, table, e),
                 ),
               )
@@ -11202,7 +11262,7 @@ class $$MessageRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$MessageRowsTable, MessageRow>(table),
                   $$MessageRowsTableReferences(db, table, e),
                 ),
               )
@@ -11332,6 +11392,7 @@ typedef $$AssistantRowsTableCreateCompanionBuilder =
       Value<bool> useAssistantAvatar,
       Value<bool> useAssistantName,
       Value<String?> background,
+      Value<String> gradientBackgroundJson,
       Value<String?> chatModelProvider,
       Value<String?> chatModelId,
       Value<double?> temperature,
@@ -11386,6 +11447,7 @@ typedef $$AssistantRowsTableUpdateCompanionBuilder =
       Value<bool> useAssistantAvatar,
       Value<bool> useAssistantName,
       Value<String?> background,
+      Value<String> gradientBackgroundJson,
       Value<String?> chatModelProvider,
       Value<String?> chatModelId,
       Value<double?> temperature,
@@ -11469,6 +11531,11 @@ class $$AssistantRowsTableFilterComposer
 
   ColumnFilters<String> get background => $composableBuilder(
     column: $table.background,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get gradientBackgroundJson => $composableBuilder(
+    column: $table.gradientBackgroundJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11734,6 +11801,11 @@ class $$AssistantRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get gradientBackgroundJson => $composableBuilder(
+    column: $table.gradientBackgroundJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get chatModelProvider => $composableBuilder(
     column: $table.chatModelProvider,
     builder: (column) => ColumnOrderings(column),
@@ -11991,6 +12063,11 @@ class $$AssistantRowsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get gradientBackgroundJson => $composableBuilder(
+    column: $table.gradientBackgroundJson,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get chatModelProvider => $composableBuilder(
     column: $table.chatModelProvider,
     builder: (column) => column,
@@ -12234,6 +12311,7 @@ class $$AssistantRowsTableTableManager
                 Value<bool> useAssistantAvatar = const Value.absent(),
                 Value<bool> useAssistantName = const Value.absent(),
                 Value<String?> background = const Value.absent(),
+                Value<String> gradientBackgroundJson = const Value.absent(),
                 Value<String?> chatModelProvider = const Value.absent(),
                 Value<String?> chatModelId = const Value.absent(),
                 Value<double?> temperature = const Value.absent(),
@@ -12291,6 +12369,7 @@ class $$AssistantRowsTableTableManager
                 useAssistantAvatar: useAssistantAvatar,
                 useAssistantName: useAssistantName,
                 background: background,
+                gradientBackgroundJson: gradientBackgroundJson,
                 chatModelProvider: chatModelProvider,
                 chatModelId: chatModelId,
                 temperature: temperature,
@@ -12347,6 +12426,7 @@ class $$AssistantRowsTableTableManager
                 Value<bool> useAssistantAvatar = const Value.absent(),
                 Value<bool> useAssistantName = const Value.absent(),
                 Value<String?> background = const Value.absent(),
+                Value<String> gradientBackgroundJson = const Value.absent(),
                 Value<String?> chatModelProvider = const Value.absent(),
                 Value<String?> chatModelId = const Value.absent(),
                 Value<double?> temperature = const Value.absent(),
@@ -12404,6 +12484,7 @@ class $$AssistantRowsTableTableManager
                 useAssistantAvatar: useAssistantAvatar,
                 useAssistantName: useAssistantName,
                 background: background,
+                gradientBackgroundJson: gradientBackgroundJson,
                 chatModelProvider: chatModelProvider,
                 chatModelId: chatModelId,
                 temperature: temperature,
@@ -12453,7 +12534,16 @@ class $$AssistantRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$AssistantRowsTable, AssistantRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $AssistantRowsTable,
+                    AssistantRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -12717,7 +12807,10 @@ class $$ConversationMcpServerRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $ConversationMcpServerRowsTable,
+                    ConversationMcpServerRow
+                  >(table),
                   $$ConversationMcpServerRowsTableReferences(db, table, e),
                 ),
               )
@@ -12985,7 +13078,7 @@ class $$ToolEventRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$ToolEventRowsTable, ToolEventRow>(table),
                   $$ToolEventRowsTableReferences(db, table, e),
                 ),
               )
@@ -13270,7 +13363,10 @@ class $$GeminiThoughtSignatureRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $GeminiThoughtSignatureRowsTable,
+                    GeminiThoughtSignatureRow
+                  >(table),
                   $$GeminiThoughtSignatureRowsTableReferences(db, table, e),
                 ),
               )
@@ -13490,7 +13586,16 @@ class $$CacheRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$CacheRowsTable, CacheRow>(table),
+                  BaseReferences<_$AppDatabase, $CacheRowsTable, CacheRow>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -13642,7 +13747,18 @@ class $$ChatStorageMetaRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$ChatStorageMetaRowsTable, ChatStorageMetaRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ChatStorageMetaRowsTable,
+                    ChatStorageMetaRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -13876,7 +13992,16 @@ class $$DeletedRecordRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$DeletedRecordRowsTable, DeletedRecordRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DeletedRecordRowsTable,
+                    DeletedRecordRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -14070,7 +14195,18 @@ class $$DeletionMarkerRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$DeletionMarkerRowsTable, DeletionMarkerRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DeletionMarkerRowsTable,
+                    DeletionMarkerRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -14657,7 +14793,7 @@ class $$GroupChatRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$GroupChatRowsTable, GroupChatRow>(table),
                   $$GroupChatRowsTableReferences(db, table, e),
                 ),
               )
@@ -15006,7 +15142,9 @@ class $$GroupChatMemberRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$GroupChatMemberRowsTable, GroupChatMemberRow>(
+                    table,
+                  ),
                   $$GroupChatMemberRowsTableReferences(db, table, e),
                 ),
               )
@@ -15212,7 +15350,16 @@ class $$PreferenceRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$PreferenceRowsTable, PreferenceRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $PreferenceRowsTable,
+                    PreferenceRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),

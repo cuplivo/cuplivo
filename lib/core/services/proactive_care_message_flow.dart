@@ -895,6 +895,11 @@ class ProactiveCareHeadlessChatStore {
   /// mirroring `ChatDatabaseRepository._assistantFromRow`.
   static Assistant _assistantFromRow(sqlite.Row row) {
     return Assistant.fromJson({
+      // Gradient blob is spread first so the explicit column-derived keys
+      // below always win on a corrupted/duplicated storage blob.
+      ...Assistant.decodeGradientBackgroundStorage(
+        row['gradient_background_json'] as String?,
+      ),
       'id': row['id'] as String,
       'name': row['name'] as String,
       'avatar': row['avatar'] as String?,

@@ -3898,5 +3898,12 @@
     "autoSnapshotDisableBody": "關閉會永久刪除已有的 {count} 份快照。確定繼續嗎？",
     "autoSnapshotDisableConfirm": "關閉並刪除",
     "autoSnapshotDisableDeleteFailed": "刪除儲存的快照失敗：{error}。快照檔案仍保留在磁碟上。",
-    "autoSnapshotToggleFailed": "無法儲存「自動快照」設定：{error}。請重試。"
+    "autoSnapshotToggleFailed": "無法儲存「自動快照」設定：{error}。請重試。",
+    "assistantEditGradientBackgroundTitle": "漸層背景",
+    "assistantEditGradientStaticTitle": "靜態模式",
+    "assistantEditGradientStaticDescription": "更省電，適合長對話和持續輸出。",
+    "assistantEditGradientHorizontal": "水平位置",
+    "assistantEditGradientVertical": "垂直位置",
+    "assistantEditGradientPreview": "預覽",
+    "assistantEditGradientNextFrame": "換一幀"
 }

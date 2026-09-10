@@ -68,7 +68,7 @@ class _PromptTabState extends State<_PromptTab> {
     String toInsert,
   ) {
     final selection = controller.selection;
-    if (!selection.isValid) {
+    if (selection.index < 0 || selection.offset < 0) {
       controller.selection = CodeLineSelection.collapsed(
         index: controller.lineCount - 1,
         offset: controller.endLine.text.length,

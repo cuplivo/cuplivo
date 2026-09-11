@@ -47,7 +47,7 @@ class StatsAggregationService {
       for (final message in messages) {
         final messageDate = StatsDateRange.normalizeDate(message.timestamp);
         final modelId = message.modelId?.trim();
-        final providerId = StatsFilter.normalizeProviderId(message.providerId);
+        final providerId = normalizeProviderId(message.providerId);
 
         if (!filter.matches(
           modelId: modelId,
@@ -195,7 +195,7 @@ class StatsAggregationService {
             inputTokens == 0 && outputTokens == 0 && legacyTotalTokens > 0
             ? legacyTotalTokens
             : 0;
-        final providerId = StatsFilter.normalizeProviderId(message.providerId);
+        final providerId = normalizeProviderId(message.providerId);
         if (providerId.isEmpty &&
             inputTokens == 0 &&
             outputTokens == 0 &&

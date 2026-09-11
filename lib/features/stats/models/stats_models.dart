@@ -210,6 +210,14 @@ class StatsSnapshot {
   final List<StatsRankItem> topicRank;
 }
 
+/// Normalises a raw provider id for model->provider attribution, shared by
+/// the aggregation service (ranking icons) and the filter sheet (grouping):
+/// trimmed, with blank/null folded to the unknown sentinel.
+String normalizeProviderId(String? raw) {
+  final value = raw?.trim();
+  return (value == null || value.isEmpty) ? '' : value;
+}
+
 /// Optional dimension filters for the stats page.
 ///
 /// Each non-empty set is an OR filter on its own dimension; dimensions
@@ -287,12 +295,7 @@ class StatsFilter {
   static bool _sameIds(Set<String> a, Set<String> b) =>
       a.length == b.length && a.containsAll(b);
 
-  /// Single normalisation for model->provider attribution shared by the
-  /// aggregation service and the filter sheet: trimmed, blank/null folded
-  /// to the unknown sentinel.
-  static String normalizeProviderId(String? raw) {
-    final value = raw?.trim();
-    return (value == null || value.isEmpty) ? '' : value;
-  }
+
+}
 
 }

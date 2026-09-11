@@ -1462,7 +1462,7 @@ class _ModelProviderFilterSheetState extends State<_ModelProviderFilterSheet> {
                           }
                         });
                       },
-                      subtitle: '${groups[provider]!.length}',
+                      subtitle: null,
                     ),
                     for (final modelId in groups[provider]!)
                       _CheckRow(

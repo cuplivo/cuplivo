@@ -208,6 +208,9 @@ class _PromptTabState extends State<_PromptTab> {
   }
 
   Future<void> _onAppendCurrentTimeChanged(Assistant a, bool enabled) async {
+    // Resolve the provider synchronously: the gate dialog below awaits, and
+    // a fast pop must not leave the update reading a disposed element.
+    final provider = context.read<AssistantProvider>();
     if (enabled) {
       final hits = ChatContextTransforms.detectTimeVariables(_sysCtrl.text);
       if (hits.isNotEmpty) {
@@ -221,7 +224,7 @@ class _PromptTabState extends State<_PromptTab> {
         }
       }
     }
-    await context.read<AssistantProvider>().updateAssistant(
+    await provider.updateAssistant(
       a.copyWith(enableTimeInjection: enabled),
     );
   }
@@ -503,7 +506,7 @@ class _PromptTabState extends State<_PromptTab> {
           onInfoTap: () => _showAppendCurrentTimeInfoDialog(context, a),
         ),
         if (a.enableTimeInjection) ...[
-          const Divider(height: 1, indent: 12, endIndent: 12),
+          _iosDivider(context),
           IosLabeledSwitchRow(
             title: l10n.assistantEditPromptIso8601Title,
             subtitle: l10n.assistantEditPromptIso8601Subtitle,

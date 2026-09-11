@@ -945,8 +945,8 @@ class ProactiveCareHeadlessChatStore {
       'enableProactiveCare': (row['enable_proactive_care'] as int) != 0,
       'enableTimeInjection': (row['enable_time_injection'] as int) != 0,
       // Tolerated-absent: this raw-SQL reader runs in a background isolate
-      // without Drift's beforeOpen heal; the column may be missing if the
-      // v24 ALTER failed. Newer-than-v24 columns follow this pattern.
+      // without Drift's beforeOpen heal, so the column may be missing if the
+      // v24 ALTER failed; absent/NULL both degrade to false.
       'useIso8601TimeFormat':
           (_readOptionalInt(row, 'use_iso8601_time_format') ?? 0) != 0,
       'discoverable': (row['discoverable'] as int? ?? 0) != 0,

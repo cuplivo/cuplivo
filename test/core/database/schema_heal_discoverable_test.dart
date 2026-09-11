@@ -200,6 +200,52 @@ void main() {
   );
 
   test(
+    'v23 to v24 forward migration adds use_iso8601_time_format',
+    () async {
+      _createLegacyDb(
+        dbFile,
+        userVersion: 23,
+        missingIsPreset: false,
+        missingHandoffColumns: false,
+        missingOcrMode: false,
+        missingIso8601TimeFormat: true,
+      );
+
+      final repo = ChatDatabaseRepository.open(file: dbFile);
+      await repo.ensureReady();
+
+      // The primary real-user path: the from < 24 block (plus heal backstop)
+      // must land the column and advance the version.
+      final version = await repo.db
+          .customSelect('PRAGMA user_version')
+          .get();
+      expect(version.single.read<int>('user_version'), 24);
+      final columns = await repo.db
+          .customSelect('PRAGMA table_info(assistant_rows)')
+          .get();
+      expect(
+        columns.map((row) => row.read<String>('name')),
+        contains('use_iso8601_time_format'),
+      );
+
+      await repo.putAssistant(
+        Assistant(
+          id: 'a1',
+          name: 'Alpha',
+          systemPrompt: 'hi',
+          useIso8601TimeFormat: true,
+        ),
+        sortOrder: 0,
+      );
+      final loaded = await repo.getAllAssistants();
+      expect(loaded, hasLength(1));
+      expect(loaded.first.useIso8601TimeFormat, isTrue);
+
+      await repo.close();
+    },
+  );
+
+  test(
     'heal adds use_iso8601_time_format before assistant insert (v24 column shape)',
     () async {
       _createLegacyDb(

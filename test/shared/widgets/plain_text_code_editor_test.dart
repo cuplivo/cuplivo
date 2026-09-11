@@ -93,10 +93,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: PlainTextCodeEditor(
-            controller: controller,
-            maxHeight: 120,
-          ),
+          body: PlainTextCodeEditor(controller: controller, maxHeight: 120),
         ),
       ),
     );

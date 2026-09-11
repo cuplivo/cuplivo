@@ -1574,6 +1574,7 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Apply'**
   String get statsPageCustomRangeApply;
+
   /// No description provided for @statsPageFilterModels.
   ///
   /// In en, this message translates to:

@@ -843,6 +843,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get statsPageCustomRangeApply => '应用';
+
   @override
   String get statsPageFilterModels => '模型 / 供应商';
 
@@ -10854,6 +10855,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get statsPageCustomRangeApply => '应用';
+
   @override
   String get statsPageFilterModels => '模型 / 供应商';
 
@@ -20866,6 +20868,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get statsPageCustomRangeApply => '套用';
+
   @override
   String get statsPageFilterModels => '模型 / 供應商';
 

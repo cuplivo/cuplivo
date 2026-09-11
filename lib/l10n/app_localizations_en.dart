@@ -870,6 +870,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statsPageCustomRangeApply => 'Apply';
+
   @override
   String get statsPageFilterModels => 'Model / Provider';
 
@@ -889,8 +890,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsPageFilterDone => 'Done';
 
   @override
-  String get statsPageFilterModelSelectTitle =>
-      'Filter by model / provider';
+  String get statsPageFilterModelSelectTitle => 'Filter by model / provider';
 
   @override
   String get statsPageFilterAssistantSelectTitle => 'Filter by assistant';

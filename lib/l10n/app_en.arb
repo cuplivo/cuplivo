@@ -784,7 +784,7 @@
   "assistantEditVariableCurrentHour": "Current Hour",
   "assistantEditMemoryVariableHint": "Including time variables reduces cache hit rate. If the model needs to know the current time, remove these variables and use \"Append current time\" in the Prompt tab instead.",
   "assistantEditPromptTimeVarWarning": "Using time variables in the system prompt makes the beginning of every request different, so prompt caching cannot hit and both cost and time-to-first-token go up. If the model needs to know the current time, use the 'Append current time' toggle below instead.",
-  "assistantEditPromptIso8601Title": "Use ISO 8601 Format",
+  "assistantEditPromptIso8601Title": "Use ISO 8601 format",
   "assistantEditPromptIso8601Subtitle": "ISO 8601 with timezone offset, e.g. 2026-08-08T14:30:05+08:00.",
   "assistantEditPromptAppendTimeTitle": "Append current time",
   "assistantEditPromptAppendTimeSubtitle": "Append the send time to the end of each user message. Time stays at the end of the request, so prompt caching is unaffected.",

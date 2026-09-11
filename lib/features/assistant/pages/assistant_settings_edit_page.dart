@@ -44,6 +44,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/collapsible_group_header.dart';
 import '../../../shared/widgets/emoji_picker_dialog.dart';
 import '../../../shared/widgets/emoji_text.dart';
+import '../../../shared/widgets/ios_labeled_switch_row.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../shared/widgets/ios_expandable_section.dart';
 import '../../../shared/widgets/ios_tactile.dart';

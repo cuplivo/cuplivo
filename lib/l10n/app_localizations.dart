@@ -3679,7 +3679,7 @@ abstract class AppLocalizations {
   /// No description provided for @assistantEditPromptIso8601Title.
   ///
   /// In en, this message translates to:
-  /// **'Use ISO 8601 Format'**
+  /// **'Use ISO 8601 format'**
   String get assistantEditPromptIso8601Title;
 
   /// No description provided for @assistantEditPromptIso8601Subtitle.

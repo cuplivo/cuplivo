@@ -1,5 +1,11 @@
 part of 'assistant_settings_edit_page.dart';
 
+/// Illustrative appended-time examples for the info dialog. Single Dart
+/// constants so surfaces cannot drift; the ARB subtitles quote the same
+/// shape for translators.
+const _compactTimeExample = '(Mon 26-08-08 14:30:05)';
+const _iso8601TimeExample = '(2026-08-08T14:30:05+08:00)';
+
 class _PromptTab extends StatefulWidget {
   const _PromptTab({required this.assistantId});
   final String assistantId;
@@ -221,7 +227,10 @@ class _PromptTabState extends State<_PromptTab> {
   }
 
   Future<void> _onIso8601FormatChanged(Assistant a, bool value) async {
-    await context.read<AssistantProvider>().updateAssistant(
+    // Resolve the provider synchronously: updateAssistant awaits I/O and a
+    // fast pop would otherwise dispose the element mid-flight.
+    final provider = context.read<AssistantProvider>();
+    await provider.updateAssistant(
       a.copyWith(useIso8601TimeFormat: value),
     );
   }
@@ -276,8 +285,8 @@ class _PromptTabState extends State<_PromptTab> {
     Assistant assistant,
   ) {
     final example = assistant.useIso8601TimeFormat
-        ? '(2026-08-08T14:30:05+08:00)'
-        : '(Mon 26-08-08 14:30:05)';
+        ? _iso8601TimeExample
+        : _compactTimeExample;
     return showDialog<void>(
       context: context,
       builder: (ctx) {
@@ -495,7 +504,9 @@ class _PromptTabState extends State<_PromptTab> {
         ),
         if (a.enableTimeInjection) ...[
           const Divider(height: 1, indent: 12, endIndent: 12),
-          _Iso8601Row(
+          IosLabeledSwitchRow(
+            title: l10n.assistantEditPromptIso8601Title,
+            subtitle: l10n.assistantEditPromptIso8601Subtitle,
             value: a.useIso8601TimeFormat,
             onChanged: (value) => _onIso8601FormatChanged(a, value),
           ),
@@ -1784,56 +1795,3 @@ class _AppendCurrentTimeRow extends StatelessWidget {
   }
 }
 
-/// Switch row for the optional ISO 8601 time format, shown below the
-/// Append-current-time row while time injection is enabled.
-class _Iso8601Row extends StatelessWidget {
-  const _Iso8601Row({
-    required this.value,
-    required this.onChanged,
-  });
-
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final cs = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.assistantEditPromptIso8601Title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: cs.onSurface.withValues(alpha: 0.9),
-                    fontWeight: AppFontWeights.semibold,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  l10n.assistantEditPromptIso8601Subtitle,
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.25,
-                    color: cs.onSurface.withValues(alpha: 0.62),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          IosSwitch(value: value, onChanged: onChanged),
-        ],
-      ),
-    );
-  }
-}

@@ -27,6 +27,7 @@ class _PromptTabState extends State<_PromptTab> {
   late AssistantProvider _assistantProvider;
   bool _sysEditorHasBeenFocused = false;
   bool _tmplEditorHasBeenFocused = false;
+  bool _suppressPromptChanges = false;
 
   @override
   void initState() {
@@ -34,13 +35,64 @@ class _PromptTabState extends State<_PromptTab> {
     _assistantProvider = context.read<AssistantProvider>();
     final ap = _assistantProvider;
     final a = ap.getById(widget.assistantId)!;
-    _sysCtrl = CodeLineEditingController.fromText(a.systemPrompt);
-    _tmplCtrl = CodeLineEditingController.fromText(a.messageTemplate);
+    _sysCtrl = _createPromptController(a.systemPrompt);
+    _tmplCtrl = _createPromptController(a.messageTemplate);
     _sysFocus = FocusNode(debugLabel: 'systemPromptFocus')
       ..addListener(_onSystemFocusChanged);
     _tmplFocus = FocusNode(debugLabel: 'messageTemplateFocus')
       ..addListener(_onTemplateFocusChanged);
     _presetCtrl = TextEditingController();
+  }
+
+  static CodeLineEditingController _createPromptController(String text) {
+    return CodeLineEditingController.fromText(
+      text,
+      CodeLineOptions(lineBreak: _detectLineBreak(text)),
+    );
+  }
+
+  static TextLineBreak _detectLineBreak(String text) {
+    final match = RegExp(r'\r\n|\r|\n').firstMatch(text)?.group(0);
+    return switch (match) {
+      '\r\n' => TextLineBreak.crlf,
+      '\r' => TextLineBreak.cr,
+      _ => TextLineBreak.lf,
+    };
+  }
+
+  void _moveCaretToDocumentEnd(CodeLineEditingController controller) {
+    final lastIndex = controller.lineCount - 1;
+    controller.selection = CodeLineSelection.collapsed(
+      index: lastIndex,
+      offset: controller.codeLines[lastIndex].text.length,
+    );
+  }
+
+  void _replaceControllerText(
+    CodeLineEditingController controller,
+    String text, {
+    required bool suppressSave,
+  }) {
+    final previousSuppression = _suppressPromptChanges;
+    if (suppressSave) _suppressPromptChanges = true;
+    try {
+      controller.text = text;
+      _moveCaretToDocumentEnd(controller);
+    } finally {
+      _suppressPromptChanges = previousSuppression;
+    }
+  }
+
+  void _onSystemPromptChanged() {
+    if (!_suppressPromptChanges) {
+      _schedulePromptSave(systemPrompt: _sysCtrl.text);
+    }
+  }
+
+  void _onMessageTemplateChanged() {
+    if (!_suppressPromptChanges) {
+      _schedulePromptSave(messageTemplate: _tmplCtrl.text);
+    }
   }
 
   void _onSystemFocusChanged() {
@@ -63,8 +115,8 @@ class _PromptTabState extends State<_PromptTab> {
       _tmplFocus.unfocus();
       _sysEditorHasBeenFocused = false;
       _tmplEditorHasBeenFocused = false;
-      _sysCtrl.text = a.systemPrompt;
-      _tmplCtrl.text = a.messageTemplate;
+      _replaceControllerText(_sysCtrl, a.systemPrompt, suppressSave: true);
+      _replaceControllerText(_tmplCtrl, a.messageTemplate, suppressSave: true);
     }
   }
 
@@ -85,11 +137,7 @@ class _PromptTabState extends State<_PromptTab> {
     String toInsert,
   ) {
     if (!hasBeenFocused) {
-      final lastIndex = controller.lineCount - 1;
-      controller.selection = CodeLineSelection.collapsed(
-        index: lastIndex,
-        offset: controller.codeLines[lastIndex].text.length,
-      );
+      _moveCaretToDocumentEnd(controller);
     }
     controller.replaceSelection(toInsert);
   }
@@ -200,12 +248,8 @@ class _PromptTabState extends State<_PromptTab> {
         );
         return;
       }
-      _sysCtrl.text = content;
-      _sysCtrl.selection = CodeLineSelection.collapsed(
-        index: _sysCtrl.lineCount - 1,
-        offset: _sysCtrl.endLine.text.length,
-      );
-      _schedulePromptSave(systemPrompt: _sysCtrl.text);
+      _replaceControllerText(_sysCtrl, content, suppressSave: true);
+      _schedulePromptSave(systemPrompt: content);
       await _flushPromptChanges();
       if (!mounted) return;
       showAppSnackBar(
@@ -228,11 +272,7 @@ class _PromptTabState extends State<_PromptTab> {
     final ap = context.read<AssistantProvider>();
     final a = ap.getById(widget.assistantId);
     if (a == null) return;
-    _sysCtrl.text = value;
-    _sysCtrl.selection = CodeLineSelection.collapsed(
-      index: _sysCtrl.lineCount - 1,
-      offset: _sysCtrl.endLine.text.length,
-    );
+    _replaceControllerText(_sysCtrl, value, suppressSave: true);
     _schedulePromptSave(systemPrompt: value);
     await _flushPromptChanges();
     if (mounted) setState(() {});
@@ -461,8 +501,7 @@ class _PromptTabState extends State<_PromptTab> {
                 hint: l10n.assistantEditSystemPromptHint,
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                 borderRadius: BorderRadius.circular(12),
-                onChanged: (_) =>
-                    _schedulePromptSave(systemPrompt: _sysCtrl.text),
+                onChanged: (_) => _onSystemPromptChanged(),
               ),
             ),
             const SizedBox(height: 8),
@@ -600,8 +639,7 @@ class _PromptTabState extends State<_PromptTab> {
                     hint: '{{ message }}',
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                     borderRadius: BorderRadius.circular(12),
-                    onChanged: (_) =>
-                        _schedulePromptSave(messageTemplate: _tmplCtrl.text),
+                    onChanged: (_) => _onMessageTemplateChanged(),
                   ),
                 ),
               ),

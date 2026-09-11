@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:re_editor/re_editor.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 
 import 'package:Cuplivo/core/models/assistant.dart';
@@ -44,7 +45,11 @@ class _StubChatService extends ChatService {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-void _seedPreferences({String systemPrompt = '', bool includeSecond = false}) {
+void _seedPreferences({
+  String systemPrompt = '',
+  bool includeSecond = false,
+  String secondSystemPrompt = 'second original',
+}) {
   final assistants = <Assistant>[
     Assistant(
       id: _assistantId,
@@ -57,7 +62,7 @@ void _seedPreferences({String systemPrompt = '', bool includeSecond = false}) {
         id: _secondAssistantId,
         name: 'Second Assistant',
         temperature: 0.6,
-        systemPrompt: 'second original',
+        systemPrompt: secondSystemPrompt,
       ),
   ];
   SharedPreferences.setMockInitialValues({
@@ -307,6 +312,43 @@ void main() {
       await tester.pump();
     },
   );
+
+  testWidgets('switching assistants does not rewrite CRLF prompts', (
+    tester,
+  ) async {
+    const crlfPrompt = 'first line\r\nlast';
+    _seedPreferences(
+      includeSecond: true,
+      secondSystemPrompt: crlfPrompt,
+    );
+    final provider = await _createAssistantProvider(preferences: businessPrefs);
+    await tester.pumpWidget(
+      _buildHarness(
+        assistantProvider: provider,
+        child: const AssistantSettingsEditPage(assistantId: _assistantId),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Prompts'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.pumpWidget(
+      _buildHarness(
+        assistantProvider: provider,
+        child: const AssistantSettingsEditPage(assistantId: _secondAssistantId),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 900));
+
+    final editor = tester.widget<PlainTextCodeEditor>(
+      find.byType(PlainTextCodeEditor).first,
+    );
+    expect(editor.controller.text, crlfPrompt);
+    expect(provider.getById(_secondAssistantId)?.systemPrompt, crlfPrompt);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
 
   testWidgets('flushes pending prompt when the page is disposed', (
     tester,

@@ -41,7 +41,7 @@ void main() {
         useIso8601: true,
       );
 
-      expect(DateTime.parse(iso), timestamp);
+      expect(DateTime.parse(iso).toUtc(), timestamp);
       expect(
         ChatContextTransforms.appendTimestamp(
           'hello',

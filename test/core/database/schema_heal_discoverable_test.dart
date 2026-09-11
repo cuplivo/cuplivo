@@ -932,7 +932,7 @@ void _createLegacyDb(
   bool includeConversationV22Columns = false,
   bool missingPreferenceRows = true,
   bool missingConversationModelBinding = true,
-  bool missingIso8601TimeFormat = true,
+  bool missingIso8601TimeFormat = false,
 }) {
   final raw = sqlite.sqlite3.open(dbFile.path);
   raw.execute('PRAGMA user_version = $userVersion;');

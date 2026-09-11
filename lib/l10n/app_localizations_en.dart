@@ -2021,7 +2021,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantEditPromptIso8601Subtitle =>
-      'ISO 8601 with timezone offset, e.g. 2026-08-08T14:30:05+08:00';
+      'ISO 8601 with timezone offset, e.g. 2026-08-08T14:30:05+08:00.';
 
   @override
   String get assistantEditPromptAppendTimeTitle => 'Append current time';

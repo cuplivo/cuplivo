@@ -317,8 +317,7 @@ Do **not** store sensitive information, including:
       otherOfficeMode: otherOfficeMode ?? this.otherOfficeMode,
       ocrMode: ocrMode ?? this.ocrMode,
       enableTimeInjection: enableTimeInjection ?? this.enableTimeInjection,
-      useIso8601TimeFormat:
-          useIso8601TimeFormat ?? this.useIso8601TimeFormat,
+      useIso8601TimeFormat: useIso8601TimeFormat ?? this.useIso8601TimeFormat,
       discoverable: discoverable ?? this.discoverable,
       handoffId: clearHandoffId ? null : (handoffId ?? this.handoffId),
       handoffDescription: clearHandoffDescription
@@ -376,9 +375,10 @@ Do **not** store sensitive information, including:
     'ocrMode': ocrMode,
     'enableTimeInjection': enableTimeInjection,
     'appendCurrentTimeToUserMessage': enableTimeInjection,
-    // Internal-only extension (no upstream Kelivo key): deliberately not
-    // dual-written, since upstream has no ISO 8601 toggle. Wire compat at the
-    // JSON boundary is preserved; older consumers simply ignore this key.
+    // Internal-only extension: upstream Kelivo has no ISO 8601 toggle, so
+    // this key is deliberately not dual-written. Restoring a backup through
+    // an upstream-shaped consumer that strips unknown keys resets it to
+    // false (the compact format) — an accepted, documented loss.
     'useIso8601TimeFormat': useIso8601TimeFormat,
     'discoverable': discoverable,
     'handoffId': handoffId,

@@ -3685,7 +3685,7 @@ abstract class AppLocalizations {
   /// No description provided for @assistantEditPromptIso8601Subtitle.
   ///
   /// In en, this message translates to:
-  /// **'ISO 8601 with timezone offset, e.g. 2026-08-08T14:30:05+08:00'**
+  /// **'ISO 8601 with timezone offset, e.g. 2026-08-08T14:30:05+08:00.'**
   String get assistantEditPromptIso8601Subtitle;
 
   /// No description provided for @assistantEditPromptAppendTimeTitle.

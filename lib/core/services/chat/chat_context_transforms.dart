@@ -12,6 +12,11 @@ class ChatContextTransforms {
   static const String timeNote =
       '<time-note>A timestamp will be injected by the system after every user message. Just keep it in mind, and don\'t mention it when irrelevant.</time-note>';
 
+  /// [timestamp] must be either a local wall-clock `DateTime` or a correct
+  /// UTC instant (interactive chat re-parses stored timestamps as UTC; the
+  /// proactive-care path passes Drift-local values). When [useIso8601] is
+  /// set, UTC instants are rendered in device-local time so the emitted
+  /// digits and the timezone offset describe the same instant.
   static String appendTimestamp(
     String content,
     DateTime timestamp, {

@@ -125,6 +125,13 @@ Future<void> _settleTabSwitch(WidgetTester tester) async {
 Finder get _warningIcons =>
     find.byWidgetPredicate((w) => w is Icon && w.icon == Lucide.TriangleAlert);
 
+/// Title-scoped IosSwitch finder: the switch sharing a row with [rowTitle].
+/// Avoids positional assumptions that break when rows are added above.
+Finder _switchFor(String rowTitle) => find.descendant(
+  of: find.ancestor(of: find.text(rowTitle), matching: find.byType(Row)),
+  matching: find.byType(IosSwitch),
+);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -213,11 +220,12 @@ void main() {
   testWidgets(
     'ISO 8601 row is hidden while append time is off',
     (tester) async {
-    _seedPreferences();
-    await _openPromptsTab(tester);
+      _seedPreferences();
+      await _openPromptsTab(tester);
 
-    expect(find.text('Use ISO 8601 Format'), findsNothing);
-  });
+      expect(find.text('Use ISO 8601 Format'), findsNothing);
+    },
+  );
 
   testWidgets(
     'ISO 8601 row appears with append time and keeps its value across hide',
@@ -225,41 +233,33 @@ void main() {
       _seedPreferences();
       await _openPromptsTab(tester);
 
-      Finder switchFor(String rowTitle) => find.descendant(
-        of: find.ancestor(
-          of: find.text(rowTitle),
-          matching: find.byType(Row),
-        ),
-        matching: find.byType(IosSwitch),
-      );
-
       // Turn on Append current time (clean prompt, no enable gate).
-      await tester.tap(switchFor('Append current time'));
+      await tester.tap(__switchFor('Append current time'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Use ISO 8601 Format'), findsOneWidget);
 
       // Turn ISO 8601 on.
-      await tester.tap(switchFor('Use ISO 8601 Format'));
+      await tester.tap(_switchFor('Use ISO 8601 Format'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(
-        tester.widget<IosSwitch>(switchFor('Use ISO 8601 Format')).value,
+        tester.widget<IosSwitch>(_switchFor('Use ISO 8601 Format')).value,
         isTrue,
       );
 
       // Hiding the row via Append current time keeps the stored value...
-      await tester.tap(switchFor('Append current time'));
+      await tester.tap(_switchFor('Append current time'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Use ISO 8601 Format'), findsNothing);
 
       // ...and re-showing it restores the switch in the ON state.
-      await tester.tap(switchFor('Append current time'));
+      await tester.tap(_switchFor('Append current time'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(
-        tester.widget<IosSwitch>(switchFor('Use ISO 8601 Format')).value,
+        tester.widget<IosSwitch>(_switchFor('Use ISO 8601 Format')).value,
         isTrue,
       );
     },
@@ -271,18 +271,11 @@ void main() {
     _seedPreferences();
     await _openPromptsTab(tester);
 
-    await tester.tap(find.byType(IosSwitch).first);
+    await tester.tap(_switchFor('Append current time'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    Finder isoSwitch = find.descendant(
-      of: find.ancestor(
-        of: find.text('Use ISO 8601 Format'),
-        matching: find.byType(Row),
-      ),
-      matching: find.byType(IosSwitch),
-    );
-    await tester.tap(isoSwitch);
+    await tester.tap(_switchFor('Use ISO 8601 Format'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 

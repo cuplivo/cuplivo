@@ -1415,7 +1415,12 @@ class _WorldBookEntryEditDialogState extends State<_WorldBookEntryEditDialog> {
                                 ),
                                 child: PlainTextCodeEditor(
                                   controller: _contentController,
-                                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    12,
+                                    12,
+                                    12,
+                                    12,
+                                  ),
                                   hint: l10n.worldBookEntryContentLabel,
                                   borderRadius: BorderRadius.circular(12),
                                 ),

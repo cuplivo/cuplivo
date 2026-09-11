@@ -27,7 +27,6 @@ class _PromptTabState extends State<_PromptTab> {
   late AssistantProvider _assistantProvider;
   bool _sysEditorHasBeenFocused = false;
   bool _tmplEditorHasBeenFocused = false;
-  bool _suppressPromptChanges = false;
 
   @override
   void initState() {
@@ -52,31 +51,31 @@ class _PromptTabState extends State<_PromptTab> {
     );
   }
 
-  void _replaceControllerText(
-    CodeLineEditingController controller,
-    String text, {
-    required bool suppressSave,
-  }) {
-    final previousSuppression = _suppressPromptChanges;
-    if (suppressSave) _suppressPromptChanges = true;
-    try {
-      controller.text = text;
-      _moveCaretToDocumentEnd(controller);
-    } finally {
-      _suppressPromptChanges = previousSuppression;
-    }
+  /// Rebuilds the system-prompt controller around [text].
+  ///
+  /// `CodeLineEditingController` fixes its line break when it is constructed
+  /// and re-joins the document with that same break afterwards, so assigning
+  /// `controller.text` cannot carry CRLF bytes: the document is normalised to
+  /// LF and the next edit would persist that normalisation, silently rewriting
+  /// an imported prompt. Rebuilding the controller keeps imported content
+  /// byte-exact, mirroring what `didUpdateWidget` already does when the
+  /// assistant changes.
+  void _replaceSystemPromptController(String text) {
+    final oldController = _sysCtrl;
+    _sysCtrl = createPlainTextCodeController(text);
+    _moveCaretToDocumentEnd(_sysCtrl);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      oldController.dispose();
+    });
+    if (mounted) setState(() {});
   }
 
   void _onSystemPromptChanged() {
-    if (!_suppressPromptChanges) {
-      _schedulePromptSave(systemPrompt: _sysCtrl.text);
-    }
+    _schedulePromptSave(systemPrompt: _sysCtrl.text);
   }
 
   void _onMessageTemplateChanged() {
-    if (!_suppressPromptChanges) {
-      _schedulePromptSave(messageTemplate: _tmplCtrl.text);
-    }
+    _schedulePromptSave(messageTemplate: _tmplCtrl.text);
   }
 
   void _onSystemFocusChanged() {
@@ -239,7 +238,7 @@ class _PromptTabState extends State<_PromptTab> {
         );
         return;
       }
-      _replaceControllerText(_sysCtrl, content, suppressSave: true);
+      _replaceSystemPromptController(content);
       _schedulePromptSave(systemPrompt: content);
       await _flushPromptChanges();
       if (!mounted) return;
@@ -263,7 +262,7 @@ class _PromptTabState extends State<_PromptTab> {
     final ap = context.read<AssistantProvider>();
     final a = ap.getById(widget.assistantId);
     if (a == null) return;
-    _replaceControllerText(_sysCtrl, value, suppressSave: true);
+    _replaceSystemPromptController(value);
     _schedulePromptSave(systemPrompt: value);
     await _flushPromptChanges();
     if (mounted) setState(() {});
@@ -656,7 +655,11 @@ class _PromptTabState extends State<_PromptTab> {
                 onTapVar: a.enableTimeInjection
                     ? (_) {}
                     : (v) {
-                        _insertAtCursor(_tmplCtrl, _tmplEditorHasBeenFocused, v);
+                        _insertAtCursor(
+                          _tmplCtrl,
+                          _tmplEditorHasBeenFocused,
+                          v,
+                        );
                         _schedulePromptSave(messageTemplate: _tmplCtrl.text);
                         Future.microtask(() => _tmplFocus.requestFocus());
                       },

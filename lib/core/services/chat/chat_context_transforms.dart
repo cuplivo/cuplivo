@@ -22,9 +22,10 @@ class ChatContextTransforms {
 
   static String formatTimestamp(DateTime timestamp, {bool useIso8601 = false}) {
     if (useIso8601) {
-      // Message timestamps round-trip through a UTC `DateTime` after
-      // `toIso8601String()` (no offset -> parsed as UTC). Normalize to local
-      // so the wall-clock digits and the timezone offset agree.
+      // Input is either a local wall-clock DateTime or a correct UTC instant
+      // (message timestamps round-trip via toIso8601String() and are parsed
+      // back as UTC). Render a UTC instant in device-local time so the
+      // wall-clock digits and the emitted timezone offset agree.
       final t = timestamp.isUtc ? timestamp.toLocal() : timestamp;
       final offset = t.timeZoneOffset;
       final sign = offset.isNegative ? '-' : '+';

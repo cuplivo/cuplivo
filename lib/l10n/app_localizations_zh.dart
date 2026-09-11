@@ -1946,7 +1946,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get assistantEditPromptIso8601Subtitle =>
-      '包含时区偏移，例如 2026-08-08T14:30:05+08:00';
+      '包含时区偏移，例如 2026-08-08T14:30:05+08:00。';
 
   @override
   String get assistantEditPromptAppendTimeTitle => '追加当前时间';
@@ -11932,7 +11932,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assistantEditPromptIso8601Subtitle =>
-      '包含时区偏移，例如 2026-08-08T14:30:05+08:00';
+      '包含时区偏移，例如 2026-08-08T14:30:05+08:00。';
 
   @override
   String get assistantEditPromptAppendTimeTitle => '追加当前时间';
@@ -21915,11 +21915,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '在系統提示詞中使用時間變數會讓每一輪請求的開頭都不同，Prompt 快取無法命中，費用和首字延遲都會上升。需要讓模型知道當前時間時，請改用下方的「追加當前時間」開關。';
 
   @override
-  String get assistantEditPromptIso8601Title => '使用 ISO 8601 格式';
+  String get assistantEditPromptIso8601Title => '採用 ISO 8601 格式';
 
   @override
   String get assistantEditPromptIso8601Subtitle =>
-      '包含時區偏移，例如 2026-08-08T14:30:05+08:00';
+      '包含時區偏移，例如 2026-08-08T14:30:05+08:00。';
 
   @override
   String get assistantEditPromptAppendTimeTitle => '追加當前時間';

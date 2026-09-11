@@ -189,6 +189,8 @@ class AssistantRows extends Table {
   // --- Time Injection ---
   BoolColumn get enableTimeInjection =>
       boolean().withDefault(const Constant(false))();
+  BoolColumn get useIso8601TimeFormat =>
+      boolean().withDefault(const Constant(false))();
 
   // --- Handoff / Delegation ---
   BoolColumn get discoverable => boolean().withDefault(const Constant(false))();

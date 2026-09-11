@@ -220,12 +220,9 @@ class _PromptTabState extends State<_PromptTab> {
     );
   }
 
-  Future<void> _onIso8601FormatChanged(bool value) async {
-    final provider = context.read<AssistantProvider>();
-    final current = provider.getById(widget.assistantId);
-    if (current == null) return;
-    await provider.updateAssistant(
-      current.copyWith(useIso8601TimeFormat: value),
+  Future<void> _onIso8601FormatChanged(Assistant a, bool value) async {
+    await context.read<AssistantProvider>().updateAssistant(
+      a.copyWith(useIso8601TimeFormat: value),
     );
   }
 
@@ -500,7 +497,7 @@ class _PromptTabState extends State<_PromptTab> {
           const Divider(height: 1, indent: 12, endIndent: 12),
           _Iso8601Row(
             value: a.useIso8601TimeFormat,
-            onChanged: (value) => _onIso8601FormatChanged(value),
+            onChanged: (value) => _onIso8601FormatChanged(a, value),
           ),
         ],
       ],

@@ -2017,11 +2017,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Using time variables in the system prompt makes the beginning of every request different, so prompt caching cannot hit and both cost and time-to-first-token go up. If the model needs to know the current time, use the \'Append current time\' toggle below instead.';
 
   @override
-  String get assistantEditPromptIso8601Title => 'Use ISO 8601 format';
+  String get assistantEditPromptIso8601Title => 'Use ISO 8601 Format';
 
   @override
   String get assistantEditPromptIso8601Subtitle =>
-      'Includes the timezone offset, e.g. 2026-08-08T14:30:05+08:00';
+      'ISO 8601 with timezone offset, e.g. 2026-08-08T14:30:05+08:00';
 
   @override
   String get assistantEditPromptAppendTimeTitle => 'Append current time';

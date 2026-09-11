@@ -25,6 +25,8 @@ class _PromptTabState extends State<_PromptTab> {
   int _promptSaveGeneration = 0;
   Future<void> _promptSaveChain = Future<void>.value();
   late AssistantProvider _assistantProvider;
+  bool _sysEditorHasBeenFocused = false;
+  bool _tmplEditorHasBeenFocused = false;
 
   @override
   void initState() {
@@ -34,9 +36,19 @@ class _PromptTabState extends State<_PromptTab> {
     final a = ap.getById(widget.assistantId)!;
     _sysCtrl = CodeLineEditingController.fromText(a.systemPrompt);
     _tmplCtrl = CodeLineEditingController.fromText(a.messageTemplate);
-    _sysFocus = FocusNode(debugLabel: 'systemPromptFocus');
-    _tmplFocus = FocusNode(debugLabel: 'messageTemplateFocus');
+    _sysFocus = FocusNode(debugLabel: 'systemPromptFocus')
+      ..addListener(_onSystemFocusChanged);
+    _tmplFocus = FocusNode(debugLabel: 'messageTemplateFocus')
+      ..addListener(_onTemplateFocusChanged);
     _presetCtrl = TextEditingController();
+  }
+
+  void _onSystemFocusChanged() {
+    if (_sysFocus.hasFocus) _sysEditorHasBeenFocused = true;
+  }
+
+  void _onTemplateFocusChanged() {
+    if (_tmplFocus.hasFocus) _tmplEditorHasBeenFocused = true;
   }
 
   @override
@@ -66,9 +78,10 @@ class _PromptTabState extends State<_PromptTab> {
   void _insertAtCursor(
     CodeLineEditingController controller,
     FocusNode focusNode,
+    bool hasBeenFocused,
     String toInsert,
   ) {
-    if (!focusNode.hasFocus) {
+    if (!hasBeenFocused) {
       final lastIndex = controller.lineCount - 1;
       controller.selection = CodeLineSelection.collapsed(
         index: lastIndex,
@@ -116,18 +129,28 @@ class _PromptTabState extends State<_PromptTab> {
     // receive a new widget. The provider outlives the editor, and the target
     // id must remain the id that owned the pending text.
     final provider = _assistantProvider;
-    _promptSaveChain = _promptSaveChain.then((_) async {
-      final current = provider.getById(targetAssistantId);
-      if (current == null) return;
-      await provider.updateAssistant(
-        current.copyWith(
-          systemPrompt: hasSystemPrompt ? systemPrompt : current.systemPrompt,
-          messageTemplate: hasMessageTemplate
-              ? messageTemplate
-              : current.messageTemplate,
-        ),
-      );
-    });
+    _promptSaveChain = _promptSaveChain
+        .catchError((Object error, StackTrace stackTrace) {
+          debugPrint('Prompt save failed: $error\n$stackTrace');
+        })
+        .then((_) async {
+          final current = provider.getById(targetAssistantId);
+          if (current == null) return;
+          try {
+            await provider.updateAssistant(
+              current.copyWith(
+                systemPrompt: hasSystemPrompt
+                    ? systemPrompt
+                    : current.systemPrompt,
+                messageTemplate: hasMessageTemplate
+                    ? messageTemplate
+                    : current.messageTemplate,
+              ),
+            );
+          } catch (error, stackTrace) {
+            debugPrint('Prompt save failed: $error\n$stackTrace');
+          }
+        });
     return _promptSaveChain;
   }
 
@@ -476,7 +499,7 @@ class _PromptTabState extends State<_PromptTab> {
               },
               cacheWarningTooltip: l10n.assistantEditPromptTimeVarWarning,
               onTapVar: (v) {
-                _insertAtCursor(_sysCtrl, _sysFocus, v);
+                _insertAtCursor(_sysCtrl, _sysFocus, _sysEditorHasBeenFocused, v);
                 _schedulePromptSave(systemPrompt: _sysCtrl.text);
                 // Restore focus to the input to keep cursor active
                 Future.microtask(() => _sysFocus.requestFocus());
@@ -601,7 +624,7 @@ class _PromptTabState extends State<_PromptTab> {
                 onTapVar: a.enableTimeInjection
                     ? (_) {}
                     : (v) {
-                        _insertAtCursor(_tmplCtrl, _tmplFocus, v);
+                        _insertAtCursor(_tmplCtrl, _tmplFocus, _tmplEditorHasBeenFocused, v);
                         _schedulePromptSave(messageTemplate: _tmplCtrl.text);
                         Future.microtask(() => _tmplFocus.requestFocus());
                       },

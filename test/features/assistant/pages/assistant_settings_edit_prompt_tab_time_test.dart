@@ -241,6 +241,31 @@ void main() {
     await tester.pump();
   });
 
+
+  testWidgets('keeps the editor selection when the variable chip takes focus', (
+    tester,
+  ) async {
+    _seedPreferences(systemPrompt: 'first line\nsecond line');
+    await _openPromptsTab(tester);
+
+    final editorFinder = find.byType(PlainTextCodeEditor).first;
+    final editor = tester.widget<PlainTextCodeEditor>(editorFinder);
+    await tester.tap(editorFinder);
+    await tester.pump();
+    editor.controller.selection = CodeLineSelection.collapsed(
+      index: 0,
+      offset: 6,
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('{model_id}'));
+    await tester.pump();
+
+    expect(editor.controller.text, 'first {model_id}line\nsecond line');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
   testWidgets('flushes pending prompt when the page is disposed', (
     tester,
   ) async {

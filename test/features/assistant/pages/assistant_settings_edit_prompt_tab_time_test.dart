@@ -242,10 +242,10 @@ void main() {
 
     expect(editor.controller.text, 'first line is longer\nlast{model_id}');
 
+    editor.focusNode?.unfocus();
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
   });
-
 
   testWidgets('keeps the editor selection when the variable chip takes focus', (
     tester,
@@ -267,8 +267,9 @@ void main() {
     await tester.pump();
 
     expect(editor.controller.text, 'first {model_id}line\nsecond line');
+    editor.focusNode?.unfocus();
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
   });
 
   testWidgets(
@@ -308,8 +309,9 @@ void main() {
       await tester.pump();
 
       expect(secondEditor.controller.text, 'second original{model_id}');
+      secondEditor.focusNode?.unfocus();
       await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
     },
   );
 
@@ -346,8 +348,9 @@ void main() {
     expect(editor.controller.text, crlfPrompt);
     expect(provider.getById(_secondAssistantId)?.systemPrompt, crlfPrompt);
 
+    editor.focusNode?.unfocus();
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
   });
 
   testWidgets('flushes pending prompt when the page is disposed', (
@@ -407,7 +410,8 @@ void main() {
     expect(provider.getById(_assistantId)?.systemPrompt, 'assistant one pending');
     expect(provider.getById(_secondAssistantId)?.systemPrompt, 'second original');
 
+    editor.focusNode?.unfocus();
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
   });
 }

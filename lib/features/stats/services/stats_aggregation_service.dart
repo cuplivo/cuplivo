@@ -14,6 +14,7 @@ class StatsAggregationService {
     Map<String, String> assistantNames = const {},
     Set<String>? existingAssistantIds,
     Map<String, String> providerNames = const {},
+    StatsFilter filter = const StatsFilter(),
   }) {
     final rangeMessages = <ChatMessage>[];
     final heatmapCounts = <DateTime, int>{};
@@ -22,6 +23,7 @@ class StatsAggregationService {
     final assistantCounts = <String, int>{};
     final topicCounts = <String, int>{};
     final topicLabels = <String, String>{};
+    final matchingConversationIds = <String>{};
 
     var inputTokens = 0;
     var outputTokens = 0;
@@ -29,35 +31,36 @@ class StatsAggregationService {
 
     for (final conversation in conversations) {
       final messages = messagesByConversation[conversation.id] ?? const [];
-      if (range.contains(conversation.createdAt)) {
-        final assistantId = conversation.assistantId?.trim().isNotEmpty == true
-            ? conversation.assistantId!.trim()
-            : '_default';
-        final assistantExists =
-            existingAssistantIds == null ||
-            assistantId == '_default' ||
-            existingAssistantIds.contains(assistantId);
-        if (assistantExists) {
-          assistantCounts[assistantId] =
-              (assistantCounts[assistantId] ?? 0) + 1;
-        }
-      }
+      final assistantId = conversation.assistantId?.trim().isNotEmpty == true
+          ? conversation.assistantId!.trim()
+          : '_default';
 
       for (final message in messages) {
         final messageDate = StatsDateRange.normalizeDate(message.timestamp);
+        final modelId = message.modelId?.trim();
+        final providerId = message.providerId?.trim();
+
+        if (!filter.matches(
+          modelId: modelId,
+          providerId: providerId,
+          assistantId: assistantId,
+          topicId: conversation.id,
+        )) {
+          continue;
+        }
+
         heatmapCounts[messageDate] = (heatmapCounts[messageDate] ?? 0) + 1;
 
         if (!range.contains(message.timestamp)) continue;
 
         rangeMessages.add(message);
+        matchingConversationIds.add(conversation.id);
         inputTokens += message.promptTokens ?? 0;
         outputTokens += message.completionTokens ?? 0;
         cachedTokens += message.cachedTokens ?? 0;
 
-        final modelId = message.modelId?.trim();
         if (modelId != null && modelId.isNotEmpty) {
           modelCounts[modelId] = (modelCounts[modelId] ?? 0) + 1;
-          final providerId = message.providerId?.trim();
           if (providerId != null && providerId.isNotEmpty) {
             modelProviders.putIfAbsent(modelId, () => providerId);
           }
@@ -71,9 +74,22 @@ class StatsAggregationService {
       }
     }
 
-    final filteredConversationCount = conversations
-        .where((conversation) => range.contains(conversation.createdAt))
-        .length;
+    for (final conversation in conversations) {
+      if (!matchingConversationIds.contains(conversation.id)) continue;
+      final assistantId = conversation.assistantId?.trim().isNotEmpty == true
+          ? conversation.assistantId!.trim()
+          : '_default';
+      final assistantExists =
+          existingAssistantIds == null ||
+          assistantId == '_default' ||
+          existingAssistantIds.contains(assistantId);
+      if (assistantExists) {
+        assistantCounts[assistantId] =
+            (assistantCounts[assistantId] ?? 0) + 1;
+      }
+    }
+
+    final filteredConversationCount = matchingConversationIds.length;
 
     final trendRange = _trendRange(now, range);
     final trend = _buildTrend(
@@ -82,6 +98,7 @@ class StatsAggregationService {
       messagesByConversation: messagesByConversation,
       providerNames: providerNames,
       unknownProviderLabel: unknownProviderLabel,
+      filter: filter,
     );
 
     return StatsSnapshot(
@@ -143,6 +160,7 @@ class StatsAggregationService {
     required Map<String, List<ChatMessage>> messagesByConversation,
     required Map<String, String> providerNames,
     required String unknownProviderLabel,
+    StatsFilter filter = const StatsFilter(),
   }) {
     final buckets = <DateTime, Map<String, StatsTokenBucket>>{};
     for (
@@ -155,9 +173,20 @@ class StatsAggregationService {
 
     for (final conversation in conversations) {
       final messages = messagesByConversation[conversation.id] ?? const [];
+      final assistantId = conversation.assistantId?.trim().isNotEmpty == true
+          ? conversation.assistantId!.trim()
+          : '_default';
       for (final message in messages) {
         final date = StatsDateRange.normalizeDate(message.timestamp);
         if (date.isBefore(trendRange.start) || date.isAfter(trendRange.end)) {
+          continue;
+        }
+        if (!filter.matches(
+          modelId: message.modelId?.trim(),
+          providerId: message.providerId?.trim(),
+          assistantId: assistantId,
+          topicId: conversation.id,
+        )) {
           continue;
         }
         final inputTokens = message.promptTokens ?? 0;

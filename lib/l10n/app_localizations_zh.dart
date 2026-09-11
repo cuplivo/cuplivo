@@ -843,6 +843,38 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get statsPageCustomRangeApply => '应用';
+  @override
+  String get statsPageFilterModels => '模型 / 供应商';
+
+  @override
+  String get statsPageFilterAssistants => '助手';
+
+  @override
+  String get statsPageFilterTopics => '话题';
+
+  @override
+  String get statsPageFilterClearAll => '清除全部';
+
+  @override
+  String get statsPageFilterClear => '清除';
+
+  @override
+  String get statsPageFilterDone => '完成';
+
+  @override
+  String get statsPageFilterModelSelectTitle => '按模型 / 供应商筛选';
+
+  @override
+  String get statsPageFilterAssistantSelectTitle => '按助手筛选';
+
+  @override
+  String get statsPageFilterTopicSelectTitle => '按话题筛选';
+
+  @override
+  String get statsPageFilterNoOptions => '没有可选项目';
+
+  @override
+  String get statsPageFilterModelsLower => '个模型';
 
   @override
   String get sponsorPageMethodsSectionTitle => '赞助方式';
@@ -10822,6 +10854,38 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get statsPageCustomRangeApply => '应用';
+  @override
+  String get statsPageFilterModels => '模型 / 供应商';
+
+  @override
+  String get statsPageFilterAssistants => '助手';
+
+  @override
+  String get statsPageFilterTopics => '话题';
+
+  @override
+  String get statsPageFilterClearAll => '清除全部';
+
+  @override
+  String get statsPageFilterClear => '清除';
+
+  @override
+  String get statsPageFilterDone => '完成';
+
+  @override
+  String get statsPageFilterModelSelectTitle => '按模型 / 供应商筛选';
+
+  @override
+  String get statsPageFilterAssistantSelectTitle => '按助手筛选';
+
+  @override
+  String get statsPageFilterTopicSelectTitle => '按话题筛选';
+
+  @override
+  String get statsPageFilterNoOptions => '没有可选项目';
+
+  @override
+  String get statsPageFilterModelsLower => '个模型';
 
   @override
   String get sponsorPageMethodsSectionTitle => '赞助方式';
@@ -20802,6 +20866,38 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get statsPageCustomRangeApply => '套用';
+  @override
+  String get statsPageFilterModels => '模型 / 供應商';
+
+  @override
+  String get statsPageFilterAssistants => '助手';
+
+  @override
+  String get statsPageFilterTopics => '話題';
+
+  @override
+  String get statsPageFilterClearAll => '清除全部';
+
+  @override
+  String get statsPageFilterClear => '清除';
+
+  @override
+  String get statsPageFilterDone => '完成';
+
+  @override
+  String get statsPageFilterModelSelectTitle => '按模型 / 供應商篩選';
+
+  @override
+  String get statsPageFilterAssistantSelectTitle => '按助手篩選';
+
+  @override
+  String get statsPageFilterTopicSelectTitle => '按話題篩選';
+
+  @override
+  String get statsPageFilterNoOptions => '沒有可選項目';
+
+  @override
+  String get statsPageFilterModelsLower => '個模型';
 
   @override
   String get sponsorPageMethodsSectionTitle => '贊助方式';

@@ -202,3 +202,66 @@ class StatsSnapshot {
   final List<StatsRankItem> assistantRank;
   final List<StatsRankItem> topicRank;
 }
+
+/// Optional dimension filters for the stats page.
+///
+/// Each non-empty set is an OR filter on its own dimension; dimensions
+/// combine with AND. An empty set means "no restriction" on that dimension.
+class StatsFilter {
+  const StatsFilter({
+    this.modelIds = const {},
+    this.providerIds = const {},
+    this.assistantIds = const {},
+    this.topicIds = const {},
+  });
+
+  final Set<String> modelIds;
+  final Set<String> providerIds;
+  final Set<String> assistantIds;
+  final Set<String> topicIds;
+
+  bool get isActive =>
+      modelIds.isNotEmpty ||
+      providerIds.isNotEmpty ||
+      assistantIds.isNotEmpty ||
+      topicIds.isNotEmpty;
+
+  bool matches({
+    required String? modelId,
+    required String? providerId,
+    required String? assistantId,
+    required String? topicId,
+  }) {
+    if (modelIds.isNotEmpty &&
+        (modelId == null || !modelIds.contains(modelId))) {
+      return false;
+    }
+    if (providerIds.isNotEmpty &&
+        (providerId == null || !providerIds.contains(providerId))) {
+      return false;
+    }
+    if (assistantIds.isNotEmpty &&
+        (assistantId == null || !assistantIds.contains(assistantId))) {
+      return false;
+    }
+    if (topicIds.isNotEmpty &&
+        (topicId == null || !topicIds.contains(topicId))) {
+      return false;
+    }
+    return true;
+  }
+
+  StatsFilter copyWith({
+    Set<String>? modelIds,
+    Set<String>? providerIds,
+    Set<String>? assistantIds,
+    Set<String>? topicIds,
+  }) {
+    return StatsFilter(
+      modelIds: modelIds ?? this.modelIds,
+      providerIds: providerIds ?? this.providerIds,
+      assistantIds: assistantIds ?? this.assistantIds,
+      topicIds: topicIds ?? this.topicIds,
+    );
+  }
+}

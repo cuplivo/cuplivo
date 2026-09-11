@@ -526,5 +526,170 @@ void main() {
       );
       expect(trendDay.providerTokens, isEmpty);
     });
+
+    group('filters', () {
+      final conversations = [
+        conversation(
+          'c1',
+          title: 'Alpha topic',
+          assistantId: 'a1',
+          createdAt: now.subtract(const Duration(days: 1)),
+          messageIds: ['m1', 'm2', 'm3'],
+        ),
+        conversation(
+          'c2',
+          title: 'Beta topic',
+          assistantId: 'a2',
+          createdAt: now.subtract(const Duration(days: 2)),
+          messageIds: ['m4'],
+        ),
+      ];
+      final messagesByConversation = {
+        'c1': [
+          message(
+            'm1',
+            conversationId: 'c1',
+            timestamp: now.subtract(const Duration(hours: 3)),
+            modelId: 'gpt-4o',
+            providerId: 'openai',
+            promptTokens: 100,
+            completionTokens: 50,
+            cachedTokens: 10,
+          ),
+          message(
+            'm2',
+            conversationId: 'c1',
+            timestamp: now.subtract(const Duration(hours: 2)),
+            modelId: 'claude-3',
+            providerId: 'anthropic',
+            promptTokens: 200,
+            completionTokens: 80,
+            cachedTokens: 0,
+          ),
+          message(
+            'm3',
+            conversationId: 'c1',
+            timestamp: now.subtract(const Duration(hours: 1)),
+            modelId: 'gpt-4o',
+            providerId: 'openai',
+            promptTokens: 300,
+            completionTokens: 120,
+            cachedTokens: 20,
+          ),
+        ],
+        'c2': [
+          message(
+            'm4',
+            conversationId: 'c2',
+            timestamp: now.subtract(const Duration(minutes: 30)),
+            modelId: 'gpt-4o',
+            providerId: 'openai',
+            promptTokens: 50,
+            completionTokens: 10,
+            cachedTokens: 0,
+          ),
+        ],
+      };
+
+      StatsSnapshot build(StatsFilter filter) {
+        return StatsAggregationService.buildSnapshot(
+          now: now,
+          range: StatsDateRange.allTime(now),
+          conversations: conversations,
+          messagesByConversation: messagesByConversation,
+          launchCount: 0,
+          unknownProviderLabel: 'Unknown provider',
+          unknownTopicLabel: 'Untitled topic',
+          filter: filter,
+        );
+      }
+
+      test('filters by model ids', () {
+        final snapshot = build(const StatsFilter(modelIds: {'claude-3'}));
+
+        expect(snapshot.summary.totalMessages, 1);
+        expect(snapshot.summary.inputTokens, 200);
+        expect(snapshot.summary.outputTokens, 80);
+        expect(snapshot.summary.cachedTokens, 0);
+        expect(snapshot.summary.totalConversations, 1);
+        expect(snapshot.modelRank.single.id, 'claude-3');
+        expect(snapshot.topicRank.single.id, 'c1');
+        // Heatmap only counts the matching message.
+        final matchingDay = snapshot.heatmap.firstWhere(
+          (day) => day.date == DateTime(2026, 5, 3),
+        );
+        expect(matchingDay.count, 1);
+      });
+
+      test('filters by provider ids', () {
+        final snapshot = build(const StatsFilter(providerIds: {'openai'}));
+
+        expect(snapshot.summary.totalMessages, 3);
+        expect(snapshot.summary.inputTokens, 450);
+        expect(snapshot.summary.outputTokens, 180);
+        expect(snapshot.modelRank, hasLength(1));
+        expect(snapshot.modelRank.single.id, 'gpt-4o');
+      });
+
+      test('filters by assistant ids (conversation based)', () {
+        final snapshot = build(const StatsFilter(assistantIds: {'a2'}));
+
+        expect(snapshot.summary.totalMessages, 1);
+        expect(snapshot.summary.totalConversations, 1);
+        expect(snapshot.assistantRank.single.id, 'a2');
+        expect(snapshot.topicRank.single.id, 'c2');
+      });
+
+      test('filters by topic ids (conversation based)', () {
+        final snapshot = build(const StatsFilter(topicIds: {'c1'}));
+
+        expect(snapshot.summary.totalMessages, 3);
+        expect(snapshot.summary.totalConversations, 1);
+        expect(snapshot.topicRank.single.id, 'c1');
+        expect(snapshot.assistantRank.single.id, 'a1');
+      });
+
+      test('combines dimensions with AND semantics', () {
+        final snapshot = build(
+          const StatsFilter(
+            providerIds: {'openai'},
+            assistantIds: {'a2'},
+          ),
+        );
+
+        expect(snapshot.summary.totalMessages, 1);
+        expect(snapshot.summary.inputTokens, 50);
+        expect(snapshot.modelRank.single.id, 'gpt-4o');
+      });
+
+      test('empty result keeps all metrics at zero', () {
+        final snapshot = build(const StatsFilter(modelIds: {'no-such-model'}));
+
+        expect(snapshot.summary.totalMessages, 0);
+        expect(snapshot.summary.inputTokens, 0);
+        expect(snapshot.summary.totalConversations, 0);
+        expect(snapshot.modelRank, isEmpty);
+        expect(snapshot.assistantRank, isEmpty);
+        expect(snapshot.topicRank, isEmpty);
+      });
+
+      test('trend honors the filter', () {
+        final snapshot = build(const StatsFilter(modelIds: {'claude-3'}));
+
+        final matchingDay = snapshot.trend.firstWhere(
+          (day) => day.date == DateTime(2026, 5, 3),
+        );
+        expect(matchingDay.providerTokens.keys, contains('anthropic'));
+        expect(matchingDay.providerTokens['anthropic']!.inputTokens, 200);
+      });
+
+      test('inactive filter matches everything', () {
+        final snapshot = build(const StatsFilter());
+
+        expect(snapshot.summary.totalMessages, 4);
+        expect(snapshot.summary.totalConversations, 2);
+        expect(snapshot.modelRank, hasLength(2));
+      });
+    });
   });
 }

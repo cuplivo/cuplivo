@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:re_editor/re_editor.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:provider/provider.dart';
+import 'package:re_editor/re_editor.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/models/quick_instruction.dart';
@@ -697,9 +697,20 @@ class _InstructionInjectionEditSheetState
         .toList(growable: false);
   }
 
+  void _onPromptTextChanged() {
+    // Rebuild only while validation errors are visible: the error line reads
+    // the controller directly, so a rebuild per keystroke is wasted work.
+    if (_showValidationErrors) {
+      setState(() {});
+    }
+  }
+
   void _save() {
     final title = _titleController.text.trim();
-    final prompt = _promptController.text.trim();
+    final prompt = _promptController.text
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n')
+        .trim();
     if (title.isEmpty || prompt.isEmpty) {
       setState(() => _showValidationErrors = true);
       return;
@@ -817,8 +828,9 @@ class _InstructionInjectionEditSheetState
                           height: 180,
                           child: PlainTextCodeEditor(
                             controller: _promptController,
-                            onChanged: (_) => setState(() {}),
+                            onChanged: (_) => _onPromptTextChanged(),
                             padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+                            maxHeight: 180,
                           ),
                         ),
                       ),

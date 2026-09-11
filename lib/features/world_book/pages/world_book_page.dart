@@ -4,8 +4,8 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:re_editor/re_editor.dart';
 import 'package:provider/provider.dart';
+import 'package:re_editor/re_editor.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/models/world_book.dart';
@@ -1006,12 +1006,23 @@ class _PlainTextFormSection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          SizedBox(
-            height: height,
-            child: PlainTextCodeEditor(
-              controller: controller,
-              padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: context.appColors.surfaceFill,
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: cs.outlineVariant.withValues(alpha: 0.35),
+              ),
+            ),
+            child: SizedBox(
+              height: height,
+              child: PlainTextCodeEditor(
+                controller: controller,
+                hint: label,
+                maxHeight: height,
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
         ],

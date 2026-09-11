@@ -1,8 +1,16 @@
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:re_editor/re_editor.dart';
 
-TextLineBreak detectPlainTextLineBreak(String text) {
-  final match = RegExp(r'\r\n|\r|\n').firstMatch(text)?.group(0);
+// Re-exported so that the `part` files of `assistant_settings_edit_page.dart`
+// depend on this shared widget instead of importing `re_editor` directly.
+export 'package:re_editor/re_editor.dart'
+    show CodeLineEditingController, CodeLineSelection;
+
+final RegExp _lineBreakPattern = RegExp(r'\r\n|\r|\n');
+
+TextLineBreak _detectPlainTextLineBreak(String text) {
+  final match = _lineBreakPattern.firstMatch(text)?.group(0);
   return switch (match) {
     '\r\n' => TextLineBreak.crlf,
     '\r' => TextLineBreak.cr,
@@ -10,16 +18,32 @@ TextLineBreak detectPlainTextLineBreak(String text) {
   };
 }
 
+/// Creates a [CodeLineEditingController] whose line break matches the text's
+/// first line break, so `controller.text` round-trips byte-exact for CRLF and
+/// CR documents.
+///
+/// [text] is assumed to have homogeneous line endings. For mixed documents the
+/// first line break found wins, matching the behaviour of the fallback split.
 CodeLineEditingController createPlainTextCodeController(String text) {
-  return CodeLineEditingController.fromText(
+  final controller = CodeLineEditingController.fromText(
     text,
-    CodeLineOptions(lineBreak: detectPlainTextLineBreak(text)),
+    CodeLineOptions(lineBreak: _detectPlainTextLineBreak(text)),
   );
+  // Re-Editor represents an empty document as a single blank line, which
+  // `controller.text` would report as an empty string only after the initial
+  // line is consumed; normalize the degenerate single-blank-line document back
+  // to a truly empty one before any consumer persists the value.
+  if (controller.lineCount == 1 &&
+      controller.codeLines.single.text.isEmpty &&
+      controller.text.isNotEmpty) {
+    controller.value = CodeLineEditingValue(codeLines: CodeLines.empty());
+  }
+  return controller;
 }
 
 /// A plain multi-line editor for text that may be substantially larger than a
-/// normal form field. Re-Editor avoids rebuilding Flutter's TextField render
-/// tree for the whole document on every edit.
+/// normal form field. Re-Editor keeps only visible chunks in the render tree,
+/// so editing large prompts and world-book content stays cheap.
 class PlainTextCodeEditor extends StatelessWidget {
   const PlainTextCodeEditor({
     super.key,
@@ -30,13 +54,8 @@ class PlainTextCodeEditor extends StatelessWidget {
     this.autofocus = false,
     this.readOnly = false,
     this.padding = const EdgeInsets.all(12),
-    this.minHeight,
     this.maxHeight,
     this.backgroundColor,
-    this.textColor,
-    this.selectionColor,
-    this.cursorColor,
-    this.border,
     this.borderRadius,
   });
 
@@ -47,14 +66,11 @@ class PlainTextCodeEditor extends StatelessWidget {
   final bool autofocus;
   final bool readOnly;
   final EdgeInsetsGeometry padding;
-  final double? minHeight;
   final double? maxHeight;
   final Color? backgroundColor;
-  final Color? textColor;
-  final Color? selectionColor;
-  final Color? cursorColor;
-  final Border? border;
   final BorderRadius? borderRadius;
+
+  static const NonCodeChunkAnalyzer _chunkAnalyzer = NonCodeChunkAnalyzer();
 
   @override
   Widget build(BuildContext context) {
@@ -68,23 +84,19 @@ class PlainTextCodeEditor extends StatelessWidget {
       hint: hint,
       padding: padding,
       onChanged: onChanged,
-      border: border,
       borderRadius: borderRadius,
-      chunkAnalyzer: const NonCodeChunkAnalyzer(),
+      chunkAnalyzer: _chunkAnalyzer,
       style: CodeEditorStyle(
-        backgroundColor: backgroundColor ?? Colors.transparent,
-        textColor: textColor ?? cs.onSurface,
+        backgroundColor: backgroundColor ?? context.appColors.surfaceFill,
+        textColor: cs.onSurface,
         hintTextColor: cs.onSurfaceVariant,
-        selectionColor: selectionColor ?? cs.primary.withValues(alpha: 0.18),
-        cursorColor: cursorColor ?? cs.primary,
+        selectionColor: cs.primary.withValues(alpha: 0.18),
+        cursorColor: cs.primary,
       ),
     );
 
     return ConstrainedBox(
-      constraints: BoxConstraints(
-        minHeight: minHeight ?? 0,
-        maxHeight: maxHeight ?? double.infinity,
-      ),
+      constraints: BoxConstraints(maxHeight: maxHeight ?? double.infinity),
       child: editor,
     );
   }

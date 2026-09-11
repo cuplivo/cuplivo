@@ -20,8 +20,6 @@ class _PromptTabState extends State<_PromptTab> {
   Timer? _promptSaveTimer;
   String? _pendingSystemPrompt;
   String? _pendingMessageTemplate;
-  bool _hasPendingSystemPrompt = false;
-  bool _hasPendingMessageTemplate = false;
   int _promptSaveGeneration = 0;
   Future<void> _promptSaveChain = Future<void>.value();
   late AssistantProvider _assistantProvider;
@@ -112,6 +110,8 @@ class _PromptTabState extends State<_PromptTab> {
 
   @override
   void dispose() {
+    _sysFocus.removeListener(_onSystemFocusChanged);
+    _tmplFocus.removeListener(_onTemplateFocusChanged);
     unawaited(_flushPromptChanges());
     _sysCtrl.dispose();
     _tmplCtrl.dispose();
@@ -132,14 +132,16 @@ class _PromptTabState extends State<_PromptTab> {
     controller.replaceSelection(toInsert);
   }
 
+  /// Schedules a debounced prompt save. Passing a non-null [systemPrompt] or
+  /// [messageTemplate] marks that field dirty and records its new content;
+  /// pass `''` to persist an intentionally cleared field, and omit a field to
+  /// leave it untouched.
   void _schedulePromptSave({String? systemPrompt, String? messageTemplate}) {
     if (systemPrompt != null) {
       _pendingSystemPrompt = systemPrompt;
-      _hasPendingSystemPrompt = true;
     }
     if (messageTemplate != null) {
       _pendingMessageTemplate = messageTemplate;
-      _hasPendingMessageTemplate = true;
     }
     _promptSaveTimer?.cancel();
     final generation = ++_promptSaveGeneration;
@@ -153,16 +155,15 @@ class _PromptTabState extends State<_PromptTab> {
   Future<void> _flushPromptChanges({String? assistantId}) {
     _promptSaveTimer?.cancel();
     _promptSaveTimer = null;
+    // Own the pending text now and invalidate any debounce callback that is
+    // still queued: it captures the generation, so it will no-op.
+    _promptSaveGeneration++;
     final systemPrompt = _pendingSystemPrompt;
     final messageTemplate = _pendingMessageTemplate;
-    final hasSystemPrompt = _hasPendingSystemPrompt;
-    final hasMessageTemplate = _hasPendingMessageTemplate;
     final targetAssistantId = assistantId ?? widget.assistantId;
     _pendingSystemPrompt = null;
     _pendingMessageTemplate = null;
-    _hasPendingSystemPrompt = false;
-    _hasPendingMessageTemplate = false;
-    if (!hasSystemPrompt && !hasMessageTemplate) {
+    if (systemPrompt == null && messageTemplate == null) {
       return _promptSaveChain;
     }
 
@@ -180,12 +181,8 @@ class _PromptTabState extends State<_PromptTab> {
           try {
             await provider.updateAssistant(
               current.copyWith(
-                systemPrompt: hasSystemPrompt
-                    ? systemPrompt
-                    : current.systemPrompt,
-                messageTemplate: hasMessageTemplate
-                    ? messageTemplate
-                    : current.messageTemplate,
+                systemPrompt: systemPrompt ?? current.systemPrompt,
+                messageTemplate: messageTemplate ?? current.messageTemplate,
               ),
             );
           } catch (error, stackTrace) {
@@ -339,6 +336,12 @@ class _PromptTabState extends State<_PromptTab> {
     await context.read<AssistantProvider>().updateAssistant(
       a.copyWith(enableTimeInjection: enabled),
     );
+    if (enabled) {
+      // The template editor is read-only now; drop its focus state so stale
+      // caret/IME state cannot leak into variable insertion.
+      _tmplFocus.unfocus();
+      _tmplEditorHasBeenFocused = false;
+    }
   }
 
   Future<bool?> _showTimeVarEnableDialog(
@@ -477,7 +480,6 @@ class _PromptTabState extends State<_PromptTab> {
             ),
             const SizedBox(height: 10),
             Container(
-              height: 190,
               decoration: BoxDecoration(
                 color: context.appColors.surfaceFill,
                 borderRadius: BorderRadius.circular(12),
@@ -488,8 +490,9 @@ class _PromptTabState extends State<_PromptTab> {
               child: PlainTextCodeEditor(
                 controller: _sysCtrl,
                 focusNode: _sysFocus,
+                maxHeight: 190,
                 hint: l10n.assistantEditSystemPromptHint,
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                padding: const EdgeInsets.all(12),
                 borderRadius: BorderRadius.circular(12),
                 onChanged: (_) => _onSystemPromptChanged(),
               ),
@@ -615,7 +618,6 @@ class _PromptTabState extends State<_PromptTab> {
               child: Opacity(
                 opacity: a.enableTimeInjection ? 0.5 : 1,
                 child: Container(
-                  height: 130,
                   decoration: BoxDecoration(
                     color: context.appColors.surfaceFill,
                     borderRadius: BorderRadius.circular(12),
@@ -626,8 +628,10 @@ class _PromptTabState extends State<_PromptTab> {
                   child: PlainTextCodeEditor(
                     controller: _tmplCtrl,
                     focusNode: _tmplFocus,
+                    readOnly: a.enableTimeInjection,
+                    maxHeight: 130,
                     hint: '{{ message }}',
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                    padding: const EdgeInsets.all(12),
                     borderRadius: BorderRadius.circular(12),
                     onChanged: (_) => _onMessageTemplateChanged(),
                   ),

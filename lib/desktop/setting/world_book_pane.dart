@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:re_editor/re_editor.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:re_editor/re_editor.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/models/world_book.dart';
@@ -1408,19 +1408,19 @@ class _WorldBookEntryEditDialogState extends State<_WorldBookEntryEditDialog> {
                               cs: cs,
                               label: l10n.worldBookEntryContentLabel,
                               child: Container(
-                                height: 300,
                                 decoration: BoxDecoration(
                                   color: context.appColors.surfaceFill,
                                   borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: cs.outlineVariant.withValues(
+                                      alpha: 0.35,
+                                    ),
+                                  ),
                                 ),
                                 child: PlainTextCodeEditor(
                                   controller: _contentController,
-                                  padding: const EdgeInsets.fromLTRB(
-                                    12,
-                                    12,
-                                    12,
-                                    12,
-                                  ),
+                                  maxHeight: 300,
+                                  padding: const EdgeInsets.all(12),
                                   hint: l10n.worldBookEntryContentLabel,
                                   borderRadius: BorderRadius.circular(12),
                                 ),

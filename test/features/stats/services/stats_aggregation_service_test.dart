@@ -741,6 +741,61 @@ void main() {
           isFalse,
         );
       });
+
+      test('blank model ids are excluded by an active model filter', () {
+        final withBlank = [
+          message(
+            'm-blank',
+            conversationId: 'c1',
+            timestamp: now.subtract(const Duration(hours: 1)),
+            modelId: '  ',
+            promptTokens: 999,
+          ),
+        ];
+        final snapshot = StatsAggregationService.buildSnapshot(
+          now: now,
+          range: StatsDateRange.allTime(now),
+          conversations: conversations,
+          messagesByConversation: {
+            'c1': withBlank,
+            'c2': const [],
+          },
+          launchCount: 0,
+          unknownProviderLabel: 'Unknown provider',
+          unknownTopicLabel: 'Untitled topic',
+          filter: const StatsFilter(modelIds: {'gpt-4o'}),
+        );
+
+        expect(snapshot.summary.totalMessages, 0);
+        expect(snapshot.summary.inputTokens, 0);
+      });
+
+      test('unfiltered conversation metrics count activity, not creation', () {
+        // Pins the default-view semantics change that came with filtering:
+        // totalConversations / assistantRank reflect conversations holding
+        // at least one message inside the range — an empty conversation
+        // created in range no longer counts.
+        final conversationsOnly = [
+          conversation(
+            'ghost',
+            title: 'Empty ghost topic',
+            assistantId: 'a1',
+            createdAt: now.subtract(const Duration(hours: 1)),
+          ),
+        ];
+        final snapshot = StatsAggregationService.buildSnapshot(
+          now: now,
+          range: StatsDateRange.allTime(now),
+          conversations: conversationsOnly,
+          messagesByConversation: const {},
+          launchCount: 0,
+          unknownProviderLabel: 'Unknown provider',
+          unknownTopicLabel: 'Untitled topic',
+        );
+
+        expect(snapshot.summary.totalConversations, 0);
+        expect(snapshot.assistantRank, isEmpty);
+      });
     });
   });
 }

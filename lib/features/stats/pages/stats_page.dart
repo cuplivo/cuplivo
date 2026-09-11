@@ -252,10 +252,14 @@ class _StatsPageState extends State<StatsPage> {
       for (final message in chatService.getMessages(conversation.id)) {
         final modelId = message.modelId?.trim();
         if (modelId == null || modelId.isEmpty) continue;
-        final providerId = message.providerId?.trim();
-        if (providerId != null && providerId.isNotEmpty) {
-          modelProviders.putIfAbsent(modelId, () => providerId);
-        }
+        // Keep provider-less models: they land in the unknown bucket
+        // instead of becoming unfilterable. First writer wins — the
+        // repository enumerates updated_at DESC, so the newest observed
+        // model->provider mapping sticks.
+        modelProviders.putIfAbsent(
+          modelId,
+          () => message.providerId?.trim() ?? '',
+        );
       }
     }
     final providerNames = {
@@ -1166,6 +1170,7 @@ class _FilterBar extends StatelessWidget {
     final modelCount = filter.modelIds.length;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.only(right: 16),
       child: Row(
         children: [
           _FilterChipButton(
@@ -1462,7 +1467,6 @@ class _ModelProviderFilterSheetState extends State<_ModelProviderFilterSheet> {
                           }
                         });
                       },
-                      subtitle: null,
                     ),
                     for (final modelId in groups[provider]!)
                       _CheckRow(
@@ -1513,7 +1517,7 @@ class _ModelProviderFilterSheetState extends State<_ModelProviderFilterSheet> {
               Expanded(
                 child: IosCardPress(
                   onTap: () =>
-                      Navigator.of(context).pop(Set.unmodifiable(_modelIds)),
+                      Navigator.of(context).pop(Set.of(_modelIds)),
                   borderRadius: BorderRadius.circular(13),
                   baseColor: isDark
                       ? Colors.white.withValues(alpha: 0.16)
@@ -1663,7 +1667,7 @@ class _SimpleFilterSheetState extends State<_SimpleFilterSheet> {
               Expanded(
                 child: IosCardPress(
                   onTap: () =>
-                      Navigator.of(context).pop(Set.unmodifiable(_selected)),
+                      Navigator.of(context).pop(Set.of(_selected)),
                   borderRadius: BorderRadius.circular(13),
                   baseColor: isDark
                       ? Colors.white.withValues(alpha: 0.16)

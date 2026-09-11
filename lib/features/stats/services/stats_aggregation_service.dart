@@ -33,11 +33,16 @@ class StatsAggregationService {
     // _buildTrend so each message is matched exactly once per rebuild.
     final filteredByConversation = <String, List<ChatMessage>>{};
 
+    String normalizedAssistantId(Conversation conversation) {
+      final raw = conversation.assistantId?.trim();
+      return (raw == null || raw.isEmpty)
+          ? StatsFilter.defaultAssistantId
+          : raw;
+    }
+
     for (final conversation in conversations) {
       final messages = messagesByConversation[conversation.id] ?? const [];
-      final assistantId = conversation.assistantId?.trim().isNotEmpty == true
-          ? conversation.assistantId!.trim()
-          : StatsFilter.defaultAssistantId;
+      final assistantId = normalizedAssistantId(conversation);
 
       for (final message in messages) {
         final messageDate = StatsDateRange.normalizeDate(message.timestamp);
@@ -87,9 +92,7 @@ class StatsAggregationService {
     // with an active filter the metric now reflects matching activity.
     for (final conversation in conversations) {
       if (!matchingConversationIds.contains(conversation.id)) continue;
-      final assistantId = conversation.assistantId?.trim().isNotEmpty == true
-          ? conversation.assistantId!.trim()
-          : StatsFilter.defaultAssistantId;
+      final assistantId = normalizedAssistantId(conversation);
       final assistantExists =
           existingAssistantIds == null ||
           assistantId == StatsFilter.defaultAssistantId ||

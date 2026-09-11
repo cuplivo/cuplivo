@@ -59,6 +59,8 @@ class _PromptTabState extends State<_PromptTab> {
       unawaited(_flushPromptChanges(assistantId: oldAssistantId));
       final ap = context.read<AssistantProvider>();
       final a = ap.getById(widget.assistantId)!;
+      _sysFocus.unfocus();
+      _tmplFocus.unfocus();
       _sysEditorHasBeenFocused = false;
       _tmplEditorHasBeenFocused = false;
       _sysCtrl.text = a.systemPrompt;

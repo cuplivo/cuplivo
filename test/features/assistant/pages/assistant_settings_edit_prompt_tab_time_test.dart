@@ -137,6 +137,26 @@ Future<void> _settleTabSwitch(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 600));
 }
 
+/// Tears a harness down without leaving re_editor's one-shot timers behind.
+///
+/// While an editor is focused, re_editor schedules timers it never cancels:
+/// a 100 ms cursor-blink delay and a 10 ms composing retry. If they are still
+/// pending when the test ends, the binding fails with "A Timer is still
+/// pending"; if they fire after the blink controller is disposed, the test
+/// fails with "used after being disposed". Let them run out while the tree is
+/// mounted, then drop focus (which cancels the periodic blink) and dispose.
+Future<void> _tearDownEditorHarness(
+  WidgetTester tester, {
+  FocusNode? focusNode,
+}) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 200));
+  focusNode?.unfocus();
+  await tester.pump();
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump(const Duration(milliseconds: 200));
+}
+
 Finder get _warningIcons =>
     find.byWidgetPredicate((w) => w is Icon && w.icon == Lucide.TriangleAlert);
 
@@ -242,9 +262,7 @@ void main() {
 
     expect(editor.controller.text, 'first line is longer\nlast{model_id}');
 
-    editor.focusNode?.unfocus();
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(milliseconds: 200));
+    await _tearDownEditorHarness(tester, focusNode: editor.focusNode);
   });
 
   testWidgets('keeps the editor selection when the variable chip takes focus', (
@@ -267,9 +285,7 @@ void main() {
     await tester.pump();
 
     expect(editor.controller.text, 'first {model_id}line\nsecond line');
-    editor.focusNode?.unfocus();
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(milliseconds: 200));
+    await _tearDownEditorHarness(tester, focusNode: editor.focusNode);
   });
 
   testWidgets(
@@ -285,7 +301,9 @@ void main() {
       );
       await tester.pump();
       await tester.tap(find.text('Prompts'));
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 600));
 
       final firstEditor = find.byType(PlainTextCodeEditor).first;
       await tester.tap(firstEditor);
@@ -309,9 +327,7 @@ void main() {
       await tester.pump();
 
       expect(secondEditor.controller.text, 'second original{model_id}');
-      secondEditor.focusNode?.unfocus();
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump(const Duration(milliseconds: 200));
+      await _tearDownEditorHarness(tester, focusNode: secondEditor.focusNode);
     },
   );
 
@@ -348,9 +364,7 @@ void main() {
     expect(editor.controller.text, crlfPrompt);
     expect(provider.getById(_secondAssistantId)?.systemPrompt, crlfPrompt);
 
-    editor.focusNode?.unfocus();
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(milliseconds: 200));
+    await _tearDownEditorHarness(tester, focusNode: editor.focusNode);
   });
 
   testWidgets('flushes pending prompt when the page is disposed', (
@@ -366,15 +380,16 @@ void main() {
     );
     await tester.pump();
     await tester.tap(find.text('Prompts'));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 600));
 
     final editor = tester.widget<PlainTextCodeEditor>(
       find.byType(PlainTextCodeEditor).first,
     );
     editor.controller.text = 'saved before leaving';
     await tester.pump();
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
+    await _tearDownEditorHarness(tester, focusNode: editor.focusNode);
 
     expect(provider.getById(_assistantId)?.systemPrompt, 'saved before leaving');
   });
@@ -392,7 +407,9 @@ void main() {
     );
     await tester.pump();
     await tester.tap(find.text('Prompts'));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 600));
 
     final editor = tester.widget<PlainTextCodeEditor>(
       find.byType(PlainTextCodeEditor).first,
@@ -406,12 +423,11 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.pump();
 
     expect(provider.getById(_assistantId)?.systemPrompt, 'assistant one pending');
     expect(provider.getById(_secondAssistantId)?.systemPrompt, 'second original');
 
-    editor.focusNode?.unfocus();
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(milliseconds: 200));
+    await _tearDownEditorHarness(tester, focusNode: editor.focusNode);
   });
 }

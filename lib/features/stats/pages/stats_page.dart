@@ -62,16 +62,18 @@ class _StatsPageState extends State<StatsPage> {
           onChanged: _setPreset,
           onCustom: _pickCustomRange,
         ),
-        const SizedBox(height: 8),
-        _FilterBar(
-          filter: _filter,
-          onModelProviderTap: _pickModelProviderFilter,
-          onAssistantTap: _pickAssistantFilter,
-          onTopicTap: _pickTopicFilter,
-          onClearAll: _filter.isActive
-              ? () => setState(() => _filter = const StatsFilter())
-              : null,
-        ),
+        if (widget.snapshotOverride == null) ...[
+          const SizedBox(height: 8),
+          _FilterBar(
+            filter: _filter,
+            onModelProviderTap: _pickModelProviderFilter,
+            onAssistantTap: _pickAssistantFilter,
+            onTopicTap: _pickTopicFilter,
+            onClearAll: _filter.isActive
+                ? () => setState(() => _filter = const StatsFilter())
+                : null,
+          ),
+        ],
         const SizedBox(height: 12),
         StatsSectionCard(
           title: l10n.statsPageHeatmapTitle,
@@ -181,11 +183,11 @@ class _StatsPageState extends State<StatsPage> {
     final assistantNames = {
       for (final assistant in assistantProvider.assistants)
         assistant.id: assistant.name,
-      '_default': l10n.statsPageUnknownAssistant,
+      StatsFilter.defaultAssistantId: l10n.statsPageUnknownAssistant,
     };
     final existingAssistantIds = {
       for (final assistant in assistantProvider.assistants) assistant.id,
-      '_default',
+      StatsFilter.defaultAssistantId,
     };
     final providerNames = {
       for (final entry in settings.providerConfigs.entries)
@@ -271,7 +273,7 @@ class _StatsPageState extends State<StatsPage> {
         initialModelIds: _filter.modelIds,
       ),
     );
-    if (result == null) return;
+    if (result == null || !mounted) return;
     setState(() {
       _filter = _filter.copyWith(modelIds: result);
     });
@@ -288,14 +290,17 @@ class _StatsPageState extends State<StatsPage> {
               ? l10n.bindingsUnnamedAssistant
               : a.name.trim(),
         ),
-      (id: '_default', label: l10n.statsPageUnknownAssistant),
+      (
+        id: StatsFilter.defaultAssistantId,
+        label: l10n.statsPageUnknownAssistant,
+      ),
     ];
     final selected = await _showSimpleFilterSheet(
       title: l10n.statsPageFilterAssistantSelectTitle,
       options: options,
       initialSelected: _filter.assistantIds,
     );
-    if (selected == null) return;
+    if (selected == null || !mounted) return;
     setState(() => _filter = _filter.copyWith(assistantIds: selected));
   }
 
@@ -304,7 +309,7 @@ class _StatsPageState extends State<StatsPage> {
     final l10n = AppLocalizations.of(context)!;
     final options = <({String id, String label})>[
       for (final c in chatService.getAllCompleteConversations())
-        if (chatService.getMessages(c.id).isNotEmpty)
+        if (c.messageIds.isNotEmpty)
           (
             id: c.id,
             label: c.title.trim().isEmpty
@@ -317,7 +322,7 @@ class _StatsPageState extends State<StatsPage> {
       options: options,
       initialSelected: _filter.topicIds,
     );
-    if (selected == null) return;
+    if (selected == null || !mounted) return;
     setState(() => _filter = _filter.copyWith(topicIds: selected));
   }
 
@@ -1158,7 +1163,7 @@ class _FilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final modelCount = filter.modelIds.length + filter.providerIds.length;
+    final modelCount = filter.modelIds.length;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -1226,41 +1231,36 @@ class _FilterChipButton extends StatelessWidget {
         ? cs.onSurface.withValues(alpha: 0.06)
         : const Color(0xFFEEF0F3);
     final text = count != null && count! > 0 ? '$label ($count)' : label;
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOutCubic,
-          height: 32,
-          constraints: const BoxConstraints(minWidth: 64),
-          padding: const EdgeInsets.symmetric(horizontal: 13),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: accent
-                ? accentBackground
-                : selected
-                ? selectedBackground
-                : idleBackground,
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Text(
-            text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: accent
-                  ? cs.primary
-                  : selected
-                  ? cs.onSurface.withValues(alpha: 0.9)
-                  : cs.onSurface.withValues(alpha: isDark ? 0.7 : 0.62),
-              fontSize: 12,
-              fontWeight: selected || accent
-                  ? AppFontWeights.emphasis
-                  : AppFontWeights.semibold,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 64, minHeight: 32),
+      child: Semantics(
+        button: true,
+        selected: selected,
+        child: IosCardPress(
+          onTap: onTap,
+          baseColor: accent
+              ? accentBackground
+              : selected
+              ? selectedBackground
+              : idleBackground,
+          borderRadius: BorderRadius.circular(15),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+          child: Center(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: accent
+                    ? cs.primary
+                    : selected
+                    ? cs.onSurface.withValues(alpha: 0.9)
+                    : cs.onSurface.withValues(alpha: isDark ? 0.7 : 0.62),
+                fontSize: 12,
+                fontWeight: selected || accent
+                    ? AppFontWeights.emphasis
+                    : AppFontWeights.semibold,
+              ),
             ),
           ),
         ),
@@ -1380,9 +1380,11 @@ class _ModelProviderFilterSheetState extends State<_ModelProviderFilterSheet> {
     final groups = <String, List<String>>{};
     final groupOrder = <String>[];
     widget.modelProviders.forEach((modelId, providerId) {
-      final key = providerId.trim().isEmpty
-          ? widget.unknownProviderLabel
-          : (widget.providerNames[providerId] ?? providerId);
+      // Group by the raw provider id: display names are user-editable and
+      // not deduplicated, so labelling here would merge distinct providers
+      // (and a provider literally named like the unknown label would fold
+      // into the synthetic bucket). Resolve the label only when rendering.
+      final key = providerId.trim();
       if (!groups.containsKey(key)) {
         groups[key] = <String>[];
         groupOrder.add(key);
@@ -1444,7 +1446,9 @@ class _ModelProviderFilterSheetState extends State<_ModelProviderFilterSheet> {
                     ),
                   for (final provider in groupOrder) ...[
                     _CheckRow(
-                      label: provider,
+                      label: provider.isEmpty
+                          ? widget.unknownProviderLabel
+                          : (widget.providerNames[provider] ?? provider),
                       checked: groups[provider]!
                           .every((m) => _modelIds.contains(m)),
                       onTap: () {
@@ -1458,8 +1462,7 @@ class _ModelProviderFilterSheetState extends State<_ModelProviderFilterSheet> {
                           }
                         });
                       },
-                      subtitle:
-                          '${groups[provider]!.length} ${l10n.statsPageFilterModelsLower}',
+                      subtitle: '${groups[provider]!.length}',
                     ),
                     for (final modelId in groups[provider]!)
                       _CheckRow(
@@ -1509,7 +1512,8 @@ class _ModelProviderFilterSheetState extends State<_ModelProviderFilterSheet> {
               const SizedBox(width: 10),
               Expanded(
                 child: IosCardPress(
-                  onTap: () => Navigator.of(context).pop(_modelIds),
+                  onTap: () =>
+                      Navigator.of(context).pop(Set.unmodifiable(_modelIds)),
                   borderRadius: BorderRadius.circular(13),
                   baseColor: isDark
                       ? Colors.white.withValues(alpha: 0.16)
@@ -1658,7 +1662,8 @@ class _SimpleFilterSheetState extends State<_SimpleFilterSheet> {
               const SizedBox(width: 10),
               Expanded(
                 child: IosCardPress(
-                  onTap: () => Navigator.of(context).pop(_selected),
+                  onTap: () =>
+                      Navigator.of(context).pop(Set.unmodifiable(_selected)),
                   borderRadius: BorderRadius.circular(13),
                   baseColor: isDark
                       ? Colors.white.withValues(alpha: 0.16)

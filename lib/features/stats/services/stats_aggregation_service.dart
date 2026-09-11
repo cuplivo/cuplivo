@@ -29,11 +29,15 @@ class StatsAggregationService {
     var outputTokens = 0;
     var cachedTokens = 0;
 
+    // Messages passing the filter, before the date-range cut. Reused by
+    // _buildTrend so each message is matched exactly once per rebuild.
+    final filteredByConversation = <String, List<ChatMessage>>{};
+
     for (final conversation in conversations) {
       final messages = messagesByConversation[conversation.id] ?? const [];
       final assistantId = conversation.assistantId?.trim().isNotEmpty == true
           ? conversation.assistantId!.trim()
-          : '_default';
+          : StatsFilter.defaultAssistantId;
 
       for (final message in messages) {
         final messageDate = StatsDateRange.normalizeDate(message.timestamp);
@@ -42,12 +46,14 @@ class StatsAggregationService {
 
         if (!filter.matches(
           modelId: modelId,
-          providerId: providerId,
           assistantId: assistantId,
           topicId: conversation.id,
         )) {
           continue;
         }
+        filteredByConversation
+            .putIfAbsent(conversation.id, () => <ChatMessage>[])
+            .add(message);
 
         heatmapCounts[messageDate] = (heatmapCounts[messageDate] ?? 0) + 1;
 
@@ -74,14 +80,19 @@ class StatsAggregationService {
       }
     }
 
+    // Assistant ranking counts conversations (not messages), keyed off
+    // conversations that still hold at least one message inside the range AND
+    // passing the filter. This deliberately changes the pre-filter semantics
+    // (which counted every conversation created in range, even empty ones):
+    // with an active filter the metric now reflects matching activity.
     for (final conversation in conversations) {
       if (!matchingConversationIds.contains(conversation.id)) continue;
       final assistantId = conversation.assistantId?.trim().isNotEmpty == true
           ? conversation.assistantId!.trim()
-          : '_default';
+          : StatsFilter.defaultAssistantId;
       final assistantExists =
           existingAssistantIds == null ||
-          assistantId == '_default' ||
+          assistantId == StatsFilter.defaultAssistantId ||
           existingAssistantIds.contains(assistantId);
       if (assistantExists) {
         assistantCounts[assistantId] =
@@ -94,11 +105,9 @@ class StatsAggregationService {
     final trendRange = _trendRange(now, range);
     final trend = _buildTrend(
       trendRange: trendRange,
-      conversations: conversations,
-      messagesByConversation: messagesByConversation,
+      filteredByConversation: filteredByConversation,
       providerNames: providerNames,
       unknownProviderLabel: unknownProviderLabel,
-      filter: filter,
     );
 
     return StatsSnapshot(
@@ -156,11 +165,9 @@ class StatsAggregationService {
 
   static List<StatsTrendDay> _buildTrend({
     required ({DateTime start, DateTime end}) trendRange,
-    required List<Conversation> conversations,
-    required Map<String, List<ChatMessage>> messagesByConversation,
+    required Map<String, List<ChatMessage>> filteredByConversation,
     required Map<String, String> providerNames,
     required String unknownProviderLabel,
-    StatsFilter filter = const StatsFilter(),
   }) {
     final buckets = <DateTime, Map<String, StatsTokenBucket>>{};
     for (
@@ -171,22 +178,10 @@ class StatsAggregationService {
       buckets[date] = <String, StatsTokenBucket>{};
     }
 
-    for (final conversation in conversations) {
-      final messages = messagesByConversation[conversation.id] ?? const [];
-      final assistantId = conversation.assistantId?.trim().isNotEmpty == true
-          ? conversation.assistantId!.trim()
-          : '_default';
+    for (final messages in filteredByConversation.values) {
       for (final message in messages) {
         final date = StatsDateRange.normalizeDate(message.timestamp);
         if (date.isBefore(trendRange.start) || date.isAfter(trendRange.end)) {
-          continue;
-        }
-        if (!filter.matches(
-          modelId: message.modelId?.trim(),
-          providerId: message.providerId?.trim(),
-          assistantId: assistantId,
-          topicId: conversation.id,
-        )) {
           continue;
         }
         final inputTokens = message.promptTokens ?? 0;

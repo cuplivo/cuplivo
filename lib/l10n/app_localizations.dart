@@ -1635,11 +1635,6 @@ abstract class AppLocalizations {
   /// **'No options'**
   String get statsPageFilterNoOptions;
 
-  /// No description provided for @statsPageFilterModelsLower.
-  ///
-  /// In en, this message translates to:
-  /// **'models'**
-  String get statsPageFilterModelsLower;
 
   /// No description provided for @sponsorPageMethodsSectionTitle.
   ///

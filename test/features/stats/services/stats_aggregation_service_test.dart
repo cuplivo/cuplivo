@@ -591,7 +591,10 @@ void main() {
         ],
       };
 
-      StatsSnapshot build(StatsFilter filter) {
+      StatsSnapshot build(
+        StatsFilter filter, {
+        Map<String, String> providerNames = const {},
+      }) {
         return StatsAggregationService.buildSnapshot(
           now: now,
           range: StatsDateRange.allTime(now),
@@ -600,6 +603,7 @@ void main() {
           launchCount: 0,
           unknownProviderLabel: 'Unknown provider',
           unknownTopicLabel: 'Untitled topic',
+          providerNames: providerNames,
           filter: filter,
         );
       }
@@ -621,8 +625,13 @@ void main() {
         expect(matchingDay.count, 1);
       });
 
-      test('filters by provider ids', () {
-        final snapshot = build(const StatsFilter(providerIds: {'openai'}));
+      test('selecting a provider header (all its models) filters by provider',
+          () {
+        // The model/provider sheet expresses "filter by provider" as checking
+        // the provider header, i.e. selecting all of its models.
+        final snapshot = build(
+          const StatsFilter(modelIds: {'gpt-4o'}),
+        );
 
         expect(snapshot.summary.totalMessages, 3);
         expect(snapshot.summary.inputTokens, 450);
@@ -652,7 +661,7 @@ void main() {
       test('combines dimensions with AND semantics', () {
         final snapshot = build(
           const StatsFilter(
-            providerIds: {'openai'},
+            modelIds: {'gpt-4o'},
             assistantIds: {'a2'},
           ),
         );
@@ -673,14 +682,20 @@ void main() {
         expect(snapshot.topicRank, isEmpty);
       });
 
-      test('trend honors the filter', () {
-        final snapshot = build(const StatsFilter(modelIds: {'claude-3'}));
+      test('trend honors the filter and buckets by resolved provider label',
+          () {
+        final snapshot = build(
+          const StatsFilter(modelIds: {'claude-3'}),
+          providerNames: const {'anthropic': 'Anthropic', 'openai': 'OpenAI'},
+        );
 
         final matchingDay = snapshot.trend.firstWhere(
           (day) => day.date == DateTime(2026, 5, 3),
         );
-        expect(matchingDay.providerTokens.keys, contains('anthropic'));
-        expect(matchingDay.providerTokens['anthropic']!.inputTokens, 200);
+        // Trend buckets by display label; the filter must exclude OpenAI.
+        expect(matchingDay.providerTokens.keys, contains('Anthropic'));
+        expect(matchingDay.providerTokens.keys, isNot(contains('OpenAI')));
+        expect(matchingDay.providerTokens['Anthropic']!.inputTokens, 200);
       });
 
       test('inactive filter matches everything', () {
@@ -689,6 +704,32 @@ void main() {
         expect(snapshot.summary.totalMessages, 4);
         expect(snapshot.summary.totalConversations, 2);
         expect(snapshot.modelRank, hasLength(2));
+      });
+
+      test('StatsFilter has value equality', () {
+        const a = StatsFilter(modelIds: {'m1', 'm2'}, assistantIds: {'x'});
+        const b = StatsFilter(modelIds: {'m2', 'm1'}, assistantIds: {'x'});
+        const c = StatsFilter(modelIds: {'m1'}, assistantIds: {'x'});
+
+        expect(a, equals(b));
+        expect(a.hashCode, b.hashCode);
+        expect(a, isNot(equals(c)));
+      });
+
+      test('StatsFilter.copyWith clears a dimension only via an empty set', () {
+        const a = StatsFilter(modelIds: {'m1'}, topicIds: {'t1'});
+
+        // null keeps the current value...
+        expect(a.copyWith(modelIds: null).modelIds, {'m1'});
+        // ...while an explicit empty set clears it.
+        expect(a.copyWith(modelIds: const {}).modelIds, isEmpty);
+        expect(a.copyWith(modelIds: const {}).isActive, isTrue);
+        expect(
+          a
+              .copyWith(modelIds: const {}, topicIds: const {})
+              .isActive,
+          isFalse,
+        );
       });
     });
   });

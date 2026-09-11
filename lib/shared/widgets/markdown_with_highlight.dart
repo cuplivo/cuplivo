@@ -361,6 +361,19 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
       if (linkIdxInline != -1) {
         inlineComponents[linkIdxInline] = LineSafeLinkMd();
       }
+      // Auto-link bare URLs (https?:// and app deep-link schemes like
+      // orpheus://) so they are tappable; gpt_markdown leaves them as plain
+      // text (issue #314). Inserted right after the markdown-link component
+      // so explicit [text](url) links keep priority in the combined scan.
+      final bareUrlIdx = inlineComponents.indexWhere(
+        (c) => c is BareUrlAutolinkMd,
+      );
+      if (bareUrlIdx == -1) {
+        inlineComponents.insert(
+          linkIdxInline != -1 ? linkIdxInline + 1 : 0,
+          BareUrlAutolinkMd(),
+        );
+      }
       // Keep escaped punctuation out of block parsing so it cannot split
       // \( ... \) math containing \{...\}; inline math is registered ahead of it.
       inlineComponents.add(BackslashEscapeMd());
@@ -5965,6 +5978,61 @@ class EscapeAwareTableMd extends TableMd {
 }
 
 // Prevent link regex from spanning across lines (dotAll=true in engine).
+/// Auto-links bare URLs printed as plain text.
+///
+/// gpt_markdown only renders `[text](url)` markdown links and `<a>` HTML
+/// tags, so a URL written directly in prose stays plain and untappable
+/// (issue #314). This inline component recognizes explicitly-schemed URLs
+/// only — `http://`, `https://`, plus the `orpheus://` music deep-link
+/// scheme — keeping detection conservative. URLs inside markdown
+/// links/images are left to ATagMd/ImageMd via the `](` lookbehind, and
+/// trailing sentence punctuation is excluded from the link target.
+class BareUrlAutolinkMd extends InlineMd {
+  @override
+  RegExp get exp => RegExp(
+    r'''(?<!\]\()(?:https?|orpheus)://[^\s<>()\[\]{}“”‘’、。！，：；？《》「」『』〈〉]+''',
+  );
+
+  static final RegExp _trailingPunctuation = RegExp(
+    r'''[.,;:!?"\'…。，；：！？）】」』〉〗〕]+$''',
+  );
+
+  @override
+  InlineSpan span(BuildContext context, String text, GptMarkdownConfig config) {
+    final match = exp.firstMatch(text);
+    if (match == null) return TextSpan(text: text, style: config.style);
+
+    var url = match.group(0)!;
+    var suffix = '';
+    final punct = _trailingPunctuation.firstMatch(url);
+    if (punct != null && punct.start > 0) {
+      suffix = url.substring(punct.start);
+      url = url.substring(0, punct.start);
+    }
+    if (url.isEmpty) return TextSpan(text: text, style: config.style);
+
+    final cs = Theme.of(context).colorScheme;
+    final linkStyle = (config.style ?? const TextStyle()).copyWith(
+      color: cs.primary,
+      decoration: TextDecoration.none,
+    );
+
+    return TextSpan(
+      children: [
+        WidgetSpan(
+          baseline: TextBaseline.alphabetic,
+          alignment: PlaceholderAlignment.baseline,
+          child: GestureDetector(
+            onTap: () => config.onLinkTap?.call(url, url),
+            child: Text(url, style: linkStyle),
+          ),
+        ),
+        if (suffix.isNotEmpty) TextSpan(text: suffix, style: config.style),
+      ],
+    );
+  }
+}
+
 class LineSafeLinkMd extends ATagMd {
   @override
   RegExp get exp =>

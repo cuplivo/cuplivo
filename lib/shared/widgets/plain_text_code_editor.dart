@@ -25,20 +25,10 @@ TextLineBreak _detectPlainTextLineBreak(String text) {
 /// [text] is assumed to have homogeneous line endings. For mixed documents the
 /// first line break found wins, matching the behaviour of the fallback split.
 CodeLineEditingController createPlainTextCodeController(String text) {
-  final controller = CodeLineEditingController.fromText(
+  return CodeLineEditingController.fromText(
     text,
     CodeLineOptions(lineBreak: _detectPlainTextLineBreak(text)),
   );
-  // Re-Editor represents an empty document as a single blank line, which
-  // `controller.text` would report as an empty string only after the initial
-  // line is consumed; normalize the degenerate single-blank-line document back
-  // to a truly empty one before any consumer persists the value.
-  if (controller.lineCount == 1 &&
-      controller.codeLines.single.text.isEmpty &&
-      controller.text.isNotEmpty) {
-    controller.value = CodeLineEditingValue(codeLines: CodeLines.empty());
-  }
-  return controller;
 }
 
 /// A plain multi-line editor for text that may be substantially larger than a

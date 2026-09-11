@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:provider/provider.dart';
-import 'package:re_editor/re_editor.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/models/quick_instruction.dart';

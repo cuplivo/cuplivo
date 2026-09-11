@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:re_editor/re_editor.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/models/world_book.dart';

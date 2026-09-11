@@ -72,9 +72,12 @@ class StatsAggregationService {
 
         if (modelId != null && modelId.isNotEmpty) {
           modelCounts[modelId] = (modelCounts[modelId] ?? 0) + 1;
-          if (providerId != null && providerId.isNotEmpty) {
-            modelProviders.putIfAbsent(modelId, () => providerId);
-          }
+          // Mirror the filter sheet's ''-bucket so ranking icons and the
+          // model list agree on which models have a known provider.
+          modelProviders.putIfAbsent(
+            modelId,
+            () => providerId ?? '',
+          );
         }
 
         topicCounts[conversation.id] = (topicCounts[conversation.id] ?? 0) + 1;

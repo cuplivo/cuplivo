@@ -280,8 +280,4 @@ class StatsFilter {
   static bool _sameIds(Set<String> a, Set<String> b) =>
       a.length == b.length && a.containsAll(b);
 
-  @override
-  String toString() =>
-      'StatsFilter(models: ${modelIds.length}, assistants: '
-      '${assistantIds.length}, topics: ${topicIds.length})';
 }

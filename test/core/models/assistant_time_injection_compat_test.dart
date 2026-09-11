@@ -55,7 +55,7 @@ void main() {
 
     test('decodeList restores a new-style backup with the new key', () {
       final restored = Assistant.decodeList(
-        '[{\"id\":\"new\",\"name\":\"New\",\"appendCurrentTimeToUserMessage\":true}]',
+        r'[{"id":"new","name":"New","appendCurrentTimeToUserMessage":true}]',
       );
 
       expect(restored, hasLength(1));

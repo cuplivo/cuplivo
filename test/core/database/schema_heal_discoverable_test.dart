@@ -200,6 +200,40 @@ void main() {
   );
 
   test(
+    'heal adds use_iso8601_time_format before assistant insert (v24 column shape)',
+    () async {
+      _createLegacyDb(
+        dbFile,
+        userVersion: 24,
+        missingIsPreset: false,
+        missingHandoffColumns: false,
+        missingOcrMode: false,
+        missingIso8601TimeFormat: true,
+      );
+
+      final repo = ChatDatabaseRepository.open(file: dbFile);
+      await repo.ensureReady();
+
+      // Must succeed: heal adds use_iso8601_time_format before Drift INSERT.
+      await repo.putAssistant(
+        Assistant(
+          id: 'a1',
+          name: 'Alpha',
+          systemPrompt: 'hi',
+          useIso8601TimeFormat: true,
+        ),
+        sortOrder: 0,
+      );
+      final loaded = await repo.getAllAssistants();
+      expect(loaded, hasLength(1));
+      expect(loaded.first.name, 'Alpha');
+      expect(loaded.first.useIso8601TimeFormat, isTrue);
+
+      await repo.close();
+    },
+  );
+
+  test(
     'heal adds context_tokens before message insert (v17 column shape)',
     () async {
       _createLegacyDb(
@@ -713,8 +747,9 @@ CREATE TABLE group_chat_rows (
 
       final version = await repo.db.customSelect('PRAGMA user_version').get();
       // The v22 migration block runs, then the ADR-0055 binding columns land
-      // under v23, so a v21 database ends at the current version 23.
-      expect(version.single.read<int>('user_version'), 23);
+      // under v23 and the ISO 8601 flag under v24, so a v21 database ends at
+      // the current version 24.
+      expect(version.single.read<int>('user_version'), 24);
 
       final columns = await repo.db
           .customSelect('PRAGMA table_info(assistant_rows)')
@@ -897,6 +932,7 @@ void _createLegacyDb(
   bool includeConversationV22Columns = false,
   bool missingPreferenceRows = true,
   bool missingConversationModelBinding = true,
+  bool missingIso8601TimeFormat = true,
 }) {
   final raw = sqlite.sqlite3.open(dbFile.path);
   raw.execute('PRAGMA user_version = $userVersion;');
@@ -911,6 +947,11 @@ void _createLegacyDb(
       ? ''
       : '''
   ocr_mode TEXT NOT NULL DEFAULT 'auto',
+''';
+  final iso8601Column = missingIso8601TimeFormat
+      ? ''
+      : '''
+  use_iso8601_time_format INTEGER NOT NULL DEFAULT 0,
 ''';
   final workspaceBindingColumns = includeWorkspaceBindingColumns
       ? '''
@@ -978,6 +1019,7 @@ CREATE TABLE assistant_rows (
   other_office_mode TEXT NOT NULL DEFAULT 'direct',
   $ocrModeColumn
   enable_time_injection INTEGER NOT NULL DEFAULT 0,
+  $iso8601Column
   $handoffColumns
   $workspaceBindingColumns
   $workspaceV20AssistantColumns

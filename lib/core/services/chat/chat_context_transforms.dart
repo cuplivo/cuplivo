@@ -22,17 +22,21 @@ class ChatContextTransforms {
 
   static String formatTimestamp(DateTime timestamp, {bool useIso8601 = false}) {
     if (useIso8601) {
-      final offset = timestamp.timeZoneOffset;
+      // Message timestamps round-trip through a UTC `DateTime` after
+      // `toIso8601String()` (no offset -> parsed as UTC). Normalize to local
+      // so the wall-clock digits and the timezone offset agree.
+      final t = timestamp.isUtc ? timestamp.toLocal() : timestamp;
+      final offset = t.timeZoneOffset;
       final sign = offset.isNegative ? '-' : '+';
       final minutes = offset.inMinutes.abs();
       final offsetHours = (minutes ~/ 60).toString().padLeft(2, '0');
       final offsetMinutes = (minutes % 60).toString().padLeft(2, '0');
-      return '${timestamp.year.toString().padLeft(4, '0')}-'
-          '${timestamp.month.toString().padLeft(2, '0')}-'
-          '${timestamp.day.toString().padLeft(2, '0')}T'
-          '${timestamp.hour.toString().padLeft(2, '0')}:'
-          '${timestamp.minute.toString().padLeft(2, '0')}:'
-          '${timestamp.second.toString().padLeft(2, '0')}'
+      return '${t.year.toString().padLeft(4, '0')}-'
+          '${t.month.toString().padLeft(2, '0')}-'
+          '${t.day.toString().padLeft(2, '0')}T'
+          '${t.hour.toString().padLeft(2, '0')}:'
+          '${t.minute.toString().padLeft(2, '0')}:'
+          '${t.second.toString().padLeft(2, '0')}'
           '$sign$offsetHours:$offsetMinutes';
     }
     const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

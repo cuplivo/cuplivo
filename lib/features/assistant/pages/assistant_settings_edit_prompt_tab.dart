@@ -220,6 +220,15 @@ class _PromptTabState extends State<_PromptTab> {
     );
   }
 
+  Future<void> _onIso8601FormatChanged(bool value) async {
+    final provider = context.read<AssistantProvider>();
+    final current = provider.getById(widget.assistantId);
+    if (current == null) return;
+    await provider.updateAssistant(
+      current.copyWith(useIso8601TimeFormat: value),
+    );
+  }
+
   Future<bool?> _showTimeVarEnableDialog(
     BuildContext context,
     List<String> hits,
@@ -269,10 +278,9 @@ class _PromptTabState extends State<_PromptTab> {
     BuildContext context,
     Assistant assistant,
   ) {
-    final example = '(${ChatContextTransforms.formatTimestamp(
-      DateTime(2026, 8, 8, 14, 30, 5),
-      useIso8601: assistant.useIso8601TimeFormat,
-    )})';
+    final example = assistant.useIso8601TimeFormat
+        ? '(2026-08-08T14:30:05+08:00)'
+        : '(Mon 26-08-08 14:30:05)';
     return showDialog<void>(
       context: context,
       builder: (ctx) {
@@ -492,9 +500,7 @@ class _PromptTabState extends State<_PromptTab> {
           const Divider(height: 1, indent: 12, endIndent: 12),
           _Iso8601Row(
             value: a.useIso8601TimeFormat,
-            onChanged: (value) => context
-                .read<AssistantProvider>()
-                .updateAssistant(a.copyWith(useIso8601TimeFormat: value)),
+            onChanged: (value) => _onIso8601FormatChanged(value),
           ),
         ],
       ],

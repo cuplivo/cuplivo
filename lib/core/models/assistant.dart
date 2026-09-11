@@ -376,6 +376,9 @@ Do **not** store sensitive information, including:
     'ocrMode': ocrMode,
     'enableTimeInjection': enableTimeInjection,
     'appendCurrentTimeToUserMessage': enableTimeInjection,
+    // Internal-only extension (no upstream Kelivo key): deliberately not
+    // dual-written, since upstream has no ISO 8601 toggle. Wire compat at the
+    // JSON boundary is preserved; older consumers simply ignore this key.
     'useIso8601TimeFormat': useIso8601TimeFormat,
     'discoverable': discoverable,
     'handoffId': handoffId,

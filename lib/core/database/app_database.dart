@@ -538,7 +538,7 @@ class AppDatabase extends _$AppDatabase {
   /// this heal set and the regression tests in the same change. See AGENTS.md
   /// §3.20.
   Future<void> _healSchemaIfNeeded() async {
-    // --- assistant_rows (v5–v23) ---
+    // --- assistant_rows (v5–v24) ---
     await _ensureColumn(
       'assistant_rows',
       'memory_mode',
@@ -1183,7 +1183,11 @@ WHERE proactive_care_next_message_at IS NULL
             assistantRows,
             assistantRows.useIso8601TimeFormat,
           );
-        } catch (_) {}
+        } catch (error) {
+          debugPrint(
+            'v24 migration could not add use_iso8601_time_format: $error',
+          );
+        }
       }
       // Final pass: heal any column/table that still did not land.
       await _healSchemaIfNeeded();

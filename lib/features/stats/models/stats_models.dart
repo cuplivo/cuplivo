@@ -131,6 +131,11 @@ class StatsRankItem {
   final String id;
   final String label;
   final int value;
+
+  /// Provider id backing the model icon. Empty string means "unknown
+  /// provider" (messages recorded without one) — the same sentinel the
+  /// filter sheet uses for its Unknown Provider group. Null only for
+  /// dimensions that carry no provider concept (assistant/topic ranks).
   final String? providerId;
 }
 
@@ -279,5 +284,13 @@ class StatsFilter {
 
   static bool _sameIds(Set<String> a, Set<String> b) =>
       a.length == b.length && a.containsAll(b);
+
+  /// Single normalisation for model->provider attribution shared by the
+  /// aggregation service and the filter sheet: trimmed, blank/null folded
+  /// to the unknown sentinel.
+  static String normalizeProviderId(String? raw) {
+    final value = raw?.trim();
+    return (value == null || value.isEmpty) ? '' : value;
+  }
 
 }

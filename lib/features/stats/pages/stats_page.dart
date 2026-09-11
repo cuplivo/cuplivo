@@ -258,7 +258,7 @@ class _StatsPageState extends State<StatsPage> {
         // model->provider mapping sticks.
         modelProviders.putIfAbsent(
           modelId,
-          () => message.providerId?.trim() ?? '',
+          () => StatsFilter.normalizeProviderId(message.providerId),
         );
       }
     }

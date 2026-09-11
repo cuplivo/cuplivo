@@ -76,7 +76,7 @@ class StatsAggregationService {
           // model list agree on which models have a known provider.
           modelProviders.putIfAbsent(
             modelId,
-            () => providerId ?? '',
+            () => StatsFilter.normalizeProviderId(providerId),
           );
         }
 

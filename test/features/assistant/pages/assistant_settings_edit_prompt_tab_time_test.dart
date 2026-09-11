@@ -266,6 +266,48 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets(
+    'resets focus history when switching assistants before variable insertion',
+    (tester) async {
+      _seedPreferences(includeSecond: true);
+      final provider = await _createAssistantProvider(preferences: businessPrefs);
+      await tester.pumpWidget(
+        _buildHarness(
+          assistantProvider: provider,
+          child: const AssistantSettingsEditPage(assistantId: _assistantId),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Prompts'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final firstEditor = find.byType(PlainTextCodeEditor).first;
+      await tester.tap(firstEditor);
+      await tester.pump();
+
+      await tester.pumpWidget(
+        _buildHarness(
+          assistantProvider: provider,
+          child: const AssistantSettingsEditPage(
+            assistantId: _secondAssistantId,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final secondEditor = tester.widget<PlainTextCodeEditor>(
+        find.byType(PlainTextCodeEditor).first,
+      );
+      expect(secondEditor.focusNode?.hasFocus, isFalse);
+      await tester.tap(find.text('{model_id}'));
+      await tester.pump();
+
+      expect(secondEditor.controller.text, 'second original{model_id}');
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    },
+  );
+
   testWidgets('flushes pending prompt when the page is disposed', (
     tester,
   ) async {

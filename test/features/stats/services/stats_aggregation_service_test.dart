@@ -576,6 +576,16 @@ void main() {
             completionTokens: 120,
             cachedTokens: 20,
           ),
+          message(
+            'm5',
+            conversationId: 'c1',
+            timestamp: now.subtract(const Duration(minutes: 45)),
+            modelId: 'o4-mini',
+            providerId: 'openai',
+            promptTokens: 25,
+            completionTokens: 5,
+            cachedTokens: 0,
+          ),
         ],
         'c2': [
           message(
@@ -625,19 +635,19 @@ void main() {
         expect(matchingDay.count, 1);
       });
 
-      test('selecting a provider header (all its models) filters by provider',
-          () {
-        // The model/provider sheet expresses "filter by provider" as checking
-        // the provider header, i.e. selecting all of its models.
+      test('provider-header select-all filters via a multi-model OR set', () {
+        // After removing the providerIds dimension, checking a provider
+        // header in the sheet equals selecting ALL of its models. This set
+        // must include every openai model (gpt-4o + o4-mini) and exclude the
+        // anthropic one — the closest thing left to provider-level filtering.
         final snapshot = build(
-          const StatsFilter(modelIds: {'gpt-4o'}),
+          const StatsFilter(modelIds: {'gpt-4o', 'o4-mini'}),
         );
 
-        expect(snapshot.summary.totalMessages, 3);
-        expect(snapshot.summary.inputTokens, 450);
-        expect(snapshot.summary.outputTokens, 180);
-        expect(snapshot.modelRank, hasLength(1));
-        expect(snapshot.modelRank.single.id, 'gpt-4o');
+        expect(snapshot.summary.totalMessages, 4);
+        expect(snapshot.summary.inputTokens, 475);
+        expect(snapshot.summary.outputTokens, 185);
+        expect(snapshot.modelRank.map((e) => e.id), ['gpt-4o', 'o4-mini']);
       });
 
       test('filters by assistant ids (conversation based)', () {
@@ -652,7 +662,7 @@ void main() {
       test('filters by topic ids (conversation based)', () {
         final snapshot = build(const StatsFilter(topicIds: {'c1'}));
 
-        expect(snapshot.summary.totalMessages, 3);
+        expect(snapshot.summary.totalMessages, 4);
         expect(snapshot.summary.totalConversations, 1);
         expect(snapshot.topicRank.single.id, 'c1');
         expect(snapshot.assistantRank.single.id, 'a1');
@@ -701,9 +711,9 @@ void main() {
       test('inactive filter matches everything', () {
         final snapshot = build(const StatsFilter());
 
-        expect(snapshot.summary.totalMessages, 4);
+        expect(snapshot.summary.totalMessages, 5);
         expect(snapshot.summary.totalConversations, 2);
-        expect(snapshot.modelRank, hasLength(2));
+        expect(snapshot.modelRank, hasLength(3));
       });
 
       test('StatsFilter has value equality', () {

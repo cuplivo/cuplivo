@@ -223,7 +223,7 @@ void main() {
       _seedPreferences();
       await _openPromptsTab(tester);
 
-      expect(find.text('Use ISO 8601 format'), findsNothing);
+      expect(find.text('Use ISO 8601 time format'), findsNothing);
     },
   );
 
@@ -237,14 +237,14 @@ void main() {
       await tester.tap(__switchFor('Append current time'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('Use ISO 8601 format'), findsOneWidget);
+      expect(find.text('Use ISO 8601 time format'), findsOneWidget);
 
       // Turn ISO 8601 on.
-      await tester.tap(_switchFor('Use ISO 8601 format'));
+      await tester.tap(_switchFor('Use ISO 8601 time format'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(
-        tester.widget<IosSwitch>(_switchFor('Use ISO 8601 format')).value,
+        tester.widget<IosSwitch>(_switchFor('Use ISO 8601 time format')).value,
         isTrue,
       );
 
@@ -252,14 +252,14 @@ void main() {
       await tester.tap(_switchFor('Append current time'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('Use ISO 8601 format'), findsNothing);
+      expect(find.text('Use ISO 8601 time format'), findsNothing);
 
       // ...and re-showing it restores the switch in the ON state.
       await tester.tap(_switchFor('Append current time'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(
-        tester.widget<IosSwitch>(_switchFor('Use ISO 8601 format')).value,
+        tester.widget<IosSwitch>(_switchFor('Use ISO 8601 time format')).value,
         isTrue,
       );
     },
@@ -275,7 +275,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    await tester.tap(_switchFor('Use ISO 8601 format'));
+    await tester.tap(_switchFor('Use ISO 8601 time format'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 

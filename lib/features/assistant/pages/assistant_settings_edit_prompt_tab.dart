@@ -507,8 +507,10 @@ class _PromptTabState extends State<_PromptTab> {
         ),
         if (a.enableTimeInjection) ...[
           _iosDivider(context),
-          IosLabeledSwitchRow(
-            title: l10n.assistantEditPromptIso8601Title,
+          _iosSwitchRow(
+            context,
+            icon: Lucide.clock,
+            label: l10n.assistantEditPromptIso8601Title,
             subtitle: l10n.assistantEditPromptIso8601Subtitle,
             value: a.useIso8601TimeFormat,
             onChanged: (value) => _onIso8601FormatChanged(a, value),

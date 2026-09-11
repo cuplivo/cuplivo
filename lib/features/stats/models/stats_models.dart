@@ -294,8 +294,4 @@ class StatsFilter {
 
   static bool _sameIds(Set<String> a, Set<String> b) =>
       a.length == b.length && a.containsAll(b);
-
-
-}
-
 }

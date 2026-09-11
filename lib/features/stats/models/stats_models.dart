@@ -134,8 +134,10 @@ class StatsRankItem {
 
   /// Provider id backing the model icon. Empty string means "unknown
   /// provider" (messages recorded without one) — the same sentinel the
-  /// filter sheet uses for its Unknown Provider group. Null only for
-  /// dimensions that carry no provider concept (assistant/topic ranks).
+  /// filter sheet uses for its Unknown Provider group, and it
+  /// intentionally renders the model-id letter fallback (a visible icon,
+  /// not a blank one). Null only for dimensions that carry no provider
+  /// concept (assistant/topic ranks).
   final String? providerId;
 }
 

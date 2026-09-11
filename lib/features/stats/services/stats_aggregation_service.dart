@@ -47,7 +47,7 @@ class StatsAggregationService {
       for (final message in messages) {
         final messageDate = StatsDateRange.normalizeDate(message.timestamp);
         final modelId = message.modelId?.trim();
-        final providerId = message.providerId?.trim();
+        final providerId = StatsFilter.normalizeProviderId(message.providerId);
 
         if (!filter.matches(
           modelId: modelId,
@@ -74,10 +74,7 @@ class StatsAggregationService {
           modelCounts[modelId] = (modelCounts[modelId] ?? 0) + 1;
           // Mirror the filter sheet's ''-bucket so ranking icons and the
           // model list agree on which models have a known provider.
-          modelProviders.putIfAbsent(
-            modelId,
-            () => StatsFilter.normalizeProviderId(providerId),
-          );
+          modelProviders.putIfAbsent(modelId, () => providerId);
         }
 
         topicCounts[conversation.id] = (topicCounts[conversation.id] ?? 0) + 1;
@@ -198,15 +195,15 @@ class StatsAggregationService {
             inputTokens == 0 && outputTokens == 0 && legacyTotalTokens > 0
             ? legacyTotalTokens
             : 0;
-        final providerId = message.providerId?.trim();
-        if ((providerId == null || providerId.isEmpty) &&
+        final providerId = StatsFilter.normalizeProviderId(message.providerId);
+        if (providerId.isEmpty &&
             inputTokens == 0 &&
             outputTokens == 0 &&
             cachedTokens == 0 &&
             uncategorizedTokens == 0) {
           continue;
         }
-        final providerLabel = providerId == null || providerId.isEmpty
+        final providerLabel = providerId.isEmpty
             ? unknownProviderLabel
             : (providerNames[providerId] ?? providerId);
         final dayBuckets = buckets[date]!;

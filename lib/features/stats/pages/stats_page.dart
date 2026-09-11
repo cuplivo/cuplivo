@@ -1389,7 +1389,7 @@ class _ModelProviderFilterSheetState extends State<_ModelProviderFilterSheet> {
       // not deduplicated, so labelling here would merge distinct providers
       // (and a provider literally named like the unknown label would fold
       // into the synthetic bucket). Resolve the label only when rendering.
-      final key = providerId.trim();
+      final key = providerId;
       if (!groups.containsKey(key)) {
         groups[key] = <String>[];
         groupOrder.add(key);

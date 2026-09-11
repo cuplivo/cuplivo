@@ -32,6 +32,45 @@ void main() {
       );
     });
 
+    test('ISO 8601 format emits UTC offset to seconds', () {
+      final timestamp = DateTime.utc(2026, 8, 8, 14, 30, 5);
+
+      expect(
+        ChatContextTransforms.formatTimestamp(timestamp, useIso8601: true),
+        '2026-08-08T14:30:05+00:00',
+      );
+      expect(
+        ChatContextTransforms.appendTimestamp(
+          'hello',
+          timestamp,
+          useIso8601: true,
+        ),
+        'hello\n\n(2026-08-08T14:30:05+00:00)',
+      );
+    });
+
+    test('ISO 8601 format always carries a signed UTC offset', () {
+      // Local timestamps keep the runner's own offset; assert shape only.
+      final local = DateTime(2026, 8, 8, 14, 30, 5);
+      final iso = ChatContextTransforms.formatTimestamp(local,
+          useIso8601: true);
+
+      expect(
+        RegExp(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$')
+            .hasMatch(iso),
+        isTrue,
+      );
+    });
+
+    test('useIso8601 defaults to false and keeps the legacy format', () {
+      final timestamp = DateTime(2026, 8, 18, 9, 7, 5);
+
+      expect(
+        ChatContextTransforms.formatTimestamp(timestamp),
+        'Tue 26-08-18 09:07:05',
+      );
+    });
+
     test('selects the latest ten eligible recent chats', () {
       final base = DateTime(2026, 8, 18);
       final chats = <Conversation>[

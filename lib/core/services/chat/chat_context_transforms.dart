@@ -12,11 +12,29 @@ class ChatContextTransforms {
   static const String timeNote =
       '<time-note>A timestamp will be injected by the system after every user message. Just keep it in mind, and don\'t mention it when irrelevant.</time-note>';
 
-  static String appendTimestamp(String content, DateTime timestamp) {
-    return '$content\n\n(${formatTimestamp(timestamp)})';
+  static String appendTimestamp(
+    String content,
+    DateTime timestamp, {
+    bool useIso8601 = false,
+  }) {
+    return '$content\n\n(${formatTimestamp(timestamp, useIso8601: useIso8601)})';
   }
 
-  static String formatTimestamp(DateTime timestamp) {
+  static String formatTimestamp(DateTime timestamp, {bool useIso8601 = false}) {
+    if (useIso8601) {
+      final offset = timestamp.timeZoneOffset;
+      final sign = offset.isNegative ? '-' : '+';
+      final minutes = offset.inMinutes.abs();
+      final offsetHours = (minutes ~/ 60).toString().padLeft(2, '0');
+      final offsetMinutes = (minutes % 60).toString().padLeft(2, '0');
+      return '${timestamp.year.toString().padLeft(4, '0')}-'
+          '${timestamp.month.toString().padLeft(2, '0')}-'
+          '${timestamp.day.toString().padLeft(2, '0')}T'
+          '${timestamp.hour.toString().padLeft(2, '0')}:'
+          '${timestamp.minute.toString().padLeft(2, '0')}:'
+          '${timestamp.second.toString().padLeft(2, '0')}'
+          '$sign$offsetHours:$offsetMinutes';
+    }
     const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     return '${weekdays[timestamp.weekday % 7]} '
         '${(timestamp.year % 100).toString().padLeft(2, '0')}-'

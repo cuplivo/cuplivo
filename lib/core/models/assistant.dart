@@ -110,6 +110,8 @@ Do **not** store sensitive information, including:
   final String ocrMode;
   // Time injection
   final bool enableTimeInjection;
+  // Use ISO 8601 (with UTC offset) instead of the default compact format
+  final bool useIso8601TimeFormat;
   // Handoff / delegation
   final bool discoverable;
   final String? handoffId;
@@ -162,6 +164,7 @@ Do **not** store sensitive information, including:
     this.otherOfficeMode = 'direct',
     this.ocrMode = 'auto',
     this.enableTimeInjection = false,
+    this.useIso8601TimeFormat = false,
     this.discoverable = false,
     this.handoffId,
     this.handoffDescription,
@@ -239,6 +242,7 @@ Do **not** store sensitive information, including:
     String? otherOfficeMode,
     String? ocrMode,
     bool? enableTimeInjection,
+    bool? useIso8601TimeFormat,
     bool? discoverable,
     String? handoffId,
     String? handoffDescription,
@@ -313,6 +317,8 @@ Do **not** store sensitive information, including:
       otherOfficeMode: otherOfficeMode ?? this.otherOfficeMode,
       ocrMode: ocrMode ?? this.ocrMode,
       enableTimeInjection: enableTimeInjection ?? this.enableTimeInjection,
+      useIso8601TimeFormat:
+          useIso8601TimeFormat ?? this.useIso8601TimeFormat,
       discoverable: discoverable ?? this.discoverable,
       handoffId: clearHandoffId ? null : (handoffId ?? this.handoffId),
       handoffDescription: clearHandoffDescription
@@ -370,6 +376,7 @@ Do **not** store sensitive information, including:
     'ocrMode': ocrMode,
     'enableTimeInjection': enableTimeInjection,
     'appendCurrentTimeToUserMessage': enableTimeInjection,
+    'useIso8601TimeFormat': useIso8601TimeFormat,
     'discoverable': discoverable,
     'handoffId': handoffId,
     'handoffDescription': handoffDescription,
@@ -492,6 +499,7 @@ Do **not** store sensitive information, including:
         json['appendCurrentTimeToUserMessage'] as bool? ??
         json['enableTimeInjection'] as bool? ??
         false,
+    useIso8601TimeFormat: json['useIso8601TimeFormat'] as bool? ?? false,
     discoverable: json['discoverable'] as bool? ?? false,
     handoffId: json['handoffId'] as String?,
     handoffDescription: json['handoffDescription'] as String?,

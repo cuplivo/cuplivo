@@ -265,8 +265,14 @@ class _PromptTabState extends State<_PromptTab> {
     );
   }
 
-  Future<void> _showAppendCurrentTimeInfoDialog(BuildContext context) {
-    const example = '(Mon 26-08-08 14:30:05)';
+  Future<void> _showAppendCurrentTimeInfoDialog(
+    BuildContext context,
+    Assistant assistant,
+  ) {
+    final example = '(${ChatContextTransforms.formatTimestamp(
+      DateTime(2026, 8, 8, 14, 30, 5),
+      useIso8601: assistant.useIso8601TimeFormat,
+    )})';
     return showDialog<void>(
       context: context,
       builder: (ctx) {
@@ -480,8 +486,17 @@ class _PromptTabState extends State<_PromptTab> {
         _AppendCurrentTimeRow(
           value: a.enableTimeInjection,
           onChanged: (enabled) => _onAppendCurrentTimeChanged(a, enabled),
-          onInfoTap: () => _showAppendCurrentTimeInfoDialog(context),
+          onInfoTap: () => _showAppendCurrentTimeInfoDialog(context, a),
         ),
+        if (a.enableTimeInjection) ...[
+          const Divider(height: 1, indent: 12, endIndent: 12),
+          _Iso8601Row(
+            value: a.useIso8601TimeFormat,
+            onChanged: (value) => context
+                .read<AssistantProvider>()
+                .updateAssistant(a.copyWith(useIso8601TimeFormat: value)),
+          ),
+        ],
       ],
     );
 
@@ -1759,6 +1774,60 @@ class _AppendCurrentTimeRow extends StatelessWidget {
             onTap: onInfoTap,
           ),
           const SizedBox(width: 4),
+          IosSwitch(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}
+
+/// Switch row for the optional ISO 8601 time format, shown below the
+/// Append-current-time row while time injection is enabled.
+class _Iso8601Row extends StatelessWidget {
+  const _Iso8601Row({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.assistantEditPromptIso8601Title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: cs.onSurface.withValues(alpha: 0.9),
+                    fontWeight: AppFontWeights.semibold,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  l10n.assistantEditPromptIso8601Subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.25,
+                    color: cs.onSurface.withValues(alpha: 0.62),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
           IosSwitch(value: value, onChanged: onChanged),
         ],
       ),

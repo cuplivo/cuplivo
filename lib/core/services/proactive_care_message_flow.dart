@@ -334,6 +334,7 @@ class ProactiveCareMessageFlow {
         content = ChatContextTransforms.appendTimestamp(
           content,
           message.timestamp,
+          useIso8601: assistant.useIso8601TimeFormat,
         );
       }
       final historyMessage = <String, dynamic>{
@@ -943,6 +944,7 @@ class ProactiveCareHeadlessChatStore {
       'regexRules': jsonDecode(row['regex_rules_json'] as String),
       'enableProactiveCare': (row['enable_proactive_care'] as int) != 0,
       'enableTimeInjection': (row['enable_time_injection'] as int) != 0,
+      'useIso8601TimeFormat': (row['use_iso8601_time_format'] as int? ?? 0) != 0,
       'discoverable': (row['discoverable'] as int? ?? 0) != 0,
       'handoffId': row['handoff_id'] as String?,
       'handoffDescription': row['handoff_description'] as String?,

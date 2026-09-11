@@ -616,6 +616,7 @@ class MessageBuilderService {
             apiMessages[i]['content'] = ChatContextTransforms.appendTimestamp(
               (apiMessages[i]['content'] ?? '').toString(),
               ts,
+              useIso8601: assistant?.useIso8601TimeFormat ?? false,
             );
           }
         }

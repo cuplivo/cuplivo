@@ -55,11 +55,44 @@ void main() {
 
     test('decodeList restores a new-style backup with the new key', () {
       final restored = Assistant.decodeList(
-        '[{"id":"new","name":"New","appendCurrentTimeToUserMessage":true}]',
+        '[{\"id\":\"new\",\"name\":\"New\",\"appendCurrentTimeToUserMessage\":true}]',
       );
 
       expect(restored, hasLength(1));
       expect(restored.first.enableTimeInjection, isTrue);
+    });
+
+    test('useIso8601TimeFormat defaults to false', () {
+      final a = Assistant(id: 'a', name: 'A');
+      final fromJson = Assistant.fromJson({'id': 'a', 'name': 'A'});
+
+      expect(a.useIso8601TimeFormat, isFalse);
+      expect(fromJson.useIso8601TimeFormat, isFalse);
+    });
+
+    test('toJson round-trips useIso8601TimeFormat', () {
+      final on = Assistant(id: 'a', name: 'A', useIso8601TimeFormat: true);
+      final off = Assistant(id: 'b', name: 'B', useIso8601TimeFormat: false);
+
+      expect(on.toJson()['useIso8601TimeFormat'], isTrue);
+      expect(off.toJson()['useIso8601TimeFormat'], isFalse);
+      expect(
+        Assistant.fromJson(on.toJson()).useIso8601TimeFormat,
+        isTrue,
+      );
+      expect(
+        Assistant.fromJson(off.toJson()).useIso8601TimeFormat,
+        isFalse,
+      );
+    });
+
+    test('copyWith toggles useIso8601TimeFormat independently', () {
+      final a = Assistant(id: 'a', name: 'A');
+
+      expect(a.copyWith(useIso8601TimeFormat: true).useIso8601TimeFormat,
+          isTrue);
+      expect(a.copyWith(useIso8601TimeFormat: false).useIso8601TimeFormat,
+          isFalse);
     });
   });
 }

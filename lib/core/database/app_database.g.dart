@@ -3481,6 +3481,20 @@ class $AssistantRowsTable extends AssistantRows
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _useIso8601TimeFormatMeta =
+      const VerificationMeta('useIso8601TimeFormat');
+  @override
+  late final GeneratedColumn<bool> useIso8601TimeFormat = GeneratedColumn<bool>(
+    'use_iso8601_time_format',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("use_iso8601_time_format" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _discoverableMeta = const VerificationMeta(
     'discoverable',
   );
@@ -3597,6 +3611,7 @@ class $AssistantRowsTable extends AssistantRows
     otherOfficeMode,
     ocrMode,
     enableTimeInjection,
+    useIso8601TimeFormat,
     discoverable,
     handoffId,
     handoffDescription,
@@ -3983,6 +3998,15 @@ class $AssistantRowsTable extends AssistantRows
         ),
       );
     }
+    if (data.containsKey('use_iso8601_time_format')) {
+      context.handle(
+        _useIso8601TimeFormatMeta,
+        useIso8601TimeFormat.isAcceptableOrUnknown(
+          data['use_iso8601_time_format']!,
+          _useIso8601TimeFormatMeta,
+        ),
+      );
+    }
     if (data.containsKey('discoverable')) {
       context.handle(
         _discoverableMeta,
@@ -4216,6 +4240,10 @@ class $AssistantRowsTable extends AssistantRows
         DriftSqlType.bool,
         data['${effectivePrefix}enable_time_injection'],
       )!,
+      useIso8601TimeFormat: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}use_iso8601_time_format'],
+      )!,
       discoverable: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}discoverable'],
@@ -4294,6 +4322,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
   final String otherOfficeMode;
   final String ocrMode;
   final bool enableTimeInjection;
+  final bool useIso8601TimeFormat;
   final bool discoverable;
   final String? handoffId;
   final String? handoffDescription;
@@ -4345,6 +4374,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     required this.otherOfficeMode,
     required this.ocrMode,
     required this.enableTimeInjection,
+    required this.useIso8601TimeFormat,
     required this.discoverable,
     this.handoffId,
     this.handoffDescription,
@@ -4433,6 +4463,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     map['other_office_mode'] = Variable<String>(otherOfficeMode);
     map['ocr_mode'] = Variable<String>(ocrMode);
     map['enable_time_injection'] = Variable<bool>(enableTimeInjection);
+    map['use_iso8601_time_format'] = Variable<bool>(useIso8601TimeFormat);
     map['discoverable'] = Variable<bool>(discoverable);
     if (!nullToAbsent || handoffId != null) {
       map['handoff_id'] = Variable<String>(handoffId);
@@ -4514,6 +4545,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       otherOfficeMode: Value(otherOfficeMode),
       ocrMode: Value(ocrMode),
       enableTimeInjection: Value(enableTimeInjection),
+      useIso8601TimeFormat: Value(useIso8601TimeFormat),
       discoverable: Value(discoverable),
       handoffId: handoffId == null && nullToAbsent
           ? const Value.absent()
@@ -4603,6 +4635,9 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       enableTimeInjection: serializer.fromJson<bool>(
         json['enableTimeInjection'],
       ),
+      useIso8601TimeFormat: serializer.fromJson<bool>(
+        json['useIso8601TimeFormat'],
+      ),
       discoverable: serializer.fromJson<bool>(json['discoverable']),
       handoffId: serializer.fromJson<String?>(json['handoffId']),
       handoffDescription: serializer.fromJson<String?>(
@@ -4673,6 +4708,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       'otherOfficeMode': serializer.toJson<String>(otherOfficeMode),
       'ocrMode': serializer.toJson<String>(ocrMode),
       'enableTimeInjection': serializer.toJson<bool>(enableTimeInjection),
+      'useIso8601TimeFormat': serializer.toJson<bool>(useIso8601TimeFormat),
       'discoverable': serializer.toJson<bool>(discoverable),
       'handoffId': serializer.toJson<String?>(handoffId),
       'handoffDescription': serializer.toJson<String?>(handoffDescription),
@@ -4727,6 +4763,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     String? otherOfficeMode,
     String? ocrMode,
     bool? enableTimeInjection,
+    bool? useIso8601TimeFormat,
     bool? discoverable,
     Value<String?> handoffId = const Value.absent(),
     Value<String?> handoffDescription = const Value.absent(),
@@ -4791,6 +4828,8 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     otherOfficeMode: otherOfficeMode ?? this.otherOfficeMode,
     ocrMode: ocrMode ?? this.ocrMode,
     enableTimeInjection: enableTimeInjection ?? this.enableTimeInjection,
+    useIso8601TimeFormat:
+        useIso8601TimeFormat ?? this.useIso8601TimeFormat,
     discoverable: discoverable ?? this.discoverable,
     handoffId: handoffId.present ? handoffId.value : this.handoffId,
     handoffDescription: handoffDescription.present
@@ -4921,6 +4960,9 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
       enableTimeInjection: data.enableTimeInjection.present
           ? data.enableTimeInjection.value
           : this.enableTimeInjection,
+      useIso8601TimeFormat: data.useIso8601TimeFormat.present
+          ? data.useIso8601TimeFormat.value
+          : this.useIso8601TimeFormat,
       discoverable: data.discoverable.present
           ? data.discoverable.value
           : this.discoverable,
@@ -4987,6 +5029,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
           ..write('otherOfficeMode: $otherOfficeMode, ')
           ..write('ocrMode: $ocrMode, ')
           ..write('enableTimeInjection: $enableTimeInjection, ')
+          ..write('useIso8601TimeFormat: $useIso8601TimeFormat, ')
           ..write('discoverable: $discoverable, ')
           ..write('handoffId: $handoffId, ')
           ..write('handoffDescription: $handoffDescription, ')
@@ -5043,6 +5086,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
     otherOfficeMode,
     ocrMode,
     enableTimeInjection,
+    useIso8601TimeFormat,
     discoverable,
     handoffId,
     handoffDescription,
@@ -5102,6 +5146,7 @@ class AssistantRow extends DataClass implements Insertable<AssistantRow> {
           other.otherOfficeMode == this.otherOfficeMode &&
           other.ocrMode == this.ocrMode &&
           other.enableTimeInjection == this.enableTimeInjection &&
+          other.useIso8601TimeFormat == this.useIso8601TimeFormat &&
           other.discoverable == this.discoverable &&
           other.handoffId == this.handoffId &&
           other.handoffDescription == this.handoffDescription &&
@@ -5155,6 +5200,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
   final Value<String> otherOfficeMode;
   final Value<String> ocrMode;
   final Value<bool> enableTimeInjection;
+  final Value<bool> useIso8601TimeFormat;
   final Value<bool> discoverable;
   final Value<String?> handoffId;
   final Value<String?> handoffDescription;
@@ -5207,6 +5253,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     this.otherOfficeMode = const Value.absent(),
     this.ocrMode = const Value.absent(),
     this.enableTimeInjection = const Value.absent(),
+    this.useIso8601TimeFormat = const Value.absent(),
     this.discoverable = const Value.absent(),
     this.handoffId = const Value.absent(),
     this.handoffDescription = const Value.absent(),
@@ -5260,6 +5307,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     this.otherOfficeMode = const Value.absent(),
     this.ocrMode = const Value.absent(),
     this.enableTimeInjection = const Value.absent(),
+    this.useIso8601TimeFormat = const Value.absent(),
     this.discoverable = const Value.absent(),
     this.handoffId = const Value.absent(),
     this.handoffDescription = const Value.absent(),
@@ -5317,6 +5365,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     Expression<String>? otherOfficeMode,
     Expression<String>? ocrMode,
     Expression<bool>? enableTimeInjection,
+    Expression<bool>? useIso8601TimeFormat,
     Expression<bool>? discoverable,
     Expression<String>? handoffId,
     Expression<String>? handoffDescription,
@@ -5385,6 +5434,8 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
       if (ocrMode != null) 'ocr_mode': ocrMode,
       if (enableTimeInjection != null)
         'enable_time_injection': enableTimeInjection,
+      if (useIso8601TimeFormat != null)
+        'use_iso8601_time_format': useIso8601TimeFormat,
       if (discoverable != null) 'discoverable': discoverable,
       if (handoffId != null) 'handoff_id': handoffId,
       if (handoffDescription != null) 'handoff_description': handoffDescription,
@@ -5440,6 +5491,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     Value<String>? otherOfficeMode,
     Value<String>? ocrMode,
     Value<bool>? enableTimeInjection,
+    Value<bool>? useIso8601TimeFormat,
     Value<bool>? discoverable,
     Value<String?>? handoffId,
     Value<String?>? handoffDescription,
@@ -5501,6 +5553,8 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
       otherOfficeMode: otherOfficeMode ?? this.otherOfficeMode,
       ocrMode: ocrMode ?? this.ocrMode,
       enableTimeInjection: enableTimeInjection ?? this.enableTimeInjection,
+      useIso8601TimeFormat:
+          useIso8601TimeFormat ?? this.useIso8601TimeFormat,
       discoverable: discoverable ?? this.discoverable,
       handoffId: handoffId ?? this.handoffId,
       handoffDescription: handoffDescription ?? this.handoffDescription,
@@ -5662,6 +5716,10 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
     if (enableTimeInjection.present) {
       map['enable_time_injection'] = Variable<bool>(enableTimeInjection.value);
     }
+    if (useIso8601TimeFormat.present) {
+      map['use_iso8601_time_format'] =
+          Variable<bool>(useIso8601TimeFormat.value);
+    }
     if (discoverable.present) {
       map['discoverable'] = Variable<bool>(discoverable.value);
     }
@@ -5739,6 +5797,7 @@ class AssistantRowsCompanion extends UpdateCompanion<AssistantRow> {
           ..write('otherOfficeMode: $otherOfficeMode, ')
           ..write('ocrMode: $ocrMode, ')
           ..write('enableTimeInjection: $enableTimeInjection, ')
+          ..write('useIso8601TimeFormat: $useIso8601TimeFormat, ')
           ..write('discoverable: $discoverable, ')
           ..write('handoffId: $handoffId, ')
           ..write('handoffDescription: $handoffDescription, ')
@@ -11370,6 +11429,7 @@ typedef $$AssistantRowsTableCreateCompanionBuilder =
       Value<String> otherOfficeMode,
       Value<String> ocrMode,
       Value<bool> enableTimeInjection,
+      Value<bool> useIso8601TimeFormat,
       Value<bool> discoverable,
       Value<String?> handoffId,
       Value<String?> handoffDescription,
@@ -11424,6 +11484,7 @@ typedef $$AssistantRowsTableUpdateCompanionBuilder =
       Value<String> otherOfficeMode,
       Value<String> ocrMode,
       Value<bool> enableTimeInjection,
+      Value<bool> useIso8601TimeFormat,
       Value<bool> discoverable,
       Value<String?> handoffId,
       Value<String?> handoffDescription,
@@ -11661,6 +11722,11 @@ class $$AssistantRowsTableFilterComposer
 
   ColumnFilters<bool> get enableTimeInjection => $composableBuilder(
     column: $table.enableTimeInjection,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get useIso8601TimeFormat => $composableBuilder(
+    column: $table.useIso8601TimeFormat,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11927,6 +11993,11 @@ class $$AssistantRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get useIso8601TimeFormat => $composableBuilder(
+    column: $table.useIso8601TimeFormat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get discoverable => $composableBuilder(
     column: $table.discoverable,
     builder: (column) => ColumnOrderings(column),
@@ -12174,6 +12245,11 @@ class $$AssistantRowsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get useIso8601TimeFormat => $composableBuilder(
+    column: $table.useIso8601TimeFormat,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get discoverable => $composableBuilder(
     column: $table.discoverable,
     builder: (column) => column,
@@ -12277,6 +12353,7 @@ class $$AssistantRowsTableTableManager
                 Value<String> otherOfficeMode = const Value.absent(),
                 Value<String> ocrMode = const Value.absent(),
                 Value<bool> enableTimeInjection = const Value.absent(),
+                Value<bool> useIso8601TimeFormat = const Value.absent(),
                 Value<bool> discoverable = const Value.absent(),
                 Value<String?> handoffId = const Value.absent(),
                 Value<String?> handoffDescription = const Value.absent(),
@@ -12390,6 +12467,7 @@ class $$AssistantRowsTableTableManager
                 Value<String> otherOfficeMode = const Value.absent(),
                 Value<String> ocrMode = const Value.absent(),
                 Value<bool> enableTimeInjection = const Value.absent(),
+                Value<bool> useIso8601TimeFormat = const Value.absent(),
                 Value<bool> discoverable = const Value.absent(),
                 Value<String?> handoffId = const Value.absent(),
                 Value<String?> handoffDescription = const Value.absent(),

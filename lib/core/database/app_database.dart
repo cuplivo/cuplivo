@@ -475,7 +475,7 @@ class AppDatabase extends _$AppDatabase {
   // self-heal below repairs such gaps on every open; without it the gap is
   // permanent because later upgrades skip the failed step's `from < N` block.
   // See docs/adr/0019-schema-self-heal.md.
-  int get schemaVersion => 23;
+  int get schemaVersion => 24;
 
   /// Whether [table] has a physical column named [column] (sqlite name).
   Future<bool> _hasColumn(String table, String column) async {
@@ -528,7 +528,7 @@ class AppDatabase extends _$AppDatabase {
   /// Repair incomplete upgrades where user_version already advanced but some
   /// ALTER TABLE / CREATE TABLE steps were skipped/failed (silent catch).
   ///
-  /// Covers every column/table added by the v5–v23 migrations that are
+  /// Covers every column/table added by the v5–v24 migrations that are
   /// wrapped in silent try/catch — missing these makes inserts crash with
   /// "table X has no column named Y". Runs in beforeOpen (rescues existing
   /// broken DBs whose user_version already passed the failed step) and at the
@@ -599,6 +599,12 @@ class AppDatabase extends _$AppDatabase {
       'assistant_rows',
       'enable_time_injection',
       'ALTER TABLE assistant_rows ADD COLUMN enable_time_injection INTEGER NOT NULL DEFAULT 0',
+    );
+    // ISO 8601 time format option (schema v24)
+    await _ensureColumn(
+      'assistant_rows',
+      'use_iso8601_time_format',
+      'ALTER TABLE assistant_rows ADD COLUMN use_iso8601_time_format INTEGER NOT NULL DEFAULT 0',
     );
     // Handoff columns (schema v12) — missing these causes:
     // SqliteException: table assistant_rows has no column named discoverable
@@ -1166,6 +1172,16 @@ WHERE proactive_care_next_message_at IS NULL
           await migrator.addColumn(
             conversationRows,
             conversationRows.chatModelId,
+          );
+        } catch (_) {}
+      }
+      if (from < 24) {
+        // Optional ISO 8601 time format for appended current time (v24).
+        // Default off keeps the existing injected timestamp byte-identical.
+        try {
+          await migrator.addColumn(
+            assistantRows,
+            assistantRows.useIso8601TimeFormat,
           );
         } catch (_) {}
       }

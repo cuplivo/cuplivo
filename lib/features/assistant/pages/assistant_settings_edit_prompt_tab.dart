@@ -69,9 +69,10 @@ class _PromptTabState extends State<_PromptTab> {
     String toInsert,
   ) {
     if (!focusNode.hasFocus) {
+      final lastIndex = controller.lineCount - 1;
       controller.selection = CodeLineSelection.collapsed(
-        index: controller.lineCount - 1,
-        offset: controller.endLine.text.length,
+        index: lastIndex,
+        offset: controller.codeLines[lastIndex].text.length,
       );
     }
     controller.replaceSelection(toInsert);

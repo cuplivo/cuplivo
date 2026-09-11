@@ -224,7 +224,7 @@ void main() {
   testWidgets('inserts a variable at the end before the editor is focused', (
     tester,
   ) async {
-    _seedPreferences(systemPrompt: 'existing prompt');
+    _seedPreferences(systemPrompt: 'first line is longer\nlast');
     await _openPromptsTab(tester);
 
     final editor = tester.widget<PlainTextCodeEditor>(
@@ -235,7 +235,10 @@ void main() {
     await tester.tap(find.text('{model_id}'));
     await tester.pump();
 
-    expect(editor.controller.text, 'existing prompt{model_id}');
+    expect(editor.controller.text, 'first line is longer\nlast{model_id}');
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 
   testWidgets('flushes pending prompt when the page is disposed', (
@@ -294,5 +297,8 @@ void main() {
 
     expect(provider.getById(_assistantId)?.systemPrompt, 'assistant one pending');
     expect(provider.getById(_secondAssistantId)?.systemPrompt, 'second original');
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 }

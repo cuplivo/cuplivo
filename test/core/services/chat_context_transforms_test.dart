@@ -32,20 +32,23 @@ void main() {
       );
     });
 
-    test('ISO 8601 format emits UTC offset to seconds', () {
+    test('ISO 8601 output denotes the same instant in any timezone', () {
+      // toLocal() normalization makes the literal wall-clock depend on the
+      // runner's zone; assert instant-equivalence instead.
       final timestamp = DateTime.utc(2026, 8, 8, 14, 30, 5);
-
-      expect(
-        ChatContextTransforms.formatTimestamp(timestamp, useIso8601: true),
-        '2026-08-08T14:30:05+00:00',
+      final iso = ChatContextTransforms.formatTimestamp(
+        timestamp,
+        useIso8601: true,
       );
+
+      expect(DateTime.parse(iso), timestamp);
       expect(
         ChatContextTransforms.appendTimestamp(
           'hello',
           timestamp,
           useIso8601: true,
         ),
-        'hello\n\n(2026-08-08T14:30:05+00:00)',
+        'hello\n\n($iso)',
       );
     });
 

@@ -89,10 +89,14 @@ void main() {
     test('copyWith toggles useIso8601TimeFormat independently', () {
       final a = Assistant(id: 'a', name: 'A');
 
-      expect(a.copyWith(useIso8601TimeFormat: true).useIso8601TimeFormat,
-          isTrue);
-      expect(a.copyWith(useIso8601TimeFormat: false).useIso8601TimeFormat,
-          isFalse);
+      expect(
+        a.copyWith(useIso8601TimeFormat: true).useIso8601TimeFormat,
+        isTrue,
+      );
+      expect(
+        a.copyWith(useIso8601TimeFormat: false).useIso8601TimeFormat,
+        isFalse,
+      );
     });
   });
 }

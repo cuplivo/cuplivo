@@ -9,8 +9,8 @@ class _PromptTab extends StatefulWidget {
 }
 
 class _PromptTabState extends State<_PromptTab> {
-  late final CodeLineEditingController _sysCtrl;
-  late final CodeLineEditingController _tmplCtrl;
+  late CodeLineEditingController _sysCtrl;
+  late CodeLineEditingController _tmplCtrl;
   late final FocusNode _sysFocus;
   late final FocusNode _tmplFocus;
   late final TextEditingController _presetCtrl;
@@ -35,29 +35,13 @@ class _PromptTabState extends State<_PromptTab> {
     _assistantProvider = context.read<AssistantProvider>();
     final ap = _assistantProvider;
     final a = ap.getById(widget.assistantId)!;
-    _sysCtrl = _createPromptController(a.systemPrompt);
-    _tmplCtrl = _createPromptController(a.messageTemplate);
+    _sysCtrl = createPlainTextCodeController(a.systemPrompt);
+    _tmplCtrl = createPlainTextCodeController(a.messageTemplate);
     _sysFocus = FocusNode(debugLabel: 'systemPromptFocus')
       ..addListener(_onSystemFocusChanged);
     _tmplFocus = FocusNode(debugLabel: 'messageTemplateFocus')
       ..addListener(_onTemplateFocusChanged);
     _presetCtrl = TextEditingController();
-  }
-
-  static CodeLineEditingController _createPromptController(String text) {
-    return CodeLineEditingController.fromText(
-      text,
-      CodeLineOptions(lineBreak: _detectLineBreak(text)),
-    );
-  }
-
-  static TextLineBreak _detectLineBreak(String text) {
-    final match = RegExp(r'\r\n|\r|\n').firstMatch(text)?.group(0);
-    return switch (match) {
-      '\r\n' => TextLineBreak.crlf,
-      '\r' => TextLineBreak.cr,
-      _ => TextLineBreak.lf,
-    };
   }
 
   void _moveCaretToDocumentEnd(CodeLineEditingController controller) {
@@ -115,8 +99,15 @@ class _PromptTabState extends State<_PromptTab> {
       _tmplFocus.unfocus();
       _sysEditorHasBeenFocused = false;
       _tmplEditorHasBeenFocused = false;
-      _replaceControllerText(_sysCtrl, a.systemPrompt, suppressSave: true);
-      _replaceControllerText(_tmplCtrl, a.messageTemplate, suppressSave: true);
+      final oldSystemController = _sysCtrl;
+      final oldTemplateController = _tmplCtrl;
+      _sysCtrl = createPlainTextCodeController(a.systemPrompt);
+      _tmplCtrl = createPlainTextCodeController(a.messageTemplate);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        oldSystemController.dispose();
+        oldTemplateController.dispose();
+      });
+      setState(() {});
     }
   }
 

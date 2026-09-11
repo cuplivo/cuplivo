@@ -1,6 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:re_editor/re_editor.dart';
 
+TextLineBreak detectPlainTextLineBreak(String text) {
+  final match = RegExp(r'\r\n|\r|\n').firstMatch(text)?.group(0);
+  return switch (match) {
+    '\r\n' => TextLineBreak.crlf,
+    '\r' => TextLineBreak.cr,
+    _ => TextLineBreak.lf,
+  };
+}
+
+CodeLineEditingController createPlainTextCodeController(String text) {
+  return CodeLineEditingController.fromText(
+    text,
+    CodeLineOptions(lineBreak: detectPlainTextLineBreak(text)),
+  );
+}
+
 /// A plain multi-line editor for text that may be substantially larger than a
 /// normal form field. Re-Editor avoids rebuilding Flutter's TextField render
 /// tree for the whole document on every edit.
@@ -54,7 +70,7 @@ class PlainTextCodeEditor extends StatelessWidget {
       onChanged: onChanged,
       border: border,
       borderRadius: borderRadius,
-      chunkAnalyzer: NonCodeChunkAnalyzer(),
+      chunkAnalyzer: const NonCodeChunkAnalyzer(),
       style: CodeEditorStyle(
         backgroundColor: backgroundColor ?? Colors.transparent,
         textColor: textColor ?? cs.onSurface,

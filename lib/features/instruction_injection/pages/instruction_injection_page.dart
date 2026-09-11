@@ -648,7 +648,7 @@ class _InstructionInjectionEditSheetState
     final item = widget.item ?? widget.initialItem;
     _titleController = TextEditingController(text: item?.title ?? '');
     _groupController = TextEditingController(text: item?.group ?? '');
-    _promptController = CodeLineEditingController.fromText(item?.prompt ?? '');
+    _promptController = createPlainTextCodeController(item?.prompt ?? '');
     _placement = item?.placement ?? QuickInstructionPlacement.beforeUserMessage;
     _triggerMode = item?.triggerMode ?? QuickInstructionTriggerMode.oneShot;
     _retainInHistory = item?.retainInHistory ?? true;

@@ -1371,7 +1371,7 @@ class _WorldBookEntryEditSheetState extends State<_WorldBookEntryEditSheet> {
     final entry = widget.entry;
     _nameController = TextEditingController(text: entry?.name ?? '');
     _keywordInputController = TextEditingController();
-    _contentController = CodeLineEditingController.fromText(entry?.content ?? '');
+    _contentController = createPlainTextCodeController(entry?.content ?? '');
     _priorityController = TextEditingController(
       text: (entry?.priority ?? 0).toString(),
     );

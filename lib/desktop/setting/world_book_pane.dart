@@ -1028,7 +1028,7 @@ class _WorldBookEntryEditDialogState extends State<_WorldBookEntryEditDialog> {
     super.initState();
     final base = widget.entry;
     _nameController = TextEditingController(text: base?.name ?? '');
-    _contentController = CodeLineEditingController.fromText(base?.content ?? '');
+    _contentController = createPlainTextCodeController(base?.content ?? '');
     _priorityController = TextEditingController(
       text: (base?.priority ?? 0).toString(),
     );

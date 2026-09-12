@@ -1913,26 +1913,26 @@ class _ChatInputBarState extends State<ChatInputBar>
   /// The engine already resolved the content URI to bytes, so behave like
   /// the normal clipboard flow: persist to the upload dir and attach.
   ///
-  /// Accepts any `image/*` mime (the declared wildcard lets IMEs negotiate
-  /// image paste) rather than an explicit allowlist; the extension is derived
-  /// from the mime, falling back to magic-byte sniffing for a literal
-  /// `image/*`. SVG is vector and not renderable by the raster pipeline.
+  /// Acceptance is byte-driven: the declared MIME only feeds the log. The
+  /// `image/*` wildcard is declared to the IME for negotiation, but only
+  /// bytes that sniff as an accepted raster format are persisted, so a
+  /// mislabelled subtype cannot mint an extension that contradicts the
+  /// payload and vector/unknown content is rejected instead of guessed.
   Future<void> _handleInsertedContent(KeyboardInsertedContent content) async {
-    final mimeType = content.mimeType.toLowerCase();
-    if (!isImageMime(mimeType) || mimeType == 'image/svg+xml') {
+    final bytes = content.data;
+    if (bytes == null || bytes.isEmpty) {
+      debugPrint('[ChatInputBar] Ignored IME content with no data.');
+      return;
+    }
+    final extension = inferImageExtension(bytes);
+    if (extension == null) {
       debugPrint(
         '[ChatInputBar] Ignored IME content with unsupported type: '
         '${content.mimeType}',
       );
       return;
     }
-    final bytes = content.data;
-    if (bytes == null || bytes.isEmpty) {
-      debugPrint('[ChatInputBar] Ignored IME content with no data.');
-      return;
-    }
     if (!mounted) return;
-    final extension = inferImageExtension(mimeType, bytes);
     final savedPath = await _savePastedImageBytes(extension, bytes);
     if (savedPath == null || !mounted) return;
     _addImages([savedPath]);
@@ -3594,27 +3594,16 @@ class _ChatInputBarState extends State<ChatInputBar>
                                             // Android only: accepts image content
                                             // pushed by IMEs (Gboard / WeChat
                                             // clipboard paste via commitContent).
-                                            // `image/*` satisfies IME negotiation
-                                            // (WeChat rejects a concrete-only list);
-                                            // the concrete entries keep Flutter's
-                                            // exact-match insertContent assert quiet.
+                                            // The shared list declares `image/*`
+                                            // (IME negotiation) plus the concrete
+                                            // accepted types (Flutter's exact-match
+                                            // insertContent assert).
                                             contentInsertionConfiguration:
                                                 ContentInsertionConfiguration(
                                                   onContentInserted:
                                                       _handleInsertedContent,
-                                                  allowedMimeTypes: const [
-                                                    'image/*',
-                                                    'image/png',
-                                                    'image/jpeg',
-                                                    'image/jpg',
-                                                    'image/gif',
-                                                    'image/webp',
-                                                    'image/heic',
-                                                    'image/heif',
-                                                    'image/bmp',
-                                                    'image/tiff',
-                                                    'image/avif',
-                                                  ],
+                                                  allowedMimeTypes:
+                                                      imeImageMimeTypes,
                                                 ),
                                             readOnly: _composerLocked,
                                             minLines: 1,

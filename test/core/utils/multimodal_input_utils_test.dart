@@ -4,13 +4,9 @@ import 'package:Cuplivo/core/utils/multimodal_input_utils.dart';
 
 void main() {
   group('inferMediaMimeFromSource', () {
-    test('maps extended raster image extensions', () {
+    test('maps heic / heif (picker-supported) extensions', () {
       expect(inferMediaMimeFromSource('photo.heic'), 'image/heic');
       expect(inferMediaMimeFromSource('photo.HEIF'), 'image/heif');
-      expect(inferMediaMimeFromSource('scan.bmp'), 'image/bmp');
-      expect(inferMediaMimeFromSource('scan.tif'), 'image/tiff');
-      expect(inferMediaMimeFromSource('scan.tiff'), 'image/tiff');
-      expect(inferMediaMimeFromSource('next.avif'), 'image/avif');
     });
 
     test('keeps existing mappings intact', () {
@@ -19,6 +15,41 @@ void main() {
       expect(inferMediaMimeFromSource('a.png'), 'image/png');
       expect(inferMediaMimeFromSource('a.webp'), 'image/webp');
       expect(inferMediaMimeFromSource('a.gif'), 'image/gif');
+    });
+
+    test('does not map formats outside the accepted image set', () {
+      expect(inferMediaMimeFromSource('scan.bmp'), '');
+      expect(inferMediaMimeFromSource('scan.tif'), '');
+      expect(inferMediaMimeFromSource('scan.tiff'), '');
+      expect(inferMediaMimeFromSource('next.avif'), '');
+    });
+  });
+
+  group('imeImageMimeTypes', () {
+    test('declares the wildcard plus every accepted concrete type', () {
+      expect(
+        imeImageMimeTypes,
+        containsAll(<String>[
+          'image/*',
+          'image/png',
+          'image/jpeg',
+          'image/jpg',
+          'image/gif',
+          'image/webp',
+          'image/heic',
+          'image/heif',
+        ]),
+      );
+    });
+
+    test('stays aligned with the extension map and excludes others', () {
+      expect(imeImageMimeTypes.toSet(), <String>{
+        'image/*',
+        ...imeImageExtensionByMime.keys,
+      });
+      expect(imeImageMimeTypes, isNot(contains('image/bmp')));
+      expect(imeImageMimeTypes, isNot(contains('image/tiff')));
+      expect(imeImageMimeTypes, isNot(contains('image/avif')));
     });
   });
 
@@ -80,31 +111,26 @@ void main() {
   });
 
   group('inferImageExtension', () {
-    test('trusts a known subtype', () {
-      expect(inferImageExtension('image/jpeg', const []), 'jpg');
-      expect(inferImageExtension('image/jpg', const []), 'jpg');
-      expect(inferImageExtension('image/png', const []), 'png');
-      expect(inferImageExtension('image/gif', const []), 'gif');
-      expect(inferImageExtension('image/webp', const []), 'webp');
-      expect(inferImageExtension('image/heic', const []), 'heic');
-      expect(inferImageExtension('image/heif', const []), 'heif');
-      expect(inferImageExtension('image/bmp', const []), 'bmp');
-      expect(inferImageExtension('image/tiff', const []), 'tiff');
-      expect(inferImageExtension('image/avif', const []), 'avif');
-    });
-
-    test('sniffs the literal wildcard mime', () {
-      expect(inferImageExtension('image/*', const [0xFF, 0xD8, 0xFF]), 'jpg');
+    test('maps recognized bytes to the accepted extension', () {
+      expect(inferImageExtension(const [0x89, 0x50, 0x4E, 0x47]), 'png');
+      expect(inferImageExtension(const [0xFF, 0xD8, 0xFF, 0xE0]), 'jpg');
+      expect(inferImageExtension(const [0x47, 0x49, 0x46, 0x38]), 'gif');
       expect(
-        inferImageExtension('image/*', const [0x89, 0x50, 0x4E, 0x47]),
-        'png',
+        inferImageExtension(const [
+          0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, //
+          0x57, 0x45, 0x42, 0x50,
+        ]),
+        'webp',
       );
       expect(
-        inferImageExtension('image/*', const [0x49, 0x49, 0x2A, 0x00]),
-        'tiff',
+        inferImageExtension(const [
+          0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, //
+          0x68, 0x65, 0x69, 0x63,
+        ]),
+        'heic',
       );
       expect(
-        inferImageExtension('image/*', const [
+        inferImageExtension(const [
           0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, //
           0x6D, 0x69, 0x66, 0x31,
         ]),
@@ -112,12 +138,15 @@ void main() {
       );
     });
 
-    test('sniffs an unknown subtype and falls back to png', () {
-      expect(
-        inferImageExtension('image/x-weird', const [0x47, 0x49, 0x46, 0x38]),
-        'gif',
-      );
-      expect(inferImageExtension('image/x-weird', const [0x01]), 'png');
+    test('rejects recognized-but-unsupported and unrecognized bytes', () {
+      // bmp / tiff are sniffable but outside the accepted set.
+      expect(inferImageExtension(const [0x42, 0x4D, 0x00]), isNull);
+      expect(inferImageExtension(const [0x49, 0x49, 0x2A, 0x00]), isNull);
+      expect(inferImageExtension(const [0x4D, 0x4D, 0x00, 0x2A]), isNull);
+      // Vector / unknown / empty payloads are not guessed as png.
+      expect(inferImageExtension(const []), isNull);
+      expect(inferImageExtension(const [0x01, 0x02, 0x03]), isNull);
+      expect(inferImageExtension('<svg/>'.codeUnits), isNull);
     });
   });
 }

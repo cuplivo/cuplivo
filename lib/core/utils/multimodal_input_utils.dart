@@ -47,11 +47,8 @@ String inferMediaMimeFromSource(String source, {String fallbackMime = ''}) {
   if (lower.endsWith('.png')) return 'image/png';
   if (lower.endsWith('.webp')) return 'image/webp';
   if (lower.endsWith('.gif')) return 'image/gif';
-  if (lower.endsWith('.bmp')) return 'image/bmp';
-  if (lower.endsWith('.tif') || lower.endsWith('.tiff')) return 'image/tiff';
   if (lower.endsWith('.heic')) return 'image/heic';
   if (lower.endsWith('.heif')) return 'image/heif';
-  if (lower.endsWith('.avif')) return 'image/avif';
   if (lower.endsWith('.wav')) return 'audio/wav';
   if (lower.endsWith('.mp3')) return 'audio/mpeg';
   if (lower.endsWith('.pcm16')) return 'audio/pcm16';
@@ -124,34 +121,42 @@ String? sniffImageMimeFromBytes(List<int> bytes) {
   return null;
 }
 
-/// Returns the lowercase file extension (no dot) for an IME-inserted image.
+/// Raster image MIME types accepted from IME content insertion, mapped to the
+/// saved file extension.
 ///
-/// The MIME subtype is trusted when known; the literal `image/*` wildcard and
-/// unrecognized subtypes fall back to magic-byte sniffing, then to `png`.
-String inferImageExtension(String mimeType, List<int> bytes) {
-  final subtype = mimeType
-      .toLowerCase()
-      .split(';')
-      .first
-      .split('/')
-      .last
-      .trim();
-  final known = switch (subtype) {
-    'jpeg' || 'jpg' => 'jpg',
-    'png' => 'png',
-    'gif' => 'gif',
-    'webp' => 'webp',
-    'bmp' => 'bmp',
-    'tiff' || 'tif' => 'tiff',
-    'heic' => 'heic',
-    'heif' => 'heif',
-    'avif' => 'avif',
-    _ => null,
-  };
-  if (known != null) return known;
-  final sniffed = sniffImageMimeFromBytes(bytes);
-  if (sniffed != null) return inferImageExtension(sniffed, const []);
-  return 'png';
+/// Single source for both [inferImageExtension] results and the composer's
+/// declared `allowedMimeTypes` ([imeImageMimeTypes]), so the accepted set and
+/// the negotiated set cannot drift. Kept identical to
+/// `FileUploadService.isImageExtension` / `_isImageExtension`.
+const Map<String, String> imeImageExtensionByMime = <String, String>{
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/heic': 'heic',
+  'image/heif': 'heif',
+};
+
+/// The composer's `ContentInsertionConfiguration.allowedMimeTypes`.
+///
+/// `image/*` is the IME-negotiation wildcard; the concrete entries keep
+/// Flutter's exact-match `insertContent` assert quiet (`editable_text.dart`).
+final List<String> imeImageMimeTypes = List<String>.unmodifiable(<String>[
+  'image/*',
+  ...imeImageExtensionByMime.keys,
+]);
+
+/// Returns the saved extension (no dot) for IME-inserted [bytes], or `null`
+/// when they are not a recognized accepted raster image.
+///
+/// Magic bytes decide the format, so a mislabelled IME subtype can never mint
+/// an extension that contradicts the payload; unrecognized content is
+/// rejected rather than guessed as png.
+String? inferImageExtension(List<int> bytes) {
+  final mimeType = sniffImageMimeFromBytes(bytes);
+  if (mimeType == null) return null;
+  return imeImageExtensionByMime[mimeType];
 }
 
 String resolveMediaAttachmentMime({

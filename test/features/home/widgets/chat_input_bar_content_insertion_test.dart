@@ -202,6 +202,7 @@ void main() {
       config!.allowedMimeTypes,
       containsAll(['image/*', 'image/png', 'image/gif', 'image/heic']),
     );
+    expect(config.allowedMimeTypes, isNot(contains('image/bmp')));
     expect(config.onContentInserted, isNotNull);
 
     controller.dispose();
@@ -344,6 +345,39 @@ void main() {
     focusNode.dispose();
   });
 
+  testWidgets(
+    'unrecognized IME image bytes are rejected without side effects',
+    (tester) async {
+      final controller = TextEditingController();
+      final focusNode = FocusNode();
+      final mediaController = ChatInputBarController();
+
+      await tester.pumpWidget(
+        buildHarness(
+          controller: controller,
+          focusNode: focusNode,
+          mediaController: mediaController,
+        ),
+      );
+
+      // The declared wildcard admits the content, but the bytes match no known
+      // raster signature; the handler must reject instead of guessing png.
+      await insertContent(
+        tester,
+        mimeType: 'image/*',
+        uri: contentUri('mystery'),
+        data: Uint8List.fromList(const [0x01, 0x02, 0x03]),
+        settled: null,
+      );
+
+      expect(mediaController.snapshotInput('').imagePaths, isEmpty);
+      expect(uploadFiles(), isEmpty);
+
+      controller.dispose();
+      focusNode.dispose();
+    },
+  );
+
   testWidgets('consecutive IME image inserts attach both images', (
     tester,
   ) async {
@@ -370,7 +404,10 @@ void main() {
       tester,
       mimeType: 'image/webp',
       uri: contentUri('two.webp'),
-      data: Uint8List.fromList(const [0x52, 0x49, 0x46, 0x46]),
+      data: Uint8List.fromList(const [
+        0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, //
+        0x57, 0x45, 0x42, 0x50,
+      ]),
       settled: () => mediaController.snapshotInput('').imagePaths.length == 2,
     );
 

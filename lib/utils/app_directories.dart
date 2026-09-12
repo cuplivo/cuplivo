@@ -62,6 +62,14 @@ class AppDirectories {
     return Directory('${root.path}/skills');
   }
 
+  /// Gets the directory holding application log files (`logs.txt`,
+  /// `flutter_logs*.txt`). Single source of truth for the loggers, the log
+  /// viewer, and the settings folder button, so they can never diverge.
+  static Future<Directory> getLogsDirectory() async {
+    final root = await getAppDataDirectory();
+    return Directory(p.join(root.path, 'logs'));
+  }
+
   /// Root directory that holds all workspace sandboxes (`default/`,
   /// `workspace_N/`, …). Desktop users may relocate this root via
   /// `workspaces_dir_v1` (honored on desktop only).

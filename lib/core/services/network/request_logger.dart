@@ -130,8 +130,7 @@ class RequestLogger {
     _sink = null;
     _sinkDate = today;
 
-    final dir = await AppDirectories.getAppDataDirectory();
-    final logsDir = Directory('${dir.path}/logs');
+    final logsDir = await AppDirectories.getLogsDirectory();
     if (!await logsDir.exists()) {
       await logsDir.create(recursive: true);
     }
@@ -222,8 +221,7 @@ class RequestLogger {
     required int maxSizeMB,
   }) async {
     try {
-      final dir = await AppDirectories.getAppDataDirectory();
-      final logsDir = Directory('${dir.path}/logs');
+      final logsDir = await AppDirectories.getLogsDirectory();
       if (!await logsDir.exists()) return;
 
       final files = await logsDir

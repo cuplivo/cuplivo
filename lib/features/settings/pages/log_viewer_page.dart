@@ -128,8 +128,7 @@ class _LogViewerPageState extends State<LogViewerPage>
   Future<void> _loadLogFiles() async {
     setState(() => _loading = true);
     try {
-      final dir = await AppDirectories.getAppDataDirectory();
-      final logsDir = Directory('${dir.path}/logs');
+      final logsDir = await AppDirectories.getLogsDirectory();
       if (await logsDir.exists()) {
         final all = await logsDir
             .list()

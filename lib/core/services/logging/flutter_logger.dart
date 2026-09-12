@@ -101,8 +101,7 @@ class FlutterLogger {
     _sink = null;
     _sinkDate = today;
 
-    final dir = await AppDirectories.getAppDataDirectory();
-    final logsDir = Directory('${dir.path}/logs');
+    final logsDir = await AppDirectories.getLogsDirectory();
     if (!await logsDir.exists()) {
       await logsDir.create(recursive: true);
     }

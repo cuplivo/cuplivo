@@ -1,5 +1,7 @@
 # ADR-0018: Log MCP at the JSON-RPC layer, not the HTTP layer
 
+Status: active (the in-memory `@kelivo/subagent` / `@kelivo/filesystem` transports named below were later retired; the JSON-RPC-layer logging decision stands).
+
 MCP request logging records each message at the JSON-RPC layer of the vendored `mcp_client` `Client` (method, params, result, error), not at the HTTP transport layer, so that all four transport shapes — SSE, Streamable HTTP, stdio, and the in-memory `@kelivo/subagent` / `@kelivo/filesystem` servers — produce identical, uniform log entries. The former `@kelivo/fetch` MCP server has been retired; `web_fetch` now runs through the search-tool layer.
 
 The existing LLM request-log pipeline is HTTP-shaped (URL, status codes, chunked bodies); reusing it for MCP would have covered only the HTTP transports, missed stdio and in-memory servers, mixed transport-level heartbeat pings into the log, and hidden the JSON-RPC method identity that MCP debugging actually needs.

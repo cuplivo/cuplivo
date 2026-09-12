@@ -46,7 +46,7 @@
     <h1 class="text-2xl font-bold text-gray-900">Kelivo → Cuplivo 兼容</h1>
     <p class="mt-1 text-sm text-gray-500">
       输入 Kelivo v1.2.0 备份 zip（manifest.json + database/kelivo.db + settings.json + 媒体目录），
-      输出 Cuplivo v2.7.1 可恢复的备份包与兼容报告。
+      输出 Cuplivo 可恢复的备份包与兼容报告。
     </p>
   </header>
 

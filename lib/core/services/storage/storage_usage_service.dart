@@ -270,9 +270,11 @@ abstract final class StorageUsageService {
             case 'logs':
               byCat[StorageUsageCategoryKey.logs]!.add(bytes);
               final name = parts.last.toLowerCase();
-              if (name.startsWith('flutter_logs')) {
+              if (name == FlutterLogger.activeFileName ||
+                  name.startsWith(FlutterLogger.rotatedFilePrefix)) {
                 logsSubs['flutter_logs']!.add(bytes);
-              } else if (name.startsWith('logs')) {
+              } else if (name == RequestLogger.activeFileName ||
+                  name.startsWith(RequestLogger.rotatedFilePrefix)) {
                 logsSubs['request_logs']!.add(bytes);
               } else {
                 logsSubs['other_logs']!.add(bytes);

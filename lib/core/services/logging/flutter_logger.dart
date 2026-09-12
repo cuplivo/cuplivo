@@ -3,17 +3,20 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
-import 'package:path/path.dart' as p;
 
 import '../../../utils/app_directories.dart';
+import 'daily_log_sink.dart';
 
 class FlutterLogger {
   FlutterLogger._();
 
-  /// Active log file name; also referenced by the log viewer to label the
-  /// current app-log file.
+  /// Append target of the current day. Consumers match app logs by
+  /// [activeFileName] or [rotatedFilePrefix]; the log viewer also uses it to
+  /// badge the current file.
   static const String activeFileName = 'flutter_logs.txt';
-  static const String _rotatedFilePrefix = 'flutter_logs_';
+
+  /// Prefix shared by rotated app logs (`flutter_logs_yyyy-MM-dd.txt`).
+  static const String rotatedFilePrefix = 'flutter_logs_';
 
   static bool _enabled = false;
   static bool get enabled => _enabled;
@@ -105,39 +108,12 @@ class FlutterLogger {
     _sinkDate = today;
 
     final logsDir = await AppDirectories.getLogsDirectory();
-    if (!await logsDir.exists()) {
-      await logsDir.create(recursive: true);
-    }
-
-    final active = File(p.join(logsDir.path, activeFileName));
-    if (await active.exists()) {
-      try {
-        final stat = await active.stat();
-        final fileDay = _dayOf(stat.modified.toLocal());
-        if (fileDay != today) {
-          final suffix = _formatDate(fileDay);
-          var rotated = File(
-            p.join(logsDir.path, '$_rotatedFilePrefix$suffix.txt'),
-          );
-          if (await rotated.exists()) {
-            int i = 1;
-            while (await File(
-              p.join(logsDir.path, '$_rotatedFilePrefix${suffix}_$i.txt'),
-            ).exists()) {
-              i++;
-            }
-            rotated = File(
-              p.join(logsDir.path, '$_rotatedFilePrefix${suffix}_$i.txt'),
-            );
-          }
-          await active.rename(rotated.path);
-        }
-      } catch (e) {
-        debugPrint('FlutterLogger: failed to rotate active log: $e');
-      }
-    }
-
-    _sink = active.openWrite(mode: FileMode.append);
+    _sink = await openDailyRotatingLogSink(
+      logsDir: logsDir,
+      activeFileName: activeFileName,
+      rotatedFilePrefix: rotatedFilePrefix,
+      now: now,
+    );
     return _sink!;
   }
 

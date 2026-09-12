@@ -6,13 +6,19 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../utils/app_directories.dart';
+import '../logging/daily_log_sink.dart';
 
 class RequestLogger {
   RequestLogger._();
 
-  /// Active request log file name; also referenced by the log viewer to label
-  /// the current request-log file.
+  /// Append target of the current day. Consumers match request logs by
+  /// [activeFileName] or [rotatedFilePrefix]; the log viewer also uses it to
+  /// badge the current file.
   static const String activeFileName = 'logs.txt';
+
+  /// Prefix shared by rotated request logs (`logs_yyyy-MM-dd.txt`), also used
+  /// to scope [cleanupLogs] to the request-log family.
+  static const String rotatedFilePrefix = 'logs_';
 
   /// Log categories. Each is independently toggleable; the master
   /// [enabled] getter reflects "any category on".
@@ -138,35 +144,12 @@ class RequestLogger {
     _sinkDate = today;
 
     final logsDir = await AppDirectories.getLogsDirectory();
-    if (!await logsDir.exists()) {
-      await logsDir.create(recursive: true);
-    }
-
-    final active = File(p.join(logsDir.path, activeFileName));
-    if (await active.exists()) {
-      try {
-        final stat = await active.stat();
-        final fileDay = _dayOf(stat.modified.toLocal());
-        if (fileDay != today) {
-          final suffix = _formatDate(fileDay);
-          var rotated = File(p.join(logsDir.path, 'logs_$suffix.txt'));
-          if (await rotated.exists()) {
-            int i = 1;
-            while (await File(
-              p.join(logsDir.path, 'logs_${suffix}_$i.txt'),
-            ).exists()) {
-              i++;
-            }
-            rotated = File(p.join(logsDir.path, 'logs_${suffix}_$i.txt'));
-          }
-          await active.rename(rotated.path);
-        }
-      } catch (e) {
-        debugPrint('RequestLogger: failed to rotate active log: $e');
-      }
-    }
-
-    _sink = active.openWrite(mode: FileMode.append);
+    _sink = await openDailyRotatingLogSink(
+      logsDir: logsDir,
+      activeFileName: activeFileName,
+      rotatedFilePrefix: rotatedFilePrefix,
+      now: now,
+    );
     return _sink!;
   }
 
@@ -225,6 +208,14 @@ class RequestLogger {
         .replaceAll('\t', r'\t');
   }
 
+  /// True for [RequestLogger]'s own files (active + rotated) and false for
+  /// every other file in the shared logs directory, notably app logs.
+  static bool _isRequestLogFileName(String fileName) {
+    final name = fileName.toLowerCase();
+    return name.endsWith('.txt') &&
+        (name == activeFileName || name.startsWith(rotatedFilePrefix));
+  }
+
   static Future<void> cleanupLogs({
     required int autoDeleteDays,
     required int maxSizeMB,
@@ -233,9 +224,11 @@ class RequestLogger {
       final logsDir = await AppDirectories.getLogsDirectory();
       if (!await logsDir.exists()) return;
 
+      // Only the request-log family: app logs share this directory and are
+      // never subject to the request-log retention settings.
       final files = await logsDir
           .list()
-          .where((e) => e is File && e.path.toLowerCase().endsWith('.txt'))
+          .where((e) => e is File && _isRequestLogFileName(p.basename(e.path)))
           .cast<File>()
           .toList();
       if (files.isEmpty) return;

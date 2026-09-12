@@ -142,9 +142,11 @@ class _LogViewerPageState extends State<LogViewerPage>
         final app = <File>[];
         for (final f in all) {
           final name = p.basename(f.path).toLowerCase();
-          if (name.startsWith('flutter_logs')) {
+          if (name == FlutterLogger.activeFileName ||
+              name.startsWith(FlutterLogger.rotatedFilePrefix)) {
             app.add(f);
-          } else if (name.startsWith('logs')) {
+          } else if (name == RequestLogger.activeFileName ||
+              name.startsWith(RequestLogger.rotatedFilePrefix)) {
             request.add(f);
           } else {
             // Keep "other" logs in the simpler viewer.

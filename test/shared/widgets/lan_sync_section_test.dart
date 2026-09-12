@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 
 import 'package:Cuplivo/core/models/assistant.dart';
@@ -14,7 +15,9 @@ import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/backup/data_sync.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/sync/lan_sync_link.dart';
 import 'package:Cuplivo/core/services/sync/lan_sync_models.dart';
+import 'package:Cuplivo/core/services/sync/lan_sync_recent.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/widgets/lan_sync_section.dart';
 
@@ -58,6 +61,7 @@ void main() {
   late _FakeChatService chatService;
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     businessPrefs = BusinessPreferences.memoryForTests();
     businessPrefs = BusinessPreferences.memoryForTests({});
     chatService = _FakeChatService();
@@ -99,6 +103,239 @@ void main() {
     await tester.enterText(fields.at(1), '9527');
     await tester.enterText(fields.at(2), '1234');
   }
+
+  /// Opens the mobile client sheet without touching the fields.
+  Future<void> openEmptySheet(
+    WidgetTester tester,
+    http.Client httpClient,
+  ) async {
+    await tester.pumpWidget(buildHarness(httpClient));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Connect to Server'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsNWidgets(3));
+  }
+
+  testWidgets('prefills the most recent endpoint and a chip re-fills it', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    SharedPreferences.setMockInitialValues({
+      LanSyncRecentEndpoints.storageKey: [
+        jsonEncode({'h': '10.1.2.3', 'p': 1234}),
+        jsonEncode({'h': '192.168.1.5', 'p': 9527}),
+      ],
+    });
+    final client = MockClient(
+      (request) async => throw const SocketException('connection refused'),
+    );
+
+    await openEmptySheet(tester, client);
+
+    final fields = find.byType(TextField);
+    expect(tester.widget<TextField>(fields.at(0)).controller!.text, '10.1.2.3');
+    expect(tester.widget<TextField>(fields.at(1)).controller!.text, '1234');
+
+    // "Recent" chips list both endpoints; tapping one restores it.
+    expect(find.text('Recent'), findsOneWidget);
+    await tester.enterText(fields.at(0), '172.16.0.1');
+    await tester.tap(find.text('192.168.1.5:9527'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextField>(fields.at(0)).controller!.text,
+      '192.168.1.5',
+    );
+    expect(tester.widget<TextField>(fields.at(1)).controller!.text, '9527');
+
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('records the endpoint after a successful connect', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    final client = MockClient((request) async {
+      if (request.url.path == '/sync/plan') {
+        return http.Response(_emptyPlanJson(), 200);
+      }
+      return http.Response('Not found', 404);
+    });
+
+    await openSheet(tester, client);
+    await tester.tap(find.text('Connect'));
+    await tester.pumpAndSettle();
+    expect(find.text('Start Sync'), findsOneWidget);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getStringList(LanSyncRecentEndpoints.storageKey), [
+      jsonEncode({'h': '127.0.0.1', 'p': 9527}),
+    ]);
+
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('pasted link fills all fields and rides the plan request', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    String? sentPin;
+    Uri? sentUrl;
+    final client = MockClient((request) async {
+      if (request.url.path == '/sync/plan') {
+        sentPin = request.headers['x-sync-pin'];
+        sentUrl = request.url;
+        return http.Response(_emptyPlanJson(), 200);
+      }
+      return http.Response('Not found', 404);
+    });
+
+    await openEmptySheet(tester, client);
+    final fields = find.byType(TextField);
+    await tester.enterText(
+      fields.at(0),
+      buildLanSyncLink(hosts: const ['10.9.8.7'], port: 8123, pin: '4321'),
+    );
+    await tester.tap(find.text('Connect'));
+    await tester.pumpAndSettle();
+
+    expect(sentUrl?.host, '10.9.8.7');
+    expect(sentUrl?.port, 8123);
+    expect(sentPin, '4321');
+    expect(find.text('Start Sync'), findsOneWidget);
+    expect(tester.widget<TextField>(fields.at(0)).controller!.text, '10.9.8.7');
+
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('multi-host link falls back to the next address', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    final attemptedHosts = <String>[];
+    final client = MockClient((request) async {
+      attemptedHosts.add(request.url.host);
+      if (request.url.host == '10.0.0.1') {
+        throw const SocketException('connection refused');
+      }
+      if (request.url.path == '/sync/plan') {
+        return http.Response(_emptyPlanJson(), 200);
+      }
+      return http.Response('Not found', 404);
+    });
+
+    await openEmptySheet(tester, client);
+    final fields = find.byType(TextField);
+    await tester.enterText(
+      fields.at(0),
+      buildLanSyncLink(
+        hosts: const ['10.0.0.1', '10.0.0.2'],
+        port: 9527,
+        pin: '1234',
+      ),
+    );
+    await tester.tap(find.text('Connect'));
+    await tester.pumpAndSettle();
+
+    expect(attemptedHosts, ['10.0.0.1', '10.0.0.2']);
+    expect(find.text('Start Sync'), findsOneWidget);
+    expect(tester.widget<TextField>(fields.at(0)).controller!.text, '10.0.0.2');
+
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('invalid pasted link shows an error and stays retryable', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    var requests = 0;
+    final client = MockClient((request) async {
+      requests++;
+      return http.Response(_emptyPlanJson(), 200);
+    });
+
+    await openEmptySheet(tester, client);
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), '${lanSyncLinkPrefix}garbage');
+    await tester.tap(find.text('Connect'));
+    await tester.pumpAndSettle();
+
+    expect(requests, 0);
+    expect(find.text('Invalid sync QR code or link.'), findsOneWidget);
+    expect(find.byType(TextField), findsNWidgets(3));
+
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('desktop client dialog prefills recent endpoints', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    SharedPreferences.setMockInitialValues({
+      LanSyncRecentEndpoints.storageKey: [
+        jsonEncode({'h': '10.1.2.3', 'p': 1234}),
+      ],
+    });
+    final client = MockClient(
+      (request) async => throw const SocketException('connection refused'),
+    );
+
+    await tester.pumpWidget(buildHarness(client));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Connect to Server'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Client Mode'), findsOneWidget);
+    final fields = find.byType(TextField);
+    expect(fields, findsNWidgets(3));
+    expect(tester.widget<TextField>(fields.at(0)).controller!.text, '10.1.2.3');
+    expect(tester.widget<TextField>(fields.at(1)).controller!.text, '1234');
+    expect(find.text('10.1.2.3:1234'), findsOneWidget);
+
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('switching recent endpoint after a plan resets the session', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    // The sheet grows with the plan summary + chips; give it room so every
+    // control stays hittable.
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    SharedPreferences.setMockInitialValues({
+      LanSyncRecentEndpoints.storageKey: [
+        jsonEncode({'h': '10.1.2.3', 'p': 1234}),
+      ],
+    });
+    final client = MockClient((request) async {
+      if (request.url.path == '/sync/plan') {
+        return http.Response(_emptyPlanJson(), 200);
+      }
+      return http.Response('Not found', 404);
+    });
+
+    await openEmptySheet(tester, client);
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), '127.0.0.1');
+    await tester.enterText(fields.at(1), '9527');
+    await tester.enterText(fields.at(2), '1234');
+    await tester.tap(find.text('Connect'));
+    await tester.pumpAndSettle();
+    expect(find.text('Start Sync'), findsOneWidget);
+
+    // Switching to a different remembered endpoint drops the plan computed
+    // against the previous server; the session must be re-negotiated.
+    await tester.tap(find.text('10.1.2.3:1234'));
+    await tester.pumpAndSettle();
+    expect(find.text('Start Sync'), findsNothing);
+    expect(find.text('Connect'), findsOneWidget);
+    expect(tester.widget<TextField>(fields.at(0)).controller!.text, '10.1.2.3');
+    expect(tester.widget<TextField>(fields.at(1)).controller!.text, '1234');
+
+    debugDefaultTargetPlatformOverride = null;
+  });
 
   testWidgets('error during negotiate keeps the sheet open (retryable)', (
     tester,

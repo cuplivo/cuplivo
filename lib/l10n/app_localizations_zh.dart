@@ -2905,6 +2905,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncApplyAndRestart => '应用并重启';
 
   @override
+  String get lanSyncRecentEndpoints => '最近使用';
+
+  @override
+  String get lanSyncScanQr => '扫描二维码';
+
+  @override
+  String get lanSyncCopyLink => '复制链接';
+
+  @override
+  String get lanSyncLinkCopied => '链接已复制';
+
+  @override
+  String get lanSyncErrorInvalidLink => '二维码或链接无效。';
+
+  @override
+  String get lanSyncQrServerHint => '在另一台设备上扫描此二维码即可自动连接。';
+
+  @override
   String get chatHistoryPageTitle => '聊天历史';
 
   @override
@@ -7387,6 +7405,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get logViewerOpenFolder => '打开日志目录';
 
   @override
+  String logViewerOpenFolderFailed(String error) {
+    return '无法打开日志目录：$error';
+  }
+
+  @override
   String logViewerRequestsCount(int count) {
     return '$count 条请求';
   }
@@ -9328,10 +9351,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get workspaceDepStageInstall => '正在安装…';
 
   @override
+  String get workspaceDepDebianMirrorNotice => 'Debian 使用镜像自带的软件源，暂不支持切换镜像。';
+
+  @override
   String get workspaceSandboxRuntimeMissing => '缺少沙箱运行时，请重装本应用构建包';
 
   @override
   String get workspaceSandboxBaseRequired => '请先安装基础依赖';
+
+  @override
+  String get workspaceSandboxDistroUnknown =>
+      '无法识别已安装沙箱根文件系统的 Linux 发行版，请使用受支持的镜像重装 base 依赖。';
 
   @override
   String get workspaceDepGitPrerequisite => '请先安装 Git';
@@ -12890,6 +12920,24 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncApplyAndRestart => '应用并重启';
+
+  @override
+  String get lanSyncRecentEndpoints => '最近使用';
+
+  @override
+  String get lanSyncScanQr => '扫描二维码';
+
+  @override
+  String get lanSyncCopyLink => '复制链接';
+
+  @override
+  String get lanSyncLinkCopied => '链接已复制';
+
+  @override
+  String get lanSyncErrorInvalidLink => '二维码或链接无效。';
+
+  @override
+  String get lanSyncQrServerHint => '在另一台设备上扫描此二维码即可自动连接。';
 
   @override
   String get chatHistoryPageTitle => '聊天历史';
@@ -17374,6 +17422,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get logViewerOpenFolder => '打开日志目录';
 
   @override
+  String logViewerOpenFolderFailed(String error) {
+    return '无法打开日志目录：$error';
+  }
+
+  @override
   String logViewerRequestsCount(int count) {
     return '$count 条请求';
   }
@@ -19315,10 +19368,17 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get workspaceDepStageInstall => '正在安装…';
 
   @override
+  String get workspaceDepDebianMirrorNotice => 'Debian 使用镜像自带的软件源，暂不支持切换镜像。';
+
+  @override
   String get workspaceSandboxRuntimeMissing => '缺少沙箱运行时，请重装本应用构建包';
 
   @override
   String get workspaceSandboxBaseRequired => '请先安装基础依赖';
+
+  @override
+  String get workspaceSandboxDistroUnknown =>
+      '无法识别已安装沙箱根文件系统的 Linux 发行版，请使用受支持的镜像重装 base 依赖。';
 
   @override
   String get workspaceDepGitPrerequisite => '请先安装 Git';
@@ -22878,6 +22938,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncApplyAndRestart => '套用並重啟';
+
+  @override
+  String get lanSyncRecentEndpoints => '最近使用';
+
+  @override
+  String get lanSyncScanQr => '掃描 QR Code';
+
+  @override
+  String get lanSyncCopyLink => '複製連結';
+
+  @override
+  String get lanSyncLinkCopied => '連結已複製';
+
+  @override
+  String get lanSyncErrorInvalidLink => 'QR Code 或連結無效。';
+
+  @override
+  String get lanSyncQrServerHint => '在另一台裝置掃描此 QR Code 即可自動連接。';
 
   @override
   String get chatHistoryPageTitle => '聊天歷史';
@@ -27363,6 +27441,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get logViewerOpenFolder => '開啟日誌目錄';
 
   @override
+  String logViewerOpenFolderFailed(String error) {
+    return '無法開啟日誌目錄：$error';
+  }
+
+  @override
   String logViewerRequestsCount(int count) {
     return '$count 個請求';
   }
@@ -29305,10 +29388,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get workspaceDepStageInstall => '正在安裝…';
 
   @override
+  String get workspaceDepDebianMirrorNotice => 'Debian 使用映像檔內建的軟體來源，暫不支援切換鏡像。';
+
+  @override
   String get workspaceSandboxRuntimeMissing => '缺少沙箱執行環境，請重裝本應用建置包';
 
   @override
   String get workspaceSandboxBaseRequired => '請先安裝基礎相依元件';
+
+  @override
+  String get workspaceSandboxDistroUnknown =>
+      '無法辨識已安裝沙箱根檔案系統的 Linux 發行版，請使用支援的映像檔重新安裝 base 依賴。';
 
   @override
   String get workspaceDepGitPrerequisite => '請先安裝 Git';

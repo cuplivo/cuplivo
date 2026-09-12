@@ -227,6 +227,28 @@ class MultiAIEngine extends ChangeNotifier {
     return result;
   }
 
+  /// Resolve a user-message version-group key ([anchorUserMsgId]) to the row id
+  /// of its first matching user message in [messages]. Metadata replay bounds
+  /// by row id and scans the same list it is handed, so resolution must happen
+  /// against that exact list (never the loaded window) to keep the index spaces
+  /// aligned. Edited user-message versions share the group key, so the first
+  /// row identifies the turn. Returns null (with a log) when the anchor is
+  /// absent even from the persisted history; the pipeline then falls back to
+  /// the placeholder bound as a last resort.
+  String? _anchorUserRowId(String anchorUserMsgId, List<ChatMessage> messages) {
+    for (final message in messages) {
+      if (message.role != 'user') continue;
+      if ((message.groupId ?? message.id) == anchorUserMsgId) {
+        return message.id;
+      }
+    }
+    debugPrint(
+      '[MultiAI][_anchorUserRowId] anchor $anchorUserMsgId not found in '
+      '${messages.length} messages; replay falls back to placeholder bound',
+    );
+    return null;
+  }
+
   // ============================================================================
   // Lifecycle
   // ============================================================================
@@ -264,16 +286,9 @@ class MultiAIEngine extends ChangeNotifier {
     required List<ChatMessage> completeMessages,
     required String roundGroupId,
     ChatInputData? inputData,
+    String? requestMetadataAnchorMessageId,
     bool allowImagesApiRouting = true,
   }) async {
-    // Send rounds carry the options via inputData; history rounds replay the
-    // persisted per-message request metadata of the anchor user message.
-    final requestOptions = inputData != null
-        ? (allowImagesApiRouting: allowImagesApiRouting, requestExtraBody: null)
-        : MessageGenerationService.resolveRequestOptionsFromMessages(
-            completeMessages,
-            fallbackAllowImagesApiRouting: allowImagesApiRouting,
-          );
     final convId = conversation.id;
     final operationId = const Uuid().v4();
     _responseOperationTracker.start(operationId, convId);
@@ -364,8 +379,8 @@ class MultiAIEngine extends ChangeNotifier {
           context: ctx,
           completeMessages: threadMessages,
           inputData: inputData,
-          allowImagesApiRouting: requestOptions.allowImagesApiRouting,
-          requestExtraBody: requestOptions.requestExtraBody,
+          requestMetadataAnchorMessageId: requestMetadataAnchorMessageId,
+          allowImagesApiRouting: allowImagesApiRouting,
           generateTitleOnFinish: i == 0,
           onStreamComplete: onThreadDone,
         );
@@ -481,6 +496,7 @@ class MultiAIEngine extends ChangeNotifier {
       askUserService: askUserService,
       completeMessages: truncated,
       roundGroupId: roundGroupId,
+      requestMetadataAnchorMessageId: precedingUserId,
     );
 
     _chatController.notifyListeners();
@@ -514,6 +530,7 @@ class MultiAIEngine extends ChangeNotifier {
       askUserService: askUserService,
       completeMessages: completeMessages,
       roundGroupId: roundGroupId,
+      requestMetadataAnchorMessageId: userMessage.id,
     );
 
     _chatController.notifyListeners();
@@ -652,12 +669,6 @@ class MultiAIEngine extends ChangeNotifier {
       versionSelections: _chatController.versionSelections,
     );
 
-    final requestOptions =
-        MessageGenerationService.resolveRequestOptionsFromMessages(
-          threadMessages,
-          fallbackAllowImagesApiRouting: true,
-        );
-
     final operationId = const Uuid().v4();
     _responseOperationTracker.start(operationId, conversation.id);
     _responseOperationTracker.addSlot(operationId, newMessage.id);
@@ -668,8 +679,10 @@ class MultiAIEngine extends ChangeNotifier {
         modelId: model.modelId,
         context: ctx,
         completeMessages: threadMessages,
-        allowImagesApiRouting: requestOptions.allowImagesApiRouting,
-        requestExtraBody: requestOptions.requestExtraBody,
+        requestMetadataAnchorMessageId: _anchorUserRowId(
+          anchorUserMsgId,
+          threadMessages,
+        ),
         generateTitleOnFinish: false,
       );
       final stored = _storedMessage(conversation.id, newMessage.id);
@@ -773,19 +786,16 @@ class MultiAIEngine extends ChangeNotifier {
         }).toList();
 
         _chatController.setConversationLoading(conversation.id, true);
-        final requestOptions =
-            MessageGenerationService.resolveRequestOptionsFromMessages(
-              threadMessages,
-              fallbackAllowImagesApiRouting: true,
-            );
         await _pipeline.executeAssistantResponse(
           assistantMessage: newMsg,
           providerKey: model.providerKey,
           modelId: model.modelId,
           context: ctx,
           completeMessages: threadMessages,
-          allowImagesApiRouting: requestOptions.allowImagesApiRouting,
-          requestExtraBody: requestOptions.requestExtraBody,
+          requestMetadataAnchorMessageId: _anchorUserRowId(
+            anchorUserMsgId,
+            threadMessages,
+          ),
           generateTitleOnFinish: false,
         );
         final stored = _storedMessage(conversation.id, newMsg.id);
@@ -1121,16 +1131,19 @@ class MultiAIEngine extends ChangeNotifier {
       roundGroupId = const Uuid().v4();
     }
 
-    // Truncate history to just before the anchor user message.
+    // Truncate history to just before the anchor user message, keeping the
+    // anchor row id so metadata replay binds to this turn's user metadata.
     final anchorId = latestAnchorId;
     var completeMessages = _chatController.messagesForCompleteHistoryContext(
       conversation,
     );
+    String? anchorRowId;
     if (anchorId != null) {
       final anchorIdx = completeMessages.indexWhere(
         (m) => m.role == 'user' && (m.groupId ?? m.id) == anchorId,
       );
       if (anchorIdx >= 0) {
+        anchorRowId = completeMessages[anchorIdx].id;
         completeMessages = completeMessages.sublist(0, anchorIdx + 1);
       }
     }
@@ -1143,6 +1156,7 @@ class MultiAIEngine extends ChangeNotifier {
       askUserService: askUserService,
       completeMessages: completeMessages,
       roundGroupId: roundGroupId,
+      requestMetadataAnchorMessageId: anchorRowId,
     );
 
     notifyListeners();

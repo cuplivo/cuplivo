@@ -10,6 +10,7 @@ import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/quick_instruction.dart';
+import 'package:Cuplivo/core/models/reasoning_payload.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/mcp_provider.dart';
 import 'package:Cuplivo/core/providers/quick_instruction_provider.dart';
@@ -474,72 +475,164 @@ Future<_Harness> _pumpHarness(WidgetTester tester) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets(
-    'first plain-text send creates and uses a conversation',
-    (tester) async {
+  testWidgets('first plain-text send creates and uses a conversation', (
+    tester,
+  ) async {
+    final harness = await _pumpHarness(tester);
+    try {
+      expect(harness.controller.currentConversation, isNull);
+
+      final result = await harness.controller.sendMessage(
+        const ChatInputData(text: 'hello'),
+      );
+
+      expect(result, ChatInputSubmissionResult.sent);
+      expect(harness.chatService.createdConversationCount, 1);
+      expect(harness.controller.currentConversation?.id, 'conversation-1');
+      final userMessages = harness.chatService
+          .getMessages('conversation-1')
+          .where((message) => message.role == 'user')
+          .toList(growable: false);
+      expect(userMessages, hasLength(1));
+      expect(userMessages.single.content, 'hello');
+    } finally {
+      await harness.dispose(tester);
+    }
+  }, timeout: const Timeout(Duration(seconds: 45)));
+
+  testWidgets('first quick-instruction-only send uses the new conversation', (
+    tester,
+  ) async {
+    final harness = await _pumpHarness(tester);
+    try {
+      final invocation = QuickInstructionInvocationSnapshot.fromInstruction(
+        QuickInstruction(
+          id: 'quick-before',
+          title: 'Answer briefly',
+          prompt: 'Use one sentence.',
+        ),
+        order: 0,
+      );
+
+      expect(harness.controller.currentConversation, isNull);
+
+      final result = await harness.controller.sendMessage(
+        ChatInputData(
+          text: '',
+          quickInstructions: <QuickInstructionInvocationSnapshot>[invocation],
+        ),
+      );
+
+      expect(result, ChatInputSubmissionResult.sent);
+      expect(harness.chatService.createdConversationCount, 1);
+      expect(harness.controller.currentConversation?.id, 'conversation-1');
+      final userMessage = harness.chatService
+          .getMessages('conversation-1')
+          .singleWhere((message) => message.role == 'user');
+      expect(userMessage.content, isEmpty);
+      expect(userMessage.quickInstructionInvocations, hasLength(1));
+      expect(
+        userMessage.quickInstructionInvocations.single.instructionId,
+        'quick-before',
+      );
+    } finally {
+      await harness.dispose(tester);
+    }
+  }, timeout: const Timeout(Duration(seconds: 45)));
+
+  group('thinking expansion persistence (issue #737)', () {
+    Future<String> seedAssistantWithSegment(
+      WidgetTester tester,
+      _Harness harness, {
+      required bool streaming,
+    }) async {
+      await harness.controller.sendMessage(const ChatInputData(text: 'hi'));
+      for (var i = 0; i < 50; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      final index = harness.controller.messages.indexWhere(
+        (message) => message.role == 'assistant',
+      );
+      expect(
+        index,
+        isNot(-1),
+        reason: 'assistant placeholder must be visible in the controller list',
+      );
+      final assistantId = harness.controller.messages[index].id;
+      // Force the guarded state deterministically instead of racing the
+      // generation lifecycle.
+      harness.controller.messages[index] = harness.controller.messages[index]
+          .copyWith(isStreaming: streaming);
+      harness.controller.reasoningSegments[assistantId] = [
+        ReasoningSegmentData()
+          ..text = 'deep thinking'
+          ..expanded = true
+          ..startAt = DateTime(2024, 1, 1)
+          ..finishedAt = DateTime(2024, 1, 1),
+      ];
+      harness.controller.contentSplits[assistantId] = const ContentSplitData(
+        offsets: [0],
+        reasoningCounts: [1],
+        toolCounts: [0],
+      );
+      return assistantId;
+    }
+
+    testWidgets('a settled toggle persists the flipped flag in a full v2 '
+        'payload', (tester) async {
       final harness = await _pumpHarness(tester);
       try {
-        expect(harness.controller.currentConversation, isNull);
-
-        final result = await harness.controller.sendMessage(
-          const ChatInputData(text: 'hello'),
+        final assistantId = await seedAssistantWithSegment(
+          tester,
+          harness,
+          streaming: false,
         );
 
-        expect(result, ChatInputSubmissionResult.sent);
-        expect(harness.chatService.createdConversationCount, 1);
-        expect(harness.controller.currentConversation?.id, 'conversation-1');
-        final userMessages = harness.chatService
+        final ok = harness.controller.setReasoningSegmentExpanded(
+          assistantId,
+          0,
+          false,
+        );
+        expect(ok, isTrue);
+
+        final stored = harness.chatService
             .getMessages('conversation-1')
-            .where((message) => message.role == 'user')
-            .toList(growable: false);
-        expect(userMessages, hasLength(1));
-        expect(userMessages.single.content, 'hello');
+            .singleWhere((message) => message.id == assistantId);
+        expect(stored.reasoningSegmentsJson, isNotNull);
+        final decoded =
+            jsonDecode(stored.reasoningSegmentsJson!) as Map<String, dynamic>;
+        expect(decoded['v'], 2);
+        final segments = (decoded['segments'] as List).cast<Map>();
+        expect(segments.single['expanded'], isFalse);
+        expect(decoded['contentSplits'], isNotNull);
       } finally {
         await harness.dispose(tester);
       }
-    },
-    timeout: const Timeout(Duration(seconds: 45)),
-  );
+    }, timeout: const Timeout(Duration(seconds: 45)));
 
-  testWidgets(
-    'first quick-instruction-only send uses the new conversation',
-    (tester) async {
+    testWidgets('a streaming toggle is not persisted', (tester) async {
       final harness = await _pumpHarness(tester);
       try {
-        final invocation = QuickInstructionInvocationSnapshot.fromInstruction(
-          QuickInstruction(
-            id: 'quick-before',
-            title: 'Answer briefly',
-            prompt: 'Use one sentence.',
-          ),
-          order: 0,
+        final assistantId = await seedAssistantWithSegment(
+          tester,
+          harness,
+          streaming: true,
         );
 
-        expect(harness.controller.currentConversation, isNull);
-
-        final result = await harness.controller.sendMessage(
-          ChatInputData(
-            text: '',
-            quickInstructions: <QuickInstructionInvocationSnapshot>[invocation],
-          ),
+        final ok = harness.controller.setReasoningSegmentExpanded(
+          assistantId,
+          0,
+          false,
         );
+        expect(ok, isTrue);
 
-        expect(result, ChatInputSubmissionResult.sent);
-        expect(harness.chatService.createdConversationCount, 1);
-        expect(harness.controller.currentConversation?.id, 'conversation-1');
-        final userMessage = harness.chatService
+        final stored = harness.chatService
             .getMessages('conversation-1')
-            .singleWhere((message) => message.role == 'user');
-        expect(userMessage.content, isEmpty);
-        expect(userMessage.quickInstructionInvocations, hasLength(1));
-        expect(
-          userMessage.quickInstructionInvocations.single.instructionId,
-          'quick-before',
-        );
+            .singleWhere((message) => message.id == assistantId);
+        expect(stored.reasoningSegmentsJson, isNull);
       } finally {
         await harness.dispose(tester);
       }
-    },
-    timeout: const Timeout(Duration(seconds: 45)),
-  );
+    }, timeout: const Timeout(Duration(seconds: 45)));
+  });
 }

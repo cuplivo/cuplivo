@@ -10,6 +10,7 @@ import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/generation_engine.dart';
 import '../../../core/services/streaming_content_notifier.dart';
 import '../../chat/models/tool_ui_part.dart';
+import 'chat_controller.dart';
 
 export '../../../core/models/reasoning_payload.dart';
 export '../../../core/services/streaming_content_notifier.dart';
@@ -216,6 +217,9 @@ class StreamController {
     if (state.geminiThoughtSig != null && state.geminiThoughtSig!.isNotEmpty) {
       _geminiThoughtSigs[messageId] = state.geminiThoughtSig!;
     }
+    if (state.reasoningDetails != null) {
+      _reasoningDetails[messageId] = state.reasoningDetails;
+    }
     // Auto-retry countdown is boundary-sensitive: publish even when null so a
     // cleared countdown reaches the bubble. No-op when nobody is listening.
     streamingContentNotifier.updateRetryStatus(messageId, state.retryStatus);
@@ -348,6 +352,86 @@ class StreamController {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Build the full reasoning payload for [messageId] from the in-memory state
+  /// maps (segments + content splits + vendor reasoning details).
+  ///
+  /// Returns null when the message has no segments to persist. Splits/details
+  /// are passed through as-is (nullable), so a payload that never had them
+  /// keeps its legacy segments-only shape and an interleaved v2 payload keeps
+  /// its contentSplits — mirroring `chat_actions._flushStreamingProgress`.
+  String? buildReasoningSegmentsJson(String messageId) {
+    final segments = _reasoningSegments[messageId];
+    if (segments == null || segments.isEmpty) return null;
+    final splits = _contentSplits[messageId];
+    try {
+      return serializeReasoningSegmentsWithSplits(
+        segments,
+        contentSplitOffsets: splits?.offsets,
+        reasoningCountAtSplit: splits?.reasoningCounts,
+        toolCountAtSplit: splits?.toolCounts,
+        reasoningDetails: _reasoningDetails[messageId],
+      );
+    } catch (e) {
+      // Provider-supplied reasoningDetails can be non-serializable; the toggle
+      // stays in memory and the reasoningText column is untouched (mirrors the
+      // engine's recoverable-error handling in _serializePayload).
+      debugPrint(
+        '[StreamController] reasoning payload serialization failed for '
+        '$messageId: $e',
+      );
+      return null;
+    }
+  }
+
+  /// Persist an already-built reasoning payload for [messageId] so a manual
+  /// expand/collapse survives reload.
+  ///
+  /// Callers MUST only pass settled (non-streaming) messages: while a message
+  /// is streaming the engine owns its segment state and its periodic flush
+  /// would overwrite the toggle. A DB write failure is logged, not thrown
+  /// (mirrors the engine's reasoning-flush error handling).
+  Future<void> persistReasoningSegments(String messageId, String json) =>
+      _chatService
+          .updateMessageSilent(messageId, reasoningSegmentsJson: json)
+          .catchError((Object e) {
+            debugPrint(
+              '[StreamController] reasoning expansion persist failed for '
+              '$messageId: $e',
+            );
+          });
+
+  /// Persist a manual expand/collapse of a thinking step so it survives
+  /// reload/switch/sync. Single shared entry point for the home controller
+  /// (mobile/desktop/Multi-AI/web viewport) and group chat.
+  ///
+  /// Only settled (non-streaming) messages are written: while a message is
+  /// streaming the engine owns the segment state and its periodic flush would
+  /// overwrite the toggle. Both the row flag and [_activeStreamingIds] are
+  /// checked because the engine clears `isStreaming` on the row before it
+  /// publishes its final snapshot and before the adapter calls
+  /// [markStreamingEnded]; a toggle landing in that window would otherwise be
+  /// clobbered by `syncEngineUiState`. The in-memory message copy is swapped
+  /// too — with a cache invalidation, per `replaceMessage`'s batch-mutation
+  /// contract — so an in-place re-restore and the grouped/collapsed views read
+  /// the same payload as the database. Callers fire their own UI notify after.
+  void persistReasoningExpansionIfSettled(
+    String messageId, {
+    required ChatController chatController,
+  }) {
+    final messages = chatController.messages;
+    final index = messages.indexWhere((m) => m.id == messageId);
+    if (index == -1) return;
+    if (messages[index].isStreaming) return;
+    if (_activeStreamingIds.contains(messageId)) return;
+    final payload = buildReasoningSegmentsJson(messageId);
+    if (payload == null) return;
+    chatController.replaceMessage(
+      messages[index].copyWith(reasoningSegmentsJson: payload),
+    );
+    chatController.invalidateCache();
+    unawaited(persistReasoningSegments(messageId, payload));
   }
 
   /// Deserialize reasoning segments from JSON string.

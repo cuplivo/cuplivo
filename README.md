@@ -31,7 +31,7 @@ Unlike most personal-customization or single-feature forks, Cuplivo aims to add 
 
 1. **Flexible file system operations** — Sandbox runtime and lightweight file system access:
    - **Sandbox runtime** — Full Linux sandbox: **Android** can select a distribution in-app and open a Termux-like interactive terminal from workspace settings (independent of the model shell tool), and can mount external directories (SAF) into the workspace with scheduled syncing; **iOS** runs the sandbox via iSH; users who complete the setup can execute command-line tools. Android also supports persistent sandbox sessions — terminal keep-alive and auto-open of the sandbox on app launch, so MCP servers, gateways and other long-running services start with the sandbox.
-   - **Lightweight file system access** — The built-in filesystem MCP server reads, writes and regex-searches local files through an in-memory server and mounts local directories without a command line (security-first), with an in-app file browser, paginated grep results and context, code structure outlines, downloading internet resources into the workspace, and long-webpage workspace cache continuation; on desktop, the built-in workspace directory location is user-configurable, with open-externally and share actions for workspace files.
+   - **Lightweight file system access** — Workspace local tools read, write and regex-search local files and mount local directories as workspaces or external mounts without a command line (security-first), with an in-app file browser, paginated grep results and context, code structure outlines, downloading internet resources into the workspace, and long-webpage workspace cache continuation; on desktop, the workspace directory location is user-configurable, with open-externally and share actions for workspace files.
 
 2. **Proactive care** — AI can proactively send care messages to users on a configurable schedule (Android only).
    - *Android-only*: background alarm + notification channel; alarm persists through force-stop
@@ -50,7 +50,7 @@ Unlike most personal-customization or single-feature forks, Cuplivo aims to add 
 
 ### Agent Capabilities
 
-1. **Handoff (subagent delegation)** — Delegate subtasks to other assistants via MCP tools: fire-and-forget for background work, or **wait mode** that blocks until the subagent finishes and returns its result to the main agent for further processing, with a live progress panel in the parent conversation and same-turn parallel calls.
+1. **Handoff (subagent delegation)** — Delegate subtasks to other assistants via the local `kelivo_handoff` tool: the subagent's complete result is returned to the main agent for further processing (wait mode), with a live progress panel in the parent conversation and same-turn parallel calls.
 
 2. **Skills** — Import skills from public GitHub repositories, plus auxiliary file tools for skill execution. Skills are persisted on the filesystem and included in backups. v3 adds categories, a master toggle, chat-level skill entry, and built-in tools that let the assistant import and create skills directly.
 

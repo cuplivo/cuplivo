@@ -1,5 +1,6 @@
 import 'package:Cuplivo/core/models/workspace.dart';
 import 'package:Cuplivo/core/services/workspace/linux_sandbox_service.dart';
+import 'package:Cuplivo/core/services/workspace/sandbox_distro.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -8,28 +9,28 @@ void main() {
       expect(
         LinuxSandboxService.packageNamesForDependency(
           WorkspaceDependencyIds.githubCli,
-          ios: true,
+          family: SandboxDistroFamily.alpine,
         ),
         'github-cli',
       );
       expect(
         LinuxSandboxService.packageNamesForDependency(
           WorkspaceDependencyIds.curl,
-          ios: true,
+          family: SandboxDistroFamily.alpine,
         ),
         'curl',
       );
       expect(
         LinuxSandboxService.packageNamesForDependency(
           WorkspaceDependencyIds.opensshClient,
-          ios: true,
+          family: SandboxDistroFamily.alpine,
         ),
         'openssh-client-default',
       );
       expect(
         LinuxSandboxService.packageNamesForDependency(
           WorkspaceDependencyIds.archive,
-          ios: true,
+          family: SandboxDistroFamily.alpine,
         ),
         'zip unzip',
       );
@@ -38,7 +39,7 @@ void main() {
     test('office mapping includes both zip tools', () {
       final packages = LinuxSandboxService.packageNamesForDependency(
         WorkspaceDependencyIds.office,
-        ios: true,
+        family: SandboxDistroFamily.alpine,
       );
 
       expect(packages.split(' '), containsAll(<String>['zip', 'unzip']));
@@ -113,6 +114,35 @@ void main() {
       );
       expect(setup, contains('> /etc/apk/repositories'));
       expect(setup, endsWith('&& '));
+    });
+
+    test('normalizes a detected guest version to the repository branch', () {
+      final setup = LinuxSandboxService.apkMirrorSetup(
+        'https://mirrors.aliyun.com/alpine',
+        version: '3.24.1',
+      );
+      expect(setup, contains('https://mirrors.aliyun.com/alpine/v3.24/main'));
+      expect(
+        setup,
+        contains('https://mirrors.aliyun.com/alpine/v3.24/community'),
+      );
+      expect(setup, isNot(contains('v3.24.1')));
+    });
+
+    test('falls back to the bundled version for an injected version', () {
+      final setup = LinuxSandboxService.apkMirrorSetup(
+        'https://mirrors.aliyun.com/alpine',
+        version: "3.24'; touch /tmp/pwned; echo '",
+      );
+      expect(
+        setup,
+        contains(
+          'https://mirrors.aliyun.com/alpine/v'
+          '${LinuxSandboxService.alpineVersion}/main',
+        ),
+      );
+      expect(setup, isNot(contains('pwned')));
+      expect(setup, isNot(contains('touch')));
     });
   });
 

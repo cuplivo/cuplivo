@@ -137,5 +137,136 @@ void main() {
         expect(options.requestExtraBody, {'size': '1024x1024'});
       },
     );
+
+    test('anchor bound ignores a newer user turn after the anchor', () {
+      final options =
+          MessageGenerationService.resolveRequestOptionsFromMessages(
+            [
+              userMessage(
+                id: 'anchor',
+                requestAllowImagesApiRouting: false,
+                requestExtraBodyJson: '{"size":"1024x1024"}',
+              ),
+              ChatMessage(
+                id: 'a1',
+                role: 'assistant',
+                content: 'ok',
+                conversationId: 'c1',
+              ),
+              userMessage(
+                id: 'newer',
+                requestAllowImagesApiRouting: true,
+                requestExtraBodyJson: '{"size":"3840x2160"}',
+              ),
+            ],
+            fallbackAllowImagesApiRouting: true,
+            anchorMessageId: 'a1',
+          );
+
+      expect(options.allowImagesApiRouting, isFalse);
+      expect(options.requestExtraBody, {'size': '1024x1024'});
+    });
+
+    test('absent anchor scans the whole list', () {
+      final options =
+          MessageGenerationService.resolveRequestOptionsFromMessages(
+            [
+              userMessage(id: 'old', requestAllowImagesApiRouting: false),
+              userMessage(
+                id: 'newest',
+                requestAllowImagesApiRouting: true,
+                requestExtraBodyJson: '{"size":"3840x2160"}',
+              ),
+            ],
+            fallbackAllowImagesApiRouting: true,
+            anchorMessageId: 'missing',
+          );
+
+      expect(options.allowImagesApiRouting, isTrue);
+      expect(options.requestExtraBody, {'size': '3840x2160'});
+    });
+
+    test('anchor at the head yields the fallback', () {
+      final options =
+          MessageGenerationService.resolveRequestOptionsFromMessages(
+            [
+              ChatMessage(
+                id: 'a0',
+                role: 'assistant',
+                content: 'ok',
+                conversationId: 'c1',
+              ),
+              userMessage(id: 'later', requestAllowImagesApiRouting: false),
+            ],
+            fallbackAllowImagesApiRouting: true,
+            anchorMessageId: 'a0',
+          );
+
+      expect(options.allowImagesApiRouting, isTrue);
+      expect(options.requestExtraBody, isNull);
+    });
+
+    test('inclusive anchor replays the anchor and ignores newer turns', () {
+      final options =
+          MessageGenerationService.resolveRequestOptionsFromMessages(
+            [
+              userMessage(
+                id: 'anchor',
+                requestAllowImagesApiRouting: false,
+                requestExtraBodyJson: '{"size":"1024x1024"}',
+              ),
+              userMessage(
+                id: 'newer',
+                requestAllowImagesApiRouting: true,
+                requestExtraBodyJson: '{"size":"3840x2160"}',
+              ),
+            ],
+            fallbackAllowImagesApiRouting: true,
+            anchorMessageId: 'anchor',
+            anchorInclusive: true,
+          );
+
+      expect(options.allowImagesApiRouting, isFalse);
+      expect(options.requestExtraBody, {'size': '1024x1024'});
+    });
+
+    test('inclusive anchor at the tail scans the whole list', () {
+      final options =
+          MessageGenerationService.resolveRequestOptionsFromMessages(
+            [
+              userMessage(id: 'old', requestAllowImagesApiRouting: false),
+              userMessage(
+                id: 'anchor',
+                requestAllowImagesApiRouting: true,
+                requestExtraBodyJson: '{"size":"1024x1024"}',
+              ),
+            ],
+            fallbackAllowImagesApiRouting: true,
+            anchorMessageId: 'anchor',
+            anchorInclusive: true,
+          );
+
+      expect(options.allowImagesApiRouting, isTrue);
+      expect(options.requestExtraBody, {'size': '1024x1024'});
+    });
+
+    test('absent inclusive anchor still scans the whole list', () {
+      final options =
+          MessageGenerationService.resolveRequestOptionsFromMessages(
+            [
+              userMessage(
+                id: 'newest',
+                requestAllowImagesApiRouting: false,
+                requestExtraBodyJson: '{"size":"1024x1024"}',
+              ),
+            ],
+            fallbackAllowImagesApiRouting: true,
+            anchorMessageId: 'missing',
+            anchorInclusive: true,
+          );
+
+      expect(options.allowImagesApiRouting, isFalse);
+      expect(options.requestExtraBody, {'size': '1024x1024'});
+    });
   });
 }

@@ -76,6 +76,31 @@
 </svelte:head>
 
 <div class="space-y-16">
+  <!-- 项目状态公告（2026-09-12） -->
+  <section class="bg-amber-50 border border-amber-200 rounded-xl px-6 py-6">
+    <h2 class="font-bold text-amber-900 mb-2">项目状态：v3.2.1 为最后一个主要版本</h2>
+    <div class="space-y-2 text-sm text-amber-800 leading-relaxed">
+      <p>
+        Kelivo 凭借一周时间扫清了 Cuplivo 的一半新增特性且完成度远超 Cuplivo，Cuplivo 已与 Kelivo 分支差异巨大，诸多代码架构由于缺失了一次大迁移而不够完善。
+      </p>
+      <p>
+        同时，鉴于开发者的时间和精力问题，Cuplivo 在未来的开发速度很难赶上 Kelivo；iOS 端自签问题的琐事解决仍然遥遥无期。未来，我们将转战 Kelivo 的 Issues 和 PRs，为 Kelivo 作为统一整体的进步做出贡献。
+      </p>
+      <p>
+        Cuplivo 自 v1.2.0（2026-07-02）发布以来发布了 41 个版本，活跃开发时间超过 2 个月，成为 Kelivo 有史以来存活最长久、功能最多的 Fork；剩余特性（尤其是局域网同步）我们期望 Kelivo 早日实现。
+      </p>
+      <p>
+        2026-09-12 发布的第 42 个版本 v3.2.1 作为一个时代的终结：仓库暂时不会被存档，QQ 群也不会被解散。感谢所有用户的陪伴，我们仍然将在
+        <a
+          class="text-amber-900 underline hover:text-amber-950"
+          href="https://github.com/Chevey339/kelivo"
+          target="_blank"
+          rel="noreferrer">Kelivo</a> 相见。
+      </p>
+      <p class="text-xs text-amber-700">致敬那一段奋斗的时光。</p>
+    </div>
+  </section>
+
   <!-- Hero / 产品 -->
   <section id="product" class="text-center py-12 scroll-mt-16">
     <h1 class="text-4xl font-extrabold text-gray-900">Cuplivo</h1>

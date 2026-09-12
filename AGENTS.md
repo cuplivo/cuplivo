@@ -65,6 +65,14 @@
 
 - This repository (Cuplivo) is a **community fork** of upstream [Kelivo](https://github.com/Chevey339/kelivo).
 
+- **Status: frozen at v3.2.1 (2026-09-12).** Upstream Kelivo v1.2.7+ caught up with Cuplivo's feature set, so development has shifted back to upstream Issues/PRs. The repository stays unarchived as an archive line; do not start new feature work here unless the user explicitly asks.
+
+- **Branch model (local):**
+  - `cuplivo` — tracks `origin/master`; the frozen Cuplivo archive line. Cuplivo-specific docs/branding live here.
+  - `master` — tracks `upstream/master`; a pristine Kelivo mirror. Never push it to `origin`.
+  - `kelivo-dev` — local-only debug identity layered on `master` (application id `com.cup11.kelivodev`, display name "Kelivo Dev"; Dart package name stays `Kelivo`). Never push it or include its rename commit in an upstream PR. Rebase it onto `master` after each upstream sync: `git fetch upstream --prune && git merge --ff-only upstream/master` on `master`, then `git rebase master` on `kelivo-dev`. Enable `rerere` so the identity conflicts resolve themselves.
+  - `pr/<issue>` — cut from `master` for small upstream PRs (fork PR via `origin` → `Chevey339/kelivo`).
+
 - `README.md` and `README_ZH_CN.md` are fully Cuplivo-branded: download links point to `cuplivo/cuplivo`, and upstream Kelivo references (Star History, Contact Us, Contribution Guide, Harmony) have been removed. Keep both README files in sync and never re-introduce upstream links.
 
 - `CHANGELOG.md` and `CHANGELOG_CN.md` must be kept in sync — when bumping version, always update both files simultaneously; in other cases, there is no need to update them.

@@ -9,6 +9,23 @@
   [阅读简体中文文档](README_ZH_CN.md)快速查看特性
 </div>
 
+> [!IMPORTANT]
+> **Project Status (2026-09-12)**
+>
+> In a single week, Kelivo cleared half of Cuplivo's added features — with far greater completeness. Cuplivo has since diverged dramatically from Kelivo, and many parts of its architecture remain incomplete because it missed one large migration.
+>
+> Meanwhile, given the developers' limited time and energy, Cuplivo can hardly keep pace with Kelivo going forward, and the day-to-day friction of iOS self-signing is still far from resolved. From now on we will move to Kelivo's Issues and PRs, contributing to Kelivo's progress as one unified project.
+>
+> Since v1.2.0 (2026-07-02), Cuplivo shipped 41 releases over more than two months of active development and reached 63 stars — the longest-lived and most feature-rich fork in Kelivo's history.
+>
+> Cuplivo also contributed design inspiration to many of Kelivo's implementations (and helped nudge the mainline forward), stepped through plenty of pitfalls, and fully lived up to its role as Kelivo's proving ground. As for the remaining features, LAN sync in particular, we hope Kelivo ships them soon.
+>
+> On 2026-09-12, Cuplivo released v3.2.1, its 42nd release, closing this chapter. The repository will not be archived for now, and the QQ group will remain open.
+>
+> Thank you to everyone who came along. We will still meet in Kelivo.
+>
+> To those days of hard work.
+
 ## 🔗 Compatibility
 
 Cuplivo is a community fork of Kelivo with strong compatibility focus:

@@ -198,7 +198,11 @@ void main() {
         .widget<TextField>(find.byType(TextField))
         .contentInsertionConfiguration;
     expect(config, isNotNull);
-    expect(config!.allowedMimeTypes, containsAll(['image/png', 'image/gif']));
+    expect(
+      config!.allowedMimeTypes,
+      containsAll(['image/*', 'image/png', 'image/gif', 'image/heic']),
+    );
+    expect(config.allowedMimeTypes, isNot(contains('image/bmp')));
     expect(config.onContentInserted, isNotNull);
 
     controller.dispose();
@@ -274,6 +278,106 @@ void main() {
     focusNode.dispose();
   });
 
+  testWidgets('IME paste with heic mime saves with a .heic extension', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+      ),
+    );
+
+    await insertContent(
+      tester,
+      mimeType: 'image/heic',
+      uri: contentUri('paste.heic'),
+      data: Uint8List.fromList(const [
+        0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, //
+        0x68, 0x65, 0x69, 0x63,
+      ]),
+      settled: () => mediaController.snapshotInput('').imagePaths.length == 1,
+    );
+
+    final paths = mediaController.snapshotInput('').imagePaths;
+    expect(paths, hasLength(1));
+    expect(paths.single, endsWith('.heic'));
+
+    controller.dispose();
+    focusNode.dispose();
+  });
+
+  testWidgets('IME paste with a literal image/* mime sniffs the extension', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+      ),
+    );
+
+    // A wildcard mime carries no subtype information, so the handler must
+    // sniff the PNG signature to name the saved file.
+    await insertContent(
+      tester,
+      mimeType: 'image/*',
+      uri: contentUri('wildcard'),
+      data: pngBytes,
+      settled: () => mediaController.snapshotInput('').imagePaths.length == 1,
+    );
+
+    final paths = mediaController.snapshotInput('').imagePaths;
+    expect(paths, hasLength(1));
+    expect(paths.single, endsWith('.png'));
+
+    controller.dispose();
+    focusNode.dispose();
+  });
+
+  testWidgets(
+    'unrecognized IME image bytes are rejected without side effects',
+    (tester) async {
+      final controller = TextEditingController();
+      final focusNode = FocusNode();
+      final mediaController = ChatInputBarController();
+
+      await tester.pumpWidget(
+        buildHarness(
+          controller: controller,
+          focusNode: focusNode,
+          mediaController: mediaController,
+        ),
+      );
+
+      // The declared wildcard admits the content, but the bytes match no known
+      // raster signature; the handler must reject instead of guessing png.
+      await insertContent(
+        tester,
+        mimeType: 'image/*',
+        uri: contentUri('mystery'),
+        data: Uint8List.fromList(const [0x01, 0x02, 0x03]),
+        settled: null,
+      );
+
+      expect(mediaController.snapshotInput('').imagePaths, isEmpty);
+      expect(uploadFiles(), isEmpty);
+
+      controller.dispose();
+      focusNode.dispose();
+    },
+  );
+
   testWidgets('consecutive IME image inserts attach both images', (
     tester,
   ) async {
@@ -300,7 +404,10 @@ void main() {
       tester,
       mimeType: 'image/webp',
       uri: contentUri('two.webp'),
-      data: Uint8List.fromList(const [0x52, 0x49, 0x46, 0x46]),
+      data: Uint8List.fromList(const [
+        0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, //
+        0x57, 0x45, 0x42, 0x50,
+      ]),
       settled: () => mediaController.snapshotInput('').imagePaths.length == 2,
     );
 
@@ -372,6 +479,46 @@ void main() {
         hasLength(1),
       );
     }
+
+    controller.dispose();
+    focusNode.dispose();
+  });
+
+  testWidgets('svg IME content is rejected without side effects', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+      ),
+    );
+
+    // `image/svg+xml` is not in the declared exact-match list (only the
+    // `image/*` wildcard covers it), so invoke the handler directly to
+    // exercise the defensive vector-format rejection branch.
+    await tester.runAsync(() async {
+      tester
+          .widget<TextField>(find.byType(TextField))
+          .contentInsertionConfiguration!
+          .onContentInserted(
+            KeyboardInsertedContent(
+              mimeType: 'image/svg+xml',
+              uri: contentUri('vector.svg'),
+              data: Uint8List.fromList(utf8.encode('<svg/>')),
+            ),
+          );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    });
+    await tester.pump();
+
+    expect(mediaController.snapshotInput('').imagePaths, isEmpty);
+    expect(uploadFiles(), isEmpty);
 
     controller.dispose();
     focusNode.dispose();

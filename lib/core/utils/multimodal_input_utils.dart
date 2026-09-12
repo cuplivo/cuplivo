@@ -47,6 +47,8 @@ String inferMediaMimeFromSource(String source, {String fallbackMime = ''}) {
   if (lower.endsWith('.png')) return 'image/png';
   if (lower.endsWith('.webp')) return 'image/webp';
   if (lower.endsWith('.gif')) return 'image/gif';
+  if (lower.endsWith('.heic')) return 'image/heic';
+  if (lower.endsWith('.heif')) return 'image/heif';
   if (lower.endsWith('.wav')) return 'audio/wav';
   if (lower.endsWith('.mp3')) return 'audio/mpeg';
   if (lower.endsWith('.pcm16')) return 'audio/pcm16';
@@ -75,6 +77,82 @@ String inferMediaMimeFromSource(String source, {String fallbackMime = ''}) {
     return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   }
   return fallbackMime;
+}
+
+/// Sniffs the leading bytes of a raster image and returns its MIME type, or
+/// `null` when the signature is not recognized.
+///
+/// Covers exactly the formats accepted from IME content insertion (see
+/// [imeImageExtensionByMime]); unrecognized payloads are rejected rather than
+/// guessed.
+String? sniffImageMimeFromBytes(List<int> bytes) {
+  bool startsWith(List<int> signature, {int offset = 0}) {
+    if (bytes.length < offset + signature.length) return false;
+    for (var i = 0; i < signature.length; i++) {
+      if (bytes[offset + i] != signature[i]) return false;
+    }
+    return true;
+  }
+
+  if (startsWith(const [0x89, 0x50, 0x4E, 0x47])) return 'image/png';
+  if (startsWith(const [0xFF, 0xD8, 0xFF])) return 'image/jpeg';
+  if (startsWith(const [0x47, 0x49, 0x46, 0x38])) return 'image/gif';
+  // RIFF....WEBP
+  if (startsWith(const [0x52, 0x49, 0x46, 0x46]) &&
+      startsWith(const [0x57, 0x45, 0x42, 0x50], offset: 8)) {
+    return 'image/webp';
+  }
+  // ISO BMFF: ....ftyp<brand>
+  if (startsWith(const [0x66, 0x74, 0x79, 0x70], offset: 4) &&
+      bytes.length >= 12) {
+    final brand = String.fromCharCodes(bytes.sublist(8, 12));
+    return switch (brand) {
+      'heic' || 'heix' || 'hevc' || 'hevx' => 'image/heic',
+      'heif' || 'mif1' || 'msf1' => 'image/heif',
+      _ => null,
+    };
+  }
+  return null;
+}
+
+/// Raster image MIME types accepted from IME content insertion, mapped to the
+/// saved file extension.
+///
+/// Single source for both [inferImageExtension] results and the composer's
+/// declared `allowedMimeTypes` ([imeImageMimeTypes]), so the accepted set and
+/// the negotiated set cannot drift. The composer's picker/drop paths keep
+/// their own hand-written extension predicates
+/// (`FileUploadService.isImageExtension` / `_isImageExtension`); keep them in
+/// sync when this set changes.
+const Map<String, String> imeImageExtensionByMime = <String, String>{
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/heic': 'heic',
+  'image/heif': 'heif',
+};
+
+/// The composer's `ContentInsertionConfiguration.allowedMimeTypes`.
+///
+/// `image/*` is the IME-negotiation wildcard; the concrete entries keep
+/// Flutter's exact-match `insertContent` assert quiet (`editable_text.dart`).
+final List<String> imeImageMimeTypes = List<String>.unmodifiable(<String>[
+  'image/*',
+  ...imeImageExtensionByMime.keys,
+]);
+
+/// Returns the saved extension (no dot) for IME-inserted [bytes], or `null`
+/// when they are not a recognized accepted raster image.
+///
+/// Magic bytes decide the format, so a mislabelled IME subtype can never mint
+/// an extension that contradicts the payload; unrecognized content is
+/// rejected rather than guessed as png.
+String? inferImageExtension(List<int> bytes) {
+  final mimeType = sniffImageMimeFromBytes(bytes);
+  if (mimeType == null) return null;
+  return imeImageExtensionByMime[mimeType];
 }
 
 String resolveMediaAttachmentMime({

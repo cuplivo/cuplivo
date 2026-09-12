@@ -369,20 +369,47 @@ void main() {
           title: 'Active topic',
           assistantId: 'a1',
           createdAt: now.subtract(const Duration(days: 1)),
+          messageIds: ['m-active'],
         ),
         conversation(
           'deleted',
           title: 'Deleted topic',
           assistantId: '2d111bb3-de7b-4ad6-903d-e09cefd7c933',
           createdAt: now.subtract(const Duration(days: 1)),
+          messageIds: ['m-deleted'],
         ),
       ];
+
+      // Both conversations hold in-range activity, so both count towards
+      // totalConversations; only the surviving assistant is ranked.
+      final messagesByConversation = {
+        'active': [
+          message(
+            'm-active',
+            conversationId: 'active',
+            timestamp: now.subtract(const Duration(hours: 2)),
+            modelId: 'gpt-4o',
+            providerId: 'openai',
+            promptTokens: 10,
+          ),
+        ],
+        'deleted': [
+          message(
+            'm-deleted',
+            conversationId: 'deleted',
+            timestamp: now.subtract(const Duration(hours: 2)),
+            modelId: 'gpt-4o',
+            providerId: 'openai',
+            promptTokens: 10,
+          ),
+        ],
+      };
 
       final snapshot = StatsAggregationService.buildSnapshot(
         now: now,
         range: StatsDateRange.allTime(now),
         conversations: conversations,
-        messagesByConversation: const {},
+        messagesByConversation: messagesByConversation,
         launchCount: 1,
         unknownProviderLabel: 'Unknown provider',
         unknownTopicLabel: 'Untitled topic',
@@ -525,6 +552,271 @@ void main() {
         (day) => day.date == DateTime(2026, 5, 2),
       );
       expect(trendDay.providerTokens, isEmpty);
+    });
+
+    group('filters', () {
+      final conversations = [
+        conversation(
+          'c1',
+          title: 'Alpha topic',
+          assistantId: 'a1',
+          createdAt: now.subtract(const Duration(days: 1)),
+          messageIds: ['m1', 'm2', 'm3'],
+        ),
+        conversation(
+          'c2',
+          title: 'Beta topic',
+          assistantId: 'a2',
+          createdAt: now.subtract(const Duration(days: 2)),
+          messageIds: ['m4'],
+        ),
+      ];
+      final messagesByConversation = {
+        'c1': [
+          message(
+            'm1',
+            conversationId: 'c1',
+            timestamp: now.subtract(const Duration(hours: 3)),
+            modelId: 'gpt-4o',
+            providerId: 'openai',
+            promptTokens: 100,
+            completionTokens: 50,
+            cachedTokens: 10,
+          ),
+          message(
+            'm2',
+            conversationId: 'c1',
+            timestamp: now.subtract(const Duration(hours: 2)),
+            modelId: 'claude-3',
+            providerId: 'anthropic',
+            promptTokens: 200,
+            completionTokens: 80,
+            cachedTokens: 0,
+          ),
+          message(
+            'm3',
+            conversationId: 'c1',
+            timestamp: now.subtract(const Duration(hours: 1)),
+            modelId: 'gpt-4o',
+            providerId: 'openai',
+            promptTokens: 300,
+            completionTokens: 120,
+            cachedTokens: 20,
+          ),
+          message(
+            'm5',
+            conversationId: 'c1',
+            timestamp: now.subtract(const Duration(minutes: 45)),
+            modelId: 'o4-mini',
+            providerId: 'openai',
+            promptTokens: 25,
+            completionTokens: 5,
+            cachedTokens: 0,
+          ),
+        ],
+        'c2': [
+          message(
+            'm4',
+            conversationId: 'c2',
+            timestamp: now.subtract(const Duration(minutes: 30)),
+            modelId: 'gpt-4o',
+            providerId: 'openai',
+            promptTokens: 50,
+            completionTokens: 10,
+            cachedTokens: 0,
+          ),
+        ],
+      };
+
+      StatsSnapshot build(
+        StatsFilter filter, {
+        Map<String, String> providerNames = const {},
+      }) {
+        return StatsAggregationService.buildSnapshot(
+          now: now,
+          range: StatsDateRange.allTime(now),
+          conversations: conversations,
+          messagesByConversation: messagesByConversation,
+          launchCount: 0,
+          unknownProviderLabel: 'Unknown provider',
+          unknownTopicLabel: 'Untitled topic',
+          providerNames: providerNames,
+          filter: filter,
+        );
+      }
+
+      test('filters by model ids', () {
+        final snapshot = build(const StatsFilter(modelIds: {'claude-3'}));
+
+        expect(snapshot.summary.totalMessages, 1);
+        expect(snapshot.summary.inputTokens, 200);
+        expect(snapshot.summary.outputTokens, 80);
+        expect(snapshot.summary.cachedTokens, 0);
+        expect(snapshot.summary.totalConversations, 1);
+        expect(snapshot.modelRank.single.id, 'claude-3');
+        expect(snapshot.topicRank.single.id, 'c1');
+        // Heatmap only counts the matching message.
+        final matchingDay = snapshot.heatmap.firstWhere(
+          (day) => day.date == DateTime(2026, 5, 3),
+        );
+        expect(matchingDay.count, 1);
+      });
+
+      test('provider-header select-all filters via a multi-model OR set', () {
+        // After removing the providerIds dimension, checking a provider
+        // header in the sheet equals selecting ALL of its models. This set
+        // must include every openai model (gpt-4o + o4-mini) and exclude the
+        // anthropic one — the closest thing left to provider-level filtering.
+        final snapshot = build(
+          const StatsFilter(modelIds: {'gpt-4o', 'o4-mini'}),
+        );
+
+        expect(snapshot.summary.totalMessages, 4);
+        expect(snapshot.summary.inputTokens, 475);
+        expect(snapshot.summary.outputTokens, 185);
+        expect(snapshot.modelRank.map((e) => e.id), ['gpt-4o', 'o4-mini']);
+      });
+
+      test('filters by assistant ids (conversation based)', () {
+        final snapshot = build(const StatsFilter(assistantIds: {'a2'}));
+
+        expect(snapshot.summary.totalMessages, 1);
+        expect(snapshot.summary.totalConversations, 1);
+        expect(snapshot.assistantRank.single.id, 'a2');
+        expect(snapshot.topicRank.single.id, 'c2');
+      });
+
+      test('filters by topic ids (conversation based)', () {
+        final snapshot = build(const StatsFilter(topicIds: {'c1'}));
+
+        expect(snapshot.summary.totalMessages, 4);
+        expect(snapshot.summary.totalConversations, 1);
+        expect(snapshot.topicRank.single.id, 'c1');
+        expect(snapshot.assistantRank.single.id, 'a1');
+      });
+
+      test('combines dimensions with AND semantics', () {
+        final snapshot = build(
+          const StatsFilter(modelIds: {'gpt-4o'}, assistantIds: {'a2'}),
+        );
+
+        expect(snapshot.summary.totalMessages, 1);
+        expect(snapshot.summary.inputTokens, 50);
+        expect(snapshot.modelRank.single.id, 'gpt-4o');
+      });
+
+      test('empty result keeps all metrics at zero', () {
+        final snapshot = build(const StatsFilter(modelIds: {'no-such-model'}));
+
+        expect(snapshot.summary.totalMessages, 0);
+        expect(snapshot.summary.inputTokens, 0);
+        expect(snapshot.summary.totalConversations, 0);
+        expect(snapshot.modelRank, isEmpty);
+        expect(snapshot.assistantRank, isEmpty);
+        expect(snapshot.topicRank, isEmpty);
+      });
+
+      test(
+        'trend honors the filter and buckets by resolved provider label',
+        () {
+          final snapshot = build(
+            const StatsFilter(modelIds: {'claude-3'}),
+            providerNames: const {'anthropic': 'Anthropic', 'openai': 'OpenAI'},
+          );
+
+          final matchingDay = snapshot.trend.firstWhere(
+            (day) => day.date == DateTime(2026, 5, 3),
+          );
+          // Trend buckets by display label; the filter must exclude OpenAI.
+          expect(matchingDay.providerTokens.keys, contains('Anthropic'));
+          expect(matchingDay.providerTokens.keys, isNot(contains('OpenAI')));
+          expect(matchingDay.providerTokens['Anthropic']!.inputTokens, 200);
+        },
+      );
+
+      test('inactive filter matches everything', () {
+        final snapshot = build(const StatsFilter());
+
+        expect(snapshot.summary.totalMessages, 5);
+        expect(snapshot.summary.totalConversations, 2);
+        expect(snapshot.modelRank, hasLength(3));
+      });
+
+      test('StatsFilter has value equality', () {
+        const a = StatsFilter(modelIds: {'m1', 'm2'}, assistantIds: {'x'});
+        const b = StatsFilter(modelIds: {'m2', 'm1'}, assistantIds: {'x'});
+        const c = StatsFilter(modelIds: {'m1'}, assistantIds: {'x'});
+
+        expect(a, equals(b));
+        expect(a.hashCode, b.hashCode);
+        expect(a, isNot(equals(c)));
+      });
+
+      test('StatsFilter.copyWith clears a dimension only via an empty set', () {
+        const a = StatsFilter(modelIds: {'m1'}, topicIds: {'t1'});
+
+        // null keeps the current value...
+        expect(a.copyWith(modelIds: null).modelIds, {'m1'});
+        // ...while an explicit empty set clears it.
+        expect(a.copyWith(modelIds: const {}).modelIds, isEmpty);
+        expect(a.copyWith(modelIds: const {}).isActive, isTrue);
+        expect(
+          a.copyWith(modelIds: const {}, topicIds: const {}).isActive,
+          isFalse,
+        );
+      });
+
+      test('blank model ids are excluded by an active model filter', () {
+        final withBlank = [
+          message(
+            'm-blank',
+            conversationId: 'c1',
+            timestamp: now.subtract(const Duration(hours: 1)),
+            modelId: '  ',
+            promptTokens: 999,
+          ),
+        ];
+        final snapshot = StatsAggregationService.buildSnapshot(
+          now: now,
+          range: StatsDateRange.allTime(now),
+          conversations: conversations,
+          messagesByConversation: {'c1': withBlank, 'c2': const []},
+          launchCount: 0,
+          unknownProviderLabel: 'Unknown provider',
+          unknownTopicLabel: 'Untitled topic',
+          filter: const StatsFilter(modelIds: {'gpt-4o'}),
+        );
+
+        expect(snapshot.summary.totalMessages, 0);
+        expect(snapshot.summary.inputTokens, 0);
+      });
+
+      test('unfiltered conversation metrics count activity, not creation', () {
+        // Pins the default-view semantics change that came with filtering:
+        // totalConversations / assistantRank reflect conversations holding
+        // at least one message inside the range — an empty conversation
+        // created in range no longer counts.
+        final conversationsOnly = [
+          conversation(
+            'ghost',
+            title: 'Empty ghost topic',
+            assistantId: 'a1',
+            createdAt: now.subtract(const Duration(hours: 1)),
+          ),
+        ];
+        final snapshot = StatsAggregationService.buildSnapshot(
+          now: now,
+          range: StatsDateRange.allTime(now),
+          conversations: conversationsOnly,
+          messagesByConversation: const {},
+          launchCount: 0,
+          unknownProviderLabel: 'Unknown provider',
+          unknownTopicLabel: 'Untitled topic',
+        );
+
+        expect(snapshot.summary.totalConversations, 0);
+        expect(snapshot.assistantRank, isEmpty);
+      });
     });
   });
 }

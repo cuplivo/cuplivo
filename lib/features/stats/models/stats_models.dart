@@ -131,6 +131,13 @@ class StatsRankItem {
   final String id;
   final String label;
   final int value;
+
+  /// Provider id backing the model icon. Empty string means "unknown
+  /// provider" (messages recorded without one) — the same sentinel the
+  /// filter sheet uses for its Unknown Provider group, and it
+  /// intentionally renders the model-id letter fallback (a visible icon,
+  /// not a blank one). Null only for dimensions that carry no provider
+  /// concept (assistant/topic ranks).
   final String? providerId;
 }
 
@@ -201,4 +208,90 @@ class StatsSnapshot {
   final List<StatsRankItem> modelRank;
   final List<StatsRankItem> assistantRank;
   final List<StatsRankItem> topicRank;
+}
+
+/// Normalises a raw provider id for model->provider attribution, shared by
+/// the aggregation service (ranking icons) and the filter sheet (grouping):
+/// trimmed, with blank/null folded to the unknown sentinel.
+String normalizeProviderId(String? raw) {
+  final value = raw?.trim();
+  return (value == null || value.isEmpty) ? '' : value;
+}
+
+/// Optional dimension filters for the stats page.
+///
+/// Each non-empty set is an OR filter on its own dimension; dimensions
+/// combine with AND. An empty set means "no restriction" on that dimension.
+/// Clearing a dimension via [copyWith] means passing an *empty* set —
+/// `null` keeps the current value.
+class StatsFilter {
+  /// Sentinel assistant id for conversations without an assistant. Shared by
+  /// the filter option in the page and the normalisation in the aggregation
+  /// service, so the string is defined exactly once.
+  static const String defaultAssistantId = '_default';
+
+  const StatsFilter({
+    this.modelIds = const {},
+    this.assistantIds = const {},
+    this.topicIds = const {},
+  });
+
+  final Set<String> modelIds;
+  final Set<String> assistantIds;
+  final Set<String> topicIds;
+
+  bool get isActive =>
+      modelIds.isNotEmpty ||
+      assistantIds.isNotEmpty ||
+      topicIds.isNotEmpty;
+
+  bool matches({
+    required String? modelId,
+    required String? assistantId,
+    required String? topicId,
+  }) {
+    if (modelIds.isNotEmpty &&
+        (modelId == null || !modelIds.contains(modelId))) {
+      return false;
+    }
+    if (assistantIds.isNotEmpty &&
+        (assistantId == null || !assistantIds.contains(assistantId))) {
+      return false;
+    }
+    if (topicIds.isNotEmpty &&
+        (topicId == null || !topicIds.contains(topicId))) {
+      return false;
+    }
+    return true;
+  }
+
+  StatsFilter copyWith({
+    Set<String>? modelIds,
+    Set<String>? assistantIds,
+    Set<String>? topicIds,
+  }) {
+    return StatsFilter(
+      modelIds: modelIds ?? this.modelIds,
+      assistantIds: assistantIds ?? this.assistantIds,
+      topicIds: topicIds ?? this.topicIds,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is StatsFilter &&
+        _sameIds(other.modelIds, modelIds) &&
+        _sameIds(other.assistantIds, assistantIds) &&
+        _sameIds(other.topicIds, topicIds);
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    Object.hashAllUnordered(modelIds),
+    Object.hashAllUnordered(assistantIds),
+    Object.hashAllUnordered(topicIds),
+  );
+
+  static bool _sameIds(Set<String> a, Set<String> b) =>
+      a.length == b.length && a.containsAll(b);
 }

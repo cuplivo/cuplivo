@@ -8,6 +8,7 @@ import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../shared/widgets/ios_checkbox.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../home/widgets/assistant_avatar.dart';
 import '../../home/widgets/model_icon.dart';
@@ -32,6 +33,7 @@ class StatsPage extends StatefulWidget {
 
 class _StatsPageState extends State<StatsPage> {
   late StatsDateRange _range;
+  StatsFilter _filter = const StatsFilter();
 
   @override
   void initState() {
@@ -60,6 +62,18 @@ class _StatsPageState extends State<StatsPage> {
           onChanged: _setPreset,
           onCustom: _pickCustomRange,
         ),
+        if (widget.snapshotOverride == null) ...[
+          const SizedBox(height: 8),
+          _FilterBar(
+            filter: _filter,
+            onModelProviderTap: _pickModelProviderFilter,
+            onAssistantTap: _pickAssistantFilter,
+            onTopicTap: _pickTopicFilter,
+            onClearAll: _filter.isActive
+                ? () => setState(() => _filter = const StatsFilter())
+                : null,
+          ),
+        ],
         const SizedBox(height: 12),
         StatsSectionCard(
           title: l10n.statsPageHeatmapTitle,
@@ -169,11 +183,11 @@ class _StatsPageState extends State<StatsPage> {
     final assistantNames = {
       for (final assistant in assistantProvider.assistants)
         assistant.id: assistant.name,
-      '_default': l10n.statsPageUnknownAssistant,
+      StatsFilter.defaultAssistantId: l10n.statsPageUnknownAssistant,
     };
     final existingAssistantIds = {
       for (final assistant in assistantProvider.assistants) assistant.id,
-      '_default',
+      StatsFilter.defaultAssistantId,
     };
     final providerNames = {
       for (final entry in settings.providerConfigs.entries)
@@ -182,6 +196,7 @@ class _StatsPageState extends State<StatsPage> {
     return StatsAggregationService.buildSnapshot(
       now: now,
       range: _range,
+      filter: _filter,
       conversations: conversations,
       messagesByConversation: messagesByConversation,
       launchCount: settings.appLaunchCount,
@@ -226,6 +241,110 @@ class _StatsPageState extends State<StatsPage> {
     setState(() {
       _range = StatsDateRange.custom(selected.start, selected.end);
     });
+  }
+
+  Future<void> _pickModelProviderFilter() async {
+    final chatService = context.read<ChatService>();
+    final settings = context.read<SettingsProvider>();
+    final l10n = AppLocalizations.of(context)!;
+    final modelProviders = <String, String>{};
+    for (final conversation in chatService.getAllCompleteConversations()) {
+      for (final message in chatService.getMessages(conversation.id)) {
+        final modelId = message.modelId?.trim();
+        if (modelId == null || modelId.isEmpty) continue;
+        // Keep provider-less models: they land in the unknown bucket
+        // instead of becoming unfilterable. First writer wins — the
+        // repository enumerates updated_at DESC, so the newest observed
+        // model->provider mapping sticks.
+        modelProviders.putIfAbsent(
+          modelId,
+          () => normalizeProviderId(message.providerId),
+        );
+      }
+    }
+    final providerNames = {
+      for (final entry in settings.providerConfigs.entries)
+        entry.key: entry.value.name,
+    };
+    final result = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _ModelProviderFilterSheet(
+        modelProviders: modelProviders,
+        providerNames: providerNames,
+        unknownProviderLabel: l10n.statsPageUnknownProvider,
+        initialModelIds: _filter.modelIds,
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _filter = _filter.copyWith(modelIds: result);
+    });
+  }
+
+  Future<void> _pickAssistantFilter() async {
+    final assistantProvider = context.read<AssistantProvider>();
+    final l10n = AppLocalizations.of(context)!;
+    final options = <({String id, String label})>[
+      for (final a in assistantProvider.assistants)
+        (
+          id: a.id,
+          label: a.name.trim().isEmpty
+              ? l10n.bindingsUnnamedAssistant
+              : a.name.trim(),
+        ),
+      (
+        id: StatsFilter.defaultAssistantId,
+        label: l10n.statsPageUnknownAssistant,
+      ),
+    ];
+    final selected = await _showSimpleFilterSheet(
+      title: l10n.statsPageFilterAssistantSelectTitle,
+      options: options,
+      initialSelected: _filter.assistantIds,
+    );
+    if (selected == null || !mounted) return;
+    setState(() => _filter = _filter.copyWith(assistantIds: selected));
+  }
+
+  Future<void> _pickTopicFilter() async {
+    final chatService = context.read<ChatService>();
+    final l10n = AppLocalizations.of(context)!;
+    final options = <({String id, String label})>[
+      for (final c in chatService.getAllCompleteConversations())
+        if (c.messageIds.isNotEmpty)
+          (
+            id: c.id,
+            label: c.title.trim().isEmpty
+                ? l10n.statsPageUnknownTopic
+                : c.title.trim(),
+          ),
+    ];
+    final selected = await _showSimpleFilterSheet(
+      title: l10n.statsPageFilterTopicSelectTitle,
+      options: options,
+      initialSelected: _filter.topicIds,
+    );
+    if (selected == null || !mounted) return;
+    setState(() => _filter = _filter.copyWith(topicIds: selected));
+  }
+
+  Future<Set<String>?> _showSimpleFilterSheet({
+    required String title,
+    required List<({String id, String label})> options,
+    required Set<String> initialSelected,
+  }) {
+    return showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _SimpleFilterSheet(
+        title: title,
+        options: options,
+        initialSelected: initialSelected,
+      ),
+    );
   }
 }
 
@@ -1023,6 +1142,528 @@ class _DateField extends StatelessWidget {
               fontSize: 13,
               fontWeight: AppFontWeights.emphasis,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterBar extends StatelessWidget {
+  const _FilterBar({
+    required this.filter,
+    required this.onModelProviderTap,
+    required this.onAssistantTap,
+    required this.onTopicTap,
+    this.onClearAll,
+  });
+
+  final StatsFilter filter;
+  final VoidCallback onModelProviderTap;
+  final VoidCallback onAssistantTap;
+  final VoidCallback onTopicTap;
+  final VoidCallback? onClearAll;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final modelCount = filter.modelIds.length;
+    final clearAll = onClearAll;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.only(right: 16),
+      child: Row(
+        children: [
+          _FilterChipButton(
+            label: l10n.statsPageFilterModels,
+            count: modelCount,
+            selected: modelCount > 0,
+            onTap: onModelProviderTap,
+          ),
+          const SizedBox(width: 8),
+          _FilterChipButton(
+            label: l10n.statsPageFilterAssistants,
+            count: filter.assistantIds.length,
+            selected: filter.assistantIds.isNotEmpty,
+            onTap: onAssistantTap,
+          ),
+          const SizedBox(width: 8),
+          _FilterChipButton(
+            label: l10n.statsPageFilterTopics,
+            count: filter.topicIds.length,
+            selected: filter.topicIds.isNotEmpty,
+            onTap: onTopicTap,
+          ),
+          if (clearAll != null) ...[
+            const SizedBox(width: 8),
+            _FilterChipButton(
+              label: l10n.statsPageFilterClearAll,
+              count: null,
+              selected: false,
+              accent: true,
+              onTap: clearAll,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterChipButton extends StatelessWidget {
+  const _FilterChipButton({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+    this.accent = false,
+  });
+
+  final String label;
+  final int? count;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final selectedBackground = isDark
+        ? Colors.white.withValues(alpha: 0.16)
+        : const Color(0xFFD9DDE2); // color-gate: ignore
+    final accentBackground = cs.primary.withValues(alpha: isDark ? 0.35 : 0.18);
+    final idleBackground = isDark
+        ? cs.onSurface.withValues(alpha: 0.06)
+        : const Color(0xFFEEF0F3);
+    final text = count != null && count! > 0 ? '$label ($count)' : label;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 64, minHeight: 32),
+      child: Semantics(
+        button: true,
+        selected: selected,
+        child: IosCardPress(
+          onTap: onTap,
+          baseColor: accent
+              ? accentBackground
+              : selected
+              ? selectedBackground
+              : idleBackground,
+          borderRadius: BorderRadius.circular(15),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+          child: Center(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: accent
+                    ? cs.primary
+                    : selected
+                    ? cs.onSurface.withValues(alpha: 0.9)
+                    : cs.onSurface.withValues(alpha: isDark ? 0.7 : 0.62),
+                fontSize: 12,
+                fontWeight: selected || accent
+                    ? AppFontWeights.emphasis
+                    : AppFontWeights.semibold,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CheckRow extends StatelessWidget {
+  const _CheckRow({
+    required this.label,
+    required this.checked,
+    required this.onTap,
+    this.indent = false,
+  });
+
+  final String label;
+  final bool checked;
+  final VoidCallback onTap;
+  final bool indent;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return IosCardPress(
+      baseColor: Colors.transparent,
+      borderRadius: BorderRadius.zero,
+      pressedBlendStrength: 0,
+      pressedScale: 1.0,
+      haptics: false,
+      onTap: onTap,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(indent ? 28 : 12, 9, 12, 9),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: AppFontWeights.medium,
+                      color: cs.onSurface.withValues(alpha: 0.88),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IosCheckbox(value: checked, onChanged: (_) => onTap(), size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom-sheet multi-select for models, grouped by provider. Checking a
+/// provider header selects all its models; individual model rows toggle
+/// single models. Returns the selected model id set (empty = no filter).
+class _ModelProviderFilterSheet extends StatefulWidget {
+  const _ModelProviderFilterSheet({
+    required this.modelProviders,
+    required this.providerNames,
+    required this.unknownProviderLabel,
+    required this.initialModelIds,
+  });
+
+  final Map<String, String> modelProviders;
+  final Map<String, String> providerNames;
+  final String unknownProviderLabel;
+  final Set<String> initialModelIds;
+
+  @override
+  State<_ModelProviderFilterSheet> createState() =>
+      _ModelProviderFilterSheetState();
+}
+
+class _ModelProviderFilterSheetState extends State<_ModelProviderFilterSheet> {
+  late final Set<String> _modelIds = Set.of(widget.initialModelIds);
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+
+    // Group models by provider; models without a provider go to the unknown
+    // bucket, keeping insertion order for stability.
+    final groups = <String, List<String>>{};
+    final groupOrder = <String>[];
+    widget.modelProviders.forEach((modelId, providerId) {
+      // Group by the raw provider id: display names are user-editable and
+      // not deduplicated, so labelling here would merge distinct providers
+      // (and a provider literally named like the unknown label would fold
+      // into the synthetic bucket). Resolve the label only when rendering.
+      final key = providerId;
+      if (!groups.containsKey(key)) {
+        groups[key] = <String>[];
+        groupOrder.add(key);
+      }
+      groups[key]!.add(modelId);
+    });
+
+    return Container(
+      width: double.infinity,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+      ),
+      margin: EdgeInsets.only(left: 12, right: 12, bottom: 12 + bottomInset),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1F2023) : const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l10n.statsPageFilterModelSelectTitle,
+                  style: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.92),
+                    fontSize: 15,
+                    fontWeight: AppFontWeights.emphasis,
+                  ),
+                ),
+              ),
+              IosIconButton(
+                icon: Lucide.X,
+                size: 18,
+                padding: const EdgeInsets.all(7),
+                onTap: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (groupOrder.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        l10n.statsPageFilterNoOptions,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: cs.onSurface.withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ),
+                  for (final provider in groupOrder) ...[
+                    _CheckRow(
+                      label: provider.isEmpty
+                          ? widget.unknownProviderLabel
+                          : (widget.providerNames[provider] ?? provider),
+                      checked: groups[provider]!.every(
+                        (m) => _modelIds.contains(m),
+                      ),
+                      onTap: () {
+                        setState(() {
+                          final allSelected = groups[provider]!.every(
+                            (m) => _modelIds.contains(m),
+                          );
+                          if (allSelected) {
+                            _modelIds.removeAll(groups[provider]!);
+                          } else {
+                            _modelIds.addAll(groups[provider]!);
+                          }
+                        });
+                      },
+                    ),
+                    for (final modelId in groups[provider]!)
+                      _CheckRow(
+                        label: modelId,
+                        checked: _modelIds.contains(modelId),
+                        onTap: () {
+                          setState(() {
+                            if (_modelIds.contains(modelId)) {
+                              _modelIds.remove(modelId);
+                            } else {
+                              _modelIds.add(modelId);
+                            }
+                          });
+                        },
+                        indent: true,
+                      ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: IosCardPress(
+                  onTap: () {
+                    setState(() => _modelIds.clear());
+                  },
+                  borderRadius: BorderRadius.circular(13),
+                  baseColor: isDark
+                      ? cs.onSurface.withValues(alpha: 0.08)
+                      : const Color(0xFFE7E9EC),
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  child: Center(
+                    child: Text(
+                      l10n.statsPageFilterClear,
+                      style: TextStyle(
+                        color: cs.onSurface.withValues(alpha: 0.74),
+                        fontSize: 13,
+                        fontWeight: AppFontWeights.emphasis,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: IosCardPress(
+                  onTap: () => Navigator.of(context).pop(Set.of(_modelIds)),
+                  borderRadius: BorderRadius.circular(13),
+                  baseColor: isDark
+                      ? Colors.white.withValues(alpha: 0.16)
+                      : const Color(0xFFDADDE2), // color-gate: ignore
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  child: Center(
+                    child: Text(
+                      l10n.statsPageFilterDone,
+                      style: TextStyle(
+                        color: cs.onSurface.withValues(alpha: 0.9),
+                        fontSize: 13,
+                        fontWeight: AppFontWeights.heavy,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bottom-sheet multi-select for assistants / topics. Returns the selected
+/// id set (empty = no filter), or null when dismissed.
+class _SimpleFilterSheet extends StatefulWidget {
+  const _SimpleFilterSheet({
+    required this.title,
+    required this.options,
+    required this.initialSelected,
+  });
+
+  final String title;
+  final List<({String id, String label})> options;
+  final Set<String> initialSelected;
+
+  @override
+  State<_SimpleFilterSheet> createState() => _SimpleFilterSheetState();
+}
+
+class _SimpleFilterSheetState extends State<_SimpleFilterSheet> {
+  late final Set<String> _selected = Set.of(widget.initialSelected);
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+
+    return Container(
+      width: double.infinity,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+      ),
+      margin: EdgeInsets.only(left: 12, right: 12, bottom: 12 + bottomInset),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1F2023) : const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  widget.title,
+                  style: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.92),
+                    fontSize: 15,
+                    fontWeight: AppFontWeights.emphasis,
+                  ),
+                ),
+              ),
+              IosIconButton(
+                icon: Lucide.X,
+                size: 18,
+                padding: const EdgeInsets.all(7),
+                onTap: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.options.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        l10n.statsPageFilterNoOptions,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: cs.onSurface.withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ),
+                  for (final option in widget.options)
+                    _CheckRow(
+                      label: option.label,
+                      checked: _selected.contains(option.id),
+                      onTap: () {
+                        setState(() {
+                          if (_selected.contains(option.id)) {
+                            _selected.remove(option.id);
+                          } else {
+                            _selected.add(option.id);
+                          }
+                        });
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: IosCardPress(
+                  onTap: () => setState(() => _selected.clear()),
+                  borderRadius: BorderRadius.circular(13),
+                  baseColor: isDark
+                      ? cs.onSurface.withValues(alpha: 0.08)
+                      : const Color(0xFFE7E9EC),
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  child: Center(
+                    child: Text(
+                      l10n.statsPageFilterClear,
+                      style: TextStyle(
+                        color: cs.onSurface.withValues(alpha: 0.74),
+                        fontSize: 13,
+                        fontWeight: AppFontWeights.emphasis,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: IosCardPress(
+                  onTap: () => Navigator.of(context).pop(Set.of(_selected)),
+                  borderRadius: BorderRadius.circular(13),
+                  baseColor: isDark
+                      ? Colors.white.withValues(alpha: 0.16)
+                      : const Color(0xFFDADDE2), // color-gate: ignore
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  child: Center(
+                    child: Text(
+                      l10n.statsPageFilterDone,
+                      style: TextStyle(
+                        color: cs.onSurface.withValues(alpha: 0.9),
+                        fontSize: 13,
+                        fontWeight: AppFontWeights.heavy,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

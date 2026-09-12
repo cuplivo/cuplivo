@@ -872,6 +872,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsPageCustomRangeApply => 'Apply';
 
   @override
+  String get statsPageFilterModels => 'Model / Provider';
+
+  @override
+  String get statsPageFilterAssistants => 'Assistant';
+
+  @override
+  String get statsPageFilterTopics => 'Topic';
+
+  @override
+  String get statsPageFilterClearAll => 'Clear all';
+
+  @override
+  String get statsPageFilterClear => 'Clear';
+
+  @override
+  String get statsPageFilterDone => 'Done';
+
+  @override
+  String get statsPageFilterModelSelectTitle => 'Filter by model / provider';
+
+  @override
+  String get statsPageFilterAssistantSelectTitle => 'Filter by assistant';
+
+  @override
+  String get statsPageFilterTopicSelectTitle => 'Filter by topic';
+
+  @override
+  String get statsPageFilterNoOptions => 'No options';
+
+  @override
   String get sponsorPageMethodsSectionTitle => 'Sponsorship Methods';
 
   @override

@@ -642,7 +642,7 @@ class _ThemeActionDotState extends State<_ThemeActionDot> {
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       cursor: SystemMouseCursors.click,
-      child: Tooltip(
+      child: WindowsAxTreeSafeTooltip(
         message: widget.tooltip,
         child: GestureDetector(
           onTap: widget.onTap,
@@ -1712,7 +1712,7 @@ class _DesktopAppFontRow extends StatelessWidget {
             },
           ),
           const SizedBox(width: 8),
-          Tooltip(
+          WindowsAxTreeSafeTooltip(
             message: l10n.displaySettingsPageFontResetLabel,
             child: _IconBtn(
               icon: lucide.Lucide.RotateCcw,
@@ -1759,7 +1759,7 @@ class _DesktopCodeFontRow extends StatelessWidget {
             },
           ),
           const SizedBox(width: 8),
-          Tooltip(
+          WindowsAxTreeSafeTooltip(
             message: l10n.displaySettingsPageFontResetLabel,
             child: _IconBtn(
               icon: lucide.Lucide.RotateCcw,
@@ -2601,29 +2601,7 @@ class _ToggleRowRequestLogging extends StatelessWidget {
               ),
             ),
           ),
-          Tooltip(
-            message: l10n.logViewerOpenFolder,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(6),
-              onTap: () async {
-                final dir = await AppDirectories.getAppDataDirectory();
-                final logsDir = Directory('${dir.path}/logs');
-                if (!await logsDir.exists()) {
-                  await logsDir.create(recursive: true);
-                }
-                final uri = Uri.file(logsDir.path);
-                await launchUrl(uri);
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Icon(
-                  lucide.Lucide.FolderOpen,
-                  size: 18,
-                  color: cs.primary,
-                ),
-              ),
-            ),
-          ),
+          const LogsFolderButton(),
           const SizedBox(width: 8),
           IosSwitch(
             value: sp.requestLogEnabled,
@@ -2700,29 +2678,7 @@ class _ToggleRowFlutterLogging extends StatelessWidget {
               ),
             ),
           ),
-          Tooltip(
-            message: l10n.logViewerOpenFolder,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(6),
-              onTap: () async {
-                final dir = await AppDirectories.getAppDataDirectory();
-                final logsDir = Directory('${dir.path}/logs');
-                if (!await logsDir.exists()) {
-                  await logsDir.create(recursive: true);
-                }
-                final uri = Uri.file(logsDir.path);
-                await launchUrl(uri);
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Icon(
-                  lucide.Lucide.FolderOpen,
-                  size: 18,
-                  color: cs.primary,
-                ),
-              ),
-            ),
-          ),
+          const LogsFolderButton(),
           const SizedBox(width: 8),
           IosSwitch(
             value: sp.flutterLogEnabled,

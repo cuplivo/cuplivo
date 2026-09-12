@@ -13879,6 +13879,12 @@ abstract class AppLocalizations {
   /// **'Open Logs Folder'**
   String get logViewerOpenFolder;
 
+  /// No description provided for @logViewerOpenFolderFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open the logs folder: {error}'**
+  String logViewerOpenFolderFailed(String error);
+
   /// No description provided for @logViewerRequestsCount.
   ///
   /// In en, this message translates to:

@@ -52,7 +52,6 @@ import '../features/group_chat/pages/group_chat_settings_page.dart';
 import '../features/group_chat/widgets/group_chat_settings_card.dart';
 import '../utils/sandbox_path_resolver.dart';
 import 'dart:io' show Directory, File, Platform;
-import '../utils/app_directories.dart';
 import 'add_provider_dialog.dart' show showDesktopAddProviderDialog;
 import 'model_edit_dialog.dart'
     show showDesktopCreateModelDialog, showDesktopModelEditDialog;
@@ -68,7 +67,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 import 'desktop_context_menu.dart';
 import 'desktop_settings_navigation_bus.dart';
+import 'widgets/logs_folder_button.dart';
 import '../shared/widgets/snackbar.dart';
+import '../shared/widgets/windows_ax_tree_safe_tooltip.dart';
 import 'setting/default_model_pane.dart';
 import 'setting/search_services_pane.dart';
 import 'setting/mcp_pane.dart';

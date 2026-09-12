@@ -7387,6 +7387,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get logViewerOpenFolder => '打开日志目录';
 
   @override
+  String logViewerOpenFolderFailed(String error) {
+    return '无法打开日志目录：$error';
+  }
+
+  @override
   String logViewerRequestsCount(int count) {
     return '$count 条请求';
   }
@@ -17364,6 +17369,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get logViewerOpenFolder => '打开日志目录';
+
+  @override
+  String logViewerOpenFolderFailed(String error) {
+    return '无法打开日志目录：$error';
+  }
 
   @override
   String logViewerRequestsCount(int count) {
@@ -27345,6 +27355,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get logViewerOpenFolder => '開啟日誌目錄';
+
+  @override
+  String logViewerOpenFolderFailed(String error) {
+    return '無法開啟日誌目錄：$error';
+  }
 
   @override
   String logViewerRequestsCount(int count) {

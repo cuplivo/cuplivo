@@ -253,14 +253,15 @@ class HandoffToolService {
         versionSelections: <String, int>{},
         currentConversation: conversation,
       );
-      await messageBuilder.processUserMessagesForApi(
-        apiMessages,
-        settings,
-        target,
-        providerKey: providerKey,
-        modelId: modelId,
-        requestId: conversation.id,
-      );
+      final processedUserMessages = await messageBuilder
+          .processUserMessagesForApi(
+            apiMessages,
+            settings,
+            target,
+            providerKey: providerKey,
+            modelId: modelId,
+            requestId: conversation.id,
+          );
       final quickInstructionPolicy =
           QuickInstructionExecutionPolicy.fromSources(
             systemInstructions: await quickInstructionStore.getActives(
@@ -283,6 +284,12 @@ class HandoffToolService {
       );
       await messageBuilder.injectInstructionPrompts(apiMessages, target.id);
       await messageBuilder.injectWorldBookPrompts(apiMessages, target.id);
+      await messageBuilder.injectKnowledgePrompts(
+        apiMessages,
+        target.id,
+        conversationId: conversation.id,
+        originalUserQuery: processedUserMessages.originalUserText,
+      );
       messageBuilder.injectSkillListPrompt(apiMessages, target.id);
       messageBuilder.injectTimeNote(apiMessages, target);
       messageBuilder.applyContextLimit(apiMessages, target);

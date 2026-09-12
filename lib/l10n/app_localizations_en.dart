@@ -2663,6 +2663,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backupScopeSettings => 'Settings';
 
   @override
+  String get backupScopeKnowledgeBase => 'Knowledge Base';
+
+  @override
   String get backupScopeAttachments => 'Attachments';
 
   @override
@@ -8011,6 +8014,169 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsPageWorldBook => 'World Book';
+
+  @override
+  String get knowledgePageTitle => 'Knowledge Base';
+
+  @override
+  String get knowledgePageEmpty =>
+      'No knowledge bases yet. Tap + to create one.';
+
+  @override
+  String get knowledgeUnboundChip => 'Not bound to any assistant';
+
+  @override
+  String get knowledgeDropToImport =>
+      'Release to import into the knowledge base';
+
+  @override
+  String get knowledgeDropNoBase => 'Select or create a knowledge base first';
+
+  @override
+  String get knowledgeAdd => 'New Knowledge Base';
+
+  @override
+  String get knowledgeCreateTitle => 'New Knowledge Base';
+
+  @override
+  String get knowledgeEditTitle => 'Edit Knowledge Base';
+
+  @override
+  String get knowledgeNameLabel => 'Name';
+
+  @override
+  String get knowledgeNameHint => 'e.g. Medical classics';
+
+  @override
+  String get knowledgeDescriptionLabel => 'Description (optional)';
+
+  @override
+  String get knowledgeChunkSizeLabel => 'Chunk size (characters)';
+
+  @override
+  String get knowledgeChunkOverlapLabel => 'Chunk overlap (characters)';
+
+  @override
+  String get knowledgeSave => 'Save';
+
+  @override
+  String get knowledgeCancel => 'Cancel';
+
+  @override
+  String get knowledgeDelete => 'Delete';
+
+  @override
+  String get knowledgeDeleteTitle => 'Delete Knowledge Base?';
+
+  @override
+  String knowledgeDeleteMessage(Object name) {
+    return 'Delete “$name” and all its documents and index? This cannot be undone.';
+  }
+
+  @override
+  String knowledgeDeleted(Object name) {
+    return 'Deleted “$name”';
+  }
+
+  @override
+  String get knowledgeUnnamed => 'Unnamed';
+
+  @override
+  String knowledgeDocCount(Object count) {
+    return '$count documents';
+  }
+
+  @override
+  String knowledgeDocsAndChunks(Object chunks, Object documents) {
+    return '$documents documents · $chunks chunks';
+  }
+
+  @override
+  String knowledgeDocStats(Object charCount, Object chunkCount) {
+    return '$charCount characters · $chunkCount chunks';
+  }
+
+  @override
+  String get knowledgeSettingsTitle => 'Chunk settings';
+
+  @override
+  String get knowledgeAddDocuments => 'Import documents';
+
+  @override
+  String knowledgeImporting(Object current, Object name, Object total) {
+    return 'Importing $current/$total: $name';
+  }
+
+  @override
+  String get knowledgeRebuilding => 'Re-chunking with the new settings…';
+
+  @override
+  String get knowledgeNoDocuments =>
+      'No documents yet. Tap import to add some.';
+
+  @override
+  String knowledgeImportSuccess(Object count) {
+    return 'Imported $count documents';
+  }
+
+  @override
+  String get knowledgeImportResultTitle => 'Import result';
+
+  @override
+  String knowledgeImportResultImported(Object count) {
+    return 'Imported: $count';
+  }
+
+  @override
+  String knowledgeImportResultSkipped(Object count) {
+    return 'Skipped duplicates: $count';
+  }
+
+  @override
+  String knowledgeImportResultFailed(Object count) {
+    return 'Failed: $count';
+  }
+
+  @override
+  String get knowledgeImportOk => 'OK';
+
+  @override
+  String get knowledgeImportFailedExtract => 'Could not extract text';
+
+  @override
+  String get knowledgeImportFailedUnsupported => 'Unsupported file type';
+
+  @override
+  String get knowledgeDeleteDocumentTitle => 'Delete document?';
+
+  @override
+  String knowledgeDeleteDocumentMessage(Object name) {
+    return 'Delete “$name” and all its chunks? This cannot be undone.';
+  }
+
+  @override
+  String knowledgeChunkIndex(Object index) {
+    return 'Chunk $index';
+  }
+
+  @override
+  String knowledgeCharCount(Object count) {
+    return '$count characters';
+  }
+
+  @override
+  String get assistantEditPageKnowledgeTab => 'Knowledge Base';
+
+  @override
+  String get knowledgeTabTopKLabel => 'Max injected chunks';
+
+  @override
+  String get knowledgeTabBasesTitle => 'Bound knowledge bases';
+
+  @override
+  String knowledgePillHits(Object count) {
+    return 'Knowledge Base · $count hits';
+  }
 
   @override
   String get worldBookTitle => 'World Book';

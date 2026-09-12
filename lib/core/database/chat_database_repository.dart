@@ -1032,6 +1032,12 @@ class ChatDatabaseRepository {
       await _db.delete(_db.chatStorageMetaRows).go();
       await _db.delete(_db.deletedRecordRows).go();
       await _db.delete(_db.deletionMarkerRows).go();
+      // Knowledge base (issue #389): child-before-parent; the hand-managed
+      // FTS index is derived and cleared with its chunks.
+      await _db.customStatement('DELETE FROM knowledge_fts');
+      await _db.delete(_db.knowledgeChunkRows).go();
+      await _db.delete(_db.knowledgeDocumentRows).go();
+      await _db.delete(_db.knowledgeBaseRows).go();
     });
   }
 

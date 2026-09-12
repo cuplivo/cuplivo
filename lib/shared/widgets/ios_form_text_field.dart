@@ -150,6 +150,10 @@ class IosFormTextField extends StatelessWidget {
         style: TextStyle(
           fontSize: 15,
           fontWeight: AppFontWeights.medium,
+          // Match the field text's line height (height: 1.15 below); otherwise
+          // the label's taller natural line box centers its glyphs a few px
+          // higher than the input text and the row looks misaligned.
+          height: 1.15,
           color: labelColor,
         ),
         maxLines: 1,

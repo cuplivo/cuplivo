@@ -428,6 +428,10 @@ class _BackupPageState extends State<BackupPage> {
                   (s) => s.copyWith(settings: !s.settings),
                 ),
                 (
+                  l10n.backupScopeKnowledgeBase,
+                  (s) => s.copyWith(knowledgeBase: !s.knowledgeBase),
+                ),
+                (
                   l10n.backupScopeAttachments,
                   (s) => s.copyWith(attachments: !s.attachments),
                 ),

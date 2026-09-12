@@ -6,8 +6,10 @@ import 'package:provider/provider.dart';
 
 import '../../../core/providers/download_progress_store.dart';
 import '../../../core/providers/input_status_provider.dart';
+import '../../../core/providers/knowledge_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/generation_engine.dart';
+import '../../../core/services/knowledge/knowledge_store.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
@@ -58,6 +60,7 @@ class _LivePanelState extends State<LivePanel> {
   final _expandedJobIds = <String>{};
   final _expandedDownloadIds = <String>{};
   bool _expandedImageMode = false;
+  bool _expandedKnowledge = false;
   final _imageModeInfoKey = GlobalKey(debugLabel: 'image-mode-info');
   final _chatModeInfoKey = GlobalKey(debugLabel: 'chat-mode-info');
   late final ImageGenerationOptionsController _imageGenController =
@@ -182,10 +185,14 @@ class _LivePanelState extends State<LivePanel> {
     }
     _lastEntryIds = entryIds;
     final inputStatus = context.watch<InputStatusProvider>();
+    final knowledgeHits = context.watch<KnowledgeProvider>().retrievalHitsFor(
+      context.read<ChatService>().currentConversationId,
+    );
     final hasPills =
         inputStatus.imageModeActive ||
         inputStatus.imageModeDismissed ||
-        inputStatus.imageWarningActive;
+        inputStatus.imageWarningActive ||
+        knowledgeHits.isNotEmpty;
     if (jobs.isEmpty && downloads.isEmpty && !hasPills) {
       return const SizedBox.shrink();
     }
@@ -236,6 +243,9 @@ class _LivePanelState extends State<LivePanel> {
           cs: cs,
         ),
       );
+    }
+    if (knowledgeHits.isNotEmpty) {
+      entries.add(_buildKnowledgePill(knowledgeHits, cs, l10n));
     }
     for (final download in downloads) {
       entries.add(_buildDownloadCard(download, cs));
@@ -448,6 +458,72 @@ class _LivePanelState extends State<LivePanel> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildKnowledgePill(
+    List<KnowledgeSearchHit> hits,
+    ColorScheme cs,
+    AppLocalizations l10n,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildPill(
+          icon: Lucide.BookOpenText,
+          label: l10n.knowledgePillHits(hits.length),
+          cs: cs,
+          onTap: () => setState(() => _expandedKnowledge = !_expandedKnowledge),
+          trailing: [
+            _animatedChevron(
+              expanded: _expandedKnowledge,
+              color: cs.onSurfaceVariant,
+            ),
+            const SizedBox(width: 2),
+          ],
+        ),
+        _expandable(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final hit in hits)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          hit.documentName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: cs.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          hit.chunk.content,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            height: 1.35,
+                            color: cs.onSurface.withValues(alpha: 0.75),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          _expandedKnowledge,
+        ),
+      ],
     );
   }
 

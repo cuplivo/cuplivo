@@ -15,6 +15,7 @@ import 'dart:async';
 import 'hotkeys/hotkey_event_bus.dart';
 import 'hotkeys/chat_action_bus.dart';
 import 'desktop_settings_navigation_bus.dart';
+import 'desktop_tab_bus.dart';
 
 /// Desktop home screen: left compact rail + main content.
 /// Phase 1 focuses on structure and platform-appropriate interactions/hover.
@@ -34,6 +35,7 @@ class DesktopHomePage extends StatefulWidget {
 
 class _DesktopHomePageState extends State<DesktopHomePage> {
   int _tabIndex = 0; // 0=Chat, 1=Translate, 2=Storage, 3=Settings
+  int _lastSyncedTab = -1;
   bool _storageVisited = false;
   bool _globalSearchActive = false;
   StreamSubscription<HotkeyAction>? _hotkeySub;
@@ -173,6 +175,16 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Publish the active tab so drop targets can gate on visibility (see
+    // DesktopTabBus). Post-frame to avoid notifying listeners during build.
+    if (_lastSyncedTab != _tabIndex) {
+      _lastSyncedTab = _tabIndex;
+      final next = _tabIndex;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) DesktopTabBus.instance.setIndex(next);
+      });
+    }
+
     // Ensure a reasonable min size to avoid overflow on aggressive resize.
     const minWidth = 960.0;
     const minHeight = 640.0;

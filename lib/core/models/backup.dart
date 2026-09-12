@@ -5,7 +5,7 @@ enum RestoreMode {
   merge, // 增量合并：智能去重
 }
 
-/// What a backup ZIP includes, at 6 pre-defined sections.
+/// What a backup ZIP includes, at 7 pre-defined sections.
 ///
 /// Replaces the old `includeChats`/`includeFiles` pair (single source of
 /// truth for full backups, incremental backups, LAN sync and the restore
@@ -32,6 +32,10 @@ class BackupContentScope {
   /// 字体与头像: `fonts/` + `avatars/`.
   final bool fontsAndAvatars;
 
+  /// 知识库: `knowledge.jsonl` (base metadata + document text; chunks/FTS are
+  /// rebuilt on restore). Additive section — old builds ignore it.
+  final bool knowledgeBase;
+
   const BackupContentScope({
     this.chatsAndAssistants = true,
     this.settings = true,
@@ -39,6 +43,7 @@ class BackupContentScope {
     this.workspaces = true,
     this.skills = true,
     this.fontsAndAvatars = true,
+    this.knowledgeBase = true,
   });
 
   BackupContentScope copyWith({
@@ -48,6 +53,7 @@ class BackupContentScope {
     bool? workspaces,
     bool? skills,
     bool? fontsAndAvatars,
+    bool? knowledgeBase,
   }) {
     return BackupContentScope(
       chatsAndAssistants: chatsAndAssistants ?? this.chatsAndAssistants,
@@ -56,6 +62,7 @@ class BackupContentScope {
       workspaces: workspaces ?? this.workspaces,
       skills: skills ?? this.skills,
       fontsAndAvatars: fontsAndAvatars ?? this.fontsAndAvatars,
+      knowledgeBase: knowledgeBase ?? this.knowledgeBase,
     );
   }
 
@@ -72,6 +79,7 @@ class BackupContentScope {
     'workspaces': workspaces,
     'skills': skills,
     'fontsAndAvatars': fontsAndAvatars,
+    'knowledgeBase': knowledgeBase,
   };
 
   /// Reads the scope JSON, falling back to the legacy two-toggle semantics
@@ -80,6 +88,7 @@ class BackupContentScope {
   ///    always carried assistants, so the assistant keys now ride chats)
   ///  - `includeFiles` → attachments + workspaces + fontsAndAvatars
   ///  - skills stay true (old ZIPs always packed them)
+  ///  - knowledgeBase stays true (old backups yield no bases anyway)
   static BackupContentScope fromJson(
     Map<String, dynamic> json, {
     bool? legacyIncludeChats,
@@ -93,6 +102,7 @@ class BackupContentScope {
         workspaces: json['workspaces'] as bool? ?? true,
         skills: json['skills'] as bool? ?? true,
         fontsAndAvatars: json['fontsAndAvatars'] as bool? ?? true,
+        knowledgeBase: json['knowledgeBase'] as bool? ?? true,
       );
     }
     final legacyChats = legacyIncludeChats ?? true;
@@ -115,7 +125,8 @@ class BackupContentScope {
       other.attachments == attachments &&
       other.workspaces == workspaces &&
       other.skills == skills &&
-      other.fontsAndAvatars == fontsAndAvatars;
+      other.fontsAndAvatars == fontsAndAvatars &&
+      other.knowledgeBase == knowledgeBase;
 
   @override
   int get hashCode => Object.hash(
@@ -125,6 +136,7 @@ class BackupContentScope {
     workspaces,
     skills,
     fontsAndAvatars,
+    knowledgeBase,
   );
 }
 

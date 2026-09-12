@@ -32,6 +32,18 @@ void main() {
       );
     });
 
+    test('stripTimestampNote removes the appended note only', () {
+      final timestamp = DateTime(2026, 9, 12, 15, 0, 15);
+      final appended = ChatContextTransforms.appendTimestamp('战争', timestamp);
+      expect(appended, contains('(Sat 26-09-12 15:00:15)'));
+      expect(ChatContextTransforms.stripTimestampNote(appended), '战争');
+
+      // No note → untouched; a parenthesized body that is not a timestamp
+      // survives.
+      expect(ChatContextTransforms.stripTimestampNote('战争'), '战争');
+      expect(ChatContextTransforms.stripTimestampNote('战争(见附录)'), '战争(见附录)');
+    });
+
     test('selects the latest ten eligible recent chats', () {
       final base = DateTime(2026, 8, 18);
       final chats = <Conversation>[

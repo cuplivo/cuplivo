@@ -98,6 +98,7 @@ class _IncrementalBackupDialogBodyState
     return [
       (l10n.backupScopeChatsAssistants, _scope.chatsAndAssistants),
       (l10n.backupScopeSettings, _scope.settings),
+      (l10n.backupScopeKnowledgeBase, _scope.knowledgeBase),
       (l10n.backupScopeAttachments, _scope.attachments),
       (l10n.backupScopeWorkspaces, _scope.workspaces),
       (l10n.backupScopeSkills, _scope.skills),
@@ -110,9 +111,10 @@ class _IncrementalBackupDialogBodyState
       _scope = switch (i) {
         0 => _scope.copyWith(chatsAndAssistants: !_scope.chatsAndAssistants),
         1 => _scope.copyWith(settings: !_scope.settings),
-        2 => _scope.copyWith(attachments: !_scope.attachments),
-        3 => _scope.copyWith(workspaces: !_scope.workspaces),
-        4 => _scope.copyWith(skills: !_scope.skills),
+        2 => _scope.copyWith(knowledgeBase: !_scope.knowledgeBase),
+        3 => _scope.copyWith(attachments: !_scope.attachments),
+        4 => _scope.copyWith(workspaces: !_scope.workspaces),
+        5 => _scope.copyWith(skills: !_scope.skills),
         _ => _scope.copyWith(fontsAndAvatars: !_scope.fontsAndAvatars),
       };
     });

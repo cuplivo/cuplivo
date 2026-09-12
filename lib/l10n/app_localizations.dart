@@ -4851,6 +4851,12 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get backupScopeSettings;
 
+  /// No description provided for @backupScopeKnowledgeBase.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge Base'**
+  String get backupScopeKnowledgeBase;
+
   /// No description provided for @backupScopeAttachments.
   ///
   /// In en, this message translates to:
@@ -14406,6 +14412,270 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'World Book'**
   String get settingsPageWorldBook;
+
+  /// No description provided for @knowledgePageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge Base'**
+  String get knowledgePageTitle;
+
+  /// No description provided for @knowledgePageEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No knowledge bases yet. Tap + to create one.'**
+  String get knowledgePageEmpty;
+
+  /// No description provided for @knowledgeUnboundChip.
+  ///
+  /// In en, this message translates to:
+  /// **'Not bound to any assistant'**
+  String get knowledgeUnboundChip;
+
+  /// No description provided for @knowledgeDropToImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Release to import into the knowledge base'**
+  String get knowledgeDropToImport;
+
+  /// No description provided for @knowledgeDropNoBase.
+  ///
+  /// In en, this message translates to:
+  /// **'Select or create a knowledge base first'**
+  String get knowledgeDropNoBase;
+
+  /// No description provided for @knowledgeAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'New Knowledge Base'**
+  String get knowledgeAdd;
+
+  /// No description provided for @knowledgeCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New Knowledge Base'**
+  String get knowledgeCreateTitle;
+
+  /// No description provided for @knowledgeEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Knowledge Base'**
+  String get knowledgeEditTitle;
+
+  /// No description provided for @knowledgeNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get knowledgeNameLabel;
+
+  /// No description provided for @knowledgeNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Medical classics'**
+  String get knowledgeNameHint;
+
+  /// No description provided for @knowledgeDescriptionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Description (optional)'**
+  String get knowledgeDescriptionLabel;
+
+  /// No description provided for @knowledgeChunkSizeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Chunk size (characters)'**
+  String get knowledgeChunkSizeLabel;
+
+  /// No description provided for @knowledgeChunkOverlapLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Chunk overlap (characters)'**
+  String get knowledgeChunkOverlapLabel;
+
+  /// No description provided for @knowledgeSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get knowledgeSave;
+
+  /// No description provided for @knowledgeCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get knowledgeCancel;
+
+  /// No description provided for @knowledgeDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get knowledgeDelete;
+
+  /// No description provided for @knowledgeDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Knowledge Base?'**
+  String get knowledgeDeleteTitle;
+
+  /// No description provided for @knowledgeDeleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete “{name}” and all its documents and index? This cannot be undone.'**
+  String knowledgeDeleteMessage(Object name);
+
+  /// No description provided for @knowledgeDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted “{name}”'**
+  String knowledgeDeleted(Object name);
+
+  /// No description provided for @knowledgeUnnamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unnamed'**
+  String get knowledgeUnnamed;
+
+  /// No description provided for @knowledgeDocCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} documents'**
+  String knowledgeDocCount(Object count);
+
+  /// No description provided for @knowledgeDocsAndChunks.
+  ///
+  /// In en, this message translates to:
+  /// **'{documents} documents · {chunks} chunks'**
+  String knowledgeDocsAndChunks(Object chunks, Object documents);
+
+  /// No description provided for @knowledgeDocStats.
+  ///
+  /// In en, this message translates to:
+  /// **'{charCount} characters · {chunkCount} chunks'**
+  String knowledgeDocStats(Object charCount, Object chunkCount);
+
+  /// No description provided for @knowledgeSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chunk settings'**
+  String get knowledgeSettingsTitle;
+
+  /// No description provided for @knowledgeAddDocuments.
+  ///
+  /// In en, this message translates to:
+  /// **'Import documents'**
+  String get knowledgeAddDocuments;
+
+  /// No description provided for @knowledgeImporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing {current}/{total}: {name}'**
+  String knowledgeImporting(Object current, Object name, Object total);
+
+  /// No description provided for @knowledgeRebuilding.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-chunking with the new settings…'**
+  String get knowledgeRebuilding;
+
+  /// No description provided for @knowledgeNoDocuments.
+  ///
+  /// In en, this message translates to:
+  /// **'No documents yet. Tap import to add some.'**
+  String get knowledgeNoDocuments;
+
+  /// No description provided for @knowledgeImportSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {count} documents'**
+  String knowledgeImportSuccess(Object count);
+
+  /// No description provided for @knowledgeImportResultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import result'**
+  String get knowledgeImportResultTitle;
+
+  /// No description provided for @knowledgeImportResultImported.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported: {count}'**
+  String knowledgeImportResultImported(Object count);
+
+  /// No description provided for @knowledgeImportResultSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped duplicates: {count}'**
+  String knowledgeImportResultSkipped(Object count);
+
+  /// No description provided for @knowledgeImportResultFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed: {count}'**
+  String knowledgeImportResultFailed(Object count);
+
+  /// No description provided for @knowledgeImportOk.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get knowledgeImportOk;
+
+  /// No description provided for @knowledgeImportFailedExtract.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not extract text'**
+  String get knowledgeImportFailedExtract;
+
+  /// No description provided for @knowledgeImportFailedUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported file type'**
+  String get knowledgeImportFailedUnsupported;
+
+  /// No description provided for @knowledgeDeleteDocumentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete document?'**
+  String get knowledgeDeleteDocumentTitle;
+
+  /// No description provided for @knowledgeDeleteDocumentMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete “{name}” and all its chunks? This cannot be undone.'**
+  String knowledgeDeleteDocumentMessage(Object name);
+
+  /// No description provided for @knowledgeChunkIndex.
+  ///
+  /// In en, this message translates to:
+  /// **'Chunk {index}'**
+  String knowledgeChunkIndex(Object index);
+
+  /// No description provided for @knowledgeCharCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} characters'**
+  String knowledgeCharCount(Object count);
+
+  /// No description provided for @assistantEditPageKnowledgeTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge Base'**
+  String get assistantEditPageKnowledgeTab;
+
+  /// No description provided for @knowledgeTabTopKLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Max injected chunks'**
+  String get knowledgeTabTopKLabel;
+
+  /// No description provided for @knowledgeTabBasesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bound knowledge bases'**
+  String get knowledgeTabBasesTitle;
+
+  /// No description provided for @knowledgePillHits.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge Base · {count} hits'**
+  String knowledgePillHits(Object count);
 
   /// No description provided for @worldBookTitle.
   ///

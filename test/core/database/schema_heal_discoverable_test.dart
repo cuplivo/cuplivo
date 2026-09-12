@@ -713,8 +713,9 @@ CREATE TABLE group_chat_rows (
 
       final version = await repo.db.customSelect('PRAGMA user_version').get();
       // The v22 migration block runs, then the ADR-0055 binding columns land
-      // under v23, so a v21 database ends at the current version 23.
-      expect(version.single.read<int>('user_version'), 23);
+      // under v23 and the knowledge tables under v24, so a v21 database ends
+      // at the current version 24.
+      expect(version.single.read<int>('user_version'), 24);
 
       final columns = await repo.db
           .customSelect('PRAGMA table_info(assistant_rows)')
@@ -870,6 +871,55 @@ CREATE TABLE group_chat_rows (
       ))?.proactiveCareNextMessageAt?.isAtSameMomentAs(past),
       isTrue,
     );
+
+    await repo.close();
+  });
+  test('heal creates knowledge tables and the FTS index (v24 shape)', () async {
+    // user_version already at 24 while the knowledge tables never landed:
+    // only the beforeOpen heal can rescue. The FTS5 virtual table cannot go
+    // through createMigrator().createTable, so heal must create it too.
+    _createLegacyDb(
+      dbFile,
+      userVersion: 24,
+      missingIsPreset: false,
+      missingHandoffColumns: false,
+    );
+
+    final repo = ChatDatabaseRepository.open(file: dbFile);
+    await repo.ensureReady();
+
+    for (final table in [
+      'knowledge_base_rows',
+      'knowledge_document_rows',
+      'knowledge_chunk_rows',
+      'knowledge_fts',
+    ]) {
+      final rows = await repo.db
+          .customSelect(
+            "SELECT COUNT(*) AS c FROM sqlite_master "
+            "WHERE type = 'table' AND name = ?",
+            variables: [Variable.withString(table)],
+          )
+          .get();
+      expect(
+        rows.single.read<int>('c'),
+        1,
+        reason: 'heal should create $table',
+      );
+    }
+
+    // The hand-managed index must be usable (trigram tokenizer available).
+    await repo.db.customStatement(
+      "INSERT INTO knowledge_fts(content, kb_id, chunk_id) "
+      "VALUES ('hello knowledge world', 'kb1', 'c1')",
+    );
+    final hits = await repo.db
+        .customSelect(
+          "SELECT chunk_id FROM knowledge_fts "
+          "WHERE knowledge_fts MATCH 'knowledge'",
+        )
+        .get();
+    expect(hits.single.read<String>('chunk_id'), 'c1');
 
     await repo.close();
   });

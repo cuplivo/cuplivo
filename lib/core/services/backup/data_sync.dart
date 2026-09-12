@@ -18,7 +18,9 @@ import '../../models/conversation.dart';
 import '../../models/group_chat.dart';
 import '../../models/group_chat_member.dart';
 import '../../models/incremental_backup.dart';
+import '../../models/knowledge.dart';
 import '../chat/chat_service.dart';
+import '../knowledge/knowledge_store.dart';
 import '../deleted_records_store.dart';
 import '../mcp/kelivo_filesystem/kelivo_filesystem_server.dart'
     show isSafeWireSegment;
@@ -312,6 +314,7 @@ class DataSync {
     File? messagesTmp;
     File? legacyChatsTmp;
     File? deletedJsonTmp;
+    File? knowledgeTmp;
     // Effective content scope. Kelivo-legacy exports are always whole-pack
     // (their importer needs the full settings/chats shape).
     final scope = format == BackupFormat.kelivoLegacy
@@ -397,6 +400,13 @@ class DataSync {
         }
       }
 
+      // knowledge.jsonl — knowledge bases + document text (scope-gated). Chunks
+      // and the FTS index are derived and rebuilt on restore, never shipped.
+      // Not part of the Kelivo-legacy shape (its importer cannot read it).
+      if (scope.knowledgeBase && format != BackupFormat.kelivoLegacy) {
+        knowledgeTmp = await _exportKnowledgeToFile(workDir);
+      }
+
       // Resolve directory paths (need AppDirectories on main isolate)
       final uploadDirPath = (await _getUploadDir()).path;
       final avatarsDirPath = (await _getAvatarsDir()).path;
@@ -411,6 +421,7 @@ class DataSync {
       final messagesPath = messagesTmp?.path;
       final legacyChatsPath = legacyChatsTmp?.path;
       final deletedJsonPath = deletedJsonTmp?.path;
+      final knowledgePath = knowledgeTmp?.path;
 
       // --- Step 2: Run CPU-heavy ZIP packing in a separate isolate ---
       onStage?.call(BackupStage.packing);
@@ -426,6 +437,7 @@ class DataSync {
           messagesPath: messagesPath,
           legacyChatsPath: legacyChatsPath,
           deletedJsonPath: deletedJsonPath,
+          knowledgePath: knowledgePath,
           scope: scope,
           since: packSince,
           includeFilePaths: packIncludeFilePaths,
@@ -452,6 +464,7 @@ class DataSync {
       await _deleteFileQuietly(messagesTmp);
       await _deleteFileQuietly(legacyChatsTmp);
       await _deleteFileQuietly(deletedJsonTmp);
+      await _deleteFileQuietly(knowledgeTmp);
     }
   }
 
@@ -561,6 +574,7 @@ class DataSync {
     String? messagesPath,
     String? legacyChatsPath,
     String? deletedJsonPath,
+    String? knowledgePath,
     required BackupContentScope scope,
     required String uploadDirPath,
     required String avatarsDirPath,
@@ -611,6 +625,12 @@ class DataSync {
       // deleted.json — id-only tombstones (optional, backward compatible)
       if (deletedJsonPath != null) {
         _addFileToZip(writer, deletedJsonPath, 'deleted.json');
+      }
+
+      // knowledge.jsonl — knowledge bases + document text (additive section;
+      // old builds ignore the unknown entry).
+      if (knowledgePath != null) {
+        _addFileToZip(writer, knowledgePath, 'knowledge.jsonl');
       }
 
       // skills/ — scope-gated (the "always included" rule was dropped when
@@ -2003,6 +2023,46 @@ class DataSync {
     return metaFile;
   }
 
+  /// Exports every knowledge base and its documents as `_bk_knowledge.jsonl`
+  /// (packed as `knowledge.jsonl`). Two line shapes:
+  ///   `{"type":"base","data":{...}}`
+  ///   `{"type":"document","data":{...}}` (includes the full text — the source
+  ///   of truth; chunks/FTS are rebuilt on restore).
+  /// Returns null when there is nothing to export (no file is packed).
+  Future<File?> _exportKnowledgeToFile(Directory directory) async {
+    if (!chatService.initialized) {
+      // Backup callers always run with an initialized ChatService; an
+      // uninitialized one has no knowledge tables to read, and opening a DB
+      // here would leak a connection the caller never closes.
+      return null;
+    }
+    final store = KnowledgeStore(chatService.repo.db, _preferences);
+    final bases = await store.getAllBases();
+    if (bases.isEmpty) return null;
+
+    final file = File(p.join(directory.path, '_bk_knowledge.jsonl'));
+    final sink = file.openWrite();
+    try {
+      for (final base in bases) {
+        sink.write(jsonEncode({'type': 'base', 'data': base.toJson()}));
+        sink.write('\n');
+      }
+      for (final base in bases) {
+        final documents = await store.getDocuments(base.id);
+        for (final document in documents) {
+          sink.write(
+            jsonEncode({'type': 'document', 'data': document.toJson()}),
+          );
+          sink.write('\n');
+        }
+      }
+    } finally {
+      await sink.flush();
+      await sink.close();
+    }
+    return file;
+  }
+
   /// Counts non-empty JSONL lines (tolerates a missing trailing newline).
   static Future<int> _countJsonlLines(File file) async {
     if (!await file.exists()) return 0;
@@ -2260,6 +2320,75 @@ class DataSync {
         } catch (e) {
           debugPrint('restoreData: groupMembers: $e');
         }
+      }
+    }
+  }
+
+  /// Restores knowledge bases and documents from `knowledge.jsonl`, rebuilding
+  /// chunks + the FTS index from the stored text. Overwrite wipes the local
+  /// knowledge tables first; merge skips bases/documents that already exist by
+  /// id (their local copy wins).
+  Future<void> _restoreKnowledgeFromJsonl({
+    required Directory extractDir,
+    required RestoreMode mode,
+  }) async {
+    final file = File(p.join(extractDir.path, 'knowledge.jsonl'));
+    if (!await file.exists()) return;
+    if (!chatService.initialized) await chatService.init();
+    final store = KnowledgeStore(chatService.repo.db, _preferences);
+
+    if (mode == RestoreMode.overwrite) {
+      await store.deleteAll();
+    }
+
+    final bases = <KnowledgeBase>[];
+    final documentsByBase = <String, List<KnowledgeDocument>>{};
+    await for (final line
+        in file
+            .openRead()
+            .transform(const Utf8Decoder())
+            .transform(const LineSplitter())) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      final obj = jsonDecode(trimmed);
+      if (obj is! Map) continue;
+      final data = obj['data'];
+      if (data is! Map) continue;
+      final map = data.cast<String, dynamic>();
+      switch (obj['type']) {
+        case 'base':
+          bases.add(KnowledgeBase.fromJson(map));
+          break;
+        case 'document':
+          final document = KnowledgeDocument.fromJson(map);
+          (documentsByBase[document.knowledgeBaseId] ??= <KnowledgeDocument>[])
+              .add(document);
+          break;
+      }
+    }
+
+    for (final base in bases) {
+      if (mode == RestoreMode.merge && await store.getBase(base.id) != null) {
+        continue;
+      }
+      await store.upsertBase(base);
+    }
+
+    for (final base in bases) {
+      // A merge may have kept the local base (different chunk parameters):
+      // chunk restored documents with whatever base is now stored.
+      final target = await store.getBase(base.id) ?? base;
+      final documents = documentsByBase[base.id] ?? const <KnowledgeDocument>[];
+      for (final document in documents) {
+        if (mode == RestoreMode.merge &&
+            await store.getDocument(document.id) != null) {
+          continue;
+        }
+        await store.restoreDocument(
+          document,
+          chunkSize: target.chunkSize,
+          chunkOverlap: target.chunkOverlap,
+        );
       }
     }
   }
@@ -3680,6 +3809,16 @@ class DataSync {
         }
       } catch (e, st) {
         debugPrint('restoreData: skills restore failed: $e\n$st');
+      }
+
+      // Knowledge bases ride their own JSONL section; non-fatal like the file
+      // sections so an additive feature cannot abort a whole restore.
+      try {
+        if (scope.knowledgeBase) {
+          await _restoreKnowledgeFromJsonl(extractDir: extractDir, mode: mode);
+        }
+      } catch (e, st) {
+        debugPrint('restoreData: knowledge restore failed: $e\n$st');
       }
 
       // Always re-sync conversation cache from disk after restore so UI/providers

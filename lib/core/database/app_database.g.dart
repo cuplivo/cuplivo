@@ -9069,6 +9069,1531 @@ class GroupChatMemberRowsCompanion extends UpdateCompanion<GroupChatMemberRow> {
   }
 }
 
+class $KnowledgeBaseRowsTable extends KnowledgeBaseRows
+    with TableInfo<$KnowledgeBaseRowsTable, KnowledgeBaseRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $KnowledgeBaseRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _enabledMeta = const VerificationMeta(
+    'enabled',
+  );
+  @override
+  late final GeneratedColumn<bool> enabled = GeneratedColumn<bool>(
+    'enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _chunkSizeMeta = const VerificationMeta(
+    'chunkSize',
+  );
+  @override
+  late final GeneratedColumn<int> chunkSize = GeneratedColumn<int>(
+    'chunk_size',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(512),
+  );
+  static const VerificationMeta _chunkOverlapMeta = const VerificationMeta(
+    'chunkOverlap',
+  );
+  @override
+  late final GeneratedColumn<int> chunkOverlap = GeneratedColumn<int>(
+    'chunk_overlap',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(64),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    description,
+    enabled,
+    chunkSize,
+    chunkOverlap,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'knowledge_base_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<KnowledgeBaseRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('enabled')) {
+      context.handle(
+        _enabledMeta,
+        enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta),
+      );
+    }
+    if (data.containsKey('chunk_size')) {
+      context.handle(
+        _chunkSizeMeta,
+        chunkSize.isAcceptableOrUnknown(data['chunk_size']!, _chunkSizeMeta),
+      );
+    }
+    if (data.containsKey('chunk_overlap')) {
+      context.handle(
+        _chunkOverlapMeta,
+        chunkOverlap.isAcceptableOrUnknown(
+          data['chunk_overlap']!,
+          _chunkOverlapMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  KnowledgeBaseRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return KnowledgeBaseRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      )!,
+      enabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}enabled'],
+      )!,
+      chunkSize: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}chunk_size'],
+      )!,
+      chunkOverlap: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}chunk_overlap'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $KnowledgeBaseRowsTable createAlias(String alias) {
+    return $KnowledgeBaseRowsTable(attachedDatabase, alias);
+  }
+}
+
+class KnowledgeBaseRow extends DataClass
+    implements Insertable<KnowledgeBaseRow> {
+  final String id;
+  final String name;
+  final String description;
+  final bool enabled;
+  final int chunkSize;
+  final int chunkOverlap;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const KnowledgeBaseRow({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.enabled,
+    required this.chunkSize,
+    required this.chunkOverlap,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['description'] = Variable<String>(description);
+    map['enabled'] = Variable<bool>(enabled);
+    map['chunk_size'] = Variable<int>(chunkSize);
+    map['chunk_overlap'] = Variable<int>(chunkOverlap);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  KnowledgeBaseRowsCompanion toCompanion(bool nullToAbsent) {
+    return KnowledgeBaseRowsCompanion(
+      id: Value(id),
+      name: Value(name),
+      description: Value(description),
+      enabled: Value(enabled),
+      chunkSize: Value(chunkSize),
+      chunkOverlap: Value(chunkOverlap),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory KnowledgeBaseRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return KnowledgeBaseRow(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      description: serializer.fromJson<String>(json['description']),
+      enabled: serializer.fromJson<bool>(json['enabled']),
+      chunkSize: serializer.fromJson<int>(json['chunkSize']),
+      chunkOverlap: serializer.fromJson<int>(json['chunkOverlap']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'description': serializer.toJson<String>(description),
+      'enabled': serializer.toJson<bool>(enabled),
+      'chunkSize': serializer.toJson<int>(chunkSize),
+      'chunkOverlap': serializer.toJson<int>(chunkOverlap),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  KnowledgeBaseRow copyWith({
+    String? id,
+    String? name,
+    String? description,
+    bool? enabled,
+    int? chunkSize,
+    int? chunkOverlap,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => KnowledgeBaseRow(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    description: description ?? this.description,
+    enabled: enabled ?? this.enabled,
+    chunkSize: chunkSize ?? this.chunkSize,
+    chunkOverlap: chunkOverlap ?? this.chunkOverlap,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  KnowledgeBaseRow copyWithCompanion(KnowledgeBaseRowsCompanion data) {
+    return KnowledgeBaseRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      chunkSize: data.chunkSize.present ? data.chunkSize.value : this.chunkSize,
+      chunkOverlap: data.chunkOverlap.present
+          ? data.chunkOverlap.value
+          : this.chunkOverlap,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KnowledgeBaseRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('enabled: $enabled, ')
+          ..write('chunkSize: $chunkSize, ')
+          ..write('chunkOverlap: $chunkOverlap, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    description,
+    enabled,
+    chunkSize,
+    chunkOverlap,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is KnowledgeBaseRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.description == this.description &&
+          other.enabled == this.enabled &&
+          other.chunkSize == this.chunkSize &&
+          other.chunkOverlap == this.chunkOverlap &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class KnowledgeBaseRowsCompanion extends UpdateCompanion<KnowledgeBaseRow> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> description;
+  final Value<bool> enabled;
+  final Value<int> chunkSize;
+  final Value<int> chunkOverlap;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const KnowledgeBaseRowsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.description = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.chunkSize = const Value.absent(),
+    this.chunkOverlap = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  KnowledgeBaseRowsCompanion.insert({
+    required String id,
+    required String name,
+    this.description = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.chunkSize = const Value.absent(),
+    this.chunkOverlap = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<KnowledgeBaseRow> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? description,
+    Expression<bool>? enabled,
+    Expression<int>? chunkSize,
+    Expression<int>? chunkOverlap,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (description != null) 'description': description,
+      if (enabled != null) 'enabled': enabled,
+      if (chunkSize != null) 'chunk_size': chunkSize,
+      if (chunkOverlap != null) 'chunk_overlap': chunkOverlap,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  KnowledgeBaseRowsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? description,
+    Value<bool>? enabled,
+    Value<int>? chunkSize,
+    Value<int>? chunkOverlap,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return KnowledgeBaseRowsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      enabled: enabled ?? this.enabled,
+      chunkSize: chunkSize ?? this.chunkSize,
+      chunkOverlap: chunkOverlap ?? this.chunkOverlap,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (enabled.present) {
+      map['enabled'] = Variable<bool>(enabled.value);
+    }
+    if (chunkSize.present) {
+      map['chunk_size'] = Variable<int>(chunkSize.value);
+    }
+    if (chunkOverlap.present) {
+      map['chunk_overlap'] = Variable<int>(chunkOverlap.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KnowledgeBaseRowsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('enabled: $enabled, ')
+          ..write('chunkSize: $chunkSize, ')
+          ..write('chunkOverlap: $chunkOverlap, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $KnowledgeDocumentRowsTable extends KnowledgeDocumentRows
+    with TableInfo<$KnowledgeDocumentRowsTable, KnowledgeDocumentRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $KnowledgeDocumentRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _knowledgeBaseIdMeta = const VerificationMeta(
+    'knowledgeBaseId',
+  );
+  @override
+  late final GeneratedColumn<String> knowledgeBaseId = GeneratedColumn<String>(
+    'knowledge_base_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES knowledge_base_rows (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceTypeMeta = const VerificationMeta(
+    'sourceType',
+  );
+  @override
+  late final GeneratedColumn<String> sourceType = GeneratedColumn<String>(
+    'source_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentMeta = const VerificationMeta(
+    'content',
+  );
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+    'content',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentHashMeta = const VerificationMeta(
+    'contentHash',
+  );
+  @override
+  late final GeneratedColumn<String> contentHash = GeneratedColumn<String>(
+    'content_hash',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _charCountMeta = const VerificationMeta(
+    'charCount',
+  );
+  @override
+  late final GeneratedColumn<int> charCount = GeneratedColumn<int>(
+    'char_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _chunkTotalMeta = const VerificationMeta(
+    'chunkTotal',
+  );
+  @override
+  late final GeneratedColumn<int> chunkTotal = GeneratedColumn<int>(
+    'chunk_total',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _importedAtMeta = const VerificationMeta(
+    'importedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> importedAt = GeneratedColumn<DateTime>(
+    'imported_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    knowledgeBaseId,
+    name,
+    sourceType,
+    content,
+    contentHash,
+    charCount,
+    chunkTotal,
+    importedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'knowledge_document_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<KnowledgeDocumentRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('knowledge_base_id')) {
+      context.handle(
+        _knowledgeBaseIdMeta,
+        knowledgeBaseId.isAcceptableOrUnknown(
+          data['knowledge_base_id']!,
+          _knowledgeBaseIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_knowledgeBaseIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('source_type')) {
+      context.handle(
+        _sourceTypeMeta,
+        sourceType.isAcceptableOrUnknown(data['source_type']!, _sourceTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceTypeMeta);
+    }
+    if (data.containsKey('content')) {
+      context.handle(
+        _contentMeta,
+        content.isAcceptableOrUnknown(data['content']!, _contentMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('content_hash')) {
+      context.handle(
+        _contentHashMeta,
+        contentHash.isAcceptableOrUnknown(
+          data['content_hash']!,
+          _contentHashMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_contentHashMeta);
+    }
+    if (data.containsKey('char_count')) {
+      context.handle(
+        _charCountMeta,
+        charCount.isAcceptableOrUnknown(data['char_count']!, _charCountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_charCountMeta);
+    }
+    if (data.containsKey('chunk_total')) {
+      context.handle(
+        _chunkTotalMeta,
+        chunkTotal.isAcceptableOrUnknown(data['chunk_total']!, _chunkTotalMeta),
+      );
+    }
+    if (data.containsKey('imported_at')) {
+      context.handle(
+        _importedAtMeta,
+        importedAt.isAcceptableOrUnknown(data['imported_at']!, _importedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_importedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  KnowledgeDocumentRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return KnowledgeDocumentRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      knowledgeBaseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}knowledge_base_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      sourceType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_type'],
+      )!,
+      content: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content'],
+      )!,
+      contentHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_hash'],
+      )!,
+      charCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}char_count'],
+      )!,
+      chunkTotal: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}chunk_total'],
+      )!,
+      importedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}imported_at'],
+      )!,
+    );
+  }
+
+  @override
+  $KnowledgeDocumentRowsTable createAlias(String alias) {
+    return $KnowledgeDocumentRowsTable(attachedDatabase, alias);
+  }
+}
+
+class KnowledgeDocumentRow extends DataClass
+    implements Insertable<KnowledgeDocumentRow> {
+  final String id;
+  final String knowledgeBaseId;
+  final String name;
+  final String sourceType;
+  final String content;
+  final String contentHash;
+  final int charCount;
+  final int chunkTotal;
+  final DateTime importedAt;
+  const KnowledgeDocumentRow({
+    required this.id,
+    required this.knowledgeBaseId,
+    required this.name,
+    required this.sourceType,
+    required this.content,
+    required this.contentHash,
+    required this.charCount,
+    required this.chunkTotal,
+    required this.importedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['knowledge_base_id'] = Variable<String>(knowledgeBaseId);
+    map['name'] = Variable<String>(name);
+    map['source_type'] = Variable<String>(sourceType);
+    map['content'] = Variable<String>(content);
+    map['content_hash'] = Variable<String>(contentHash);
+    map['char_count'] = Variable<int>(charCount);
+    map['chunk_total'] = Variable<int>(chunkTotal);
+    map['imported_at'] = Variable<DateTime>(importedAt);
+    return map;
+  }
+
+  KnowledgeDocumentRowsCompanion toCompanion(bool nullToAbsent) {
+    return KnowledgeDocumentRowsCompanion(
+      id: Value(id),
+      knowledgeBaseId: Value(knowledgeBaseId),
+      name: Value(name),
+      sourceType: Value(sourceType),
+      content: Value(content),
+      contentHash: Value(contentHash),
+      charCount: Value(charCount),
+      chunkTotal: Value(chunkTotal),
+      importedAt: Value(importedAt),
+    );
+  }
+
+  factory KnowledgeDocumentRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return KnowledgeDocumentRow(
+      id: serializer.fromJson<String>(json['id']),
+      knowledgeBaseId: serializer.fromJson<String>(json['knowledgeBaseId']),
+      name: serializer.fromJson<String>(json['name']),
+      sourceType: serializer.fromJson<String>(json['sourceType']),
+      content: serializer.fromJson<String>(json['content']),
+      contentHash: serializer.fromJson<String>(json['contentHash']),
+      charCount: serializer.fromJson<int>(json['charCount']),
+      chunkTotal: serializer.fromJson<int>(json['chunkTotal']),
+      importedAt: serializer.fromJson<DateTime>(json['importedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'knowledgeBaseId': serializer.toJson<String>(knowledgeBaseId),
+      'name': serializer.toJson<String>(name),
+      'sourceType': serializer.toJson<String>(sourceType),
+      'content': serializer.toJson<String>(content),
+      'contentHash': serializer.toJson<String>(contentHash),
+      'charCount': serializer.toJson<int>(charCount),
+      'chunkTotal': serializer.toJson<int>(chunkTotal),
+      'importedAt': serializer.toJson<DateTime>(importedAt),
+    };
+  }
+
+  KnowledgeDocumentRow copyWith({
+    String? id,
+    String? knowledgeBaseId,
+    String? name,
+    String? sourceType,
+    String? content,
+    String? contentHash,
+    int? charCount,
+    int? chunkTotal,
+    DateTime? importedAt,
+  }) => KnowledgeDocumentRow(
+    id: id ?? this.id,
+    knowledgeBaseId: knowledgeBaseId ?? this.knowledgeBaseId,
+    name: name ?? this.name,
+    sourceType: sourceType ?? this.sourceType,
+    content: content ?? this.content,
+    contentHash: contentHash ?? this.contentHash,
+    charCount: charCount ?? this.charCount,
+    chunkTotal: chunkTotal ?? this.chunkTotal,
+    importedAt: importedAt ?? this.importedAt,
+  );
+  KnowledgeDocumentRow copyWithCompanion(KnowledgeDocumentRowsCompanion data) {
+    return KnowledgeDocumentRow(
+      id: data.id.present ? data.id.value : this.id,
+      knowledgeBaseId: data.knowledgeBaseId.present
+          ? data.knowledgeBaseId.value
+          : this.knowledgeBaseId,
+      name: data.name.present ? data.name.value : this.name,
+      sourceType: data.sourceType.present
+          ? data.sourceType.value
+          : this.sourceType,
+      content: data.content.present ? data.content.value : this.content,
+      contentHash: data.contentHash.present
+          ? data.contentHash.value
+          : this.contentHash,
+      charCount: data.charCount.present ? data.charCount.value : this.charCount,
+      chunkTotal: data.chunkTotal.present
+          ? data.chunkTotal.value
+          : this.chunkTotal,
+      importedAt: data.importedAt.present
+          ? data.importedAt.value
+          : this.importedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KnowledgeDocumentRow(')
+          ..write('id: $id, ')
+          ..write('knowledgeBaseId: $knowledgeBaseId, ')
+          ..write('name: $name, ')
+          ..write('sourceType: $sourceType, ')
+          ..write('content: $content, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('charCount: $charCount, ')
+          ..write('chunkTotal: $chunkTotal, ')
+          ..write('importedAt: $importedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    knowledgeBaseId,
+    name,
+    sourceType,
+    content,
+    contentHash,
+    charCount,
+    chunkTotal,
+    importedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is KnowledgeDocumentRow &&
+          other.id == this.id &&
+          other.knowledgeBaseId == this.knowledgeBaseId &&
+          other.name == this.name &&
+          other.sourceType == this.sourceType &&
+          other.content == this.content &&
+          other.contentHash == this.contentHash &&
+          other.charCount == this.charCount &&
+          other.chunkTotal == this.chunkTotal &&
+          other.importedAt == this.importedAt);
+}
+
+class KnowledgeDocumentRowsCompanion
+    extends UpdateCompanion<KnowledgeDocumentRow> {
+  final Value<String> id;
+  final Value<String> knowledgeBaseId;
+  final Value<String> name;
+  final Value<String> sourceType;
+  final Value<String> content;
+  final Value<String> contentHash;
+  final Value<int> charCount;
+  final Value<int> chunkTotal;
+  final Value<DateTime> importedAt;
+  final Value<int> rowid;
+  const KnowledgeDocumentRowsCompanion({
+    this.id = const Value.absent(),
+    this.knowledgeBaseId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.sourceType = const Value.absent(),
+    this.content = const Value.absent(),
+    this.contentHash = const Value.absent(),
+    this.charCount = const Value.absent(),
+    this.chunkTotal = const Value.absent(),
+    this.importedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  KnowledgeDocumentRowsCompanion.insert({
+    required String id,
+    required String knowledgeBaseId,
+    required String name,
+    required String sourceType,
+    required String content,
+    required String contentHash,
+    required int charCount,
+    this.chunkTotal = const Value.absent(),
+    required DateTime importedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       knowledgeBaseId = Value(knowledgeBaseId),
+       name = Value(name),
+       sourceType = Value(sourceType),
+       content = Value(content),
+       contentHash = Value(contentHash),
+       charCount = Value(charCount),
+       importedAt = Value(importedAt);
+  static Insertable<KnowledgeDocumentRow> custom({
+    Expression<String>? id,
+    Expression<String>? knowledgeBaseId,
+    Expression<String>? name,
+    Expression<String>? sourceType,
+    Expression<String>? content,
+    Expression<String>? contentHash,
+    Expression<int>? charCount,
+    Expression<int>? chunkTotal,
+    Expression<DateTime>? importedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (knowledgeBaseId != null) 'knowledge_base_id': knowledgeBaseId,
+      if (name != null) 'name': name,
+      if (sourceType != null) 'source_type': sourceType,
+      if (content != null) 'content': content,
+      if (contentHash != null) 'content_hash': contentHash,
+      if (charCount != null) 'char_count': charCount,
+      if (chunkTotal != null) 'chunk_total': chunkTotal,
+      if (importedAt != null) 'imported_at': importedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  KnowledgeDocumentRowsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? knowledgeBaseId,
+    Value<String>? name,
+    Value<String>? sourceType,
+    Value<String>? content,
+    Value<String>? contentHash,
+    Value<int>? charCount,
+    Value<int>? chunkTotal,
+    Value<DateTime>? importedAt,
+    Value<int>? rowid,
+  }) {
+    return KnowledgeDocumentRowsCompanion(
+      id: id ?? this.id,
+      knowledgeBaseId: knowledgeBaseId ?? this.knowledgeBaseId,
+      name: name ?? this.name,
+      sourceType: sourceType ?? this.sourceType,
+      content: content ?? this.content,
+      contentHash: contentHash ?? this.contentHash,
+      charCount: charCount ?? this.charCount,
+      chunkTotal: chunkTotal ?? this.chunkTotal,
+      importedAt: importedAt ?? this.importedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (knowledgeBaseId.present) {
+      map['knowledge_base_id'] = Variable<String>(knowledgeBaseId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (sourceType.present) {
+      map['source_type'] = Variable<String>(sourceType.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (contentHash.present) {
+      map['content_hash'] = Variable<String>(contentHash.value);
+    }
+    if (charCount.present) {
+      map['char_count'] = Variable<int>(charCount.value);
+    }
+    if (chunkTotal.present) {
+      map['chunk_total'] = Variable<int>(chunkTotal.value);
+    }
+    if (importedAt.present) {
+      map['imported_at'] = Variable<DateTime>(importedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KnowledgeDocumentRowsCompanion(')
+          ..write('id: $id, ')
+          ..write('knowledgeBaseId: $knowledgeBaseId, ')
+          ..write('name: $name, ')
+          ..write('sourceType: $sourceType, ')
+          ..write('content: $content, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('charCount: $charCount, ')
+          ..write('chunkTotal: $chunkTotal, ')
+          ..write('importedAt: $importedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $KnowledgeChunkRowsTable extends KnowledgeChunkRows
+    with TableInfo<$KnowledgeChunkRowsTable, KnowledgeChunkRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $KnowledgeChunkRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _documentIdMeta = const VerificationMeta(
+    'documentId',
+  );
+  @override
+  late final GeneratedColumn<String> documentId = GeneratedColumn<String>(
+    'document_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES knowledge_document_rows (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _knowledgeBaseIdMeta = const VerificationMeta(
+    'knowledgeBaseId',
+  );
+  @override
+  late final GeneratedColumn<String> knowledgeBaseId = GeneratedColumn<String>(
+    'knowledge_base_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES knowledge_base_rows (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _chunkIndexMeta = const VerificationMeta(
+    'chunkIndex',
+  );
+  @override
+  late final GeneratedColumn<int> chunkIndex = GeneratedColumn<int>(
+    'chunk_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentMeta = const VerificationMeta(
+    'content',
+  );
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+    'content',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _charCountMeta = const VerificationMeta(
+    'charCount',
+  );
+  @override
+  late final GeneratedColumn<int> charCount = GeneratedColumn<int>(
+    'char_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    documentId,
+    knowledgeBaseId,
+    chunkIndex,
+    content,
+    charCount,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'knowledge_chunk_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<KnowledgeChunkRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('document_id')) {
+      context.handle(
+        _documentIdMeta,
+        documentId.isAcceptableOrUnknown(data['document_id']!, _documentIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_documentIdMeta);
+    }
+    if (data.containsKey('knowledge_base_id')) {
+      context.handle(
+        _knowledgeBaseIdMeta,
+        knowledgeBaseId.isAcceptableOrUnknown(
+          data['knowledge_base_id']!,
+          _knowledgeBaseIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_knowledgeBaseIdMeta);
+    }
+    if (data.containsKey('chunk_index')) {
+      context.handle(
+        _chunkIndexMeta,
+        chunkIndex.isAcceptableOrUnknown(data['chunk_index']!, _chunkIndexMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_chunkIndexMeta);
+    }
+    if (data.containsKey('content')) {
+      context.handle(
+        _contentMeta,
+        content.isAcceptableOrUnknown(data['content']!, _contentMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('char_count')) {
+      context.handle(
+        _charCountMeta,
+        charCount.isAcceptableOrUnknown(data['char_count']!, _charCountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_charCountMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  KnowledgeChunkRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return KnowledgeChunkRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      documentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}document_id'],
+      )!,
+      knowledgeBaseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}knowledge_base_id'],
+      )!,
+      chunkIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}chunk_index'],
+      )!,
+      content: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content'],
+      )!,
+      charCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}char_count'],
+      )!,
+    );
+  }
+
+  @override
+  $KnowledgeChunkRowsTable createAlias(String alias) {
+    return $KnowledgeChunkRowsTable(attachedDatabase, alias);
+  }
+}
+
+class KnowledgeChunkRow extends DataClass
+    implements Insertable<KnowledgeChunkRow> {
+  final String id;
+  final String documentId;
+  final String knowledgeBaseId;
+  final int chunkIndex;
+  final String content;
+  final int charCount;
+  const KnowledgeChunkRow({
+    required this.id,
+    required this.documentId,
+    required this.knowledgeBaseId,
+    required this.chunkIndex,
+    required this.content,
+    required this.charCount,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['document_id'] = Variable<String>(documentId);
+    map['knowledge_base_id'] = Variable<String>(knowledgeBaseId);
+    map['chunk_index'] = Variable<int>(chunkIndex);
+    map['content'] = Variable<String>(content);
+    map['char_count'] = Variable<int>(charCount);
+    return map;
+  }
+
+  KnowledgeChunkRowsCompanion toCompanion(bool nullToAbsent) {
+    return KnowledgeChunkRowsCompanion(
+      id: Value(id),
+      documentId: Value(documentId),
+      knowledgeBaseId: Value(knowledgeBaseId),
+      chunkIndex: Value(chunkIndex),
+      content: Value(content),
+      charCount: Value(charCount),
+    );
+  }
+
+  factory KnowledgeChunkRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return KnowledgeChunkRow(
+      id: serializer.fromJson<String>(json['id']),
+      documentId: serializer.fromJson<String>(json['documentId']),
+      knowledgeBaseId: serializer.fromJson<String>(json['knowledgeBaseId']),
+      chunkIndex: serializer.fromJson<int>(json['chunkIndex']),
+      content: serializer.fromJson<String>(json['content']),
+      charCount: serializer.fromJson<int>(json['charCount']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'documentId': serializer.toJson<String>(documentId),
+      'knowledgeBaseId': serializer.toJson<String>(knowledgeBaseId),
+      'chunkIndex': serializer.toJson<int>(chunkIndex),
+      'content': serializer.toJson<String>(content),
+      'charCount': serializer.toJson<int>(charCount),
+    };
+  }
+
+  KnowledgeChunkRow copyWith({
+    String? id,
+    String? documentId,
+    String? knowledgeBaseId,
+    int? chunkIndex,
+    String? content,
+    int? charCount,
+  }) => KnowledgeChunkRow(
+    id: id ?? this.id,
+    documentId: documentId ?? this.documentId,
+    knowledgeBaseId: knowledgeBaseId ?? this.knowledgeBaseId,
+    chunkIndex: chunkIndex ?? this.chunkIndex,
+    content: content ?? this.content,
+    charCount: charCount ?? this.charCount,
+  );
+  KnowledgeChunkRow copyWithCompanion(KnowledgeChunkRowsCompanion data) {
+    return KnowledgeChunkRow(
+      id: data.id.present ? data.id.value : this.id,
+      documentId: data.documentId.present
+          ? data.documentId.value
+          : this.documentId,
+      knowledgeBaseId: data.knowledgeBaseId.present
+          ? data.knowledgeBaseId.value
+          : this.knowledgeBaseId,
+      chunkIndex: data.chunkIndex.present
+          ? data.chunkIndex.value
+          : this.chunkIndex,
+      content: data.content.present ? data.content.value : this.content,
+      charCount: data.charCount.present ? data.charCount.value : this.charCount,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KnowledgeChunkRow(')
+          ..write('id: $id, ')
+          ..write('documentId: $documentId, ')
+          ..write('knowledgeBaseId: $knowledgeBaseId, ')
+          ..write('chunkIndex: $chunkIndex, ')
+          ..write('content: $content, ')
+          ..write('charCount: $charCount')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    documentId,
+    knowledgeBaseId,
+    chunkIndex,
+    content,
+    charCount,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is KnowledgeChunkRow &&
+          other.id == this.id &&
+          other.documentId == this.documentId &&
+          other.knowledgeBaseId == this.knowledgeBaseId &&
+          other.chunkIndex == this.chunkIndex &&
+          other.content == this.content &&
+          other.charCount == this.charCount);
+}
+
+class KnowledgeChunkRowsCompanion extends UpdateCompanion<KnowledgeChunkRow> {
+  final Value<String> id;
+  final Value<String> documentId;
+  final Value<String> knowledgeBaseId;
+  final Value<int> chunkIndex;
+  final Value<String> content;
+  final Value<int> charCount;
+  final Value<int> rowid;
+  const KnowledgeChunkRowsCompanion({
+    this.id = const Value.absent(),
+    this.documentId = const Value.absent(),
+    this.knowledgeBaseId = const Value.absent(),
+    this.chunkIndex = const Value.absent(),
+    this.content = const Value.absent(),
+    this.charCount = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  KnowledgeChunkRowsCompanion.insert({
+    required String id,
+    required String documentId,
+    required String knowledgeBaseId,
+    required int chunkIndex,
+    required String content,
+    required int charCount,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       documentId = Value(documentId),
+       knowledgeBaseId = Value(knowledgeBaseId),
+       chunkIndex = Value(chunkIndex),
+       content = Value(content),
+       charCount = Value(charCount);
+  static Insertable<KnowledgeChunkRow> custom({
+    Expression<String>? id,
+    Expression<String>? documentId,
+    Expression<String>? knowledgeBaseId,
+    Expression<int>? chunkIndex,
+    Expression<String>? content,
+    Expression<int>? charCount,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (documentId != null) 'document_id': documentId,
+      if (knowledgeBaseId != null) 'knowledge_base_id': knowledgeBaseId,
+      if (chunkIndex != null) 'chunk_index': chunkIndex,
+      if (content != null) 'content': content,
+      if (charCount != null) 'char_count': charCount,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  KnowledgeChunkRowsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? documentId,
+    Value<String>? knowledgeBaseId,
+    Value<int>? chunkIndex,
+    Value<String>? content,
+    Value<int>? charCount,
+    Value<int>? rowid,
+  }) {
+    return KnowledgeChunkRowsCompanion(
+      id: id ?? this.id,
+      documentId: documentId ?? this.documentId,
+      knowledgeBaseId: knowledgeBaseId ?? this.knowledgeBaseId,
+      chunkIndex: chunkIndex ?? this.chunkIndex,
+      content: content ?? this.content,
+      charCount: charCount ?? this.charCount,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (documentId.present) {
+      map['document_id'] = Variable<String>(documentId.value);
+    }
+    if (knowledgeBaseId.present) {
+      map['knowledge_base_id'] = Variable<String>(knowledgeBaseId.value);
+    }
+    if (chunkIndex.present) {
+      map['chunk_index'] = Variable<int>(chunkIndex.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (charCount.present) {
+      map['char_count'] = Variable<int>(charCount.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KnowledgeChunkRowsCompanion(')
+          ..write('id: $id, ')
+          ..write('documentId: $documentId, ')
+          ..write('knowledgeBaseId: $knowledgeBaseId, ')
+          ..write('chunkIndex: $chunkIndex, ')
+          ..write('content: $content, ')
+          ..write('charCount: $charCount, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $PreferenceRowsTable extends PreferenceRows
     with TableInfo<$PreferenceRowsTable, PreferenceRow> {
   @override
@@ -9354,6 +10879,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $GroupChatRowsTable groupChatRows = $GroupChatRowsTable(this);
   late final $GroupChatMemberRowsTable groupChatMemberRows =
       $GroupChatMemberRowsTable(this);
+  late final $KnowledgeBaseRowsTable knowledgeBaseRows =
+      $KnowledgeBaseRowsTable(this);
+  late final $KnowledgeDocumentRowsTable knowledgeDocumentRows =
+      $KnowledgeDocumentRowsTable(this);
+  late final $KnowledgeChunkRowsTable knowledgeChunkRows =
+      $KnowledgeChunkRowsTable(this);
   late final $PreferenceRowsTable preferenceRows = $PreferenceRowsTable(this);
   late final Index idxConversationsUpdatedAt = Index(
     'idx_conversations_updated_at',
@@ -9383,6 +10914,22 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_group_chats_updated_at',
     'CREATE INDEX idx_group_chats_updated_at ON group_chat_rows (updated_at)',
   );
+  late final Index idxKnowledgeDocumentsBase = Index(
+    'idx_knowledge_documents_base',
+    'CREATE INDEX idx_knowledge_documents_base ON knowledge_document_rows (knowledge_base_id)',
+  );
+  late final Index idxKnowledgeDocumentsHash = Index(
+    'idx_knowledge_documents_hash',
+    'CREATE INDEX idx_knowledge_documents_hash ON knowledge_document_rows (knowledge_base_id, content_hash)',
+  );
+  late final Index idxKnowledgeChunksDocument = Index(
+    'idx_knowledge_chunks_document',
+    'CREATE INDEX idx_knowledge_chunks_document ON knowledge_chunk_rows (document_id)',
+  );
+  late final Index idxKnowledgeChunksBase = Index(
+    'idx_knowledge_chunks_base',
+    'CREATE INDEX idx_knowledge_chunks_base ON knowledge_chunk_rows (knowledge_base_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -9400,6 +10947,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     deletionMarkerRows,
     groupChatRows,
     groupChatMemberRows,
+    knowledgeBaseRows,
+    knowledgeDocumentRows,
+    knowledgeChunkRows,
     preferenceRows,
     idxConversationsUpdatedAt,
     idxConversationsAssistant,
@@ -9408,6 +10958,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     idxMessagesGroup,
     idxMessagesSubgroup,
     idxGroupChatsUpdatedAt,
+    idxKnowledgeDocumentsBase,
+    idxKnowledgeDocumentsHash,
+    idxKnowledgeChunksDocument,
+    idxKnowledgeChunksBase,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -9456,6 +11010,27 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('group_chat_member_rows', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'knowledge_base_rows',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('knowledge_document_rows', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'knowledge_document_rows',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('knowledge_chunk_rows', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'knowledge_base_rows',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('knowledge_chunk_rows', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -10180,7 +11755,7 @@ class $$ConversationRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$ConversationRowsTable, ConversationRow>(table),
                   $$ConversationRowsTableReferences(db, table, e),
                 ),
               )
@@ -11202,7 +12777,7 @@ class $$MessageRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$MessageRowsTable, MessageRow>(table),
                   $$MessageRowsTableReferences(db, table, e),
                 ),
               )
@@ -12453,7 +14028,16 @@ class $$AssistantRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$AssistantRowsTable, AssistantRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $AssistantRowsTable,
+                    AssistantRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -12717,7 +14301,10 @@ class $$ConversationMcpServerRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $ConversationMcpServerRowsTable,
+                    ConversationMcpServerRow
+                  >(table),
                   $$ConversationMcpServerRowsTableReferences(db, table, e),
                 ),
               )
@@ -12985,7 +14572,7 @@ class $$ToolEventRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$ToolEventRowsTable, ToolEventRow>(table),
                   $$ToolEventRowsTableReferences(db, table, e),
                 ),
               )
@@ -13270,7 +14857,10 @@ class $$GeminiThoughtSignatureRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $GeminiThoughtSignatureRowsTable,
+                    GeminiThoughtSignatureRow
+                  >(table),
                   $$GeminiThoughtSignatureRowsTableReferences(db, table, e),
                 ),
               )
@@ -13490,7 +15080,16 @@ class $$CacheRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$CacheRowsTable, CacheRow>(table),
+                  BaseReferences<_$AppDatabase, $CacheRowsTable, CacheRow>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -13642,7 +15241,18 @@ class $$ChatStorageMetaRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$ChatStorageMetaRowsTable, ChatStorageMetaRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ChatStorageMetaRowsTable,
+                    ChatStorageMetaRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -13876,7 +15486,16 @@ class $$DeletedRecordRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$DeletedRecordRowsTable, DeletedRecordRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DeletedRecordRowsTable,
+                    DeletedRecordRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -14070,7 +15689,18 @@ class $$DeletionMarkerRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$DeletionMarkerRowsTable, DeletionMarkerRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DeletionMarkerRowsTable,
+                    DeletionMarkerRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -14657,7 +16287,7 @@ class $$GroupChatRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$GroupChatRowsTable, GroupChatRow>(table),
                   $$GroupChatRowsTableReferences(db, table, e),
                 ),
               )
@@ -15006,7 +16636,9 @@ class $$GroupChatMemberRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$GroupChatMemberRowsTable, GroupChatMemberRow>(
+                    table,
+                  ),
                   $$GroupChatMemberRowsTableReferences(db, table, e),
                 ),
               )
@@ -15071,6 +16703,1495 @@ typedef $$GroupChatMemberRowsTableProcessedTableManager =
       (GroupChatMemberRow, $$GroupChatMemberRowsTableReferences),
       GroupChatMemberRow,
       PrefetchHooks Function({bool groupChatId})
+    >;
+typedef $$KnowledgeBaseRowsTableCreateCompanionBuilder =
+    KnowledgeBaseRowsCompanion Function({
+      required String id,
+      required String name,
+      Value<String> description,
+      Value<bool> enabled,
+      Value<int> chunkSize,
+      Value<int> chunkOverlap,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$KnowledgeBaseRowsTableUpdateCompanionBuilder =
+    KnowledgeBaseRowsCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> description,
+      Value<bool> enabled,
+      Value<int> chunkSize,
+      Value<int> chunkOverlap,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$KnowledgeBaseRowsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $KnowledgeBaseRowsTable,
+          KnowledgeBaseRow
+        > {
+  $$KnowledgeBaseRowsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $KnowledgeDocumentRowsTable,
+    List<KnowledgeDocumentRow>
+  >
+  _knowledgeDocumentRowsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.knowledgeDocumentRows,
+    aliasName:
+        'knowledge_base_rows__id__knowledge_document_rows__knowledge_base_id',
+  );
+
+  $$KnowledgeDocumentRowsTableProcessedTableManager
+  get knowledgeDocumentRowsRefs {
+    final manager =
+        $$KnowledgeDocumentRowsTableTableManager(
+          $_db,
+          $_db.knowledgeDocumentRows,
+        ).filter(
+          (f) => f.knowledgeBaseId.id.sqlEquals($_itemColumn<String>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _knowledgeDocumentRowsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$KnowledgeChunkRowsTable, List<KnowledgeChunkRow>>
+  _knowledgeChunkRowsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.knowledgeChunkRows,
+        aliasName:
+            'knowledge_base_rows__id__knowledge_chunk_rows__knowledge_base_id',
+      );
+
+  $$KnowledgeChunkRowsTableProcessedTableManager get knowledgeChunkRowsRefs {
+    final manager =
+        $$KnowledgeChunkRowsTableTableManager(
+          $_db,
+          $_db.knowledgeChunkRows,
+        ).filter(
+          (f) => f.knowledgeBaseId.id.sqlEquals($_itemColumn<String>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _knowledgeChunkRowsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$KnowledgeBaseRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $KnowledgeBaseRowsTable> {
+  $$KnowledgeBaseRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get enabled => $composableBuilder(
+    column: $table.enabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get chunkSize => $composableBuilder(
+    column: $table.chunkSize,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get chunkOverlap => $composableBuilder(
+    column: $table.chunkOverlap,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> knowledgeDocumentRowsRefs(
+    Expression<bool> Function($$KnowledgeDocumentRowsTableFilterComposer f) f,
+  ) {
+    final $$KnowledgeDocumentRowsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.knowledgeDocumentRows,
+          getReferencedColumn: (t) => t.knowledgeBaseId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$KnowledgeDocumentRowsTableFilterComposer(
+                $db: $db,
+                $table: $db.knowledgeDocumentRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> knowledgeChunkRowsRefs(
+    Expression<bool> Function($$KnowledgeChunkRowsTableFilterComposer f) f,
+  ) {
+    final $$KnowledgeChunkRowsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.knowledgeChunkRows,
+      getReferencedColumn: (t) => t.knowledgeBaseId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$KnowledgeChunkRowsTableFilterComposer(
+            $db: $db,
+            $table: $db.knowledgeChunkRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$KnowledgeBaseRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $KnowledgeBaseRowsTable> {
+  $$KnowledgeBaseRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get enabled => $composableBuilder(
+    column: $table.enabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get chunkSize => $composableBuilder(
+    column: $table.chunkSize,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get chunkOverlap => $composableBuilder(
+    column: $table.chunkOverlap,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$KnowledgeBaseRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $KnowledgeBaseRowsTable> {
+  $$KnowledgeBaseRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get enabled =>
+      $composableBuilder(column: $table.enabled, builder: (column) => column);
+
+  GeneratedColumn<int> get chunkSize =>
+      $composableBuilder(column: $table.chunkSize, builder: (column) => column);
+
+  GeneratedColumn<int> get chunkOverlap => $composableBuilder(
+    column: $table.chunkOverlap,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  Expression<T> knowledgeDocumentRowsRefs<T extends Object>(
+    Expression<T> Function($$KnowledgeDocumentRowsTableAnnotationComposer a) f,
+  ) {
+    final $$KnowledgeDocumentRowsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.knowledgeDocumentRows,
+          getReferencedColumn: (t) => t.knowledgeBaseId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$KnowledgeDocumentRowsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.knowledgeDocumentRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> knowledgeChunkRowsRefs<T extends Object>(
+    Expression<T> Function($$KnowledgeChunkRowsTableAnnotationComposer a) f,
+  ) {
+    final $$KnowledgeChunkRowsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.knowledgeChunkRows,
+          getReferencedColumn: (t) => t.knowledgeBaseId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$KnowledgeChunkRowsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.knowledgeChunkRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$KnowledgeBaseRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $KnowledgeBaseRowsTable,
+          KnowledgeBaseRow,
+          $$KnowledgeBaseRowsTableFilterComposer,
+          $$KnowledgeBaseRowsTableOrderingComposer,
+          $$KnowledgeBaseRowsTableAnnotationComposer,
+          $$KnowledgeBaseRowsTableCreateCompanionBuilder,
+          $$KnowledgeBaseRowsTableUpdateCompanionBuilder,
+          (KnowledgeBaseRow, $$KnowledgeBaseRowsTableReferences),
+          KnowledgeBaseRow,
+          PrefetchHooks Function({
+            bool knowledgeDocumentRowsRefs,
+            bool knowledgeChunkRowsRefs,
+          })
+        > {
+  $$KnowledgeBaseRowsTableTableManager(
+    _$AppDatabase db,
+    $KnowledgeBaseRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$KnowledgeBaseRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$KnowledgeBaseRowsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$KnowledgeBaseRowsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> description = const Value.absent(),
+                Value<bool> enabled = const Value.absent(),
+                Value<int> chunkSize = const Value.absent(),
+                Value<int> chunkOverlap = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => KnowledgeBaseRowsCompanion(
+                id: id,
+                name: name,
+                description: description,
+                enabled: enabled,
+                chunkSize: chunkSize,
+                chunkOverlap: chunkOverlap,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                Value<String> description = const Value.absent(),
+                Value<bool> enabled = const Value.absent(),
+                Value<int> chunkSize = const Value.absent(),
+                Value<int> chunkOverlap = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => KnowledgeBaseRowsCompanion.insert(
+                id: id,
+                name: name,
+                description: description,
+                enabled: enabled,
+                chunkSize: chunkSize,
+                chunkOverlap: chunkOverlap,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$KnowledgeBaseRowsTable, KnowledgeBaseRow>(table),
+                  $$KnowledgeBaseRowsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                knowledgeDocumentRowsRefs = false,
+                knowledgeChunkRowsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (knowledgeDocumentRowsRefs) db.knowledgeDocumentRows,
+                    if (knowledgeChunkRowsRefs) db.knowledgeChunkRows,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (knowledgeDocumentRowsRefs)
+                        await $_getPrefetchedData<
+                          KnowledgeBaseRow,
+                          $KnowledgeBaseRowsTable,
+                          KnowledgeDocumentRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$KnowledgeBaseRowsTableReferences
+                              ._knowledgeDocumentRowsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$KnowledgeBaseRowsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).knowledgeDocumentRowsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.knowledgeBaseId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (knowledgeChunkRowsRefs)
+                        await $_getPrefetchedData<
+                          KnowledgeBaseRow,
+                          $KnowledgeBaseRowsTable,
+                          KnowledgeChunkRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$KnowledgeBaseRowsTableReferences
+                              ._knowledgeChunkRowsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$KnowledgeBaseRowsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).knowledgeChunkRowsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.knowledgeBaseId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$KnowledgeBaseRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $KnowledgeBaseRowsTable,
+      KnowledgeBaseRow,
+      $$KnowledgeBaseRowsTableFilterComposer,
+      $$KnowledgeBaseRowsTableOrderingComposer,
+      $$KnowledgeBaseRowsTableAnnotationComposer,
+      $$KnowledgeBaseRowsTableCreateCompanionBuilder,
+      $$KnowledgeBaseRowsTableUpdateCompanionBuilder,
+      (KnowledgeBaseRow, $$KnowledgeBaseRowsTableReferences),
+      KnowledgeBaseRow,
+      PrefetchHooks Function({
+        bool knowledgeDocumentRowsRefs,
+        bool knowledgeChunkRowsRefs,
+      })
+    >;
+typedef $$KnowledgeDocumentRowsTableCreateCompanionBuilder =
+    KnowledgeDocumentRowsCompanion Function({
+      required String id,
+      required String knowledgeBaseId,
+      required String name,
+      required String sourceType,
+      required String content,
+      required String contentHash,
+      required int charCount,
+      Value<int> chunkTotal,
+      required DateTime importedAt,
+      Value<int> rowid,
+    });
+typedef $$KnowledgeDocumentRowsTableUpdateCompanionBuilder =
+    KnowledgeDocumentRowsCompanion Function({
+      Value<String> id,
+      Value<String> knowledgeBaseId,
+      Value<String> name,
+      Value<String> sourceType,
+      Value<String> content,
+      Value<String> contentHash,
+      Value<int> charCount,
+      Value<int> chunkTotal,
+      Value<DateTime> importedAt,
+      Value<int> rowid,
+    });
+
+final class $$KnowledgeDocumentRowsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $KnowledgeDocumentRowsTable,
+          KnowledgeDocumentRow
+        > {
+  $$KnowledgeDocumentRowsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $KnowledgeBaseRowsTable _knowledgeBaseIdTable(_$AppDatabase db) =>
+      db.knowledgeBaseRows.createAlias(
+        'knowledge_document_rows__knowledge_base_id__knowledge_base_rows__id',
+      );
+
+  $$KnowledgeBaseRowsTableProcessedTableManager get knowledgeBaseId {
+    final $_column = $_itemColumn<String>('knowledge_base_id')!;
+
+    final manager = $$KnowledgeBaseRowsTableTableManager(
+      $_db,
+      $_db.knowledgeBaseRows,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_knowledgeBaseIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$KnowledgeChunkRowsTable, List<KnowledgeChunkRow>>
+  _knowledgeChunkRowsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.knowledgeChunkRows,
+        aliasName:
+            'knowledge_document_rows__id__knowledge_chunk_rows__document_id',
+      );
+
+  $$KnowledgeChunkRowsTableProcessedTableManager get knowledgeChunkRowsRefs {
+    final manager = $$KnowledgeChunkRowsTableTableManager(
+      $_db,
+      $_db.knowledgeChunkRows,
+    ).filter((f) => f.documentId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _knowledgeChunkRowsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$KnowledgeDocumentRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $KnowledgeDocumentRowsTable> {
+  $$KnowledgeDocumentRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceType => $composableBuilder(
+    column: $table.sourceType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get charCount => $composableBuilder(
+    column: $table.charCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get chunkTotal => $composableBuilder(
+    column: $table.chunkTotal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get importedAt => $composableBuilder(
+    column: $table.importedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$KnowledgeBaseRowsTableFilterComposer get knowledgeBaseId {
+    final $$KnowledgeBaseRowsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.knowledgeBaseId,
+      referencedTable: $db.knowledgeBaseRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$KnowledgeBaseRowsTableFilterComposer(
+            $db: $db,
+            $table: $db.knowledgeBaseRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> knowledgeChunkRowsRefs(
+    Expression<bool> Function($$KnowledgeChunkRowsTableFilterComposer f) f,
+  ) {
+    final $$KnowledgeChunkRowsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.knowledgeChunkRows,
+      getReferencedColumn: (t) => t.documentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$KnowledgeChunkRowsTableFilterComposer(
+            $db: $db,
+            $table: $db.knowledgeChunkRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$KnowledgeDocumentRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $KnowledgeDocumentRowsTable> {
+  $$KnowledgeDocumentRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceType => $composableBuilder(
+    column: $table.sourceType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get charCount => $composableBuilder(
+    column: $table.charCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get chunkTotal => $composableBuilder(
+    column: $table.chunkTotal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get importedAt => $composableBuilder(
+    column: $table.importedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$KnowledgeBaseRowsTableOrderingComposer get knowledgeBaseId {
+    final $$KnowledgeBaseRowsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.knowledgeBaseId,
+      referencedTable: $db.knowledgeBaseRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$KnowledgeBaseRowsTableOrderingComposer(
+            $db: $db,
+            $table: $db.knowledgeBaseRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$KnowledgeDocumentRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $KnowledgeDocumentRowsTable> {
+  $$KnowledgeDocumentRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceType => $composableBuilder(
+    column: $table.sourceType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get charCount =>
+      $composableBuilder(column: $table.charCount, builder: (column) => column);
+
+  GeneratedColumn<int> get chunkTotal => $composableBuilder(
+    column: $table.chunkTotal,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get importedAt => $composableBuilder(
+    column: $table.importedAt,
+    builder: (column) => column,
+  );
+
+  $$KnowledgeBaseRowsTableAnnotationComposer get knowledgeBaseId {
+    final $$KnowledgeBaseRowsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.knowledgeBaseId,
+          referencedTable: $db.knowledgeBaseRows,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$KnowledgeBaseRowsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.knowledgeBaseRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  Expression<T> knowledgeChunkRowsRefs<T extends Object>(
+    Expression<T> Function($$KnowledgeChunkRowsTableAnnotationComposer a) f,
+  ) {
+    final $$KnowledgeChunkRowsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.knowledgeChunkRows,
+          getReferencedColumn: (t) => t.documentId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$KnowledgeChunkRowsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.knowledgeChunkRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$KnowledgeDocumentRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $KnowledgeDocumentRowsTable,
+          KnowledgeDocumentRow,
+          $$KnowledgeDocumentRowsTableFilterComposer,
+          $$KnowledgeDocumentRowsTableOrderingComposer,
+          $$KnowledgeDocumentRowsTableAnnotationComposer,
+          $$KnowledgeDocumentRowsTableCreateCompanionBuilder,
+          $$KnowledgeDocumentRowsTableUpdateCompanionBuilder,
+          (KnowledgeDocumentRow, $$KnowledgeDocumentRowsTableReferences),
+          KnowledgeDocumentRow,
+          PrefetchHooks Function({
+            bool knowledgeBaseId,
+            bool knowledgeChunkRowsRefs,
+          })
+        > {
+  $$KnowledgeDocumentRowsTableTableManager(
+    _$AppDatabase db,
+    $KnowledgeDocumentRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$KnowledgeDocumentRowsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$KnowledgeDocumentRowsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$KnowledgeDocumentRowsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> knowledgeBaseId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> sourceType = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<String> contentHash = const Value.absent(),
+                Value<int> charCount = const Value.absent(),
+                Value<int> chunkTotal = const Value.absent(),
+                Value<DateTime> importedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => KnowledgeDocumentRowsCompanion(
+                id: id,
+                knowledgeBaseId: knowledgeBaseId,
+                name: name,
+                sourceType: sourceType,
+                content: content,
+                contentHash: contentHash,
+                charCount: charCount,
+                chunkTotal: chunkTotal,
+                importedAt: importedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String knowledgeBaseId,
+                required String name,
+                required String sourceType,
+                required String content,
+                required String contentHash,
+                required int charCount,
+                Value<int> chunkTotal = const Value.absent(),
+                required DateTime importedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => KnowledgeDocumentRowsCompanion.insert(
+                id: id,
+                knowledgeBaseId: knowledgeBaseId,
+                name: name,
+                sourceType: sourceType,
+                content: content,
+                contentHash: contentHash,
+                charCount: charCount,
+                chunkTotal: chunkTotal,
+                importedAt: importedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $KnowledgeDocumentRowsTable,
+                    KnowledgeDocumentRow
+                  >(table),
+                  $$KnowledgeDocumentRowsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({knowledgeBaseId = false, knowledgeChunkRowsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (knowledgeChunkRowsRefs) db.knowledgeChunkRows,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (knowledgeBaseId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.knowledgeBaseId,
+                                    referencedTable:
+                                        $$KnowledgeDocumentRowsTableReferences
+                                            ._knowledgeBaseIdTable(db),
+                                    referencedColumn:
+                                        $$KnowledgeDocumentRowsTableReferences
+                                            ._knowledgeBaseIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (knowledgeChunkRowsRefs)
+                        await $_getPrefetchedData<
+                          KnowledgeDocumentRow,
+                          $KnowledgeDocumentRowsTable,
+                          KnowledgeChunkRow
+                        >(
+                          currentTable: table,
+                          referencedTable:
+                              $$KnowledgeDocumentRowsTableReferences
+                                  ._knowledgeChunkRowsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$KnowledgeDocumentRowsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).knowledgeChunkRowsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.documentId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$KnowledgeDocumentRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $KnowledgeDocumentRowsTable,
+      KnowledgeDocumentRow,
+      $$KnowledgeDocumentRowsTableFilterComposer,
+      $$KnowledgeDocumentRowsTableOrderingComposer,
+      $$KnowledgeDocumentRowsTableAnnotationComposer,
+      $$KnowledgeDocumentRowsTableCreateCompanionBuilder,
+      $$KnowledgeDocumentRowsTableUpdateCompanionBuilder,
+      (KnowledgeDocumentRow, $$KnowledgeDocumentRowsTableReferences),
+      KnowledgeDocumentRow,
+      PrefetchHooks Function({
+        bool knowledgeBaseId,
+        bool knowledgeChunkRowsRefs,
+      })
+    >;
+typedef $$KnowledgeChunkRowsTableCreateCompanionBuilder =
+    KnowledgeChunkRowsCompanion Function({
+      required String id,
+      required String documentId,
+      required String knowledgeBaseId,
+      required int chunkIndex,
+      required String content,
+      required int charCount,
+      Value<int> rowid,
+    });
+typedef $$KnowledgeChunkRowsTableUpdateCompanionBuilder =
+    KnowledgeChunkRowsCompanion Function({
+      Value<String> id,
+      Value<String> documentId,
+      Value<String> knowledgeBaseId,
+      Value<int> chunkIndex,
+      Value<String> content,
+      Value<int> charCount,
+      Value<int> rowid,
+    });
+
+final class $$KnowledgeChunkRowsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $KnowledgeChunkRowsTable,
+          KnowledgeChunkRow
+        > {
+  $$KnowledgeChunkRowsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $KnowledgeDocumentRowsTable _documentIdTable(_$AppDatabase db) =>
+      db.knowledgeDocumentRows.createAlias(
+        'knowledge_chunk_rows__document_id__knowledge_document_rows__id',
+      );
+
+  $$KnowledgeDocumentRowsTableProcessedTableManager get documentId {
+    final $_column = $_itemColumn<String>('document_id')!;
+
+    final manager = $$KnowledgeDocumentRowsTableTableManager(
+      $_db,
+      $_db.knowledgeDocumentRows,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_documentIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $KnowledgeBaseRowsTable _knowledgeBaseIdTable(_$AppDatabase db) =>
+      db.knowledgeBaseRows.createAlias(
+        'knowledge_chunk_rows__knowledge_base_id__knowledge_base_rows__id',
+      );
+
+  $$KnowledgeBaseRowsTableProcessedTableManager get knowledgeBaseId {
+    final $_column = $_itemColumn<String>('knowledge_base_id')!;
+
+    final manager = $$KnowledgeBaseRowsTableTableManager(
+      $_db,
+      $_db.knowledgeBaseRows,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_knowledgeBaseIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$KnowledgeChunkRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $KnowledgeChunkRowsTable> {
+  $$KnowledgeChunkRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get chunkIndex => $composableBuilder(
+    column: $table.chunkIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get charCount => $composableBuilder(
+    column: $table.charCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$KnowledgeDocumentRowsTableFilterComposer get documentId {
+    final $$KnowledgeDocumentRowsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.documentId,
+          referencedTable: $db.knowledgeDocumentRows,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$KnowledgeDocumentRowsTableFilterComposer(
+                $db: $db,
+                $table: $db.knowledgeDocumentRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  $$KnowledgeBaseRowsTableFilterComposer get knowledgeBaseId {
+    final $$KnowledgeBaseRowsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.knowledgeBaseId,
+      referencedTable: $db.knowledgeBaseRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$KnowledgeBaseRowsTableFilterComposer(
+            $db: $db,
+            $table: $db.knowledgeBaseRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$KnowledgeChunkRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $KnowledgeChunkRowsTable> {
+  $$KnowledgeChunkRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get chunkIndex => $composableBuilder(
+    column: $table.chunkIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get charCount => $composableBuilder(
+    column: $table.charCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$KnowledgeDocumentRowsTableOrderingComposer get documentId {
+    final $$KnowledgeDocumentRowsTableOrderingComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.documentId,
+          referencedTable: $db.knowledgeDocumentRows,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$KnowledgeDocumentRowsTableOrderingComposer(
+                $db: $db,
+                $table: $db.knowledgeDocumentRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  $$KnowledgeBaseRowsTableOrderingComposer get knowledgeBaseId {
+    final $$KnowledgeBaseRowsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.knowledgeBaseId,
+      referencedTable: $db.knowledgeBaseRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$KnowledgeBaseRowsTableOrderingComposer(
+            $db: $db,
+            $table: $db.knowledgeBaseRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$KnowledgeChunkRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $KnowledgeChunkRowsTable> {
+  $$KnowledgeChunkRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get chunkIndex => $composableBuilder(
+    column: $table.chunkIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<int> get charCount =>
+      $composableBuilder(column: $table.charCount, builder: (column) => column);
+
+  $$KnowledgeDocumentRowsTableAnnotationComposer get documentId {
+    final $$KnowledgeDocumentRowsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.documentId,
+          referencedTable: $db.knowledgeDocumentRows,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$KnowledgeDocumentRowsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.knowledgeDocumentRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  $$KnowledgeBaseRowsTableAnnotationComposer get knowledgeBaseId {
+    final $$KnowledgeBaseRowsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.knowledgeBaseId,
+          referencedTable: $db.knowledgeBaseRows,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$KnowledgeBaseRowsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.knowledgeBaseRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$KnowledgeChunkRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $KnowledgeChunkRowsTable,
+          KnowledgeChunkRow,
+          $$KnowledgeChunkRowsTableFilterComposer,
+          $$KnowledgeChunkRowsTableOrderingComposer,
+          $$KnowledgeChunkRowsTableAnnotationComposer,
+          $$KnowledgeChunkRowsTableCreateCompanionBuilder,
+          $$KnowledgeChunkRowsTableUpdateCompanionBuilder,
+          (KnowledgeChunkRow, $$KnowledgeChunkRowsTableReferences),
+          KnowledgeChunkRow,
+          PrefetchHooks Function({bool documentId, bool knowledgeBaseId})
+        > {
+  $$KnowledgeChunkRowsTableTableManager(
+    _$AppDatabase db,
+    $KnowledgeChunkRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$KnowledgeChunkRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$KnowledgeChunkRowsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$KnowledgeChunkRowsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> documentId = const Value.absent(),
+                Value<String> knowledgeBaseId = const Value.absent(),
+                Value<int> chunkIndex = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<int> charCount = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => KnowledgeChunkRowsCompanion(
+                id: id,
+                documentId: documentId,
+                knowledgeBaseId: knowledgeBaseId,
+                chunkIndex: chunkIndex,
+                content: content,
+                charCount: charCount,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String documentId,
+                required String knowledgeBaseId,
+                required int chunkIndex,
+                required String content,
+                required int charCount,
+                Value<int> rowid = const Value.absent(),
+              }) => KnowledgeChunkRowsCompanion.insert(
+                id: id,
+                documentId: documentId,
+                knowledgeBaseId: knowledgeBaseId,
+                chunkIndex: chunkIndex,
+                content: content,
+                charCount: charCount,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$KnowledgeChunkRowsTable, KnowledgeChunkRow>(
+                    table,
+                  ),
+                  $$KnowledgeChunkRowsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({documentId = false, knowledgeBaseId = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (documentId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.documentId,
+                                    referencedTable:
+                                        $$KnowledgeChunkRowsTableReferences
+                                            ._documentIdTable(db),
+                                    referencedColumn:
+                                        $$KnowledgeChunkRowsTableReferences
+                                            ._documentIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (knowledgeBaseId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.knowledgeBaseId,
+                                    referencedTable:
+                                        $$KnowledgeChunkRowsTableReferences
+                                            ._knowledgeBaseIdTable(db),
+                                    referencedColumn:
+                                        $$KnowledgeChunkRowsTableReferences
+                                            ._knowledgeBaseIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$KnowledgeChunkRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $KnowledgeChunkRowsTable,
+      KnowledgeChunkRow,
+      $$KnowledgeChunkRowsTableFilterComposer,
+      $$KnowledgeChunkRowsTableOrderingComposer,
+      $$KnowledgeChunkRowsTableAnnotationComposer,
+      $$KnowledgeChunkRowsTableCreateCompanionBuilder,
+      $$KnowledgeChunkRowsTableUpdateCompanionBuilder,
+      (KnowledgeChunkRow, $$KnowledgeChunkRowsTableReferences),
+      KnowledgeChunkRow,
+      PrefetchHooks Function({bool documentId, bool knowledgeBaseId})
     >;
 typedef $$PreferenceRowsTableCreateCompanionBuilder =
     PreferenceRowsCompanion Function({
@@ -15212,7 +18333,16 @@ class $$PreferenceRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$PreferenceRowsTable, PreferenceRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $PreferenceRowsTable,
+                    PreferenceRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -15271,6 +18401,12 @@ class $AppDatabaseManager {
       $$GroupChatRowsTableTableManager(_db, _db.groupChatRows);
   $$GroupChatMemberRowsTableTableManager get groupChatMemberRows =>
       $$GroupChatMemberRowsTableTableManager(_db, _db.groupChatMemberRows);
+  $$KnowledgeBaseRowsTableTableManager get knowledgeBaseRows =>
+      $$KnowledgeBaseRowsTableTableManager(_db, _db.knowledgeBaseRows);
+  $$KnowledgeDocumentRowsTableTableManager get knowledgeDocumentRows =>
+      $$KnowledgeDocumentRowsTableTableManager(_db, _db.knowledgeDocumentRows);
+  $$KnowledgeChunkRowsTableTableManager get knowledgeChunkRows =>
+      $$KnowledgeChunkRowsTableTableManager(_db, _db.knowledgeChunkRows);
   $$PreferenceRowsTableTableManager get preferenceRows =>
       $$PreferenceRowsTableTableManager(_db, _db.preferenceRows);
 }

@@ -270,7 +270,7 @@ void main() {
         contextProvider: _FakeBuildContext(),
         ocrHandler: (_, {requestId}) async => 'no ocr',
       );
-      final lastUserImagePaths = await messageBuilder.processUserMessagesForApi(
+      final processed = await messageBuilder.processUserMessagesForApi(
         apiMessages,
         settings,
         alice,
@@ -281,7 +281,7 @@ void main() {
       // This return value is PreparedGeneration.lastUserImagePaths and,
       // with inputData == null, the direct source of
       // GenerationContext.userMediaPaths.
-      expect(lastUserImagePaths, contains('C:/tmp/photo.png'));
+      expect(processed.imagePaths, contains('C:/tmp/photo.png'));
     });
   });
 }

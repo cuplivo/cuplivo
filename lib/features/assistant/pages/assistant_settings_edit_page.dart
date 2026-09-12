@@ -23,6 +23,7 @@ import '../../../core/models/chat_message.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/models/preset_message.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../../core/providers/knowledge_provider.dart';
 import '../../../core/providers/mcp_provider.dart';
 import '../../../core/providers/memory_provider.dart';
 import '../../../core/providers/quick_instruction_provider.dart';
@@ -32,6 +33,7 @@ import '../../../core/providers/world_book_provider.dart';
 import '../../../core/models/quick_instruction.dart';
 import '../../../core/models/world_book.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/services/knowledge/knowledge_store.dart';
 import '../../../core/services/android_proactive_care_settings_service.dart';
 import '../../../core/services/haptics.dart';
 import '../../../core/services/proactive_care_conversation_policy.dart';
@@ -45,6 +47,7 @@ import '../../../shared/widgets/collapsible_group_header.dart';
 import '../../../shared/widgets/emoji_picker_dialog.dart';
 import '../../../shared/widgets/emoji_text.dart';
 import '../../../shared/widgets/ios_switch.dart';
+import '../../../shared/widgets/ios_number_field.dart';
 import '../../../shared/widgets/ios_expandable_section.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
@@ -64,6 +67,7 @@ import 'subagent_delegation_page.dart';
 part 'assistant_settings_edit_basic_tab.dart';
 part 'assistant_settings_edit_prompt_tab.dart';
 part 'assistant_settings_edit_memory_tab.dart';
+part 'assistant_settings_edit_knowledge_tab.dart';
 part 'assistant_settings_edit_local_tools_tab.dart';
 part 'assistant_settings_edit_mcp_tab.dart';
 part 'assistant_settings_edit_custom_request_tab.dart';
@@ -110,6 +114,12 @@ List<_AssistantEditTabSpec> _assistantEditTabSpecs(
       label: l10n.assistantEditPageMemoryTab,
       icon: Lucide.Brain,
       child: _MemoryTab(assistantId: assistantId),
+    ),
+    _AssistantEditTabSpec(
+      id: assistantEditTabKnowledge,
+      label: l10n.assistantEditPageKnowledgeTab,
+      icon: Lucide.BookOpenText,
+      child: _KnowledgeTab(assistantId: assistantId),
     ),
     _AssistantEditTabSpec(
       id: assistantEditTabLocalTools,

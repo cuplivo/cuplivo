@@ -11,6 +11,7 @@ import 'package:system_fonts/system_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../main.dart';
+import '../../../desktop/desktop_tab_bus.dart';
 import '../../../shared/widgets/interactive_drawer.dart';
 import '../../../shared/responsive/breakpoints.dart';
 import '../../../shared/widgets/ios_form_text_field.dart';
@@ -3209,58 +3210,66 @@ class _HomePageState extends State<HomePage>
 
   Widget _wrapWithDropTarget(Widget child) {
     if (!_controller.isDesktopPlatform) return child;
-    return DropTarget(
-      onDragEntered: (_) {
-        _controller.setDragHovering(true);
-      },
-      onDragExited: (_) {
-        _controller.setDragHovering(false);
-      },
-      onDragDone: (details) async {
-        _controller.setDragHovering(false);
-        try {
-          final files = details.files;
-          await _controller.onFilesDroppedDesktop(files);
-        } catch (_) {}
-      },
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          child,
-          if (_controller.isDragHovering)
-            IgnorePointer(
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.12),
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.surface.withValues(alpha: 0.95),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
+    // `desktop_drop` delivers to every DropTarget whose box contains the drop,
+    // even when it is off-screen behind the desktop IndexedStack. Enable this
+    // one only while the Chat tab is active so drops over Settings panes are
+    // not swallowed here (see DesktopTabBus).
+    return ListenableBuilder(
+      listenable: DesktopTabBus.instance,
+      builder: (context, _) => DropTarget(
+        enable: DesktopTabBus.instance.index == DesktopTabBus.chat,
+        onDragEntered: (_) {
+          _controller.setDragHovering(true);
+        },
+        onDragExited: (_) {
+          _controller.setDragHovering(false);
+        },
+        onDragDone: (details) async {
+          _controller.setDragHovering(false);
+          try {
+            final files = details.files;
+            await _controller.onFilesDroppedDesktop(files);
+          } catch (_) {}
+        },
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            child,
+            if (_controller.isDragHovering)
+              IgnorePointer(
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
+                      decoration: BoxDecoration(
                         color: Theme.of(
                           context,
-                        ).colorScheme.primary.withValues(alpha: 0.4),
-                        width: 2,
+                        ).colorScheme.surface.withValues(alpha: 0.95),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primary.withValues(alpha: 0.4),
+                          width: 2,
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      AppLocalizations.of(context)!.homePageDropToUpload,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: AppFontWeights.semibold,
+                      child: Text(
+                        AppLocalizations.of(context)!.homePageDropToUpload,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: AppFontWeights.semibold,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

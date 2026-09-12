@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/models/assistant.dart';
 import '../../core/providers/assistant_provider.dart';
+import '../../core/providers/knowledge_provider.dart';
 import '../../core/providers/quick_instruction_provider.dart';
 import '../../core/providers/world_book_provider.dart';
 import '../../l10n/app_localizations.dart';
@@ -208,6 +209,32 @@ Future<void> applyWorldBookBindings(
     activeIdsFor: provider.activeBookIdsFor,
     setActiveIds: (ids, {assistantId}) =>
         provider.setActiveBookIds(ids, assistantId: assistantId),
+  );
+}
+
+/// Applies a knowledge base's assistant assignment.
+///
+/// Call this only AFTER the base itself has been persisted — a failed
+/// create/update must never leave orphan bindings behind.
+Future<void> applyKnowledgeBaseBindings(
+  BuildContext context, {
+  required String itemId,
+  required Set<String> selectedAssistantIds,
+}) async {
+  final assistantIds = context
+      .read<AssistantProvider>()
+      .assistants
+      .map((a) => a.id)
+      .toList(growable: false);
+  if (assistantIds.isEmpty) return;
+  final provider = context.read<KnowledgeProvider>();
+  await applyAssistantBindStates(
+    itemId: itemId,
+    selectedAssistantIds: selectedAssistantIds,
+    assistantIds: assistantIds,
+    activeIdsFor: provider.activeBaseIdsFor,
+    setActiveIds: (ids, {assistantId}) =>
+        provider.setActiveBaseIds(ids, assistantId: assistantId),
   );
 }
 

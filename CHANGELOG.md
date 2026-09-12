@@ -1,5 +1,33 @@
 # Changelog
 
+## [3.2.1] - 2026-09-12
+
+> Kelivo v1.2.7 shipped more mature workspace/sandbox, Skills, background generation and scheduled tasks. We consider Cuplivo to have fulfilled its mission, so v3.2.1 is the last major update for the current stage. Contributors will move on to Kelivo's Issues and PRs to keep contributing to our mainline.
+
+### Added
+
+- **Inbound system share**: Other apps can send text/images/files to Cuplivo via the system share sheet; content lands in the input box without auto-send — friendly to phones with weak file management (#833 by @cup113)
+- **User-managed translation target languages**: The target-language list is now user-managed, expanded from 9 to 16 languages (#826 by @cup113)
+- **LAN sync quick connect**: Remembers the last 5 endpoints and adds QR-code / copy-link quick connect (#830 by @cup113)
+- Statistics filters: filter the stats page by model/provider, assistant and topic; overview metrics, heatmap, usage trend and rankings all react (#811 by @ook826092-cloud, @cup113)
+- Qwen Audio streaming ASR: ports upstream Qwen Audio real-time recognition with the sample-rate fix (#792 by @cup113, @YnSaki)
+- Per-model reasoning-effort vocabulary override: declare supported reasoning levels for niche/unlisted models, enabling higher levels such as `xhigh` (#797 by @cup113)
+- Preset sync to existing conversations: adding/editing assistant preset messages can now be applied to existing conversations (#796 by @cup113)
+- Location local tool: ports upstream `get_current_location` (Android + iOS) (#794 by @cup113, @Chevey339)
+- Desktop process restart: ports upstream process-restart; desktop now uses `Restart.restartApp` (#799 by @cup113, @Chevey339)
+
+### Fixed
+
+- Android chat input: keeps the selection toolbar visible after Select All (#838 by @cup113)
+- WeChat IME image paste: byte-driven `image/*` negotiation fixes the "this input does not support image pasting" prompt still shown on v3.1.2 (#829 by @cup113)
+- Thinking-step expand/collapse persistence: manual toggles are written back into the message payload, surviving restart / switching / sync (#832 by @cup113)
+- Group chat queued sends: queued input is kept when leaving the group chat page instead of being silently dropped (#793 by @cup113)
+- Android Alpine sandbox rootfs: re-resolves guest symlinks, fixing "no bin/sh" during base install (#825 by @cup113, @Chevey339)
+- Desktop logs folder: opened via platform commands (fixes unresponsive / crash on Windows) (#828 by @cup113)
+- Desktop provider settings dialog: custom-request expansion and balance-query loading state now refresh in place (#822 by @cup113)
+- Windows title bar: matches the page background again in non-pure-background mode (#821 by @cup113)
+- Gemini streaming: ignores empty STOP frames at the head of a response, avoiding premature completion (#790 by @cup113)
+
 ## [3.2.0] - 2026-09-07
 
 ### Added

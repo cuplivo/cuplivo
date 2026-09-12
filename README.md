@@ -29,30 +29,18 @@ Unlike most personal-customization or single-feature forks, Cuplivo aims to add 
 
 ### Signature Chat Experience
 
-1. **Flexible file system operations** — Sandbox runtime and lightweight file system access:
-   - **Sandbox runtime** — Full Linux sandbox: **Android** can select a distribution in-app and open a Termux-like interactive terminal from workspace settings (independent of the model shell tool), and can mount external directories (SAF) into the workspace with scheduled syncing; **iOS** runs the sandbox via iSH; users who complete the setup can execute command-line tools. Android also supports persistent sandbox sessions — terminal keep-alive and auto-open of the sandbox on app launch, so MCP servers, gateways and other long-running services start with the sandbox.
-   - **Lightweight file system access** — Workspace local tools read, write and regex-search local files and mount local directories as workspaces or external mounts without a command line (security-first), with an in-app file browser, paginated grep results and context, code structure outlines, downloading internet resources into the workspace, and long-webpage workspace cache continuation; on desktop, the workspace directory location is user-configurable, with open-externally and share actions for workspace files.
-
-2. **Proactive care** — AI can proactively send care messages to users on a configurable schedule (Android only).
+1. **Proactive care** — AI can proactively send care messages to users on a configurable schedule (Android only).
    - *Android-only*: background alarm + notification channel; alarm persists through force-stop
    - *Tip*: Enable it in the "Ta's Letters" tab of the assistant settings
 
-3. **Multi-assistant group chat** — Director-orchestrated group conversations: a background director model decides which assistant speaks, and each member chats in a shared thread with private context.
+2. **Multi-assistant group chat** — Director-orchestrated group conversations: a background director model decides which assistant speaks, and each member chats in a shared thread with private context.
 
-4. **Incremental backup & LAN sync** — Uploads only conversations, messages and related attachments since a selected date; quickly sync two devices' state over LAN, avoiding the need to transfer huge zip files over the public internet on every sync.
+3. **Incremental backup & LAN sync** — Uploads only conversations, messages and related attachments since a selected date; quickly sync two devices' state over LAN, avoiding the need to transfer huge zip files over the public internet on every sync. The client remembers recent endpoints, and the server can show a QR code / copy-link for quick connect.
    - *In practice*: A 12.6 MB full backup is typically followed by incremental uploads of 50 KB to 1.5 MB. Savings become more apparent as attachments and images accumulate. This reduces bandwidth and storage overhead, encouraging more frequent backups.
    - *Note*: Periodic full snapshots are still recommended to protect against large data loss.
 
-5. **Multi-AI side-by-side comparison** — Select 2 or more models to answer simultaneously and compare their responses side by side — pick the best result, or synthesize them into a single reply via summary, fusion, or commentary (like a more flexible OpenRouter Fusion).
+4. **Multi-AI side-by-side comparison** — Select 2 or more models to answer simultaneously and compare their responses side by side — pick the best result, or synthesize them into a single reply via summary, fusion, or commentary (like a more flexible OpenRouter Fusion).
    - *Tip*: Multi-select models in the model picker before sending a message to activate this mode.
-
-6. **Import from RikkaHub** — Convert a RikkaHub backup into a Cuplivo-compatible backup through the migration website, then import it via "Import Backup File".
-
-### Agent Capabilities
-
-1. **Handoff (subagent delegation)** — Delegate subtasks to other assistants via the local `kelivo_handoff` tool: the subagent's complete result is returned to the main agent for further processing (wait mode), with a live progress panel in the parent conversation and same-turn parallel calls.
-
-2. **Skills** — Import skills from public GitHub repositories, plus auxiliary file tools for skill execution. Skills are persisted on the filesystem and included in backups. v3 adds categories, a master toggle, chat-level skill entry, and built-in tools that let the assistant import and create skills directly.
 
 ### API & Provider Control
 
@@ -63,6 +51,8 @@ Unlike most personal-customization or single-feature forks, Cuplivo aims to add 
 3. **Smart OCR mode** — New "Smart" OCR mode: OCR stays off for vision-capable models and turns on for those without vision; per-assistant auto/always/never control.
 
 4. **PDF/Office file attachments** — Upload PDF, Word, Excel, and PowerPoint documents directly as attachments, with configurable document processing options.
+
+5. **Per-model reasoning-effort override** — Declare which reasoning levels a niche or unlisted model actually supports, so higher levels such as `xhigh` are no longer clamped down.
 
 ### Practical Utilities
 
@@ -76,35 +66,26 @@ Unlike most personal-customization or single-feature forks, Cuplivo aims to add 
 
 5. **AI log analysis** — Ask AI to analyze redacted request logs with a one-click draft right from the request log UI.
 
-6. **Tools Hub** — MCP servers, local tools, and workspace management (including mounts and Android terminal launch) unified into the original MCP entry, for quick adjustments during chat.
+6. **Startup assistant pin** — Choose an assistant that gets auto-selected when the app restarts, keeping your preferred assistant across sessions.
 
-7. **Startup assistant pin** — Choose an assistant that gets auto-selected when the app restarts, keeping your preferred assistant across sessions.
+7. **World book discovery** — Expanding the input bar shows world books grouped, and active assistants can be bound quickly while creating/editing entries.
 
-8. **World book discovery** — Expanding the input bar shows world books grouped, and active assistants can be bound quickly while creating/editing entries.
+8. **Conversation export to PDF** — Export the current conversation to PDF via the WebView renderer on Windows and Android.
 
-9. **Conversation export to PDF** — Export the current conversation to PDF via the WebView renderer on Windows and Android.
+9. **Save temporary conversations** — Temporary conversations can be promoted to history with one tap.
 
-10. **Shortcut commands** — Quick phrases and command injection unified into "shortcut commands": four injection points (system prompt / before & after user message / on input focus), per-round or session-persistent activation.
+10. **User-managed translation target languages** — Manage the translation target-language list yourself; the catalog covers 16 languages including Bengali.
 
-11. **Save temporary conversations** — Temporary conversations can be promoted to history with one tap.
+11. **Statistics filters** — Filter the statistics page by model/provider, assistant and topic; overview metrics, heatmap, usage trend and rankings all react to the filter.
 
 ### UI & Rendering
 
 1. **Web conversation view (experimental)** — Enable the experimental toggle to render standard conversations in a WebView on Android/iOS/macOS/Windows, with a declarative "Web conversation style library" JSON style import for bubble and card styling.
 
-2. **Multi-bubble rendering** — Optional setting: assistant replies split into multiple independent bubbles by blank lines, improving long-reply reading.
-
-3. **Math formula rendering** — Bundled flutter_math_fork fixes `ovalbox`, `operatorname` and `\tag` rendering errors.
-
-4. **Reading mode** — Long assistant answers can open in a dedicated reading mode to reduce fatigue.
-
-5. **SVG preview** — Renders SVG diagrams inline within `svg` code blocks.
-
-6. **Preset messages** — Preset messages collapsed behind a toggle bar in the chat list; new conversations are blocked when only presets exist.
+2. **Reading mode** — Long assistant answers can open in a dedicated reading mode to reduce fatigue.
 
 ### Additional Fixes
 
-- Markdown math formulas now render correctly: multi-line formulas inside lists, plus `\tag` support
 - Win+V clipboard history paste fix for Flutter engine bug on Windows
 - Kaomoji rendering — A bundled fallback font covers rare characters so kaomoji are no longer rendered incorrectly
 - Various other stability improvements

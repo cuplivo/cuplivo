@@ -14,7 +14,7 @@ import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../settings/widgets/language_select_sheet.dart'
     show
-        LanguageOption,
+        effectiveTranslateLanguage,
         showLanguageSelector,
         translateLanguageDisplayName,
         visibleTranslateLanguages;
@@ -32,7 +32,6 @@ class TranslatePage extends StatefulWidget {
 class _TranslatePageState extends State<TranslatePage> {
   final TextEditingController _src = TextEditingController();
   final TextEditingController _dst = TextEditingController();
-  LanguageOption? _lang;
   String? _providerKey;
   String? _modelId;
   bool _loading = false;
@@ -56,17 +55,7 @@ class _TranslatePageState extends State<TranslatePage> {
   void _initDefaults() {
     final settings = context.read<SettingsProvider>();
     final assistant = context.read<AssistantProvider>().currentAssistant;
-    final lc = Localizations.localeOf(context).languageCode.toLowerCase();
-    final visible = visibleTranslateLanguages(
-      settings.translateVisibleLanguages,
-    );
-    final savedLang = _languageForCode(visible, settings.translateTargetLang);
-    final localeLang = _languageForCode(
-      visible,
-      lc.startsWith('zh') ? 'zh-CN' : 'en',
-    );
     setState(() {
-      _lang = savedLang ?? localeLang ?? visible.first;
       _providerKey =
           settings.translateModelProvider ??
           assistant?.chatModelProvider ??
@@ -107,8 +96,14 @@ class _TranslatePageState extends State<TranslatePage> {
       setState(() => _dst.clear());
       return;
     }
-    setState(() => _lang = lang);
-    await context.read<SettingsProvider>().setTranslateTargetLang(lang.code);
+    final settings = context.read<SettingsProvider>();
+    final visible = visibleTranslateLanguages(
+      settings.translateVisibleLanguages,
+    );
+    // The sheet lists only visible entries, but a background visibility change
+    // may race the tap; never persist a hidden target.
+    if (!visible.any((l) => l.code == lang.code)) return;
+    await settings.setTranslateTargetLang(lang.code);
   }
 
   Future<void> _translate() async {
@@ -130,7 +125,11 @@ class _TranslatePageState extends State<TranslatePage> {
     final visible = visibleTranslateLanguages(
       settings.translateVisibleLanguages,
     );
-    final target = _effectiveLang(settings, visible);
+    final target = effectiveTranslateLanguage(
+      visible: visible,
+      persistedCode: settings.translateTargetLang,
+      localeLanguageCode: Localizations.localeOf(context).languageCode,
+    );
     final p = settings.translatePrompt
         .replaceAll('{source_text}', txt)
         .replaceAll(
@@ -183,32 +182,6 @@ class _TranslatePageState extends State<TranslatePage> {
     if (mounted) setState(() => _loading = false);
   }
 
-  LanguageOption? _languageForCode(List<LanguageOption> options, String? code) {
-    if (code == null || code.isEmpty) return null;
-    for (final option in options) {
-      if (option.code == code) return option;
-    }
-    return null;
-  }
-
-  /// The active target derived from the provider (source of truth). The local
-  /// `_lang` is only an unpersisted fallback; a target hidden by the language
-  /// manager never survives here.
-  LanguageOption _effectiveLang(
-    SettingsProvider settings,
-    List<LanguageOption> visible,
-  ) {
-    final persisted = _languageForCode(visible, settings.translateTargetLang);
-    if (persisted != null) return persisted;
-    final local = _lang;
-    if (local != null && visible.any((l) => l.code == local.code)) {
-      return local;
-    }
-    final lc = Localizations.localeOf(context).languageCode.toLowerCase();
-    return _languageForCode(visible, lc.startsWith('zh') ? 'zh-CN' : 'en') ??
-        visible.first;
-  }
-
   Future<void> _pasteFromClipboard() async {
     final data = await Clipboard.getData('text/plain');
     final text = data?.text ?? '';
@@ -241,11 +214,17 @@ class _TranslatePageState extends State<TranslatePage> {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final settings = context.watch<SettingsProvider>();
-    final visible = visibleTranslateLanguages(
-      settings.translateVisibleLanguages,
+    // Rebuild only when the visible set or the target actually changes.
+    final (visibleCodes, targetCode) = context
+        .select<SettingsProvider, (Set<String>, String?)>(
+          (s) => (s.translateVisibleLanguages, s.translateTargetLang),
+        );
+    final visible = visibleTranslateLanguages(visibleCodes);
+    final currentLang = effectiveTranslateLanguage(
+      visible: visible,
+      persistedCode: targetCode,
+      localeLanguageCode: Localizations.localeOf(context).languageCode,
     );
-    final currentLang = _effectiveLang(settings, visible);
     final asset = (_modelId != null)
         ? BrandAssets.assetForName(_modelId!)
         : null;

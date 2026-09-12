@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
@@ -199,6 +200,32 @@ String? effectiveTranslateTarget(Set<String> visibleCodes, String? current) {
   return visibleTranslateLanguages(visibleCodes).first.code;
 }
 
+/// The active target shown by the standalone translate pages: the persisted
+/// one when still visible, else the locale language when visible, else the
+/// first visible catalog entry. Single shared precedence for both pages.
+LanguageOption effectiveTranslateLanguage({
+  required List<LanguageOption> visible,
+  required String? persistedCode,
+  required String localeLanguageCode,
+}) {
+  final persisted = _languageByCode(visible, persistedCode);
+  if (persisted != null) return persisted;
+  final normalized = localeLanguageCode.toLowerCase();
+  return _languageByCode(
+        visible,
+        normalized.startsWith('zh') ? 'zh-CN' : 'en',
+      ) ??
+      visible.first;
+}
+
+LanguageOption? _languageByCode(List<LanguageOption> options, String? code) {
+  if (code == null || code.isEmpty) return null;
+  for (final option in options) {
+    if (option.code == code) return option;
+  }
+  return null;
+}
+
 Future<LanguageOption?> showLanguageSelector(BuildContext context) async {
   final isDesktop =
       defaultTargetPlatform == TargetPlatform.macOS ||
@@ -343,10 +370,8 @@ class _LanguageSelectSheetState extends State<_LanguageSelectSheet> {
                     children: [
                       ...visible.map((lang) => _languageOption(context, lang)),
                       const SizedBox(height: 8),
-                      _footerRow(
-                        context,
+                      TranslateLanguageActionRow(
                         icon: Lucide.Settings2,
-                        color: cs.onSurface.withValues(alpha: 0.75),
                         label: l10n.translateLanguageManagerTitle,
                         onTap: () {
                           Haptics.light();
@@ -355,8 +380,7 @@ class _LanguageSelectSheetState extends State<_LanguageSelectSheet> {
                       ),
                       const SizedBox(height: 8),
                       // Clear translation row (iOS style)
-                      _footerRow(
-                        context,
+                      TranslateLanguageActionRow(
                         icon: Lucide.X,
                         color: cs.error,
                         label: l10n.languageSelectSheetClearButton,
@@ -372,40 +396,6 @@ class _LanguageSelectSheetState extends State<_LanguageSelectSheet> {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _footerRow(
-    BuildContext context, {
-    required IconData icon,
-    required Color color,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    final cs = Theme.of(context).colorScheme;
-    return SizedBox(
-      height: 48,
-      child: IosCardPress(
-        borderRadius: BorderRadius.circular(14),
-        baseColor: cs.surface,
-        duration: const Duration(milliseconds: 260),
-        onTap: onTap,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(width: 10),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: AppFontWeights.medium,
-                color: color,
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -589,6 +579,93 @@ class _LanguageCheckRow extends StatelessWidget {
             const SizedBox(width: 10),
             IosCheckbox(value: checked, onChanged: (_) => onTap()),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shared footer action row (Manage Languages / Clear Translation). Used by the
+/// mobile language sheet and the desktop dropdown footer; on desktop it is
+/// reachable by Tab and activated with Enter/Space, with a focus ring.
+class TranslateLanguageActionRow extends StatefulWidget {
+  const TranslateLanguageActionRow({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
+
+  @override
+  State<TranslateLanguageActionRow> createState() =>
+      _TranslateLanguageActionRowState();
+}
+
+class _TranslateLanguageActionRowState
+    extends State<TranslateLanguageActionRow> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final color = widget.color ?? cs.onSurface.withValues(alpha: 0.75);
+    return FocusableActionDetector(
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+      },
+      actions: <Type, Action<Intent>>{
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            widget.onTap();
+            return null;
+          },
+        ),
+      },
+      onShowFocusHighlight: (value) => setState(() => _focused = value),
+      child: SizedBox(
+        height: 48,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: _focused ? cs.primary : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: IosCardPress(
+            borderRadius: BorderRadius.circular(14),
+            baseColor: cs.surface,
+            duration: const Duration(milliseconds: 260),
+            onTap: widget.onTap,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Icon(widget.icon, size: 20, color: color),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: AppFontWeights.medium,
+                      color: color,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

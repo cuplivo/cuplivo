@@ -51,6 +51,14 @@ user-managed, persisted preference.
 - The preference is a plain business KV key: it rides `settings.json` backup and
   `settings_meta.json` LWW automatically, with no key-registry edit and no
   `mergeableKeys` union. Absent-key backups restore to the historical nine.
+- `translateVisibleLanguages` returns a referentially stable immutable set
+  between mutations, so callers can `context.select` it without rebuilding on
+  unrelated notifications.
+- The desktop standalone-translate selector is the shared
+  `DesktopSelectDropdown` (extended with an optional `leading` glyph, an
+  optional `footer` row, and Escape/Enter keyboard handling), not a
+  page-private overlay. The shared dropdown refreshes an open menu when its
+  options or value change underneath.
 - `translation_service.dart` still injects `LanguageOption.displayName` (the
   English name) into the `{target_lang}` prompt; the two standalone translate
   pages use the localized resolver. This pre-existing split is intentionally

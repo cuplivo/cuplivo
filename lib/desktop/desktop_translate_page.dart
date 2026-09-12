@@ -17,10 +17,12 @@ import '../features/model/widgets/model_select_sheet.dart'
     show showModelSelector;
 import '../features/settings/widgets/language_select_sheet.dart'
     show
-        LanguageOption,
+        TranslateLanguageActionRow,
+        effectiveTranslateLanguage,
         showTranslateLanguageManager,
         translateLanguageDisplayName,
         visibleTranslateLanguages;
+import 'widgets/desktop_select_dropdown.dart';
 
 class DesktopTranslatePage extends StatefulWidget {
   const DesktopTranslatePage({super.key});
@@ -33,7 +35,6 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
   final TextEditingController _source = TextEditingController();
   final TextEditingController _output = TextEditingController();
 
-  LanguageOption? _targetLang;
   String? _modelProviderKey;
   String? _modelId;
 
@@ -60,19 +61,6 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
     final settings = context.read<SettingsProvider>();
     final assistant = context.read<AssistantProvider>().currentAssistant;
 
-    final visible = visibleTranslateLanguages(
-      settings.translateVisibleLanguages,
-    );
-    final savedLang = _languageForCode(visible, settings.translateTargetLang);
-    final locale = Localizations.localeOf(context).languageCode.toLowerCase();
-    final localeLang = _languageForCode(
-      visible,
-      locale.startsWith('zh') ? 'zh-CN' : 'en',
-    );
-    setState(() {
-      _targetLang = savedLang ?? localeLang ?? visible.first;
-    });
-
     // Default model: translate model -> assistant's chat model -> global default
     final providerKey =
         settings.translateModelProvider ??
@@ -88,39 +76,15 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
     });
   }
 
-  LanguageOption? _languageForCode(List<LanguageOption> options, String? code) {
-    if (code == null || code.isEmpty) return null;
-    for (final option in options) {
-      if (option.code == code) return option;
-    }
-    return null;
-  }
-
-  /// The active target derived from the provider (source of truth). The local
-  /// `_targetLang` is only an unpersisted fallback; a target hidden by the
-  /// language manager never survives here.
-  LanguageOption _effectiveTargetLang(
-    SettingsProvider settings,
-    List<LanguageOption> visible,
-  ) {
-    final persisted = _languageForCode(visible, settings.translateTargetLang);
-    if (persisted != null) return persisted;
-    final local = _targetLang;
-    if (local != null && visible.any((l) => l.code == local.code)) {
-      return local;
-    }
-    final locale = Localizations.localeOf(context).languageCode.toLowerCase();
-    return _languageForCode(
-          visible,
-          locale.startsWith('zh') ? 'zh-CN' : 'en',
-        ) ??
-        visible.first;
-  }
-
-  Future<void> _onLanguageChanged(LanguageOption? lang) async {
-    if (lang == null) return;
-    setState(() => _targetLang = lang);
-    await context.read<SettingsProvider>().setTranslateTargetLang(lang.code);
+  Future<void> _onLanguageSelected(String code) async {
+    final settings = context.read<SettingsProvider>();
+    final visible = visibleTranslateLanguages(
+      settings.translateVisibleLanguages,
+    );
+    // The dropdown lists only visible entries, but a background visibility
+    // change may race the tap; never persist a hidden target.
+    if (!visible.any((l) => l.code == code)) return;
+    await settings.setTranslateTargetLang(code);
   }
 
   Future<void> _pickModel() async {
@@ -165,7 +129,11 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
     final visible = visibleTranslateLanguages(
       settings.translateVisibleLanguages,
     );
-    final lang = _effectiveTargetLang(settings, visible);
+    final lang = effectiveTranslateLanguage(
+      visible: visible,
+      persistedCode: settings.translateTargetLang,
+      localeLanguageCode: Localizations.localeOf(context).languageCode,
+    );
     final prompt = settings.translatePrompt
         .replaceAll('{source_text}', text)
         .replaceAll(
@@ -221,11 +189,17 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
-    final settings = context.watch<SettingsProvider>();
-    final visible = visibleTranslateLanguages(
-      settings.translateVisibleLanguages,
+    // Rebuild only when the visible set or the target actually changes.
+    final (visibleCodes, targetCode) = context
+        .select<SettingsProvider, (Set<String>, String?)>(
+          (s) => (s.translateVisibleLanguages, s.translateTargetLang),
+        );
+    final visible = visibleTranslateLanguages(visibleCodes);
+    final currentTarget = effectiveTranslateLanguage(
+      visible: visible,
+      persistedCode: targetCode,
+      localeLanguageCode: Localizations.localeOf(context).languageCode,
     );
-    final currentTarget = _effectiveTargetLang(settings, visible);
 
     final topBar = SizedBox(
       height: 36,
@@ -270,11 +244,34 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
                         child: Row(
                           children: [
                             // Language dropdown
-                            _LanguageDropdown(
-                              value: currentTarget,
-                              onChanged: _translating
-                                  ? null
-                                  : (v) => _onLanguageChanged(v),
+                            DesktopSelectDropdown<String>(
+                              value: currentTarget.code,
+                              options: [
+                                for (final lang in visible)
+                                  DesktopSelectOption<String>(
+                                    value: lang.code,
+                                    label: translateLanguageDisplayName(
+                                      l10n,
+                                      lang.code,
+                                    ),
+                                    leading: lang.flag,
+                                  ),
+                              ],
+                              minWidth: 150,
+                              minHeight: 40,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 11,
+                                vertical: 4,
+                              ),
+                              maxLabelWidth: 240,
+                              triggerFillColor: context.appColors.surfaceCard,
+                              onSelected: _onLanguageSelected,
+                              footer: TranslateLanguageActionRow(
+                                icon: lucide.Lucide.Settings2,
+                                label: l10n.translateLanguageManagerTitle,
+                                onTap: () =>
+                                    showTranslateLanguageManager(context),
+                              ),
                             ),
                             const SizedBox(width: 8),
                             // Translate / Stop button with animation
@@ -396,475 +393,6 @@ class _PaneContainer extends StatelessWidget {
         ),
         if (overlay != null) Positioned(top: 8, right: 8, child: overlay!),
       ],
-    );
-  }
-}
-
-class _LanguageDropdown extends StatefulWidget {
-  const _LanguageDropdown({required this.value, required this.onChanged});
-  final LanguageOption? value;
-  final ValueChanged<LanguageOption?>? onChanged;
-
-  @override
-  State<_LanguageDropdown> createState() => _LanguageDropdownState();
-}
-
-class _LanguageDropdownState extends State<_LanguageDropdown> {
-  bool _hover = false;
-  bool _open = false;
-  final LayerLink _link = LayerLink();
-  final GlobalKey _triggerKey = GlobalKey();
-  OverlayEntry? _entry;
-
-  void _toggle() {
-    if (_open) {
-      _close();
-    } else {
-      _openMenu();
-    }
-  }
-
-  void _close() {
-    _entry?.remove();
-    _entry = null;
-    if (mounted) setState(() => _open = false);
-  }
-
-  void _openMenu() {
-    if (_entry != null) return;
-    final rb = _triggerKey.currentContext?.findRenderObject() as RenderBox?;
-    if (rb == null) return;
-    final triggerSize = rb.size;
-    final triggerWidth = triggerSize.width;
-    final visible = visibleTranslateLanguages(
-      context.read<SettingsProvider>().translateVisibleLanguages,
-    );
-
-    _entry = OverlayEntry(
-      builder: (ctx) {
-        final isDark = Theme.of(ctx).brightness == Brightness.dark;
-        final usePure = Provider.of<SettingsProvider>(
-          ctx,
-          listen: false,
-        ).usePureBackground;
-        final bgColor = usePure
-            ? (isDark ? Colors.black : Colors.white)
-            : ctx.appColors.surfaceCard;
-
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTap: _close,
-                child: const SizedBox.expand(),
-              ),
-            ),
-            CompositedTransformFollower(
-              link: _link,
-              showWhenUnlinked: false,
-              offset: Offset(0, triggerSize.height + 6),
-              child: _LangDropdownOverlay(
-                width: triggerWidth,
-                backgroundColor: bgColor,
-                onClose: _close,
-                onManage: () {
-                  _close();
-                  showTranslateLanguageManager(context);
-                },
-                onSelected: (opt) {
-                  widget.onChanged?.call(opt);
-                  _close();
-                },
-                selected: widget.value ?? visible.first,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-    Overlay.of(context).insert(_entry!);
-    setState(() => _open = true);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final cs = Theme.of(context).colorScheme;
-
-    final baseBorder = cs.outlineVariant.withValues(alpha: 0.18);
-    final hoverBorder = cs.primary; // hover/focus border
-    final borderColor = _open || _hover ? hoverBorder : baseBorder;
-
-    final visible = visibleTranslateLanguages(
-      context.watch<SettingsProvider>().translateVisibleLanguages,
-    );
-    final selected = widget.value ?? visible.first;
-    final label = translateLanguageDisplayName(l10n, selected.code);
-
-    return CompositedTransformTarget(
-      link: _link,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hover = true),
-        onExit: (_) => setState(() => _hover = false),
-        child: GestureDetector(
-          onTap: _toggle,
-          child: AnimatedContainer(
-            key: _triggerKey,
-            duration: const Duration(milliseconds: 120),
-            curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
-            constraints: const BoxConstraints(minWidth: 150, minHeight: 40),
-            decoration: BoxDecoration(
-              color: context.appColors.surfaceCard,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: borderColor, width: 1),
-              boxShadow: _open
-                  ? [
-                      BoxShadow(
-                        color: cs.primary.withValues(alpha: 0.10),
-                        blurRadius: 0,
-                        spreadRadius: 2,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Stack(
-              alignment: Alignment.centerLeft,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      selected.flag,
-                      style: TextStyle(fontSize: 16, height: 1),
-                    ),
-                    const SizedBox(width: 8),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 240),
-                      child: Text(
-                        label,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: cs.onSurface.withValues(alpha: 0.88),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 24),
-                  ],
-                ),
-                Positioned.fill(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: AnimatedRotation(
-                      turns: _open ? 0.5 : 0.0,
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOutCubic,
-                      child: Icon(
-                        lucide.Lucide.ChevronDown,
-                        size: 14,
-                        color: cs.onSurface.withValues(alpha: 0.45),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LangDropdownOverlay extends StatefulWidget {
-  const _LangDropdownOverlay({
-    required this.width,
-    required this.backgroundColor,
-    required this.onClose,
-    required this.onManage,
-    required this.onSelected,
-    required this.selected,
-  });
-
-  final double width;
-  final Color backgroundColor;
-  final VoidCallback onClose;
-  final VoidCallback onManage;
-  final ValueChanged<LanguageOption> onSelected;
-  final LanguageOption selected;
-
-  @override
-  State<_LangDropdownOverlay> createState() => _LangDropdownOverlayState();
-}
-
-class _LangDropdownOverlayState extends State<_LangDropdownOverlay>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _opacity;
-  late final Animation<Offset> _slide;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
-    _opacity = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
-    _slide = Tween<Offset>(
-      begin: const Offset(0, -0.08),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
-    WidgetsBinding.instance.addPostFrameCallback((_) => _ctrl.forward());
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final borderColor = cs.outlineVariant.withValues(alpha: 0.12);
-
-    final filtered = visibleTranslateLanguages(
-      context.watch<SettingsProvider>().translateVisibleLanguages,
-    );
-
-    return FadeTransition(
-      opacity: _opacity,
-      child: SlideTransition(
-        position: _slide,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            constraints: BoxConstraints(
-              minWidth: widget.width,
-              maxWidth: widget.width,
-            ),
-            decoration: BoxDecoration(
-              color: widget.backgroundColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: borderColor, width: 0.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.32 : 0.08),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Options
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 350),
-                  child: Scrollbar(
-                    thickness: 6,
-                    radius: const Radius.circular(3),
-                    child: ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
-                      shrinkWrap: true,
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
-                        final item = filtered[index];
-                        final selected = item.code == widget.selected.code;
-                        return _LangOptionTile(
-                          option: item,
-                          selected: selected,
-                          onTap: () => widget.onSelected(item),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                Divider(height: 1, color: borderColor),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
-                  child: _LangManageRow(
-                    label: l10n.translateLanguageManagerTitle,
-                    onTap: widget.onManage,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// (search removed as per requirement)
-
-class _LangOptionTile extends StatefulWidget {
-  const _LangOptionTile({
-    required this.option,
-    required this.selected,
-    required this.onTap,
-  });
-  final LanguageOption option;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  State<_LangOptionTile> createState() => _LangOptionTileState();
-}
-
-class _LangOptionTileState extends State<_LangOptionTile> {
-  bool _hover = false;
-  bool _active = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = widget.selected
-        ? cs.primary.withValues(alpha: 0.12)
-        : (_hover
-              ? cs.onSurface.withValues(alpha: isDark ? 0.08 : 0.04)
-              : Colors.transparent);
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => setState(() => _active = true),
-        onTapCancel: () => setState(() => _active = false),
-        onTapUp: (_) => setState(() => _active = false),
-        onTap: widget.onTap,
-        child: AnimatedScale(
-          scale: _active ? 0.98 : 1.0,
-          duration: const Duration(milliseconds: 100),
-          curve: Curves.easeOut,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            curve: Curves.easeOutCubic,
-            margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Text(
-                  widget.option.flag,
-                  style: TextStyle(fontSize: 16, height: 1),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    translateLanguageDisplayName(
-                      AppLocalizations.of(context)!,
-                      widget.option.code,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: cs.onSurface.withValues(alpha: 0.88),
-                      fontWeight: widget.selected
-                          ? AppFontWeights.semibold
-                          : AppFontWeights.regular,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Opacity(
-                  opacity: widget.selected ? 1 : 0,
-                  child: Icon(lucide.Lucide.Check, size: 14, color: cs.primary),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LangManageRow extends StatefulWidget {
-  const _LangManageRow({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  State<_LangManageRow> createState() => _LangManageRowState();
-}
-
-class _LangManageRowState extends State<_LangManageRow> {
-  bool _hover = false;
-  bool _active = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = _hover
-        ? cs.onSurface.withValues(alpha: isDark ? 0.08 : 0.04)
-        : Colors.transparent;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => setState(() => _active = true),
-        onTapCancel: () => setState(() => _active = false),
-        onTapUp: (_) => setState(() => _active = false),
-        onTap: widget.onTap,
-        child: AnimatedScale(
-          scale: _active ? 0.98 : 1.0,
-          duration: const Duration(milliseconds: 100),
-          curve: Curves.easeOut,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            curve: Curves.easeOutCubic,
-            margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  lucide.Lucide.Settings2,
-                  size: 16,
-                  color: cs.onSurface.withValues(alpha: 0.7),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: cs.onSurface.withValues(alpha: 0.88),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

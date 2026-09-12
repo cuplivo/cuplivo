@@ -350,8 +350,9 @@ class SettingsProvider extends ChangeNotifier {
 
   /// Languages shown in the translate target selector when the user has not
   /// customized the list. This is the historical fixed list; newly added
-  /// catalog languages are opt-in.
-  static const List<String> defaultTranslateVisibleLanguages = <String>[
+  /// catalog languages are opt-in. A const set so the getter can return a
+  /// stable instance (required for `context.select` to compare by identity).
+  static const Set<String> defaultTranslateVisibleLanguages = <String>{
     'zh-CN',
     'en',
     'zh-TW',
@@ -361,7 +362,7 @@ class SettingsProvider extends ChangeNotifier {
     'de',
     'it',
     'es',
-  ];
+  };
   static const String _learningModeEnabledKey = 'learning_mode_enabled_v1';
   static const String _learningModePromptKey = 'learning_mode_prompt_v1';
   static const String _searchServicesKey = 'search_services_v1';
@@ -1202,7 +1203,9 @@ class SettingsProvider extends ChangeNotifier {
           .map((e) => e.trim())
           .where((e) => e.isNotEmpty)
           .toSet();
-      _translateVisibleLanguages = cleaned.isEmpty ? null : cleaned;
+      _translateVisibleLanguages = cleaned.isEmpty
+          ? defaultTranslateVisibleLanguages
+          : Set.unmodifiable(cleaned);
     }
     // Reconcile: a persisted target outside the visible set falls back to null
     // (the feature layer then resolves locale -> first visible). Covers a
@@ -4042,11 +4045,10 @@ Please translate the <source_text> section:
     await prefs.remove(_translateTargetLangKey);
   }
 
-  /// Persisted visible set, or null when the user follows the default list.
-  Set<String>? _translateVisibleLanguages;
-  Set<String> get translateVisibleLanguages => Set.unmodifiable(
-    _translateVisibleLanguages ?? defaultTranslateVisibleLanguages.toSet(),
-  );
+  /// Immutable and referentially stable between mutations, so consumers can
+  /// `context.select` it without rebuilding on unrelated notifications.
+  Set<String> _translateVisibleLanguages = defaultTranslateVisibleLanguages;
+  Set<String> get translateVisibleLanguages => _translateVisibleLanguages;
 
   Future<void> setTranslateVisibleLanguages(Set<String> codes) async {
     final cleaned = codes
@@ -4055,7 +4057,7 @@ Please translate the <source_text> section:
         .toSet();
     // Never persist an empty set: the selector must always offer something.
     if (cleaned.isEmpty) return;
-    _translateVisibleLanguages = cleaned;
+    _translateVisibleLanguages = Set.unmodifiable(cleaned);
     notifyListeners();
     final prefs = _preferences;
     final sorted = cleaned.toList()..sort();
@@ -5697,9 +5699,7 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     copy._translateModelId = _translateModelId;
     copy._translatePrompt = _translatePrompt;
     copy._translateTargetLang = _translateTargetLang;
-    copy._translateVisibleLanguages = _translateVisibleLanguages == null
-        ? null
-        : {..._translateVisibleLanguages!};
+    copy._translateVisibleLanguages = _translateVisibleLanguages;
     copy._ocrModelProvider = _ocrModelProvider;
     copy._ocrModelId = _ocrModelId;
     copy._ocrPrompt = _ocrPrompt;

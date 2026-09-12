@@ -79,7 +79,7 @@ void main() {
       expect(fromEmpty, isNotEmpty);
       expect(
         fromEmpty.map((l) => l.code).toList(),
-        SettingsProvider.defaultTranslateVisibleLanguages,
+        SettingsProvider.defaultTranslateVisibleLanguages.toList(),
       );
 
       final fromUnknown = visibleTranslateLanguages({'xx', 'yy'});
@@ -162,5 +162,25 @@ void main() {
       expect(settings.translateTargetLang, 'ja');
       expect(prefs.getString('translate_target_lang_v1'), 'ja');
     });
+
+    test(
+      'visible set instance is stable across unrelated notifications',
+      () async {
+        final prefs = BusinessPreferences.memoryForTests();
+        final settings = SettingsProvider(preferences: prefs);
+        await _waitForSettingsLoad();
+
+        final initial = settings.translateVisibleLanguages;
+        await settings.setTranslatePrompt('unrelated notification');
+        expect(identical(initial, settings.translateVisibleLanguages), isTrue);
+
+        await settings.setTranslateVisibleLanguages({'en', 'bn'});
+        expect(identical(initial, settings.translateVisibleLanguages), isFalse);
+        expect(
+          settings.translateVisibleLanguages,
+          unorderedEquals(['en', 'bn']),
+        );
+      },
+    );
   });
 }

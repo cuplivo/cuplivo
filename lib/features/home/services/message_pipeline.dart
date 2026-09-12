@@ -91,6 +91,11 @@ class MessagePipeline {
   ///
   /// If preparation fails before the stream starts, [onStreamComplete] fires
   /// immediately and the placeholder is cleaned up.
+  ///
+  /// [requestMetadataAnchorMessageId] overrides the per-message request
+  /// metadata replay anchor for callers whose [completeMessages] extends past
+  /// the generated turn (e.g. Multi-AI retries append the placeholder at the
+  /// tail): the replay scans up to and including that user message.
   Future<void> executeAssistantResponse({
     required ChatMessage assistantMessage,
     required String providerKey,
@@ -98,9 +103,11 @@ class MessagePipeline {
     required ModelExecutionContext context,
     required List<ChatMessage> completeMessages,
     ChatInputData? inputData,
+    Conversation? conversationOverride,
+    String? requestMetadataAnchorMessageId,
     bool allowImagesApiRouting = true,
     bool generateTitleOnFinish = false,
-    Map<String, dynamic>? requestExtraBody,
+    void Function(Object error, StackTrace stackTrace)? onPreparationError,
     VoidCallback? onStreamComplete,
   }) async {
     final assistant = context.assistant;
@@ -123,6 +130,7 @@ class MessagePipeline {
 
     try {
       final currentConversation =
+          conversationOverride ??
           _chatService.getConversation(assistantMessage.conversationId) ??
           context.conversation;
 
@@ -153,9 +161,11 @@ class MessagePipeline {
       // When there is no live composer input (group second turns, resend,
       // regenerate or Multi-AI retries), the per-message request metadata
       // persisted at send time (AD-0033) is the source of truth: replay it
-      // from the history like single chat's regenerate/continue paths do.
-      // The skip-free list keeps the anchor bounding: the last user message
-      // in [completeMessages] is the one that produced this turn.
+      // from the history of the turn that produced this assistant message.
+      // The anchor bound keeps a newer turn's metadata from leaking in when
+      // [completeMessages] extends past [assistantMessage]. Callers whose
+      // prepared list ends past the turn (Multi-AI retries append the
+      // placeholder at the tail) pass the turn's user message explicitly.
       final (
         allowImagesApiRouting: resolvedRouting,
         requestExtraBody: resolvedExtraBody,
@@ -163,10 +173,13 @@ class MessagePipeline {
           ? MessageGenerationService.resolveRequestOptionsFromMessages(
               completeMessages,
               fallbackAllowImagesApiRouting: allowImagesApiRouting,
+              anchorMessageId:
+                  requestMetadataAnchorMessageId ?? assistantMessage.id,
+              anchorInclusive: requestMetadataAnchorMessageId != null,
             )
           : (
               allowImagesApiRouting: allowImagesApiRouting,
-              requestExtraBody: requestExtraBody ?? inputData.extraBody,
+              requestExtraBody: inputData.extraBody,
             );
 
       final ctx = _messageGenerationService.buildGenerationContext(
@@ -193,10 +206,11 @@ class MessagePipeline {
           debugPrint('[MessagePipeline][$modelId] stream error: $e');
         }),
       );
-    } catch (e) {
+    } catch (e, st) {
       // Preparation error — clean up the placeholder
       _streamController.markStreamingEnded(assistantMessage.id);
       await _chatService.updateMessage(assistantMessage.id, isStreaming: false);
+      onPreparationError?.call(e, st);
       onStreamComplete?.call();
       debugPrint('[MessagePipeline][$modelId] preparation error: $e');
     }

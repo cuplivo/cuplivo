@@ -276,12 +276,30 @@ class MessageGenerationService {
   /// given context: the image-mode routing decision and the image options
   /// body persisted at send time. See
   /// docs/adr/0033-per-message-request-metadata.md.
+  ///
+  /// When [anchorMessageId] is present in [messages], the scan is bounded to
+  /// that turn: exclusive (messages before it) by default, or inclusive of the
+  /// anchor itself when [anchorInclusive] is set. Without the bound, a longer
+  /// history (e.g. continuing a non-latest assistant message after a tool
+  /// answer, or retrying an older Multi-AI turn) would let a newer user turn's
+  /// metadata leak into this generation. A missing anchor falls back to
+  /// scanning the whole list. The anchor matches a message row id; callers
+  /// holding a version-group key resolve it to a row id first (see
+  /// [MultiAIEngine.getMessagesForAnchor]).
   static ({bool allowImagesApiRouting, Map<String, dynamic>? requestExtraBody})
   resolveRequestOptionsFromMessages(
     List<ChatMessage> messages, {
     required bool fallbackAllowImagesApiRouting,
+    String? anchorMessageId,
+    bool anchorInclusive = false,
   }) {
-    for (int i = messages.length - 1; i >= 0; i--) {
+    final int anchorIndex = anchorMessageId == null
+        ? -1
+        : messages.indexWhere((message) => message.id == anchorMessageId);
+    final int scanEnd = anchorIndex < 0
+        ? messages.length
+        : (anchorInclusive ? anchorIndex + 1 : anchorIndex);
+    for (int i = scanEnd - 1; i >= 0; i--) {
       final message = messages[i];
       if (message.role != 'user') continue;
       final requestExtraBody = message.requestExtraBody;

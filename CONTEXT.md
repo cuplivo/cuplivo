@@ -8,6 +8,12 @@
 - **历史保留 (History Retention)**: Whether a non-anchor message re-expands its Invocation Snapshot when that message remains in model context. It does not keep a snapshot alive after the message is truncated, deleted, or excluded by branching.
 - **工具限制 (Tool Restriction)**: Request-scoped negative permissions contributed by active system instructions and the current anchor's Invocation Snapshots. Restrictions can deny tools or shell commands for that generation, but never mutate an assistant's enabled-tool configuration.
 
+## Message Generation Pipeline (消息生成管线)
+
+- **统一生成管线 (unified generation pipeline)**: `MessagePipeline.executeAssistantResponse` is the single prepare→execute path for every conversational turn — single-chat send / regenerate / continue-after-tool, Multi-AI threads, and group-member turns. It owns reasoning initialization, API-message preparation, per-message request-metadata replay (ADR-0033), and stream dispatch. Callers own the placeholder, versioning, loading flags, tool-part reset, and their own pre-checks (`message_not_found` / `no_model` / audio).
+- **元数据回放锚定 (replay anchor)**: when there is no live composer input, the pipeline replays the persisted request metadata (image-mode routing + options body), anchored to the turn being generated: by default the scan stops before the assistant placeholder; callers whose prepared list extends past the turn (Multi-AI retries append the placeholder at the tail) pass the turn's user message row instead. A newer turn's metadata therefore cannot leak into a regenerate / continue / Multi-AI retry. Live-input sends bypass replay entirely and use the input's own routing/body.
+- **准备错误通道 (preparation-error channel)**: a prepare failure is reported through `onPreparationError`; the pipeline keeps its own placeholder cleanup and `onStreamComplete`. Single-chat callers additionally run their in-memory cleanup and map the error to `ChatActionResult` (user-cancel stays a silent success).
+
 ## Provider Management (供应商管理)
 
 - **内置供应商 (built-in provider)**: One of the 12 statically seeded providers (`_builtInProviderKeysInOrder`, `settings_provider.dart:71`). Guaranteed to appear in the providers list even with no persisted config — a config-less built-in resolves to `ProviderConfig.defaultsFor` (never implicitly persisted on read paths). Known parallel surface: the static seed list vs `defaultsFor`'s `defaultEnabled` heuristic — keep in sync.

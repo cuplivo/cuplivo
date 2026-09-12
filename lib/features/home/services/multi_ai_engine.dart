@@ -227,6 +227,22 @@ class MultiAIEngine extends ChangeNotifier {
     return result;
   }
 
+  /// Resolve a user-message version-group key ([anchorUserMsgId]) to the row id
+  /// of its first matching user message. Metadata replay bounds by row id;
+  /// edited user-message versions share the group key, so the first row
+  /// identifies the turn exactly like [getMessagesForAnchor]. Null when the
+  /// anchor is not in the loaded list (replay falls back to the placeholder
+  /// bound).
+  String? _anchorUserRowId(String anchorUserMsgId) {
+    for (final message in _chatController.messages) {
+      if (message.role != 'user') continue;
+      if ((message.groupId ?? message.id) == anchorUserMsgId) {
+        return message.id;
+      }
+    }
+    return null;
+  }
+
   // ============================================================================
   // Lifecycle
   // ============================================================================
@@ -264,16 +280,9 @@ class MultiAIEngine extends ChangeNotifier {
     required List<ChatMessage> completeMessages,
     required String roundGroupId,
     ChatInputData? inputData,
+    String? requestMetadataAnchorMessageId,
     bool allowImagesApiRouting = true,
   }) async {
-    // Send rounds carry the options via inputData; history rounds replay the
-    // persisted per-message request metadata of the anchor user message.
-    final requestOptions = inputData != null
-        ? (allowImagesApiRouting: allowImagesApiRouting, requestExtraBody: null)
-        : MessageGenerationService.resolveRequestOptionsFromMessages(
-            completeMessages,
-            fallbackAllowImagesApiRouting: allowImagesApiRouting,
-          );
     final convId = conversation.id;
     final operationId = const Uuid().v4();
     _responseOperationTracker.start(operationId, convId);
@@ -364,8 +373,8 @@ class MultiAIEngine extends ChangeNotifier {
           context: ctx,
           completeMessages: threadMessages,
           inputData: inputData,
-          allowImagesApiRouting: requestOptions.allowImagesApiRouting,
-          requestExtraBody: requestOptions.requestExtraBody,
+          requestMetadataAnchorMessageId: requestMetadataAnchorMessageId,
+          allowImagesApiRouting: allowImagesApiRouting,
           generateTitleOnFinish: i == 0,
           onStreamComplete: onThreadDone,
         );
@@ -514,6 +523,7 @@ class MultiAIEngine extends ChangeNotifier {
       askUserService: askUserService,
       completeMessages: completeMessages,
       roundGroupId: roundGroupId,
+      requestMetadataAnchorMessageId: userMessage.id,
     );
 
     _chatController.notifyListeners();
@@ -652,12 +662,6 @@ class MultiAIEngine extends ChangeNotifier {
       versionSelections: _chatController.versionSelections,
     );
 
-    final requestOptions =
-        MessageGenerationService.resolveRequestOptionsFromMessages(
-          threadMessages,
-          fallbackAllowImagesApiRouting: true,
-        );
-
     final operationId = const Uuid().v4();
     _responseOperationTracker.start(operationId, conversation.id);
     _responseOperationTracker.addSlot(operationId, newMessage.id);
@@ -668,8 +672,7 @@ class MultiAIEngine extends ChangeNotifier {
         modelId: model.modelId,
         context: ctx,
         completeMessages: threadMessages,
-        allowImagesApiRouting: requestOptions.allowImagesApiRouting,
-        requestExtraBody: requestOptions.requestExtraBody,
+        requestMetadataAnchorMessageId: _anchorUserRowId(anchorUserMsgId),
         generateTitleOnFinish: false,
       );
       final stored = _storedMessage(conversation.id, newMessage.id);
@@ -773,19 +776,13 @@ class MultiAIEngine extends ChangeNotifier {
         }).toList();
 
         _chatController.setConversationLoading(conversation.id, true);
-        final requestOptions =
-            MessageGenerationService.resolveRequestOptionsFromMessages(
-              threadMessages,
-              fallbackAllowImagesApiRouting: true,
-            );
         await _pipeline.executeAssistantResponse(
           assistantMessage: newMsg,
           providerKey: model.providerKey,
           modelId: model.modelId,
           context: ctx,
           completeMessages: threadMessages,
-          allowImagesApiRouting: requestOptions.allowImagesApiRouting,
-          requestExtraBody: requestOptions.requestExtraBody,
+          requestMetadataAnchorMessageId: _anchorUserRowId(anchorUserMsgId),
           generateTitleOnFinish: false,
         );
         final stored = _storedMessage(conversation.id, newMsg.id);

@@ -45,3 +45,13 @@ no-silent-degradation rule.
   restore panel state (documented in CONTEXT.md).
 - Legacy rows (written before v15) have null metadata → regenerate falls back
   to `allowImagesApiRouting: true` + no options, i.e. today's behavior.
+- Replay is owned by `MessagePipeline`, not hand-rolled per path. The pipeline
+  anchors the replay to the turn being generated — by default it scans only
+  the messages BEFORE the assistant placeholder; callers whose prepared list
+  extends past the turn (Multi-AI retries append the placeholder at the tail)
+  pass the turn's user message row instead. A newer user turn's metadata can
+  never leak into a regenerate/continue/Multi-AI retry. All single-chat paths
+  (send / regenerate / continue-after-tool), Multi-AI threads, and group
+  members share this single implementation.
+- Live composer input always wins: when `inputData != null` the pipeline uses
+  the input's routing/options body and never replays persisted metadata.

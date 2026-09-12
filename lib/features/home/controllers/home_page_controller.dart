@@ -55,7 +55,6 @@ import '../services/multi_ai_engine.dart';
 import '../widgets/synthesize_task_selector.dart'
     show showSynthesizeTaskSelector;
 import '../models/synthesize_task.dart' show synthesizeTasks;
-import '../services/message_pipeline.dart';
 import '../services/ask_user_interaction_service.dart';
 import '../services/tool_handler_service.dart';
 import '../../../shared/dialogs/tool_collision_dialog.dart';
@@ -544,25 +543,12 @@ class HomePageController extends ChangeNotifier {
     );
     _viewModel.addListener(notifyListeners);
 
-    final pipeline = MessagePipeline(
-      chatService: _chatService,
-      messageGenerationService: _messageGenerationService,
-      streamController: _streamController,
-      generationController: _generationController,
-      executeStream: (ctx, {streamKeyOverride, requestIdOverride}) =>
-          _viewModel.executeStream(
-            ctx,
-            streamKeyOverride: streamKeyOverride,
-            requestIdOverride: requestIdOverride,
-          ),
-    );
-
     multiAIEngine = MultiAIEngine(
       chatService: _chatService,
       chatController: _chatController,
       messageGenerationService: _messageGenerationService,
       streamController: _streamController,
-      pipeline: pipeline,
+      pipeline: _viewModel.pipeline,
       onMaybeUpdateProactiveCare:
           _viewModel.maybeUpdateProactiveCareAfterMultiAI,
     );

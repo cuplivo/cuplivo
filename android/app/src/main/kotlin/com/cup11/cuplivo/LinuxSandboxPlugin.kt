@@ -700,6 +700,9 @@ private class GuestCommandRunner(private val appContext: Context) {
     val linux = File(workspacePath, ".sandbox/linux")
     val tmp = File(workspacePath, ".sandbox/tmp")
     tmp.mkdirs()
+    if (!linux.isDirectory) {
+      throw IllegalStateException("sandbox rootfs missing: ${linux.absolutePath}")
+    }
 
     val builder = ProcessBuilder(
       buildGuestCommand(
@@ -1307,6 +1310,8 @@ private fun currentSandboxAbi(): String {
 }
 
 private fun rootfsHasCompatibleShell(linuxDir: File, abi: String): Boolean {
+  // Install-time gate: probe the POSIX baseline `bin/sh` first (Alpine ships
+  // only busybox sh), falling back to bash for images without a sh symlink.
   val shell = listOf("bin/sh", "bin/bash")
     .mapNotNull { resolveGuestFile(linuxDir, it) }
     .firstOrNull()
@@ -1326,10 +1331,21 @@ private fun rootfsHasCompatibleShell(linuxDir: File, abi: String): Boolean {
  * Guest shell used for proot execution: bash when the rootfs provides it
  * (Ubuntu/Debian), otherwise busybox `/bin/sh` (Alpine). The lookup follows
  * guest-absolute symlinks inside the rootfs, so an Alpine
- * `/bin/sh -> /bin/busybox` counts as a shell. Exposed for tests.
+ * `/bin/sh -> /bin/busybox` counts as a shell. This prefers bash for an
+ * interactive-friendly runtime shell — the reverse of the install-time probe
+ * in [rootfsHasCompatibleShell], which checks the `bin/sh` POSIX baseline
+ * first. Exposed for tests.
+ *
+ * Throws when neither resolves: emitting a shell path the guest does not have
+ * would surface as an opaque proot exec error instead.
  */
-internal fun guestShellFor(linuxDir: File): String =
-  if (resolveGuestFile(linuxDir, "bin/bash") != null) "/bin/bash" else "/bin/sh"
+internal fun guestShellFor(linuxDir: File): String {
+  if (resolveGuestFile(linuxDir, "bin/bash") != null) return "/bin/bash"
+  if (resolveGuestFile(linuxDir, "bin/sh") != null) return "/bin/sh"
+  throw IllegalStateException(
+    "no usable guest shell (bin/bash, bin/sh) under ${linuxDir.absolutePath}",
+  )
+}
 
 private fun readFilePrefix(file: File, size: Int): ByteArray? {
   return try {

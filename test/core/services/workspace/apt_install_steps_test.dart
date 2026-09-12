@@ -46,6 +46,51 @@ void main() {
     });
   });
 
+  group('Debian dependency package mapping', () {
+    test('uses the same apt names as Ubuntu', () {
+      for (final dependency in <String>[
+        WorkspaceDependencyIds.python,
+        WorkspaceDependencyIds.nodejs,
+        WorkspaceDependencyIds.git,
+        WorkspaceDependencyIds.githubCli,
+        WorkspaceDependencyIds.curl,
+        WorkspaceDependencyIds.opensshClient,
+        WorkspaceDependencyIds.archive,
+        WorkspaceDependencyIds.office,
+        WorkspaceDependencyIds.buildEssential,
+      ]) {
+        expect(
+          LinuxSandboxService.packageNamesForDependency(
+            dependency,
+            family: SandboxDistroFamily.debian,
+          ),
+          LinuxSandboxService.packageNamesForDependency(
+            dependency,
+            family: SandboxDistroFamily.ubuntu,
+          ),
+          reason: '$dependency must not differ between Debian and Ubuntu',
+        );
+      }
+    });
+
+    test('does not fall back to the Alpine names', () {
+      expect(
+        LinuxSandboxService.packageNamesForDependency(
+          WorkspaceDependencyIds.buildEssential,
+          family: SandboxDistroFamily.debian,
+        ),
+        'build-essential',
+      );
+      expect(
+        LinuxSandboxService.packageNamesForDependency(
+          WorkspaceDependencyIds.githubCli,
+          family: SandboxDistroFamily.debian,
+        ),
+        'gh',
+      );
+    });
+  });
+
   group('LinuxSandboxService.buildAptInstallSteps', () {
     test('runs recover before update before install', () {
       final steps = LinuxSandboxService.buildAptInstallSteps(packages: 'git');

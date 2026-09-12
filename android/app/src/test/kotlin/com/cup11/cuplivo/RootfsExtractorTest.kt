@@ -431,6 +431,55 @@ class RootfsExtractorTest {
     assertEquals("/bin/bash", guestShellFor(root))
   }
 
+  @Test
+  fun resolvesIntermediateDirectorySymlinksInsideTheRootfs() {
+    // Ubuntu's merged-usr layout: /bin is a symlink to the real usr/bin.
+    val root = File(work, "guest-merged-usr").apply { mkdirs() }
+    File(root, "usr/bin").mkdirs()
+    File(root, "usr/bin/bash").writeText("bash")
+    assumeTrue(
+      "host cannot create symlinks",
+      tryCreateSymlink(File(root, "bin"), "usr/bin"),
+    )
+
+    assertEquals(
+      File(root, "usr/bin/bash").path,
+      resolveGuestFile(root, "bin/bash")!!.path,
+    )
+  }
+
+  @Test
+  fun rejectsIntermediateDirectorySymlinksPointingOutsideTheRootfs() {
+    val outside = File(work, "host-outside").apply { mkdirs() }
+    File(outside, "sh").writeText("host-shell")
+    val root = File(work, "guest-intermediate-escape").apply { mkdirs() }
+    assumeTrue(
+      "host cannot create symlinks",
+      tryCreateSymlink(File(root, "bin"), "../host-outside"),
+    )
+
+    // The host file exists but must never be reachable through the rootfs.
+    assertTrue(File(outside, "sh").isFile)
+    assertNull(resolveGuestFile(root, "bin/sh"))
+  }
+
+  @Test
+  fun rejectsNulBytesInGuestPaths() {
+    assertNull(normalizeGuestRelativePath("bin/\u0000sh"))
+    assertNull(normalizeGuestRelativePath("\u0000"))
+  }
+
+  @Test
+  fun guestShellThrowsWhenRootfsHasNoShell() {
+    val root = File(work, "guest-shell-missing").apply { mkdirs() }
+    try {
+      guestShellFor(root)
+      fail("missing guest shell should have thrown")
+    } catch (expected: IllegalStateException) {
+      // expected
+    }
+  }
+
   private fun tryCreateSymlink(link: File, target: String): Boolean = try {
     link.parentFile?.mkdirs()
     Files.createSymbolicLink(link.toPath(), File(target).toPath())

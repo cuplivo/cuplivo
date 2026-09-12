@@ -53,7 +53,9 @@ class SandboxDistro {
     final id = (values['ID'] ?? '').trim().toLowerCase();
     SandboxDistroFamily? family = _familyOf(id);
     if (family == null) {
-      for (final like in (values['ID_LIKE'] ?? '').toLowerCase().split(' ')) {
+      for (final like in (values['ID_LIKE'] ?? '').toLowerCase().split(
+        RegExp(r'\s+'),
+      )) {
         family = _familyOf(like);
         if (family != null) break;
       }

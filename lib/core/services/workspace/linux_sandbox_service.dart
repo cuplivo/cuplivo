@@ -480,15 +480,18 @@ class LinuxSandboxService {
   /// Debian publish both `.tar.gz` and `.tar.xz`). Extension-less URLs fall
   /// back to `.tar.gz`. Exposed for tests.
   static String archiveExtensionForUrl(String url) {
-    final path = Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
-    for (final extension in const [
-      '.tar.gz',
-      '.tgz',
-      '.tar.xz',
-      '.txz',
-      '.tar',
-    ]) {
+    final uri = Uri.tryParse(url);
+    final path = (uri?.path ?? url).toLowerCase();
+    const extensions = ['.tar.gz', '.tgz', '.tar.xz', '.txz', '.tar'];
+    for (final extension in extensions) {
       if (path.endsWith(extension)) return extension;
+    }
+    // Signed/expiring mirrors can carry the file name in the query string
+    // (`.../download?file=rootfs.tar.xz`); the extractor picks its decoder
+    // from this extension, so a miss here breaks the download (issue #725).
+    final full = (uri?.toString() ?? url).toLowerCase();
+    for (final extension in extensions) {
+      if (full.contains(extension)) return extension;
     }
     return '.tar.gz';
   }
@@ -576,8 +579,10 @@ class LinuxSandboxService {
 
   /// Distribution of the installed rootfs. The marker is authoritative; a
   /// rootfs installed before the marker existed is detected once from
-  /// os-release and the marker is written for later calls. iOS always runs
-  /// the bundled Alpine fakefs.
+  /// os-release and the marker is written for later calls. The marker is
+  /// rewritten (or cleared) after every successful base install, so replacing
+  /// the rootfs cannot keep a stale detection. iOS always runs the bundled
+  /// Alpine fakefs.
   Future<SandboxDistro> workspaceDistro(String workspaceHostPath) async {
     if (Platform.isIOS) {
       return const SandboxDistro(
@@ -1336,6 +1341,8 @@ class LinuxSandboxService {
         alpine ? 'python3 py3-pip' : 'python3 python3-pip',
       WorkspaceDependencyIds.nodejs => 'nodejs npm',
       WorkspaceDependencyIds.git => 'git',
+      // `gh` is not in Debian's archives, so apt there reports "Unable to
+      // locate package gh"; users can add cli.github.com's own repository.
       WorkspaceDependencyIds.githubCli => alpine ? 'github-cli' : 'gh',
       WorkspaceDependencyIds.curl => 'curl',
       WorkspaceDependencyIds.opensshClient =>

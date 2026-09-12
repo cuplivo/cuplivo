@@ -75,7 +75,12 @@ object RootfsExtractor {
     val buffered = BufferedInputStream(archive.inputStream(), COPY_CHUNK)
     val input: InputStream = when {
       gzipped -> GZIPInputStream(buffered, COPY_CHUNK)
-      xzipped -> XZInputStream(buffered)
+      // XZInputStream defaults to no memory limit; the documented worst case
+      // is 1.5 GiB, which would kill the app process on a hostile/corrupt
+      // archive. Rootfs images use preset levels that need ~65 MiB, so a
+      // 128 MiB cap (KiB units) leaves headroom and turns excess into a
+      // MemoryLimitException instead of an OOM.
+      xzipped -> XZInputStream(buffered, XZ_MEMORY_LIMIT_KIB)
       else -> buffered
     }
     try {
@@ -429,24 +434,26 @@ object RootfsExtractor {
 
 private const val MAX_GUEST_SYMLINK_HOPS = 40
 
+/** XZ decoder memory cap in KiB (128 MiB); see [XZInputStream]. */
+private const val XZ_MEMORY_LIMIT_KIB = 128 * 1024
+
 /**
  * Resolve [guestRelativePath] (e.g. `bin/sh`) to a regular file inside
- * [root], re-resolving symlinks whose own link text would otherwise resolve
- * against the Android filesystem instead of the guest.
+ * [root], re-resolving symlinks the way the guest sees them.
  *
  * Symlinks with absolute targets must survive for proot (they are written
  * verbatim, see `writeSymlink`), but on the host such a link resolves against
  * the Android filesystem: Alpine's `/bin/sh -> /bin/busybox` makes plain
  * `File(root, "bin/sh").exists()` false even though the guest file exists.
- * This resolver reads the link text and re-resolves it under [root] instead.
+ * This resolver walks the path segment by segment and, whenever a segment is
+ * a symlink, re-roots its target under [root] before continuing. Intermediate
+ * directory symlinks (e.g. Ubuntu's merged-usr `bin -> usr/bin`) are handled
+ * the same way, so no host path is ever followed.
  *
- * Only a path segment that is itself a symlink is re-resolved. An
- * *intermediate* directory segment that is a symlink to an absolute host path
- * is still followed by the host filesystem calls, so the returned [File] can
- * point outside [root]. Rootfs archives are user-supplied and treated as
- * trusted; the result is only read for a small ELF header prefix and used to
- * pick the guest shell name, never executed on the host. Returns null for
- * missing paths, non-files, loops, and targets that normalize out of [root].
+ * The result gates rootfs promotion (`extractRootfs` accepts an archive only
+ * when `bin/sh` resolves), so it must stay inside [root]. Link targets that
+ * normalize above the root are rejected, as are dangling links, non-files and
+ * symlink loops ([MAX_GUEST_SYMLINK_HOPS]).
  */
 internal fun resolveGuestFile(
   root: File,
@@ -456,26 +463,36 @@ internal fun resolveGuestFile(
   if (hops >= MAX_GUEST_SYMLINK_HOPS) return null
   val normalized = normalizeGuestRelativePath(guestRelativePath) ?: return null
   if (normalized.isEmpty()) return null
-  val candidate = File(root, normalized)
-  if (!Files.isSymbolicLink(candidate.toPath())) {
-    return candidate.takeIf { it.isFile }
+  val segments = normalized.split('/')
+  for (index in segments.indices) {
+    val prefix = segments.subList(0, index + 1).joinToString("/")
+    val candidate = File(root, prefix)
+    if (!Files.isSymbolicLink(candidate.toPath())) continue
+    val target = try {
+      Files.readSymbolicLink(candidate.toPath()).toString().replace('\\', '/')
+    } catch (_: Exception) {
+      return null
+    }
+    // Re-root the link target under the rootfs: an absolute target restarts
+    // from the root, a relative one joins the link's own directory. The
+    // remaining segments are appended and the combined path is normalized
+    // again, which also rejects `..` escapes above the root.
+    val targetPath = if (target.startsWith("/")) {
+      target.trimStart('/')
+    } else {
+      val directory = segments.subList(0, index).joinToString("/")
+      if (directory.isEmpty()) target else "$directory/$target"
+    }
+    val rest = segments.subList(index + 1, segments.size).joinToString("/")
+    val combined = if (rest.isEmpty()) targetPath else "$targetPath/$rest"
+    return resolveGuestFile(root, combined, hops + 1)
   }
-  val target = try {
-    Files.readSymbolicLink(candidate.toPath()).toString().replace('\\', '/')
-  } catch (_: Exception) {
-    return null
-  }
-  val next = if (target.startsWith("/")) {
-    target.trimStart('/')
-  } else {
-    val parent = normalized.substringBeforeLast('/', "")
-    if (parent.isEmpty()) target else "$parent/$target"
-  }
-  return resolveGuestFile(root, next, hops + 1)
+  return File(root, normalized).takeIf { it.isFile }
 }
 
 /** Normalize a guest-relative path, rejecting escapes above the rootfs. */
 internal fun normalizeGuestRelativePath(path: String): String? {
+  if (path.contains('\u0000')) return null
   val segments = ArrayDeque<String>()
   for (segment in path.replace('\\', '/').split('/')) {
     when (segment) {

@@ -42,6 +42,21 @@ void main() {
       expect(distro.id, 'linuxmint');
     });
 
+    test('splits ID_LIKE on tabs and repeated spaces', () {
+      expect(
+        SandboxDistro.parseOsRelease(
+          'ID=unknown\nID_LIKE="debian\tubuntu"\n',
+        )!.family,
+        SandboxDistroFamily.debian,
+      );
+      expect(
+        SandboxDistro.parseOsRelease(
+          'ID=unknown\nID_LIKE="debian  ubuntu"\n',
+        )!.family,
+        SandboxDistroFamily.debian,
+      );
+    });
+
     test('ignores comments, blanks and malformed lines', () {
       final distro = SandboxDistro.parseOsRelease(
         '# comment\n'
@@ -211,6 +226,31 @@ void main() {
       expect(
         LinuxSandboxService.archiveExtensionForUrl('not a url'),
         '.tar.gz',
+      );
+    });
+
+    test('falls back to the query string of signed URLs', () {
+      expect(
+        LinuxSandboxService.archiveExtensionForUrl(
+          'https://mirrors.example.com/download'
+          '?file=alpine-minirootfs-3.24.1-x86_64.tar.xz&X-Amz-Signature=abc',
+        ),
+        '.tar.xz',
+      );
+      expect(
+        LinuxSandboxService.archiveExtensionForUrl(
+          'https://mirrors.example.com/download?name=rootfs.tgz',
+        ),
+        '.tgz',
+      );
+    });
+
+    test('prefers the path suffix over an extension in the query', () {
+      expect(
+        LinuxSandboxService.archiveExtensionForUrl(
+          'https://example.com/rootfs.tar.xz?fallback=other.tar.gz',
+        ),
+        '.tar.xz',
       );
     });
   });

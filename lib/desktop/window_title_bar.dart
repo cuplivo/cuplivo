@@ -52,20 +52,20 @@ class _WindowTitleBarState extends State<WindowTitleBar> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final brightness = Theme.of(context).brightness;
+    final theme = Theme.of(context);
+    final brightness = theme.brightness;
     final sp = context.watch<SettingsProvider>();
     final isDark = brightness == Brightness.dark;
     final Color bg = sp.usePureBackground
         ? (isDark ? Colors.black : Colors.white)
-        : cs.surfaceContainerHighest;
+        : theme.scaffoldBackgroundColor;
     return Container(
       height: 40,
       decoration: BoxDecoration(
         color: bg,
         // border: Border(
         //   bottom: BorderSide(
-        //     color: cs.outlineVariant.withOpacity(0.25),
+        //     color: theme.colorScheme.outlineVariant.withOpacity(0.25),
         //     width: 0.5,
         //   ),
         // ),

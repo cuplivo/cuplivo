@@ -28,6 +28,9 @@ class ModelExecutionContext {
     this.includeUserQuickInstructions = true,
   });
 
+  /// Pre-resolved conversation used for message preparation. Callers must
+  /// apply any context clamp (e.g. `conversationForMessageContext`) before
+  /// passing it; the pipeline does not re-resolve it.
   final Conversation conversation;
   final SettingsProvider settings;
   final Assistant? assistant;
@@ -95,7 +98,9 @@ class MessagePipeline {
   /// [requestMetadataAnchorMessageId] overrides the per-message request
   /// metadata replay anchor for callers whose [completeMessages] extends past
   /// the generated turn (e.g. Multi-AI retries append the placeholder at the
-  /// tail): the replay scans up to and including that user message.
+  /// tail): the replay scans up to and including that user message. Supplying
+  /// the anchor always implies inclusive scanning; there is no exclusive mode
+  /// for an explicit anchor.
   Future<void> executeAssistantResponse({
     required ChatMessage assistantMessage,
     required String providerKey,
@@ -103,7 +108,6 @@ class MessagePipeline {
     required ModelExecutionContext context,
     required List<ChatMessage> completeMessages,
     ChatInputData? inputData,
-    Conversation? conversationOverride,
     String? requestMetadataAnchorMessageId,
     bool allowImagesApiRouting = true,
     bool generateTitleOnFinish = false,
@@ -123,16 +127,14 @@ class MessagePipeline {
         _generationController.isReasoningEnabled(
           assistant?.thinkingBudget ?? settings.thinkingBudget,
         );
-    await _messageGenerationService.initializeReasoningState(
-      messageId: assistantMessage.id,
-      enableReasoning: enableReasoning,
-    );
 
     try {
-      final currentConversation =
-          conversationOverride ??
-          _chatService.getConversation(assistantMessage.conversationId) ??
-          context.conversation;
+      await _messageGenerationService.initializeReasoningState(
+        messageId: assistantMessage.id,
+        enableReasoning: enableReasoning,
+      );
+
+      final currentConversation = context.conversation;
 
       final prepared = await _messageGenerationService
           .prepareApiMessagesWithInjections(

@@ -228,18 +228,24 @@ class MultiAIEngine extends ChangeNotifier {
   }
 
   /// Resolve a user-message version-group key ([anchorUserMsgId]) to the row id
-  /// of its first matching user message. Metadata replay bounds by row id;
-  /// edited user-message versions share the group key, so the first row
-  /// identifies the turn exactly like [getMessagesForAnchor]. Null when the
-  /// anchor is not in the loaded list (replay falls back to the placeholder
-  /// bound).
-  String? _anchorUserRowId(String anchorUserMsgId) {
-    for (final message in _chatController.messages) {
+  /// of its first matching user message in [messages]. Metadata replay bounds
+  /// by row id and scans the same list it is handed, so resolution must happen
+  /// against that exact list (never the loaded window) to keep the index spaces
+  /// aligned. Edited user-message versions share the group key, so the first
+  /// row identifies the turn. Returns null (with a log) when the anchor is
+  /// absent even from the persisted history; the pipeline then falls back to
+  /// the placeholder bound as a last resort.
+  String? _anchorUserRowId(String anchorUserMsgId, List<ChatMessage> messages) {
+    for (final message in messages) {
       if (message.role != 'user') continue;
       if ((message.groupId ?? message.id) == anchorUserMsgId) {
         return message.id;
       }
     }
+    debugPrint(
+      '[MultiAI][_anchorUserRowId] anchor $anchorUserMsgId not found in '
+      '${messages.length} messages; replay falls back to placeholder bound',
+    );
     return null;
   }
 
@@ -672,7 +678,10 @@ class MultiAIEngine extends ChangeNotifier {
         modelId: model.modelId,
         context: ctx,
         completeMessages: threadMessages,
-        requestMetadataAnchorMessageId: _anchorUserRowId(anchorUserMsgId),
+        requestMetadataAnchorMessageId: _anchorUserRowId(
+          anchorUserMsgId,
+          threadMessages,
+        ),
         generateTitleOnFinish: false,
       );
       final stored = _storedMessage(conversation.id, newMessage.id);
@@ -782,7 +791,10 @@ class MultiAIEngine extends ChangeNotifier {
           modelId: model.modelId,
           context: ctx,
           completeMessages: threadMessages,
-          requestMetadataAnchorMessageId: _anchorUserRowId(anchorUserMsgId),
+          requestMetadataAnchorMessageId: _anchorUserRowId(
+            anchorUserMsgId,
+            threadMessages,
+          ),
           generateTitleOnFinish: false,
         );
         final stored = _storedMessage(conversation.id, newMsg.id);

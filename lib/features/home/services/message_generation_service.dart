@@ -283,9 +283,10 @@ class MessageGenerationService {
   /// history (e.g. continuing a non-latest assistant message after a tool
   /// answer, or retrying an older Multi-AI turn) would let a newer user turn's
   /// metadata leak into this generation. A missing anchor falls back to
-  /// scanning the whole list. The anchor matches a message row id; callers
-  /// holding a version-group key resolve it to a row id first (see
-  /// [MultiAIEngine.getMessagesForAnchor]).
+  /// scanning the whole list. The anchor matches a `ChatMessage.id` row id;
+  /// callers holding a version-group key (edited user versions share the group
+  /// key) must resolve it to a row id first, against the same [messages] list
+  /// handed here -- see `MultiAIEngine._anchorUserRowId`.
   static ({bool allowImagesApiRouting, Map<String, dynamic>? requestExtraBody})
   resolveRequestOptionsFromMessages(
     List<ChatMessage> messages, {

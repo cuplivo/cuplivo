@@ -514,13 +514,17 @@ class ChatActions {
     final apiContextMessages = chatController.messagesForCompleteHistoryContext(
       conversation,
     );
+    final messageContextConversation = _conversationForMessageContext(
+      conversation,
+      apiContextMessages,
+    );
     Object? prepareError;
     await _pipeline.executeAssistantResponse(
       assistantMessage: assistantMessage,
       providerKey: providerKey,
       modelId: modelId,
       context: ModelExecutionContext(
-        conversation: conversation,
+        conversation: messageContextConversation,
         settings: settings,
         assistant: assistant,
         approvalService: approvalService,
@@ -528,10 +532,6 @@ class ChatActions {
         versionSelections: _versionSelections,
       ),
       completeMessages: apiContextMessages,
-      conversationOverride: _conversationForMessageContext(
-        conversation,
-        apiContextMessages,
-      ),
       inputData: input,
       allowImagesApiRouting: input.allowImagesApiRouting,
       generateTitleOnFinish: true,
@@ -692,13 +692,18 @@ class ChatActions {
 
     _setConversationLoading(conversation.id, true);
 
+    final messageContextConversation = _conversationForMessageContext(
+      conversation,
+      regenerationMessages,
+      maxRawTruncateIndex: versioning.lastKeep,
+    );
     Object? prepareError;
     await _pipeline.executeAssistantResponse(
       assistantMessage: assistantMessage,
       providerKey: providerKey,
       modelId: modelId,
       context: ModelExecutionContext(
-        conversation: conversation,
+        conversation: messageContextConversation,
         settings: settings,
         assistant: assistant,
         approvalService: regenApprovalService,
@@ -706,11 +711,6 @@ class ChatActions {
         versionSelections: _versionSelections,
       ),
       completeMessages: regenerationMessages,
-      conversationOverride: _conversationForMessageContext(
-        conversation,
-        regenerationMessages,
-        maxRawTruncateIndex: versioning.lastKeep,
-      ),
       inputData: null,
       allowImagesApiRouting: allowImagesApiRouting,
       generateTitleOnFinish: shouldGenerateTitleOnRetry,
@@ -787,13 +787,17 @@ class ChatActions {
     final apiContextMessages = List<ChatMessage>.of(completeMessages);
     apiContextMessages[contextIndex] = streamingMessage.copyWith(content: '');
 
+    final messageContextConversation = _conversationForMessageContext(
+      conversation,
+      apiContextMessages,
+    );
     Object? prepareError;
     await _pipeline.executeAssistantResponse(
       assistantMessage: streamingMessage,
       providerKey: providerKey,
       modelId: modelId,
       context: ModelExecutionContext(
-        conversation: conversation,
+        conversation: messageContextConversation,
         settings: settings,
         assistant: assistant,
         approvalService: approvalService,
@@ -801,10 +805,6 @@ class ChatActions {
         versionSelections: _versionSelections,
       ),
       completeMessages: apiContextMessages,
-      conversationOverride: _conversationForMessageContext(
-        conversation,
-        apiContextMessages,
-      ),
       inputData: null,
       allowImagesApiRouting: allowImagesApiRouting,
       generateTitleOnFinish: false,

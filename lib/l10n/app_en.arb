@@ -3121,6 +3121,14 @@
   "logViewerCurrentLog": "Current Log",
   "logViewerExport": "Export",
   "logViewerOpenFolder": "Open Logs Folder",
+  "logViewerOpenFolderFailed": "Couldn't open the logs folder: {error}",
+  "@logViewerOpenFolderFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "logViewerRequestsCount": "{count} requests",
   "@logViewerRequestsCount": {
     "placeholders": {

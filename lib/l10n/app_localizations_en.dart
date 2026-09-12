@@ -7726,6 +7726,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logViewerOpenFolder => 'Open Logs Folder';
 
   @override
+  String logViewerOpenFolderFailed(String error) {
+    return 'Couldn\'t open the logs folder: $error';
+  }
+
+  @override
   String logViewerRequestsCount(int count) {
     return '$count requests';
   }

@@ -2625,6 +2625,7 @@
   "logViewerCurrentLog": "目前日誌",
   "logViewerExport": "匯出",
   "logViewerOpenFolder": "開啟日誌目錄",
+  "logViewerOpenFolderFailed": "無法開啟日誌目錄：{error}",
   "logViewerRequestsCount": "{count} 個請求",
   "logViewerFieldId": "ID",
   "logViewerFieldMethod": "方法",

@@ -2625,6 +2625,7 @@
   "logViewerCurrentLog": "当前日志",
   "logViewerExport": "导出",
   "logViewerOpenFolder": "打开日志目录",
+  "logViewerOpenFolderFailed": "无法打开日志目录：{error}",
   "logViewerRequestsCount": "{count} 条请求",
   "logViewerFieldId": "ID",
   "logViewerFieldMethod": "方法",

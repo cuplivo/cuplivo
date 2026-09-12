@@ -120,7 +120,16 @@ void main() {
         chatService: chatService,
       );
       final backupFile = await sync.prepareBackupFile(
-        const WebDavConfig(content: BackupContentScope(chatsAndAssistants: true, attachments: false, workspaces: false, fontsAndAvatars: false, settings: true, skills: true)),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+            settings: true,
+            skills: true,
+          ),
+        ),
       );
       addTearDown(() => DataSync.cleanupTemporaryBackupFile(backupFile));
 
@@ -150,7 +159,16 @@ void main() {
       );
       await restoreSync.restoreFromLocalFile(
         backupFile,
-        const WebDavConfig(content: BackupContentScope(chatsAndAssistants: true, attachments: false, workspaces: false, fontsAndAvatars: false, settings: true, skills: true)),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+            settings: true,
+            skills: true,
+          ),
+        ),
         mode: RestoreMode.overwrite,
       );
       await restoreService.reloadCachesFromDb();
@@ -220,7 +238,16 @@ void main() {
     );
     await sync.restoreFromLocalFile(
       zipFile,
-      const WebDavConfig(content: BackupContentScope(chatsAndAssistants: true, attachments: false, workspaces: false, fontsAndAvatars: false, settings: true, skills: true)),
+      const WebDavConfig(
+        content: BackupContentScope(
+          chatsAndAssistants: true,
+          attachments: false,
+          workspaces: false,
+          fontsAndAvatars: false,
+          settings: true,
+          skills: true,
+        ),
+      ),
       mode: RestoreMode.merge,
     );
 
@@ -261,7 +288,16 @@ void main() {
     final sync = DataSync(preferences: businessPrefs, chatService: chatService);
     await sync.restoreFromLocalFile(
       zipFile,
-      const WebDavConfig(content: BackupContentScope(chatsAndAssistants: false, attachments: false, workspaces: false, fontsAndAvatars: false, settings: true, skills: true)),
+      const WebDavConfig(
+        content: BackupContentScope(
+          chatsAndAssistants: false,
+          attachments: false,
+          workspaces: false,
+          fontsAndAvatars: false,
+          settings: true,
+          skills: true,
+        ),
+      ),
       mode: RestoreMode.merge,
     );
 
@@ -305,7 +341,16 @@ void main() {
         chatService: chatService,
       );
       final backupFile = await sync.prepareBackupFile(
-        const WebDavConfig(content: BackupContentScope(chatsAndAssistants: true, attachments: false, workspaces: false, fontsAndAvatars: false, settings: true, skills: true)),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+            settings: true,
+            skills: true,
+          ),
+        ),
         format: BackupFormat.kelivoLegacy,
       );
       addTearDown(() => DataSync.cleanupTemporaryBackupFile(backupFile));
@@ -344,13 +389,98 @@ void main() {
       );
       await restoreSync.restoreFromLocalFile(
         backupFile,
-        const WebDavConfig(content: BackupContentScope(chatsAndAssistants: true, attachments: false, workspaces: false, fontsAndAvatars: false, settings: true, skills: true)),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+            settings: true,
+            skills: true,
+          ),
+        ),
         mode: RestoreMode.overwrite,
       );
       await restoreService.reloadCachesFromDb();
       expect(restoreService.getAllCompleteConversations(), hasLength(1));
       expect(restoreService.getMessages('legacy-conv'), hasLength(1));
       expect(restoreService.getToolEvents('legacy-msg'), hasLength(1));
+    },
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
+
+  test(
+    'kelivoLegacy export re-splits unified quick instructions by placement',
+    () async {
+      businessPrefs = BusinessPreferences.memoryForTests({
+        'instruction_injections_v1': jsonEncode([
+          {
+            'id': 'sys',
+            'title': 'System',
+            'prompt': 'sys prompt',
+            'group': 'G',
+            'placement': 'systemPrompt',
+          },
+          {
+            'id': 'phrase',
+            'title': 'Phrase',
+            'prompt': 'insert me',
+            'group': 'Quick Phrases',
+            'placement': 'inputBox',
+          },
+        ]),
+      });
+      final chatService = await createService();
+      final sync = DataSync(
+        preferences: businessPrefs,
+        chatService: chatService,
+      );
+
+      Future<Map<String, dynamic>> exportSettings(BackupFormat format) async {
+        final file = await sync.prepareBackupFile(
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+              settings: true,
+              skills: false,
+            ),
+          ),
+          format: format,
+        );
+        addTearDown(() => DataSync.cleanupTemporaryBackupFile(file));
+        final archive = ZipDecoder().decodeBytes(file.readAsBytesSync());
+        try {
+          final entry = archive.findFile('settings.json')!;
+          return jsonDecode(utf8.decode(entry.readBytes()!))
+              as Map<String, dynamic>;
+        } finally {
+          archive.clearSync();
+        }
+      }
+
+      // Legacy: inputBox items move to quick_phrases_v1 in the Kelivo shape.
+      final legacy = await exportSettings(BackupFormat.kelivoLegacy);
+      final phrases = (jsonDecode(legacy['quick_phrases_v1'] as String) as List)
+          .cast<Map<String, dynamic>>();
+      expect(phrases, hasLength(1));
+      expect(phrases.single['id'], 'phrase');
+      expect(phrases.single['content'], 'insert me');
+      expect(phrases.single['isGlobal'], isTrue);
+      final legacyInjections =
+          (jsonDecode(legacy['instruction_injections_v1'] as String) as List)
+              .cast<Map<String, dynamic>>();
+      expect(legacyInjections.map((json) => json['id']), ['sys']);
+
+      // Cuplivo-native: the unified library must survive unsplit.
+      final jsonl = await exportSettings(BackupFormat.jsonl);
+      expect(jsonl.containsKey('quick_phrases_v1'), isFalse);
+      final unified =
+          (jsonDecode(jsonl['instruction_injections_v1'] as String) as List)
+              .cast<Map<String, dynamic>>();
+      expect(unified.map((json) => json['id']), ['sys', 'phrase']);
     },
     timeout: const Timeout(Duration(minutes: 2)),
   );

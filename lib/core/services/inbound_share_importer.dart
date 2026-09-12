@@ -92,6 +92,7 @@ class InboundShareImporter {
     String? preferredName,
   }) async {
     if (source.isEmpty) return null;
+    File? destination;
     try {
       final sourceFile = File(source);
       if (!await sourceFile.exists()) {
@@ -99,15 +100,35 @@ class InboundShareImporter {
         return null;
       }
       final safeName = _safeName(preferredName ?? source);
-      final destination = await _dedupedTarget(directory, safeName);
-      await destination.writeAsBytes(
-        await sourceFile.readAsBytes(),
-        flush: true,
-      );
+      destination = await _dedupedTarget(directory, safeName);
+      // Streamed copy: shares are unbounded (video/archive), so reading the
+      // whole file into memory risks an OOM kill on mobile.
+      final sink = destination.openWrite();
+      try {
+        await sink.addStream(sourceFile.openRead());
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
       return destination.path;
     } catch (error, stackTrace) {
       debugPrint('[InboundShare] copy failed for $source: $error\n$stackTrace');
+      await _deletePartial(destination);
       return null;
+    }
+  }
+
+  /// Removes a half-written destination after a failed copy so a later import
+  /// can never pick up a truncated file.
+  static Future<void> _deletePartial(File? destination) async {
+    if (destination == null) return;
+    try {
+      if (await destination.exists()) await destination.delete();
+    } catch (error) {
+      debugPrint(
+        '[InboundShare] partial copy cleanup failed for '
+        '${destination.path}: $error',
+      );
     }
   }
 

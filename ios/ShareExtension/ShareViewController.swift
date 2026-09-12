@@ -66,17 +66,21 @@ final class ShareViewController: UIViewController {
     for provider in providers {
       group.enter()
       load(provider: provider, inbox: inbox) { loaded in
-        switch loaded {
-        case .text(let value):
-          if text == nil { text = value }
-        case .image(let name):
-          images.append(name)
-        case .file(let entry):
-          files.append(entry)
-        case .none:
-          break
+        // NSItemProvider handlers run on arbitrary queues; the collections
+        // below are shared across them, so serialize the mutations.
+        DispatchQueue.main.async {
+          switch loaded {
+          case .text(let value):
+            if text == nil { text = value }
+          case .image(let name):
+            images.append(name)
+          case .file(let entry):
+            files.append(entry)
+          case .none:
+            break
+          }
+          group.leave()
         }
-        group.leave()
       }
     }
 
@@ -175,7 +179,9 @@ final class ShareViewController: UIViewController {
         completion(.none)
         return
       }
-      self.ioQueue.sync {
+      // `async`, never `sync`: this completion can run on an arbitrary queue,
+      // and syncing onto it from itself would deadlock the extension.
+      self.ioQueue.async {
         let name = self.uniqueName(
           in: inbox,
           preferred: url.lastPathComponent

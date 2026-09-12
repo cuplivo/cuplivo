@@ -7591,7 +7591,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get inboundShareImportFailed => '无法添加分享的内容';
 
   @override
-  String inboundShareImportPartial(Object count) {
+  String inboundShareImportPartial(int count) {
     return '部分分享内容未能添加（$count）';
   }
 
@@ -17578,7 +17578,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get inboundShareImportFailed => '无法添加分享的内容';
 
   @override
-  String inboundShareImportPartial(Object count) {
+  String inboundShareImportPartial(int count) {
     return '部分分享内容未能添加（$count）';
   }
 
@@ -27567,7 +27567,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get inboundShareImportFailed => '無法加入分享的內容';
 
   @override
-  String inboundShareImportPartial(Object count) {
+  String inboundShareImportPartial(int count) {
     return '部分分享內容未能加入（$count）';
   }
 

@@ -2691,6 +2691,7 @@
   "trashConflictSnackBarAction": "檢視",
   "inboundShareImportFailed": "無法加入分享的內容",
   "inboundShareImportPartial": "部分分享內容未能加入（{count}）",
+  "@inboundShareImportPartial": {"placeholders": {"count": {"type": "int"}}},
   "trashConflictOriginLocal": "你曾刪除（已被合併恢復）",
   "trashConflictOriginRemote": "對端已刪除",
   "trashConflictKeepButton": "保留",

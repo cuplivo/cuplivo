@@ -7938,7 +7938,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get inboundShareImportFailed => 'Could not add the shared content';
 
   @override
-  String inboundShareImportPartial(Object count) {
+  String inboundShareImportPartial(int count) {
     return 'Some shared items could not be added ($count)';
   }
 

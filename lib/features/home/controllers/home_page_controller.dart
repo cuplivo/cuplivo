@@ -1729,11 +1729,19 @@ class HomePageController extends ChangeNotifier {
     if (_disposed) return;
     // Normalize special surfaces to a normal chat.
     exitGroupChatMode();
+    // Cancel-edit clears the composer, so snapshot the in-progress edit first:
+    // it is unsent content too and must not be discarded.
+    final editDraft = isUserMessageEditActive
+        ? _mediaController.snapshotInput(_inputController.bodyText)
+        : null;
     if (isUserMessageEditActive) cancelUserMessageEdit();
 
-    final composerHasContent =
-        _inputController.bodyText.trim().isNotEmpty ||
-        _mediaController.hasDraftMedia;
+    final composerHasContent = editDraft != null
+        ? editDraft.text.trim().isNotEmpty ||
+              editDraft.imagePaths.isNotEmpty ||
+              editDraft.documents.isNotEmpty
+        : _inputController.bodyText.trim().isNotEmpty ||
+              _mediaController.hasDraftMedia;
 
     if (isTemporaryConversation) {
       // Leaving the temporary chat creates a normal one; carry the unsent
@@ -1741,14 +1749,15 @@ class HomePageController extends ChangeNotifier {
       // creation falls back to merging in place — the share is never dropped.
       final initialDraft = composerHasContent
           ? mergeInboundShareIntoInput(
-              _mediaController.snapshotInput(_inputController.bodyText),
+              editDraft ??
+                  _mediaController.snapshotInput(_inputController.bodyText),
               payload,
             )
           : payload;
       final created = await _createNewConversationAnimated(
         initialDraft: initialDraft,
       );
-      if (!created) _mergeInboundIntoComposer(payload);
+      if (!created) _mergeInboundIntoComposer(payload, base: editDraft);
       _focusComposerAfterInboundShare();
       return;
     }
@@ -1772,9 +1781,9 @@ class HomePageController extends ChangeNotifier {
       conversationIsPristine: conversationIsPristine,
     )) {
       case InboundShareLanding.mergeIntoCurrent:
-        _mergeInboundIntoComposer(payload);
+        _mergeInboundIntoComposer(payload, base: editDraft);
       case InboundShareLanding.populateCurrentDraft:
-        _populateComposerFromInbound(payload);
+        _applyComposerDraft(payload);
       case InboundShareLanding.newConversation:
         await _createNewConversationAnimated(initialDraft: payload);
     }
@@ -1782,41 +1791,27 @@ class HomePageController extends ChangeNotifier {
   }
 
   /// Appends shared content to the current composer, preserving whatever the
-  /// user already typed or attached.
-  void _mergeInboundIntoComposer(ChatInputData payload) {
-    final merged = mergeInboundShareText(
-      _inputController.bodyText,
-      payload.text,
-    );
-    if (merged != _inputController.bodyText) {
-      _inputController.setBodyValue(
-        TextEditingValue(
-          text: merged,
-          selection: TextSelection.collapsed(offset: merged.length),
-          composing: TextRange.empty,
-        ),
-      );
-    }
-    if (payload.imagePaths.isNotEmpty) {
-      _mediaController.addImages(payload.imagePaths);
-    }
-    if (payload.documents.isNotEmpty) {
-      _mediaController.addFiles(payload.documents);
-    }
-    _mediaController.syncDraft();
-    notifyListeners();
+  /// user already typed or attached. [base] is a pre-cancel snapshot used when
+  /// the share interrupted user-message edit mode (cancel-edit empties the
+  /// composer before this runs).
+  void _mergeInboundIntoComposer(ChatInputData payload, {ChatInputData? base}) {
+    final draft =
+        base ?? _mediaController.snapshotInput(_inputController.bodyText);
+    _applyComposerDraft(mergeInboundShareIntoInput(draft, payload));
   }
 
-  /// Fills an empty composer with the shared content.
-  void _populateComposerFromInbound(ChatInputData payload) {
+  /// Replaces the composer with [draft]: text, media, quote, quick
+  /// instructions and image-routing state.
+  void _applyComposerDraft(ChatInputData draft) {
     _inputController.setBodyValue(
       TextEditingValue(
-        text: payload.text,
-        selection: TextSelection.collapsed(offset: payload.text.length),
+        text: draft.text,
+        selection: TextSelection.collapsed(offset: draft.text.length),
         composing: TextRange.empty,
       ),
     );
-    _mediaController.restoreInput(payload);
+    _mediaController.restoreInput(draft);
+    _mediaController.syncDraft();
     notifyListeners();
   }
 

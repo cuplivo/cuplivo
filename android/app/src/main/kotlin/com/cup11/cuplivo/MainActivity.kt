@@ -303,7 +303,9 @@ class MainActivity : FlutterActivity() {
      * Returns null when the intent carries no usable content.
      */
     private fun extractSharePayload(intent: Intent): Map<String, Any?>? {
+        // Some sources put the caption in EXTRA_SUBJECT instead of EXTRA_TEXT.
         val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+            ?: intent.getCharSequenceExtra(Intent.EXTRA_SUBJECT)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
         val uris = mutableListOf<Uri>()
         when (intent.action) {
             Intent.ACTION_SEND -> {
@@ -325,18 +327,32 @@ class MainActivity : FlutterActivity() {
         var failed = 0
 
         for (uri in uris) {
-            val resolved = contentResolver.getType(uri) ?: intent.type
-            val mime = if (resolved.isNullOrBlank() || resolved == "*/*") {
-                "application/octet-stream"
-            } else {
-                resolved.lowercase()
-            }
-            val displayName = resolveDisplayName(uri, mime)
-            val destination = uniqueTarget(stagingDir, sanitizeFileName(displayName))
-            if (!copyUriToFile(uri, destination)) {
+            // One hostile/uninstalled provider must fail only its own item,
+            // not the whole share.
+            val copied =
+                try {
+                    val resolved = contentResolver.getType(uri) ?: intent.type
+                    val mime = if (resolved.isNullOrBlank() || resolved == "*/*") {
+                        "application/octet-stream"
+                    } else {
+                        resolved.lowercase()
+                    }
+                    val displayName = resolveDisplayName(uri, mime)
+                    val destination = uniqueTarget(stagingDir, sanitizeFileName(displayName))
+                    if (!copyUriToFile(uri, destination)) {
+                        null
+                    } else {
+                        destination to mime
+                    }
+                } catch (error: Exception) {
+                    Log.w(TAG, "Failed to stage shared uri: $uri", error)
+                    null
+                }
+            if (copied == null) {
                 failed++
                 continue
             }
+            val (destination, mime) = copied
             if (mime.startsWith("image/")) {
                 images.add(destination.absolutePath)
             } else {

@@ -11,6 +11,7 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 
 import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/models/chat_input_data.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/group_chat_provider.dart';
 import 'package:Cuplivo/core/providers/mcp_provider.dart';
@@ -293,6 +294,54 @@ void main() {
           harness.controller.currentConversation?.id,
         ),
         isFalse,
+      );
+    });
+  });
+
+  testWidgets('a share during user-message edit keeps the edit text', (
+    tester,
+  ) async {
+    await withDesktopTarget(() async {
+      final harness = await _pumpHarness(tester);
+      addTearDown(() => harness.dispose(tester));
+
+      late ChatMessage message;
+      final convo = await tester.runAsync(() async {
+        final conversation = await harness.chatService.createConversation(
+          title: 'Edit me',
+        );
+        message = await harness.chatService.addMessage(
+          conversationId: conversation.id,
+          role: 'user',
+          content: 'original message',
+        );
+        return conversation;
+      });
+      harness.controller.chatController.setCurrentConversation(convo);
+
+      await tester.runAsync(
+        () => harness.controller.startUserMessageEdit(message),
+      );
+      expect(harness.controller.isUserMessageEditActive, isTrue);
+      harness.controller.inputController.setBodyValue(
+        const TextEditingValue(text: 'edited wording'),
+      );
+
+      await tester.runAsync(
+        () => harness.controller.handleInboundShare(
+          const ChatInputData(text: 'shared text'),
+        ),
+      );
+
+      expect(harness.controller.isUserMessageEditActive, isFalse);
+      expect(
+        harness.controller.inputController.bodyText,
+        contains('edited wording'),
+        reason: 'cancel-edit must not discard the in-progress edit text',
+      );
+      expect(
+        harness.controller.inputController.bodyText,
+        contains('shared text'),
       );
     });
   });

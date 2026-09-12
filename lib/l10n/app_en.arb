@@ -3208,6 +3208,13 @@
   "trashConflictSnackBarAction": "Review",
   "inboundShareImportFailed": "Could not add the shared content",
   "inboundShareImportPartial": "Some shared items could not be added ({count})",
+  "@inboundShareImportPartial": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "trashConflictOriginLocal": "You deleted (restored by merge)",
   "trashConflictOriginRemote": "Deleted by peer",
   "trashConflictKeepButton": "Keep",

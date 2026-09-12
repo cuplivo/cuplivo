@@ -14273,7 +14273,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Some shared items could not be added ({count})'**
-  String inboundShareImportPartial(Object count);
+  String inboundShareImportPartial(int count);
 
   /// No description provided for @trashConflictOriginLocal.
   ///

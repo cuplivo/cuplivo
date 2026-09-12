@@ -25,6 +25,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../chat/widgets/chat_message_widget.dart' show ToolUIPart;
 import '../services/message_builder_service.dart';
 import '../services/message_generation_service.dart';
+import '../services/message_pipeline.dart';
 import '../services/chat_suggestion_service.dart';
 import 'chat_actions.dart';
 import 'chat_controller.dart';
@@ -406,6 +407,11 @@ class HomeViewModel extends ChangeNotifier {
       requestIdOverride: requestIdOverride,
     );
   }
+
+  /// Shared prepare-execute pipeline owned by [ChatActions]. The page shell
+  /// hands this same instance to [MultiAIEngine] so single-chat and Multi-AI
+  /// turns run an identical sequence.
+  MessagePipeline get pipeline => _chatActions.pipeline;
 
   /// Per-conversation queued sends. See [PendingSendQueue]: the queue is
   /// keyed by conversation so a pending input for A can never reject or

@@ -1142,6 +1142,12 @@
   "lanSyncFirewallRuleAdded": "Firewall rule added (inbound TCP port {port}).",
   "lanSyncFirewallRuleFailed": "Could not add the firewall rule automatically. Click to add it now (requires administrator).",
   "lanSyncApplyAndRestart": "Apply and restart",
+  "lanSyncRecentEndpoints": "Recent",
+  "lanSyncScanQr": "Scan QR Code",
+  "lanSyncCopyLink": "Copy Link",
+  "lanSyncLinkCopied": "Link copied",
+  "lanSyncErrorInvalidLink": "Invalid sync QR code or link.",
+  "lanSyncQrServerHint": "Scan this code on the other device to connect automatically.",
   "chatHistoryPageTitle": "Chat History",
   "chatHistoryPageSearchTooltip": "Search",
   "chatHistoryPageDeleteAllTooltip": "Delete Unpinned",
@@ -3131,6 +3137,14 @@
   "logViewerCurrentLog": "Current Log",
   "logViewerExport": "Export",
   "logViewerOpenFolder": "Open Logs Folder",
+  "logViewerOpenFolderFailed": "Couldn't open the logs folder: {error}",
+  "@logViewerOpenFolderFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "logViewerRequestsCount": "{count} requests",
   "@logViewerRequestsCount": {
     "placeholders": {
@@ -4323,8 +4337,10 @@
   "workspaceDepStageRecover": "Repairing package state…",
   "workspaceDepStageUpdate": "Updating package lists…",
   "workspaceDepStageInstall": "Installing…",
+  "workspaceDepDebianMirrorNotice": "Debian uses the repositories shipped in the image; mirror selection isn't supported yet.",
   "workspaceSandboxRuntimeMissing": "Sandbox runtime missing; reinstall this app build",
   "workspaceSandboxBaseRequired": "Install the base dependency first",
+  "workspaceSandboxDistroUnknown": "Couldn't detect the Linux distribution of the installed sandbox rootfs. Reinstall the base dependency with a supported image.",
   "workspaceDepGitPrerequisite": "Install Git first",
   "workspaceDepOfficePrerequisites": "Install Python and Node.js first",
   "workspaceSandboxDirEntryTitle": "Sandbox system",

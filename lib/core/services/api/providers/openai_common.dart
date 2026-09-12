@@ -1111,17 +1111,9 @@ Future<List<Map<String, dynamic>>> _buildOpenAIChatCompletionMessages(
       parts.add({'type': 'text', 'text': parsed.text});
     }
     for (final ref in parsed.images) {
-      final normalized = normalizeSrc(ref.src);
+      final normalized = _normalizeMediaSource(ref.src);
       if (!seenSources.add(normalized)) continue;
-      final String url;
-      if (ref.kind == 'data') {
-        url = ref.src;
-      } else if (ref.kind == 'path') {
-        url = await _encodeBase64File(ref.src, withPrefix: true);
-      } else {
-        url = ref.src;
-      }
-      addImageUrl(url);
+      addImageUrl(await _imageRefSourceUrl(ref));
     }
     if (hasAnyMediaAttachments) {
       final allMediaPaths = <String>[
@@ -1685,16 +1677,9 @@ Stream<ChatStreamChunk> _sendOpenAIStream(
         }
         // Images extracted from this message's text
         for (final ref in parsed.images) {
-          final normalized = normalizeSrc(ref.src);
+          final normalized = _normalizeMediaSource(ref.src);
           if (!seenImageSources.add(normalized)) continue;
-          String url;
-          if (ref.kind == 'data') {
-            url = ref.src;
-          } else if (ref.kind == 'path') {
-            url = await _encodeBase64File(ref.src, withPrefix: true);
-          } else {
-            url = ref.src; // http(s)
-          }
+          final url = await _imageRefSourceUrl(ref);
           // For assistant messages, collect the last image; for user messages, add directly
           if (isAssistant) {
             lastAssistantImageUrl = url;

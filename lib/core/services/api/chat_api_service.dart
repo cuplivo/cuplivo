@@ -42,6 +42,7 @@ part 'providers/google_common.dart';
 part 'providers/google_gemini.dart';
 part 'providers/google_vertex.dart';
 part 'providers/claude_official.dart';
+part 'providers/image_content_builder.dart';
 part 'providers/zhipu_layout_parsing.dart';
 
 typedef ToolCallHandler =

@@ -1,6 +1,6 @@
 # Cuplivo Web（官网与备份工具）
 
-`website/` 工作区的限界上下文：官方站（`cuplivo.cup11.top`）与 Kelivo 家族备份工具。所有处理均在浏览器本地完成，**数据不出浏览器**（硬边界，见根 ADR-0060）。前身是独立仓库 `cup113/kelivo-helper`，历史已通过 git subtree 并入；工具 UI 单主页——工具页面只在官网（B1），独立域名已退役为 301 跳板。
+`website/` 工作区的限界上下文：官方站（`cuplivo.cup11.top`）与 Kelivo 家族备份工具。所有处理均在浏览器本地完成，**数据不出浏览器**（硬边界，见根 ADR-0060）。前身是独立仓库 `cup113/kelivo-helper`，历史已通过 git subtree 并入；工具 UI 单主页——工具页面只在官网（B1），独立域名已退役为 301 跳板（跳转配置在托管平台侧，不在本仓库）。
 
 ## Language
 
@@ -8,7 +8,7 @@
 一个聊天应用。v1.1.x 导出格式为 zip（`settings.json` + `chats.json` + 媒体目录）；**v1.2.0 起改为 `manifest.json` + `database/kelivo.db`（SQLite 快照）+ `settings.json` + 媒体目录**，chats.json 不再导出（恢复仍接受旧格式）。本项目的服务对象之一。
 
 **Cuplivo**:
-Kelivo 的同源 fork（`cuplivo/cuplivo`，upstream = `Chevey339/kelivo`），UI 同族。导出格式为 zip（`settings.json` + `chats.json` version 2 + `deleted.json` + `skills/` + 媒体目录），备份文件名仍以 `kelivo_backup_` 开头，增量备份以 `cuplivo_incr_` 开头。**兼容**的目标应用。
+Kelivo 的同源 fork（`cuplivo/cuplivo`，upstream = `Chevey339/kelivo`），UI 同族。导出格式为 zip：默认 **JSONL v2**（`settings.json` + `chats_meta.json` 哨兵 + `conversations.jsonl` + `messages.jsonl` + `deleted.json` + `skills/`（按备份内容范围，默认包含）+ 媒体目录）；另提供 Kelivo 兼容的 legacy 导出（单个 `chats.json` version 1）。备份文件名仍以 `kelivo_backup_` 开头，增量备份以 `cuplivo_incr_` 开头。**兼容**的目标应用。
 
 **RikkaHub**:
 与 Kelivo 同源（导出包结构相似、UI 同族）的聊天应用，导出格式为 zip（`settings.json` + `rikka_hub.db` SQLite + WAL/SHM + 媒体目录）。settings.json 是 kotlinx.serialization 序列化的嵌套 `Settings` data class（camelCase），**内嵌 assistants、providers、mcpServers 等全量定义**；数据库只存会话/消息等运行时数据。
@@ -17,10 +17,10 @@ Kelivo 的同源 fork（`cuplivo/cuplivo`，upstream = `Chevey339/kelivo`），U
 RikkaHub 备份 → Kelivo 可恢复备份包的唯一途径。原则：保真数据 + 最小猜测 + 迁移报告。
 
 **兼容（Compatibility）**:
-Kelivo v1.2.0 备份 zip → Cuplivo v2.7.1 可恢复备份 zip 的能力。与**迁移**独立：迁移是跨源深度映射，兼容是同源格式转换（读 `database/kelivo.db` SQLite 快照，写 chats.json，版本常量 1——Cuplivo 导入端不读该字段，Kelivo 旧导入端只接受 v1，cuplivo/cuplivo#453）。原则沿用保真数据 + 最小猜测 + 报告。
+Kelivo v1.2.0 备份 zip → Cuplivo 可恢复备份 zip 的能力。与**迁移**独立：迁移是跨源深度映射，兼容是同源格式转换（读 `database/kelivo.db` SQLite 快照，写 chats.json，版本常量 1——Cuplivo 导入端不读该字段，Kelivo 旧导入端只接受 v1，cuplivo/cuplivo#453）。原则沿用保真数据 + 最小猜测 + 报告。
 
 **记忆降级（Memory Downgrade）**:
-**兼容**的构成能力：Cuplivo v2.7.1 只认旧版记忆（`assistant_memories_v1`），Kelivo v1.2.0 新版记忆（`memory_entries_v1` / MemoryEntry）在兼容转换中降级为旧版——scope=assistant 直转、scope=global 复制到所有助手、status=archived 丢弃入报告；新条目的 `migrationIds`（应用内旧→新迁移残留的原旧 id）精确取代旧记录，(assistantId, normalize(content)) 兜底去重。与该词的核心区别：**降级**只发生在兼容（Kelivo→Cuplivo）方向，迁移（RikkaHub→Kelivo）写的是旧版键，无需转换。
+**兼容**的构成能力：Cuplivo 只认旧版记忆（`assistant_memories_v1`），Kelivo v1.2.0 新版记忆（`memory_entries_v1` / MemoryEntry）在兼容转换中降级为旧版——scope=assistant 直转、scope=global 复制到所有助手、status=archived 丢弃入报告；新条目的 `migrationIds`（应用内旧→新迁移残留的原旧 id）精确取代旧记录，(assistantId, normalize(content)) 兜底去重。与该词的核心区别：**降级**只发生在兼容（Kelivo→Cuplivo）方向，迁移（RikkaHub→Kelivo）写的是旧版键，无需转换。
 
 **迁移报告（Migration Report）**:
 迁移产物附带的可下载清单，记录丢弃项、未识别 modelId、占位助手等，供用户留档。
@@ -47,7 +47,7 @@ deleted.json 中的删除记录（`{entityType, id, deletedAt}`），仅含 id �
 由幸存消息重建的会话最小结构：id、title（取首条 user 消息）、messageIds、时间戳。**必须挂载到恢复助手**——`assistantId: null` 的会话在 Kelivo UI 中不可见。
 
 **官网（Official Website）**:
-`cuplivo.cup11.top` 承载的营销/文档/下载页面与工具路由（`/tools/*`）。工具 UI 单主页（B1，ADR-0060）：迁移/兼容/恢复页面只存在于官网；`kelivo-helper.netlify.app`（旧站）与 `kelivo-fill-assistant.netlify.app`（遗留单文件工具站）已退役为 `_redirects` 永久跳板。
+`cuplivo.cup11.top` 承载的营销/文档/下载页面与工具路由（`/tools/*`）。工具 UI 单主页（B1，ADR-0060）：迁移/兼容/恢复页面只存在于官网；`kelivo-helper.netlify.app`（旧站）与 `kelivo-fill-assistant.netlify.app`（遗留单文件工具站）已退役，由托管平台的永久跳转承接（本仓库 `_redirects` 仅保留 SPA fallback）。
 
 **后端边界（Backend Boundary）**:
 若未来出现服务端，只承载**公共只读数据**（release 元数据、公告、下载统计），以独立服务 + CORS 开放接入；**永不接收用户备份数据或用户输入**。CORS 开放只解决"谁能调"，不改变"什么数据可以出浏览器"这条信任边界。
@@ -77,8 +77,8 @@ deleted.json 中的删除记录（`{entityType, id, deletedAt}`），仅含 id �
 
 - "对话找回"最初被理解为"从 message 重建 conversation"，曾被误认为不存在该通路——实际 `ChatMessage.conversationId` 反向引用存在，通路可用
 - "转化"曾被用作 RikkaHub 工具的目标动词——已定为 **迁移**，目标是 Kelivo 可恢复备份包（唯一途径）
-- "Kelivo→Cuplivo"曾被考虑归入迁移家族——用户裁定为独立术语 **兼容**：迁移是跨源深度映射（RikkaHub→Kelivo），兼容是同源格式转换（Kelivo v1.2.0→Cuplivo v2.7.1），不共享转换管线
+- "Kelivo→Cuplivo"曾被考虑归入迁移家族——用户裁定为独立术语 **兼容**：迁移是跨源深度映射（RikkaHub→Kelivo），兼容是同源格式转换（Kelivo v1.2.0→Cuplivo），不共享转换管线
 - RikkaHub settings.json 曾被记录为"仅 WebDavConfig"——**错误**；又一度被误记为"与 Kelivo 同构的扁平 prefs 快照"——**也错误**；实为 kotlinx.serialization 序列化的嵌套 `Settings` data class，内嵌全量助手/提供商定义
 - 会话壳曾定 `assistantId: null`——**错误**：null 会话在 Kelivo UI 不可见，须挂载到**恢复助手**；**注意该不可见性仅对 Kelivo 成立**——Cuplivo 侧边栏显式包含 null assistantId 会话（`c.assistantId == currentAssistantId || c.assistantId == null`），**兼容**转换无需挂载
 - "助手找回/对话找回"两个页面曾计划独立——已合并为单一**恢复工具**入口
-- "kelivo-helper" 作为产品名/域名已退役（B1 单主页）：术语（迁移/兼容/找回等）不变，部署位换为官网 `/tools/*` 路由与 301 跳板
+- "kelivo-helper" 作为产品名/域名已退役（B1 单主页）：术语（迁移/兼容/找回等）不变，部署位换为官网 `/tools/*` 路由与托管平台侧 301 跳板

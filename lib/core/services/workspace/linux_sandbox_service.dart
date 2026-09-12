@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import '../../models/workspace.dart';
 import '../../../utils/app_directories.dart';
 import '../../../utils/utf16_safe_cut.dart';
+import 'sandbox_distro.dart';
 
 enum SandboxStatus {
   /// Not a supported mobile platform (or plugin missing entirely).
@@ -153,12 +154,35 @@ class SandboxInstallProgress {
   final double? progress; // 0-1 if known
   final String? message;
 
+  /// Identifier of a non-fatal, user-visible notice for this install (for
+  /// example a mirror preference that cannot be honored). The install queue
+  /// collects it and the UI localizes it once the install finishes.
+  final String? notice;
+
   const SandboxInstallProgress({
     required this.stage,
     this.progress,
     this.message,
+    this.notice,
   });
 }
+
+/// The installed rootfs has no recognizable `etc/os-release`, so no package
+/// manager (apk vs apt) can be chosen. The install page maps this to a
+/// localized message instead of showing the raw exception text.
+class SandboxDistroUnknownException implements Exception {
+  const SandboxDistroUnknownException(this.workspaceHostPath);
+
+  final String workspaceHostPath;
+
+  @override
+  String toString() =>
+      'SandboxDistroUnknownException(workspaceHostPath: $workspaceHostPath)';
+}
+
+/// Non-fatal install notice: the chosen mirror cannot be applied to a Debian
+/// guest yet (ships with the environment catalog, #725 follow-up).
+const String sandboxNoticeDebianMirrorDefault = 'debianMirrorDefault';
 
 /// A single readiness check and command probe for every sandbox dependency.
 /// The workspace dependency panel refreshes all rows together, so launching a
@@ -473,6 +497,33 @@ class LinuxSandboxService {
     return [bySource['official'] ?? defaultRootfsUrls[abi]!];
   }
 
+  /// File-name extension used to persist a rootfs download. The native
+  /// extractor selects its decoder from the file name, so the saved archive
+  /// must mirror the URL instead of always being `.tar.gz` (Alpine and
+  /// Debian publish both `.tar.gz` and `.tar.xz`). Extension-less URLs fall
+  /// back to `.tar.gz`. Exposed for tests.
+  static String archiveExtensionForUrl(String url) {
+    const extensions = ['.tar.gz', '.tgz', '.tar.xz', '.txz', '.tar'];
+    final uri = Uri.tryParse(url);
+    final path = (uri?.path ?? url).toLowerCase();
+    for (final extension in extensions) {
+      if (path.endsWith(extension)) return extension;
+    }
+    // Signed/expiring mirrors can carry the file name in the query string
+    // (`.../download?file=rootfs.tar.xz`), so suffix-match the query values.
+    // Matching the whole URL would also hit host names or unrelated
+    // parameters (`files.tar.example.com`, `?x=1.tar.gz.bak`).
+    for (final value
+        in uri?.queryParametersAll.values.expand((v) => v) ??
+            const <String>[]) {
+      final lower = value.toLowerCase();
+      for (final extension in extensions) {
+        if (lower.endsWith(extension)) return extension;
+      }
+    }
+    return '.tar.gz';
+  }
+
   /// True when the sandbox platform channel is available on this device.
   static bool get isSandboxPlatform => Platform.isAndroid || Platform.isIOS;
 
@@ -510,6 +561,98 @@ class LinuxSandboxService {
 
   String tmpDir(String workspaceHostPath) =>
       p.join(workspaceHostPath, '.sandbox', 'tmp');
+
+  /// Marker recording the installed rootfs distribution, written after a
+  /// successful extraction. Lives under `.sandbox/`, which backups and
+  /// workspace previews skip (dot-prefixed trees are never descended into).
+  static File distroMarkerFile(String workspaceHostPath) =>
+      File(p.join(workspaceHostPath, '.sandbox', 'distro'));
+
+  /// Parsed marker, or null when it is missing/corrupt (logged).
+  static Future<SandboxDistro?> readDistroMarker(
+    String workspaceHostPath,
+  ) async {
+    try {
+      final marker = distroMarkerFile(workspaceHostPath);
+      if (!await marker.exists()) return null;
+      return SandboxDistro.fromMarker(await marker.readAsString());
+    } catch (e) {
+      debugPrint('LinuxSandboxService.readDistroMarker: $e');
+      return null;
+    }
+  }
+
+  /// Atomically replace the marker (temp file + rename) so an interrupted
+  /// write cannot leave a half-parsed distribution behind.
+  static Future<void> writeDistroMarker(
+    String workspaceHostPath,
+    SandboxDistro distro,
+  ) async {
+    final marker = distroMarkerFile(workspaceHostPath);
+    await marker.parent.create(recursive: true);
+    final tmp = File('${marker.path}.tmp');
+    await tmp.writeAsString(distro.toMarker(), flush: true);
+    await tmp.rename(marker.path);
+  }
+
+  /// Read `<rootfs>/etc/os-release`. Null when the file is missing or names a
+  /// distribution without a supported package manager.
+  static Future<SandboxDistro?> detectDistro(String workspaceHostPath) async {
+    final osRelease = File(
+      p.join(workspaceHostPath, '.sandbox', 'linux', 'etc', 'os-release'),
+    );
+    if (!await osRelease.exists()) return null;
+    return SandboxDistro.parseOsRelease(await osRelease.readAsString());
+  }
+
+  /// Distribution of the installed rootfs. The marker is authoritative; a
+  /// rootfs installed before the marker existed is detected once from
+  /// os-release and the marker is written for later calls. The marker is
+  /// rewritten (or cleared) after every successful base install, so replacing
+  /// the rootfs cannot keep a stale detection. iOS always runs the bundled
+  /// Alpine fakefs.
+  Future<SandboxDistro> workspaceDistro(String workspaceHostPath) async {
+    if (Platform.isIOS) {
+      return const SandboxDistro(
+        id: 'alpine',
+        family: SandboxDistroFamily.alpine,
+        version: alpineVersion,
+      );
+    }
+    final marked = await readDistroMarker(workspaceHostPath);
+    if (marked != null) return marked;
+    final detected = await detectDistro(workspaceHostPath);
+    if (detected == null) {
+      throw SandboxDistroUnknownException(workspaceHostPath);
+    }
+    await writeDistroMarker(workspaceHostPath, detected);
+    return detected;
+  }
+
+  /// Record (or clear) the marker after a successful extraction. Detection
+  /// failure only logs: the base install itself succeeded, and dependency
+  /// installs will surface the actionable error from [workspaceDistro].
+  Future<void> _recordDistroAfterInstall(String workspaceHostPath) async {
+    final marker = distroMarkerFile(workspaceHostPath);
+    try {
+      final detected = await detectDistro(workspaceHostPath);
+      if (detected == null) {
+        if (await marker.exists()) await marker.delete();
+        debugPrint(
+          'LinuxSandboxService: extracted rootfs has no recognizable '
+          'etc/os-release; distribution marker cleared',
+        );
+        return;
+      }
+      await writeDistroMarker(workspaceHostPath, detected);
+      debugPrint(
+        'LinuxSandboxService: rootfs detected as '
+        '${detected.id}${detected.version == null ? '' : ' ${detected.version}'}',
+      );
+    } catch (e) {
+      debugPrint('LinuxSandboxService: distribution detection failed: $e');
+    }
+  }
 
   /// iOS only: whether the iSH kernel has already booted this process.
   /// Deleting the rootfs while booted would corrupt the live mount, so
@@ -791,11 +934,10 @@ class LinuxSandboxService {
     final urls = resolveRootfsUrls(abi: abi, pref: pref);
     final sandboxDir = Directory(p.join(workspaceHostPath, '.sandbox'));
     await sandboxDir.create(recursive: true);
-    final archivePath = p.join(sandboxDir.path, 'download.tar.gz');
 
-    Future<void> deleteArchiveQuietly() async {
+    Future<void> deleteArchiveQuietly(String path) async {
       try {
-        final f = File(archivePath);
+        final f = File(path);
         if (await f.exists()) await f.delete();
       } catch (e) {
         debugPrint('LinuxSandboxService: cleanup archive failed: $e');
@@ -804,6 +946,12 @@ class LinuxSandboxService {
 
     Object? lastError;
     for (final url in urls) {
+      // The extractor picks the decoder from the file name, so a custom
+      // .tar.xz URL must not be saved as `.tar.gz` (issue #725).
+      final archivePath = p.join(
+        sandboxDir.path,
+        'download${archiveExtensionForUrl(url)}',
+      );
       try {
         _throwIfCancelled(requestId);
         onProgress?.call(
@@ -849,20 +997,21 @@ class LinuxSandboxService {
           'requestId': requestId,
         });
         _throwIfCancelled(requestId);
-        await deleteArchiveQuietly();
+        await deleteArchiveQuietly(archivePath);
+        await _recordDistroAfterInstall(workspaceHostPath);
         onProgress?.call(
           const SandboxInstallProgress(stage: 'done', progress: 1),
         );
         return;
       } on SandboxCancelledException {
         // Do not leave a half-downloaded archive behind for a later retry.
-        await deleteArchiveQuietly();
+        await deleteArchiveQuietly(archivePath);
         rethrow;
       } on PlatformException catch (e) {
         if (e.code == 'cancelled') {
           // Native cancellation after the download: do not leave the partial
           // archive behind for a later retry.
-          await deleteArchiveQuietly();
+          await deleteArchiveQuietly(archivePath);
           throw SandboxCancelledException(requestId);
         }
         if (e.code == 'sandbox_busy') {
@@ -870,7 +1019,7 @@ class LinuxSandboxService {
         }
         lastError = e;
         debugPrint('installBase failed for $url: ${e.code}');
-        await deleteArchiveQuietly();
+        await deleteArchiveQuietly(archivePath);
       } catch (e) {
         lastError = e;
         debugPrint('installBase failed for $url: $e');
@@ -1088,12 +1237,22 @@ class LinuxSandboxService {
     return apkOfficialBaseUrl;
   }
 
-  /// apk mirror setup: rewrite /etc/apk/repositories for the bundled
-  /// Alpine version. [mirrorUrl] must be the repository base (e.g.
-  /// `https://mirrors.aliyun.com/alpine`).
-  static String apkMirrorSetup(String mirrorUrl) {
-    return "printf '%s\\n' '$mirrorUrl/v$alpineVersion/main' "
-        "'$mirrorUrl/v$alpineVersion/community' > /etc/apk/repositories && ";
+  /// apk mirror setup: rewrite /etc/apk/repositories for the guest Alpine
+  /// release. [mirrorUrl] must be the repository base (e.g.
+  /// `https://mirrors.aliyun.com/alpine`); [version] is the detected
+  /// `VERSION_ID` (`3.24.1`), normalized to the repository branch (`v3.24`).
+  /// It defaults to the bundled iOS rootfs version.
+  ///
+  /// [version] passes through [SandboxDistro.sanitizeVersion] before it is
+  /// interpolated into the guest shell command; non-numeric input is treated
+  /// as absent so a hand-edited marker or os-release cannot break out of the
+  /// single quotes.
+  static String apkMirrorSetup(String mirrorUrl, {String? version}) {
+    final raw = SandboxDistro.sanitizeVersion(version) ?? alpineVersion;
+    final parts = raw.split('.');
+    final alpine = parts.length >= 2 ? '${parts[0]}.${parts[1]}' : raw;
+    return "printf '%s\\n' '$mirrorUrl/v$alpine/main' "
+        "'$mirrorUrl/v$alpine/community' > /etc/apk/repositories && ";
   }
 
   /// Android apt repository base URLs for named sources by sandbox ABI.
@@ -1194,30 +1353,37 @@ class LinuxSandboxService {
     return aptOfficialBaseUrls[abi] ?? aptOfficialBaseUrls['arm64-v8a']!;
   }
 
+  /// Package names for a dependency under the detected [family]. Alpine uses
+  /// apk names; Ubuntu and Debian share Debian-style apt names.
   static String packageNamesForDependency(
     String dependencyId, {
-    required bool ios,
-  }) => switch (dependencyId) {
-    WorkspaceDependencyIds.python =>
-      ios ? 'python3 py3-pip' : 'python3 python3-pip',
-    WorkspaceDependencyIds.nodejs => 'nodejs npm',
-    WorkspaceDependencyIds.git => 'git',
-    WorkspaceDependencyIds.githubCli => ios ? 'github-cli' : 'gh',
-    WorkspaceDependencyIds.curl => 'curl',
-    WorkspaceDependencyIds.opensshClient =>
-      ios ? 'openssh-client-default' : 'openssh-client',
-    WorkspaceDependencyIds.archive => 'zip unzip',
-    WorkspaceDependencyIds.office =>
-      ios
-          ? 'libreoffice pandoc poppler-utils zip unzip py3-lxml py3-pillow '
-                'py3-reportlab py3-openpyxl py3-pandas py3-defusedxml'
-          : 'libreoffice pandoc poppler-utils zip unzip python3-lxml '
-                'python3-pil python3-reportlab python3-openpyxl '
-                'python3-pandas python3-defusedxml',
-    WorkspaceDependencyIds.buildEssential =>
-      ios ? 'build-base' : 'build-essential',
-    _ => throw StateError('Unknown dependency: $dependencyId'),
-  };
+    required SandboxDistroFamily family,
+  }) {
+    final alpine = family == SandboxDistroFamily.alpine;
+    return switch (dependencyId) {
+      WorkspaceDependencyIds.python =>
+        alpine ? 'python3 py3-pip' : 'python3 python3-pip',
+      WorkspaceDependencyIds.nodejs => 'nodejs npm',
+      WorkspaceDependencyIds.git => 'git',
+      // `gh` is not in Debian's archives, so apt there reports "Unable to
+      // locate package gh"; users can add cli.github.com's own repository.
+      WorkspaceDependencyIds.githubCli => alpine ? 'github-cli' : 'gh',
+      WorkspaceDependencyIds.curl => 'curl',
+      WorkspaceDependencyIds.opensshClient =>
+        alpine ? 'openssh-client-default' : 'openssh-client',
+      WorkspaceDependencyIds.archive => 'zip unzip',
+      WorkspaceDependencyIds.office =>
+        alpine
+            ? 'libreoffice pandoc poppler-utils zip unzip py3-lxml py3-pillow '
+                  'py3-reportlab py3-openpyxl py3-pandas py3-defusedxml'
+            : 'libreoffice pandoc poppler-utils zip unzip python3-lxml '
+                  'python3-pil python3-reportlab python3-openpyxl '
+                  'python3-pandas python3-defusedxml',
+      WorkspaceDependencyIds.buildEssential =>
+        alpine ? 'build-base' : 'build-essential',
+      _ => throw StateError('Unknown dependency: $dependencyId'),
+    };
+  }
 
   Future<void> installPackage({
     required String workspaceHostPath,
@@ -1245,41 +1411,62 @@ class LinuxSandboxService {
       throw StateError(statusUserMessage(SandboxStatus.runtimeMissing));
     }
     onProgress?.call(const SandboxInstallProgress(stage: 'installing'));
-    final ios = Platform.isIOS;
-    final packages = packageNamesForDependency(depId, ios: ios);
-    String mirrorSetup;
-    if (ios) {
+    final distro = await workspaceDistro(workspaceHostPath);
+    final family = distro.family;
+    final packages = packageNamesForDependency(depId, family: family);
+    final installTimeoutSeconds = depId == WorkspaceDependencyIds.office
+        ? 2700
+        : 1800;
+    final List<PackageInstallStep> steps;
+    if (family == SandboxDistroFamily.alpine) {
       // Deterministic per-install repositories: a named or custom mirror of
       // a previous dependency must never stay active for this one, so every
-      // mode (including 'official') rewrites /etc/apk/repositories.
-      mirrorSetup = apkMirrorSetup(resolveApkMirrorFor(pref));
+      // mode (including 'official') rewrites /etc/apk/repositories for the
+      // guest's own Alpine release.
+      steps = buildApkInstallSteps(
+        packages: packages,
+        mirrorSetup: apkMirrorSetup(
+          resolveApkMirrorFor(pref),
+          version: distro.version,
+        ),
+        installTimeoutSeconds: installTimeoutSeconds,
+      );
     } else {
-      // Android: every mode must deterministically establish the intended
-      // apt sources — or apt keeps the mirror the previous dependency left
-      // in the workspace-global deb822 file and `apt-get update` stalls on
-      // a stale/slow path then fails the step timeout (issue #531).
-      final abi = await detectAbi();
-      final mirror = resolveAptMirrorFor(abi: abi, pref: pref);
-      mirrorSetup = aptMirrorSetup(
-        mirror.base,
-        securityMirrorUrl: mirror.security,
+      var mirrorSetup = '';
+      if (family == SandboxDistroFamily.ubuntu) {
+        // Every mode must deterministically establish the intended apt
+        // sources — or apt keeps the mirror the previous dependency left in
+        // the workspace-global deb822 file and `apt-get update` stalls on a
+        // stale/slow path then fails the step timeout (issue #531).
+        final abi = await detectAbi();
+        final mirror = resolveAptMirrorFor(abi: abi, pref: pref);
+        mirrorSetup = aptMirrorSetup(
+          mirror.base,
+          securityMirrorUrl: mirror.security,
+        );
+      } else {
+        // Debian sources are version-specific; mirror selection for Debian
+        // ships with the environment catalog (cuplivo#725 follow-up), so use
+        // the repositories the rootfs itself provides instead of writing the
+        // Ubuntu deb822 file into a Debian guest. Surface the ignored choice
+        // so the result stays explainable (issue #322 review).
+        debugPrint(
+          'LinuxSandboxService: Debian mirror selection is not supported '
+          'yet; using the repositories shipped in the rootfs',
+        );
+        onProgress?.call(
+          const SandboxInstallProgress(
+            stage: 'notice',
+            notice: sandboxNoticeDebianMirrorDefault,
+          ),
+        );
+      }
+      steps = buildAptInstallSteps(
+        packages: packages,
+        mirrorSetup: mirrorSetup,
+        installTimeoutSeconds: installTimeoutSeconds,
       );
     }
-    final steps = ios
-        ? buildApkInstallSteps(
-            packages: packages,
-            mirrorSetup: mirrorSetup,
-            installTimeoutSeconds: depId == WorkspaceDependencyIds.office
-                ? 2700
-                : 1800,
-          )
-        : buildAptInstallSteps(
-            packages: packages,
-            mirrorSetup: mirrorSetup,
-            installTimeoutSeconds: depId == WorkspaceDependencyIds.office
-                ? 2700
-                : 1800,
-          );
     if (Platform.isAndroid) {
       // Re-patch the resolver before touching the network: the rootfs was
       // fixed at extraction time with the DNS active then, and a device
@@ -1313,8 +1500,12 @@ class LinuxSandboxService {
               continue;
             }
             final label = step.stage == 'update'
-                ? (ios ? 'apk update' : 'apt update')
-                : (ios ? 'apk add' : 'apt install');
+                ? (family == SandboxDistroFamily.alpine
+                      ? 'apk update'
+                      : 'apt update')
+                : (family == SandboxDistroFamily.alpine
+                      ? 'apk add'
+                      : 'apt install');
             // Keep a bounded stderr excerpt in the failure so apt/apk
             // diagnostics (dpkg lock held, missing package, network) reach
             // the user instead of a bare exit code.

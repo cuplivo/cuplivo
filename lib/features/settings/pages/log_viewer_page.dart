@@ -12,6 +12,8 @@ import '../../../icons/lucide_adapter.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/services/chat/external_chat_draft_handoff.dart';
+import '../../../core/services/logging/flutter_logger.dart';
+import '../../../core/services/network/request_logger.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/ios_switch.dart';
@@ -99,8 +101,8 @@ Future<void> _startRequestLogAiAnalysis(
 
 class _LogViewerPageState extends State<LogViewerPage>
     with SingleTickerProviderStateMixin {
-  static const String _activeRequestLog = 'logs.txt';
-  static const String _activeAppLog = 'flutter_logs.txt';
+  static const String _activeRequestLog = RequestLogger.activeFileName;
+  static const String _activeAppLog = FlutterLogger.activeFileName;
 
   late final TabController _tab;
 
@@ -128,8 +130,7 @@ class _LogViewerPageState extends State<LogViewerPage>
   Future<void> _loadLogFiles() async {
     setState(() => _loading = true);
     try {
-      final dir = await AppDirectories.getAppDataDirectory();
-      final logsDir = Directory('${dir.path}/logs');
+      final logsDir = await AppDirectories.getLogsDirectory();
       if (await logsDir.exists()) {
         final all = await logsDir
             .list()
@@ -141,9 +142,11 @@ class _LogViewerPageState extends State<LogViewerPage>
         final app = <File>[];
         for (final f in all) {
           final name = p.basename(f.path).toLowerCase();
-          if (name.startsWith('flutter_logs')) {
+          if (name == FlutterLogger.activeFileName ||
+              name.startsWith(FlutterLogger.rotatedFilePrefix)) {
             app.add(f);
-          } else if (name.startsWith('logs')) {
+          } else if (name == RequestLogger.activeFileName ||
+              name.startsWith(RequestLogger.rotatedFilePrefix)) {
             request.add(f);
           } else {
             // Keep "other" logs in the simpler viewer.
@@ -174,7 +177,8 @@ class _LogViewerPageState extends State<LogViewerPage>
           _loading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('LogViewerPage: failed to load log files: $e');
       setState(() {
         _requestLogFiles = <File>[];
         _appLogFiles = <File>[];

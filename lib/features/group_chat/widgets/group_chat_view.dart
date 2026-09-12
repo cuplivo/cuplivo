@@ -701,6 +701,10 @@ class _GroupChatViewState extends State<GroupChatView> {
                     final r = _streamController.reasoning[id];
                     if (r == null) return;
                     r.expanded = !r.expanded;
+                    _streamController.persistReasoningExpansionIfSettled(
+                      id,
+                      chatController: _chatController,
+                    );
                     setState(() {});
                   },
                   onToggleReasoningSegment: (id, index) {
@@ -709,6 +713,10 @@ class _GroupChatViewState extends State<GroupChatView> {
                       return;
                     }
                     segs[index].expanded = !segs[index].expanded;
+                    _streamController.persistReasoningExpansionIfSettled(
+                      id,
+                      chatController: _chatController,
+                    );
                     setState(() {});
                   },
                 ),

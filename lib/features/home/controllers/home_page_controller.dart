@@ -23,6 +23,7 @@ import '../../../core/providers/quick_instruction_provider.dart';
 import '../../../core/providers/memory_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/generation_engine.dart';
+import '../../../core/services/inbound_share.dart';
 import '../../../core/services/tts/tts_text_selection.dart';
 import '../../../core/services/haptics.dart';
 import '../../../core/services/notification_service.dart';
@@ -1705,6 +1706,110 @@ class HomePageController extends ChangeNotifier {
   /// chat route, such as request-log AI analysis.
   Future<bool> createNewConversationWithDraft(ChatInputData draft) {
     return _createNewConversationAnimated(initialDraft: draft);
+  }
+
+  /// Lands content shared into Cuplivo from another app (Android ACTION_SEND /
+  /// iOS Share Extension). The caller has already imported the files and
+  /// normalized navigation to the chat route. See CONTEXT.md → Inbound Share.
+  ///
+  /// Landing rule: a non-empty composer is MERGED into (never discarded);
+  /// otherwise a pristine conversation is populated; otherwise a new
+  /// conversation is created.
+  Future<void> handleInboundShare(ChatInputData payload) async {
+    if (_disposed) return;
+    // Normalize special surfaces to a normal chat.
+    exitGroupChatMode();
+    // Cancel-edit clears the composer, so snapshot the in-progress edit first:
+    // it is unsent content too and must not be discarded.
+    final editDraft = isUserMessageEditActive
+        ? _mediaController.snapshotInput(_inputController.bodyText)
+        : null;
+    if (isUserMessageEditActive) cancelUserMessageEdit();
+
+    final composerHasContent = editDraft != null
+        ? composerDraftHasContent(editDraft)
+        : _inputController.bodyText.trim().isNotEmpty ||
+              _mediaController.hasDraftMedia ||
+              _mediaController.quoteDraft != null;
+
+    if (isTemporaryConversation) {
+      // Leaving the temporary chat creates a normal one; carry the unsent
+      // composer content (plus the shared payload) into it. A blocked
+      // creation falls back to merging in place — the share is never dropped.
+      final initialDraft = composerHasContent
+          ? mergeInboundShareIntoInput(
+              editDraft ??
+                  _mediaController.snapshotInput(_inputController.bodyText),
+              payload,
+            )
+          : payload;
+      final created = await _createNewConversationAnimated(
+        initialDraft: initialDraft,
+      );
+      if (!created) _mergeInboundIntoComposer(payload, base: editDraft);
+      _focusComposerAfterInboundShare();
+      return;
+    }
+
+    var conversationIsPristine = false;
+    final convo = currentConversation;
+    if (convo == null) {
+      conversationIsPristine = true;
+    } else {
+      try {
+        conversationIsPristine = await _chatService.hasNoRealMessages(convo.id);
+      } catch (error, stackTrace) {
+        debugPrint('[InboundShare] pristine check failed: $error\n$stackTrace');
+        conversationIsPristine = false;
+      }
+    }
+    if (_disposed) return;
+
+    switch (decideInboundShareLanding(
+      composerHasContent: composerHasContent,
+      conversationIsPristine: conversationIsPristine,
+    )) {
+      case InboundShareLanding.mergeIntoCurrent:
+        _mergeInboundIntoComposer(payload, base: editDraft);
+      case InboundShareLanding.populateCurrentDraft:
+        _applyComposerDraft(payload);
+      case InboundShareLanding.newConversation:
+        await _createNewConversationAnimated(initialDraft: payload);
+    }
+    _focusComposerAfterInboundShare();
+  }
+
+  /// Appends shared content to the current composer, preserving whatever the
+  /// user already typed or attached. [base] is a pre-cancel snapshot used when
+  /// the share interrupted user-message edit mode (cancel-edit empties the
+  /// composer before this runs).
+  void _mergeInboundIntoComposer(ChatInputData payload, {ChatInputData? base}) {
+    final draft =
+        base ?? _mediaController.snapshotInput(_inputController.bodyText);
+    _applyComposerDraft(mergeInboundShareIntoInput(draft, payload));
+  }
+
+  /// Replaces the composer with [draft]: text, media, quote, quick
+  /// instructions and image-routing state.
+  void _applyComposerDraft(ChatInputData draft) {
+    _inputController.setBodyValue(
+      TextEditingValue(
+        text: draft.text,
+        selection: TextSelection.collapsed(offset: draft.text.length),
+        composing: TextRange.empty,
+      ),
+    );
+    _mediaController.restoreInput(draft);
+    _mediaController.syncDraft();
+    notifyListeners();
+  }
+
+  void _focusComposerAfterInboundShare() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_disposed || !_context.mounted) return;
+      forceScrollToBottomSoon(animate: false);
+      _inputFocus.requestFocus();
+    });
   }
 
   Future<bool> _createNewConversationAnimated({

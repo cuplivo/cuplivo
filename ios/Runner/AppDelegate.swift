@@ -15,6 +15,7 @@ private let backgroundProcessingIdentifier = "com.cup11.cuplivo.background-gener
   private let backgroundGenerationHandler = IosBackgroundGenerationHandler()
   private let deviceLocalToolsHandler = DeviceLocalToolsHandler()
   private var linuxSandboxPlugin: CuplivoLinuxSandboxPlugin?
+  private var inboundShareHost: InboundShareHost?
 
   override func application(
     _ application: UIApplication,
@@ -91,8 +92,26 @@ private let backgroundProcessingIdentifier = "com.cup11.cuplivo.background-gener
 
       // Advanced background keep-alive (silent audio + location legs).
       BackgroundKeepAliveManager.shared.register(with: controller.binaryMessenger)
+
+      // Inbound share target (issue #710): App Group inbox → Dart channel.
+      inboundShareHost = InboundShareHost(messenger: controller.binaryMessenger)
     }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  /// Deep link used by the Cuplivo Share Extension to foreground the app
+  /// (`cuplivo://share`). The staged content rides the App Group inbox, not
+  /// the URL.
+  override func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
+    if url.scheme == "cuplivo" {
+      inboundShareHost?.deliverPendingShare()
+      return true
+    }
+    return super.application(app, open: url, options: options)
   }
 
   /// Bounded, TTL-based cleanup for paste-image temp files: repeated
@@ -148,6 +167,7 @@ private let backgroundProcessingIdentifier = "com.cup11.cuplivo.background-gener
     super.applicationDidBecomeActive(application)
     backgroundGenerationHandler.dismissFinishedLiveActivityIfNeeded()
     backgroundGenerationHandler.endOrphanedLiveActivities(reason: "applicationDidBecomeActive")
+    inboundShareHost?.deliverPendingShare()
   }
 }
 

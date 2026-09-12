@@ -1245,6 +1245,22 @@
 
 - "统一" in this area was read as "one wire shape" — resolved: it means **one parser + one builder + per-style encoding**. Forcing a single remote mode is explicitly rejected (ADR-0064), because Gemini cannot fetch remote images while Claude/OpenAI can.
 
+## Inbound Share (接收分享) — issue #710
+
+- **Inbound share (接收分享)**: Content another app sends INTO Cuplivo through the OS share sheet — `ACTION_SEND` / `ACTION_SEND_MULTIPLE` on Android, a Share Extension on iOS. Distinct from the pre-existing outbound meaning of 分享 (message multi-select export/share, ADR-0045); always qualify which direction is meant.
+- **Share target (分享目标)**: Cuplivo registered as a destination in the OS share sheet. Android via intent-filters on `MainActivity` (broad `*/*` + `text/*`); iOS via the `CuplivoShareExtension` target.
+- **Inbound share payload (接收分享载荷)**: `{ text?, images: [path], files: [{path, name, mime}], failed? }` delivered over the `app.inbound_share` channel (`getInitialShare` for cold start, `onShare` push for warm). Maps to `ChatInputData`: text → composer text, image MIME → `imagePaths`, every other file → `documents`. `failed` counts files the native copy dropped (Android); it is folded into the import outcome so a partial share warns instead of looking complete.
+- **Share staging (分享暂存)**: Native copies incoming bytes out of the foreign sandbox into a staging area (Android app cache; iOS App Group `share_inbox`) and hands local paths to Dart; Dart imports them into the normal upload directory (`AppDirectories.getUploadDirectory()`) so shared attachments get the same lifecycle, dedup naming, storage-guardrail coverage, and backup behavior as picked files. Consume-once; stale staging entries purged on startup.
+- **Share landing rule (分享落位规则)**: First normalize the active surface — pop to the root chat route, exit group chat, leave a temporary chat, cancel user-message edit mode. Then: composer non-empty → merge (append text separated by a newline, append media), stay in the current conversation; composer empty + pristine empty draft → populate it; composer empty + conversation has messages → create a new conversation and populate it. Unsent composer content is never discarded.
+- **iOS App Group requirement (iOS App Group 约束)**: The binary content path requires a shared App Group (`group.com.cup11.cuplivo`) on both Runner and the extension — see ADR-0066. This is why iOS inbound share is not entitlement-free, unlike the existing extension-free targets.
+- **iOS share completion (iOS 分享完成)**: The extension writes to the App Group inbox and tries `extensionContext.open(cuplivo://share)` to foreground Cuplivo; on failure it posts a local notification ("已添加到 Cuplivo · 点按继续"). The app also consumes the inbox on next foreground. Android needs none of this — an `ACTION_SEND` target always brings the activity forward.
+- **Coexistence with ACTION_PROCESS_TEXT**: The Android text-selection "Cuplivo" entry (inserts at the cursor in the current composer, `home_page.dart`) is deliberately UNCHANGED — a different surface with a different intent from the share target.
+- **Out of scope**: outbound share, and any desktop (Windows/macOS/Linux) share target.
+
+### Flagged Ambiguities
+
+- "分享" was used for both outbound (message multi-select export/share, ADR-0045) and inbound (this feature) — resolved: always qualify **inbound share (接收分享)** vs the existing outbound 分享; the two share only the Chinese word.
+
 ## Translation Languages (翻译语言) — issue #767 / ADR-0065
 
 - **翻译语言目录 (translate language catalog)**: The full set of translate target languages the app can send — `supportedLanguages` in `language_select_sheet.dart` (16: zh-CN, en, zh-TW, ja, ko, fr, de, it, es, pt, ru, ar, hi, th, vi, bn). Code-owned and ordered; the order is the selector order and is never user-reordered.

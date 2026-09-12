@@ -7991,6 +7991,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get trashConflictSnackBarAction => 'Review';
 
   @override
+  String get inboundShareImportFailed => 'Could not add the shared content';
+
+  @override
+  String inboundShareImportPartial(int count) {
+    return 'Some shared items could not be added ($count)';
+  }
+
+  @override
   String get trashConflictOriginLocal => 'You deleted (restored by merge)';
 
   @override

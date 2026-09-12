@@ -7641,6 +7641,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get trashConflictSnackBarAction => '查看';
 
   @override
+  String get inboundShareImportFailed => '无法添加分享的内容';
+
+  @override
+  String inboundShareImportPartial(int count) {
+    return '部分分享内容未能添加（$count）';
+  }
+
+  @override
   String get trashConflictOriginLocal => '你曾删除（已被合并恢复）';
 
   @override
@@ -17678,6 +17686,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get trashConflictSnackBarAction => '查看';
+
+  @override
+  String get inboundShareImportFailed => '无法添加分享的内容';
+
+  @override
+  String inboundShareImportPartial(int count) {
+    return '部分分享内容未能添加（$count）';
+  }
 
   @override
   String get trashConflictOriginLocal => '你曾删除（已被合并恢复）';
@@ -27719,6 +27735,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get trashConflictSnackBarAction => '檢視';
+
+  @override
+  String get inboundShareImportFailed => '無法加入分享的內容';
+
+  @override
+  String inboundShareImportPartial(int count) {
+    return '部分分享內容未能加入（$count）';
+  }
 
   @override
   String get trashConflictOriginLocal => '你曾刪除（已被合併恢復）';

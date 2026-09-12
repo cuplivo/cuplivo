@@ -126,7 +126,7 @@ Cuplivo is a community fork and has not been fully separated from the upstream p
 
 🔗 [Download the latest version](https://github.com/cuplivo/cuplivo/releases/latest)
 
-> **iOS:** Cuplivo is not on the App Store. Please install it by self-signing (e.g. Sideloadly, AltStore, or other signing tools).
+> **iOS:** Cuplivo is not on the App Store. Please install it by self-signing (e.g. Sideloadly, AltStore, or other signing tools). Inbound share requires an App Group entitlement, which free Apple IDs cannot provision — use a paid Apple Developer account or a signing tool that supports App Groups.
 
 ## 💖 Sponsors
 

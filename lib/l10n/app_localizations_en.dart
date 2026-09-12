@@ -3024,6 +3024,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lanSyncApplyAndRestart => 'Apply and restart';
 
   @override
+  String get lanSyncRecentEndpoints => 'Recent';
+
+  @override
+  String get lanSyncScanQr => 'Scan QR Code';
+
+  @override
+  String get lanSyncCopyLink => 'Copy Link';
+
+  @override
+  String get lanSyncLinkCopied => 'Link copied';
+
+  @override
+  String get lanSyncErrorInvalidLink => 'Invalid sync QR code or link.';
+
+  @override
+  String get lanSyncQrServerHint =>
+      'Scan this code on the other device to connect automatically.';
+
+  @override
   String get chatHistoryPageTitle => 'Chat History';
 
   @override
@@ -7726,6 +7745,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logViewerOpenFolder => 'Open Logs Folder';
 
   @override
+  String logViewerOpenFolderFailed(String error) {
+    return 'Couldn\'t open the logs folder: $error';
+  }
+
+  @override
   String logViewerRequestsCount(int count) {
     return '$count requests';
   }
@@ -9781,12 +9805,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workspaceDepStageInstall => 'Installing…';
 
   @override
+  String get workspaceDepDebianMirrorNotice =>
+      'Debian uses the repositories shipped in the image; mirror selection isn\'t supported yet.';
+
+  @override
   String get workspaceSandboxRuntimeMissing =>
       'Sandbox runtime missing; reinstall this app build';
 
   @override
   String get workspaceSandboxBaseRequired =>
       'Install the base dependency first';
+
+  @override
+  String get workspaceSandboxDistroUnknown =>
+      'Couldn\'t detect the Linux distribution of the installed sandbox rootfs. Reinstall the base dependency with a supported image.';
 
   @override
   String get workspaceDepGitPrerequisite => 'Install Git first';

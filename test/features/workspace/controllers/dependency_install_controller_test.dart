@@ -629,4 +629,51 @@ void main() {
       expect(holds, [true, false, true, false]);
     });
   });
+
+  test('collects and drains non-fatal install notices', () async {
+    var emitted = false;
+    final controller = DependencyInstallController(
+      installer:
+          ({
+            required String workspaceHostPath,
+            required String depId,
+            required DependencyInstallPref pref,
+            void Function(SandboxInstallProgress)? onProgress,
+          }) async {
+            onProgress?.call(
+              const SandboxInstallProgress(
+                stage: 'notice',
+                notice: sandboxNoticeDebianMirrorDefault,
+              ),
+            );
+            onProgress?.call(
+              const SandboxInstallProgress(stage: 'install', progress: 0.5),
+            );
+            emitted = true;
+          },
+      keepScreenOn: (_) async {},
+    );
+
+    controller.enqueue(
+      workspaceId: wsId,
+      depId: WorkspaceDependencyIds.git,
+      hostPath: '/ws',
+      pref: pref,
+    );
+    await _pumpUntil(
+      () =>
+          emitted &&
+          controller.statusFor(wsId, WorkspaceDependencyIds.git) ==
+              DepInstallStatus.idle,
+    );
+
+    expect(
+      controller.takeNotices(wsId),
+      contains(sandboxNoticeDebianMirrorDefault),
+    );
+    // Drained on read, so a rebuild does not repeat the snackbar.
+    expect(controller.takeNotices(wsId), isEmpty);
+    // A notice is not a failure: the dependency still completes.
+    expect(controller.takeCompleted(wsId)[WorkspaceDependencyIds.git], isNull);
+  });
 }

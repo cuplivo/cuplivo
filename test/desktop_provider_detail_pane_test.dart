@@ -201,6 +201,108 @@ void main() {
     expect(cfg.avatarValue, 'openai');
   });
 
+  testWidgets('desktop custom request section toggles on tap', (tester) async {
+    final settings = await _buildSettings(tester);
+    addTearDown(settings.dispose);
+
+    await _pumpProviderSettings(tester, settings);
+
+    await tester.tap(
+      find.byKey(const ValueKey('desktop-provider-settings-ProviderA')),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
+
+    final crossfade = find.byKey(
+      const ValueKey('desktop-provider-custom-request-crossfade'),
+    );
+    final header = find.text('Custom Request');
+    await tester.ensureVisible(header);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<AnimatedCrossFade>(crossfade).crossFadeState,
+      CrossFadeState.showFirst,
+    );
+
+    await tester.tap(header);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<AnimatedCrossFade>(crossfade).crossFadeState,
+      CrossFadeState.showSecond,
+    );
+
+    await tester.tap(header);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<AnimatedCrossFade>(crossfade).crossFadeState,
+      CrossFadeState.showFirst,
+    );
+  });
+
+  testWidgets('desktop balance query spinner clears after request settles', (
+    tester,
+  ) async {
+    businessPrefs = BusinessPreferences.memoryForTests(const {});
+    final settings = SettingsProvider(preferences: businessPrefs);
+    await tester.runAsync(_waitForSettingsLoad);
+    await settings.setProviderConfig(
+      'ProviderA',
+      ProviderConfig(
+        id: 'ProviderA',
+        enabled: true,
+        name: 'ProviderA',
+        apiKey: 'test-key',
+        baseUrl: 'https://example.test/v1',
+        providerType: ProviderKind.openai,
+        balanceEnabled: true,
+        balanceApiPath: '/credits',
+        balanceResultPath: 'data.total',
+      ),
+    );
+    await settings.setProvidersOrder(const ['ProviderA']);
+    addTearDown(settings.dispose);
+
+    await _pumpProviderSettings(tester, settings);
+
+    await tester.tap(
+      find.byKey(const ValueKey('desktop-provider-settings-ProviderA')),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
+
+    final queryButton = find.byKey(
+      const ValueKey('desktop-provider-balance-query-button'),
+    );
+    await tester.ensureVisible(queryButton);
+    await tester.pumpAndSettle();
+
+    String queryButtonTooltip() {
+      return tester
+          .widget<Tooltip>(
+            find.descendant(of: queryButton, matching: find.byType(Tooltip)),
+          )
+          .message!;
+    }
+
+    expect(queryButtonTooltip(), 'Check Balance');
+
+    await tester.tap(queryButton);
+    await tester.pump();
+
+    expect(queryButtonTooltip(), 'Checking...');
+
+    await tester.pumpAndSettle();
+
+    expect(queryButtonTooltip(), 'Check Balance');
+
+    // Let the error snackbar auto-dismiss so no timer outlives the test.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+  });
+
   group('desktop providers pane codex gate', () {
     Future<SettingsProvider> buildSettings(
       WidgetTester tester, {

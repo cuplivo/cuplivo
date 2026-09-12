@@ -26,7 +26,11 @@ void main() {
       'android/app/src/main/kotlin/com/cup11/cuplivo/LinuxSandboxPlugin.kt',
     ).readAsStringSync();
 
-    expect(source, contains('listOf("/bin/bash", "-c", command)'));
-    expect(source, isNot(contains('listOf("/bin/bash", "-lc", command)')));
+    // The shell is chosen at runtime (bash when the rootfs provides it,
+    // busybox sh otherwise), but non-interactive commands must still use
+    // `-c` rather than the login `-lc` form.
+    expect(source, contains('listOf(shell, "-c", command)'));
+    expect(source, isNot(contains('-lc')));
+    expect(source, contains('guestShellFor'));
   });
 }

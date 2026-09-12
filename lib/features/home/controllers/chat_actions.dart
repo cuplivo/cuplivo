@@ -17,6 +17,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../services/ask_user_interaction_service.dart';
 import '../services/message_generation_service.dart';
+import '../services/message_pipeline.dart';
 import '../services/tool_approval_service.dart';
 import 'chat_controller.dart';
 import 'generation_controller.dart';
@@ -68,7 +69,15 @@ class ChatActions {
     required this.viewModel,
     required this.getTitleForLocale,
     this.hasActiveTranslation,
-  });
+  }) {
+    _pipeline = MessagePipeline(
+      chatService: chatService,
+      messageGenerationService: messageGenerationService,
+      streamController: streamController,
+      generationController: generationController,
+      executeStream: executeStream,
+    );
+  }
 
   final HomeViewModel viewModel;
   final ChatService chatService;
@@ -79,6 +88,17 @@ class ChatActions {
   final BuildContext contextProvider;
   final String Function(BuildContext context) getTitleForLocale;
   final bool Function(String messageId)? hasActiveTranslation;
+
+  late final MessagePipeline _pipeline;
+
+  /// Shared prepare-execute pipeline for single-chat send/regenerate/continue
+  /// and Multi-AI threads. It owns reasoning initialization, API-message
+  /// preparation, per-message request-metadata replay (ADR-0033), and stream
+  /// dispatch. Group chat keeps its own instance in `GroupChatOrchestrator`.
+  ///
+  /// Owned by [ChatActions] and constructed in its constructor;
+  /// [HomePageController] forwards this same instance into [MultiAIEngine].
+  MessagePipeline get pipeline => _pipeline;
 
   // ============================================================================
   // Callbacks for UI updates (set by HomeViewModel)
@@ -250,27 +270,23 @@ class ChatActions {
     onLoadingChanged?.call(conversationId, loading);
   }
 
-  bool _isReasoningModel(String providerKey, String modelId) {
-    return generationController.isReasoningModel(providerKey, modelId);
-  }
-
-  bool _isReasoningEnabled(int? budget) {
-    return messageGenerationService.isReasoningEnabled(budget);
-  }
-
-  /// Replay the per-message request metadata of the last user message in the
-  /// given context: the image-mode routing decision and the image options
-  /// body that were persisted at send time. See
-  /// docs/adr/0033-per-message-request-metadata.md.
-  ({bool allowImagesApiRouting, Map<String, dynamic>? requestExtraBody})
-  _resolveRequestOptionsFromMessages(
-    List<ChatMessage> messages, {
-    required bool fallbackAllowImagesApiRouting,
-  }) {
-    return MessageGenerationService.resolveRequestOptionsFromMessages(
-      messages,
-      fallbackAllowImagesApiRouting: fallbackAllowImagesApiRouting,
-    );
+  /// Unified preparation-failure teardown for send / regenerate / continue:
+  /// log, clear the page-level file-processing indicator (prepare fires
+  /// `onFileProcessingStarted` without a matching finish when it throws), run
+  /// the placeholder cleanup, and map a user cancel to a silent success.
+  Future<ChatActionResult> _handlePreparationError(
+    Object error,
+    ChatMessage placeholder,
+    String conversationId,
+    String logTag,
+  ) async {
+    FlutterLogger.log('[$logTag] $error', tag: 'ChatActions');
+    onFileProcessingFinished?.call();
+    await _cleanupStreamingError(placeholder, conversationId);
+    if (isUserCancelError(error)) {
+      return ChatActionResult.success(placeholder);
+    }
+    return ChatActionResult.error(error.toString());
   }
 
   Conversation _conversationForMessageContext(
@@ -443,7 +459,6 @@ class ChatActions {
     final assistant = await contextProvider
         .read<AssistantProvider>()
         .getLoadedCurrentAssistant();
-    final assistantId = assistant?.id;
     final modelConfig = messageGenerationService.getModelConfig(
       settings,
       assistant,
@@ -508,84 +523,53 @@ class ChatActions {
     }
     onMessagesChanged?.call();
 
-    // Reset tool parts and initialize reasoning
+    // Reset tool parts before the shared pipeline prepares the turn.
     streamController.toolParts.remove(assistantMessage.id);
-    final supportsReasoning = _isReasoningModel(providerKey, modelId);
-    final enableReasoning =
-        supportsReasoning &&
-        _isReasoningEnabled(
-          assistant?.thinkingBudget ?? settings.thinkingBudget,
-        );
-    await messageGenerationService.initializeReasoningState(
-      messageId: assistantMessage.id,
-      enableReasoning: enableReasoning,
-    );
 
-    // Prepare API messages
+    // File-processing indicators are page-level: keep them wired before the
+    // pipeline runs prepareApiMessagesWithInjections.
     messageGenerationService.onFileProcessingStarted = onFileProcessingStarted;
     messageGenerationService.onFileProcessingFinished =
         onFileProcessingFinished;
-    try {
-      final apiContextMessages = chatController
-          .messagesForCompleteHistoryContext(conversation);
-      final prepared = await messageGenerationService
-          .prepareApiMessagesWithInjections(
-            messages: apiContextMessages,
-            versionSelections: _versionSelections,
-            currentConversation: _conversationForMessageContext(
-              conversation,
-              apiContextMessages,
-            ),
-            settings: settings,
-            assistant: assistant,
-            assistantId: assistantId,
-            providerKey: providerKey,
-            modelId: modelId,
-            approvalService: approvalService,
-            askUserService: askUserService,
-          );
 
-      // Build user media paths
-      final userMediaPaths = messageGenerationService.buildUserMediaPaths(
-        input: input,
-        lastUserMediaPaths: prepared.lastUserImagePaths,
+    final apiContextMessages = chatController.messagesForCompleteHistoryContext(
+      conversation,
+    );
+    final messageContextConversation = _conversationForMessageContext(
+      conversation,
+      apiContextMessages,
+    );
+    Object? prepareError;
+    await _pipeline.executeAssistantResponse(
+      assistantMessage: assistantMessage,
+      providerKey: providerKey,
+      modelId: modelId,
+      context: ModelExecutionContext(
+        conversation: messageContextConversation,
         settings: settings,
-        providerKey: providerKey,
-        modelId: modelId,
         assistant: assistant,
-      );
+        approvalService: approvalService,
+        askUserService: askUserService,
+        versionSelections: _versionSelections,
+      ),
+      completeMessages: apiContextMessages,
+      inputData: input,
+      allowImagesApiRouting: input.allowImagesApiRouting,
+      generateTitleOnFinish: true,
+      onPreparationError: (error, _) {
+        prepareError = error;
+      },
+    );
 
-      // Execute generation
-      final ctx = messageGenerationService.buildGenerationContext(
-        assistantMessage: assistantMessage,
-        prepared: prepared,
-        userMediaPaths: userMediaPaths,
-        allowImagesApiRouting: input.allowImagesApiRouting,
-        providerKey: providerKey,
-        modelId: modelId,
-        assistant: assistant,
-        settings: settings,
-        supportsReasoning: supportsReasoning,
-        enableReasoning: enableReasoning,
-        generateTitleOnFinish: true,
-        requestExtraBody: input.extraBody,
+    if (prepareError != null) {
+      return _handlePreparationError(
+        prepareError!,
+        assistantMessage,
+        conversation.id,
+        'SendMessage',
       );
-
-      await _executeGeneration(ctx);
-      return ChatActionResult.success(assistantMessage);
-    } catch (e) {
-      FlutterLogger.log('[SendMessage] $e', tag: 'ChatActions');
-      // Ensure file processing indicator is cleared on error
-      onFileProcessingFinished?.call();
-      await _cleanupStreamingError(assistantMessage, conversation.id);
-      // User Stop during message preparation (e.g. OCR backoff wait) must not
-      // surface a raw cancel toast; same skip semantics as cancelled slots.
-      if (isUserCancelError(e)) {
-        debugPrint('[ChatActions] sendMessage cancelled during prepare: $e');
-        return ChatActionResult.success(assistantMessage);
-      }
-      return ChatActionResult.error(e.toString());
     }
+    return ChatActionResult.success(assistantMessage);
   }
 
   // ============================================================================
@@ -643,7 +627,6 @@ class ChatActions {
     }
 
     // Get model config
-    final assistantId = assistant?.id;
     final modelConfig = messageGenerationService.getModelConfig(
       settings,
       assistant,
@@ -723,68 +706,41 @@ class ChatActions {
 
     _setConversationLoading(conversation.id, true);
 
-    // Initialize reasoning
-    final supportsReasoning = _isReasoningModel(providerKey, modelId);
-    final enableReasoning =
-        supportsReasoning &&
-        _isReasoningEnabled(
-          assistant?.thinkingBudget ?? settings.thinkingBudget,
-        );
-    await messageGenerationService.initializeReasoningState(
-      messageId: assistantMessage.id,
-      enableReasoning: enableReasoning,
-    );
-
-    // Prepare API messages
-    final prepared = await messageGenerationService
-        .prepareApiMessagesWithInjections(
-          messages: regenerationMessages,
-          versionSelections: _versionSelections,
-          currentConversation: _conversationForMessageContext(
-            conversation,
-            regenerationMessages,
-            maxRawTruncateIndex: versioning.lastKeep,
-          ),
-          settings: settings,
-          assistant: assistant,
-          assistantId: assistantId,
-          providerKey: providerKey,
-          modelId: modelId,
-          approvalService: regenApprovalService,
-          askUserService: regenAskUserService,
-        );
-
-    // Build user media paths
-    final userMediaPaths = messageGenerationService.buildUserMediaPaths(
-      input: null,
-      lastUserMediaPaths: prepared.lastUserImagePaths,
-      settings: settings,
-      providerKey: providerKey,
-      modelId: modelId,
-      assistant: assistant,
-    );
-
-    // Execute generation
-    final requestOptions = _resolveRequestOptionsFromMessages(
+    final messageContextConversation = _conversationForMessageContext(
+      conversation,
       regenerationMessages,
-      fallbackAllowImagesApiRouting: allowImagesApiRouting,
+      maxRawTruncateIndex: versioning.lastKeep,
     );
-    final ctx = messageGenerationService.buildGenerationContext(
+    Object? prepareError;
+    await _pipeline.executeAssistantResponse(
       assistantMessage: assistantMessage,
-      prepared: prepared,
-      userMediaPaths: userMediaPaths,
-      allowImagesApiRouting: requestOptions.allowImagesApiRouting,
       providerKey: providerKey,
       modelId: modelId,
-      assistant: assistant,
-      settings: settings,
-      supportsReasoning: supportsReasoning,
-      enableReasoning: enableReasoning,
+      context: ModelExecutionContext(
+        conversation: messageContextConversation,
+        settings: settings,
+        assistant: assistant,
+        approvalService: regenApprovalService,
+        askUserService: regenAskUserService,
+        versionSelections: _versionSelections,
+      ),
+      completeMessages: regenerationMessages,
+      inputData: null,
+      allowImagesApiRouting: allowImagesApiRouting,
       generateTitleOnFinish: shouldGenerateTitleOnRetry,
-      requestExtraBody: requestOptions.requestExtraBody,
+      onPreparationError: (error, _) {
+        prepareError = error;
+      },
     );
 
-    await _executeGeneration(ctx);
+    if (prepareError != null) {
+      return _handlePreparationError(
+        prepareError!,
+        assistantMessage,
+        conversation.id,
+        'regenerate',
+      );
+    }
     return ChatActionResult.success(assistantMessage);
   }
 
@@ -842,81 +798,45 @@ class ChatActions {
     onMessagesChanged?.call();
     _setConversationLoading(conversation.id, true);
 
-    final supportsReasoning = _isReasoningModel(providerKey, modelId);
-    final enableReasoning =
-        supportsReasoning &&
-        _isReasoningEnabled(
-          assistant?.thinkingBudget ?? settings.thinkingBudget,
-        );
+    final apiContextMessages = List<ChatMessage>.of(completeMessages);
+    apiContextMessages[contextIndex] = apiContextMessages[contextIndex]
+        .copyWith(content: '', isStreaming: true);
 
-    try {
-      final apiContextMessages = List<ChatMessage>.of(completeMessages);
-      apiContextMessages[contextIndex] = streamingMessage.copyWith(content: '');
-      final prepared = await messageGenerationService
-          .prepareApiMessagesWithInjections(
-            messages: apiContextMessages,
-            versionSelections: _versionSelections,
-            currentConversation: _conversationForMessageContext(
-              conversation,
-              apiContextMessages,
-            ),
-            settings: settings,
-            assistant: assistant,
-            assistantId: assistant?.id,
-            providerKey: providerKey,
-            modelId: modelId,
-            approvalService: approvalService,
-            askUserService: askUserService,
-          );
-
-      final userMediaPaths = messageGenerationService.buildUserMediaPaths(
-        input: null,
-        lastUserMediaPaths: prepared.lastUserImagePaths,
+    final messageContextConversation = _conversationForMessageContext(
+      conversation,
+      apiContextMessages,
+    );
+    Object? prepareError;
+    await _pipeline.executeAssistantResponse(
+      assistantMessage: streamingMessage,
+      providerKey: providerKey,
+      modelId: modelId,
+      context: ModelExecutionContext(
+        conversation: messageContextConversation,
         settings: settings,
-        providerKey: providerKey,
-        modelId: modelId,
         assistant: assistant,
-      );
+        approvalService: approvalService,
+        askUserService: askUserService,
+        versionSelections: _versionSelections,
+      ),
+      completeMessages: apiContextMessages,
+      inputData: null,
+      allowImagesApiRouting: allowImagesApiRouting,
+      generateTitleOnFinish: false,
+      onPreparationError: (error, _) {
+        prepareError = error;
+      },
+    );
 
-      // Replay the anchor's request metadata: scan only up to the continued
-      // assistant message, not the whole (possibly newer) history — the last
-      // user message in the full context may belong to an unrelated exchange.
-      final requestOptions = _resolveRequestOptionsFromMessages(
-        apiContextMessages.sublist(0, contextIndex + 1),
-        fallbackAllowImagesApiRouting: allowImagesApiRouting,
+    if (prepareError != null) {
+      return _handlePreparationError(
+        prepareError!,
+        streamingMessage,
+        conversation.id,
+        'ContinueAssistantMessageAfterToolAnswer',
       );
-
-      final ctx = messageGenerationService.buildGenerationContext(
-        assistantMessage: streamingMessage,
-        prepared: prepared,
-        userMediaPaths: userMediaPaths,
-        allowImagesApiRouting: requestOptions.allowImagesApiRouting,
-        providerKey: providerKey,
-        modelId: modelId,
-        assistant: assistant,
-        settings: settings,
-        supportsReasoning: supportsReasoning,
-        enableReasoning: enableReasoning,
-        generateTitleOnFinish: false,
-        requestExtraBody: requestOptions.requestExtraBody,
-      );
-
-      await _executeGeneration(ctx);
-      return ChatActionResult.success(streamingMessage);
-    } catch (e) {
-      FlutterLogger.log(
-        '[ContinueAssistantMessageAfterToolAnswer] $e',
-        tag: 'ChatActions',
-      );
-      await _cleanupStreamingError(streamingMessage, conversation.id);
-      if (isUserCancelError(e)) {
-        debugPrint(
-          '[ChatActions] continue generation cancelled during prepare: $e',
-        );
-        return ChatActionResult.success(streamingMessage);
-      }
-      return ChatActionResult.error(e.toString());
     }
+    return ChatActionResult.success(streamingMessage);
   }
 
   // ============================================================================

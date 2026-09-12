@@ -1028,8 +1028,6 @@ class _DesktopProviderDetailPaneState
   final TextEditingController _proxyPortCtrl = TextEditingController();
   final TextEditingController _proxyUserCtrl = TextEditingController();
   final TextEditingController _proxyPassCtrl = TextEditingController();
-  bool _balanceLoading = false;
-  bool _customRequestExpanded = false;
   void _syncCtrl(TextEditingController c, String newText) {
     final v = c.value;
     // Do not disturb ongoing IME composition
@@ -2267,47 +2265,6 @@ class _DesktopProviderDetailPaneState
     );
   }
 
-  Future<void> _queryProviderBalance(BuildContext context) async {
-    if (_balanceLoading) return;
-    final sp = context.read<SettingsProvider>();
-    final l10n = AppLocalizations.of(context)!;
-    setState(() {
-      _balanceLoading = true;
-    });
-    try {
-      final old = sp.getProviderConfig(
-        widget.providerKey,
-        defaultName: widget.displayName,
-      );
-      final updated = old.copyWith(
-        balanceApiPath: _balanceApiPathCtrl.text.trim(),
-        balanceResultPath: _balanceResultPathCtrl.text.trim(),
-      );
-      await sp.setProviderConfig(widget.providerKey, updated);
-      ProviderBalanceBadge.clearCacheFor(widget.providerKey);
-      final value = await ProviderBalanceService.fetchBalance(updated);
-      if (!mounted) return;
-      if (context.mounted) {
-        showAppSnackBar(
-          context,
-          message: l10n.providerDetailPageBalanceResult(value),
-          type: NotificationType.success,
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      if (context.mounted) {
-        showAppSnackBar(
-          context,
-          message: l10n.providerDetailPageBalanceError(e.toString()),
-          type: NotificationType.error,
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _balanceLoading = false);
-    }
-  }
-
   InputDecoration _proxyInputDecoration(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return InputDecoration(
@@ -3139,22 +3096,16 @@ class _DesktopProviderDetailPaneState
                                               ),
                                             ),
                                             const SizedBox(width: 4),
-                                            Tooltip(
-                                              message: _balanceLoading
-                                                  ? l10n.providerDetailPageBalanceQuerying
-                                                  : l10n.providerDetailPageBalanceQueryButton,
-                                              child: _IconBtn(
-                                                icon: _balanceLoading
-                                                    ? lucide.Lucide.Loader
-                                                    : lucide
-                                                          .Lucide
-                                                          .RefreshCcwDot,
-                                                color: cs.primary,
-                                                onTap: () =>
-                                                    _queryProviderBalance(
-                                                      context,
-                                                    ),
+                                            _BalanceQueryButton(
+                                              key: const ValueKey(
+                                                'desktop-provider-balance-query-button',
                                               ),
+                                              providerKey: widget.providerKey,
+                                              displayName: widget.displayName,
+                                              apiPathController:
+                                                  _balanceApiPathCtrl,
+                                              resultPathController:
+                                                  _balanceResultPathCtrl,
                                             ),
                                           ],
                                         ),
@@ -3576,42 +3527,11 @@ class _DesktopProviderDetailPaneState
                               sizeCurve: Curves.easeOutCubic,
                             ),
                             // 6) Provider-level custom request inline
-                            _CustomRequestHeaderRow(
-                              expanded: _customRequestExpanded,
-                              onTap: () => setState(
-                                () => _customRequestExpanded =
-                                    !_customRequestExpanded,
-                              ),
-                            ),
-                            AnimatedCrossFade(
-                              firstChild: const SizedBox.shrink(),
-                              secondChild: Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    _DesktopCustomRequestSection(
-                                      providerKey: widget.providerKey,
-                                      displayName: widget.displayName,
-                                      mode: KeyMode.header,
-                                      entries: cfgNow.customHeaders,
-                                    ),
-                                    const SizedBox(height: 12),
-                                    _DesktopCustomRequestSection(
-                                      providerKey: widget.providerKey,
-                                      displayName: widget.displayName,
-                                      mode: KeyMode.body,
-                                      entries: cfgNow.customBody,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              crossFadeState: _customRequestExpanded
-                                  ? CrossFadeState.showSecond
-                                  : CrossFadeState.showFirst,
-                              duration: const Duration(milliseconds: 180),
-                              sizeCurve: Curves.easeOutCubic,
+                            _CustomRequestSection(
+                              providerKey: widget.providerKey,
+                              displayName: widget.displayName,
+                              headers: cfgNow.customHeaders,
+                              body: cfgNow.customBody,
                             ),
                           ],
                         ),
@@ -7143,6 +7063,74 @@ class _CustomRequestHeaderRow extends StatelessWidget {
   }
 }
 
+/// Desktop collapsible custom request section.
+///
+/// The provider settings dialog lives in its own route, so the expanded state
+/// must rebuild this subtree instead of the pane State behind the dialog.
+class _CustomRequestSection extends StatefulWidget {
+  const _CustomRequestSection({
+    required this.providerKey,
+    required this.displayName,
+    required this.headers,
+    required this.body,
+  });
+
+  final String providerKey;
+  final String displayName;
+  final List<Map<String, String>> headers;
+  final List<Map<String, String>> body;
+
+  @override
+  State<_CustomRequestSection> createState() => _CustomRequestSectionState();
+}
+
+class _CustomRequestSectionState extends State<_CustomRequestSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _CustomRequestHeaderRow(
+          expanded: _expanded,
+          onTap: () => setState(() => _expanded = !_expanded),
+        ),
+        AnimatedCrossFade(
+          key: const ValueKey('desktop-provider-custom-request-crossfade'),
+          firstChild: const SizedBox.shrink(),
+          secondChild: Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _DesktopCustomRequestSection(
+                  providerKey: widget.providerKey,
+                  displayName: widget.displayName,
+                  mode: KeyMode.header,
+                  entries: widget.headers,
+                ),
+                const SizedBox(height: 12),
+                _DesktopCustomRequestSection(
+                  providerKey: widget.providerKey,
+                  displayName: widget.displayName,
+                  mode: KeyMode.body,
+                  entries: widget.body,
+                ),
+              ],
+            ),
+          ),
+          crossFadeState: _expanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 180),
+          sizeCurve: Curves.easeOutCubic,
+        ),
+      ],
+    );
+  }
+}
+
 /// Desktop inline custom request editor section (Headers or Body).
 class _DesktopCustomRequestSection extends StatelessWidget {
   const _DesktopCustomRequestSection({
@@ -7202,6 +7190,83 @@ class _DesktopCustomRequestSection extends StatelessWidget {
             : {'key': key, 'value': value};
         _save(context, updated);
       },
+    );
+  }
+}
+
+/// Desktop balance query button with self-contained loading state.
+///
+/// Rendered inside the provider settings dialog route; keeping the loading
+/// flag local is what lets the spinner update while the dialog stays open.
+class _BalanceQueryButton extends StatefulWidget {
+  const _BalanceQueryButton({
+    super.key,
+    required this.providerKey,
+    required this.displayName,
+    required this.apiPathController,
+    required this.resultPathController,
+  });
+
+  final String providerKey;
+  final String displayName;
+  final TextEditingController apiPathController;
+  final TextEditingController resultPathController;
+
+  @override
+  State<_BalanceQueryButton> createState() => _BalanceQueryButtonState();
+}
+
+class _BalanceQueryButtonState extends State<_BalanceQueryButton> {
+  bool _loading = false;
+
+  Future<void> _query() async {
+    if (_loading) return;
+    final sp = context.read<SettingsProvider>();
+    final l10n = AppLocalizations.of(context)!;
+    setState(() => _loading = true);
+    try {
+      final old = sp.getProviderConfig(
+        widget.providerKey,
+        defaultName: widget.displayName,
+      );
+      final updated = old.copyWith(
+        balanceApiPath: widget.apiPathController.text.trim(),
+        balanceResultPath: widget.resultPathController.text.trim(),
+      );
+      await sp.setProviderConfig(widget.providerKey, updated);
+      ProviderBalanceBadge.clearCacheFor(widget.providerKey);
+      final value = await ProviderBalanceService.fetchBalance(updated);
+      if (!mounted) return;
+      showAppSnackBar(
+        context,
+        message: l10n.providerDetailPageBalanceResult(value),
+        type: NotificationType.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showAppSnackBar(
+        context,
+        message: l10n.providerDetailPageBalanceError(e.toString()),
+        type: NotificationType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: _loading
+          ? l10n.providerDetailPageBalanceQuerying
+          : l10n.providerDetailPageBalanceQueryButton,
+      child: _IconBtn(
+        icon: _loading ? lucide.Lucide.Loader : lucide.Lucide.RefreshCcwDot,
+        color: cs.primary,
+        onTap: _query,
+      ),
     );
   }
 }

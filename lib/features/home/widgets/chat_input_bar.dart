@@ -1708,7 +1708,6 @@ class _ChatInputBarState extends State<ChatInputBar>
                     ),
                   );
                 } catch (_) {}
-                state.hideToolbar();
               },
               label: materialL10n.selectAllButtonLabel,
             ),

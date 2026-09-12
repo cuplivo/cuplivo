@@ -3,7 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/database/business_preferences.dart';
@@ -12,9 +14,12 @@ import '../../core/services/backup/data_sync.dart';
 import '../../core/services/backup/restore_refresher.dart';
 import '../../core/services/chat/chat_service.dart';
 import '../../core/services/sync/lan_sync_client.dart';
+import '../../core/services/sync/lan_sync_link.dart';
 import '../../core/services/sync/lan_sync_models.dart';
+import '../../core/services/sync/lan_sync_recent.dart';
 import '../../core/services/sync/lan_sync_server.dart';
 import '../../core/services/sync/windows_firewall.dart';
+import '../../features/scan/pages/qr_scan_page.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_font_weights.dart';
 import '../../theme/app_semantic_colors.dart';
@@ -24,6 +29,7 @@ import 'ios_form_text_field.dart';
 import 'ios_tactile.dart';
 import 'ios_tile_button.dart';
 import 'loading_dialog_card.dart' show buildRestoreProgress;
+import 'snackbar.dart';
 
 /// Shared restore-progress content for the sync dialog/sheet mask: stage
 /// text + determinate bar (indeterminate stages render a busy bar).
@@ -103,6 +109,18 @@ class _LanSyncSectionState extends State<LanSyncSection> {
   final _portController = TextEditingController(text: '9527');
   final _pinController = TextEditingController();
 
+  /// Recently used endpoints (newest first), loaded at init and updated after
+  /// every successful connect. Device-local only; never backed up.
+  List<LanSyncEndpoint> _recentEndpoints = const [];
+
+  /// Additional hosts carried by a scanned/pasted link (multi-NIC server).
+  /// `_negotiate` tries them in order; one-shot (cleared after the attempt).
+  List<String>? _linkHosts;
+
+  /// In-flight initial load of [_recentEndpoints]; the client dialog/sheet
+  /// awaits it so the chips are never a stale empty snapshot.
+  Future<void>? _recentLoadFuture;
+
   /// The initiator's chosen conflict direction for this session (issue #615).
   /// Null = auto (current merge behavior). Session-only, never persisted.
   SyncPriority? _priorityChoice;
@@ -140,10 +158,79 @@ class _LanSyncSectionState extends State<LanSyncSection> {
     // When a zip is received (either side), restore it and prompt restart.
     _server.onZipReceived = (zip) => _restoreAndRestart(zip, isServer: true);
     _client.onZipReceived = (zip) => _restoreAndRestart(zip, isServer: false);
+
+    _recentLoadFuture = _loadRecentEndpoints();
   }
 
   void _onChanged() {
     if (mounted) setState(() {});
+  }
+
+  Future<void> _loadRecentEndpoints() async {
+    final endpoints = await LanSyncRecentEndpoints.load();
+    if (!mounted) return;
+    setState(() => _recentEndpoints = endpoints);
+    if (endpoints.isEmpty) return;
+    // Prefill the newest endpoint, but only while the fields still show their
+    // initial defaults — never clobber text the user already typed.
+    final newest = endpoints.first;
+    if (_hostController.text.trim() == '192.168.' &&
+        _portController.text.trim() == '9527') {
+      _hostController.text = newest.host;
+      _portController.text = newest.port.toString();
+    }
+  }
+
+  Future<void> _recordRecentEndpoint(String host, int port) async {
+    try {
+      final updated = await LanSyncRecentEndpoints.record(
+        host: host,
+        port: port,
+        current: _recentEndpoints,
+      );
+      if (!mounted) return;
+      setState(() => _recentEndpoints = updated);
+    } catch (e) {
+      // Best-effort convenience state: a failed write must not surface as an
+      // unhandled async error (the caller fire-and-forgets this).
+      debugPrint('lan sync: failed to remember endpoint $host:$port: $e');
+    }
+  }
+
+  /// Fills host/port from a recent endpoint (PIN is intentionally untouched).
+  ///
+  /// A different endpoint invalidates the current session's plan (it was
+  /// computed against the previous server), so the client is reset and the
+  /// user must negotiate again. Blocked while a request is in flight.
+  void _applyRecentEndpoint(LanSyncEndpoint endpoint) {
+    if (_client.busy) return;
+    final changed =
+        _hostController.text.trim() != endpoint.host ||
+        _portController.text.trim() != endpoint.port.toString();
+    if (!changed) return;
+    if (_client.plan != null) _client.reset();
+    _linkHosts = null;
+    _hostController.text = endpoint.host;
+    _portController.text = endpoint.port.toString();
+  }
+
+  /// Opens the QR scanner (mobile) and expands a valid link into the fields.
+  Future<void> _scanLink() async {
+    final l10n = AppLocalizations.of(context)!;
+    final code = await Navigator.of(
+      context,
+    ).push<String>(MaterialPageRoute(builder: (_) => const QrScanPage()));
+    if (!mounted || code == null || code.isEmpty) return;
+    final link = parseLanSyncLink(code);
+    if (link == null) {
+      _showError(l10n.lanSyncErrorInvalidLink);
+      return;
+    }
+    _linkHosts = link.hosts;
+    _hostController.text = link.hosts.first;
+    _portController.text = link.port.toString();
+    _pinController.text = link.pin;
+    _pinController.selection = TextSelection.collapsed(offset: link.pin.length);
   }
 
   @override
@@ -372,13 +459,16 @@ class _LanSyncSectionState extends State<LanSyncSection> {
     );
   }
 
-  void _showClientDialog(
+  Future<void> _showClientDialog(
     BuildContext context,
     AppLocalizations l10n,
     ColorScheme cs,
-  ) {
+  ) async {
+    await _recentLoadFuture;
+    if (!context.mounted) return;
     _client.reset();
     _priorityChoice = null;
+    _linkHosts = null;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -394,6 +484,8 @@ class _LanSyncSectionState extends State<LanSyncSection> {
         onClose: () => Navigator.of(ctx).pop(),
         priority: _priorityChoice,
         onPriorityChanged: (v) => setState(() => _priorityChoice = v),
+        recentEndpoints: _recentEndpoints,
+        onRecentPicked: _applyRecentEndpoint,
       ),
     );
   }
@@ -494,13 +586,16 @@ class _LanSyncSectionState extends State<LanSyncSection> {
     );
   }
 
-  void _showMobileClientSheet(
+  Future<void> _showMobileClientSheet(
     BuildContext context,
     AppLocalizations l10n,
     ColorScheme cs,
-  ) {
+  ) async {
+    await _recentLoadFuture;
+    if (!context.mounted) return;
     _client.reset();
     _priorityChoice = null;
+    _linkHosts = null;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -521,6 +616,9 @@ class _LanSyncSectionState extends State<LanSyncSection> {
         onClose: () => Navigator.of(ctx).pop(),
         priority: _priorityChoice,
         onPriorityChanged: (v) => setState(() => _priorityChoice = v),
+        recentEndpoints: _recentEndpoints,
+        onRecentPicked: _applyRecentEndpoint,
+        onScan: _isDesktop ? null : _scanLink,
       ),
     );
   }
@@ -529,9 +627,26 @@ class _LanSyncSectionState extends State<LanSyncSection> {
 
   Future<void> _negotiate() async {
     final l10n = AppLocalizations.of(context)!;
-    final host = _hostController.text.trim();
-    final portStr = _portController.text.trim();
-    final pin = _pinController.text.trim();
+    var host = _hostController.text.trim();
+    var portStr = _portController.text.trim();
+    var pin = _pinController.text.trim();
+
+    // A pasted QR link may sit in the Host field: expand it into the three
+    // fields before validating, so paste-then-connect works without a scan.
+    if (host.startsWith(lanSyncLinkPrefix)) {
+      final link = parseLanSyncLink(host);
+      if (link == null) {
+        _showError(l10n.lanSyncErrorInvalidLink);
+        return;
+      }
+      _linkHosts = link.hosts;
+      host = link.hosts.first;
+      portStr = link.port.toString();
+      pin = link.pin;
+      _hostController.text = host;
+      _portController.text = portStr;
+      _pinController.text = pin;
+    }
 
     if (host.isEmpty || portStr.isEmpty || pin.isEmpty) {
       _showError(l10n.lanSyncErrorFieldsRequired);
@@ -544,20 +659,40 @@ class _LanSyncSectionState extends State<LanSyncSection> {
       return;
     }
 
-    try {
-      await _client.negotiate(
-        host: host,
-        port: port,
-        pin: pin,
-        syncPriority: _priorityChoice,
-      );
-    } catch (e) {
-      _showError(
-        e.toString().contains('PIN')
-            ? l10n.lanSyncErrorInvalidPin
-            : l10n.lanSyncErrorConnection(e.toString()),
-      );
+    // A scanned/pasted link may carry several LAN addresses (multi-NIC
+    // server). Try them in order and stop at the first one that responds; a
+    // PIN error aborts — another address cannot fix a wrong PIN. Manually
+    // editing the Host field discards the alternates.
+    final linked = _linkHosts;
+    final hosts = linked != null && linked.first == host ? linked : [host];
+    _linkHosts = null;
+
+    Object? lastError;
+    for (final candidate in hosts) {
+      try {
+        await _client.negotiate(
+          host: candidate,
+          port: port,
+          pin: pin,
+          syncPriority: _priorityChoice,
+        );
+        // Round 2 reads the Host field, so pin it to the address that worked,
+        // and remember the endpoint for the next session's prefill.
+        _hostController.text = candidate;
+        unawaited(_recordRecentEndpoint(candidate, port));
+        return;
+      } catch (e) {
+        lastError = e;
+        if (e.toString().contains('PIN')) break;
+        _client.reset();
+      }
     }
+
+    _showError(
+      lastError.toString().contains('PIN')
+          ? l10n.lanSyncErrorInvalidPin
+          : l10n.lanSyncErrorConnection(lastError.toString()),
+    );
   }
 
   /// Round 2. Returns `true` only when the caller should close its sheet:
@@ -775,6 +910,72 @@ class _ServerDialogState extends State<_ServerDialog> {
                 cs: cs,
                 emphasize: true,
               ),
+              if (server.addresses.isNotEmpty &&
+                  port != null &&
+                  server.pin != null) ...[
+                const SizedBox(height: 12),
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      // Always white: QR must stay readable in dark mode (same
+                      // treatment as the provider share sheet).
+                      color: Colors.white, // color-gate: ignore
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: cs.outlineVariant.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: SizedBox.square(
+                      dimension: 160,
+                      child: PrettyQrView.data(
+                        data: buildLanSyncLink(
+                          hosts: server.addresses,
+                          port: port,
+                          pin: server.pin!,
+                        ),
+                        errorCorrectLevel: QrErrorCorrectLevel.M,
+                        decoration: const PrettyQrDecoration(
+                          shape: PrettyQrSmoothSymbol(roundFactor: 1),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  l10n.lanSyncQrServerHint,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: cs.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: IosTileButton(
+                    icon: Icons.copy,
+                    label: l10n.lanSyncCopyLink,
+                    onTap: () {
+                      Clipboard.setData(
+                        ClipboardData(
+                          text: buildLanSyncLink(
+                            hosts: server.addresses,
+                            port: port,
+                            pin: server.pin!,
+                          ),
+                        ),
+                      );
+                      showAppSnackBar(
+                        context,
+                        message: l10n.lanSyncLinkCopied,
+                        type: NotificationType.success,
+                      );
+                    },
+                    fontSize: 13,
+                  ),
+                ),
+              ],
               if (!kIsWeb && Platform.isWindows) ...[
                 const SizedBox(height: 10),
                 ..._buildFirewallSection(l10n, cs, port),
@@ -930,6 +1131,72 @@ class _AddressDisplay extends StatelessWidget {
 
 // ===== Client dialog (desktop) =====
 
+/// Recently used server endpoints; tapping a chip fills host + port.
+class _RecentEndpointsRow extends StatelessWidget {
+  final List<LanSyncEndpoint> endpoints;
+  final AppLocalizations l10n;
+  final ColorScheme cs;
+  final ValueChanged<LanSyncEndpoint> onPick;
+
+  /// False while a client request is in flight (changing the endpoint then
+  /// would race the in-flight negotiate).
+  final bool enabled;
+
+  const _RecentEndpointsRow({
+    required this.endpoints,
+    required this.l10n,
+    required this.cs,
+    required this.onPick,
+    this.enabled = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.lanSyncRecentEndpoints,
+          style: TextStyle(
+            fontSize: 13,
+            color: cs.onSurface.withValues(alpha: enabled ? 0.6 : 0.3),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final endpoint in endpoints)
+              IosCardPress(
+                onTap: enabled ? () => onPick(endpoint) : null,
+                baseColor: context.appColors.surfaceFill,
+                pressedBlendStrength: 0.08,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: cs.outlineVariant.withValues(
+                    alpha: enabled ? 0.35 : 0.18,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                child: Text(
+                  '${endpoint.host}:${endpoint.port}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: cs.onSurface.withValues(alpha: enabled ? 0.85 : 0.4),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class _ClientDialog extends StatefulWidget {
   final TextEditingController hostController;
   final TextEditingController portController;
@@ -942,6 +1209,8 @@ class _ClientDialog extends StatefulWidget {
   final VoidCallback onClose;
   final SyncPriority? priority;
   final ValueChanged<SyncPriority?> onPriorityChanged;
+  final List<LanSyncEndpoint> recentEndpoints;
+  final ValueChanged<LanSyncEndpoint> onRecentPicked;
 
   const _ClientDialog({
     required this.hostController,
@@ -955,6 +1224,8 @@ class _ClientDialog extends StatefulWidget {
     required this.onClose,
     required this.priority,
     required this.onPriorityChanged,
+    required this.recentEndpoints,
+    required this.onRecentPicked,
   });
 
   @override
@@ -1015,6 +1286,16 @@ class _ClientDialogState extends State<_ClientDialog> {
                   border: const OutlineInputBorder(),
                 ),
               ),
+              if (widget.recentEndpoints.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _RecentEndpointsRow(
+                  endpoints: widget.recentEndpoints,
+                  l10n: l10n,
+                  cs: cs,
+                  onPick: widget.onRecentPicked,
+                  enabled: !client.busy,
+                ),
+              ],
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -1144,6 +1425,11 @@ class _ClientSheet extends StatefulWidget {
   final VoidCallback onClose;
   final SyncPriority? priority;
   final ValueChanged<SyncPriority?> onPriorityChanged;
+  final List<LanSyncEndpoint> recentEndpoints;
+  final ValueChanged<LanSyncEndpoint> onRecentPicked;
+
+  /// Mobile-only QR scan action; null on desktop (no camera / no scanner).
+  final Future<void> Function()? onScan;
 
   const _ClientSheet({
     required this.hostController,
@@ -1157,6 +1443,9 @@ class _ClientSheet extends StatefulWidget {
     required this.onClose,
     required this.priority,
     required this.onPriorityChanged,
+    required this.recentEndpoints,
+    required this.onRecentPicked,
+    required this.onScan,
   });
 
   @override
@@ -1223,11 +1512,36 @@ class _ClientSheetState extends State<_ClientSheet> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
-                IosFormTextField(
-                  label: l10n.lanSyncClientHost,
-                  controller: widget.hostController,
-                  hintText: '192.168.1.100',
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: IosFormTextField(
+                        label: l10n.lanSyncClientHost,
+                        controller: widget.hostController,
+                        hintText: '192.168.1.100',
+                      ),
+                    ),
+                    if (widget.onScan != null) ...[
+                      const SizedBox(width: 6),
+                      IosIconButton(
+                        icon: Icons.qr_code_scanner,
+                        onTap: () => widget.onScan!(),
+                        semanticLabel: l10n.lanSyncScanQr,
+                      ),
+                    ],
+                  ],
                 ),
+                if (widget.recentEndpoints.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _RecentEndpointsRow(
+                    endpoints: widget.recentEndpoints,
+                    l10n: l10n,
+                    cs: cs,
+                    onPick: widget.onRecentPicked,
+                    enabled: !client.busy,
+                  ),
+                ],
                 const SizedBox(height: 10),
                 // Stacked, not side-by-side: two fields in one row are too
                 // cramped for phone widths (issue #182).

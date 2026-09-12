@@ -213,17 +213,11 @@ Stream<ChatStreamChunk> _sendGoogleVertexClaudeStream({
         if (p.startsWith('http')) {
           try {
             b64 = await _downloadRemoteAsBase64(client, config, p);
-            mime = 'image/png'; // TODO: detect mime from response or url
-            if (p.toLowerCase().endsWith('.jpg') ||
-                p.toLowerCase().endsWith('.jpeg')) {
-              mime = 'image/jpeg';
-            }
-            if (p.toLowerCase().endsWith('.webp')) {
-              mime = 'image/webp';
-            }
-            if (p.toLowerCase().endsWith('.gif')) {
-              mime = 'image/gif';
-            }
+            final inferred = _mimeFromPath(p);
+            // Keep this path byte-identical: only image MIME reaches an
+            // Anthropic image block; non-image extensions fall back to png as
+            // before (the non-image entries are skipped entirely in PR2).
+            mime = isImageMime(inferred) ? inferred : 'image/png';
           } catch (_) {
             parts.add({
               'type': 'text',

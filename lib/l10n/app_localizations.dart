@@ -5451,6 +5451,42 @@ abstract class AppLocalizations {
   /// **'Apply and restart'**
   String get lanSyncApplyAndRestart;
 
+  /// No description provided for @lanSyncRecentEndpoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get lanSyncRecentEndpoints;
+
+  /// No description provided for @lanSyncScanQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR Code'**
+  String get lanSyncScanQr;
+
+  /// No description provided for @lanSyncCopyLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Link'**
+  String get lanSyncCopyLink;
+
+  /// No description provided for @lanSyncLinkCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Link copied'**
+  String get lanSyncLinkCopied;
+
+  /// No description provided for @lanSyncErrorInvalidLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid sync QR code or link.'**
+  String get lanSyncErrorInvalidLink;
+
+  /// No description provided for @lanSyncQrServerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan this code on the other device to connect automatically.'**
+  String get lanSyncQrServerHint;
+
   /// No description provided for @chatHistoryPageTitle.
   ///
   /// In en, this message translates to:
@@ -13879,6 +13915,12 @@ abstract class AppLocalizations {
   /// **'Open Logs Folder'**
   String get logViewerOpenFolder;
 
+  /// No description provided for @logViewerOpenFolderFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open the logs folder: {error}'**
+  String logViewerOpenFolderFailed(String error);
+
   /// No description provided for @logViewerRequestsCount.
   ///
   /// In en, this message translates to:
@@ -17455,6 +17497,12 @@ abstract class AppLocalizations {
   /// **'Installing…'**
   String get workspaceDepStageInstall;
 
+  /// No description provided for @workspaceDepDebianMirrorNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Debian uses the repositories shipped in the image; mirror selection isn\'t supported yet.'**
+  String get workspaceDepDebianMirrorNotice;
+
   /// No description provided for @workspaceSandboxRuntimeMissing.
   ///
   /// In en, this message translates to:
@@ -17466,6 +17514,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Install the base dependency first'**
   String get workspaceSandboxBaseRequired;
+
+  /// No description provided for @workspaceSandboxDistroUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t detect the Linux distribution of the installed sandbox rootfs. Reinstall the base dependency with a supported image.'**
+  String get workspaceSandboxDistroUnknown;
 
   /// No description provided for @workspaceDepGitPrerequisite.
   ///

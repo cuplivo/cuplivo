@@ -3,7 +3,15 @@
   "exclude": [
     "lib/l10n/app_localizations*.dart",
     "**/*.g.dart",
-    "**/*.freezed.dart"
+    "**/*.freezed.dart",
+    "**/test/**",
+    "**/integration_test/**",
+    "**/androidtest/**",
+    "**/runnertests/**",
+    "**/*_test.*",
+    "**/*-test.*",
+    "**/*.test.*",
+    "**/*.spec.*"
   ],
   "rules": [
     {
@@ -37,10 +45,6 @@
     {
       "path": "lib/**/*.dart",
       "rule": "Repository-wide Dart rules for lib/**: (1) No user-visible string may be hardcoded in Dart UI code - page titles, button labels, SnackBar/Dialog/Tooltip content, semanticLabel, notification and tray text must all come from AppLocalizations. (2) Never hand-edit generated files (lib/l10n/app_localizations*.dart, lib/core/models/*.g.dart, lib/core/database/app_database.g.dart) - they come from flutter gen-l10n / build_runner. (3) No silent degradation - flag catch (_) {}, swallowed errors, hidden fallback paths, new error-swallowing logic and fake success branches; recoverable errors log context via debugPrint and continue, unrecoverable ones throw a specific exception. (4) The copyWith null-clear trap: on the sentinel pattern (lib/core/models/chat_message.dart, lib/core/providers/settings_provider.dart) copyWith(field: null) CLEARS the field, while on the plain ?? pattern (Conversation, Assistant, WorldBookEntry, AssistantRegex, QuickPhrase) it is a silent no-op - flag any copyWith(field: null) whose intent does not match the model's pattern, and flag mixing both patterns inside one model. (5) When a field is added to a model, check every consumer surface in the same change: copyWith, toJson/fromJson, clone/deep-copy, Drift table/column plus migration plus heal set plus repository read/write, backup/import/export round-trip, and equality when the field is identity-relevant. (6) Reuse the shared UI primitives (lib/shared/widgets/**, lib/shared/dialogs/**, lib/shared/responsive/**, lib/desktop/widgets/** - IosIconButton, IosCardPress, IosTileButton, IosSwitch, IosCheckbox, IosFormTextField, DesktopSelectDropdown, WindowTitleBar) - flag new page-private near-duplicates and Android ripple, Material default splash or default FAB emphasis, because the house style is custom iOS (color, opacity, subtle scale). (7) Navigation is Navigator 1.0 (Navigator.push(MaterialPageRoute(...))) with no go_router/auto_route, and desktop switches pages through the DesktopHomePage sidebar rather than the Navigator stack. (8) Keep it KISS/YAGNI - flag idle abstractions, empty config switches and unrelated refactors mixed into a bug fix; when a bug is fixed in one code path, look for parallel implementations of the same pattern and name the ones left unfixed."
-    },
-    {
-      "path": "test/**/*.dart",
-      "rule": "Test rules: flutter_test only - flag any new mockito/mocktail dependency, because hand-written Fake/Mock classes are the convention. Tests must be driven by the requirement, not by implementation details, and must cover the happy path, boundary inputs, failure paths and state transitions. A bug fix should come with a minimal failing case first; flag an after-the-fact weak-assertion test that would pass either way. Never widen a public API or expose private internals just to make a test possible. New user-visible behaviour needs a manual test plan (happy path plus edge cases) in the delivery notes."
     },
     {
       "path": "dependencies/**/*.dart",

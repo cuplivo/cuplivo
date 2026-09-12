@@ -1,4 +1,4 @@
-# ADR-0064: Translate Language Catalog and User-Visible Set (翻译语言目录与可见集)
+# ADR-0065: Translate Language Catalog and User-Visible Set (翻译语言目录与可见集)
 
 The translate-target selector was a fixed 9-language list
 (`language_select_sheet.dart` `supportedLanguages`), with six more languages

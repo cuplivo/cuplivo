@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import 'package:Cuplivo/core/models/chat_input_data.dart';
+import 'package:Cuplivo/core/models/message_quote.dart';
+import 'package:Cuplivo/core/models/quick_instruction.dart';
 import 'package:Cuplivo/core/services/inbound_share.dart';
 import 'package:Cuplivo/core/services/inbound_share_importer.dart';
 
@@ -206,6 +208,70 @@ void main() {
     });
   });
 
+  group('composerDraftHasContent', () {
+    test('is false only for a fully empty draft', () {
+      expect(composerDraftHasContent(const ChatInputData(text: '')), isFalse);
+      expect(
+        composerDraftHasContent(const ChatInputData(text: '   ')),
+        isFalse,
+      );
+    });
+
+    test('counts text, media, quote and quick instructions', () {
+      expect(composerDraftHasContent(const ChatInputData(text: 'hi')), isTrue);
+      expect(
+        composerDraftHasContent(
+          const ChatInputData(text: '', imagePaths: ['/uploads/a.png']),
+        ),
+        isTrue,
+      );
+      expect(
+        composerDraftHasContent(
+          const ChatInputData(
+            text: '',
+            documents: [
+              DocumentAttachment(
+                path: '/uploads/a.pdf',
+                fileName: 'a.pdf',
+                mime: 'application/pdf',
+              ),
+            ],
+          ),
+        ),
+        isTrue,
+      );
+      expect(
+        composerDraftHasContent(
+          const ChatInputData(
+            text: '',
+            quote: MessageQuote(id: 'm1'),
+          ),
+        ),
+        isTrue,
+      );
+      expect(
+        composerDraftHasContent(
+          ChatInputData(
+            text: '',
+            quickInstructions: [
+              QuickInstructionInvocationSnapshot(
+                instructionId: 'q1',
+                title: 'Q',
+                prompt: 'p',
+                placement: QuickInstructionPlacement.beforeUserMessage,
+                triggerMode: QuickInstructionTriggerMode.oneShot,
+                retainInHistory: false,
+                toolPolicy: QuickInstructionToolPolicy(),
+                order: 0,
+              ),
+            ],
+          ),
+        ),
+        isTrue,
+      );
+    });
+  });
+
   group('InboundShareImporter.import', () {
     late Directory root;
 
@@ -221,7 +287,7 @@ void main() {
     });
 
     Future<File> writeStaged(String name, String content) async {
-      final dir = Directory('${root.path}/inbox/uuid');
+      final dir = Directory('${root.path}/share_inbox/uuid');
       await dir.create(recursive: true);
       final file = File('${dir.path}/$name');
       await file.writeAsString(content);
@@ -245,7 +311,7 @@ void main() {
                 mime: 'application/pdf',
               ),
             ],
-            stagingDir: '${root.path}/inbox/uuid',
+            stagingDir: '${root.path}/share_inbox/uuid',
           ),
         );
 
@@ -255,7 +321,10 @@ void main() {
         expect(File(outcome.input.imagePaths.single).existsSync(), isTrue);
         expect(outcome.input.documents.single.mime, 'application/pdf');
         expect(File(outcome.input.documents.single.path).existsSync(), isTrue);
-        expect(Directory('${root.path}/inbox/uuid').existsSync(), isFalse);
+        expect(
+          Directory('${root.path}/share_inbox/uuid').existsSync(),
+          isFalse,
+        );
       },
     );
 
@@ -322,6 +391,24 @@ void main() {
       expect(File('${root.path}/escaped.txt').existsSync(), isFalse);
     });
 
+    test('strips marker-hostile brackets from the file name', () async {
+      final doc = await writeStaged('a]b.pdf', 'payload');
+
+      final outcome = await InboundShareImporter.import(
+        InboundSharePayload(
+          files: [
+            InboundSharedFile(
+              path: doc.path,
+              name: 'a]b[c.pdf',
+              mime: 'application/pdf',
+            ),
+          ],
+        ),
+      );
+
+      expect(outcome.input.documents.single.fileName, 'a_b_c.pdf');
+    });
+
     test('refuses to delete an ancestor staging path', () async {
       final outcome = await InboundShareImporter.import(
         InboundSharePayload(text: 'hi', stagingDir: root.path),
@@ -329,6 +416,17 @@ void main() {
 
       expect(outcome.input.text, 'hi');
       expect(root.existsSync(), isTrue);
+    });
+
+    test('refuses to delete a directory outside share_inbox', () async {
+      final other = Directory('${root.path}/other/uuid');
+      await other.create(recursive: true);
+
+      await InboundShareImporter.import(
+        InboundSharePayload(text: 'hi', stagingDir: other.path),
+      );
+
+      expect(other.existsSync(), isTrue);
     });
   });
 }

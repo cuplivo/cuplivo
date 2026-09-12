@@ -23,6 +23,8 @@ class MainActivity : FlutterActivity() {
         const val CREATE_DOCUMENT_REQUEST_CODE = 4107
         const val TAG = "MainActivity"
         const val SHARE_STAGING_TTL_MS = 24 * 60 * 60 * 1000L
+        const val SHARE_MAX_FILES = 20
+        const val SHARE_MAX_TOTAL_BYTES = 200L * 1024 * 1024
     }
 
     private val processTextChannelName = "app.process_text"
@@ -326,6 +328,17 @@ class MainActivity : FlutterActivity() {
         val files = mutableListOf<Map<String, Any?>>()
         var failed = 0
 
+        // Bound count and bytes before touching the cache: a hostile source
+        // must not be able to fill internal storage. Mirrors the Dart
+        // importer's budget (InboundShareImporter.maxInboundTotalBytes).
+        if (uris.size > SHARE_MAX_FILES) {
+            failed += uris.size - SHARE_MAX_FILES
+            while (uris.size > SHARE_MAX_FILES) {
+                uris.removeAt(uris.size - 1)
+            }
+        }
+        var remainingBytes = SHARE_MAX_TOTAL_BYTES
+
         for (uri in uris) {
             // One hostile/uninstalled provider must fail only its own item,
             // not the whole share.
@@ -339,10 +352,12 @@ class MainActivity : FlutterActivity() {
                     }
                     val displayName = resolveDisplayName(uri, mime)
                     val destination = uniqueTarget(stagingDir, sanitizeFileName(displayName))
-                    if (!copyUriToFile(uri, destination)) {
+                    val bytes = copyUriToFile(uri, destination, remainingBytes)
+                    if (bytes < 0) {
+                        destination.delete()
                         null
                     } else {
-                        destination to mime
+                        Triple(destination, mime, bytes)
                     }
                 } catch (error: Exception) {
                     Log.w(TAG, "Failed to stage shared uri: $uri", error)
@@ -352,7 +367,8 @@ class MainActivity : FlutterActivity() {
                 failed++
                 continue
             }
-            val (destination, mime) = copied
+            val (destination, mime, bytes) = copied
+            remainingBytes -= bytes
             if (mime.startsWith("image/")) {
                 images.add(destination.absolutePath)
             } else {
@@ -415,11 +431,16 @@ class MainActivity : FlutterActivity() {
     private fun sanitizeFileName(raw: String): String {
         val base = File(raw).name
         val cleaned = base.replace(Regex("[\\\\/:*?\"<>|\\u0000-\\u001f]"), "_").trim()
-        return when {
-            cleaned.isEmpty() || cleaned == "." || cleaned == ".." -> "shared_${System.currentTimeMillis()}"
-            cleaned.length > 200 -> cleaned.substring(0, 200)
-            else -> cleaned
+        if (cleaned.isEmpty() || cleaned == "." || cleaned == "..") {
+            return "shared_${System.currentTimeMillis()}"
         }
+        if (cleaned.length <= 200) return cleaned
+        // Preserve the extension when truncating: Dart infers mime from it.
+        val dot = cleaned.lastIndexOf('.')
+        if (dot <= 0 || dot == cleaned.length - 1) return cleaned.substring(0, 200)
+        val extension = cleaned.substring(dot)
+        val keep = 200 - extension.length
+        return if (keep <= 0) cleaned.substring(0, 200) else cleaned.substring(0, keep) + extension
     }
 
     private fun uniqueTarget(dir: File, name: String): File {
@@ -437,22 +458,42 @@ class MainActivity : FlutterActivity() {
         return candidate
     }
 
-    private fun copyUriToFile(uri: Uri, destination: File): Boolean {
+    /**
+     * Copies [uri] into [destination], stopping once [maxBytes] would be
+     * exceeded. Returns the number of bytes copied, or -1 on failure/budget
+     * exhaustion (the caller deletes the partial file).
+     */
+    private fun copyUriToFile(uri: Uri, destination: File, maxBytes: Long): Long {
+        if (maxBytes <= 0) {
+            Log.w(TAG, "Share byte budget exhausted before $uri")
+            return -1
+        }
         return try {
             val input = contentResolver.openInputStream(uri)
             if (input == null) {
                 Log.w(TAG, "No input stream for shared uri: $uri")
-                return false
+                return -1
             }
             input.use { source ->
                 destination.outputStream().use { output ->
-                    source.copyTo(output, DEFAULT_BUFFER_SIZE)
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var total = 0L
+                    while (true) {
+                        val read = source.read(buffer)
+                        if (read < 0) break
+                        total += read
+                        if (total > maxBytes) {
+                            Log.w(TAG, "Shared uri exceeds the share byte budget: $uri")
+                            return -1
+                        }
+                        output.write(buffer, 0, read)
+                    }
+                    total
                 }
             }
-            true
         } catch (error: Exception) {
             Log.w(TAG, "Failed to copy shared uri: $uri", error)
-            false
+            -1
         }
     }
 

@@ -31,6 +31,14 @@ class InboundShareImportOutcome {
 class InboundShareImporter {
   InboundShareImporter._();
 
+  /// Total byte budget for one share. Android's native staging enforces the
+  /// same number before copying; this is the cross-platform enforcement point
+  /// for iOS, whose extension only bounds the item count.
+  static const int maxInboundTotalBytes = 200 * 1024 * 1024;
+
+  static const String _stagingRootName = 'share_inbox';
+  static const int _maxNameLength = 200;
+
   static Future<InboundShareImportOutcome> import(
     InboundSharePayload payload,
   ) async {
@@ -42,27 +50,35 @@ class InboundShareImporter {
     final images = <String>[];
     final documents = <DocumentAttachment>[];
     var failedCount = 0;
+    var remainingBytes = maxInboundTotalBytes;
 
     for (final source in payload.imagePaths) {
-      final destination = await _copyInto(source, directory);
-      if (destination == null) {
+      final copied = await _copyInto(
+        source,
+        directory,
+        maxBytes: remainingBytes,
+      );
+      if (copied == null) {
         failedCount++;
         continue;
       }
-      images.add(destination);
+      remainingBytes -= copied.bytes;
+      images.add(copied.path);
     }
 
     for (final file in payload.files) {
-      final destination = await _copyInto(
+      final copied = await _copyInto(
         file.path,
         directory,
         preferredName: file.name,
+        maxBytes: remainingBytes,
       );
-      if (destination == null) {
+      if (copied == null) {
         failedCount++;
         continue;
       }
-      final name = p.basename(destination);
+      remainingBytes -= copied.bytes;
+      final name = p.basename(copied.path);
       final mime = file.mime.isNotEmpty
           ? file.mime
           : inferMediaMimeFromSource(
@@ -70,7 +86,7 @@ class InboundShareImporter {
               fallbackMime: 'application/octet-stream',
             );
       documents.add(
-        DocumentAttachment(path: destination, fileName: name, mime: mime),
+        DocumentAttachment(path: copied.path, fileName: name, mime: mime),
       );
     }
 
@@ -86,10 +102,11 @@ class InboundShareImporter {
     );
   }
 
-  static Future<String?> _copyInto(
+  static Future<({String path, int bytes})?> _copyInto(
     String source,
     Directory directory, {
     String? preferredName,
+    required int maxBytes,
   }) async {
     if (source.isEmpty) return null;
     File? destination;
@@ -97,6 +114,18 @@ class InboundShareImporter {
       final sourceFile = File(source);
       if (!await sourceFile.exists()) {
         debugPrint('[InboundShare] staged file missing: $source');
+        return null;
+      }
+      if (await FileSystemEntity.type(source) != FileSystemEntityType.file) {
+        debugPrint('[InboundShare] staged entry is not a file: $source');
+        return null;
+      }
+      final size = await sourceFile.length();
+      if (size > maxBytes) {
+        debugPrint(
+          '[InboundShare] staged file exceeds the share budget '
+          '($size > $maxBytes): $source',
+        );
         return null;
       }
       final safeName = _safeName(preferredName ?? source);
@@ -110,7 +139,17 @@ class InboundShareImporter {
       } finally {
         await sink.close();
       }
-      return destination.path;
+      // Preserve mtime like the other uploaders: backup/LAN sync and the
+      // duplicate dialog filter on it.
+      try {
+        await destination.setLastModified(await sourceFile.lastModified());
+      } catch (error) {
+        debugPrint(
+          '[InboundShare] mtime preserve failed for ${destination.path}: '
+          '$error',
+        );
+      }
+      return (path: destination.path, bytes: size);
     } catch (error, stackTrace) {
       debugPrint('[InboundShare] copy failed for $source: $error\n$stackTrace');
       await _deletePartial(destination);
@@ -145,17 +184,28 @@ class InboundShareImporter {
     return candidate;
   }
 
-  /// Basename-only, control/separator-stripped file name. Never yields empty,
-  /// `.`, `..`, or a path fragment, so a shared file cannot escape the upload
-  /// directory.
+  /// Basename-only, control/separator/bracket-stripped file name. Never
+  /// yields empty, `.`, `..`, or a path fragment, so a shared file cannot
+  /// escape the upload directory. Brackets are stripped because the file name
+  /// is embedded in the `[file:path|name|mime]` message marker.
   static String _safeName(String raw) {
     final parts = raw.split(RegExp(r'[\\/]'));
     var name = parts.isEmpty ? '' : parts.last;
-    name = name.replaceAll(RegExp(r'[\x00-\x1f:*?"<>|]'), '_').trim();
+    name = name.replaceAll(RegExp(r'[\x00-\x1f:*?"<>|\[\]]'), '_').trim();
     if (name.isEmpty || name == '.' || name == '..') {
       name = 'shared_${DateTime.now().microsecondsSinceEpoch}';
     }
-    return name.length > 200 ? name.substring(0, 200) : name;
+    if (name.length <= _maxNameLength) return name;
+    // Preserve the extension when truncating: mime inference depends on it.
+    final dot = name.lastIndexOf('.');
+    if (dot <= 0 || dot == name.length - 1) {
+      return name.substring(0, _maxNameLength);
+    }
+    final extension = name.substring(dot);
+    final keep = _maxNameLength - extension.length;
+    return keep <= 0
+        ? name.substring(0, _maxNameLength)
+        : '${name.substring(0, keep)}$extension';
   }
 
   /// Removes the per-share staging directory after import. Guarded against
@@ -186,7 +236,14 @@ class InboundShareImporter {
   static bool _isUnsafeToDelete(String stagingDir, Directory uploadDir) {
     final canonical = AppDirectories.canonPath(stagingDir);
     if (AppDirectories.isFilesystemRootPath(canonical)) return true;
-    return AppDirectories.isPathInside(uploadDir.path, canonical) ||
-        AppDirectories.isPathInside(canonical, uploadDir.path);
+    if (AppDirectories.isPathInside(uploadDir.path, canonical) ||
+        AppDirectories.isPathInside(canonical, uploadDir.path)) {
+      return true;
+    }
+    // Positive containment: only ever delete what the native layer stages
+    // into — <cache|App Group>/share_inbox/<uuid>.
+    final segments = p.split(canonical);
+    final inboxIndex = segments.lastIndexOf(_stagingRootName);
+    return inboxIndex < 0 || inboxIndex == segments.length - 1;
   }
 }

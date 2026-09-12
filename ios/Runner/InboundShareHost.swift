@@ -13,6 +13,9 @@ final class InboundShareHost {
   private static let stagingTTL: TimeInterval = 24 * 60 * 60
 
   private let channel: FlutterMethodChannel
+  /// Serializes inbox scans and the delivered marker; `pendingPayload()` does
+  /// file I/O, so it never runs on the main thread.
+  private let ioQueue = DispatchQueue(label: "com.cup11.cuplivo.inbound-share.host")
   private var lastDeliveredInboxPath: String?
 
   init(messenger: FlutterBinaryMessenger) {
@@ -25,11 +28,16 @@ final class InboundShareHost {
         result(FlutterMethodNotImplemented)
         return
       }
-      if let payload = self?.pendingPayload() {
-        self?.lastDeliveredInboxPath = payload["stagingDir"] as? String
-        result(payload)
-      } else {
+      guard let self else {
         result(nil)
+        return
+      }
+      self.ioQueue.async {
+        let payload = self.pendingPayload()
+        if let payload {
+          self.lastDeliveredInboxPath = payload["stagingDir"] as? String
+        }
+        DispatchQueue.main.async { result(payload) }
       }
     }
   }
@@ -38,16 +46,27 @@ final class InboundShareHost {
   /// (covers the local-notification fallback, which opens the app without a
   /// URL). At most one inbox directory is delivered per call.
   func deliverPendingShare() {
-    guard let payload = pendingPayload() else { return }
-    let path = payload["stagingDir"] as? String
-    if let path, path == lastDeliveredInboxPath { return }
-    lastDeliveredInboxPath = path
-    channel.invokeMethod("onShare", arguments: payload)
+    ioQueue.async { [weak self] in
+      guard let self, let payload = self.pendingPayload() else { return }
+      let path = payload["stagingDir"] as? String
+      if let path, path == self.lastDeliveredInboxPath { return }
+      self.lastDeliveredInboxPath = path
+      DispatchQueue.main.async {
+        self.channel.invokeMethod("onShare", arguments: payload)
+      }
+    }
   }
 
   private func pendingPayload() -> [String: Any]? {
     guard let root = inboxRoot() else { return nil }
     let fm = FileManager.default
+    // A delivered-and-deleted inbox frees its marker so a later delivery of
+    // the same path is not permanently suppressed.
+    if let delivered = lastDeliveredInboxPath,
+      !fm.fileExists(atPath: delivered)
+    {
+      lastDeliveredInboxPath = nil
+    }
     guard
       let entries = try? fm.contentsOfDirectory(
         at: root,

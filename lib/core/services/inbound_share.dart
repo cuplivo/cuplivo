@@ -155,6 +155,15 @@ ChatInputData mergeInboundShareIntoInput(
   );
 }
 
+/// Whether a composer draft holds anything the user would miss: text, media,
+/// a pending reply quote or frozen quick instructions.
+bool composerDraftHasContent(ChatInputData draft) =>
+    draft.text.trim().isNotEmpty ||
+    draft.imagePaths.isNotEmpty ||
+    draft.documents.isNotEmpty ||
+    draft.quote != null ||
+    draft.quickInstructions.isNotEmpty;
+
 /// Platform bridge for the OS share target (Android `ACTION_SEND`, iOS Share
 /// Extension). Mirrors `AndroidProcessText`: a cold-start pull plus a
 /// warm-delivery broadcast stream.

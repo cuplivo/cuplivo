@@ -1727,11 +1727,10 @@ class HomePageController extends ChangeNotifier {
     if (isUserMessageEditActive) cancelUserMessageEdit();
 
     final composerHasContent = editDraft != null
-        ? editDraft.text.trim().isNotEmpty ||
-              editDraft.imagePaths.isNotEmpty ||
-              editDraft.documents.isNotEmpty
+        ? composerDraftHasContent(editDraft)
         : _inputController.bodyText.trim().isNotEmpty ||
-              _mediaController.hasDraftMedia;
+              _mediaController.hasDraftMedia ||
+              _mediaController.quoteDraft != null;
 
     if (isTemporaryConversation) {
       // Leaving the temporary chat creates a normal one; carry the unsent

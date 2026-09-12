@@ -17455,6 +17455,12 @@ abstract class AppLocalizations {
   /// **'Installing…'**
   String get workspaceDepStageInstall;
 
+  /// No description provided for @workspaceDepDebianMirrorNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Debian uses the repositories shipped in the image; mirror selection isn\'t supported yet.'**
+  String get workspaceDepDebianMirrorNotice;
+
   /// No description provided for @workspaceSandboxRuntimeMissing.
   ///
   /// In en, this message translates to:
@@ -17466,6 +17472,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Install the base dependency first'**
   String get workspaceSandboxBaseRequired;
+
+  /// No description provided for @workspaceSandboxDistroUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t detect the Linux distribution of the installed sandbox rootfs. Reinstall the base dependency with a supported image.'**
+  String get workspaceSandboxDistroUnknown;
 
   /// No description provided for @workspaceDepGitPrerequisite.
   ///

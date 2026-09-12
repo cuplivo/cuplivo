@@ -94,7 +94,7 @@ dependencies {
     // SAF document-tree access for external-directory mounts (ADR-0037)
     implementation("androidx.documentfile:documentfile:1.0.1")
     // .tar.xz rootfs decoding for the Linux sandbox (Debian/Alpine images)
-    implementation("org.tukaani:xz:1.10")
+    implementation("org.tukaani:xz:1.12")
     implementation(project(":terminal-emulator"))
     implementation(project(":terminal-view"))
     implementation(project(":termux-shared"))

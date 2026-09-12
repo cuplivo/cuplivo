@@ -154,12 +154,35 @@ class SandboxInstallProgress {
   final double? progress; // 0-1 if known
   final String? message;
 
+  /// Identifier of a non-fatal, user-visible notice for this install (for
+  /// example a mirror preference that cannot be honored). The install queue
+  /// collects it and the UI localizes it once the install finishes.
+  final String? notice;
+
   const SandboxInstallProgress({
     required this.stage,
     this.progress,
     this.message,
+    this.notice,
   });
 }
+
+/// The installed rootfs has no recognizable `etc/os-release`, so no package
+/// manager (apk vs apt) can be chosen. The install page maps this to a
+/// localized message instead of showing the raw exception text.
+class SandboxDistroUnknownException implements Exception {
+  const SandboxDistroUnknownException(this.workspaceHostPath);
+
+  final String workspaceHostPath;
+
+  @override
+  String toString() =>
+      'SandboxDistroUnknownException(workspaceHostPath: $workspaceHostPath)';
+}
+
+/// Non-fatal install notice: the chosen mirror cannot be applied to a Debian
+/// guest yet (ships with the environment catalog, #725 follow-up).
+const String sandboxNoticeDebianMirrorDefault = 'debianMirrorDefault';
 
 /// A single readiness check and command probe for every sandbox dependency.
 /// The workspace dependency panel refreshes all rows together, so launching a
@@ -480,18 +503,23 @@ class LinuxSandboxService {
   /// Debian publish both `.tar.gz` and `.tar.xz`). Extension-less URLs fall
   /// back to `.tar.gz`. Exposed for tests.
   static String archiveExtensionForUrl(String url) {
+    const extensions = ['.tar.gz', '.tgz', '.tar.xz', '.txz', '.tar'];
     final uri = Uri.tryParse(url);
     final path = (uri?.path ?? url).toLowerCase();
-    const extensions = ['.tar.gz', '.tgz', '.tar.xz', '.txz', '.tar'];
     for (final extension in extensions) {
       if (path.endsWith(extension)) return extension;
     }
     // Signed/expiring mirrors can carry the file name in the query string
-    // (`.../download?file=rootfs.tar.xz`); the extractor picks its decoder
-    // from this extension, so a miss here breaks the download (issue #725).
-    final full = (uri?.toString() ?? url).toLowerCase();
-    for (final extension in extensions) {
-      if (full.contains(extension)) return extension;
+    // (`.../download?file=rootfs.tar.xz`), so suffix-match the query values.
+    // Matching the whole URL would also hit host names or unrelated
+    // parameters (`files.tar.example.com`, `?x=1.tar.gz.bak`).
+    for (final value
+        in uri?.queryParametersAll.values.expand((v) => v) ??
+            const <String>[]) {
+      final lower = value.toLowerCase();
+      for (final extension in extensions) {
+        if (lower.endsWith(extension)) return extension;
+      }
     }
     return '.tar.gz';
   }
@@ -595,11 +623,7 @@ class LinuxSandboxService {
     if (marked != null) return marked;
     final detected = await detectDistro(workspaceHostPath);
     if (detected == null) {
-      throw StateError(
-        'Unable to determine the guest distribution: '
-        '${p.join('.sandbox', 'linux', 'etc', 'os-release')} is missing or '
-        'unsupported',
-      );
+      throw SandboxDistroUnknownException(workspaceHostPath);
     }
     await writeDistroMarker(workspaceHostPath, detected);
     return detected;
@@ -1424,10 +1448,17 @@ class LinuxSandboxService {
         // Debian sources are version-specific; mirror selection for Debian
         // ships with the environment catalog (cuplivo#725 follow-up), so use
         // the repositories the rootfs itself provides instead of writing the
-        // Ubuntu deb822 file into a Debian guest.
+        // Ubuntu deb822 file into a Debian guest. Surface the ignored choice
+        // so the result stays explainable (issue #322 review).
         debugPrint(
           'LinuxSandboxService: Debian mirror selection is not supported '
           'yet; using the repositories shipped in the rootfs',
+        );
+        onProgress?.call(
+          const SandboxInstallProgress(
+            stage: 'notice',
+            notice: sandboxNoticeDebianMirrorDefault,
+          ),
         );
       }
       steps = buildAptInstallSteps(

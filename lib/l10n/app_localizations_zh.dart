@@ -9320,10 +9320,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get workspaceDepStageInstall => '正在安装…';
 
   @override
+  String get workspaceDepDebianMirrorNotice => 'Debian 使用镜像自带的软件源，暂不支持切换镜像。';
+
+  @override
   String get workspaceSandboxRuntimeMissing => '缺少沙箱运行时，请重装本应用构建包';
 
   @override
   String get workspaceSandboxBaseRequired => '请先安装基础依赖';
+
+  @override
+  String get workspaceSandboxDistroUnknown =>
+      '无法识别已安装沙箱根文件系统的 Linux 发行版，请使用受支持的镜像重装 base 依赖。';
 
   @override
   String get workspaceDepGitPrerequisite => '请先安装 Git';
@@ -19299,10 +19306,17 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get workspaceDepStageInstall => '正在安装…';
 
   @override
+  String get workspaceDepDebianMirrorNotice => 'Debian 使用镜像自带的软件源，暂不支持切换镜像。';
+
+  @override
   String get workspaceSandboxRuntimeMissing => '缺少沙箱运行时，请重装本应用构建包';
 
   @override
   String get workspaceSandboxBaseRequired => '请先安装基础依赖';
+
+  @override
+  String get workspaceSandboxDistroUnknown =>
+      '无法识别已安装沙箱根文件系统的 Linux 发行版，请使用受支持的镜像重装 base 依赖。';
 
   @override
   String get workspaceDepGitPrerequisite => '请先安装 Git';
@@ -29281,10 +29295,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get workspaceDepStageInstall => '正在安裝…';
 
   @override
+  String get workspaceDepDebianMirrorNotice => 'Debian 使用映像檔內建的軟體來源，暫不支援切換鏡像。';
+
+  @override
   String get workspaceSandboxRuntimeMissing => '缺少沙箱執行環境，請重裝本應用建置包';
 
   @override
   String get workspaceSandboxBaseRequired => '請先安裝基礎相依元件';
+
+  @override
+  String get workspaceSandboxDistroUnknown =>
+      '無法辨識已安裝沙箱根檔案系統的 Linux 發行版，請使用支援的映像檔重新安裝 base 依賴。';
 
   @override
   String get workspaceDepGitPrerequisite => '請先安裝 Git';

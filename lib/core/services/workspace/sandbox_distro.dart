@@ -24,6 +24,8 @@ class SandboxDistro {
 
   static final RegExp _versionPattern = RegExp(r'^[0-9]+(\.[0-9]+)*$');
 
+  static final RegExp _keyPattern = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');
+
   /// Return [raw] when it is a plain dotted numeric version, else null.
   ///
   /// The detected version is interpolated into `apkMirrorSetup`'s guest shell
@@ -45,7 +47,11 @@ class SandboxDistro {
       if (line.isEmpty || line.startsWith('#')) continue;
       final separator = line.indexOf('=');
       if (separator <= 0) continue;
-      values[line.substring(0, separator).trim().toUpperCase()] = _unquote(
+      final key = line.substring(0, separator).trim();
+      // os-release keys are identifiers; skip malformed lines instead of
+      // accepting a bogus key from a corrupt archive.
+      if (!_keyPattern.hasMatch(key)) continue;
+      values[key.toUpperCase()] = _unquote(
         line.substring(separator + 1).trim(),
       );
     }
@@ -119,6 +125,11 @@ class SandboxDistro {
       }
     }
     if (family == null) return null;
+    // A marker whose id contradicts its family is corrupt: fall back to
+    // re-detection instead of routing installs to the wrong package manager.
+    // A non-family id (e.g. `linuxmint`) stays valid with a mapped family.
+    final idFamily = _familyOf(id.toLowerCase());
+    if (idFamily != null && idFamily != family) return null;
     final version = values['version'];
     return SandboxDistro(
       id: id,

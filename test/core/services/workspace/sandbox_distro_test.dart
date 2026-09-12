@@ -57,6 +57,17 @@ void main() {
       );
     });
 
+    test('ignores lines whose key is not an identifier', () {
+      final distro = SandboxDistro.parseOsRelease(
+        'bad key = ignored\n'
+        'ID=alpine\n'
+        'VERSION_ID=3.24.1\n',
+      );
+      expect(distro!.id, 'alpine');
+      expect(distro.family, SandboxDistroFamily.alpine);
+      expect(distro.version, '3.24.1');
+    });
+
     test('ignores comments, blanks and malformed lines', () {
       final distro = SandboxDistro.parseOsRelease(
         '# comment\n'
@@ -132,6 +143,13 @@ void main() {
       );
       expect(restored!.family, SandboxDistroFamily.alpine);
       expect(restored.version, isNull);
+    });
+
+    test('rejects a marker whose id contradicts its family', () {
+      expect(SandboxDistro.fromMarker('id=alpine\nfamily=ubuntu\n'), isNull);
+      // A derivative id that maps to no family stays valid with its family.
+      final mint = SandboxDistro.fromMarker('id=linuxmint\nfamily=ubuntu\n');
+      expect(mint!.family, SandboxDistroFamily.ubuntu);
     });
   });
 
@@ -251,6 +269,21 @@ void main() {
           'https://example.com/rootfs.tar.xz?fallback=other.tar.gz',
         ),
         '.tar.xz',
+      );
+    });
+
+    test('ignores extensions in host names and unrelated parameters', () {
+      expect(
+        LinuxSandboxService.archiveExtensionForUrl(
+          'https://files.tar.example.com/download?ref=v1',
+        ),
+        '.tar.gz',
+      );
+      expect(
+        LinuxSandboxService.archiveExtensionForUrl(
+          'https://host/download?x=1.tar.gz.bak',
+        ),
+        '.tar.gz',
       );
     });
   });

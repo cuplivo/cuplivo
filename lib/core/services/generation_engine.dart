@@ -196,10 +196,9 @@ class GenerationSlotUiState {
   /// Vendor reasoning details (OpenRouter/Anthropic-style `reasoning_details`,
   /// may carry thinking signatures) accumulated from the stream. Persisted
   /// inside the reasoning payload; also mirrored into the page UI state so a
-  /// manual thinking-step toggle preserves them. Every producer emits a list
-  /// (accumulator snapshot or decoded JSON), so an unexpected vendor shape
-  /// fails fast at the assignment below instead of being written into the
-  /// payload as an opaque object.
+  /// manual thinking-step toggle preserves them. Non-list vendor shapes are
+  /// ignored (logged) at the capture point instead of aborting the slot, so
+  /// the payload only ever carries the documented list form.
   final List<dynamic>? reasoningDetails;
 
   /// Consumed totals (sum across request rounds).
@@ -766,7 +765,18 @@ class GenerationEngine extends ChangeNotifier {
           chunkContent = _captureGeminiThoughtSignature(chunkContent, runtime);
         }
         if (chunk.reasoningDetails != null) {
-          runtime.reasoningDetails = chunk.reasoningDetails;
+          final rawDetails = chunk.reasoningDetails;
+          if (rawDetails is List) {
+            // Copy once at capture: the UI state is published per chunk, and
+            // the vendor may keep mutating its own list between snapshots.
+            runtime.reasoningDetails = List<dynamic>.of(rawDetails);
+          } else {
+            debugPrint(
+              '[GenerationEngine] ignoring non-list reasoningDetails for '
+              '${runtime.slot.assistantMessageId}: '
+              '${rawDetails.runtimeType}',
+            );
+          }
         }
         if (chunk.truncationReason != null) {
           runtime.truncationReason = chunk.truncationReason;
@@ -1436,9 +1446,9 @@ class _SlotRuntime {
   TokenUsage? usage;
   TokenUsage? consumedUsage;
 
-  /// Same contract as [GenerationSlotUiState.reasoningDetails]; assigned from
-  /// `chunk.reasoningDetails` (dynamic), so a non-list vendor shape surfaces
-  /// as a cast error here rather than corrupting the persisted payload.
+  /// Same contract as [GenerationSlotUiState.reasoningDetails]; [buildUiState]
+  /// publishes this snapshot by reference (it is replaced, never mutated, once
+  /// captured from a chunk).
   List<dynamic>? reasoningDetails;
 
   String currentContent = '';
@@ -1483,9 +1493,7 @@ class _SlotRuntime {
       toolCountAtSplit: List<int>.of(toolCountAtSplit),
       toolEvents: List<Map<String, dynamic>>.of(toolEventsById.values),
       geminiThoughtSig: geminiThoughtSig,
-      reasoningDetails: reasoningDetails == null
-          ? null
-          : List<dynamic>.of(reasoningDetails!),
+      reasoningDetails: reasoningDetails,
       totalTokens: consumed?.totalTokens ?? totalTokens,
       contextTokens: lastUsage?.totalTokens ?? totalTokens,
       promptTokens: consumed?.promptTokens,

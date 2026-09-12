@@ -408,10 +408,14 @@ class StreamController {
   ///
   /// Only settled (non-streaming) messages are written: while a message is
   /// streaming the engine owns the segment state and its periodic flush would
-  /// overwrite the toggle. The in-memory message copy is swapped too — with a
-  /// cache invalidation, per `replaceMessage`'s batch-mutation contract — so
-  /// an in-place re-restore and the grouped/collapsed views read the same
-  /// payload as the database. Callers fire their own UI notify afterwards.
+  /// overwrite the toggle. Both the row flag and [_activeStreamingIds] are
+  /// checked because the engine clears `isStreaming` on the row before it
+  /// publishes its final snapshot and before the adapter calls
+  /// [markStreamingEnded]; a toggle landing in that window would otherwise be
+  /// clobbered by `syncEngineUiState`. The in-memory message copy is swapped
+  /// too — with a cache invalidation, per `replaceMessage`'s batch-mutation
+  /// contract — so an in-place re-restore and the grouped/collapsed views read
+  /// the same payload as the database. Callers fire their own UI notify after.
   void persistReasoningExpansionIfSettled(
     String messageId, {
     required ChatController chatController,
@@ -420,6 +424,7 @@ class StreamController {
     final index = messages.indexWhere((m) => m.id == messageId);
     if (index == -1) return;
     if (messages[index].isStreaming) return;
+    if (_activeStreamingIds.contains(messageId)) return;
     final payload = buildReasoningSegmentsJson(messageId);
     if (payload == null) return;
     chatController.replaceMessage(

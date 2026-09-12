@@ -309,4 +309,44 @@ void main() {
     // Nothing changed, so the memoized cache was not rebuilt either.
     expect(identical(chatController.groupedMessages, cacheBefore), isTrue);
   });
+
+  test('persistReasoningExpansionIfSettled also skips rows the engine still '
+      'tracks as actively streaming (settle-window race)', () {
+    final chatService = _RecordingChatService();
+    final conversation = Conversation(id: 'c1', title: 'T');
+    final payload = serializeReasoningSegmentsWithSplits([
+      segment('think', expanded: true),
+    ]);
+    chatService.seedMessage(
+      ChatMessage(
+        id: 'm-active',
+        role: 'assistant',
+        content: 'partial',
+        conversationId: conversation.id,
+        // The engine clears this row flag before it publishes its settle
+        // snapshot, so the controller's own set is the authority in that
+        // window.
+        isStreaming: false,
+        reasoningSegmentsJson: payload,
+      ),
+    );
+
+    final chatController = ChatController(chatService: chatService);
+    chatController.setCurrentConversation(conversation);
+    final controller = buildController(chatService);
+    controller.setReasoningSegments('m-active', [
+      segment('think', expanded: false),
+    ]);
+    controller.markStreamingStarted('m-active');
+    final cacheBefore = chatController.groupedMessages;
+
+    controller.persistReasoningExpansionIfSettled(
+      'm-active',
+      chatController: chatController,
+    );
+
+    expect(chatService.reasoningUpdates, isEmpty);
+    expect(chatController.messages.single.reasoningSegmentsJson, payload);
+    expect(identical(chatController.groupedMessages, cacheBefore), isTrue);
+  });
 }

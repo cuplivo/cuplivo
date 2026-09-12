@@ -1912,15 +1912,14 @@ class _ChatInputBarState extends State<ChatInputBar>
   /// `commitContent` path (Gboard / WeChat clipboard image paste, etc.).
   /// The engine already resolved the content URI to bytes, so behave like
   /// the normal clipboard flow: persist to the upload dir and attach.
+  ///
+  /// Accepts any `image/*` mime (the declared wildcard lets IMEs negotiate
+  /// image paste) rather than an explicit allowlist; the extension is derived
+  /// from the mime, falling back to magic-byte sniffing for a literal
+  /// `image/*`. SVG is vector and not renderable by the raster pipeline.
   Future<void> _handleInsertedContent(KeyboardInsertedContent content) async {
-    final format = switch (content.mimeType.toLowerCase()) {
-      'image/png' => 'png',
-      'image/jpeg' || 'image/jpg' => 'jpeg',
-      'image/gif' => 'gif',
-      'image/webp' => 'webp',
-      _ => null,
-    };
-    if (format == null) {
+    final mimeType = content.mimeType.toLowerCase();
+    if (!isImageMime(mimeType) || mimeType == 'image/svg+xml') {
       debugPrint(
         '[ChatInputBar] Ignored IME content with unsupported type: '
         '${content.mimeType}',
@@ -1933,7 +1932,8 @@ class _ChatInputBarState extends State<ChatInputBar>
       return;
     }
     if (!mounted) return;
-    final savedPath = await _savePastedImageBytes(format, bytes);
+    final extension = inferImageExtension(mimeType, bytes);
+    final savedPath = await _savePastedImageBytes(extension, bytes);
     if (savedPath == null || !mounted) return;
     _addImages([savedPath]);
   }
@@ -1944,15 +1944,17 @@ class _ChatInputBarState extends State<ChatInputBar>
   /// Allocation is collision-safe under concurrent IME insertions: the name
   /// is reserved atomically via exclusive create, and a numeric suffix is
   /// retried on a name clash.
-  Future<String?> _savePastedImageBytes(String format, Uint8List bytes) async {
+  Future<String?> _savePastedImageBytes(
+    String extension,
+    Uint8List bytes,
+  ) async {
     File? reserved;
     try {
       final dir = await AppDirectories.getUploadDirectory();
       if (!await dir.exists()) {
         await dir.create(recursive: true);
       }
-      final ext = format.toLowerCase();
-      final fileExt = ext == 'jpeg' ? 'jpg' : ext;
+      final fileExt = extension.toLowerCase();
       final baseName = 'paste_${DateTime.now().millisecondsSinceEpoch}';
       var counter = 0;
       while (true) {
@@ -2032,7 +2034,7 @@ class _ChatInputBarState extends State<ChatInputBar>
         bytes ??= reader.canProvide(Formats.jpeg)
             ? await readFileBytes(reader, Formats.jpeg)
             : null;
-        fmt = (bytes != null && fmt == null) ? 'jpeg' : fmt;
+        fmt = (bytes != null && fmt == null) ? 'jpg' : fmt;
         if (bytes == null && reader.canProvide(Formats.gif)) {
           bytes = await readFileBytes(reader, Formats.gif);
           fmt = 'gif';
@@ -2051,7 +2053,7 @@ class _ChatInputBarState extends State<ChatInputBar>
             }
             if (bytes == null && item.canProvide(Formats.jpeg)) {
               bytes = await readFileBytes(item, Formats.jpeg);
-              fmt = 'jpeg';
+              fmt = 'jpg';
             }
             if (bytes == null && item.canProvide(Formats.gif)) {
               bytes = await readFileBytes(item, Formats.gif);
@@ -3592,16 +3594,26 @@ class _ChatInputBarState extends State<ChatInputBar>
                                             // Android only: accepts image content
                                             // pushed by IMEs (Gboard / WeChat
                                             // clipboard paste via commitContent).
+                                            // `image/*` satisfies IME negotiation
+                                            // (WeChat rejects a concrete-only list);
+                                            // the concrete entries keep Flutter's
+                                            // exact-match insertContent assert quiet.
                                             contentInsertionConfiguration:
                                                 ContentInsertionConfiguration(
                                                   onContentInserted:
                                                       _handleInsertedContent,
                                                   allowedMimeTypes: const [
+                                                    'image/*',
                                                     'image/png',
                                                     'image/jpeg',
                                                     'image/jpg',
                                                     'image/gif',
                                                     'image/webp',
+                                                    'image/heic',
+                                                    'image/heif',
+                                                    'image/bmp',
+                                                    'image/tiff',
+                                                    'image/avif',
                                                   ],
                                                 ),
                                             readOnly: _composerLocked,

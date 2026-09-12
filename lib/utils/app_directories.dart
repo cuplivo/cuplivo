@@ -64,7 +64,8 @@ class AppDirectories {
 
   /// Gets the directory holding application log files (`logs.txt`,
   /// `flutter_logs*.txt`). Single source of truth for the loggers, the log
-  /// viewer, and the settings folder button, so they can never diverge.
+  /// viewer, the storage usage scan/clear, and the settings folder button, so
+  /// they can never diverge.
   static Future<Directory> getLogsDirectory() async {
     final root = await getAppDataDirectory();
     return Directory(p.join(root.path, 'logs'));

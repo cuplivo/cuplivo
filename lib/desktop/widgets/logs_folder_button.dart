@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../icons/lucide_adapter.dart' as lucide;
 import '../../l10n/app_localizations.dart';
+import '../../shared/widgets/ios_tactile.dart';
 import '../../shared/widgets/snackbar.dart';
 import '../../shared/widgets/windows_ax_tree_safe_tooltip.dart';
 import '../../utils/app_directories.dart';
@@ -49,23 +50,12 @@ class LogsFolderButton extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return WindowsAxTreeSafeTooltip(
       message: l10n.logViewerOpenFolder,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: Semantics(
-          button: true,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(6),
-            onTap: () => _handleTap(context),
-            child: Padding(
-              padding: const EdgeInsets.all(11),
-              child: Icon(
-                lucide.Lucide.FolderOpen,
-                size: 18,
-                color: cs.primary,
-              ),
-            ),
-          ),
-        ),
+      child: IosIconButton(
+        icon: lucide.Lucide.FolderOpen,
+        size: 18,
+        color: cs.primary,
+        semanticLabel: l10n.logViewerOpenFolder,
+        onTap: () => _handleTap(context),
       ),
     );
   }

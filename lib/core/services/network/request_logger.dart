@@ -2,10 +2,17 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
+
 import '../../../utils/app_directories.dart';
 
 class RequestLogger {
   RequestLogger._();
+
+  /// Active request log file name; also referenced by the log viewer to label
+  /// the current request-log file.
+  static const String activeFileName = 'logs.txt';
 
   /// Log categories. Each is independently toggleable; the master
   /// [enabled] getter reflects "any category on".
@@ -135,26 +142,28 @@ class RequestLogger {
       await logsDir.create(recursive: true);
     }
 
-    final active = File('${logsDir.path}/logs.txt');
+    final active = File(p.join(logsDir.path, activeFileName));
     if (await active.exists()) {
       try {
         final stat = await active.stat();
         final fileDay = _dayOf(stat.modified.toLocal());
         if (fileDay != today) {
           final suffix = _formatDate(fileDay);
-          var rotated = File('${logsDir.path}/logs_$suffix.txt');
+          var rotated = File(p.join(logsDir.path, 'logs_$suffix.txt'));
           if (await rotated.exists()) {
             int i = 1;
             while (await File(
-              '${logsDir.path}/logs_${suffix}_$i.txt',
+              p.join(logsDir.path, 'logs_${suffix}_$i.txt'),
             ).exists()) {
               i++;
             }
-            rotated = File('${logsDir.path}/logs_${suffix}_$i.txt');
+            rotated = File(p.join(logsDir.path, 'logs_${suffix}_$i.txt'));
           }
           await active.rename(rotated.path);
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('RequestLogger: failed to rotate active log: $e');
+      }
     }
 
     _sink = active.openWrite(mode: FileMode.append);
@@ -270,6 +279,8 @@ class RequestLogger {
           }
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('RequestLogger: log cleanup failed: $e');
+    }
   }
 }

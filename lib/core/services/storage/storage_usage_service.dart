@@ -772,8 +772,7 @@ abstract final class StorageUsageService {
     } catch (_) {}
 
     try {
-      final root = await AppDirectories.getAppDataDirectory();
-      final logsDir = Directory(p.join(root.path, 'logs'));
+      final logsDir = await AppDirectories.getLogsDirectory();
       await _deleteDirectoryContents(logsDir);
     } finally {
       try {

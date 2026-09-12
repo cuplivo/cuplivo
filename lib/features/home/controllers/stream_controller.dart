@@ -10,6 +10,7 @@ import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/generation_engine.dart';
 import '../../../core/services/streaming_content_notifier.dart';
 import '../../chat/models/tool_ui_part.dart';
+import 'chat_controller.dart';
 
 export '../../../core/models/reasoning_payload.dart';
 export '../../../core/services/streaming_content_notifier.dart';
@@ -389,9 +390,44 @@ class StreamController {
   ///
   /// Callers MUST only pass settled (non-streaming) messages: while a message
   /// is streaming the engine owns its segment state and its periodic flush
-  /// would overwrite the toggle.
+  /// would overwrite the toggle. A DB write failure is logged, not thrown
+  /// (mirrors the engine's reasoning-flush error handling).
   Future<void> persistReasoningSegments(String messageId, String json) =>
-      _chatService.updateMessageSilent(messageId, reasoningSegmentsJson: json);
+      _chatService
+          .updateMessageSilent(messageId, reasoningSegmentsJson: json)
+          .catchError((Object e) {
+            debugPrint(
+              '[StreamController] reasoning expansion persist failed for '
+              '$messageId: $e',
+            );
+          });
+
+  /// Persist a manual expand/collapse of a thinking step so it survives
+  /// reload/switch/sync. Single shared entry point for the home controller
+  /// (mobile/desktop/Multi-AI/web viewport) and group chat.
+  ///
+  /// Only settled (non-streaming) messages are written: while a message is
+  /// streaming the engine owns the segment state and its periodic flush would
+  /// overwrite the toggle. The in-memory message copy is swapped too — with a
+  /// cache invalidation, per `replaceMessage`'s batch-mutation contract — so
+  /// an in-place re-restore and the grouped/collapsed views read the same
+  /// payload as the database. Callers fire their own UI notify afterwards.
+  void persistReasoningExpansionIfSettled(
+    String messageId, {
+    required ChatController chatController,
+  }) {
+    final messages = chatController.messages;
+    final index = messages.indexWhere((m) => m.id == messageId);
+    if (index == -1) return;
+    if (messages[index].isStreaming) return;
+    final payload = buildReasoningSegmentsJson(messageId);
+    if (payload == null) return;
+    chatController.replaceMessage(
+      messages[index].copyWith(reasoningSegmentsJson: payload),
+    );
+    chatController.invalidateCache();
+    unawaited(persistReasoningSegments(messageId, payload));
+  }
 
   /// Deserialize reasoning segments from JSON string.
   List<ReasoningSegmentData> deserializeReasoningSegments(String? json) {

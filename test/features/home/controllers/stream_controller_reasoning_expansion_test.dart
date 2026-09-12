@@ -1,15 +1,46 @@
 import 'dart:convert';
 
 import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/generation_engine.dart';
+import 'package:Cuplivo/features/home/controllers/chat_controller.dart';
 import 'package:Cuplivo/features/home/controllers/stream_controller.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Records the silent payload writes triggered by a manual toggle.
 class _RecordingChatService extends ChatService {
   final List<({String messageId, String? segmentsJson})> reasoningUpdates = [];
+
+  /// In-memory conversation/message store for the ChatController scenarios.
+  final Map<String, List<ChatMessage>> _messagesByConversation =
+      <String, List<ChatMessage>>{};
+
+  /// When set, [updateMessageSilent] fails like a DB write error would.
+  bool failSilentUpdates = false;
+
+  void seedMessage(ChatMessage message) {
+    (_messagesByConversation[message.conversationId] ??= <ChatMessage>[]).add(
+      message,
+    );
+  }
+
+  @override
+  int getMessageCount(String conversationId) =>
+      _messagesByConversation[conversationId]?.length ?? 0;
+
+  @override
+  List<ChatMessage> getRecentMessages(
+    String conversationId, {
+    int minMessages = ChatService.defaultInitialMessageMin,
+    int textBudget = ChatService.defaultInitialTextBudget,
+    int maxMessages = ChatService.defaultInitialMessageMax,
+  }) => List<ChatMessage>.of(
+    _messagesByConversation[conversationId] ?? const <ChatMessage>[],
+  );
 
   @override
   Future<void> updateMessageSilent(
@@ -28,6 +59,7 @@ class _RecordingChatService extends ChatService {
     int? cachedTokens,
     int? durationMs,
   }) async {
+    if (failSilentUpdates) throw Exception('db write failed');
     if (reasoningSegmentsJson != null) {
       reasoningUpdates.add((
         messageId: messageId,
@@ -167,5 +199,114 @@ void main() {
     final payload = controller.buildReasoningSegmentsJson('m1')!;
     final decoded = jsonDecode(payload) as Map<String, dynamic>;
     expect(decoded['reasoningDetails'], details);
+  });
+
+  test('persistReasoningSegments logs a DB failure instead of leaving it '
+      'unhandled', () async {
+    final chatService = _RecordingChatService()..failSilentUpdates = true;
+    final controller = buildController(chatService);
+    controller.setReasoningSegments('m1', [segment('think', expanded: true)]);
+    final payload = controller.buildReasoningSegmentsJson('m1')!;
+
+    final logs = <String>[];
+    final original = debugPrint;
+    debugPrint = (String? message, {int? wrapWidth}) {
+      if (message != null) logs.add(message);
+    };
+    addTearDown(() => debugPrint = original);
+
+    await controller.persistReasoningSegments('m1', payload);
+
+    expect(logs.any((line) => line.contains('persist failed for m1')), isTrue);
+  });
+
+  test('persistReasoningExpansionIfSettled swaps the settled row, invalidates '
+      'the grouped cache and persists the payload', () {
+    final chatService = _RecordingChatService();
+    final conversation = Conversation(id: 'c1', title: 'T');
+    final seedPayload = serializeReasoningSegmentsWithSplits([
+      segment('think', expanded: true),
+    ]);
+    chatService.seedMessage(
+      ChatMessage(
+        id: 'm1',
+        role: 'assistant',
+        content: 'answer',
+        conversationId: conversation.id,
+        isStreaming: false,
+        reasoningSegmentsJson: seedPayload,
+      ),
+    );
+
+    final chatController = ChatController(chatService: chatService);
+    chatController.setCurrentConversation(conversation);
+    final controller = buildController(chatService);
+    controller.setReasoningSegments('m1', [segment('think', expanded: false)]);
+
+    // Prime the grouped cache with the pre-toggle row.
+    final before = chatController.groupedMessages;
+    expect((before['m1']!.single.reasoningSegmentsJson!), seedPayload);
+
+    controller.persistReasoningExpansionIfSettled(
+      'm1',
+      chatController: chatController,
+    );
+
+    // The live list row was swapped with the new payload...
+    final swapped = chatController.messages.single.reasoningSegmentsJson!;
+    final swappedDecoded = (jsonDecode(swapped) as List).cast<Map>().single;
+    expect(swappedDecoded['expanded'], isFalse);
+    // ...the grouped cache was invalidated (a fresh map, not the memoized
+    // one) and reflects the new row...
+    final after = chatController.groupedMessages;
+    expect(identical(after, before), isFalse);
+    expect(after['m1']!.single.reasoningSegmentsJson, swapped);
+    // ...and the payload reached the database layer.
+    expect(chatService.reasoningUpdates, hasLength(1));
+    expect(chatService.reasoningUpdates.single.segmentsJson, swapped);
+  });
+
+  test('persistReasoningExpansionIfSettled skips streaming and unknown '
+      'messages', () {
+    final chatService = _RecordingChatService();
+    final conversation = Conversation(id: 'c1', title: 'T');
+    final streamingPayload = serializeReasoningSegmentsWithSplits([
+      segment('think', expanded: true),
+    ]);
+    chatService.seedMessage(
+      ChatMessage(
+        id: 'm-streaming',
+        role: 'assistant',
+        content: 'partial',
+        conversationId: conversation.id,
+        isStreaming: true,
+        reasoningSegmentsJson: streamingPayload,
+      ),
+    );
+
+    final chatController = ChatController(chatService: chatService);
+    chatController.setCurrentConversation(conversation);
+    final controller = buildController(chatService);
+    controller.setReasoningSegments('m-streaming', [
+      segment('think', expanded: false),
+    ]);
+    final cacheBefore = chatController.groupedMessages;
+
+    controller.persistReasoningExpansionIfSettled(
+      'm-streaming',
+      chatController: chatController,
+    );
+    controller.persistReasoningExpansionIfSettled(
+      'm-unknown',
+      chatController: chatController,
+    );
+
+    expect(chatService.reasoningUpdates, isEmpty);
+    expect(
+      chatController.messages.single.reasoningSegmentsJson,
+      streamingPayload,
+    );
+    // Nothing changed, so the memoized cache was not rebuilt either.
+    expect(identical(chatController.groupedMessages, cacheBefore), isTrue);
   });
 }

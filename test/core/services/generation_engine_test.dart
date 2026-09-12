@@ -1347,6 +1347,10 @@ void main() {
 
       expect(uiStates, isNotEmpty);
       expect(uiStates.last.reasoningDetails, details);
+      expect(uiStates.last.reasoningDetails, isA<List<dynamic>>());
+      // buildUiState snapshots collections: the published list must not be
+      // the provider's live buffer.
+      expect(identical(uiStates.last.reasoningDetails, details), isFalse);
 
       await controller.close();
       await pumpEventQueue();

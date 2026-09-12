@@ -265,21 +265,6 @@ class _GroupChatViewState extends State<GroupChatView> {
     }
   }
 
-  /// Persist a manual expand/collapse of a thinking step so it survives
-  /// reload/switch/sync (parity with HomePageController). Only settled
-  /// (non-streaming) messages are written — the engine owns live segment state.
-  void _persistReasoningToggle(String messageId) {
-    final index = _chatController.messages.indexWhere((m) => m.id == messageId);
-    if (index == -1) return;
-    if (_chatController.messages[index].isStreaming) return;
-    final payload = _streamController.buildReasoningSegmentsJson(messageId);
-    if (payload == null) return;
-    _chatController.replaceMessage(
-      _chatController.messages[index].copyWith(reasoningSegmentsJson: payload),
-    );
-    unawaited(_streamController.persistReasoningSegments(messageId, payload));
-  }
-
   void _refreshList() {
     final g = context.read<GroupChatProvider>().getById(widget.groupChatId);
     if (g == null) return;
@@ -716,7 +701,10 @@ class _GroupChatViewState extends State<GroupChatView> {
                     final r = _streamController.reasoning[id];
                     if (r == null) return;
                     r.expanded = !r.expanded;
-                    _persistReasoningToggle(id);
+                    _streamController.persistReasoningExpansionIfSettled(
+                      id,
+                      chatController: _chatController,
+                    );
                     setState(() {});
                   },
                   onToggleReasoningSegment: (id, index) {
@@ -725,7 +713,10 @@ class _GroupChatViewState extends State<GroupChatView> {
                       return;
                     }
                     segs[index].expanded = !segs[index].expanded;
-                    _persistReasoningToggle(id);
+                    _streamController.persistReasoningExpansionIfSettled(
+                      id,
+                      chatController: _chatController,
+                    );
                     setState(() {});
                   },
                 ),

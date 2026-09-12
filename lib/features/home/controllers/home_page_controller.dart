@@ -2924,31 +2924,15 @@ class HomePageController extends ChangeNotifier {
     final segment = segments[segmentIndex];
     if (segment.expanded == expanded) return true;
     segment.expanded = expanded;
-    _persistReasoningExpansionIfSettled(messageId);
+    _streamController.persistReasoningExpansionIfSettled(
+      messageId,
+      chatController: _chatController,
+    );
     _notifyReasoningExpansionChanged(
       messageId,
       isStillStreaming: segment.finishedAt == null && segment.text.isNotEmpty,
     );
     return true;
-  }
-
-  /// Persist a manual expand/collapse so it survives reload/switch/sync.
-  ///
-  /// Only settled (non-streaming) messages are written: while streaming, the
-  /// engine owns the segment state and its periodic flush would overwrite the
-  /// toggle. The in-memory message copy is updated too so an in-place
-  /// re-restore (`_restoreMessageUiState` reads the ChatController list) sees
-  /// the same payload as the database.
-  void _persistReasoningExpansionIfSettled(String messageId) {
-    final index = messages.indexWhere((m) => m.id == messageId);
-    if (index == -1) return;
-    if (messages[index].isStreaming) return;
-    final payload = _streamController.buildReasoningSegmentsJson(messageId);
-    if (payload == null) return;
-    _chatController.replaceMessage(
-      messages[index].copyWith(reasoningSegmentsJson: payload),
-    );
-    unawaited(_streamController.persistReasoningSegments(messageId, payload));
   }
 
   void _notifyReasoningExpansionChanged(

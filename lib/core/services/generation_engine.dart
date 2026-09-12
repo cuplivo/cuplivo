@@ -196,8 +196,11 @@ class GenerationSlotUiState {
   /// Vendor reasoning details (OpenRouter/Anthropic-style `reasoning_details`,
   /// may carry thinking signatures) accumulated from the stream. Persisted
   /// inside the reasoning payload; also mirrored into the page UI state so a
-  /// manual thinking-step toggle preserves them.
-  final dynamic reasoningDetails;
+  /// manual thinking-step toggle preserves them. Every producer emits a list
+  /// (accumulator snapshot or decoded JSON), so an unexpected vendor shape
+  /// fails fast at the assignment below instead of being written into the
+  /// payload as an opaque object.
+  final List<dynamic>? reasoningDetails;
 
   /// Consumed totals (sum across request rounds).
   final int totalTokens;
@@ -1432,7 +1435,11 @@ class _SlotRuntime {
   int totalTokens = 0;
   TokenUsage? usage;
   TokenUsage? consumedUsage;
-  dynamic reasoningDetails;
+
+  /// Same contract as [GenerationSlotUiState.reasoningDetails]; assigned from
+  /// `chunk.reasoningDetails` (dynamic), so a non-list vendor shape surfaces
+  /// as a cast error here rather than corrupting the persisted payload.
+  List<dynamic>? reasoningDetails;
 
   String currentContent = '';
 
@@ -1476,7 +1483,9 @@ class _SlotRuntime {
       toolCountAtSplit: List<int>.of(toolCountAtSplit),
       toolEvents: List<Map<String, dynamic>>.of(toolEventsById.values),
       geminiThoughtSig: geminiThoughtSig,
-      reasoningDetails: reasoningDetails,
+      reasoningDetails: reasoningDetails == null
+          ? null
+          : List<dynamic>.of(reasoningDetails!),
       totalTokens: consumed?.totalTokens ?? totalTokens,
       contextTokens: lastUsage?.totalTokens ?? totalTokens,
       promptTokens: consumed?.promptTokens,

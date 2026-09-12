@@ -39,6 +39,8 @@ import '../../../core/utils/quick_instruction_presentation.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/services/chat/external_chat_draft_handoff.dart';
 import '../../../core/services/android_process_text.dart';
+import '../../../core/services/inbound_share.dart';
+import '../../../core/services/inbound_share_importer.dart';
 import '../../../core/services/proactive_care_conversation_policy.dart';
 import '../../../core/services/network/dio_http_client.dart';
 import '../../../utils/sandbox_path_resolver.dart';
@@ -636,6 +638,7 @@ class _HomePageState extends State<HomePage>
   int _webActionEpoch = 0;
   double _lastViewInsetBottom = 0;
   StreamSubscription<String>? _processTextSub;
+  StreamSubscription<InboundSharePayload>? _inboundShareSub;
 
   // ============================================================================
   // Page Controller (manages all business logic and state)
@@ -670,6 +673,7 @@ class _HomePageState extends State<HomePage>
 
     _controller.initChat();
     _initProcessText();
+    _initInboundShare();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _lastViewInsetBottom = View.of(context).viewInsets.bottom;
@@ -753,6 +757,7 @@ class _HomePageState extends State<HomePage>
       WidgetsBinding.instance.removeObserver(this);
     } catch (_) {}
     _processTextSub?.cancel();
+    _inboundShareSub?.cancel();
     _controller.removeListener(_onControllerChanged);
     _drawerController.removeListener(_onDrawerValueChanged);
     _inputFocus.dispose();
@@ -827,6 +832,49 @@ class _HomePageState extends State<HomePage>
       _controller.forceScrollToBottomSoon(animate: false);
       _inputFocus.requestFocus();
     });
+  }
+
+  void _initInboundShare() {
+    if (!PlatformUtils.isMobile) return;
+    InboundShare.ensureInitialized();
+    _inboundShareSub = InboundShare.stream.listen((payload) {
+      unawaited(_handleInboundShare(payload));
+    });
+    InboundShare.getInitialPayload().then((payload) {
+      if (payload != null) unawaited(_handleInboundShare(payload));
+    });
+  }
+
+  /// Imports the shared files, reports any that failed, then normalizes
+  /// navigation to the root chat route and lands the content via the
+  /// controller (see [HomePageController.handleInboundShare]).
+  Future<void> _handleInboundShare(InboundSharePayload payload) async {
+    final outcome = await InboundShareImporter.import(payload);
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    if (outcome.isEmpty) {
+      if (l10n != null) {
+        showAppSnackBar(
+          context,
+          message: l10n.inboundShareImportFailed,
+          type: NotificationType.error,
+        );
+      }
+      return;
+    }
+    if (outcome.failedCount > 0 && l10n != null) {
+      showAppSnackBar(
+        context,
+        message: l10n.inboundShareImportPartial(outcome.failedCount),
+        type: NotificationType.warning,
+      );
+    }
+    if (!mounted) return;
+    Navigator.of(
+      context,
+      rootNavigator: true,
+    ).popUntil((route) => route.isFirst);
+    await _controller.handleInboundShare(outcome.input);
   }
 
   // ============================================================================

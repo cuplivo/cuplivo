@@ -5,6 +5,7 @@ import android.content.ActivityNotFoundException
 import android.net.Uri
 import android.content.Intent
 import android.os.Build
+import android.provider.OpenableColumns
 import android.util.Log
 import android.view.KeyEvent
 import android.view.Surface
@@ -15,21 +16,27 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.io.FileInputStream
+import java.util.UUID
 
 class MainActivity : FlutterActivity() {
     private companion object {
         const val CREATE_DOCUMENT_REQUEST_CODE = 4107
         const val TAG = "MainActivity"
+        const val SHARE_STAGING_TTL_MS = 24 * 60 * 60 * 1000L
     }
 
     private val processTextChannelName = "app.process_text"
     private val fileSaveChannelName = "app.file_save"
     private val displayModeChannelName = "app.display_mode"
+    private val inboundShareChannelName = "app.inbound_share"
     private var processTextChannel: MethodChannel? = null
     private var fileSaveChannel: MethodChannel? = null
     private var displayModeChannel: MethodChannel? = null
+    private var inboundShareChannel: MethodChannel? = null
     private var flutterSurfaceView: FlutterSurfaceView? = null
     private var pendingProcessText: String? = null
+    @Volatile private var pendingShare: Map<String, Any?>? = null
+    private var launchShareExtracted = false
     private var pendingSaveResult: MethodChannel.Result? = null
     private var pendingSaveSourcePath: String? = null
     var volumeCtrlPlugin: LinuxSandboxPlugin? = null
@@ -104,6 +111,14 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        inboundShareChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, inboundShareChannelName)
+        inboundShareChannel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getInitialShare" -> handleGetInitialShare(result)
+                else -> result.notImplemented()
+            }
+        }
+        pruneShareStaging()
         pendingProcessText = extractProcessText(intent)
     }
 
@@ -180,12 +195,38 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        val text = extractProcessText(intent) ?: return
-        val ch = processTextChannel
-        if (ch != null) {
-            ch.invokeMethod("onProcessText", text)
-        } else {
-            pendingProcessText = text
+        val text = extractProcessText(intent)
+        if (text != null) {
+            val ch = processTextChannel
+            if (ch != null) {
+                ch.invokeMethod("onProcessText", text)
+            } else {
+                pendingProcessText = text
+            }
+            return
+        }
+        if (isShareIntent(intent)) {
+            val shareIntent = intent
+            Thread {
+                val payload =
+                    try {
+                        extractSharePayload(shareIntent)
+                    } catch (error: Exception) {
+                        // Uncaught on a plain thread this would kill the process.
+                        Log.w(TAG, "Failed to parse shared content", error)
+                        null
+                    }
+                if (payload != null) {
+                    runOnUiThread {
+                        val ch = inboundShareChannel
+                        if (ch != null) {
+                            ch.invokeMethod("onShare", payload)
+                        } else {
+                            pendingShare = payload
+                        }
+                    }
+                }
+            }.start()
         }
     }
 
@@ -214,6 +255,189 @@ class MainActivity : FlutterActivity() {
         if (intent?.action != Intent.ACTION_PROCESS_TEXT) return null
         val text = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
         return text?.trim()?.takeIf { it.isNotEmpty() }
+    }
+
+    private fun isShareIntent(intent: Intent?): Boolean {
+        val action = intent?.action ?: return false
+        return action == Intent.ACTION_SEND || action == Intent.ACTION_SEND_MULTIPLE
+    }
+
+    /**
+     * Cold-start pull for the OS share target. Returns the payload staged from
+     * the launch intent (one-shot) or null when there is nothing to consume.
+     */
+    private fun handleGetInitialShare(result: MethodChannel.Result) {
+        val pending = pendingShare
+        if (pending != null) {
+            pendingShare = null
+            result.success(pending)
+            return
+        }
+        if (launchShareExtracted || !isShareIntent(intent)) {
+            result.success(null)
+            return
+        }
+        // Restoring the task from Recents re-delivers the original launch
+        // intent; that share was already consumed, so do not import it twice.
+        if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) {
+            result.success(null)
+            return
+        }
+        launchShareExtracted = true
+        val launchIntent = intent
+        Thread {
+            val payload =
+                try {
+                    extractSharePayload(launchIntent)
+                } catch (error: Exception) {
+                    Log.w(TAG, "Failed to parse shared content", error)
+                    null
+                }
+            runOnUiThread { result.success(payload) }
+        }.start()
+    }
+
+    /**
+     * Parses an ACTION_SEND / ACTION_SEND_MULTIPLE intent into the Dart payload
+     * map, copying every content:// stream into a per-share staging directory.
+     * Returns null when the intent carries no usable content.
+     */
+    private fun extractSharePayload(intent: Intent): Map<String, Any?>? {
+        val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+        val uris = mutableListOf<Uri>()
+        when (intent.action) {
+            Intent.ACTION_SEND -> {
+                @Suppress("DEPRECATION")
+                val uri = intent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri
+                if (uri != null) uris.add(uri)
+            }
+            Intent.ACTION_SEND_MULTIPLE -> {
+                @Suppress("DEPRECATION")
+                val list = intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+                if (list != null) uris.addAll(list)
+            }
+        }
+        if (text == null && uris.isEmpty()) return null
+
+        val stagingDir = File(cacheDir, "share_inbox/${UUID.randomUUID()}")
+        val images = mutableListOf<String>()
+        val files = mutableListOf<Map<String, Any?>>()
+        var failed = 0
+
+        for (uri in uris) {
+            val resolved = contentResolver.getType(uri) ?: intent.type
+            val mime = if (resolved.isNullOrBlank() || resolved == "*/*") {
+                "application/octet-stream"
+            } else {
+                resolved.lowercase()
+            }
+            val displayName = resolveDisplayName(uri, mime)
+            val destination = uniqueTarget(stagingDir, sanitizeFileName(displayName))
+            if (!copyUriToFile(uri, destination)) {
+                failed++
+                continue
+            }
+            if (mime.startsWith("image/")) {
+                images.add(destination.absolutePath)
+            } else {
+                files.add(
+                    hashMapOf(
+                        "path" to destination.absolutePath,
+                        "name" to destination.name,
+                        "mime" to mime,
+                    ),
+                )
+            }
+        }
+
+        val payload = HashMap<String, Any?>()
+        payload["text"] = text
+        payload["images"] = images
+        payload["files"] = files
+        payload["failed"] = failed
+        payload["stagingDir"] =
+            if (images.isNotEmpty() || files.isNotEmpty()) stagingDir.absolutePath else null
+        return payload
+    }
+
+    /**
+     * Deletes share staging directories older than [SHARE_STAGING_TTL_MS] so a
+     * process death between native copy and Dart import cannot accumulate
+     * orphaned files in the cache.
+     */
+    private fun pruneShareStaging() {
+        Thread {
+            val root = File(cacheDir, "share_inbox")
+            val entries = root.listFiles() ?: return@Thread
+            val cutoff = System.currentTimeMillis() - SHARE_STAGING_TTL_MS
+            for (entry in entries) {
+                if (entry.lastModified() >= cutoff) continue
+                if (!entry.deleteRecursively()) {
+                    Log.w(TAG, "Unable to prune stale share staging: ${entry.name}")
+                }
+            }
+        }.start()
+    }
+
+    private fun resolveDisplayName(uri: Uri, mime: String): String {
+        try {
+            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index >= 0 && cursor.moveToFirst()) {
+                    val name = cursor.getString(index)
+                    if (!name.isNullOrBlank()) return name
+                }
+            }
+        } catch (error: Exception) {
+            Log.w(TAG, "Unable to resolve display name for $uri", error)
+        }
+        val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)
+        val base = "shared_${System.currentTimeMillis()}"
+        return if (extension.isNullOrEmpty()) base else "$base.$extension"
+    }
+
+    private fun sanitizeFileName(raw: String): String {
+        val base = File(raw).name
+        val cleaned = base.replace(Regex("[\\\\/:*?\"<>|\\u0000-\\u001f]"), "_").trim()
+        return when {
+            cleaned.isEmpty() || cleaned == "." || cleaned == ".." -> "shared_${System.currentTimeMillis()}"
+            cleaned.length > 200 -> cleaned.substring(0, 200)
+            else -> cleaned
+        }
+    }
+
+    private fun uniqueTarget(dir: File, name: String): File {
+        if (!dir.exists()) dir.mkdirs()
+        var candidate = File(dir, name)
+        if (!candidate.exists()) return candidate
+        val dot = name.lastIndexOf('.')
+        val base = if (dot > 0) name.substring(0, dot) else name
+        val extension = if (dot > 0) name.substring(dot) else ""
+        var counter = 1
+        while (candidate.exists()) {
+            candidate = File(dir, "$base($counter)$extension")
+            counter++
+        }
+        return candidate
+    }
+
+    private fun copyUriToFile(uri: Uri, destination: File): Boolean {
+        return try {
+            val input = contentResolver.openInputStream(uri)
+            if (input == null) {
+                Log.w(TAG, "No input stream for shared uri: $uri")
+                return false
+            }
+            input.use { source ->
+                destination.outputStream().use { output ->
+                    source.copyTo(output, DEFAULT_BUFFER_SIZE)
+                }
+            }
+            true
+        } catch (error: Exception) {
+            Log.w(TAG, "Failed to copy shared uri: $uri", error)
+            false
+        }
     }
 
     private fun handleSaveFileFromPath(arguments: Any?, result: MethodChannel.Result) {

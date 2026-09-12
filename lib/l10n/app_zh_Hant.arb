@@ -2689,6 +2689,8 @@
   "trashSectionPendingTab": "待確認",
   "trashConflictSnackBar": "{count} 個刪除衝突待確認",
   "trashConflictSnackBarAction": "檢視",
+  "inboundShareImportFailed": "無法加入分享的內容",
+  "inboundShareImportPartial": "部分分享內容未能加入（{count}）",
   "trashConflictOriginLocal": "你曾刪除（已被合併恢復）",
   "trashConflictOriginRemote": "對端已刪除",
   "trashConflictKeepButton": "保留",

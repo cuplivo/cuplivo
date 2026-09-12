@@ -14263,6 +14263,18 @@ abstract class AppLocalizations {
   /// **'Review'**
   String get trashConflictSnackBarAction;
 
+  /// No description provided for @inboundShareImportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not add the shared content'**
+  String get inboundShareImportFailed;
+
+  /// No description provided for @inboundShareImportPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Some shared items could not be added ({count})'**
+  String inboundShareImportPartial(Object count);
+
   /// No description provided for @trashConflictOriginLocal.
   ///
   /// In en, this message translates to:

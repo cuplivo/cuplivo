@@ -126,7 +126,7 @@ Cuplivo 是一个社区分支，未与原项目完全切割，部分地方可能
 
 🔗 [下载最新版本](https://github.com/cuplivo/cuplivo/releases/latest)
 
-> **iOS**: Cuplivo 未上架 App Store，请通过自签方式安装（如 Sideloadly、AltStore 或其他签名工具）。
+> **iOS**: Cuplivo 未上架 App Store，请通过自签方式安装（如 Sideloadly、AltStore 或其他签名工具）。接收分享功能依赖 App Group entitlement，免费 Apple ID 无法配置，请使用付费 Apple Developer 账号或支持 App Groups 的签名工具。
 
 ## 💖 赞助
 

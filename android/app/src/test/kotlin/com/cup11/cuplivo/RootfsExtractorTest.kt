@@ -1,9 +1,13 @@
 package com.cup11.cuplivo
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
+import org.junit.Assume.assumeTrue
 import org.junit.Test
+import org.tukaani.xz.LZMA2Options
+import org.tukaani.xz.XZOutputStream
 import java.io.ByteArrayOutputStream
 import java.io.EOFException
 import java.io.File
@@ -31,6 +35,10 @@ class RootfsExtractorTest {
     archive.parentFile?.mkdirs()
     if (fileName.endsWith(".gz") || fileName.endsWith(".tgz")) {
       GZIPOutputStream(archive.outputStream()).use { it.write(raw.toByteArray()) }
+    } else if (fileName.endsWith(".xz") || fileName.endsWith(".txz")) {
+      XZOutputStream(archive.outputStream(), LZMA2Options()).use {
+        it.write(raw.toByteArray())
+      }
     } else {
       archive.writeBytes(raw.toByteArray())
     }
@@ -350,5 +358,85 @@ class RootfsExtractorTest {
     } catch (expected: IllegalArgumentException) {
       // expected
     }
+  }
+
+  @Test
+  fun skipsDotSlashRootDirectoryEntry() {
+    // Alpine minirootfs archives open with a literal "./" root-dir entry
+    // (issue #322); it maps to the extraction root and must be skipped.
+    val archive = writeArchive {
+      write(dirRecord("./"))
+      write(fileRecord("etc/hostname", "alpine"))
+    }
+    RootfsExtractor.extract(archive, outDir)
+    assertEquals("alpine", File(outDir, "etc/hostname").readText())
+  }
+
+  @Test
+  fun extractsTarXzArchives() {
+    val archive = writeArchive("rootfs.tar.xz") { write(fileRecord("xz", "3")) }
+    RootfsExtractor.extract(archive, outDir)
+    assertTrue(File(outDir, "xz").isFile)
+    assertEquals("3", File(outDir, "xz").readText())
+  }
+
+  @Test
+  fun resolvesGuestAbsoluteSymlinksInsideTheRootfs() {
+    val root = File(work, "guest-absolute").apply { mkdirs() }
+    File(root, "bin").mkdirs()
+    File(root, "bin/busybox").writeText("elf")
+    assumeTrue(
+      "host cannot create symlinks",
+      tryCreateSymlink(File(root, "bin/sh"), "/bin/busybox"),
+    )
+
+    val resolved = resolveGuestFile(root, "bin/sh")
+    assertEquals(File(root, "bin/busybox").path, resolved!!.path)
+  }
+
+  @Test
+  fun returnsNullForDanglingGuestSymlinksAndEscapes() {
+    val root = File(work, "guest-dangling").apply { mkdirs() }
+    assumeTrue(
+      "host cannot create symlinks",
+      tryCreateSymlink(File(root, "bin/sh"), "/bin/busybox"),
+    )
+
+    assertNull(resolveGuestFile(root, "bin/sh"))
+    assertNull(resolveGuestFile(root, "../outside"))
+    assertNull(resolveGuestFile(root, "bin/../../outside"))
+    assertNull(resolveGuestFile(root, "bin/missing"))
+  }
+
+  @Test
+  fun guestShellPrefersBashAndFallsBackToSh() {
+    val root = File(work, "guest-shell").apply { mkdirs() }
+    File(root, "bin").mkdirs()
+    File(root, "bin/sh").writeText("sh")
+    assertEquals("/bin/sh", guestShellFor(root))
+
+    File(root, "bin/bash").writeText("bash")
+    assertEquals("/bin/bash", guestShellFor(root))
+  }
+
+  @Test
+  fun guestShellFollowsAlpineStyleAbsoluteBashSymlink() {
+    val root = File(work, "guest-shell-link").apply { mkdirs() }
+    File(root, "bin").mkdirs()
+    File(root, "bin/busybox").writeText("busybox")
+    assumeTrue(
+      "host cannot create symlinks",
+      tryCreateSymlink(File(root, "bin/bash"), "/bin/busybox"),
+    )
+    assertEquals("/bin/bash", guestShellFor(root))
+  }
+
+  private fun tryCreateSymlink(link: File, target: String): Boolean = try {
+    link.parentFile?.mkdirs()
+    Files.createSymbolicLink(link.toPath(), File(target).toPath())
+    true
+  } catch (_: Exception) {
+    // Windows without developer mode cannot create symlinks.
+    false
   }
 }

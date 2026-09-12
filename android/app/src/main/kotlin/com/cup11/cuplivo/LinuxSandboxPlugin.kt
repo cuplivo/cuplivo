@@ -518,11 +518,10 @@ class LinuxSandboxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activ
       // Android with "Permission denied" for Ubuntu base hardlinks).
       RootfsExtractor.extract(archive, linuxTmp)
 
-      val sh = File(linuxTmp, "bin/sh")
-      if (!sh.exists()) {
+      if (resolveGuestFile(linuxTmp, "bin/sh") == null) {
         // Some tarballs nest a single top-level dir
         val children = linuxTmp.listFiles()?.filter { it.isDirectory } ?: emptyList()
-        if (children.size == 1 && File(children[0], "bin/sh").exists()) {
+        if (children.size == 1 && resolveGuestFile(children[0], "bin/sh") != null) {
           val nested = children[0]
           nested.listFiles()?.forEach { child ->
             val dest = File(linuxTmp, child.name)
@@ -534,7 +533,7 @@ class LinuxSandboxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activ
           nested.deleteRecursively()
         }
       }
-      if (!File(linuxTmp, "bin/sh").exists()) {
+      if (resolveGuestFile(linuxTmp, "bin/sh") == null) {
         throw IllegalStateException("extract produced no bin/sh")
       }
       patchRootfs(linuxTmp)
@@ -901,13 +900,14 @@ private fun buildGuestCommand(
     "DEBIAN_FRONTEND=noninteractive",
     "GIT_TERMINAL_PROMPT=0",
   )
+  val shell = guestShellFor(linuxDir)
   if (command == null) {
-    argv += listOf("/bin/bash", "-l")
+    argv += listOf(shell, "-l")
   } else {
     // Non-interactive tool/probe commands must use the fixed environment
     // above. A login shell could replace PATH or source user-controlled
     // profile files, making detection disagree with command execution.
-    argv += listOf("/bin/bash", "-c", command)
+    argv += listOf(shell, "-c", command)
   }
   return argv
 }
@@ -1307,8 +1307,9 @@ private fun currentSandboxAbi(): String {
 }
 
 private fun rootfsHasCompatibleShell(linuxDir: File, abi: String): Boolean {
-  val shell = listOf(File(linuxDir, "bin/sh"), File(linuxDir, "bin/bash"))
-    .firstOrNull { it.isFile }
+  val shell = listOf("bin/sh", "bin/bash")
+    .mapNotNull { resolveGuestFile(linuxDir, it) }
+    .firstOrNull()
     ?: return false
   val header = readFilePrefix(shell, ELF_HEADER_PREFIX_SIZE)
   val compatible = header != null && elfHeaderMatchesSandboxAbi(header, abi)
@@ -1320,6 +1321,15 @@ private fun rootfsHasCompatibleShell(linuxDir: File, abi: String): Boolean {
   }
   return compatible
 }
+
+/**
+ * Guest shell used for proot execution: bash when the rootfs provides it
+ * (Ubuntu/Debian), otherwise busybox `/bin/sh` (Alpine). The lookup follows
+ * guest-absolute symlinks inside the rootfs, so an Alpine
+ * `/bin/sh -> /bin/busybox` counts as a shell. Exposed for tests.
+ */
+internal fun guestShellFor(linuxDir: File): String =
+  if (resolveGuestFile(linuxDir, "bin/bash") != null) "/bin/bash" else "/bin/sh"
 
 private fun readFilePrefix(file: File, size: Int): ByteArray? {
   return try {

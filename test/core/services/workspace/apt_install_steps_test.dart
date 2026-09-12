@@ -1,5 +1,6 @@
 import 'package:Cuplivo/core/models/workspace.dart';
 import 'package:Cuplivo/core/services/workspace/linux_sandbox_service.dart';
+import 'package:Cuplivo/core/services/workspace/sandbox_distro.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -8,28 +9,28 @@ void main() {
       expect(
         LinuxSandboxService.packageNamesForDependency(
           WorkspaceDependencyIds.githubCli,
-          ios: false,
+          family: SandboxDistroFamily.ubuntu,
         ),
         'gh',
       );
       expect(
         LinuxSandboxService.packageNamesForDependency(
           WorkspaceDependencyIds.curl,
-          ios: false,
+          family: SandboxDistroFamily.ubuntu,
         ),
         'curl',
       );
       expect(
         LinuxSandboxService.packageNamesForDependency(
           WorkspaceDependencyIds.opensshClient,
-          ios: false,
+          family: SandboxDistroFamily.ubuntu,
         ),
         'openssh-client',
       );
       expect(
         LinuxSandboxService.packageNamesForDependency(
           WorkspaceDependencyIds.archive,
-          ios: false,
+          family: SandboxDistroFamily.ubuntu,
         ),
         'zip unzip',
       );
@@ -38,7 +39,7 @@ void main() {
     test('office mapping includes both zip tools', () {
       final packages = LinuxSandboxService.packageNamesForDependency(
         WorkspaceDependencyIds.office,
-        ios: false,
+        family: SandboxDistroFamily.ubuntu,
       );
 
       expect(packages.split(' '), containsAll(<String>['zip', 'unzip']));

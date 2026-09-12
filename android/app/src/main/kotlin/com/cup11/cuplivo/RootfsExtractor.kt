@@ -10,9 +10,11 @@ import java.io.OutputStream
 import java.nio.file.Files
 import java.util.Locale
 import java.util.zip.GZIPInputStream
+import org.tukaani.xz.XZInputStream
 
 /**
- * Streaming unpacker for rootfs tarballs (.tar / .tar.gz / .tgz).
+ * Streaming unpacker for rootfs tarballs (.tar / .tar.gz / .tgz / .tar.xz /
+ * .txz).
  *
  * Android's bundled tar cannot materialize the hardlinks used by Ubuntu
  * base archives (link(2) is rejected with EACCES), so entries are written
@@ -62,12 +64,20 @@ object RootfsExtractor {
     targetDir.mkdirs()
     val fileName = archive.name.lowercase(Locale.US)
     val gzipped = fileName.endsWith(".tar.gz") || fileName.endsWith(".tgz")
-    if (!gzipped && !fileName.endsWith(".tar")) {
-      throw IllegalArgumentException("Unsupported archive format: ${archive.name} (only tar.gz/tgz/tar)")
+    val xzipped = fileName.endsWith(".tar.xz") || fileName.endsWith(".txz")
+    if (!gzipped && !xzipped && !fileName.endsWith(".tar")) {
+      throw IllegalArgumentException(
+        "Unsupported archive format: ${archive.name} " +
+          "(only tar.gz/tgz/tar.xz/txz/tar)",
+      )
     }
 
     val buffered = BufferedInputStream(archive.inputStream(), COPY_CHUNK)
-    val input: InputStream = if (gzipped) GZIPInputStream(buffered, COPY_CHUNK) else buffered
+    val input: InputStream = when {
+      gzipped -> GZIPInputStream(buffered, COPY_CHUNK)
+      xzipped -> XZInputStream(buffered)
+      else -> buffered
+    }
     try {
       unpack(input, targetDir)
     } finally {
@@ -415,4 +425,64 @@ object RootfsExtractor {
     }
     return cleaned
   }
+}
+
+private const val MAX_GUEST_SYMLINK_HOPS = 40
+
+/**
+ * Resolve [guestRelativePath] (e.g. `bin/sh`) to a regular file inside
+ * [root], re-resolving symlinks whose own link text would otherwise resolve
+ * against the Android filesystem instead of the guest.
+ *
+ * Symlinks with absolute targets must survive for proot (they are written
+ * verbatim, see `writeSymlink`), but on the host such a link resolves against
+ * the Android filesystem: Alpine's `/bin/sh -> /bin/busybox` makes plain
+ * `File(root, "bin/sh").exists()` false even though the guest file exists.
+ * This resolver reads the link text and re-resolves it under [root] instead.
+ *
+ * Only a path segment that is itself a symlink is re-resolved. An
+ * *intermediate* directory segment that is a symlink to an absolute host path
+ * is still followed by the host filesystem calls, so the returned [File] can
+ * point outside [root]. Rootfs archives are user-supplied and treated as
+ * trusted; the result is only read for a small ELF header prefix and used to
+ * pick the guest shell name, never executed on the host. Returns null for
+ * missing paths, non-files, loops, and targets that normalize out of [root].
+ */
+internal fun resolveGuestFile(
+  root: File,
+  guestRelativePath: String,
+  hops: Int = 0,
+): File? {
+  if (hops >= MAX_GUEST_SYMLINK_HOPS) return null
+  val normalized = normalizeGuestRelativePath(guestRelativePath) ?: return null
+  if (normalized.isEmpty()) return null
+  val candidate = File(root, normalized)
+  if (!Files.isSymbolicLink(candidate.toPath())) {
+    return candidate.takeIf { it.isFile }
+  }
+  val target = try {
+    Files.readSymbolicLink(candidate.toPath()).toString().replace('\\', '/')
+  } catch (_: Exception) {
+    return null
+  }
+  val next = if (target.startsWith("/")) {
+    target.trimStart('/')
+  } else {
+    val parent = normalized.substringBeforeLast('/', "")
+    if (parent.isEmpty()) target else "$parent/$target"
+  }
+  return resolveGuestFile(root, next, hops + 1)
+}
+
+/** Normalize a guest-relative path, rejecting escapes above the rootfs. */
+internal fun normalizeGuestRelativePath(path: String): String? {
+  val segments = ArrayDeque<String>()
+  for (segment in path.replace('\\', '/').split('/')) {
+    when (segment) {
+      "", "." -> {}
+      ".." -> if (segments.isEmpty()) return null else segments.removeLast()
+      else -> segments.addLast(segment)
+    }
+  }
+  return segments.joinToString("/")
 }

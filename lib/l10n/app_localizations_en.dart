@@ -923,6 +923,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get languageDisplaySpanish => 'Spanish';
 
   @override
+  String get languageDisplayPortuguese => 'Portuguese';
+
+  @override
+  String get languageDisplayRussian => 'Russian';
+
+  @override
+  String get languageDisplayArabic => 'Arabic';
+
+  @override
+  String get languageDisplayHindi => 'Hindi';
+
+  @override
+  String get languageDisplayThai => 'Thai';
+
+  @override
+  String get languageDisplayVietnamese => 'Vietnamese';
+
+  @override
+  String get languageDisplayBengali => 'Bengali';
+
+  @override
+  String get translateLanguageManagerTitle => 'Manage Languages';
+
+  @override
+  String get translateLanguageManagerSubtitle =>
+      'Choose which languages appear in the translate target list.';
+
+  @override
+  String get translateLanguageManagerAtLeastOne =>
+      'Keep at least one language visible.';
+
+  @override
   String get languageSelectSheetTitle => 'Select Translation Language';
 
   @override

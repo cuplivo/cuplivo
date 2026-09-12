@@ -1677,6 +1677,66 @@ abstract class AppLocalizations {
   /// **'Spanish'**
   String get languageDisplaySpanish;
 
+  /// No description provided for @languageDisplayPortuguese.
+  ///
+  /// In en, this message translates to:
+  /// **'Portuguese'**
+  String get languageDisplayPortuguese;
+
+  /// No description provided for @languageDisplayRussian.
+  ///
+  /// In en, this message translates to:
+  /// **'Russian'**
+  String get languageDisplayRussian;
+
+  /// No description provided for @languageDisplayArabic.
+  ///
+  /// In en, this message translates to:
+  /// **'Arabic'**
+  String get languageDisplayArabic;
+
+  /// No description provided for @languageDisplayHindi.
+  ///
+  /// In en, this message translates to:
+  /// **'Hindi'**
+  String get languageDisplayHindi;
+
+  /// No description provided for @languageDisplayThai.
+  ///
+  /// In en, this message translates to:
+  /// **'Thai'**
+  String get languageDisplayThai;
+
+  /// No description provided for @languageDisplayVietnamese.
+  ///
+  /// In en, this message translates to:
+  /// **'Vietnamese'**
+  String get languageDisplayVietnamese;
+
+  /// No description provided for @languageDisplayBengali.
+  ///
+  /// In en, this message translates to:
+  /// **'Bengali'**
+  String get languageDisplayBengali;
+
+  /// No description provided for @translateLanguageManagerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Languages'**
+  String get translateLanguageManagerTitle;
+
+  /// No description provided for @translateLanguageManagerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which languages appear in the translate target list.'**
+  String get translateLanguageManagerSubtitle;
+
+  /// No description provided for @translateLanguageManagerAtLeastOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep at least one language visible.'**
+  String get translateLanguageManagerAtLeastOne;
+
   /// No description provided for @languageSelectSheetTitle.
   ///
   /// In en, this message translates to:

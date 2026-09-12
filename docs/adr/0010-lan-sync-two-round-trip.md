@@ -91,3 +91,13 @@ fork 保留两份需要新的数据模型（`forkedFromId` 字段 + schema migra
 - 复用 `ChatDatabaseRepository.getMessageIdsSync(convId)` 和 `getAllAssistants()`
 - 无 schema 变更（v1 不处理 fork）
 - 无 ARB 变更以外的 i18n 影响（新增的 user-visible 文本需走标准 4 文件同步流程）
+
+## 追加：二维码 / 链接与最近地址记忆（2026-09-10）
+
+不做自动发现的前提下，为降低手动输入成本追加：
+
+- 服务端对话框展示二维码与可复制链接（`cuplivo-lansync:v1:` 前缀 + JSON，携带全部 LAN 地址、端口与本次 PIN，与屏幕明文 PIN 同级）。
+- 客户端扫码（移动端）或粘贴链接（桌面端）自动填充；多地址按顺序重试，PIN 错误不重试。
+- 客户端记住最近 5 个成功连接的 `host:port`（`lan_sync_recent_endpoints_v1`，localOnly，永不备份/迁移），打开时自动预填最近一条。
+
+协议（`/sync/plan`、`/sync/exchange`）未变更；mDNS / UDP 广播仍不做。

@@ -5451,6 +5451,42 @@ abstract class AppLocalizations {
   /// **'Apply and restart'**
   String get lanSyncApplyAndRestart;
 
+  /// No description provided for @lanSyncRecentEndpoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get lanSyncRecentEndpoints;
+
+  /// No description provided for @lanSyncScanQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR Code'**
+  String get lanSyncScanQr;
+
+  /// No description provided for @lanSyncCopyLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Link'**
+  String get lanSyncCopyLink;
+
+  /// No description provided for @lanSyncLinkCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Link copied'**
+  String get lanSyncLinkCopied;
+
+  /// No description provided for @lanSyncErrorInvalidLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid sync QR code or link.'**
+  String get lanSyncErrorInvalidLink;
+
+  /// No description provided for @lanSyncQrServerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan this code on the other device to connect automatically.'**
+  String get lanSyncQrServerHint;
+
   /// No description provided for @chatHistoryPageTitle.
   ///
   /// In en, this message translates to:

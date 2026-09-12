@@ -2905,6 +2905,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncApplyAndRestart => '应用并重启';
 
   @override
+  String get lanSyncRecentEndpoints => '最近使用';
+
+  @override
+  String get lanSyncScanQr => '扫描二维码';
+
+  @override
+  String get lanSyncCopyLink => '复制链接';
+
+  @override
+  String get lanSyncLinkCopied => '链接已复制';
+
+  @override
+  String get lanSyncErrorInvalidLink => '二维码或链接无效。';
+
+  @override
+  String get lanSyncQrServerHint => '在另一台设备上扫描此二维码即可自动连接。';
+
+  @override
   String get chatHistoryPageTitle => '聊天历史';
 
   @override
@@ -12887,6 +12905,24 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncApplyAndRestart => '应用并重启';
+
+  @override
+  String get lanSyncRecentEndpoints => '最近使用';
+
+  @override
+  String get lanSyncScanQr => '扫描二维码';
+
+  @override
+  String get lanSyncCopyLink => '复制链接';
+
+  @override
+  String get lanSyncLinkCopied => '链接已复制';
+
+  @override
+  String get lanSyncErrorInvalidLink => '二维码或链接无效。';
+
+  @override
+  String get lanSyncQrServerHint => '在另一台设备上扫描此二维码即可自动连接。';
 
   @override
   String get chatHistoryPageTitle => '聊天历史';
@@ -22872,6 +22908,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncApplyAndRestart => '套用並重啟';
+
+  @override
+  String get lanSyncRecentEndpoints => '最近使用';
+
+  @override
+  String get lanSyncScanQr => '掃描 QR Code';
+
+  @override
+  String get lanSyncCopyLink => '複製連結';
+
+  @override
+  String get lanSyncLinkCopied => '連結已複製';
+
+  @override
+  String get lanSyncErrorInvalidLink => 'QR Code 或連結無效。';
+
+  @override
+  String get lanSyncQrServerHint => '在另一台裝置掃描此 QR Code 即可自動連接。';
 
   @override
   String get chatHistoryPageTitle => '聊天歷史';

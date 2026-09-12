@@ -1030,6 +1030,7 @@ Map<String, dynamic> webChatDisplay(
   'showModelTimestamp': settings.showModelTimestamp,
   'showTokenStats': settings.showTokenStats,
   'autoCollapseThinking': settings.autoCollapseThinking,
+  'showCollapsedReasoningPreview': settings.showCollapsedReasoningPreview,
   'collapseThinkingSteps': settings.collapseThinkingSteps,
   'showToolResultSummary': settings.showToolResultSummary,
   'ttsActive': ttsActive,

@@ -155,6 +155,8 @@ class SettingsProvider extends ChangeNotifier {
       'display_show_user_message_actions_v1';
   static const String _displayAutoCollapseThinkingKey =
       'display_auto_collapse_thinking_v1';
+  static const String _displayShowCollapsedReasoningPreviewKey =
+      'display_show_collapsed_reasoning_preview_v1';
   static const String _displayCollapseThinkingStepsKey =
       'display_collapse_thinking_steps_v1';
   static const String _displayShowToolResultSummaryKey =
@@ -1343,6 +1345,8 @@ class SettingsProvider extends ChangeNotifier {
         prefs.getBool(_displayShowUserMessageActionsKey) ?? true;
     _autoCollapseThinking =
         prefs.getBool(_displayAutoCollapseThinkingKey) ?? true;
+    _showCollapsedReasoningPreview =
+        prefs.getBool(_displayShowCollapsedReasoningPreviewKey) ?? true;
     _collapseThinkingSteps =
         prefs.getBool(_displayCollapseThinkingStepsKey) ?? false;
     _showToolResultSummary =
@@ -4614,6 +4618,17 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     await prefs.setBool(_displayAutoCollapseThinkingKey, v);
   }
 
+  // Display: show the latest reasoning fragment in collapsed thinking cards.
+  bool _showCollapsedReasoningPreview = true;
+  bool get showCollapsedReasoningPreview => _showCollapsedReasoningPreview;
+  Future<void> setShowCollapsedReasoningPreview(bool v) async {
+    if (_showCollapsedReasoningPreview == v) return;
+    _showCollapsedReasoningPreview = v;
+    notifyListeners();
+    final prefs = _preferences;
+    await prefs.setBool(_displayShowCollapsedReasoningPreviewKey, v);
+  }
+
   bool _collapseThinkingSteps = false;
   bool get collapseThinkingSteps => _collapseThinkingSteps;
   Future<void> setCollapseThinkingSteps(bool v) async {
@@ -5720,6 +5735,7 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     copy._showModelName = _showModelName;
     copy._showModelTimestamp = _showModelTimestamp;
     copy._autoCollapseThinking = _autoCollapseThinking;
+    copy._showCollapsedReasoningPreview = _showCollapsedReasoningPreview;
     copy._collapseThinkingSteps = _collapseThinkingSteps;
     copy._showToolResultSummary = _showToolResultSummary;
     copy._regenerateDeleteTrailingMessages = _regenerateDeleteTrailingMessages;

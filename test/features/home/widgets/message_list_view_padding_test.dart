@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:Cuplivo/core/models/chat_message.dart';
@@ -323,13 +324,18 @@ void main() {
         ..expanded = false,
     };
     streamingNotifier.getNotifier(messageId);
+    businessPrefs = BusinessPreferences.memoryForTests({
+      'display_show_collapsed_reasoning_preview_v1': false,
+    });
+    final settings = SettingsProvider(preferences: businessPrefs);
+    // This test exercises the legacy scrolling preview inside the collapsed
+    // card: turn the animated preview off before the card reads the flag.
+    unawaited(settings.setShowCollapsedReasoningPreview(false));
 
     await tester.pumpWidget(
       MultiProvider(
         providers: [
-          ChangeNotifierProvider.value(
-            value: SettingsProvider(preferences: businessPrefs),
-          ),
+          ChangeNotifierProvider.value(value: settings),
           ChangeNotifierProvider.value(
             value: AssistantProvider(preferences: businessPrefs),
           ),

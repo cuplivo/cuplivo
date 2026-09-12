@@ -1,5 +1,5 @@
 export const PROTOCOL_VERSION = 5;
-export const ASSET_VERSION = 'web-chat-v22';
+export const ASSET_VERSION = 'web-chat-v23';
 
 const transfers = new Map();
 
@@ -702,6 +702,40 @@ export function formatReasoningElapsed(startAt, finishedAt, loading, now = Date.
       : start;
   if (!Number.isFinite(end)) return '';
   return `(${(Math.max(0, end - start) / 1000).toFixed(1)}s)`;
+}
+
+// Mirrors the Flutter `latestReasoningPreview`: providers often stream one
+// cumulative summary string, so a collapsed card should show the newest
+// fragment rather than the whole accumulated text.
+export function latestReasoningPreview(raw, maxCharacters = 96) {
+  let value = String(raw ?? '').replaceAll('\r', '').trim();
+  if (value.length === 0) return '';
+
+  const lines = value.split('\n').map((line) => line.trim()).filter(Boolean);
+  if (lines.length > 0) value = lines[lines.length - 1];
+
+  const fragments = value.split('**').map((f) => f.trim()).filter(Boolean);
+  if (fragments.length > 1) value = fragments[fragments.length - 1];
+
+  const sentences = value
+    .split(/[.!?\u3002\uff01\uff1f\uff1b;]+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+  if (sentences.length > 1) value = sentences[sentences.length - 1];
+
+  value = value
+    .replace(/^[\s>*_`~-]+/, '')
+    .replace(/[\s>*_`~]+$/, '')
+    .trim();
+  if (value.length === 0) return '';
+  if (value.length <= maxCharacters) return value;
+
+  let tail = value.slice(value.length - maxCharacters);
+  const firstWhitespace = /\s/.exec(tail);
+  if (firstWhitespace && firstWhitespace.index < tail.length - 12) {
+    tail = tail.slice(firstWhitespace.index + 1);
+  }
+  return `\u2026${tail.trim()}`;
 }
 
 function parseTimestamp(value) {

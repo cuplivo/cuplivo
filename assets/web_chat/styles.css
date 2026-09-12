@@ -26,6 +26,8 @@
   --cuplivo-user-avatar-background: Canvas;
   --cuplivo-assistant-avatar-background: Canvas;
   --cuplivo-font-scale: 1;
+  /* Shared left inset for disclosure bodies and their collapsed preview. */
+  --cuplivo-disclosure-indent: 39px;
   --cuplivo-default-app-font: system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
   --cuplivo-default-code-font: ui-monospace, SFMono-Regular, Menlo, Monaco,
@@ -675,11 +677,26 @@ body[data-background-style="defaultStyle"] .html-preview {
   position: relative;
   z-index: 1;
   border-top: 1px solid var(--cuplivo-outline-soft);
-  padding: 8px 4px 10px 39px;
+  padding: 8px 4px 10px var(--cuplivo-disclosure-indent);
   white-space: pre-wrap;
 }
 .thinking-body, .tool-body { font-size: calc(12.5px * var(--cuplivo-font-scale)); line-height: 1.32; }
 .thinking-body[hidden], .tool-body[hidden], .markdown[hidden], .html-preview-body[hidden] { display: none; }
+.thinking-preview {
+  position: relative;
+  z-index: 1;
+  margin: 0 4px 6px var(--cuplivo-disclosure-indent);
+  font-size: calc(12.5px * var(--cuplivo-font-scale));
+  line-height: 1.32;
+  color: var(--cuplivo-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.disclosure.is-expanded > .thinking-preview { display: none; }
 .tool-body > pre {
   max-width: 100%;
   overflow: auto;

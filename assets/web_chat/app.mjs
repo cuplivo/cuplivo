@@ -24,6 +24,7 @@ import {
   messageIndexAtOffset,
   normalizeMeasuredHeight,
   normalizeContentInset,
+  latestReasoningPreview,
   partitionThinkingSteps,
   receiveTransferChunk,
   reduceEnvelope,
@@ -727,6 +728,7 @@ function disclosure({
   className,
   icon = null,
   detailNode = null,
+  previewNode = null,
   onToggle,
 }) {
   const root = document.createElement('section');
@@ -775,7 +777,7 @@ function disclosure({
   const leading = icon ? iconNode(icon, 'disclosure-icon') : null;
   const chevron = iconNode('next', 'disclosure-chevron');
   header.replaceChildren(...[leading, title, detailNode, chevron].filter(Boolean));
-  root.append(header, body);
+  root.append(header, ...[previewNode, body].filter(Boolean));
   updateDisclosure(root, header, body, Boolean(expanded));
   return root;
 }
@@ -1330,6 +1332,20 @@ function ensureReasoningElapsedTimer() {
   }
 }
 
+// Collapsed reasoning cards show the newest fragment while the model is
+// still thinking, mirroring the Flutter `_AnimatedReasoningPreview`.
+function createReasoningPreviewNode(segment, expanded) {
+  if (expanded || !segment.loading) return null;
+  if (state.display?.showCollapsedReasoningPreview === false) return null;
+  const preview = latestReasoningPreview(segment.text ?? '');
+  if (preview.length === 0) return null;
+  const node = document.createElement('div');
+  node.className = 'thinking-preview';
+  node.dataset.reasoningPreview = 'true';
+  node.textContent = preview;
+  return node;
+}
+
 function renderReasoningSegment(message, segment, index, parent) {
   const kind = segment.kind ?? 'legacy';
   const segmentIndex = Number.isInteger(segment.index) ? segment.index : index;
@@ -1355,6 +1371,7 @@ function renderReasoningSegment(message, segment, index, parent) {
     className: 'thinking',
     icon: 'reasoning',
     detailNode: createReasoningElapsedNode(segment),
+    previewNode: createReasoningPreviewNode(segment, expanded),
     onToggle: (next) => {
       if (kind === 'legacy') {
         localExpansions.set(key, next);

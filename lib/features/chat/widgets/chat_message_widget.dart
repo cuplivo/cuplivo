@@ -53,6 +53,7 @@ import 'screen_time_tool_ui.dart';
 import '../../home/services/tool_approval_service.dart';
 import '../../../core/utils/thinking_tag_parser.dart';
 import '../utils/assistant_paragraph_splitter.dart';
+import '../utils/reasoning_preview.dart';
 import 'citation_sources_sheet.dart';
 import 'chat_suggestion_bubbles.dart';
 import 'token_display_widget.dart';
@@ -3886,6 +3887,143 @@ const double _timelineGap = 8;
 const double _timelineLineGap = 3;
 const double _timelineLineX = (_timelineIconColumnWidth - 1) / 2;
 
+class _AnimatedReasoningPreview extends StatelessWidget {
+  const _AnimatedReasoningPreview({
+    required this.text,
+    required this.loading,
+    required this.style,
+  });
+
+  final String text;
+  final bool loading;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = latestReasoningPreview(text);
+    final visibleText = preview.isEmpty && loading ? '…' : preview;
+    if (visibleText.isEmpty) return const SizedBox.shrink();
+
+    return _Shimmer(
+      enabled: loading,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 260),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) {
+          final offset = Tween<Offset>(
+            begin: const Offset(0, 0.12),
+            end: Offset.zero,
+          ).animate(animation);
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(position: offset, child: child),
+          );
+        },
+        child: Text(
+          visibleText,
+          key: ValueKey<String>(visibleText),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: style,
+        ),
+      ),
+    );
+  }
+}
+
+class _ScrollingReasoningPreview extends StatefulWidget {
+  const _ScrollingReasoningPreview({
+    required this.child,
+    required this.loading,
+    required this.maxHeight,
+  });
+
+  final Widget child;
+  final bool loading;
+  final double maxHeight;
+
+  @override
+  State<_ScrollingReasoningPreview> createState() =>
+      _ScrollingReasoningPreviewState();
+}
+
+class _ScrollingReasoningPreviewState
+    extends State<_ScrollingReasoningPreview> {
+  final ScrollController _scroll = ScrollController();
+  bool _hasOverflow = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncAfterLayout();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ScrollingReasoningPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncAfterLayout();
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _syncAfterLayout() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      final hasOverflow = _scroll.position.maxScrollExtent > 0.5;
+      if (hasOverflow != _hasOverflow) {
+        setState(() => _hasOverflow = hasOverflow);
+      }
+      if (widget.loading) {
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget scroller = SingleChildScrollView(
+      controller: _scroll,
+      physics: _hasOverflow
+          ? const BouncingScrollPhysics()
+          : const NeverScrollableScrollPhysics(),
+      child: widget.child,
+    );
+    if (_hasOverflow) {
+      scroller = ShaderMask(
+        shaderCallback: (rect) {
+          final height = rect.height;
+          const topFade = 12.0;
+          const bottomFade = 28.0;
+          final topStop = (topFade / height).clamp(0.0, 1.0);
+          final bottomStop = (1.0 - bottomFade / height).clamp(0.0, 1.0);
+          return LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: const [
+              Color(0x00FFFFFF), // color-gate: ignore (dstIn alpha mask)
+              Color(0xFFFFFFFF), // color-gate: ignore (dstIn alpha mask)
+              Color(0xFFFFFFFF), // color-gate: ignore (dstIn alpha mask)
+              Color(0x00FFFFFF), // color-gate: ignore (dstIn alpha mask)
+            ],
+            stops: [0.0, topStop, bottomStop, 1.0],
+          ).createShader(rect);
+        },
+        blendMode: BlendMode.dstIn,
+        child: scroller,
+      );
+    }
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: widget.maxHeight),
+      child: scroller,
+    );
+  }
+}
+
 class _ChainOfThoughtCard extends StatefulWidget {
   const _ChainOfThoughtCard({required this.steps, this.onRecoveredAnswer});
 
@@ -4193,8 +4331,6 @@ class _ChainOfThoughtReasoningStepState
   late final Ticker _ticker = Ticker((_) {
     if (mounted) _elapsedTick.value++;
   });
-  final ScrollController _scroll = ScrollController();
-  bool _hasOverflow = false;
 
   _ReasoningStepState get _stepState {
     if (widget.step.loading) {
@@ -4225,12 +4361,6 @@ class _ChainOfThoughtReasoningStepState
   void initState() {
     super.initState();
     if (widget.step.loading) _ticker.start();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkOverflow();
-      if (widget.step.loading && _scroll.hasClients) {
-        _scroll.jumpTo(_scroll.position.maxScrollExtent);
-      }
-    });
   }
 
   @override
@@ -4238,31 +4368,16 @@ class _ChainOfThoughtReasoningStepState
     super.didUpdateWidget(oldWidget);
     if (widget.step.loading) {
       if (!_ticker.isActive) _ticker.start();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scroll.hasClients) {
-          _scroll.jumpTo(_scroll.position.maxScrollExtent);
-        }
-      });
     } else if (_ticker.isActive) {
       _ticker.stop();
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkOverflow());
   }
 
   @override
   void dispose() {
     _ticker.dispose();
     _elapsedTick.dispose();
-    _scroll.dispose();
     super.dispose();
-  }
-
-  void _checkOverflow() {
-    if (!_scroll.hasClients) return;
-    final over = _scroll.position.maxScrollExtent > 0.5;
-    if (over != _hasOverflow && mounted) {
-      setState(() => _hasOverflow = over);
-    }
   }
 
   @override
@@ -4270,6 +4385,8 @@ class _ChainOfThoughtReasoningStepState
     final fg = _chatSurfaceForegroundPalette(context);
     final l10n = AppLocalizations.of(context)!;
     final settings = context.watch<SettingsProvider>();
+    final showCollapsedReasoningPreview =
+        settings.showCollapsedReasoningPreview;
     final state = _stepState;
     final rawText = _sanitize(widget.step.text);
     final display = rawText;
@@ -4330,48 +4447,22 @@ class _ChainOfThoughtReasoningStepState
     }
 
     Widget? content;
-    if (state == _ReasoningStepState.preview) {
-      content = ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 100),
-        child: _hasOverflow
-            ? ShaderMask(
-                shaderCallback: (rect) {
-                  final h = rect.height;
-                  const double topFade = 12;
-                  const double bottomFade = 28;
-                  final double sTop = (topFade / h).clamp(0.0, 1.0);
-                  final double sBot = (1.0 - bottomFade / h).clamp(0.0, 1.0);
-                  return LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: const [
-                      Color(0x00FFFFFF),
-                      Color(0xFFFFFFFF),
-                      Color(0xFFFFFFFF),
-                      Color(0x00FFFFFF),
-                    ],
-                    stops: [0.0, sTop, sBot, 1.0],
-                  ).createShader(rect);
-                },
-                blendMode: BlendMode.dstIn,
-                child: SingleChildScrollView(
-                  controller: _scroll,
-                  physics: const BouncingScrollPhysics(),
-                  child: SanitizingSelectionArea(
-                    child: reasoningContent(display),
-                  ),
-                ),
-              )
-            : SingleChildScrollView(
-                controller: _scroll,
-                physics: const NeverScrollableScrollPhysics(),
-                child: SanitizingSelectionArea(
-                  child: reasoningContent(display),
-                ),
-              ),
-      );
-    } else if (state == _ReasoningStepState.expanded) {
+    if (state == _ReasoningStepState.expanded) {
       content = SanitizingSelectionArea(child: reasoningContent(display));
+    } else if (showCollapsedReasoningPreview && widget.step.loading) {
+      content = SanitizingSelectionArea(
+        child: _AnimatedReasoningPreview(
+          text: display,
+          loading: widget.step.loading,
+          style: const TextStyle(fontSize: 12.5, height: 1.32),
+        ),
+      );
+    } else if (state == _ReasoningStepState.preview) {
+      content = _ScrollingReasoningPreview(
+        loading: widget.step.loading,
+        maxHeight: 100,
+        child: SanitizingSelectionArea(child: reasoningContent(display)),
+      );
     }
 
     return _TimelineStepShell(
@@ -6357,8 +6448,6 @@ class _ReasoningSectionState extends State<_ReasoningSection>
   late final Ticker _ticker = Ticker((_) {
     if (mounted) _elapsedTick.value++;
   });
-  final ScrollController _scroll = ScrollController();
-  bool _hasOverflow = false;
 
   String _sanitize(String s) {
     return s.replaceAll('\r', '').trim();
@@ -6376,12 +6465,6 @@ class _ReasoningSectionState extends State<_ReasoningSection>
   void initState() {
     super.initState();
     if (widget.loading) _ticker.start();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkOverflow();
-      if (widget.loading && _scroll.hasClients) {
-        _scroll.jumpTo(_scroll.position.maxScrollExtent);
-      }
-    });
   }
 
   @override
@@ -6392,28 +6475,13 @@ class _ReasoningSectionState extends State<_ReasoningSection>
     } else {
       if (_ticker.isActive) _ticker.stop();
     }
-    if (widget.loading) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scroll.hasClients) {
-          _scroll.jumpTo(_scroll.position.maxScrollExtent);
-        }
-      });
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkOverflow());
   }
 
   @override
   void dispose() {
     _ticker.dispose();
     _elapsedTick.dispose();
-    _scroll.dispose();
     super.dispose();
-  }
-
-  void _checkOverflow() {
-    if (!_scroll.hasClients) return;
-    final over = _scroll.position.maxScrollExtent > 0.5;
-    if (over != _hasOverflow && mounted) setState(() => _hasOverflow = over);
   }
 
   @override
@@ -6423,12 +6491,15 @@ class _ReasoningSectionState extends State<_ReasoningSection>
     final fg = _chatSurfaceForegroundPalette(context);
     final l10n = AppLocalizations.of(context)!;
     final settings = context.watch<SettingsProvider>();
+    final showCollapsedReasoningPreview =
+        settings.showCollapsedReasoningPreview;
     final loading = widget.loading;
 
     // Android-like surface style
     final curve = const Cubic(0.2, 0.8, 0.2, 1);
 
-    // Build a compact header with optional scrolling preview when loading
+    // Build a compact header; while reasoning is active, the current summary
+    // is rendered below it when the card is collapsed.
     Widget header = IosCardPress(
       borderRadius: BorderRadius.circular(12),
       baseColor: Colors.transparent,
@@ -6519,62 +6590,33 @@ class _ReasoningSectionState extends State<_ReasoningSection>
       );
     }
 
-    Widget body = Padding(
-      padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
-      child: reasoningContent(display),
-    );
-
-    if (isLoading && !widget.expanded) {
+    Widget? body;
+    if (widget.expanded) {
       body = Padding(
         padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 80),
-          child: _hasOverflow
-              ? ShaderMask(
-                  shaderCallback: (rect) {
-                    final h = rect.height;
-                    const double topFade = 12.0;
-                    const double bottomFade = 28.0;
-                    final double sTop = (topFade / h).clamp(0.0, 1.0);
-                    final double sBot = (1.0 - bottomFade / h).clamp(0.0, 1.0);
-                    return LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: const [
-                        Color(0x00FFFFFF),
-                        Color(0xFFFFFFFF),
-                        Color(0xFFFFFFFF),
-                        Color(0x00FFFFFF),
-                      ],
-                      stops: [0.0, sTop, sBot, 1.0],
-                    ).createShader(rect);
-                  },
-                  blendMode: BlendMode.dstIn,
-                  child: NotificationListener<ScrollUpdateNotification>(
-                    onNotification: (_) {
-                      WidgetsBinding.instance.addPostFrameCallback(
-                        (_) => _checkOverflow(),
-                      );
-                      return false;
-                    },
-                    child: SingleChildScrollView(
-                      controller: _scroll,
-                      physics: const BouncingScrollPhysics(),
-                      child: reasoningContent(display),
-                    ),
-                  ),
-                )
-              : SingleChildScrollView(
-                  controller: _scroll,
-                  physics: const NeverScrollableScrollPhysics(),
-                  child: reasoningContent(display),
-                ),
+        child: SanitizingSelectionArea(child: reasoningContent(display)),
+      );
+    } else if (showCollapsedReasoningPreview && isLoading) {
+      body = Padding(
+        padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
+        child: SanitizingSelectionArea(
+          child: _AnimatedReasoningPreview(
+            text: display,
+            loading: isLoading,
+            style: baseStyle,
+          ),
+        ),
+      );
+    } else if (isLoading) {
+      body = Padding(
+        padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
+        child: _ScrollingReasoningPreview(
+          loading: true,
+          maxHeight: 80,
+          child: SanitizingSelectionArea(child: reasoningContent(display)),
         ),
       );
     }
-
-    // Enable long-press text selection in reasoning body
-    body = SanitizingSelectionArea(child: body);
 
     return AnimatedSize(
       duration: const Duration(milliseconds: 300),
@@ -6591,7 +6633,7 @@ class _ReasoningSectionState extends State<_ReasoningSection>
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [header, if (widget.expanded || isLoading) body],
+            children: [header, if (body != null) body],
           ),
         ),
       ),

@@ -345,6 +345,24 @@ class SettingsProvider extends ChangeNotifier {
   static const String _translateModelKey = 'translate_model_v1';
   static const String _translatePromptKey = 'translate_prompt_v1';
   static const String _translateTargetLangKey = 'translate_target_lang_v1';
+  static const String _translateVisibleLanguagesKey =
+      'translate_visible_languages_v1';
+
+  /// Languages shown in the translate target selector when the user has not
+  /// customized the list. This is the historical fixed list; newly added
+  /// catalog languages are opt-in. A const set so the getter can return a
+  /// stable instance (required for `context.select` to compare by identity).
+  static const Set<String> defaultTranslateVisibleLanguages = <String>{
+    'zh-CN',
+    'en',
+    'zh-TW',
+    'ja',
+    'ko',
+    'fr',
+    'de',
+    'it',
+    'es',
+  };
   static const String _learningModeEnabledKey = 'learning_mode_enabled_v1';
   static const String _learningModePromptKey = 'learning_mode_prompt_v1';
   static const String _searchServicesKey = 'search_services_v1';
@@ -1177,6 +1195,26 @@ class SettingsProvider extends ChangeNotifier {
     final targetLang = prefs.getString(_translateTargetLangKey);
     if (targetLang != null && targetLang.trim().isNotEmpty) {
       _translateTargetLang = targetLang.trim();
+    }
+    // load translate visible languages
+    final visibleLangs = prefs.getStringList(_translateVisibleLanguagesKey);
+    if (visibleLangs != null) {
+      final cleaned = visibleLangs
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toSet();
+      _translateVisibleLanguages = cleaned.isEmpty
+          ? defaultTranslateVisibleLanguages
+          : Set.unmodifiable(cleaned);
+    }
+    // Reconcile: a persisted target outside the visible set falls back to null
+    // (the feature layer then resolves locale -> first visible). Covers a
+    // cross-device restore where the visible set and target arrive separately.
+    // Soft-null only: the persisted key is kept so re-enabling the language
+    // restores the user's original choice.
+    if (_translateTargetLang != null &&
+        !translateVisibleLanguages.contains(_translateTargetLang)) {
+      _translateTargetLang = null;
     }
     // load OCR model
     final ocrSel = prefs.getString(_ocrModelKey);
@@ -4006,6 +4044,25 @@ Please translate the <source_text> section:
     await prefs.remove(_translateTargetLangKey);
   }
 
+  /// Immutable and referentially stable between mutations, so consumers can
+  /// `context.select` it without rebuilding on unrelated notifications.
+  Set<String> _translateVisibleLanguages = defaultTranslateVisibleLanguages;
+  Set<String> get translateVisibleLanguages => _translateVisibleLanguages;
+
+  Future<void> setTranslateVisibleLanguages(Set<String> codes) async {
+    final cleaned = codes
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toSet();
+    // Never persist an empty set: the selector must always offer something.
+    if (cleaned.isEmpty) return;
+    _translateVisibleLanguages = Set.unmodifiable(cleaned);
+    notifyListeners();
+    final prefs = _preferences;
+    final sorted = cleaned.toList()..sort();
+    await prefs.setStringList(_translateVisibleLanguagesKey, sorted);
+  }
+
   // OCR model, prompt and toggle
   String? _ocrModelProvider;
   String? _ocrModelId;
@@ -5641,6 +5698,7 @@ DO NOT GIVE ANSWERS OR DO HOMEWORK FOR THE USER. If the user asks a math or logi
     copy._translateModelId = _translateModelId;
     copy._translatePrompt = _translatePrompt;
     copy._translateTargetLang = _translateTargetLang;
+    copy._translateVisibleLanguages = _translateVisibleLanguages;
     copy._ocrModelProvider = _ocrModelProvider;
     copy._ocrModelId = _ocrModelId;
     copy._ocrPrompt = _ocrPrompt;

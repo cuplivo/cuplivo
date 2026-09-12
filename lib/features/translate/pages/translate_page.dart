@@ -13,7 +13,11 @@ import '../../../core/services/api/plain_text_collector.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../settings/widgets/language_select_sheet.dart'
-    show LanguageOption, supportedLanguages, showLanguageSelector;
+    show
+        LanguageOption,
+        showLanguageSelector,
+        translateLanguageDisplayName,
+        visibleTranslateLanguages;
 import '../../../core/services/haptics.dart';
 import '../../model/widgets/model_select_sheet.dart' show showModelSelector;
 import '../../../theme/app_font_weights.dart';
@@ -53,12 +57,16 @@ class _TranslatePageState extends State<TranslatePage> {
     final settings = context.read<SettingsProvider>();
     final assistant = context.read<AssistantProvider>().currentAssistant;
     final lc = Localizations.localeOf(context).languageCode.toLowerCase();
-    final savedLang = _languageForCode(settings.translateTargetLang);
-    final localeLang = lc.startsWith('zh')
-        ? _languageForCode('zh-CN')
-        : _languageForCode('en');
+    final visible = visibleTranslateLanguages(
+      settings.translateVisibleLanguages,
+    );
+    final savedLang = _languageForCode(visible, settings.translateTargetLang);
+    final localeLang = _languageForCode(
+      visible,
+      lc.startsWith('zh') ? 'zh-CN' : 'en',
+    );
     setState(() {
-      _lang = savedLang ?? localeLang ?? supportedLanguages.first;
+      _lang = savedLang ?? localeLang ?? visible.first;
       _providerKey =
           settings.translateModelProvider ??
           assistant?.chatModelProvider ??
@@ -119,11 +127,15 @@ class _TranslatePageState extends State<TranslatePage> {
     }
     final settings = context.read<SettingsProvider>();
     final cfg = settings.getProviderConfig(pk);
+    final visible = visibleTranslateLanguages(
+      settings.translateVisibleLanguages,
+    );
+    final target = _effectiveLang(settings, visible);
     final p = settings.translatePrompt
         .replaceAll('{source_text}', txt)
         .replaceAll(
           '{target_lang}',
-          _displayNameFor(l10n, (_lang ?? supportedLanguages.first).code),
+          translateLanguageDisplayName(l10n, target.code),
         );
 
     setState(() {
@@ -171,38 +183,30 @@ class _TranslatePageState extends State<TranslatePage> {
     if (mounted) setState(() => _loading = false);
   }
 
-  LanguageOption? _languageForCode(String? code) {
+  LanguageOption? _languageForCode(List<LanguageOption> options, String? code) {
     if (code == null || code.isEmpty) return null;
-    try {
-      return supportedLanguages.firstWhere((e) => e.code == code);
-    } catch (_) {
-      return null;
+    for (final option in options) {
+      if (option.code == code) return option;
     }
+    return null;
   }
 
-  String _displayNameFor(AppLocalizations l10n, String code) {
-    switch (code) {
-      case 'zh-CN':
-        return l10n.languageDisplaySimplifiedChinese;
-      case 'en':
-        return l10n.languageDisplayEnglish;
-      case 'zh-TW':
-        return l10n.languageDisplayTraditionalChinese;
-      case 'ja':
-        return l10n.languageDisplayJapanese;
-      case 'ko':
-        return l10n.languageDisplayKorean;
-      case 'fr':
-        return l10n.languageDisplayFrench;
-      case 'de':
-        return l10n.languageDisplayGerman;
-      case 'it':
-        return l10n.languageDisplayItalian;
-      case 'es':
-        return l10n.languageDisplaySpanish;
-      default:
-        return code;
+  /// The active target derived from the provider (source of truth). The local
+  /// `_lang` is only an unpersisted fallback; a target hidden by the language
+  /// manager never survives here.
+  LanguageOption _effectiveLang(
+    SettingsProvider settings,
+    List<LanguageOption> visible,
+  ) {
+    final persisted = _languageForCode(visible, settings.translateTargetLang);
+    if (persisted != null) return persisted;
+    final local = _lang;
+    if (local != null && visible.any((l) => l.code == local.code)) {
+      return local;
     }
+    final lc = Localizations.localeOf(context).languageCode.toLowerCase();
+    return _languageForCode(visible, lc.startsWith('zh') ? 'zh-CN' : 'en') ??
+        visible.first;
   }
 
   Future<void> _pasteFromClipboard() async {
@@ -237,6 +241,11 @@ class _TranslatePageState extends State<TranslatePage> {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final settings = context.watch<SettingsProvider>();
+    final visible = visibleTranslateLanguages(
+      settings.translateVisibleLanguages,
+    );
+    final currentLang = _effectiveLang(settings, visible);
     final asset = (_modelId != null)
         ? BrandAssets.assetForName(_modelId!)
         : null;
@@ -380,15 +389,15 @@ class _TranslatePageState extends State<TranslatePage> {
                       child: Row(
                         children: [
                           Text(
-                            (_lang ?? supportedLanguages.first).flag,
+                            currentLang.flag,
                             style: TextStyle(fontSize: 18),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              _displayNameFor(
+                              translateLanguageDisplayName(
                                 l10n,
-                                (_lang ?? supportedLanguages.first).code,
+                                currentLang.code,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,

@@ -16,7 +16,11 @@ import '../shared/widgets/snackbar.dart';
 import '../features/model/widgets/model_select_sheet.dart'
     show showModelSelector;
 import '../features/settings/widgets/language_select_sheet.dart'
-    show LanguageOption, supportedLanguages;
+    show
+        LanguageOption,
+        showTranslateLanguageManager,
+        translateLanguageDisplayName,
+        visibleTranslateLanguages;
 
 class DesktopTranslatePage extends StatefulWidget {
   const DesktopTranslatePage({super.key});
@@ -56,13 +60,17 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
     final settings = context.read<SettingsProvider>();
     final assistant = context.read<AssistantProvider>().currentAssistant;
 
-    final savedLang = _languageForCode(settings.translateTargetLang);
+    final visible = visibleTranslateLanguages(
+      settings.translateVisibleLanguages,
+    );
+    final savedLang = _languageForCode(visible, settings.translateTargetLang);
     final locale = Localizations.localeOf(context).languageCode.toLowerCase();
-    final localeLang = locale.startsWith('zh')
-        ? _languageForCode('zh-CN')
-        : _languageForCode('en');
+    final localeLang = _languageForCode(
+      visible,
+      locale.startsWith('zh') ? 'zh-CN' : 'en',
+    );
     setState(() {
-      _targetLang = savedLang ?? localeLang ?? supportedLanguages.first;
+      _targetLang = savedLang ?? localeLang ?? visible.first;
     });
 
     // Default model: translate model -> assistant's chat model -> global default
@@ -80,44 +88,39 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
     });
   }
 
-  LanguageOption? _languageForCode(String? code) {
+  LanguageOption? _languageForCode(List<LanguageOption> options, String? code) {
     if (code == null || code.isEmpty) return null;
-    try {
-      return supportedLanguages.firstWhere((e) => e.code == code);
-    } catch (_) {
-      return null;
+    for (final option in options) {
+      if (option.code == code) return option;
     }
+    return null;
+  }
+
+  /// The active target derived from the provider (source of truth). The local
+  /// `_targetLang` is only an unpersisted fallback; a target hidden by the
+  /// language manager never survives here.
+  LanguageOption _effectiveTargetLang(
+    SettingsProvider settings,
+    List<LanguageOption> visible,
+  ) {
+    final persisted = _languageForCode(visible, settings.translateTargetLang);
+    if (persisted != null) return persisted;
+    final local = _targetLang;
+    if (local != null && visible.any((l) => l.code == local.code)) {
+      return local;
+    }
+    final locale = Localizations.localeOf(context).languageCode.toLowerCase();
+    return _languageForCode(
+          visible,
+          locale.startsWith('zh') ? 'zh-CN' : 'en',
+        ) ??
+        visible.first;
   }
 
   Future<void> _onLanguageChanged(LanguageOption? lang) async {
     if (lang == null) return;
     setState(() => _targetLang = lang);
     await context.read<SettingsProvider>().setTranslateTargetLang(lang.code);
-  }
-
-  String _displayNameFor(AppLocalizations l10n, String code) {
-    switch (code) {
-      case 'zh-CN':
-        return l10n.languageDisplaySimplifiedChinese;
-      case 'en':
-        return l10n.languageDisplayEnglish;
-      case 'zh-TW':
-        return l10n.languageDisplayTraditionalChinese;
-      case 'ja':
-        return l10n.languageDisplayJapanese;
-      case 'ko':
-        return l10n.languageDisplayKorean;
-      case 'fr':
-        return l10n.languageDisplayFrench;
-      case 'de':
-        return l10n.languageDisplayGerman;
-      case 'it':
-        return l10n.languageDisplayItalian;
-      case 'es':
-        return l10n.languageDisplaySpanish;
-      default:
-        return code;
-    }
   }
 
   Future<void> _pickModel() async {
@@ -159,10 +162,16 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
 
     final cfg = settings.getProviderConfig(providerKey);
 
-    final lang = _targetLang ?? supportedLanguages.first;
+    final visible = visibleTranslateLanguages(
+      settings.translateVisibleLanguages,
+    );
+    final lang = _effectiveTargetLang(settings, visible);
     final prompt = settings.translatePrompt
         .replaceAll('{source_text}', text)
-        .replaceAll('{target_lang}', _displayNameFor(l10n, lang.code));
+        .replaceAll(
+          '{target_lang}',
+          translateLanguageDisplayName(l10n, lang.code),
+        );
 
     setState(() {
       _translating = true;
@@ -212,6 +221,11 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
+    final settings = context.watch<SettingsProvider>();
+    final visible = visibleTranslateLanguages(
+      settings.translateVisibleLanguages,
+    );
+    final currentTarget = _effectiveTargetLang(settings, visible);
 
     final topBar = SizedBox(
       height: 36,
@@ -257,7 +271,7 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
                           children: [
                             // Language dropdown
                             _LanguageDropdown(
-                              value: _targetLang,
+                              value: currentTarget,
                               onChanged: _translating
                                   ? null
                                   : (v) => _onLanguageChanged(v),
@@ -422,6 +436,9 @@ class _LanguageDropdownState extends State<_LanguageDropdown> {
     if (rb == null) return;
     final triggerSize = rb.size;
     final triggerWidth = triggerSize.width;
+    final visible = visibleTranslateLanguages(
+      context.read<SettingsProvider>().translateVisibleLanguages,
+    );
 
     _entry = OverlayEntry(
       builder: (ctx) {
@@ -451,11 +468,15 @@ class _LanguageDropdownState extends State<_LanguageDropdown> {
                 width: triggerWidth,
                 backgroundColor: bgColor,
                 onClose: _close,
+                onManage: () {
+                  _close();
+                  showTranslateLanguageManager(context);
+                },
                 onSelected: (opt) {
                   widget.onChanged?.call(opt);
                   _close();
                 },
-                selected: widget.value ?? supportedLanguages.first,
+                selected: widget.value ?? visible.first,
               ),
             ),
           ],
@@ -475,8 +496,11 @@ class _LanguageDropdownState extends State<_LanguageDropdown> {
     final hoverBorder = cs.primary; // hover/focus border
     final borderColor = _open || _hover ? hoverBorder : baseBorder;
 
-    final selected = widget.value ?? supportedLanguages.first;
-    final label = _displayNameFor(l10n, selected.code);
+    final visible = visibleTranslateLanguages(
+      context.watch<SettingsProvider>().translateVisibleLanguages,
+    );
+    final selected = widget.value ?? visible.first;
+    final label = translateLanguageDisplayName(l10n, selected.code);
 
     return CompositedTransformTarget(
       link: _link,
@@ -553,31 +577,6 @@ class _LanguageDropdownState extends State<_LanguageDropdown> {
       ),
     );
   }
-
-  String _displayNameFor(AppLocalizations l10n, String code) {
-    switch (code) {
-      case 'zh-CN':
-        return l10n.languageDisplaySimplifiedChinese;
-      case 'en':
-        return l10n.languageDisplayEnglish;
-      case 'zh-TW':
-        return l10n.languageDisplayTraditionalChinese;
-      case 'ja':
-        return l10n.languageDisplayJapanese;
-      case 'ko':
-        return l10n.languageDisplayKorean;
-      case 'fr':
-        return l10n.languageDisplayFrench;
-      case 'de':
-        return l10n.languageDisplayGerman;
-      case 'it':
-        return l10n.languageDisplayItalian;
-      case 'es':
-        return l10n.languageDisplaySpanish;
-      default:
-        return code;
-    }
-  }
 }
 
 class _LangDropdownOverlay extends StatefulWidget {
@@ -585,6 +584,7 @@ class _LangDropdownOverlay extends StatefulWidget {
     required this.width,
     required this.backgroundColor,
     required this.onClose,
+    required this.onManage,
     required this.onSelected,
     required this.selected,
   });
@@ -592,6 +592,7 @@ class _LangDropdownOverlay extends StatefulWidget {
   final double width;
   final Color backgroundColor;
   final VoidCallback onClose;
+  final VoidCallback onManage;
   final ValueChanged<LanguageOption> onSelected;
   final LanguageOption selected;
 
@@ -628,13 +629,15 @@ class _LangDropdownOverlayState extends State<_LangDropdownOverlay>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final borderColor = cs.outlineVariant.withValues(alpha: 0.12);
-    // divider removed
 
-    final filtered = supportedLanguages;
+    final filtered = visibleTranslateLanguages(
+      context.watch<SettingsProvider>().translateVisibleLanguages,
+    );
 
     return FadeTransition(
       opacity: _opacity,
@@ -683,6 +686,14 @@ class _LangDropdownOverlayState extends State<_LangDropdownOverlay>
                         );
                       },
                     ),
+                  ),
+                ),
+                Divider(height: 1, color: borderColor),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
+                  child: _LangManageRow(
+                    label: l10n.translateLanguageManagerTitle,
+                    onTap: widget.onManage,
                   ),
                 ),
               ],
@@ -756,7 +767,7 @@ class _LangOptionTileState extends State<_LangOptionTile> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    _localizedLabel(
+                    translateLanguageDisplayName(
                       AppLocalizations.of(context)!,
                       widget.option.code,
                     ),
@@ -783,30 +794,78 @@ class _LangOptionTileState extends State<_LangOptionTile> {
       ),
     );
   }
+}
 
-  String _localizedLabel(AppLocalizations l10n, String code) {
-    switch (code) {
-      case 'zh-CN':
-        return l10n.languageDisplaySimplifiedChinese;
-      case 'en':
-        return l10n.languageDisplayEnglish;
-      case 'zh-TW':
-        return l10n.languageDisplayTraditionalChinese;
-      case 'ja':
-        return l10n.languageDisplayJapanese;
-      case 'ko':
-        return l10n.languageDisplayKorean;
-      case 'fr':
-        return l10n.languageDisplayFrench;
-      case 'de':
-        return l10n.languageDisplayGerman;
-      case 'it':
-        return l10n.languageDisplayItalian;
-      case 'es':
-        return l10n.languageDisplaySpanish;
-      default:
-        return code;
-    }
+class _LangManageRow extends StatefulWidget {
+  const _LangManageRow({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  State<_LangManageRow> createState() => _LangManageRowState();
+}
+
+class _LangManageRowState extends State<_LangManageRow> {
+  bool _hover = false;
+  bool _active = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = _hover
+        ? cs.onSurface.withValues(alpha: isDark ? 0.08 : 0.04)
+        : Colors.transparent;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => setState(() => _active = true),
+        onTapCancel: () => setState(() => _active = false),
+        onTapUp: (_) => setState(() => _active = false),
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: _active ? 0.98 : 1.0,
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.easeOut,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            curve: Curves.easeOutCubic,
+            margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  lucide.Lucide.Settings2,
+                  size: 16,
+                  color: cs.onSurface.withValues(alpha: 0.7),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: cs.onSurface.withValues(alpha: 0.88),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

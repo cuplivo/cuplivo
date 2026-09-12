@@ -297,6 +297,12 @@ class MessageGenerationService {
     final int anchorIndex = anchorMessageId == null
         ? -1
         : messages.indexWhere((message) => message.id == anchorMessageId);
+    if (anchorMessageId != null && anchorIndex < 0) {
+      debugPrint(
+        '[RequestMetadata] anchor $anchorMessageId not found in '
+        '${messages.length} messages; replay falls back to whole-list scan',
+      );
+    }
     final int scanEnd = anchorIndex < 0
         ? messages.length
         : (anchorInclusive ? anchorIndex + 1 : anchorIndex);

@@ -45,9 +45,10 @@ class ModelExecutionContext {
 /// Shared pipeline for preparing and executing one model's response.
 ///
 /// Encapsulates the common "initialize reasoning → prepare API messages →
-/// build context → execute stream → handle preparation errors" sequence
-/// that was previously duplicated across [MultiAIEngine] (three variants:
-/// _executeThreads, retryThread, retryRound) and [ChatActions.sendMessage].
+/// build context → execute stream → handle preparation errors" sequence used
+/// by single-chat send / regenerate / continue, and by Multi-AI start rounds
+/// and retries. Group chat constructs its own instance in
+/// `GroupChatOrchestrator` and runs the same sequence.
 ///
 /// Caller is responsible for:
 ///   - Creating the placeholder via [MessageGenerationService.createAssistantPlaceholder]

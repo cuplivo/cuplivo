@@ -91,11 +91,13 @@ class ChatActions {
 
   late final MessagePipeline _pipeline;
 
-  /// Shared prepare-execute pipeline for every conversational turn: single
-  /// chat send/regenerate/continue, Multi-AI threads, and group members. It
-  /// owns reasoning initialization, API-message preparation, per-message
-  /// request-metadata replay (AD-0033), and stream dispatch. Stateless, so
-  /// [HomePageController] hands this same instance to [MultiAIEngine].
+  /// Shared prepare-execute pipeline for single-chat send/regenerate/continue
+  /// and Multi-AI threads. It owns reasoning initialization, API-message
+  /// preparation, per-message request-metadata replay (ADR-0033), and stream
+  /// dispatch. Group chat keeps its own instance in `GroupChatOrchestrator`.
+  ///
+  /// Owned by [ChatActions] and constructed in its constructor;
+  /// [HomePageController] forwards this same instance into [MultiAIEngine].
   MessagePipeline get pipeline => _pipeline;
 
   // ============================================================================
@@ -266,6 +268,25 @@ class ChatActions {
   void _setConversationLoading(String conversationId, bool loading) {
     chatController.setConversationLoading(conversationId, loading);
     onLoadingChanged?.call(conversationId, loading);
+  }
+
+  /// Unified preparation-failure teardown for send / regenerate / continue:
+  /// log, clear the page-level file-processing indicator (prepare fires
+  /// `onFileProcessingStarted` without a matching finish when it throws), run
+  /// the placeholder cleanup, and map a user cancel to a silent success.
+  Future<ChatActionResult> _handlePreparationError(
+    Object error,
+    ChatMessage placeholder,
+    String conversationId,
+    String logTag,
+  ) async {
+    FlutterLogger.log('[$logTag] $error', tag: 'ChatActions');
+    onFileProcessingFinished?.call();
+    await _cleanupStreamingError(placeholder, conversationId);
+    if (isUserCancelError(error)) {
+      return ChatActionResult.success(placeholder);
+    }
+    return ChatActionResult.error(error.toString());
   }
 
   Conversation _conversationForMessageContext(
@@ -541,19 +562,12 @@ class ChatActions {
     );
 
     if (prepareError != null) {
-      FlutterLogger.log('[SendMessage] $prepareError', tag: 'ChatActions');
-      // Ensure file processing indicator is cleared on error
-      onFileProcessingFinished?.call();
-      await _cleanupStreamingError(assistantMessage, conversation.id);
-      // User Stop during message preparation (e.g. OCR backoff wait) must not
-      // surface a raw cancel toast; same skip semantics as cancelled slots.
-      if (isUserCancelError(prepareError!)) {
-        debugPrint(
-          '[ChatActions] sendMessage cancelled during prepare: $prepareError',
-        );
-        return ChatActionResult.success(assistantMessage);
-      }
-      return ChatActionResult.error(prepareError.toString());
+      return _handlePreparationError(
+        prepareError!,
+        assistantMessage,
+        conversation.id,
+        'SendMessage',
+      );
     }
     return ChatActionResult.success(assistantMessage);
   }
@@ -720,12 +734,12 @@ class ChatActions {
     );
 
     if (prepareError != null) {
-      debugPrint('[ChatActions] regenerate prepare error: $prepareError');
-      await _cleanupStreamingError(assistantMessage, conversation.id);
-      if (isUserCancelError(prepareError!)) {
-        return ChatActionResult.success(assistantMessage);
-      }
-      return ChatActionResult.error(prepareError.toString());
+      return _handlePreparationError(
+        prepareError!,
+        assistantMessage,
+        conversation.id,
+        'regenerate',
+      );
     }
     return ChatActionResult.success(assistantMessage);
   }
@@ -785,7 +799,8 @@ class ChatActions {
     _setConversationLoading(conversation.id, true);
 
     final apiContextMessages = List<ChatMessage>.of(completeMessages);
-    apiContextMessages[contextIndex] = streamingMessage.copyWith(content: '');
+    apiContextMessages[contextIndex] = apiContextMessages[contextIndex]
+        .copyWith(content: '', isStreaming: true);
 
     final messageContextConversation = _conversationForMessageContext(
       conversation,
@@ -814,19 +829,12 @@ class ChatActions {
     );
 
     if (prepareError != null) {
-      FlutterLogger.log(
-        '[ContinueAssistantMessageAfterToolAnswer] $prepareError',
-        tag: 'ChatActions',
+      return _handlePreparationError(
+        prepareError!,
+        streamingMessage,
+        conversation.id,
+        'ContinueAssistantMessageAfterToolAnswer',
       );
-      await _cleanupStreamingError(streamingMessage, conversation.id);
-      if (isUserCancelError(prepareError!)) {
-        debugPrint(
-          '[ChatActions] continue generation cancelled during prepare: '
-          '$prepareError',
-        );
-        return ChatActionResult.success(streamingMessage);
-      }
-      return ChatActionResult.error(prepareError.toString());
     }
     return ChatActionResult.success(streamingMessage);
   }

@@ -548,6 +548,10 @@ class HomePageController extends ChangeNotifier {
       chatController: _chatController,
       messageGenerationService: _messageGenerationService,
       streamController: _streamController,
+      // The pipeline is owned by HomeViewModel's ChatActions and reached via a
+      // getter. Its UI callbacks are assigned after construction and are only
+      // read at stream-dispatch time, never captured when the pipeline is
+      // built — Multi-AI shares the same instance, so keep that invariant.
       pipeline: _viewModel.pipeline,
       onMaybeUpdateProactiveCare:
           _viewModel.maybeUpdateProactiveCareAfterMultiAI,

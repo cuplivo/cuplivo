@@ -496,6 +496,7 @@ class MultiAIEngine extends ChangeNotifier {
       askUserService: askUserService,
       completeMessages: truncated,
       roundGroupId: roundGroupId,
+      requestMetadataAnchorMessageId: precedingUserId,
     );
 
     _chatController.notifyListeners();
@@ -1130,16 +1131,19 @@ class MultiAIEngine extends ChangeNotifier {
       roundGroupId = const Uuid().v4();
     }
 
-    // Truncate history to just before the anchor user message.
+    // Truncate history to just before the anchor user message, keeping the
+    // anchor row id so metadata replay binds to this turn's user metadata.
     final anchorId = latestAnchorId;
     var completeMessages = _chatController.messagesForCompleteHistoryContext(
       conversation,
     );
+    String? anchorRowId;
     if (anchorId != null) {
       final anchorIdx = completeMessages.indexWhere(
         (m) => m.role == 'user' && (m.groupId ?? m.id) == anchorId,
       );
       if (anchorIdx >= 0) {
+        anchorRowId = completeMessages[anchorIdx].id;
         completeMessages = completeMessages.sublist(0, anchorIdx + 1);
       }
     }
@@ -1152,6 +1156,7 @@ class MultiAIEngine extends ChangeNotifier {
       askUserService: askUserService,
       completeMessages: completeMessages,
       roundGroupId: roundGroupId,
+      requestMetadataAnchorMessageId: anchorRowId,
     );
 
     notifyListeners();

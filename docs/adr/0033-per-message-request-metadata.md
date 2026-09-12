@@ -22,7 +22,8 @@ no-silent-degradation rule.
 
 1. **Persist on the user message (chosen).** Two nullable columns
    (`requestAllowImagesApiRouting` BOOL, `requestExtraBodyJson` TEXT), written
-   at send time, replayed by `_resolveRequestOptionsFromMessages` on
+   at send time, replayed by
+   `MessageGenerationService.resolveRequestOptionsFromMessages` on
    regenerate/continue. Schema v15 migration + heal set + backup round-trip
    (old backups default to null — backward compatible). Matches upstream
    semantics exactly.

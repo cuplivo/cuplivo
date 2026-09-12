@@ -9805,12 +9805,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workspaceDepStageInstall => 'Installing…';
 
   @override
+  String get workspaceDepDebianMirrorNotice =>
+      'Debian uses the repositories shipped in the image; mirror selection isn\'t supported yet.';
+
+  @override
   String get workspaceSandboxRuntimeMissing =>
       'Sandbox runtime missing; reinstall this app build';
 
   @override
   String get workspaceSandboxBaseRequired =>
       'Install the base dependency first';
+
+  @override
+  String get workspaceSandboxDistroUnknown =>
+      'Couldn\'t detect the Linux distribution of the installed sandbox rootfs. Reinstall the base dependency with a supported image.';
 
   @override
   String get workspaceDepGitPrerequisite => 'Install Git first';

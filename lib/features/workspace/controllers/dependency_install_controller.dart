@@ -70,6 +70,7 @@ class DependencyInstallController extends ChangeNotifier {
   final Map<String, _DepEntry> _active = <String, _DepEntry>{};
   final Map<String, Map<String, Object?>> _completed =
       <String, Map<String, Object?>>{};
+  final Map<String, Set<String>> _notices = <String, Set<String>>{};
 
   /// Enqueue [depId] for [workspaceId]. Duplicate enqueues (queued or
   /// currently installing) are ignored.
@@ -118,6 +119,13 @@ class DependencyInstallController extends ChangeNotifier {
     return done ?? const <String, Object?>{};
   }
 
+  /// Non-fatal, user-visible notices captured since the last call (see
+  /// [SandboxInstallProgress.notice]).
+  Set<String> takeNotices(String workspaceId) {
+    final notices = _notices.remove(workspaceId);
+    return notices ?? const <String>{};
+  }
+
   Future<void> _pump(String workspaceId) async {
     if (!_running.add(workspaceId)) return;
     try {
@@ -152,6 +160,10 @@ class DependencyInstallController extends ChangeNotifier {
             onProgress: (p) {
               entry.progress = p.progress;
               entry.stage = p.stage;
+              final notice = p.notice;
+              if (notice != null) {
+                _notices.putIfAbsent(workspaceId, () => <String>{}).add(notice);
+              }
               notifyListeners();
             },
           );

@@ -518,11 +518,10 @@ class LinuxSandboxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activ
       // Android with "Permission denied" for Ubuntu base hardlinks).
       RootfsExtractor.extract(archive, linuxTmp)
 
-      val sh = File(linuxTmp, "bin/sh")
-      if (!sh.exists()) {
+      if (resolveGuestFile(linuxTmp, "bin/sh") == null) {
         // Some tarballs nest a single top-level dir
         val children = linuxTmp.listFiles()?.filter { it.isDirectory } ?: emptyList()
-        if (children.size == 1 && File(children[0], "bin/sh").exists()) {
+        if (children.size == 1 && resolveGuestFile(children[0], "bin/sh") != null) {
           val nested = children[0]
           nested.listFiles()?.forEach { child ->
             val dest = File(linuxTmp, child.name)
@@ -534,7 +533,7 @@ class LinuxSandboxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activ
           nested.deleteRecursively()
         }
       }
-      if (!File(linuxTmp, "bin/sh").exists()) {
+      if (resolveGuestFile(linuxTmp, "bin/sh") == null) {
         throw IllegalStateException("extract produced no bin/sh")
       }
       patchRootfs(linuxTmp)
@@ -701,6 +700,9 @@ private class GuestCommandRunner(private val appContext: Context) {
     val linux = File(workspacePath, ".sandbox/linux")
     val tmp = File(workspacePath, ".sandbox/tmp")
     tmp.mkdirs()
+    if (!linux.isDirectory) {
+      throw IllegalStateException("sandbox rootfs missing: ${linux.absolutePath}")
+    }
 
     val builder = ProcessBuilder(
       buildGuestCommand(
@@ -901,13 +903,14 @@ private fun buildGuestCommand(
     "DEBIAN_FRONTEND=noninteractive",
     "GIT_TERMINAL_PROMPT=0",
   )
+  val shell = guestShellFor(linuxDir)
   if (command == null) {
-    argv += listOf("/bin/bash", "-l")
+    argv += listOf(shell, "-l")
   } else {
     // Non-interactive tool/probe commands must use the fixed environment
     // above. A login shell could replace PATH or source user-controlled
     // profile files, making detection disagree with command execution.
-    argv += listOf("/bin/bash", "-c", command)
+    argv += listOf(shell, "-c", command)
   }
   return argv
 }
@@ -1307,8 +1310,11 @@ private fun currentSandboxAbi(): String {
 }
 
 private fun rootfsHasCompatibleShell(linuxDir: File, abi: String): Boolean {
-  val shell = listOf(File(linuxDir, "bin/sh"), File(linuxDir, "bin/bash"))
-    .firstOrNull { it.isFile }
+  // Install-time gate: probe the POSIX baseline `bin/sh` first (Alpine ships
+  // only busybox sh), falling back to bash for images without a sh symlink.
+  val shell = listOf("bin/sh", "bin/bash")
+    .mapNotNull { resolveGuestFile(linuxDir, it) }
+    .firstOrNull()
     ?: return false
   val header = readFilePrefix(shell, ELF_HEADER_PREFIX_SIZE)
   val compatible = header != null && elfHeaderMatchesSandboxAbi(header, abi)
@@ -1319,6 +1325,26 @@ private fun rootfsHasCompatibleShell(linuxDir: File, abi: String): Boolean {
     )
   }
   return compatible
+}
+
+/**
+ * Guest shell used for proot execution: bash when the rootfs provides it
+ * (Ubuntu/Debian), otherwise busybox `/bin/sh` (Alpine). The lookup follows
+ * guest-absolute symlinks inside the rootfs, so an Alpine
+ * `/bin/sh -> /bin/busybox` counts as a shell. This prefers bash for an
+ * interactive-friendly runtime shell — the reverse of the install-time probe
+ * in [rootfsHasCompatibleShell], which checks the `bin/sh` POSIX baseline
+ * first. Exposed for tests.
+ *
+ * Throws when neither resolves: emitting a shell path the guest does not have
+ * would surface as an opaque proot exec error instead.
+ */
+internal fun guestShellFor(linuxDir: File): String {
+  if (resolveGuestFile(linuxDir, "bin/bash") != null) return "/bin/bash"
+  if (resolveGuestFile(linuxDir, "bin/sh") != null) return "/bin/sh"
+  throw IllegalStateException(
+    "no usable guest shell (bin/bash, bin/sh) under ${linuxDir.absolutePath}",
+  )
 }
 
 private fun readFilePrefix(file: File, size: Int): ByteArray? {

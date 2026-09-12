@@ -107,9 +107,13 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
         if (error != null) {
           showAppSnackBar(
             context,
-            message: error is WorkspaceTerminalStopException
-                ? l10n.workspaceTerminalStopFailed
-                : error.toString(),
+            message: switch (error) {
+              WorkspaceTerminalStopException() =>
+                l10n.workspaceTerminalStopFailed,
+              SandboxDistroUnknownException() =>
+                l10n.workspaceSandboxDistroUnknown,
+              _ => error.toString(),
+            },
           );
         } else if (e.key == WorkspaceDependencyIds.base) {
           // Base install may succeed while the native runtime is missing.
@@ -126,9 +130,19 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
           showAppSnackBar(context, message: l10n.workspaceDepInstallDone);
         }
       }
+      for (final notice in controller.takeNotices(ws.id)) {
+        final label = _installNoticeLabel(l10n, notice);
+        if (label != null) showAppSnackBar(context, message: label);
+      }
     }
     setState(() {});
   }
+
+  String? _installNoticeLabel(AppLocalizations l10n, String notice) =>
+      switch (notice) {
+        sandboxNoticeDebianMirrorDefault => l10n.workspaceDepDebianMirrorNotice,
+        _ => null,
+      };
 
   Future<void> _refreshDepStatus() async {
     if (!Platform.isAndroid && !Platform.isIOS) return;

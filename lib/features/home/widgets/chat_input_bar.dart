@@ -1928,7 +1928,8 @@ class _ChatInputBarState extends State<ChatInputBar>
     if (extension == null) {
       debugPrint(
         '[ChatInputBar] Ignored IME content with unsupported type: '
-        '${content.mimeType}',
+        'declared=${content.mimeType} '
+        'sniffed=${sniffImageMimeFromBytes(bytes)}',
       );
       return;
     }

@@ -82,8 +82,9 @@ String inferMediaMimeFromSource(String source, {String fallbackMime = ''}) {
 /// Sniffs the leading bytes of a raster image and returns its MIME type, or
 /// `null` when the signature is not recognized.
 ///
-/// Used for IME-inserted content whose declared MIME is a wildcard
-/// (`image/*`) or otherwise unknown.
+/// Covers exactly the formats accepted from IME content insertion (see
+/// [imeImageExtensionByMime]); unrecognized payloads are rejected rather than
+/// guessed.
 String? sniffImageMimeFromBytes(List<int> bytes) {
   bool startsWith(List<int> signature, {int offset = 0}) {
     if (bytes.length < offset + signature.length) return false;
@@ -96,12 +97,6 @@ String? sniffImageMimeFromBytes(List<int> bytes) {
   if (startsWith(const [0x89, 0x50, 0x4E, 0x47])) return 'image/png';
   if (startsWith(const [0xFF, 0xD8, 0xFF])) return 'image/jpeg';
   if (startsWith(const [0x47, 0x49, 0x46, 0x38])) return 'image/gif';
-  if (startsWith(const [0x42, 0x4D])) return 'image/bmp';
-  // TIFF: little-endian II*\0 / big-endian MM\0*
-  if (startsWith(const [0x49, 0x49, 0x2A, 0x00]) ||
-      startsWith(const [0x4D, 0x4D, 0x00, 0x2A])) {
-    return 'image/tiff';
-  }
   // RIFF....WEBP
   if (startsWith(const [0x52, 0x49, 0x46, 0x46]) &&
       startsWith(const [0x57, 0x45, 0x42, 0x50], offset: 8)) {
@@ -114,7 +109,6 @@ String? sniffImageMimeFromBytes(List<int> bytes) {
     return switch (brand) {
       'heic' || 'heix' || 'hevc' || 'hevx' => 'image/heic',
       'heif' || 'mif1' || 'msf1' => 'image/heif',
-      'avif' || 'avis' => 'image/avif',
       _ => null,
     };
   }
@@ -126,8 +120,10 @@ String? sniffImageMimeFromBytes(List<int> bytes) {
 ///
 /// Single source for both [inferImageExtension] results and the composer's
 /// declared `allowedMimeTypes` ([imeImageMimeTypes]), so the accepted set and
-/// the negotiated set cannot drift. Kept identical to
-/// `FileUploadService.isImageExtension` / `_isImageExtension`.
+/// the negotiated set cannot drift. The composer's picker/drop paths keep
+/// their own hand-written extension predicates
+/// (`FileUploadService.isImageExtension` / `_isImageExtension`); keep them in
+/// sync when this set changes.
 const Map<String, String> imeImageExtensionByMime = <String, String>{
   'image/png': 'png',
   'image/jpeg': 'jpg',

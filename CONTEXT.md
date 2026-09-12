@@ -1219,6 +1219,14 @@
 - **覆盖面**: send, regenerate, and continue-after-tool all resolve through the chain (`getModelConfig` becomes conversation-aware). **能力门 vs 助手配置**: model-identity capability UI (model icon, reasoning entry, X-high/max availability, Tools Hub / built-in-search gates, image routing/warning) follows the effective model; assistant-owned values (thinking budget value, MCP/local tools/workspace/skills, prompts, request params) stay assistant-level. Out of scope (unchanged): group chat per-speaker models, Multi-AI engine threads, translation/search/global-default model selections, assistant settings-page model selector, per-message request metadata replay.
 - **草稿不落库**: switching a model on a draft/temporary conversation updates the in-memory draft only — an empty draft must never be persisted (it would materialize a bogus sidebar conversation). The binding rides the first-message promotion into SQLite.
 
+## IME Rich-Content Paste (输入法富内容粘贴) — issue #690
+
+- **两门 (two gates)**: IME 图片粘贴要跨过两道门才能落到草稿。门一 **IME 协商**: Flutter 把 `ContentInsertionConfiguration.allowedMimeTypes` 原样镜像到 Android `EditorInfo.contentMimeTypes`（`TextInputPlugin.java:371`），微信等输入法据此判断「输入框是否支持粘贴图片」——只列具名类型（png/jpeg/…）会被判不支持并提示「该输入框不支持粘贴图片」。门二 **Dart 处理器**: 引擎 `InputConnectionAdaptor.commitContent` 不校验 MIME，直接把实际 `mimeType` + 字节送进 `_handleInsertedContent`。RikkaHub/Compose 的参照实现声明 `["*/*","image/*","video/*"]`（其源码注释：部分 IME 不接受只声明 `*/*`，需显式补 `image/*`）。
+- **声明集合 (declaration set)**: `imeImageMimeTypes`（`multimodal_input_utils.dart`）= `['image/*', png, jpeg, jpg, gif, webp, heic, heif]`，与 `imeImageExtensionByMime` 单源派生。与 picker 的 `FileUploadService.isImageExtension` / `_isImageExtension` 内容一致，但三者均为手写集合、无强制同步——新增格式时必须同时更新。通配 `image/*` 满足门一（Android `ClipDescription.hasMimeType` 把声明项当 pattern，可匹配具体 `image/png`）；具名条目满足门二的 **精确** 断言 `allowedMimeTypes.contains(mimeType)`（`editable_text.dart:3772`，引擎传的是实际具体 MIME，不是通配符），否则 debug 构建会在粘贴时断言失败。刻意不声明 `*/*`（避免 IME 把 text/video 也走 `commitContent` 而我们丢弃导致文本粘贴回归），也不声明 app 无法渲染的 bmp/tiff/avif。
+- **处理器 (handler)**: 接受与否**只由字节决定**：`inferImageExtension(bytes)` 用 `sniffImageMimeFromBytes` 识别格式，仅当命中 `imeImageExtensionByMime`（png/jpeg/gif/webp/heic/heif）才保存；否则 `debugPrint` + 忽略——不按声明 subtype 猜扩展名、不兜底 `png`。因此 IME 的 mislabel（声明 jpg 实际 heic）不会产生扩展名与内容矛盾的附件，矢量（svg/djvu）与未知内容也不会被当成图片。保存后的扩展名由 `inferMediaMimeFromSource` 的反向映射覆盖（仅 `.heic/.heif`；bmp/tiff/avif 刻意不映射），下游按真实 MIME 发送而非误标 `image/png`。
+- **草稿优先 (draft-only)**: 粘贴图片只进输入框附件草稿（`_addImages` → `setState` + draft save），绝不自动单独发送；发送仍是唯一显式动作（issue #690 的「媒体消息防抖」= 这条既有契约，不是新机制）。
+- **格式边界 (format caveat)**: `heic`/`heif` 与 picker 既有行为一致：应用内无解码器（缩略图破图占位，一键压缩无法转换），部分供应商也可能拒绝（发送端 400）；粘贴仍保留附件而非静默丢弃。bmp/tiff/avif 已不在接受集合内，粘贴时会被拒绝并记录 `[ChatInputBar]` 日志。
+- **平台范围**: 仅 Android。`ContentInsertionConfiguration` 在 Flutter 上只在 Android 生效；iOS 的 `UITextView.paste(itemProviders:)` / UTType 图片路径不在本次范围（issue #608 评论提及，属独立任务）。
 ## Provider Image Payload (供应商图片载荷) — ADR-0064
 
 - **内容图片标记 (content image marker)**: The `[image:<source>]` marker or Markdown `![alt](source)` embedded in every persisted user-message `content`. It is the **single source of image refs** at the provider layer — every provider parses it. PR1 keeps the last-message `userMediaPaths` / `internalMediaPathsKey` supplemental handling byte-identical; once Claude/Vertex join (PR2), those carriers hold only non-image media and their image-MIME entries are ignored.
@@ -1236,4 +1244,3 @@
 ### Flagged Ambiguities
 
 - "统一" in this area was read as "one wire shape" — resolved: it means **one parser + one builder + per-style encoding**. Forcing a single remote mode is explicitly rejected (ADR-0064), because Gemini cannot fetch remote images while Claude/OpenAI can.
-

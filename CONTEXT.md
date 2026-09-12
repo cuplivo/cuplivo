@@ -1134,6 +1134,27 @@
 
 - "世界书条目" was used to mean both the book list items (bind surfaces) and entries inside a book — resolved: grouping is BOOK-level because the bindable items are books; `WorldBookEntry` stays ungrouped.
 
+## Knowledge Base (知识库) — issue #389
+
+- **知识库 (Knowledge Base)**: An assistant-bindable document collection whose chunks are retrieved per request and injected into context. Deliberately a separate domain object from WorldBook: a WorldBook triggers authored entries by keyword/regex at fixed positions; a Knowledge Base retrieves chunks of imported documents by relevance.
+- **知识文档 (Knowledge Document)**: One imported source file inside exactly one Knowledge Base. Stores the extracted plain text as the source of truth; owns its chunks; deleting the document deletes them.
+- **知识分块 (Knowledge Chunk)**: The retrieval unit — a contiguous text slice of a Document plus its citation identity (source document). Chunks and the FTS index are derived data, rebuildable from document text — never a backup source of truth.
+- **检索后端 (retrieval backend)**: The ranking mechanism over chunks. v1 is FTS5 keyword ranking over ONE global index table with a `kb_id` partition column (zero new native dependency; FTS5 already compiled into the bundled SQLite; CJK via the trigram tokenizer). A vector backend (sqlite-vec + embedding API) is a staged, additive v2 — the chunk schema already carries the stable identity vectors will map to.
+- **检索参数 (retrieval knobs)**: Assistant-level, not per-Knowledge-Base: one "最多注入片段数" (default 5), global bm25 ranking across all bound bases. Per-base topK and similarity thresholds are deliberately absent — BM25 scores are not comparable across corpora, and thresholds only become meaningful with the v2 vector backend.
+- **自动注入 (auto injection)**: The v1 retrieval trigger — every generation with a bound enabled Knowledge Base retrieves from the latest user message (markers stripped; attachment-only → skip) and appends an `<excerpt source=…>` XML block to that same user message's tail (ADR-0006 cache-neutral position). A model-facing `search_knowledge` tool is deliberately NOT part of v1 (weak models silently fail to call tools); it is a v2 candidate, not a pre-planted switch.
+- **注入覆盖 (injection coverage)**: The shared injection pipeline — main chat, regenerate/continue, Multi-AI, group chat — plus handoff sub-agents. Proactive care is excluded (no user query; schedule-prompt retrieval is semantically unsound). Only the main chat has a LivePanel, so only it shows the pill; all other paths inject silently (same as Memory/WorldBook).
+- **命中提示 (retrieval pill)**: A session-scoped, read-only LivePanel entry shown only when chunks were retrieved, expandable to snippets and sources. Never persisted; durable in-bubble citations (per-message request metadata) are a follow-up.
+- **助手绑定 (assistant binding)**: Which Knowledge Bases an assistant may retrieve from, stored as a KV map keyed by assistantId in `preference_rows` (WorldBook's binding pattern with `__global__` fallback) — deliberately NOT a typed join table, to avoid new backup/LAN/clear wiring. Assistant-level, not conversation-level.
+- **导入 (import)**: v1 imports TXT/MD (direct read) and PDF/DOCX (reuses `DocumentTextExtractor`), content-hash dedup within one base, atomic rollback on failure. Manual paste, `.doc`, scanned-PDF OCR, and trash/tombstones for deletion are out of scope — deletion follows the skills precedent (physical; a LAN peer may resurrect).
+- **备份 (backup)**: KB metadata + document text ride a new 7th `BackupContentScope` bit (知识库, default on); restore rebuilds chunks + FTS from text. Zip entries are additive; old builds ignore the unknown section (they cannot use KBs anyway), and old backups yield no bases.
+- **知识库 vs 语义记忆**: The same retrieval infrastructure is the intended base for later consumers (semantic Memory top-K, cross-conversation history retrieval, semantic WorldBook triggering) — none of them are built in v1, and none change the v1 injection contract.
+
+### Relationships
+
+- A **Knowledge Base** contains zero or more **Knowledge Documents**; a **Knowledge Document** produces one or more **Knowledge Chunks**.
+- An **Assistant** binds zero or more **Knowledge Bases**; retrieval considers the union of its enabled bound bases.
+- A **Knowledge Chunk** belongs to exactly one **Knowledge Document** and is the only entity injected into the model context.
+
   ## Message Selection Mode (消息选择模式) — ADR-0045
 
 - **消息选择模式 (message selection mode)**: The single trade-select mode entered from the message 更多 sheet's 多选 (Multi Select) entry (Share was merged into it). The anchor message and its paired user/assistant message are pre-selected at entry; the user can toggle, select-all, invert, or use the mini-map. Exists as one shape only — there is no share/delete distinction anymore.

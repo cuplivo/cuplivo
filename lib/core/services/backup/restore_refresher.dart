@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../database/business_preferences.dart';
 import '../../providers/assistant_provider.dart';
 import '../../providers/group_chat_provider.dart';
+import '../../providers/knowledge_provider.dart';
 import '../../providers/mcp_provider.dart';
 import '../../providers/quick_instruction_provider.dart';
 import '../../providers/workspace_provider.dart';
@@ -27,6 +28,7 @@ Future<void> refreshProvidersAfterRestore(BuildContext context) async {
   final workspaceProvider = context.read<WorkspaceProvider>();
   final safMounts = context.read<SafMountSyncService>();
   final quickInstructionProvider = context.read<QuickInstructionProvider>();
+  final knowledgeProvider = context.read<KnowledgeProvider>();
   // Business preferences: the facade cache must re-read the KV table — a
   // restored/merged settings payload was written through the facade, so the
   // cache is already co-evolved, but a wipe+restore (or import) may have
@@ -78,6 +80,12 @@ Future<void> refreshProvidersAfterRestore(BuildContext context) async {
     await quickInstructionProvider.loadAll();
   } catch (e) {
     debugPrint('refreshProvidersAfterRestore: QuickInstructionProvider: $e');
+  }
+  try {
+    // Knowledge bases table + assistant bindings may have been rewritten.
+    await knowledgeProvider.loadAll();
+  } catch (e) {
+    debugPrint('refreshProvidersAfterRestore: KnowledgeProvider: $e');
   }
   try {
     await ProactiveCareAlarmService.rescheduleAll(

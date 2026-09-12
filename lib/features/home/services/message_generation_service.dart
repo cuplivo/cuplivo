@@ -171,7 +171,7 @@ class MessageGenerationService {
     }
 
     // Process user messages (documents, OCR, templates)
-    final lastUserImagePaths = await messageBuilderService
+    final processedUserMessages = await messageBuilderService
         .processUserMessagesForApi(
           apiMessages,
           settings,
@@ -181,6 +181,7 @@ class MessageGenerationService {
           includeUserQuickInstructions: includeUserQuickInstructions,
           requestId: currentConversation?.id,
         );
+    final lastUserImagePaths = processedUserMessages.imagePaths;
 
     // Signal processing finished
     onFileProcessingFinished?.call();
@@ -218,6 +219,12 @@ class MessageGenerationService {
     await messageBuilderService.injectWorldBookPrompts(
       apiMessages,
       assistantId,
+    );
+    await messageBuilderService.injectKnowledgePrompts(
+      apiMessages,
+      assistantId,
+      conversationId: currentConversation?.id,
+      originalUserQuery: processedUserMessages.originalUserText,
     );
     await messageBuilderService.injectSkillListPrompt(apiMessages, assistantId);
 

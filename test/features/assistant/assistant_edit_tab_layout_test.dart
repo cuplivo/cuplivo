@@ -9,6 +9,7 @@ void main() {
         'basic',
         'prompts',
         'memory',
+        'knowledge',
         'custom',
         'regex',
         'localTools',
@@ -43,7 +44,7 @@ void main() {
         hiddenIds: const {'prompts', 'mcp'},
       );
 
-      expect(visible.take(3), const ['basic', 'memory', 'custom']);
+      expect(visible.take(3), const ['basic', 'memory', 'knowledge']);
       expect(visible, isNot(contains('mcp')));
       expect(visible, isNot(contains('prompts')));
     });

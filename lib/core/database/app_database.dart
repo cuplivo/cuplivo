@@ -347,6 +347,69 @@ class GroupChatMemberRows extends Table {
   Set<Column<Object>> get primaryKey => {groupChatId, memberKey};
 }
 
+// ===== Knowledge base (schema v24, issue #389) =====
+// A Knowledge Base is a separate domain object from WorldBook: it retrieves
+// document chunks by relevance instead of triggering authored entries by
+// keyword. Document text is the source of truth; chunk rows and the
+// hand-managed `knowledge_fts` FTS5 index are derived data, rebuildable from
+// text. Assistant binding lives in the preference_rows KV map
+// (`knowledge_base_ids_by_assistant_v1`), deliberately not a join table.
+// See docs/adr/0064-knowledge-base-fts5-first-retrieval.md and
+// docs/adr/0065-knowledge-base-storage-backup-contract.md.
+class KnowledgeBaseRows extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get description => text().withDefault(const Constant(''))();
+  BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+  IntColumn get chunkSize => integer().withDefault(const Constant(512))();
+  IntColumn get chunkOverlap => integer().withDefault(const Constant(64))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@TableIndex(name: 'idx_knowledge_documents_base', columns: {#knowledgeBaseId})
+@TableIndex(
+  name: 'idx_knowledge_documents_hash',
+  columns: {#knowledgeBaseId, #contentHash},
+)
+class KnowledgeDocumentRows extends Table {
+  TextColumn get id => text()();
+  TextColumn get knowledgeBaseId =>
+      text().references(KnowledgeBaseRows, #id, onDelete: KeyAction.cascade)();
+  TextColumn get name => text()();
+  TextColumn get sourceType => text()();
+  TextColumn get content => text()();
+  TextColumn get contentHash => text()();
+  IntColumn get charCount => integer()();
+  IntColumn get chunkTotal => integer().withDefault(const Constant(0))();
+  DateTimeColumn get importedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@TableIndex(name: 'idx_knowledge_chunks_document', columns: {#documentId})
+@TableIndex(name: 'idx_knowledge_chunks_base', columns: {#knowledgeBaseId})
+class KnowledgeChunkRows extends Table {
+  TextColumn get id => text()();
+  TextColumn get documentId => text().references(
+    KnowledgeDocumentRows,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  TextColumn get knowledgeBaseId =>
+      text().references(KnowledgeBaseRows, #id, onDelete: KeyAction.cascade)();
+  IntColumn get chunkIndex => integer()();
+  TextColumn get content => text()();
+  IntColumn get charCount => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 /// Key-value store backing [BusinessPreferences] (issue #123).
 ///
 /// Business data migrated out of SharedPreferences lives here; the
@@ -376,6 +439,9 @@ class PreferenceRows extends Table {
     DeletionMarkerRows,
     GroupChatRows,
     GroupChatMemberRows,
+    KnowledgeBaseRows,
+    KnowledgeDocumentRows,
+    KnowledgeChunkRows,
     PreferenceRows,
   ],
 )
@@ -475,7 +541,7 @@ class AppDatabase extends _$AppDatabase {
   // self-heal below repairs such gaps on every open; without it the gap is
   // permanent because later upgrades skip the failed step's `from < N` block.
   // See docs/adr/0019-schema-self-heal.md.
-  int get schemaVersion => 23;
+  int get schemaVersion => 24;
 
   /// Whether [table] has a physical column named [column] (sqlite name).
   Future<bool> _hasColumn(String table, String column) async {
@@ -525,10 +591,31 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  /// Creates the hand-managed FTS5 index for knowledge chunks when missing.
+  ///
+  /// The index is derived data (rebuildable from chunk text) and cannot go
+  /// through [Migrator.createTable], so it is created here and rebuilt by the
+  /// knowledge store after restores. `trigram` tokenization is required for
+  /// CJK matching (unicode61 does not segment CJK text).
+  Future<void> _ensureKnowledgeFts() async {
+    if (await _hasTable('knowledge_fts')) return;
+    try {
+      await customStatement(
+        'CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5('
+        "content, kb_id UNINDEXED, chunk_id UNINDEXED, tokenize='trigram')",
+      );
+      debugPrint('schema heal: CREATE VIRTUAL TABLE knowledge_fts');
+    } catch (e) {
+      // Heal runs on every open and is idempotent; a missing index surfaces
+      // as an explicit store error when the feature is used.
+      debugPrint('schema heal: CREATE VIRTUAL TABLE knowledge_fts failed: $e');
+    }
+  }
+
   /// Repair incomplete upgrades where user_version already advanced but some
   /// ALTER TABLE / CREATE TABLE steps were skipped/failed (silent catch).
   ///
-  /// Covers every column/table added by the v5–v23 migrations that are
+  /// Covers every column/table added by the v5–v24 migrations that are
   /// wrapped in silent try/catch — missing these makes inserts crash with
   /// "table X has no column named Y". Runs in beforeOpen (rescues existing
   /// broken DBs whose user_version already passed the failed step) and at the
@@ -757,6 +844,12 @@ class AppDatabase extends _$AppDatabase {
 
     // --- preference_rows (schema v21, issue #123) ---
     await _ensureTable(preferenceRows, 'preference_rows');
+
+    // --- knowledge base (schema v24, issue #389) ---
+    await _ensureTable(knowledgeBaseRows, 'knowledge_base_rows');
+    await _ensureTable(knowledgeDocumentRows, 'knowledge_document_rows');
+    await _ensureTable(knowledgeChunkRows, 'knowledge_chunk_rows');
+    await _ensureKnowledgeFts();
 
     await _transferLegacyProactiveCareSchedules();
   }
@@ -1168,6 +1261,23 @@ WHERE proactive_care_next_message_at IS NULL
             conversationRows.chatModelId,
           );
         } catch (_) {}
+      }
+      if (from < 24) {
+        // Knowledge base (issue #389). The three typed tables land through the
+        // migrator; the FTS5 virtual table is hand-managed (see
+        // [_ensureKnowledgeFts]). Document text is the source of truth; chunks
+        // and the FTS index are derived and rebuildable. Silent catch + heal:
+        // a failed create leaves the version advanced, repaired on next open.
+        try {
+          await migrator.createTable(knowledgeBaseRows);
+        } catch (_) {}
+        try {
+          await migrator.createTable(knowledgeDocumentRows);
+        } catch (_) {}
+        try {
+          await migrator.createTable(knowledgeChunkRows);
+        } catch (_) {}
+        await _ensureKnowledgeFts();
       }
       // Final pass: heal any column/table that still did not land.
       await _healSchemaIfNeeded();

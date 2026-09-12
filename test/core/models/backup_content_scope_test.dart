@@ -11,6 +11,7 @@ void main() {
       expect(scope.workspaces, isTrue);
       expect(scope.skills, isTrue);
       expect(scope.fontsAndAvatars, isTrue);
+      expect(scope.knowledgeBase, isTrue);
       expect(scope.anySettings, isTrue);
       expect(scope.anyFiles, isTrue);
     });
@@ -19,6 +20,7 @@ void main() {
       final scope = const BackupContentScope(
         chatsAndAssistants: false,
         fontsAndAvatars: false,
+        knowledgeBase: false,
       );
       final decoded = BackupContentScope.fromJson(scope.toJson());
       expect(decoded, scope);
@@ -37,6 +39,8 @@ void main() {
       expect(decoded.attachments, isFalse);
       expect(decoded.workspaces, isFalse);
       expect(decoded.fontsAndAvatars, isFalse);
+      // Old backups carry no knowledge section; the bit stays permissive.
+      expect(decoded.knowledgeBase, isTrue);
     });
 
     test('legacy getters on the configs match derivation', () {

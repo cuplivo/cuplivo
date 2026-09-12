@@ -26,6 +26,9 @@ import '../../../core/services/world_book_prompt_injector.dart';
 import '../../../core/providers/quick_instruction_provider.dart';
 import '../../../core/providers/world_book_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../../core/providers/knowledge_provider.dart';
+import '../../../core/services/knowledge/knowledge_prompt_injector.dart';
+import '../../../core/services/knowledge/knowledge_query.dart';
 import '../../../core/services/api/builtin_tools.dart';
 import '../../../core/models/assistant_regex.dart';
 import '../../../core/utils/multimodal_input_utils.dart';
@@ -408,14 +411,18 @@ class MessageBuilderService {
 
   /// Process user messages in apiMessages: extract documents, apply OCR, inject file prompts.
   ///
-  /// Returns the image paths from the last user message (for API call).
+  /// Returns the image paths from the last user message (for API call) plus the
+  /// last user's original typed text — captured before any injected blocks
+  /// (file prompts / OCR / timestamp) so retrieval can query the user's actual
+  /// intent.
   ///
   /// Boundary: this is the sole point where internal `_`-prefixed keys
   /// ([_isPresetKey], [_timestampKey], and
   /// [_quickInstructionInvocationsKey]) attached by [buildApiMessages] are
   /// consumed and stripped. After this method returns, the list is safe to send
   /// to a provider.
-  Future<List<String>> processUserMessagesForApi(
+  Future<({List<String> imagePaths, String? originalUserText})>
+  processUserMessagesForApi(
     List<Map<String, dynamic>> apiMessages,
     SettingsProvider settings,
     Assistant? assistant, {
@@ -432,6 +439,7 @@ class MessageBuilderService {
     );
 
     List<String>? lastUserImagePaths;
+    String? lastUserOriginalText;
 
     // Find last user message index
     int lastUserIdx = -1;
@@ -529,6 +537,14 @@ class MessageBuilderService {
           lastUserImagePaths == null &&
           parsedUser.imagePaths.isNotEmpty) {
         lastUserImagePaths = List<String>.of(parsedUser.imagePaths);
+      }
+
+      // Capture the last user's typed text (markers already stripped by the
+      // parser) BEFORE any injected blocks (file prompts / OCR / timestamp)
+      // are prepended or appended. Retrieval must query this, not the merged
+      // content.
+      if (i == lastUserIdx) {
+        lastUserOriginalText = parsedUser.text;
       }
 
       final inlineImagePaths = parsedUser.imagePaths
@@ -647,7 +663,10 @@ class MessageBuilderService {
       enabled: includeUserQuickInstructions,
     );
 
-    return lastUserImagePaths ?? <String>[];
+    return (
+      imagePaths: lastUserImagePaths ?? <String>[],
+      originalUserText: lastUserOriginalText,
+    );
   }
 
   /// Returns the frozen invocations on the current anchor user message before
@@ -1030,6 +1049,130 @@ These memories are automatically included in future conversation contexts within
       );
     } catch (_) {}
   }
+
+  /// Retrieve from the assistant's bound knowledge bases and append an
+  /// `<excerpt>` block to the latest user message (issue #389). Silent no-op
+  /// when nothing is bound, the query is empty, or there are no hits.
+  ///
+  /// Diagnostic logging is deliberately verbose on EVERY exit path (debug-first
+  /// policy) so a silent non-injection can be traced without a debugger.
+  Future<void> injectKnowledgePrompts(
+    List<Map<String, dynamic>> apiMessages,
+    String? assistantId, {
+    String? conversationId,
+    String? originalUserQuery,
+  }) async {
+    const tag = '[Knowledge]';
+    try {
+      final provider = contextProvider.read<KnowledgeProvider>();
+      var bases = provider.bases;
+      var activeIds = provider.activeBaseIdsFor(assistantId);
+      debugPrint(
+        '$tag start: assistantId=$assistantId conversationId=$conversationId '
+        'providerBases=${bases.length} providerActive=$activeIds',
+      );
+      final store = await provider.ensureStore();
+      if (bases.isEmpty) {
+        bases = await store.getAllBases();
+        debugPrint('$tag provider had no bases; store bases=${bases.length}');
+      }
+      if (activeIds.isEmpty) {
+        activeIds = await store.getActiveBaseIds(assistantId: assistantId);
+        debugPrint('$tag store binding fallback: active=$activeIds');
+      }
+      if (bases.isEmpty) {
+        debugPrint('$tag skip: no knowledge bases exist');
+        provider.reportRetrieval(conversationId, const []);
+        return;
+      }
+      if (activeIds.isEmpty) {
+        debugPrint(
+          '$tag skip: no binding for assistantId=$assistantId and no '
+          '__global__ fallback (bases=${bases.length})',
+        );
+        provider.reportRetrieval(conversationId, const []);
+        return;
+      }
+
+      final enabledIds = bases
+          .where((base) => base.enabled && activeIds.contains(base.id))
+          .map((base) => base.id)
+          .toList(growable: false);
+      debugPrint(
+        '$tag bases=${bases.map((b) => '${b.id}:enabled=${b.enabled}').join(',')} '
+        'bound=$activeIds enabledBound=$enabledIds',
+      );
+      if (enabledIds.isEmpty) {
+        debugPrint('$tag skip: every bound base is disabled');
+        provider.reportRetrieval(conversationId, const []);
+        return;
+      }
+
+      final query = _latestUserQuery(apiMessages, originalUserQuery);
+      if (query.isEmpty) {
+        debugPrint(
+          '$tag skip: empty query after marker strip '
+          '(apiMessages=${apiMessages.length}, attachment-only?)',
+        );
+        provider.reportRetrieval(conversationId, const []);
+        return;
+      }
+
+      final limit = provider.topKFor(assistantId);
+      final hits = await store.search(
+        baseIds: enabledIds,
+        query: query,
+        limit: limit,
+      );
+      debugPrint(
+        '$tag search: bases=$enabledIds topK=$limit '
+        'query="${_shortForLog(query)}" hits=${hits.length}',
+      );
+      provider.reportRetrieval(conversationId, hits);
+      if (hits.isEmpty) {
+        debugPrint('$tag no hits; nothing injected');
+        return;
+      }
+      final applied = KnowledgePromptInjector.inject(
+        messages: apiMessages,
+        hits: hits,
+      );
+      debugPrint(
+        '$tag injected=$applied hits=${hits.length} '
+        'conversationId=${conversationId ?? '(null)'}',
+      );
+    } catch (e, st) {
+      debugPrint(
+        'MessageBuilderService.injectKnowledgePrompts failed: $e\n$st',
+      );
+    }
+  }
+
+  static String _shortForLog(String text) =>
+      text.length <= 120 ? text : '${text.substring(0, 120)}…';
+
+  /// The retrieval query: the user's typed text, never the merged message
+  /// content (which carries the injected timestamp, OCR blocks and extracted
+  /// file dumps). Falls back to the last user message content with markers and
+  /// the timestamp note stripped when the original text is unavailable.
+  String _latestUserQuery(
+    List<Map<String, dynamic>> apiMessages,
+    String? originalUserQuery,
+  ) {
+    if (originalUserQuery != null) {
+      return _normalizeQuery(originalUserQuery);
+    }
+    for (var i = apiMessages.length - 1; i >= 0; i--) {
+      if ((apiMessages[i]['role'] ?? '').toString() != 'user') continue;
+      return _normalizeQuery((apiMessages[i]['content'] ?? '').toString());
+    }
+    return '';
+  }
+
+  static String _normalizeQuery(String raw) =>
+      ChatContextTransforms.stripTimestampNote(
+        KnowledgeQuery.stripAttachmentMarkers(raw),
+      );
 
   /// Helper to append content to the system message (or create one if missing).
   void _appendToSystemMessage(

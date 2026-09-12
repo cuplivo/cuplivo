@@ -2570,6 +2570,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupScopeSettings => '设置项';
 
   @override
+  String get backupScopeKnowledgeBase => '知识库';
+
+  @override
   String get backupScopeAttachments => '附件';
 
   @override
@@ -7641,6 +7644,166 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsPageWorldBook => '世界书';
 
   @override
+  String get knowledgePageTitle => '知识库';
+
+  @override
+  String get knowledgePageEmpty => '还没有知识库，点击右上角 + 新建';
+
+  @override
+  String get knowledgeUnboundChip => '未绑定任何助手';
+
+  @override
+  String get knowledgeDropToImport => '释放以导入知识库';
+
+  @override
+  String get knowledgeDropNoBase => '请先选择或新建一个知识库';
+
+  @override
+  String get knowledgeAdd => '新建知识库';
+
+  @override
+  String get knowledgeCreateTitle => '新建知识库';
+
+  @override
+  String get knowledgeEditTitle => '编辑知识库';
+
+  @override
+  String get knowledgeNameLabel => '名称';
+
+  @override
+  String get knowledgeNameHint => '例如：中医典籍';
+
+  @override
+  String get knowledgeDescriptionLabel => '描述（可选）';
+
+  @override
+  String get knowledgeChunkSizeLabel => '分块大小（字符）';
+
+  @override
+  String get knowledgeChunkOverlapLabel => '分块重叠（字符）';
+
+  @override
+  String get knowledgeSave => '保存';
+
+  @override
+  String get knowledgeCancel => '取消';
+
+  @override
+  String get knowledgeDelete => '删除';
+
+  @override
+  String get knowledgeDeleteTitle => '删除知识库？';
+
+  @override
+  String knowledgeDeleteMessage(Object name) {
+    return '将删除「$name」及其全部文档与索引，此操作无法撤销。';
+  }
+
+  @override
+  String knowledgeDeleted(Object name) {
+    return '已删除「$name」';
+  }
+
+  @override
+  String get knowledgeUnnamed => '未命名';
+
+  @override
+  String knowledgeDocCount(Object count) {
+    return '$count 篇文档';
+  }
+
+  @override
+  String knowledgeDocsAndChunks(Object chunks, Object documents) {
+    return '$documents 篇文档 · $chunks 个分块';
+  }
+
+  @override
+  String knowledgeDocStats(Object charCount, Object chunkCount) {
+    return '$charCount 字 · $chunkCount 个分块';
+  }
+
+  @override
+  String get knowledgeSettingsTitle => '分块设置';
+
+  @override
+  String get knowledgeAddDocuments => '导入文档';
+
+  @override
+  String knowledgeImporting(Object current, Object name, Object total) {
+    return '正在导入 $current/$total：$name';
+  }
+
+  @override
+  String get knowledgeRebuilding => '正在按新参数重新分块…';
+
+  @override
+  String get knowledgeNoDocuments => '还没有文档，点击「导入文档」添加';
+
+  @override
+  String knowledgeImportSuccess(Object count) {
+    return '已导入 $count 个文档';
+  }
+
+  @override
+  String get knowledgeImportResultTitle => '导入结果';
+
+  @override
+  String knowledgeImportResultImported(Object count) {
+    return '成功导入：$count';
+  }
+
+  @override
+  String knowledgeImportResultSkipped(Object count) {
+    return '跳过重复：$count';
+  }
+
+  @override
+  String knowledgeImportResultFailed(Object count) {
+    return '失败：$count';
+  }
+
+  @override
+  String get knowledgeImportOk => '知道了';
+
+  @override
+  String get knowledgeImportFailedExtract => '无法提取文本';
+
+  @override
+  String get knowledgeImportFailedUnsupported => '不支持的文件类型';
+
+  @override
+  String get knowledgeDeleteDocumentTitle => '删除文档？';
+
+  @override
+  String knowledgeDeleteDocumentMessage(Object name) {
+    return '将删除「$name」及其全部分块，此操作无法撤销。';
+  }
+
+  @override
+  String knowledgeChunkIndex(Object index) {
+    return '第 $index 个分块';
+  }
+
+  @override
+  String knowledgeCharCount(Object count) {
+    return '$count 字';
+  }
+
+  @override
+  String get assistantEditPageKnowledgeTab => '知识库';
+
+  @override
+  String get knowledgeTabTopKLabel => '最多注入片段数';
+
+  @override
+  String get knowledgeTabBasesTitle => '绑定的知识库';
+
+  @override
+  String knowledgePillHits(Object count) {
+    return '知识库 · 命中 $count 条';
+  }
+
+  @override
   String get worldBookTitle => '世界书';
 
   @override
@@ -12547,6 +12710,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupScopeSettings => '设置项';
+
+  @override
+  String get backupScopeKnowledgeBase => '知识库';
 
   @override
   String get backupScopeAttachments => '附件';
@@ -17620,6 +17786,166 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get settingsPageWorldBook => '世界书';
 
   @override
+  String get knowledgePageTitle => '知识库';
+
+  @override
+  String get knowledgePageEmpty => '还没有知识库，点击右上角 + 新建';
+
+  @override
+  String get knowledgeUnboundChip => '未绑定任何助手';
+
+  @override
+  String get knowledgeDropToImport => '释放以导入知识库';
+
+  @override
+  String get knowledgeDropNoBase => '请先选择或新建一个知识库';
+
+  @override
+  String get knowledgeAdd => '新建知识库';
+
+  @override
+  String get knowledgeCreateTitle => '新建知识库';
+
+  @override
+  String get knowledgeEditTitle => '编辑知识库';
+
+  @override
+  String get knowledgeNameLabel => '名称';
+
+  @override
+  String get knowledgeNameHint => '例如：中医典籍';
+
+  @override
+  String get knowledgeDescriptionLabel => '描述（可选）';
+
+  @override
+  String get knowledgeChunkSizeLabel => '分块大小（字符）';
+
+  @override
+  String get knowledgeChunkOverlapLabel => '分块重叠（字符）';
+
+  @override
+  String get knowledgeSave => '保存';
+
+  @override
+  String get knowledgeCancel => '取消';
+
+  @override
+  String get knowledgeDelete => '删除';
+
+  @override
+  String get knowledgeDeleteTitle => '删除知识库？';
+
+  @override
+  String knowledgeDeleteMessage(Object name) {
+    return '将删除「$name」及其全部文档与索引，此操作无法撤销。';
+  }
+
+  @override
+  String knowledgeDeleted(Object name) {
+    return '已删除「$name」';
+  }
+
+  @override
+  String get knowledgeUnnamed => '未命名';
+
+  @override
+  String knowledgeDocCount(Object count) {
+    return '$count 篇文档';
+  }
+
+  @override
+  String knowledgeDocsAndChunks(Object chunks, Object documents) {
+    return '$documents 篇文档 · $chunks 个分块';
+  }
+
+  @override
+  String knowledgeDocStats(Object charCount, Object chunkCount) {
+    return '$charCount 字 · $chunkCount 个分块';
+  }
+
+  @override
+  String get knowledgeSettingsTitle => '分块设置';
+
+  @override
+  String get knowledgeAddDocuments => '导入文档';
+
+  @override
+  String knowledgeImporting(Object current, Object name, Object total) {
+    return '正在导入 $current/$total：$name';
+  }
+
+  @override
+  String get knowledgeRebuilding => '正在按新参数重新分块…';
+
+  @override
+  String get knowledgeNoDocuments => '还没有文档，点击「导入文档」添加';
+
+  @override
+  String knowledgeImportSuccess(Object count) {
+    return '已导入 $count 个文档';
+  }
+
+  @override
+  String get knowledgeImportResultTitle => '导入结果';
+
+  @override
+  String knowledgeImportResultImported(Object count) {
+    return '成功导入：$count';
+  }
+
+  @override
+  String knowledgeImportResultSkipped(Object count) {
+    return '跳过重复：$count';
+  }
+
+  @override
+  String knowledgeImportResultFailed(Object count) {
+    return '失败：$count';
+  }
+
+  @override
+  String get knowledgeImportOk => '知道了';
+
+  @override
+  String get knowledgeImportFailedExtract => '无法提取文本';
+
+  @override
+  String get knowledgeImportFailedUnsupported => '不支持的文件类型';
+
+  @override
+  String get knowledgeDeleteDocumentTitle => '删除文档？';
+
+  @override
+  String knowledgeDeleteDocumentMessage(Object name) {
+    return '将删除「$name」及其全部分块，此操作无法撤销。';
+  }
+
+  @override
+  String knowledgeChunkIndex(Object index) {
+    return '第 $index 个分块';
+  }
+
+  @override
+  String knowledgeCharCount(Object count) {
+    return '$count 字';
+  }
+
+  @override
+  String get assistantEditPageKnowledgeTab => '知识库';
+
+  @override
+  String get knowledgeTabTopKLabel => '最多注入片段数';
+
+  @override
+  String get knowledgeTabBasesTitle => '绑定的知识库';
+
+  @override
+  String knowledgePillHits(Object count) {
+    return '知识库 · 命中 $count 条';
+  }
+
+  @override
   String get worldBookTitle => '世界书';
 
   @override
@@ -22527,6 +22853,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupScopeSettings => '設定項';
+
+  @override
+  String get backupScopeKnowledgeBase => '知識庫';
 
   @override
   String get backupScopeAttachments => '附件';
@@ -27599,6 +27928,166 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settingsPageWorldBook => '世界書';
+
+  @override
+  String get knowledgePageTitle => '知識庫';
+
+  @override
+  String get knowledgePageEmpty => '還沒有知識庫，點擊右上角 + 新增';
+
+  @override
+  String get knowledgeUnboundChip => '未綁定任何助手';
+
+  @override
+  String get knowledgeDropToImport => '放開以匯入知識庫';
+
+  @override
+  String get knowledgeDropNoBase => '請先選擇或新增一個知識庫';
+
+  @override
+  String get knowledgeAdd => '新增知識庫';
+
+  @override
+  String get knowledgeCreateTitle => '新增知識庫';
+
+  @override
+  String get knowledgeEditTitle => '編輯知識庫';
+
+  @override
+  String get knowledgeNameLabel => '名稱';
+
+  @override
+  String get knowledgeNameHint => '例如：中醫典籍';
+
+  @override
+  String get knowledgeDescriptionLabel => '描述（可選）';
+
+  @override
+  String get knowledgeChunkSizeLabel => '分塊大小（字元）';
+
+  @override
+  String get knowledgeChunkOverlapLabel => '分塊重疊（字元）';
+
+  @override
+  String get knowledgeSave => '儲存';
+
+  @override
+  String get knowledgeCancel => '取消';
+
+  @override
+  String get knowledgeDelete => '刪除';
+
+  @override
+  String get knowledgeDeleteTitle => '刪除知識庫？';
+
+  @override
+  String knowledgeDeleteMessage(Object name) {
+    return '將刪除「$name」及其全部文件與索引，此操作無法復原。';
+  }
+
+  @override
+  String knowledgeDeleted(Object name) {
+    return '已刪除「$name」';
+  }
+
+  @override
+  String get knowledgeUnnamed => '未命名';
+
+  @override
+  String knowledgeDocCount(Object count) {
+    return '$count 篇文件';
+  }
+
+  @override
+  String knowledgeDocsAndChunks(Object chunks, Object documents) {
+    return '$documents 篇文件 · $chunks 個分塊';
+  }
+
+  @override
+  String knowledgeDocStats(Object charCount, Object chunkCount) {
+    return '$charCount 字 · $chunkCount 個分塊';
+  }
+
+  @override
+  String get knowledgeSettingsTitle => '分塊設定';
+
+  @override
+  String get knowledgeAddDocuments => '匯入文件';
+
+  @override
+  String knowledgeImporting(Object current, Object name, Object total) {
+    return '正在匯入 $current/$total：$name';
+  }
+
+  @override
+  String get knowledgeRebuilding => '正在依新參數重新分塊…';
+
+  @override
+  String get knowledgeNoDocuments => '還沒有文件，點擊「匯入文件」新增';
+
+  @override
+  String knowledgeImportSuccess(Object count) {
+    return '已匯入 $count 個文件';
+  }
+
+  @override
+  String get knowledgeImportResultTitle => '匯入結果';
+
+  @override
+  String knowledgeImportResultImported(Object count) {
+    return '成功匯入：$count';
+  }
+
+  @override
+  String knowledgeImportResultSkipped(Object count) {
+    return '略過重複：$count';
+  }
+
+  @override
+  String knowledgeImportResultFailed(Object count) {
+    return '失敗：$count';
+  }
+
+  @override
+  String get knowledgeImportOk => '知道了';
+
+  @override
+  String get knowledgeImportFailedExtract => '無法擷取文字';
+
+  @override
+  String get knowledgeImportFailedUnsupported => '不支援的文件類型';
+
+  @override
+  String get knowledgeDeleteDocumentTitle => '刪除文件？';
+
+  @override
+  String knowledgeDeleteDocumentMessage(Object name) {
+    return '將刪除「$name」及其全部分塊，此操作無法復原。';
+  }
+
+  @override
+  String knowledgeChunkIndex(Object index) {
+    return '第 $index 個分塊';
+  }
+
+  @override
+  String knowledgeCharCount(Object count) {
+    return '$count 字';
+  }
+
+  @override
+  String get assistantEditPageKnowledgeTab => '知識庫';
+
+  @override
+  String get knowledgeTabTopKLabel => '最多注入片段數';
+
+  @override
+  String get knowledgeTabBasesTitle => '綁定的知識庫';
+
+  @override
+  String knowledgePillHits(Object count) {
+    return '知識庫 · 命中 $count 條';
+  }
 
   @override
   String get worldBookTitle => '世界書';

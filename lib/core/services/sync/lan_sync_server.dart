@@ -341,6 +341,7 @@ class LanSyncServer extends ChangeNotifier {
                 workspaces: false,
                 skills: false,
                 fontsAndAvatars: false,
+                knowledgeBase: false,
               ),
               conversationSince: const {},
               includeFilePaths: null,

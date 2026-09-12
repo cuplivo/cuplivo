@@ -234,6 +234,10 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
           ),
           (l10n.backupScopeSettings, (s) => s.copyWith(settings: !s.settings)),
           (
+            l10n.backupScopeKnowledgeBase,
+            (s) => s.copyWith(knowledgeBase: !s.knowledgeBase),
+          ),
+          (
             l10n.backupScopeAttachments,
             (s) => s.copyWith(attachments: !s.attachments),
           ),
@@ -343,7 +347,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 10)),
 
-              // ⑤ 备份内容 — 6-section scope (assistant "能力" look, 2×3)
+              // ⑤ 备份内容 — 7-section scope (assistant "能力" look, 2×3+1)
               SliverToBoxAdapter(
                 child: _sectionCard(
                   children: [
@@ -365,6 +369,7 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                         isSelected: [
                           scope.chatsAndAssistants,
                           scope.settings,
+                          scope.knowledgeBase,
                           scope.attachments,
                           scope.workspaces,
                           scope.skills,

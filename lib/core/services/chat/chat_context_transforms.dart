@@ -16,6 +16,24 @@ class ChatContextTransforms {
     return '$content\n\n(${formatTimestamp(timestamp)})';
   }
 
+  /// Mirrors the exact output of [appendTimestamp]/[formatTimestamp]
+  /// (`(Sat 26-09-12 15:00:15)`) at the end of [content]. The weekday token is
+  /// optional so the pattern keeps matching if a caller ever omits it.
+  static final RegExp _timestampNotePattern = RegExp(
+    r'\s*\((?:(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat) )?'
+    r'\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\)\s*$',
+  );
+
+  /// Removes a trailing time-injection note appended by [appendTimestamp].
+  ///
+  /// Retrieval that queries the latest user message must strip this first:
+  /// feeding the timestamp into a keyword search adds term noise that never
+  /// matches any document. No-op when the note is absent.
+  static String stripTimestampNote(String content) {
+    final withoutNote = content.replaceFirst(_timestampNotePattern, '');
+    return withoutNote.trimRight();
+  }
+
   static String formatTimestamp(DateTime timestamp) {
     const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     return '${weekdays[timestamp.weekday % 7]} '

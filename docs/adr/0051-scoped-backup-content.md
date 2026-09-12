@@ -1,6 +1,6 @@
-# ADR-0051: Scoped Backup Content (备份内容六位)
+# ADR-0051: Scoped Backup Content (备份内容七位)
 
-Backups used to be gated by two booleans (`includeChats`/`includeFiles`) with `settings.json` and `skills/` always packed. Issue #306's page redesign needed honest content scoping, so the scope became a six-bit `BackupContentScope` stored in both channel configs (`WebDavConfig`/`S3Config`): 聊天记录及助手 (chats + assistants keys split out of settings.json), 设置项, 附件 (upload+images), 工作区 (workspaces), 技能 (skills), 字体与头像 (fonts+avatars). We deliberately split settings.json section-wise by key whitelist because assistants (`assistants_v1`/`assistant_memories_v1`) live inside that atom today; `settings_meta.json` only carries the written keys so the LWW merge stays key-exact.
+Backups used to be gated by two booleans (`includeChats`/`includeFiles`) with `settings.json` and `skills/` always packed. Issue #306's page redesign needed honest content scoping, so the scope became a scoped-bit `BackupContentScope` stored in both channel configs (`WebDavConfig`/`S3Config`): 聊天记录及助手 (chats + assistants keys split out of settings.json), 设置项, 附件 (upload+images), 工作区 (workspaces), 技能 (skills), 字体与头像 (fonts+avatars). The knowledge base feature added a seventh bit (知识库, `knowledge.jsonl`: base metadata + document text; chunks/FTS are rebuilt on restore) — additive, old builds ignore the unknown section. We deliberately split settings.json section-wise by key whitelist because assistants (`assistants_v1`/`assistant_memories_v1`) live inside that atom today; `settings_meta.json` only carries the written keys so the LWW merge stays key-exact.
 
 Status: accepted
 

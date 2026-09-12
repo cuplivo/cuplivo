@@ -17,6 +17,7 @@ import '../features/model/widgets/model_select_sheet.dart'
     show showModelSelector;
 import '../features/settings/widgets/language_select_sheet.dart'
     show
+        LanguageOption,
         TranslateLanguageActionRow,
         effectiveTranslateLanguage,
         showTranslateLanguageManager,
@@ -41,6 +42,10 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
   bool _translating = false;
   bool _stopped = false;
   String? _requestId;
+
+  List<DesktopSelectOption<String>>? _cachedLanguageOptions;
+  Set<String>? _cachedOptionsCodes;
+  String? _cachedOptionsLocale;
 
   @override
   void initState() {
@@ -77,14 +82,37 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
   }
 
   Future<void> _onLanguageSelected(String code) async {
-    final settings = context.read<SettingsProvider>();
-    final visible = visibleTranslateLanguages(
-      settings.translateVisibleLanguages,
-    );
-    // The dropdown lists only visible entries, but a background visibility
-    // change may race the tap; never persist a hidden target.
-    if (!visible.any((l) => l.code == code)) return;
-    await settings.setTranslateTargetLang(code);
+    // Keep the target fixed for the running request (parity with the old
+    // disabled trigger). The option list is refreshed by the dropdown, so the
+    // emitted code is always one of the currently visible entries.
+    if (_translating) return;
+    await context.read<SettingsProvider>().setTranslateTargetLang(code);
+  }
+
+  List<DesktopSelectOption<String>> _languageOptions(
+    Set<String> visibleCodes,
+    List<LanguageOption> visible,
+    String localeCode,
+  ) {
+    final cached = _cachedLanguageOptions;
+    if (cached != null &&
+        identical(_cachedOptionsCodes, visibleCodes) &&
+        _cachedOptionsLocale == localeCode) {
+      return cached;
+    }
+    final l10n = AppLocalizations.of(context)!;
+    final options = [
+      for (final lang in visible)
+        DesktopSelectOption<String>(
+          value: lang.code,
+          label: translateLanguageDisplayName(l10n, lang.code),
+          leading: lang.flag,
+        ),
+    ];
+    _cachedLanguageOptions = options;
+    _cachedOptionsCodes = visibleCodes;
+    _cachedOptionsLocale = localeCode;
+    return options;
   }
 
   Future<void> _pickModel() async {
@@ -195,11 +223,13 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
           (s) => (s.translateVisibleLanguages, s.translateTargetLang),
         );
     final visible = visibleTranslateLanguages(visibleCodes);
+    final localeCode = Localizations.localeOf(context).languageCode;
     final currentTarget = effectiveTranslateLanguage(
       visible: visible,
       persistedCode: targetCode,
-      localeLanguageCode: Localizations.localeOf(context).languageCode,
+      localeLanguageCode: localeCode,
     );
+    final languageOptions = _languageOptions(visibleCodes, visible, localeCode);
 
     final topBar = SizedBox(
       height: 36,
@@ -246,17 +276,7 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
                             // Language dropdown
                             DesktopSelectDropdown<String>(
                               value: currentTarget.code,
-                              options: [
-                                for (final lang in visible)
-                                  DesktopSelectOption<String>(
-                                    value: lang.code,
-                                    label: translateLanguageDisplayName(
-                                      l10n,
-                                      lang.code,
-                                    ),
-                                    leading: lang.flag,
-                                  ),
-                              ],
+                              options: languageOptions,
                               minWidth: 150,
                               minHeight: 40,
                               padding: const EdgeInsets.symmetric(
@@ -265,6 +285,8 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
                               ),
                               maxLabelWidth: 240,
                               triggerFillColor: context.appColors.surfaceCard,
+                              focusable: true,
+                              semanticLabel: l10n.languageSelectSheetTitle,
                               onSelected: _onLanguageSelected,
                               footer: TranslateLanguageActionRow(
                                 icon: lucide.Lucide.Settings2,

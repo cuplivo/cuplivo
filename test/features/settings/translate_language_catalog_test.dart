@@ -131,7 +131,7 @@ void main() {
     });
 
     test(
-      'load drops a target outside the visible set and clears the key',
+      'load soft-nulls a target outside the visible set but keeps the key',
       () async {
         final prefs = BusinessPreferences.memoryForTests({
           'translate_target_lang_v1': 'bn',
@@ -141,13 +141,13 @@ void main() {
         await _waitForSettingsLoad();
 
         expect(settings.translateTargetLang, isNull);
-        expect(prefs.getString('translate_target_lang_v1'), isNull);
+        expect(prefs.getString('translate_target_lang_v1'), 'bn');
 
-        // Re-enabling the language later must not resurrect the dropped target.
+        // Re-enabling the language restores the user's original choice.
         await settings.setTranslateVisibleLanguages({'en', 'ja', 'bn'});
         final restarted = SettingsProvider(preferences: prefs);
         await _waitForSettingsLoad();
-        expect(restarted.translateTargetLang, isNull);
+        expect(restarted.translateTargetLang, 'bn');
       },
     );
 

@@ -1210,12 +1210,11 @@ class SettingsProvider extends ChangeNotifier {
     // Reconcile: a persisted target outside the visible set falls back to null
     // (the feature layer then resolves locale -> first visible). Covers a
     // cross-device restore where the visible set and target arrive separately.
-    // The stale key is dropped too, so re-enabling the language later cannot
-    // resurrect a target the user never chose.
+    // Soft-null only: the persisted key is kept so re-enabling the language
+    // restores the user's original choice.
     if (_translateTargetLang != null &&
         !translateVisibleLanguages.contains(_translateTargetLang)) {
       _translateTargetLang = null;
-      await prefs.remove(_translateTargetLangKey);
     }
     // load OCR model
     final ocrSel = prefs.getString(_ocrModelKey);

@@ -102,7 +102,13 @@ class _TranslatePageState extends State<TranslatePage> {
     );
     // The sheet lists only visible entries, but a background visibility change
     // may race the tap; never persist a hidden target.
-    if (!visible.any((l) => l.code == lang.code)) return;
+    if (!visible.any((l) => l.code == lang.code)) {
+      debugPrint(
+        'TranslatePage: ignored hidden target ${lang.code}; '
+        'visible=${visible.map((l) => l.code).toList()}',
+      );
+      return;
+    }
     await settings.setTranslateTargetLang(lang.code);
   }
 

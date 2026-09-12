@@ -26,13 +26,15 @@ user-managed, persisted preference.
    (mobile bottom sheet / desktop centered dialog) is a checkbox list over the
    full catalog with an at-least-one-visible guard.
 4. **The active target is always visible.** Persisted
-   `translate_target_lang_v1` is reconciled on load against the visible set (a
-   target outside it becomes null, then resolves to locale → first visible). The
+   `translate_target_lang_v1` is soft-nulled on load when it falls outside the
+   visible set (then resolves to locale → first visible); the persisted key is
+   kept, so re-enabling the language restores the user's original choice. The
    manage UI's `effectiveTranslateTarget` auto-switches the active target to the
    first still-visible language when the user hides the active one.
 5. **One resolver, one catalog.** `translateLanguageDisplayName(l10n, code)` is
-   the single display-name resolver; the six duplicated private switches were
-   deleted.
+   the single display-name resolver used by every entry point (including the
+   in-chat `translation_service`); the six duplicated private switches and the
+   hardcoded `LanguageOption.displayName`/`displayNameZh` fields were deleted.
 
 ## Considered options
 
@@ -56,12 +58,14 @@ user-managed, persisted preference.
   unrelated notifications.
 - The desktop standalone-translate selector is the shared
   `DesktopSelectDropdown` (extended with an optional `leading` glyph, an
-  optional `footer` row, and Escape/Enter keyboard handling), not a
+  optional `footer` row, opt-in `focusable` keyboard support, arrow-key
+  traversal with `ensureVisible`, and a `Semantics` trigger), not a
   page-private overlay. The shared dropdown refreshes an open menu when its
-  options or value change underneath.
-- `translation_service.dart` still injects `LanguageOption.displayName` (the
-  English name) into the `{target_lang}` prompt; the two standalone translate
-  pages use the localized resolver. This pre-existing split is intentionally
-  left unchanged.
+  options or value change underneath, and closes itself before a footer action
+  launches a modal. `focusable` stays opt-in so the seven pre-existing call
+  sites do not silently gain a tab stop.
+- `translation_service.dart` now builds `{target_lang}` through
+  `translateLanguageDisplayName`, so the in-chat and standalone translate paths
+  share one localized prompt vocabulary.
 - Adding a future language is now: one catalog entry, one resolver case, and one
   `languageDisplay*` key in all four ARB files — no selector or settings change.

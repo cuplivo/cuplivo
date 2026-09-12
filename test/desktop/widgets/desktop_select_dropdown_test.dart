@@ -37,6 +37,8 @@ class _HarnessState extends State<_Harness> {
             triggerFillColor: Colors.white,
             menuBackgroundColor: Colors.white,
             footer: const Text('Manage'),
+            focusable: true,
+            semanticLabel: 'Target language',
           ),
         ),
       ),
@@ -87,6 +89,45 @@ void main() {
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
+    expect(find.text('Manage'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Escape with a focused tile closes without a focus error', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const _Harness());
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Manage'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('arrow keys move focus between options', (tester) async {
+    await tester.pumpWidget(const _Harness());
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    // First Down lands on Alpha, second on Beta; Enter activates Beta.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Beta'), findsOneWidget);
     expect(find.text('Manage'), findsNothing);
   });
 }

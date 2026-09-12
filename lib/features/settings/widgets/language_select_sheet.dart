@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, TargetPlatform;
+    show debugPrint, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../icons/lucide_adapter.dart';
@@ -16,124 +16,35 @@ import 'package:Cuplivo/theme/app_font_weights.dart';
 
 class LanguageOption {
   final String code;
-  final String displayName;
-  final String displayNameZh;
   final String flag;
 
-  const LanguageOption({
-    required this.code,
-    required this.displayName,
-    required this.displayNameZh,
-    required this.flag,
-  });
+  const LanguageOption({required this.code, required this.flag});
 }
 
 /// Full translate-target catalog. Order is the selector order; the user's
 /// visible subset is a separate persisted preference
 /// (`translate_visible_languages_v1`) and never reorders the catalog.
 const List<LanguageOption> supportedLanguages = [
-  LanguageOption(
-    code: 'zh-CN',
-    displayName: 'Simplified Chinese',
-    displayNameZh: '简体中文',
-    flag: '🇨🇳',
-  ),
-  LanguageOption(
-    code: 'en',
-    displayName: 'English',
-    displayNameZh: 'English',
-    flag: '🇺🇸',
-  ),
-  LanguageOption(
-    code: 'zh-TW',
-    displayName: 'Traditional Chinese',
-    displayNameZh: '繁體中文',
-    flag: '🇨🇳',
-  ),
-  LanguageOption(
-    code: 'ja',
-    displayName: 'Japanese',
-    displayNameZh: '日本語',
-    flag: '🇯🇵',
-  ),
-  LanguageOption(
-    code: 'ko',
-    displayName: 'Korean',
-    displayNameZh: '한국어',
-    flag: '🇰🇷',
-  ),
-  LanguageOption(
-    code: 'fr',
-    displayName: 'French',
-    displayNameZh: 'Français',
-    flag: '🇫🇷',
-  ),
-  LanguageOption(
-    code: 'de',
-    displayName: 'German',
-    displayNameZh: 'Deutsch',
-    flag: '🇩🇪',
-  ),
-  LanguageOption(
-    code: 'it',
-    displayName: 'Italian',
-    displayNameZh: 'Italiano',
-    flag: '🇮🇹',
-  ),
-  LanguageOption(
-    code: 'es',
-    displayName: 'Spanish',
-    displayNameZh: 'Español',
-    flag: '🇪🇸',
-  ),
-  LanguageOption(
-    code: 'pt',
-    displayName: 'Portuguese',
-    displayNameZh: 'Português',
-    flag: '🇵🇹',
-  ),
-  LanguageOption(
-    code: 'ru',
-    displayName: 'Russian',
-    displayNameZh: 'Русский',
-    flag: '🇷🇺',
-  ),
-  LanguageOption(
-    code: 'ar',
-    displayName: 'Arabic',
-    displayNameZh: 'العربية',
-    flag: '🇸🇦',
-  ),
-  LanguageOption(
-    code: 'hi',
-    displayName: 'Hindi',
-    displayNameZh: 'हिन्दी',
-    flag: '🇮🇳',
-  ),
-  LanguageOption(
-    code: 'th',
-    displayName: 'Thai',
-    displayNameZh: 'ไทย',
-    flag: '🇹🇭',
-  ),
-  LanguageOption(
-    code: 'vi',
-    displayName: 'Vietnamese',
-    displayNameZh: 'Tiếng Việt',
-    flag: '🇻🇳',
-  ),
-  LanguageOption(
-    code: 'bn',
-    displayName: 'Bengali',
-    displayNameZh: 'বাংলা',
-    flag: '🇧🇩',
-  ),
+  LanguageOption(code: 'zh-CN', flag: '🇨🇳'),
+  LanguageOption(code: 'en', flag: '🇺🇸'),
+  LanguageOption(code: 'zh-TW', flag: '🇨🇳'),
+  LanguageOption(code: 'ja', flag: '🇯🇵'),
+  LanguageOption(code: 'ko', flag: '🇰🇷'),
+  LanguageOption(code: 'fr', flag: '🇫🇷'),
+  LanguageOption(code: 'de', flag: '🇩🇪'),
+  LanguageOption(code: 'it', flag: '🇮🇹'),
+  LanguageOption(code: 'es', flag: '🇪🇸'),
+  LanguageOption(code: 'pt', flag: '🇵🇹'),
+  LanguageOption(code: 'ru', flag: '🇷🇺'),
+  LanguageOption(code: 'ar', flag: '🇸🇦'),
+  LanguageOption(code: 'hi', flag: '🇮🇳'),
+  LanguageOption(code: 'th', flag: '🇹🇭'),
+  LanguageOption(code: 'vi', flag: '🇻🇳'),
+  LanguageOption(code: 'bn', flag: '🇧🇩'),
 ];
 
 const LanguageOption _clearLanguageOption = LanguageOption(
   code: '__clear__',
-  displayName: 'Clear Translation',
-  displayNameZh: '清空翻译',
   flag: '',
 );
 
@@ -382,7 +293,8 @@ class _LanguageSelectSheetState extends State<_LanguageSelectSheet> {
                       // Clear translation row (iOS style)
                       TranslateLanguageActionRow(
                         icon: Lucide.X,
-                        color: cs.error,
+                        iconColor: cs.error,
+                        textColor: cs.error,
                         label: l10n.languageSelectSheetClearButton,
                         onTap: () {
                           Haptics.light();
@@ -508,7 +420,11 @@ class _TranslateLanguageManager extends StatelessWidget {
     );
   }
 
-  void _toggle(BuildContext context, SettingsProvider settings, String code) {
+  Future<void> _toggle(
+    BuildContext context,
+    SettingsProvider settings,
+    String code,
+  ) async {
     final l10n = AppLocalizations.of(context)!;
     final next = <String>{...settings.translateVisibleLanguages};
     if (next.contains(code)) {
@@ -524,14 +440,19 @@ class _TranslateLanguageManager extends StatelessWidget {
     } else {
       next.add(code);
     }
-    settings.setTranslateVisibleLanguages(next);
+    try {
+      await settings.setTranslateVisibleLanguages(next);
 
-    // Hiding the active target must not leave it invisible: switch to the
-    // first still-visible language (catalog order).
-    final active = settings.translateTargetLang;
-    final effective = effectiveTranslateTarget(next, active);
-    if (active != null && effective != active) {
-      settings.setTranslateTargetLang(effective!);
+      // Hiding the active target must not leave it invisible: switch to the
+      // first still-visible language (catalog order).
+      final active = settings.translateTargetLang;
+      final effective = effectiveTranslateTarget(next, active);
+      if (active != null && effective != active) {
+        await settings.setTranslateTargetLang(effective!);
+      }
+    } catch (e, st) {
+      // Persistence is best-effort: the in-memory state is already applied.
+      debugPrint('TranslateLanguageManager: failed to persist toggle: $e\n$st');
     }
   }
 }
@@ -594,13 +515,15 @@ class TranslateLanguageActionRow extends StatefulWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.color,
+    this.iconColor,
+    this.textColor,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final Color? color;
+  final Color? iconColor;
+  final Color? textColor;
 
   @override
   State<TranslateLanguageActionRow> createState() =>
@@ -614,56 +537,64 @@ class _TranslateLanguageActionRowState
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final color = widget.color ?? cs.onSurface.withValues(alpha: 0.75);
-    return FocusableActionDetector(
-      shortcuts: const <ShortcutActivator, Intent>{
-        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
-        SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
-      },
-      actions: <Type, Action<Intent>>{
-        ActivateIntent: CallbackAction<ActivateIntent>(
-          onInvoke: (_) {
-            widget.onTap();
-            return null;
-          },
-        ),
-      },
-      onShowFocusHighlight: (value) => setState(() => _focused = value),
-      child: SizedBox(
-        height: 48,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          curve: Curves.easeOutCubic,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: _focused ? cs.primary : Colors.transparent,
-              width: 1.5,
-            ),
+    final fallback = cs.onSurface.withValues(alpha: 0.75);
+    final iconColor = widget.iconColor ?? fallback;
+    final textColor = widget.textColor ?? fallback;
+    return Semantics(
+      button: true,
+      label: widget.label,
+      excludeSemantics: true,
+      onTap: widget.onTap,
+      child: FocusableActionDetector(
+        shortcuts: const <ShortcutActivator, Intent>{
+          SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+          SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+        },
+        actions: <Type, Action<Intent>>{
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              widget.onTap();
+              return null;
+            },
           ),
-          child: IosCardPress(
-            borderRadius: BorderRadius.circular(14),
-            baseColor: cs.surface,
-            duration: const Duration(milliseconds: 260),
-            onTap: widget.onTap,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                Icon(widget.icon, size: 20, color: color),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    widget.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: AppFontWeights.medium,
-                      color: color,
+        },
+        onShowFocusHighlight: (value) => setState(() => _focused = value),
+        child: SizedBox(
+          height: 48,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: _focused ? cs.primary : Colors.transparent,
+                width: 1.5,
+              ),
+            ),
+            child: IosCardPress(
+              borderRadius: BorderRadius.circular(14),
+              baseColor: cs.surface,
+              duration: const Duration(milliseconds: 260),
+              onTap: widget.onTap,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  Icon(widget.icon, size: 20, color: iconColor),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      widget.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: AppFontWeights.medium,
+                        color: textColor,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

@@ -27,6 +27,7 @@ import '../workspace/workspace_terminal_native_bridge.dart';
 import '../../database/business_preferences.dart';
 import '../../database/business_key_registry.dart';
 import 'kelivo_image_settings_mapper.dart';
+import 'kelivo_quick_instruction_mapper.dart';
 import 'kelivo_v2_exception.dart';
 import 'double_pref_keys.dart';
 import '../../../utils/app_directories.dart';
@@ -329,7 +330,7 @@ class DataSync {
       // settings.json — section-aware: assistant keys ride the chats bit,
       // everything else rides the settings bit.
       if (explicitScope ? scope.anySettings : scope.settings) {
-        final payloads = await _exportSettingsPayloads();
+        final payloads = await _exportSettingsPayloads(format: format);
         var settingsMap = payloads.settings;
         var settingsMeta = payloads.updatedAt;
         if (!scope.chatsAndAssistants || !scope.settings) {
@@ -1622,7 +1623,7 @@ class DataSync {
   /// written) are absent from the meta file and fall back to legacy merge
   /// semantics on restore. Local-only/entity keys never appear in either.
   Future<({Map<String, dynamic> settings, Map<String, int> updatedAt})>
-  _exportSettingsPayloads() async {
+  _exportSettingsPayloads({required BackupFormat format}) async {
     final prefs = SharedPreferencesAsync(_preferences);
     final map = await prefs.snapshot();
     // `assistants_v1` removed from SharedPreferences
@@ -1640,6 +1641,14 @@ class DataSync {
     // prefs never hold a mirror copy (no dual truth, no staleness).
     map.addAll(KelivoImageSettingsMapper.translateToUpstream(map));
     _retainCloudAsrForExport(map);
+
+    if (format == BackupFormat.kelivoLegacy) {
+      // Original Kelivo predates the ADR-0061 quick-instruction unification:
+      // re-split the unified library into its legacy quick_phrases_v1 /
+      // instruction_injections_v1 keys. Cuplivo-native (JSONL) exports keep
+      // the unified payload losslessly.
+      KelivoQuickInstructionMapper.translateToLegacy(map);
+    }
 
     // Kelivo's business router validates search_services_v1 entries and
     // requires `apiKeys` to be a plain List<String> (round-robin pool).

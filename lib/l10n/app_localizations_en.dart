@@ -3024,6 +3024,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lanSyncApplyAndRestart => 'Apply and restart';
 
   @override
+  String get lanSyncRecentEndpoints => 'Recent';
+
+  @override
+  String get lanSyncScanQr => 'Scan QR Code';
+
+  @override
+  String get lanSyncCopyLink => 'Copy Link';
+
+  @override
+  String get lanSyncLinkCopied => 'Link copied';
+
+  @override
+  String get lanSyncErrorInvalidLink => 'Invalid sync QR code or link.';
+
+  @override
+  String get lanSyncQrServerHint =>
+      'Scan this code on the other device to connect automatically.';
+
+  @override
   String get chatHistoryPageTitle => 'Chat History';
 
   @override

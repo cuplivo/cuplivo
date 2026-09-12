@@ -47,6 +47,9 @@ final class BusinessKeyRegistry {
     'codex_oauth_v1',
     'grok_oauth_v1',
     'chat_draft_v1',
+    // Last successfully used LAN sync server endpoints (initiator-side
+    // convenience prefill); meaningless on another device.
+    'lan_sync_recent_endpoints_v1',
     // User-relocatable @workspaces host directory (desktop-only host path);
     // AppDirectories reads it straight from SharedPreferences.
     'workspaces_dir_v1',

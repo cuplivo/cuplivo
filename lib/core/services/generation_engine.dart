@@ -163,6 +163,7 @@ class GenerationSlotUiState {
     required this.toolCountAtSplit,
     required this.toolEvents,
     this.geminiThoughtSig,
+    this.reasoningDetails,
     required this.totalTokens,
     this.contextTokens,
     this.promptTokens,
@@ -191,6 +192,12 @@ class GenerationSlotUiState {
 
   /// Gemini thought signature captured from the stream, if any.
   final String? geminiThoughtSig;
+
+  /// Vendor reasoning details (OpenRouter/Anthropic-style `reasoning_details`,
+  /// may carry thinking signatures) accumulated from the stream. Persisted
+  /// inside the reasoning payload; also mirrored into the page UI state so a
+  /// manual thinking-step toggle preserves them.
+  final dynamic reasoningDetails;
 
   /// Consumed totals (sum across request rounds).
   final int totalTokens;
@@ -1469,6 +1476,7 @@ class _SlotRuntime {
       toolCountAtSplit: List<int>.of(toolCountAtSplit),
       toolEvents: List<Map<String, dynamic>>.of(toolEventsById.values),
       geminiThoughtSig: geminiThoughtSig,
+      reasoningDetails: reasoningDetails,
       totalTokens: consumed?.totalTokens ?? totalTokens,
       contextTokens: lastUsage?.totalTokens ?? totalTokens,
       promptTokens: consumed?.promptTokens,

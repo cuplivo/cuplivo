@@ -1296,4 +1296,60 @@ void main() {
       },
     );
   });
+
+  group('reasoning details UI state forwarding', () {
+    test('a chunk carrying reasoningDetails publishes them in the UI state '
+        '(issue #737 follow-up)', () async {
+      final uiStates = <GenerationSlotUiState>[];
+      final placeholder = await chatService.addMessage(
+        conversationId: 'details-1',
+        role: 'assistant',
+        content: '',
+        isStreaming: true,
+      );
+      service.prepareRound(
+        conversationId: 'details-1',
+        assistantMessageId: placeholder.id,
+        parentConversationId: null,
+        wait: false,
+      );
+      service.startRound(
+        conversationId: 'details-1',
+        slots: [
+          GenerationSlotRequest(
+            assistantMessageId: placeholder.id,
+            apiMessages: const [],
+            config: config,
+            modelId: 'model-1',
+            supportsReasoning: true,
+            onUiState: (state) => uiStates.add(state),
+          ),
+        ],
+        parentConversationId: null,
+        wait: false,
+      );
+      await pumpEventQueue();
+
+      const details = [
+        {'type': 'reasoning.text', 'text': 'signed'},
+      ];
+      final controller = controllerFor(placeholder.id);
+      controller.add(
+        ChatStreamChunk(
+          content: '',
+          isDone: false,
+          totalTokens: 0,
+          reasoning: 'think',
+          reasoningDetails: details,
+        ),
+      );
+      await pumpEventQueue();
+
+      expect(uiStates, isNotEmpty);
+      expect(uiStates.last.reasoningDetails, details);
+
+      await controller.close();
+      await pumpEventQueue();
+    });
+  });
 }

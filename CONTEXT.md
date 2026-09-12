@@ -1028,6 +1028,13 @@
   - **strip**: never echo — everyone else (Claude additionally requires signed reasoning details; its unsigned echo is dropped).
 - **Coupling**: the message builder always attaches reasoning content to assistant history; the provider layer then applies the replay policy (builder supplies the data, provider strips it). Rationale: providers reject or waste tokens on reasoning echoed outside tool turns. Synced from upstream Kelivo v1.2.1 (issue #343).
 
+## Thinking Step Expansion (思考步骤展开状态) — ADR-0064
+
+- **展开状态 (expansion state)**: each reasoning segment carries an `expanded` bool inside its serialized `reasoningSegmentsJson` payload; it drives the thinking-step card's collapsed/expanded/preview state.
+- **Persisted, not ephemeral**: a manual expand/collapse of a settled assistant message is written straight back into that message's `reasoningSegmentsJson` (segments + whatever `contentSplits`/`reasoningDetails` it already carried — v2 stays v2, a legacy segments-only payload stays legacy), so it survives restart, conversation/assistant switch, and a full backup/sync. Incremental backup and LAN sync filter by `message.timestamp`/version, which a toggle does not bump, so an incremental exchange does not carry a version-0 toggle. Restore trusts the persisted flag. While a message is streaming the toggle is NOT persisted: the engine owns live segment state and its periodic flush would overwrite it.
+- **One helper, both surfaces**: `StreamController.buildReasoningSegmentsJson` + `persistReasoningSegments`; `HomePageController.setReasoningSegmentExpanded` (mobile/desktop/Multi-AI/web viewport) and the group-chat inline toggles route through it. The in-memory `ChatController` message copy is updated in lockstep so an in-place re-restore reads the same payload as the database.
+- **Not covered (unchanged)**: the legacy plain `reasoningText` fallback still resets `expanded=false` on restore, as does the legacy inline-`<think>` widget-local map.
+
 ## Reasoning Effort Vocabulary (推理等级词表) — ADR-0063
 
 - **推理预算 (Reasoning Budget)**: the slider's integer value (token-ish heuristic: 关闭 0 / 自动 -1 / 低 1024 / 中 16000 / 高 32000 / 极限 64000 / 全力 128000 / 自定义). NOT the wire value.

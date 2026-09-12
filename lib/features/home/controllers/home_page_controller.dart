@@ -2914,6 +2914,10 @@ class HomePageController extends ChangeNotifier {
     final segment = segments[segmentIndex];
     if (segment.expanded == expanded) return true;
     segment.expanded = expanded;
+    _streamController.persistReasoningExpansionIfSettled(
+      messageId,
+      chatController: _chatController,
+    );
     _notifyReasoningExpansionChanged(
       messageId,
       isStillStreaming: segment.finishedAt == null && segment.text.isNotEmpty,

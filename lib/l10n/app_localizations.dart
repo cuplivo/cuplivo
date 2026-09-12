@@ -1635,7 +1635,6 @@ abstract class AppLocalizations {
   /// **'No options'**
   String get statsPageFilterNoOptions;
 
-
   /// No description provided for @sponsorPageMethodsSectionTitle.
   ///
   /// In en, this message translates to:

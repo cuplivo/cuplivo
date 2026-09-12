@@ -1168,6 +1168,7 @@ class _FilterBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final modelCount = filter.modelIds.length;
+    final clearAll = onClearAll;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.only(right: 16),
@@ -1193,14 +1194,14 @@ class _FilterBar extends StatelessWidget {
             selected: filter.topicIds.isNotEmpty,
             onTap: onTopicTap,
           ),
-          if (onClearAll != null) ...[
+          if (clearAll != null) ...[
             const SizedBox(width: 8),
             _FilterChipButton(
               label: l10n.statsPageFilterClearAll,
               count: null,
               selected: false,
               accent: true,
-              onTap: onClearAll,
+              onTap: clearAll,
             ),
           ],
         ],
@@ -1279,14 +1280,12 @@ class _CheckRow extends StatelessWidget {
     required this.label,
     required this.checked,
     required this.onTap,
-    this.subtitle,
     this.indent = false,
   });
 
   final String label;
   final bool checked;
   final VoidCallback onTap;
-  final String? subtitle;
   final bool indent;
 
   @override
@@ -1300,12 +1299,7 @@ class _CheckRow extends StatelessWidget {
       haptics: false,
       onTap: onTap,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          indent ? 28 : 12,
-          9,
-          12,
-          9,
-        ),
+        padding: EdgeInsets.fromLTRB(indent ? 28 : 12, 9, 12, 9),
         child: Row(
           children: [
             Expanded(
@@ -1317,31 +1311,15 @@ class _CheckRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: subtitle == null ? 14.5 : 14,
+                      fontSize: 14.5,
                       fontWeight: AppFontWeights.medium,
                       color: cs.onSurface.withValues(alpha: 0.88),
                     ),
                   ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: cs.onSurface.withValues(alpha: 0.5),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
-            IosCheckbox(
-              value: checked,
-              onChanged: (_) => onTap(),
-              size: 20,
-            ),
+            IosCheckbox(value: checked, onChanged: (_) => onTap(), size: 20),
           ],
         ),
       ),
@@ -1454,12 +1432,14 @@ class _ModelProviderFilterSheetState extends State<_ModelProviderFilterSheet> {
                       label: provider.isEmpty
                           ? widget.unknownProviderLabel
                           : (widget.providerNames[provider] ?? provider),
-                      checked: groups[provider]!
-                          .every((m) => _modelIds.contains(m)),
+                      checked: groups[provider]!.every(
+                        (m) => _modelIds.contains(m),
+                      ),
                       onTap: () {
                         setState(() {
-                          final allSelected = groups[provider]!
-                              .every((m) => _modelIds.contains(m));
+                          final allSelected = groups[provider]!.every(
+                            (m) => _modelIds.contains(m),
+                          );
                           if (allSelected) {
                             _modelIds.removeAll(groups[provider]!);
                           } else {
@@ -1516,8 +1496,7 @@ class _ModelProviderFilterSheetState extends State<_ModelProviderFilterSheet> {
               const SizedBox(width: 10),
               Expanded(
                 child: IosCardPress(
-                  onTap: () =>
-                      Navigator.of(context).pop(Set.of(_modelIds)),
+                  onTap: () => Navigator.of(context).pop(Set.of(_modelIds)),
                   borderRadius: BorderRadius.circular(13),
                   baseColor: isDark
                       ? Colors.white.withValues(alpha: 0.16)
@@ -1666,8 +1645,7 @@ class _SimpleFilterSheetState extends State<_SimpleFilterSheet> {
               const SizedBox(width: 10),
               Expanded(
                 child: IosCardPress(
-                  onTap: () =>
-                      Navigator.of(context).pop(Set.of(_selected)),
+                  onTap: () => Navigator.of(context).pop(Set.of(_selected)),
                   borderRadius: BorderRadius.circular(13),
                   baseColor: isDark
                       ? Colors.white.withValues(alpha: 0.16)

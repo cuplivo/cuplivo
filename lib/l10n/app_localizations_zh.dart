@@ -874,7 +874,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get statsPageFilterNoOptions => '没有可选项目';
 
-
   @override
   String get sponsorPageMethodsSectionTitle => '赞助方式';
 
@@ -10883,7 +10882,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get statsPageFilterNoOptions => '没有可选项目';
-
 
   @override
   String get sponsorPageMethodsSectionTitle => '赞助方式';
@@ -20894,7 +20892,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get statsPageFilterNoOptions => '沒有可選項目';
-
 
   @override
   String get sponsorPageMethodsSectionTitle => '贊助方式';

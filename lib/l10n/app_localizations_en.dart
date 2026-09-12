@@ -901,7 +901,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get statsPageFilterNoOptions => 'No options';
 
-
   @override
   String get sponsorPageMethodsSectionTitle => 'Sponsorship Methods';
 

@@ -369,20 +369,47 @@ void main() {
           title: 'Active topic',
           assistantId: 'a1',
           createdAt: now.subtract(const Duration(days: 1)),
+          messageIds: ['m-active'],
         ),
         conversation(
           'deleted',
           title: 'Deleted topic',
           assistantId: '2d111bb3-de7b-4ad6-903d-e09cefd7c933',
           createdAt: now.subtract(const Duration(days: 1)),
+          messageIds: ['m-deleted'],
         ),
       ];
+
+      // Both conversations hold in-range activity, so both count towards
+      // totalConversations; only the surviving assistant is ranked.
+      final messagesByConversation = {
+        'active': [
+          message(
+            'm-active',
+            conversationId: 'active',
+            timestamp: now.subtract(const Duration(hours: 2)),
+            modelId: 'gpt-4o',
+            providerId: 'openai',
+            promptTokens: 10,
+          ),
+        ],
+        'deleted': [
+          message(
+            'm-deleted',
+            conversationId: 'deleted',
+            timestamp: now.subtract(const Duration(hours: 2)),
+            modelId: 'gpt-4o',
+            providerId: 'openai',
+            promptTokens: 10,
+          ),
+        ],
+      };
 
       final snapshot = StatsAggregationService.buildSnapshot(
         now: now,
         range: StatsDateRange.allTime(now),
         conversations: conversations,
-        messagesByConversation: const {},
+        messagesByConversation: messagesByConversation,
         launchCount: 1,
         unknownProviderLabel: 'Unknown provider',
         unknownTopicLabel: 'Untitled topic',
@@ -670,10 +697,7 @@ void main() {
 
       test('combines dimensions with AND semantics', () {
         final snapshot = build(
-          const StatsFilter(
-            modelIds: {'gpt-4o'},
-            assistantIds: {'a2'},
-          ),
+          const StatsFilter(modelIds: {'gpt-4o'}, assistantIds: {'a2'}),
         );
 
         expect(snapshot.summary.totalMessages, 1);
@@ -692,21 +716,23 @@ void main() {
         expect(snapshot.topicRank, isEmpty);
       });
 
-      test('trend honors the filter and buckets by resolved provider label',
-          () {
-        final snapshot = build(
-          const StatsFilter(modelIds: {'claude-3'}),
-          providerNames: const {'anthropic': 'Anthropic', 'openai': 'OpenAI'},
-        );
+      test(
+        'trend honors the filter and buckets by resolved provider label',
+        () {
+          final snapshot = build(
+            const StatsFilter(modelIds: {'claude-3'}),
+            providerNames: const {'anthropic': 'Anthropic', 'openai': 'OpenAI'},
+          );
 
-        final matchingDay = snapshot.trend.firstWhere(
-          (day) => day.date == DateTime(2026, 5, 3),
-        );
-        // Trend buckets by display label; the filter must exclude OpenAI.
-        expect(matchingDay.providerTokens.keys, contains('Anthropic'));
-        expect(matchingDay.providerTokens.keys, isNot(contains('OpenAI')));
-        expect(matchingDay.providerTokens['Anthropic']!.inputTokens, 200);
-      });
+          final matchingDay = snapshot.trend.firstWhere(
+            (day) => day.date == DateTime(2026, 5, 3),
+          );
+          // Trend buckets by display label; the filter must exclude OpenAI.
+          expect(matchingDay.providerTokens.keys, contains('Anthropic'));
+          expect(matchingDay.providerTokens.keys, isNot(contains('OpenAI')));
+          expect(matchingDay.providerTokens['Anthropic']!.inputTokens, 200);
+        },
+      );
 
       test('inactive filter matches everything', () {
         final snapshot = build(const StatsFilter());
@@ -735,9 +761,7 @@ void main() {
         expect(a.copyWith(modelIds: const {}).modelIds, isEmpty);
         expect(a.copyWith(modelIds: const {}).isActive, isTrue);
         expect(
-          a
-              .copyWith(modelIds: const {}, topicIds: const {})
-              .isActive,
+          a.copyWith(modelIds: const {}, topicIds: const {}).isActive,
           isFalse,
         );
       });
@@ -756,10 +780,7 @@ void main() {
           now: now,
           range: StatsDateRange.allTime(now),
           conversations: conversations,
-          messagesByConversation: {
-            'c1': withBlank,
-            'c2': const [],
-          },
+          messagesByConversation: {'c1': withBlank, 'c2': const []},
           launchCount: 0,
           unknownProviderLabel: 'Unknown provider',
           unknownTopicLabel: 'Untitled topic',

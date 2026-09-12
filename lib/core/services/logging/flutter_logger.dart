@@ -5,12 +5,18 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 
 import '../../../utils/app_directories.dart';
+import 'daily_log_sink.dart';
 
 class FlutterLogger {
   FlutterLogger._();
 
-  static const String _activeFileName = 'flutter_logs.txt';
-  static const String _rotatedFilePrefix = 'flutter_logs_';
+  /// Append target of the current day. Consumers match app logs by
+  /// [activeFileName] or [rotatedFilePrefix]; the log viewer also uses it to
+  /// badge the current file.
+  static const String activeFileName = 'flutter_logs.txt';
+
+  /// Prefix shared by rotated app logs (`flutter_logs_yyyy-MM-dd.txt`).
+  static const String rotatedFilePrefix = 'flutter_logs_';
 
   static bool _enabled = false;
   static bool get enabled => _enabled;
@@ -101,37 +107,13 @@ class FlutterLogger {
     _sink = null;
     _sinkDate = today;
 
-    final dir = await AppDirectories.getAppDataDirectory();
-    final logsDir = Directory('${dir.path}/logs');
-    if (!await logsDir.exists()) {
-      await logsDir.create(recursive: true);
-    }
-
-    final active = File('${logsDir.path}/$_activeFileName');
-    if (await active.exists()) {
-      try {
-        final stat = await active.stat();
-        final fileDay = _dayOf(stat.modified.toLocal());
-        if (fileDay != today) {
-          final suffix = _formatDate(fileDay);
-          var rotated = File('${logsDir.path}/$_rotatedFilePrefix$suffix.txt');
-          if (await rotated.exists()) {
-            int i = 1;
-            while (await File(
-              '${logsDir.path}/$_rotatedFilePrefix${suffix}_$i.txt',
-            ).exists()) {
-              i++;
-            }
-            rotated = File(
-              '${logsDir.path}/$_rotatedFilePrefix${suffix}_$i.txt',
-            );
-          }
-          await active.rename(rotated.path);
-        }
-      } catch (_) {}
-    }
-
-    _sink = active.openWrite(mode: FileMode.append);
+    final logsDir = await AppDirectories.getLogsDirectory();
+    _sink = await openDailyRotatingLogSink(
+      logsDir: logsDir,
+      activeFileName: activeFileName,
+      rotatedFilePrefix: rotatedFilePrefix,
+      now: now,
+    );
     return _sink!;
   }
 

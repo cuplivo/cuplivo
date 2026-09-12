@@ -1,10 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 
 import '../../icons/lucide_adapter.dart' as lucide;
 import '../../l10n/app_localizations.dart';
+import '../../shared/widgets/ios_tactile.dart';
 import '../../shared/widgets/snackbar.dart';
 import '../../shared/widgets/windows_ax_tree_safe_tooltip.dart';
 import '../../utils/app_directories.dart';
@@ -13,8 +11,7 @@ import '../../utils/open_directory.dart';
 /// Resolves the application `logs` directory, creating it when missing, then
 /// opens it in the system file manager.
 Future<void> _openLogsDirectory() async {
-  final base = await AppDirectories.getAppDataDirectory();
-  final logsDir = Directory(p.join(base.path, 'logs'));
+  final logsDir = await AppDirectories.getLogsDirectory();
   if (!await logsDir.exists()) {
     await logsDir.create(recursive: true);
   }
@@ -53,13 +50,12 @@ class LogsFolderButton extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return WindowsAxTreeSafeTooltip(
       message: l10n.logViewerOpenFolder,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(6),
+      child: IosIconButton(
+        icon: lucide.Lucide.FolderOpen,
+        size: 18,
+        color: cs.primary,
+        semanticLabel: l10n.logViewerOpenFolder,
         onTap: () => _handleTap(context),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(lucide.Lucide.FolderOpen, size: 18, color: cs.primary),
-        ),
       ),
     );
   }

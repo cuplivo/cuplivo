@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:Cuplivo/utils/open_directory.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   group('directoryOpenCommandFor', () {
@@ -52,6 +55,34 @@ void main() {
       expect(
         directoryOpenCommandFor(TargetPlatform.fuchsia, '/data/logs'),
         isNull,
+      );
+    });
+  });
+
+  group('openDirectoryInFileManager', () {
+    tearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    test('throws FileSystemException when the directory is missing', () async {
+      // Desktop platform override so command resolution succeeds; the missing
+      // path must fail before any process is spawned (Windows detached
+      // launches give no failure feedback otherwise).
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      final missing = p.join(
+        Directory.systemTemp.path,
+        'cuplivo-missing-${DateTime.now().microsecondsSinceEpoch}',
+      );
+      expect(Directory(missing).existsSync(), isFalse);
+      await expectLater(
+        openDirectoryInFileManager(missing),
+        throwsA(isA<FileSystemException>()),
+      );
+    });
+
+    test('throws UnsupportedError on mobile platforms', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      await expectLater(
+        openDirectoryInFileManager(Directory.systemTemp.path),
+        throwsA(isA<UnsupportedError>()),
       );
     });
   });

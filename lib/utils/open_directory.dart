@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform, visibleForTesting;
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 
 /// Opens [directoryPath] in the system file manager.
 ///
@@ -14,15 +14,26 @@ import 'package:flutter/foundation.dart'
 /// does not resolve forward-slash paths and opens the wrong folder (its
 /// command line treats `/`-prefixed tokens as switches, e.g. `/select,`).
 ///
-/// Throws [UnsupportedError] on non-desktop platforms and [ProcessException]
-/// when the platform command exits with a non-zero status.
+/// Throws [UnsupportedError] on web (where `defaultTargetPlatform` still
+/// reports the browser's host OS) and on non-desktop platforms,
+/// [FileSystemException] when the directory does not exist (a detached
+/// Windows launch would otherwise fail with no signal), and
+/// [ProcessException] when the platform command exits with a non-zero status.
 Future<void> openDirectoryInFileManager(String directoryPath) async {
+  if (kIsWeb) {
+    throw UnsupportedError(
+      'Opening a directory is only supported on desktop platforms',
+    );
+  }
   final platform = defaultTargetPlatform;
   final command = directoryOpenCommandFor(platform, directoryPath);
   if (command == null) {
     throw UnsupportedError(
       'Opening a directory is only supported on desktop platforms',
     );
+  }
+  if (!await Directory(directoryPath).exists()) {
+    throw FileSystemException('Directory does not exist', directoryPath);
   }
   final (executable, arguments) = command;
   if (platform == TargetPlatform.windows) {
@@ -44,7 +55,10 @@ Future<void> openDirectoryInFileManager(String directoryPath) async {
 
 /// Executable and arguments that open [path] in the system file manager for
 /// [platform], or null when [platform] has no known implementation.
-@visibleForTesting
+///
+/// Deliberately not `@visibleForTesting`: [openDirectoryInFileManager] calls
+/// it in production. It is public so tests can assert the mapping without
+/// spawning a process.
 (String, List<String>)? directoryOpenCommandFor(
   TargetPlatform platform,
   String path,

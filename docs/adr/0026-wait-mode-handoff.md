@@ -1,5 +1,7 @@
 # ADR-0026: Wait-Mode Handoff: Live Panel + Result Return via Handler-Layer Await
 
+Status: partially superseded by [ADR-0056](0056-subagent-wait-only-unification.md)
+
 Wait-mode handoff (`kelivo_handoff_sync`) lets an orchestrator delegate a task to a
 sub-agent and BLOCK until the sub-agent finishes, returning the child's full output
 as the tool result so the orchestrator can synthesize. The user watches progress in

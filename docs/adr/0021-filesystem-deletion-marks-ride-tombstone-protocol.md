@@ -1,5 +1,7 @@
 # ADR-0021: Filesystem deletions ride the DB tombstone protocol (DeletionMarkerRows + deleted.json)
 
+Status: active (the `@kelivo/filesystem` in-memory server named below was later retired; the workspaceFile tombstone decision stands).
+
 The `@kelivo/filesystem` MCP server introduces a new deletable entity class — workspace files under `@workspaces`, which participate in backup and LAN sync (mtime-filtered, `includeFiles`-gated). A filesystem deletion therefore must be declarable to sync peers, and the natural channel is the existing tombstone protocol: `deletion_markers` (`DeletionMarkerRows`, `type='workspaceFile'`, `id` = mount-relative wire path) exported as a `workspaceFile` group in `deleted.json`. The marker is written WITHOUT a `deleted_records` payload — files are physically gone and not recoverable (Skill precedent), so the marks are advisory records, not trash.
 
 Remote declarations stay advisory and mirror the entity flow: if the file still exists locally, the UI shows 远端已删除 with an optional one-click local delete, which runs the normal delete path (physical delete + writes an `origin='local'` marker + removes the remote row). Local marks are dismissible (acknowledge). Echo avoidance, the unified 5000-row FIFO cap, per-type `deleted.json` caps, and merge-only import apply unchanged; `clearAllData` remains peer-blind (no markers). No schema change — `type` is a free string.

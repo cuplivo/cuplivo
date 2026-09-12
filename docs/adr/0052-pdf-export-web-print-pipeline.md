@@ -1,6 +1,6 @@
 # ADR-0052: Conversation PDF Export via Web Print Pipeline
 
-Status: accepted
+Status: accepted; partially superseded by [ADR-0057](0057-darwin-shell-origin-loopback-server.md)
 
 Issue #293 asks for conversation PDF export. We decided to build it as a
 **static branch of the existing Web conversation shell** (ADR-0043): the same

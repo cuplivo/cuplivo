@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
+import '../core/utils/multimodal_input_utils.dart';
 import './app_directories.dart';
 
 class MarkdownMediaSanitizer {
@@ -150,25 +151,14 @@ class MarkdownMediaSanitizer {
   }
 
   static String _guessMimeFromPath(String path) {
-    final lower = path.toLowerCase();
-    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
-    if (lower.endsWith('.png')) return 'image/png';
-    if (lower.endsWith('.webp')) return 'image/webp';
-    if (lower.endsWith('.gif')) return 'image/gif';
-    return 'image/png';
+    return inferMediaMimeFromSource(path, fallbackMime: 'image/png');
   }
 
   static List<int> _decodeBase64(String b64) =>
       base64Decode(b64.replaceAll('\n', ''));
 
   static String _mimeOf(String dataUrl) {
-    try {
-      final start = dataUrl.indexOf(':');
-      final semi = dataUrl.indexOf(';');
-      if (start >= 0 && semi > start) {
-        return dataUrl.substring(start + 1, semi);
-      }
-    } catch (_) {}
-    return 'image/png';
+    final inferred = inferMediaMimeFromSource(dataUrl);
+    return inferred.isEmpty ? 'image/png' : inferred;
   }
 }

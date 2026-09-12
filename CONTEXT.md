@@ -1187,3 +1187,22 @@
 - **跟随助手 (follow assistant / clear)**: when the conversation stores a binding, the model selector shows a "跟随助手模型" row (mobile bottom sheet + desktop dialog) that clears the binding via `ChatService.clearConversationModelBinding`; the conversation then **dynamically follows** the assistant model (it never copies the current effective value). `Conversation.copyWith` uses the `??` pattern, so clearing rides a `clearChatModel` flag (mirroring `Assistant.copyWith(clearChatModel:)` — mixing a sentinel pattern into the same model is forbidden; the flag is the documented stopgap).
 - **覆盖面**: send, regenerate, and continue-after-tool all resolve through the chain (`getModelConfig` becomes conversation-aware). **能力门 vs 助手配置**: model-identity capability UI (model icon, reasoning entry, X-high/max availability, Tools Hub / built-in-search gates, image routing/warning) follows the effective model; assistant-owned values (thinking budget value, MCP/local tools/workspace/skills, prompts, request params) stay assistant-level. Out of scope (unchanged): group chat per-speaker models, Multi-AI engine threads, translation/search/global-default model selections, assistant settings-page model selector, per-message request metadata replay.
 - **草稿不落库**: switching a model on a draft/temporary conversation updates the in-memory draft only — an empty draft must never be persisted (it would materialize a bogus sidebar conversation). The binding rides the first-message promotion into SQLite.
+
+## Provider Image Payload (供应商图片载荷) — ADR-0064
+
+- **内容图片标记 (content image marker)**: The `[image:<source>]` marker or Markdown `![alt](source)` embedded in every persisted user-message `content`. It is the **single source of image refs** at the provider layer — every provider parses it. PR1 keeps the last-message `userMediaPaths` / `internalMediaPathsKey` supplemental handling byte-identical; once Claude/Vertex join (PR2), those carriers hold only non-image media and their image-MIME entries are ignored.
+- **图片载荷风格 (image payload style)**: The per-provider descriptor that encodes one image ref into a wire part: part shape (Gemini `inline_data`; Claude `image` block and Vertex `base64-download` land in PR2), local encoding (raw base64 vs `data:` URL), and **远端策略**. One converter, parameterized by style — not one wire shape. OpenAI-family providers use `_imageRefSourceUrl` directly (bound to their own per-URL de-dup and Responses' assistant-image carry); LongCat keeps its own attachment builder.
+- **远端策略 (remote mode)**: How a remote `http(s)` image ref is sent. Per style, never forced: `url` (Claude official, OpenAI), `base64-download` (Vertex-Claude), `text-degrade` (Gemini official, which cannot fetch remote images). "统一" here means one code path, not one behavior.
+- **补充媒体 (supplemental media)**: Per-message non-image media (video/audio/direct-mode docs) carried under `multimodalInternalMediaPathsKey`. Out of scope for image unification: it stays provider-specific (OpenAI/LongCat-only).
+- **对齐向上 (align up)**: Claude/Vertex-Claude join the other providers in parsing every history user message. Unconditional — the resulting token-cost increase is accepted and documented (ADR-0064). Non-image `userMediaPaths` entries are skipped, removing a latent invalid `image` block.
+
+### Relationships
+
+- A **content image marker** yields zero or more image refs; an **image payload style** encodes each ref.
+- **Supplemental media** is never an image ref and never flows through the image builder.
+- ADR-0064 delivery is split: PR1 is the byte-identical refactor (OpenAI / LongCat / Gemini + **远端策略** + MIME convergence); PR2 is the **对齐向上** behavior change for Claude/Vertex.
+
+### Flagged Ambiguities
+
+- "统一" in this area was read as "one wire shape" — resolved: it means **one parser + one builder + per-style encoding**. Forcing a single remote mode is explicitly rejected (ADR-0064), because Gemini cannot fetch remote images while Claude/OpenAI can.
+

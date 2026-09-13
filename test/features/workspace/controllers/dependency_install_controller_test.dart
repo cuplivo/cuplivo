@@ -676,4 +676,194 @@ void main() {
     // A notice is not a failure: the dependency still completes.
     expect(controller.takeCompleted(wsId)[WorkspaceDependencyIds.git], isNull);
   });
+
+  group('snapshot cache survives controller reuse (page rebuild)', () {
+    SandboxDependencyStatusSnapshot snapshot({
+      required bool base,
+      bool hasRuntime = true,
+      Map<String, bool> extra = const <String, bool>{},
+    }) {
+      return SandboxDependencyStatusSnapshot(
+        hasRuntime: hasRuntime,
+        installed: <String, bool>{
+          for (final id in WorkspaceDependencyIds.ordered)
+            id:
+                id == WorkspaceDependencyIds.base
+                    ? base
+                    : extra[id] ?? false,
+        },
+      );
+    }
+
+    test(
+      'refreshSnapshot stores the result so a later snapshotFor reads it '
+      'back without re-probing (regression: detail page rebuild during an '
+      'install briefly showed `未安装` for already-installed deps because '
+      'the page-local `_depInstalled` map was reset on rebuild).',
+      () async {
+        var probeCount = 0;
+        final controller = DependencyInstallController(
+          installer: _FakeInstaller().call,
+          keepScreenOn: (_) async {},
+          prober: (hostPath) async {
+            probeCount++;
+            return snapshot(base: true);
+          },
+        );
+
+        expect(controller.snapshotFor(wsId), isNull);
+        await controller.refreshSnapshot(
+          workspaceId: wsId,
+          hostPath: '/ws',
+        );
+        expect(probeCount, 1);
+        final cached = controller.snapshotFor(wsId);
+        expect(cached, isNotNull);
+        expect(cached!.installed[WorkspaceDependencyIds.base], isTrue);
+
+        // A second refresh overwrites the cache (regression guard for the
+        // generation-counter discard path).
+        await controller.refreshSnapshot(
+          workspaceId: wsId,
+          hostPath: '/ws',
+        );
+        expect(probeCount, 2);
+        expect(
+          controller.snapshotFor(wsId)!.installed[WorkspaceDependencyIds.base],
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'an install completion triggers a snapshot refresh without the '
+      'page having to call refreshSnapshot itself',
+      () async {
+        final gate = Completer<void>();
+        final proberCalls = <String>[];
+        final fake = _FakeInstaller()
+          ..gate[WorkspaceDependencyIds.python] = gate;
+        final controller = DependencyInstallController(
+          installer: fake.call,
+          keepScreenOn: (_) async {},
+          prober: (hostPath) async {
+            proberCalls.add(hostPath);
+            return snapshot(base: true, extra: const <String, bool>{});
+          },
+        );
+
+        controller.enqueue(
+          workspaceId: wsId,
+          depId: WorkspaceDependencyIds.python,
+          hostPath: '/ws',
+          pref: pref,
+        );
+        await _pumpUntil(
+          () =>
+              controller.statusFor(wsId, WorkspaceDependencyIds.python) ==
+              DepInstallStatus.installing,
+        );
+        expect(proberCalls, isEmpty);
+
+        gate.complete();
+        await _pumpUntil(
+          () =>
+              controller.statusFor(wsId, WorkspaceDependencyIds.python) ==
+              DepInstallStatus.idle,
+        );
+        // Auto-refresh fires after the install settles; the cached snapshot
+        // is what a freshly-rebuilt detail page reads.
+        await _pumpUntil(() => controller.snapshotFor(wsId) != null);
+        expect(proberCalls, ['/ws']);
+        expect(
+          controller.snapshotFor(wsId)!.installed[WorkspaceDependencyIds.base],
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'a stale refreshSnapshot result is discarded by the per-workspace '
+      'generation counter',
+      () async {
+        final lateCompleter = Completer<SandboxDependencyStatusSnapshot>();
+        var proberCalls = 0;
+        final controller = DependencyInstallController(
+          installer: _FakeInstaller().call,
+          keepScreenOn: (_) async {},
+          prober: (hostPath) async {
+            proberCalls++;
+            if (proberCalls == 1) return lateCompleter.future;
+            return snapshot(base: false);
+          },
+        );
+
+        // Kick off a probe that will be held open.
+        final first = controller.refreshSnapshot(
+          workspaceId: wsId,
+          hostPath: '/ws',
+        );
+        // A second probe starts while the first is still pending: it must
+        // observe the cached value from the second probe and ignore the
+        // first result when it eventually completes.
+        final second = controller.refreshSnapshot(
+          workspaceId: wsId,
+          hostPath: '/ws',
+        );
+        lateCompleter.complete(snapshot(base: true));
+        await first;
+        await second;
+
+        expect(proberCalls, 2);
+        // The stale "base installed" snapshot from the first probe must
+        // NOT be the cached value — the second (newer) probe said base is
+        // missing.
+        expect(
+          controller.snapshotFor(wsId)!.installed[WorkspaceDependencyIds.base],
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'refreshSnapshot records failure and exposes it via '
+      'didLastSnapshotProbeFailFor',
+      () async {
+        final controller = DependencyInstallController(
+          installer: _FakeInstaller().call,
+          keepScreenOn: (_) async {},
+          prober: (hostPath) async {
+            throw StateError('probe blew up');
+          },
+        );
+
+        await controller.refreshSnapshot(
+          workspaceId: wsId,
+          hostPath: '/ws',
+        );
+        expect(controller.snapshotFor(wsId), isNull);
+        expect(controller.didLastSnapshotProbeFailFor(wsId), isTrue);
+        expect(controller.isLoadingSnapshotFor(wsId), isFalse);
+      },
+    );
+
+    test(
+      'refreshSnapshot is a no-op when no host path is known (the page '
+      'probing before the user ever tapped install)',
+      () async {
+        var proberCalls = 0;
+        final controller = DependencyInstallController(
+          installer: _FakeInstaller().call,
+          keepScreenOn: (_) async {},
+          prober: (hostPath) async {
+            proberCalls++;
+            return snapshot(base: false);
+          },
+        );
+        await controller.refreshSnapshot(workspaceId: wsId);
+        expect(proberCalls, 0);
+        expect(controller.snapshotFor(wsId), isNull);
+      },
+    );
+  });
 }

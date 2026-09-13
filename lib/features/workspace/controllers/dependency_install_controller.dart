@@ -34,6 +34,13 @@ typedef DependencyInstallRunner =
 /// other workspace queues and the terminal session — compose).
 typedef KeepScreenOnSwitch = Future<void> Function(bool hold);
 
+/// Signature matching `LinuxSandboxService.dependencyStatus`, injectable so
+/// `refreshSnapshot` can be exercised in tests without platform channels.
+typedef DependencyStatusProber =
+    Future<SandboxDependencyStatusSnapshot> Function(
+      String workspaceHostPath,
+    );
+
 /// Serialized per-workspace dependency install queue.
 ///
 /// Users may tap "Install" on several dependencies in a row; each workspace
@@ -46,13 +53,23 @@ typedef KeepScreenOnSwitch = Future<void> Function(bool hold);
 /// a long install keeps the screen on even after the observing detail page
 /// is gone, which aggressive One UI app freezing would otherwise stall
 /// mid-transaction.
+///
+/// The controller also caches the last successful dependency snapshot per
+/// workspace so the UI's "what's installed" view survives a page rebuild —
+/// see [snapshotFor]. Without this, popping back to the workspace list and
+/// re-entering the detail page during an in-flight install would briefly
+/// blank every dep row back to `未安装` because the probe that populates
+/// the page's local state is queued behind the running install in the
+/// shared workspace execution FIFO.
 class DependencyInstallController extends ChangeNotifier {
   DependencyInstallController({
     DependencyInstallRunner? installer,
     KeepScreenOnSwitch? keepScreenOn,
+    DependencyStatusProber? prober,
     Future<void> Function(String workspaceHostPath)? beforeBaseMutation,
   }) : _runner = installer ?? LinuxSandboxService.instance.installPackage,
        _keepScreenOn = keepScreenOn ?? _serviceKeepScreenOn,
+       _prober = prober ?? LinuxSandboxService.instance.dependencyStatus,
        _beforeBaseMutation =
            beforeBaseMutation ??
            WorkspaceTerminalNativeBridge.instance.stopSessionForWorkspacePath;
@@ -63,6 +80,7 @@ class DependencyInstallController extends ChangeNotifier {
 
   final DependencyInstallRunner _runner;
   final KeepScreenOnSwitch _keepScreenOn;
+  final DependencyStatusProber _prober;
   final Future<void> Function(String workspaceHostPath) _beforeBaseMutation;
 
   final Map<String, List<_DepEntry>> _queues = <String, List<_DepEntry>>{};
@@ -72,6 +90,91 @@ class DependencyInstallController extends ChangeNotifier {
       <String, Map<String, Object?>>{};
   final Map<String, Set<String>> _notices = <String, Set<String>>{};
 
+  /// Last successful dependency probe snapshot per workspace, or null until
+  /// the first probe lands. Owning the snapshot here (not on the detail
+  /// page) is what stops the dep list from briefly flipping back to
+  /// "未安装" while an install is still in progress: when the detail page
+  /// is rebuilt (e.g. user pops back to the workspace list and re-enters)
+  /// the new page instance reads the cached snapshot synchronously, so
+  /// base shows `已安装 ✓` instead of the stale empty map that triggered
+  /// the red `请先安装基础依赖` hint.
+  final Map<String, SandboxDependencyStatusSnapshot> _snapshotsByWorkspace =
+      <String, SandboxDependencyStatusSnapshot>{};
+
+  /// Per-workspace generation counter for in-flight `refreshSnapshot`
+  /// calls. Bumped on entry; if the in-flight probe completes after a
+  /// newer generation was started, the older result is discarded so the
+  /// UI never applies a stale snapshot.
+  final Map<String, int> _snapshotGenerationByWorkspace =
+      <String, int>{};
+
+  /// True while a `refreshSnapshot` probe is queued or running for the
+  /// workspace. Drives the disabled state of the retry button in the
+  /// detail page's probe-error banner.
+  final Map<String, bool> _snapshotLoadingByWorkspace = <String, bool>{};
+
+  /// True if the most recent probe attempt for the workspace threw.
+  /// Distinct from "no snapshot yet" — null here means we have never
+  /// tried to probe this workspace, true means the last attempt failed.
+  final Map<String, bool> _snapshotProbeFailedByWorkspace =
+      <String, bool>{};
+
+  /// Last host path observed for a workspace (via [enqueue] or an
+  /// explicit `refreshSnapshot(hostPath: ...)`). Used by the post-install
+  /// auto-refresh so callers don't have to thread the path through every
+  /// `enqueue` consumer.
+  final Map<String, String> _lastHostPathByWorkspace = <String, String>{};
+
+  /// Snapshot of which deps are installed for [workspaceId], or null if no
+  /// probe has ever succeeded for that workspace. Survives page rebuilds
+  /// — see [_snapshotsByWorkspace].
+  SandboxDependencyStatusSnapshot? snapshotFor(String workspaceId) =>
+      _snapshotsByWorkspace[workspaceId];
+
+  /// True while a refresh probe for [workspaceId] is queued or running.
+  bool isLoadingSnapshotFor(String workspaceId) =>
+      _snapshotLoadingByWorkspace[workspaceId] ?? false;
+
+  /// True if the last probe attempt for [workspaceId] threw and we still
+  /// have no fresh snapshot. False on success or when no probe has been
+  /// attempted yet.
+  bool didLastSnapshotProbeFailFor(String workspaceId) =>
+      _snapshotProbeFailedByWorkspace[workspaceId] ?? false;
+
+  /// Refresh the cached snapshot for [workspaceId] by running the
+  /// dependency probe in the sandbox. No-op if neither [hostPath] nor a
+  /// previously seen host path is available (i.e. the workspace has never
+  /// been enqueued and the caller didn't supply a path). Bumps the
+  /// per-workspace generation so any older in-flight probe is ignored.
+  Future<void> refreshSnapshot({
+    required String workspaceId,
+    String? hostPath,
+  }) async {
+    final path = hostPath ?? _lastHostPathByWorkspace[workspaceId];
+    if (path == null) return;
+    if (hostPath != null) _lastHostPathByWorkspace[workspaceId] = hostPath;
+    final generation = (_snapshotGenerationByWorkspace[workspaceId] ?? 0) + 1;
+    _snapshotGenerationByWorkspace[workspaceId] = generation;
+    _snapshotLoadingByWorkspace[workspaceId] = true;
+    notifyListeners();
+    try {
+      final snapshot = await _prober(path);
+      if (generation != _snapshotGenerationByWorkspace[workspaceId]) return;
+      _snapshotsByWorkspace[workspaceId] = snapshot;
+      _snapshotLoadingByWorkspace[workspaceId] = false;
+      _snapshotProbeFailedByWorkspace[workspaceId] = false;
+      notifyListeners();
+    } catch (e, stackTrace) {
+      debugPrint(
+        'DependencyInstallController.refreshSnapshot: $e\n$stackTrace',
+      );
+      if (generation != _snapshotGenerationByWorkspace[workspaceId]) return;
+      _snapshotLoadingByWorkspace[workspaceId] = false;
+      _snapshotProbeFailedByWorkspace[workspaceId] = true;
+      notifyListeners();
+    }
+  }
+
   /// Enqueue [depId] for [workspaceId]. Duplicate enqueues (queued or
   /// currently installing) are ignored.
   void enqueue({
@@ -80,6 +183,7 @@ class DependencyInstallController extends ChangeNotifier {
     required String hostPath,
     required DependencyInstallPref pref,
   }) {
+    _lastHostPathByWorkspace[workspaceId] = hostPath;
     if (_active[workspaceId]?.depId == depId) return;
     final queue = _queues.putIfAbsent(workspaceId, () => <_DepEntry>[]);
     if (queue.any((e) => e.depId == depId)) return;
@@ -182,6 +286,18 @@ class DependencyInstallController extends ChangeNotifier {
           )[entry.depId] = error;
           _active.remove(workspaceId);
           notifyListeners();
+          // Re-probe on every install completion so the cached snapshot
+          // reflects the new state without the observing page having to
+          // poll. This survives page rebuilds (the cached snapshot lives
+          // on the controller, not the page state) which is what closes
+          // the "install ran while the detail page was away → UI shows
+          // stale `未安装` on remount" gap.
+          unawaited(
+            refreshSnapshot(
+              workspaceId: workspaceId,
+              hostPath: entry.hostPath,
+            ),
+          );
         }
       }
     } finally {

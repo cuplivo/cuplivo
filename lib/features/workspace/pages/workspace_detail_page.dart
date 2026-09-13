@@ -52,11 +52,6 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
   bool _depsExpanded = false;
   bool _terminalPersistenceExpanded = false;
   bool _terminalPersistenceBusy = false;
-  final Map<String, bool> _depInstalled = <String, bool>{};
-  bool _depStatusLoading = false;
-  bool _depProbeFailed = false;
-  bool _hasRuntime = true;
-  int _depStatusRefreshGeneration = 0;
   DependencyInstallController? _installController;
 
   @override
@@ -65,7 +60,7 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
     _installController = context.read<DependencyInstallController>()
       ..addListener(_onInstallChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(_refreshDepStatus());
+      if (mounted) _refreshDepStatus();
     });
   }
 
@@ -81,8 +76,11 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
   @override
   void didPopNext() {
     // Re-probe on every return to this page so dependencies installed by the
-    // LLM shell tool (or finished background queue items) show up.
-    if (mounted) unawaited(_refreshDepStatus());
+    // LLM shell tool (or finished background queue items) show up. The
+    // snapshot cache lives on the controller, so even a fresh probe that
+    // races with an in-flight install is reconciled via the per-workspace
+    // generation counter inside the controller.
+    if (mounted) _refreshDepStatus();
   }
 
   @override
@@ -100,7 +98,6 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
     if (ws == null) return;
     final done = controller.takeCompleted(ws.id);
     if (done.isNotEmpty) {
-      unawaited(_refreshDepStatus());
       final l10n = AppLocalizations.of(context)!;
       for (final e in done.entries) {
         final error = e.value;
@@ -144,42 +141,28 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
         _ => null,
       };
 
-  Future<void> _refreshDepStatus() async {
+  /// Forward the probe request to the controller. The controller owns the
+  /// cached snapshot + loading + probe-failed flags keyed by workspaceId,
+  /// so the UI state survives page rebuilds — popping back to the
+  /// workspace list and re-entering during an in-flight install no longer
+  /// blanks the dep list back to "未安装".
+  void _refreshDepStatus() {
     if (!Platform.isAndroid && !Platform.isIOS) return;
     final wp = context.read<WorkspaceProvider>();
     final ws = wp.getById(widget.workspaceId);
     if (ws == null) return;
     final host = wp.hostPathFor(ws);
     if (host == null) return;
-    final generation = ++_depStatusRefreshGeneration;
-    setState(() => _depStatusLoading = true);
-    try {
-      final svc = LinuxSandboxService.instance;
-      final snapshot = await svc.dependencyStatus(host);
-      if (!mounted || generation != _depStatusRefreshGeneration) return;
-      setState(() {
-        _hasRuntime = snapshot.hasRuntime;
-        _depInstalled
-          ..clear()
-          ..addAll(snapshot.installed);
-        _depStatusLoading = false;
-        _depProbeFailed = false;
-      });
-    } catch (e) {
-      debugPrint('WorkspaceDetailPage._refreshDepStatus: $e');
-      if (mounted && generation == _depStatusRefreshGeneration) {
-        setState(() {
-          _depStatusLoading = false;
-          _depProbeFailed = true;
-        });
-      }
-    }
+    _installController?.refreshSnapshot(
+      workspaceId: widget.workspaceId,
+      hostPath: host,
+    );
   }
 
   void _toggleDependencies() {
     final expanding = !_depsExpanded;
     setState(() => _depsExpanded = expanding);
-    if (expanding) unawaited(_refreshDepStatus());
+    if (expanding) _refreshDepStatus();
   }
 
   @override
@@ -267,6 +250,12 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
   ) {
     final l10n = AppLocalizations.of(context)!;
     final wp = context.watch<WorkspaceProvider>();
+    final controller = context.watch<DependencyInstallController>();
+    final depSnapshot = controller.snapshotFor(ws.id);
+    final depInstalled = depSnapshot?.installed ?? const <String, bool>{};
+    final hasRuntime = depSnapshot?.hasRuntime ?? true;
+    final depProbeFailed = controller.didLastSnapshotProbeFailFor(ws.id);
+    final depStatusLoading = controller.isLoadingSnapshotFor(ws.id);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
       children: [
@@ -334,9 +323,9 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
               forceTitle: l10n.workspaceToolShellTitle,
               forceSubtitle: (!Platform.isAndroid && !Platform.isIOS)
                   ? l10n.workspaceShellMobileOnly
-                  : !_hasRuntime
+                  : !hasRuntime
                   ? l10n.workspaceSandboxRuntimeMissing
-                  : (_depInstalled[WorkspaceDependencyIds.base] != true)
+                  : (depInstalled[WorkspaceDependencyIds.base] != true)
                   ? l10n.workspaceSandboxBaseRequired
                   : l10n.workspaceToolShellUserDesc,
               enabledOverride: (Platform.isAndroid || Platform.isIOS)
@@ -362,9 +351,17 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
             onToggle: _toggleDependencies,
             showDivider: true,
             children: [
-              if (_depProbeFailed) _dependencyProbeError(context),
+              if (depProbeFailed) _dependencyProbeError(context),
               for (final depId in WorkspaceDependencyIds.ordered)
-                _depRow(context, ws, depId),
+                _depRow(
+                  context,
+                  ws,
+                  depId,
+                  depInstalled: depInstalled,
+                  hasRuntime: hasRuntime,
+                  depProbeFailed: depProbeFailed,
+                  depStatusLoading: depStatusLoading,
+                ),
             ],
           ),
           if (Platform.isAndroid) ...[
@@ -405,9 +402,9 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
                 context,
                 icon: Lucide.HardDrive,
                 title: l10n.workspaceSandboxDirEntryTitle,
-                subtitle: _sandboxDirSubtitle(context),
-                enabled: _depInstalled[WorkspaceDependencyIds.base] == true,
-                onTap: () => _openSandboxDir(ws),
+                subtitle: _sandboxDirSubtitle(context, depInstalled),
+                enabled: depInstalled[WorkspaceDependencyIds.base] == true,
+                onTap: () => _openSandboxDir(ws, depInstalled),
               ),
             ],
           ),
@@ -469,23 +466,29 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
 
   /// Sandbox dir entry subtitle: "Title ✓ · Title ✓" for every installed
   /// non-base dependency, or the base-required hint when the base is missing.
-  String _sandboxDirSubtitle(BuildContext context) {
+  String _sandboxDirSubtitle(
+    BuildContext context,
+    Map<String, bool> depInstalled,
+  ) {
     final l10n = AppLocalizations.of(context)!;
-    if (_depInstalled[WorkspaceDependencyIds.base] != true) {
+    if (depInstalled[WorkspaceDependencyIds.base] != true) {
       return l10n.workspaceSandboxBaseRequired;
     }
     final installed = [
       for (final id in WorkspaceDependencyIds.ordered)
-        if (id != WorkspaceDependencyIds.base && _depInstalled[id] == true)
+        if (id != WorkspaceDependencyIds.base && depInstalled[id] == true)
           _depTitle(l10n, id),
     ];
     if (installed.isEmpty) return l10n.workspaceSandboxNoDeps;
     return installed.map((t) => '$t ✓').join(' · ');
   }
 
-  Future<void> _openSandboxDir(Workspace ws) async {
+  Future<void> _openSandboxDir(
+    Workspace ws,
+    Map<String, bool> depInstalled,
+  ) async {
     final l10n = AppLocalizations.of(context)!;
-    if (_depInstalled[WorkspaceDependencyIds.base] != true) {
+    if (depInstalled[WorkspaceDependencyIds.base] != true) {
       showAppSnackBar(context, message: l10n.workspaceSandboxBaseRequired);
       return;
     }
@@ -606,7 +609,15 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
     );
   }
 
-  Widget _depRow(BuildContext context, Workspace ws, String depId) {
+  Widget _depRow(
+    BuildContext context,
+    Workspace ws,
+    String depId, {
+    required Map<String, bool> depInstalled,
+    required bool hasRuntime,
+    required bool depProbeFailed,
+    required bool depStatusLoading,
+  }) {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     if (!Platform.isAndroid && !Platform.isIOS) {
@@ -618,15 +629,15 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
     );
     final installing = status == DepInstallStatus.installing;
     final queued = status == DepInstallStatus.queued;
-    final installed = _depInstalled[depId] == true;
-    final baseInstalled = _depInstalled[WorkspaceDependencyIds.base] == true;
+    final installed = depInstalled[depId] == true;
+    final baseInstalled = depInstalled[WorkspaceDependencyIds.base] == true;
     final needsBaseFirst =
         depId != WorkspaceDependencyIds.base && !baseInstalled;
     final needsRuntime =
-        depId != WorkspaceDependencyIds.base && baseInstalled && !_hasRuntime;
+        depId != WorkspaceDependencyIds.base && baseInstalled && !hasRuntime;
     final missingPrerequisites = WorkspaceDependencyIds.missingPrerequisites(
       depId,
-      _depInstalled,
+      depInstalled,
     );
 
     String? subtitleExtra;
@@ -646,7 +657,7 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
         ? l10n.workspaceDepInstalling
         : queued
         ? l10n.workspaceDepQueued
-        : _depProbeFailed
+        : depProbeFailed
         ? l10n.workspaceDepStatusUnknown
         : installed
         ? l10n.workspaceDepInstalled
@@ -654,8 +665,8 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
     final installDisabled =
         installing ||
         queued ||
-        _depStatusLoading ||
-        _depProbeFailed ||
+        depStatusLoading ||
+        depProbeFailed ||
         needsBaseFirst ||
         needsRuntime ||
         missingPrerequisites.isNotEmpty;
@@ -725,6 +736,10 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
   Widget _dependencyProbeError(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
+    final controller = context.watch<DependencyInstallController>();
+    final depStatusLoading = controller.isLoadingSnapshotFor(
+      widget.workspaceId,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
@@ -742,7 +757,7 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
           ),
           const SizedBox(width: 8),
           TextButton(
-            onPressed: _depStatusLoading ? null : _refreshDepStatus,
+            onPressed: depStatusLoading ? null : _refreshDepStatus,
             child: Text(l10n.workspaceDepRetry),
           ),
         ],

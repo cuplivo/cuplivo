@@ -783,18 +783,30 @@ void main() {
     );
 
     test(
-      'a stale refreshSnapshot result is discarded by the per-workspace '
-      'generation counter',
+      'a refreshSnapshot call while another probe for the same workspace '
+      '+ host path is in flight is coalesced (no duplicate probe, no '
+      'stall behind the shared per-workspace FIFO)',
       () async {
-        final lateCompleter = Completer<SandboxDependencyStatusSnapshot>();
+        // Regression: prior to the OCR-coalescing fix, two concurrent
+        // calls for the same workspace + path both entered the prober,
+        // bumping the generation counter each time. The generation
+        // counter discarded the first probe's eventual result so the
+        // cache stayed consistent, but both probes still RAN — they
+        // serialized behind whatever the shared per-workspace FIFO was
+        // already doing (typically the in-flight install), and the
+        // second call's UI stall could last for tens of seconds. The
+        // user's retry-button spam surfaced this as "tap → frozen for
+        // 30s → tap again → frozen for 60s". Now: the second call
+        // returns immediately, the in-flight probe's result is shared
+        // by both callers, no extra load on the FIFO.
+        final gate = Completer<SandboxDependencyStatusSnapshot>();
         var proberCalls = 0;
         final controller = DependencyInstallController(
           installer: _FakeInstaller().call,
           keepScreenOn: (_) async {},
           prober: (hostPath) async {
             proberCalls++;
-            if (proberCalls == 1) return lateCompleter.future;
-            return snapshot(base: false);
+            return gate.future;
           },
         );
 
@@ -803,25 +815,35 @@ void main() {
           workspaceId: wsId,
           hostPath: '/ws',
         );
-        // A second probe starts while the first is still pending: it must
-        // observe the cached value from the second probe and ignore the
-        // first result when it eventually completes.
+        // Second + third call for the SAME workspace + SAME path are
+        // coalesced: they observe _snapshotLoadingByWorkspace[ws] == true
+        // and the same path, so they return immediately without bumping
+        // the generation counter or entering the prober.
         final second = controller.refreshSnapshot(
           workspaceId: wsId,
           hostPath: '/ws',
         );
-        lateCompleter.complete(snapshot(base: true));
-        await first;
-        await second;
+        final third = controller.refreshSnapshot(
+          workspaceId: wsId,
+          hostPath: '/ws',
+        );
 
-        expect(proberCalls, 2);
-        // The stale "base installed" snapshot from the first probe must
-        // NOT be the cached value — the second (newer) probe said base is
-        // missing.
+        // Let the (synchronous parts of the) coalesced calls settle
+        // before we complete the in-flight probe.
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        expect(proberCalls, 1);
+
+        gate.complete(snapshot(base: true));
+        await Future.wait<void>([first, second, third]);
+
+        // Coalesced: only one probe ran, all three callers see the same
+        // result.
+        expect(proberCalls, 1);
         expect(
           controller.snapshotFor(wsId)!.installed[WorkspaceDependencyIds.base],
-          isFalse,
+          isTrue,
         );
+        expect(controller.isLoadingSnapshotFor(wsId), isFalse);
       },
     );
 
@@ -885,52 +907,6 @@ void main() {
         controller.forgetWorkspace(wsId);
         expect(controller.snapshotFor(wsId), isNull);
         expect(controller.didLastSnapshotProbeFailFor(wsId), isFalse);
-      },
-    );
-
-    test(
-      'concurrent refreshSnapshot calls for the same workspace + host '
-      'path are coalesced so they do not pile onto the shared execution '
-      'FIFO behind a running install',
-      () async {
-        final gate = Completer<SandboxDependencyStatusSnapshot>();
-        var proberCalls = 0;
-        final controller = DependencyInstallController(
-          installer: _FakeInstaller().call,
-          keepScreenOn: (_) async {},
-          prober: (hostPath) async {
-            proberCalls++;
-            if (proberCalls == 1) return gate.future;
-            return snapshot(base: true);
-          },
-        );
-
-        // First call: starts the probe, holds it open via the gate.
-        final first = controller.refreshSnapshot(
-          workspaceId: wsId,
-          hostPath: '/ws',
-        );
-        // Second + third call for the SAME workspace + SAME path must be
-        // coalesced (skip) — the loading flag is set and the host path
-        // matches.
-        final second = controller.refreshSnapshot(
-          workspaceId: wsId,
-          hostPath: '/ws',
-        );
-        final third = controller.refreshSnapshot(
-          workspaceId: wsId,
-          hostPath: '/ws',
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        // Only the first call entered the prober.
-        expect(proberCalls, 1);
-        gate.complete(snapshot(base: true));
-        await Future.wait<void>([first, second, third]);
-        expect(proberCalls, 1);
-        expect(
-          controller.snapshotFor(wsId)!.installed[WorkspaceDependencyIds.base],
-          isTrue,
-        );
       },
     );
 

@@ -153,9 +153,11 @@ class _WorkspaceDetailPageState extends State<WorkspaceDetailPage>
     if (ws == null) return;
     final host = wp.hostPathFor(ws);
     if (host == null) return;
-    _installController?.refreshSnapshot(
-      workspaceId: widget.workspaceId,
-      hostPath: host,
+    unawaited(
+      _installController!.refreshSnapshot(
+        workspaceId: widget.workspaceId,
+        hostPath: host,
+      ),
     );
   }
 

@@ -865,5 +865,138 @@ void main() {
         expect(controller.snapshotFor(wsId), isNull);
       },
     );
+
+    test(
+      'forgetWorkspace clears every per-workspace cache entry so the '
+      'workspace id never leaks a stale `已安装` snapshot after deletion',
+      () async {
+        final controller = DependencyInstallController(
+          installer: _FakeInstaller().call,
+          keepScreenOn: (_) async {},
+          prober: (hostPath) async => snapshot(base: true),
+        );
+        await controller.refreshSnapshot(
+          workspaceId: wsId,
+          hostPath: '/ws',
+        );
+        expect(controller.snapshotFor(wsId), isNotNull);
+        expect(controller.didLastSnapshotProbeFailFor(wsId), isFalse);
+
+        controller.forgetWorkspace(wsId);
+        expect(controller.snapshotFor(wsId), isNull);
+        expect(controller.didLastSnapshotProbeFailFor(wsId), isFalse);
+      },
+    );
+
+    test(
+      'concurrent refreshSnapshot calls for the same workspace + host '
+      'path are coalesced so they do not pile onto the shared execution '
+      'FIFO behind a running install',
+      () async {
+        final gate = Completer<SandboxDependencyStatusSnapshot>();
+        var proberCalls = 0;
+        final controller = DependencyInstallController(
+          installer: _FakeInstaller().call,
+          keepScreenOn: (_) async {},
+          prober: (hostPath) async {
+            proberCalls++;
+            if (proberCalls == 1) return gate.future;
+            return snapshot(base: true);
+          },
+        );
+
+        // First call: starts the probe, holds it open via the gate.
+        final first = controller.refreshSnapshot(
+          workspaceId: wsId,
+          hostPath: '/ws',
+        );
+        // Second + third call for the SAME workspace + SAME path must be
+        // coalesced (skip) — the loading flag is set and the host path
+        // matches.
+        final second = controller.refreshSnapshot(
+          workspaceId: wsId,
+          hostPath: '/ws',
+        );
+        final third = controller.refreshSnapshot(
+          workspaceId: wsId,
+          hostPath: '/ws',
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        // Only the first call entered the prober.
+        expect(proberCalls, 1);
+        gate.complete(snapshot(base: true));
+        await Future.wait<void>([first, second, third]);
+        expect(proberCalls, 1);
+        expect(
+          controller.snapshotFor(wsId)!.installed[WorkspaceDependencyIds.base],
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'SandboxBusyException from a saturated per-workspace FIFO is NOT '
+      'surfaced as a user-visible probe failure (the queue cap is a '
+      'transient artefact, not a status the user can retry against)',
+      () async {
+        final controller = DependencyInstallController(
+          installer: _FakeInstaller().call,
+          keepScreenOn: (_) async {},
+          prober: (hostPath) async {
+            throw SandboxBusyException('/ws');
+          },
+        );
+        await controller.refreshSnapshot(
+          workspaceId: wsId,
+          hostPath: '/ws',
+        );
+        // No snapshot is cached (probe threw), but the error flag must
+        // stay false so the UI does not render the retry banner or
+        // disable install buttons.
+        expect(controller.snapshotFor(wsId), isNull);
+        expect(controller.didLastSnapshotProbeFailFor(wsId), isFalse);
+        expect(controller.isLoadingSnapshotFor(wsId), isFalse);
+      },
+    );
+
+    test(
+      'SandboxCancelledException is treated as transient (same reason as '
+      'SandboxBusyException)',
+      () async {
+        final controller = DependencyInstallController(
+          installer: _FakeInstaller().call,
+          keepScreenOn: (_) async {},
+          prober: (hostPath) async {
+            throw SandboxCancelledException('install_python');
+          },
+        );
+        await controller.refreshSnapshot(
+          workspaceId: wsId,
+          hostPath: '/ws',
+        );
+        expect(controller.snapshotFor(wsId), isNull);
+        expect(controller.didLastSnapshotProbeFailFor(wsId), isFalse);
+      },
+    );
+
+    test(
+      'a real probe failure (non-transient exception) still flips '
+      'didLastSnapshotProbeFailFor so the user sees the retry banner',
+      () async {
+        final controller = DependencyInstallController(
+          installer: _FakeInstaller().call,
+          keepScreenOn: (_) async {},
+          prober: (hostPath) async {
+            throw StateError('probe blew up');
+          },
+        );
+        await controller.refreshSnapshot(
+          workspaceId: wsId,
+          hostPath: '/ws',
+        );
+        expect(controller.snapshotFor(wsId), isNull);
+        expect(controller.didLastSnapshotProbeFailFor(wsId), isTrue);
+      },
+    );
   });
 }

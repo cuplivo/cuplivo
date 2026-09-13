@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/models/workspace.dart';
 import '../../../core/providers/workspace_provider.dart';
+import '../../../features/workspace/controllers/dependency_install_controller.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/snackbar.dart';
@@ -131,6 +132,14 @@ class WorkspaceListPage extends StatelessWidget {
                           if (ok != true || !context.mounted) return;
                           final err = await wp.deleteWorkspace(ws.id);
                           if (err == null && context.mounted) {
+                            // Workspace no longer exists; drop the cached
+                            // dep snapshot so a future workspace that
+                            // reuses the id does not inherit a stale
+                            // "base installed" snapshot from the deleted
+                            // one.
+                            context
+                                .read<DependencyInstallController>()
+                                .forgetWorkspace(ws.id);
                             onDataChanged?.call();
                           }
                           if (err != null && context.mounted) {

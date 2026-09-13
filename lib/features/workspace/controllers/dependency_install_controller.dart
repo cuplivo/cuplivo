@@ -125,6 +125,21 @@ class DependencyInstallController extends ChangeNotifier {
   /// `enqueue` consumer.
   final Map<String, String> _lastHostPathByWorkspace = <String, String>{};
 
+  /// Drop every cached piece of state for [workspaceId]. Called from the
+  /// workspace deletion path so the controller does not leak entries for
+  /// workspaces that no longer exist (and, more importantly, does not
+  /// serve a stale "base installed" snapshot to a freshly-created
+  /// workspace that happens to reuse the id — see review issue on the
+  /// dep-status PR).
+  void forgetWorkspace(String workspaceId) {
+    final hadSnapshot = _snapshotsByWorkspace.remove(workspaceId) != null;
+    _snapshotGenerationByWorkspace.remove(workspaceId);
+    _snapshotLoadingByWorkspace.remove(workspaceId);
+    _snapshotProbeFailedByWorkspace.remove(workspaceId);
+    _lastHostPathByWorkspace.remove(workspaceId);
+    if (hadSnapshot) notifyListeners();
+  }
+
   /// Snapshot of which deps are installed for [workspaceId], or null if no
   /// probe has ever succeeded for that workspace. Survives page rebuilds
   /// — see [_snapshotsByWorkspace].
@@ -146,12 +161,24 @@ class DependencyInstallController extends ChangeNotifier {
   /// previously seen host path is available (i.e. the workspace has never
   /// been enqueued and the caller didn't supply a path). Bumps the
   /// per-workspace generation so any older in-flight probe is ignored.
+  ///
+  /// Coalesces concurrent calls for the same workspace + host path: while
+  /// a probe is already in flight, additional `refreshSnapshot` requests
+  /// for the same path are skipped instead of piling onto the shared
+  /// per-workspace execution FIFO (which would serialize behind the
+  /// running install and surface as multi-second UI stalls).
   Future<void> refreshSnapshot({
     required String workspaceId,
     String? hostPath,
   }) async {
     final path = hostPath ?? _lastHostPathByWorkspace[workspaceId];
     if (path == null) return;
+    if (_snapshotLoadingByWorkspace[workspaceId] == true &&
+        _lastHostPathByWorkspace[workspaceId] == path) {
+      // A probe for this workspace/path is already in flight; don't pile
+      // a second one onto the shared execution FIFO.
+      return;
+    }
     if (hostPath != null) _lastHostPathByWorkspace[workspaceId] = hostPath;
     final generation = (_snapshotGenerationByWorkspace[workspaceId] ?? 0) + 1;
     _snapshotGenerationByWorkspace[workspaceId] = generation;
@@ -170,7 +197,18 @@ class DependencyInstallController extends ChangeNotifier {
       );
       if (generation != _snapshotGenerationByWorkspace[workspaceId]) return;
       _snapshotLoadingByWorkspace[workspaceId] = false;
-      _snapshotProbeFailedByWorkspace[workspaceId] = true;
+      // Queue saturation and cancellation are transient queueing artefacts
+      // (the shared per-workspace FIFO throws SandboxBusyException when
+      // >4 requests pile up, and SandboxCancelledException when the user
+      // cancels the in-flight install). Neither is a status the user can
+      // act on — surfacing them as `probe failed` would disable every
+      // install button and render the red error banner until the user
+      // taps Retry, with no actual error to retry against. Keep the last
+      // good snapshot in place and only flip the flag on real probe
+      // failures.
+      final transient =
+          e is SandboxBusyException || e is SandboxCancelledException;
+      _snapshotProbeFailedByWorkspace[workspaceId] = !transient;
       notifyListeners();
     }
   }

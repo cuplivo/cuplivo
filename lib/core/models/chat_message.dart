@@ -428,8 +428,7 @@ class ChatMessage extends HiveObject {
       cachedTokens: json['cachedTokens'] as int?,
       durationMs: json['durationMs'] as int?,
       quoteJson: json['quoteJson'] as String?,
-      senderId:
-          (json['senderId'] ?? json['speakerAssistantId']) as String?,
+      senderId: (json['senderId'] ?? json['speakerAssistantId']) as String?,
     );
   }
 }

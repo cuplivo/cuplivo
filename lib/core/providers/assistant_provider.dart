@@ -289,6 +289,16 @@ class AssistantProvider extends ChangeNotifier {
     return _assistants[idx];
   }
 
+  /// Test seam: replaces the in-memory roster without persisting, so a test
+  /// controls exact assistant ids and model bindings.
+  @visibleForTesting
+  void debugReplaceAssistants(List<Assistant> assistants) {
+    _assistants
+      ..clear()
+      ..addAll(assistants);
+    notifyListeners();
+  }
+
   // Lightweight accessor so callers don't depend on Assistant.presetMessages symbol
   List<Map<String, String>> getPresetMessagesForAssistant(String? assistantId) {
     Assistant? a;

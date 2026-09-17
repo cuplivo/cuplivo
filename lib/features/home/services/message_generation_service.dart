@@ -408,9 +408,7 @@ class MessageGenerationService {
       conversationId: conversationId,
       role: 'user',
       parts: parts,
-      quoteJson: input.quote == null
-          ? null
-          : jsonEncode(input.quote!.toJson()),
+      quoteJson: input.quote == null ? null : jsonEncode(input.quote!.toJson()),
     );
   }
 

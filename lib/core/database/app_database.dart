@@ -218,15 +218,13 @@ class GroupChatRows extends Table {
   TextColumn get directorModelId => text().nullable()();
   TextColumn get directorSystemPrompt =>
       text().withDefault(const Constant(''))();
-  IntColumn get maxAssistantMessagesPerRound =>
-      integer()
+  IntColumn get maxAssistantMessagesPerRound => integer()
       // ignore: recursive_getters
       .check(maxAssistantMessagesPerRound.isBiggerOrEqualValue(1))
       .withDefault(const Constant(3))();
   TextColumn get assistantDetailInjectionMode =>
       text().withDefault(const Constant('endOfEveryUserMessage'))();
-  IntColumn get assistantDetailInjectionN =>
-      integer()
+  IntColumn get assistantDetailInjectionN => integer()
       // ignore: recursive_getters
       .check(assistantDetailInjectionN.isBiggerOrEqualValue(1))
       .withDefault(const Constant(5))();
@@ -235,8 +233,7 @@ class GroupChatRows extends Table {
   // Round cap carry-over: the assistant message a capped round stopped at;
   // the next user turn merges it into the director's E3 context.
   TextColumn get pendingCapAssistantMessageId => text().nullable()();
-  IntColumn get assistantMessagesThisRound =>
-      integer()
+  IntColumn get assistantMessagesThisRound => integer()
       // ignore: recursive_getters
       .check(assistantMessagesThisRound.isBiggerOrEqualValue(0))
       .withDefault(const Constant(0))();

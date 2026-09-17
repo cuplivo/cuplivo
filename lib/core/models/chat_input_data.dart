@@ -1,4 +1,5 @@
 import 'message_quote.dart';
+
 class DocumentAttachment {
   final String path; // absolute file path
   final String fileName;

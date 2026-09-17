@@ -13,6 +13,7 @@ import 'package:Cuplivo/core/database/schema_migrations.dart';
 import 'generated_schema/schema.dart';
 import 'generated_schema/schema_v1.dart' as v1;
 import 'generated_schema/schema_v2.dart' as v2;
+import 'generated_schema/schema_v3.dart' as v3;
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -107,6 +108,52 @@ void main() {
       expect(rows.single['chat_model_provider'], isNull);
       expect(rows.single['chat_model_id'], isNull);
       expect(rows.single['extras_json'], '{}');
+    } finally {
+      raw.close();
+    }
+  });
+
+  test('upgrades a schema 3 file by adding quote_json', () async {
+    final file = databasePath();
+    final database = v3.DatabaseAtV3(NativeDatabase(file));
+    try {
+      await database.customStatement('PRAGMA user_version = 3;');
+      await database.customStatement(
+        'INSERT INTO conversation_rows '
+        '(id, title, created_at, updated_at, is_pinned, truncate_index, '
+        'version_selections_json, last_summarized_message_count, '
+        'chat_suggestions_json, last_memory_extracted_order, extras_json) '
+        "VALUES ('conv-3', 'Schema 3 chat', 1, 2, 0, -1, '{}', 0, '[]', -1, '{}');",
+      );
+      await database.customStatement(
+        'INSERT INTO message_rows '
+        '(id, conversation_id, role, timestamp, is_streaming, version, '
+        'message_order, updated_at, sender_id, extras_json) '
+        "VALUES ('msg-3', 'conv-3', 'user', 3, 0, 0, 0, NULL, NULL, '{}');",
+      );
+    } finally {
+      await database.close();
+    }
+    final checkpoint = sqlite.sqlite3.open(file.path);
+    try {
+      checkpoint.execute('PRAGMA wal_checkpoint(TRUNCATE);');
+      checkpoint.select('PRAGMA journal_mode = DELETE;');
+    } finally {
+      checkpoint.close();
+    }
+
+    final outcome = await SchemaMigrations.upgradeFileInPlace(file);
+
+    expect(outcome.fromVersion, 3);
+    expect(outcome.toVersion, AppDatabase.currentSchemaVersion);
+    expect(outcome.upgraded, isTrue);
+
+    final raw = sqlite.sqlite3.open(file.path, mode: sqlite.OpenMode.readOnly);
+    try {
+      final message = raw.select('SELECT * FROM message_rows;').single;
+      expect(message['id'], 'msg-3');
+      // v4's only change: the reply citation column, defaulting to NULL.
+      expect(message['quote_json'], isNull);
     } finally {
       raw.close();
     }

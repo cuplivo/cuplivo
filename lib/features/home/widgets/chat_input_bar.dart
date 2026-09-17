@@ -20,6 +20,7 @@ import '../../../shared/responsive/breakpoints.dart';
 import 'dart:async';
 import 'dart:io';
 import '../../../core/models/chat_input_data.dart';
+import '../../../core/models/message_quote.dart';
 import '../../../utils/clipboard_images.dart';
 import '../../../core/providers/asr_provider.dart';
 import '../../../core/providers/settings_provider.dart';
@@ -85,6 +86,16 @@ class ChatInputBarController {
   ChatInputData snapshotInput(String text) =>
       _state?._snapshotInput(text) ?? ChatInputData(text: text.trim());
   void clearDraft() => _state?._clearDraft();
+
+  /// Sets (or clears) the pending reply citation. [snippet] is the
+  /// display-ready preview text; null keeps the current preview (used by
+  /// draft restore).
+  void setQuoteDraft(MessageQuote? quote, {String? snippet}) =>
+      _state?._setQuoteDraft(quote, snippet: snippet);
+  void clearQuoteDraft() => setQuoteDraft(null);
+
+  /// The pending reply citation in the bar, or null.
+  MessageQuote? get quoteDraft => _state?._quoteDraft;
 }
 
 class _DraftImage {
@@ -266,6 +277,13 @@ class _ChatInputBarState extends State<ChatInputBar>
   Future<void> _textPasteWriteTail = Future<void>.value();
   final List<DocumentAttachment> _docs =
       <DocumentAttachment>[]; // files to upload
+
+  /// Pending reply citation owned by the composer (null = plain send).
+  MessageQuote? _quoteDraft;
+
+  /// Display-ready snippet for the preview row; presentation-only, never
+  /// read by the send pipeline.
+  String? _quoteSnippet;
   final Map<LogicalKeyboardKey, Timer?> _repeatTimers = {};
   static const Duration _repeatInitialDelay = Duration(milliseconds: 300);
   static const Duration _repeatPeriod = Duration(milliseconds: 35);
@@ -519,6 +537,16 @@ class _ChatInputBarState extends State<ChatInputBar>
       _docs
         ..clear()
         ..addAll(input.documents);
+      _quoteDraft = input.quote;
+      _quoteSnippet = input.quoteSnippet;
+    });
+  }
+
+  /// Sets (or clears) the pending reply citation owned by this bar.
+  void _setQuoteDraft(MessageQuote? quote, {String? snippet}) {
+    setState(() {
+      _quoteDraft = quote;
+      if (snippet != null) _quoteSnippet = snippet;
     });
   }
 
@@ -533,6 +561,8 @@ class _ChatInputBarState extends State<ChatInputBar>
       ],
       documents: List<DocumentAttachment>.of(_docs),
       allowImagesApiRouting: _allowImagesApiRouting,
+      quote: _quoteDraft,
+      quoteSnippet: _quoteSnippet,
     );
   }
 
@@ -546,6 +576,8 @@ class _ChatInputBarState extends State<ChatInputBar>
       _discardImageState(_images.map((image) => image.id));
       _images.clear();
       _docs.clear();
+      _quoteDraft = null;
+      _quoteSnippet = null;
     });
   }
 
@@ -976,6 +1008,8 @@ class _ChatInputBarState extends State<ChatInputBar>
     final submittedImages = List<_DraftImage>.of(_images);
     final submittedImageIds = submittedImages.map((image) => image.id).toSet();
     final submittedDocuments = List<DocumentAttachment>.of(_docs);
+    final submittedQuote = _quoteDraft;
+    final submittedQuoteSnippet = _quoteSnippet;
     final submittedDraftRevision = _draftReplacementRevision;
     final submitSerial = ++_submitSerial;
     _isSubmitting = true;
@@ -988,6 +1022,8 @@ class _ChatInputBarState extends State<ChatInputBar>
       for (final document in submittedDocuments) {
         _docs.remove(document);
       }
+      _quoteDraft = null;
+      _quoteSnippet = null;
     });
     try {
       final result =
@@ -997,6 +1033,8 @@ class _ChatInputBarState extends State<ChatInputBar>
               imagePaths: submittedImages.map((image) => image.path).toList(),
               documents: List<DocumentAttachment>.of(submittedDocuments),
               allowImagesApiRouting: _allowImagesApiRouting,
+              quote: submittedQuote,
+              quoteSnippet: submittedQuoteSnippet,
             ),
           ) ??
           ChatInputSubmissionResult.rejected;
@@ -1019,6 +1057,8 @@ class _ChatInputBarState extends State<ChatInputBar>
             submittedValue,
             submittedImages,
             submittedDocuments,
+            quote: submittedQuote,
+            quoteSnippet: submittedQuoteSnippet,
           ),
         );
       }
@@ -1031,6 +1071,8 @@ class _ChatInputBarState extends State<ChatInputBar>
             submittedValue,
             submittedImages,
             submittedDocuments,
+            quote: submittedQuote,
+            quoteSnippet: submittedQuoteSnippet,
           ),
         );
       }
@@ -1047,8 +1089,10 @@ class _ChatInputBarState extends State<ChatInputBar>
   void _restoreSubmittedDraft(
     TextEditingValue submittedValue,
     List<_DraftImage> submittedImages,
-    List<DocumentAttachment> submittedDocuments,
-  ) {
+    List<DocumentAttachment> submittedDocuments, {
+    MessageQuote? quote,
+    String? quoteSnippet,
+  }) {
     _restoreSubmittedText(submittedValue);
     final existingImageIds = _images.map((image) => image.id).toSet();
     _images.insertAll(
@@ -1059,6 +1103,8 @@ class _ChatInputBarState extends State<ChatInputBar>
       0,
       submittedDocuments.where((document) => !_docs.contains(document)),
     );
+    _quoteDraft ??= quote;
+    _quoteSnippet ??= quoteSnippet;
   }
 
   void _restoreSubmittedText(TextEditingValue submittedValue) {
@@ -2517,6 +2563,79 @@ class _ChatInputBarState extends State<ChatInputBar>
     );
   }
 
+  /// Pending-reply preview row: transparent row with a hairline rule, one
+  /// line of snippet text and a dismiss button. Owned by the bar as composer
+  /// state (never a persisted draft entry).
+  Widget _buildQuotePreviewRow(BuildContext context, bool isDark) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final cs = theme.colorScheme;
+    final snippet = _quoteSnippet;
+    final label = (snippet != null && snippet.trim().isNotEmpty)
+        ? snippet
+        : l10n.messageQuoteDeletedErrorMessage;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.xxs,
+            AppSpacing.sm,
+            AppSpacing.xxs,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Lucide.Reply,
+                size: 16,
+                color: cs.onSurface.withValues(alpha: 0.5),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: cs.onSurface.withValues(alpha: 0.65),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Material(
+                color: Colors.transparent,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _setQuoteDraft(null),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.xxs),
+                    child: Tooltip(
+                      message: l10n.messageQuotePreviewDismiss,
+                      child: Icon(
+                        Lucide.X,
+                        size: 15,
+                        color: cs.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Divider(
+          height: 1,
+          thickness: 1,
+          color: isDark
+              ? cs.onSurface.withValues(alpha: 0.06)
+              : cs.onSurface.withValues(alpha: 0.08),
+        ),
+      ],
+    );
+  }
+
   Widget _buildInlineAttachmentPreviews(BuildContext context, bool isDark) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -2748,6 +2867,8 @@ class _ChatInputBarState extends State<ChatInputBar>
                                       ),
                               ),
                           ],
+                          if (_quoteDraft != null)
+                            _buildQuotePreviewRow(context, isDark),
                           if (hasDocs || hasImages)
                             _buildInlineAttachmentPreviews(context, isDark),
                           // Input field with expand/collapse button

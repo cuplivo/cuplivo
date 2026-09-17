@@ -8,6 +8,8 @@ import '../../../core/database/chat_database_repository.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
+import '../../../core/models/message_quote.dart';
+import '../../../utils/quote_plain_text.dart';
 import '../../../core/models/message_part.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/models/instruction_injection.dart';
@@ -230,6 +232,7 @@ class MessageBuilderService {
       sourceAll,
       versionSelections,
     );
+    final sourceById = {for (final m in source) m.id: m};
 
     final out = <Map<String, dynamic>>[];
 
@@ -342,7 +345,19 @@ class MessageBuilderService {
         }
       }
 
-      final content = m.content;
+      var content = m.content;
+      // Reply citation: prefix the quoted span as <reply-to> plain text so
+      // the model sees what is being answered (range slices are half-open
+      // markdown-space offsets into the target's raw content).
+      if (m.role != 'assistant' && content.trim().isNotEmpty) {
+        final quote = m.quote;
+        if (quote != null) {
+          final quoteText = _replyToQuoteText(m, quote, sourceById);
+          if (quoteText != null && quoteText.isNotEmpty) {
+            content = '<reply-to>$quoteText</reply-to>\n\n$content';
+          }
+        }
+      }
       final mediaRefs = mediaRefsFromParts(m);
       // Pure-attachment turns have empty text content but still must be sent.
       // Document FileParts are omitted from mediaRefs (they travel via
@@ -518,6 +533,28 @@ class MessageBuilderService {
       source: ContextSource.memorySnapshot,
       length: payload.length,
     );
+  }
+
+  /// `<reply-to>` plain text for [message]'s quote against the collapsed
+  /// stream. Unresolvable target → null (no prefix; the UI shows the stub).
+  /// Range slices are markdown-space ([start, end) into raw content);
+  /// malformed out-of-range pairs degrade to full text.
+  String? _replyToQuoteText(
+    ChatMessage message,
+    MessageQuote quote,
+    Map<String, ChatMessage> sourceById,
+  ) {
+    final target = sourceById[quote.id];
+    if (target == null) return null;
+    final content = target.content;
+    final start = quote.start;
+    final end = quote.end;
+    if (start != null && end != null) {
+      final s = start < 0 ? 0 : start;
+      final e = end > content.length ? content.length : end;
+      if (s < e) return quotePlainText(content.substring(s, e));
+    }
+    return quotePlainText(content);
   }
 
   ChatMessage? _latestPersistedMessage(ChatMessage message) {

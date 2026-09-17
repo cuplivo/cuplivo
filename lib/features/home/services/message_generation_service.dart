@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:Cuplivo/core/providers/external_mounts_provider.dart';
 import 'dart:async';
 import 'package:flutter/widgets.dart';
@@ -407,6 +408,9 @@ class MessageGenerationService {
       conversationId: conversationId,
       role: 'user',
       parts: parts,
+      quoteJson: input.quote == null
+          ? null
+          : jsonEncode(input.quote!.toJson()),
     );
   }
 
@@ -429,6 +433,9 @@ class MessageGenerationService {
         conversationId: conversationId,
         role: 'user',
         parts: userParts,
+        quoteJson: input.quote == null
+            ? null
+            : jsonEncode(input.quote!.toJson()),
       );
       final assistantMessage = await createAssistantPlaceholder(
         conversationId: conversationId,

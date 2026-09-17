@@ -4504,6 +4504,24 @@ abstract class AppLocalizations {
   /// **'Select Messages'**
   String get messageMoreSheetSelectMessages;
 
+  /// No description provided for @messageMoreSheetReply.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply'**
+  String get messageMoreSheetReply;
+
+  /// No description provided for @messageQuoteDeletedErrorMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The original message has been deleted'**
+  String get messageQuoteDeletedErrorMessage;
+
+  /// No description provided for @messageQuotePreviewDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss reply quote'**
+  String get messageQuotePreviewDismiss;
+
   /// No description provided for @messageMoreSheetCreateBranch.
   ///
   /// In en, this message translates to:

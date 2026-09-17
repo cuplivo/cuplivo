@@ -1463,6 +1463,11 @@ class _HomePageState extends State<HomePage>
       ),
       onSpeakMessage: (message) => _controller.speakMessage(message),
       onSuggestionTap: (suggestion) => _controller.sendSuggestion(suggestion),
+      onReplyMessage: (message) {
+        final conversationId = _controller.currentConversation?.id;
+        if (conversationId == null) return;
+        _controller.startReplyTo(conversationId, message);
+      },
       onRecoveredAskUserAnswer: (message, part, result) =>
           _controller.submitRecoveredAskUserAnswer(message, part, result),
       onToggleSelection: (messageId, selected) {

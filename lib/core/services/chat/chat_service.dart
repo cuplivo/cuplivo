@@ -2863,6 +2863,7 @@ class ChatService extends ChangeNotifier {
     int? version,
     bool selectVersion = false,
     String? temporaryAfterGroupId,
+    String? quoteJson,
   }) async {
     if (!_initialized) await init();
 
@@ -2900,6 +2901,7 @@ class ChatService extends ChangeNotifier {
       reasoningFinishedAt: reasoningFinishedAt,
       groupId: groupId,
       version: version,
+      quoteJson: quoteJson,
     );
 
     if (_discardedTemporaryConversationIds.contains(conversationId)) {
@@ -3678,6 +3680,7 @@ class ChatService extends ChangeNotifier {
         completionTokens: message.completionTokens,
         cachedTokens: message.cachedTokens,
         durationMs: message.durationMs,
+        quoteJson: message.quoteJson,
       );
       await addMessageDirectly(targetConversationId, forked);
       cloned.add(forked);
@@ -3763,6 +3766,7 @@ class ChatService extends ChangeNotifier {
             : null,
         groupId: groupId,
         version: nextVersion,
+        quoteJson: temporaryOriginal.quoteJson,
       );
 
       messages.add(newMsg);

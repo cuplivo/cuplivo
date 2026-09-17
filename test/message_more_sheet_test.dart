@@ -18,6 +18,7 @@ Future<void> _openMoreSheet(
   WidgetTester tester, {
   required bool canDeleteAllVersions,
   bool canCreateBranch = true,
+  ChatMessage? message,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -35,7 +36,7 @@ Future<void> _openMoreSheet(
               onPressed: () {
                 showMessageMoreSheet(
                   context,
-                  _message(),
+                  message ?? _message(),
                   canDeleteAllVersions: canDeleteAllVersions,
                   canCreateBranch: canCreateBranch,
                 );
@@ -78,5 +79,40 @@ void main() {
     );
 
     expect(find.text('Create Branch'), findsNothing);
+  });
+
+  testWidgets('assistant 消息显示回复入口', (tester) async {
+    await _openMoreSheet(tester, canDeleteAllVersions: false);
+    expect(find.text('Reply'), findsOneWidget);
+  });
+
+  testWidgets('user 消息显示回复入口', (tester) async {
+    final userMessage = ChatMessage(
+      role: 'user',
+      content: 'hello',
+      conversationId: 'conversation-1',
+    );
+    await _openMoreSheet(
+      tester,
+      canDeleteAllVersions: false,
+      message: userMessage,
+    );
+    expect(find.text('Reply'), findsOneWidget);
+  });
+
+  testWidgets('流式回答不显示回复入口', (tester) async {
+    final streamingMessage = ChatMessage(
+      role: 'assistant',
+      content: 'hello',
+      conversationId: 'conversation-1',
+      isStreaming: true,
+    );
+    await _openMoreSheet(
+      tester,
+      canDeleteAllVersions: false,
+      message: streamingMessage,
+    );
+
+    expect(find.text('Reply'), findsNothing);
   });
 }

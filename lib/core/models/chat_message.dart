@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 
 import 'message_part.dart';
+import 'message_quote.dart';
 
 part 'chat_message.g.dart';
 
@@ -84,6 +87,30 @@ class ChatMessage extends HiveObject {
   @HiveField(19)
   final int? durationMs;
 
+  /// JSON-encoded [`MessageQuote`] citation reference of this message
+  /// (user-originated replies). Null = no reply.
+  final String? quoteJson;
+
+  /// Parsed representation of [quoteJson]; null if absent or malformed.
+  /// Malformed historical rows are treated as absent — never throw.
+  MessageQuote? get quote {
+    final raw = quoteJson?.trim();
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return MessageQuote.fromJson(decoded.cast<String, dynamic>());
+      }
+    } catch (_) {
+      // Malformed metadata is treated as absent; never throw on bad rows.
+    }
+    return null;
+  }
+
+  /// Sentinel for [copyWith] parameters that must distinguish "leave alone"
+  /// from "set to null".
+  static const _unset = Object();
+
   ChatMessage({
     String? id,
     required this.role,
@@ -106,6 +133,7 @@ class ChatMessage extends HiveObject {
     this.completionTokens,
     this.cachedTokens,
     this.durationMs,
+    this.quoteJson,
   }) : parts = List<MessagePart>.unmodifiable(
          parts ?? <MessagePart>[TextPart(content ?? '')],
        ),
@@ -270,6 +298,7 @@ class ChatMessage extends HiveObject {
     int? completionTokens,
     int? cachedTokens,
     int? durationMs,
+    Object? quoteJson = _unset,
   }) {
     final List<MessagePart>? nextParts;
     if (parts != null) {
@@ -301,6 +330,9 @@ class ChatMessage extends HiveObject {
       completionTokens: completionTokens ?? this.completionTokens,
       cachedTokens: cachedTokens ?? this.cachedTokens,
       durationMs: durationMs ?? this.durationMs,
+      quoteJson: identical(quoteJson, _unset)
+          ? this.quoteJson
+          : quoteJson as String?,
     );
   }
 
@@ -331,6 +363,7 @@ class ChatMessage extends HiveObject {
       'completionTokens': completionTokens,
       'cachedTokens': cachedTokens,
       'durationMs': durationMs,
+      'quoteJson': quoteJson,
     };
   }
 
@@ -384,6 +417,7 @@ class ChatMessage extends HiveObject {
       completionTokens: json['completionTokens'] as int?,
       cachedTokens: json['cachedTokens'] as int?,
       durationMs: json['durationMs'] as int?,
+      quoteJson: json['quoteJson'] as String?,
     );
   }
 }

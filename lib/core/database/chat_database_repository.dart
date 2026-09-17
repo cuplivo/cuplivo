@@ -888,6 +888,7 @@ class ChatDatabaseRepository {
       'updated_at',
       'sender_id',
       'extras_json',
+      'quote_json',
     ],
     'chat_storage_meta_rows': ['key', 'value'],
     'message_part_rows': [
@@ -4305,6 +4306,7 @@ class ChatDatabaseRepository {
               // row, so its effective updated_at is its (copied) timestamp.
               senderId: Value(message.senderId),
               extrasJson: Value(message.extrasJson),
+              quoteJson: Value(message.quoteJson),
             ),
           );
       await _db.customStatement(
@@ -6957,6 +6959,7 @@ class ChatDatabaseRepository {
       completionTokens: row.completionTokens,
       cachedTokens: row.cachedTokens,
       durationMs: row.durationMs,
+      quoteJson: row.quoteJson,
     );
   }
 
@@ -7202,6 +7205,7 @@ class ChatDatabaseRepository {
       completionTokens: Value(message.completionTokens),
       cachedTokens: Value(message.cachedTokens),
       durationMs: Value(message.durationMs),
+      quoteJson: Value(message.quoteJson),
       messageOrder: messageOrder,
     );
   }
@@ -7222,6 +7226,7 @@ class ChatDatabaseRepository {
       completionTokens: Value(message.completionTokens),
       cachedTokens: Value(message.cachedTokens),
       durationMs: Value(message.durationMs),
+      quoteJson: Value(message.quoteJson),
     );
   }
 

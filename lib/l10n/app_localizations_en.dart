@@ -2394,6 +2394,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageMoreSheetSelectMessages => 'Select Messages';
 
   @override
+  String get messageMoreSheetReply => 'Reply';
+
+  @override
+  String get messageQuoteDeletedErrorMessage =>
+      'The original message has been deleted';
+
+  @override
+  String get messageQuotePreviewDismiss => 'Dismiss reply quote';
+
+  @override
   String get messageMoreSheetCreateBranch => 'Create Branch';
 
   @override

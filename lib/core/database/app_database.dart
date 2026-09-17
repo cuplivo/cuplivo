@@ -160,6 +160,9 @@ class MessageRows extends Table {
   // v3: schema-less extension point for message-scoped feature fields. Same
   // discipline as ConversationRows.extrasJson.
   TextColumn get extrasJson => text().withDefault(const Constant('{}'))();
+  // v4: JSON-encoded MessageQuote citation for message replies. Half-open
+  // [start, end) offsets index the target's raw markdown. Null = no reply.
+  TextColumn get quoteJson => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -764,13 +767,14 @@ class AppDatabase extends _$AppDatabase {
   // per-conversation model override; schema 3 lays the extension groundwork
   // (extras_json columns, message updated_at/sender_id, tombstone_rows,
   // extension_entity_rows) so later features can ship without further
-  // migrations. Every version outside [publishedSchemaVersions] belongs to an
+  // migrations; schema 4 adds the message reply citation (quote_json).
+  // Every version outside [publishedSchemaVersions] belongs to an
   // unpublished or future format and is rejected.
-  static const currentSchemaVersion = 3;
+  static const currentSchemaVersion = 4;
 
   /// Every schema that has ever shipped. A file at any of these can be
   /// upgraded by `SchemaMigrations`; anything else is rejected outright.
-  static const publishedSchemaVersions = <int>{1, 2, 3};
+  static const publishedSchemaVersions = <int>{1, 2, 3, 4};
 
   /// Whether a live application connection may use a file as-is: either freshly
   /// created (0) or already at the current schema.
@@ -940,6 +944,10 @@ FROM probe;
         await m.createTable(schema.extensionEntityRows);
         // stepByStep does not create new indexes automatically.
         await m.create(schema.idxExtensionEntitiesKindOrder);
+      },
+      // Purely additive; no data rewrite.
+      from3To4: (m, schema) async {
+        await m.addColumn(schema.messageRows, schema.messageRows.quoteJson);
       },
     ),
     beforeOpen: (details) async {

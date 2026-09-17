@@ -383,4 +383,42 @@ void main() {
       },
     );
   });
+
+  group('ChatMessage.quoteJson serialization', () {
+    ChatMessage replied() => ChatMessage(
+      role: 'user',
+      content: 'reply text',
+      conversationId: 'c1',
+      quoteJson: '{"id":"target-1","start":2,"end":7}',
+    );
+
+    test('toJson carries quoteJson verbatim; fromJson restores it', () {
+      final message = replied();
+      final json = message.toJson();
+      expect(json['quoteJson'], '{"id":"target-1","start":2,"end":7}');
+      final restored = ChatMessage.fromJson(json);
+      expect(restored.quoteJson, message.quoteJson);
+      expect(restored.quote?.id, 'target-1');
+      expect(restored.quote?.start, 2);
+      expect(restored.quote?.end, 7);
+    });
+
+    test('fromJson tolerates malformed quoteJson (getter null)', () {
+      final restored = ChatMessage.fromJson(
+        replied().toJson()..['quoteJson'] = '{oops',
+      );
+      expect(restored.quoteJson, '{oops');
+      expect(restored.quote, isNull);
+    });
+
+    test('copyWith without quoteJson preserves it; explicit null clears', () {
+      final message = replied();
+      expect(
+        message.copyWith(content: 'edited').quoteJson,
+        '{"id":"target-1","start":2,"end":7}',
+      );
+      expect(message.copyWith(quoteJson: null).quoteJson, isNull);
+      expect(message.copyWith(quoteJson: null).quote, isNull);
+    });
+  });
 }

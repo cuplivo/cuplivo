@@ -90,6 +90,15 @@ void main() {
       expect(conv1Messages, hasLength(2));
       final u1 = conv1Messages.firstWhere((m) => m.id == 'msg-u1');
       expect(u1.content, contains('Hello there'));
+      // Reply citations survive the legacy importer now that ChatMessage
+      // consumes quoteJson: the raw JSON string persists on the row, and the
+      // tolerant `quote` getter treats a non-MessageQuote shape as absent.
+      final a1Quote = conv1Messages.firstWhere((m) => m.id == 'msg-a1');
+      expect(
+        a1Quote.quoteJson,
+        '{"messageId":"msg-u1","text":"Hello there"}',
+      );
+      expect(a1Quote.quote, isNull);
       final a1 = conv1Messages.firstWhere((m) => m.id == 'msg-a1');
       final toolParts = a1.parts.whereType<ToolCallPart>().toList();
       expect(

@@ -57,6 +57,7 @@ import 'citation_sources_sheet.dart';
 import 'chat_surface.dart';
 import 'collapsible_user_text.dart';
 import 'chat_suggestion_bubbles.dart';
+import 'quote_block.dart';
 import 'token_display_widget.dart';
 import 'screen_time_tool_ui.dart';
 import 'weather_tool_ui.dart';
@@ -1054,6 +1055,11 @@ class ChatMessageWidget extends StatefulWidget {
   final bool enableStreamingTextMotion;
   final List<String> suggestions;
   final ValueChanged<String>? onSuggestionTap;
+
+  /// Resolved target of [ChatMessage.quote] (same conversation, current
+  /// display list); null renders the deleted-target stub in [QuoteBlock].
+  final ChatMessage? quoteTarget;
+
   final Future<void> Function(ToolUIPart part, AskUserResult result)?
   onRecoveredAskUserAnswer;
 
@@ -1109,6 +1115,7 @@ class ChatMessageWidget extends StatefulWidget {
     this.enableStreamingTextMotion = true,
     this.suggestions = const <String>[],
     this.onSuggestionTap,
+    this.quoteTarget,
     this.onRecoveredAskUserAnswer,
     this.showThinkingCards,
     this.showToolCards,
@@ -1858,6 +1865,14 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                 key: ValueKey('user-message-content:${widget.message.id}'),
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  if (widget.message.quote != null) ...[
+                    QuoteBlock(
+                      key: ValueKey('user-message-quote:${widget.message.id}'),
+                      quote: widget.message.quote!,
+                      target: widget.quoteTarget,
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   if (mediaPreview != null) mediaPreview,
                   if (mediaPreview != null && textBubble != null)
                     const SizedBox(height: 8),

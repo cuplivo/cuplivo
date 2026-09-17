@@ -247,4 +247,5 @@ class Lucide {
   static const IconData SlidersHorizontal =
       lucide.LucideIcons.slidersHorizontal;
   static const IconData AudioLines = lucide.LucideIcons.audioLines;
+  static const IconData Reply = lucide.LucideIcons.reply;
 }

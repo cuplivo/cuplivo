@@ -1240,6 +1240,17 @@ class $MessageRowsTable extends MessageRows
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
   );
+  static const VerificationMeta _quoteJsonMeta = const VerificationMeta(
+    'quoteJson',
+  );
+  @override
+  late final GeneratedColumn<String> quoteJson = GeneratedColumn<String>(
+    'quote_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1264,6 +1275,7 @@ class $MessageRowsTable extends MessageRows
     updatedAt,
     senderId,
     extrasJson,
+    quoteJson,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1417,6 +1429,12 @@ class $MessageRowsTable extends MessageRows
         extrasJson.isAcceptableOrUnknown(data['extras_json']!, _extrasJsonMeta),
       );
     }
+    if (data.containsKey('quote_json')) {
+      context.handle(
+        _quoteJsonMeta,
+        quoteJson.isAcceptableOrUnknown(data['quote_json']!, _quoteJsonMeta),
+      );
+    }
     return context;
   }
 
@@ -1528,6 +1546,10 @@ class $MessageRowsTable extends MessageRows
         DriftSqlType.string,
         data['${effectivePrefix}extras_json'],
       )!,
+      quoteJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}quote_json'],
+      ),
     );
   }
 
@@ -1575,6 +1597,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
   final DateTime? updatedAt;
   final String? senderId;
   final String extrasJson;
+  final String? quoteJson;
   const MessageRow({
     required this.id,
     required this.conversationId,
@@ -1598,6 +1621,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     this.updatedAt,
     this.senderId,
     required this.extrasJson,
+    this.quoteJson,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1664,6 +1688,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       map['sender_id'] = Variable<String>(senderId);
     }
     map['extras_json'] = Variable<String>(extrasJson);
+    if (!nullToAbsent || quoteJson != null) {
+      map['quote_json'] = Variable<String>(quoteJson);
+    }
     return map;
   }
 
@@ -1719,6 +1746,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           ? const Value.absent()
           : Value(senderId),
       extrasJson: Value(extrasJson),
+      quoteJson: quoteJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(quoteJson),
     );
   }
 
@@ -1756,6 +1786,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
       senderId: serializer.fromJson<String?>(json['senderId']),
       extrasJson: serializer.fromJson<String>(json['extrasJson']),
+      quoteJson: serializer.fromJson<String?>(json['quoteJson']),
     );
   }
   @override
@@ -1786,6 +1817,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       'updatedAt': serializer.toJson<DateTime?>(updatedAt),
       'senderId': serializer.toJson<String?>(senderId),
       'extrasJson': serializer.toJson<String>(extrasJson),
+      'quoteJson': serializer.toJson<String?>(quoteJson),
     };
   }
 
@@ -1812,6 +1844,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     Value<DateTime?> updatedAt = const Value.absent(),
     Value<String?> senderId = const Value.absent(),
     String? extrasJson,
+    Value<String?> quoteJson = const Value.absent(),
   }) => MessageRow(
     id: id ?? this.id,
     conversationId: conversationId ?? this.conversationId,
@@ -1843,6 +1876,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
     senderId: senderId.present ? senderId.value : this.senderId,
     extrasJson: extrasJson ?? this.extrasJson,
+    quoteJson: quoteJson.present ? quoteJson.value : this.quoteJson,
   );
   MessageRow copyWithCompanion(MessageRowsCompanion data) {
     return MessageRow(
@@ -1896,6 +1930,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       extrasJson: data.extrasJson.present
           ? data.extrasJson.value
           : this.extrasJson,
+      quoteJson: data.quoteJson.present ? data.quoteJson.value : this.quoteJson,
     );
   }
 
@@ -1923,7 +1958,8 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           ..write('messageOrder: $messageOrder, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('senderId: $senderId, ')
-          ..write('extrasJson: $extrasJson')
+          ..write('extrasJson: $extrasJson, ')
+          ..write('quoteJson: $quoteJson')
           ..write(')'))
         .toString();
   }
@@ -1952,6 +1988,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     updatedAt,
     senderId,
     extrasJson,
+    quoteJson,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -1978,7 +2015,8 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           other.messageOrder == this.messageOrder &&
           other.updatedAt == this.updatedAt &&
           other.senderId == this.senderId &&
-          other.extrasJson == this.extrasJson);
+          other.extrasJson == this.extrasJson &&
+          other.quoteJson == this.quoteJson);
 }
 
 class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
@@ -2004,6 +2042,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
   final Value<DateTime?> updatedAt;
   final Value<String?> senderId;
   final Value<String> extrasJson;
+  final Value<String?> quoteJson;
   final Value<int> rowid;
   const MessageRowsCompanion({
     this.id = const Value.absent(),
@@ -2028,6 +2067,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     this.updatedAt = const Value.absent(),
     this.senderId = const Value.absent(),
     this.extrasJson = const Value.absent(),
+    this.quoteJson = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MessageRowsCompanion.insert({
@@ -2053,6 +2093,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     this.updatedAt = const Value.absent(),
     this.senderId = const Value.absent(),
     this.extrasJson = const Value.absent(),
+    this.quoteJson = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        conversationId = Value(conversationId),
@@ -2082,6 +2123,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     Expression<int>? updatedAt,
     Expression<String>? senderId,
     Expression<String>? extrasJson,
+    Expression<String>? quoteJson,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2109,6 +2151,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (senderId != null) 'sender_id': senderId,
       if (extrasJson != null) 'extras_json': extrasJson,
+      if (quoteJson != null) 'quote_json': quoteJson,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2136,6 +2179,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     Value<DateTime?>? updatedAt,
     Value<String?>? senderId,
     Value<String>? extrasJson,
+    Value<String?>? quoteJson,
     Value<int>? rowid,
   }) {
     return MessageRowsCompanion(
@@ -2162,6 +2206,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
       updatedAt: updatedAt ?? this.updatedAt,
       senderId: senderId ?? this.senderId,
       extrasJson: extrasJson ?? this.extrasJson,
+      quoteJson: quoteJson ?? this.quoteJson,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2249,6 +2294,9 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     if (extrasJson.present) {
       map['extras_json'] = Variable<String>(extrasJson.value);
     }
+    if (quoteJson.present) {
+      map['quote_json'] = Variable<String>(quoteJson.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2280,6 +2328,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
           ..write('updatedAt: $updatedAt, ')
           ..write('senderId: $senderId, ')
           ..write('extrasJson: $extrasJson, ')
+          ..write('quoteJson: $quoteJson, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -12956,7 +13005,7 @@ class $$ConversationRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$ConversationRowsTable, ConversationRow>(table),
                   $$ConversationRowsTableReferences(db, table, e),
                 ),
               )
@@ -13091,6 +13140,7 @@ typedef $$MessageRowsTableCreateCompanionBuilder =
       Value<DateTime?> updatedAt,
       Value<String?> senderId,
       Value<String> extrasJson,
+      Value<String?> quoteJson,
       Value<int> rowid,
     });
 typedef $$MessageRowsTableUpdateCompanionBuilder =
@@ -13117,6 +13167,7 @@ typedef $$MessageRowsTableUpdateCompanionBuilder =
       Value<DateTime?> updatedAt,
       Value<String?> senderId,
       Value<String> extrasJson,
+      Value<String?> quoteJson,
       Value<int> rowid,
     });
 
@@ -13303,6 +13354,11 @@ class $$MessageRowsTableFilterComposer
 
   ColumnFilters<String> get extrasJson => $composableBuilder(
     column: $table.extrasJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get quoteJson => $composableBuilder(
+    column: $table.quoteJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13495,6 +13551,11 @@ class $$MessageRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get quoteJson => $composableBuilder(
+    column: $table.quoteJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ConversationRowsTableOrderingComposer get conversationId {
     final $$ConversationRowsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -13618,6 +13679,9 @@ class $$MessageRowsTableAnnotationComposer
     column: $table.extrasJson,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get quoteJson =>
+      $composableBuilder(column: $table.quoteJson, builder: (column) => column);
 
   $$ConversationRowsTableAnnotationComposer get conversationId {
     final $$ConversationRowsTableAnnotationComposer composer = $composerBuilder(
@@ -13749,6 +13813,7 @@ class $$MessageRowsTableTableManager
                 Value<DateTime?> updatedAt = const Value.absent(),
                 Value<String?> senderId = const Value.absent(),
                 Value<String> extrasJson = const Value.absent(),
+                Value<String?> quoteJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MessageRowsCompanion(
                 id: id,
@@ -13773,6 +13838,7 @@ class $$MessageRowsTableTableManager
                 updatedAt: updatedAt,
                 senderId: senderId,
                 extrasJson: extrasJson,
+                quoteJson: quoteJson,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -13799,6 +13865,7 @@ class $$MessageRowsTableTableManager
                 Value<DateTime?> updatedAt = const Value.absent(),
                 Value<String?> senderId = const Value.absent(),
                 Value<String> extrasJson = const Value.absent(),
+                Value<String?> quoteJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MessageRowsCompanion.insert(
                 id: id,
@@ -13823,12 +13890,13 @@ class $$MessageRowsTableTableManager
                 updatedAt: updatedAt,
                 senderId: senderId,
                 extrasJson: extrasJson,
+                quoteJson: quoteJson,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$MessageRowsTable, MessageRow>(table),
                   $$MessageRowsTableReferences(db, table, e),
                 ),
               )
@@ -14189,7 +14257,10 @@ class $$ConversationMcpServerRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $ConversationMcpServerRowsTable,
+                    ConversationMcpServerRow
+                  >(table),
                   $$ConversationMcpServerRowsTableReferences(db, table, e),
                 ),
               )
@@ -14386,7 +14457,18 @@ class $$ChatStorageMetaRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$ChatStorageMetaRowsTable, ChatStorageMetaRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ChatStorageMetaRowsTable,
+                    ChatStorageMetaRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -14653,7 +14735,16 @@ class $$MessagePartRowsTableTableManager
                 updatedAt: updatedAt,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$MessagePartRowsTable, MessagePartRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $MessagePartRowsTable,
+                    MessagePartRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -14890,7 +14981,18 @@ class $$ProviderArtifactRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$ProviderArtifactRowsTable, ProviderArtifactRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ProviderArtifactRowsTable,
+                    ProviderArtifactRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -15345,7 +15447,7 @@ class $$AssetRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$AssetRowsTable, AssetRow>(table),
                   $$AssetRowsTableReferences(db, table, e),
                 ),
               )
@@ -15741,7 +15843,7 @@ class $$MessageAssetRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$MessageAssetRowsTable, MessageAssetRow>(table),
                   $$MessageAssetRowsTableReferences(db, table, e),
                 ),
               )
@@ -16059,7 +16161,7 @@ class $$AssetGcRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$AssetGcRowsTable, AssetGcRow>(table),
                   $$AssetGcRowsTableReferences(db, table, e),
                 ),
               )
@@ -16278,7 +16380,16 @@ class $$GcAuditRowsTableTableManager
                 completedAt: completedAt,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$GcAuditRowsTable, GcAuditRow>(table),
+                  BaseReferences<_$AppDatabase, $GcAuditRowsTable, GcAuditRow>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -16499,7 +16610,10 @@ class $$AssetReferenceDirtyRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $AssetReferenceDirtyRowsTable,
+                    AssetReferenceDirtyRow
+                  >(table),
                   $$AssetReferenceDirtyRowsTableReferences(db, table, e),
                 ),
               )
@@ -16941,7 +17055,7 @@ class $$GenerationRunRowsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$GenerationRunRowsTable, GenerationRunRow>(table),
                   $$GenerationRunRowsTableReferences(db, table, e),
                 ),
               )
@@ -17165,7 +17279,16 @@ class $$AssistantRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$AssistantRowsTable, AssistantRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $AssistantRowsTable,
+                    AssistantRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -17349,7 +17472,16 @@ class $$ProviderRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$ProviderRowsTable, ProviderRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ProviderRowsTable,
+                    ProviderRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -17540,7 +17672,16 @@ class $$ProviderGroupRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$ProviderGroupRowsTable, ProviderGroupRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ProviderGroupRowsTable,
+                    ProviderGroupRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -17726,7 +17867,16 @@ class $$McpServerRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$McpServerRowsTable, McpServerRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $McpServerRowsTable,
+                    McpServerRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -17908,7 +18058,16 @@ class $$WorldBookRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$WorldBookRowsTable, WorldBookRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $WorldBookRowsTable,
+                    WorldBookRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -18123,7 +18282,18 @@ class $$AssistantMemoryRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$AssistantMemoryRowsTable, AssistantMemoryRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $AssistantMemoryRowsTable,
+                    AssistantMemoryRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -18315,7 +18485,16 @@ class $$QuickPhraseRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$QuickPhraseRowsTable, QuickPhraseRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $QuickPhraseRowsTable,
+                    QuickPhraseRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -18506,7 +18685,16 @@ class $$SearchServiceRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$SearchServiceRowsTable, SearchServiceRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $SearchServiceRowsTable,
+                    SearchServiceRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -18694,7 +18882,16 @@ class $$TtsServiceRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$TtsServiceRowsTable, TtsServiceRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $TtsServiceRowsTable,
+                    TtsServiceRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -18891,7 +19088,19 @@ class $$InstructionInjectionRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<
+                    $InstructionInjectionRowsTable,
+                    InstructionInjectionRow
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $InstructionInjectionRowsTable,
+                    InstructionInjectionRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -19083,7 +19292,16 @@ class $$AssistantTagRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$AssistantTagRowsTable, AssistantTagRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $AssistantTagRowsTable,
+                    AssistantTagRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -19248,7 +19466,16 @@ class $$PreferenceRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$PreferenceRowsTable, PreferenceRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $PreferenceRowsTable,
+                    PreferenceRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -19600,7 +19827,16 @@ class $$MemoryEntryRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$MemoryEntryRowsTable, MemoryEntryRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $MemoryEntryRowsTable,
+                    MemoryEntryRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -19794,7 +20030,18 @@ class $$UserProfileFieldRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$UserProfileFieldRowsTable, UserProfileFieldRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $UserProfileFieldRowsTable,
+                    UserProfileFieldRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -20014,7 +20261,16 @@ class $$MessagePromptRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$MessagePromptRowsTable, MessagePromptRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $MessagePromptRowsTable,
+                    MessagePromptRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -20200,7 +20456,16 @@ class $$TombstoneRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$TombstoneRowsTable, TombstoneRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $TombstoneRowsTable,
+                    TombstoneRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -20432,7 +20697,18 @@ class $$ExtensionEntityRowsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$ExtensionEntityRowsTable, ExtensionEntityRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ExtensionEntityRowsTable,
+                    ExtensionEntityRow
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),

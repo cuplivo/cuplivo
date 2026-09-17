@@ -2318,6 +2318,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageMoreSheetSelectMessages => '选择消息';
 
   @override
+  String get messageMoreSheetReply => '回复';
+
+  @override
+  String get messageQuoteDeletedErrorMessage => '原消息已被删除';
+
+  @override
+  String get messageQuotePreviewDismiss => '移除回复引用';
+
+  @override
   String get messageMoreSheetCreateBranch => '创建分支';
 
   @override
@@ -13709,6 +13718,15 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageMoreSheetSelectMessages => '选择消息';
 
   @override
+  String get messageMoreSheetReply => '回复';
+
+  @override
+  String get messageQuoteDeletedErrorMessage => '原消息已被删除';
+
+  @override
+  String get messageQuotePreviewDismiss => '移除回复引用';
+
+  @override
   String get messageMoreSheetCreateBranch => '创建分支';
 
   @override
@@ -25024,6 +25042,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get messageMoreSheetSelectMessages => '選擇訊息';
+
+  @override
+  String get messageMoreSheetReply => '回覆';
+
+  @override
+  String get messageQuoteDeletedErrorMessage => '原訊息已被刪除';
+
+  @override
+  String get messageQuotePreviewDismiss => '移除回覆引用';
 
   @override
   String get messageMoreSheetCreateBranch => '建立分支';

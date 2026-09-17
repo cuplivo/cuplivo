@@ -55,12 +55,24 @@ typedef OnSelectMessages =
     void Function(int messageIndex, List<ChatMessage> messages);
 typedef OnSpeakMessage = Future<void> Function(ChatMessage message);
 typedef OnSuggestionTap = void Function(String suggestion);
+typedef OnReplyMessage = void Function(ChatMessage message);
 typedef OnRecoveredAskUserAnswer =
     Future<void> Function(
       ChatMessage message,
       ToolUIPart part,
       AskUserResult result,
     );
+
+/// Resolves a message by id inside the current display list. Returns null when
+/// the id is absent or unresolvable (deleted target → QuoteBlock renders the
+/// stub).
+ChatMessage? _findMessageById(List<ChatMessage> messages, String? id) {
+  if (id == null) return null;
+  for (final m in messages) {
+    if (m.id == id) return m;
+  }
+  return null;
+}
 
 /// Data class for reasoning UI state
 class ReasoningUiState {
@@ -136,6 +148,7 @@ class MessageListView extends StatefulWidget {
     this.onSpeakMessage,
     this.suggestions = const <String>[],
     this.onSuggestionTap,
+    this.onReplyMessage,
     this.onRecoveredAskUserAnswer,
     this.onToggleSelection,
     this.onToggleReasoning,
@@ -233,6 +246,9 @@ class MessageListView extends StatefulWidget {
   /// Kept in the final row so indexed navigation still counts only messages.
   final Widget? footer;
   final OnSuggestionTap? onSuggestionTap;
+
+  /// Starts a whole-message reply (更多 → 回复) for the tapped message.
+  final OnReplyMessage? onReplyMessage;
   final OnRecoveredAskUserAnswer? onRecoveredAskUserAnswer;
   final void Function(String messageId, bool selected)? onToggleSelection;
   final void Function(String messageId)? onToggleReasoning;
@@ -2401,6 +2417,8 @@ class _MessageListViewState extends State<MessageListView> {
           await widget.onDeleteAllVersions?.call(message, widget.byGroup);
         } else if (action == MessageMoreAction.edit) {
           widget.onEditMessage?.call(message);
+        } else if (action == MessageMoreAction.reply) {
+          widget.onReplyMessage?.call(message);
         } else if (action == MessageMoreAction.fork) {
           await widget.onForkConversation?.call(message);
         } else if (action == MessageMoreAction.share) {
@@ -2452,6 +2470,7 @@ class _MessageListViewState extends State<MessageListView> {
       isProcessingFiles: isProcessingFiles,
       suggestions: suggestions,
       onSuggestionTap: widget.onSuggestionTap,
+      quoteTarget: _findMessageById(widget.messages, message.quote?.id),
       onRecoveredAskUserAnswer: widget.onRecoveredAskUserAnswer == null
           ? null
           : (part, result) =>

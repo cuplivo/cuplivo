@@ -11,6 +11,7 @@ import '../../../core/database/chat_database_repository.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_part.dart';
+import '../../../core/models/message_quote.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/models/workspace_binding.dart';
 import '../../../core/providers/workspace_provider.dart';
@@ -32,6 +33,7 @@ import '../../../core/services/screen_wakelock.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../utils/markdown_media_sanitizer.dart';
+import '../../../utils/quote_plain_text.dart';
 import '../../../utils/platform_utils.dart';
 import '../../../utils/assistant_regex.dart';
 import '../../chat/models/message_edit_result.dart';
@@ -1547,6 +1549,19 @@ class HomePageController extends ChangeNotifier {
     if (!isDesktopPlatform) {
       await _convoFadeController.forward();
     }
+  }
+
+  /// Starts a whole-message reply (更多 → 回复): the quote carries the target
+  /// id; the composer preview shows the clipped plain text. [conversationId]
+  /// guards against a stale sheet result landing on a switched chat.
+  void startReplyTo(String conversationId, ChatMessage target) {
+    if (currentConversation?.id != conversationId) return;
+    final snippet = quoteClipText(quotePlainText(target.content), budget: 120);
+    _mediaController.setQuoteDraft(
+      MessageQuote(id: target.id),
+      snippet: snippet,
+    );
+    _inputFocus.requestFocus();
   }
 
   Future<void> editMessage(ChatMessage message) async {

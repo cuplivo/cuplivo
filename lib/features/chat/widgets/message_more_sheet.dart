@@ -23,6 +23,7 @@ import '../../../shared/widgets/section_card.dart';
 
 enum MessageMoreAction {
   edit,
+  reply,
   fork,
   deleteCurrentVersion,
   deleteAllVersions,
@@ -110,6 +111,14 @@ Future<MessageMoreAction?> showMessageMoreSheet(
           label: l10n.messageMoreSheetEdit,
           onTap: () {
             selected = MessageMoreAction.edit;
+          },
+        ),
+      if (!message.isStreaming)
+        DesktopContextMenuItem(
+          icon: Lucide.Reply,
+          label: l10n.messageMoreSheetReply,
+          onTap: () {
+            selected = MessageMoreAction.reply;
           },
         ),
       DesktopContextMenuItem(
@@ -320,6 +329,14 @@ class _MessageMoreSheetState extends State<_MessageMoreSheet> {
                         label: l10n.messageMoreSheetEdit,
                         onTap: () {
                           Navigator.of(context).pop(MessageMoreAction.edit);
+                        },
+                      ),
+                    if (!widget.message.isStreaming)
+                      _actionItem(
+                        icon: Lucide.Reply,
+                        label: l10n.messageMoreSheetReply,
+                        onTap: () {
+                          Navigator.of(context).pop(MessageMoreAction.reply);
                         },
                       ),
                     _actionItem(

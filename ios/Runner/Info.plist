@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Kelivo</string>
+	<string>Cuplivo</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -21,7 +21,7 @@
 		<string>zh-Hant</string>
 	</array>
 	<key>CFBundleName</key>
-	<string>kelivo</string>
+	<string>cuplivo</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -36,11 +36,11 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>psyche.kelivo.oauth-return</string>
+			<string>cuplivo.oauth-return</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>kelivo</string>
-				<string>psyche.kelivo</string>
+				<string>cuplivo</string>
 			</array>
 		</dict>
 	</array>
@@ -113,7 +113,7 @@
 	<key>KelivoBundledRootfsVersion</key>
 	<string>alpine-3.21.3-r4</string>
 	<key>KelivoShareAppGroup</key>
-	<string>group.psyche.kelivo</string>
+	<string>group.com.cup11.cuplivo</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

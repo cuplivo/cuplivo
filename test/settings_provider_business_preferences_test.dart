@@ -95,7 +95,6 @@ void main() {
         'OpenAI',
         'SiliconFlow',
         'OpenRouter',
-        'KelivoIN',
         'Tensdaq',
         'DeepSeek',
         'AIhubmix',

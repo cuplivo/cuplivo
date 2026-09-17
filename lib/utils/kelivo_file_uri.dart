@@ -103,15 +103,17 @@ final class KelivoFileUri {
 
   /// Known production bundle / package identifiers that own managed roots.
   /// Substring matches (e.g. `com.other.kelivo.notes`) are intentionally
-  /// rejected — only exact whitelist entries count.
+  /// rejected — only exact whitelist entries count. Kelivo-lineage ids stay
+  /// listed so backups made by either lineage resolve to managed roots.
   static const Set<String> _knownBundleIds = {
+    'com.cup11.cuplivo',
     'com.psyche.kelivo',
     'psyche.kelivo',
   };
 
-  /// Windows AppData folder name (Flutter BINARY_NAME). Compared
+  /// Windows AppData folder names (Flutter BINARY_NAME). Compared
   /// case-insensitively as a whole segment — not a substring.
-  static const String _windowsAppFolder = 'kelivo';
+  static const Set<String> _windowsAppFolders = {'cuplivo', 'kelivo'};
 
   static final RegExp _iosUuid = RegExp(
     r'^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$',
@@ -200,7 +202,8 @@ final class KelivoFileUri {
         r'(?:com\.psyche/)?([^/]+)/',
         caseSensitive: false,
       ).firstMatch(raw);
-      if (win != null && win.group(1)!.toLowerCase() == _windowsAppFolder) {
+      if (win != null &&
+          _windowsAppFolders.contains(win.group(1)!.toLowerCase())) {
         tail = _normalizeManagedTail('/${raw.substring(win.end)}', subdirs);
       }
     }

@@ -79,7 +79,6 @@ class SettingsProvider extends ChangeNotifier {
     'SiliconFlow',
     'Gemini',
     'OpenRouter',
-    'KelivoIN',
     'Tensdaq',
     'DeepSeek',
     'AIhubmix',
@@ -1549,7 +1548,6 @@ class SettingsProvider extends ChangeNotifier {
     if (_providerConfigs.isEmpty) {
       // Seed a couple of sensible defaults on first launch, but do not recreate
       // providers implicitly during later reads (e.g., when switching chats).
-      ensureProviderConfig('KelivoIN', defaultName: 'KelivoIN');
       ensureProviderConfig('Tensdaq', defaultName: 'Tensdaq');
       ensureProviderConfig('SiliconFlow', defaultName: 'SiliconFlow');
       ensureProviderConfig('AIhubmix', defaultName: 'AIhubmix');
@@ -2265,7 +2263,7 @@ class SettingsProvider extends ChangeNotifier {
     final services = List<SearchServiceOptions>.from(_searchServices);
     final common = _searchCommonOptions;
     for (final s in services) {
-      if (s is BingLocalOptions || s is KelivoOptions) {
+      if (s is BingLocalOptions) {
         _searchConnection[s.id] = null;
         continue;
       }
@@ -5569,15 +5567,6 @@ Requirements:
   }
 
   // Search service settings
-  Future<bool> unlockKelivoSearch() async {
-    if (_searchServices.any((s) => s is KelivoOptions)) return false;
-    await setSearchServices([
-      ..._searchServices,
-      KelivoOptions(id: KelivoOptions.builtInId),
-    ]);
-    return true;
-  }
-
   Future<void> setSearchServices(List<SearchServiceOptions> services) async {
     _searchServices = List.from(services);
     if (_searchServiceSelected >= _searchServices.length) {
@@ -6044,8 +6033,6 @@ enum ProviderKind { openai, google, claude }
 enum ChatMessageBackgroundStyle { defaultStyle, frosted, solid }
 
 class ProviderConfig {
-  static const _kelivoInPublicApiKey = 'kelivo';
-
   final String id;
   final bool enabled;
   final String name;
@@ -6393,10 +6380,7 @@ class ProviderConfig {
   );
 
   static String _apiKeyFromJson(Map<String, dynamic> json) {
-    final stored = json['apiKey'] as String? ?? '';
-    if (stored.isNotEmpty) return stored;
-    final id = json['id'] as String? ?? json['name'] as String? ?? '';
-    return id.trim().toLowerCase() == 'kelivoin' ? _kelivoInPublicApiKey : '';
+    return json['apiKey'] as String? ?? '';
   }
 
   static List<Map<String, String>> _customRequestRowsFromJson(
@@ -6435,7 +6419,6 @@ class ProviderConfig {
   static String _defaultBase(String key) {
     final k = key.toLowerCase();
     if (k.contains('tensdaq')) return 'https://tensdaq-api.x-aio.com/v1';
-    if (k.contains('kelivoin')) return 'https://text.pollinations.ai/openai';
     if (k.contains('openrouter')) return 'https://openrouter.ai/api/v1';
     if (k.contains('aihubmix')) return 'https://aihubmix.com/v1';
     if (k.contains('随想')) return 'https://sui-xiang.com/v1';
@@ -6476,7 +6459,6 @@ class ProviderConfig {
       if (s.contains('gemini') || s.contains('google')) return true;
       if (s.contains('silicon')) return true;
       if (s.contains('openrouter')) return true;
-      if (s.contains('kelivoin')) return true;
       return false; // others disabled by default
     }
 
@@ -6536,58 +6518,6 @@ class ProviderConfig {
           claudePromptCachingEnabled: false,
         );
       case ProviderKind.openai:
-        // Special-case KelivoIN default models and overrides
-        if (lowerKey.contains('kelivoin')) {
-          return ProviderConfig(
-            id: key,
-            enabled: defaultEnabled(key),
-            name: displayName ?? key,
-            apiKey: _kelivoInPublicApiKey,
-            baseUrl: _defaultBase(key),
-            providerType: ProviderKind.openai,
-            chatPath:
-                null, // keep empty in UI; code uses default '/chat/completions'
-            useResponseApi: false,
-            models: const [
-              // 'openai-fast',
-              'mistral',
-              'qwen-coder',
-            ],
-            modelOverrides: const {
-              // 'openai-fast': {
-              //   'type': 'chat',
-              //   'input': ['text'],
-              //   'output': ['text'],
-              //   'abilities': ['tool'],
-              // },
-              'mistral': {
-                'type': 'chat',
-                'input': ['text'],
-                'output': ['text'],
-                'abilities': ['tool'],
-              },
-              'qwen-coder': {
-                'type': 'chat',
-                'input': ['text'],
-                'output': ['text'],
-                'abilities': ['tool'],
-              },
-            },
-            proxyEnabled: false,
-            proxyHost: '',
-            proxyPort: '8080',
-            proxyUsername: '',
-            proxyPassword: '',
-            multiKeyEnabled: false,
-            apiKeys: const [],
-            keyManagement: const KeyManagementConfig(),
-            aihubmixAppCodeEnabled: false,
-            balanceEnabled: _defaultBalanceEnabled(key),
-            balanceApiPath: _defaultBalanceApiPath(key),
-            balanceResultPath: _defaultBalanceResultPath(key),
-            claudePromptCachingEnabled: false,
-          );
-        }
         // Special-case SiliconFlow: prefill two partnered models
         if (lowerKey.contains('silicon')) {
           return ProviderConfig(

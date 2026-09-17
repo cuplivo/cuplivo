@@ -134,7 +134,6 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
     final l10n = AppLocalizations.of(context)!;
     bool isUserAdded(String key) {
       const fixed = {
-        'KelivoIN',
         'OpenAI',
         'Gemini',
         'SiliconFlow',
@@ -823,47 +822,6 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       children: [
-        if (widget.keyName.toLowerCase() == 'kelivoin') ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: cs.primary.withValues(alpha: 0.35)),
-            ),
-            child: Text.rich(
-              TextSpan(
-                text: 'Powered by ',
-                style: TextStyle(color: cs.onSurface.withValues(alpha: 0.8)),
-                children: [
-                  TextSpan(
-                    text: 'Pollinations AI',
-                    style: TextStyle(
-                      color: cs.primary,
-                      fontWeight: AppFontWeights.emphasis,
-                    ),
-                    recognizer: TapGestureRecognizer()
-                      ..onTap = () async {
-                        final uri = Uri.parse('https://pollinations.ai');
-                        try {
-                          final ok = await launchUrl(
-                            uri,
-                            mode: LaunchMode.externalApplication,
-                          );
-                          if (!ok) {
-                            await launchUrl(uri);
-                          }
-                        } catch (_) {
-                          await launchUrl(uri);
-                        }
-                      },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
         if (widget.keyName.toLowerCase() == 'tensdaq') ...[
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1095,8 +1053,7 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
         // Top iOS-style section card for key settings
         SectionCard(
           children: [
-            if (widget.keyName.toLowerCase() != 'kelivoin')
-              _providerKindRow(context),
+            _providerKindRow(context),
             _providerGroupRow(context, groupName: groupName),
             _iosRow(
               context,
@@ -1337,13 +1294,11 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
           label: l10n.providerDetailPageNameLabel,
           controller: _nameCtrl,
           hint: widget.displayName,
-          enabled: widget.keyName.toLowerCase() != 'kelivoin',
           onChanged: (_) => _save(),
         ),
         const SizedBox(height: 12),
         if (!(_kind == ProviderKind.google && _vertexAI)) ...[
-          if (widget.keyName.toLowerCase() != 'kelivoin' &&
-              !_multiKeyEnabled) ...[
+          if (!_multiKeyEnabled) ...[
             _inputRow(
               context,
               label: l10n.multiKeyPageKey,
@@ -1373,13 +1328,10 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
               widget.keyName,
               displayName: widget.displayName,
             ).baseUrl,
-            enabled: widget.keyName.toLowerCase() != 'kelivoin',
             onChanged: (_) => _save(),
           ),
         ],
-        if (_kind == ProviderKind.openai &&
-            widget.keyName.toLowerCase() != 'kelivoin' &&
-            !_useResp) ...[
+        if (_kind == ProviderKind.openai && !_useResp) ...[
           const SizedBox(height: 12),
           _inputRow(
             context,

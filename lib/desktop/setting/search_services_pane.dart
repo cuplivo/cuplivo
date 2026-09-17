@@ -349,8 +349,7 @@ class _ServiceCardState extends State<_ServiceCard> {
                   ),
                 ),
               ),
-              if (widget.service is! BingLocalOptions &&
-                  widget.service is! KelivoOptions) ...[
+              if (widget.service is! BingLocalOptions) ...[
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -612,7 +611,6 @@ class _BrandBadge extends StatelessWidget {
     if (s is AnySearchOptions) return 'anysearch';
     if (s is ParallelOptions) return 'parallel';
     if (s is YouSearchOptions) return 'you';
-    if (s is KelivoOptions) return 'kelivo';
     return 'search';
   }
 
@@ -2658,8 +2656,6 @@ String _serviceTypeName(BuildContext context, String type) {
       return l10n.searchServiceNameParallel;
     case 'you':
       return l10n.searchServiceNameYou;
-    case 'kelivo':
-      return l10n.searchServiceNameKelivo;
     default:
       return type;
   }

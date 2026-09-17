@@ -820,7 +820,7 @@ class TtsProvider extends ChangeNotifier {
     final dir = await getTemporaryDirectory();
     final path = p.join(
       dir.path,
-      'kelivo_tts_${DateTime.now().microsecondsSinceEpoch}.$ext',
+      'cuplivo_tts_${DateTime.now().microsecondsSinceEpoch}.$ext',
     );
     final f = io.File(path);
     await f.writeAsBytes(result.bytes, flush: true);
@@ -909,11 +909,9 @@ class TtsProvider extends ChangeNotifier {
     await _claimSpeechAudio();
     if (io.Platform.isIOS) {
       await _tts.autoStopSharedSession(false);
-      await _tts.setIosAudioCategory(
-        IosTextToSpeechAudioCategory.playback,
-        [IosTextToSpeechAudioCategoryOptions.mixWithOthers],
-        IosTextToSpeechAudioMode.spokenAudio,
-      );
+      await _tts.setIosAudioCategory(IosTextToSpeechAudioCategory.playback, [
+        IosTextToSpeechAudioCategoryOptions.mixWithOthers,
+      ], IosTextToSpeechAudioMode.spokenAudio);
       await _tts.setSharedInstance(true);
     }
     await _ensureBound();
@@ -1161,7 +1159,7 @@ class TtsProvider extends ChangeNotifier {
       final dir = await getTemporaryDirectory();
       final path = p.join(
         dir.path,
-        'kelivo_tts_${DateTime.now().millisecondsSinceEpoch}.$ext',
+        'cuplivo_tts_${DateTime.now().millisecondsSinceEpoch}.$ext',
       );
       final f = io.File(path);
       await f.writeAsBytes(bytes, flush: true);

@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 class _BrowserCallback implements OAuthCallback {
   @override
-  final redirectUri = Uri.parse('psyche.kelivo:/oauth/callback/test');
+  final redirectUri = Uri.parse('cuplivo:/oauth/callback/test');
   late Future<Uri> Function(Uri) open;
   final cancelled = Completer<Uri>();
   int closes = 0;

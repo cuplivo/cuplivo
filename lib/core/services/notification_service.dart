@@ -22,7 +22,7 @@ class NotificationService {
   static String? _pendingConversationId;
   static const String _chatCompletionPayloadPrefix = 'chat-complete:';
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    'kelivo_bg_chat_v2',
+    'cuplivo_bg_chat_v2',
     'Chat Background',
     description: 'Notifications for chat generation status',
     importance: Importance.high,

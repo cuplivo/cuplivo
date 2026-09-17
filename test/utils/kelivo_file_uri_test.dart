@@ -145,6 +145,14 @@ void main() {
         ),
         'kelivo-file:///upload/legacy.pdf',
       );
+      // Cuplivo BINARY_NAME folder resolves the same way.
+      expect(
+        KelivoFileUri.tryEncodeLegacyAbsolutePath(
+          r'C:\Users\old-user\AppData\Roaming\cuplivo\upload\doc.pdf',
+          allowGenericFallback: false,
+        ),
+        'kelivo-file:///upload/doc.pdf',
+      );
       // Bare .../Kelivo/images without AppData must not match.
       expect(
         KelivoFileUri.tryEncodeLegacyAbsolutePath(
@@ -176,6 +184,21 @@ void main() {
         expect(
           KelivoFileUri.tryEncodeLegacyAbsolutePath(
             '/data/user/0/com.psyche.kelivo/files/upload/doc.pdf',
+            allowGenericFallback: false,
+          ),
+          'kelivo-file:///upload/doc.pdf',
+        );
+        // Cuplivo-lineage package ids resolve the same way.
+        expect(
+          KelivoFileUri.tryEncodeLegacyAbsolutePath(
+            '/data/user/0/com.cup11.cuplivo/app_flutter/fonts/a.ttf',
+            allowGenericFallback: false,
+          ),
+          'kelivo-file:///fonts/a.ttf',
+        );
+        expect(
+          KelivoFileUri.tryEncodeLegacyAbsolutePath(
+            '/data/user/0/com.cup11.cuplivo/files/upload/doc.pdf',
             allowGenericFallback: false,
           ),
           'kelivo-file:///upload/doc.pdf',

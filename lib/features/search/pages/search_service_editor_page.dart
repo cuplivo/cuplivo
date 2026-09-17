@@ -328,7 +328,7 @@ class _SearchServiceEditorPageState extends State<SearchServiceEditorPage> {
       );
     }
 
-    if (service is BingLocalOptions || service is KelivoOptions) {
+    if (service is BingLocalOptions) {
       return const [];
     }
     if (service is DuckDuckGoOptions) {
@@ -1436,8 +1436,6 @@ class _SearchServiceEditorPageState extends State<SearchServiceEditorPage> {
             _text('contentMode'),
           ),
         );
-      case 'kelivo':
-        return KelivoOptions(id: _serviceId);
       default:
         return BingLocalOptions(id: _serviceId);
     }
@@ -2460,7 +2458,6 @@ String _typeForService(SearchServiceOptions service) {
   if (service is AnySearchOptions) return 'anysearch';
   if (service is ParallelOptions) return 'parallel';
   if (service is YouSearchOptions) return 'you';
-  if (service is KelivoOptions) return 'kelivo';
   return 'bing_local';
 }
 
@@ -2517,8 +2514,6 @@ SearchServiceOptions _defaultService(String type, String id) {
       return ParallelOptions(id: id, apiKey: '');
     case 'you':
       return YouSearchOptions(id: id, apiKey: '');
-    case 'kelivo':
-      return KelivoOptions(id: id);
     default:
       return BingLocalOptions(id: id);
   }
@@ -2573,8 +2568,6 @@ String _serviceTypeName(BuildContext context, String type) {
       return l10n.searchServiceNameParallel;
     case 'you':
       return l10n.searchServiceNameYou;
-    case 'kelivo':
-      return l10n.searchServiceNameKelivo;
     default:
       return type;
   }

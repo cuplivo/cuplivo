@@ -7,7 +7,7 @@ import 'package:path/path.dart' as p;
 
 import '../integration_test/support/restore_process_control.dart';
 
-const _bundleIdentifier = 'com.psyche.kelivo.restoreharness';
+const _bundleIdentifier = 'com.cup11.cuplivo.restoreharness';
 const _integrationTestPath =
     'integration_test/restore_process_harness_test.dart';
 const _phaseTimeout = Duration(minutes: 12);

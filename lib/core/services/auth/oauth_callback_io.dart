@@ -65,7 +65,7 @@ String _authorizationServerHash(Uri authorizationServer) => base64UrlEncode(
 final class _AndroidOAuthCallback implements OAuthCallback {
   _AndroidOAuthCallback(Uri authorizationServer)
     : redirectUri = Uri(
-        scheme: 'psyche.kelivo',
+        scheme: 'cuplivo',
         // This URI is registered with authorization servers; sharing the
         // callback implementation must not rename the registered redirect.
         host: 'mcp-oauth-callback',
@@ -121,7 +121,7 @@ final class _AndroidOAuthCallback implements OAuthCallback {
 final class _IosOAuthCallback implements OAuthCallback {
   _IosOAuthCallback(Uri authorizationServer)
     : redirectUri = Uri(
-        scheme: 'psyche.kelivo',
+        scheme: 'cuplivo',
         path:
             '/oauth/callback/${_authorizationServerHash(authorizationServer)}',
       );

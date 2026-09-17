@@ -21,7 +21,7 @@
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>KelivoShareAppGroup</key>
-	<string>group.psyche.kelivo</string>
+	<string>group.com.cup11.cuplivo</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>

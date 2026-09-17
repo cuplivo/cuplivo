@@ -489,9 +489,7 @@ class _SearchServicesPageState extends State<SearchServicesPage> {
                         ),
                       ),
                     ),
-                    if (s is! BingLocalOptions &&
-                        s is! KelivoOptions &&
-                        statusText.isNotEmpty) ...[
+                    if (s is! BingLocalOptions && statusText.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -599,7 +597,6 @@ class _BrandBadge extends StatelessWidget {
     if (s is AnySearchOptions) return 'anysearch';
     if (s is ParallelOptions) return 'parallel';
     if (s is YouSearchOptions) return 'you';
-    if (s is KelivoOptions) return 'kelivo';
     return 'search';
   }
 

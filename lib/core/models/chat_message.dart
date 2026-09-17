@@ -91,6 +91,10 @@ class ChatMessage extends HiveObject {
   /// (user-originated replies). Null = no reply.
   final String? quoteJson;
 
+  /// Authoring identity when the role alone is ambiguous (group chat,
+  /// multi-agent). Null = implied by role. Maps to `message_rows.sender_id`.
+  final String? senderId;
+
   /// Parsed representation of [quoteJson]; null if absent or malformed.
   /// Malformed historical rows are treated as absent — never throw.
   MessageQuote? get quote {
@@ -134,6 +138,7 @@ class ChatMessage extends HiveObject {
     this.cachedTokens,
     this.durationMs,
     this.quoteJson,
+    this.senderId,
   }) : parts = List<MessagePart>.unmodifiable(
          parts ?? <MessagePart>[TextPart(content ?? '')],
        ),
@@ -299,6 +304,7 @@ class ChatMessage extends HiveObject {
     int? cachedTokens,
     int? durationMs,
     Object? quoteJson = _unset,
+    Object? senderId = _unset,
   }) {
     final List<MessagePart>? nextParts;
     if (parts != null) {
@@ -333,6 +339,9 @@ class ChatMessage extends HiveObject {
       quoteJson: identical(quoteJson, _unset)
           ? this.quoteJson
           : quoteJson as String?,
+      senderId: identical(senderId, _unset)
+          ? this.senderId
+          : senderId as String?,
     );
   }
 
@@ -364,6 +373,7 @@ class ChatMessage extends HiveObject {
       'cachedTokens': cachedTokens,
       'durationMs': durationMs,
       'quoteJson': quoteJson,
+      'senderId': senderId,
     };
   }
 
@@ -418,6 +428,8 @@ class ChatMessage extends HiveObject {
       cachedTokens: json['cachedTokens'] as int?,
       durationMs: json['durationMs'] as int?,
       quoteJson: json['quoteJson'] as String?,
+      senderId:
+          (json['senderId'] ?? json['speakerAssistantId']) as String?,
     );
   }
 }

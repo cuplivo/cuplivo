@@ -9,8 +9,11 @@ import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:uuid/uuid.dart';
 
+import '../models/assistant_detail_injection.dart';
 import '../models/chat_message.dart';
 import '../models/conversation.dart';
+import '../models/group_chat.dart';
+import '../models/group_chat_member.dart';
 import '../models/message_part.dart';
 import '../utils/multimodal_input_utils.dart';
 import '../../utils/sandbox_path_resolver.dart';
@@ -789,6 +792,8 @@ class ChatDatabaseRepository {
     const requiredTables = {
       'conversation_rows',
       'conversation_mcp_server_rows',
+      'group_chat_rows',
+      'group_chat_member_rows',
       'message_rows',
       'chat_storage_meta_rows',
       'message_part_rows',
@@ -865,6 +870,29 @@ class ChatDatabaseRepository {
       'extras_json',
     ],
     'conversation_mcp_server_rows': ['conversation_id', 'server_id', 'ordinal'],
+    'group_chat_rows': [
+      'id',
+      'name',
+      'avatar',
+      'conversation_id',
+      'director_model_provider',
+      'director_model_id',
+      'director_system_prompt',
+      'max_assistant_messages_per_round',
+      'assistant_detail_injection_mode',
+      'assistant_detail_injection_n',
+      'inject_group_members_into_assistant_system_prompt',
+      'pending_cap_assistant_message_id',
+      'assistant_messages_this_round',
+      'created_at',
+      'updated_at',
+    ],
+    'group_chat_member_rows': [
+      'group_chat_id',
+      'member_key',
+      'assistant_id',
+      'sort_order',
+    ],
     'message_rows': [
       'id',
       'conversation_id',
@@ -1899,16 +1927,165 @@ class ChatDatabaseRepository {
   }
 
   Future<Conversation?> getConversation(String id) async {
-    return _observer.measure(
-      ChatDatabaseOperation.queryConversation,
-      () async {
-        final row = await (_db.select(
-          _db.conversationRows,
-        )..where((t) => t.id.equals(id))).getSingleOrNull();
-        if (row == null) return null;
-        return _conversationFromRow(row);
-      },
-      resultCount: (conversation) => conversation == null ? 0 : 1,
+    return _observer.measure(ChatDatabaseOperation.queryConversation, () async {
+      final row = await (_db.select(
+        _db.conversationRows,
+      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      if (row == null) return null;
+      return _conversationFromRow(row);
+    }, resultCount: (conversation) => conversation == null ? 0 : 1);
+  }
+
+  // ===== Group chat CRUD =====
+
+  /// All groups, newest activity first. The ordering matches
+  /// `idx_group_chats_updated_at` (updatedAt DESC, id ASC), so SQLite can walk
+  /// the index instead of sorting.
+  Future<List<GroupChat>> getAllGroupChats() async {
+    final rows =
+        await (_db.select(_db.groupChatRows)..orderBy([
+              (t) => OrderingTerm(
+                expression: t.updatedAt,
+                mode: OrderingMode.desc,
+              ),
+              (t) => OrderingTerm.asc(t.id),
+            ]))
+            .get();
+    return rows.map(_groupChatFromRow).toList(growable: false);
+  }
+
+  Future<GroupChat?> getGroupChat(String id) async {
+    final row = await (_db.select(
+      _db.groupChatRows,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _groupChatFromRow(row);
+  }
+
+  /// The group bound to [conversationId], or null when the conversation is not
+  /// a group. `conversation_id` is unique, so at most one row can match.
+  Future<GroupChat?> getGroupChatByConversationId(String conversationId) async {
+    final row = await (_db.select(
+      _db.groupChatRows,
+    )..where((t) => t.conversationId.equals(conversationId))).getSingleOrNull();
+    return row == null ? null : _groupChatFromRow(row);
+  }
+
+  /// Writes [group] as-is: no timestamp is bumped here, callers own
+  /// `updatedAt` because round state and settings changes share this row.
+  Future<void> putGroupChat(GroupChat group) async {
+    await _db
+        .into(_db.groupChatRows)
+        .insert(_groupChatCompanion(group), mode: InsertMode.insertOrReplace);
+  }
+
+  Future<void> deleteGroupChat(String id) async {
+    await (_db.delete(_db.groupChatRows)..where((t) => t.id.equals(id))).go();
+  }
+
+  Future<List<GroupChatMember>> getGroupMembers(String groupChatId) async {
+    final rows =
+        await (_db.select(_db.groupChatMemberRows)
+              ..where((t) => t.groupChatId.equals(groupChatId))
+              ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
+            .get();
+    return rows.map(_groupMemberFromRow).toList(growable: false);
+  }
+
+  /// Replaces the whole roster of [groupChatId] in one transaction. Members
+  /// carry their own `groupChatId`, so an empty list clears the roster.
+  Future<void> putGroupMembers(
+    String groupChatId,
+    List<GroupChatMember> members,
+  ) async {
+    await _db.transaction(() async {
+      await (_db.delete(
+        _db.groupChatMemberRows,
+      )..where((t) => t.groupChatId.equals(groupChatId))).go();
+      for (final member in members) {
+        await _db
+            .into(_db.groupChatMemberRows)
+            .insert(
+              _groupMemberCompanion(member),
+              mode: InsertMode.insertOrReplace,
+            );
+      }
+    });
+  }
+
+  /// Forgets an assistant everywhere it appears. `member_key` holds the
+  /// assistant id for assistant members and `assistant_id` is the denormalized
+  /// join column, so both forms are matched.
+  Future<void> removeAssistantFromAllGroups(String assistantId) async {
+    await (_db.delete(_db.groupChatMemberRows)..where(
+          (t) =>
+              t.memberKey.equals(assistantId) |
+              t.assistantId.equals(assistantId),
+        ))
+        .go();
+  }
+
+  GroupChat _groupChatFromRow(GroupChatRow row) {
+    return GroupChat(
+      id: row.id,
+      name: row.name,
+      avatar: row.avatar,
+      conversationId: row.conversationId,
+      directorModelProvider: row.directorModelProvider,
+      directorModelId: row.directorModelId,
+      directorSystemPrompt: row.directorSystemPrompt,
+      maxAssistantMessagesPerRound: row.maxAssistantMessagesPerRound,
+      assistantDetailInjectionMode: AssistantDetailInjectionModeX.fromStorage(
+        row.assistantDetailInjectionMode,
+      ),
+      assistantDetailInjectionN: row.assistantDetailInjectionN,
+      injectGroupMembersIntoAssistantSystemPrompt:
+          row.injectGroupMembersIntoAssistantSystemPrompt,
+      pendingCapAssistantMessageId: row.pendingCapAssistantMessageId,
+      assistantMessagesThisRound: row.assistantMessagesThisRound,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    );
+  }
+
+  GroupChatRowsCompanion _groupChatCompanion(GroupChat group) {
+    return GroupChatRowsCompanion.insert(
+      id: group.id,
+      name: group.name,
+      avatar: Value(group.avatar),
+      conversationId: group.conversationId,
+      directorModelProvider: Value(group.directorModelProvider),
+      directorModelId: Value(group.directorModelId),
+      directorSystemPrompt: Value(group.directorSystemPrompt),
+      maxAssistantMessagesPerRound: Value(group.maxAssistantMessagesPerRound),
+      assistantDetailInjectionMode: Value(
+        group.assistantDetailInjectionMode.storageValue,
+      ),
+      assistantDetailInjectionN: Value(group.assistantDetailInjectionN),
+      injectGroupMembersIntoAssistantSystemPrompt: Value(
+        group.injectGroupMembersIntoAssistantSystemPrompt,
+      ),
+      pendingCapAssistantMessageId: Value(group.pendingCapAssistantMessageId),
+      assistantMessagesThisRound: Value(group.assistantMessagesThisRound),
+      createdAt: group.createdAt,
+      updatedAt: group.updatedAt,
+    );
+  }
+
+  GroupChatMember _groupMemberFromRow(GroupChatMemberRow row) {
+    return GroupChatMember(
+      groupChatId: row.groupChatId,
+      memberKey: row.memberKey,
+      assistantId: row.assistantId,
+      sortOrder: row.sortOrder,
+    );
+  }
+
+  GroupChatMemberRowsCompanion _groupMemberCompanion(GroupChatMember member) {
+    return GroupChatMemberRowsCompanion.insert(
+      groupChatId: member.groupChatId,
+      memberKey: member.memberKey,
+      assistantId: Value(member.assistantId),
+      sortOrder: member.sortOrder,
     );
   }
 
@@ -6260,6 +6437,10 @@ class ChatDatabaseRepository {
 
   Future<void> _clearChatRows() async {
     await _db.delete(_db.conversationMcpServerRows).go();
+    // Group rows FK-cascade on conversations; delete children first to keep
+    // the child-before-parent intent explicit.
+    await _db.delete(_db.groupChatMemberRows).go();
+    await _db.delete(_db.groupChatRows).go();
     await _db.delete(_db.messageRows).go();
     await _db.delete(_db.conversationRows).go();
     // A bulk reset replaces the whole local state; stale tombstones would
@@ -6960,6 +7141,7 @@ class ChatDatabaseRepository {
       cachedTokens: row.cachedTokens,
       durationMs: row.durationMs,
       quoteJson: row.quoteJson,
+      senderId: row.senderId,
     );
   }
 
@@ -7206,6 +7388,7 @@ class ChatDatabaseRepository {
       cachedTokens: Value(message.cachedTokens),
       durationMs: Value(message.durationMs),
       quoteJson: Value(message.quoteJson),
+      senderId: Value(message.senderId),
       messageOrder: messageOrder,
     );
   }
@@ -7227,6 +7410,7 @@ class ChatDatabaseRepository {
       cachedTokens: Value(message.cachedTokens),
       durationMs: Value(message.durationMs),
       quoteJson: Value(message.quoteJson),
+      senderId: Value(message.senderId),
     );
   }
 

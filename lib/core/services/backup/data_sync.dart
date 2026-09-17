@@ -20,6 +20,9 @@ import '../../database/chat_database_repository.dart';
 import '../../database/schema_migrations.dart';
 import '../../models/backup.dart';
 import '../../models/chat_message.dart';
+import '../../models/group_chat.dart';
+import '../../models/group_chat_conversations.dart';
+import '../../models/group_chat_member.dart';
 import '../../models/message_part.dart';
 import '../../models/conversation.dart';
 import '../chat/chat_service.dart';
@@ -385,6 +388,31 @@ class DataSync {
       toolEventsByMessageId: parsed.toolEvents,
       geminiSignaturesByMessageId: parsed.geminiThoughtSigs,
     );
+
+    // Fork-lineage group chats: config + membership tables ride the legacy
+    // payload as top-level arrays. Conversations already landed above, so FK
+    // order holds: groups reference conversations, members reference groups.
+    final groupChatsJson = (chats['groupChats'] as List?) ?? const [];
+    final groupMembersJson = (chats['groupMembers'] as List?) ?? const [];
+    if (groupChatsJson.isNotEmpty || groupMembersJson.isNotEmpty) {
+      final membersByGroup = <String, List<GroupChatMember>>{};
+      for (final entry in groupMembersJson.cast<Map>()) {
+        final groupChatId = entry['groupChatId'] as String?;
+        if (groupChatId == null || groupChatId.isEmpty) continue;
+        membersByGroup
+            .putIfAbsent(groupChatId, () => [])
+            .add(GroupChatMember.fromJson(entry.cast<String, dynamic>()));
+      }
+      await chatService.restoreGroupChatsFromBackup(
+        groups: groupChatsJson
+            .map(
+              (entry) =>
+                  GroupChat.fromJson((entry as Map).cast<String, dynamic>()),
+            )
+            .toList(),
+        membersByGroup: membersByGroup,
+      );
+    }
 
     await _runLiveBusinessRestore(
       () => BusinessRestoreService(businessRepository).overwrite(
@@ -2602,9 +2630,13 @@ class DataSync {
       final conversation = Conversation.fromJson(
         (entry as Map).cast<String, dynamic>(),
       );
-      return conversation.copyWith(
-        extras: {...conversation.extras}..remove('workspace.allowAll'),
-      );
+      // Fork-lineage group chats carry their kind as a dedicated JSON field;
+      // the working tree keeps it in extras.
+      final extras = {...conversation.extras}..remove('workspace.allowAll');
+      if ((entry['conversationKind'] as String?) == 'group') {
+        extras[GroupChatConversations.extrasKindKey] = 'group';
+      }
+      return conversation.copyWith(extras: extras);
     }).toList();
 
     // Import boundary for legacy chats.json: promote marker-bearing content

@@ -192,6 +192,84 @@ class ConversationMcpServerRows extends Table {
   ];
 }
 
+// v5: group chat configuration plus per-round runtime state. The public
+// transcript is the ordinary conversation (extras key "group.kind" = "group")
+// with one row here per group; members live in GroupChatMemberRows. Director
+// session state is ephemeral by design — only the cap-carryover fields are
+// persisted.
+@TableIndex(
+  name: 'idx_group_chats_updated_at',
+  columns: {
+    IndexedColumn(#updatedAt, orderBy: OrderingMode.desc),
+    IndexedColumn(#id, orderBy: OrderingMode.asc),
+  },
+)
+class GroupChatRows extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get avatar => text().nullable()();
+  // Unique: exactly one group row per conversation.
+  TextColumn get conversationId => text().unique().references(
+    ConversationRows,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  TextColumn get directorModelProvider => text().nullable()();
+  TextColumn get directorModelId => text().nullable()();
+  TextColumn get directorSystemPrompt =>
+      text().withDefault(const Constant(''))();
+  IntColumn get maxAssistantMessagesPerRound =>
+      integer()
+      // ignore: recursive_getters
+      .check(maxAssistantMessagesPerRound.isBiggerOrEqualValue(1))
+      .withDefault(const Constant(3))();
+  TextColumn get assistantDetailInjectionMode =>
+      text().withDefault(const Constant('endOfEveryUserMessage'))();
+  IntColumn get assistantDetailInjectionN =>
+      integer()
+      // ignore: recursive_getters
+      .check(assistantDetailInjectionN.isBiggerOrEqualValue(1))
+      .withDefault(const Constant(5))();
+  BoolColumn get injectGroupMembersIntoAssistantSystemPrompt =>
+      boolean().withDefault(const Constant(true))();
+  // Round cap carry-over: the assistant message a capped round stopped at;
+  // the next user turn merges it into the director's E3 context.
+  TextColumn get pendingCapAssistantMessageId => text().nullable()();
+  IntColumn get assistantMessagesThisRound =>
+      integer()
+      // ignore: recursive_getters
+      .check(assistantMessagesThisRound.isBiggerOrEqualValue(0))
+      .withDefault(const Constant(0))();
+  IntColumn get createdAt =>
+      integer().map(const MicrosecondDateTimeConverter())();
+  IntColumn get updatedAt =>
+      integer().map(const MicrosecondDateTimeConverter())();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+// v5: group membership join. memberKey is 'user' or an assistant id; the
+// assistantId column is denormalized for direct joins (null for 'user').
+class GroupChatMemberRows extends Table {
+  TextColumn get groupChatId =>
+      text().references(GroupChatRows, #id, onDelete: KeyAction.cascade)();
+  TextColumn get memberKey => text()();
+  TextColumn get assistantId => text().nullable()();
+  IntColumn get sortOrder =>
+      integer()
+      // ignore: recursive_getters
+      .check(sortOrder.isBiggerOrEqualValue(0))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {groupChatId, memberKey};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {groupChatId, sortOrder},
+  ];
+}
+
 class ChatStorageMetaRows extends Table {
   TextColumn get key => text()();
   TextColumn get value => text()();
@@ -730,6 +808,8 @@ class ExtensionEntityRows extends Table {
     ConversationRows,
     MessageRows,
     ConversationMcpServerRows,
+    GroupChatRows,
+    GroupChatMemberRows,
     ChatStorageMetaRows,
     MessagePartRows,
     ProviderArtifactRows,
@@ -767,14 +847,15 @@ class AppDatabase extends _$AppDatabase {
   // per-conversation model override; schema 3 lays the extension groundwork
   // (extras_json columns, message updated_at/sender_id, tombstone_rows,
   // extension_entity_rows) so later features can ship without further
-  // migrations; schema 4 adds the message reply citation (quote_json).
+  // migrations; schema 4 adds the message reply citation (quote_json);
+  // schema 5 adds group chat config and membership tables.
   // Every version outside [publishedSchemaVersions] belongs to an
   // unpublished or future format and is rejected.
-  static const currentSchemaVersion = 4;
+  static const currentSchemaVersion = 5;
 
   /// Every schema that has ever shipped. A file at any of these can be
   /// upgraded by `SchemaMigrations`; anything else is rejected outright.
-  static const publishedSchemaVersions = <int>{1, 2, 3, 4};
+  static const publishedSchemaVersions = <int>{1, 2, 3, 4, 5};
 
   /// Whether a live application connection may use a file as-is: either freshly
   /// created (0) or already at the current schema.
@@ -948,6 +1029,13 @@ FROM probe;
       // Purely additive; no data rewrite.
       from3To4: (m, schema) async {
         await m.addColumn(schema.messageRows, schema.messageRows.quoteJson);
+      },
+      // Purely additive; no data rewrite.
+      from4To5: (m, schema) async {
+        await m.createTable(schema.groupChatRows);
+        await m.createTable(schema.groupChatMemberRows);
+        // stepByStep does not create new indexes automatically.
+        await m.create(schema.idxGroupChatsUpdatedAt);
       },
     ),
     beforeOpen: (details) async {

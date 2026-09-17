@@ -94,10 +94,7 @@ void main() {
       // consumes quoteJson: the raw JSON string persists on the row, and the
       // tolerant `quote` getter treats a non-MessageQuote shape as absent.
       final a1Quote = conv1Messages.firstWhere((m) => m.id == 'msg-a1');
-      expect(
-        a1Quote.quoteJson,
-        '{"messageId":"msg-u1","text":"Hello there"}',
-      );
+      expect(a1Quote.quoteJson, '{"messageId":"msg-u1","text":"Hello there"}');
       expect(a1Quote.quote, isNull);
       final a1 = conv1Messages.firstWhere((m) => m.id == 'msg-a1');
       final toolParts = a1.parts.whereType<ToolCallPart>().toList();
@@ -127,6 +124,26 @@ void main() {
           jsonDecode(assistant.payload) as Map<String, dynamic>;
       expect(assistantPayload['id'], 'asst-1');
       expect(assistantPayload['ocrMode'], 'always');
+
+      // Group chat fidelity: config + members land in the v5 tables, the
+      // kind marker lands in conversation extras, and the speaker lands in
+      // senderId.
+      final groupRows = await chatRepository.getAllGroupChats();
+      expect(groupRows, hasLength(1));
+      expect(groupRows.single.conversationId, 'conv-2');
+      final groupMembers = await chatRepository.getGroupMembers(
+        groupRows.single.id,
+      );
+      expect(groupMembers, hasLength(2));
+      expect(groupMembers.map((m) => m.memberKey).toSet(), {'user', 'asst-1'});
+      expect(
+        chatService.getCompleteConversation('conv-2')!.extras,
+        containsPair('group.kind', 'group'),
+      );
+      final g1 = (await chatService.loadMessages(
+        'conv-2',
+      )).firstWhere((m) => m.id == 'msg-g1');
+      expect(g1.senderId, 'asst-1');
 
       expect(phases, containsAll(<String>['extracting', 'committing']));
 

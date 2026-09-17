@@ -14,6 +14,7 @@ import 'generated_schema/schema.dart';
 import 'generated_schema/schema_v1.dart' as v1;
 import 'generated_schema/schema_v2.dart' as v2;
 import 'generated_schema/schema_v3.dart' as v3;
+import 'generated_schema/schema_v4.dart' as v4;
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -108,6 +109,69 @@ void main() {
       expect(rows.single['chat_model_provider'], isNull);
       expect(rows.single['chat_model_id'], isNull);
       expect(rows.single['extras_json'], '{}');
+    } finally {
+      raw.close();
+    }
+  });
+
+  test('upgrades a schema 4 file by creating group chat tables', () async {
+    final file = databasePath();
+    final database = v4.DatabaseAtV4(NativeDatabase(file));
+    try {
+      await database.customStatement('PRAGMA user_version = 4;');
+      await database.customStatement(
+        'INSERT INTO conversation_rows '
+        '(id, title, created_at, updated_at, is_pinned, truncate_index, '
+        'version_selections_json, last_summarized_message_count, '
+        'chat_suggestions_json, last_memory_extracted_order, extras_json) '
+        "VALUES ('conv-4', 'Schema 4 chat', 1, 2, 0, -1, '{}', 0, '[]', -1, '{}');",
+      );
+      await database.customStatement(
+        'INSERT INTO message_rows '
+        '(id, conversation_id, role, timestamp, is_streaming, version, '
+        'message_order, updated_at, sender_id, extras_json, quote_json) '
+        "VALUES ('msg-4', 'conv-4', 'user', 3, 0, 0, 0, NULL, NULL, '{}', NULL);",
+      );
+    } finally {
+      await database.close();
+    }
+    final checkpoint = sqlite.sqlite3.open(file.path);
+    try {
+      checkpoint.execute('PRAGMA wal_checkpoint(TRUNCATE);');
+      checkpoint.select('PRAGMA journal_mode = DELETE;');
+    } finally {
+      checkpoint.close();
+    }
+
+    final outcome = await SchemaMigrations.upgradeFileInPlace(file);
+
+    expect(outcome.fromVersion, 4);
+    expect(outcome.toVersion, AppDatabase.currentSchemaVersion);
+    expect(outcome.upgraded, isTrue);
+
+    final raw = sqlite.sqlite3.open(file.path, mode: sqlite.OpenMode.readOnly);
+    try {
+      for (final table in ['group_chat_rows', 'group_chat_member_rows']) {
+        expect(
+          raw.select(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?;",
+            [table],
+          ),
+          hasLength(1),
+        );
+        expect(raw.select('SELECT * FROM $table;'), isEmpty);
+      }
+      // stepByStep does not create indexes automatically; prove the step
+      // remembered to.
+      expect(
+        raw.select(
+          "SELECT name FROM sqlite_master WHERE type = 'index' AND name = ?;",
+          ['idx_group_chats_updated_at'],
+        ),
+        hasLength(1),
+      );
+      // Pre-existing rows untouched.
+      expect(raw.select('SELECT id FROM message_rows;').single['id'], 'msg-4');
     } finally {
       raw.close();
     }

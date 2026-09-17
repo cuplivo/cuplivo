@@ -24,6 +24,8 @@ import '../api/providers/claude/claude_container.dart';
 import '../api/providers/claude/claude_history.dart';
 import '../api/providers/google_gemini.dart';
 import '../../models/message_part.dart';
+import '../../models/group_chat.dart';
+import '../../models/group_chat_member.dart';
 import '../../models/conversation.dart';
 import '../../models/workspace_binding.dart';
 import '../../../utils/sandbox_path_resolver.dart';
@@ -2492,6 +2494,24 @@ class ChatService extends ChangeNotifier {
     await _resetAfterOverwriteRestore();
   }
 
+  /// Persists fork-lineage group chat config and membership after a legacy
+  /// overwrite restore. Conversations must already have landed (FK order).
+  Future<void> restoreGroupChatsFromBackup({
+    required List<GroupChat> groups,
+    required Map<String, List<GroupChatMember>> membersByGroup,
+  }) async {
+    if (!_initialized) await init();
+    for (final group in groups) {
+      await _repo.putGroupChat(group);
+      await _repo.putGroupMembers(
+        group.id,
+        membersByGroup[group.id] ?? const <GroupChatMember>[],
+      );
+    }
+    // Membership arrays whose group failed to parse above are dropped by
+    // design: member rows are meaningless without their group.
+  }
+
   Future<ChatDatabaseSnapshotInfo> createBackupDatabaseSnapshot(
     File destinationFile, {
     BackupProgressSink? onProgress,
@@ -2864,6 +2884,7 @@ class ChatService extends ChangeNotifier {
     bool selectVersion = false,
     String? temporaryAfterGroupId,
     String? quoteJson,
+    String? senderId,
   }) async {
     if (!_initialized) await init();
 
@@ -2902,6 +2923,7 @@ class ChatService extends ChangeNotifier {
       groupId: groupId,
       version: version,
       quoteJson: quoteJson,
+      senderId: senderId,
     );
 
     if (_discardedTemporaryConversationIds.contains(conversationId)) {
@@ -3681,6 +3703,7 @@ class ChatService extends ChangeNotifier {
         cachedTokens: message.cachedTokens,
         durationMs: message.durationMs,
         quoteJson: message.quoteJson,
+        senderId: message.senderId,
       );
       await addMessageDirectly(targetConversationId, forked);
       cloned.add(forked);
@@ -3767,6 +3790,7 @@ class ChatService extends ChangeNotifier {
         groupId: groupId,
         version: nextVersion,
         quoteJson: temporaryOriginal.quoteJson,
+        senderId: temporaryOriginal.senderId,
       );
 
       messages.add(newMsg);

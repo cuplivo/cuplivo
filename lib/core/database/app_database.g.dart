@@ -2624,6 +2624,1361 @@ class ConversationMcpServerRowsCompanion
   }
 }
 
+class $GroupChatRowsTable extends GroupChatRows
+    with TableInfo<$GroupChatRowsTable, GroupChatRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $GroupChatRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _avatarMeta = const VerificationMeta('avatar');
+  @override
+  late final GeneratedColumn<String> avatar = GeneratedColumn<String>(
+    'avatar',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _conversationIdMeta = const VerificationMeta(
+    'conversationId',
+  );
+  @override
+  late final GeneratedColumn<String> conversationId = GeneratedColumn<String>(
+    'conversation_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'UNIQUE REFERENCES conversation_rows (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _directorModelProviderMeta =
+      const VerificationMeta('directorModelProvider');
+  @override
+  late final GeneratedColumn<String> directorModelProvider =
+      GeneratedColumn<String>(
+        'director_model_provider',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _directorModelIdMeta = const VerificationMeta(
+    'directorModelId',
+  );
+  @override
+  late final GeneratedColumn<String> directorModelId = GeneratedColumn<String>(
+    'director_model_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _directorSystemPromptMeta =
+      const VerificationMeta('directorSystemPrompt');
+  @override
+  late final GeneratedColumn<String> directorSystemPrompt =
+      GeneratedColumn<String>(
+        'director_system_prompt',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(''),
+      );
+  static const VerificationMeta _maxAssistantMessagesPerRoundMeta =
+      const VerificationMeta('maxAssistantMessagesPerRound');
+  @override
+  late final GeneratedColumn<int> maxAssistantMessagesPerRound =
+      GeneratedColumn<int>(
+        'max_assistant_messages_per_round',
+        aliasedName,
+        false,
+        check: () => ComparableExpr(
+          maxAssistantMessagesPerRound,
+        ).isBiggerOrEqualValue(1),
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(3),
+      );
+  static const VerificationMeta _assistantDetailInjectionModeMeta =
+      const VerificationMeta('assistantDetailInjectionMode');
+  @override
+  late final GeneratedColumn<String> assistantDetailInjectionMode =
+      GeneratedColumn<String>(
+        'assistant_detail_injection_mode',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('endOfEveryUserMessage'),
+      );
+  static const VerificationMeta _assistantDetailInjectionNMeta =
+      const VerificationMeta('assistantDetailInjectionN');
+  @override
+  late final GeneratedColumn<int> assistantDetailInjectionN =
+      GeneratedColumn<int>(
+        'assistant_detail_injection_n',
+        aliasedName,
+        false,
+        check: () =>
+            ComparableExpr(assistantDetailInjectionN).isBiggerOrEqualValue(1),
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(5),
+      );
+  static const VerificationMeta
+  _injectGroupMembersIntoAssistantSystemPromptMeta = const VerificationMeta(
+    'injectGroupMembersIntoAssistantSystemPrompt',
+  );
+  @override
+  late final GeneratedColumn<bool>
+  injectGroupMembersIntoAssistantSystemPrompt = GeneratedColumn<bool>(
+    'inject_group_members_into_assistant_system_prompt',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("inject_group_members_into_assistant_system_prompt" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _pendingCapAssistantMessageIdMeta =
+      const VerificationMeta('pendingCapAssistantMessageId');
+  @override
+  late final GeneratedColumn<String> pendingCapAssistantMessageId =
+      GeneratedColumn<String>(
+        'pending_cap_assistant_message_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _assistantMessagesThisRoundMeta =
+      const VerificationMeta('assistantMessagesThisRound');
+  @override
+  late final GeneratedColumn<int> assistantMessagesThisRound =
+      GeneratedColumn<int>(
+        'assistant_messages_this_round',
+        aliasedName,
+        false,
+        check: () =>
+            ComparableExpr(assistantMessagesThisRound).isBiggerOrEqualValue(0),
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> createdAt =
+      GeneratedColumn<int>(
+        'created_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>($GroupChatRowsTable.$convertercreatedAt);
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> updatedAt =
+      GeneratedColumn<int>(
+        'updated_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>($GroupChatRowsTable.$converterupdatedAt);
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    avatar,
+    conversationId,
+    directorModelProvider,
+    directorModelId,
+    directorSystemPrompt,
+    maxAssistantMessagesPerRound,
+    assistantDetailInjectionMode,
+    assistantDetailInjectionN,
+    injectGroupMembersIntoAssistantSystemPrompt,
+    pendingCapAssistantMessageId,
+    assistantMessagesThisRound,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'group_chat_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<GroupChatRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('avatar')) {
+      context.handle(
+        _avatarMeta,
+        avatar.isAcceptableOrUnknown(data['avatar']!, _avatarMeta),
+      );
+    }
+    if (data.containsKey('conversation_id')) {
+      context.handle(
+        _conversationIdMeta,
+        conversationId.isAcceptableOrUnknown(
+          data['conversation_id']!,
+          _conversationIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_conversationIdMeta);
+    }
+    if (data.containsKey('director_model_provider')) {
+      context.handle(
+        _directorModelProviderMeta,
+        directorModelProvider.isAcceptableOrUnknown(
+          data['director_model_provider']!,
+          _directorModelProviderMeta,
+        ),
+      );
+    }
+    if (data.containsKey('director_model_id')) {
+      context.handle(
+        _directorModelIdMeta,
+        directorModelId.isAcceptableOrUnknown(
+          data['director_model_id']!,
+          _directorModelIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('director_system_prompt')) {
+      context.handle(
+        _directorSystemPromptMeta,
+        directorSystemPrompt.isAcceptableOrUnknown(
+          data['director_system_prompt']!,
+          _directorSystemPromptMeta,
+        ),
+      );
+    }
+    if (data.containsKey('max_assistant_messages_per_round')) {
+      context.handle(
+        _maxAssistantMessagesPerRoundMeta,
+        maxAssistantMessagesPerRound.isAcceptableOrUnknown(
+          data['max_assistant_messages_per_round']!,
+          _maxAssistantMessagesPerRoundMeta,
+        ),
+      );
+    }
+    if (data.containsKey('assistant_detail_injection_mode')) {
+      context.handle(
+        _assistantDetailInjectionModeMeta,
+        assistantDetailInjectionMode.isAcceptableOrUnknown(
+          data['assistant_detail_injection_mode']!,
+          _assistantDetailInjectionModeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('assistant_detail_injection_n')) {
+      context.handle(
+        _assistantDetailInjectionNMeta,
+        assistantDetailInjectionN.isAcceptableOrUnknown(
+          data['assistant_detail_injection_n']!,
+          _assistantDetailInjectionNMeta,
+        ),
+      );
+    }
+    if (data.containsKey('inject_group_members_into_assistant_system_prompt')) {
+      context.handle(
+        _injectGroupMembersIntoAssistantSystemPromptMeta,
+        injectGroupMembersIntoAssistantSystemPrompt.isAcceptableOrUnknown(
+          data['inject_group_members_into_assistant_system_prompt']!,
+          _injectGroupMembersIntoAssistantSystemPromptMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pending_cap_assistant_message_id')) {
+      context.handle(
+        _pendingCapAssistantMessageIdMeta,
+        pendingCapAssistantMessageId.isAcceptableOrUnknown(
+          data['pending_cap_assistant_message_id']!,
+          _pendingCapAssistantMessageIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('assistant_messages_this_round')) {
+      context.handle(
+        _assistantMessagesThisRoundMeta,
+        assistantMessagesThisRound.isAcceptableOrUnknown(
+          data['assistant_messages_this_round']!,
+          _assistantMessagesThisRoundMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  GroupChatRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return GroupChatRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      avatar: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}avatar'],
+      ),
+      conversationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}conversation_id'],
+      )!,
+      directorModelProvider: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}director_model_provider'],
+      ),
+      directorModelId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}director_model_id'],
+      ),
+      directorSystemPrompt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}director_system_prompt'],
+      )!,
+      maxAssistantMessagesPerRound: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}max_assistant_messages_per_round'],
+      )!,
+      assistantDetailInjectionMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}assistant_detail_injection_mode'],
+      )!,
+      assistantDetailInjectionN: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}assistant_detail_injection_n'],
+      )!,
+      injectGroupMembersIntoAssistantSystemPrompt: attachedDatabase.typeMapping
+          .read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}inject_group_members_into_assistant_system_prompt'],
+          )!,
+      pendingCapAssistantMessageId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pending_cap_assistant_message_id'],
+      ),
+      assistantMessagesThisRound: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}assistant_messages_this_round'],
+      )!,
+      createdAt: $GroupChatRowsTable.$convertercreatedAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}created_at'],
+        )!,
+      ),
+      updatedAt: $GroupChatRowsTable.$converterupdatedAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}updated_at'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $GroupChatRowsTable createAlias(String alias) {
+    return $GroupChatRowsTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $convertercreatedAt =
+      const MicrosecondDateTimeConverter();
+  static TypeConverter<DateTime, int> $converterupdatedAt =
+      const MicrosecondDateTimeConverter();
+}
+
+class GroupChatRow extends DataClass implements Insertable<GroupChatRow> {
+  final String id;
+  final String name;
+  final String? avatar;
+  final String conversationId;
+  final String? directorModelProvider;
+  final String? directorModelId;
+  final String directorSystemPrompt;
+  final int maxAssistantMessagesPerRound;
+  final String assistantDetailInjectionMode;
+  final int assistantDetailInjectionN;
+  final bool injectGroupMembersIntoAssistantSystemPrompt;
+  final String? pendingCapAssistantMessageId;
+  final int assistantMessagesThisRound;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const GroupChatRow({
+    required this.id,
+    required this.name,
+    this.avatar,
+    required this.conversationId,
+    this.directorModelProvider,
+    this.directorModelId,
+    required this.directorSystemPrompt,
+    required this.maxAssistantMessagesPerRound,
+    required this.assistantDetailInjectionMode,
+    required this.assistantDetailInjectionN,
+    required this.injectGroupMembersIntoAssistantSystemPrompt,
+    this.pendingCapAssistantMessageId,
+    required this.assistantMessagesThisRound,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || avatar != null) {
+      map['avatar'] = Variable<String>(avatar);
+    }
+    map['conversation_id'] = Variable<String>(conversationId);
+    if (!nullToAbsent || directorModelProvider != null) {
+      map['director_model_provider'] = Variable<String>(directorModelProvider);
+    }
+    if (!nullToAbsent || directorModelId != null) {
+      map['director_model_id'] = Variable<String>(directorModelId);
+    }
+    map['director_system_prompt'] = Variable<String>(directorSystemPrompt);
+    map['max_assistant_messages_per_round'] = Variable<int>(
+      maxAssistantMessagesPerRound,
+    );
+    map['assistant_detail_injection_mode'] = Variable<String>(
+      assistantDetailInjectionMode,
+    );
+    map['assistant_detail_injection_n'] = Variable<int>(
+      assistantDetailInjectionN,
+    );
+    map['inject_group_members_into_assistant_system_prompt'] = Variable<bool>(
+      injectGroupMembersIntoAssistantSystemPrompt,
+    );
+    if (!nullToAbsent || pendingCapAssistantMessageId != null) {
+      map['pending_cap_assistant_message_id'] = Variable<String>(
+        pendingCapAssistantMessageId,
+      );
+    }
+    map['assistant_messages_this_round'] = Variable<int>(
+      assistantMessagesThisRound,
+    );
+    {
+      map['created_at'] = Variable<int>(
+        $GroupChatRowsTable.$convertercreatedAt.toSql(createdAt),
+      );
+    }
+    {
+      map['updated_at'] = Variable<int>(
+        $GroupChatRowsTable.$converterupdatedAt.toSql(updatedAt),
+      );
+    }
+    return map;
+  }
+
+  GroupChatRowsCompanion toCompanion(bool nullToAbsent) {
+    return GroupChatRowsCompanion(
+      id: Value(id),
+      name: Value(name),
+      avatar: avatar == null && nullToAbsent
+          ? const Value.absent()
+          : Value(avatar),
+      conversationId: Value(conversationId),
+      directorModelProvider: directorModelProvider == null && nullToAbsent
+          ? const Value.absent()
+          : Value(directorModelProvider),
+      directorModelId: directorModelId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(directorModelId),
+      directorSystemPrompt: Value(directorSystemPrompt),
+      maxAssistantMessagesPerRound: Value(maxAssistantMessagesPerRound),
+      assistantDetailInjectionMode: Value(assistantDetailInjectionMode),
+      assistantDetailInjectionN: Value(assistantDetailInjectionN),
+      injectGroupMembersIntoAssistantSystemPrompt: Value(
+        injectGroupMembersIntoAssistantSystemPrompt,
+      ),
+      pendingCapAssistantMessageId:
+          pendingCapAssistantMessageId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pendingCapAssistantMessageId),
+      assistantMessagesThisRound: Value(assistantMessagesThisRound),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory GroupChatRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return GroupChatRow(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      avatar: serializer.fromJson<String?>(json['avatar']),
+      conversationId: serializer.fromJson<String>(json['conversationId']),
+      directorModelProvider: serializer.fromJson<String?>(
+        json['directorModelProvider'],
+      ),
+      directorModelId: serializer.fromJson<String?>(json['directorModelId']),
+      directorSystemPrompt: serializer.fromJson<String>(
+        json['directorSystemPrompt'],
+      ),
+      maxAssistantMessagesPerRound: serializer.fromJson<int>(
+        json['maxAssistantMessagesPerRound'],
+      ),
+      assistantDetailInjectionMode: serializer.fromJson<String>(
+        json['assistantDetailInjectionMode'],
+      ),
+      assistantDetailInjectionN: serializer.fromJson<int>(
+        json['assistantDetailInjectionN'],
+      ),
+      injectGroupMembersIntoAssistantSystemPrompt: serializer.fromJson<bool>(
+        json['injectGroupMembersIntoAssistantSystemPrompt'],
+      ),
+      pendingCapAssistantMessageId: serializer.fromJson<String?>(
+        json['pendingCapAssistantMessageId'],
+      ),
+      assistantMessagesThisRound: serializer.fromJson<int>(
+        json['assistantMessagesThisRound'],
+      ),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'avatar': serializer.toJson<String?>(avatar),
+      'conversationId': serializer.toJson<String>(conversationId),
+      'directorModelProvider': serializer.toJson<String?>(
+        directorModelProvider,
+      ),
+      'directorModelId': serializer.toJson<String?>(directorModelId),
+      'directorSystemPrompt': serializer.toJson<String>(directorSystemPrompt),
+      'maxAssistantMessagesPerRound': serializer.toJson<int>(
+        maxAssistantMessagesPerRound,
+      ),
+      'assistantDetailInjectionMode': serializer.toJson<String>(
+        assistantDetailInjectionMode,
+      ),
+      'assistantDetailInjectionN': serializer.toJson<int>(
+        assistantDetailInjectionN,
+      ),
+      'injectGroupMembersIntoAssistantSystemPrompt': serializer.toJson<bool>(
+        injectGroupMembersIntoAssistantSystemPrompt,
+      ),
+      'pendingCapAssistantMessageId': serializer.toJson<String?>(
+        pendingCapAssistantMessageId,
+      ),
+      'assistantMessagesThisRound': serializer.toJson<int>(
+        assistantMessagesThisRound,
+      ),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  GroupChatRow copyWith({
+    String? id,
+    String? name,
+    Value<String?> avatar = const Value.absent(),
+    String? conversationId,
+    Value<String?> directorModelProvider = const Value.absent(),
+    Value<String?> directorModelId = const Value.absent(),
+    String? directorSystemPrompt,
+    int? maxAssistantMessagesPerRound,
+    String? assistantDetailInjectionMode,
+    int? assistantDetailInjectionN,
+    bool? injectGroupMembersIntoAssistantSystemPrompt,
+    Value<String?> pendingCapAssistantMessageId = const Value.absent(),
+    int? assistantMessagesThisRound,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => GroupChatRow(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    avatar: avatar.present ? avatar.value : this.avatar,
+    conversationId: conversationId ?? this.conversationId,
+    directorModelProvider: directorModelProvider.present
+        ? directorModelProvider.value
+        : this.directorModelProvider,
+    directorModelId: directorModelId.present
+        ? directorModelId.value
+        : this.directorModelId,
+    directorSystemPrompt: directorSystemPrompt ?? this.directorSystemPrompt,
+    maxAssistantMessagesPerRound:
+        maxAssistantMessagesPerRound ?? this.maxAssistantMessagesPerRound,
+    assistantDetailInjectionMode:
+        assistantDetailInjectionMode ?? this.assistantDetailInjectionMode,
+    assistantDetailInjectionN:
+        assistantDetailInjectionN ?? this.assistantDetailInjectionN,
+    injectGroupMembersIntoAssistantSystemPrompt:
+        injectGroupMembersIntoAssistantSystemPrompt ??
+        this.injectGroupMembersIntoAssistantSystemPrompt,
+    pendingCapAssistantMessageId: pendingCapAssistantMessageId.present
+        ? pendingCapAssistantMessageId.value
+        : this.pendingCapAssistantMessageId,
+    assistantMessagesThisRound:
+        assistantMessagesThisRound ?? this.assistantMessagesThisRound,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  GroupChatRow copyWithCompanion(GroupChatRowsCompanion data) {
+    return GroupChatRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      avatar: data.avatar.present ? data.avatar.value : this.avatar,
+      conversationId: data.conversationId.present
+          ? data.conversationId.value
+          : this.conversationId,
+      directorModelProvider: data.directorModelProvider.present
+          ? data.directorModelProvider.value
+          : this.directorModelProvider,
+      directorModelId: data.directorModelId.present
+          ? data.directorModelId.value
+          : this.directorModelId,
+      directorSystemPrompt: data.directorSystemPrompt.present
+          ? data.directorSystemPrompt.value
+          : this.directorSystemPrompt,
+      maxAssistantMessagesPerRound: data.maxAssistantMessagesPerRound.present
+          ? data.maxAssistantMessagesPerRound.value
+          : this.maxAssistantMessagesPerRound,
+      assistantDetailInjectionMode: data.assistantDetailInjectionMode.present
+          ? data.assistantDetailInjectionMode.value
+          : this.assistantDetailInjectionMode,
+      assistantDetailInjectionN: data.assistantDetailInjectionN.present
+          ? data.assistantDetailInjectionN.value
+          : this.assistantDetailInjectionN,
+      injectGroupMembersIntoAssistantSystemPrompt:
+          data.injectGroupMembersIntoAssistantSystemPrompt.present
+          ? data.injectGroupMembersIntoAssistantSystemPrompt.value
+          : this.injectGroupMembersIntoAssistantSystemPrompt,
+      pendingCapAssistantMessageId: data.pendingCapAssistantMessageId.present
+          ? data.pendingCapAssistantMessageId.value
+          : this.pendingCapAssistantMessageId,
+      assistantMessagesThisRound: data.assistantMessagesThisRound.present
+          ? data.assistantMessagesThisRound.value
+          : this.assistantMessagesThisRound,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GroupChatRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('avatar: $avatar, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('directorModelProvider: $directorModelProvider, ')
+          ..write('directorModelId: $directorModelId, ')
+          ..write('directorSystemPrompt: $directorSystemPrompt, ')
+          ..write(
+            'maxAssistantMessagesPerRound: $maxAssistantMessagesPerRound, ',
+          )
+          ..write(
+            'assistantDetailInjectionMode: $assistantDetailInjectionMode, ',
+          )
+          ..write('assistantDetailInjectionN: $assistantDetailInjectionN, ')
+          ..write(
+            'injectGroupMembersIntoAssistantSystemPrompt: $injectGroupMembersIntoAssistantSystemPrompt, ',
+          )
+          ..write(
+            'pendingCapAssistantMessageId: $pendingCapAssistantMessageId, ',
+          )
+          ..write('assistantMessagesThisRound: $assistantMessagesThisRound, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    avatar,
+    conversationId,
+    directorModelProvider,
+    directorModelId,
+    directorSystemPrompt,
+    maxAssistantMessagesPerRound,
+    assistantDetailInjectionMode,
+    assistantDetailInjectionN,
+    injectGroupMembersIntoAssistantSystemPrompt,
+    pendingCapAssistantMessageId,
+    assistantMessagesThisRound,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is GroupChatRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.avatar == this.avatar &&
+          other.conversationId == this.conversationId &&
+          other.directorModelProvider == this.directorModelProvider &&
+          other.directorModelId == this.directorModelId &&
+          other.directorSystemPrompt == this.directorSystemPrompt &&
+          other.maxAssistantMessagesPerRound ==
+              this.maxAssistantMessagesPerRound &&
+          other.assistantDetailInjectionMode ==
+              this.assistantDetailInjectionMode &&
+          other.assistantDetailInjectionN == this.assistantDetailInjectionN &&
+          other.injectGroupMembersIntoAssistantSystemPrompt ==
+              this.injectGroupMembersIntoAssistantSystemPrompt &&
+          other.pendingCapAssistantMessageId ==
+              this.pendingCapAssistantMessageId &&
+          other.assistantMessagesThisRound == this.assistantMessagesThisRound &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class GroupChatRowsCompanion extends UpdateCompanion<GroupChatRow> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String?> avatar;
+  final Value<String> conversationId;
+  final Value<String?> directorModelProvider;
+  final Value<String?> directorModelId;
+  final Value<String> directorSystemPrompt;
+  final Value<int> maxAssistantMessagesPerRound;
+  final Value<String> assistantDetailInjectionMode;
+  final Value<int> assistantDetailInjectionN;
+  final Value<bool> injectGroupMembersIntoAssistantSystemPrompt;
+  final Value<String?> pendingCapAssistantMessageId;
+  final Value<int> assistantMessagesThisRound;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const GroupChatRowsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.avatar = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.directorModelProvider = const Value.absent(),
+    this.directorModelId = const Value.absent(),
+    this.directorSystemPrompt = const Value.absent(),
+    this.maxAssistantMessagesPerRound = const Value.absent(),
+    this.assistantDetailInjectionMode = const Value.absent(),
+    this.assistantDetailInjectionN = const Value.absent(),
+    this.injectGroupMembersIntoAssistantSystemPrompt = const Value.absent(),
+    this.pendingCapAssistantMessageId = const Value.absent(),
+    this.assistantMessagesThisRound = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  GroupChatRowsCompanion.insert({
+    required String id,
+    required String name,
+    this.avatar = const Value.absent(),
+    required String conversationId,
+    this.directorModelProvider = const Value.absent(),
+    this.directorModelId = const Value.absent(),
+    this.directorSystemPrompt = const Value.absent(),
+    this.maxAssistantMessagesPerRound = const Value.absent(),
+    this.assistantDetailInjectionMode = const Value.absent(),
+    this.assistantDetailInjectionN = const Value.absent(),
+    this.injectGroupMembersIntoAssistantSystemPrompt = const Value.absent(),
+    this.pendingCapAssistantMessageId = const Value.absent(),
+    this.assistantMessagesThisRound = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       conversationId = Value(conversationId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<GroupChatRow> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? avatar,
+    Expression<String>? conversationId,
+    Expression<String>? directorModelProvider,
+    Expression<String>? directorModelId,
+    Expression<String>? directorSystemPrompt,
+    Expression<int>? maxAssistantMessagesPerRound,
+    Expression<String>? assistantDetailInjectionMode,
+    Expression<int>? assistantDetailInjectionN,
+    Expression<bool>? injectGroupMembersIntoAssistantSystemPrompt,
+    Expression<String>? pendingCapAssistantMessageId,
+    Expression<int>? assistantMessagesThisRound,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (avatar != null) 'avatar': avatar,
+      if (conversationId != null) 'conversation_id': conversationId,
+      if (directorModelProvider != null)
+        'director_model_provider': directorModelProvider,
+      if (directorModelId != null) 'director_model_id': directorModelId,
+      if (directorSystemPrompt != null)
+        'director_system_prompt': directorSystemPrompt,
+      if (maxAssistantMessagesPerRound != null)
+        'max_assistant_messages_per_round': maxAssistantMessagesPerRound,
+      if (assistantDetailInjectionMode != null)
+        'assistant_detail_injection_mode': assistantDetailInjectionMode,
+      if (assistantDetailInjectionN != null)
+        'assistant_detail_injection_n': assistantDetailInjectionN,
+      if (injectGroupMembersIntoAssistantSystemPrompt != null)
+        'inject_group_members_into_assistant_system_prompt':
+            injectGroupMembersIntoAssistantSystemPrompt,
+      if (pendingCapAssistantMessageId != null)
+        'pending_cap_assistant_message_id': pendingCapAssistantMessageId,
+      if (assistantMessagesThisRound != null)
+        'assistant_messages_this_round': assistantMessagesThisRound,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  GroupChatRowsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String?>? avatar,
+    Value<String>? conversationId,
+    Value<String?>? directorModelProvider,
+    Value<String?>? directorModelId,
+    Value<String>? directorSystemPrompt,
+    Value<int>? maxAssistantMessagesPerRound,
+    Value<String>? assistantDetailInjectionMode,
+    Value<int>? assistantDetailInjectionN,
+    Value<bool>? injectGroupMembersIntoAssistantSystemPrompt,
+    Value<String?>? pendingCapAssistantMessageId,
+    Value<int>? assistantMessagesThisRound,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return GroupChatRowsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      avatar: avatar ?? this.avatar,
+      conversationId: conversationId ?? this.conversationId,
+      directorModelProvider:
+          directorModelProvider ?? this.directorModelProvider,
+      directorModelId: directorModelId ?? this.directorModelId,
+      directorSystemPrompt: directorSystemPrompt ?? this.directorSystemPrompt,
+      maxAssistantMessagesPerRound:
+          maxAssistantMessagesPerRound ?? this.maxAssistantMessagesPerRound,
+      assistantDetailInjectionMode:
+          assistantDetailInjectionMode ?? this.assistantDetailInjectionMode,
+      assistantDetailInjectionN:
+          assistantDetailInjectionN ?? this.assistantDetailInjectionN,
+      injectGroupMembersIntoAssistantSystemPrompt:
+          injectGroupMembersIntoAssistantSystemPrompt ??
+          this.injectGroupMembersIntoAssistantSystemPrompt,
+      pendingCapAssistantMessageId:
+          pendingCapAssistantMessageId ?? this.pendingCapAssistantMessageId,
+      assistantMessagesThisRound:
+          assistantMessagesThisRound ?? this.assistantMessagesThisRound,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (avatar.present) {
+      map['avatar'] = Variable<String>(avatar.value);
+    }
+    if (conversationId.present) {
+      map['conversation_id'] = Variable<String>(conversationId.value);
+    }
+    if (directorModelProvider.present) {
+      map['director_model_provider'] = Variable<String>(
+        directorModelProvider.value,
+      );
+    }
+    if (directorModelId.present) {
+      map['director_model_id'] = Variable<String>(directorModelId.value);
+    }
+    if (directorSystemPrompt.present) {
+      map['director_system_prompt'] = Variable<String>(
+        directorSystemPrompt.value,
+      );
+    }
+    if (maxAssistantMessagesPerRound.present) {
+      map['max_assistant_messages_per_round'] = Variable<int>(
+        maxAssistantMessagesPerRound.value,
+      );
+    }
+    if (assistantDetailInjectionMode.present) {
+      map['assistant_detail_injection_mode'] = Variable<String>(
+        assistantDetailInjectionMode.value,
+      );
+    }
+    if (assistantDetailInjectionN.present) {
+      map['assistant_detail_injection_n'] = Variable<int>(
+        assistantDetailInjectionN.value,
+      );
+    }
+    if (injectGroupMembersIntoAssistantSystemPrompt.present) {
+      map['inject_group_members_into_assistant_system_prompt'] = Variable<bool>(
+        injectGroupMembersIntoAssistantSystemPrompt.value,
+      );
+    }
+    if (pendingCapAssistantMessageId.present) {
+      map['pending_cap_assistant_message_id'] = Variable<String>(
+        pendingCapAssistantMessageId.value,
+      );
+    }
+    if (assistantMessagesThisRound.present) {
+      map['assistant_messages_this_round'] = Variable<int>(
+        assistantMessagesThisRound.value,
+      );
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(
+        $GroupChatRowsTable.$convertercreatedAt.toSql(createdAt.value),
+      );
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(
+        $GroupChatRowsTable.$converterupdatedAt.toSql(updatedAt.value),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GroupChatRowsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('avatar: $avatar, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('directorModelProvider: $directorModelProvider, ')
+          ..write('directorModelId: $directorModelId, ')
+          ..write('directorSystemPrompt: $directorSystemPrompt, ')
+          ..write(
+            'maxAssistantMessagesPerRound: $maxAssistantMessagesPerRound, ',
+          )
+          ..write(
+            'assistantDetailInjectionMode: $assistantDetailInjectionMode, ',
+          )
+          ..write('assistantDetailInjectionN: $assistantDetailInjectionN, ')
+          ..write(
+            'injectGroupMembersIntoAssistantSystemPrompt: $injectGroupMembersIntoAssistantSystemPrompt, ',
+          )
+          ..write(
+            'pendingCapAssistantMessageId: $pendingCapAssistantMessageId, ',
+          )
+          ..write('assistantMessagesThisRound: $assistantMessagesThisRound, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $GroupChatMemberRowsTable extends GroupChatMemberRows
+    with TableInfo<$GroupChatMemberRowsTable, GroupChatMemberRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $GroupChatMemberRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _groupChatIdMeta = const VerificationMeta(
+    'groupChatId',
+  );
+  @override
+  late final GeneratedColumn<String> groupChatId = GeneratedColumn<String>(
+    'group_chat_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES group_chat_rows (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _memberKeyMeta = const VerificationMeta(
+    'memberKey',
+  );
+  @override
+  late final GeneratedColumn<String> memberKey = GeneratedColumn<String>(
+    'member_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _assistantIdMeta = const VerificationMeta(
+    'assistantId',
+  );
+  @override
+  late final GeneratedColumn<String> assistantId = GeneratedColumn<String>(
+    'assistant_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    check: () => ComparableExpr(sortOrder).isBiggerOrEqualValue(0),
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    groupChatId,
+    memberKey,
+    assistantId,
+    sortOrder,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'group_chat_member_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<GroupChatMemberRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('group_chat_id')) {
+      context.handle(
+        _groupChatIdMeta,
+        groupChatId.isAcceptableOrUnknown(
+          data['group_chat_id']!,
+          _groupChatIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_groupChatIdMeta);
+    }
+    if (data.containsKey('member_key')) {
+      context.handle(
+        _memberKeyMeta,
+        memberKey.isAcceptableOrUnknown(data['member_key']!, _memberKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_memberKeyMeta);
+    }
+    if (data.containsKey('assistant_id')) {
+      context.handle(
+        _assistantIdMeta,
+        assistantId.isAcceptableOrUnknown(
+          data['assistant_id']!,
+          _assistantIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sortOrderMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {groupChatId, memberKey};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {groupChatId, sortOrder},
+  ];
+  @override
+  GroupChatMemberRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return GroupChatMemberRow(
+      groupChatId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}group_chat_id'],
+      )!,
+      memberKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}member_key'],
+      )!,
+      assistantId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}assistant_id'],
+      ),
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+    );
+  }
+
+  @override
+  $GroupChatMemberRowsTable createAlias(String alias) {
+    return $GroupChatMemberRowsTable(attachedDatabase, alias);
+  }
+}
+
+class GroupChatMemberRow extends DataClass
+    implements Insertable<GroupChatMemberRow> {
+  final String groupChatId;
+  final String memberKey;
+  final String? assistantId;
+  final int sortOrder;
+  const GroupChatMemberRow({
+    required this.groupChatId,
+    required this.memberKey,
+    this.assistantId,
+    required this.sortOrder,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['group_chat_id'] = Variable<String>(groupChatId);
+    map['member_key'] = Variable<String>(memberKey);
+    if (!nullToAbsent || assistantId != null) {
+      map['assistant_id'] = Variable<String>(assistantId);
+    }
+    map['sort_order'] = Variable<int>(sortOrder);
+    return map;
+  }
+
+  GroupChatMemberRowsCompanion toCompanion(bool nullToAbsent) {
+    return GroupChatMemberRowsCompanion(
+      groupChatId: Value(groupChatId),
+      memberKey: Value(memberKey),
+      assistantId: assistantId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(assistantId),
+      sortOrder: Value(sortOrder),
+    );
+  }
+
+  factory GroupChatMemberRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return GroupChatMemberRow(
+      groupChatId: serializer.fromJson<String>(json['groupChatId']),
+      memberKey: serializer.fromJson<String>(json['memberKey']),
+      assistantId: serializer.fromJson<String?>(json['assistantId']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'groupChatId': serializer.toJson<String>(groupChatId),
+      'memberKey': serializer.toJson<String>(memberKey),
+      'assistantId': serializer.toJson<String?>(assistantId),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+    };
+  }
+
+  GroupChatMemberRow copyWith({
+    String? groupChatId,
+    String? memberKey,
+    Value<String?> assistantId = const Value.absent(),
+    int? sortOrder,
+  }) => GroupChatMemberRow(
+    groupChatId: groupChatId ?? this.groupChatId,
+    memberKey: memberKey ?? this.memberKey,
+    assistantId: assistantId.present ? assistantId.value : this.assistantId,
+    sortOrder: sortOrder ?? this.sortOrder,
+  );
+  GroupChatMemberRow copyWithCompanion(GroupChatMemberRowsCompanion data) {
+    return GroupChatMemberRow(
+      groupChatId: data.groupChatId.present
+          ? data.groupChatId.value
+          : this.groupChatId,
+      memberKey: data.memberKey.present ? data.memberKey.value : this.memberKey,
+      assistantId: data.assistantId.present
+          ? data.assistantId.value
+          : this.assistantId,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GroupChatMemberRow(')
+          ..write('groupChatId: $groupChatId, ')
+          ..write('memberKey: $memberKey, ')
+          ..write('assistantId: $assistantId, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(groupChatId, memberKey, assistantId, sortOrder);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is GroupChatMemberRow &&
+          other.groupChatId == this.groupChatId &&
+          other.memberKey == this.memberKey &&
+          other.assistantId == this.assistantId &&
+          other.sortOrder == this.sortOrder);
+}
+
+class GroupChatMemberRowsCompanion extends UpdateCompanion<GroupChatMemberRow> {
+  final Value<String> groupChatId;
+  final Value<String> memberKey;
+  final Value<String?> assistantId;
+  final Value<int> sortOrder;
+  final Value<int> rowid;
+  const GroupChatMemberRowsCompanion({
+    this.groupChatId = const Value.absent(),
+    this.memberKey = const Value.absent(),
+    this.assistantId = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  GroupChatMemberRowsCompanion.insert({
+    required String groupChatId,
+    required String memberKey,
+    this.assistantId = const Value.absent(),
+    required int sortOrder,
+    this.rowid = const Value.absent(),
+  }) : groupChatId = Value(groupChatId),
+       memberKey = Value(memberKey),
+       sortOrder = Value(sortOrder);
+  static Insertable<GroupChatMemberRow> custom({
+    Expression<String>? groupChatId,
+    Expression<String>? memberKey,
+    Expression<String>? assistantId,
+    Expression<int>? sortOrder,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (groupChatId != null) 'group_chat_id': groupChatId,
+      if (memberKey != null) 'member_key': memberKey,
+      if (assistantId != null) 'assistant_id': assistantId,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  GroupChatMemberRowsCompanion copyWith({
+    Value<String>? groupChatId,
+    Value<String>? memberKey,
+    Value<String?>? assistantId,
+    Value<int>? sortOrder,
+    Value<int>? rowid,
+  }) {
+    return GroupChatMemberRowsCompanion(
+      groupChatId: groupChatId ?? this.groupChatId,
+      memberKey: memberKey ?? this.memberKey,
+      assistantId: assistantId ?? this.assistantId,
+      sortOrder: sortOrder ?? this.sortOrder,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (groupChatId.present) {
+      map['group_chat_id'] = Variable<String>(groupChatId.value);
+    }
+    if (memberKey.present) {
+      map['member_key'] = Variable<String>(memberKey.value);
+    }
+    if (assistantId.present) {
+      map['assistant_id'] = Variable<String>(assistantId.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GroupChatMemberRowsCompanion(')
+          ..write('groupChatId: $groupChatId, ')
+          ..write('memberKey: $memberKey, ')
+          ..write('assistantId: $assistantId, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $ChatStorageMetaRowsTable extends ChatStorageMetaRows
     with TableInfo<$ChatStorageMetaRowsTable, ChatStorageMetaRow> {
   @override
@@ -12136,6 +13491,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $MessageRowsTable messageRows = $MessageRowsTable(this);
   late final $ConversationMcpServerRowsTable conversationMcpServerRows =
       $ConversationMcpServerRowsTable(this);
+  late final $GroupChatRowsTable groupChatRows = $GroupChatRowsTable(this);
+  late final $GroupChatMemberRowsTable groupChatMemberRows =
+      $GroupChatMemberRowsTable(this);
   late final $ChatStorageMetaRowsTable chatStorageMetaRows =
       $ChatStorageMetaRowsTable(this);
   late final $MessagePartRowsTable messagePartRows = $MessagePartRowsTable(
@@ -12207,6 +13565,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_message_rows_streaming',
     'CREATE INDEX idx_message_rows_streaming ON message_rows (id) WHERE is_streaming = 1',
   );
+  late final Index idxGroupChatsUpdatedAt = Index(
+    'idx_group_chats_updated_at',
+    'CREATE INDEX idx_group_chats_updated_at ON group_chat_rows (updated_at DESC, id ASC)',
+  );
   late final Index idxMessagePartsRevisionOrdinal = Index(
     'idx_message_parts_revision_ordinal',
     'CREATE INDEX idx_message_parts_revision_ordinal ON message_part_rows (conversation_id, revision_id, ordinal)',
@@ -12259,6 +13621,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     conversationRows,
     messageRows,
     conversationMcpServerRows,
+    groupChatRows,
+    groupChatMemberRows,
     chatStorageMetaRows,
     messagePartRows,
     providerArtifactRows,
@@ -12291,6 +13655,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     idxMessagesConversationTimestamp,
     idxMessagesGroup,
     idxMessageRowsStreaming,
+    idxGroupChatsUpdatedAt,
     idxMessagePartsRevisionOrdinal,
     idxProviderArtifactsRevisionKind,
     idxMessageAssetsAsset,
@@ -12320,6 +13685,20 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       result: [
         TableUpdate('conversation_mcp_server_rows', kind: UpdateKind.delete),
       ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'conversation_rows',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('group_chat_rows', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'group_chat_rows',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('group_chat_member_rows', kind: UpdateKind.delete)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
@@ -12451,6 +13830,24 @@ final class $$ConversationRowsTableReferences
     final cache = $_typedResult.readTableOrNull(
       _conversationMcpServerRowsRefsTable($_db),
     );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$GroupChatRowsTable, List<GroupChatRow>>
+  _groupChatRowsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.groupChatRows,
+    aliasName: 'conversation_rows__id__group_chat_rows__conversation_id',
+  );
+
+  $$GroupChatRowsTableProcessedTableManager get groupChatRowsRefs {
+    final manager = $$GroupChatRowsTableTableManager(
+      $_db,
+      $_db.groupChatRows,
+    ).filter((f) => f.conversationId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_groupChatRowsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -12619,6 +14016,31 @@ class $$ConversationRowsTableFilterComposer
                     $removeJoinBuilderFromRootComposer,
               ),
         );
+    return f(composer);
+  }
+
+  Expression<bool> groupChatRowsRefs(
+    Expression<bool> Function($$GroupChatRowsTableFilterComposer f) f,
+  ) {
+    final $$GroupChatRowsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.groupChatRows,
+      getReferencedColumn: (t) => t.conversationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GroupChatRowsTableFilterComposer(
+            $db: $db,
+            $table: $db.groupChatRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 
@@ -12867,6 +14289,31 @@ class $$ConversationRowsTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> groupChatRowsRefs<T extends Object>(
+    Expression<T> Function($$GroupChatRowsTableAnnotationComposer a) f,
+  ) {
+    final $$GroupChatRowsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.groupChatRows,
+      getReferencedColumn: (t) => t.conversationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GroupChatRowsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.groupChatRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> generationRunRowsRefs<T extends Object>(
     Expression<T> Function($$GenerationRunRowsTableAnnotationComposer a) f,
   ) {
@@ -12910,6 +14357,7 @@ class $$ConversationRowsTableTableManager
           PrefetchHooks Function({
             bool messageRowsRefs,
             bool conversationMcpServerRowsRefs,
+            bool groupChatRowsRefs,
             bool generationRunRowsRefs,
           })
         > {
@@ -13014,6 +14462,7 @@ class $$ConversationRowsTableTableManager
               ({
                 messageRowsRefs = false,
                 conversationMcpServerRowsRefs = false,
+                groupChatRowsRefs = false,
                 generationRunRowsRefs = false,
               }) {
                 return PrefetchHooks(
@@ -13022,6 +14471,7 @@ class $$ConversationRowsTableTableManager
                     if (messageRowsRefs) db.messageRows,
                     if (conversationMcpServerRowsRefs)
                       db.conversationMcpServerRows,
+                    if (groupChatRowsRefs) db.groupChatRows,
                     if (generationRunRowsRefs) db.generationRunRows,
                   ],
                   addJoins: null,
@@ -13063,6 +14513,27 @@ class $$ConversationRowsTableTableManager
                                 table,
                                 p0,
                               ).conversationMcpServerRowsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.conversationId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (groupChatRowsRefs)
+                        await $_getPrefetchedData<
+                          ConversationRow,
+                          $ConversationRowsTable,
+                          GroupChatRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ConversationRowsTableReferences
+                              ._groupChatRowsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ConversationRowsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).groupChatRowsRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.conversationId == item.id,
@@ -13113,6 +14584,7 @@ typedef $$ConversationRowsTableProcessedTableManager =
       PrefetchHooks Function({
         bool messageRowsRefs,
         bool conversationMcpServerRowsRefs,
+        bool groupChatRowsRefs,
         bool generationRunRowsRefs,
       })
     >;
@@ -14325,6 +15797,984 @@ typedef $$ConversationMcpServerRowsTableProcessedTableManager =
       (ConversationMcpServerRow, $$ConversationMcpServerRowsTableReferences),
       ConversationMcpServerRow,
       PrefetchHooks Function({bool conversationId})
+    >;
+typedef $$GroupChatRowsTableCreateCompanionBuilder =
+    GroupChatRowsCompanion Function({
+      required String id,
+      required String name,
+      Value<String?> avatar,
+      required String conversationId,
+      Value<String?> directorModelProvider,
+      Value<String?> directorModelId,
+      Value<String> directorSystemPrompt,
+      Value<int> maxAssistantMessagesPerRound,
+      Value<String> assistantDetailInjectionMode,
+      Value<int> assistantDetailInjectionN,
+      Value<bool> injectGroupMembersIntoAssistantSystemPrompt,
+      Value<String?> pendingCapAssistantMessageId,
+      Value<int> assistantMessagesThisRound,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$GroupChatRowsTableUpdateCompanionBuilder =
+    GroupChatRowsCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String?> avatar,
+      Value<String> conversationId,
+      Value<String?> directorModelProvider,
+      Value<String?> directorModelId,
+      Value<String> directorSystemPrompt,
+      Value<int> maxAssistantMessagesPerRound,
+      Value<String> assistantDetailInjectionMode,
+      Value<int> assistantDetailInjectionN,
+      Value<bool> injectGroupMembersIntoAssistantSystemPrompt,
+      Value<String?> pendingCapAssistantMessageId,
+      Value<int> assistantMessagesThisRound,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$GroupChatRowsTableReferences
+    extends BaseReferences<_$AppDatabase, $GroupChatRowsTable, GroupChatRow> {
+  $$GroupChatRowsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ConversationRowsTable _conversationIdTable(_$AppDatabase db) => db
+      .conversationRows
+      .createAlias('group_chat_rows__conversation_id__conversation_rows__id');
+
+  $$ConversationRowsTableProcessedTableManager get conversationId {
+    final $_column = $_itemColumn<String>('conversation_id')!;
+
+    final manager = $$ConversationRowsTableTableManager(
+      $_db,
+      $_db.conversationRows,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_conversationIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $GroupChatMemberRowsTable,
+    List<GroupChatMemberRow>
+  >
+  _groupChatMemberRowsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.groupChatMemberRows,
+        aliasName: 'group_chat_rows__id__group_chat_member_rows__group_chat_id',
+      );
+
+  $$GroupChatMemberRowsTableProcessedTableManager get groupChatMemberRowsRefs {
+    final manager = $$GroupChatMemberRowsTableTableManager(
+      $_db,
+      $_db.groupChatMemberRows,
+    ).filter((f) => f.groupChatId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _groupChatMemberRowsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$GroupChatRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $GroupChatRowsTable> {
+  $$GroupChatRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get avatar => $composableBuilder(
+    column: $table.avatar,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get directorModelProvider => $composableBuilder(
+    column: $table.directorModelProvider,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get directorModelId => $composableBuilder(
+    column: $table.directorModelId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get directorSystemPrompt => $composableBuilder(
+    column: $table.directorSystemPrompt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get maxAssistantMessagesPerRound => $composableBuilder(
+    column: $table.maxAssistantMessagesPerRound,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get assistantDetailInjectionMode => $composableBuilder(
+    column: $table.assistantDetailInjectionMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get assistantDetailInjectionN => $composableBuilder(
+    column: $table.assistantDetailInjectionN,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get injectGroupMembersIntoAssistantSystemPrompt =>
+      $composableBuilder(
+        column: $table.injectGroupMembersIntoAssistantSystemPrompt,
+        builder: (column) => ColumnFilters(column),
+      );
+
+  ColumnFilters<String> get pendingCapAssistantMessageId => $composableBuilder(
+    column: $table.pendingCapAssistantMessageId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get assistantMessagesThisRound => $composableBuilder(
+    column: $table.assistantMessagesThisRound,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get createdAt =>
+      $composableBuilder(
+        column: $table.createdAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get updatedAt =>
+      $composableBuilder(
+        column: $table.updatedAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  $$ConversationRowsTableFilterComposer get conversationId {
+    final $$ConversationRowsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.conversationId,
+      referencedTable: $db.conversationRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationRowsTableFilterComposer(
+            $db: $db,
+            $table: $db.conversationRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> groupChatMemberRowsRefs(
+    Expression<bool> Function($$GroupChatMemberRowsTableFilterComposer f) f,
+  ) {
+    final $$GroupChatMemberRowsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.groupChatMemberRows,
+      getReferencedColumn: (t) => t.groupChatId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GroupChatMemberRowsTableFilterComposer(
+            $db: $db,
+            $table: $db.groupChatMemberRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$GroupChatRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $GroupChatRowsTable> {
+  $$GroupChatRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get avatar => $composableBuilder(
+    column: $table.avatar,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get directorModelProvider => $composableBuilder(
+    column: $table.directorModelProvider,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get directorModelId => $composableBuilder(
+    column: $table.directorModelId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get directorSystemPrompt => $composableBuilder(
+    column: $table.directorSystemPrompt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get maxAssistantMessagesPerRound => $composableBuilder(
+    column: $table.maxAssistantMessagesPerRound,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get assistantDetailInjectionMode =>
+      $composableBuilder(
+        column: $table.assistantDetailInjectionMode,
+        builder: (column) => ColumnOrderings(column),
+      );
+
+  ColumnOrderings<int> get assistantDetailInjectionN => $composableBuilder(
+    column: $table.assistantDetailInjectionN,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get injectGroupMembersIntoAssistantSystemPrompt =>
+      $composableBuilder(
+        column: $table.injectGroupMembersIntoAssistantSystemPrompt,
+        builder: (column) => ColumnOrderings(column),
+      );
+
+  ColumnOrderings<String> get pendingCapAssistantMessageId =>
+      $composableBuilder(
+        column: $table.pendingCapAssistantMessageId,
+        builder: (column) => ColumnOrderings(column),
+      );
+
+  ColumnOrderings<int> get assistantMessagesThisRound => $composableBuilder(
+    column: $table.assistantMessagesThisRound,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ConversationRowsTableOrderingComposer get conversationId {
+    final $$ConversationRowsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.conversationId,
+      referencedTable: $db.conversationRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationRowsTableOrderingComposer(
+            $db: $db,
+            $table: $db.conversationRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$GroupChatRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $GroupChatRowsTable> {
+  $$GroupChatRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get avatar =>
+      $composableBuilder(column: $table.avatar, builder: (column) => column);
+
+  GeneratedColumn<String> get directorModelProvider => $composableBuilder(
+    column: $table.directorModelProvider,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get directorModelId => $composableBuilder(
+    column: $table.directorModelId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get directorSystemPrompt => $composableBuilder(
+    column: $table.directorSystemPrompt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get maxAssistantMessagesPerRound => $composableBuilder(
+    column: $table.maxAssistantMessagesPerRound,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get assistantDetailInjectionMode =>
+      $composableBuilder(
+        column: $table.assistantDetailInjectionMode,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<int> get assistantDetailInjectionN => $composableBuilder(
+    column: $table.assistantDetailInjectionN,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get injectGroupMembersIntoAssistantSystemPrompt =>
+      $composableBuilder(
+        column: $table.injectGroupMembersIntoAssistantSystemPrompt,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<String> get pendingCapAssistantMessageId =>
+      $composableBuilder(
+        column: $table.pendingCapAssistantMessageId,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<int> get assistantMessagesThisRound => $composableBuilder(
+    column: $table.assistantMessagesThisRound,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$ConversationRowsTableAnnotationComposer get conversationId {
+    final $$ConversationRowsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.conversationId,
+      referencedTable: $db.conversationRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationRowsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.conversationRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> groupChatMemberRowsRefs<T extends Object>(
+    Expression<T> Function($$GroupChatMemberRowsTableAnnotationComposer a) f,
+  ) {
+    final $$GroupChatMemberRowsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.groupChatMemberRows,
+          getReferencedColumn: (t) => t.groupChatId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$GroupChatMemberRowsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.groupChatMemberRows,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$GroupChatRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $GroupChatRowsTable,
+          GroupChatRow,
+          $$GroupChatRowsTableFilterComposer,
+          $$GroupChatRowsTableOrderingComposer,
+          $$GroupChatRowsTableAnnotationComposer,
+          $$GroupChatRowsTableCreateCompanionBuilder,
+          $$GroupChatRowsTableUpdateCompanionBuilder,
+          (GroupChatRow, $$GroupChatRowsTableReferences),
+          GroupChatRow,
+          PrefetchHooks Function({
+            bool conversationId,
+            bool groupChatMemberRowsRefs,
+          })
+        > {
+  $$GroupChatRowsTableTableManager(_$AppDatabase db, $GroupChatRowsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$GroupChatRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$GroupChatRowsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$GroupChatRowsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> avatar = const Value.absent(),
+                Value<String> conversationId = const Value.absent(),
+                Value<String?> directorModelProvider = const Value.absent(),
+                Value<String?> directorModelId = const Value.absent(),
+                Value<String> directorSystemPrompt = const Value.absent(),
+                Value<int> maxAssistantMessagesPerRound = const Value.absent(),
+                Value<String> assistantDetailInjectionMode =
+                    const Value.absent(),
+                Value<int> assistantDetailInjectionN = const Value.absent(),
+                Value<bool> injectGroupMembersIntoAssistantSystemPrompt =
+                    const Value.absent(),
+                Value<String?> pendingCapAssistantMessageId =
+                    const Value.absent(),
+                Value<int> assistantMessagesThisRound = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => GroupChatRowsCompanion(
+                id: id,
+                name: name,
+                avatar: avatar,
+                conversationId: conversationId,
+                directorModelProvider: directorModelProvider,
+                directorModelId: directorModelId,
+                directorSystemPrompt: directorSystemPrompt,
+                maxAssistantMessagesPerRound: maxAssistantMessagesPerRound,
+                assistantDetailInjectionMode: assistantDetailInjectionMode,
+                assistantDetailInjectionN: assistantDetailInjectionN,
+                injectGroupMembersIntoAssistantSystemPrompt:
+                    injectGroupMembersIntoAssistantSystemPrompt,
+                pendingCapAssistantMessageId: pendingCapAssistantMessageId,
+                assistantMessagesThisRound: assistantMessagesThisRound,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                Value<String?> avatar = const Value.absent(),
+                required String conversationId,
+                Value<String?> directorModelProvider = const Value.absent(),
+                Value<String?> directorModelId = const Value.absent(),
+                Value<String> directorSystemPrompt = const Value.absent(),
+                Value<int> maxAssistantMessagesPerRound = const Value.absent(),
+                Value<String> assistantDetailInjectionMode =
+                    const Value.absent(),
+                Value<int> assistantDetailInjectionN = const Value.absent(),
+                Value<bool> injectGroupMembersIntoAssistantSystemPrompt =
+                    const Value.absent(),
+                Value<String?> pendingCapAssistantMessageId =
+                    const Value.absent(),
+                Value<int> assistantMessagesThisRound = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => GroupChatRowsCompanion.insert(
+                id: id,
+                name: name,
+                avatar: avatar,
+                conversationId: conversationId,
+                directorModelProvider: directorModelProvider,
+                directorModelId: directorModelId,
+                directorSystemPrompt: directorSystemPrompt,
+                maxAssistantMessagesPerRound: maxAssistantMessagesPerRound,
+                assistantDetailInjectionMode: assistantDetailInjectionMode,
+                assistantDetailInjectionN: assistantDetailInjectionN,
+                injectGroupMembersIntoAssistantSystemPrompt:
+                    injectGroupMembersIntoAssistantSystemPrompt,
+                pendingCapAssistantMessageId: pendingCapAssistantMessageId,
+                assistantMessagesThisRound: assistantMessagesThisRound,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$GroupChatRowsTable, GroupChatRow>(table),
+                  $$GroupChatRowsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({conversationId = false, groupChatMemberRowsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (groupChatMemberRowsRefs) db.groupChatMemberRows,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (conversationId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.conversationId,
+                                    referencedTable:
+                                        $$GroupChatRowsTableReferences
+                                            ._conversationIdTable(db),
+                                    referencedColumn:
+                                        $$GroupChatRowsTableReferences
+                                            ._conversationIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (groupChatMemberRowsRefs)
+                        await $_getPrefetchedData<
+                          GroupChatRow,
+                          $GroupChatRowsTable,
+                          GroupChatMemberRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$GroupChatRowsTableReferences
+                              ._groupChatMemberRowsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$GroupChatRowsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).groupChatMemberRowsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.groupChatId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$GroupChatRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $GroupChatRowsTable,
+      GroupChatRow,
+      $$GroupChatRowsTableFilterComposer,
+      $$GroupChatRowsTableOrderingComposer,
+      $$GroupChatRowsTableAnnotationComposer,
+      $$GroupChatRowsTableCreateCompanionBuilder,
+      $$GroupChatRowsTableUpdateCompanionBuilder,
+      (GroupChatRow, $$GroupChatRowsTableReferences),
+      GroupChatRow,
+      PrefetchHooks Function({
+        bool conversationId,
+        bool groupChatMemberRowsRefs,
+      })
+    >;
+typedef $$GroupChatMemberRowsTableCreateCompanionBuilder =
+    GroupChatMemberRowsCompanion Function({
+      required String groupChatId,
+      required String memberKey,
+      Value<String?> assistantId,
+      required int sortOrder,
+      Value<int> rowid,
+    });
+typedef $$GroupChatMemberRowsTableUpdateCompanionBuilder =
+    GroupChatMemberRowsCompanion Function({
+      Value<String> groupChatId,
+      Value<String> memberKey,
+      Value<String?> assistantId,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+
+final class $$GroupChatMemberRowsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $GroupChatMemberRowsTable,
+          GroupChatMemberRow
+        > {
+  $$GroupChatMemberRowsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $GroupChatRowsTable _groupChatIdTable(_$AppDatabase db) =>
+      db.groupChatRows.createAlias(
+        'group_chat_member_rows__group_chat_id__group_chat_rows__id',
+      );
+
+  $$GroupChatRowsTableProcessedTableManager get groupChatId {
+    final $_column = $_itemColumn<String>('group_chat_id')!;
+
+    final manager = $$GroupChatRowsTableTableManager(
+      $_db,
+      $_db.groupChatRows,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_groupChatIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$GroupChatMemberRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $GroupChatMemberRowsTable> {
+  $$GroupChatMemberRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get memberKey => $composableBuilder(
+    column: $table.memberKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get assistantId => $composableBuilder(
+    column: $table.assistantId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$GroupChatRowsTableFilterComposer get groupChatId {
+    final $$GroupChatRowsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupChatId,
+      referencedTable: $db.groupChatRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GroupChatRowsTableFilterComposer(
+            $db: $db,
+            $table: $db.groupChatRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$GroupChatMemberRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $GroupChatMemberRowsTable> {
+  $$GroupChatMemberRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get memberKey => $composableBuilder(
+    column: $table.memberKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get assistantId => $composableBuilder(
+    column: $table.assistantId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$GroupChatRowsTableOrderingComposer get groupChatId {
+    final $$GroupChatRowsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupChatId,
+      referencedTable: $db.groupChatRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GroupChatRowsTableOrderingComposer(
+            $db: $db,
+            $table: $db.groupChatRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$GroupChatMemberRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $GroupChatMemberRowsTable> {
+  $$GroupChatMemberRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get memberKey =>
+      $composableBuilder(column: $table.memberKey, builder: (column) => column);
+
+  GeneratedColumn<String> get assistantId => $composableBuilder(
+    column: $table.assistantId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  $$GroupChatRowsTableAnnotationComposer get groupChatId {
+    final $$GroupChatRowsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.groupChatId,
+      referencedTable: $db.groupChatRows,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GroupChatRowsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.groupChatRows,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$GroupChatMemberRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $GroupChatMemberRowsTable,
+          GroupChatMemberRow,
+          $$GroupChatMemberRowsTableFilterComposer,
+          $$GroupChatMemberRowsTableOrderingComposer,
+          $$GroupChatMemberRowsTableAnnotationComposer,
+          $$GroupChatMemberRowsTableCreateCompanionBuilder,
+          $$GroupChatMemberRowsTableUpdateCompanionBuilder,
+          (GroupChatMemberRow, $$GroupChatMemberRowsTableReferences),
+          GroupChatMemberRow,
+          PrefetchHooks Function({bool groupChatId})
+        > {
+  $$GroupChatMemberRowsTableTableManager(
+    _$AppDatabase db,
+    $GroupChatMemberRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$GroupChatMemberRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$GroupChatMemberRowsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$GroupChatMemberRowsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> groupChatId = const Value.absent(),
+                Value<String> memberKey = const Value.absent(),
+                Value<String?> assistantId = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => GroupChatMemberRowsCompanion(
+                groupChatId: groupChatId,
+                memberKey: memberKey,
+                assistantId: assistantId,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String groupChatId,
+                required String memberKey,
+                Value<String?> assistantId = const Value.absent(),
+                required int sortOrder,
+                Value<int> rowid = const Value.absent(),
+              }) => GroupChatMemberRowsCompanion.insert(
+                groupChatId: groupChatId,
+                memberKey: memberKey,
+                assistantId: assistantId,
+                sortOrder: sortOrder,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$GroupChatMemberRowsTable, GroupChatMemberRow>(
+                    table,
+                  ),
+                  $$GroupChatMemberRowsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({groupChatId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (groupChatId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.groupChatId,
+                                referencedTable:
+                                    $$GroupChatMemberRowsTableReferences
+                                        ._groupChatIdTable(db),
+                                referencedColumn:
+                                    $$GroupChatMemberRowsTableReferences
+                                        ._groupChatIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$GroupChatMemberRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $GroupChatMemberRowsTable,
+      GroupChatMemberRow,
+      $$GroupChatMemberRowsTableFilterComposer,
+      $$GroupChatMemberRowsTableOrderingComposer,
+      $$GroupChatMemberRowsTableAnnotationComposer,
+      $$GroupChatMemberRowsTableCreateCompanionBuilder,
+      $$GroupChatMemberRowsTableUpdateCompanionBuilder,
+      (GroupChatMemberRow, $$GroupChatMemberRowsTableReferences),
+      GroupChatMemberRow,
+      PrefetchHooks Function({bool groupChatId})
     >;
 typedef $$ChatStorageMetaRowsTableCreateCompanionBuilder =
     ChatStorageMetaRowsCompanion Function({
@@ -20749,6 +23199,10 @@ class $AppDatabaseManager {
         _db,
         _db.conversationMcpServerRows,
       );
+  $$GroupChatRowsTableTableManager get groupChatRows =>
+      $$GroupChatRowsTableTableManager(_db, _db.groupChatRows);
+  $$GroupChatMemberRowsTableTableManager get groupChatMemberRows =>
+      $$GroupChatMemberRowsTableTableManager(_db, _db.groupChatMemberRows);
   $$ChatStorageMetaRowsTableTableManager get chatStorageMetaRows =>
       $$ChatStorageMetaRowsTableTableManager(_db, _db.chatStorageMetaRows);
   $$MessagePartRowsTableTableManager get messagePartRows =>

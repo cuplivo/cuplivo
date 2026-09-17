@@ -39,10 +39,7 @@ void main() {
       expect(a.copyWith(ocrMode: 'never').ocrMode, 'never');
       expect(a.copyWith(docxMode: 'direct').docxMode, 'direct');
       expect(a.copyWith(pdfMode: 'discard').pdfMode, 'discard');
-      expect(
-        a.copyWith(otherOfficeMode: 'direct').otherOfficeMode,
-        'direct',
-      );
+      expect(a.copyWith(otherOfficeMode: 'direct').otherOfficeMode, 'direct');
     });
   });
 

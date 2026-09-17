@@ -96,6 +96,19 @@ class Assistant {
   // OCR processing mode (per assistant)
   // Values: 'auto' (OCR only when the model lacks vision), 'always', 'never'
   final String ocrMode;
+  // Proactive care ("Ta 的来信")
+  final bool enableProactiveCare;
+  final DateTime? proactiveCareNextMessageAt;
+  final String proactiveCarePrompt;
+  final String proactiveCareDecisionPrompt;
+  final int? proactiveCareDecisionHistoryMessageLimit;
+
+  /// Clamps the nullable decision-history window into
+  /// [minContextMessageSize, maxContextMessageSize]. Called from every write
+  /// path (constructor via copyWith/fromJson) so a save converges; kept as a
+  /// static so the constructor can stay const.
+  static int? _normalizeProactiveCareHistoryLimit(int? v) =>
+      v?.clamp(minContextMessageSize, maxContextMessageSize).toInt();
 
   const Assistant({
     required this.id,
@@ -146,6 +159,11 @@ class Assistant {
     this.pdfMode = 'extract',
     this.otherOfficeMode = 'extract',
     this.ocrMode = 'auto',
+    this.enableProactiveCare = false,
+    this.proactiveCareNextMessageAt,
+    this.proactiveCarePrompt = '',
+    this.proactiveCareDecisionPrompt = '',
+    this.proactiveCareDecisionHistoryMessageLimit,
   });
 
   Assistant copyWith({
@@ -197,6 +215,13 @@ class Assistant {
     String? pdfMode,
     String? otherOfficeMode,
     String? ocrMode,
+    bool? enableProactiveCare,
+    DateTime? proactiveCareNextMessageAt,
+    bool clearProactiveCareNextMessageAt = false,
+    String? proactiveCarePrompt,
+    String? proactiveCareDecisionPrompt,
+    int? proactiveCareDecisionHistoryMessageLimit,
+    bool clearProactiveCareDecisionHistoryMessageLimit = false,
     bool clearChatModel = false,
     bool clearDefaultWorkspaceId = false,
     bool clearSkillIds = false,
@@ -275,6 +300,20 @@ class Assistant {
       pdfMode: pdfMode ?? this.pdfMode,
       otherOfficeMode: otherOfficeMode ?? this.otherOfficeMode,
       ocrMode: ocrMode ?? this.ocrMode,
+      enableProactiveCare: enableProactiveCare ?? this.enableProactiveCare,
+      proactiveCareNextMessageAt: clearProactiveCareNextMessageAt
+          ? null
+          : (proactiveCareNextMessageAt ?? this.proactiveCareNextMessageAt),
+      proactiveCarePrompt: proactiveCarePrompt ?? this.proactiveCarePrompt,
+      proactiveCareDecisionPrompt:
+          proactiveCareDecisionPrompt ?? this.proactiveCareDecisionPrompt,
+      proactiveCareDecisionHistoryMessageLimit:
+          clearProactiveCareDecisionHistoryMessageLimit
+          ? null
+          : _normalizeProactiveCareHistoryLimit(
+              proactiveCareDecisionHistoryMessageLimit ??
+                  this.proactiveCareDecisionHistoryMessageLimit,
+            ),
     );
   }
 
@@ -327,6 +366,12 @@ class Assistant {
     'pdfMode': pdfMode,
     'otherOfficeMode': otherOfficeMode,
     'ocrMode': ocrMode,
+    'enableProactiveCare': enableProactiveCare,
+    'proactiveCareNextMessageAt': proactiveCareNextMessageAt?.toIso8601String(),
+    'proactiveCarePrompt': proactiveCarePrompt,
+    'proactiveCareDecisionPrompt': proactiveCareDecisionPrompt,
+    'proactiveCareDecisionHistoryMessageLimit':
+        proactiveCareDecisionHistoryMessageLimit,
   };
 
   static double _readGradientBackgroundPhase(Object? value) =>
@@ -469,6 +514,19 @@ class Assistant {
     pdfMode: (json['pdfMode'] as String?) ?? 'extract',
     otherOfficeMode: (json['otherOfficeMode'] as String?) ?? 'extract',
     ocrMode: (json['ocrMode'] as String?) ?? 'auto',
+    enableProactiveCare: json['enableProactiveCare'] as bool? ?? false,
+    proactiveCareNextMessageAt: (() {
+      final raw = json['proactiveCareNextMessageAt'];
+      if (raw is! String || raw.isEmpty) return null;
+      return DateTime.tryParse(raw);
+    })(),
+    proactiveCarePrompt: (json['proactiveCarePrompt'] as String?) ?? '',
+    proactiveCareDecisionPrompt:
+        (json['proactiveCareDecisionPrompt'] as String?) ?? '',
+    proactiveCareDecisionHistoryMessageLimit:
+        _normalizeProactiveCareHistoryLimit(
+          (json['proactiveCareDecisionHistoryMessageLimit'] as num?)?.toInt(),
+        ),
   );
 
   static String memorySmartAddModeToString(MemorySmartAddMode mode) {

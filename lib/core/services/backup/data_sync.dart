@@ -2636,6 +2636,15 @@ class DataSync {
       if ((entry['conversationKind'] as String?) == 'group') {
         extras[GroupChatConversations.extrasKindKey] = 'group';
       }
+      // Fork-lineage per-conversation proactive care state rides extras here.
+      final careOverride = entry['proactiveCareEnabledOverride'];
+      if (careOverride is bool) {
+        extras[Conversation.proactiveCareEnabledOverrideKey] = careOverride;
+      }
+      final careNextAt = entry['proactiveCareNextMessageAt'];
+      if (careNextAt is String && careNextAt.isNotEmpty) {
+        extras[Conversation.proactiveCareNextMessageAtKey] = careNextAt;
+      }
       return conversation.copyWith(extras: extras);
     }).toList();
 

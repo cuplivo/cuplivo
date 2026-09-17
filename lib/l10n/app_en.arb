@@ -5222,5 +5222,22 @@
   "oauthInvalidAuthorizationCode": "Enter the code or callback URL from this login attempt.",
   "oauthSubmitAuthorizationCode": "Complete login",
   "oauthExtraUsage": "Extra usage",
-  "oauthPromptCachingHelp": "Reuse context across messages and choose how long the cache is retained."
+  "oauthPromptCachingHelp": "Reuse context across messages and choose how long the cache is retained.",
+  "cuplivoV3MigrationTitle": "Migrating your Cuplivo data",
+  "cuplivoV3MigrationPhasePreparing": "Preparing migration…",
+  "cuplivoV3MigrationPhaseReading": "Reading the old database…",
+  "cuplivoV3MigrationPhaseWriting": "Writing conversations and settings…",
+  "cuplivoV3MigrationSuccessTitle": "Migration complete",
+  "cuplivoV3MigrationSuccessCounts": "{conversations} conversations and {messages} messages were migrated.",
+  "@cuplivoV3MigrationSuccessCounts": {
+    "placeholders": {
+      "conversations": {"type": "int"},
+      "messages": {"type": "int"}
+    }
+  },
+  "cuplivoV3MigrationSuccessHint": "The old database was kept as kelivo.sqlite.pre-v4.bak; nothing was deleted.",
+  "cuplivoV3MigrationRestartButton": "Restart app",
+  "cuplivoV3MigrationFailedTitle": "Migration failed",
+  "cuplivoV3MigrationFailedHint": "Your old database is untouched. You can retry now, or restart the app to try again later.",
+  "cuplivoV3MigrationRetryButton": "Retry"
 }

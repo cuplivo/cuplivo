@@ -4196,5 +4196,16 @@
   "oauthInvalidAuthorizationCode": "請輸入本次登入的授權碼或回呼連結。",
   "oauthSubmitAuthorizationCode": "完成登入",
   "oauthExtraUsage": "額外用量",
-  "oauthPromptCachingHelp": "重用多輪對話中的上下文，可設定快取保留時間。"
+  "oauthPromptCachingHelp": "重用多輪對話中的上下文，可設定快取保留時間。",
+  "cuplivoV3MigrationTitle": "正在遷移你的 Cuplivo 資料",
+  "cuplivoV3MigrationPhasePreparing": "正在準備遷移…",
+  "cuplivoV3MigrationPhaseReading": "正在讀取舊資料庫…",
+  "cuplivoV3MigrationPhaseWriting": "正在寫入會話與設定…",
+  "cuplivoV3MigrationSuccessTitle": "遷移完成",
+  "cuplivoV3MigrationSuccessCounts": "已遷移 {conversations} 個會話、{messages} 條訊息。",
+  "cuplivoV3MigrationSuccessHint": "舊資料庫已保留為 kelivo.sqlite.pre-v4.bak，未刪除任何內容。",
+  "cuplivoV3MigrationRestartButton": "重啟應用",
+  "cuplivoV3MigrationFailedTitle": "遷移失敗",
+  "cuplivoV3MigrationFailedHint": "舊資料庫未被改動。你可以現在重試，或重啟應用稍後再試。",
+  "cuplivoV3MigrationRetryButton": "重試"
 }

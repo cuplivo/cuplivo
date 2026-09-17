@@ -317,6 +317,84 @@ class DataSync {
         : preferences.runWithRestoreWriteFence(operation);
   }
 
+  /// Restores an in-memory legacy payload — a chats.json v1 shaped [chats]
+  /// map plus a flat [settings] map — reusing the legacy restore pipeline
+  /// without a zip or asset-directory swap.
+  ///
+  /// Used by the first-run Cuplivo v3 migration (old Drift v23
+  /// `kelivo.sqlite`): its media directories already live under the app data
+  /// directory roots, so attachment parts are remapped against the live disk
+  /// state instead of being replaced from a payload. Only
+  /// [RestoreMode.overwrite] is supported — the migration always runs against
+  /// a freshly created v4 database.
+  Future<void> restoreLegacyPayload({
+    required Map<String, dynamic> chats,
+    required Map<String, Object?> settings,
+    void Function(BackupPhase phase)? onPhase,
+  }) async {
+    onPhase?.call(BackupPhase.extracting);
+    final parsed = _sanitizeLegacyChatBackup(
+      await _parseChatBackupMap(chats.cast<String, dynamic>()),
+    );
+    _validateBackupReferences(
+      conversations: parsed.conversations,
+      messages: parsed.messages,
+      toolEvents: parsed.toolEvents,
+      geminiThoughtSigs: parsed.geminiThoughtSigs,
+    );
+
+    // Same ordering contract as the zip legacy path: reject the complete
+    // business payload before touching either domain, persist business data
+    // last.
+    final settingsMap = settings.cast<String, dynamic>();
+    BackupSettingsValidator.normalizeAndValidate(settingsMap);
+    BusinessSettingsRouter.normalizeAndRoute(
+      settingsMap,
+      preserveExplicitEmptyInstructionList: true,
+      assumePreV3EmbeddingMigrationWhenVersionMissing: true,
+    );
+
+    // Attachment parts encode against the live root; the migration reader
+    // emits fork-lineage markers that decodeLegacyContent already promoted
+    // into parts during parsing.
+    var messages = parsed.messages.map((message) {
+      final normalized = _normalizeAttachmentPartUris(message.parts);
+      return identical(normalized, message.parts)
+          ? message
+          : message.copyWith(parts: normalized);
+    }).toList();
+    if (SandboxPathResolver.docsDir == null) {
+      await SandboxPathResolver.init();
+    }
+    final refreshed = <ChatMessage>[];
+    for (final message in messages) {
+      final remapped = _remapRestoredAttachmentPartUris(message.parts);
+      final nextParts = recomputeAttachmentAvailability(remapped);
+      refreshed.add(
+        identical(nextParts, message.parts)
+            ? message
+            : message.copyWith(parts: nextParts),
+      );
+    }
+    messages = refreshed;
+
+    onPhase?.call(BackupPhase.committing);
+    await chatService.replaceAllDataFromBackup(
+      conversations: parsed.conversations,
+      messages: messages,
+      toolEventsByMessageId: parsed.toolEvents,
+      geminiSignaturesByMessageId: parsed.geminiThoughtSigs,
+    );
+
+    await _runLiveBusinessRestore(
+      () => BusinessRestoreService(businessRepository).overwrite(
+        settingsMap,
+        preserveExplicitEmptyInstructionList: true,
+        assumePreV3EmbeddingMigrationWhenVersionMissing: true,
+      ),
+    );
+  }
+
   static Future<void> _prepareRestoreBundle({
     required String appDataPath,
     required String extractedPath,
@@ -2491,6 +2569,16 @@ class DataSync {
     ctx?.throwIfCancelled();
     final chats =
         jsonDecode(await chatsFile.readAsString()) as Map<String, dynamic>;
+    return _parseChatBackupMap(chats, ctx: ctx);
+  }
+
+  /// Map-based core of the legacy chats.json parser, so in-memory payloads
+  /// (first-run Cuplivo v3 migration) reuse the identical parse pipeline.
+  static Future<_ParsedChatBackup> _parseChatBackupMap(
+    Map<String, dynamic> chats, {
+    BackupIsolateContext? ctx,
+  }) async {
+    ctx?.throwIfCancelled();
     final version = chats['version'];
     if (version != null && version != 1) {
       throw const FormatException('version');

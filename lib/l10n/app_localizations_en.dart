@@ -11880,4 +11880,42 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get oauthPromptCachingHelp =>
       'Reuse context across messages and choose how long the cache is retained.';
+
+  @override
+  String get cuplivoV3MigrationTitle => 'Migrating your Cuplivo data';
+
+  @override
+  String get cuplivoV3MigrationPhasePreparing => 'Preparing migration…';
+
+  @override
+  String get cuplivoV3MigrationPhaseReading => 'Reading the old database…';
+
+  @override
+  String get cuplivoV3MigrationPhaseWriting =>
+      'Writing conversations and settings…';
+
+  @override
+  String get cuplivoV3MigrationSuccessTitle => 'Migration complete';
+
+  @override
+  String cuplivoV3MigrationSuccessCounts(int conversations, int messages) {
+    return '$conversations conversations and $messages messages were migrated.';
+  }
+
+  @override
+  String get cuplivoV3MigrationSuccessHint =>
+      'The old database was kept as kelivo.sqlite.pre-v4.bak; nothing was deleted.';
+
+  @override
+  String get cuplivoV3MigrationRestartButton => 'Restart app';
+
+  @override
+  String get cuplivoV3MigrationFailedTitle => 'Migration failed';
+
+  @override
+  String get cuplivoV3MigrationFailedHint =>
+      'Your old database is untouched. You can retry now, or restart the app to try again later.';
+
+  @override
+  String get cuplivoV3MigrationRetryButton => 'Retry';
 }

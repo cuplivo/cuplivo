@@ -21320,6 +21320,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reuse context across messages and choose how long the cache is retained.'**
   String get oauthPromptCachingHelp;
+
+  /// No description provided for @cuplivoV3MigrationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Migrating your Cuplivo data'**
+  String get cuplivoV3MigrationTitle;
+
+  /// No description provided for @cuplivoV3MigrationPhasePreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing migration…'**
+  String get cuplivoV3MigrationPhasePreparing;
+
+  /// No description provided for @cuplivoV3MigrationPhaseReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading the old database…'**
+  String get cuplivoV3MigrationPhaseReading;
+
+  /// No description provided for @cuplivoV3MigrationPhaseWriting.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing conversations and settings…'**
+  String get cuplivoV3MigrationPhaseWriting;
+
+  /// No description provided for @cuplivoV3MigrationSuccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Migration complete'**
+  String get cuplivoV3MigrationSuccessTitle;
+
+  /// No description provided for @cuplivoV3MigrationSuccessCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'{conversations} conversations and {messages} messages were migrated.'**
+  String cuplivoV3MigrationSuccessCounts(int conversations, int messages);
+
+  /// No description provided for @cuplivoV3MigrationSuccessHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The old database was kept as kelivo.sqlite.pre-v4.bak; nothing was deleted.'**
+  String get cuplivoV3MigrationSuccessHint;
+
+  /// No description provided for @cuplivoV3MigrationRestartButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart app'**
+  String get cuplivoV3MigrationRestartButton;
+
+  /// No description provided for @cuplivoV3MigrationFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Migration failed'**
+  String get cuplivoV3MigrationFailedTitle;
+
+  /// No description provided for @cuplivoV3MigrationFailedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your old database is untouched. You can retry now, or restart the app to try again later.'**
+  String get cuplivoV3MigrationFailedHint;
+
+  /// No description provided for @cuplivoV3MigrationRetryButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get cuplivoV3MigrationRetryButton;
 }
 
 class _AppLocalizationsDelegate

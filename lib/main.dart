@@ -11,6 +11,8 @@ import 'l10n/app_localizations.dart';
 import 'features/home/pages/home_page.dart';
 import 'features/migration/hive_to_sqlite_migration_page.dart';
 import 'features/migration/hive_to_sqlite_migration_service.dart';
+import 'features/migration/cuplivo_v3_migration_page.dart';
+import 'core/services/migration/cuplivo_v3/cuplivo_v3_migration.dart';
 import 'desktop/desktop_home_page.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
@@ -248,6 +250,19 @@ Future<void> main() async {
               MigrationApp(
                 service: HiveToSqliteMigrationService(migrationDecision),
                 restoreOutcome: restoreOutcome?.state,
+              ),
+            );
+            return;
+          }
+          admissionStep = 'cuplivo_v3_migration_check';
+          final cuplivoV3Decision = await CuplivoV3MigrationService.check(
+            appDataDirectory,
+          );
+          if (cuplivoV3Decision.needsMigration) {
+            runApp(
+              CuplivoV3MigrationApp(
+                decision: cuplivoV3Decision,
+                appDataDirectory: appDataDirectory,
               ),
             );
             return;
@@ -639,6 +654,39 @@ class MigrationApp extends StatelessWidget {
       home: RestoreOutcomeNotice(
         outcome: restoreOutcome,
         child: HiveToSqliteMigrationPage(service: service),
+      ),
+    );
+  }
+}
+
+/// Shell for the first-run Cuplivo v3 (schema v23) migration. Runs before
+/// the database gateway is acquired; the page restarts the app when done so
+/// the normal admission loop re-runs with the migration receipt in place.
+class CuplivoV3MigrationApp extends StatelessWidget {
+  const CuplivoV3MigrationApp({
+    super.key,
+    required this.decision,
+    required this.appDataDirectory,
+  });
+
+  final CuplivoV3MigrationDecision decision;
+  final Directory appDataDirectory;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = ThemePalettes.defaultPalette;
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Cuplivo',
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      theme: buildLightThemeForScheme(palette.light),
+      darkTheme: buildDarkThemeForScheme(palette.dark),
+      builder: (context, child) =>
+          AppSnackBarOverlay(child: child ?? const SizedBox.shrink()),
+      home: CuplivoV3MigrationPage(
+        service: CuplivoV3MigrationService(decision),
+        appDataDirectory: appDataDirectory,
       ),
     );
   }

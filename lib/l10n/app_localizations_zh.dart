@@ -11357,6 +11357,42 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get oauthPromptCachingHelp => '复用多轮对话中的上下文，可设置缓存保留时长。';
+
+  @override
+  String get cuplivoV3MigrationTitle => '正在迁移你的 Cuplivo 数据';
+
+  @override
+  String get cuplivoV3MigrationPhasePreparing => '正在准备迁移…';
+
+  @override
+  String get cuplivoV3MigrationPhaseReading => '正在读取旧数据库…';
+
+  @override
+  String get cuplivoV3MigrationPhaseWriting => '正在写入会话与设置…';
+
+  @override
+  String get cuplivoV3MigrationSuccessTitle => '迁移完成';
+
+  @override
+  String cuplivoV3MigrationSuccessCounts(int conversations, int messages) {
+    return '已迁移 $conversations 个会话、$messages 条消息。';
+  }
+
+  @override
+  String get cuplivoV3MigrationSuccessHint =>
+      '旧数据库已保留为 kelivo.sqlite.pre-v4.bak，未删除任何内容。';
+
+  @override
+  String get cuplivoV3MigrationRestartButton => '重启应用';
+
+  @override
+  String get cuplivoV3MigrationFailedTitle => '迁移失败';
+
+  @override
+  String get cuplivoV3MigrationFailedHint => '旧数据库未被改动。你可以现在重试，或重启应用稍后再试。';
+
+  @override
+  String get cuplivoV3MigrationRetryButton => '重试';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -22638,6 +22674,42 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get oauthPromptCachingHelp => '复用多轮对话中的上下文，可设置缓存保留时长。';
+
+  @override
+  String get cuplivoV3MigrationTitle => '正在迁移你的 Cuplivo 数据';
+
+  @override
+  String get cuplivoV3MigrationPhasePreparing => '正在准备迁移…';
+
+  @override
+  String get cuplivoV3MigrationPhaseReading => '正在读取旧数据库…';
+
+  @override
+  String get cuplivoV3MigrationPhaseWriting => '正在写入会话与设置…';
+
+  @override
+  String get cuplivoV3MigrationSuccessTitle => '迁移完成';
+
+  @override
+  String cuplivoV3MigrationSuccessCounts(int conversations, int messages) {
+    return '已迁移 $conversations 个会话、$messages 条消息。';
+  }
+
+  @override
+  String get cuplivoV3MigrationSuccessHint =>
+      '旧数据库已保留为 kelivo.sqlite.pre-v4.bak，未删除任何内容。';
+
+  @override
+  String get cuplivoV3MigrationRestartButton => '重启应用';
+
+  @override
+  String get cuplivoV3MigrationFailedTitle => '迁移失败';
+
+  @override
+  String get cuplivoV3MigrationFailedHint => '旧数据库未被改动。你可以现在重试，或重启应用稍后再试。';
+
+  @override
+  String get cuplivoV3MigrationRetryButton => '重试';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -33998,4 +34070,40 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get oauthPromptCachingHelp => '重用多輪對話中的上下文，可設定快取保留時間。';
+
+  @override
+  String get cuplivoV3MigrationTitle => '正在遷移你的 Cuplivo 資料';
+
+  @override
+  String get cuplivoV3MigrationPhasePreparing => '正在準備遷移…';
+
+  @override
+  String get cuplivoV3MigrationPhaseReading => '正在讀取舊資料庫…';
+
+  @override
+  String get cuplivoV3MigrationPhaseWriting => '正在寫入會話與設定…';
+
+  @override
+  String get cuplivoV3MigrationSuccessTitle => '遷移完成';
+
+  @override
+  String cuplivoV3MigrationSuccessCounts(int conversations, int messages) {
+    return '已遷移 $conversations 個會話、$messages 條訊息。';
+  }
+
+  @override
+  String get cuplivoV3MigrationSuccessHint =>
+      '舊資料庫已保留為 kelivo.sqlite.pre-v4.bak，未刪除任何內容。';
+
+  @override
+  String get cuplivoV3MigrationRestartButton => '重啟應用';
+
+  @override
+  String get cuplivoV3MigrationFailedTitle => '遷移失敗';
+
+  @override
+  String get cuplivoV3MigrationFailedHint => '舊資料庫未被改動。你可以現在重試，或重啟應用稍後再試。';
+
+  @override
+  String get cuplivoV3MigrationRetryButton => '重試';
 }

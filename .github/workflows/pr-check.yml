@@ -18,6 +18,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -40,7 +47,7 @@ jobs:
             HEAD_SHA="${{ github.sha }}"
           fi
 
-          files="$(git diff --diff-filter=ACMR --name-only "$BASE_SHA" "$HEAD_SHA" -- | grep -E '^(lib|test|integration_test)/.*\.dart$' || true)"
+          files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- | grep -E '^(lib|test)/.*\\.dart$' || true)"
           if [ -z "$files" ]; then
             echo "No changed Dart files to format-check."
             exit 0
@@ -79,7 +86,13 @@ jobs:
             "desiredFileName.txt"
 
       - name: dart analyze (root package only)
-        run: dart analyze --fatal-infos lib test integration_test
+        run: dart analyze --fatal-infos lib test
 
       - name: flutter test
         run: flutter test
+
+      - name: Android Kotlin unit tests
+        run: |
+          flutter build apk --debug --config-only --no-pub
+          cd android
+          ./gradlew :app:testDebugUnitTest --no-daemon

@@ -51,7 +51,7 @@ static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
-  gtk_window_set_icon_name(window, "kelivo");
+  gtk_window_set_icon_name(window, "cuplivo");
   g_autoptr(GdkPixbuf) window_icon = load_window_icon();
   if (window_icon != nullptr) {
     gtk_window_set_icon(window, window_icon);

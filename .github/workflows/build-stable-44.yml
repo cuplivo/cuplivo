@@ -119,13 +119,51 @@ jobs:
       - name: 🏗️ 构建 APK
         run: flutter build apk --release --split-per-abi
 
+      - name: 🧪 校验 Sandbox 原生运行时
+        run: |
+          set -euo pipefail
+          verify_dir=$(mktemp -d)
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            apk="build/app/outputs/flutter-apk/app-${abi}-release.apk"
+            case "$abi" in
+              arm64-v8a)
+                expected_class=ELF64
+                expected_machine=AArch64
+                ;;
+              armeabi-v7a)
+                expected_class=ELF32
+                expected_machine=ARM
+                ;;
+              x86_64)
+                expected_class=ELF64
+                expected_machine="Advanced Micro Devices X86-64"
+                ;;
+            esac
+            for runtime in libproot_exec.so libproot_loader.so; do
+              extracted="$verify_dir/${abi}-${runtime}"
+              unzip -p "$apk" "lib/${abi}/${runtime}" > "$extracted"
+              readelf -h "$extracted" | grep -F "Class:" | grep -F "$expected_class"
+              readelf -h "$extracted" | grep -F "Machine:" | grep -F "$expected_machine"
+            done
+          done
+
       - name: 📦 重命名 APK
         run: |
           cd build/app/outputs/flutter-apk
           for file in app-*-release.apk; do
             abi=$(echo "$file" | sed -E 's/app-(.*)-release\.apk/\1/')
-            mv "$file" "Kelivo_android_${VERSION}_${abi}.apk"
+            mv "$file" "Cuplivo_android_${VERSION}_${abi}.apk"
           done
+
+      - name: 📏 记录产物体积
+        run: |
+          {
+            echo "### Android APK sizes"
+            echo '```'
+            ls -lh build/app/outputs/flutter-apk/Cuplivo_android_*.apk
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: 🚀 发布到 Release
         if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
         uses: softprops/action-gh-release@v2
@@ -133,25 +171,25 @@ jobs:
           tag_name: ${{ github.event.inputs.release_tag }}
           name: ${{ github.event.inputs.release_tag }}
           prerelease: ${{ github.event.inputs.prerelease }}
-          files: build/app/outputs/flutter-apk/Kelivo_android_*.apk
+          files: build/app/outputs/flutter-apk/Cuplivo_android_*.apk
 
       - name: 📤 上传构建产物 (arm64-v8a)
         uses: actions/upload-artifact@v4
         with:
           name: Android-arm64-v8a
-          path: build/app/outputs/flutter-apk/Kelivo_android_*_arm64-v8a.apk
+          path: build/app/outputs/flutter-apk/Cuplivo_android_*_arm64-v8a.apk
 
       - name: 📤 上传构建产物 (armeabi-v7a)
         uses: actions/upload-artifact@v4
         with:
           name: Android-armeabi-v7a
-          path: build/app/outputs/flutter-apk/Kelivo_android_*_armeabi-v7a.apk
+          path: build/app/outputs/flutter-apk/Cuplivo_android_*_armeabi-v7a.apk
 
       - name: 📤 上传构建产物 (x86_64)
         uses: actions/upload-artifact@v4
         with:
           name: Android-x86_64
-          path: build/app/outputs/flutter-apk/Kelivo_android_*_x86_64.apk
+          path: build/app/outputs/flutter-apk/Cuplivo_android_*_x86_64.apk
 
   # iOS 构建
   ios:
@@ -193,19 +231,14 @@ jobs:
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "版本号: $VERSION"
-      - name: 🧰 缓存 iSH 沙箱产物
-        uses: actions/cache@v4
-        with:
-          path: |
-            ios/sandbox/build
-            ios/sandbox/resources/alpine-rootfs.zip
-            ios/sandbox/resources/libvdso.so.elf
-          key: ${{ runner.os }}-${{ runner.arch }}-ish-sandbox-${{ hashFiles('ios/sandbox/build_ish.sh', 'ios/sandbox/ensure_artifacts.sh', 'ios/sandbox/patches/*.patch', 'ios/sandbox/prepare_alpine_rootfs.sh', 'ios/sandbox/resources/VERSION') }}
-
-      - name: 🧰 准备 iSH 沙箱产物
+      - name: 🔧 安装 iSH 构建依赖 (iOS Linux 沙箱)
         run: |
-          brew install meson ninja llvm lld libarchive
-          ios/sandbox/ensure_artifacts.sh
+          # meson via brew (pip3 is PEP 668 blocked on current macOS runners);
+          # lld needed for the ish-arm64 guest VDSO link (-fuse-ld=lld), llvm 22+ ships it separately.
+          brew install ninja llvm lld meson
+
+      - name: 🐧 构建 iSH 静态库 (iOS Linux 沙箱)
+        run: ios/sandbox/build_ish.sh
 
       - name: 🏗️ 构建 iOS (无签名)
         run: |
@@ -213,7 +246,18 @@ jobs:
           cd build/ios/iphoneos
           mkdir Payload
           cp -r Runner.app Payload/
-          zip -r ../../../Kelivo_ios_${VERSION}.ipa Payload
+          zip -r ../../../Cuplivo_ios_${VERSION}.ipa Payload
+
+      - name: 📏 记录产物体积
+        run: |
+          {
+            echo "### iOS sizes"
+            echo '```'
+            du -sh build/ios/iphoneos/Runner.app
+            ls -lh Cuplivo_ios_*.ipa
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: 🚀 发布到 Release
         if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
         uses: softprops/action-gh-release@v2
@@ -221,13 +265,13 @@ jobs:
           tag_name: ${{ github.event.inputs.release_tag }}
           name: ${{ github.event.inputs.release_tag }}
           prerelease: ${{ github.event.inputs.prerelease }}
-          files: Kelivo_ios_*.ipa
+          files: Cuplivo_ios_*.ipa
 
       - name: 📤 上传构建产物
         uses: actions/upload-artifact@v4
         with:
           name: iOS-IPA
-          path: Kelivo_ios_*.ipa
+          path: Cuplivo_ios_*.ipa
 
   # macOS 构建
   macos:
@@ -274,17 +318,28 @@ jobs:
         run: |
           brew install create-dmg
           create-dmg \
-            --volname "Kelivo" \
+            --volname "Cuplivo" \
             --window-pos 200 120 \
             --window-size 800 400 \
             --icon-size 100 \
             --app-drop-link 600 185 \
-            "Kelivo_macos_${VERSION}.dmg" \
-            "build/macos/Build/Products/Release/kelivo.app" || true
+            "Cuplivo_macos_${VERSION}.dmg" \
+            "build/macos/Build/Products/Release/cuplivo.app" || true
           # 如果 create-dmg 失败，使用简单方式
-          if [ ! -f "Kelivo_macos_${VERSION}.dmg" ]; then
-            hdiutil create -volname Kelivo -srcfolder build/macos/Build/Products/Release/kelivo.app -ov -format UDZO Kelivo_macos_${VERSION}.dmg
+          if [ ! -f "Cuplivo_macos_${VERSION}.dmg" ]; then
+            hdiutil create -volname Cuplivo -srcfolder build/macos/Build/Products/Release/cuplivo.app -ov -format UDZO Cuplivo_macos_${VERSION}.dmg
           fi
+
+      - name: 📏 记录产物体积
+        run: |
+          {
+            echo "### macOS sizes"
+            echo '```'
+            du -sh build/macos/Build/Products/Release/cuplivo.app
+            ls -lh Cuplivo_macos_*.dmg
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: 🚀 发布到 Release
         if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
         uses: softprops/action-gh-release@v2
@@ -292,13 +347,13 @@ jobs:
           tag_name: ${{ github.event.inputs.release_tag }}
           name: ${{ github.event.inputs.release_tag }}
           prerelease: ${{ github.event.inputs.prerelease }}
-          files: Kelivo_macos_*.dmg
+          files: Cuplivo_macos_*.dmg
 
       - name: 📤 上传构建产物
         uses: actions/upload-artifact@v4
         with:
           name: macOS-DMG
-          path: Kelivo_macos_*.dmg
+          path: Cuplivo_macos_*.dmg
 
   # Windows 构建
   windows:
@@ -356,7 +411,7 @@ jobs:
       - name: 📦 打包 ZIP
         shell: pwsh
         run: |
-          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "Kelivo_windows_$env:VERSION.zip"
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "Cuplivo_windows_$env:VERSION.zip"
       - name: 🔧 安装 Inno Setup
         run: choco install innosetup -y
 
@@ -402,19 +457,19 @@ jobs:
           }
           # 创建 Inno Setup 脚本
           $issContent = @"
-          #define MyAppName "Kelivo"
+          #define MyAppName "Cuplivo"
           #define MyAppVersion "$env:VERSION"
           #define MyAppPublisher "Psyche"
-          #define MyAppExeName "kelivo.exe"
+          #define MyAppExeName "cuplivo.exe"
           [Setup]
-          AppId={{A7B8C9D0-E1F2-4A5B-8C9D-0E1F2A3B4C5D}}
+          AppId={{3DB01FC7-0467-4D5B-A7BC-346083F29D7E}}
           AppName={#MyAppName}
           AppVersion={#MyAppVersion}
           AppPublisher={#MyAppPublisher}
           DefaultDirName={autopf}\{#MyAppName}
           DefaultGroupName={#MyAppName}
           OutputDir=.
-          OutputBaseFilename=Kelivo_windows_{#MyAppVersion}_setup
+          OutputBaseFilename=Cuplivo_windows_{#MyAppVersion}_setup
           Compression=lzma2
           SolidCompression=yes
           WizardStyle=modern
@@ -439,6 +494,16 @@ jobs:
           
           # 编译安装程序
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer.iss"
+
+      - name: 📏 记录产物体积
+        shell: pwsh
+        run: |
+          $lines = @("### Windows sizes", '```')
+          Get-ChildItem Cuplivo_windows_*.zip, Cuplivo_windows_*_setup.exe -ErrorAction SilentlyContinue |
+            ForEach-Object { $lines += ("{0}`t{1:N1} MB" -f $_.Name, ($_.Length / 1MB)) }
+          $lines += '```'
+          $lines -join "`n" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
       - name: 🚀 发布到 Release
         if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
         uses: softprops/action-gh-release@v2
@@ -447,19 +512,19 @@ jobs:
           name: ${{ github.event.inputs.release_tag }}
           prerelease: ${{ github.event.inputs.prerelease }}
           files: |
-            Kelivo_windows_*.zip
-            Kelivo_windows_*_setup.exe
+            Cuplivo_windows_*.zip
+            Cuplivo_windows_*_setup.exe
       - name: 📤 上传构建产物 (ZIP)
         uses: actions/upload-artifact@v4
         with:
           name: Windows-ZIP
-          path: Kelivo_windows_*.zip
+          path: Cuplivo_windows_*.zip
 
       - name: 📤 上传构建产物 (Installer)
         uses: actions/upload-artifact@v4
         with:
           name: Windows-Installer
-          path: Kelivo_windows_*_setup.exe
+          path: Cuplivo_windows_*_setup.exe
 
   # Linux 构建
   linux:
@@ -513,7 +578,7 @@ jobs:
       - name: 📦 打包 tar.gz
         run: |
           cd build/linux/x64/release/bundle
-          tar -czf ../../../../../Kelivo_linux_${VERSION}.tar.gz .
+          tar -czf ../../../../../Cuplivo_linux_${VERSION}.tar.gz .
       - name: 📦 创建 AppImage
         run: |
           # 下载 appimagetool
@@ -533,21 +598,21 @@ jobs:
           HERE=${SELF%/*}
           export PATH="${HERE}/usr/bin:${PATH}"
           export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
-          exec "${HERE}/usr/bin/kelivo" "$@"
+          exec "${HERE}/usr/bin/cuplivo" "$@"
           EOF
           chmod +x AppDir/AppRun
           
           # 创建 desktop 文件
-          cat > AppDir/kelivo.desktop << EOF
+          cat > AppDir/cuplivo.desktop << EOF
           [Desktop Entry]
-          Name=Kelivo
-          Exec=kelivo
-          Icon=kelivo
+          Name=Cuplivo
+          Exec=cuplivo
+          Icon=cuplivo
           Type=Application
           Categories=Utility;
           EOF
           
-          ICON_SOURCE="linux/kelivo.png"
+          ICON_SOURCE="linux/kelivo.png"  # absent in-repo; falls back to assets/app_icon.png (Cuplivo artwork)
           if [ ! -f "$ICON_SOURCE" ]; then
             ICON_SOURCE="assets/app_icon.png"
           fi
@@ -555,50 +620,50 @@ jobs:
             echo "❌ Icon source not found"
             exit 1
           fi
-          install -Dm644 "$ICON_SOURCE" AppDir/kelivo.png
-          install -Dm644 "$ICON_SOURCE" "AppDir/usr/share/icons/hicolor/256x256/apps/kelivo.png"
+          install -Dm644 "$ICON_SOURCE" AppDir/cuplivo.png
+          install -Dm644 "$ICON_SOURCE" "AppDir/usr/share/icons/hicolor/256x256/apps/cuplivo.png"
           
           # 构建 AppImage
-          ARCH=x86_64 ./appimagetool AppDir Kelivo_linux_${VERSION}.AppImage
+          ARCH=x86_64 ./appimagetool AppDir Cuplivo_linux_${VERSION}.AppImage
       - name: 📦 创建 DEB 包
         run: |
           # 创建 DEB 目录结构
           mkdir -p deb/DEBIAN
-          mkdir -p deb/opt/kelivo
+          mkdir -p deb/opt/cuplivo
           mkdir -p deb/usr/share/applications
           mkdir -p deb/usr/share/icons/hicolor/256x256/apps
           
           # 复制文件
-          cp -r build/linux/x64/release/bundle/* deb/opt/kelivo/
+          cp -r build/linux/x64/release/bundle/* deb/opt/cuplivo/
           
           # 创建 /usr/bin 软链接
           mkdir -p deb/usr/bin
-          ln -s /opt/kelivo/kelivo deb/usr/bin/kelivo
+          ln -s /opt/cuplivo/cuplivo deb/usr/bin/cuplivo
           
           # 创建 control 文件
           cat > deb/DEBIAN/control << EOF
-          Package: kelivo
+          Package: cuplivo
           Version: ${VERSION_NUMBER}
           Section: utils
           Priority: optional
           Architecture: amd64
           Maintainer: Psyche <your@email.com>
           Depends: libgtk-3-0, libstdc++6, libglu1-mesa, libgstreamer1.0-0, libgstreamer-plugins-base1.0-0, libglib2.0-0, libc6
-          Description: Kelivo Application
+          Description: Cuplivo Application
            A Flutter application for Linux
           EOF
           
           # 创建 desktop 文件
-          cat > deb/usr/share/applications/kelivo.desktop << EOF
+          cat > deb/usr/share/applications/cuplivo.desktop << EOF
           [Desktop Entry]
-          Name=Kelivo
-          Exec=/opt/kelivo/kelivo
-          Icon=kelivo
+          Name=Cuplivo
+          Exec=/opt/cuplivo/cuplivo
+          Icon=cuplivo
           Type=Application
           Categories=Utility;
           EOF
 
-          ICON_SOURCE="linux/kelivo.png"
+          ICON_SOURCE="linux/kelivo.png"  # absent in-repo; falls back to assets/app_icon.png (Cuplivo artwork)
           if [ ! -f "$ICON_SOURCE" ]; then
             ICON_SOURCE="assets/app_icon.png"
           fi
@@ -606,27 +671,27 @@ jobs:
             echo "❌ Icon source not found"
             exit 1
           fi
-          install -Dm644 "$ICON_SOURCE" deb/usr/share/icons/hicolor/256x256/apps/kelivo.png
+          install -Dm644 "$ICON_SOURCE" deb/usr/share/icons/hicolor/256x256/apps/cuplivo.png
           
           # 创建启动脚本
-          cat > deb/opt/kelivo/kelivo.sh << 'EOF'
+          cat > deb/opt/cuplivo/cuplivo.sh << 'EOF'
           #!/bin/bash
           cd "$(dirname "$0")"
-          ./kelivo "$@"
+          ./cuplivo "$@"
           EOF
-          chmod +x deb/opt/kelivo/kelivo.sh
+          chmod +x deb/opt/cuplivo/cuplivo.sh
           
           # 构建 DEB 包
-          dpkg-deb --build deb Kelivo_linux_${VERSION}_amd64.deb
+          dpkg-deb --build deb Cuplivo_linux_${VERSION}_amd64.deb
       - name: 📦 创建 RPM 包
         run: |
           # 创建 RPM 构建目录
           mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
           
           # 创建源码目录
-          mkdir -p kelivo-${VERSION_NUMBER}
-          cp -r build/linux/x64/release/bundle/* kelivo-${VERSION_NUMBER}/
-          ICON_SOURCE="linux/kelivo.png"
+          mkdir -p cuplivo-${VERSION_NUMBER}
+          cp -r build/linux/x64/release/bundle/* cuplivo-${VERSION_NUMBER}/
+          ICON_SOURCE="linux/kelivo.png"  # absent in-repo; falls back to assets/app_icon.png (Cuplivo artwork)
           if [ ! -f "$ICON_SOURCE" ]; then
             ICON_SOURCE="assets/app_icon.png"
           fi
@@ -634,21 +699,25 @@ jobs:
             echo "❌ Icon source not found"
             exit 1
           fi
-          cp "$ICON_SOURCE" kelivo-${VERSION_NUMBER}/kelivo.png
-          tar -czf ~/rpmbuild/SOURCES/kelivo-${VERSION_NUMBER}.tar.gz kelivo-${VERSION_NUMBER}
+          cp "$ICON_SOURCE" cuplivo-${VERSION_NUMBER}/cuplivo.png
+          tar -czf ~/rpmbuild/SOURCES/cuplivo-${VERSION_NUMBER}.tar.gz cuplivo-${VERSION_NUMBER}
           
           # 创建 spec 文件
-          cat > ~/rpmbuild/SPECS/kelivo.spec << EOF
-          Name:           kelivo
+          cat > ~/rpmbuild/SPECS/cuplivo.spec << EOF
+          Name:           cuplivo
           Version:        ${VERSION_NUMBER}
           Release:        1%{?dist}
-          Summary:        Kelivo Application
+          Summary:        Cuplivo Application
           License:        MIT
           Source0:        %{name}-%{version}.tar.gz
           BuildArch:      x86_64
-          Provides:       libonnxruntime.so(VERS_1.17.1)(64bit)
           Requires:       gtk3, libstdc++ >= 6, mesa-libGLU, gstreamer1, gstreamer1-plugins-base, glib2, glibc
-          
+
+          # The app bundles its own libonnxruntime (sherpa-onnx ASR/TTS); drop the
+          # auto-generated versioned SONAME require that neither the bundle nor
+          # Fedora's system onnxruntime can satisfy.
+          %global __requires_exclude ^libonnxruntime\.so
+
           %description
           A Flutter application for Linux
           
@@ -656,30 +725,30 @@ jobs:
           %setup -q
           
           %install
-          mkdir -p %{buildroot}/opt/kelivo
-          cp -r * %{buildroot}/opt/kelivo/
+          mkdir -p %{buildroot}/opt/cuplivo
+          cp -r * %{buildroot}/opt/cuplivo/
           
           mkdir -p %{buildroot}/usr/bin
-          ln -s /opt/kelivo/kelivo %{buildroot}/usr/bin/kelivo
+          ln -s /opt/cuplivo/cuplivo %{buildroot}/usr/bin/cuplivo
           
           mkdir -p %{buildroot}/usr/share/applications
-          cat > %{buildroot}/usr/share/applications/kelivo.desktop << 'DESKTOPEOF'
+          cat > %{buildroot}/usr/share/applications/cuplivo.desktop << 'DESKTOPEOF'
           [Desktop Entry]
-          Name=Kelivo
-          Exec=/opt/kelivo/kelivo
-          Icon=kelivo
+          Name=Cuplivo
+          Exec=/opt/cuplivo/cuplivo
+          Icon=cuplivo
           Type=Application
           Categories=Utility;
           DESKTOPEOF
 
           mkdir -p %{buildroot}/usr/share/icons/hicolor/256x256/apps
-          cp kelivo.png %{buildroot}/usr/share/icons/hicolor/256x256/apps/kelivo.png
+          cp cuplivo.png %{buildroot}/usr/share/icons/hicolor/256x256/apps/cuplivo.png
           
           %files
-          /opt/kelivo/*
-          /usr/bin/kelivo
-          /usr/share/applications/kelivo.desktop
-          /usr/share/icons/hicolor/256x256/apps/kelivo.png
+          /opt/cuplivo/*
+          /usr/bin/cuplivo
+          /usr/share/applications/cuplivo.desktop
+          /usr/share/icons/hicolor/256x256/apps/cuplivo.png
           
           %changelog
           * $(date "+%a %b %d %Y") Psyche <your@email.com> - ${VERSION_NUMBER}-1
@@ -687,15 +756,15 @@ jobs:
           EOF
           
           # 构建 RPM
-          rpmbuild -bb ~/rpmbuild/SPECS/kelivo.spec
-          cp ~/rpmbuild/RPMS/x86_64/kelivo-${VERSION_NUMBER}-1.*.rpm Kelivo_linux_${VERSION}.rpm
+          rpmbuild -bb ~/rpmbuild/SPECS/cuplivo.spec
+          cp ~/rpmbuild/RPMS/x86_64/cuplivo-${VERSION_NUMBER}-1.*.rpm Cuplivo_linux_${VERSION}.rpm
       - name: 🔍 RPM 元数据（调试）
         shell: bash
         run: |
           set -euxo pipefail
-          RPM_FILE="Kelivo_linux_${VERSION}.rpm"
+          RPM_FILE="Cuplivo_linux_${VERSION}.rpm"
           echo "RPM file: ${RPM_FILE}"
-          cp -f ~/rpmbuild/SPECS/kelivo.spec rpm-spec.spec
+          cp -f ~/rpmbuild/SPECS/cuplivo.spec rpm-spec.spec
           rpm -qp --info "${RPM_FILE}" | tee rpm-info.txt
           rpm -qp --requires "${RPM_FILE}" | tee rpm-requires.txt
           rpm -qp --provides "${RPM_FILE}" | tee rpm-provides.txt
@@ -712,8 +781,19 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          RPM_FILE="Kelivo_linux_${VERSION}.rpm"
+          RPM_FILE="Cuplivo_linux_${VERSION}.rpm"
           docker run --rm -v "${PWD}:/work" -w /work fedora:43 bash -lc "dnf -y install ./${RPM_FILE}"
+
+      - name: 📏 记录产物体积
+        run: |
+          {
+            echo "### Linux sizes"
+            echo '```'
+            du -sh build/linux/x64/release/bundle
+            ls -lh Cuplivo_linux_*.tar.gz Cuplivo_linux_*.AppImage Cuplivo_linux_*.deb Cuplivo_linux_*.rpm 2>/dev/null || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: 🚀 发布到 Release
         if: ${{ github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
         uses: softprops/action-gh-release@v2
@@ -722,30 +802,30 @@ jobs:
           name: ${{ github.event.inputs.release_tag }}
           prerelease: ${{ github.event.inputs.prerelease }}
           files: |
-            Kelivo_linux_*.tar.gz
-            Kelivo_linux_*.AppImage
-            Kelivo_linux_*_amd64.deb
-            Kelivo_linux_*.rpm
+            Cuplivo_linux_*.tar.gz
+            Cuplivo_linux_*.AppImage
+            Cuplivo_linux_*_amd64.deb
+            Cuplivo_linux_*.rpm
       - name: 📤 上传构建产物 (tar.gz)
         uses: actions/upload-artifact@v4
         with:
           name: Linux-tar.gz
-          path: Kelivo_linux_*.tar.gz
+          path: Cuplivo_linux_*.tar.gz
 
       - name: 📤 上传构建产物 (AppImage)
         uses: actions/upload-artifact@v4
         with:
           name: Linux-AppImage
-          path: Kelivo_linux_*.AppImage
+          path: Cuplivo_linux_*.AppImage
 
       - name: 📤 上传构建产物 (DEB)
         uses: actions/upload-artifact@v4
         with:
           name: Linux-DEB
-          path: Kelivo_linux_*_amd64.deb
+          path: Cuplivo_linux_*_amd64.deb
 
       - name: 📤 上传构建产物 (RPM)
         uses: actions/upload-artifact@v4
         with:
           name: Linux-RPM
-          path: Kelivo_linux_*.rpm
+          path: Cuplivo_linux_*.rpm

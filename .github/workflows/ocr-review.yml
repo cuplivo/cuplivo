@@ -1,0 +1,119 @@
+name: PR Review
+
+# 自动 PR 审查（Alibaba Open Code Review）。
+#
+# 唯一需要人工配置项：
+#   Settings -> Secrets and variables -> Actions -> New repository secret
+#   OCR_LLM_AUTH_TOKEN = Token Plan CN 的 API key
+#
+# 端点 / 模型 / 语言 / 思考开关都写在本文件内，改动走 PR 评审。
+# 升级 action 时，把下面的 pin SHA 与 ocr_version 一起改，并回归验证 .arb 仍被审。
+# Releases: https://github.com/alibaba/open-code-review/releases
+
+on:
+  pull_request_target:
+    branches: [master]
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+# 匹配事件按 PR 分组，新推送可取消同 PR 上仍在跑的旧审查；
+# 无关评论落到唯一的 noop-<run_id> 组，瞬间跳过且不会打断正在跑的审查。
+concurrency:
+  group: >-
+    ${{
+      (
+        github.event_name == 'pull_request_target'
+        || (
+          github.event_name == 'issue_comment'
+          && github.event.issue.pull_request
+          && github.event.comment.user.type != 'Bot'
+          && (
+            github.event.comment.author_association == 'MEMBER'
+            || github.event.comment.author_association == 'OWNER'
+            || github.event.comment.author_association == 'COLLABORATOR'
+          )
+          && (
+            startsWith(github.event.comment.body, '/open-code-review')
+            || startsWith(github.event.comment.body, '@open-code-review')
+          )
+        )
+      )
+      && format('ocr-{0}', github.event.pull_request.number || github.event.issue.number)
+      || format('noop-{0}', github.run_id)
+    }}
+  cancel-in-progress: true
+
+jobs:
+  code-review:
+    name: OpenCodeReview
+    runs-on: ubuntu-latest
+    # OCR CLI 启动器（bin/ocr.js）默认在后台 detached 自查更新，并执行
+    # npm i -g @alibaba-group/open-code-review@latest：它会替换 /usr/local/bin/ocr，
+    # 与同 job 里并发的 ocr 调用竞争（2026-09-10 首次运行即因此崩在 Configure OCR：
+    # Cannot find module '/usr/local/bin/ocr'），还会把 ocr_version 的 pin 换成 latest。
+    # 官方 action.yml 未设置该开关，必须自己关；runner 无 last-update-check，首跑必触发。
+    env:
+      OCR_NO_UPDATE: '1'
+    # 60 分钟上限的依据：本机 75 个真实 OCR 会话实测中位 9.6 分钟、p90 17.6 分钟；
+    # 再用最近 22 个 PR 的 --preview 标定，中位 8.9 分钟、p90 21.1 分钟，
+    # 最大 49.6 分钟（上游同步类 PR、61 个可审文件）。30 分钟会把这类 PR 整个取消。
+    timeout-minutes: 60
+    # PR 事件直接跑；评论触发必须是「人类 + 有写权限」，避免任意评论消耗 LLM 配额。
+    if: |
+      github.event_name == 'pull_request_target'
+      || (
+        github.event_name == 'issue_comment'
+        && github.event.issue.pull_request
+        && github.event.comment.user.type != 'Bot'
+        && (
+          github.event.comment.author_association == 'MEMBER'
+          || github.event.comment.author_association == 'OWNER'
+          || github.event.comment.author_association == 'COLLABORATOR'
+        )
+        && (
+          startsWith(github.event.comment.body, '/open-code-review')
+          || startsWith(github.event.comment.body, '@open-code-review')
+        )
+      )
+    steps:
+      # 评论事件没有 PR payload，需要补 base/head/title。
+      - name: Get PR context
+        id: pr-context
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const { data: pullRequest } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            core.setOutput('base_ref', pullRequest.base.ref);
+            core.setOutput('head_sha', pullRequest.head.sha);
+            core.setOutput('title', pullRequest.title);
+
+      - name: Run OpenCodeReview
+        uses: alibaba/open-code-review@810aeb5dc2e2b9485f5a1981485e65b25250f609 # v1.11.7
+        with:
+          llm_url: 'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/chat/completions'
+          llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          llm_model: 'qwen3.8-flash'
+          llm_use_anthropic: 'false'
+          # Qwen 系用顶层 enable_thinking；覆盖 action 默认的 Claude 形状 extra_body。
+          llm_extra_body: '{"enable_thinking": false}'
+          language: 'English'
+          # action 与 CLI 双钉，保证审查行为可复现。
+          ocr_version: '1.11.7'
+          sticky_summary: 'true'
+          # 只审上一次 checkpoint 之后的增量，避免每个 push 重审整条 PR。
+          checkpoint_range: 'true'
+          # PR 标题作为背景上下文；PR 可控文本只经 with/env 传入，绝不拼进 run:。
+          background: ${{ steps.pr-context.outputs.title || github.event.pull_request.title }}
+          base_ref: ${{ steps.pr-context.outputs.base_ref }}
+          head_sha: ${{ steps.pr-context.outputs.head_sha }}

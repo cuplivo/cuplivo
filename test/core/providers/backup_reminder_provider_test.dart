@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/providers/backup_reminder_provider.dart';
+import 'package:Cuplivo/core/providers/backup_reminder_provider.dart';
 
 import '../../support/business_preferences_test_harness.dart';
 

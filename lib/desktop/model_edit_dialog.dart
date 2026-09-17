@@ -13,7 +13,7 @@ import '../shared/widgets/ios_switch.dart';
 import '../shared/widgets/snackbar.dart';
 import '../features/model/widgets/model_edit_state_helper.dart';
 import '../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 Future<bool?> showDesktopModelEditDialog(
   BuildContext context, {

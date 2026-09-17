@@ -5,14 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/features/migration/hive_to_sqlite_migration_page.dart';
-import 'package:Kelivo/features/migration/hive_to_sqlite_migration_service.dart';
-import 'package:Kelivo/features/migration/widgets/migration_backup_options.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/main.dart' show MigrationApp;
-import 'package:Kelivo/shared/widgets/ios_checkbox.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/features/migration/hive_to_sqlite_migration_page.dart';
+import 'package:Cuplivo/features/migration/hive_to_sqlite_migration_service.dart';
+import 'package:Cuplivo/features/migration/widgets/migration_backup_options.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/main.dart' show MigrationApp;
+import 'package:Cuplivo/shared/widgets/ios_checkbox.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 void main() {
   testWidgets('can skip backup and start migration immediately', (

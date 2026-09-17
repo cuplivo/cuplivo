@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/custom_request_merger.dart';
-import 'package:Kelivo/core/services/model_override_payload_parser.dart';
+import 'package:Cuplivo/core/services/custom_request_merger.dart';
+import 'package:Cuplivo/core/services/model_override_payload_parser.dart';
 
 void main() {
   group('CustomRequestMerger', () {

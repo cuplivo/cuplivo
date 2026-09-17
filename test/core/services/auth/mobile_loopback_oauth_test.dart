@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:Kelivo/core/services/auth/oauth_callback_io.dart';
-import 'package:Kelivo/core/services/auth/oauth_callback_types.dart';
+import 'package:Cuplivo/core/services/auth/oauth_callback_io.dart';
+import 'package:Cuplivo/core/services/auth/oauth_callback_types.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _BrowserCallback implements OAuthCallback {

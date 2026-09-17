@@ -1,17 +1,17 @@
 import 'dart:async';
 
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/services/skills/skills_service.dart';
-import 'package:Kelivo/features/workspace/pages/skills_page.dart';
-import 'package:Kelivo/features/workspace/widgets/skills/skill_labels.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_checkbox.dart';
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/shared/widgets/ios_tile_button.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/services/skills/skills_service.dart';
+import 'package:Cuplivo/features/workspace/pages/skills_page.dart';
+import 'package:Cuplivo/features/workspace/widgets/skills/skill_labels.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_checkbox.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/shared/widgets/ios_tile_button.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 

@@ -14,9 +14,9 @@ import '../../../theme/app_font_weights.dart';
 import '../../../theme/theme_factory.dart';
 import '../../../utils/brand_assets.dart';
 import 'search_api_keys_page.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 
 class SearchServiceEditorResult {
   const SearchServiceEditorResult.saved(this.service) : deleted = false;

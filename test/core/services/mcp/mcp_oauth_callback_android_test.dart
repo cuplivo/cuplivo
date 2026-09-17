@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/services/auth/oauth_callback_io.dart'
+import 'package:Cuplivo/core/services/auth/oauth_callback_io.dart'
     show createAndroidOAuthCallbackForTesting;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';

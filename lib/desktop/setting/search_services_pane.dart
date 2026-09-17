@@ -11,8 +11,8 @@ import 'package:uuid/uuid.dart';
 import '../../shared/widgets/ios_switch.dart';
 import '../../theme/app_font_weights.dart';
 import '../widgets/desktop_select_dropdown.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 
 class DesktopSearchServicesPane extends StatefulWidget {
   const DesktopSearchServicesPane({super.key});

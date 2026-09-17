@@ -1,6 +1,6 @@
-import 'package:Kelivo/shared/widgets/incremental_markdown_document.dart';
-import 'package:Kelivo/shared/widgets/markdown_line_lexer.dart';
-import 'package:Kelivo/shared/widgets/markdown_with_highlight.dart';
+import 'package:Cuplivo/shared/widgets/incremental_markdown_document.dart';
+import 'package:Cuplivo/shared/widgets/markdown_line_lexer.dart';
+import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 String _unmatchedBacktickRuns({int maxRun = 200}) {

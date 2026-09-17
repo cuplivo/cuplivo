@@ -23,7 +23,7 @@ import '../widgets/stats_rank_section.dart';
 import '../widgets/stats_section_card.dart';
 import '../widgets/stats_usage_chart.dart';
 import '../../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class StatsPage extends StatefulWidget {
   const StatsPage({super.key, this.snapshotOverride, this.showAppBar = true});

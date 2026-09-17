@@ -1,6 +1,6 @@
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/features/chat/widgets/timeline_projection.dart';
-import 'package:Kelivo/features/chat/widgets/timeline_visibility.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/features/chat/widgets/timeline_projection.dart';
+import 'package:Cuplivo/features/chat/widgets/timeline_visibility.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 TimelineToolRef _live({

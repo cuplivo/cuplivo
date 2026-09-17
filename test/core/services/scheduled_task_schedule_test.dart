@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/scheduled_task.dart';
-import 'package:Kelivo/core/services/scheduled_task_schedule.dart';
+import 'package:Cuplivo/core/models/scheduled_task.dart';
+import 'package:Cuplivo/core/services/scheduled_task_schedule.dart';
 
 ScheduledTask task({
   List<int> weekdays = const [1, 2, 3, 4, 5, 6, 7],

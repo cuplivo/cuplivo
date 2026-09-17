@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:Kelivo/core/models/environment_state.dart';
-import 'package:Kelivo/core/providers/environment_provider.dart';
-import 'package:Kelivo/core/services/sandbox/rootfs_disk_usage.dart';
-import 'package:Kelivo/core/services/sandbox/workspace_channel.dart';
+import 'package:Cuplivo/core/models/environment_state.dart';
+import 'package:Cuplivo/core/providers/environment_provider.dart';
+import 'package:Cuplivo/core/services/sandbox/rootfs_disk_usage.dart';
+import 'package:Cuplivo/core/services/sandbox/workspace_channel.dart';
 
 abstract class EnvironmentManager {
   EnvironmentProvider get env;

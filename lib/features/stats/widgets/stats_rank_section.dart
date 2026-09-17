@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../models/stats_models.dart';
 import 'stats_section_card.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class StatsRankSection extends StatelessWidget {
   const StatsRankSection({

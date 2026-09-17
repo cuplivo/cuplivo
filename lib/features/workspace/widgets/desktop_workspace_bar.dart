@@ -1,21 +1,21 @@
 import 'dart:async';
 
-import 'package:Kelivo/core/models/workspace.dart';
-import 'package:Kelivo/core/models/workspace_binding.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/workspace_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/workspace/tool_run_registry.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
-import 'package:Kelivo/features/workspace/pages/workspace_files_page.dart';
-import 'package:Kelivo/features/workspace/pages/workspaces_page.dart';
-import 'package:Kelivo/features/workspace/widgets/desktop_workspace_button.dart';
-import 'package:Kelivo/features/workspace/widgets/files/conversation_files_panel.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/core/models/workspace.dart';
+import 'package:Cuplivo/core/models/workspace_binding.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/workspace_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/workspace/tool_run_registry.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/features/workspace/pages/workspace_files_page.dart';
+import 'package:Cuplivo/features/workspace/pages/workspaces_page.dart';
+import 'package:Cuplivo/features/workspace/widgets/desktop_workspace_button.dart';
+import 'package:Cuplivo/features/workspace/widgets/files/conversation_files_panel.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 

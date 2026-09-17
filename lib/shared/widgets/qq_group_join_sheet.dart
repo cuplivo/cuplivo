@@ -9,7 +9,7 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_font_weights.dart';
 import 'custom_bottom_sheet.dart';
 import 'ios_tactile.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class _QQGroupEntry {
   const _QQGroupEntry({required this.name, required this.joinUrl});

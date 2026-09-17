@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import 'package:Kelivo/core/services/search/providers/firecrawl_search_service.dart';
-import 'package:Kelivo/core/services/search/providers/stepfun_search_service.dart';
-import 'package:Kelivo/core/services/search/providers/tinyfish_search_service.dart';
-import 'package:Kelivo/core/services/search/search_service.dart';
+import 'package:Cuplivo/core/services/search/providers/firecrawl_search_service.dart';
+import 'package:Cuplivo/core/services/search/providers/stepfun_search_service.dart';
+import 'package:Cuplivo/core/services/search/providers/tinyfish_search_service.dart';
+import 'package:Cuplivo/core/services/search/search_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';

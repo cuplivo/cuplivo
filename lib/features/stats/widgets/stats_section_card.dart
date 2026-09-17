@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_font_weights.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 
 class StatsSectionCard extends StatelessWidget {
   const StatsSectionCard({

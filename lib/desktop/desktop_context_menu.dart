@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import '../icons/lucide_adapter.dart';
 import '../shared/widgets/ios_tactile.dart';
 import '../core/services/haptics.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 /// Simple anchored context menu for desktop.
 /// Shows a Material menu near the cursor or an anchor widget with a subtle animation.

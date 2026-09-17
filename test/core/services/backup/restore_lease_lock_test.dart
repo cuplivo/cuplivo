@@ -4,7 +4,7 @@ import 'dart:isolate';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:Kelivo/core/services/backup/restore_lease_lock.dart';
+import 'package:Cuplivo/core/services/backup/restore_lease_lock.dart';
 
 void main() {
   group('RestoreLeaseLock', () {

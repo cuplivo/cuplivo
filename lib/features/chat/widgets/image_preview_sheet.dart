@@ -18,7 +18,7 @@ import '../../../utils/clipboard_images.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'dart:ui' as ui;
 import '../../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 const int _previewBlankTrimPreservePadding = 48;
 const int _previewBlankAlphaTolerance = 8;

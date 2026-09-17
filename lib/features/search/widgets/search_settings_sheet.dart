@@ -13,7 +13,7 @@ import '../../../shared/widgets/ios_switch.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../core/services/haptics.dart';
 import '../../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import '../../../shared/widgets/section_card.dart';
 
 /// [chatModelProviderKey]/[chatModelId] carry the model the chat actually

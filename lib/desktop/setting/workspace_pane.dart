@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:Kelivo/features/workspace/pages/workspaces_page.dart';
+import 'package:Cuplivo/features/workspace/pages/workspaces_page.dart';
 
 /// Desktop settings use the same workspace manager as the chat entry point.
 class DesktopWorkspacePane extends StatelessWidget {

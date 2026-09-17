@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/features/backup/backup_restart_dialog.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/backup/backup_restart_dialog.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 void main() {
   testWidgets('successful import uses restart dialog without merge counts', (

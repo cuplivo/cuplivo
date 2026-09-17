@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/services/api/kimi_formula_search.dart';
+import 'package:Cuplivo/core/services/api/kimi_formula_search.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

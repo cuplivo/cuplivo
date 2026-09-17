@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/workspace/tool_run_registry.dart';
+import 'package:Cuplivo/core/services/workspace/tool_run_registry.dart';
 
 void main() {
   test('coalesces notifications to once per 50 ms and flushes on complete', () {

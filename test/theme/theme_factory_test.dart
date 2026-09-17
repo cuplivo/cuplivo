@@ -1,6 +1,6 @@
-import 'package:Kelivo/theme/app_semantic_colors.dart';
-import 'package:Kelivo/theme/palettes.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/palettes.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 

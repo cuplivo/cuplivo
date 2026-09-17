@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/health_data_type.dart';
-import 'package:Kelivo/features/home/services/health_data_selection.dart';
-import 'package:Kelivo/features/home/services/local_tools_service.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/health_data_type.dart';
+import 'package:Cuplivo/features/home/services/health_data_selection.dart';
+import 'package:Cuplivo/features/home/services/local_tools_service.dart';
 
 void main() {
   const available = HealthDataTypeIds.all;

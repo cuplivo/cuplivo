@@ -1,5 +1,5 @@
-import 'package:Kelivo/core/models/token_usage.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/core/models/token_usage.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

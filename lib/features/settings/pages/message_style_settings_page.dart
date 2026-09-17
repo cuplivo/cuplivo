@@ -21,7 +21,7 @@ import '../../chat/widgets/frosted/chat_frosted_backdrop.dart';
 import '../../chat/widgets/frosted/frosted_surface.dart';
 import '../../home/pages/home_mobile_layout.dart';
 import '../widgets/custom_theme_widgets.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 
 class MessageStyleSettingsPage extends StatelessWidget {
   const MessageStyleSettingsPage({super.key});

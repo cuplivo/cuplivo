@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
-import 'package:Kelivo/features/chat/widgets/produced_files_row.dart';
-import 'package:Kelivo/features/workspace/widgets/files/workspace_file_thumbnail.dart';
+import 'package:Cuplivo/features/chat/widgets/produced_files_row.dart';
+import 'package:Cuplivo/features/workspace/widgets/files/workspace_file_thumbnail.dart';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -9,21 +9,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/extension_entity_store.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/workspace.dart';
-import 'package:Kelivo/core/models/workspace_binding.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/workspace_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/workspace/workspace_tool_metadata.dart';
-import 'package:Kelivo/features/chat/widgets/workspace_tool_ui.dart';
-import 'package:Kelivo/features/workspace/widgets/files/file_browser.dart';
-import 'package:Kelivo/features/workspace/widgets/preview/file_preview.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/markdown_with_highlight.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/workspace.dart';
+import 'package:Cuplivo/core/models/workspace_binding.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/workspace_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_tool_metadata.dart';
+import 'package:Cuplivo/features/chat/widgets/workspace_tool_ui.dart';
+import 'package:Cuplivo/features/workspace/widgets/files/file_browser.dart';
+import 'package:Cuplivo/features/workspace/widgets/preview/file_preview.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 import '../../../support/business_test_harness.dart';
 

@@ -9,7 +9,7 @@ import '../core/providers/mcp_provider.dart';
 import '../core/providers/assistant_provider.dart';
 import '../features/home/services/local_tool_labels.dart';
 import '../features/home/services/local_tool_toggle.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 import '../theme/design_tokens.dart';
 
 Future<void> showDesktopToolsPopover(

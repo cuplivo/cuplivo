@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/features/settings/widgets/memory_ui.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/settings/widgets/memory_ui.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 void main() {
   test('known codes return translated text', () async {

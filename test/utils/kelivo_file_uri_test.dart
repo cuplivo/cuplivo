@@ -1,4 +1,4 @@
-import 'package:Kelivo/utils/kelivo_file_uri.dart';
+import 'package:Cuplivo/utils/kelivo_file_uri.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

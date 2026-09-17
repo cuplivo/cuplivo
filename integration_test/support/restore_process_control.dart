@@ -4,7 +4,7 @@ import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
-import 'package:Kelivo/core/services/backup/restore_durability.dart';
+import 'package:Cuplivo/core/services/backup/restore_durability.dart';
 
 const restoreHarnessControlDefine = 'KELIVO_RESTORE_HARNESS_CONTROL';
 const restoreHarnessFormat = 'kelivo.restore-process-harness';

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/api/providers/openai/reasoning_details_replay.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/reasoning_details_replay.dart';
 
 void main() {
   group('normalizeReasoningDetailsForReplay', () {

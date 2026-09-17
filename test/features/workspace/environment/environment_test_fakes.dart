@@ -1,12 +1,12 @@
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-import 'package:Kelivo/core/models/environment_state.dart';
-import 'package:Kelivo/core/providers/environment_provider.dart';
-import 'package:Kelivo/core/services/sandbox/environment_manager.dart';
-import 'package:Kelivo/core/services/sandbox/mirror_service.dart';
-import 'package:Kelivo/core/services/sandbox/mirror_speed_test.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/core/models/environment_state.dart';
+import 'package:Cuplivo/core/providers/environment_provider.dart';
+import 'package:Cuplivo/core/services/sandbox/environment_manager.dart';
+import 'package:Cuplivo/core/services/sandbox/mirror_service.dart';
+import 'package:Cuplivo/core/services/sandbox/mirror_speed_test.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
 
 class CountingWorkspaceRuntimeProvider extends WorkspaceRuntimeProvider {
   int refreshCalls = 0;

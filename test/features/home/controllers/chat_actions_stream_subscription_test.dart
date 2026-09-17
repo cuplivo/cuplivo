@@ -2,7 +2,7 @@ import 'dart:async' as async;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/foundation.dart';
-import 'package:Kelivo/features/home/controllers/chat_actions.dart';
+import 'package:Cuplivo/features/home/controllers/chat_actions.dart';
 
 void main() {
   group('ChatActions.resolveStreamErrorContent', () {

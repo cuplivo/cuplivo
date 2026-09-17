@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/features/workspace/terminal/terminal_session_manager.dart';
-import 'package:Kelivo/features/workspace/terminal/widgets/terminal_tab_strip.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/responsive/breakpoints.dart';
-import 'package:Kelivo/shared/responsive/screen_type_helper.dart';
-import 'package:Kelivo/shared/widgets/custom_bottom_sheet.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/features/workspace/terminal/terminal_session_manager.dart';
+import 'package:Cuplivo/features/workspace/terminal/widgets/terminal_tab_strip.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/responsive/breakpoints.dart';
+import 'package:Cuplivo/shared/responsive/screen_type_helper.dart';
+import 'package:Cuplivo/shared/widgets/custom_bottom_sheet.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 
 import 'fake_workspace_runtime.dart';
 

@@ -1,7 +1,7 @@
 import 'core/services/scheduled_tasks_service.dart';
-import 'package:Kelivo/core/services/sandbox/workspace_channel.dart';
-import 'package:Kelivo/core/providers/external_mounts_provider.dart';
-import 'package:Kelivo/core/services/sandbox/environment_dependencies.dart';
+import 'package:Cuplivo/core/services/sandbox/workspace_channel.dart';
+import 'package:Cuplivo/core/providers/external_mounts_provider.dart';
+import 'package:Cuplivo/core/services/sandbox/environment_dependencies.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'
     show debugPrint, kIsWeb, defaultTargetPlatform, TargetPlatform;

@@ -15,7 +15,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/services/haptics.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class InstructionInjectionPage extends StatefulWidget {
   const InstructionInjectionPage({super.key});

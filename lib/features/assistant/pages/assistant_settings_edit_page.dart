@@ -66,6 +66,7 @@ import '../utils/assistant_edit_tab_layout.dart';
 import 'assistant_regex_tab.dart';
 import 'assistant_settings_edit_skills_tab.dart';
 import 'assistant_settings_edit_workspace_tab.dart';
+import 'assistant_settings_edit_proactive_letter_tab.dart';
 import 'health_data_settings_page.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import 'package:Cuplivo/shared/widgets/section_card.dart';
@@ -156,6 +157,12 @@ List<_AssistantEditTabSpec> _assistantEditTabSpecs(
       label: l10n.assistantEditPageRegexTab,
       icon: Lucide.CaseSensitive,
       child: AssistantRegexTab(assistantId: assistantId),
+    ),
+    _AssistantEditTabSpec(
+      id: assistantEditTabProactiveLetter,
+      label: l10n.assistantEditPageProactiveLetterTab,
+      icon: Lucide.HeartPulse,
+      child: AssistantProactiveLetterTab(assistantId: assistantId),
     ),
     _AssistantEditTabSpec(
       id: assistantEditTabWorkspace,

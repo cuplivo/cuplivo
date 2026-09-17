@@ -12244,4 +12244,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get documentProcessingResetDefault => 'Reset to Default';
+
+  @override
+  String get assistantEditPageProactiveLetterTab => 'Their Letter';
+
+  @override
+  String get assistantEditProactiveCareEnableTitle => 'Proactive Care';
+
+  @override
+  String get assistantEditProactiveCareDefaultDescription =>
+      'Default for conversations without an override';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      'Messages used for time decisions';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      'Maximum number of recent conversation messages sent to the model when deciding the next proactive message time';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle =>
+      'Conversation next-letter times';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations =>
+      'No enabled conversations for this assistant';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return 'Future · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return 'Expired · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => 'Unset';
+
+  @override
+  String get assistantEditProactiveCarePromptTitle => 'Proactive care prompt';
+
+  @override
+  String get assistantEditProactiveCarePromptHint =>
+      'Prompt used when the assistant proactively sends a message';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptTitle =>
+      'Decision time instruction prompt';
 }

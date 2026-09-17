@@ -144,6 +144,7 @@ class Lucide {
   static const IconData KeyRound = lucide.LucideIcons.keyRound;
   static const IconData Shuffle = lucide.LucideIcons.shuffle;
   static const IconData HeartPulse = lucide.LucideIcons.heartPulse;
+  static const IconData Mail = lucide.LucideIcons.mail;
   static const IconData Sun = lucide.LucideIcons.sun;
   static const IconData Moon = lucide.LucideIcons.moon;
   static const IconData MessageCircleMore =

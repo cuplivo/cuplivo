@@ -8,6 +8,7 @@ const String assistantEditTabSkills = 'skills';
 const String assistantEditTabQuickPhrase = 'quickPhrase';
 const String assistantEditTabCustom = 'custom';
 const String assistantEditTabRegex = 'regex';
+const String assistantEditTabProactiveLetter = 'proactiveLetter';
 
 const List<String> defaultAssistantEditTabIds = [
   assistantEditTabBasic,
@@ -19,6 +20,7 @@ const List<String> defaultAssistantEditTabIds = [
   assistantEditTabQuickPhrase,
   assistantEditTabCustom,
   assistantEditTabRegex,
+  assistantEditTabProactiveLetter,
   assistantEditTabWorkspace,
 ];
 

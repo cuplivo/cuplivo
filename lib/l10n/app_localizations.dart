@@ -21974,6 +21974,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reset to Default'**
   String get documentProcessingResetDefault;
+
+  /// Tab label for proactive care / their letter settings
+  ///
+  /// In en, this message translates to:
+  /// **'Their Letter'**
+  String get assistantEditPageProactiveLetterTab;
+
+  /// Title for the proactive care enable switch
+  ///
+  /// In en, this message translates to:
+  /// **'Proactive Care'**
+  String get assistantEditProactiveCareEnableTitle;
+
+  /// Explains that the assistant proactive care switch is a conversation default
+  ///
+  /// In en, this message translates to:
+  /// **'Default for conversations without an override'**
+  String get assistantEditProactiveCareDefaultDescription;
+
+  /// Title for the proactive-care decision history message limit
+  ///
+  /// In en, this message translates to:
+  /// **'Messages used for time decisions'**
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle;
+
+  /// Description for the proactive-care decision history message limit
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum number of recent conversation messages sent to the model when deciding the next proactive message time'**
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription;
+
+  /// Title for the expandable conversation proactive care schedule section
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation next-letter times'**
+  String get assistantEditProactiveCareConversationTimesTitle;
+
+  /// Empty state for the assistant conversation proactive care schedule list
+  ///
+  /// In en, this message translates to:
+  /// **'No enabled conversations for this assistant'**
+  String get assistantEditProactiveCareNoEligibleConversations;
+
+  /// Status for a future conversation proactive care schedule
+  ///
+  /// In en, this message translates to:
+  /// **'Future · {time}'**
+  String assistantEditProactiveCareConversationTimeFuture(String time);
+
+  /// Status for an expired conversation proactive care schedule
+  ///
+  /// In en, this message translates to:
+  /// **'Expired · {time}'**
+  String assistantEditProactiveCareConversationTimeExpired(String time);
+
+  /// Status for an enabled conversation without a proactive care schedule
+  ///
+  /// In en, this message translates to:
+  /// **'Unset'**
+  String get assistantEditProactiveCareConversationTimeUnset;
+
+  /// Title for the proactive care prompt editor
+  ///
+  /// In en, this message translates to:
+  /// **'Proactive care prompt'**
+  String get assistantEditProactiveCarePromptTitle;
+
+  /// Hint text for the proactive care prompt field
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt used when the assistant proactively sends a message'**
+  String get assistantEditProactiveCarePromptHint;
+
+  /// Title for the decision prompt editor
+  ///
+  /// In en, this message translates to:
+  /// **'Decision time instruction prompt'**
+  String get assistantEditProactiveCareDecisionPromptTitle;
 }
 
 class _AppLocalizationsDelegate

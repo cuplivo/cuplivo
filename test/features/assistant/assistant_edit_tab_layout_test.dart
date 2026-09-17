@@ -15,6 +15,7 @@ void main() {
         'quickPhrase',
         'custom',
         'regex',
+        'proactiveLetter',
         'workspace',
       ]);
     });

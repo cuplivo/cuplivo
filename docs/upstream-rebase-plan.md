@@ -78,7 +78,7 @@ Per-patch gates: `range-diff` equivalence, `dart format` changed paths, `flutter
 ## 本地全量测试的已知基线失败（root 环境，2026-09-17 核实）
 
 在干净基线 915a8b1d 上以 root 复现、与分支改动无关的失败：
-- `test/core/services/auth/claude_oauth_test.dart`：10 例（`key1` List→String 类型错误，上游固有）
+- `test/core/services/auth/`：17 例（claude_oauth 10 + codex 2 + kimi 5；干净基线 915a8b1d 同为 +67/-17，已复核）
 - `test/features/home/widgets/chat_input_bar_attachment_cleanup_test.dart` "源文件删除失败…"：chmod 0555 对 root 无效，删除成功导致断言落空（环境性）
 
 发布验证口径：本地全量 `flutter test` 以"相对基线无新增失败"为准；CI（非 root）为最终门。另：`flutter test | tail` 的管道退出码是 tail 的，须用完整输出判断。

@@ -3002,6 +3002,7 @@ class ChatService extends ChangeNotifier {
     required List<MessagePart> userParts,
     required String modelId,
     required String providerId,
+    String? senderId,
   }) async {
     if (!_initialized) await init();
     if (isTemporaryConversation(conversationId)) {
@@ -3026,6 +3027,7 @@ class ChatService extends ChangeNotifier {
       modelId: modelId,
       providerId: providerId,
       isStreaming: true,
+      senderId: senderId,
     );
     final result = await _repo.beginSendGeneration(
       conversation: conversation,

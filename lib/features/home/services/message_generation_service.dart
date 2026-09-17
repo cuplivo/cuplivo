@@ -423,6 +423,7 @@ class MessageGenerationService {
     required Assistant? assistant,
     required String modelId,
     required String providerKey,
+    String? senderId,
   }) async {
     final userParts = await buildPersistedUserMessageParts(
       input,
@@ -441,6 +442,7 @@ class MessageGenerationService {
         conversationId: conversationId,
         modelId: modelId,
         providerKey: providerKey,
+        senderId: senderId,
       );
       return (
         userMessage: userMessage,
@@ -453,6 +455,7 @@ class MessageGenerationService {
       userParts: userParts,
       modelId: modelId,
       providerId: providerKey,
+      senderId: senderId,
     );
     return (
       userMessage: result.userMessage!,
@@ -577,6 +580,7 @@ class MessageGenerationService {
     String? groupId,
     int version = 0,
     String? temporaryAfterGroupId,
+    String? senderId,
   }) async {
     return chatService.addMessage(
       conversationId: conversationId,
@@ -585,6 +589,7 @@ class MessageGenerationService {
       modelId: modelId,
       providerId: providerKey,
       isStreaming: true,
+      senderId: senderId,
       groupId: groupId,
       version: version,
       selectVersion: groupId != null,

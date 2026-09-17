@@ -1142,6 +1142,9 @@ class ChatActions {
     ({String providerKey, String modelId})? modelOverride,
     ValueChanged<String>? onGenerationStarted,
     bool scheduled = false,
+    List<ChatMessage>? contextMessagesOverride,
+    String? senderId,
+    bool generateTitleOnFinish = true,
   }) async {
     final claimToken = ++_sendInFlightClaimSerial;
     if (isSendInFlight(conversation.id)) {
@@ -1156,6 +1159,9 @@ class ChatActions {
         modelOverride: modelOverride,
         onGenerationStarted: onGenerationStarted,
         scheduled: scheduled,
+        contextMessagesOverride: contextMessagesOverride,
+        senderId: senderId,
+        generateTitleOnFinish: generateTitleOnFinish,
       );
     } finally {
       if (_sendInFlightClaims[conversation.id] == claimToken) {
@@ -1171,6 +1177,9 @@ class ChatActions {
     ({String providerKey, String modelId})? modelOverride,
     ValueChanged<String>? onGenerationStarted,
     bool scheduled = false,
+    List<ChatMessage>? contextMessagesOverride,
+    String? senderId,
+    bool generateTitleOnFinish = true,
   }) async {
     final content = input.text.trim();
     if (content.isEmpty &&
@@ -1242,6 +1251,7 @@ class ChatActions {
         assistant: assistant,
         modelId: modelId,
         providerKey: providerKey,
+        senderId: senderId,
       );
       userMessage = begin.userMessage;
       assistantMessage = begin.assistantMessage;
@@ -1290,6 +1300,8 @@ class ChatActions {
         generationRunId: generationRunId,
         approvalService: approvalService,
         askUserService: askUserService,
+        contextMessagesOverride: contextMessagesOverride,
+        generateTitleOnFinish: generateTitleOnFinish,
       ),
     );
     return ChatActionResult.success(
@@ -1312,6 +1324,8 @@ class ChatActions {
     required String? generationRunId,
     required ToolApprovalService? approvalService,
     required AskUserInteractionService? askUserService,
+    List<ChatMessage>? contextMessagesOverride,
+    bool generateTitleOnFinish = true,
   }) async {
     // Nothing awaits this future, so every failure has to be caught here.
     try {
@@ -1320,8 +1334,9 @@ class ChatActions {
       // itself is persisted by now and comes back in this read — drop it here
       // and let the caller re-append it in generation order.
       final contextLimit = await _contextReadLimit(assistant, conversation);
-      final persistedContext = await chatController
-          .messagesForGenerationContext(
+      final persistedContext =
+          contextMessagesOverride ??
+          await chatController.messagesForGenerationContext(
             conversation,
             maxMessages: contextLimit + 2,
           );
@@ -1398,7 +1413,7 @@ class ChatActions {
         supportsReasoning: supportsReasoning,
         enableReasoning: enableReasoning,
         scheduled: scheduled,
-        generateTitleOnFinish: true,
+        generateTitleOnFinish: generateTitleOnFinish,
         generationRunId: generationRunId,
       );
 

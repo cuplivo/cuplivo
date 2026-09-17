@@ -1398,6 +1398,7 @@ class ChatActions {
         settings: settings,
         providerKey: providerKey,
         modelId: modelId,
+        assistant: assistant,
       );
 
       // Execute generation
@@ -1794,6 +1795,7 @@ class ChatActions {
           settings: settings,
           providerKey: providerKey,
           modelId: modelId,
+          assistant: assistant,
         );
 
         // Execute generation

@@ -88,6 +88,14 @@ class Assistant {
   final List<PresetMessage> presetMessages;
   // Regex replacement rules
   final List<AssistantRegex> regexRules;
+  // File processing configuration (per assistant)
+  // Values: 'extract' (parse locally / OCR), 'direct' (upload raw file), 'discard'
+  final String docxMode;
+  final String pdfMode;
+  final String otherOfficeMode;
+  // OCR processing mode (per assistant)
+  // Values: 'auto' (OCR only when the model lacks vision), 'always', 'never'
+  final String ocrMode;
 
   const Assistant({
     required this.id,
@@ -134,6 +142,10 @@ class Assistant {
     this.useIso8601TimeFormat = false,
     this.presetMessages = const <PresetMessage>[],
     this.regexRules = const <AssistantRegex>[],
+    this.docxMode = 'extract',
+    this.pdfMode = 'extract',
+    this.otherOfficeMode = 'extract',
+    this.ocrMode = 'auto',
   });
 
   Assistant copyWith({
@@ -181,6 +193,10 @@ class Assistant {
     bool? useIso8601TimeFormat,
     List<PresetMessage>? presetMessages,
     List<AssistantRegex>? regexRules,
+    String? docxMode,
+    String? pdfMode,
+    String? otherOfficeMode,
+    String? ocrMode,
     bool clearChatModel = false,
     bool clearDefaultWorkspaceId = false,
     bool clearSkillIds = false,
@@ -255,6 +271,10 @@ class Assistant {
       useIso8601TimeFormat: useIso8601TimeFormat ?? this.useIso8601TimeFormat,
       presetMessages: presetMessages ?? this.presetMessages,
       regexRules: regexRules ?? this.regexRules,
+      docxMode: docxMode ?? this.docxMode,
+      pdfMode: pdfMode ?? this.pdfMode,
+      otherOfficeMode: otherOfficeMode ?? this.otherOfficeMode,
+      ocrMode: ocrMode ?? this.ocrMode,
     );
   }
 
@@ -303,6 +323,10 @@ class Assistant {
     'useIso8601TimeFormat': useIso8601TimeFormat,
     'presetMessages': PresetMessage.encodeList(presetMessages),
     'regexRules': regexRules.map((e) => e.toJson()).toList(),
+    'docxMode': docxMode,
+    'pdfMode': pdfMode,
+    'otherOfficeMode': otherOfficeMode,
+    'ocrMode': ocrMode,
   };
 
   static double _readGradientBackgroundPhase(Object? value) =>
@@ -441,6 +465,10 @@ class Assistant {
       }
       return const <AssistantRegex>[];
     })(),
+    docxMode: (json['docxMode'] as String?) ?? 'extract',
+    pdfMode: (json['pdfMode'] as String?) ?? 'extract',
+    otherOfficeMode: (json['otherOfficeMode'] as String?) ?? 'extract',
+    ocrMode: (json['ocrMode'] as String?) ?? 'auto',
   );
 
   static String memorySmartAddModeToString(MemorySmartAddMode mode) {

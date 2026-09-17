@@ -44,6 +44,7 @@ import '../../../core/services/api/providers/claude/claude_history.dart';
 import '../../../core/services/api/providers/google/gemini_thought_signature.dart';
 import '../../../core/models/assistant_regex.dart';
 import '../../../core/utils/multimodal_input_utils.dart';
+import '../../model/utils/ocr_model_capability.dart';
 import '../../../utils/assistant_regex.dart';
 import '../../../utils/markdown_media_sanitizer.dart';
 import 'ocr_service.dart';
@@ -714,6 +715,23 @@ class MessageBuilderService {
     return resolveDocumentAttachmentMime(attachment);
   }
 
+  /// Resolve the processing mode for a MIME type based on assistant config.
+  /// 'extract' parses locally, 'direct' uploads the raw file, 'discard' drops.
+  String _resolveFileProcessingMode(String mime, {Assistant? assistant}) {
+    final lower = mime.toLowerCase();
+    if (lower == 'application/pdf') {
+      return assistant?.pdfMode ?? 'extract';
+    }
+    if (lower ==
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      return assistant?.docxMode ?? 'extract';
+    }
+    if (isOfficeDocumentMime(lower)) {
+      return assistant?.otherOfficeMode ?? 'direct';
+    }
+    return 'extract';
+  }
+
   /// True when [apiMessages] still carries attachments that
   /// [processUserMessagesForApi] may have to extract or OCR.
   ///
@@ -724,16 +742,26 @@ class MessageBuilderService {
   bool hasPendingAttachmentWork(
     List<Map<String, dynamic>> apiMessages,
     SettingsProvider settings, {
+    Assistant? assistant,
+    String providerKey = '',
+    String modelId = '',
     Conversation? conversation,
     List<ChatMessage>? sourceMessages,
     bool sandboxDataFiles = false,
     Map<String, AttachmentInfo> workspaceAttachments = const {},
   }) {
-    final bool ocrActive =
-        settings.ocrEnabled &&
-        settings.ocrModelProvider != null &&
-        settings.ocrModelId != null &&
-        ocrHandler != null;
+    final bool ocrActive = providerKey.isEmpty || modelId.isEmpty
+        ? (settings.ocrEnabled &&
+              settings.ocrModelProvider != null &&
+              settings.ocrModelId != null &&
+              ocrHandler != null)
+        : resolveOcrActive(
+                settings: settings,
+                assistant: assistant,
+                providerKey: providerKey,
+                modelId: modelId,
+              ) &&
+              ocrHandler != null;
 
     for (final message in apiMessages) {
       if (message['role'] != 'user') continue;
@@ -765,6 +793,12 @@ class MessageBuilderService {
             isSandboxDataFile(fileName: document.fileName, mime: mime)) {
           continue;
         }
+        // Direct/discard office documents are not extracted here.
+        if (isOfficeDocumentMime(mime) &&
+            _resolveFileProcessingMode(mime, assistant: assistant) !=
+                'extract') {
+          continue;
+        }
         // A document that still needs text extraction.
         return true;
       }
@@ -792,15 +826,23 @@ class MessageBuilderService {
     List<Map<String, dynamic>> apiMessages,
     SettingsProvider settings,
     Assistant? assistant, {
+    String providerKey = '',
+    String modelId = '',
     Conversation? conversation,
     List<ChatMessage>? sourceMessages,
     bool sandboxDataFiles = false,
     Map<String, AttachmentInfo> workspaceAttachments = const {},
   }) async {
-    final bool ocrActive =
-        settings.ocrEnabled &&
-        settings.ocrModelProvider != null &&
-        settings.ocrModelId != null;
+    final bool ocrActive = providerKey.isEmpty || modelId.isEmpty
+        ? (settings.ocrEnabled &&
+              settings.ocrModelProvider != null &&
+              settings.ocrModelId != null)
+        : resolveOcrActive(
+            settings: settings,
+            assistant: assistant,
+            providerKey: providerKey,
+            modelId: modelId,
+          );
 
     List<String>? lastUserImagePaths;
 
@@ -1113,6 +1155,13 @@ class MessageBuilderService {
         if (sandboxDataFiles &&
             isSandboxDataFile(fileName: d.fileName, mime: effectiveMime)) {
           leftToSandbox = true;
+          continue;
+        }
+        // Skip non-extract modes: direct (sent as media) and discard
+        // (excluded).
+        if (isOfficeDocumentMime(effectiveMime) &&
+            _resolveFileProcessingMode(effectiveMime, assistant: assistant) !=
+                'extract') {
           continue;
         }
         final text = await readDocument(d);

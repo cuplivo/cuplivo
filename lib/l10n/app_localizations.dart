@@ -21890,6 +21890,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Selected assistant has no model configured.'**
   String get groupChatAssistantNoModel;
+
+  /// No description provided for @documentProcessingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Image & Document Processing'**
+  String get documentProcessingTitle;
+
+  /// No description provided for @documentProcessingImageOcr.
+  ///
+  /// In en, this message translates to:
+  /// **'Image OCR'**
+  String get documentProcessingImageOcr;
+
+  /// No description provided for @documentProcessingModeAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get documentProcessingModeAuto;
+
+  /// No description provided for @documentProcessingModeAlways.
+  ///
+  /// In en, this message translates to:
+  /// **'Always'**
+  String get documentProcessingModeAlways;
+
+  /// No description provided for @documentProcessingModeNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get documentProcessingModeNever;
+
+  /// No description provided for @documentProcessingModeDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get documentProcessingModeDiscard;
+
+  /// No description provided for @documentProcessingOcrNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'No OCR model configured. Always-OCR unavailable.'**
+  String get documentProcessingOcrNotConfigured;
+
+  /// No description provided for @documentProcessingDocx.
+  ///
+  /// In en, this message translates to:
+  /// **'DOCX'**
+  String get documentProcessingDocx;
+
+  /// No description provided for @documentProcessingModeLocalParse.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Parse'**
+  String get documentProcessingModeLocalParse;
+
+  /// No description provided for @documentProcessingModeDirectUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct Upload'**
+  String get documentProcessingModeDirectUpload;
+
+  /// No description provided for @documentProcessingPdf.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF'**
+  String get documentProcessingPdf;
+
+  /// No description provided for @documentProcessingOtherOffice.
+  ///
+  /// In en, this message translates to:
+  /// **'Other Office (PPT/XLS/DOC/…)'**
+  String get documentProcessingOtherOffice;
+
+  /// No description provided for @documentProcessingDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct upload is experimental and not part of the standard API. Currently only supported by some providers and models (check model details for File Input capability). If the API returns an error, switch to local parsing or convert the file to an image before sending.'**
+  String get documentProcessingDisclaimer;
+
+  /// No description provided for @documentProcessingResetDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to Default'**
+  String get documentProcessingResetDefault;
 }
 
 class _AppLocalizationsDelegate

@@ -85,6 +85,18 @@ bool isAudioMime(String mime) => mime.toLowerCase().startsWith('audio/');
 
 bool isVideoMime(String mime) => mime.toLowerCase().startsWith('video/');
 
+const _officeMimePrefixes = [
+  'application/msword',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument',
+];
+
+bool isOfficeDocumentMime(String mime) {
+  final lower = mime.toLowerCase();
+  return _officeMimePrefixes.any((p) => lower.startsWith(p));
+}
+
 String inferMediaMimeFromSource(String source, {String fallbackMime = ''}) {
   final lower = source.toLowerCase();
   if (lower.startsWith('data:')) {

@@ -4291,5 +4291,19 @@
   "groupChatDirectorModelNoTools": "導演模型不支援工具呼叫。請選擇支援工具的模型。",
   "groupChatDirectorTimeout": "導演響應超時，請重試。",
   "groupChatDirectorError": "導演呼叫失敗，請檢查日誌與模型設定。",
-  "groupChatAssistantNoModel": "該助手未配置模型。"
+  "groupChatAssistantNoModel": "該助手未配置模型。",
+  "documentProcessingTitle": "圖片與文件解析",
+  "documentProcessingImageOcr": "圖片 OCR",
+  "documentProcessingModeAuto": "智慧識別",
+  "documentProcessingModeAlways": "全部",
+  "documentProcessingModeNever": "永不",
+  "documentProcessingModeDiscard": "丟棄",
+  "documentProcessingOcrNotConfigured": "尚未配置 OCR 模型，「全部」選項不可用",
+  "documentProcessingDocx": "DOCX 處理",
+  "documentProcessingModeLocalParse": "本地解析",
+  "documentProcessingModeDirectUpload": "直接上傳",
+  "documentProcessingPdf": "PDF 處理",
+  "documentProcessingOtherOffice": "其他 Office 文件 (PPT/XLS/DOC/…)",
+  "documentProcessingDisclaimer": "直接上傳為實驗性功能，非標準 API 行為，目前僅部分供應商和模型支援（可在模型詳情頁檢視是否標註 File Input 能力）。若介面返回 400/422 等錯誤，請切換為本地解析或將檔案轉為圖片後傳送。",
+  "documentProcessingResetDefault": "重置為預設"
 }

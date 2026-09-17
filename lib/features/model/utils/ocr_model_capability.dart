@@ -1,3 +1,4 @@
+import '../../../core/models/assistant.dart';
 import '../../../core/providers/model_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/model_override_resolver.dart';
@@ -26,4 +27,26 @@ bool modelSupportsOcrImageInput(
     info = ModelOverrideResolver.applyModelOverride(info, override);
   }
   return info.input.contains(Modality.image);
+}
+
+/// Resolves whether the current send should run OCR instead of sending images
+/// raw, based on the per-assistant [Assistant.ocrMode]:
+/// - 'never' -> never OCR (images go to the model or are stripped upstream);
+/// - 'always' -> always OCR (requires a configured OCR model);
+/// - 'auto' (default) -> OCR only when the resolved model lacks image input.
+/// A missing OCR model config disables OCR in every mode.
+bool resolveOcrActive({
+  required SettingsProvider settings,
+  required Assistant? assistant,
+  required String providerKey,
+  required String modelId,
+}) {
+  final mode = assistant?.ocrMode ?? 'auto';
+  if (mode == 'never') return false;
+  if (!settings.ocrEnabled) return false;
+  if (settings.ocrModelProvider == null || settings.ocrModelId == null) {
+    return false;
+  }
+  if (mode == 'always') return true;
+  return !modelSupportsOcrImageInput(settings, providerKey, modelId);
 }

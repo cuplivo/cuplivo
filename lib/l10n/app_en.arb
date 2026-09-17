@@ -5323,5 +5323,19 @@
   "groupChatDirectorModelNoTools": "Director model does not support tools. Pick a tool-capable model.",
   "groupChatDirectorTimeout": "Director timed out. Try again.",
   "groupChatDirectorError": "Director failed. Check logs and model settings.",
-  "groupChatAssistantNoModel": "Selected assistant has no model configured."
+  "groupChatAssistantNoModel": "Selected assistant has no model configured.",
+  "documentProcessingTitle": "Image & Document Processing",
+  "documentProcessingImageOcr": "Image OCR",
+  "documentProcessingModeAuto": "Auto",
+  "documentProcessingModeAlways": "Always",
+  "documentProcessingModeNever": "Never",
+  "documentProcessingModeDiscard": "Discard",
+  "documentProcessingOcrNotConfigured": "No OCR model configured. Always-OCR unavailable.",
+  "documentProcessingDocx": "DOCX",
+  "documentProcessingModeLocalParse": "Local Parse",
+  "documentProcessingModeDirectUpload": "Direct Upload",
+  "documentProcessingPdf": "PDF",
+  "documentProcessingOtherOffice": "Other Office (PPT/XLS/DOC/…)",
+  "documentProcessingDisclaimer": "Direct upload is experimental and not part of the standard API. Currently only supported by some providers and models (check model details for File Input capability). If the API returns an error, switch to local parsing or convert the file to an image before sending.",
+  "documentProcessingResetDefault": "Reset to Default"
 }

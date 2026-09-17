@@ -40,6 +40,7 @@ class BottomToolsSheet extends StatelessWidget {
     this.onPhotos,
     this.onUpload,
     this.onClear,
+    this.onDocumentProcessing,
     this.clearLabel,
     this.assistantId,
     this.conversationId,
@@ -50,6 +51,10 @@ class BottomToolsSheet extends StatelessWidget {
   final VoidCallback? onPhotos;
   final VoidCallback? onUpload;
   final VoidCallback? onClear;
+
+  /// Opens the per-assistant image & document processing config
+  /// (OCR mode, office doc extract/direct/discard).
+  final VoidCallback? onDocumentProcessing;
   final String? clearLabel;
   final String? assistantId;
   final String? conversationId;
@@ -164,6 +169,7 @@ class BottomToolsSheet extends StatelessWidget {
                     _LearningAndClearSection(
                       clearLabel: clearLabel,
                       onClear: onClear,
+                      onDocumentProcessing: onDocumentProcessing,
                       assistantId: assistantId,
                       conversationId: conversationId,
                       onClose: onClose,
@@ -182,12 +188,14 @@ class BottomToolsSheet extends StatelessWidget {
 class _LearningAndClearSection extends StatefulWidget {
   const _LearningAndClearSection({
     this.onClear,
+    this.onDocumentProcessing,
     this.clearLabel,
     this.assistantId,
     this.conversationId,
     this.onClose,
   });
   final VoidCallback? onClear;
+  final VoidCallback? onDocumentProcessing;
   final String? clearLabel;
   final String? assistantId;
   final String? conversationId;
@@ -400,6 +408,18 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
               Navigator.of(context).maybePop();
             },
             onLongPress: () => showOcrPromptSheet(context),
+          ),
+        ],
+        if (widget.onDocumentProcessing != null) ...[
+          const SizedBox(height: 8),
+          ToolsSheetRow(
+            icon: Lucide.FileCog,
+            label: l10n.documentProcessingTitle,
+            onTap: () {
+              Haptics.light();
+              widget.onDocumentProcessing?.call();
+            },
+            trailing: chevron,
           ),
         ],
         const SizedBox(height: 8),

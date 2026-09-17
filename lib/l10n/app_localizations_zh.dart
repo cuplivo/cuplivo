@@ -11652,6 +11652,49 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get groupChatAssistantNoModel => '该助手未配置模型。';
+
+  @override
+  String get documentProcessingTitle => '图片与文档解析';
+
+  @override
+  String get documentProcessingImageOcr => '图片 OCR';
+
+  @override
+  String get documentProcessingModeAuto => '智能识别';
+
+  @override
+  String get documentProcessingModeAlways => '全部';
+
+  @override
+  String get documentProcessingModeNever => '永不';
+
+  @override
+  String get documentProcessingModeDiscard => '丢弃';
+
+  @override
+  String get documentProcessingOcrNotConfigured => '尚未配置 OCR 模型，「全部」选项不可用';
+
+  @override
+  String get documentProcessingDocx => 'DOCX 处理';
+
+  @override
+  String get documentProcessingModeLocalParse => '本地解析';
+
+  @override
+  String get documentProcessingModeDirectUpload => '直接上传';
+
+  @override
+  String get documentProcessingPdf => 'PDF 处理';
+
+  @override
+  String get documentProcessingOtherOffice => '其他 Office 文档 (PPT/XLS/DOC/…)';
+
+  @override
+  String get documentProcessingDisclaimer =>
+      '直接上传为实验性功能，非标准 API 行为，目前仅部分供应商和模型支持（可在模型详情页查看是否标注 File Input 能力）。若接口返回 400/422 等错误，请切换为本地解析或将文件转为图片后发送。';
+
+  @override
+  String get documentProcessingResetDefault => '重置为默认';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -23228,6 +23271,49 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get groupChatAssistantNoModel => '该助手未配置模型。';
+
+  @override
+  String get documentProcessingTitle => '图片与文档解析';
+
+  @override
+  String get documentProcessingImageOcr => '图片 OCR';
+
+  @override
+  String get documentProcessingModeAuto => '智能识别';
+
+  @override
+  String get documentProcessingModeAlways => '全部';
+
+  @override
+  String get documentProcessingModeNever => '永不';
+
+  @override
+  String get documentProcessingModeDiscard => '丢弃';
+
+  @override
+  String get documentProcessingOcrNotConfigured => '尚未配置 OCR 模型，「全部」选项不可用';
+
+  @override
+  String get documentProcessingDocx => 'DOCX 处理';
+
+  @override
+  String get documentProcessingModeLocalParse => '本地解析';
+
+  @override
+  String get documentProcessingModeDirectUpload => '直接上传';
+
+  @override
+  String get documentProcessingPdf => 'PDF 处理';
+
+  @override
+  String get documentProcessingOtherOffice => '其他 Office 文档 (PPT/XLS/DOC/…)';
+
+  @override
+  String get documentProcessingDisclaimer =>
+      '直接上传为实验性功能，非标准 API 行为，目前仅部分供应商和模型支持（可在模型详情页查看是否标注 File Input 能力）。若接口返回 400/422 等错误，请切换为本地解析或将文件转为图片后发送。';
+
+  @override
+  String get documentProcessingResetDefault => '重置为默认';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -34884,4 +34970,47 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get groupChatAssistantNoModel => '該助手未配置模型。';
+
+  @override
+  String get documentProcessingTitle => '圖片與文件解析';
+
+  @override
+  String get documentProcessingImageOcr => '圖片 OCR';
+
+  @override
+  String get documentProcessingModeAuto => '智慧識別';
+
+  @override
+  String get documentProcessingModeAlways => '全部';
+
+  @override
+  String get documentProcessingModeNever => '永不';
+
+  @override
+  String get documentProcessingModeDiscard => '丟棄';
+
+  @override
+  String get documentProcessingOcrNotConfigured => '尚未配置 OCR 模型，「全部」選項不可用';
+
+  @override
+  String get documentProcessingDocx => 'DOCX 處理';
+
+  @override
+  String get documentProcessingModeLocalParse => '本地解析';
+
+  @override
+  String get documentProcessingModeDirectUpload => '直接上傳';
+
+  @override
+  String get documentProcessingPdf => 'PDF 處理';
+
+  @override
+  String get documentProcessingOtherOffice => '其他 Office 文件 (PPT/XLS/DOC/…)';
+
+  @override
+  String get documentProcessingDisclaimer =>
+      '直接上傳為實驗性功能，非標準 API 行為，目前僅部分供應商和模型支援（可在模型詳情頁檢視是否標註 File Input 能力）。若介面返回 400/422 等錯誤，請切換為本地解析或將檔案轉為圖片後傳送。';
+
+  @override
+  String get documentProcessingResetDefault => '重置為預設';
 }

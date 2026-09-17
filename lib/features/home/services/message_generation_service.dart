@@ -21,6 +21,7 @@ import '../../../core/services/skills/skills_service.dart';
 import '../../../core/services/workspace/workspace_runtime.dart';
 import '../../../core/services/workspace/workspace_tools_service.dart';
 import '../../../core/utils/multimodal_input_utils.dart';
+import '../../model/utils/ocr_model_capability.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../utils/assistant_regex.dart';
 import '../../../core/models/assistant_regex.dart';
@@ -341,6 +342,8 @@ class MessageGenerationService {
             apiMessages,
             settings,
             assistant,
+            providerKey: providerKey,
+            modelId: modelId,
             conversation: currentConversation,
             sourceMessages: messages,
             sandboxDataFiles: sandboxDataFiles,
@@ -840,6 +843,20 @@ class MessageGenerationService {
     return resolveDocumentAttachmentMime(attachment);
   }
 
+  /// Per-assistant office-document mode ('extract' | 'direct' | 'discard').
+  String _documentModeFor(String mime, Assistant? assistant) {
+    final lower = mime.toLowerCase();
+    if (lower == 'application/pdf') return assistant?.pdfMode ?? 'extract';
+    if (lower ==
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      return assistant?.docxMode ?? 'extract';
+    }
+    if (isOfficeDocumentMime(lower)) {
+      return assistant?.otherOfficeMode ?? 'direct';
+    }
+    return 'extract';
+  }
+
   bool inputContainsAudioAttachments(ChatInputData input) {
     for (final attachment in input.documents) {
       if (isAudioMime(_effectiveAttachmentMime(attachment))) {
@@ -888,11 +905,14 @@ class MessageGenerationService {
     required SettingsProvider settings,
     required String providerKey,
     required String modelId,
+    Assistant? assistant,
   }) {
-    final bool ocrActive =
-        settings.ocrEnabled &&
-        settings.ocrModelProvider != null &&
-        settings.ocrModelId != null;
+    final bool ocrActive = resolveOcrActive(
+      settings: settings,
+      assistant: assistant,
+      providerKey: providerKey,
+      modelId: modelId,
+    );
 
     final includeAudio = _shouldIncludeAudioForProvider(
       settings,
@@ -906,6 +926,13 @@ class MessageGenerationService {
         final effectiveMime = _effectiveAttachmentMime(d);
         if (isVideoMime(effectiveMime) ||
             (includeAudio && isAudioMime(effectiveMime))) {
+          currentMediaPaths.add(d.path);
+          continue;
+        }
+        // Office documents configured 'direct' upload the raw file instead of
+        // being extracted into the prompt by processUserMessagesForApi.
+        if (isOfficeDocumentMime(effectiveMime) &&
+            _documentModeFor(effectiveMime, assistant) == 'direct') {
           currentMediaPaths.add(d.path);
         }
       }

@@ -38,6 +38,8 @@ import '../../../desktop/instruction_injection_popover.dart';
 import '../../../desktop/world_book_popover.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../chat/widgets/bottom_tools_sheet.dart';
+import '../../../desktop/document_processing_popover.dart';
+import '../../home/widgets/document_processing_sheet.dart';
 import '../../chat/widgets/chat_tools_sheet.dart';
 import '../../chat/utils/ensure_conversation.dart';
 import '../../chat/widgets/context_management_sheet.dart';
@@ -1956,6 +1958,21 @@ class _HomePageState extends State<HomePage>
     await showLearningPromptSheet(context);
   }
 
+  /// Per-assistant image & document processing config: desktop opens the
+  /// anchored popover, mobile the bottom sheet.
+  Future<void> _openDocumentProcessing() async {
+    final assistantId = context.read<AssistantProvider>().currentAssistantId;
+    if (PlatformUtils.isDesktop) {
+      await showDesktopDocumentProcessingPopover(
+        context,
+        anchorKey: _inputBarKey,
+        assistantId: assistantId,
+      );
+    } else {
+      await showDocumentProcessingSheet(context, assistantId: assistantId);
+    }
+  }
+
   void _toggleTools() async {
     _controller.dismissKeyboard();
     final assistantId = context.read<AssistantProvider>().currentAssistantId;
@@ -1988,6 +2005,10 @@ class _HomePageState extends State<HomePage>
                 onClear: () async {
                   await Navigator.of(ctx).maybePop();
                   _showContextManagementSheet();
+                },
+                onDocumentProcessing: () async {
+                  await Navigator.of(ctx).maybePop();
+                  await _openDocumentProcessing();
                 },
                 assistantId: assistantId,
                 conversationId: _controller.currentConversation?.id,

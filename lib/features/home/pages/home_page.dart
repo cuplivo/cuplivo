@@ -763,6 +763,9 @@ class _HomePageState extends State<HomePage>
       _controller.measureInputBar();
       if (!mounted) return;
       context.read<WorldBookProvider>().initialize();
+      // Proactive care catch-up: providers are up post-frame; alarms only
+      // nudge, generation happens here (see ProactiveCareMessageFlow).
+      unawaited(_controller.deliverDueProactiveCare());
     });
   }
 

@@ -27,6 +27,14 @@ import 'chat_controller.dart';
 import 'generation_controller.dart';
 import 'stream_controller.dart' as stream_ctrl;
 
+import '../../../core/providers/user_provider.dart';
+import '../../../core/services/instruction_injection_store.dart';
+import '../../../core/services/memory_store.dart';
+import '../../../core/services/proactive_care_conversation_policy.dart';
+import '../../../core/services/proactive_care_message_flow.dart';
+import '../../../core/database/business_preferences.dart';
+import '../../../core/services/world_book_store.dart';
+
 export '../../../core/models/compress_context_options.dart';
 
 enum BackgroundTaskKind { ocr, title, summary, suggestions, memory }
@@ -124,6 +132,7 @@ class HomeViewModel extends ChangeNotifier {
     _chatActions.onMaybeGenerateTitle = _onMaybeGenerateTitle;
     _chatActions.onMaybeGenerateSummary = _onMaybeGenerateSummary;
     _chatActions.onMaybeGenerateSuggestions = _onMaybeGenerateSuggestions;
+    _chatActions.onMaybeUpdateProactiveCare = _onMaybeUpdateProactiveCare;
     _chatActions.onStreamFinished = _onStreamFinished;
     _chatActions.onAssistantMessageFinished = _onAssistantMessageFinished;
     _chatActions.onFileProcessingStarted = _onFileProcessingStarted;
@@ -353,6 +362,85 @@ class HomeViewModel extends ChangeNotifier {
   /// Drops the indicator immediately, ignoring the minimum-visible hold. Used
   /// when the conversation the indicator belonged to is no longer on screen.
   void resetFileProcessingIndicator() => _fileProcessingIndicator.reset();
+
+  /// Proactive care ("Ta 的来信"): after a settled reply, silently ask the
+  /// decision model whether the conversation's next care time should move.
+  void _onMaybeUpdateProactiveCare(String conversationId) {
+    final assistant = _contextProvider
+        .read<AssistantProvider>()
+        .currentAssistant;
+    final conversation = _chatService.getConversation(conversationId);
+    if (assistant == null || conversation == null) return;
+    unawaited(_decideProactiveCareFor(conversation, assistant));
+  }
+
+  Future<void> _decideProactiveCareFor(
+    Conversation conversation,
+    Assistant assistant,
+  ) async {
+    if (!ProactiveCareConversationPolicy.isEligible(conversation, assistant)) {
+      return;
+    }
+    final flow = ProactiveCareMessageFlow(
+      chatService: _chatService,
+      settings: _contextProvider.read<SettingsProvider>(),
+      memoryStore: MemoryStore(_contextProvider.read<BusinessPreferences>()),
+      instructionInjectionStore: InstructionInjectionStore(
+        _contextProvider.read<BusinessPreferences>(),
+      ),
+      worldBookStore: WorldBookStore(
+        _contextProvider.read<BusinessPreferences>(),
+      ),
+    );
+    final model = flow.resolveModelConfig(assistant);
+    if (model == null) return;
+    final userNickname = _contextProvider.read<UserProvider>().name;
+    final history = ProactiveCareMessageFlow.historyFromMessages(
+      (await _chatService.loadMessages(
+        conversation.id,
+      )).map((m) => ChatMessageLike(m.role, m.content)).toList(),
+    );
+    if (history.isEmpty) return;
+    final nextAt = await flow.decideNextCareTime(
+      config: model.config,
+      modelId: model.modelId,
+      assistant: assistant,
+      userNickname: userNickname,
+      history: history,
+      decisionPrompt: assistant.proactiveCareDecisionPrompt,
+      conversationId: conversation.id,
+      currentNextCareTime: conversation.proactiveCareNextMessageAt,
+    );
+    if (nextAt == null) return;
+    await _chatService.updateConversationExtras(conversation.id, (extras) {
+      extras[Conversation.proactiveCareNextMessageAtKey] = nextAt
+          .toIso8601String();
+      return extras;
+    });
+  }
+
+  /// Delivers every due care letter for all eligible conversations (app
+  /// start / resume catch-up; alarms only nudge, generation stays here).
+  Future<int> deliverDueProactiveCare() async {
+    final assistantProvider = _contextProvider.read<AssistantProvider>();
+    final flow = ProactiveCareMessageFlow(
+      chatService: _chatService,
+      settings: _contextProvider.read<SettingsProvider>(),
+      memoryStore: MemoryStore(_contextProvider.read<BusinessPreferences>()),
+      instructionInjectionStore: InstructionInjectionStore(
+        _contextProvider.read<BusinessPreferences>(),
+      ),
+      worldBookStore: WorldBookStore(
+        _contextProvider.read<BusinessPreferences>(),
+      ),
+    );
+    final delivered = await flow.runDueSchedules(
+      conversations: _chatService.getAllConversations(),
+      assistants: assistantProvider.assistants,
+      userNickname: _contextProvider.read<UserProvider>().name,
+    );
+    return delivered.length;
+  }
 
   void _onFileProcessingStarted(String messageId) =>
       _fileProcessingIndicator.start(messageId);

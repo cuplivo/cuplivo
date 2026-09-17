@@ -345,6 +345,9 @@ class HomePageController extends ChangeNotifier {
 
   QueuedChatInput? get currentQueuedInput => _viewModel.currentQueuedInput;
 
+  /// Delivers every due proactive care letter (start/resume catch-up).
+  Future<int> deliverDueProactiveCare() => _viewModel.deliverDueProactiveCare();
+
   ValueNotifier<String?> get processingFilesMessageId =>
       _viewModel.processingFilesMessageId;
 
@@ -2838,6 +2841,7 @@ class HomePageController extends ChangeNotifier {
   void onAppLifecycleStateChanged(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ScreenWakelock.reassert();
+      unawaited(_viewModel.deliverDueProactiveCare());
     }
   }
 

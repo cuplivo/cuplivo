@@ -157,6 +157,43 @@ class NotificationService {
     );
   }
 
+  /// A proactive care ("Ta 的来信") letter. Same routing as chat
+  /// completion: tapping opens the conversation.
+  static Future<void> showProactiveCareLetter({
+    required String conversationId,
+    required String title,
+    required String body,
+  }) async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
+    if (conversationId.trim().isEmpty) return;
+    await ensureInitialized();
+    await _plugin.show(
+      notificationIdForConversation(conversationId),
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channel.id,
+          _channel.name,
+          channelDescription: _channel.description,
+          importance: Importance.max,
+          priority: Priority.max,
+          playSound: true,
+          enableVibration: true,
+          category: AndroidNotificationCategory.message,
+          visibility: NotificationVisibility.public,
+          ticker: title,
+          styleInformation: BigTextStyleInformation(body),
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentSound: true,
+        ),
+      ),
+      payload: '$_chatCompletionPayloadPrefix$conversationId',
+    );
+  }
+
   static void _handleNotificationResponse(NotificationResponse response) {
     final conversationId = conversationIdFromPayload(response.payload);
     if (conversationId == null) return;

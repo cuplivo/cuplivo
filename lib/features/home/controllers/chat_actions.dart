@@ -287,6 +287,10 @@ class ChatActions {
   /// Called when chat suggestions may need to be generated.
   void Function(String conversationId)? onMaybeGenerateSuggestions;
 
+  /// Fired after a settled assistant reply (non-multi-AI): the proactive
+  /// care decision flow re-checks the conversation's next care time.
+  void Function(String conversationId)? onMaybeUpdateProactiveCare;
+
   /// Called to schedule inline image sanitization.
   void Function(String messageId, String content, {bool immediate})?
   onScheduleImageSanitize;
@@ -2697,6 +2701,10 @@ class ChatActions {
 
       // Trigger follow-up suggestions after the final assistant reply is stored.
       onMaybeGenerateSuggestions?.call(conversationId);
+
+      // Proactive care: silently re-decide the next care time after a
+      // completed ordinary reply.
+      onMaybeUpdateProactiveCare?.call(conversationId);
     } finally {
       // A failed completion write goes through _handleStreamError next. Keep
       // its resources until that failure result has also been persisted.

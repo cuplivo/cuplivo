@@ -175,6 +175,8 @@ class MessageListView extends StatefulWidget {
     this.showUserAvatar = true,
     this.showTokenStats = false,
     this.assistant,
+    this.resolveSpeaker,
+    this.hideMoreActions,
   });
 
   final ScrollController scrollController;
@@ -301,6 +303,15 @@ class MessageListView extends StatefulWidget {
   final bool showUserAvatar;
   final bool showTokenStats;
   final Assistant? assistant;
+
+  /// Group chat: maps a message's senderId to the member's display name.
+  /// Null (single chat) keeps the conversation assistant's name.
+  final String? Function(String senderId)? resolveSpeaker;
+
+  /// Group chat: actions excluded from the per-message more sheet / desktop
+  /// menu (multi-AI, fork, select-messages make no sense for a shared group
+  /// transcript).
+  final Set<MessageMoreAction> Function()? hideMoreActions;
 
   @visibleForTesting
   static const Key windowSkeletonKey = ValueKey<String>(
@@ -2355,7 +2366,11 @@ class _MessageListViewState extends State<MessageListView> {
       useAssistantAvatar: useAssistAvatar && message.role == 'assistant',
       useAssistantName: useAssistName && message.role == 'assistant',
       assistantName: (useAssistAvatar || useAssistName)
-          ? (assistant?.name ?? 'Assistant')
+          ? (widget.resolveSpeaker != null && message.senderId != null
+                ? widget.resolveSpeaker!(message.senderId!) ??
+                      assistant?.name ??
+                      'Assistant'
+                : assistant?.name ?? 'Assistant')
           : null,
       assistantAvatar: useAssistAvatar ? (assistant?.avatar ?? '') : null,
       showUserAvatar: presentation.showUserAvatar,
@@ -2410,6 +2425,7 @@ class _MessageListViewState extends State<MessageListView> {
           message,
           canDeleteAllVersions: total > 1,
           canCreateBranch: widget.onForkConversation != null,
+          hideActions: widget.hideMoreActions?.call(),
         );
         if (action == MessageMoreAction.deleteCurrentVersion) {
           await widget.onDeleteMessage?.call(message, widget.byGroup);

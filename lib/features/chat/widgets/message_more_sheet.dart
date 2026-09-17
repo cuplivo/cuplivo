@@ -36,6 +36,7 @@ Future<MessageMoreAction?> showMessageMoreSheet(
   ChatMessage message, {
   required bool canDeleteAllVersions,
   required bool canCreateBranch,
+  Set<MessageMoreAction>? hideActions,
 }) async {
   final isDesktop =
       defaultTargetPlatform == TargetPlatform.macOS ||
@@ -54,6 +55,7 @@ Future<MessageMoreAction?> showMessageMoreSheet(
         parentContext: context,
         canDeleteAllVersions: canDeleteAllVersions,
         canCreateBranch: canCreateBranch,
+        hideActions: hideActions,
       ),
     );
   }
@@ -105,7 +107,8 @@ Future<MessageMoreAction?> showMessageMoreSheet(
           };
         },
       ),
-      if (message.role != 'user')
+      if (message.role != 'user' &&
+          !(hideActions?.contains(MessageMoreAction.edit) ?? false))
         DesktopContextMenuItem(
           icon: Lucide.Pencil,
           label: l10n.messageMoreSheetEdit,
@@ -113,7 +116,8 @@ Future<MessageMoreAction?> showMessageMoreSheet(
             selected = MessageMoreAction.edit;
           },
         ),
-      if (!message.isStreaming)
+      if (!message.isStreaming &&
+          !(hideActions?.contains(MessageMoreAction.reply) ?? false))
         DesktopContextMenuItem(
           icon: Lucide.Reply,
           label: l10n.messageMoreSheetReply,
@@ -128,14 +132,16 @@ Future<MessageMoreAction?> showMessageMoreSheet(
           selected = MessageMoreAction.share;
         },
       ),
-      DesktopContextMenuItem(
-        icon: Lucide.CheckSquare,
-        label: l10n.messageMoreSheetSelectMessages,
-        onTap: () {
-          selected = MessageMoreAction.selectMessages;
-        },
-      ),
-      if (canCreateBranch)
+      if (!(hideActions?.contains(MessageMoreAction.selectMessages) ?? false))
+        DesktopContextMenuItem(
+          icon: Lucide.CheckSquare,
+          label: l10n.messageMoreSheetSelectMessages,
+          onTap: () {
+            selected = MessageMoreAction.selectMessages;
+          },
+        ),
+      if (canCreateBranch &&
+          !(hideActions?.contains(MessageMoreAction.fork) ?? false))
         DesktopContextMenuItem(
           icon: Lucide.GitFork,
           label: l10n.messageMoreSheetCreateBranch,
@@ -174,11 +180,13 @@ class _MessageMoreSheet extends StatefulWidget {
     required this.parentContext,
     required this.canDeleteAllVersions,
     required this.canCreateBranch,
+    this.hideActions,
   });
   final ChatMessage message;
   final BuildContext parentContext;
   final bool canDeleteAllVersions;
   final bool canCreateBranch;
+  final Set<MessageMoreAction>? hideActions;
 
   @override
   State<_MessageMoreSheet> createState() => _MessageMoreSheetState();
@@ -186,6 +194,9 @@ class _MessageMoreSheet extends StatefulWidget {
 
 class _MessageMoreSheetState extends State<_MessageMoreSheet> {
   // Draggable sheet removed; use auto height with max constraint.
+
+  bool _hidden(MessageMoreAction action) =>
+      widget.hideActions?.contains(action) ?? false;
 
   Widget _actionItem({
     required IconData icon,
@@ -323,7 +334,8 @@ class _MessageMoreSheetState extends State<_MessageMoreSheet> {
                         }
                       },
                     ),
-                    if (widget.message.role != 'user')
+                    if (widget.message.role != 'user' &&
+                        !_hidden(MessageMoreAction.edit))
                       _actionItem(
                         icon: Lucide.Pencil,
                         label: l10n.messageMoreSheetEdit,
@@ -331,7 +343,8 @@ class _MessageMoreSheetState extends State<_MessageMoreSheet> {
                           Navigator.of(context).pop(MessageMoreAction.edit);
                         },
                       ),
-                    if (!widget.message.isStreaming)
+                    if (!widget.message.isStreaming &&
+                        !_hidden(MessageMoreAction.reply))
                       _actionItem(
                         icon: Lucide.Reply,
                         label: l10n.messageMoreSheetReply,
@@ -346,16 +359,18 @@ class _MessageMoreSheetState extends State<_MessageMoreSheet> {
                         Navigator.of(context).pop(MessageMoreAction.share);
                       },
                     ),
-                    _actionItem(
-                      icon: Lucide.CheckSquare,
-                      label: l10n.messageMoreSheetSelectMessages,
-                      onTap: () {
-                        Navigator.of(
-                          context,
-                        ).pop(MessageMoreAction.selectMessages);
-                      },
-                    ),
-                    if (widget.canCreateBranch)
+                    if (!_hidden(MessageMoreAction.selectMessages))
+                      _actionItem(
+                        icon: Lucide.CheckSquare,
+                        label: l10n.messageMoreSheetSelectMessages,
+                        onTap: () {
+                          Navigator.of(
+                            context,
+                          ).pop(MessageMoreAction.selectMessages);
+                        },
+                      ),
+                    if (widget.canCreateBranch &&
+                        !_hidden(MessageMoreAction.fork))
                       _actionItem(
                         icon: Lucide.GitFork,
                         label: l10n.messageMoreSheetCreateBranch,

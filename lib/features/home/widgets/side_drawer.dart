@@ -27,6 +27,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../group_chat/pages/group_chat_page.dart';
+import '../../../core/providers/group_chat_provider.dart';
 import '../../../shared/widgets/snackbar.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:animations/animations.dart';
@@ -2861,6 +2863,43 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                                         ),
                                       ),
                                       const SizedBox(width: 8),
+                                      // 新建群聊（圆形，无水波纹）
+                                      SizedBox(
+                                        width: 45,
+                                        height: 45,
+                                        child: Center(
+                                          child: IosIconButton(
+                                            size: 22,
+                                            color: textBase,
+                                            icon: Lucide.UsersRound,
+                                            padding: const EdgeInsets.all(10),
+                                            onTap: () async {
+                                              final provider = context
+                                                  .read<GroupChatProvider>();
+                                              final defaultName =
+                                                  AppLocalizations.of(
+                                                    context,
+                                                  )!.groupChatDefaultName;
+                                              if (!provider.loaded) {
+                                                await provider.load();
+                                              }
+                                              final group = await provider
+                                                  .createGroup(
+                                                    name: defaultName,
+                                                  );
+                                              if (!context.mounted) return;
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) => GroupChatPage(
+                                                    groupChatId: group.id,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
                                       // 翻译按钮（圆形，无水波纹）
                                       SizedBox(
                                         width: 45,

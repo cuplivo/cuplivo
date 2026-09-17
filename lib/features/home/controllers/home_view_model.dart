@@ -147,7 +147,13 @@ class HomeViewModel extends ChangeNotifier {
       const ChatSuggestionService();
   late final ChatActions _chatActions;
 
+  /// The [ChatActions] instance this view model owns. Group chat hosts its
+  /// own HomeViewModel to obtain one (see GroupChatView).
+  ChatActions get chatActions => _chatActions;
+
   @visibleForTesting
+  @Deprecated('Use chatActions')
+  // ignore: deprecated_member_use_from_same_package
   ChatActions get debugChatActions => _chatActions;
   QueuedChatInput? _queuedInput;
   bool _isDrainingQueuedInput = false;

@@ -12294,4 +12294,276 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get assistantEditProactiveCareDecisionPromptTitle =>
       'Decision time instruction prompt';
+
+  @override
+  String get lanSyncSectionTitle => 'LAN Sync';
+
+  @override
+  String get lanSyncServerMode => 'Start Server';
+
+  @override
+  String get lanSyncClientMode => 'Connect to Server';
+
+  @override
+  String get lanSyncServerRunning => 'Server running';
+
+  @override
+  String get lanSyncServerAddress => 'Address';
+
+  @override
+  String get lanSyncServerPort => 'Port';
+
+  @override
+  String get lanSyncServerPin => 'PIN';
+
+  @override
+  String get lanSyncNoLanAddress =>
+      'No LAN address detected (device offline or not connected to a network).';
+
+  @override
+  String get lanSyncServerStop => 'Stop Server';
+
+  @override
+  String get lanSyncServerWaiting => 'Waiting for connection...';
+
+  @override
+  String get lanSyncServerPlanSent => 'Sync plan sent. Waiting for zip...';
+
+  @override
+  String get lanSyncServerExchanging => 'Exchanging data...';
+
+  @override
+  String get lanSyncServerDone => 'Exchange complete. Apply and restart.';
+
+  @override
+  String get lanSyncClientHost => 'Host';
+
+  @override
+  String get lanSyncClientPort => 'Port';
+
+  @override
+  String get lanSyncClientPin => 'PIN';
+
+  @override
+  String get lanSyncClientConnect => 'Connect';
+
+  @override
+  String get lanSyncClientConnecting => 'Connecting...';
+
+  @override
+  String get lanSyncClientPlanReceived => 'Sync plan received';
+
+  @override
+  String get lanSyncClientConfirm => 'Start Sync';
+
+  @override
+  String get lanSyncPriorityLabel => 'Conflict resolution';
+
+  @override
+  String get lanSyncPriorityAuto => 'Auto (default merge)';
+
+  @override
+  String get lanSyncPriorityInitiatorWins => 'This device wins';
+
+  @override
+  String get lanSyncPriorityServerWins => 'Peer wins';
+
+  @override
+  String get lanSyncPeerPriorityInitiatorWins =>
+      'Peer chose \"This device wins\": conflicting data will follow the peer\'s copy.';
+
+  @override
+  String get lanSyncPeerPriorityServerWins =>
+      'Peer chose \"Peer wins\": conflicting data will keep this device\'s copy.';
+
+  @override
+  String get lanSyncClientExchanging => 'Exchanging data...';
+
+  @override
+  String get lanSyncClientDone => 'Sync complete. Apply and restart.';
+
+  @override
+  String get lanSyncServerDialogTitle => 'Server Mode';
+
+  @override
+  String get lanSyncClientDialogTitle => 'Client Mode';
+
+  @override
+  String get lanSyncSecurityNote =>
+      'Devices on the same network can connect (minimum version: v2.2.2).';
+
+  @override
+  String lanSyncPlanToSend(Object count) {
+    return '$count conversations to send';
+  }
+
+  @override
+  String lanSyncPlanToReceive(Object count) {
+    return '$count conversations to receive';
+  }
+
+  @override
+  String lanSyncPlanForks(Object count) {
+    return '$count forks detected (skipped in v1)';
+  }
+
+  @override
+  String get lanSyncPlanNoChanges => 'No changes to sync.';
+
+  @override
+  String get lanSyncPlanPrioritySettings =>
+      'Conflict direction chosen: settings will be exchanged.';
+
+  @override
+  String lanSyncPlanToSendFiles(Object count, Object size) {
+    return '$count files to send ($size)';
+  }
+
+  @override
+  String lanSyncPlanToReceiveFiles(Object count, Object size) {
+    return '$count files to receive ($size)';
+  }
+
+  @override
+  String get lanSyncRestoreExtracting => 'Extracting data...';
+
+  @override
+  String get lanSyncRestoreMergingChats => 'Merging chats...';
+
+  @override
+  String get lanSyncRestoreCopyingFiles => 'Writing files...';
+
+  @override
+  String get lanSyncRestoreRestoringSkills => 'Restoring skills...';
+
+  @override
+  String lanSyncRestoreFilesProgress(Object count, Object size, Object total) {
+    return '$count/$total files · $size';
+  }
+
+  @override
+  String lanSyncRestoreChatsProgress(Object count, Object total) {
+    return '$count/$total conversations';
+  }
+
+  @override
+  String get lanSyncRestoreFailed => 'Sync data merge failed';
+
+  @override
+  String get lanSyncErrorInvalidPin => 'Invalid PIN';
+
+  @override
+  String lanSyncErrorConnection(Object error) {
+    return 'Connection failed: $error';
+  }
+
+  @override
+  String get lanSyncErrorFieldsRequired => 'Host, port and PIN are required.';
+
+  @override
+  String get lanSyncErrorInvalidPort => 'Invalid port.';
+
+  @override
+  String get lanSyncFirewallAllow => 'Allow in Firewall';
+
+  @override
+  String get lanSyncFirewallAdding => 'Adding firewall rule...';
+
+  @override
+  String lanSyncFirewallRuleAdded(Object port) {
+    return 'Firewall rule added (inbound TCP port $port).';
+  }
+
+  @override
+  String get lanSyncFirewallRuleFailed =>
+      'Could not add the firewall rule automatically. Click to add it now (requires administrator).';
+
+  @override
+  String get lanSyncApplyAndRestart => 'Apply and restart';
+
+  @override
+  String get lanSyncRecentEndpoints => 'Recent';
+
+  @override
+  String get lanSyncScanQr => 'Scan QR Code';
+
+  @override
+  String get lanSyncCopyLink => 'Copy Link';
+
+  @override
+  String get lanSyncLinkCopied => 'Link copied';
+
+  @override
+  String get lanSyncErrorInvalidLink => 'Invalid sync QR code or link.';
+
+  @override
+  String get lanSyncQrServerHint =>
+      'Scan this code on the other device to connect automatically.';
+
+  @override
+  String get backupPageIncrementalTitle => 'Incremental Backup';
+
+  @override
+  String get backupScopeChatsAssistants => 'Chats & Assistants';
+
+  @override
+  String get backupScopeSettings => 'Settings';
+
+  @override
+  String get backupScopeAttachments => 'Attachments';
+
+  @override
+  String get backupScopeWorkspaces => 'Workspaces';
+
+  @override
+  String get backupScopeSkills => 'Skills';
+
+  @override
+  String get backupScopeFontsAvatars => 'Fonts & Avatars';
+
+  @override
+  String get backupPageIncrementalDescription =>
+      'Export only chats since a chosen date.';
+
+  @override
+  String get backupPageIncrementalStartDate => 'Start Date';
+
+  @override
+  String get backupPageIncrementalLastBackup => 'Use last backup date';
+
+  @override
+  String get backupPageIncrementalIncludeSettings => 'Include Settings';
+
+  @override
+  String get backupPageIncrementalIncludeFiles => 'Include Files';
+
+  @override
+  String get backupPageIncrementalUpload => 'Upload Incremental';
+
+  @override
+  String get backupPageIncrementalUpdateBackupTime => 'Update last backup time';
+
+  @override
+  String get backupPageIncrementalPreviewTitle => 'Incremental Scope';
+
+  @override
+  String get backupPageIncrementalPreviewLoading => 'Analyzing…';
+
+  @override
+  String backupPageIncrementalPreviewNewConv(Object count, Object msgCount) {
+    return '$count new convs · $msgCount new msgs';
+  }
+
+  @override
+  String backupPageIncrementalPreviewUpdatedConv(
+    Object count,
+    Object msgCount,
+  ) {
+    return '$count updated convs · $msgCount new msgs';
+  }
+
+  @override
+  String backupPageIncrementalPreviewFiles(Object count, Object size) {
+    return '$count attachments ($size)';
+  }
 }

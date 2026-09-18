@@ -40,6 +40,13 @@ class AssistantProvider extends ChangeNotifier {
 
   late final Future<void> loaded;
 
+  /// Force a re-read of persisted assistants (restore/sync rewrote the
+  /// backing preferences).
+  Future<void> reload() async {
+    await _load();
+    notifyListeners();
+  }
+
   Future<void> _load() async {
     if (!preferences.isLoaded) {
       await preferences.load();

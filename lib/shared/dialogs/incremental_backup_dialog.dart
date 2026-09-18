@@ -1,0 +1,448 @@
+import 'package:flutter/material.dart';
+
+import '../../core/models/backup.dart';
+import '../../core/models/incremental_backup.dart';
+import '../../icons/lucide_adapter.dart';
+
+import '../../l10n/app_localizations.dart';
+import '../../theme/app_font_weights.dart';
+import '../widgets/ios_switch.dart';
+import '../widgets/ios_tactile.dart';
+import '../widgets/segmented_toggle.dart';
+import '../utils/format_bytes.dart';
+
+class IncrementalBackupDialog {
+  static Future<IncrementalBackupConfig?> show(
+    BuildContext context, {
+    DateTime? lastBackupTime,
+    BackupContentScope? initialScope,
+    Future<IncrementalScope> Function(IncrementalBackupConfig config)? analyzer,
+  }) {
+    return showDialog<IncrementalBackupConfig>(
+      context: context,
+      builder: (_) => _IncrementalBackupDialogBody(
+        lastBackupTime: lastBackupTime,
+        initialScope: initialScope,
+        analyzer: analyzer,
+        isSheet: false,
+      ),
+    );
+  }
+
+  static Future<IncrementalBackupConfig?> showSheet(
+    BuildContext context, {
+    DateTime? lastBackupTime,
+    BackupContentScope? initialScope,
+    Future<IncrementalScope> Function(IncrementalBackupConfig config)? analyzer,
+  }) {
+    return showModalBottomSheet<IncrementalBackupConfig>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        top: false,
+        child: _IncrementalBackupDialogBody(
+          lastBackupTime: lastBackupTime,
+          initialScope: initialScope,
+          analyzer: analyzer,
+          isSheet: true,
+        ),
+      ),
+    );
+  }
+}
+
+class _IncrementalBackupDialogBody extends StatefulWidget {
+  const _IncrementalBackupDialogBody({
+    required this.lastBackupTime,
+    this.initialScope,
+    this.analyzer,
+    this.isSheet = false,
+  });
+  final DateTime? lastBackupTime;
+  final BackupContentScope? initialScope;
+  final bool isSheet;
+  final Future<IncrementalScope> Function(IncrementalBackupConfig config)?
+  analyzer;
+
+  @override
+  State<_IncrementalBackupDialogBody> createState() =>
+      _IncrementalBackupDialogBodyState();
+}
+
+class _IncrementalBackupDialogBodyState
+    extends State<_IncrementalBackupDialogBody> {
+  late DateTime _since;
+  late BackupContentScope _scope;
+  bool _updateBackupTime = true;
+  IncrementalScope? _scopePreview;
+  bool _analyzing = false;
+  int _gen = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _since =
+        widget.lastBackupTime ??
+        DateTime.now().subtract(const Duration(days: 30));
+    _scope = widget.initialScope ?? const BackupContentScope();
+    if (widget.analyzer != null) _rerunAnalysis();
+  }
+
+  String _fmt(DateTime d) => d.toIso8601String().split('T')[0];
+
+  List<(String, bool)> _scopeOptions(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return [
+      (l10n.backupScopeChatsAssistants, _scope.chatsAndAssistants),
+      (l10n.backupScopeSettings, _scope.settings),
+      (l10n.backupScopeAttachments, _scope.attachments),
+      (l10n.backupScopeWorkspaces, _scope.workspaces),
+      (l10n.backupScopeSkills, _scope.skills),
+      (l10n.backupScopeFontsAvatars, _scope.fontsAndAvatars),
+    ];
+  }
+
+  void _toggleScope(int i) {
+    setState(() {
+      _scope = switch (i) {
+        0 => _scope.copyWith(chatsAndAssistants: !_scope.chatsAndAssistants),
+        1 => _scope.copyWith(settings: !_scope.settings),
+        2 => _scope.copyWith(attachments: !_scope.attachments),
+        3 => _scope.copyWith(workspaces: !_scope.workspaces),
+        4 => _scope.copyWith(skills: !_scope.skills),
+        _ => _scope.copyWith(fontsAndAvatars: !_scope.fontsAndAvatars),
+      };
+    });
+    _rerunAnalysis();
+  }
+
+  Future<void> _rerunAnalysis() async {
+    final analyzer = widget.analyzer;
+    if (analyzer == null) return;
+    setState(() {
+      _analyzing = true;
+      _scopePreview = null;
+    });
+    final gen = ++_gen;
+    try {
+      final scope = await analyzer(
+        IncrementalBackupConfig(since: _since, contentScope: _scope),
+      );
+      if (gen != _gen || !mounted) return;
+      setState(() {
+        _scopePreview = scope;
+        _analyzing = false;
+      });
+    } catch (_) {
+      if (gen != _gen || !mounted) return;
+      setState(() {
+        _scopePreview = null;
+        _analyzing = false;
+      });
+    }
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _since,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      setState(() => _since = picked);
+      _rerunAnalysis();
+    }
+  }
+
+  Future<void> _onConfirm() async {
+    Navigator.of(context).pop(
+      IncrementalBackupConfig(
+        since: _since,
+        contentScope: _scope,
+        updateBackupTime: _updateBackupTime,
+        scope: _scopePreview,
+      ),
+    );
+  }
+
+  void _onCancel() => Navigator.of(context).pop();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final isSheet = widget.isSheet;
+
+    if (isSheet) {
+      return _buildSheetLayout(cs, l10n);
+    }
+    return _buildDialogLayout(cs, l10n);
+  }
+
+  Widget _buildDialogLayout(ColorScheme cs, AppLocalizations l10n) {
+    return Dialog(
+      backgroundColor: cs.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 320, maxWidth: 420),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+          child: _buildForm(cs, l10n),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSheetLayout(ColorScheme cs, AppLocalizations l10n) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: cs.onSurface.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _buildForm(cs, l10n),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTitleRow(ConvRange range, ColorScheme cs) {
+    final title = range.oldestTitle;
+    if (title == null) return const SizedBox.shrink();
+    final hasNewest =
+        range.newestTitle != null && range.newestTitle != range.oldestTitle;
+    final label = hasNewest ? '$title → ${range.newestTitle}' : title;
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, top: 2),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          color: cs.onSurface.withValues(alpha: 0.5),
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  static const _cardBorderRadius = 8.0;
+
+  Widget _buildPreviewCard(ColorScheme cs, AppLocalizations l10n) {
+    final children = <Widget>[];
+
+    children.add(
+      Text(
+        l10n.backupPageIncrementalPreviewTitle,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: AppFontWeights.semibold,
+          color: cs.onSurface.withValues(alpha: 0.7),
+        ),
+      ),
+    );
+
+    if (_analyzing && _scopePreview == null) {
+      children.add(const SizedBox(height: 6));
+      children.add(
+        Row(
+          children: [
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: cs.onSurface.withValues(alpha: 0.5),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              l10n.backupPageIncrementalPreviewLoading,
+              style: TextStyle(
+                fontSize: 11,
+                color: cs.onSurface.withValues(alpha: 0.5),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (_scopePreview != null) {
+      final s = _scopePreview!;
+      if (s.newConversations.count > 0) {
+        children.add(const SizedBox(height: 6));
+        children.add(
+          Text(
+            l10n.backupPageIncrementalPreviewNewConv(
+              s.newConversations.count,
+              s.newConversations.messageCount,
+            ),
+            style: TextStyle(
+              fontSize: 12,
+              color: cs.onSurface.withValues(alpha: 0.8),
+            ),
+          ),
+        );
+        children.add(_buildTitleRow(s.newConversations, cs));
+      }
+      if (s.updatedConversations.count > 0) {
+        children.add(const SizedBox(height: 4));
+        children.add(
+          Text(
+            l10n.backupPageIncrementalPreviewUpdatedConv(
+              s.updatedConversations.count,
+              s.updatedConversations.messageCount,
+            ),
+            style: TextStyle(
+              fontSize: 12,
+              color: cs.onSurface.withValues(alpha: 0.8),
+            ),
+          ),
+        );
+        children.add(_buildTitleRow(s.updatedConversations, cs));
+      }
+      if (s.newFileCount > 0) {
+        children.add(const SizedBox(height: 4));
+        children.add(
+          Text(
+            l10n.backupPageIncrementalPreviewFiles(
+              s.newFileCount,
+              formatBytes(s.totalFileSizeBytes),
+            ),
+            style: TextStyle(
+              fontSize: 12,
+              color: cs.onSurface.withValues(alpha: 0.8),
+            ),
+          ),
+        );
+      }
+    }
+
+    if (children.length == 1) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.onSurface.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(_cardBorderRadius),
+        ),
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: children,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildForm(ColorScheme cs, AppLocalizations l10n) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          l10n.backupPageIncrementalTitle,
+          style: TextStyle(fontSize: 15, fontWeight: AppFontWeights.semibold),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          l10n.backupPageIncrementalDescription,
+          style: TextStyle(
+            fontSize: 13,
+            color: cs.onSurface.withValues(alpha: 0.8),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            SizedBox(
+              width: 80,
+              child: Text(
+                l10n.backupPageIncrementalStartDate,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: cs.onSurface.withValues(alpha: 0.8),
+                ),
+              ),
+            ),
+            TextButton(onPressed: _pickDate, child: Text(_fmt(_since))),
+            const SizedBox(width: 6),
+            if (widget.lastBackupTime != null)
+              Tooltip(
+                message: l10n.backupPageIncrementalLastBackup,
+                child: IosIconButton(
+                  icon: Lucide.RefreshCw,
+                  size: 18,
+                  minSize: 36,
+                  onTap: () {
+                    setState(() => _since = widget.lastBackupTime!);
+                    _rerunAnalysis();
+                  },
+                  semanticLabel: l10n.backupPageIncrementalLastBackup,
+                ),
+              ),
+          ],
+        ),
+        if (widget.analyzer != null) _buildPreviewCard(cs, l10n),
+        const SizedBox(height: 12),
+        // Unified content scope (same 6 sections as the backup page).
+        // 移动 sheet 用 2 列×3 行（与备份页一致），桌面对话框保持 3 列。
+        SegmentedToggleMulti(
+          options: [for (final o in _scopeOptions(context)) o.$1],
+          isSelected: [for (final o in _scopeOptions(context)) o.$2],
+          itemsPerRow: widget.isSheet ? 2 : 3,
+          onChanged: _toggleScope,
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                l10n.backupPageIncrementalUpdateBackupTime,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: cs.onSurface.withValues(alpha: 0.8),
+                ),
+              ),
+            ),
+            IosSwitch(
+              value: _updateBackupTime,
+              onChanged: (v) => setState(() => _updateBackupTime = v),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: _onCancel,
+              child: Text(l10n.backupPageCancel),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: _onConfirm,
+              child: Text(l10n.backupPageIncrementalUpload),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}

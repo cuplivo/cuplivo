@@ -33,6 +33,7 @@ import '../widgets/desktop_select_dropdown.dart';
 import '../../theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import 'package:Cuplivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/shared/widgets/lan_sync_section.dart';
 
 class DesktopBackupPane extends StatefulWidget {
   const DesktopBackupPane({super.key});
@@ -304,6 +305,9 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 6)),
+
+              // LAN sync (bidirectional incremental)
+              const SliverToBoxAdapter(child: LanSyncSection()),
 
               // Backup management (applies to WebDAV and local import/export)
               SliverToBoxAdapter(

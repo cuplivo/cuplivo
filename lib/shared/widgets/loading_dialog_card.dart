@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 import '../animations/widgets.dart';
+import '../../core/services/sync/restore_progress.dart';
+import '../../l10n/app_localizations.dart';
+import '../utils/format_bytes.dart';
 
 class LoadingDialogCard extends StatelessWidget {
   const LoadingDialogCard({super.key, this.label});
@@ -67,4 +70,68 @@ class LoadingDialogCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Mask content for an in-progress LAN-sync / incremental restore: stage
+/// label, determinate bar when known, and per-stage counters.
+Widget buildRestoreProgress(
+  RestoreProgress progress,
+  AppLocalizations l10n,
+  ColorScheme cs,
+) {
+  final stageText = switch (progress.stage) {
+    RestoreStage.extracting => l10n.lanSyncRestoreExtracting,
+    RestoreStage.mergingChats => l10n.lanSyncRestoreMergingChats,
+    RestoreStage.copyingFiles => l10n.lanSyncRestoreCopyingFiles,
+    RestoreStage.restoringSettings => l10n.lanSyncRestoreRestoringSkills,
+    _ => l10n.lanSyncRestoreCopyingFiles,
+  };
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        stageText,
+        style: TextStyle(
+          fontSize: 13,
+          color: cs.onSurface.withValues(alpha: 0.6),
+        ),
+      ),
+      const SizedBox(height: 8),
+      LinearProgressIndicator(
+        value: progress.fraction,
+        minHeight: 4,
+        borderRadius: BorderRadius.circular(2),
+      ),
+      if (progress.stage == RestoreStage.copyingFiles &&
+          progress.filesTotal > 0) ...[
+        const SizedBox(height: 6),
+        Text(
+          l10n.lanSyncRestoreFilesProgress(
+            progress.filesCopied,
+            progress.filesTotal,
+            formatBytes(progress.bytesCopied),
+          ),
+          style: TextStyle(
+            fontSize: 12,
+            color: cs.onSurface.withValues(alpha: 0.5),
+          ),
+        ),
+      ],
+      if (progress.stage == RestoreStage.mergingChats &&
+          progress.conversationsTotal > 0) ...[
+        const SizedBox(height: 6),
+        Text(
+          l10n.lanSyncRestoreChatsProgress(
+            progress.conversationsMerged,
+            progress.conversationsTotal,
+          ),
+          style: TextStyle(
+            fontSize: 12,
+            color: cs.onSurface.withValues(alpha: 0.5),
+          ),
+        ),
+      ],
+    ],
+  );
 }

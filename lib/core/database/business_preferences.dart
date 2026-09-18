@@ -32,6 +32,14 @@ final class BusinessPreferences {
 
   bool get isLoaded => _isLoaded;
 
+  /// Force a re-read from the repository (restore/sync rewrote the table
+  /// behind the facade's cache).
+  Future<void> reload() async {
+    _isLoaded = false;
+    _loadFuture = null;
+    await load();
+  }
+
   Future<void> load() {
     if (_isLoaded) return Future<void>.value();
     final inFlight = _loadFuture;

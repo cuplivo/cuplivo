@@ -37,6 +37,7 @@ import '../widgets/backup_reminder_helpers.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import 'package:Cuplivo/shared/widgets/section_card.dart';
 import '../../../core/database/startup_failure_report.dart' show formatBytes;
+import 'package:Cuplivo/shared/widgets/lan_sync_section.dart';
 
 // File size formatter (B, KB, MB, GB)
 String _fmtBytes(int bytes) {
@@ -347,6 +348,10 @@ class _BackupPageState extends State<BackupPage> {
 
                 // Section 2: 本地备份
                 ..._buildMobileLocalBackupSection(context, l10n, vm, header),
+
+                // LAN 同步（增量双向）
+                header(l10n.lanSyncSectionTitle),
+                const LanSyncSection(),
 
                 // Section 3: WebDAV备份
                 header(l10n.backupPageWebDavBackup),

@@ -11740,6 +11740,270 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get assistantEditProactiveCareDecisionPromptTitle => '决策时间功能说明提示词';
+
+  @override
+  String get lanSyncSectionTitle => '局域网同步';
+
+  @override
+  String get lanSyncServerMode => '开启服务';
+
+  @override
+  String get lanSyncClientMode => '连接服务';
+
+  @override
+  String get lanSyncServerRunning => '服务运行中';
+
+  @override
+  String get lanSyncServerAddress => '地址';
+
+  @override
+  String get lanSyncServerPort => '端口';
+
+  @override
+  String get lanSyncServerPin => 'PIN';
+
+  @override
+  String get lanSyncNoLanAddress => '未检测到局域网地址（设备可能离线或未连接网络）。';
+
+  @override
+  String get lanSyncServerStop => '停止服务';
+
+  @override
+  String get lanSyncServerWaiting => '等待连接...';
+
+  @override
+  String get lanSyncServerPlanSent => '同步计划已发送，等待接收数据...';
+
+  @override
+  String get lanSyncServerExchanging => '正在交换数据...';
+
+  @override
+  String get lanSyncServerDone => '交换完成，即将应用并重启。';
+
+  @override
+  String get lanSyncClientHost => '主机';
+
+  @override
+  String get lanSyncClientPort => '端口';
+
+  @override
+  String get lanSyncClientPin => 'PIN';
+
+  @override
+  String get lanSyncClientConnect => '连接';
+
+  @override
+  String get lanSyncClientConnecting => '连接中...';
+
+  @override
+  String get lanSyncClientPlanReceived => '已收到同步计划';
+
+  @override
+  String get lanSyncClientConfirm => '开始同步';
+
+  @override
+  String get lanSyncPriorityLabel => '冲突处理';
+
+  @override
+  String get lanSyncPriorityAuto => '自动（默认合并）';
+
+  @override
+  String get lanSyncPriorityInitiatorWins => '本机优先';
+
+  @override
+  String get lanSyncPriorityServerWins => '对方优先';
+
+  @override
+  String get lanSyncPeerPriorityInitiatorWins => '对方选择「本机优先」：冲突数据将以对方版本为准。';
+
+  @override
+  String get lanSyncPeerPriorityServerWins => '对方选择「对方优先」：冲突数据将保留本机版本。';
+
+  @override
+  String get lanSyncClientExchanging => '正在交换数据...';
+
+  @override
+  String get lanSyncClientDone => '同步完成，即将应用并重启。';
+
+  @override
+  String get lanSyncServerDialogTitle => '作为服务器';
+
+  @override
+  String get lanSyncClientDialogTitle => '作为客户端';
+
+  @override
+  String get lanSyncSecurityNote => '同一局域网的设备均可连接（最低版本：v2.2.2）。';
+
+  @override
+  String lanSyncPlanToSend(Object count) {
+    return '$count 个对话待发送';
+  }
+
+  @override
+  String lanSyncPlanToReceive(Object count) {
+    return '$count 个对话待接收';
+  }
+
+  @override
+  String lanSyncPlanForks(Object count) {
+    return '$count 处分叉已检测（v1 暂跳过）';
+  }
+
+  @override
+  String get lanSyncPlanNoChanges => '无待同步内容。';
+
+  @override
+  String get lanSyncPlanPrioritySettings => '已选择冲突方向：将交换设置数据。';
+
+  @override
+  String lanSyncPlanToSendFiles(Object count, Object size) {
+    return '将发送 $count 个文件（$size）';
+  }
+
+  @override
+  String lanSyncPlanToReceiveFiles(Object count, Object size) {
+    return '将接收 $count 个文件（$size）';
+  }
+
+  @override
+  String get lanSyncRestoreExtracting => '正在解压数据...';
+
+  @override
+  String get lanSyncRestoreMergingChats => '正在合并聊天记录...';
+
+  @override
+  String get lanSyncRestoreCopyingFiles => '正在写入文件...';
+
+  @override
+  String get lanSyncRestoreRestoringSkills => '正在恢复技能...';
+
+  @override
+  String lanSyncRestoreFilesProgress(Object count, Object size, Object total) {
+    return '$count/$total 个文件 · 共 $size';
+  }
+
+  @override
+  String lanSyncRestoreChatsProgress(Object count, Object total) {
+    return '$count/$total 个会话';
+  }
+
+  @override
+  String get lanSyncRestoreFailed => '同步数据合并失败';
+
+  @override
+  String get lanSyncErrorInvalidPin => 'PIN 错误';
+
+  @override
+  String lanSyncErrorConnection(Object error) {
+    return '连接失败：$error';
+  }
+
+  @override
+  String get lanSyncErrorFieldsRequired => '请填写主机、端口和 PIN。';
+
+  @override
+  String get lanSyncErrorInvalidPort => '端口无效。';
+
+  @override
+  String get lanSyncFirewallAllow => '防火墙放行';
+
+  @override
+  String get lanSyncFirewallAdding => '正在添加防火墙规则...';
+
+  @override
+  String lanSyncFirewallRuleAdded(Object port) {
+    return '已添加防火墙规则（入站 TCP 端口 $port）。';
+  }
+
+  @override
+  String get lanSyncFirewallRuleFailed => '无法自动添加防火墙规则，点击立即放行（需要管理员权限）。';
+
+  @override
+  String get lanSyncApplyAndRestart => '应用并重启';
+
+  @override
+  String get lanSyncRecentEndpoints => '最近使用';
+
+  @override
+  String get lanSyncScanQr => '扫描二维码';
+
+  @override
+  String get lanSyncCopyLink => '复制链接';
+
+  @override
+  String get lanSyncLinkCopied => '链接已复制';
+
+  @override
+  String get lanSyncErrorInvalidLink => '二维码或链接无效。';
+
+  @override
+  String get lanSyncQrServerHint => '在另一台设备上扫描此二维码即可自动连接。';
+
+  @override
+  String get backupPageIncrementalTitle => '增量备份';
+
+  @override
+  String get backupScopeChatsAssistants => '聊天记录及助手';
+
+  @override
+  String get backupScopeSettings => '设置项';
+
+  @override
+  String get backupScopeAttachments => '附件';
+
+  @override
+  String get backupScopeWorkspaces => '工作区';
+
+  @override
+  String get backupScopeSkills => '技能';
+
+  @override
+  String get backupScopeFontsAvatars => '字体与头像';
+
+  @override
+  String get backupPageIncrementalDescription => '仅导出某个日期之后的聊天数据。';
+
+  @override
+  String get backupPageIncrementalStartDate => '起始日期';
+
+  @override
+  String get backupPageIncrementalLastBackup => '使用上次备份日期';
+
+  @override
+  String get backupPageIncrementalIncludeSettings => '包含设置';
+
+  @override
+  String get backupPageIncrementalIncludeFiles => '包含文件';
+
+  @override
+  String get backupPageIncrementalUpload => '增量上传';
+
+  @override
+  String get backupPageIncrementalUpdateBackupTime => '更新上次备份日期';
+
+  @override
+  String get backupPageIncrementalPreviewTitle => '增量范围';
+
+  @override
+  String get backupPageIncrementalPreviewLoading => '分析中…';
+
+  @override
+  String backupPageIncrementalPreviewNewConv(Object count, Object msgCount) {
+    return '新对话 $count 个 · 新消息 $msgCount 条';
+  }
+
+  @override
+  String backupPageIncrementalPreviewUpdatedConv(
+    Object count,
+    Object msgCount,
+  ) {
+    return '更新旧对话 $count 个 · 新消息 $msgCount 条';
+  }
+
+  @override
+  String backupPageIncrementalPreviewFiles(Object count, Object size) {
+    return '新附件 $count 个 ($size)';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -23404,6 +23668,270 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assistantEditProactiveCareDecisionPromptTitle => '决策时间功能说明提示词';
+
+  @override
+  String get lanSyncSectionTitle => '局域网同步';
+
+  @override
+  String get lanSyncServerMode => '开启服务';
+
+  @override
+  String get lanSyncClientMode => '连接服务';
+
+  @override
+  String get lanSyncServerRunning => '服务运行中';
+
+  @override
+  String get lanSyncServerAddress => '地址';
+
+  @override
+  String get lanSyncServerPort => '端口';
+
+  @override
+  String get lanSyncServerPin => 'PIN';
+
+  @override
+  String get lanSyncNoLanAddress => '未检测到局域网地址（设备可能离线或未连接网络）。';
+
+  @override
+  String get lanSyncServerStop => '停止服务';
+
+  @override
+  String get lanSyncServerWaiting => '等待连接...';
+
+  @override
+  String get lanSyncServerPlanSent => '同步计划已发送，等待接收数据...';
+
+  @override
+  String get lanSyncServerExchanging => '正在交换数据...';
+
+  @override
+  String get lanSyncServerDone => '交换完成，即将应用并重启。';
+
+  @override
+  String get lanSyncClientHost => '主机';
+
+  @override
+  String get lanSyncClientPort => '端口';
+
+  @override
+  String get lanSyncClientPin => 'PIN';
+
+  @override
+  String get lanSyncClientConnect => '连接';
+
+  @override
+  String get lanSyncClientConnecting => '连接中...';
+
+  @override
+  String get lanSyncClientPlanReceived => '已收到同步计划';
+
+  @override
+  String get lanSyncClientConfirm => '开始同步';
+
+  @override
+  String get lanSyncPriorityLabel => '冲突处理';
+
+  @override
+  String get lanSyncPriorityAuto => '自动（默认合并）';
+
+  @override
+  String get lanSyncPriorityInitiatorWins => '本机优先';
+
+  @override
+  String get lanSyncPriorityServerWins => '对方优先';
+
+  @override
+  String get lanSyncPeerPriorityInitiatorWins => '对方选择「本机优先」：冲突数据将以对方版本为准。';
+
+  @override
+  String get lanSyncPeerPriorityServerWins => '对方选择「对方优先」：冲突数据将保留本机版本。';
+
+  @override
+  String get lanSyncClientExchanging => '正在交换数据...';
+
+  @override
+  String get lanSyncClientDone => '同步完成，即将应用并重启。';
+
+  @override
+  String get lanSyncServerDialogTitle => '作为服务器';
+
+  @override
+  String get lanSyncClientDialogTitle => '作为客户端';
+
+  @override
+  String get lanSyncSecurityNote => '同一局域网的设备均可连接（最低版本：v2.2.2）。';
+
+  @override
+  String lanSyncPlanToSend(Object count) {
+    return '$count 个对话待发送';
+  }
+
+  @override
+  String lanSyncPlanToReceive(Object count) {
+    return '$count 个对话待接收';
+  }
+
+  @override
+  String lanSyncPlanForks(Object count) {
+    return '$count 处分叉已检测（v1 暂跳过）';
+  }
+
+  @override
+  String get lanSyncPlanNoChanges => '无待同步内容。';
+
+  @override
+  String get lanSyncPlanPrioritySettings => '已选择冲突方向：将交换设置数据。';
+
+  @override
+  String lanSyncPlanToSendFiles(Object count, Object size) {
+    return '将发送 $count 个文件（$size）';
+  }
+
+  @override
+  String lanSyncPlanToReceiveFiles(Object count, Object size) {
+    return '将接收 $count 个文件（$size）';
+  }
+
+  @override
+  String get lanSyncRestoreExtracting => '正在解压数据...';
+
+  @override
+  String get lanSyncRestoreMergingChats => '正在合并聊天记录...';
+
+  @override
+  String get lanSyncRestoreCopyingFiles => '正在写入文件...';
+
+  @override
+  String get lanSyncRestoreRestoringSkills => '正在恢复技能...';
+
+  @override
+  String lanSyncRestoreFilesProgress(Object count, Object size, Object total) {
+    return '$count/$total 个文件 · 共 $size';
+  }
+
+  @override
+  String lanSyncRestoreChatsProgress(Object count, Object total) {
+    return '$count/$total 个会话';
+  }
+
+  @override
+  String get lanSyncRestoreFailed => '同步数据合并失败';
+
+  @override
+  String get lanSyncErrorInvalidPin => 'PIN 错误';
+
+  @override
+  String lanSyncErrorConnection(Object error) {
+    return '连接失败：$error';
+  }
+
+  @override
+  String get lanSyncErrorFieldsRequired => '请填写主机、端口和 PIN。';
+
+  @override
+  String get lanSyncErrorInvalidPort => '端口无效。';
+
+  @override
+  String get lanSyncFirewallAllow => '防火墙放行';
+
+  @override
+  String get lanSyncFirewallAdding => '正在添加防火墙规则...';
+
+  @override
+  String lanSyncFirewallRuleAdded(Object port) {
+    return '已添加防火墙规则（入站 TCP 端口 $port）。';
+  }
+
+  @override
+  String get lanSyncFirewallRuleFailed => '无法自动添加防火墙规则，点击立即放行（需要管理员权限）。';
+
+  @override
+  String get lanSyncApplyAndRestart => '应用并重启';
+
+  @override
+  String get lanSyncRecentEndpoints => '最近使用';
+
+  @override
+  String get lanSyncScanQr => '扫描二维码';
+
+  @override
+  String get lanSyncCopyLink => '复制链接';
+
+  @override
+  String get lanSyncLinkCopied => '链接已复制';
+
+  @override
+  String get lanSyncErrorInvalidLink => '二维码或链接无效。';
+
+  @override
+  String get lanSyncQrServerHint => '在另一台设备上扫描此二维码即可自动连接。';
+
+  @override
+  String get backupPageIncrementalTitle => '增量备份';
+
+  @override
+  String get backupScopeChatsAssistants => '聊天记录及助手';
+
+  @override
+  String get backupScopeSettings => '设置项';
+
+  @override
+  String get backupScopeAttachments => '附件';
+
+  @override
+  String get backupScopeWorkspaces => '工作区';
+
+  @override
+  String get backupScopeSkills => '技能';
+
+  @override
+  String get backupScopeFontsAvatars => '字体与头像';
+
+  @override
+  String get backupPageIncrementalDescription => '仅导出某个日期之后的聊天数据。';
+
+  @override
+  String get backupPageIncrementalStartDate => '起始日期';
+
+  @override
+  String get backupPageIncrementalLastBackup => '使用上次备份日期';
+
+  @override
+  String get backupPageIncrementalIncludeSettings => '包含设置';
+
+  @override
+  String get backupPageIncrementalIncludeFiles => '包含文件';
+
+  @override
+  String get backupPageIncrementalUpload => '增量上传';
+
+  @override
+  String get backupPageIncrementalUpdateBackupTime => '更新上次备份日期';
+
+  @override
+  String get backupPageIncrementalPreviewTitle => '增量范围';
+
+  @override
+  String get backupPageIncrementalPreviewLoading => '分析中…';
+
+  @override
+  String backupPageIncrementalPreviewNewConv(Object count, Object msgCount) {
+    return '新对话 $count 个 · 新消息 $msgCount 条';
+  }
+
+  @override
+  String backupPageIncrementalPreviewUpdatedConv(
+    Object count,
+    Object msgCount,
+  ) {
+    return '更新旧对话 $count 个 · 新消息 $msgCount 条';
+  }
+
+  @override
+  String backupPageIncrementalPreviewFiles(Object count, Object size) {
+    return '新附件 $count 个 ($size)';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -35148,4 +35676,268 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantEditProactiveCareDecisionPromptTitle => '決策時間功能說明提示詞';
+
+  @override
+  String get lanSyncSectionTitle => '區域網路同步';
+
+  @override
+  String get lanSyncServerMode => '開啟服務';
+
+  @override
+  String get lanSyncClientMode => '連接服務';
+
+  @override
+  String get lanSyncServerRunning => '服務運行中';
+
+  @override
+  String get lanSyncServerAddress => '位址';
+
+  @override
+  String get lanSyncServerPort => '連接埠';
+
+  @override
+  String get lanSyncServerPin => 'PIN';
+
+  @override
+  String get lanSyncNoLanAddress => '未偵測到區域網路位址（裝置可能離線或未連接網路）。';
+
+  @override
+  String get lanSyncServerStop => '停止服務';
+
+  @override
+  String get lanSyncServerWaiting => '等待連接...';
+
+  @override
+  String get lanSyncServerPlanSent => '同步計畫已發送，等待接收資料...';
+
+  @override
+  String get lanSyncServerExchanging => '正在交換資料...';
+
+  @override
+  String get lanSyncServerDone => '交換完成，即將套用並重啟。';
+
+  @override
+  String get lanSyncClientHost => '主機';
+
+  @override
+  String get lanSyncClientPort => '連接埠';
+
+  @override
+  String get lanSyncClientPin => 'PIN';
+
+  @override
+  String get lanSyncClientConnect => '連接';
+
+  @override
+  String get lanSyncClientConnecting => '連接中...';
+
+  @override
+  String get lanSyncClientPlanReceived => '已收到同步計畫';
+
+  @override
+  String get lanSyncClientConfirm => '開始同步';
+
+  @override
+  String get lanSyncPriorityLabel => '衝突處理';
+
+  @override
+  String get lanSyncPriorityAuto => '自動（預設合併）';
+
+  @override
+  String get lanSyncPriorityInitiatorWins => '本機優先';
+
+  @override
+  String get lanSyncPriorityServerWins => '對方優先';
+
+  @override
+  String get lanSyncPeerPriorityInitiatorWins => '對方選擇「本機優先」：衝突資料將以對方版本為準。';
+
+  @override
+  String get lanSyncPeerPriorityServerWins => '對方選擇「對方優先」：衝突資料將保留本機版本。';
+
+  @override
+  String get lanSyncClientExchanging => '正在交換資料...';
+
+  @override
+  String get lanSyncClientDone => '同步完成，即將套用並重啟。';
+
+  @override
+  String get lanSyncServerDialogTitle => '作為伺服器';
+
+  @override
+  String get lanSyncClientDialogTitle => '作為客戶端';
+
+  @override
+  String get lanSyncSecurityNote => '同一區域網路的裝置均可連接（最低版本：v2.2.2）。';
+
+  @override
+  String lanSyncPlanToSend(Object count) {
+    return '$count 個對話待發送';
+  }
+
+  @override
+  String lanSyncPlanToReceive(Object count) {
+    return '$count 個對話待接收';
+  }
+
+  @override
+  String lanSyncPlanForks(Object count) {
+    return '$count 處分叉已偵測（v1 暫跳過）';
+  }
+
+  @override
+  String get lanSyncPlanNoChanges => '無待同步內容。';
+
+  @override
+  String get lanSyncPlanPrioritySettings => '已選擇衝突方向：將交換設定資料。';
+
+  @override
+  String lanSyncPlanToSendFiles(Object count, Object size) {
+    return '將傳送 $count 個檔案（$size）';
+  }
+
+  @override
+  String lanSyncPlanToReceiveFiles(Object count, Object size) {
+    return '將接收 $count 個檔案（$size）';
+  }
+
+  @override
+  String get lanSyncRestoreExtracting => '正在解壓資料...';
+
+  @override
+  String get lanSyncRestoreMergingChats => '正在合併聊天記錄...';
+
+  @override
+  String get lanSyncRestoreCopyingFiles => '正在寫入檔案...';
+
+  @override
+  String get lanSyncRestoreRestoringSkills => '正在恢復技能...';
+
+  @override
+  String lanSyncRestoreFilesProgress(Object count, Object size, Object total) {
+    return '$count/$total 個檔案 · 共 $size';
+  }
+
+  @override
+  String lanSyncRestoreChatsProgress(Object count, Object total) {
+    return '$count/$total 個對話';
+  }
+
+  @override
+  String get lanSyncRestoreFailed => '同步資料合併失敗';
+
+  @override
+  String get lanSyncErrorInvalidPin => 'PIN 錯誤';
+
+  @override
+  String lanSyncErrorConnection(Object error) {
+    return '連接失敗：$error';
+  }
+
+  @override
+  String get lanSyncErrorFieldsRequired => '請填寫主機、連接埠和 PIN。';
+
+  @override
+  String get lanSyncErrorInvalidPort => '連接埠無效。';
+
+  @override
+  String get lanSyncFirewallAllow => '防火牆放行';
+
+  @override
+  String get lanSyncFirewallAdding => '正在新增防火牆規則...';
+
+  @override
+  String lanSyncFirewallRuleAdded(Object port) {
+    return '已新增防火牆規則（連入 TCP 連接埠 $port）。';
+  }
+
+  @override
+  String get lanSyncFirewallRuleFailed => '無法自動新增防火牆規則，點擊立即放行（需要系統管理員權限）。';
+
+  @override
+  String get lanSyncApplyAndRestart => '套用並重啟';
+
+  @override
+  String get lanSyncRecentEndpoints => '最近使用';
+
+  @override
+  String get lanSyncScanQr => '掃描 QR Code';
+
+  @override
+  String get lanSyncCopyLink => '複製連結';
+
+  @override
+  String get lanSyncLinkCopied => '連結已複製';
+
+  @override
+  String get lanSyncErrorInvalidLink => 'QR Code 或連結無效。';
+
+  @override
+  String get lanSyncQrServerHint => '在另一台裝置掃描此 QR Code 即可自動連接。';
+
+  @override
+  String get backupPageIncrementalTitle => '增量備份';
+
+  @override
+  String get backupScopeChatsAssistants => '聊天記錄及助手';
+
+  @override
+  String get backupScopeSettings => '設定項';
+
+  @override
+  String get backupScopeAttachments => '附件';
+
+  @override
+  String get backupScopeWorkspaces => '工作區';
+
+  @override
+  String get backupScopeSkills => '技能';
+
+  @override
+  String get backupScopeFontsAvatars => '字體與頭像';
+
+  @override
+  String get backupPageIncrementalDescription => '僅匯出某個日期之後的聊天資料。';
+
+  @override
+  String get backupPageIncrementalStartDate => '起始日期';
+
+  @override
+  String get backupPageIncrementalLastBackup => '使用上次備份日期';
+
+  @override
+  String get backupPageIncrementalIncludeSettings => '包含設定';
+
+  @override
+  String get backupPageIncrementalIncludeFiles => '包含檔案';
+
+  @override
+  String get backupPageIncrementalUpload => '增量上傳';
+
+  @override
+  String get backupPageIncrementalUpdateBackupTime => '更新上次備份日期';
+
+  @override
+  String get backupPageIncrementalPreviewTitle => '增量範圍';
+
+  @override
+  String get backupPageIncrementalPreviewLoading => '分析中…';
+
+  @override
+  String backupPageIncrementalPreviewNewConv(Object count, Object msgCount) {
+    return '新對話 $count 個 · 新訊息 $msgCount 條';
+  }
+
+  @override
+  String backupPageIncrementalPreviewUpdatedConv(
+    Object count,
+    Object msgCount,
+  ) {
+    return '更新舊對話 $count 個 · 新訊息 $msgCount 條';
+  }
+
+  @override
+  String backupPageIncrementalPreviewFiles(Object count, Object size) {
+    return '新附件 $count 個 ($size)';
+  }
 }

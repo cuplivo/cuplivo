@@ -22052,6 +22052,480 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Decision time instruction prompt'**
   String get assistantEditProactiveCareDecisionPromptTitle;
+
+  /// No description provided for @lanSyncSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LAN Sync'**
+  String get lanSyncSectionTitle;
+
+  /// No description provided for @lanSyncServerMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Server'**
+  String get lanSyncServerMode;
+
+  /// No description provided for @lanSyncClientMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to Server'**
+  String get lanSyncClientMode;
+
+  /// No description provided for @lanSyncServerRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Server running'**
+  String get lanSyncServerRunning;
+
+  /// No description provided for @lanSyncServerAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get lanSyncServerAddress;
+
+  /// No description provided for @lanSyncServerPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Port'**
+  String get lanSyncServerPort;
+
+  /// No description provided for @lanSyncServerPin.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN'**
+  String get lanSyncServerPin;
+
+  /// No description provided for @lanSyncNoLanAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'No LAN address detected (device offline or not connected to a network).'**
+  String get lanSyncNoLanAddress;
+
+  /// No description provided for @lanSyncServerStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop Server'**
+  String get lanSyncServerStop;
+
+  /// No description provided for @lanSyncServerWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for connection...'**
+  String get lanSyncServerWaiting;
+
+  /// No description provided for @lanSyncServerPlanSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync plan sent. Waiting for zip...'**
+  String get lanSyncServerPlanSent;
+
+  /// No description provided for @lanSyncServerExchanging.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchanging data...'**
+  String get lanSyncServerExchanging;
+
+  /// No description provided for @lanSyncServerDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchange complete. Apply and restart.'**
+  String get lanSyncServerDone;
+
+  /// No description provided for @lanSyncClientHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Host'**
+  String get lanSyncClientHost;
+
+  /// No description provided for @lanSyncClientPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Port'**
+  String get lanSyncClientPort;
+
+  /// No description provided for @lanSyncClientPin.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN'**
+  String get lanSyncClientPin;
+
+  /// No description provided for @lanSyncClientConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get lanSyncClientConnect;
+
+  /// No description provided for @lanSyncClientConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting...'**
+  String get lanSyncClientConnecting;
+
+  /// No description provided for @lanSyncClientPlanReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync plan received'**
+  String get lanSyncClientPlanReceived;
+
+  /// No description provided for @lanSyncClientConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Sync'**
+  String get lanSyncClientConfirm;
+
+  /// No description provided for @lanSyncPriorityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflict resolution'**
+  String get lanSyncPriorityLabel;
+
+  /// No description provided for @lanSyncPriorityAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto (default merge)'**
+  String get lanSyncPriorityAuto;
+
+  /// No description provided for @lanSyncPriorityInitiatorWins.
+  ///
+  /// In en, this message translates to:
+  /// **'This device wins'**
+  String get lanSyncPriorityInitiatorWins;
+
+  /// No description provided for @lanSyncPriorityServerWins.
+  ///
+  /// In en, this message translates to:
+  /// **'Peer wins'**
+  String get lanSyncPriorityServerWins;
+
+  /// No description provided for @lanSyncPeerPriorityInitiatorWins.
+  ///
+  /// In en, this message translates to:
+  /// **'Peer chose \"This device wins\": conflicting data will follow the peer\'s copy.'**
+  String get lanSyncPeerPriorityInitiatorWins;
+
+  /// No description provided for @lanSyncPeerPriorityServerWins.
+  ///
+  /// In en, this message translates to:
+  /// **'Peer chose \"Peer wins\": conflicting data will keep this device\'s copy.'**
+  String get lanSyncPeerPriorityServerWins;
+
+  /// No description provided for @lanSyncClientExchanging.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchanging data...'**
+  String get lanSyncClientExchanging;
+
+  /// No description provided for @lanSyncClientDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync complete. Apply and restart.'**
+  String get lanSyncClientDone;
+
+  /// No description provided for @lanSyncServerDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Server Mode'**
+  String get lanSyncServerDialogTitle;
+
+  /// No description provided for @lanSyncClientDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Client Mode'**
+  String get lanSyncClientDialogTitle;
+
+  /// No description provided for @lanSyncSecurityNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Devices on the same network can connect (minimum version: v2.2.2).'**
+  String get lanSyncSecurityNote;
+
+  /// No description provided for @lanSyncPlanToSend.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} conversations to send'**
+  String lanSyncPlanToSend(Object count);
+
+  /// No description provided for @lanSyncPlanToReceive.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} conversations to receive'**
+  String lanSyncPlanToReceive(Object count);
+
+  /// No description provided for @lanSyncPlanForks.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} forks detected (skipped in v1)'**
+  String lanSyncPlanForks(Object count);
+
+  /// No description provided for @lanSyncPlanNoChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'No changes to sync.'**
+  String get lanSyncPlanNoChanges;
+
+  /// No description provided for @lanSyncPlanPrioritySettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflict direction chosen: settings will be exchanged.'**
+  String get lanSyncPlanPrioritySettings;
+
+  /// No description provided for @lanSyncPlanToSendFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} files to send ({size})'**
+  String lanSyncPlanToSendFiles(Object count, Object size);
+
+  /// No description provided for @lanSyncPlanToReceiveFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} files to receive ({size})'**
+  String lanSyncPlanToReceiveFiles(Object count, Object size);
+
+  /// No description provided for @lanSyncRestoreExtracting.
+  ///
+  /// In en, this message translates to:
+  /// **'Extracting data...'**
+  String get lanSyncRestoreExtracting;
+
+  /// No description provided for @lanSyncRestoreMergingChats.
+  ///
+  /// In en, this message translates to:
+  /// **'Merging chats...'**
+  String get lanSyncRestoreMergingChats;
+
+  /// No description provided for @lanSyncRestoreCopyingFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing files...'**
+  String get lanSyncRestoreCopyingFiles;
+
+  /// No description provided for @lanSyncRestoreRestoringSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Restoring skills...'**
+  String get lanSyncRestoreRestoringSkills;
+
+  /// No description provided for @lanSyncRestoreFilesProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}/{total} files · {size}'**
+  String lanSyncRestoreFilesProgress(Object count, Object size, Object total);
+
+  /// No description provided for @lanSyncRestoreChatsProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}/{total} conversations'**
+  String lanSyncRestoreChatsProgress(Object count, Object total);
+
+  /// No description provided for @lanSyncRestoreFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync data merge failed'**
+  String get lanSyncRestoreFailed;
+
+  /// No description provided for @lanSyncErrorInvalidPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid PIN'**
+  String get lanSyncErrorInvalidPin;
+
+  /// No description provided for @lanSyncErrorConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection failed: {error}'**
+  String lanSyncErrorConnection(Object error);
+
+  /// No description provided for @lanSyncErrorFieldsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Host, port and PIN are required.'**
+  String get lanSyncErrorFieldsRequired;
+
+  /// No description provided for @lanSyncErrorInvalidPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid port.'**
+  String get lanSyncErrorInvalidPort;
+
+  /// No description provided for @lanSyncFirewallAllow.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow in Firewall'**
+  String get lanSyncFirewallAllow;
+
+  /// No description provided for @lanSyncFirewallAdding.
+  ///
+  /// In en, this message translates to:
+  /// **'Adding firewall rule...'**
+  String get lanSyncFirewallAdding;
+
+  /// No description provided for @lanSyncFirewallRuleAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Firewall rule added (inbound TCP port {port}).'**
+  String lanSyncFirewallRuleAdded(Object port);
+
+  /// No description provided for @lanSyncFirewallRuleFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not add the firewall rule automatically. Click to add it now (requires administrator).'**
+  String get lanSyncFirewallRuleFailed;
+
+  /// No description provided for @lanSyncApplyAndRestart.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply and restart'**
+  String get lanSyncApplyAndRestart;
+
+  /// No description provided for @lanSyncRecentEndpoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get lanSyncRecentEndpoints;
+
+  /// No description provided for @lanSyncScanQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR Code'**
+  String get lanSyncScanQr;
+
+  /// No description provided for @lanSyncCopyLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Link'**
+  String get lanSyncCopyLink;
+
+  /// No description provided for @lanSyncLinkCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Link copied'**
+  String get lanSyncLinkCopied;
+
+  /// No description provided for @lanSyncErrorInvalidLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid sync QR code or link.'**
+  String get lanSyncErrorInvalidLink;
+
+  /// No description provided for @lanSyncQrServerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan this code on the other device to connect automatically.'**
+  String get lanSyncQrServerHint;
+
+  /// No description provided for @backupPageIncrementalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Incremental Backup'**
+  String get backupPageIncrementalTitle;
+
+  /// No description provided for @backupScopeChatsAssistants.
+  ///
+  /// In en, this message translates to:
+  /// **'Chats & Assistants'**
+  String get backupScopeChatsAssistants;
+
+  /// No description provided for @backupScopeSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get backupScopeSettings;
+
+  /// No description provided for @backupScopeAttachments.
+  ///
+  /// In en, this message translates to:
+  /// **'Attachments'**
+  String get backupScopeAttachments;
+
+  /// No description provided for @backupScopeWorkspaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspaces'**
+  String get backupScopeWorkspaces;
+
+  /// No description provided for @backupScopeSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills'**
+  String get backupScopeSkills;
+
+  /// No description provided for @backupScopeFontsAvatars.
+  ///
+  /// In en, this message translates to:
+  /// **'Fonts & Avatars'**
+  String get backupScopeFontsAvatars;
+
+  /// No description provided for @backupPageIncrementalDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Export only chats since a chosen date.'**
+  String get backupPageIncrementalDescription;
+
+  /// No description provided for @backupPageIncrementalStartDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Date'**
+  String get backupPageIncrementalStartDate;
+
+  /// No description provided for @backupPageIncrementalLastBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Use last backup date'**
+  String get backupPageIncrementalLastBackup;
+
+  /// No description provided for @backupPageIncrementalIncludeSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Include Settings'**
+  String get backupPageIncrementalIncludeSettings;
+
+  /// No description provided for @backupPageIncrementalIncludeFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Include Files'**
+  String get backupPageIncrementalIncludeFiles;
+
+  /// No description provided for @backupPageIncrementalUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload Incremental'**
+  String get backupPageIncrementalUpload;
+
+  /// No description provided for @backupPageIncrementalUpdateBackupTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Update last backup time'**
+  String get backupPageIncrementalUpdateBackupTime;
+
+  /// No description provided for @backupPageIncrementalPreviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Incremental Scope'**
+  String get backupPageIncrementalPreviewTitle;
+
+  /// No description provided for @backupPageIncrementalPreviewLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing…'**
+  String get backupPageIncrementalPreviewLoading;
+
+  /// No description provided for @backupPageIncrementalPreviewNewConv.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} new convs · {msgCount} new msgs'**
+  String backupPageIncrementalPreviewNewConv(Object count, Object msgCount);
+
+  /// No description provided for @backupPageIncrementalPreviewUpdatedConv.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} updated convs · {msgCount} new msgs'**
+  String backupPageIncrementalPreviewUpdatedConv(Object count, Object msgCount);
+
+  /// No description provided for @backupPageIncrementalPreviewFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} attachments ({size})'**
+  String backupPageIncrementalPreviewFiles(Object count, Object size);
 }
 
 class _AppLocalizationsDelegate

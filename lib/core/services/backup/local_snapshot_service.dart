@@ -246,7 +246,11 @@ final class LocalSnapshotService {
   /// The archive shape local copies use: everything the database holds, and
   /// none of the assets that sit beside it.
   static const archiveConfig = WebDavConfig(
-    includeChats: true,
-    includeFiles: false,
+    content: BackupContentScope(
+      chatsAndAssistants: true,
+      attachments: false,
+      workspaces: false,
+      fontsAndAvatars: false,
+    ),
   );
 }

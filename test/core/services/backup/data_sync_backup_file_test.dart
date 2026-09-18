@@ -280,7 +280,7 @@ Future<File> _createSqliteBackupFixture({
   required Map<String, dynamic> settings,
   String? databaseSha256,
   bool secretsIncluded = true,
-  bool includeFiles = false,
+  BackupContentScope? content,
   String? assetContent,
   List<MessagePart>? messageParts,
   String? databaseIdentity,
@@ -293,6 +293,9 @@ Future<File> _createSqliteBackupFixture({
   int? formatVersionOverride,
   int? minimumReadableFormatOverride,
 }) async {
+  final scope = content ?? const BackupContentScope();
+  final includeFiles =
+      scope.attachments || scope.workspaces || scope.fontsAndAvatars;
   if (assetContent != null && !includeFiles) {
     throw ArgumentError.value(assetContent, 'assetContent');
   }
@@ -1124,7 +1127,11 @@ void main() {
         root: root,
         prefix: 'review-remap',
         settings: {},
-        includeFiles: true,
+        content: BackupContentScope(
+          attachments: true,
+          workspaces: true,
+          fontsAndAvatars: true,
+        ),
         extraEntries: {
           'sessions/fixture-conversation/outputs/report.txt': 'backup output',
         },
@@ -1150,7 +1157,14 @@ void main() {
         );
         await sync.restoreFromLocalFile(
           fixture,
-          const WebDavConfig(includeChats: true, includeFiles: true),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: true,
+              workspaces: true,
+              fontsAndAvatars: true,
+            ),
+          ),
           mode: RestoreMode.merge,
         );
         final newId = sync
@@ -1216,7 +1230,14 @@ void main() {
           chatService: ChatService(),
         );
         final backupFile = await sync.prepareBackupFile(
-          const WebDavConfig(includeChats: false, includeFiles: true),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: true,
+              workspaces: true,
+              fontsAndAvatars: true,
+            ),
+          ),
         );
 
         expect(await staleWorkDir.exists(), isFalse);
@@ -1296,7 +1317,14 @@ void main() {
           chatService: ChatService(),
         );
         final backupFile = await sync.prepareBackupFile(
-          const WebDavConfig(includeChats: false, includeFiles: true),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: true,
+              workspaces: true,
+              fontsAndAvatars: true,
+            ),
+          ),
         );
         addTearDown(() => DataSync.cleanupTemporaryBackupFile(backupFile));
 
@@ -1335,7 +1363,14 @@ void main() {
           chatService: ChatService(),
         );
         final backupFile = await sync.prepareBackupFile(
-          const WebDavConfig(includeChats: false, includeFiles: true),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: true,
+              workspaces: true,
+              fontsAndAvatars: true,
+            ),
+          ),
         );
         addTearDown(() => DataSync.cleanupTemporaryBackupFile(backupFile));
 
@@ -1390,7 +1425,14 @@ void main() {
         chatService: ChatService(),
       );
       final backupFile = await sync.prepareBackupFile(
-        const WebDavConfig(includeChats: false, includeFiles: true),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: false,
+            attachments: true,
+            workspaces: true,
+            fontsAndAvatars: true,
+          ),
+        ),
       );
       addTearDown(() => DataSync.cleanupTemporaryBackupFile(backupFile));
       await Future<void>.delayed(Duration.zero);
@@ -1415,7 +1457,14 @@ void main() {
           chatService: ChatService(),
         );
         final backupFile = await sync.prepareBackupFile(
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         );
         addTearDown(() => DataSync.cleanupTemporaryBackupFile(backupFile));
         expect(await backupFile.exists(), isTrue);
@@ -1435,7 +1484,14 @@ void main() {
         await expectLater(
           sync.restoreFromLocalFile(
             backupFile,
-            const WebDavConfig(includeChats: false, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: false,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
           ),
           throwsA(
             isA<FormatException>().having(
@@ -1468,7 +1524,14 @@ void main() {
 
       await expectLater(
         sync.prepareBackupFile(
-          const WebDavConfig(includeChats: false, includeFiles: true),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: true,
+              workspaces: true,
+              fontsAndAvatars: true,
+            ),
+          ),
           onProgress: (progress) {
             if (progress.phase == BackupPhase.packing) {
               token.cancel();
@@ -1516,7 +1579,14 @@ void main() {
           businessRepository: businessRepository,
           chatService: ChatService(),
         ).prepareBackupFile(
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
           cancelToken: liveToken,
           onProgress: (progress) {
             events.add(progress);
@@ -1569,7 +1639,14 @@ void main() {
           chatService: chatService,
         ).restoreFromLocalFile(
           zip,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
           onProgress: events.add,
         );
 
@@ -1601,7 +1678,14 @@ void main() {
           chatService: chatService,
         ).restoreFromLocalFile(
           zip,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
           onProgress: events.add,
         );
 
@@ -1678,7 +1762,14 @@ void main() {
       await expectLater(
         sync.restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: false, includeFiles: true),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: true,
+              workspaces: true,
+              fontsAndAvatars: true,
+            ),
+          ),
           onProgress: (progress) {
             if (progress.phase == BackupPhase.extracting) {
               token.cancel();
@@ -1745,7 +1836,14 @@ void main() {
             chatService: chatService,
           ).restoreFromLocalFile(
             zipFile,
-            const WebDavConfig(includeChats: true, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: true,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
             onProgress: (progress) {
               if (progress.phase == BackupPhase.readingSettings) {
                 token.cancel();
@@ -1810,7 +1908,14 @@ void main() {
           chatService: chatService,
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
           onProgress: (progress) {
             if (progress.phase == BackupPhase.stagingCandidate) {
               token.cancel();
@@ -1845,7 +1950,14 @@ void main() {
         );
 
         final backupFile = await sync.prepareBackupFile(
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         );
 
         final input = InputFileStream(backupFile.path);
@@ -1906,7 +2018,14 @@ void main() {
           chatService: ChatService(),
         );
         final backupFile = await sync.prepareBackupFile(
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         );
         addTearDown(() => DataSync.cleanupTemporaryBackupFile(backupFile));
 
@@ -1952,7 +2071,14 @@ void main() {
 
         await sync.restoreFromLocalFile(
           backupFile,
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         );
 
         final restored = await BusinessRestoreService(
@@ -2006,7 +2132,14 @@ void main() {
             chatService: ChatService(),
           ).restoreFromLocalFile(
             backupFile,
-            const WebDavConfig(includeChats: true, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: true,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
           ),
           throwsA(
             isA<FormatException>().having(
@@ -2052,7 +2185,14 @@ void main() {
             chatService: ChatService(),
           ).restoreFromLocalFile(
             backupFile,
-            const WebDavConfig(includeChats: false, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: false,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
           ),
           throwsA(
             isA<FormatException>().having(
@@ -2086,7 +2226,14 @@ void main() {
         chatService: ChatService(),
       );
       final backupFile = await sync.prepareBackupFile(
-        const WebDavConfig(includeChats: false, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: false,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
       );
       addTearDown(() => DataSync.cleanupTemporaryBackupFile(backupFile));
 
@@ -2104,7 +2251,14 @@ void main() {
 
       await sync.restoreFromLocalFile(
         backupFile,
-        const WebDavConfig(includeChats: false, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: false,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
         mode: RestoreMode.merge,
       );
 
@@ -2131,7 +2285,14 @@ void main() {
           chatService: ChatService(),
         );
         final backupFile = await sync.prepareBackupFile(
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         );
         addTearDown(() => DataSync.cleanupTemporaryBackupFile(backupFile));
 
@@ -2147,7 +2308,14 @@ void main() {
 
         await sync.restoreFromLocalFile(
           backupFile,
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         );
 
         final prefs = await SharedPreferences.getInstance();
@@ -2191,7 +2359,14 @@ void main() {
             businessRepository: businessRepository,
             chatService: chatService,
           ).prepareBackupFile(
-            const WebDavConfig(includeChats: true, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: true,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
           );
       addTearDown(() => DataSync.cleanupTemporaryBackupFile(backupFile));
 
@@ -2315,7 +2490,14 @@ void main() {
         chatService: chatService,
       ).restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
       );
 
       expect(chatService.getConversation(existing.id), isNotNull);
@@ -2363,7 +2545,14 @@ void main() {
         chatService: chatService,
       ).restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
         allowUnverifiedForwardCompatible: true,
       );
 
@@ -2401,7 +2590,14 @@ void main() {
           chatService: ChatService(),
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         ),
         throwsA(
           isA<FormatException>().having(
@@ -2434,7 +2630,14 @@ void main() {
         chatService: chatService,
       ).restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
         allowUnverifiedForwardCompatible: true,
       );
 
@@ -2467,7 +2670,14 @@ void main() {
           chatService: ChatService(),
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         ),
         throwsA(
           isA<FormatException>().having(
@@ -2499,7 +2709,14 @@ void main() {
         chatService: chatService,
       ).restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
       );
 
       final runDirectory = await _singleRestoreRunDirectory(root);
@@ -2539,7 +2756,14 @@ void main() {
           chatService: ChatService(),
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         ),
         throwsA(
           isA<FormatException>().having(
@@ -2566,7 +2790,14 @@ void main() {
           chatService: ChatService(),
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         ),
         throwsA(
           isA<FormatException>().having(
@@ -2586,7 +2817,14 @@ void main() {
             businessRepository: businessRepository,
             chatService: ChatService(),
           ).exportToFile(
-            const WebDavConfig(includeChats: false, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: false,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
           );
       final archive = ZipDecoder().decodeBytes(await zipFile.readAsBytes());
       final manifest =
@@ -2664,7 +2902,14 @@ void main() {
         chatService: chatService,
       ).restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: false, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: false,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
       );
 
       final restored = await BusinessRestoreService(
@@ -2687,7 +2932,14 @@ void main() {
         chatService: chatService,
       ).restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
       );
 
       final workspace = Directory('${root.path}/.kelivo_restore');
@@ -2729,7 +2981,11 @@ void main() {
           root: root,
           prefix: 'selected_candidate_only',
           settings: const {'theme': 'dark'},
-          includeFiles: true,
+          content: BackupContentScope(
+            attachments: true,
+            workspaces: true,
+            fontsAndAvatars: true,
+          ),
           assetContent: 'private unselected asset',
         );
 
@@ -2738,7 +2994,14 @@ void main() {
           chatService: ChatService(),
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         );
 
         final restored = await BusinessRestoreService(
@@ -2767,7 +3030,14 @@ void main() {
           chatService: ChatService(),
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         );
 
         expect(
@@ -2798,7 +3068,14 @@ void main() {
           chatService: ChatService(),
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
           mode: RestoreMode.merge,
         );
 
@@ -2841,7 +3118,14 @@ void main() {
             chatService: ChatService(),
           ).restoreFromLocalFile(
             zipFile,
-            const WebDavConfig(includeChats: true, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: true,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
           ),
           throwsStateError,
         );
@@ -2866,7 +3150,11 @@ void main() {
         root: root,
         prefix: 'empty_asset_roots',
         settings: const {},
-        includeFiles: true,
+        content: BackupContentScope(
+          attachments: true,
+          workspaces: true,
+          fontsAndAvatars: true,
+        ),
       );
 
       await DataSync(
@@ -2874,7 +3162,14 @@ void main() {
         chatService: ChatService(),
       ).restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: true, includeFiles: true),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: true,
+            workspaces: true,
+            fontsAndAvatars: true,
+          ),
+        ),
       );
 
       for (final rootName in RestorePreviousAssetsPlan.rootNames) {
@@ -2927,7 +3222,14 @@ void main() {
               businessRepository: businessRepository,
               chatService: ChatService(),
             ).prepareBackupFile(
-              const WebDavConfig(includeChats: false, includeFiles: true),
+              const WebDavConfig(
+                content: BackupContentScope(
+                  chatsAndAssistants: false,
+                  attachments: true,
+                  workspaces: true,
+                  fontsAndAvatars: true,
+                ),
+              ),
               onProgress: events.add,
             );
         addTearDown(() => DataSync.cleanupTemporaryBackupFile(backupFile));
@@ -2984,7 +3286,11 @@ void main() {
           root: root,
           prefix: 'new_asset_roots',
           settings: const {},
-          includeFiles: true,
+          content: BackupContentScope(
+            attachments: true,
+            workspaces: true,
+            fontsAndAvatars: true,
+          ),
           extraEntries: nested,
         );
 
@@ -2993,7 +3299,14 @@ void main() {
           chatService: ChatService(),
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: true, includeFiles: true),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: true,
+              workspaces: true,
+              fontsAndAvatars: true,
+            ),
+          ),
         );
 
         for (final path in nested.keys) {
@@ -3023,7 +3336,11 @@ void main() {
         root: root,
         prefix: 'all_selected_candidate',
         settings: const {'theme': 'dark'},
-        includeFiles: true,
+        content: BackupContentScope(
+          attachments: true,
+          workspaces: true,
+          fontsAndAvatars: true,
+        ),
         assetContent: 'selected asset',
       );
 
@@ -3032,7 +3349,14 @@ void main() {
         chatService: ChatService(),
       ).restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: true, includeFiles: true),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: true,
+            workspaces: true,
+            fontsAndAvatars: true,
+          ),
+        ),
       );
 
       final runDirectory = await _singleRestoreRunDirectory(root);
@@ -3095,7 +3419,14 @@ void main() {
           chatService: ChatService(),
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         );
 
         expect(
@@ -3140,7 +3471,14 @@ void main() {
           chatService: ChatService(),
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         ),
         throwsA(anything),
       );
@@ -3178,7 +3516,14 @@ void main() {
             chatService: chatService,
           ).restoreFromLocalFile(
             fixture,
-            const WebDavConfig(includeChats: true, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: true,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
           ),
           throwsA(isA<FormatException>()),
         );
@@ -3224,7 +3569,14 @@ void main() {
             chatService: chatService,
           ).restoreFromLocalFile(
             fixture,
-            const WebDavConfig(includeChats: true, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: true,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
             mode: RestoreMode.merge,
           ),
           throwsA(isA<FormatException>()),
@@ -3299,7 +3651,14 @@ void main() {
             chatService: chatService,
           ).restoreFromLocalFile(
             zipFile,
-            const WebDavConfig(includeChats: true, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: true,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
           ),
           throwsA(isA<FormatException>()),
         );
@@ -3340,7 +3699,14 @@ void main() {
           chatService: ChatService(),
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         ),
         throwsA(isA<FormatException>()),
       );
@@ -3378,7 +3744,14 @@ void main() {
             chatService: ChatService(),
           ).restoreFromLocalFile(
             zipFile,
-            const WebDavConfig(includeChats: false, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: false,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
           ),
           throwsA(
             isA<FormatException>().having(
@@ -3422,7 +3795,14 @@ void main() {
             chatService: ChatService(),
           ).restoreFromLocalFile(
             zipFile,
-            const WebDavConfig(includeChats: false, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: false,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
           ),
           throwsA(isA<FormatException>()),
         );
@@ -3468,7 +3848,14 @@ void main() {
           chatService: ChatService(),
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         ),
         throwsA(isA<FormatException>()),
       );
@@ -3505,7 +3892,14 @@ void main() {
           chatService: ChatService(),
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         ),
         throwsA(isA<FormatException>()),
       );
@@ -3536,7 +3930,14 @@ void main() {
       );
       await sync.restoreFromLocalFile(
         fixture,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
         mode: RestoreMode.merge,
       );
 
@@ -3582,7 +3983,14 @@ void main() {
             chatService: ChatService(),
           ).restoreFromLocalFile(
             zipFile,
-            const WebDavConfig(includeChats: false, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: false,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
             mode: RestoreMode.merge,
           ),
           throwsA(anything),
@@ -3621,7 +4029,14 @@ void main() {
         );
         await sync.restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: false, includeFiles: true),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: true,
+              workspaces: true,
+              fontsAndAvatars: true,
+            ),
+          ),
           mode: RestoreMode.merge,
         );
 
@@ -3634,7 +4049,14 @@ void main() {
 
         await sync.restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: false, includeFiles: true),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: true,
+              workspaces: true,
+              fontsAndAvatars: true,
+            ),
+          ),
           mode: RestoreMode.overwrite,
         );
 
@@ -3716,7 +4138,14 @@ void main() {
         );
         await sync.restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
           mode: RestoreMode.merge,
         );
 
@@ -3796,7 +4225,14 @@ void main() {
           chatService: ChatService(),
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
           mode: RestoreMode.merge,
         );
 
@@ -3842,7 +4278,14 @@ void main() {
       await expectLater(
         sync.restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
           mode: RestoreMode.merge,
         ),
         throwsA(isA<FormatException>()),
@@ -3885,7 +4328,14 @@ void main() {
         await expectLater(
           sync.restoreFromLocalFile(
             zipFile,
-            const WebDavConfig(includeChats: false, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: false,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
           ),
           throwsA(isA<FormatException>()),
         );
@@ -3923,7 +4373,14 @@ void main() {
       await expectLater(
         sync.restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
           mode: RestoreMode.merge,
         ),
         throwsA(isA<FormatException>()),
@@ -3960,7 +4417,14 @@ void main() {
           chatService: ChatService(),
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         ),
         throwsA(isA<FormatException>()),
       );
@@ -3992,7 +4456,14 @@ void main() {
           chatService: ChatService(),
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: false, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         ),
         throwsA(isA<FormatException>()),
       );
@@ -4032,7 +4503,14 @@ void main() {
         await expectLater(
           sync.restoreFromLocalFile(
             zipFile,
-            const WebDavConfig(includeChats: true, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: true,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
           ),
           throwsA(
             isA<StateError>().having(
@@ -4066,7 +4544,14 @@ void main() {
         await expectLater(
           sync.restoreFromLocalFile(
             zipFile,
-            const WebDavConfig(includeChats: false, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: false,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
           ),
           throwsA(isA<FormatException>()),
         );
@@ -4117,7 +4602,14 @@ void main() {
         await expectLater(
           sync.restoreFromLocalFile(
             zipFile,
-            const WebDavConfig(includeChats: true, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: true,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
           ),
           throwsA(
             isA<StateError>().having(
@@ -4167,8 +4659,12 @@ void main() {
           businessRepository: businessRepository,
           businessPreferences: businessPreferences,
           initialConfig: const WebDavConfig(
-            includeChats: true,
-            includeFiles: false,
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
           ),
         );
         final item = BackupFileItem(
@@ -4229,7 +4725,14 @@ void main() {
       await expectLater(
         sync.restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         ),
         throwsA(isA<FormatException>()),
       );
@@ -4263,7 +4766,14 @@ void main() {
           chatService: chatService,
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         ),
         throwsA(isA<FormatException>()),
       );
@@ -4309,7 +4819,14 @@ void main() {
           chatService: chatService,
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         ),
         throwsA(isA<FormatException>()),
       );
@@ -4347,7 +4864,14 @@ void main() {
         await expectLater(
           sync.restoreFromLocalFile(
             zipFile,
-            const WebDavConfig(includeChats: true, includeFiles: false),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: true,
+                attachments: false,
+                workspaces: false,
+                fontsAndAvatars: false,
+              ),
+            ),
           ),
           throwsA(isA<FormatException>()),
         );
@@ -4404,7 +4928,14 @@ void main() {
 
         await sync.restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         );
 
         expect(chatService.cleared, isFalse);
@@ -4473,7 +5004,14 @@ void main() {
 
       await sync.restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
       );
 
       expect(await uploadFile.readAsString(), 'keep');
@@ -4537,7 +5075,14 @@ void main() {
         chatService: chatService,
       ).restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
       );
 
       expect(chatService.getConversation('cache-conversation')?.title, 'New');
@@ -4584,7 +5129,14 @@ void main() {
           chatService: chatService,
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         );
 
         expect(chatService.replaced, isTrue);
@@ -4638,7 +5190,14 @@ void main() {
       // the overwrite restore proceeds with an empty chat payload.
       await sync.restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
       );
 
       final after = await BusinessRestoreService(
@@ -4676,7 +5235,14 @@ void main() {
         chatService: chatService,
       ).restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
       );
 
       expect(chatService.replaced, isTrue);
@@ -4730,7 +5296,14 @@ void main() {
           chatService: chatService,
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         );
 
         expect(chatService.replaced, isTrue);
@@ -4862,7 +5435,14 @@ void main() {
           chatService: chatService,
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         );
 
         final restored = chatService.getConversation('conversation')!;
@@ -4983,7 +5563,14 @@ void main() {
           chatService: chatService,
         ).restoreFromLocalFile(
           zipFile,
-          const WebDavConfig(includeChats: true, includeFiles: false),
+          const WebDavConfig(
+            content: BackupContentScope(
+              chatsAndAssistants: true,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
+          ),
         );
 
         final restored = chatService.getConversation('conversation')!;
@@ -5076,7 +5663,14 @@ void main() {
         chatService: chatService,
       ).restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
       );
 
       expect(chatService.replaced, isTrue);
@@ -5128,7 +5722,14 @@ void main() {
         chatService: chatService,
       ).restoreFromLocalFile(
         zipFile,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
       );
 
       expect(chatService.replaced, isTrue);
@@ -5191,7 +5792,14 @@ void main() {
 
           await expectLater(
             sync.restoreFromWebDav(
-              const WebDavConfig(includeChats: false, includeFiles: true),
+              const WebDavConfig(
+                content: BackupContentScope(
+                  chatsAndAssistants: false,
+                  attachments: true,
+                  workspaces: true,
+                  fontsAndAvatars: true,
+                ),
+              ),
               item,
             ),
             throwsA(anything),

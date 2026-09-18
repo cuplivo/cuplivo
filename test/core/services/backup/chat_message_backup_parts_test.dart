@@ -115,7 +115,14 @@ void main() {
     );
     await sync.restoreFromLocalFile(
       zip,
-      const WebDavConfig(includeChats: true, includeFiles: false),
+      const WebDavConfig(
+        content: BackupContentScope(
+          chatsAndAssistants: true,
+          attachments: false,
+          workspaces: false,
+          fontsAndAvatars: false,
+        ),
+      ),
       mode: RestoreMode.overwrite,
     );
 
@@ -167,7 +174,14 @@ void main() {
       );
       await sync.restoreFromLocalFile(
         zip,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
         mode: RestoreMode.overwrite,
       );
 
@@ -218,7 +232,14 @@ void main() {
       );
       await sync.restoreFromLocalFile(
         zip,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
         mode: RestoreMode.overwrite,
       );
 
@@ -267,7 +288,14 @@ void main() {
       );
       await sync.restoreFromLocalFile(
         zip,
-        const WebDavConfig(includeChats: true, includeFiles: false),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: false,
+            workspaces: false,
+            fontsAndAvatars: false,
+          ),
+        ),
         mode: RestoreMode.overwrite,
       );
 
@@ -339,7 +367,14 @@ void main() {
       );
       await sync.restoreFromLocalFile(
         zip,
-        const WebDavConfig(includeChats: true, includeFiles: true),
+        const WebDavConfig(
+          content: BackupContentScope(
+            chatsAndAssistants: true,
+            attachments: true,
+            workspaces: true,
+            fontsAndAvatars: true,
+          ),
+        ),
         mode: RestoreMode.overwrite,
       );
 

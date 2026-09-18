@@ -312,11 +312,17 @@ class _BackupPageState extends State<BackupPage> {
                       label: l10n.backupPageChatsLabel,
                       value: cfg.includeChats,
                       onChanged: (v) async {
-                        final newCfg = cfg.copyWith(includeChats: v);
+                        final newCfg = cfg.copyWith(
+                          content: cfg.content.copyWith(chatsAndAssistants: v),
+                        );
                         await settings.setWebDavConfig(newCfg);
                         vm.updateConfig(newCfg);
 
-                        final newS3Cfg = s3Cfg.copyWith(includeChats: v);
+                        final newS3Cfg = s3Cfg.copyWith(
+                          content: s3Cfg.content.copyWith(
+                            chatsAndAssistants: v,
+                          ),
+                        );
                         await settings.setS3Config(newS3Cfg);
                         s3Vm.updateConfig(newS3Cfg);
                       },
@@ -328,11 +334,23 @@ class _BackupPageState extends State<BackupPage> {
                       label: l10n.backupPageFilesLabel,
                       value: cfg.includeFiles,
                       onChanged: (v) async {
-                        final newCfg = cfg.copyWith(includeFiles: v);
+                        final newCfg = cfg.copyWith(
+                          content: cfg.content.copyWith(
+                            attachments: v,
+                            workspaces: v,
+                            fontsAndAvatars: v,
+                          ),
+                        );
                         await settings.setWebDavConfig(newCfg);
                         vm.updateConfig(newCfg);
 
-                        final newS3Cfg = s3Cfg.copyWith(includeFiles: v);
+                        final newS3Cfg = s3Cfg.copyWith(
+                          content: s3Cfg.content.copyWith(
+                            attachments: v,
+                            workspaces: v,
+                            fontsAndAvatars: v,
+                          ),
+                        );
                         await settings.setS3Config(newS3Cfg);
                         s3Vm.updateConfig(newS3Cfg);
                       },

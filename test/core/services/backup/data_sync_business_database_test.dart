@@ -141,7 +141,14 @@ void main() {
               chatService: ChatService(),
               businessRepository: repository,
             ).prepareBackupFile(
-              const WebDavConfig(includeChats: false, includeFiles: false),
+              const WebDavConfig(
+                content: BackupContentScope(
+                  chatsAndAssistants: false,
+                  attachments: false,
+                  workspaces: false,
+                  fontsAndAvatars: false,
+                ),
+              ),
             );
 
         final settings = await _readBackupSettings(backup);
@@ -236,7 +243,14 @@ void main() {
                 chatService: ChatService(),
                 businessRepository: sourceRepository,
               ).prepareBackupFile(
-                const WebDavConfig(includeChats: false, includeFiles: true),
+                const WebDavConfig(
+                  content: BackupContentScope(
+                    chatsAndAssistants: false,
+                    attachments: true,
+                    workspaces: true,
+                    fontsAndAvatars: true,
+                  ),
+                ),
               );
         } finally {
           await sourceDatabase.close();
@@ -277,7 +291,14 @@ void main() {
             businessPreferences: businessPreferences,
           ).restoreFromLocalFile(
             backup,
-            const WebDavConfig(includeChats: false, includeFiles: true),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: false,
+                attachments: true,
+                workspaces: true,
+                fontsAndAvatars: true,
+              ),
+            ),
           );
 
           await expectLater(
@@ -366,7 +387,14 @@ void main() {
                   chatService: ChatService(),
                   businessRepository: sourceRepository,
                 ).prepareBackupFile(
-                  const WebDavConfig(includeChats: false, includeFiles: false),
+                  const WebDavConfig(
+                    content: BackupContentScope(
+                      chatsAndAssistants: false,
+                      attachments: false,
+                      workspaces: false,
+                      fontsAndAvatars: false,
+                    ),
+                  ),
                 );
           } finally {
             await sourceDatabase.close();
@@ -382,7 +410,14 @@ void main() {
               businessRepository: targetRepository,
             ).restoreFromLocalFile(
               backup,
-              const WebDavConfig(includeChats: false, includeFiles: false),
+              const WebDavConfig(
+                content: BackupContentScope(
+                  chatsAndAssistants: false,
+                  attachments: false,
+                  workspaces: false,
+                  fontsAndAvatars: false,
+                ),
+              ),
               mode: mode,
             );
 
@@ -429,7 +464,14 @@ void main() {
                 chatService: ChatService(),
                 businessRepository: sourceRepository,
               ).prepareBackupFile(
-                const WebDavConfig(includeChats: false, includeFiles: true),
+                const WebDavConfig(
+                  content: BackupContentScope(
+                    chatsAndAssistants: false,
+                    attachments: true,
+                    workspaces: true,
+                    fontsAndAvatars: true,
+                  ),
+                ),
               );
         } finally {
           await sourceDatabase.close();
@@ -461,7 +503,14 @@ void main() {
             businessRepository: targetRepository,
           ).restoreFromLocalFile(
             backup,
-            const WebDavConfig(includeChats: false, includeFiles: true),
+            const WebDavConfig(
+              content: BackupContentScope(
+                chatsAndAssistants: false,
+                attachments: true,
+                workspaces: true,
+                fontsAndAvatars: true,
+              ),
+            ),
             mode: RestoreMode.merge,
           );
 

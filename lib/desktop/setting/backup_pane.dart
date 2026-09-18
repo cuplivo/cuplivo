@@ -111,8 +111,12 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
       password: _password.text,
       path: _path.text.trim().isEmpty ? 'kelivo_backups' : _path.text.trim(),
       userAgent: _webDavUserAgent.text.trim(),
-      includeChats: _includeChats,
-      includeFiles: _includeFiles,
+      content: BackupContentScope(
+        chatsAndAssistants: _includeChats,
+        attachments: _includeFiles,
+        workspaces: _includeFiles,
+        fontsAndAvatars: _includeFiles,
+      ),
     );
   }
 
@@ -123,6 +127,13 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
     await settings.setWebDavConfig(cfg);
     backupProvider.updateConfig(cfg);
   }
+
+  BackupContentScope _currentContent() => BackupContentScope(
+    chatsAndAssistants: _includeChats,
+    attachments: _includeFiles,
+    workspaces: _includeFiles,
+    fontsAndAvatars: _includeFiles,
+  );
 
   Future<void> _applyPartial({
     String? url,
@@ -143,8 +154,14 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
           path ??
           (_path.text.trim().isEmpty ? 'kelivo_backups' : _path.text.trim()),
       userAgent: userAgent ?? _webDavUserAgent.text.trim(),
-      includeChats: includeChats ?? _includeChats,
-      includeFiles: includeFiles ?? _includeFiles,
+      content: (includeChats == null && includeFiles == null)
+          ? _currentContent()
+          : _currentContent().copyWith(
+              chatsAndAssistants: includeChats,
+              attachments: includeFiles,
+              workspaces: includeFiles,
+              fontsAndAvatars: includeFiles,
+            ),
     );
     await settings.setWebDavConfig(cfg);
     backupProvider.updateConfig(cfg);
@@ -165,8 +182,12 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
           : _s3Prefix.text.trim(),
       pathStyle: _s3PathStyle,
       userAgent: _s3UserAgent.text.trim(),
-      includeChats: _includeChats,
-      includeFiles: _includeFiles,
+      content: BackupContentScope(
+        chatsAndAssistants: _includeChats,
+        attachments: _includeFiles,
+        workspaces: _includeFiles,
+        fontsAndAvatars: _includeFiles,
+      ),
     );
   }
 
@@ -209,8 +230,14 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
               : _s3Prefix.text.trim()),
       pathStyle: pathStyle ?? _s3PathStyle,
       userAgent: userAgent ?? _s3UserAgent.text.trim(),
-      includeChats: includeChats ?? _includeChats,
-      includeFiles: includeFiles ?? _includeFiles,
+      content: (includeChats == null && includeFiles == null)
+          ? _currentContent()
+          : _currentContent().copyWith(
+              chatsAndAssistants: includeChats,
+              attachments: includeFiles,
+              workspaces: includeFiles,
+              fontsAndAvatars: includeFiles,
+            ),
     );
     await settings.setS3Config(cfg);
     s3BackupProvider.updateConfig(cfg);

@@ -78,8 +78,12 @@ class S3BackupProvider extends ChangeNotifier {
   WebDavConfig _scopeAsWebdavConfig() {
     // DataSync currently uses WebDavConfig for include flags; other fields are ignored.
     return WebDavConfig(
-      includeChats: _cfg.includeChats,
-      includeFiles: _cfg.includeFiles,
+      content: BackupContentScope(
+        chatsAndAssistants: _cfg.includeChats,
+        attachments: _cfg.includeFiles,
+        workspaces: _cfg.includeFiles,
+        fontsAndAvatars: _cfg.includeFiles,
+      ),
     );
   }
 

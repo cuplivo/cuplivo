@@ -94,8 +94,12 @@ void main() {
             bucket: 'backup-bucket',
             accessKeyId: 'test-access-key',
             secretAccessKey: 'test-secret-key',
-            includeChats: false,
-            includeFiles: false,
+            content: BackupContentScope(
+              chatsAndAssistants: false,
+              attachments: false,
+              workspaces: false,
+              fontsAndAvatars: false,
+            ),
           ),
         );
         await provider.restoreFromItem(

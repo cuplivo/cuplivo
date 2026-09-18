@@ -144,8 +144,9 @@ class WebDavConfig {
   final String password;
   final String path;
   final String userAgent;
-  final bool includeChats; // Hive boxes
-  final bool includeFiles; // uploads/
+
+  /// What a backup through this channel includes (both full and incremental).
+  final BackupContentScope content;
 
   const WebDavConfig({
     this.url = '',
@@ -153,9 +154,14 @@ class WebDavConfig {
     this.password = '',
     this.path = 'kelivo_backups',
     this.userAgent = '',
-    this.includeChats = true,
-    this.includeFiles = true,
+    this.content = const BackupContentScope(),
   });
+
+  /// Legacy aliases — semantics of the old two toggles (skills excluded from
+  /// files, exactly like the pre-scope packer).
+  bool get includeChats => content.chatsAndAssistants;
+  bool get includeFiles =>
+      content.attachments || content.workspaces || content.fontsAndAvatars;
 
   WebDavConfig copyWith({
     String? url,
@@ -163,8 +169,7 @@ class WebDavConfig {
     String? password,
     String? path,
     String? userAgent,
-    bool? includeChats,
-    bool? includeFiles,
+    BackupContentScope? content,
   }) {
     return WebDavConfig(
       url: url ?? this.url,
@@ -172,10 +177,14 @@ class WebDavConfig {
       password: password ?? this.password,
       path: path ?? this.path,
       userAgent: userAgent ?? this.userAgent,
-      includeChats: includeChats ?? this.includeChats,
-      includeFiles: includeFiles ?? this.includeFiles,
+      content: content ?? this.content,
     );
   }
+
+  /// Derived channel enabled state (issue #306): a WebDAV channel is
+  /// usable when the server URL is filled in. Username/password are optional
+  /// (public servers need no auth).
+  bool get isConfigured => url.trim().isNotEmpty;
 
   Map<String, dynamic> toJson() => {
     'url': url,
@@ -183,8 +192,11 @@ class WebDavConfig {
     'password': password,
     'path': path,
     'userAgent': userAgent,
-    'includeChats': includeChats,
-    'includeFiles': includeFiles,
+    'content': content.toJson(),
+    // Legacy keys: old builds keep reading their two toggles.
+    'includeChats': content.chatsAndAssistants,
+    'includeFiles':
+        content.attachments || content.workspaces || content.fontsAndAvatars,
   };
 
   static WebDavConfig fromJson(Map<String, dynamic> json) {
@@ -196,8 +208,11 @@ class WebDavConfig {
           ? (json['path'] as String).trim()
           : 'kelivo_backups',
       userAgent: (json['userAgent'] as String?) ?? '',
-      includeChats: json['includeChats'] as bool? ?? true,
-      includeFiles: json['includeFiles'] as bool? ?? true,
+      content: BackupContentScope.fromJson(
+        (json['content'] as Map?)?.cast<String, dynamic>() ?? const {},
+        legacyIncludeChats: json['includeChats'] as bool?,
+        legacyIncludeFiles: json['includeFiles'] as bool?,
+      ),
     );
   }
 
@@ -226,8 +241,9 @@ class S3Config {
   final bool
   pathStyle; // safer for custom endpoints (no bucket subdomain TLS mismatch)
   final String userAgent;
-  final bool includeChats;
-  final bool includeFiles;
+
+  /// What a backup through this channel includes (both full and incremental).
+  final BackupContentScope content;
 
   const S3Config({
     this.endpoint = '',
@@ -239,9 +255,14 @@ class S3Config {
     this.prefix = 'kelivo_backups',
     this.pathStyle = true,
     this.userAgent = '',
-    this.includeChats = true,
-    this.includeFiles = true,
+    this.content = const BackupContentScope(),
   });
+
+  /// Legacy aliases — semantics of the old two toggles (skills excluded from
+  /// files, exactly like the pre-scope packer).
+  bool get includeChats => content.chatsAndAssistants;
+  bool get includeFiles =>
+      content.attachments || content.workspaces || content.fontsAndAvatars;
 
   S3Config copyWith({
     String? endpoint,
@@ -253,8 +274,7 @@ class S3Config {
     String? prefix,
     bool? pathStyle,
     String? userAgent,
-    bool? includeChats,
-    bool? includeFiles,
+    BackupContentScope? content,
   }) {
     return S3Config(
       endpoint: endpoint ?? this.endpoint,
@@ -266,10 +286,18 @@ class S3Config {
       prefix: prefix ?? this.prefix,
       pathStyle: pathStyle ?? this.pathStyle,
       userAgent: userAgent ?? this.userAgent,
-      includeChats: includeChats ?? this.includeChats,
-      includeFiles: includeFiles ?? this.includeFiles,
+      content: content ?? this.content,
     );
   }
+
+  /// Derived channel enabled state (issue #306): an S3 channel is usable
+  /// when the connection essentials are filled in. Region, sessionToken and
+  /// prefix have defaults, so they never gate the state.
+  bool get isConfigured =>
+      endpoint.trim().isNotEmpty &&
+      bucket.trim().isNotEmpty &&
+      accessKeyId.trim().isNotEmpty &&
+      secretAccessKey.trim().isNotEmpty;
 
   Map<String, dynamic> toJson() => {
     'endpoint': endpoint,
@@ -281,8 +309,11 @@ class S3Config {
     'prefix': prefix,
     'pathStyle': pathStyle,
     'userAgent': userAgent,
-    'includeChats': includeChats,
-    'includeFiles': includeFiles,
+    'content': content.toJson(),
+    // Legacy keys: old builds keep reading their two toggles.
+    'includeChats': content.chatsAndAssistants,
+    'includeFiles':
+        content.attachments || content.workspaces || content.fontsAndAvatars,
   };
 
   static S3Config fromJson(Map<String, dynamic> json) {
@@ -300,8 +331,11 @@ class S3Config {
           : 'kelivo_backups',
       pathStyle: json['pathStyle'] as bool? ?? true,
       userAgent: (json['userAgent'] as String?) ?? '',
-      includeChats: json['includeChats'] as bool? ?? true,
-      includeFiles: json['includeFiles'] as bool? ?? true,
+      content: BackupContentScope.fromJson(
+        (json['content'] as Map?)?.cast<String, dynamic>() ?? const {},
+        legacyIncludeChats: json['includeChats'] as bool?,
+        legacyIncludeFiles: json['includeFiles'] as bool?,
+      ),
     );
   }
 

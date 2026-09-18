@@ -71,12 +71,14 @@ typedef ParsedChatImportBatch = ({
 final class LinearMessageWindowSlot {
   const LinearMessageWindowSlot({
     required this.groupId,
+    this.subgroupId,
     required this.revisionId,
     required this.versionCount,
     required this.logicalIndex,
   });
 
   final String groupId;
+  final String? subgroupId;
   final String revisionId;
   final int versionCount;
   final int logicalIndex;
@@ -918,6 +920,7 @@ class ChatDatabaseRepository {
       'sender_id',
       'extras_json',
       'quote_json',
+      'subgroup_id',
     ],
     'chat_storage_meta_rows': ['key', 'value'],
     'message_part_rows': [
@@ -2894,6 +2897,7 @@ class ChatDatabaseRepository {
           timestamp: _dateTimeFromSqlite(row.data['timestamp']),
           conversationId: row.read<String>('conversation_id'),
           groupId: row.read<String>('group_id'),
+          subgroupId: row.readNullable<String>('subgroup_id'),
           version: row.read<int>('version'),
         ),
     ];
@@ -3198,6 +3202,7 @@ class ChatDatabaseRepository {
         .map(
           (row) => LinearMessageWindowSlot(
             groupId: row.read<String>('group_id'),
+            subgroupId: row.readNullable<String>('subgroup_id'),
             revisionId: row.read<String>('revision_id'),
             versionCount: row.read<int>('version_count'),
             logicalIndex: row.read<int>('logical_index'),
@@ -4577,6 +4582,7 @@ class ChatDatabaseRepository {
               groupId: Value(
                 message.groupId == null ? null : groupIdMap[message.groupId],
               ),
+              subgroupId: Value(message.subgroupId),
               version: Value(message.version),
               promptTokens: Value(message.promptTokens),
               completionTokens: Value(message.completionTokens),
@@ -6527,6 +6533,7 @@ class ChatDatabaseRepository {
               timestamp: row.timestamp,
               conversationId: row.conversationId,
               groupId: row.groupId,
+              subgroupId: row.subgroupId,
               version: row.version,
             ),
         ],

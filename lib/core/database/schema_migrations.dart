@@ -36,7 +36,7 @@ typedef DatabaseUpgradeOutcome = ({
 ///    - `dart run build_runner build`
 ///    - `dart run drift_dev schema dump lib/core/database/app_database.dart drift_schemas/app_database/`
 ///    - `dart run drift_dev schema generate drift_schemas/app_database/ test/core/database/generated_schema/`
-///    - `dart run drift_dev schema steps drift_schemas/app_database/ lib/core/database/schema_versions.dart`
+///    - `dart run drift_dev schema steps drift_schemas/app_database/ lib/core/database/schema/`
 ///    Already-published `drift_schema_vN.json` files are frozen: never re-dump
 ///    one in place, or the migration it anchors stops describing what shipped.
 /// 4. Add the `fromNToN+1` callback to the `stepByStep` call in

@@ -1251,6 +1251,17 @@ class $MessageRowsTable extends MessageRows
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _subgroupIdMeta = const VerificationMeta(
+    'subgroupId',
+  );
+  @override
+  late final GeneratedColumn<String> subgroupId = GeneratedColumn<String>(
+    'subgroup_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1276,6 +1287,7 @@ class $MessageRowsTable extends MessageRows
     senderId,
     extrasJson,
     quoteJson,
+    subgroupId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1435,6 +1447,12 @@ class $MessageRowsTable extends MessageRows
         quoteJson.isAcceptableOrUnknown(data['quote_json']!, _quoteJsonMeta),
       );
     }
+    if (data.containsKey('subgroup_id')) {
+      context.handle(
+        _subgroupIdMeta,
+        subgroupId.isAcceptableOrUnknown(data['subgroup_id']!, _subgroupIdMeta),
+      );
+    }
     return context;
   }
 
@@ -1550,6 +1568,10 @@ class $MessageRowsTable extends MessageRows
         DriftSqlType.string,
         data['${effectivePrefix}quote_json'],
       ),
+      subgroupId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}subgroup_id'],
+      ),
     );
   }
 
@@ -1598,6 +1620,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
   final String? senderId;
   final String extrasJson;
   final String? quoteJson;
+  final String? subgroupId;
   const MessageRow({
     required this.id,
     required this.conversationId,
@@ -1622,6 +1645,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     this.senderId,
     required this.extrasJson,
     this.quoteJson,
+    this.subgroupId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1691,6 +1715,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     if (!nullToAbsent || quoteJson != null) {
       map['quote_json'] = Variable<String>(quoteJson);
     }
+    if (!nullToAbsent || subgroupId != null) {
+      map['subgroup_id'] = Variable<String>(subgroupId);
+    }
     return map;
   }
 
@@ -1749,6 +1776,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       quoteJson: quoteJson == null && nullToAbsent
           ? const Value.absent()
           : Value(quoteJson),
+      subgroupId: subgroupId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subgroupId),
     );
   }
 
@@ -1787,6 +1817,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       senderId: serializer.fromJson<String?>(json['senderId']),
       extrasJson: serializer.fromJson<String>(json['extrasJson']),
       quoteJson: serializer.fromJson<String?>(json['quoteJson']),
+      subgroupId: serializer.fromJson<String?>(json['subgroupId']),
     );
   }
   @override
@@ -1818,6 +1849,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       'senderId': serializer.toJson<String?>(senderId),
       'extrasJson': serializer.toJson<String>(extrasJson),
       'quoteJson': serializer.toJson<String?>(quoteJson),
+      'subgroupId': serializer.toJson<String?>(subgroupId),
     };
   }
 
@@ -1845,6 +1877,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     Value<String?> senderId = const Value.absent(),
     String? extrasJson,
     Value<String?> quoteJson = const Value.absent(),
+    Value<String?> subgroupId = const Value.absent(),
   }) => MessageRow(
     id: id ?? this.id,
     conversationId: conversationId ?? this.conversationId,
@@ -1877,6 +1910,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     senderId: senderId.present ? senderId.value : this.senderId,
     extrasJson: extrasJson ?? this.extrasJson,
     quoteJson: quoteJson.present ? quoteJson.value : this.quoteJson,
+    subgroupId: subgroupId.present ? subgroupId.value : this.subgroupId,
   );
   MessageRow copyWithCompanion(MessageRowsCompanion data) {
     return MessageRow(
@@ -1931,6 +1965,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           ? data.extrasJson.value
           : this.extrasJson,
       quoteJson: data.quoteJson.present ? data.quoteJson.value : this.quoteJson,
+      subgroupId: data.subgroupId.present
+          ? data.subgroupId.value
+          : this.subgroupId,
     );
   }
 
@@ -1959,7 +1996,8 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           ..write('updatedAt: $updatedAt, ')
           ..write('senderId: $senderId, ')
           ..write('extrasJson: $extrasJson, ')
-          ..write('quoteJson: $quoteJson')
+          ..write('quoteJson: $quoteJson, ')
+          ..write('subgroupId: $subgroupId')
           ..write(')'))
         .toString();
   }
@@ -1989,6 +2027,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
     senderId,
     extrasJson,
     quoteJson,
+    subgroupId,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -2016,7 +2055,8 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           other.updatedAt == this.updatedAt &&
           other.senderId == this.senderId &&
           other.extrasJson == this.extrasJson &&
-          other.quoteJson == this.quoteJson);
+          other.quoteJson == this.quoteJson &&
+          other.subgroupId == this.subgroupId);
 }
 
 class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
@@ -2043,6 +2083,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
   final Value<String?> senderId;
   final Value<String> extrasJson;
   final Value<String?> quoteJson;
+  final Value<String?> subgroupId;
   final Value<int> rowid;
   const MessageRowsCompanion({
     this.id = const Value.absent(),
@@ -2068,6 +2109,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     this.senderId = const Value.absent(),
     this.extrasJson = const Value.absent(),
     this.quoteJson = const Value.absent(),
+    this.subgroupId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MessageRowsCompanion.insert({
@@ -2094,6 +2136,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     this.senderId = const Value.absent(),
     this.extrasJson = const Value.absent(),
     this.quoteJson = const Value.absent(),
+    this.subgroupId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        conversationId = Value(conversationId),
@@ -2124,6 +2167,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     Expression<String>? senderId,
     Expression<String>? extrasJson,
     Expression<String>? quoteJson,
+    Expression<String>? subgroupId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2152,6 +2196,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
       if (senderId != null) 'sender_id': senderId,
       if (extrasJson != null) 'extras_json': extrasJson,
       if (quoteJson != null) 'quote_json': quoteJson,
+      if (subgroupId != null) 'subgroup_id': subgroupId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2180,6 +2225,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     Value<String?>? senderId,
     Value<String>? extrasJson,
     Value<String?>? quoteJson,
+    Value<String?>? subgroupId,
     Value<int>? rowid,
   }) {
     return MessageRowsCompanion(
@@ -2207,6 +2253,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
       senderId: senderId ?? this.senderId,
       extrasJson: extrasJson ?? this.extrasJson,
       quoteJson: quoteJson ?? this.quoteJson,
+      subgroupId: subgroupId ?? this.subgroupId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2297,6 +2344,9 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
     if (quoteJson.present) {
       map['quote_json'] = Variable<String>(quoteJson.value);
     }
+    if (subgroupId.present) {
+      map['subgroup_id'] = Variable<String>(subgroupId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2329,6 +2379,7 @@ class MessageRowsCompanion extends UpdateCompanion<MessageRow> {
           ..write('senderId: $senderId, ')
           ..write('extrasJson: $extrasJson, ')
           ..write('quoteJson: $quoteJson, ')
+          ..write('subgroupId: $subgroupId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -14613,6 +14664,7 @@ typedef $$MessageRowsTableCreateCompanionBuilder =
       Value<String?> senderId,
       Value<String> extrasJson,
       Value<String?> quoteJson,
+      Value<String?> subgroupId,
       Value<int> rowid,
     });
 typedef $$MessageRowsTableUpdateCompanionBuilder =
@@ -14640,6 +14692,7 @@ typedef $$MessageRowsTableUpdateCompanionBuilder =
       Value<String?> senderId,
       Value<String> extrasJson,
       Value<String?> quoteJson,
+      Value<String?> subgroupId,
       Value<int> rowid,
     });
 
@@ -14831,6 +14884,11 @@ class $$MessageRowsTableFilterComposer
 
   ColumnFilters<String> get quoteJson => $composableBuilder(
     column: $table.quoteJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get subgroupId => $composableBuilder(
+    column: $table.subgroupId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -15028,6 +15086,11 @@ class $$MessageRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get subgroupId => $composableBuilder(
+    column: $table.subgroupId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ConversationRowsTableOrderingComposer get conversationId {
     final $$ConversationRowsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -15154,6 +15217,11 @@ class $$MessageRowsTableAnnotationComposer
 
   GeneratedColumn<String> get quoteJson =>
       $composableBuilder(column: $table.quoteJson, builder: (column) => column);
+
+  GeneratedColumn<String> get subgroupId => $composableBuilder(
+    column: $table.subgroupId,
+    builder: (column) => column,
+  );
 
   $$ConversationRowsTableAnnotationComposer get conversationId {
     final $$ConversationRowsTableAnnotationComposer composer = $composerBuilder(
@@ -15286,6 +15354,7 @@ class $$MessageRowsTableTableManager
                 Value<String?> senderId = const Value.absent(),
                 Value<String> extrasJson = const Value.absent(),
                 Value<String?> quoteJson = const Value.absent(),
+                Value<String?> subgroupId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MessageRowsCompanion(
                 id: id,
@@ -15311,6 +15380,7 @@ class $$MessageRowsTableTableManager
                 senderId: senderId,
                 extrasJson: extrasJson,
                 quoteJson: quoteJson,
+                subgroupId: subgroupId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -15338,6 +15408,7 @@ class $$MessageRowsTableTableManager
                 Value<String?> senderId = const Value.absent(),
                 Value<String> extrasJson = const Value.absent(),
                 Value<String?> quoteJson = const Value.absent(),
+                Value<String?> subgroupId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MessageRowsCompanion.insert(
                 id: id,
@@ -15363,6 +15434,7 @@ class $$MessageRowsTableTableManager
                 senderId: senderId,
                 extrasJson: extrasJson,
                 quoteJson: quoteJson,
+                subgroupId: subgroupId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

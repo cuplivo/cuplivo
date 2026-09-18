@@ -6,7 +6,7 @@ import 'package:drift/native.dart';
 import 'package:sqlite3/common.dart' show AllowedArgumentCount, CommonDatabase;
 
 import '../../utils/app_directories.dart';
-import 'schema_versions.dart';
+import 'schema_steps.dart';
 
 part 'app_database.g.dart';
 
@@ -122,6 +122,7 @@ class MessageRows extends Table {
   TextColumn get translation => text().nullable()();
   TextColumn get reasoningSegmentsJson => text().nullable()();
   TextColumn get groupId => text().nullable()();
+
   IntColumn get version => integer()
       // ignore: recursive_getters
       .check(version.isBiggerOrEqualValue(0))
@@ -163,6 +164,11 @@ class MessageRows extends Table {
   // v4: JSON-encoded MessageQuote citation for message replies. Half-open
   // [start, end) offsets index the target's raw markdown. Null = no reply.
   TextColumn get quoteJson => text().nullable()();
+  // v6: Multi-AI comparison parallel-thread id within a round (cards);
+  // independent of groupId (the round anchor). Null for classic messages.
+  // Declared last so fresh v6 tables and ADD COLUMN migrations share the
+  // physical column order (see the column-order note at the top).
+  TextColumn get subgroupId => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -848,11 +854,11 @@ class AppDatabase extends _$AppDatabase {
   // schema 5 adds group chat config and membership tables.
   // Every version outside [publishedSchemaVersions] belongs to an
   // unpublished or future format and is rejected.
-  static const currentSchemaVersion = 5;
+  static const currentSchemaVersion = 6;
 
   /// Every schema that has ever shipped. A file at any of these can be
   /// upgraded by `SchemaMigrations`; anything else is rejected outright.
-  static const publishedSchemaVersions = <int>{1, 2, 3, 4, 5};
+  static const publishedSchemaVersions = <int>{1, 2, 3, 4, 5, 6};
 
   /// Whether a live application connection may use a file as-is: either freshly
   /// created (0) or already at the current schema.
@@ -1033,6 +1039,10 @@ FROM probe;
         await m.createTable(schema.groupChatMemberRows);
         // stepByStep does not create new indexes automatically.
         await m.create(schema.idxGroupChatsUpdatedAt);
+      },
+      // Purely additive; no data rewrite. Multi-AI comparison thread id.
+      from5To6: (m, schema) async {
+        await m.addColumn(schema.messageRows, schema.messageRows.subgroupId);
       },
     ),
     beforeOpen: (details) async {

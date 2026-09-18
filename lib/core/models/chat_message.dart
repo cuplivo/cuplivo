@@ -72,6 +72,12 @@ class ChatMessage extends HiveObject {
   @HiveField(14)
   final String? groupId;
 
+  // Multi-AI comparison: different subgroupId within same groupId → cards.
+  // Independent of groupId (the round anchor): message identity has four
+  // dimensions — speaker, parallel thread (this field), retry version, and
+  // anchor group.
+  final String? subgroupId;
+
   @HiveField(15)
   final int version;
 
@@ -132,6 +138,7 @@ class ChatMessage extends HiveObject {
     this.translation,
     this.reasoningSegmentsJson,
     String? groupId,
+    this.subgroupId,
     int? version,
     this.promptTokens,
     this.completionTokens,
@@ -145,6 +152,7 @@ class ChatMessage extends HiveObject {
        id = id ?? const Uuid().v4(),
        timestamp = timestamp ?? DateTime.now(),
        groupId = groupId ?? id,
+
        version = version ?? 0;
 
   /// Content-only rewrite that preserves part ordinal.
@@ -298,6 +306,7 @@ class ChatMessage extends HiveObject {
     String? translation,
     String? reasoningSegmentsJson,
     String? groupId,
+    String? subgroupId,
     int? version,
     int? promptTokens,
     int? completionTokens,
@@ -331,6 +340,7 @@ class ChatMessage extends HiveObject {
       reasoningSegmentsJson:
           reasoningSegmentsJson ?? this.reasoningSegmentsJson,
       groupId: groupId ?? this.groupId,
+      subgroupId: subgroupId ?? this.subgroupId,
       version: version ?? this.version,
       promptTokens: promptTokens ?? this.promptTokens,
       completionTokens: completionTokens ?? this.completionTokens,
@@ -367,6 +377,7 @@ class ChatMessage extends HiveObject {
       'translation': translation,
       'reasoningSegmentsJson': reasoningSegmentsJson,
       'groupId': groupId,
+      'subgroupId': subgroupId,
       'version': version,
       'promptTokens': promptTokens,
       'completionTokens': completionTokens,
@@ -422,6 +433,7 @@ class ChatMessage extends HiveObject {
       translation: json['translation'] as String?,
       reasoningSegmentsJson: json['reasoningSegmentsJson'] as String?,
       groupId: json['groupId'] as String?,
+      subgroupId: json['subgroupId'] as String?,
       version: (json['version'] as int?) ?? 0,
       promptTokens: json['promptTokens'] as int?,
       completionTokens: json['completionTokens'] as int?,

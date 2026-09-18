@@ -12162,6 +12162,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatMessageWidgetCopyAsPlainText => '复制为纯文本';
+
+  @override
+  String get markdownMathCopyLatexLabel => '复制 LaTeX';
+
+  @override
+  String get markdownMathCopyPngLabel => '复制为 PNG';
+
+  @override
+  String get markdownMathDownloadPngLabel => '下载 PNG';
+
+  @override
+  String get markdownMathSavePngLabel => '保存到相册';
+
+  @override
+  String get markdownMathDefaultFileNameStem => '公式';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -24248,6 +24263,21 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get chatMessageWidgetCopyAsPlainText => '复制为纯文本';
+
+  @override
+  String get markdownMathCopyLatexLabel => '复制 LaTeX';
+
+  @override
+  String get markdownMathCopyPngLabel => '复制为 PNG';
+
+  @override
+  String get markdownMathDownloadPngLabel => '下载 PNG';
+
+  @override
+  String get markdownMathSavePngLabel => '保存到相册';
+
+  @override
+  String get markdownMathDefaultFileNameStem => '公式';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -36414,4 +36444,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get chatMessageWidgetCopyAsPlainText => '複製為純文字';
+
+  @override
+  String get markdownMathCopyLatexLabel => '複製 LaTeX';
+
+  @override
+  String get markdownMathCopyPngLabel => '複製為 PNG';
+
+  @override
+  String get markdownMathDownloadPngLabel => '下載 PNG';
+
+  @override
+  String get markdownMathSavePngLabel => '儲存到相簿';
+
+  @override
+  String get markdownMathDefaultFileNameStem => '公式';
 }

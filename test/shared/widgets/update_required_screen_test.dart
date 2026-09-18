@@ -33,7 +33,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Update Kelivo to continue'), findsOneWidget);
+      expect(find.text('Update Cuplivo to continue'), findsOneWidget);
       expect(find.text('If you need an older version'), findsOneWidget);
       expect(
         find.textContaining('export a backup from Settings'),

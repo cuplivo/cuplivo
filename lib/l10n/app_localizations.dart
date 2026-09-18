@@ -22832,6 +22832,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy as Plain Text'**
   String get chatMessageWidgetCopyAsPlainText;
+
+  /// No description provided for @markdownMathCopyLatexLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy LaTeX'**
+  String get markdownMathCopyLatexLabel;
+
+  /// No description provided for @markdownMathCopyPngLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy as PNG'**
+  String get markdownMathCopyPngLabel;
+
+  /// No description provided for @markdownMathDownloadPngLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Download PNG'**
+  String get markdownMathDownloadPngLabel;
+
+  /// No description provided for @markdownMathSavePngLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Gallery'**
+  String get markdownMathSavePngLabel;
+
+  /// No description provided for @markdownMathDefaultFileNameStem.
+  ///
+  /// In en, this message translates to:
+  /// **'math'**
+  String get markdownMathDefaultFileNameStem;
 }
 
 class _AppLocalizationsDelegate

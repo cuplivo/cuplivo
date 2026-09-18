@@ -12730,4 +12730,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatMessageWidgetCopyAsPlainText => 'Copy as Plain Text';
+
+  @override
+  String get markdownMathCopyLatexLabel => 'Copy LaTeX';
+
+  @override
+  String get markdownMathCopyPngLabel => 'Copy as PNG';
+
+  @override
+  String get markdownMathDownloadPngLabel => 'Download PNG';
+
+  @override
+  String get markdownMathSavePngLabel => 'Save to Gallery';
+
+  @override
+  String get markdownMathDefaultFileNameStem => 'math';
 }

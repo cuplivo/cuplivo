@@ -5445,5 +5445,9 @@
   "backupPageIncrementalPreviewFiles": "{count} attachments ({size})",
   "backupPageIncrementalBackupNow": "Incremental backup now",
   "temporaryChatSaveTooltip": "Save temporary chat to history",
-  "temporaryChatSaved": "Saved to history"
+  "temporaryChatSaved": "Saved to history",
+  "displaySettingsPageStartupAssistantPinnedTitle": "Start with a pinned assistant",
+  "displaySettingsPageStartupAssistantPinnedSubtitle": "Always switch to the designated assistant on launch",
+  "displaySettingsPageStartupAssistantPickerLabel": "Startup assistant",
+  "displaySettingsPageStartupAssistantNone": "None"
 }

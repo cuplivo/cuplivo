@@ -13,6 +13,7 @@ import '../services/chat/chat_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/avatar_cache.dart';
 import '../../utils/app_directories.dart';
+import 'settings_provider.dart';
 
 class AssistantProvider extends ChangeNotifier {
   static const String _assistantsKey = 'assistants_v1';
@@ -508,6 +509,10 @@ class AssistantProvider extends ChangeNotifier {
     if (_assistants.length <= 1) return false;
 
     await chatService?.deleteConversationsForAssistant(id);
+    try {
+      // Never leave a dangling startup pin behind a deleted assistant.
+      await SettingsProvider.clearPinnedAssistantPrefsIfPinned(id, preferences);
+    } catch (_) {}
 
     final removingCurrent = _assistants[idx].id == _currentAssistantId;
     _assistants.removeAt(idx);

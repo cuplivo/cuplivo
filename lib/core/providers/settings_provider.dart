@@ -46,6 +46,8 @@ import '../services/app_exit_flush.dart';
 // Desktop: topic list position
 enum DesktopTopicPosition { left, right }
 
+enum StartupAssistantMode { mostRecent, pinned }
+
 // Desktop: send message shortcut
 enum DesktopSendShortcut { enter, ctrlEnter }
 
@@ -249,6 +251,8 @@ class SettingsProvider extends ChangeNotifier {
       'display_new_chat_on_assistant_switch_v1';
   static const String _displayNewChatOnLaunchKey =
       'display_new_chat_on_launch_v1';
+  static const String _startupAssistantModeKey = 'startup_assistant_mode_v1';
+  static const String _pinnedAssistantIdKey = 'pinned_assistant_id_v1';
   static const String _displayNewChatAfterDeleteKey =
       'display_new_chat_after_delete_v1';
   static const String _displayEnterToSendOnMobileKey =
@@ -1162,6 +1166,10 @@ class SettingsProvider extends ChangeNotifier {
       maxSizeMB: _logMaxSizeMB,
     );
     _newChatOnLaunch = prefs.getBool(_displayNewChatOnLaunchKey) ?? true;
+    _startupAssistantMode = _startupAssistantModeFromString(
+      prefs.getString(_startupAssistantModeKey),
+    );
+    _pinnedAssistantId = prefs.getString(_pinnedAssistantIdKey);
     _newChatOnAssistantSwitch =
         prefs.getBool(_displayNewChatOnAssistantSwitchKey) ?? false;
     _newChatAfterDelete = prefs.getBool(_displayNewChatAfterDeleteKey) ?? false;
@@ -4814,6 +4822,82 @@ Requirements:
     notifyListeners();
     final prefs = _preferences;
     await prefs.setBool(_displayNewChatOnAssistantSwitchKey, v);
+  }
+
+  // Startup assistant: which assistant becomes current on cold start.
+  // mostRecent = follow the most-recently opened conversation (default);
+  // pinned = always switch to the designated [pinnedAssistantId].
+  StartupAssistantMode _startupAssistantMode = StartupAssistantMode.mostRecent;
+  StartupAssistantMode get startupAssistantMode => _startupAssistantMode;
+  Future<void> setStartupAssistantMode(StartupAssistantMode v) async {
+    if (_startupAssistantMode == v) return;
+    _startupAssistantMode = v;
+    notifyListeners();
+    await _persistStartupAssistant();
+  }
+
+  String? _pinnedAssistantId;
+  String? get pinnedAssistantId => _pinnedAssistantId;
+  Future<void> setPinnedAssistantId(String? id) async {
+    if (_pinnedAssistantId == id) return;
+    _pinnedAssistantId = id;
+    notifyListeners();
+    await _persistStartupAssistant();
+  }
+
+  static StartupAssistantMode _startupAssistantModeFromString(String? raw) {
+    for (final mode in StartupAssistantMode.values) {
+      if (mode.name == raw) return mode;
+    }
+    return StartupAssistantMode.mostRecent;
+  }
+
+  /// Clears the pinned assistant and reverts to
+  /// [StartupAssistantMode.mostRecent], unconditionally (dangling pin
+  /// self-heal after e.g. a backup restore from another device's assistant
+  /// set).
+  Future<void> clearPinnedAssistant() async {
+    if (_startupAssistantMode == StartupAssistantMode.mostRecent &&
+        _pinnedAssistantId == null) {
+      return;
+    }
+    _pinnedAssistantId = null;
+    _startupAssistantMode = StartupAssistantMode.mostRecent;
+    notifyListeners();
+    await _persistStartupAssistant();
+  }
+
+  /// Clears the pin when [assistantId] is the pinned assistant, so deleting
+  /// an assistant never leaves a dangling pin.
+  Future<void> clearPinnedAssistantIfPinned(String assistantId) async {
+    if (_pinnedAssistantId != assistantId) return;
+    await clearPinnedAssistant();
+  }
+
+  /// Prefs-only variant of [clearPinnedAssistantIfPinned] for callers
+  /// without the live provider instance (AssistantProvider.deleteAssistant):
+  /// the running instance's in-memory state is not updated here — the
+  /// controller's dangling-pin self-heal covers it on next launch.
+  static Future<void> clearPinnedAssistantPrefsIfPinned(
+    String assistantId,
+    BusinessPreferences preferences,
+  ) async {
+    if (preferences.getString(_pinnedAssistantIdKey) != assistantId) return;
+    await preferences.setString(
+      _startupAssistantModeKey,
+      StartupAssistantMode.mostRecent.name,
+    );
+    await preferences.remove(_pinnedAssistantIdKey);
+  }
+
+  Future<void> _persistStartupAssistant() async {
+    final prefs = _preferences;
+    await prefs.setString(_startupAssistantModeKey, _startupAssistantMode.name);
+    if (_pinnedAssistantId == null) {
+      await prefs.remove(_pinnedAssistantIdKey);
+    } else {
+      await prefs.setString(_pinnedAssistantIdKey, _pinnedAssistantId!);
+    }
   }
 
   // Display: create a new chat after deleting one

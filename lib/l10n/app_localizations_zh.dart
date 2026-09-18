@@ -12013,6 +12013,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get temporaryChatSaved => '已保存到历史';
+
+  @override
+  String get displaySettingsPageStartupAssistantPinnedTitle => '固定启动助手';
+
+  @override
+  String get displaySettingsPageStartupAssistantPinnedSubtitle =>
+      '每次启动时自动切换到指定助手';
+
+  @override
+  String get displaySettingsPageStartupAssistantPickerLabel => '启动助手';
+
+  @override
+  String get displaySettingsPageStartupAssistantNone => '未指定';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -23950,6 +23963,19 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get temporaryChatSaved => '已保存到历史';
+
+  @override
+  String get displaySettingsPageStartupAssistantPinnedTitle => '固定启动助手';
+
+  @override
+  String get displaySettingsPageStartupAssistantPinnedSubtitle =>
+      '每次启动时自动切换到指定助手';
+
+  @override
+  String get displaySettingsPageStartupAssistantPickerLabel => '启动助手';
+
+  @override
+  String get displaySettingsPageStartupAssistantNone => '未指定';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -35967,4 +35993,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get temporaryChatSaved => '已儲存到歷史';
+
+  @override
+  String get displaySettingsPageStartupAssistantPinnedTitle => '固定啟動助手';
+
+  @override
+  String get displaySettingsPageStartupAssistantPinnedSubtitle =>
+      '每次啟動時自動切換到指定助手';
+
+  @override
+  String get displaySettingsPageStartupAssistantPickerLabel => '啟動助手';
+
+  @override
+  String get displaySettingsPageStartupAssistantNone => '未指定';
 }

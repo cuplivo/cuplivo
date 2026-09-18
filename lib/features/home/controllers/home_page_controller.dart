@@ -813,18 +813,62 @@ class HomePageController extends ChangeNotifier {
     }
   }
 
+  /// Applies the startup-assistant policy (settings `startupAssistantMode`):
+  /// `pinned` → switch to the pinned assistant (when it still exists;
+  /// otherwise self-heal the dangling pin and degrade to mostRecent).
+  /// Returns the pinned assistant id when pinned mode is active and
+  /// resolvable, else null.
+  Future<String?> _applyStartupAssistant(
+    SettingsProvider settings,
+    AssistantProvider assistantProvider,
+  ) async {
+    final assistantIds = assistantProvider.assistants.map((a) => a.id).toSet();
+    final pinnedId = resolveStartupAssistantId(
+      settings.startupAssistantMode,
+      settings.pinnedAssistantId,
+      assistantIds,
+    );
+    if (pinnedId != null) {
+      await assistantProvider.setCurrentAssistant(pinnedId);
+      return pinnedId;
+    }
+    if (settings.startupAssistantMode == StartupAssistantMode.pinned) {
+      debugPrint(
+        '[HomePageController] pinned startup assistant unavailable '
+        '(${settings.pinnedAssistantId}); clearing dangling pin and '
+        'falling back to most-recent',
+      );
+      await settings.clearPinnedAssistant();
+    }
+    return null;
+  }
+
   Future<void> initChat() async {
     final prefs = _context.read<SettingsProvider>();
     final assistantProvider = _context.read<AssistantProvider>();
     try {
       // The two startups are independent of each other.
       await Future.wait([assistantProvider.loaded, _chatService.init()]);
+      final pinnedId = await _applyStartupAssistant(prefs, assistantProvider);
       if (prefs.newChatOnLaunch) {
         await _createNewConversation();
       } else {
         final conversations = _chatService.getAllConversations();
-        if (conversations.isNotEmpty) {
-          final recent = conversations.first;
+        final startup = selectStartupConversation(
+          conversations,
+          pinnedAssistantId: pinnedId,
+        );
+        if (startup != null) {
+          if (pinnedId == null) {
+            // mostRecent mode: follow the opened conversation's assistant.
+            final recentAssistantId = startup.assistantId;
+            if ((recentAssistantId ?? '').isNotEmpty) {
+              try {
+                await assistantProvider.setCurrentAssistant(recentAssistantId!);
+              } catch (_) {}
+            }
+          }
+          final recent = startup;
           _chatService.setCurrentConversation(recent.id);
           // Assistant restore and window load are independent; the message
           // list already tolerates a one-frame missing-assistant fallback.
@@ -3006,4 +3050,39 @@ class HomePageController extends ChangeNotifier {
     _streamController.dispose();
     super.dispose();
   }
+}
+
+/// Pure cold-start conversation selection (fork-lineage Startup Assistant).
+/// [conversations] is sorted by `updatedAt` desc (as returned by
+/// ChatService.getAllConversations).
+///
+/// - `pinnedAssistantId != null`: the pinned assistant's most-recent
+///   conversation, or null when it owns none.
+/// - null (mostRecent mode): the globally most-recent conversation, or null.
+Conversation? selectStartupConversation(
+  List<Conversation> conversations, {
+  required String? pinnedAssistantId,
+}) {
+  if (pinnedAssistantId != null) {
+    for (final c in conversations) {
+      if (c.assistantId == pinnedAssistantId) return c;
+    }
+    return null;
+  }
+  return conversations.isNotEmpty ? conversations.first : null;
+}
+
+/// Pure resolution of the startup-assistant policy: the pinned id when
+/// `pinned` mode is active AND the id resolves to a live assistant; null
+/// otherwise (mostRecent mode, or a dangling pin the caller self-heals).
+String? resolveStartupAssistantId(
+  StartupAssistantMode mode,
+  String? pinnedAssistantId,
+  Set<String> assistantIds,
+) {
+  if (mode != StartupAssistantMode.pinned) return null;
+  if (pinnedAssistantId == null || !assistantIds.contains(pinnedAssistantId)) {
+    return null;
+  }
+  return pinnedAssistantId;
 }

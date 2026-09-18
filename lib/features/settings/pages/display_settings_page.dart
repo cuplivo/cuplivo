@@ -8,6 +8,7 @@ import '../../../icons/lucide_adapter.dart';
 import 'package:syncfusion_flutter_sliders/sliders.dart';
 import 'package:syncfusion_flutter_core/theme.dart';
 import '../../../core/providers/settings_provider.dart';
+import '../../../core/providers/assistant_provider.dart';
 import 'auto_retry_page.dart';
 import 'google_fonts_picker_page.dart';
 import 'image_settings_page.dart';
@@ -1838,6 +1839,41 @@ class _NumberFieldRowState extends State<_NumberFieldRow> {
   }
 }
 
+/// Simple dialog picker for the pinned startup assistant (dialog, not a
+/// sheet — desktop safe).
+Future<String?> _pickStartupAssistant(BuildContext context) async {
+  final ap = context.read<AssistantProvider>();
+  return showDialog<String>(
+    context: context,
+    builder: (dctx) {
+      final cs = Theme.of(dctx).colorScheme;
+      final l10n = AppLocalizations.of(dctx)!;
+      final pinnedId = dctx.read<SettingsProvider>().pinnedAssistantId;
+      return SimpleDialog(
+        backgroundColor: cs.surface,
+        title: Text(l10n.displaySettingsPageStartupAssistantPickerLabel),
+        children: [
+          for (final a in ap.assistants)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(dctx).pop(a.id),
+              child: Row(
+                children: [
+                  Icon(
+                    a.id == pinnedId ? Lucide.CircleCheck : Lucide.Circle,
+                    size: 20,
+                    color: a.id == pinnedId ? cs.primary : cs.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(a.name)),
+                ],
+              ),
+            ),
+        ],
+      );
+    },
+  );
+}
+
 class BehaviorStartupSettingsPage extends StatelessWidget {
   const BehaviorStartupSettingsPage({super.key});
   @override
@@ -2091,6 +2127,59 @@ class BehaviorStartupSettingsPage extends StatelessWidget {
                 onChanged: (v) =>
                     context.read<SettingsProvider>().setNewChatOnLaunch(v),
               ),
+              _iosSwitchRow(
+                context,
+                icon: Lucide.Pin,
+                label: l10n.displaySettingsPageStartupAssistantPinnedTitle,
+                subtitle:
+                    l10n.displaySettingsPageStartupAssistantPinnedSubtitle,
+                value: sp.startupAssistantMode == StartupAssistantMode.pinned,
+                onChanged: (v) async {
+                  final settings = context.read<SettingsProvider>();
+                  if (v) {
+                    var pinnedId = settings.pinnedAssistantId;
+                    pinnedId ??= context
+                        .read<AssistantProvider>()
+                        .currentAssistantId;
+                    if (pinnedId == null) return;
+                    await settings.setPinnedAssistantId(pinnedId);
+                    await settings.setStartupAssistantMode(
+                      StartupAssistantMode.pinned,
+                    );
+                  } else {
+                    await settings.setStartupAssistantMode(
+                      StartupAssistantMode.mostRecent,
+                    );
+                  }
+                },
+              ),
+              if (sp.startupAssistantMode == StartupAssistantMode.pinned) ...[
+                _iosDivider(context),
+                _iosNavRow(
+                  context,
+                  icon: Lucide.Bot,
+                  label: l10n.displaySettingsPageStartupAssistantPickerLabel,
+                  detailBuilder: (ctx) {
+                    final ap = ctx.read<AssistantProvider>();
+                    final pinnedId = ctx
+                        .read<SettingsProvider>()
+                        .pinnedAssistantId;
+                    String? name;
+                    for (final a in ap.assistants) {
+                      if (a.id == pinnedId) {
+                        name = a.name;
+                        break;
+                      }
+                    }
+                    return Text(
+                      name ?? l10n.displaySettingsPageStartupAssistantNone,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    );
+                  },
+                  onTap: () => _pickStartupAssistant(context),
+                ),
+              ],
               _iosDivider(context),
               _iosSwitchRow(
                 context,

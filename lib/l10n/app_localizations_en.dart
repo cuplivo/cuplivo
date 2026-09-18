@@ -12575,4 +12575,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get temporaryChatSaved => 'Saved to history';
+
+  @override
+  String get displaySettingsPageStartupAssistantPinnedTitle =>
+      'Start with a pinned assistant';
+
+  @override
+  String get displaySettingsPageStartupAssistantPinnedSubtitle =>
+      'Always switch to the designated assistant on launch';
+
+  @override
+  String get displaySettingsPageStartupAssistantPickerLabel =>
+      'Startup assistant';
+
+  @override
+  String get displaySettingsPageStartupAssistantNone => 'None';
 }

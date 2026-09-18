@@ -143,6 +143,8 @@ class _DisplaySettingsBody extends StatelessWidget {
                   _ToggleRowNewChatAfterDelete(),
                   _RowDivider(),
                   _ToggleRowNewChatOnLaunch(),
+                  _ToggleRowStartupAssistant(),
+                  _StartupAssistantPickerRow(),
                   _RowDivider(),
                   _ToggleRowMsgNavButtons(),
                   _RowDivider(),
@@ -2988,6 +2990,87 @@ class _ToggleRowNewChatOnLaunch extends StatelessWidget {
       label: l10n.displaySettingsPageNewChatOnLaunchTitle,
       value: sp.newChatOnLaunch,
       onChanged: (v) => context.read<SettingsProvider>().setNewChatOnLaunch(v),
+    );
+  }
+}
+
+class _ToggleRowStartupAssistant extends StatelessWidget {
+  const _ToggleRowStartupAssistant();
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final sp = context.watch<SettingsProvider>();
+    return _ToggleRow(
+      label: l10n.displaySettingsPageStartupAssistantPinnedTitle,
+      tip: l10n.displaySettingsPageStartupAssistantPinnedSubtitle,
+      value: sp.startupAssistantMode == StartupAssistantMode.pinned,
+      onChanged: (v) async {
+        final settings = context.read<SettingsProvider>();
+        if (v) {
+          var pinnedId = settings.pinnedAssistantId;
+          pinnedId ??= context.read<AssistantProvider>().currentAssistantId;
+          if (pinnedId == null) return;
+          await settings.setPinnedAssistantId(pinnedId);
+          await settings.setStartupAssistantMode(StartupAssistantMode.pinned);
+        } else {
+          await settings.setStartupAssistantMode(
+            StartupAssistantMode.mostRecent,
+          );
+        }
+      },
+    );
+  }
+}
+
+class _StartupAssistantPickerRow extends StatelessWidget {
+  const _StartupAssistantPickerRow();
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final sp = context.watch<SettingsProvider>();
+    if (sp.startupAssistantMode != StartupAssistantMode.pinned) {
+      return const SizedBox.shrink();
+    }
+    return _ToggleRow(
+      label: l10n.displaySettingsPageStartupAssistantPickerLabel,
+      value: false,
+      onChanged: (_) async {
+        final ap = context.read<AssistantProvider>();
+        final pinnedId = sp.pinnedAssistantId;
+        final cs = Theme.of(context).colorScheme;
+        final settings = context.read<SettingsProvider>();
+        final id = await showDialog<String>(
+          context: context,
+          builder: (dctx) => SimpleDialog(
+            backgroundColor: cs.surface,
+            title: Text(l10n.displaySettingsPageStartupAssistantPickerLabel),
+            children: [
+              for (final a in ap.assistants)
+                SimpleDialogOption(
+                  onPressed: () => Navigator.of(dctx).pop(a.id),
+                  child: Row(
+                    children: [
+                      Icon(
+                        a.id == pinnedId
+                            ? lucide.Lucide.CircleCheck
+                            : lucide.Lucide.Circle,
+                        size: 20,
+                        color: a.id == pinnedId
+                            ? cs.primary
+                            : cs.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(a.name)),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        );
+        if (id != null) {
+          await settings.setPinnedAssistantId(id);
+        }
+      },
     );
   }
 }

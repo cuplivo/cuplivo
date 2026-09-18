@@ -8,6 +8,8 @@ class Lucide {
   static const IconData FileCog = lucide.LucideIcons.fileCog;
   static const IconData CloudUpload = lucide.LucideIcons.cloudUpload;
   static const IconData BookmarkCheck = lucide.LucideIcons.bookmarkCheck;
+  static const IconData CircleCheck = lucide.LucideIcons.circleCheck;
+  static const IconData Circle = lucide.LucideIcons.circle;
   static const IconData UsersRound = lucide.LucideIcons.usersRound;
   static const IconData ListTree = lucide.LucideIcons.listTree;
   static const IconData ListChecks = lucide.LucideIcons.listChecks;

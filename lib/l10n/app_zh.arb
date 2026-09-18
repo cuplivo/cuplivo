@@ -4413,5 +4413,9 @@
   "backupPageIncrementalPreviewFiles": "新附件 {count} 个 ({size})",
   "backupPageIncrementalBackupNow": "立即增量备份",
   "temporaryChatSaveTooltip": "保存临时对话到历史",
-  "temporaryChatSaved": "已保存到历史"
+  "temporaryChatSaved": "已保存到历史",
+  "displaySettingsPageStartupAssistantPinnedTitle": "固定启动助手",
+  "displaySettingsPageStartupAssistantPinnedSubtitle": "每次启动时自动切换到指定助手",
+  "displaySettingsPageStartupAssistantPickerLabel": "启动助手",
+  "displaySettingsPageStartupAssistantNone": "未指定"
 }

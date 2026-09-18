@@ -24,6 +24,10 @@ import '../../../core/services/logging/log_payload_elider.dart';
 import '../logs/request_log_parser.dart';
 import '../../../theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import '../../../core/models/chat_input_data.dart';
+import '../../../core/providers/assistant_provider.dart';
+import '../../../core/services/chat/external_chat_draft_handoff.dart';
+import '../logs/request_log_ai_analysis.dart';
 
 /// Mobile log viewer - shows list of log files and allows viewing/exporting
 class LogViewerPage extends StatefulWidget {
@@ -631,6 +635,14 @@ class _RequestLogFilePageState extends State<_RequestLogFilePage> {
           IconButton(
             icon: Icon(Lucide.RefreshCw, color: cs.onSurface, size: 20),
             onPressed: _load,
+          ),
+          IconButton(
+            icon: Icon(Lucide.Sparkles, color: cs.onSurface, size: 20),
+            tooltip: l10n.requestLogAiAnalysisTooltip,
+            onPressed: () => _startRequestLogAiAnalysis(
+              context,
+              _requests.take(30).toList(growable: false),
+            ),
           ),
           IconButton(
             icon: Icon(Lucide.Share2, color: cs.onSurface, size: 20),
@@ -3246,5 +3258,63 @@ class _SettingTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Sanitizes recent request logs into an AI-readable export and hands the
+/// draft to the current assistant (staged, then back to the chat route).
+Future<void> _startRequestLogAiAnalysis(
+  BuildContext context,
+  List<RequestLogEntry> entries,
+) async {
+  final l10n = AppLocalizations.of(context)!;
+  if (entries.isEmpty) {
+    showAppSnackBar(
+      context,
+      message: l10n.requestLogAiAnalysisNoRequests,
+      type: NotificationType.warning,
+    );
+    return;
+  }
+  final assistant = context.read<AssistantProvider>().currentAssistant;
+  if (assistant == null) {
+    showAppSnackBar(
+      context,
+      message: l10n.requestLogAiAnalysisNoAssistant,
+      type: NotificationType.warning,
+    );
+    return;
+  }
+  try {
+    final file = await RequestLogAiAnalysisExporter.writeAnalysisFile(
+      entries: entries,
+      fileNamePrefix: l10n.requestLogAiAnalysisFilePrefix,
+    );
+    if (!context.mounted) return;
+    ExternalChatDraftHandoff.stage(
+      ChatInputData(
+        text: l10n.requestLogAiAnalysisPrompt,
+        documents: <DocumentAttachment>[
+          DocumentAttachment(
+            path: file.path,
+            fileName: p.basename(file.path),
+            mime: 'application/json',
+          ),
+        ],
+      ),
+    );
+    Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
+  } catch (error, stackTrace) {
+    debugPrint(
+      'LogViewerPage: failed to prepare AI request-log analysis: '
+      '$error\n$stackTrace',
+    );
+    if (context.mounted) {
+      showAppSnackBar(
+        context,
+        message: l10n.requestLogAiAnalysisPreparationFailed,
+        type: NotificationType.error,
+      );
+    }
   }
 }

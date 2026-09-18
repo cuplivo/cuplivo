@@ -43,9 +43,9 @@ void main() {
         expect(find.byType(Dialog), findsNothing);
         // Title (sheet header) + group rows.
         expect(find.text('Join our QQ Group'), findsOneWidget);
-        expect(find.text('Kelivo Group 1'), findsOneWidget);
-        expect(find.text('Kelivo Group 2'), findsOneWidget);
-        expect(find.text('Kelivo Group 3'), findsOneWidget);
+        expect(find.text('Cuplivo Group 1'), findsOneWidget);
+        expect(find.text('Cuplivo Group 2'), findsOneWidget);
+        expect(find.text('Cuplivo Group 3'), findsOneWidget);
       } finally {
         debugDefaultTargetPlatformOverride = null;
       }
@@ -63,9 +63,9 @@ void main() {
 
       expect(find.byType(Dialog), findsOneWidget);
       expect(find.byKey(CustomBottomSheet.panelKey), findsNothing);
-      expect(find.text('Kelivo Group 1'), findsOneWidget);
-      expect(find.text('Kelivo Group 2'), findsOneWidget);
-      expect(find.text('Kelivo Group 3'), findsOneWidget);
+      expect(find.text('Cuplivo Group 1'), findsOneWidget);
+      expect(find.text('Cuplivo Group 2'), findsOneWidget);
+      expect(find.text('Cuplivo Group 3'), findsOneWidget);
 
       // Close via the X button.
       await tester.tap(find.byType(IosIconButton));

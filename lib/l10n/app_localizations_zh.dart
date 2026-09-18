@@ -12137,6 +12137,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String imageGenPartialNotice(Object received, Object requested) {
     return '仅生成 $received/$requested 张图片';
   }
+
+  @override
+  String get requestLogAiAnalysisTooltip => '让 AI 分析请求日志';
+
+  @override
+  String get requestLogAiAnalysisNoAssistant => '没有可用的当前助手，无法分析请求日志。';
+
+  @override
+  String get requestLogAiAnalysisNoRequests => '没有可分析的请求日志。';
+
+  @override
+  String get requestLogAiAnalysisPreparationFailed => '无法准备请求日志分析。';
+
+  @override
+  String get requestLogAiAnalysisFilePrefix => '请求日志分析';
+
+  @override
+  String get requestLogAiAnalysisPrompt =>
+      '请分析所附的请求日志，判断用户最可能遇到的主要问题及可行的解决方法。\n\n不要逐条机械复述或分析每个请求；请优先关注错误状态、失败/重复失败、异常耗时、请求与响应不一致、鉴权、限流、参数格式、流式响应或服务端返回异常等最能解释问题的线索，并结合相邻日志判断根因。\n\n请按“主要结论 → 关键证据 → 可能原因 → 建议解决步骤”的顺序回答；如果证据不足，请明确说明不确定之处和还需要检查什么。日志中的 `<REDACTED: …>` 是为了保护隐私而刻意替换的值，不要将其缺失本身当作问题，也不要要求用户提供该值。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -24198,6 +24217,25 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String imageGenPartialNotice(Object received, Object requested) {
     return '仅生成 $received/$requested 张图片';
   }
+
+  @override
+  String get requestLogAiAnalysisTooltip => '让 AI 分析请求日志';
+
+  @override
+  String get requestLogAiAnalysisNoAssistant => '没有可用的当前助手，无法分析请求日志。';
+
+  @override
+  String get requestLogAiAnalysisNoRequests => '没有可分析的请求日志。';
+
+  @override
+  String get requestLogAiAnalysisPreparationFailed => '无法准备请求日志分析。';
+
+  @override
+  String get requestLogAiAnalysisFilePrefix => '请求日志分析';
+
+  @override
+  String get requestLogAiAnalysisPrompt =>
+      '请分析所附的请求日志，判断用户最可能遇到的主要问题及可行的解决方法。\n\n不要逐条机械复述或分析每个请求；请优先关注错误状态、失败/重复失败、异常耗时、请求与响应不一致、鉴权、限流、参数格式、流式响应或服务端返回异常等最能解释问题的线索，并结合相邻日志判断根因。\n\n请按“主要结论 → 关键证据 → 可能原因 → 建议解决步骤”的顺序回答；如果证据不足，请明确说明不确定之处和还需要检查什么。日志中的 `<REDACTED: …>` 是为了保护隐私而刻意替换的值，不要将其缺失本身当作问题，也不要要求用户提供该值。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -36339,4 +36377,23 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String imageGenPartialNotice(Object received, Object requested) {
     return '僅生成 $received/$requested 張圖片';
   }
+
+  @override
+  String get requestLogAiAnalysisTooltip => '讓 AI 分析請求日誌';
+
+  @override
+  String get requestLogAiAnalysisNoAssistant => '沒有可用的目前助手，無法分析請求日誌。';
+
+  @override
+  String get requestLogAiAnalysisNoRequests => '沒有可分析的請求日誌。';
+
+  @override
+  String get requestLogAiAnalysisPreparationFailed => '無法準備請求日誌分析。';
+
+  @override
+  String get requestLogAiAnalysisFilePrefix => '請求日誌分析';
+
+  @override
+  String get requestLogAiAnalysisPrompt =>
+      '請分析所附的請求日誌，判斷使用者最可能遇到的主要問題及可行的解決方法。\n\n不要逐條機械式複述或分析每個請求；請優先關注錯誤狀態、失敗／重複失敗、異常耗時、請求與回應不一致、驗證、限流、參數格式、串流回應或伺服器回傳異常等最能解釋問題的線索，並結合相鄰日誌判斷根因。\n\n請按「主要結論 → 關鍵證據 → 可能原因 → 建議解決步驟」的順序回答；如果證據不足，請明確說明不確定之處和仍需檢查什麼。日誌中的 `<REDACTED: …>` 是為了保護隱私而刻意替換的值，不要將其缺失本身當作問題，也不要要求使用者提供該值。';
 }

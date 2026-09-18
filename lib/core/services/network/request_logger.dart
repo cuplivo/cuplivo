@@ -8,6 +8,10 @@ import '../logging/log_payload_elider.dart';
 class RequestLogger {
   RequestLogger._();
 
+  /// Files whose name carries this marker are never re-logged (e.g. the
+  /// AI analysis export read back for staging).
+  static const String logSkipMarker = 'cuplivo_n9x7';
+
   static bool _enabled = false;
   static bool get enabled => _enabled;
   static bool _writeErrorReported = false;

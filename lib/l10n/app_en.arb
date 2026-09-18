@@ -5485,5 +5485,11 @@
   "imageGenCurrent": "Current",
   "imageGenPNG": "PNG",
   "imageGenLossless": "(lossless)",
-  "imageGenPartialNotice": "Only {received}/{requested} images were generated."
+  "imageGenPartialNotice": "Only {received}/{requested} images were generated.",
+  "requestLogAiAnalysisTooltip": "Ask AI to analyze request logs",
+  "requestLogAiAnalysisNoAssistant": "No current assistant is available to analyze request logs.",
+  "requestLogAiAnalysisNoRequests": "No request logs are available to analyze.",
+  "requestLogAiAnalysisPreparationFailed": "Couldn't prepare the request log analysis.",
+  "requestLogAiAnalysisFilePrefix": "request-log-analysis",
+  "requestLogAiAnalysisPrompt": "Please analyze the attached request logs and determine the main problem the user is most likely encountering, along with practical solutions.\n\nDo not mechanically repeat or analyze every request. Prioritize error status, failed or repeated failures, unusual latency, request/response mismatches, authentication, rate limiting, parameter formatting, streaming responses, or server-side errors that best explain the issue. Use neighboring logs to identify the likely root cause.\n\nAnswer in this order: main conclusion → key evidence → possible causes → recommended steps. If the evidence is insufficient, clearly say what is uncertain and what still needs checking. `<REDACTED: …>` values were intentionally replaced for privacy; do not treat their absence as the problem or ask the user to provide them."
 }

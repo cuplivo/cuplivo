@@ -73,6 +73,7 @@ import '../controllers/scroll_controller.dart' as scroll_ctrl;
 import 'home_mobile_layout.dart';
 import 'home_desktop_layout.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/core/services/chat/external_chat_draft_handoff.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -802,6 +803,32 @@ class _HomePageState extends State<HomePage>
   @override
   void didPopNext() {
     _controller.onDidPopNext();
+    unawaited(_consumeExternalChatDraft());
+  }
+
+  /// Lands a draft staged outside the chat route (e.g. the request-log AI
+  /// analysis) via the standard inbound-share merge semantics — staged
+  /// content is never discarded.
+  Future<void> _consumeExternalChatDraft() async {
+    if (!mounted) return;
+    final draft = ExternalChatDraftHandoff.take();
+    if (draft == null) return;
+    // Land via the input bar: merge text into the composer (append on a
+    // newline when non-empty) and attach documents — staged content is
+    // never discarded.
+    final trimmedText = draft.text.trim();
+    if (trimmedText.isNotEmpty) {
+      final current = _inputController.text;
+      _inputController.text = current.trim().isEmpty
+          ? trimmedText
+          : '$current\n\n$trimmedText';
+    }
+    if (draft.documents.isNotEmpty) {
+      _mediaController.addFiles(draft.documents);
+    }
+    if (draft.imagePaths.isNotEmpty) {
+      _mediaController.addImages(draft.imagePaths);
+    }
   }
 
   @override

@@ -22784,6 +22784,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Only {received}/{requested} images were generated.'**
   String imageGenPartialNotice(Object received, Object requested);
+
+  /// No description provided for @requestLogAiAnalysisTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask AI to analyze request logs'**
+  String get requestLogAiAnalysisTooltip;
+
+  /// No description provided for @requestLogAiAnalysisNoAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'No current assistant is available to analyze request logs.'**
+  String get requestLogAiAnalysisNoAssistant;
+
+  /// No description provided for @requestLogAiAnalysisNoRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'No request logs are available to analyze.'**
+  String get requestLogAiAnalysisNoRequests;
+
+  /// No description provided for @requestLogAiAnalysisPreparationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t prepare the request log analysis.'**
+  String get requestLogAiAnalysisPreparationFailed;
+
+  /// No description provided for @requestLogAiAnalysisFilePrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'request-log-analysis'**
+  String get requestLogAiAnalysisFilePrefix;
+
+  /// No description provided for @requestLogAiAnalysisPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Please analyze the attached request logs and determine the main problem the user is most likely encountering, along with practical solutions.\n\nDo not mechanically repeat or analyze every request. Prioritize error status, failed or repeated failures, unusual latency, request/response mismatches, authentication, rate limiting, parameter formatting, streaming responses, or server-side errors that best explain the issue. Use neighboring logs to identify the likely root cause.\n\nAnswer in this order: main conclusion → key evidence → possible causes → recommended steps. If the evidence is insufficient, clearly say what is uncertain and what still needs checking. `<REDACTED: …>` values were intentionally replaced for privacy; do not treat their absence as the problem or ask the user to provide them.'**
+  String get requestLogAiAnalysisPrompt;
 }
 
 class _AppLocalizationsDelegate

@@ -24,6 +24,7 @@ import '../widgets/stats_section_card.dart';
 import '../widgets/stats_usage_chart.dart';
 import '../../../theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import '../widgets/stats_filter_dialog.dart';
 
 class StatsPage extends StatefulWidget {
   const StatsPage({super.key, this.snapshotOverride, this.showAppBar = true});
@@ -38,6 +39,7 @@ class StatsPage extends StatefulWidget {
 class _StatsPageState extends State<StatsPage> {
   late StatsDateRange _range;
   StatsSnapshot? _databaseSnapshot;
+  StatsFilter _filter = const StatsFilter();
   String? _statsSignature;
   String? _pendingStatsSignature;
   String? _failedStatsSignature;
@@ -171,9 +173,76 @@ class _StatsPageState extends State<StatsPage> {
           ),
         ),
         title: Text(l10n.statsPageTitle),
+        actions: [
+          Tooltip(
+            message: l10n.statsPageFilterTitle,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                IosIconButton(
+                  icon: Lucide.Filter,
+                  minSize: 44,
+                  size: 22,
+                  onTap: () => _openFilterDialog(context),
+                ),
+                if (_filter.isActive)
+                  Positioned(
+                    right: 6,
+                    top: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: body,
     );
+  }
+
+  /// Filter dialog: three dimensions, each an OR set; OK applies the
+  /// combined filter. Dialog (not a sheet) — desktop safe.
+  Future<void> _openFilterDialog(BuildContext context) async {
+    final chatService = context.read<ChatService>();
+    final assistantProvider = context.read<AssistantProvider>();
+    final l10n = AppLocalizations.of(context)!;
+    final conversations = chatService.getAllCompleteConversations();
+    final assistantOptions = <(String, String)>[
+      for (final a in assistantProvider.assistants) (a.id, a.name),
+    ];
+    final topicOptions = <(String, String)>[
+      for (final c in conversations) (c.id, c.title),
+    ];
+    final models = {
+      for (final c in conversations)
+        if ((c.chatModelId ?? '').trim().isNotEmpty) c.chatModelId!,
+    }.toList()..sort();
+    if (!assistantOptions.any((e) => e.$1 == StatsFilter.defaultAssistantId)) {
+      assistantOptions.insert(0, (
+        StatsFilter.defaultAssistantId,
+        l10n.statsPageDefaultAssistant,
+      ));
+    }
+    final result = await showDialog<StatsFilter>(
+      context: context,
+      builder: (dctx) => StatsFilterDialog(
+        filter: _filter,
+        assistantOptions: assistantOptions,
+        modelIds: models,
+        topicOptions: topicOptions,
+        defaultAssistantLabel: l10n.statsPageDefaultAssistant,
+      ),
+    );
+    if (result != null) {
+      setState(() => _filter = result);
+    }
   }
 
   StatsSnapshot _buildSnapshot(BuildContext context) {
@@ -210,7 +279,12 @@ class _StatsPageState extends State<StatsPage> {
         '$conversationSignature|${_range.preset.name}:'
         '${_range.start}:${_range.end}:${settings.appLaunchCount}:'
         '${_mapSignature(providerNames)}:${_mapSignature(assistantNames)}:'
-        '${chatService.statisticsRevision}';
+        '${chatService.statisticsRevision}:'
+        '${_filter.modelIds.length}:${_filter.assistantIds.length}:'
+        '${_filter.topicIds.length}:'
+        '${_filter.modelIds.join(',')}|'
+        '${_filter.assistantIds.join(',')}|'
+        '${_filter.topicIds.join(',')}';
     if (_failedStatsSignature != null && _failedStatsSignature != signature) {
       _failedStatsSignature = null;
     }
@@ -227,6 +301,7 @@ class _StatsPageState extends State<StatsPage> {
       _pendingStatsSignature = signature;
       final requestId = ++_statsRequestId;
       final requestedRange = _range;
+      final requestedFilter = _filter;
       final requestedAssistantNames = Map<String, String>.of(assistantNames);
       final requestedProviderNames = Map<String, String>.of(providerNames);
       final rangeStart = requestedRange.start;
@@ -247,6 +322,7 @@ class _StatsPageState extends State<StatsPage> {
             .loadStatsAggregate(
               rangeStart: rangeStart,
               rangeEndExclusive: rangeEndExclusive,
+              filter: requestedFilter,
               heatmapStart: StatsDateRange.addCalendarDays(today, -364),
               trendStart: trendStart,
               trendEndExclusive: trendEnd,

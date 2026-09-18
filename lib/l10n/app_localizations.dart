@@ -22580,6 +22580,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'When enabled, the reasoning slider stops follow this list and override the built-in model knowledge; when disabled, the built-in knowledge is used.'**
   String get modelDetailSheetReasoningEffortsHint;
+
+  /// No description provided for @statsPageFilterModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Model / Provider'**
+  String get statsPageFilterModels;
+
+  /// No description provided for @statsPageFilterAssistants.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant'**
+  String get statsPageFilterAssistants;
+
+  /// No description provided for @statsPageFilterTopics.
+  ///
+  /// In en, this message translates to:
+  /// **'Topic'**
+  String get statsPageFilterTopics;
+
+  /// No description provided for @statsPageFilterClearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get statsPageFilterClearAll;
+
+  /// No description provided for @statsPageFilterClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get statsPageFilterClear;
+
+  /// No description provided for @statsPageFilterDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get statsPageFilterDone;
+
+  /// No description provided for @statsPageFilterModelSelectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by model / provider'**
+  String get statsPageFilterModelSelectTitle;
+
+  /// No description provided for @statsPageFilterAssistantSelectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by assistant'**
+  String get statsPageFilterAssistantSelectTitle;
+
+  /// No description provided for @statsPageFilterTopicSelectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by topic'**
+  String get statsPageFilterTopicSelectTitle;
+
+  /// No description provided for @statsPageFilterNoOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'No options'**
+  String get statsPageFilterNoOptions;
+
+  /// No description provided for @statsPageFilterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Filters'**
+  String get statsPageFilterTitle;
+
+  /// No description provided for @statsPageDefaultAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Default Assistant'**
+  String get statsPageDefaultAssistant;
 }
 
 class _AppLocalizationsDelegate

@@ -30,6 +30,7 @@ import '../../models/conversation.dart';
 import '../../models/workspace_binding.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../utils/app_directories.dart';
+import '../../../features/stats/models/stats_models.dart';
 
 final class LoadedTimelineSlot {
   const LoadedTimelineSlot({required this.identity, required this.message});
@@ -1304,6 +1305,7 @@ class ChatService extends ChangeNotifier {
     required DateTime heatmapStart,
     required DateTime trendStart,
     required DateTime trendEndExclusive,
+    StatsFilter? filter,
   }) async {
     if (!_initialized) await init();
     return _repo.queryStatsAggregate(
@@ -1312,6 +1314,7 @@ class ChatService extends ChangeNotifier {
       heatmapStart: heatmapStart,
       trendStart: trendStart,
       trendEndExclusive: trendEndExclusive,
+      filter: filter,
     );
   }
 

@@ -99,6 +99,7 @@ class _ControllableStatsChatService extends ChatService {
 
   @override
   Future<ChatStatsAggregate> loadStatsAggregate({
+    StatsFilter? filter,
     required DateTime? rangeStart,
     required DateTime? rangeEndExclusive,
     required DateTime heatmapStart,

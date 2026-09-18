@@ -5451,5 +5451,17 @@
   "displaySettingsPageStartupAssistantPickerLabel": "Startup assistant",
   "displaySettingsPageStartupAssistantNone": "None",
   "modelDetailSheetReasoningEffortsLabel": "Custom Reasoning Efforts",
-  "modelDetailSheetReasoningEffortsHint": "When enabled, the reasoning slider stops follow this list and override the built-in model knowledge; when disabled, the built-in knowledge is used."
+  "modelDetailSheetReasoningEffortsHint": "When enabled, the reasoning slider stops follow this list and override the built-in model knowledge; when disabled, the built-in knowledge is used.",
+  "statsPageFilterModels": "Model / Provider",
+  "statsPageFilterAssistants": "Assistant",
+  "statsPageFilterTopics": "Topic",
+  "statsPageFilterClearAll": "Clear all",
+  "statsPageFilterClear": "Clear",
+  "statsPageFilterDone": "Done",
+  "statsPageFilterModelSelectTitle": "Filter by model / provider",
+  "statsPageFilterAssistantSelectTitle": "Filter by assistant",
+  "statsPageFilterTopicSelectTitle": "Filter by topic",
+  "statsPageFilterNoOptions": "No options",
+  "statsPageFilterTitle": "Filters",
+  "statsPageDefaultAssistant": "Default Assistant"
 }

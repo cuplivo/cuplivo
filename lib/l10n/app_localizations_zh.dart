@@ -12033,6 +12033,42 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get modelDetailSheetReasoningEffortsHint =>
       '开启后推理滑杆档位以此为准，并覆盖内置模型知识；关闭则跟随内置。';
+
+  @override
+  String get statsPageFilterModels => '模型 / 供应商';
+
+  @override
+  String get statsPageFilterAssistants => '助手';
+
+  @override
+  String get statsPageFilterTopics => '话题';
+
+  @override
+  String get statsPageFilterClearAll => '清除全部';
+
+  @override
+  String get statsPageFilterClear => '清除';
+
+  @override
+  String get statsPageFilterDone => '完成';
+
+  @override
+  String get statsPageFilterModelSelectTitle => '按模型 / 供应商筛选';
+
+  @override
+  String get statsPageFilterAssistantSelectTitle => '按助手筛选';
+
+  @override
+  String get statsPageFilterTopicSelectTitle => '按话题筛选';
+
+  @override
+  String get statsPageFilterNoOptions => '没有可选项目';
+
+  @override
+  String get statsPageFilterTitle => '过滤器';
+
+  @override
+  String get statsPageDefaultAssistant => '默认助手';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -23990,6 +24026,42 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String get modelDetailSheetReasoningEffortsHint =>
       '开启后推理滑杆档位以此为准，并覆盖内置模型知识；关闭则跟随内置。';
+
+  @override
+  String get statsPageFilterModels => '模型 / 供应商';
+
+  @override
+  String get statsPageFilterAssistants => '助手';
+
+  @override
+  String get statsPageFilterTopics => '话题';
+
+  @override
+  String get statsPageFilterClearAll => '清除全部';
+
+  @override
+  String get statsPageFilterClear => '清除';
+
+  @override
+  String get statsPageFilterDone => '完成';
+
+  @override
+  String get statsPageFilterModelSelectTitle => '按模型 / 供应商筛选';
+
+  @override
+  String get statsPageFilterAssistantSelectTitle => '按助手筛选';
+
+  @override
+  String get statsPageFilterTopicSelectTitle => '按话题筛选';
+
+  @override
+  String get statsPageFilterNoOptions => '没有可选项目';
+
+  @override
+  String get statsPageFilterTitle => '过滤器';
+
+  @override
+  String get statsPageDefaultAssistant => '默认助手';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -36027,4 +36099,40 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get modelDetailSheetReasoningEffortsHint =>
       '開啟後推理滑桿檔位以此為準，並覆蓋內建模型知識；關閉則跟隨內建。';
+
+  @override
+  String get statsPageFilterModels => '模型 / 供應商';
+
+  @override
+  String get statsPageFilterAssistants => '助手';
+
+  @override
+  String get statsPageFilterTopics => '話題';
+
+  @override
+  String get statsPageFilterClearAll => '清除全部';
+
+  @override
+  String get statsPageFilterClear => '清除';
+
+  @override
+  String get statsPageFilterDone => '完成';
+
+  @override
+  String get statsPageFilterModelSelectTitle => '按模型 / 供應商篩選';
+
+  @override
+  String get statsPageFilterAssistantSelectTitle => '按助手篩選';
+
+  @override
+  String get statsPageFilterTopicSelectTitle => '按話題篩選';
+
+  @override
+  String get statsPageFilterNoOptions => '沒有可選項目';
+
+  @override
+  String get statsPageFilterTitle => '過濾器';
+
+  @override
+  String get statsPageDefaultAssistant => '預設助手';
 }

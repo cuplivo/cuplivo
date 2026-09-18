@@ -12598,4 +12598,40 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get modelDetailSheetReasoningEffortsHint =>
       'When enabled, the reasoning slider stops follow this list and override the built-in model knowledge; when disabled, the built-in knowledge is used.';
+
+  @override
+  String get statsPageFilterModels => 'Model / Provider';
+
+  @override
+  String get statsPageFilterAssistants => 'Assistant';
+
+  @override
+  String get statsPageFilterTopics => 'Topic';
+
+  @override
+  String get statsPageFilterClearAll => 'Clear all';
+
+  @override
+  String get statsPageFilterClear => 'Clear';
+
+  @override
+  String get statsPageFilterDone => 'Done';
+
+  @override
+  String get statsPageFilterModelSelectTitle => 'Filter by model / provider';
+
+  @override
+  String get statsPageFilterAssistantSelectTitle => 'Filter by assistant';
+
+  @override
+  String get statsPageFilterTopicSelectTitle => 'Filter by topic';
+
+  @override
+  String get statsPageFilterNoOptions => 'No options';
+
+  @override
+  String get statsPageFilterTitle => 'Filters';
+
+  @override
+  String get statsPageDefaultAssistant => 'Default Assistant';
 }

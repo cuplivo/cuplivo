@@ -22,6 +22,7 @@ import '../models/memory_entry.dart';
 import '../models/user_profile_field.dart';
 import 'app_database.dart';
 import 'business_data.dart';
+import '../../features/stats/models/stats_models.dart';
 import 'business_repository.dart';
 import 'chat_database_observer.dart';
 import 'generation_run.dart';
@@ -3552,6 +3553,7 @@ class ChatDatabaseRepository {
     required DateTime heatmapStart,
     required DateTime trendStart,
     required DateTime trendEndExclusive,
+    StatsFilter? filter,
   }) async {
     final start = rangeStart?.microsecondsSinceEpoch;
     final end = rangeEndExclusive?.microsecondsSinceEpoch;
@@ -3569,19 +3571,90 @@ class ChatDatabaseRepository {
       if (end != null) 'c.created_at < ?',
     ].join(' AND ');
 
+    // Dimension filters (stats page): OR within a dimension, AND across.
+    // Message-based fragments join on the message alias; the conversation
+    // fragment needs an EXISTS because model/topic live on messages.
+    final filterModelIds = filter?.modelIds;
+    final filterAssistantIds = filter?.assistantIds;
+    final filterTopicIds = filter?.topicIds;
+    final messageFilterClause = <String>[
+      if (filterModelIds != null && filterModelIds.isNotEmpty)
+        'm.model_id IN (${List.filled(filterModelIds.length, '?').join(', ')})',
+      if (filterTopicIds != null && filterTopicIds.isNotEmpty)
+        'm.conversation_id IN '
+            '(${List.filled(filterTopicIds.length, '?').join(', ')})',
+    ].join(' AND ');
+    final messageFilterWhere = messageFilterClause.isEmpty
+        ? ''
+        : 'AND $messageFilterClause';
+    final messageFilterVariables = <Variable>[
+      if (filterModelIds != null)
+        for (final id in filterModelIds) Variable<String>(id),
+      if (filterTopicIds != null)
+        for (final id in filterTopicIds) Variable<String>(id),
+    ];
+    final conversationFilterClause = <String>[
+      if (filterAssistantIds != null && filterAssistantIds.isNotEmpty)
+        // SQL needs an empty-string literal; use double quotes so the
+        // fragment stays readable.
+        "COALESCE(NULLIF(TRIM(assistant_id), ''), "
+            "'${StatsFilter.defaultAssistantId}') IN "
+            '(${List.filled(filterAssistantIds.length, '?').join(', ')})',
+    ].join(' AND ');
+    final conversationFilterWhere = conversationFilterClause.isEmpty
+        ? ''
+        : 'AND $conversationFilterClause';
+    final conversationFilterVariables = <Variable>[
+      if (filterAssistantIds != null)
+        for (final id in filterAssistantIds) Variable<String>(id),
+    ];
+    // Assistant dimension against message-based queries: the assistant is a
+    // conversation attribute, so filter messages through their conversation.
+    final assistantJoinClause =
+        (filterAssistantIds != null && filterAssistantIds.isNotEmpty)
+        ? 'AND EXISTS (SELECT 1 FROM conversation_rows fc WHERE fc.id = '
+              'm.conversation_id AND '
+              // Double-quoted so the SQL empty literal stays intact.
+              "COALESCE(NULLIF(TRIM(fc.assistant_id), ''), "
+              "'${StatsFilter.defaultAssistantId}') IN "
+              '(${List.filled(filterAssistantIds.length, '?').join(', ')}))'
+        : '';
+    // Topic dimension against conversation-based queries (assistant ranks).
+    final topicConversationClause = <String>[
+      if (conversationFilterClause.isNotEmpty) conversationFilterClause,
+      if (filterTopicIds != null && filterTopicIds.isNotEmpty)
+        'EXISTS (SELECT 1 FROM message_rows fm WHERE fm.conversation_id = '
+            'conversation_rows.id AND fm.conversation_id IN '
+            '(${List.filled(filterTopicIds.length, '?').join(', ')}))',
+    ].join(' AND ');
+
+    final assistantJoinVariables = <Variable>[
+      if (filterAssistantIds != null)
+        for (final id in filterAssistantIds) Variable<String>(id),
+    ];
+
     final summary = await _db
         .customSelect(
           '''
       SELECT
         (SELECT COUNT(*) FROM conversation_rows c
-          ${conversationRangeClause.isEmpty ? '' : 'WHERE $conversationRangeClause'}) AS conversations,
+          ${conversationRangeClause.isEmpty ? (conversationFilterWhere.isEmpty ? '' : 'WHERE ${conversationFilterClause.substring(4)}') : 'WHERE $conversationRangeClause $conversationFilterWhere'}) AS conversations,
         COUNT(*) AS messages,
         COALESCE(SUM(prompt_tokens), 0) AS input_tokens,
         COALESCE(SUM(completion_tokens), 0) AS output_tokens,
         COALESCE(SUM(cached_tokens), 0) AS cached_tokens
-      FROM message_rows m WHERE 1 = 1 $rangeWhere;
+      FROM message_rows m
+      WHERE 1 = 1 $rangeWhere $messageFilterWhere $assistantJoinClause;
     ''',
-          variables: [...rangeVariables, ...rangeVariables],
+          // Positional order: the conversations subquery binds first
+          // (conversation range + assistant filter), then the message side.
+          variables: [
+            ...rangeVariables,
+            ...conversationFilterVariables,
+            ...rangeVariables,
+            ...messageFilterVariables,
+            ...assistantJoinVariables,
+          ],
         )
         .getSingle();
 
@@ -3592,10 +3665,14 @@ class ChatDatabaseRepository {
           'unixepoch', 'localtime') AS day,
         COUNT(*) AS message_count
       FROM message_rows m
-      WHERE m.timestamp >= ?
+      WHERE m.timestamp >= ? $messageFilterWhere $assistantJoinClause
       GROUP BY day ORDER BY day;
     ''',
-          variables: [Variable<int>(heatmapStart.microsecondsSinceEpoch)],
+          variables: [
+            Variable<int>(heatmapStart.microsecondsSinceEpoch),
+            ...messageFilterVariables,
+            ...assistantJoinVariables,
+          ],
         )
         .get();
 
@@ -3619,40 +3696,68 @@ class ChatDatabaseRepository {
           OR COALESCE(m.completion_tokens, 0) != 0
           OR COALESCE(m.cached_tokens, 0) != 0
           OR COALESCE(m.total_tokens, 0) != 0)
+        $messageFilterWhere $assistantJoinClause
       GROUP BY day, provider_id ORDER BY day, provider_id;
     ''',
           variables: [
             Variable<int>(trendStart.microsecondsSinceEpoch),
             Variable<int>(trendEndExclusive.microsecondsSinceEpoch),
+            ...messageFilterVariables,
+            ...assistantJoinVariables,
           ],
         )
         .get();
 
-    final modelRows = await _db.customSelect('''
+    final modelRows = await _db
+        .customSelect(
+          '''
       SELECT m.model_id AS id, MIN(m.provider_id) AS provider_id,
         COUNT(*) AS item_count
       FROM message_rows m
       WHERE NULLIF(TRIM(m.model_id), '') IS NOT NULL $rangeWhere
+        $messageFilterWhere $assistantJoinClause
       GROUP BY m.model_id ORDER BY item_count DESC, id;
-    ''', variables: rangeVariables).get();
-    final topicRows = await _db.customSelect('''
+    ''',
+          variables: [
+            ...rangeVariables,
+            ...messageFilterVariables,
+            ...assistantJoinVariables,
+          ],
+        )
+        .get();
+    final topicRows = await _db
+        .customSelect(
+          '''
       SELECT c.id AS id, c.title AS label, COUNT(*) AS item_count
       FROM message_rows m
       JOIN conversation_rows c ON c.id = m.conversation_id
-      WHERE 1 = 1 $rangeWhere
+      WHERE 1 = 1 $rangeWhere $messageFilterWhere
       GROUP BY c.id, c.title ORDER BY item_count DESC, c.id;
-    ''', variables: rangeVariables).get();
+    ''',
+          variables: [...rangeVariables, ...messageFilterVariables],
+        )
+        .get();
     final conversationRange = <String>[
       if (start != null) 'created_at >= ?',
       if (end != null) 'created_at < ?',
     ].join(' AND ');
-    final assistantRows = await _db.customSelect('''
+    final assistantRows = await _db
+        .customSelect(
+          '''
       SELECT COALESCE(NULLIF(TRIM(assistant_id), ''), '_default') AS id,
         COUNT(*) AS item_count
       FROM conversation_rows
-      ${conversationRange.isEmpty ? '' : 'WHERE $conversationRange'}
+      ${conversationRange.isEmpty ? (topicConversationClause.isEmpty ? '' : 'WHERE $topicConversationClause') : 'WHERE ${[conversationRange, topicConversationClause].where((c) => c.isNotEmpty).join(' AND ')}'}
       GROUP BY id ORDER BY item_count DESC, id;
-    ''', variables: rangeVariables).get();
+    ''',
+          variables: [
+            ...rangeVariables,
+            ...conversationFilterVariables,
+            if (filterTopicIds != null)
+              for (final id in filterTopicIds) Variable<String>(id),
+          ],
+        )
+        .get();
 
     return ChatStatsAggregate(
       conversations: summary.read<int>('conversations'),

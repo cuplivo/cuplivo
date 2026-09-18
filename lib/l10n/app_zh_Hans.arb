@@ -4395,5 +4395,17 @@
   "displaySettingsPageStartupAssistantPickerLabel": "启动助手",
   "displaySettingsPageStartupAssistantNone": "未指定",
   "modelDetailSheetReasoningEffortsLabel": "自定义推理等级",
-  "modelDetailSheetReasoningEffortsHint": "开启后推理滑杆档位以此为准，并覆盖内置模型知识；关闭则跟随内置。"
+  "modelDetailSheetReasoningEffortsHint": "开启后推理滑杆档位以此为准，并覆盖内置模型知识；关闭则跟随内置。",
+  "statsPageFilterModels": "模型 / 供应商",
+  "statsPageFilterAssistants": "助手",
+  "statsPageFilterTopics": "话题",
+  "statsPageFilterClearAll": "清除全部",
+  "statsPageFilterClear": "清除",
+  "statsPageFilterDone": "完成",
+  "statsPageFilterModelSelectTitle": "按模型 / 供应商筛选",
+  "statsPageFilterAssistantSelectTitle": "按助手筛选",
+  "statsPageFilterTopicSelectTitle": "按话题筛选",
+  "statsPageFilterNoOptions": "没有可选项目",
+  "statsPageFilterTitle": "过滤器",
+  "statsPageDefaultAssistant": "默认助手"
 }

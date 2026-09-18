@@ -14,6 +14,7 @@ import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+// ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -154,7 +155,6 @@ void main() {
   });
 
   test('apply merges: inserts unknown, appends missing messages', () async {
-    final since = DateTime(2020);
     final local = await chatService.createConversation(title: 'Shared');
     await chatService.addMessage(
       conversationId: local.id,

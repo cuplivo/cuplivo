@@ -22862,6 +22862,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'math'**
   String get markdownMathDefaultFileNameStem;
+
+  /// No description provided for @worldBookGroupLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Group'**
+  String get worldBookGroupLabel;
+
+  /// No description provided for @worldBookGroupHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name (empty = ungrouped)'**
+  String get worldBookGroupHint;
 }
 
 class _AppLocalizationsDelegate

@@ -4466,5 +4466,7 @@
   "markdownMathCopyPngLabel": "複製為 PNG",
   "markdownMathDownloadPngLabel": "下載 PNG",
   "markdownMathSavePngLabel": "儲存到相簿",
-  "markdownMathDefaultFileNameStem": "公式"
+  "markdownMathDefaultFileNameStem": "公式",
+  "worldBookGroupLabel": "分組",
+  "worldBookGroupHint": "分組名稱（留空則不分組）"
 }

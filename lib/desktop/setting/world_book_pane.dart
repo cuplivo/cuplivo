@@ -878,12 +878,14 @@ class _WorldBookEditDialog extends StatefulWidget {
 class _WorldBookEditDialogState extends State<_WorldBookEditDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _descController;
+  late final TextEditingController _groupController;
   late bool _enabled;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.book?.name ?? '');
+    _groupController = TextEditingController(text: widget.book?.group ?? '');
     _descController = TextEditingController(
       text: widget.book?.description ?? '',
     );
@@ -893,6 +895,7 @@ class _WorldBookEditDialogState extends State<_WorldBookEditDialog> {
   @override
   void dispose() {
     _nameController.dispose();
+    _groupController.dispose();
     _descController.dispose();
     super.dispose();
   }
@@ -943,6 +946,14 @@ class _WorldBookEditDialogState extends State<_WorldBookEditDialog> {
                   ),
                   const SizedBox(height: 12),
                   TextField(
+                    controller: _groupController,
+                    decoration: _deskInputDecoration(context).copyWith(
+                      hintText:
+                          '${l10n.worldBookGroupLabel} · ${l10n.worldBookGroupHint}',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
                     controller: _descController,
                     maxLines: 3,
                     decoration: _deskInputDecoration(
@@ -988,6 +999,7 @@ class _WorldBookEditDialogState extends State<_WorldBookEditDialog> {
                       description: _descController.text.trim(),
                       enabled: _enabled,
                       entries: base?.entries ?? const <WorldBookEntry>[],
+                      group: _groupController.text.trim(),
                     ),
                   );
                 },

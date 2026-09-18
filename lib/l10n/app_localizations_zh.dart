@@ -12177,6 +12177,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get markdownMathDefaultFileNameStem => '公式';
+
+  @override
+  String get worldBookGroupLabel => '分组';
+
+  @override
+  String get worldBookGroupHint => '分组名称（留空则不分组）';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -24278,6 +24284,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get markdownMathDefaultFileNameStem => '公式';
+
+  @override
+  String get worldBookGroupLabel => '分组';
+
+  @override
+  String get worldBookGroupHint => '分组名称（留空则不分组）';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -36459,4 +36471,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get markdownMathDefaultFileNameStem => '公式';
+
+  @override
+  String get worldBookGroupLabel => '分組';
+
+  @override
+  String get worldBookGroupHint => '分組名稱（留空則不分組）';
 }

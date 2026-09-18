@@ -12745,4 +12745,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get markdownMathDefaultFileNameStem => 'math';
+
+  @override
+  String get worldBookGroupLabel => 'Group';
+
+  @override
+  String get worldBookGroupHint => 'Group name (empty = ungrouped)';
 }

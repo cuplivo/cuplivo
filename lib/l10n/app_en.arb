@@ -5498,5 +5498,7 @@
   "markdownMathCopyPngLabel": "Copy as PNG",
   "markdownMathDownloadPngLabel": "Download PNG",
   "markdownMathSavePngLabel": "Save to Gallery",
-  "markdownMathDefaultFileNameStem": "math"
+  "markdownMathDefaultFileNameStem": "math",
+  "worldBookGroupLabel": "Group",
+  "worldBookGroupHint": "Group name (empty = ungrouped)"
 }

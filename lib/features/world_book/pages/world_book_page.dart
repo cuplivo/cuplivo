@@ -523,7 +523,12 @@ class _WorldBookSection extends StatelessWidget {
     final title = book.name.trim().isEmpty
         ? l10n.worldBookUnnamed
         : book.name.trim();
-    final subtitle = book.description.trim();
+    final groupLabel = book.group.trim();
+    final subtitle = groupLabel.isEmpty
+        ? book.description.trim()
+        : (book.description.trim().isEmpty
+              ? groupLabel
+              : '$groupLabel · ${book.description.trim()}');
     final entries = book.entries;
 
     Future<void> showEntryActions(WorldBookEntry entry) async {
@@ -1055,12 +1060,14 @@ class _WorldBookEditSheet extends StatefulWidget {
 class _WorldBookEditSheetState extends State<_WorldBookEditSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _descController;
+  late final TextEditingController _groupController;
   bool _enabled = true;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.book?.name ?? '');
+    _groupController = TextEditingController(text: widget.book?.group ?? '');
     _descController = TextEditingController(
       text: widget.book?.description ?? '',
     );
@@ -1070,6 +1077,7 @@ class _WorldBookEditSheetState extends State<_WorldBookEditSheet> {
   @override
   void dispose() {
     _nameController.dispose();
+    _groupController.dispose();
     _descController.dispose();
     super.dispose();
   }
@@ -1174,6 +1182,14 @@ class _WorldBookEditSheetState extends State<_WorldBookEditSheet> {
                     _IosSectionCard(
                       children: [
                         IosFormTextField(
+                          label: l10n.worldBookGroupLabel,
+                          hintText: l10n.worldBookGroupHint,
+                          controller: _groupController,
+                          textAlign: TextAlign.start,
+                          textInputAction: TextInputAction.next,
+                          inlineLabel: false,
+                        ),
+                        IosFormTextField(
                           label: l10n.worldBookNameLabel,
                           controller: _nameController,
                           autofocus: base == null,
@@ -1222,6 +1238,7 @@ class _WorldBookEditSheetState extends State<_WorldBookEditSheet> {
                         description: _descController.text.trim(),
                         enabled: _enabled,
                         entries: base?.entries ?? const <WorldBookEntry>[],
+                        group: _groupController.text.trim(),
                       );
                       Navigator.of(context).pop(result);
                     },

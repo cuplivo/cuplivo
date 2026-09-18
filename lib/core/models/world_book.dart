@@ -187,6 +187,9 @@ class WorldBook {
   final bool enabled;
   final List<WorldBookEntry> entries;
 
+  /// Backup/organizational group label; empty = ungrouped.
+  final String group;
+
   int get enabledEntryCount => entries.where((entry) => entry.enabled).length;
 
   const WorldBook({
@@ -195,6 +198,7 @@ class WorldBook {
     this.description = '',
     this.enabled = true,
     this.entries = const <WorldBookEntry>[],
+    this.group = '',
   });
 
   WorldBook copyWith({
@@ -203,6 +207,7 @@ class WorldBook {
     String? description,
     bool? enabled,
     List<WorldBookEntry>? entries,
+    String? group,
   }) {
     return WorldBook(
       id: id ?? this.id,
@@ -210,6 +215,7 @@ class WorldBook {
       description: description ?? this.description,
       enabled: enabled ?? this.enabled,
       entries: entries ?? this.entries,
+      group: group ?? this.group,
     );
   }
 
@@ -219,6 +225,7 @@ class WorldBook {
     'description': description,
     'enabled': enabled,
     'entries': entries.map((e) => e.toJson()).toList(growable: false),
+    'group': group,
   };
 
   static WorldBook fromJson(Map<String, dynamic> json) {
@@ -235,6 +242,7 @@ class WorldBook {
       description: (json['description'] as String?) ?? '',
       enabled: (json['enabled'] as bool?) ?? true,
       entries: entries,
+      group: (json['group'] as String?) ?? '',
     );
   }
 }

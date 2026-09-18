@@ -22652,6 +22652,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Default Assistant'**
   String get statsPageDefaultAssistant;
+
+  /// No description provided for @imageGenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Generation Options'**
+  String get imageGenTitle;
+
+  /// No description provided for @imageGenReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get imageGenReset;
+
+  /// No description provided for @imageGenQualityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality'**
+  String get imageGenQualityLabel;
+
+  /// No description provided for @imageGenSizeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolution'**
+  String get imageGenSizeLabel;
+
+  /// No description provided for @imageGenAspectRatioLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Aspect Ratio'**
+  String get imageGenAspectRatioLabel;
+
+  /// No description provided for @imageGenFormatLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Output Format'**
+  String get imageGenFormatLabel;
+
+  /// No description provided for @imageGenCompressionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression'**
+  String get imageGenCompressionLabel;
+
+  /// No description provided for @imageGenCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Count'**
+  String get imageGenCountLabel;
+
+  /// No description provided for @imageGenAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get imageGenAuto;
+
+  /// No description provided for @imageGenLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get imageGenLow;
+
+  /// No description provided for @imageGenMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get imageGenMedium;
+
+  /// No description provided for @imageGenHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get imageGenHigh;
+
+  /// No description provided for @imageGenAutoSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto size'**
+  String get imageGenAutoSize;
+
+  /// No description provided for @imageGenAutoRatio.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto ratio'**
+  String get imageGenAutoRatio;
+
+  /// No description provided for @imageGenCustomRatio.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get imageGenCustomRatio;
+
+  /// No description provided for @imageGenCustomRatioLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom ratio'**
+  String get imageGenCustomRatioLabel;
+
+  /// No description provided for @imageGenCustomRatioHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 7:5, 2.39:1'**
+  String get imageGenCustomRatioHint;
+
+  /// No description provided for @imageGenActualSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Actual size'**
+  String get imageGenActualSize;
+
+  /// No description provided for @imageGenCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get imageGenCurrent;
+
+  /// No description provided for @imageGenPNG.
+  ///
+  /// In en, this message translates to:
+  /// **'PNG'**
+  String get imageGenPNG;
+
+  /// No description provided for @imageGenLossless.
+  ///
+  /// In en, this message translates to:
+  /// **'(lossless)'**
+  String get imageGenLossless;
+
+  /// No description provided for @imageGenPartialNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Only {received}/{requested} images were generated.'**
+  String imageGenPartialNotice(Object received, Object requested);
 }
 
 class _AppLocalizationsDelegate

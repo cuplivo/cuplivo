@@ -1411,6 +1411,7 @@ class ChatActions {
         prepared: prepared,
         userImagePaths: userImagePaths,
         allowImagesApiRouting: input.allowImagesApiRouting,
+        imageOptionsBody: input.imageOptionsBody,
         providerKey: providerKey,
         modelId: modelId,
         assistant: assistant,

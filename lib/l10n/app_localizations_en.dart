@@ -12634,4 +12634,72 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statsPageDefaultAssistant => 'Default Assistant';
+
+  @override
+  String get imageGenTitle => 'Image Generation Options';
+
+  @override
+  String get imageGenReset => 'Reset';
+
+  @override
+  String get imageGenQualityLabel => 'Quality';
+
+  @override
+  String get imageGenSizeLabel => 'Resolution';
+
+  @override
+  String get imageGenAspectRatioLabel => 'Aspect Ratio';
+
+  @override
+  String get imageGenFormatLabel => 'Output Format';
+
+  @override
+  String get imageGenCompressionLabel => 'Compression';
+
+  @override
+  String get imageGenCountLabel => 'Count';
+
+  @override
+  String get imageGenAuto => 'Auto';
+
+  @override
+  String get imageGenLow => 'Low';
+
+  @override
+  String get imageGenMedium => 'Medium';
+
+  @override
+  String get imageGenHigh => 'High';
+
+  @override
+  String get imageGenAutoSize => 'Auto size';
+
+  @override
+  String get imageGenAutoRatio => 'Auto ratio';
+
+  @override
+  String get imageGenCustomRatio => 'Custom';
+
+  @override
+  String get imageGenCustomRatioLabel => 'Custom ratio';
+
+  @override
+  String get imageGenCustomRatioHint => 'e.g. 7:5, 2.39:1';
+
+  @override
+  String get imageGenActualSize => 'Actual size';
+
+  @override
+  String get imageGenCurrent => 'Current';
+
+  @override
+  String get imageGenPNG => 'PNG';
+
+  @override
+  String get imageGenLossless => '(lossless)';
+
+  @override
+  String imageGenPartialNotice(Object received, Object requested) {
+    return 'Only $received/$requested images were generated.';
+  }
 }

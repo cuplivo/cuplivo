@@ -619,6 +619,7 @@ class MessageGenerationService {
     required PreparedGeneration prepared,
     required List<String> userImagePaths,
     required bool allowImagesApiRouting,
+    Map<String, dynamic> imageOptionsBody = const {},
     required String providerKey,
     required String modelId,
     required Assistant? assistant,
@@ -650,7 +651,10 @@ class MessageGenerationService {
         conversationId: assistantMessage.conversationId,
         customHeaders: generationController.buildCustomHeaders(assistant),
       ),
-      extraBody: generationController.buildCustomBody(assistant),
+      extraBody: _mergeExtraBody(
+        generationController.buildCustomBody(assistant),
+        imageOptionsBody,
+      ),
       supportsReasoning: supportsReasoning,
       enableReasoning: enableReasoning,
       streamOutput: assistant?.streamOutput ?? true,
@@ -659,6 +663,16 @@ class MessageGenerationService {
       generationRunId: generationRunId,
       scheduled: scheduled,
     );
+  }
+
+  /// Assistant custom body with image generation options merged on top
+  /// (explicit user settings win over per-assistant defaults).
+  static Map<String, dynamic>? _mergeExtraBody(
+    Map<String, dynamic>? assistantBody,
+    Map<String, dynamic> imageOptions,
+  ) {
+    if (imageOptions.isEmpty) return assistantBody;
+    return {...?assistantBody, ...imageOptions};
   }
 
   /// Get the model this conversation sends with: the conversation's own

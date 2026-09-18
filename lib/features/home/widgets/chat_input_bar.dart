@@ -38,6 +38,7 @@ import '../../../utils/app_directories.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import '../../../desktop/desktop_context_menu.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'image_generation_options.dart';
 
 class ChatInputBarController {
   final shareImport = ValueNotifier<ShareImportProgress?>(null);
@@ -303,6 +304,12 @@ class _ChatInputBarState extends State<ChatInputBar>
   bool _isSubmitting = false;
   int _submitSerial = 0;
   String? _imageModeModelKey;
+
+  /// Image generation options (quality / size / aspect / format /
+  /// compression / count). Owned by the input bar: values flow into the
+  /// request extraBody only for fields the user explicitly touched.
+  late final ImageGenerationOptionsController _imageGenController =
+      ImageGenerationOptionsController();
   String? _lastImageModeModelKey;
   String? _dismissedImageModeModelKey;
 
@@ -1105,6 +1112,10 @@ class _ChatInputBarState extends State<ChatInputBar>
               imagePaths: submittedImages.map((image) => image.path).toList(),
               documents: List<DocumentAttachment>.of(submittedDocuments),
               allowImagesApiRouting: _allowImagesApiRouting,
+              imageOptionsBody:
+                  _imageModeActive && _imageGenController.customized
+                  ? _imageGenController.toExtraBody()
+                  : const <String, dynamic>{},
               quote: submittedQuote,
               quoteSnippet: submittedQuoteSnippet,
             ),
@@ -3257,7 +3268,21 @@ class _ChatInputBarState extends State<ChatInputBar>
                     ),
                   ),
                 ),
-                if (_imageModeActive)
+                if (_imageModeActive) ...[
+                  PositionedDirectional(
+                    top: -12,
+                    end: AppSpacing.sm,
+                    child: _ImageModePill(
+                      icon: Lucide.Settings2,
+                      label: AppLocalizations.of(context)!.imageGenTitle,
+                      closeTooltip: '',
+                      highlight: _imageGenController.customized ? true : null,
+                      onClose: null,
+                      onTap: _composerLocked
+                          ? null
+                          : () => _openImageGenerationOptions(context),
+                    ),
+                  ),
                   PositionedDirectional(
                     top: -12,
                     start: AppSpacing.sm,
@@ -3279,10 +3304,40 @@ class _ChatInputBarState extends State<ChatInputBar>
                             },
                     ),
                   ),
+                ],
               ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Options dialog for the active image mode (dialog — desktop safe).
+  Future<void> _openImageGenerationOptions(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    await showDialog<void>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: Text(l10n.imageGenTitle),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: ImageGenerationOptionsBody(
+              controller: _imageGenController,
+              onChanged: () => setState(() {}),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _imageGenController.reset();
+              Navigator.of(dctx).pop();
+            },
+            child: Text(l10n.imageGenReset),
+          ),
+        ],
       ),
     );
   }
@@ -3389,12 +3444,18 @@ class _ImageModePill extends StatelessWidget {
   const _ImageModePill({
     required this.label,
     required this.closeTooltip,
-    required this.onClose,
+    this.onClose,
+    this.icon,
+    this.onTap,
+    this.highlight,
   });
 
   final String label;
   final String closeTooltip;
   final VoidCallback? onClose;
+  final IconData? icon;
+  final VoidCallback? onTap;
+  final bool? highlight;
 
   @override
   Widget build(BuildContext context) {
@@ -3409,7 +3470,7 @@ class _ImageModePill extends StatelessWidget {
     final iconColor = isDark ? scheme.primaryContainer : scheme.primary;
     final radius = BorderRadius.circular(999);
 
-    return RepaintBoundary(
+    final content = RepaintBoundary(
       child: ClipRRect(
         borderRadius: radius,
         child: BackdropFilter(
@@ -3429,7 +3490,7 @@ class _ImageModePill extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Lucide.Brush, size: 14, color: iconColor),
+                      Icon(icon ?? Lucide.Brush, size: 14, color: iconColor),
                       const SizedBox(width: 5),
                       Flexible(
                         child: Text(
@@ -3443,30 +3504,44 @@ class _ImageModePill extends StatelessWidget {
                           ),
                         ),
                       ),
-                      Tooltip(
-                        message: closeTooltip,
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: onClose,
-                          child: Padding(
-                            padding: const EdgeInsets.all(5),
-                            child: Icon(
-                              Lucide.X,
-                              size: 13,
-                              color: (isDark ? scheme.onSurfaceVariant : fg)
-                                  .withValues(
-                                    alpha: onClose == null ? 0.38 : 0.78,
-                                  ),
+                      if (onClose != null)
+                        Tooltip(
+                          message: closeTooltip,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: onClose,
+                            child: Padding(
+                              padding: const EdgeInsets.all(5),
+                              child: Icon(
+                                Lucide.X,
+                                size: 13,
+                                color: (isDark ? scheme.onSurfaceVariant : fg)
+                                    .withValues(
+                                      alpha: onClose == null ? 0.38 : 0.78,
+                                    ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),
               ),
             ),
           ),
+        ),
+      ),
+    );
+    if (onTap == null) return content;
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: content,
         ),
       ),
     );

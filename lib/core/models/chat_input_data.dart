@@ -18,6 +18,11 @@ class ChatInputData {
   final List<DocumentAttachment> documents; // selected files
   final bool allowImagesApiRouting;
 
+  /// Image generation options serialized for the request body
+  /// (quality/size/output_format/output_compression/n). Only fields the
+  /// user explicitly touched appear; empty when no image options apply.
+  final Map<String, dynamic> imageOptionsBody;
+
   /// Pending reply citation; carried into the persisted user message as
   /// `ChatMessage.quoteJson`. Null = plain send.
   final MessageQuote? quote;
@@ -32,6 +37,7 @@ class ChatInputData {
     this.imagePaths = const [],
     this.documents = const [],
     this.allowImagesApiRouting = true,
+    this.imageOptionsBody = const {},
     this.quote,
     this.quoteSnippet,
   });
@@ -41,6 +47,7 @@ class ChatInputData {
     List<String>? imagePaths,
     List<DocumentAttachment>? documents,
     bool? allowImagesApiRouting,
+    Map<String, dynamic>? imageOptionsBody,
     Object? quote = _sentinel,
     Object? quoteSnippet = _sentinel,
   }) {
@@ -50,6 +57,7 @@ class ChatInputData {
       documents: documents ?? this.documents,
       allowImagesApiRouting:
           allowImagesApiRouting ?? this.allowImagesApiRouting,
+      imageOptionsBody: imageOptionsBody ?? this.imageOptionsBody,
       quote: identical(quote, _sentinel) ? this.quote : quote as MessageQuote?,
       quoteSnippet: identical(quoteSnippet, _sentinel)
           ? this.quoteSnippet

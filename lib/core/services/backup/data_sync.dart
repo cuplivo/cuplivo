@@ -40,6 +40,9 @@ import 'temporary_restore_file.dart';
 import 'backup_cancel_token.dart';
 import 'backup_isolate_runner.dart';
 import 'backup_task_progress.dart';
+import '../sync/lan_sync_models.dart' show FileManifestEntry;
+import '../../models/incremental_backup.dart';
+import 'incremental_backup_engine.dart';
 
 typedef _ParsedChatBackup = ({
   List<Conversation> conversations,
@@ -283,6 +286,29 @@ class DataSync {
   /// an empty `upload/` in a current bundle. `environment/` is omitted on
   /// purpose — the Linux rootfs is hundreds of megabytes and is not backup
   /// data.
+  /// Incremental/LAN-sync surface (engine-backed). Kept on DataSync so the
+  /// fork-lineage sync services keep their call shapes.
+  IncrementalBackupEngine get incrementalEngine => _incrementalEngine ??=
+      IncrementalBackupEngine(chatService: chatService, dataSync: this);
+  IncrementalBackupEngine? _incrementalEngine;
+
+  Future<Map<String, FileManifestEntry>> buildFileManifest() =>
+      incrementalEngine.buildFileManifest();
+
+  Future<({int fileCount, int totalBytes})> countFilesForSince(
+    DateTime since,
+  ) => incrementalEngine.countFilesForSince(since);
+
+  /// Incremental export: chats delta + optional settings + filtered assets.
+  /// Non-incremental calls keep the whole-archive path.
+  Future<File> exportIncrementalToFile(
+    IncrementalBackupConfig incremental, {
+    Map<String, dynamic>? settingsJson,
+  }) => incrementalEngine.exportToFile(
+    config: incremental,
+    settingsJson: settingsJson,
+  );
+
   /// Asset roots (zip prefix → absolute path) as used by backups and the
   /// incremental/LAN-sync engines.
   Future<Map<String, String>> assetRootPaths() async {

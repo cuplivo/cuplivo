@@ -94,6 +94,9 @@ class ChatService extends ChangeNotifier {
   static const int _imageContentHashCacheMaxEntries = 256;
 
   late ChatDatabaseRepository _repo;
+
+  /// Direct repository access for the sync/backup engines.
+  ChatDatabaseRepository get repo => _repo;
   late File _databaseFile;
   final ChatDatabaseGateway _databaseGateway;
   final ChatDatabaseRepository? _existingRepository;

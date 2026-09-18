@@ -1,0 +1,10 @@
+{
+  "name": "cuplivo-website",
+  "private": true,
+  "packageManager": "pnpm@11.22.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "check": "pnpm -r check",
+    "test": "pnpm -r test"
+  }
+}

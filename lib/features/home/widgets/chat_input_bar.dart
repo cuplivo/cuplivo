@@ -20,6 +20,7 @@ import '../../../shared/responsive/breakpoints.dart';
 import 'dart:async';
 import 'dart:io';
 import '../../../core/models/chat_input_data.dart';
+import '../services/input_draft_persistence.dart';
 import '../../../core/models/message_quote.dart';
 import '../../../utils/clipboard_images.dart';
 import '../../../core/providers/asr_provider.dart';
@@ -261,6 +262,8 @@ class _ChatInputBarState extends State<ChatInputBar>
   bool _ownsVoiceSession = false;
   bool _finishingVoice = false;
   String? _lastReportedVoiceError;
+  InputDraftPersistence? _draftPersistence;
+
   final List<_DraftImage> _images = <_DraftImage>[];
   final Queue<_ImageProcessingTask> _imageProcessingQueue =
       Queue<_ImageProcessingTask>();
@@ -374,7 +377,10 @@ class _ChatInputBarState extends State<ChatInputBar>
       _pendingTextPasteIds.isNotEmpty;
 
   // Instance method for onChanged to avoid recreating the callback on every build
-  void _onTextChanged(String _) => setState(() {});
+  void _onTextChanged(String _) {
+    setState(() {});
+    _scheduleDraftSave();
+  }
 
   void _addImages(List<String> paths) {
     if (paths.isEmpty) return;
@@ -383,6 +389,7 @@ class _ChatInputBarState extends State<ChatInputBar>
         paths.map((path) => _DraftImage(id: _nextImageId++, path: path)),
       );
     });
+    _scheduleDraftSave();
   }
 
   void _enqueueImages(
@@ -507,6 +514,7 @@ class _ChatInputBarState extends State<ChatInputBar>
   void _addFiles(List<DocumentAttachment> docs) {
     if (docs.isEmpty) return;
     setState(() => _docs.addAll(docs));
+    _scheduleDraftSave();
   }
 
   void _clearFiles() {
@@ -514,6 +522,7 @@ class _ChatInputBarState extends State<ChatInputBar>
       _pendingTextPasteIds.clear();
       _docs.clear();
     });
+    _scheduleDraftSave();
   }
 
   void _restoreInput(ChatInputData input) {
@@ -548,6 +557,7 @@ class _ChatInputBarState extends State<ChatInputBar>
       _quoteDraft = quote;
       if (snippet != null) _quoteSnippet = snippet;
     });
+    _scheduleDraftSave();
   }
 
   ChatInputData _snapshotInput(String text) {
@@ -567,6 +577,7 @@ class _ChatInputBarState extends State<ChatInputBar>
   }
 
   void _clearDraft() {
+    _draftPersistence?.clearNow();
     widget.mediaController?.sharedDraftAction.value = null;
     setState(() {
       _draftReplacementRevision++;
@@ -599,6 +610,66 @@ class _ChatInputBarState extends State<ChatInputBar>
     widget.mediaController?._bind(this);
     widget.asrProvider?.addListener(_handleAsrChanged);
     WidgetsBinding.instance.addObserver(this);
+    try {
+      _draftPersistence = InputDraftPersistence.instance;
+    } catch (_) {
+      // Draft feature unavailable this session (startup prefs failure).
+    }
+    _restoreDraft();
+  }
+
+  /// Restores the cold-start draft into the bar. Runs synchronously in
+  /// initState, before any user input can be delivered. Fires once per
+  /// process — takeDraftForRestore() consumes the preloaded draft. Files
+  /// that no longer exist are filtered out; a fully-filtered draft drops.
+  void _restoreDraft() {
+    final persistence = _draftPersistence;
+    if (persistence == null) {
+      return;
+    }
+    final draft = persistence.takeDraftForRestore();
+    if (draft == null) return;
+    final images = <String>[
+      for (final path in draft.imagePaths)
+        if (path.startsWith('data:') || File(path).existsSync()) path,
+    ];
+    final documents = <DocumentAttachment>[
+      for (final doc in draft.documents)
+        if (File(doc.path).existsSync()) doc,
+    ];
+    if (draft.text.trim().isEmpty &&
+        images.isEmpty &&
+        documents.isEmpty &&
+        draft.quote == null) {
+      persistence.clearNow();
+      return;
+    }
+    _controller.text = draft.text;
+    _images.addAll(
+      images.map((path) => _DraftImage(id: _nextImageId++, path: path)),
+    );
+    _docs.addAll(documents);
+    _quoteDraft = draft.quote;
+    _quoteSnippet = draft.quoteSnippet;
+    _scheduleDraftSave();
+  }
+
+  /// Feeds the current bar content into the debounced draft writer.
+  void _scheduleDraftSave() {
+    _draftPersistence?.save(
+      ChatInputData(
+        text: _controller.text,
+        imagePaths: [
+          for (final image in _images)
+            if (!_processingImageIds.contains(image.id) &&
+                !_failedImageIds.contains(image.id))
+              image.path,
+        ],
+        documents: List<DocumentAttachment>.of(_docs),
+        quote: _quoteDraft,
+        quoteSnippet: _quoteSnippet,
+      ),
+    );
   }
 
   @override
@@ -626,6 +697,7 @@ class _ChatInputBarState extends State<ChatInputBar>
 
   @override
   void dispose() {
+    _draftPersistence?.flushNow();
     WidgetsBinding.instance.removeObserver(this);
     _stopVoiceLevelSampling();
     final asr = widget.asrProvider;

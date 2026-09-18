@@ -99,3 +99,16 @@ Per-patch gates: `range-diff` equivalence, `dart format` changed paths, `flutter
 6. 依赖 `chat_controller.dart`/`stream_controller.dart`/`ask_user_interaction_service`/`tool_approval_service` 均有分叉（39/203 diff 行）
 
 **建议路径**：全新上下文 round；(a) 先移植/对齐 MessageGenerationService 缺失方法（或改写 pipeline 调用点适配 WT API）；(b) 引擎+视图直拷+import 重定基+编译驱动修复；(c) home_page/controller/actions 接线（fork grep MultiAIEngine 三文件）；(d) 剥除 webChatMultiAIFallback*（engine 内 0 处——已确认不在引擎，在别处，需 grep）；(e) subgroupId：WT ChatMessage 已有 groupId 无 subgroupId（P4 记录），引擎用 threadId 双用可绕过列需求。
+
+## P5c-14 多 AI 引擎移植执行卡（round 20 记录，四错误簇+修法）
+
+基座已就绪（`5e746d6d`）：schema v6 subgroupId 全链贯通、message_pipeline.dart 已 WT 化（`requestMetadataAnchorMessageId`/`buildUserMediaPaths`/`extraBody` 均已适配）。
+
+直拷 `git show cuplivo:lib/features/home/services/multi_ai_engine.dart` + import 重定基后剩 4 簇（共 25 错）：
+
+1. **Future vs List**（9 错）：fork `ChatController.messagesForCompleteHistoryContext` 返回同步 List；WT :735 返回 `Future<List<ChatMessage>>`。修法：引擎内所有该调用点加 `await`（调用者已是 async）；`appendPersistedTailMessage` WT :812 为 `Future<void>`（fork 同步 bool）→ 引擎 `if (_chatController.appendPersistedTailMessage(...))` 改 `await` 后判断（需看 fork 语义：true=接受 append；WT 版返回什么需读实现，若 void 则删条件）。
+2. **`subgroupActiveGroupIds`**（1 错，:160）：fork ChatController getter——从 fork `chat_controller.dart` 移植（grep `subgroupActiveGroupIds`，按 subgroupId!=null 的消息聚合 groupId）。
+3. **`subgroupId:` named 参数**（2 错，:340/:637）：`MessageGenerationService.createAssistantPlaceholder`/`createUserMessage` 无该参——两方法签名加 `String? subgroupId`（默认 null）透传到 ChatMessage 构造。
+4. **`requestMetadataAnchorMessageId`**（2 错，:382/:682）：WT 管道无此参（无元数据回放）——引擎调用点删该实参即可。另 :356/:426 non_bool_condition 是簇 1 的 Future<bool> 副作用，await 后自消。
+
+视图（multi_ai_comparison_view.dart 593 行）独立错误面：WindowsAxTreeSafeTooltip（WT 无→用 Tooltip 替换 2 处）、ReadingModePage/MessageMoreAction.readingMode（WT 无→删该 menu 项）、HomePageController.multiAIEngine/addMultiAIModels（接线时加）、l10n multiAI* 键四语言。接线点：home_page_controller/home_view_model/chat_actions/home_page（fork grep MultiAIEngine）。

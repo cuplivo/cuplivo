@@ -283,6 +283,15 @@ class DataSync {
   /// an empty `upload/` in a current bundle. `environment/` is omitted on
   /// purpose — the Linux rootfs is hundreds of megabytes and is not backup
   /// data.
+  /// Asset roots (zip prefix → absolute path) as used by backups and the
+  /// incremental/LAN-sync engines.
+  Future<Map<String, String>> assetRootPaths() async {
+    final appData = await AppDirectories.getAppDataDirectory();
+    return {
+      for (final name in _assetRootNames) name: p.join(appData.path, name),
+    };
+  }
+
   static const _assetRootNames = [
     'upload',
     'images',

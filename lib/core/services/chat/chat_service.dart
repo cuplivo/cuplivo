@@ -2597,6 +2597,15 @@ class ChatService extends ChangeNotifier {
   }
 
   // Add a message directly to an existing conversation (for merge mode)
+  /// Inserts or updates a conversation row as-is (incremental/LAN-sync
+  /// merge path; no draft handling, no activation).
+  Future<void> putConversation(Conversation conversation) async {
+    if (!_initialized) await init();
+    await _repo.putConversation(conversation);
+    _conversationsCache[conversation.id] = conversation;
+    notifyListeners();
+  }
+
   Future<void> addMessageDirectly(
     String conversationId,
     ChatMessage message,

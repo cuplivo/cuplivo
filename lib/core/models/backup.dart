@@ -1,5 +1,138 @@
 import 'dart:convert';
 
+/// What a backup ZIP includes, at 6 pre-defined sections.
+///
+/// Replaces the old `includeChats`/`includeFiles` pair (single source of
+/// truth for full backups, incremental backups, LAN sync and the restore
+/// gate). `fromJson` accepts the legacy pair so old config JSON lands on the
+/// equivalent bits; `toJson` keeps writing the legacy keys so old builds
+/// reading a new config still see their two toggles.
+class BackupContentScope {
+  /// 聊天记录及助手: conversations/messages JSONL + assistants/memories keys
+  /// split out of settings.json.
+  final bool chatsAndAssistants;
+
+  /// 设置项: settings.json minus the assistant keys.
+  final bool settings;
+
+  /// 附件: `upload/` (message attachments) + `images/` (generated images).
+  final bool attachments;
+
+  /// 工作区: `workspaces/` user sandbox.
+  final bool workspaces;
+
+  /// 技能: `skills/`. No longer "always packed" — follows this bit.
+  final bool skills;
+
+  /// 字体与头像: `fonts/` + `avatars/`.
+  final bool fontsAndAvatars;
+
+  const BackupContentScope({
+    this.chatsAndAssistants = true,
+    this.settings = true,
+    this.attachments = true,
+    this.workspaces = true,
+    this.skills = true,
+    this.fontsAndAvatars = true,
+  });
+
+  BackupContentScope copyWith({
+    bool? chatsAndAssistants,
+    bool? settings,
+    bool? attachments,
+    bool? workspaces,
+    bool? skills,
+    bool? fontsAndAvatars,
+  }) {
+    return BackupContentScope(
+      chatsAndAssistants: chatsAndAssistants ?? this.chatsAndAssistants,
+      settings: settings ?? this.settings,
+      attachments: attachments ?? this.attachments,
+      workspaces: workspaces ?? this.workspaces,
+      skills: skills ?? this.skills,
+      fontsAndAvatars: fontsAndAvatars ?? this.fontsAndAvatars,
+    );
+  }
+
+  /// Settings content is requested by either of the two settings-y bits.
+  bool get anySettings => settings || chatsAndAssistants;
+
+  /// Any file tree bit set (drives the legacy `includeFiles` getter).
+  bool get anyFiles => attachments || workspaces || skills || fontsAndAvatars;
+
+  Map<String, dynamic> toJson() => {
+    'chatsAndAssistants': chatsAndAssistants,
+    'settings': settings,
+    'attachments': attachments,
+    'workspaces': workspaces,
+    'skills': skills,
+    'fontsAndAvatars': fontsAndAvatars,
+  };
+
+  /// Reads the scope JSON, falling back to the legacy two-toggle semantics
+  /// when the new object is absent (old configs). Legacy mapping:
+  ///  - `includeChats` → chats bit (settings.json was always exported and
+  ///    always carried assistants, so the assistant keys now ride chats)
+  ///  - `includeFiles` → attachments + workspaces + fontsAndAvatars
+  ///  - skills stay true (old ZIPs always packed them)
+  static BackupContentScope fromJson(
+    Map<String, dynamic> json, {
+    bool? legacyIncludeChats,
+    bool? legacyIncludeFiles,
+  }) {
+    if (json.containsKey('chatsAndAssistants')) {
+      return BackupContentScope(
+        chatsAndAssistants: json['chatsAndAssistants'] as bool? ?? true,
+        settings: json['settings'] as bool? ?? true,
+        attachments: json['attachments'] as bool? ?? true,
+        workspaces: json['workspaces'] as bool? ?? true,
+        skills: json['skills'] as bool? ?? true,
+        fontsAndAvatars: json['fontsAndAvatars'] as bool? ?? true,
+      );
+    }
+    final legacyChats = legacyIncludeChats ?? true;
+    final legacyFiles = legacyIncludeFiles ?? true;
+    return BackupContentScope(
+      chatsAndAssistants: legacyChats,
+      settings: true,
+      attachments: legacyFiles,
+      workspaces: legacyFiles,
+      skills: true,
+      fontsAndAvatars: legacyFiles,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is BackupContentScope &&
+      other.chatsAndAssistants == chatsAndAssistants &&
+      other.settings == settings &&
+      other.attachments == attachments &&
+      other.workspaces == workspaces &&
+      other.skills == skills &&
+      other.fontsAndAvatars == fontsAndAvatars;
+
+  @override
+  int get hashCode => Object.hash(
+    chatsAndAssistants,
+    settings,
+    attachments,
+    workspaces,
+    skills,
+    fontsAndAvatars,
+  );
+}
+
+/// Conflict-direction for a merge restore (issue #615, LAN sync only).
+///
+/// Role-relative, derived per side from the wire's absolute [SyncPriority]:
+/// `localWins` keeps the device's own copy on id-conflicts (peer-exclusive
+/// data still merges in), `incomingWins` adopts the peer copy (local-exclusive
+/// data is kept). `auto` = the incumbent fixed-policy merge — the default for
+/// every non-LAN-sync caller (backup page, importers, S3, WebDAV) and the
+/// exact behavior those callers have today.
+enum ConflictPrecedence { auto, localWins, incomingWins }
+
 enum RestoreMode {
   overwrite, // 完全覆盖：清空本地后恢复
   merge, // 增量合并：智能去重

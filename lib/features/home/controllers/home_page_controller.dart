@@ -354,6 +354,13 @@ class HomePageController extends ChangeNotifier {
   bool get isTemporaryConversation =>
       _chatService.isTemporaryConversation(currentConversation?.id);
 
+  /// Convert the current temporary conversation into a persisted one.
+  Future<bool> saveTemporaryConversation() =>
+      _viewModel.saveTemporaryConversation();
+
+  bool get canSaveTemporaryConversation =>
+      isTemporaryConversation && messages.isNotEmpty;
+
   bool get canToggleTemporaryConversation =>
       currentConversation != null && messages.isEmpty;
 

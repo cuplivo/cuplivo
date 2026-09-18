@@ -1045,6 +1045,17 @@ class _HomePageState extends State<HomePage>
       canToggleTemporaryConversation:
           _controller.canToggleTemporaryConversation,
       temporaryConversationEnabled: _controller.isTemporaryConversation,
+      onSaveTemporaryConversation: () async {
+        final l10n = AppLocalizations.of(context);
+        final messenger = ScaffoldMessenger.of(context);
+        final saved = await _controller.saveTemporaryConversation();
+        if (saved && mounted) {
+          messenger.showSnackBar(
+            SnackBar(content: Text(l10n!.temporaryChatSaved)),
+          );
+        }
+      },
+      canSaveTemporaryConversation: _controller.canSaveTemporaryConversation,
       onSelectModel: () =>
           showModelSelectSheet(context, controller: _controller),
       globalSearchMode: _controller.isGlobalSearchMode,
@@ -1172,6 +1183,17 @@ class _HomePageState extends State<HomePage>
       canToggleTemporaryConversation:
           _controller.canToggleTemporaryConversation,
       temporaryConversationEnabled: _controller.isTemporaryConversation,
+      onSaveTemporaryConversation: () async {
+        final l10n = AppLocalizations.of(context);
+        final messenger = ScaffoldMessenger.of(context);
+        final saved = await _controller.saveTemporaryConversation();
+        if (saved && mounted) {
+          messenger.showSnackBar(
+            SnackBar(content: Text(l10n!.temporaryChatSaved)),
+          );
+        }
+      },
+      canSaveTemporaryConversation: _controller.canSaveTemporaryConversation,
       globalSearchMode: _controller.isGlobalSearchMode,
       globalSearchQuery: _controller.globalSearchQuery,
       onGlobalSearchQueryChanged: _controller.setGlobalSearchQuery,

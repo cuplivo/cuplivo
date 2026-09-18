@@ -12569,4 +12569,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPageIncrementalBackupNow => 'Incremental backup now';
+
+  @override
+  String get temporaryChatSaveTooltip => 'Save temporary chat to history';
+
+  @override
+  String get temporaryChatSaved => 'Saved to history';
 }

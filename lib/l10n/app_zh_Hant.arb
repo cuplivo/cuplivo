@@ -4411,5 +4411,7 @@
   "backupPageIncrementalPreviewNewConv": "新對話 {count} 個 · 新訊息 {msgCount} 條",
   "backupPageIncrementalPreviewUpdatedConv": "更新舊對話 {count} 個 · 新訊息 {msgCount} 條",
   "backupPageIncrementalPreviewFiles": "新附件 {count} 個 ({size})",
-  "backupPageIncrementalBackupNow": "立即增量備份"
+  "backupPageIncrementalBackupNow": "立即增量備份",
+  "temporaryChatSaveTooltip": "儲存臨時對話到歷史",
+  "temporaryChatSaved": "已儲存到歷史"
 }

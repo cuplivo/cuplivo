@@ -12007,6 +12007,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupPageIncrementalBackupNow => '立即增量备份';
+
+  @override
+  String get temporaryChatSaveTooltip => '保存临时对话到历史';
+
+  @override
+  String get temporaryChatSaved => '已保存到历史';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -23938,6 +23944,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupPageIncrementalBackupNow => '立即增量备份';
+
+  @override
+  String get temporaryChatSaveTooltip => '保存临时对话到历史';
+
+  @override
+  String get temporaryChatSaved => '已保存到历史';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -35949,4 +35961,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupPageIncrementalBackupNow => '立即增量備份';
+
+  @override
+  String get temporaryChatSaveTooltip => '儲存臨時對話到歷史';
+
+  @override
+  String get temporaryChatSaved => '已儲存到歷史';
 }

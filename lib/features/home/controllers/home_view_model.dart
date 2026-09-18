@@ -1620,6 +1620,39 @@ class HomeViewModel extends ChangeNotifier {
   // ============================================================================
 
   /// Generate title for a conversation if needed.
+  /// Convert the current temporary conversation into a persisted one
+  /// (issue #726). Returns true when a conversation was actually saved.
+  Future<bool> saveTemporaryConversation() async {
+    final convo = currentConversation;
+    if (convo == null || !_chatService.isTemporaryConversation(convo.id)) {
+      return false;
+    }
+
+    // Only reset a title that is still the placeholder: a manually renamed
+    // temporary conversation keeps its preferred name untouched.
+    final isPlaceholderTitle =
+        convo.title ==
+        AppLocalizations.of(_contextProvider)?.temporaryChatTitle;
+    final saved = await _chatService.persistTemporaryConversation(
+      convo.id,
+      newTitle: isPlaceholderTitle ? getTitleForLocale(_contextProvider) : null,
+    );
+    if (!saved) return false;
+
+    // Refresh the controller's view of the now-persisted conversation.
+    _chatController.updateCurrentConversation(
+      _chatService.getConversation(convo.id),
+    );
+    notifyListeners();
+
+    // A placeholder title was reset to the default: generate a meaningful
+    // one, like any normal conversation. A kept title needs no regeneration.
+    if (isPlaceholderTitle) {
+      unawaited(_maybeGenerateTitleFor(convo.id, force: true));
+    }
+    return true;
+  }
+
   Future<void> _maybeGenerateTitleFor(
     String conversationId, {
     bool force = false,

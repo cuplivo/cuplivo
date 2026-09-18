@@ -5443,5 +5443,7 @@
   "backupPageIncrementalPreviewNewConv": "{count} new convs · {msgCount} new msgs",
   "backupPageIncrementalPreviewUpdatedConv": "{count} updated convs · {msgCount} new msgs",
   "backupPageIncrementalPreviewFiles": "{count} attachments ({size})",
-  "backupPageIncrementalBackupNow": "Incremental backup now"
+  "backupPageIncrementalBackupNow": "Incremental backup now",
+  "temporaryChatSaveTooltip": "Save temporary chat to history",
+  "temporaryChatSaved": "Saved to history"
 }

@@ -1934,6 +1934,43 @@ class ChatService extends ChangeNotifier {
     return conversation;
   }
 
+  /// Converts a temporary conversation into a persisted one (issue #726):
+  /// writes the conversation row and replays its cached messages into the
+  /// repository in order. Returns false when [conversationId] is not a
+  /// temporary conversation. [newTitle] replaces a placeholder title.
+  Future<bool> persistTemporaryConversation(
+    String conversationId, {
+    String? newTitle,
+  }) async {
+    if (!_initialized) await init();
+    if (!_temporaryConversationIds.contains(conversationId)) return false;
+
+    var conversation =
+        _conversationsCache[conversationId] ??
+        _draftConversations[conversationId];
+    if (conversation == null) return false;
+    if (newTitle != null && newTitle.trim().isNotEmpty) {
+      conversation = conversation.copyWith(title: newTitle.trim());
+    }
+
+    await _repo.putConversation(conversation);
+    for (final message in List<ChatMessage>.of(
+      _messagesCache[conversationId] ?? const <ChatMessage>[],
+    )) {
+      await _repo.appendLinearMessageToConversation(
+        conversation: conversation,
+        message: message,
+        selectVersion: true,
+      );
+    }
+
+    _temporaryConversationIds.remove(conversationId);
+    _draftConversations.remove(conversationId);
+    _conversationsCache[conversationId] = conversation;
+    notifyListeners();
+    return true;
+  }
+
   void _rememberDiscardedTemporaryConversation(String id) {
     _discardedTemporaryConversationIds.add(id);
     final messages = _messagesCache[id] ?? const <ChatMessage>[];

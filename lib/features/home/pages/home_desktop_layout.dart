@@ -58,6 +58,8 @@ class HomeDesktopScaffold extends StatelessWidget {
     required this.onToggleTemporaryConversation,
     required this.onSelectModel,
     required this.canToggleTemporaryConversation,
+    required this.onSaveTemporaryConversation,
+    required this.canSaveTemporaryConversation,
     required this.temporaryConversationEnabled,
     required this.globalSearchMode,
     required this.globalSearchQuery,
@@ -96,6 +98,10 @@ class HomeDesktopScaffold extends StatelessWidget {
   final Future<void> Function() onToggleTemporaryConversation;
   final VoidCallback onSelectModel;
   final bool canToggleTemporaryConversation;
+
+  /// Saves the current temporary conversation into history (issue #726).
+  final Future<void> Function() onSaveTemporaryConversation;
+  final bool canSaveTemporaryConversation;
   final bool temporaryConversationEnabled;
   final bool globalSearchMode;
   final String globalSearchQuery;
@@ -681,6 +687,17 @@ class HomeDesktopScaffold extends StatelessWidget {
           }
         },
       ),
+      if (canSaveTemporaryConversation) ...[
+        const SizedBox(width: 6),
+        IosIconButton(
+          size: 20,
+          padding: const EdgeInsets.all(8),
+          minSize: 40,
+          semanticLabel: AppLocalizations.of(context)!.temporaryChatSaveTooltip,
+          icon: Lucide.BookmarkCheck,
+          onTap: onSaveTemporaryConversation,
+        ),
+      ],
       const SizedBox(width: 6),
     ];
   }

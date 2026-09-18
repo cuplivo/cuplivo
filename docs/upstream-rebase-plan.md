@@ -82,3 +82,20 @@ Per-patch gates: `range-diff` equivalence, `dart format` changed paths, `flutter
 - `test/features/home/widgets/chat_input_bar_attachment_cleanup_test.dart` "源文件删除失败…"：chmod 0555 对 root 无效，删除成功导致断言落空（环境性）
 
 发布验证口径：本地全量 `flutter test` 以"相对基线无新增失败"为准；CI（非 root）为最终门。另：`flutter test | tail` 的管道退出码是 tail 的，须用完整输出判断。
+
+## P5c-14 多 AI 对比移植侦察（round 18 记录，供全新上下文续作）
+
+**Fork 文件清单**（`git show cuplivo:<path>`）：
+- `lib/features/home/services/multi_ai_engine.dart` — 1184 行，`MultiAIEngine extends ChangeNotifier` + `MultiAIMode` + `_MultiAIResponseOperation{,Tracker}`。groupId=threadId 双用（collapse + 卡片分组），round 成员在运行时 `_anchorThreads`（不落消息）
+- `lib/features/home/services/message_pipeline.dart` — 221 行，多 AI 重试/再生成的请求重建管道
+- `lib/features/home/widgets/multi_ai_comparison_view.dart` — 593 行，对比视图
+
+**关键分叉**（WT 服务 API 已不同，79 errors 直拷不通）：
+1. `MessageGenerationService.buildUserMediaPaths` — WT 无（WT: 生成上下文直接收 `userImagePaths`）
+2. `MessageGenerationService.resolveRequestOptionsFromMessages` — WT 无（AD-0033 请求元数据回放）
+3. `prepareApiMessagesWithInjections` 参数集不同（fork 有 `includeUserQuickInstructions`）
+4. `buildGenerationContext` fork 用 `userMediaPaths`/`requestExtraBody`；WT 用 `userImagePaths`/`extraBody`+`imageOptionsBody`
+5. `ChatInputData.extraBody` — fork 有；WT 是 `imageOptionsBody`（P5c-8 本轮系列加的）
+6. 依赖 `chat_controller.dart`/`stream_controller.dart`/`ask_user_interaction_service`/`tool_approval_service` 均有分叉（39/203 diff 行）
+
+**建议路径**：全新上下文 round；(a) 先移植/对齐 MessageGenerationService 缺失方法（或改写 pipeline 调用点适配 WT API）；(b) 引擎+视图直拷+import 重定基+编译驱动修复；(c) home_page/controller/actions 接线（fork grep MultiAIEngine 三文件）；(d) 剥除 webChatMultiAIFallback*（engine 内 0 处——已确认不在引擎，在别处，需 grep）；(e) subgroupId：WT ChatMessage 已有 groupId 无 subgroupId（P4 记录），引擎用 threadId 双用可绕过列需求。

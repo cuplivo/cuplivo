@@ -22874,6 +22874,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Group name (empty = ungrouped)'**
   String get worldBookGroupHint;
+
+  /// No description provided for @translateLanguageManagerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Languages'**
+  String get translateLanguageManagerTitle;
+
+  /// No description provided for @translateLanguageManagerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which languages appear in the translate target list.'**
+  String get translateLanguageManagerSubtitle;
+
+  /// No description provided for @translateLanguageManagerAtLeastOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep at least one language visible.'**
+  String get translateLanguageManagerAtLeastOne;
 }
 
 class _AppLocalizationsDelegate

@@ -12183,6 +12183,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get worldBookGroupHint => '分组名称（留空则不分组）';
+
+  @override
+  String get translateLanguageManagerTitle => '管理语言';
+
+  @override
+  String get translateLanguageManagerSubtitle => '选择在翻译目标列表中显示的语言。';
+
+  @override
+  String get translateLanguageManagerAtLeastOne => '请至少保留一种语言。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -24290,6 +24299,15 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get worldBookGroupHint => '分组名称（留空则不分组）';
+
+  @override
+  String get translateLanguageManagerTitle => '管理语言';
+
+  @override
+  String get translateLanguageManagerSubtitle => '选择在翻译目标列表中显示的语言。';
+
+  @override
+  String get translateLanguageManagerAtLeastOne => '请至少保留一种语言。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -36477,4 +36495,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get worldBookGroupHint => '分組名稱（留空則不分組）';
+
+  @override
+  String get translateLanguageManagerTitle => '管理語言';
+
+  @override
+  String get translateLanguageManagerSubtitle => '選擇在翻譯目標清單中顯示的語言。';
+
+  @override
+  String get translateLanguageManagerAtLeastOne => '請至少保留一種語言。';
 }

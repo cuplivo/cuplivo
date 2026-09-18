@@ -5500,5 +5500,8 @@
   "markdownMathSavePngLabel": "Save to Gallery",
   "markdownMathDefaultFileNameStem": "math",
   "worldBookGroupLabel": "Group",
-  "worldBookGroupHint": "Group name (empty = ungrouped)"
+  "worldBookGroupHint": "Group name (empty = ungrouped)",
+  "translateLanguageManagerTitle": "Manage Languages",
+  "translateLanguageManagerSubtitle": "Choose which languages appear in the translate target list.",
+  "translateLanguageManagerAtLeastOne": "Keep at least one language visible."
 }

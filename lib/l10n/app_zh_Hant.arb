@@ -4468,5 +4468,8 @@
   "markdownMathSavePngLabel": "儲存到相簿",
   "markdownMathDefaultFileNameStem": "公式",
   "worldBookGroupLabel": "分組",
-  "worldBookGroupHint": "分組名稱（留空則不分組）"
+  "worldBookGroupHint": "分組名稱（留空則不分組）",
+  "translateLanguageManagerTitle": "管理語言",
+  "translateLanguageManagerSubtitle": "選擇在翻譯目標清單中顯示的語言。",
+  "translateLanguageManagerAtLeastOne": "請至少保留一種語言。"
 }

@@ -12751,4 +12751,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get worldBookGroupHint => 'Group name (empty = ungrouped)';
+
+  @override
+  String get translateLanguageManagerTitle => 'Manage Languages';
+
+  @override
+  String get translateLanguageManagerSubtitle =>
+      'Choose which languages appear in the translate target list.';
+
+  @override
+  String get translateLanguageManagerAtLeastOne =>
+      'Keep at least one language visible.';
 }

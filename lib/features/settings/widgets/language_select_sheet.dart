@@ -10,6 +10,9 @@ import '../../../desktop/menu_anchor.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import '../../../shared/widgets/section_card.dart';
+import 'package:provider/provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 class LanguageOption {
   final String code;
@@ -132,14 +135,24 @@ Future<LanguageOption?> showLanguageSelector(BuildContext context) async {
 
   // Desktop anchored menu
   final l10n = AppLocalizations.of(context)!;
+  final visible = visibleTranslateLanguages(
+    context.read<SettingsProvider>().translateVisibleLanguages,
+  );
   LanguageOption? selected;
   final items = [
-    ...supportedLanguages.map(
+    ...visible.map(
       (lang) => DesktopContextMenuItem(
         icon: null,
         label: '${lang.flag} ${_displayNameFor(l10n, lang.code)}',
         onTap: () => selected = lang,
       ),
+    ),
+    DesktopContextMenuItem(
+      icon: Lucide.Settings2,
+      label: l10n.translateLanguageManagerTitle,
+      onTap: () async {
+        await showTranslateLanguageManager(context);
+      },
     ),
     DesktopContextMenuItem(
       icon: Lucide.X,
@@ -210,8 +223,42 @@ class _LanguageSelectSheetState extends State<_LanguageSelectSheet> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      ...supportedLanguages.map(
-                        (lang) => _languageOption(context, lang),
+                      ...visibleTranslateLanguages(
+                        context
+                            .read<SettingsProvider>()
+                            .translateVisibleLanguages,
+                      ).map((lang) => _languageOption(context, lang)),
+                      SizedBox(
+                        height: 44,
+                        child: IosCardPress(
+                          borderRadius: BorderRadius.circular(14),
+                          baseColor: sheetTileColor(context),
+                          duration: const Duration(milliseconds: 260),
+                          onTap: () async {
+                            Haptics.light();
+                            await showTranslateLanguageManager(context);
+                          },
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Lucide.Settings2,
+                                size: 18,
+                                color: cs.primary,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  AppLocalizations.of(
+                                    context,
+                                  )!.translateLanguageManagerTitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       // Clear translation row (iOS style)
@@ -325,5 +372,104 @@ class _LanguageSelectSheetState extends State<_LanguageSelectSheet> {
       default:
         return languageCode;
     }
+  }
+}
+
+/// Catalog entries whose codes are in [visibleCodes], in catalog order.
+/// Guaranteed non-empty: falls back to the default visible set.
+List<LanguageOption> visibleTranslateLanguages(Set<String> visibleCodes) {
+  final filtered = supportedLanguages
+      .where((l) => visibleCodes.contains(l.code))
+      .toList(growable: false);
+  if (filtered.isNotEmpty) return filtered;
+  return supportedLanguages
+      .where(
+        (l) =>
+            SettingsProvider.defaultTranslateVisibleLanguages.contains(l.code),
+      )
+      .toList(growable: false);
+}
+
+/// The target language that stays valid after [visibleCodes] changes: the
+/// current one when still visible, otherwise the first visible (catalog
+/// order).
+String? effectiveTranslateTarget(Set<String> visibleCodes, String? current) {
+  if (current == null || visibleCodes.contains(current)) return current;
+  return visibleTranslateLanguages(visibleCodes).first.code;
+}
+
+/// Manage-languages dialog: checkbox list of the full catalog; unchecked
+/// codes leave the translate target selector. Dialog — desktop safe.
+Future<void> showTranslateLanguageManager(BuildContext context) async {
+  final settings = context.read<SettingsProvider>();
+  final l10n = AppLocalizations.of(context)!;
+  var visible = Set<String>.of(settings.translateVisibleLanguages);
+  final changed = await showDialog<bool>(
+    context: context,
+    builder: (dctx) => StatefulBuilder(
+      builder: (dctx, setDState) {
+        final cs = Theme.of(dctx).colorScheme;
+        return AlertDialog(
+          title: Text(l10n.translateLanguageManagerTitle),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      l10n.translateLanguageManagerSubtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  for (final lang in supportedLanguages)
+                    CheckboxListTile(
+                      value: visible.contains(lang.code),
+                      title: Text(
+                        '${lang.flag} ${_displayNameFor(l10n, lang.code)}',
+                      ),
+                      dense: true,
+                      onChanged: (checked) {
+                        // Keep at least one language visible.
+                        if (checked != true && visible.length <= 1) {
+                          showAppSnackBar(
+                            dctx,
+                            message: l10n.translateLanguageManagerAtLeastOne,
+                            type: NotificationType.warning,
+                          );
+                          return;
+                        }
+                        setDState(() {
+                          checked == true
+                              ? visible.add(lang.code)
+                              : visible.remove(lang.code);
+                        });
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dctx).pop(false),
+              child: Text(MaterialLocalizations.of(dctx).cancelButtonLabel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dctx).pop(true),
+              child: Text(MaterialLocalizations.of(dctx).okButtonLabel),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+  if (changed == true) {
+    await settings.setTranslateVisibleLanguages(visible);
   }
 }

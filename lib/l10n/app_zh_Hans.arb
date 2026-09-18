@@ -4444,5 +4444,8 @@
   "markdownMathSavePngLabel": "保存到相册",
   "markdownMathDefaultFileNameStem": "公式",
   "worldBookGroupLabel": "分组",
-  "worldBookGroupHint": "分组名称（留空则不分组）"
+  "worldBookGroupHint": "分组名称（留空则不分组）",
+  "translateLanguageManagerTitle": "管理语言",
+  "translateLanguageManagerSubtitle": "选择在翻译目标列表中显示的语言。",
+  "translateLanguageManagerAtLeastOne": "请至少保留一种语言。"
 }

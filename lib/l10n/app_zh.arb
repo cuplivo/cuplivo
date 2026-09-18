@@ -4417,5 +4417,7 @@
   "displaySettingsPageStartupAssistantPinnedTitle": "固定启动助手",
   "displaySettingsPageStartupAssistantPinnedSubtitle": "每次启动时自动切换到指定助手",
   "displaySettingsPageStartupAssistantPickerLabel": "启动助手",
-  "displaySettingsPageStartupAssistantNone": "未指定"
+  "displaySettingsPageStartupAssistantNone": "未指定",
+  "modelDetailSheetReasoningEffortsLabel": "自定义推理等级",
+  "modelDetailSheetReasoningEffortsHint": "开启后推理滑杆档位以此为准，并覆盖内置模型知识；关闭则跟随内置。"
 }

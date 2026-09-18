@@ -417,17 +417,28 @@ TokenUsage? openaiUsageFromObj(Map<String, dynamic> obj) {
   }
 }
 
-String openAIEffortForBudget(int? budget, String upstreamModelId) {
+String openAIEffortForBudget(
+  int? budget,
+  String upstreamModelId, {
+  OpenAIReasoningSupport? overrideSupport,
+}) {
   final baseEffort = effortForBudget(budget);
   var requestedEffort = baseEffort;
   if (baseEffort == 'high' && budget != null) {
-    if (budget >= 128000 && openAISupportsMaxReasoning(upstreamModelId)) {
+    final supportsMax =
+        overrideSupport?.supportsMax ??
+        openAISupportsMaxReasoning(upstreamModelId);
+    if (budget >= 128000 && supportsMax) {
       requestedEffort = 'max';
     } else if (budget >= 64000) {
       requestedEffort = 'xhigh';
     }
   }
-  return openAINormalizeReasoningEffort(requestedEffort, upstreamModelId);
+  return openAINormalizeReasoningEffort(
+    requestedEffort,
+    upstreamModelId,
+    overrideSupport: overrideSupport,
+  );
 }
 
 String _effectiveOpenAIEffort(

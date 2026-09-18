@@ -5449,5 +5449,7 @@
   "displaySettingsPageStartupAssistantPinnedTitle": "Start with a pinned assistant",
   "displaySettingsPageStartupAssistantPinnedSubtitle": "Always switch to the designated assistant on launch",
   "displaySettingsPageStartupAssistantPickerLabel": "Startup assistant",
-  "displaySettingsPageStartupAssistantNone": "None"
+  "displaySettingsPageStartupAssistantNone": "None",
+  "modelDetailSheetReasoningEffortsLabel": "Custom Reasoning Efforts",
+  "modelDetailSheetReasoningEffortsHint": "When enabled, the reasoning slider stops follow this list and override the built-in model knowledge; when disabled, the built-in knowledge is used."
 }

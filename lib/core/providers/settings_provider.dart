@@ -577,6 +577,33 @@ class SettingsProvider extends ChangeNotifier {
     return resolveApiModelIdOverride(ov, modelId);
   }
 
+  /// Per-model reasoning-effort vocabulary override
+  /// (`modelOverrides[key]['reasoningEfforts']`): an explicit list — empty
+  /// included — replaces the built-in registry for that model; null when the
+  /// model carries no override.
+  List<String>? reasoningEffortsVocabulary(String providerKey, String modelId) {
+    final cfg = getProviderConfig(providerKey);
+    final rawOv = cfg.modelOverrides[modelId];
+    return reasoningEffortsOverride(
+      rawOv is Map ? rawOv.cast<String, dynamic>() : null,
+    );
+  }
+
+  /// Per-model reasoning-effort vocabulary override as a synthetic support,
+  /// or null when the model carries no override (follow the built-in
+  /// registry).
+  OpenAIReasoningSupport? _openAIReasoningSupportOverride(
+    ProviderConfig cfg,
+    String modelId,
+  ) {
+    final rawOv = cfg.modelOverrides[modelId];
+    return reasoningSupportFromOverride(
+      reasoningEffortsOverride(
+        rawOv is Map ? rawOv.cast<String, dynamic>() : null,
+      ),
+    );
+  }
+
   bool supportsXhighReasoning(String providerKey, String modelId) {
     final cfg = getProviderConfig(providerKey);
     final kind = ProviderConfig.classify(
@@ -585,6 +612,8 @@ class SettingsProvider extends ChangeNotifier {
     );
     switch (kind) {
       case ProviderKind.openai:
+        final overrideSupport = _openAIReasoningSupportOverride(cfg, modelId);
+        if (overrideSupport != null) return overrideSupport.supportsXhigh;
         final modelForCheck = resolveOpenAIUpstreamModelId(
           providerKey,
           modelId,
@@ -612,6 +641,8 @@ class SettingsProvider extends ChangeNotifier {
     );
     switch (kind) {
       case ProviderKind.openai:
+        final overrideSupport = _openAIReasoningSupportOverride(cfg, modelId);
+        if (overrideSupport != null) return overrideSupport.supportsMax;
         final modelForCheck = resolveOpenAIUpstreamModelId(
           providerKey,
           modelId,

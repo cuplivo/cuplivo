@@ -14,6 +14,7 @@ import '../shared/widgets/snackbar.dart';
 import '../features/model/widgets/model_edit_state_helper.dart';
 import '../theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import '../core/utils/openai_model_compat.dart';
 
 Future<bool?> showDesktopModelEditDialog(
   BuildContext context, {
@@ -98,6 +99,13 @@ class _ModelEditDialogBodyState extends State<_ModelEditDialogBody>
   final Set<Modality> _input = {Modality.text};
   final Set<Modality> _output = {Modality.text};
   final Set<ModelAbility> _abilities = {};
+
+  // Per-model reasoning-effort vocabulary override
+  // (modelOverrides[key]['reasoningEfforts']). Off = follow the built-in
+  // registry; an explicit list — empty included — replaces it entirely.
+  bool _customReasoningEfforts = false;
+  List<String> _reasoningEfforts = [];
+  bool _reasoningEffortsInitialized = false;
   Set<Modality>? _cachedChatInput;
   Set<Modality>? _cachedChatOutput;
   Set<ModelAbility>? _cachedChatAbilities;
@@ -185,6 +193,10 @@ class _ModelEditDialogBodyState extends State<_ModelEditDialogBody>
     _abilities
       ..clear()
       ..addAll(effective.abilities);
+    final parsedEfforts = reasoningEffortsOverride(ov);
+    _customReasoningEfforts = parsedEfforts != null;
+    _reasoningEfforts = parsedEfforts ?? <String>[];
+    _reasoningEffortsInitialized = parsedEfforts != null;
     if (_type == ModelType.embedding) {
       if (_input.isEmpty) _input.add(Modality.text);
       _cachedEmbeddingInput = {..._input};
@@ -263,6 +275,10 @@ class _ModelEditDialogBodyState extends State<_ModelEditDialogBody>
       modalities.add(mod);
     }
   }
+
+  /// First enable with nothing persisted: prefill from the built-in
+  /// registry, or the safe passthrough set.
+  List<String> _defaultReasoningEfforts() => const ['low', 'medium', 'high'];
 
   // Desktop input decoration matching provider settings inputs
   InputDecoration _deskInputDecoration(BuildContext context) {
@@ -601,6 +617,64 @@ class _ModelEditDialogBodyState extends State<_ModelEditDialogBody>
                   }
                 }),
               ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(l10n.modelDetailSheetReasoningEffortsLabel),
+                  ),
+                  IosSwitch(
+                    value: _customReasoningEfforts,
+                    semanticLabel: l10n.modelDetailSheetReasoningEffortsLabel,
+                    onChanged: (on) => setState(() {
+                      _customReasoningEfforts = on;
+                      if (on && !_reasoningEffortsInitialized) {
+                        _reasoningEfforts = _defaultReasoningEfforts();
+                        _reasoningEffortsInitialized = true;
+                      }
+                    }),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                l10n.modelDetailSheetReasoningEffortsHint,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.55),
+                ),
+              ),
+              if (_customReasoningEfforts) ...[
+                const SizedBox(height: 8),
+                _SegmentedMulti(
+                  options: [
+                    l10n.reasoningBudgetSheetLight,
+                    l10n.reasoningBudgetSheetMedium,
+                    l10n.reasoningBudgetSheetHeavy,
+                    l10n.reasoningBudgetSheetXhigh,
+                    l10n.reasoningBudgetSheetMax,
+                  ],
+                  isSelected: [
+                    for (final e in kReasoningEffortVocabulary)
+                      _reasoningEfforts.contains(e),
+                  ],
+                  onChanged: (idx) => setState(() {
+                    final effort = kReasoningEffortVocabulary[idx];
+                    if (_reasoningEfforts.contains(effort)) {
+                      _reasoningEfforts.remove(effort);
+                    } else {
+                      _reasoningEfforts.add(effort);
+                    }
+                    _reasoningEfforts.sort(
+                      (a, b) => kReasoningEffortVocabulary
+                          .indexOf(a)
+                          .compareTo(kReasoningEffortVocabulary.indexOf(b)),
+                    );
+                  }),
+                ),
+              ],
             ],
           ],
         ),
@@ -830,6 +904,8 @@ class _ModelEditDialogBodyState extends State<_ModelEditDialogBody>
         'abilities': _abilities
             .map((e) => e == ModelAbility.reasoning ? 'reasoning' : 'tool')
             .toList(),
+      if (!isEmbedding && _customReasoningEfforts)
+        'reasoningEfforts': List<String>.of(_reasoningEfforts),
       'headers': headers,
       'body': bodies,
       if (!isEmbedding && builtInTools.isNotEmpty) 'builtInTools': builtInTools,

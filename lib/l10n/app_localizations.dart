@@ -22568,6 +22568,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'None'**
   String get displaySettingsPageStartupAssistantNone;
+
+  /// No description provided for @modelDetailSheetReasoningEffortsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Reasoning Efforts'**
+  String get modelDetailSheetReasoningEffortsLabel;
+
+  /// No description provided for @modelDetailSheetReasoningEffortsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'When enabled, the reasoning slider stops follow this list and override the built-in model knowledge; when disabled, the built-in knowledge is used.'**
+  String get modelDetailSheetReasoningEffortsHint;
 }
 
 class _AppLocalizationsDelegate

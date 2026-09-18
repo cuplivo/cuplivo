@@ -23,6 +23,7 @@ import 'chat_completions_decoder.dart';
 import 'openai_vendor_compat.dart';
 import 'responses_api.dart';
 import 'responses_decoder.dart';
+import '../../../../utils/openai_model_compat.dart';
 
 Uri _openAICompatibleUrl(ProviderConfig config) {
   final rawBase = config.baseUrl.endsWith('/')
@@ -134,7 +135,17 @@ Stream<StreamChunk> sendOpenAIStream(
   final wantsImageOutput = effectiveInfo.output.contains(Modality.image);
   final bool canImageInput = effectiveInfo.input.contains(Modality.image);
 
-  final effort = openAIEffortForBudget(thinkingBudget, upstreamModelId);
+  final modelOverrideOv = config.modelOverrides[modelId];
+  final overrideSupport = reasoningSupportFromOverride(
+    reasoningEffortsOverride(
+      modelOverrideOv is Map ? modelOverrideOv.cast<String, dynamic>() : null,
+    ),
+  );
+  final effort = openAIEffortForBudget(
+    thinkingBudget,
+    upstreamModelId,
+    overrideSupport: overrideSupport,
+  );
   final modelMetadata = config.modelOverrides[modelId];
   final info = OpenAIProviderInfo(
     host: Uri.tryParse(config.baseUrl)?.host.toLowerCase() ?? '',

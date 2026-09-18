@@ -4417,5 +4417,7 @@
   "displaySettingsPageStartupAssistantPinnedTitle": "固定啟動助手",
   "displaySettingsPageStartupAssistantPinnedSubtitle": "每次啟動時自動切換到指定助手",
   "displaySettingsPageStartupAssistantPickerLabel": "啟動助手",
-  "displaySettingsPageStartupAssistantNone": "未指定"
+  "displaySettingsPageStartupAssistantNone": "未指定",
+  "modelDetailSheetReasoningEffortsLabel": "自訂推理等級",
+  "modelDetailSheetReasoningEffortsHint": "開啟後推理滑桿檔位以此為準，並覆蓋內建模型知識；關閉則跟隨內建。"
 }

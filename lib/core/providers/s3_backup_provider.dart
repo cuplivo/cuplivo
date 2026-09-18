@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import '../database/business_preferences.dart';
 import '../database/business_repository.dart';
 import '../models/backup.dart';
+import '../models/incremental_backup.dart';
 import '../services/backup/backup_cancel_token.dart';
 import '../services/backup/backup_task_progress.dart';
 import '../services/backup/data_sync.dart';
@@ -97,6 +98,62 @@ class S3BackupProvider extends ChangeNotifier {
     } catch (e) {
       _message = e.toString();
     } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  /// Preview of what an incremental with [config] would carry.
+  Future<IncrementalScope> analyzeIncrementalScope(
+    IncrementalBackupConfig config,
+  ) async {
+    final payload = await _dataSync.incrementalEngine
+        .buildIncrementalChatsPayload(config);
+    final files = await _dataSync.countFilesForSince(config.since);
+    final convCount = (payload['conversations'] as List).length;
+    return IncrementalScope(
+      newConversations: ConvRange(
+        count: convCount,
+        messageCount: (payload['messages'] as List).length,
+        oldestTitle: null,
+      ),
+      updatedConversations: const ConvRange(
+        count: 0,
+        messageCount: 0,
+        oldestTitle: null,
+      ),
+      newFileCount: files.fileCount,
+      totalFileSizeBytes: files.totalBytes,
+    );
+  }
+
+  /// Builds an incremental zip (engine) and uploads it to the S3 prefix.
+  Future<bool> incrementalBackup(
+    IncrementalBackupConfig config, {
+    void Function(String stage)? onStage,
+  }) async {
+    _busy = true;
+    _message = null;
+    notifyListeners();
+    File? file;
+    try {
+      file = await _dataSync.exportIncrementalToFile(config);
+      final prefix = _normalizePrefix(_cfg.prefix);
+      final key = '$prefix${p.basename(file.path)}';
+      await _client.uploadFile(_cfg, key: key, file: file);
+      _message = 'Backup uploaded';
+      return true;
+    } catch (e) {
+      _message = e.toString();
+      return false;
+    } finally {
+      if (file != null) {
+        // The engine's zip lives in its own temp dir, not the shared staging
+        // area; delete directly.
+        try {
+          await file.delete();
+        } catch (_) {}
+      }
       _busy = false;
       notifyListeners();
     }

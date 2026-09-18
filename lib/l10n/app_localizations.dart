@@ -22526,6 +22526,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} attachments ({size})'**
   String backupPageIncrementalPreviewFiles(Object count, Object size);
+
+  /// No description provided for @backupPageIncrementalBackupNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Incremental backup now'**
+  String get backupPageIncrementalBackupNow;
 }
 
 class _AppLocalizationsDelegate

@@ -38,6 +38,7 @@ import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import 'package:Cuplivo/shared/widgets/section_card.dart';
 import '../../../core/database/startup_failure_report.dart' show formatBytes;
 import 'package:Cuplivo/shared/widgets/lan_sync_section.dart';
+import 'package:Cuplivo/shared/dialogs/incremental_backup_dialog.dart';
 
 // File size formatter (B, KB, MB, GB)
 String _fmtBytes(int bytes) {
@@ -787,6 +788,14 @@ class _BackupPageState extends State<BackupPage> {
                     _iosDivider(context),
                     _iosNavRow(
                       context,
+                      icon: Lucide.CloudUpload,
+                      label: l10n.backupPageIncrementalBackupNow,
+                      onTap: vm.busy
+                          ? null
+                          : () => _runWebDavIncremental(context, vm, cfg),
+                    ),
+                    _iosNavRow(
+                      context,
                       icon: Lucide.Upload,
                       label: l10n.backupPageBackupNow,
                       onTap: vm.busy
@@ -1224,6 +1233,14 @@ class _BackupPageState extends State<BackupPage> {
                     _iosDivider(context),
                     _iosNavRow(
                       context,
+                      icon: Lucide.CloudUpload,
+                      label: l10n.backupPageIncrementalBackupNow,
+                      onTap: s3Vm.busy
+                          ? null
+                          : () => _runS3Incremental(context, s3Vm, s3Cfg),
+                    ),
+                    _iosNavRow(
+                      context,
                       icon: Lucide.Upload,
                       label: l10n.backupPageBackupNow,
                       onTap: s3Vm.busy
@@ -1620,6 +1637,42 @@ class _LocalSnapshotMobileSection extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+Future<void> _runWebDavIncremental(
+  BuildContext context,
+  BackupProvider vm,
+  WebDavConfig cfg,
+) async {
+  final config = await IncrementalBackupDialog.showSheet(
+    context,
+    lastBackupTime: context.read<BackupReminderProvider>().lastBackupAt,
+    initialScope: cfg.content,
+    analyzer: vm.analyzeIncrementalScope,
+  );
+  if (config == null || !context.mounted) return;
+  final ok = await vm.incrementalBackup(config);
+  if (ok && config.updateBackupTime && context.mounted) {
+    await context.read<BackupReminderProvider>().recordBackupCompleted();
+  }
+}
+
+Future<void> _runS3Incremental(
+  BuildContext context,
+  S3BackupProvider vm,
+  S3Config cfg,
+) async {
+  final config = await IncrementalBackupDialog.showSheet(
+    context,
+    lastBackupTime: context.read<BackupReminderProvider>().lastBackupAt,
+    initialScope: cfg.content,
+    analyzer: vm.analyzeIncrementalScope,
+  );
+  if (config == null || !context.mounted) return;
+  final ok = await vm.incrementalBackup(config);
+  if (ok && config.updateBackupTime && context.mounted) {
+    await context.read<BackupReminderProvider>().recordBackupCompleted();
   }
 }
 

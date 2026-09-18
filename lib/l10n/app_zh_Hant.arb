@@ -4410,5 +4410,6 @@
   "backupPageIncrementalPreviewLoading": "分析中…",
   "backupPageIncrementalPreviewNewConv": "新對話 {count} 個 · 新訊息 {msgCount} 條",
   "backupPageIncrementalPreviewUpdatedConv": "更新舊對話 {count} 個 · 新訊息 {msgCount} 條",
-  "backupPageIncrementalPreviewFiles": "新附件 {count} 個 ({size})"
+  "backupPageIncrementalPreviewFiles": "新附件 {count} 個 ({size})",
+  "backupPageIncrementalBackupNow": "立即增量備份"
 }

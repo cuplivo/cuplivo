@@ -12566,4 +12566,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String backupPageIncrementalPreviewFiles(Object count, Object size) {
     return '$count attachments ($size)';
   }
+
+  @override
+  String get backupPageIncrementalBackupNow => 'Incremental backup now';
 }

@@ -34,6 +34,7 @@ import '../../theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import 'package:Cuplivo/shared/widgets/section_card.dart';
 import 'package:Cuplivo/shared/widgets/lan_sync_section.dart';
+import 'package:Cuplivo/shared/dialogs/incremental_backup_dialog.dart';
 
 class DesktopBackupPane extends StatefulWidget {
   const DesktopBackupPane({super.key});
@@ -586,6 +587,34 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                                   },
                           ),
                           _DeskIosButton(
+                            label: l10n.backupPageIncrementalBackupNow,
+                            filled: false,
+                            dense: true,
+                            onTap: () async {
+                              await _saveConfig();
+                              if (!context.mounted) return;
+                              final vm = context.read<BackupProvider>();
+                              final config =
+                                  await IncrementalBackupDialog.showSheet(
+                                    context,
+                                    lastBackupTime: context
+                                        .read<BackupReminderProvider>()
+                                        .lastBackupAt,
+                                    initialScope: vm.config.content,
+                                    analyzer: vm.analyzeIncrementalScope,
+                                  );
+                              if (config == null || !context.mounted) return;
+                              final ok = await vm.incrementalBackup(config);
+                              if (ok &&
+                                  config.updateBackupTime &&
+                                  context.mounted) {
+                                await context
+                                    .read<BackupReminderProvider>()
+                                    .recordBackupCompleted();
+                              }
+                            },
+                          ),
+                          _DeskIosButton(
                             label: l10n.backupPageBackupNow,
                             filled: true,
                             dense: true,
@@ -874,6 +903,40 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                                       deleteAndReload:
                                           s3BackupProvider.deleteAndReload,
                                     );
+                                  },
+                          ),
+                          _DeskIosButton(
+                            label: l10n.backupPageIncrementalBackupNow,
+                            filled: false,
+                            dense: true,
+                            onTap: busy
+                                ? () {}
+                                : () async {
+                                    final vm = context.read<S3BackupProvider>();
+                                    await _saveS3Config();
+                                    if (!context.mounted) return;
+                                    final config =
+                                        await IncrementalBackupDialog.showSheet(
+                                          context,
+                                          lastBackupTime: context
+                                              .read<BackupReminderProvider>()
+                                              .lastBackupAt,
+                                          initialScope: vm.config.content,
+                                          analyzer: vm.analyzeIncrementalScope,
+                                        );
+                                    if (config == null || !context.mounted) {
+                                      return;
+                                    }
+                                    final ok = await vm.incrementalBackup(
+                                      config,
+                                    );
+                                    if (ok &&
+                                        config.updateBackupTime &&
+                                        context.mounted) {
+                                      await context
+                                          .read<BackupReminderProvider>()
+                                          .recordBackupCompleted();
+                                    }
                                   },
                           ),
                           _DeskIosButton(

@@ -1628,6 +1628,50 @@ class DataSync {
     return entries;
   }
 
+  /// Builds an incremental zip and PUTs it to the channel collection.
+  Future<void> backupIncrementalToWebDav(
+    WebDavConfig cfg,
+    IncrementalBackupConfig incremental,
+  ) async {
+    final file = await exportIncrementalToFile(incremental);
+    try {
+      await _ensureCollection(cfg);
+      final target = _fileUri(cfg, p.basename(file.path));
+      final fileLen = await file.length();
+      final req = http.StreamedRequest('PUT', target);
+      req.headers.addAll({
+        'content-type': 'application/zip',
+        'content-length': fileLen.toString(),
+        ..._authHeaders(cfg),
+        ..._extraHeaders(cfg),
+      });
+      unawaited(
+        req.sink
+            .addStream(file.openRead())
+            .then(
+              (_) => req.sink.close(),
+              onError: (Object error) {
+                req.sink.addError(error);
+                req.sink.close();
+              },
+            ),
+      );
+      final client = http.Client();
+      try {
+        final response = await client.send(req);
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          throw Exception('WebDAV upload failed: \${response.statusCode}');
+        }
+      } finally {
+        client.close();
+      }
+    } finally {
+      try {
+        await file.delete();
+      } catch (_) {}
+    }
+  }
+
   Future<void> backupToWebDav(
     WebDavConfig cfg, {
     BackupProgressSink? onProgress,

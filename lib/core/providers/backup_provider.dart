@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../database/business_preferences.dart';
 import '../database/business_repository.dart';
 import '../models/backup.dart';
+import '../models/incremental_backup.dart';
 import '../services/chat/chat_service.dart';
 import '../services/backup/backup_cancel_token.dart';
 import '../services/backup/backup_task_progress.dart';
@@ -49,6 +50,52 @@ class BackupProvider extends ChangeNotifier {
       _message = 'OK';
     } catch (e) {
       _message = e.toString();
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  /// Preview of what an incremental with [config] would carry.
+  Future<IncrementalScope> analyzeIncrementalScope(
+    IncrementalBackupConfig config,
+  ) async {
+    final payload = await _dataSync.incrementalEngine
+        .buildIncrementalChatsPayload(config);
+    final files = await _dataSync.countFilesForSince(config.since);
+    final convCount = (payload['conversations'] as List).length;
+    int messageCount() => (payload['messages'] as List).length;
+    return IncrementalScope(
+      newConversations: ConvRange(
+        count: convCount,
+        messageCount: messageCount(),
+        oldestTitle: null,
+      ),
+      updatedConversations: ConvRange(
+        count: 0,
+        messageCount: 0,
+        oldestTitle: null,
+      ),
+      newFileCount: files.fileCount,
+      totalFileSizeBytes: files.totalBytes,
+    );
+  }
+
+  /// Builds an incremental zip (engine) and uploads it to the WebDAV path.
+  Future<bool> incrementalBackup(
+    IncrementalBackupConfig config, {
+    void Function(String stage)? onStage,
+  }) async {
+    _busy = true;
+    _message = null;
+    notifyListeners();
+    try {
+      await _dataSync.backupIncrementalToWebDav(_cfg, config);
+      _message = 'Backup uploaded';
+      return true;
+    } catch (e) {
+      _message = e.toString();
+      return false;
     } finally {
       _busy = false;
       notifyListeners();

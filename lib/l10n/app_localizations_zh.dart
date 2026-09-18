@@ -12004,6 +12004,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String backupPageIncrementalPreviewFiles(Object count, Object size) {
     return '新附件 $count 个 ($size)';
   }
+
+  @override
+  String get backupPageIncrementalBackupNow => '立即增量备份';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -23932,6 +23935,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String backupPageIncrementalPreviewFiles(Object count, Object size) {
     return '新附件 $count 个 ($size)';
   }
+
+  @override
+  String get backupPageIncrementalBackupNow => '立即增量备份';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -35940,4 +35946,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String backupPageIncrementalPreviewFiles(Object count, Object size) {
     return '新附件 $count 個 ($size)';
   }
+
+  @override
+  String get backupPageIncrementalBackupNow => '立即增量備份';
 }

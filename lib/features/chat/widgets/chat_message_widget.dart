@@ -67,6 +67,7 @@ import 'workspace_tool_detail.dart';
 import 'workspace_tool_ui.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../home/controllers/streaming_content_notifier.dart';
+import '../../../utils/markdown_subsequence_match.dart';
 
 final RegExp _urlSchemeRe = RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*:');
 
@@ -1128,6 +1129,9 @@ class ChatMessageWidget extends StatefulWidget {
 }
 
 class _ChatMessageWidgetState extends State<ChatMessageWidget> {
+  /// Current text selection inside the assistant bubble (sanitized).
+  String? _selectedPlainText;
+
   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
   final ScrollController _reasoningScroll = ScrollController();
   bool _tickActive = false;
@@ -2519,6 +2523,45 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
               ? 'assistant_${widget.message.id}'
               : 'assistant_${widget.message.id}_$contentKey',
         ),
+        onSelectionChanged: (selection) {
+          _selectedPlainText = selection == null
+              ? null
+              : stripRendererInsertedCharacters(selection.plainText);
+        },
+        contextMenuBuilder: (context, selectableRegionState) {
+          final l10n = AppLocalizations.of(context)!;
+          String? takeSelected() {
+            final selected = _selectedPlainText;
+            if (selected == null || selected.trim().isEmpty) return null;
+            ContextMenuController.removeAny();
+            selectableRegionState.clearSelection();
+            return selected;
+          }
+
+          return AdaptiveTextSelectionToolbar.buttonItems(
+            anchors: selectableRegionState.contextMenuAnchors,
+            buttonItems: <ContextMenuButtonItem>[
+              ContextMenuButtonItem(
+                label: l10n.chatMessageWidgetCopyAsMarkdown,
+                onPressed: () {
+                  final selected = takeSelected();
+                  if (selected == null) return;
+                  final matched = subsequenceMatch(visualContent, selected);
+                  Clipboard.setData(ClipboardData(text: matched ?? selected));
+                },
+              ),
+              ContextMenuButtonItem(
+                label: l10n.chatMessageWidgetCopyAsPlainText,
+                onPressed: () {
+                  final selected = takeSelected();
+                  if (selected == null) return;
+                  Clipboard.setData(ClipboardData(text: selected));
+                },
+              ),
+              ...selectableRegionState.contextMenuButtonItems,
+            ],
+          );
+        },
         child: DefaultTextStyle.merge(
           style: TextStyle(fontSize: baseAssistant, height: 1.5),
           child: assistantContent,

@@ -22820,6 +22820,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please analyze the attached request logs and determine the main problem the user is most likely encountering, along with practical solutions.\n\nDo not mechanically repeat or analyze every request. Prioritize error status, failed or repeated failures, unusual latency, request/response mismatches, authentication, rate limiting, parameter formatting, streaming responses, or server-side errors that best explain the issue. Use neighboring logs to identify the likely root cause.\n\nAnswer in this order: main conclusion → key evidence → possible causes → recommended steps. If the evidence is insufficient, clearly say what is uncertain and what still needs checking. `<REDACTED: …>` values were intentionally replaced for privacy; do not treat their absence as the problem or ask the user to provide them.'**
   String get requestLogAiAnalysisPrompt;
+
+  /// No description provided for @chatMessageWidgetCopyAsMarkdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy as Markdown'**
+  String get chatMessageWidgetCopyAsMarkdown;
+
+  /// No description provided for @chatMessageWidgetCopyAsPlainText.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy as Plain Text'**
+  String get chatMessageWidgetCopyAsPlainText;
 }
 
 class _AppLocalizationsDelegate

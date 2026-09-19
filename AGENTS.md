@@ -2,7 +2,7 @@
 
 ## Project overview
 
-Kelivo is a cross-platform LLM chat client built with Flutter, targeting iOS, Android, macOS, Windows, and Linux. Package name is `Kelivo` — imports use `package:Cuplivo/...`.
+Cuplivo is a cross-platform LLM chat client built with Flutter, targeting iOS, Android, macOS, Windows, and Linux. It is a fork of Kelivo re-based onto upstream `915a8b1d` (see website/docs/adr/0004). Package name is `Cuplivo` — imports use `package:Cuplivo/...`.
 
 ## Architecture
 

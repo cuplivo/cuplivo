@@ -57,6 +57,11 @@ import '../services/translation_service.dart';
 import '../services/file_upload_service.dart';
 import '../utils/chat_layout_constants.dart';
 import '../widgets/chat_input_bar.dart';
+import '../services/message_pipeline.dart';
+import '../widgets/synthesize_task_selector.dart'
+    show showSynthesizeTaskSelector;
+import '../models/synthesize_task.dart' show synthesizeTasks;
+import '../services/multi_ai_engine.dart';
 import '../widgets/share_destination_sheet.dart';
 import '../../model/widgets/model_select_sheet.dart';
 
@@ -151,6 +156,7 @@ class HomePageController extends ChangeNotifier {
   late MessageBuilderService _messageBuilderService;
   late MessageGenerationService _messageGenerationService;
   late HomeViewModel _viewModel;
+  late final MultiAIEngine multiAIEngine;
   late OcrService _ocrService;
   late TranslationService _translationService;
   late FileUploadService _fileUploadService;
@@ -498,6 +504,20 @@ class HomePageController extends ChangeNotifier {
       contextProvider: _context,
       getTitleForLocale: _titleForLocale,
     );
+    multiAIEngine = MultiAIEngine(
+      chatService: _chatService,
+      chatController: _chatController,
+      messageGenerationService: _messageGenerationService,
+      streamController: _streamController,
+      pipeline: MessagePipeline(
+        chatService: _chatService,
+        messageGenerationService: _messageGenerationService,
+        streamController: _streamController,
+        generationController: _generationController,
+        executeStream: _viewModel.chatActions.executePipelineStream,
+      ),
+    );
+    multiAIEngine.addListener(notifyListeners);
     _viewModel.onBackgroundTaskError = _showBackgroundTaskFailure;
     _viewModel.addListener(notifyListeners);
   }
@@ -2331,6 +2351,88 @@ class HomePageController extends ChangeNotifier {
 
   Future<List<ChatMessage>> allMessagesForCurrentConversationContext() {
     return _chatController.allMessagesForCurrentConversationContext();
+  }
+
+  /// Retry one Multi-AI thread (card menu).
+  Future<void> retryMultiAIThread({
+    required String threadId,
+    required String anchorUserMsgId,
+    required ChatMessage message,
+  }) async {
+    if (currentConversation == null || !multiAIEngine.isActive) return;
+    final settings = _context.read<SettingsProvider>();
+    final assistant = _context.read<AssistantProvider>().currentAssistant;
+    await multiAIEngine.retryThread(
+      threadId: threadId,
+      anchorUserMsgId: anchorUserMsgId,
+      conversation: currentConversation!,
+      settings: settings,
+      assistant: assistant,
+    );
+    notifyListeners();
+  }
+
+  /// Switch the engine to synthesize mode with a task-type picker.
+  Future<void> switchToSynthesizeMode() async {
+    final engine = multiAIEngine;
+    if (engine.mode == MultiAIMode.synthesize) return;
+
+    final taskType = await showSynthesizeTaskSelector(_context);
+    if (taskType == null) return; // user cancelled
+
+    await engine.setMode(MultiAIMode.synthesize);
+
+    if (!_context.mounted) return;
+    final l10n = AppLocalizations.of(_context)!;
+    final task = synthesizeTasks.firstWhere((t) => t.type == taskType);
+    final prompt = _resolveSynthesizePrompt(l10n, task.defaultPromptKey);
+    _inputController.text = prompt;
+
+    notifyListeners();
+  }
+
+  String _resolveSynthesizePrompt(AppLocalizations l10n, String key) {
+    switch (key) {
+      case 'multiAISynthesizeSummarizePrompt':
+        return l10n.multiAISynthesizeSummarizePrompt;
+      case 'multiAISynthesizeFusePrompt':
+        return l10n.multiAISynthesizeFusePrompt;
+      case 'multiAISynthesizeCommentPrompt':
+        return l10n.multiAISynthesizeCommentPrompt;
+      default:
+        return key;
+    }
+  }
+
+  /// Add one more model to the only pending comparison round (WT adaptation:
+  /// single-model picker per call instead of the fork's multi-select sheet).
+  Future<void> addMultiAIModels() async {
+    final engine = multiAIEngine;
+    if (!engine.isActive || engine.roundCount != 1) return;
+    if (currentConversation == null) return;
+
+    final selection = await showModelSelector(_context);
+    if (selection == null || !_context.mounted) return;
+
+    final newModels = <ModelSelection>[selection]
+        .where(
+          (m) => !engine.models.any(
+            (e) => e.providerKey == m.providerKey && e.modelId == m.modelId,
+          ),
+        )
+        .toList();
+    if (newModels.isEmpty) return;
+
+    final settings = _context.read<SettingsProvider>();
+    final assistant = _context.read<AssistantProvider>().currentAssistant;
+
+    await engine.addModelsAndExecute(
+      newModels: newModels,
+      conversation: currentConversation!,
+      settings: settings,
+      assistant: assistant,
+    );
+    notifyListeners();
   }
 
   // ============================================================================

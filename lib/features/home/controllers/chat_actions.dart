@@ -2154,6 +2154,15 @@ class ChatActions {
   // ============================================================================
 
   /// Execute generation with the given context.
+  /// Stream entry for MessagePipeline callers (Multi-AI): same executor as
+  /// the single-chat send path; the override keys are already baked into the
+  /// context's placeholder id.
+  Future<void> executePipelineStream(
+    stream_ctrl.GenerationContext ctx, {
+    String? streamKeyOverride,
+    String? requestIdOverride,
+  }) => _executeGeneration(ctx);
+
   Future<void> _executeGeneration(stream_ctrl.GenerationContext ctx) async {
     final state = stream_ctrl.StreamingState(ctx);
     _streamingStates[state.messageId] = state;

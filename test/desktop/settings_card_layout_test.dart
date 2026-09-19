@@ -16,6 +16,8 @@ import 'package:Cuplivo/theme/theme_factory.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
 
 import '../support/business_test_harness.dart';
 
@@ -43,6 +45,10 @@ Future<SettingsProvider> _pumpPane(
     MultiProvider(
       providers: [
         ChangeNotifierProvider<SettingsProvider>(create: (_) => settings),
+        // Ambient dependencies for LanSyncSection (backup pane embeds it).
+        ChangeNotifierProvider<ChatService>.value(value: chat),
+        Provider<BusinessRepository>.value(value: business.repository),
+        Provider<BusinessPreferences>.value(value: business.preferences),
         ChangeNotifierProvider<BackupProvider>(
           create: (_) => BackupProvider(
             chatService: chat,

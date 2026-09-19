@@ -10,7 +10,10 @@ void main() {
         'lib/core/database/business_migration_engine.dart',
         'lib/core/providers/hotkey_provider.dart',
         'lib/core/providers/settings_provider.dart',
+        'lib/core/services/migration/cuplivo_v3/cuplivo_v3_migration.dart',
+        'lib/core/services/sync/lan_sync_recent.dart',
         'lib/desktop/window_size_manager.dart',
+        'lib/features/home/services/input_draft_persistence.dart',
         'lib/features/migration/hive_to_sqlite_migration_service.dart',
         'lib/main.dart',
       };

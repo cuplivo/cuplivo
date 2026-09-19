@@ -235,7 +235,11 @@ jobs:
         run: |
           # meson via brew (pip3 is PEP 668 blocked on current macOS runners);
           # lld needed for the ish-arm64 guest VDSO link (-fuse-ld=lld), llvm 22+ ships it separately.
-          brew install ninja llvm lld meson
+          # libarchive: the ish tools/meson.build only emits the fakefsify
+          # target when libarchive is found, and its fallback searches the
+          # brew keg path (/opt/homebrew/opt/libarchive) — system libarchive
+          # has no .pc and is not on that search path.
+          brew install ninja llvm lld meson libarchive
 
       - name: 🐧 构建 iSH 静态库 (iOS Linux 沙箱)
         run: ios/sandbox/build_ish.sh

@@ -22892,6 +22892,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Keep at least one language visible.'**
   String get translateLanguageManagerAtLeastOne;
+
+  /// No description provided for @multiAIModeLockedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Multi-AI mode is active. Manage models from the comparison cards.'**
+  String get multiAIModeLockedToast;
+
+  /// No description provided for @multiAIModelsBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} models'**
+  String multiAIModelsBadge(Object count);
+
+  /// No description provided for @multiAIAdoptVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Adopt'**
+  String get multiAIAdoptVersion;
+
+  /// No description provided for @multiAISelectModelsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Models'**
+  String get multiAISelectModelsTitle;
+
+  /// No description provided for @multiAIStartComparison.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Comparison ({count} models)'**
+  String multiAIStartComparison(Object count);
+
+  /// No description provided for @multiAISelectModelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select at least 2 models to compare'**
+  String get multiAISelectModelHint;
+
+  /// No description provided for @multiAISelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String multiAISelectedCount(Object count);
+
+  /// No description provided for @multiAIDropThread.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop'**
+  String get multiAIDropThread;
+
+  /// No description provided for @multiAIConversationMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation Mode'**
+  String get multiAIConversationMode;
+
+  /// No description provided for @multiAIContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get multiAIContinue;
+
+  /// No description provided for @multiAIContinueHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue multi-model conversation, each model inherits its own context'**
+  String get multiAIContinueHint;
+
+  /// No description provided for @multiAISynthesize.
+  ///
+  /// In en, this message translates to:
+  /// **'Synthesize'**
+  String get multiAISynthesize;
+
+  /// No description provided for @multiAISynthesizeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Synthesize multi-model conversation into a single response'**
+  String get multiAISynthesizeHint;
+
+  /// No description provided for @multiAISynthesizeTaskSummarize.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarize'**
+  String get multiAISynthesizeTaskSummarize;
+
+  /// No description provided for @multiAISynthesizeTaskSummarizeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarize the conversation, focusing on similarities and differences between model responses'**
+  String get multiAISynthesizeTaskSummarizeDesc;
+
+  /// No description provided for @multiAISynthesizeTaskFuse.
+  ///
+  /// In en, this message translates to:
+  /// **'Fuse'**
+  String get multiAISynthesizeTaskFuse;
+
+  /// No description provided for @multiAISynthesizeTaskFuseDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Combine all model perspectives into a single best response'**
+  String get multiAISynthesizeTaskFuseDesc;
+
+  /// No description provided for @multiAISynthesizeTaskComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Comment'**
+  String get multiAISynthesizeTaskComment;
+
+  /// No description provided for @multiAISynthesizeTaskCommentDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Comment on the different opinions across models'**
+  String get multiAISynthesizeTaskCommentDesc;
+
+  /// No description provided for @multiAISynthesizeSummarizePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Please summarize the conversation, focused on the similarities and differences of the responses of assistants.'**
+  String get multiAISynthesizeSummarizePrompt;
+
+  /// No description provided for @multiAISynthesizeFusePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Please summarize the conversation and then provide a single response that fits the user\'s prompt based on previous responses.'**
+  String get multiAISynthesizeFusePrompt;
+
+  /// No description provided for @multiAISynthesizeCommentPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Please comment on the different opinions across models.'**
+  String get multiAISynthesizeCommentPrompt;
+
+  /// No description provided for @multiAIRetryBlockedUnresolvedComparison.
+  ///
+  /// In en, this message translates to:
+  /// **'Please adopt or drop the comparison results before retrying.'**
+  String get multiAIRetryBlockedUnresolvedComparison;
+
+  /// No description provided for @multiAIAddModelTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Model'**
+  String get multiAIAddModelTooltip;
 }
 
 class _AppLocalizationsDelegate

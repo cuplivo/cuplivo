@@ -169,6 +169,9 @@ class MessageRows extends Table {
   // Declared last so fresh v6 tables and ADD COLUMN migrations share the
   // physical column order (see the column-order note at the top).
   TextColumn get subgroupId => text().nullable()();
+  // v6: context window tokens consumed for this response (Multi-AI card
+  // stat). Nullable display metric; null = not reported by the provider.
+  IntColumn get contextTokens => integer().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -1043,6 +1046,7 @@ FROM probe;
       // Purely additive; no data rewrite. Multi-AI comparison thread id.
       from5To6: (m, schema) async {
         await m.addColumn(schema.messageRows, schema.messageRows.subgroupId);
+        await m.addColumn(schema.messageRows, schema.messageRows.contextTokens);
       },
     ),
     beforeOpen: (details) async {

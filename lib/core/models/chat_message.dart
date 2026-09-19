@@ -78,6 +78,9 @@ class ChatMessage extends HiveObject {
   // anchor group.
   final String? subgroupId;
 
+  /// Context window tokens consumed for this response (display stat).
+  final int? contextTokens;
+
   @HiveField(15)
   final int version;
 
@@ -139,6 +142,7 @@ class ChatMessage extends HiveObject {
     this.reasoningSegmentsJson,
     String? groupId,
     this.subgroupId,
+    this.contextTokens,
     int? version,
     this.promptTokens,
     this.completionTokens,
@@ -307,6 +311,7 @@ class ChatMessage extends HiveObject {
     String? reasoningSegmentsJson,
     String? groupId,
     String? subgroupId,
+    int? contextTokens,
     int? version,
     int? promptTokens,
     int? completionTokens,
@@ -341,6 +346,7 @@ class ChatMessage extends HiveObject {
           reasoningSegmentsJson ?? this.reasoningSegmentsJson,
       groupId: groupId ?? this.groupId,
       subgroupId: subgroupId ?? this.subgroupId,
+      contextTokens: contextTokens ?? this.contextTokens,
       version: version ?? this.version,
       promptTokens: promptTokens ?? this.promptTokens,
       completionTokens: completionTokens ?? this.completionTokens,
@@ -378,6 +384,7 @@ class ChatMessage extends HiveObject {
       'reasoningSegmentsJson': reasoningSegmentsJson,
       'groupId': groupId,
       'subgroupId': subgroupId,
+      'contextTokens': contextTokens,
       'version': version,
       'promptTokens': promptTokens,
       'completionTokens': completionTokens,
@@ -434,6 +441,7 @@ class ChatMessage extends HiveObject {
       reasoningSegmentsJson: json['reasoningSegmentsJson'] as String?,
       groupId: json['groupId'] as String?,
       subgroupId: json['subgroupId'] as String?,
+      contextTokens: json['contextTokens'] as int?,
       version: (json['version'] as int?) ?? 0,
       promptTokens: json['promptTokens'] as int?,
       completionTokens: json['completionTokens'] as int?,

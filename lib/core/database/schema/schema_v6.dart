@@ -306,14 +306,6 @@ class MessageRows extends Table with TableInfo {
     requiredDuringInsert: false,
     $customConstraints: 'NULL',
   );
-  late final GeneratedColumn<String> subgroupId = GeneratedColumn<String>(
-    'subgroup_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    $customConstraints: 'NULL',
-  );
   late final GeneratedColumn<int> version = GeneratedColumn<int>(
     'version',
     aliasedName,
@@ -396,6 +388,22 @@ class MessageRows extends Table with TableInfo {
     requiredDuringInsert: false,
     $customConstraints: 'NULL',
   );
+  late final GeneratedColumn<String> subgroupId = GeneratedColumn<String>(
+    'subgroup_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
+  late final GeneratedColumn<int> contextTokens = GeneratedColumn<int>(
+    'context_tokens',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -411,7 +419,6 @@ class MessageRows extends Table with TableInfo {
     translation,
     reasoningSegmentsJson,
     groupId,
-    subgroupId,
     version,
     promptTokens,
     completionTokens,
@@ -422,6 +429,8 @@ class MessageRows extends Table with TableInfo {
     senderId,
     extrasJson,
     quoteJson,
+    subgroupId,
+    contextTokens,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;

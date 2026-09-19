@@ -685,6 +685,16 @@
             "default_dart": null,
             "default_client_dart": null,
             "dsl_features": []
+          },
+          {
+            "name": "context_tokens",
+            "getter_name": "contextTokens",
+            "moor_type": "int",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
           }
         ],
         "is_virtual": false,
@@ -4153,7 +4163,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"message_rows\" (\"id\" TEXT NOT NULL, \"conversation_id\" TEXT NOT NULL REFERENCES conversation_rows (id) ON DELETE CASCADE, \"role\" TEXT NOT NULL CHECK(\"role\" IS NOT ''), \"timestamp\" INTEGER NOT NULL, \"model_id\" TEXT NULL, \"provider_id\" TEXT NULL, \"total_tokens\" INTEGER NULL CHECK(\"total_tokens\" >= 0), \"is_streaming\" INTEGER NOT NULL DEFAULT 0 CHECK (\"is_streaming\" IN (0, 1)), \"reasoning_start_at\" INTEGER NULL, \"reasoning_finished_at\" INTEGER NULL, \"translation\" TEXT NULL, \"reasoning_segments_json\" TEXT NULL, \"group_id\" TEXT NULL, \"version\" INTEGER NOT NULL DEFAULT 0 CHECK(\"version\" >= 0), \"prompt_tokens\" INTEGER NULL CHECK(\"prompt_tokens\" >= 0), \"completion_tokens\" INTEGER NULL CHECK(\"completion_tokens\" >= 0), \"cached_tokens\" INTEGER NULL CHECK(\"cached_tokens\" >= 0), \"duration_ms\" INTEGER NULL CHECK(\"duration_ms\" >= 0), \"message_order\" INTEGER NOT NULL CHECK(\"message_order\" >= 0), \"updated_at\" INTEGER NULL, \"sender_id\" TEXT NULL, \"extras_json\" TEXT NOT NULL DEFAULT '{}', \"quote_json\" TEXT NULL, \"subgroup_id\" TEXT NULL, PRIMARY KEY (\"id\"), UNIQUE (\"conversation_id\", \"message_order\"), UNIQUE (\"conversation_id\", \"group_id\", \"version\"));"
+          "sql": "CREATE TABLE IF NOT EXISTS \"message_rows\" (\"id\" TEXT NOT NULL, \"conversation_id\" TEXT NOT NULL REFERENCES conversation_rows (id) ON DELETE CASCADE, \"role\" TEXT NOT NULL CHECK(\"role\" IS NOT ''), \"timestamp\" INTEGER NOT NULL, \"model_id\" TEXT NULL, \"provider_id\" TEXT NULL, \"total_tokens\" INTEGER NULL CHECK(\"total_tokens\" >= 0), \"is_streaming\" INTEGER NOT NULL DEFAULT 0 CHECK (\"is_streaming\" IN (0, 1)), \"reasoning_start_at\" INTEGER NULL, \"reasoning_finished_at\" INTEGER NULL, \"translation\" TEXT NULL, \"reasoning_segments_json\" TEXT NULL, \"group_id\" TEXT NULL, \"version\" INTEGER NOT NULL DEFAULT 0 CHECK(\"version\" >= 0), \"prompt_tokens\" INTEGER NULL CHECK(\"prompt_tokens\" >= 0), \"completion_tokens\" INTEGER NULL CHECK(\"completion_tokens\" >= 0), \"cached_tokens\" INTEGER NULL CHECK(\"cached_tokens\" >= 0), \"duration_ms\" INTEGER NULL CHECK(\"duration_ms\" >= 0), \"message_order\" INTEGER NOT NULL CHECK(\"message_order\" >= 0), \"updated_at\" INTEGER NULL, \"sender_id\" TEXT NULL, \"extras_json\" TEXT NOT NULL DEFAULT '{}', \"quote_json\" TEXT NULL, \"subgroup_id\" TEXT NULL, \"context_tokens\" INTEGER NULL, PRIMARY KEY (\"id\"), UNIQUE (\"conversation_id\", \"message_order\"), UNIQUE (\"conversation_id\", \"group_id\", \"version\"));"
         }
       ]
     },

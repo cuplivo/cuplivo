@@ -12762,4 +12762,92 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get translateLanguageManagerAtLeastOne =>
       'Keep at least one language visible.';
+
+  @override
+  String get multiAIModeLockedToast =>
+      'Multi-AI mode is active. Manage models from the comparison cards.';
+
+  @override
+  String multiAIModelsBadge(Object count) {
+    return '$count models';
+  }
+
+  @override
+  String get multiAIAdoptVersion => 'Adopt';
+
+  @override
+  String get multiAISelectModelsTitle => 'Select Models';
+
+  @override
+  String multiAIStartComparison(Object count) {
+    return 'Start Comparison ($count models)';
+  }
+
+  @override
+  String get multiAISelectModelHint => 'Select at least 2 models to compare';
+
+  @override
+  String multiAISelectedCount(Object count) {
+    return '$count selected';
+  }
+
+  @override
+  String get multiAIDropThread => 'Drop';
+
+  @override
+  String get multiAIConversationMode => 'Conversation Mode';
+
+  @override
+  String get multiAIContinue => 'Continue';
+
+  @override
+  String get multiAIContinueHint =>
+      'Continue multi-model conversation, each model inherits its own context';
+
+  @override
+  String get multiAISynthesize => 'Synthesize';
+
+  @override
+  String get multiAISynthesizeHint =>
+      'Synthesize multi-model conversation into a single response';
+
+  @override
+  String get multiAISynthesizeTaskSummarize => 'Summarize';
+
+  @override
+  String get multiAISynthesizeTaskSummarizeDesc =>
+      'Summarize the conversation, focusing on similarities and differences between model responses';
+
+  @override
+  String get multiAISynthesizeTaskFuse => 'Fuse';
+
+  @override
+  String get multiAISynthesizeTaskFuseDesc =>
+      'Combine all model perspectives into a single best response';
+
+  @override
+  String get multiAISynthesizeTaskComment => 'Comment';
+
+  @override
+  String get multiAISynthesizeTaskCommentDesc =>
+      'Comment on the different opinions across models';
+
+  @override
+  String get multiAISynthesizeSummarizePrompt =>
+      'Please summarize the conversation, focused on the similarities and differences of the responses of assistants.';
+
+  @override
+  String get multiAISynthesizeFusePrompt =>
+      'Please summarize the conversation and then provide a single response that fits the user\'s prompt based on previous responses.';
+
+  @override
+  String get multiAISynthesizeCommentPrompt =>
+      'Please comment on the different opinions across models.';
+
+  @override
+  String get multiAIRetryBlockedUnresolvedComparison =>
+      'Please adopt or drop the comparison results before retrying.';
+
+  @override
+  String get multiAIAddModelTooltip => 'Add Model';
 }

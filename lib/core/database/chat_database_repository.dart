@@ -921,6 +921,7 @@ class ChatDatabaseRepository {
       'extras_json',
       'quote_json',
       'subgroup_id',
+      'context_tokens',
     ],
     'chat_storage_meta_rows': ['key', 'value'],
     'message_part_rows': [

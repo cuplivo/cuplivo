@@ -396,6 +396,14 @@ class MessageRows extends Table with TableInfo {
     requiredDuringInsert: false,
     $customConstraints: 'NULL',
   );
+  late final GeneratedColumn<int> contextTokens = GeneratedColumn<int>(
+    'context_tokens',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -422,6 +430,7 @@ class MessageRows extends Table with TableInfo {
     extrasJson,
     quoteJson,
     subgroupId,
+    contextTokens,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;

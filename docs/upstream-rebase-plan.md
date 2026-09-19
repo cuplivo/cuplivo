@@ -123,3 +123,16 @@ Per-patch gates: `range-diff` equivalence, `dart format` changed paths, `flutter
 4. **`addMultiAIModels`**：fork :2927-2966（showMultiModelSelector + ModelMultiSelectState + engine.addModels?）——依赖 `showMultiModelSelector`/`ModelMultiSelectState`（grep fork）。
 
 视图结构性修复已完成并验证过的：WindowsAxTreeSafeTooltip→Tooltip、readingMode else-if 删除、canCreateBranch:false、hideActions 去 multiAI 枚举。视图本身不再有其它错误（20 错全部消除验证于本回合）。home_page/home_view_model/chat_actions 的模式入口 UI 按 fork grep MultiAIEngine 三文件对照接。
+
+## P7 全量验证执行卡（round 27 记录）
+
+**门**：analyze 零 ✅；全量 `flutter test` = 5953 通过 5 跳过 **26 败**。基线 18（auth 17 + root chmod 1）→ **新增 8**，须清零才可 push：
+
+| 数量 | 测试 | 状态 |
+|---|---|---|
+| 1 | `test/business_shared_preferences_static_gate_test.dart` | **已修**（round 27）：允许清单 +3 个 v4 有意文件（cuplivo_v3_migration/lan_sync_recent/input_draft_persistence），2/2 绿——**待提交** |
+| 3 | `test/desktop/settings_card_layout_test.dart` | 未修。现象：`_dependents.isEmpty` 断言（framework.dart:6281）在 takeException 捕获——测试树里 Provider 卸载时有残留依赖。**基线探测：`6aaea2bc`（rebrand 提交）时 4/4 绿**，故为本会话回归。涉及 `_pumpPane`（BackupProvider/BackupReminderProvider/LocalSnapshotProvider 组合）+ `DesktopNetworkProxyPane`（tap IosSwitch 后）+ backup pane（dark）。**首选嫌疑：P5a 增量备份 LocalSnapshotProvider dispose/监听语义** |
+| 3 | `test/features/scheduled_tasks/desktop_scheduled_tasks_page_test.dart` | 未triage |
+| 1 | `test/features/migration/migration_app_test.dart` | 未triage |
+
+**P7 剩余步骤**（修完上述后）：提交 gate 修复 → 复跑全量到「无新增失败」→ `git push origin cuplivo-v4`（origin=cuplivo/cuplivo.git，远端无此分支，将新建）→ GHA workflow_dispatch `publish_release=false` → 发布说明草案+手测清单 → STOP 人工发布。

@@ -66,6 +66,7 @@ import '../widgets/chat_selection_app_bar.dart';
 import '../widgets/chat_selection_delete_bar.dart';
 import '../widgets/chat_selection_export_bar.dart';
 import '../widgets/user_message_edit_overlay.dart';
+import '../widgets/multi_ai_comparison_view.dart';
 import '../utils/model_display_helper.dart';
 import '../utils/chat_layout_constants.dart';
 import '../controllers/home_page_controller.dart';
@@ -1407,6 +1408,25 @@ class _HomePageState extends State<HomePage>
     return kToolbarHeight + MediaQuery.paddingOf(context).top;
   }
 
+  /// Inline Multi-AI card groups keyed by anchor user-message slot id.
+  Map<String, Widget> _buildMultiAICardGroups() {
+    final engine = _controller.multiAIEngine;
+    if (!engine.isActive) return const <String, Widget>{};
+    final groups = <String, Widget>{};
+    for (final anchorId in engine.anchorMessageIds) {
+      final subgrouped = engine.getMessagesForAnchor(anchorId);
+      if (subgrouped.isEmpty) continue;
+      groups[anchorId] = MultiAICardGroup(
+        key: ValueKey('multi-ai-anchor-$anchorId'),
+        anchorUserMessageId: anchorId,
+        subgroupedMessages: subgrouped,
+        controller: _controller,
+        isLatestRound: engine.latestAnchorId == anchorId,
+      );
+    }
+    return groups;
+  }
+
   Widget _buildMessageListView(
     BuildContext context, {
     required double topContentPadding,
@@ -1461,6 +1481,7 @@ class _HomePageState extends State<HomePage>
       streamingContentNotifier: _controller.streamingContentNotifier,
       spotlightMessageId: _controller.spotlightMessageId,
       spotlightToken: _controller.spotlightToken,
+      afterMessageWidgets: _buildMultiAICardGroups(),
       removingSlotIds: _controller.removingSlotIds,
       hasMoreBefore: _controller.chatController.hasMoreBefore,
       isLoadingWindow: _controller.isLoadingWindow,

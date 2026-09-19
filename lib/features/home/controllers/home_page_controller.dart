@@ -58,6 +58,7 @@ import '../services/file_upload_service.dart';
 import '../utils/chat_layout_constants.dart';
 import '../widgets/chat_input_bar.dart';
 import '../services/message_pipeline.dart';
+import 'package:uuid/uuid.dart';
 import '../widgets/synthesize_task_selector.dart'
     show showSynthesizeTaskSelector;
 import '../models/synthesize_task.dart' show synthesizeTasks;
@@ -2351,6 +2352,80 @@ class HomePageController extends ChangeNotifier {
 
   Future<List<ChatMessage>> allMessagesForCurrentConversationContext() {
     return _chatController.allMessagesForCurrentConversationContext();
+  }
+
+  bool get canStartMultiAIComparison =>
+      multiAIEngine.isActive &&
+      multiAIEngine.models.length >= 2 &&
+      _chatController.subgroupActiveGroupIds.isEmpty;
+
+  /// Enter multi-AI mode with pre-selected models (model selector confirm).
+  void enterMultiAIMode(List<ModelSelection> models) {
+    if (models.length < 2 || currentConversation == null) return;
+    final threadIds = List<String>.generate(
+      models.length,
+      (_) => const Uuid().v4(),
+    );
+    multiAIEngine.enter(models, existingThreadIds: threadIds);
+    notifyListeners();
+  }
+
+  /// Tag a trigger assistant message with its matching subgroupId from the
+  /// engine's model list. If the trigger's model matches a pre-selected
+  /// model, the message gets tagged so it becomes part of the multi-AI
+  /// round. Otherwise it's left untouched.
+  Future<void> _tagTriggerMessageForMultiAI(ChatMessage triggerMessage) async {
+    final threadIds = multiAIEngine.threadIds.toList();
+    final triggerKey = '${triggerMessage.providerId}|${triggerMessage.modelId}';
+    final modelIdx = multiAIEngine.models.indexWhere(
+      (m) => '${m.providerKey}|${m.modelId}' == triggerKey,
+    );
+    if (modelIdx < 0) return;
+    final tid = threadIds[modelIdx];
+    final idx = _chatController.messages.indexWhere(
+      (m) => m.id == triggerMessage.id,
+    );
+    if (idx == -1) return;
+    final updated = triggerMessage.copyWith(subgroupId: tid);
+    _chatController.messages[idx] = updated;
+    await _chatService.updateMessage(
+      triggerMessage.id,
+      subgroupId: tid,
+      content: updated.content,
+      totalTokens: updated.totalTokens,
+      isStreaming: updated.isStreaming,
+    );
+  }
+
+  /// "Start Comparison" from an assistant message's more sheet: tags the
+  /// trigger with its thread id and re-runs the round from history.
+  Future<void> handleMultiAIAction(ChatMessage triggerMessage) async {
+    if (triggerMessage.role != 'assistant') return;
+    if (currentConversation == null) return;
+    if (!multiAIEngine.isActive || multiAIEngine.models.length < 2) return;
+    // Prevent starting comparison after multi-AI rounds have begun.
+    if (_chatController.subgroupActiveGroupIds.isNotEmpty) return;
+
+    await _tagTriggerMessageForMultiAI(triggerMessage);
+
+    _chatController.invalidateCache();
+    notifyListeners();
+
+    if (!_context.mounted) return;
+    final settings = _context.read<SettingsProvider>();
+    final assistant = _context.read<AssistantProvider>().currentAssistant;
+    unawaited(
+      multiAIEngine
+          .startRoundFromHistory(
+            triggerMessage: triggerMessage,
+            conversation: currentConversation!,
+            settings: settings,
+            assistant: assistant,
+          )
+          .then((_) {
+            notifyListeners();
+          }),
+    );
   }
 
   /// Retry one Multi-AI thread (card menu).

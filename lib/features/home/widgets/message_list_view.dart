@@ -134,6 +134,7 @@ class MessageListView extends StatefulWidget {
     this.streamingContentNotifier,
     this.spotlightMessageId,
     this.spotlightToken = 0,
+    this.afterMessageWidgets,
     this.removingSlotIds = const <String>{},
     this.onVersionChange,
     this.onRegenerateMessage,
@@ -225,6 +226,10 @@ class MessageListView extends StatefulWidget {
   /// Incremented each time a new spotlight is triggered. Used as an animation key
   /// so re-selecting the same message re-triggers the pulse.
   final int spotlightToken;
+
+  /// Extra widgets rendered directly after the given slot's message
+  /// (Multi-AI card groups, keyed by anchor user-message slot id).
+  final Map<String, Widget>? afterMessageWidgets;
 
   /// Slots currently fading out ahead of their deletion. The slot data stays
   /// in [messages] until the removal animation completes.
@@ -2170,6 +2175,8 @@ class _MessageListViewState extends State<MessageListView> {
             padding: widget.dividerPadding,
             child: _buildContextDivider(context),
           ),
+        if (widget.afterMessageWidgets?.containsKey(model.slotId) == true)
+          widget.afterMessageWidgets![model.slotId]!,
         if (_hasFooter && index == _effectiveRenderModels.length - 1)
           SizedBox(height: _footerExtent, child: widget.footer),
       ],

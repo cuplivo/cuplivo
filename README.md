@@ -10,21 +10,15 @@
 </div>
 
 > [!IMPORTANT]
-> **Project Status (2026-09-12)**
+> **Project Status (v4.0.0 — re-baselined)**
 >
-> In a single week, Kelivo cleared half of Cuplivo's added features — with far greater completeness. Cuplivo has since diverged dramatically from Kelivo, and many parts of its architecture remain incomplete because it missed one large migration.
+> Cuplivo is back: v4.0.0 re-bases the fork onto upstream Kelivo `915a8b1d` by **replay, never merge** (see `website/docs/adr/0004`). Every fork feature now rides the upstream foundation — Drift database with the v1→v6 migration chain, schema governance, and backup portability — while keeping the product identity, artifact naming contract, and app id `com.cup11.cuplivo` unchanged.
 >
-> Meanwhile, given the developers' limited time and energy, Cuplivo can hardly keep pace with Kelivo going forward, and the day-to-day friction of iOS self-signing is still far from resolved. From now on we will move to Kelivo's Issues and PRs, contributing to Kelivo's progress as one unified project.
+> Replayed on the new baseline: message replies, group chat, OCR + document understanding, proactive care letters, incremental backup + LAN sync (fully redesigned port), world-book groups, translate visible-language management, multi-AI comparison (schema v6 `subgroupId` + `contextTokens`), and the utilities line (temp-conversation save, input drafts, startup assistant pin, reasoning-effort vocabulary, stats dimension filters, image-gen options, AI log analysis, Markdown subsequence copy, math export).
 >
-> Since v1.2.0 (2026-07-02), Cuplivo shipped 41 releases over more than two months of active development and reached 63 stars — the longest-lived and most feature-rich fork in Kelivo's history.
+> Accepted losses (documented in the ADR): legacy trash/tombstone data does not migrate; LAN sync history resets on v4 (the incremental engine is a full redesign).
 >
-> Cuplivo also contributed design inspiration to many of Kelivo's implementations (and helped nudge the mainline forward), stepped through plenty of pitfalls, and fully lived up to its role as Kelivo's proving ground. As for the remaining features, LAN sync in particular, we hope Kelivo ships them soon.
->
-> On 2026-09-12, Cuplivo released v3.2.1, its 42nd release, closing this chapter. The repository will not be archived for now, and the QQ group will remain open.
->
-> Thank you to everyone who came along. We will still meet in Kelivo.
->
-> To those days of hard work.
+> The v3.x line lives on as the `cuplivo` archive branch. Development continues here.
 
 ## 🔗 Compatibility
 

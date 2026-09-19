@@ -1051,6 +1051,12 @@ class ChatController extends ChangeNotifier {
     return replaced;
   }
 
+  /// Replace a message in the in-memory list by ID (no persistence).
+  void replaceMessage(ChatMessage updated) {
+    final index = _messages.indexWhere((m) => m.id == updated.id);
+    if (index != -1) _messages[index] = updated;
+  }
+
   /// Update a message by ID with optional new values.
   Future<void> updateMessage(
     String messageId, {
@@ -1226,12 +1232,33 @@ class ChatController extends ChangeNotifier {
   /// Get messages collapsed by version (cached).
   List<ChatMessage> get collapsedMessages {
     if (_collapsedCache != null) return _collapsedCache!;
-    _collapsedCache = collapseVersions(_messagesWithVisibleGroups());
+    final raw = _messagesWithVisibleGroups();
+    final active = subgroupActiveGroupIds;
+    final filtered = active.isEmpty
+        ? raw
+        : raw.where((m) {
+            if (!active.contains(m.groupId ?? m.id)) return true;
+            // Keep the user trigger message for inline card placement
+            return m.role == 'user' && m.subgroupId == null;
+          }).toList();
+    _collapsedCache = collapseVersions(filtered);
     _collapsedIdToIndex = <String, int>{};
     for (int i = 0; i < _collapsedCache!.length; i++) {
       _collapsedIdToIndex![_collapsedCache![i].id] = i;
     }
     return _collapsedCache!;
+  }
+
+  /// GroupIds that have at least one message with subgroupId != null
+  /// (rendered as cards in Multi-AI mode, excluded from collapsed view).
+  Set<String> get subgroupActiveGroupIds {
+    final result = <String>{};
+    for (final m in _messages) {
+      if (m.subgroupId != null && m.groupId != null) {
+        result.add(m.groupId!);
+      }
+    }
+    return result;
   }
 
   List<ChatMessage> _messagesWithVisibleGroups() {

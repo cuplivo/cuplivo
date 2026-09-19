@@ -6151,6 +6151,8 @@ class ChatDatabaseRepository {
   Future<ChatMessage?> updateMessageFields(
     String messageId, {
     String? content,
+    String? subgroupId,
+    int? version,
     List<MessagePart>? parts,
     int? totalTokens,
     bool? isStreaming,
@@ -6166,6 +6168,8 @@ class ChatDatabaseRepository {
   }) {
     final companion = MessageRowsCompanion(
       updatedAt: Value(DateTime.now().toUtc()),
+      subgroupId: subgroupId != null ? Value(subgroupId) : const Value.absent(),
+      version: version != null ? Value(version) : const Value.absent(),
       totalTokens: totalTokens != null
           ? Value(totalTokens)
           : const Value.absent(),

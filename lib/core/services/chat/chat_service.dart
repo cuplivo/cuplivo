@@ -2932,6 +2932,7 @@ class ChatService extends ChangeNotifier {
     DateTime? reasoningStartAt,
     DateTime? reasoningFinishedAt,
     String? groupId,
+    String? subgroupId,
     int? version,
     bool selectVersion = false,
     String? temporaryAfterGroupId,
@@ -2973,6 +2974,7 @@ class ChatService extends ChangeNotifier {
       reasoningStartAt: reasoningStartAt,
       reasoningFinishedAt: reasoningFinishedAt,
       groupId: groupId,
+      subgroupId: subgroupId,
       version: version,
       quoteJson: quoteJson,
       senderId: senderId,
@@ -3224,6 +3226,8 @@ class ChatService extends ChangeNotifier {
   Future<void> updateMessage(
     String messageId, {
     String? content,
+    String? subgroupId,
+    int? version,
     List<MessagePart>? parts,
     int? totalTokens,
     bool? isStreaming,
@@ -3241,6 +3245,8 @@ class ChatService extends ChangeNotifier {
       messageId,
       notify: true,
       content: content,
+      subgroupId: subgroupId,
+      version: version,
       parts: parts,
       totalTokens: totalTokens,
       isStreaming: isStreaming,
@@ -3298,6 +3304,8 @@ class ChatService extends ChangeNotifier {
     String messageId, {
     required bool notify,
     String? content,
+    String? subgroupId,
+    int? version,
     List<MessagePart>? parts,
     int? totalTokens,
     bool? isStreaming,
@@ -3319,6 +3327,8 @@ class ChatService extends ChangeNotifier {
       _replaceCachedMessage(
         temporaryMessage.copyWith(
           content: content,
+          subgroupId: subgroupId,
+          version: version,
           parts: parts,
           totalTokens: totalTokens,
           isStreaming: isStreaming,
@@ -3356,6 +3366,8 @@ class ChatService extends ChangeNotifier {
       completionTokens: completionTokens,
       cachedTokens: cachedTokens,
       durationMs: durationMs,
+      subgroupId: subgroupId,
+      version: version,
     );
     if (updatedMessage == null) return;
 

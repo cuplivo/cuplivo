@@ -579,6 +579,7 @@ class MessageGenerationService {
     required String modelId,
     required String providerKey,
     String? groupId,
+    String? subgroupId,
     int version = 0,
     String? temporaryAfterGroupId,
     String? senderId,

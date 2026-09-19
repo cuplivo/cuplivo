@@ -144,6 +144,7 @@ class MessageListView extends StatefulWidget {
     this.onDeleteMessage,
     this.onDeleteAllVersions,
     this.onForkConversation,
+    this.onMultiAIAction,
     this.onShareMessage,
     this.onSelectMessages,
     this.onSpeakMessage,
@@ -244,6 +245,7 @@ class MessageListView extends StatefulWidget {
   final OnDeleteMessage? onDeleteMessage;
   final OnDeleteAllVersions? onDeleteAllVersions;
   final OnForkConversation? onForkConversation;
+  final void Function(ChatMessage message)? onMultiAIAction;
   final OnShareMessage? onShareMessage;
   final OnSelectMessages? onSelectMessages;
   final OnSpeakMessage? onSpeakMessage;
@@ -2442,6 +2444,8 @@ class _MessageListViewState extends State<MessageListView> {
           widget.onEditMessage?.call(message);
         } else if (action == MessageMoreAction.reply) {
           widget.onReplyMessage?.call(message);
+        } else if (action == MessageMoreAction.multiAI) {
+          widget.onMultiAIAction?.call(message);
         } else if (action == MessageMoreAction.fork) {
           await widget.onForkConversation?.call(message);
         } else if (action == MessageMoreAction.share) {

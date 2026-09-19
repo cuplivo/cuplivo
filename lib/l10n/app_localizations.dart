@@ -23036,6 +23036,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add Model'**
   String get multiAIAddModelTooltip;
+
+  /// No description provided for @messageMoreSheetMultiAI.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Comparison'**
+  String get messageMoreSheetMultiAI;
 }
 
 class _AppLocalizationsDelegate

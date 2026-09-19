@@ -4495,5 +4495,6 @@
   "multiAISynthesizeFusePrompt": "請總結以下對話，並基於各方回覆給出一個綜合性的回答。",
   "multiAISynthesizeCommentPrompt": "請點評各模型的不同觀點。",
   "multiAIRetryBlockedUnresolvedComparison": "請先採納或丟棄對比結果，再進行重試。",
-  "multiAIAddModelTooltip": "新增模型"
+  "multiAIAddModelTooltip": "新增模型",
+  "messageMoreSheetMultiAI": "啟動對比"
 }

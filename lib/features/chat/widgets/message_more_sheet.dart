@@ -25,6 +25,7 @@ enum MessageMoreAction {
   edit,
   reply,
   fork,
+  multiAI,
   deleteCurrentVersion,
   deleteAllVersions,
   share,
@@ -123,6 +124,15 @@ Future<MessageMoreAction?> showMessageMoreSheet(
           label: l10n.messageMoreSheetReply,
           onTap: () {
             selected = MessageMoreAction.reply;
+          },
+        ),
+      if (message.role != 'user' &&
+          !(hideActions?.contains(MessageMoreAction.multiAI) ?? false))
+        DesktopContextMenuItem(
+          icon: Lucide.Layers,
+          label: l10n.messageMoreSheetMultiAI,
+          onTap: () {
+            selected = MessageMoreAction.multiAI;
           },
         ),
       DesktopContextMenuItem(
@@ -350,6 +360,15 @@ class _MessageMoreSheetState extends State<_MessageMoreSheet> {
                         label: l10n.messageMoreSheetReply,
                         onTap: () {
                           Navigator.of(context).pop(MessageMoreAction.reply);
+                        },
+                      ),
+                    if (widget.message.role != 'user' &&
+                        !_hidden(MessageMoreAction.multiAI))
+                      _actionItem(
+                        icon: Lucide.Layers,
+                        label: l10n.messageMoreSheetMultiAI,
+                        onTap: () {
+                          Navigator.of(context).pop(MessageMoreAction.multiAI);
                         },
                       ),
                     _actionItem(

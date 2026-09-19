@@ -1482,6 +1482,7 @@ class _HomePageState extends State<HomePage>
       spotlightMessageId: _controller.spotlightMessageId,
       spotlightToken: _controller.spotlightToken,
       afterMessageWidgets: _buildMultiAICardGroups(),
+      onMultiAIAction: (message) => _controller.handleMultiAIAction(message),
       removingSlotIds: _controller.removingSlotIds,
       hasMoreBefore: _controller.chatController.hasMoreBefore,
       isLoadingWindow: _controller.isLoadingWindow,

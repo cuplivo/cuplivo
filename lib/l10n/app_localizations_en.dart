@@ -12850,4 +12850,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get multiAIAddModelTooltip => 'Add Model';
+
+  @override
+  String get messageMoreSheetMultiAI => 'Start Comparison';
 }

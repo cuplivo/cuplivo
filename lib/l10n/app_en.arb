@@ -5527,5 +5527,6 @@
   "multiAISynthesizeFusePrompt": "Please summarize the conversation and then provide a single response that fits the user's prompt based on previous responses.",
   "multiAISynthesizeCommentPrompt": "Please comment on the different opinions across models.",
   "multiAIRetryBlockedUnresolvedComparison": "Please adopt or drop the comparison results before retrying.",
-  "multiAIAddModelTooltip": "Add Model"
+  "multiAIAddModelTooltip": "Add Model",
+  "messageMoreSheetMultiAI": "Start Comparison"
 }

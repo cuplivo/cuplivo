@@ -12270,6 +12270,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get multiAIAddModelTooltip => '添加模型';
+
+  @override
+  String get messageMoreSheetMultiAI => '启动对比';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -24464,6 +24467,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get multiAIAddModelTooltip => '添加模型';
+
+  @override
+  String get messageMoreSheetMultiAI => '启动对比';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -36738,4 +36744,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get multiAIAddModelTooltip => '新增模型';
+
+  @override
+  String get messageMoreSheetMultiAI => '啟動對比';
 }

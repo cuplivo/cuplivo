@@ -112,3 +112,14 @@ Per-patch gates: `range-diff` equivalence, `dart format` changed paths, `flutter
 4. **`requestMetadataAnchorMessageId`**（2 错，:382/:682）：WT 管道无此参（无元数据回放）——引擎调用点删该实参即可。另 :356/:426 non_bool_condition 是簇 1 的 Future<bool> 副作用，await 后自消。
 
 视图（multi_ai_comparison_view.dart 593 行）独立错误面：WindowsAxTreeSafeTooltip（WT 无→用 Tooltip 替换 2 处）、ReadingModePage/MessageMoreAction.readingMode（WT 无→删该 menu 项）、HomePageController.multiAIEngine/addMultiAIModels（接线时加）、l10n multiAI* 键四语言。接线点：home_page_controller/home_view_model/chat_actions/home_page（fork grep MultiAIEngine）。
+
+## P5c-14 视图+接线执行卡（round 22 记录）
+
+引擎/schema/l10n 已就绪（`9b68c2d4`+`92cc44e0`）。视图 `multi_ai_comparison_view.dart` 直拷+import 重定基后仅剩 4 个符号，全在 HomePageController：
+
+1. **`multiAIEngine` getter**：fork home_page_controller.dart :210 `late final MultiAIEngine multiAIEngine;` + :547-563 构造（chatService/chatController/messageGenerationService/streamController + `pipeline: _viewModel.pipeline` + `onMaybeUpdateProactiveCare`）+ :562 addListener(notifyListeners)。WT 差异：无 `_viewModel.pipeline`（WT pipeline 在哪构造需查 chat_actions/message_pipeline 使用处）；onMaybeUpdateProactiveCare 缺省可去掉（fork 参数可选性需查引擎签名）。
+2. **`retryMultiAIThread`**：fork :1565-1581（读 settings+currentAssistant → engine.retryThread）——基本直拷。
+3. **`switchToSynthesizeMode`**：fork :2790-2810（showSynthesizeTaskSelector + engine.setMode + 预填 prompt）——依赖 `showSynthesizeTaskSelector`（fork 哪个文件需 grep）。
+4. **`addMultiAIModels`**：fork :2927-2966（showMultiModelSelector + ModelMultiSelectState + engine.addModels?）——依赖 `showMultiModelSelector`/`ModelMultiSelectState`（grep fork）。
+
+视图结构性修复已完成并验证过的：WindowsAxTreeSafeTooltip→Tooltip、readingMode else-if 删除、canCreateBranch:false、hideActions 去 multiAI 枚举。视图本身不再有其它错误（20 错全部消除验证于本回合）。home_page/home_view_model/chat_actions 的模式入口 UI 按 fork grep MultiAIEngine 三文件对照接。

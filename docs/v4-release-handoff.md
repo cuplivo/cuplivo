@@ -10,12 +10,12 @@
 | `flutter test` 全量 | 5961 通过 / 18 败 = **精确基线**（auth 17 + root chmod 1，均为上游预存）——无新增失败 |
 | 版本 | `pubspec.yaml` = `4.0.0+41` |
 | 分支 | `cuplivo-v4` 已推送 `origin`（cuplivo/cuplivo.git，新建分支） |
-| GHA dry-run | `build-stable-44.yml` workflow_dispatch（`publish_release=false` 语义：dry-run 不发布）已触发，run 35422679699 in_progress（历史成功先例 17m25s） |
+| GHA dry-run | `build-stable-44.yml` workflow_dispatch 已触发并**全绿**：run **35424074743**（5 平台 ✓，产物 Android-armeabi-v7a / Android-x86_64 / Linux-DEB/RPM/AppImage / macOS-DMG / Windows-Installer / iOS-IPA，命名契约不变）。首跑 35422679699 的 iOS 失败已修复（iOS 依赖步骤补 brew libarchive——ish @3f6384c 的 fakefsify 目标仅在 libarchive 可见时产出，见提交 281a2fc8） |
 | 文档 | ADR-0004、README×2 解冻、CHANGELOG 4.0.0、迁移指南、AGENTS 身份 |
 
 ## 人工发布步骤（操作者执行）
 
-1. 确认 GHA run 35422679699 全绿（产物命名 `Cuplivo_<platform>_<version>_<abi/ext>`，应用 ID `com.cup11.cuplivo` 不变）。
+1. GHA run 35424074743 已确认全绿（无需重跑；如需再验可 workflow_dispatch，勿带发布开关）。
 2. 复核 `CHANGELOG.md` 与 `docs/v4-data-migration.md`（已接受损失：回收站/墓碑不迁移、LAN 同步历史重置）。
 3. 打 tag（建议 `v4.0.0+41`）并推送。
 4. 触发 `build-stable-44.yml`（可带 `publish_release=true`）或直接在 GitHub Releases 页新建 Release：标题 `Cuplivo v4.0.0 — Re-baseline release`，正文取 `CHANGELOG.md` 的 4.0.0 条目。

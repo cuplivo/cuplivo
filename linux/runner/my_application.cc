@@ -33,7 +33,7 @@ static GdkPixbuf* load_window_icon() {
   g_autofree gchar* executable_directory = get_executable_directory();
   g_autofree gchar* icon_path = g_build_filename(executable_directory, "data",
                                                  "flutter_assets", "assets",
-                                                 "app_icon.png", nullptr);
+                                                 "app_icon_about.png", nullptr);
 
   GError* error = nullptr;
   GdkPixbuf* icon = gdk_pixbuf_new_from_file_at_scale(icon_path, 16, 16, TRUE,

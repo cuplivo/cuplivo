@@ -127,7 +127,7 @@ class _BackgroundOverlaySettingsPageState
           fit: BoxFit.cover,
           errorBuilder: (_, _, _) => const Icon(LucideIcons.sparkles, size: 28),
         ),
-        _ => Image.asset('assets/app_icon.png', width: 34, height: 34),
+        _ => Image.asset('assets/app_icon_about.png', width: 34, height: 34),
       };
 
   @override

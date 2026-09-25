@@ -182,7 +182,9 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/icons/
-    - assets/app_icon.png
+    # UI mark (256px). `assets/app_icon.png` stays on disk for launcher icons,
+    # splash and packaging scripts — the 1024px source is never bundled.
+    - assets/app_icon_about.png
     - assets/app_icon.ico
     - assets/icon_mac.png
     - assets/mermaid.min.js
@@ -220,14 +222,6 @@ flutter:
 #    - family: JetBrainsMono
 #      fonts:
 #        - asset: assets/fonts/JetBrainsMono-Regular.ttf
-
-flutter_launcher_icons:
-  android: true
-  ios: true
-  image_path: assets/app_icon_foreground.png
-  adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: assets/app_icon_foreground.png
-  remove_alpha_ios: true
 
 flutter_native_splash:
   # Apply to both platforms

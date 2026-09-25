@@ -136,7 +136,7 @@ void main() {
     );
 
     var snapshot = await screen();
-    expect(snapshot['package_name'], 'com.cup11.cuplivo');
+    expect(snapshot['package_name'], 'com.cuplivo.cuplivo');
     expect(jsonEncode(snapshot), isNot(contains('private-password')));
     var button = findNode(
       snapshot,
@@ -225,8 +225,8 @@ void main() {
       (name) => name != null && name != 'com.android.settings',
     );
     expect(snapshot['package_name'], isNot('com.android.settings'));
-    await call({'action': 'open_app', 'package_name': 'com.cup11.cuplivo'});
-    snapshot = await waitForPackage((name) => name == 'com.cup11.cuplivo');
-    expect(snapshot['package_name'], 'com.cup11.cuplivo');
+    await call({'action': 'open_app', 'package_name': 'com.cuplivo.cuplivo'});
+    snapshot = await waitForPackage((name) => name == 'com.cuplivo.cuplivo');
+    expect(snapshot['package_name'], 'com.cuplivo.cuplivo');
   });
 }

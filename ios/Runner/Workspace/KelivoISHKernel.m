@@ -197,7 +197,7 @@ static int kelivo_pty_write(struct tty *tty, const void *buf, size_t len, bool b
     if (self) {
         _isBooted = NO;
         _filesystems = [NSMutableSet set];
-        _spawnQueue = dispatch_queue_create("com.cup11.cuplivo.workspace.ish.spawn", DISPATCH_QUEUE_SERIAL);
+        _spawnQueue = dispatch_queue_create("com.cuplivo.cuplivo.workspace.ish.spawn", DISPATCH_QUEUE_SERIAL);
         _activeBinds = [NSMutableDictionary dictionary];
         _readOnlyBinds = [NSMutableDictionary dictionary];
         _ptyBySession = [NSMutableDictionary dictionary];

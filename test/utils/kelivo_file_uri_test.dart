@@ -160,6 +160,14 @@ void main() {
         ),
         'kelivo-file:///upload/legacy.pdf',
       );
+      // Cuplivo 4.0 lineage: `CompanyName`/`ProductName` pair.
+      expect(
+        KelivoFileUri.tryEncodeLegacyAbsolutePath(
+          r'C:\Users\me\AppData\Roaming\com.cuplivo\cuplivo\fonts\a.ttf',
+          allowGenericFallback: false,
+        ),
+        'kelivo-file:///fonts/a.ttf',
+      );
       // Bare .../Kelivo/images without AppData must not match.
       expect(
         KelivoFileUri.tryEncodeLegacyAbsolutePath(
@@ -198,6 +206,13 @@ void main() {
         expect(
           KelivoFileUri.tryEncodeLegacyAbsolutePath(
             '/data/user/0/com.cup11.cuplivo/app_flutter/fonts/a.ttf',
+            allowGenericFallback: false,
+          ),
+          'kelivo-file:///fonts/a.ttf',
+        );
+        expect(
+          KelivoFileUri.tryEncodeLegacyAbsolutePath(
+            '/data/user/0/com.cuplivo.cuplivo/app_flutter/fonts/a.ttf',
             allowGenericFallback: false,
           ),
           'kelivo-file:///fonts/a.ttf',
@@ -331,13 +346,20 @@ void main() {
     });
 
     test('encodes macOS Application Support kelivo bundle paths', () {
-      expect(
-        KelivoFileUri.tryEncodeLegacyAbsolutePath(
-          '/Users/alice/Library/Application Support/com.psyche.kelivo/images/a.png',
-          allowGenericFallback: false,
-        ),
-        'kelivo-file:///images/a.png',
-      );
+      for (final bundleId in const [
+        'com.psyche.kelivo',
+        'com.cup11.cuplivo',
+        'com.cuplivo.cuplivo',
+      ]) {
+        expect(
+          KelivoFileUri.tryEncodeLegacyAbsolutePath(
+            '/Users/alice/Library/Application Support/$bundleId/images/a.png',
+            allowGenericFallback: false,
+          ),
+          'kelivo-file:///images/a.png',
+          reason: bundleId,
+        );
+      }
     });
 
     test('uses generic managed-subdir fallback', () {

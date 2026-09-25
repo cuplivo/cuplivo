@@ -12,7 +12,7 @@ final class WorkspacePlugin: NSObject, FlutterStreamHandler {
   static let methodChannelName = "app.workspace"
   static let eventChannelName = "app.workspace/events"
 
-  private let queue = DispatchQueue(label: "com.cup11.cuplivo.workspace", qos: .userInitiated)
+  private let queue = DispatchQueue(label: "com.cuplivo.cuplivo.workspace", qos: .userInitiated)
   private let eventLock = NSLock()
   private var eventSink: FlutterEventSink?
   private var pendingEvents: [[String: Any]] = []

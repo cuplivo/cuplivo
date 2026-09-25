@@ -33,7 +33,7 @@
 ```sh
 flutter test test/features/home/services/phone_control_test.dart
 cd android
-./gradlew :app:testDebugUnitTest --tests com.cup11.cuplivo.PhoneControlServiceTest
+./gradlew :app:testDebugUnitTest --tests com.cuplivo.cuplivo.PhoneControlServiceTest
 ```
 
 端到端测试使用无账号的测试界面和 Android 系统设置，覆盖真实读取、点击、长按、输入、滚动、启动应用和返回桌面：

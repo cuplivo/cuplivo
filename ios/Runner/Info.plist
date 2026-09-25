@@ -36,11 +36,11 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.cup11.cuplivo.oauth-return</string>
+			<string>com.cuplivo.cuplivo.oauth-return</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>cuplivo</string>
-				<string>com.cup11.cuplivo</string>
+				<string>com.cuplivo.cuplivo</string>
 			</array>
 		</dict>
 	</array>
@@ -113,7 +113,7 @@
 	<key>KelivoBundledRootfsVersion</key>
 	<string>alpine-3.21.3-r5</string>
 	<key>KelivoShareAppGroup</key>
-	<string>group.com.cup11.cuplivo</string>
+	<string>group.com.cuplivo.cuplivo</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

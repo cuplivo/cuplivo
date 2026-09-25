@@ -61,4 +61,4 @@ Derived from Termux terminal-emulator JNI
 License: GNU GPL-3.0-or-later
 
 Compatible with Cuplivo's AGPL-3. The C++ sources are included in this
-repository; the JNI class is com.cup11.cuplivo.workspace.PtyJni.
+repository; the JNI class is com.cuplivo.cuplivo.workspace.PtyJni.

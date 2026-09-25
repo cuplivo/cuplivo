@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 /// Owns security scopes for linked workspaces. All filesystem/bookmark work is
 /// serialized off the main thread; only the document picker runs on the UI thread.
 final class WorkspaceDirectoryAccess: NSObject, UIDocumentPickerDelegate {
-  private let queue = DispatchQueue(label: "com.cup11.cuplivo.workspace.directories", qos: .userInitiated)
+  private let queue = DispatchQueue(label: "com.cuplivo.cuplivo.workspace.directories", qos: .userInitiated)
   private var activeURLs: [String: URL] = [:]
   private var pickerResult: FlutterResult?
   private weak var presenter: UIViewController?

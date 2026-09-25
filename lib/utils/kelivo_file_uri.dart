@@ -108,6 +108,7 @@ final class KelivoFileUri {
     'com.psyche.kelivo',
     'psyche.kelivo',
     'com.cup11.cuplivo',
+    'com.cuplivo.cuplivo',
   };
 
   /// Windows AppData folder names (Flutter BINARY_NAME) for every lineage whose
@@ -125,7 +126,8 @@ final class KelivoFileUri {
   /// 2. iOS Simulator `/Users/.../CoreSimulator/...` (path-start anchored)
   /// 3. macOS Cuplivo container Documents (exact bundle whitelist)
   /// 4. macOS/Linux Application Support / `.local/share` (exact whitelist)
-  /// 5. Windows `AppData\Local|Roaming\[com.psyche\]kelivo`
+  /// 5. Windows `AppData\Local|Roaming\[<vendor>\]<folder>` (vendors
+  ///    `com.psyche`, `com.cup11`, `com.cuplivo`)
   /// 6. Android package-private app_flutter / files (exact package whitelist)
   /// 7. Generic fallback: first `/<managed>/` occurrence
   ///    (disabled when [allowGenericFallback] is false)
@@ -194,9 +196,10 @@ final class KelivoFileUri {
       }
     }
 
-    // Windows: C:/Users/<user>/AppData/Local|Roaming/[com.<vendor>/]<folder>/...
-    // Folder name must equal "kelivo"/"cuplivo" case-insensitively (not
-    // CuplivoNotes).
+    // Windows: C:/Users/<user>/AppData/Local|Roaming/[<vendor>/]<folder>/...
+    // Vendor prefixes come from the executable's version info: `com.psyche`
+    // (upstream), `com.cup11` (fork 3.x), `com.cuplivo` (this lineage). Folder
+    // name must equal "kelivo"/"cuplivo" case-insensitively (not CuplivoNotes).
     if (tail == null) {
       final win = RegExp(
         r'^[A-Za-z]:/Users/[^/]+/AppData/(?:Local|Roaming)/'

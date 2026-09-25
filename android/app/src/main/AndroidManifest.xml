@@ -99,7 +99,7 @@
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="com.cup11.cuplivo" android:host="mcp-oauth-callback"/>
+                <data android:scheme="com.cuplivo.cuplivo" android:host="mcp-oauth-callback"/>
             </intent-filter>
         </activity>
         <service

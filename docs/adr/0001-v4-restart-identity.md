@@ -29,6 +29,7 @@ persisted data, or external infrastructure we do not control.
 | --- | --- |
 | Commit 1 identity | `com.cup11.cuplivo` (applicationId/namespace, bundle ids, app groups, JNI package path) — taken from the archived fork line |
 | Commit 2 identity | `com.cuplivo.cuplivo`, developer `cuplivo` (replaces the `cup11` handle in ids, attribution and copyright fields) |
+| Developer attribution | Windows version-info `CompanyName` `com.cuplivo` + `LegalCopyright` holder `cuplivo`, macOS `PRODUCT_COPYRIGHT` holder `cuplivo` |
 | Dart package | `Cuplivo` (`package:Cuplivo/...`) |
 | Version | restarts at `4.0.0+1` (Cuplivo lineage: 3.2.1 → 4.0) |
 | App scheme (OS-registered) | app's own deep links use `cuplivo`; MCP OAuth callback follows the app id (`com.cup11.cuplivo` → `com.cuplivo.cuplivo`) |
@@ -91,7 +92,8 @@ One `kelivo://` string covered two different jobs upstream:
   upstream references in README/CHANGELOG.
 - The `kelivo-file://` whitelist accepts both lineages (`com.psyche.kelivo`, `psyche.kelivo`,
   `com.cup11.cuplivo`, then `com.cuplivo.cuplivo`) so backups and legacy absolute paths from either
-  line still resolve.
+  line still resolve. Its Windows matcher likewise accepts the `com.psyche` / `com.cup11` /
+  `com.cuplivo` `AppData` vendor prefixes produced by each lineage's version-info `CompanyName`.
 - No new ADR is needed to rename the remaining protocol surfaces later; if that ever happens, the
   cost is documented in `CONTEXT.md`.
 

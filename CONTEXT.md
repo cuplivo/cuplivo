@@ -12,7 +12,7 @@ contradicts one of them is a bug, not a preference.
 - **Cuplivo 4.0 / `cuplivo-4-0`**: this line — a re-baseline on Kelivo v1.3.0 with the Cuplivo
   identity, version `4.0.0+`.
 - **Legacy K/C data**: data produced by either lineage (Kelivo installs, Cuplivo 3.x backups).
-  Both must keep resolving on import; see the file-URI whitelist below.
+  Both must keep resolving on import; see Identity below.
 
 ## Branding & Naming Boundary (品牌与命名边界) — ADR-0001, ADR-0029
 
@@ -37,7 +37,7 @@ contradicts one of them is a bug, not a preference.
     infrastructure Cuplivo does not control.
   - `KelivoImageSettingsMapper` and "Kelivo backup" interop terms — they describe the upstream
     project, which still exists.
-  - Internal identifiers: `KelivoFileUri`, `KelivoApplication`, `KelivoISH*`, `KelivoOptions`,
+  - Internal identifiers: `KelivoFileUri`, `KelivoApplication`, `KelivoISH*`,
     `kelivo_fetch/`, isolate/queue labels, guest-side script and path names
     (`kelivo-open`, `.kelivo-ish-build`, `/run/kelivo/...`).
 - **Rule of thumb**: if a third party or a stored payload can observe the string, rename it; if it
@@ -50,6 +50,10 @@ contradicts one of them is a bug, not a preference.
 - **Side-by-side installs**: the applicationId differs from both Kelivo and Cuplivo 3.x, so
   installs coexist and never overwrite each other. Data migration is therefore *not* implemented;
   restoring a backup is the supported path between them.
+- **Legacy bundle ids**: the `kelivo-file://` whitelist accepts `com.psyche.kelivo`,
+  `psyche.kelivo`, `com.cup11.cuplivo` and `com.cuplivo.cuplivo`, and the Windows `AppData` vendor
+  prefixes `com.psyche` / `com.cup11` / `com.cuplivo`, so backups and absolute paths recorded by
+  either lineage keep resolving.
 
 ## Community channels (社区入口)
 

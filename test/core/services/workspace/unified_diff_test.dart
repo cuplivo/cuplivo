@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/workspace/unified_diff.dart';
+import 'package:Cuplivo/core/services/workspace/unified_diff.dart';
 
 void main() {
   test('golden diff for a single changed line', () {

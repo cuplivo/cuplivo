@@ -1,13 +1,13 @@
 import 'dart:io';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/workspace/widgets/preview/code_file_preview.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/workspace/widgets/preview/code_file_preview.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
-import 'package:Kelivo/features/workspace/widgets/preview/preview_text_document.dart';
+import 'package:Cuplivo/features/workspace/widgets/preview/preview_text_document.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 

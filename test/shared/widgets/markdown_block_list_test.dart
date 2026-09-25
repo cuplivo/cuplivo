@@ -1,8 +1,8 @@
 import 'dart:ui' as ui;
 
-import 'package:Kelivo/shared/widgets/export_capture_scope.dart';
-import 'package:Kelivo/shared/widgets/incremental_markdown_document.dart';
-import 'package:Kelivo/shared/widgets/markdown_block_list.dart';
+import 'package:Cuplivo/shared/widgets/export_capture_scope.dart';
+import 'package:Cuplivo/shared/widgets/incremental_markdown_document.dart';
+import 'package:Cuplivo/shared/widgets/markdown_block_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -171,11 +171,12 @@ void main() {
                   ((rect.top.clamp(2, 598) + rect.bottom.clamp(2, 598)) / 2)
                       .floor();
               final offset = (y * image.width + 10) * 4;
-              expect(
-                bytes!.buffer.asUint8List(offset, 4),
-                [0, 0, 255, 255],
-                reason: 'Frame $frame must paint visible block $rect',
-              );
+              expect(bytes!.buffer.asUint8List(offset, 4), [
+                0,
+                0,
+                255,
+                255,
+              ], reason: 'Frame $frame must paint visible block $rect');
             }
           } finally {
             image.dispose();

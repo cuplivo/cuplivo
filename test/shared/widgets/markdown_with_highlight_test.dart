@@ -3,17 +3,17 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/features/chat/pages/image_viewer_page.dart';
-import 'package:Kelivo/shared/widgets/markdown_line_lexer.dart';
-import 'package:Kelivo/shared/widgets/markdown_with_highlight.dart';
-import 'package:Kelivo/shared/widgets/export_capture_scope.dart';
-import 'package:Kelivo/shared/widgets/mermaid_image_cache.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/theme/palettes.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/features/chat/pages/image_viewer_page.dart';
+import 'package:Cuplivo/shared/widgets/markdown_line_lexer.dart';
+import 'package:Cuplivo/shared/widgets/markdown_with_highlight.dart';
+import 'package:Cuplivo/shared/widgets/export_capture_scope.dart';
+import 'package:Cuplivo/shared/widgets/mermaid_image_cache.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/theme/palettes.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -1113,70 +1113,68 @@ Inline ***strong emphasis*** text.
     });
   });
 
-  testWidgets(
-    'paragraph selection keeps line breaks through streaming',
-    (tester) async {
-      const text = 'First paragraph.\n\nSecond paragraph.';
-      final streaming = ValueNotifier(true);
-      addTearDown(streaming.dispose);
-      String? selected;
-      await tester.pumpWidget(
-        _settingsHarness(
-          onSettingsReady: (_) {},
-          child: SelectionArea(
-            onSelectionChanged: (content) => selected = content?.plainText,
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: ValueListenableBuilder<bool>(
-                valueListenable: streaming,
-                builder: (_, value, _) =>
-                    MarkdownWithCodeHighlight(text: text, streaming: value),
-              ),
+  testWidgets('paragraph selection keeps line breaks through streaming', (
+    tester,
+  ) async {
+    const text = 'First paragraph.\n\nSecond paragraph.';
+    final streaming = ValueNotifier(true);
+    addTearDown(streaming.dispose);
+    String? selected;
+    await tester.pumpWidget(
+      _settingsHarness(
+        onSettingsReady: (_) {},
+        child: SelectionArea(
+          onSelectionChanged: (content) => selected = content?.plainText,
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: ValueListenableBuilder<bool>(
+              valueListenable: streaming,
+              builder: (_, value, _) =>
+                  MarkdownWithCodeHighlight(text: text, streaming: value),
             ),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      for (final value in [true, false]) {
-        streaming.value = value;
-        await tester.pumpAndSettle();
-        final region = tester.state<SelectableRegionState>(
-          find.byType(SelectableRegion),
+    for (final value in [true, false]) {
+      streaming.value = value;
+      await tester.pumpAndSettle();
+      final region = tester.state<SelectableRegionState>(
+        find.byType(SelectableRegion),
+      );
+      region.selectAll(SelectionChangedCause.keyboard);
+      await tester.pumpAndSettle();
+      expect(selected, text, reason: 'streaming=$value');
+      region.clearSelection();
+      await tester.pump();
+
+      // A drag across the gap must include the same break as Select All.
+      final first = _paragraphContaining('First paragraph.');
+      final second = _paragraphContaining('Second paragraph.');
+      final start = first.localToGlobal(const Offset(1, 8));
+      final end = second.localToGlobal(Offset(second.size.width - 1, 8));
+      for (final reverse in [true, false]) {
+        // Separate the gestures so reversing at the previous endpoint does
+        // not become a double click and select a word instead of a range.
+        await tester.pump(const Duration(milliseconds: 400));
+        final gesture = await tester.startGesture(
+          reverse ? end : start,
+          kind: ui.PointerDeviceKind.mouse,
         );
-        region.selectAll(SelectionChangedCause.keyboard);
+        await tester.pump();
+        await gesture.moveTo(reverse ? start : end);
+        await tester.pump();
+        await gesture.up();
+        await gesture.removePointer();
         await tester.pumpAndSettle();
-        expect(selected, text, reason: 'streaming=$value');
+        expect(selected, text, reason: 'streaming=$value reverse=$reverse');
         region.clearSelection();
         await tester.pump();
-
-        // A drag across the gap must include the same break as Select All.
-        final first = _paragraphContaining('First paragraph.');
-        final second = _paragraphContaining('Second paragraph.');
-        final start = first.localToGlobal(const Offset(1, 8));
-        final end = second.localToGlobal(Offset(second.size.width - 1, 8));
-        for (final reverse in [true, false]) {
-          // Separate the gestures so reversing at the previous endpoint does
-          // not become a double click and select a word instead of a range.
-          await tester.pump(const Duration(milliseconds: 400));
-          final gesture = await tester.startGesture(
-            reverse ? end : start,
-            kind: ui.PointerDeviceKind.mouse,
-          );
-          await tester.pump();
-          await gesture.moveTo(reverse ? start : end);
-          await tester.pump();
-          await gesture.up();
-          await gesture.removePointer();
-          await tester.pumpAndSettle();
-          expect(selected, text, reason: 'streaming=$value reverse=$reverse');
-          region.clearSelection();
-          await tester.pump();
-        }
       }
-    },
-    variant: TargetPlatformVariant.desktop(),
-  );
+    }
+  }, variant: TargetPlatformVariant.desktop());
 
   for (final longReply in [false, true]) {
     testWidgets(

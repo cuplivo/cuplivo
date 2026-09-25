@@ -14,9 +14,9 @@ import '../../../theme/app_font_weights.dart';
 import '../../../theme/theme_factory.dart';
 import '../../../utils/brand_assets.dart';
 import 'search_api_keys_page.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 
 class SearchServiceEditorResult {
   const SearchServiceEditorResult.saved(this.service) : deleted = false;
@@ -328,7 +328,7 @@ class _SearchServiceEditorPageState extends State<SearchServiceEditorPage> {
       );
     }
 
-    if (service is BingLocalOptions || service is KelivoOptions) {
+    if (service is BingLocalOptions) {
       return const [];
     }
     if (service is DuckDuckGoOptions) {
@@ -1478,8 +1478,6 @@ class _SearchServiceEditorPageState extends State<SearchServiceEditorPage> {
             _text('contentMode'),
           ),
         );
-      case 'kelivo':
-        return KelivoOptions(id: _serviceId);
       default:
         return BingLocalOptions(id: _serviceId);
     }
@@ -2504,7 +2502,6 @@ String _typeForService(SearchServiceOptions service) {
   if (service is ParallelOptions) return 'parallel';
   if (service is KimiOptions) return 'kimi';
   if (service is YouSearchOptions) return 'you';
-  if (service is KelivoOptions) return 'kelivo';
   return 'bing_local';
 }
 
@@ -2565,8 +2562,6 @@ SearchServiceOptions _defaultService(String type, String id) {
       return KimiOptions(id: id, apiKey: '');
     case 'you':
       return YouSearchOptions(id: id, apiKey: '');
-    case 'kelivo':
-      return KelivoOptions(id: id);
     default:
       return BingLocalOptions(id: id);
   }
@@ -2625,8 +2620,6 @@ String _serviceTypeName(BuildContext context, String type) {
       return l10n.searchServiceNameKimi;
     case 'you':
       return l10n.searchServiceNameYou;
-    case 'kelivo':
-      return l10n.searchServiceNameKelivo;
     default:
       return type;
   }

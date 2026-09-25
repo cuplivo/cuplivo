@@ -4,7 +4,7 @@ defaults:
   outputRoot: test/fixtures/stream-traces
   timeoutMs: 120000
 
-# First-batch cases aligned with Kelivo's user-facing protocols.
+# First-batch cases aligned with Cuplivo's user-facing protocols.
 # Keys are read from the named environment variable only — never written.
 traces:
   - name: thinking-tools-search

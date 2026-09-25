@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:Kelivo/utils/kelivo_file_uri.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/utils/kelivo_file_uri.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 

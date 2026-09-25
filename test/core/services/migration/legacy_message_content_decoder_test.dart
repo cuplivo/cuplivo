@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/services/migration/legacy_message_content_decoder.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/services/migration/legacy_message_content_decoder.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 
 void main() {
   late Directory tempDir;

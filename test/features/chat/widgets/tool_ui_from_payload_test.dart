@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:Kelivo/features/chat/widgets/chat_message_widget.dart';
+import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

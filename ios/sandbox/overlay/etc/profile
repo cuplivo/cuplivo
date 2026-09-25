@@ -1,4 +1,4 @@
-# Kelivo Workspace login defaults. Applied through the guest VFS at boot so
+# Cuplivo Workspace login defaults. Applied through the guest VFS at boot so
 # installed rootfs images get the same configuration as new installations.
 # The native launcher supplies defaults; preserve explicit user values.
 export PATH="${PATH-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"

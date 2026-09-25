@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:Kelivo/core/services/sandbox/rootfs_disk_usage.dart';
+import 'package:Cuplivo/core/services/sandbox/rootfs_disk_usage.dart';
 
 void main() {
   test('measureDirectorySize sums files including meta.db', () async {

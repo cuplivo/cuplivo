@@ -3,11 +3,11 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/providers/asr_provider.dart';
-import 'package:Kelivo/core/services/asr/asr_audio_capture.dart';
-import 'package:Kelivo/core/services/asr/asr_service_options.dart';
-import 'package:Kelivo/core/services/asr/cloud_asr_service.dart';
-import 'package:Kelivo/core/services/asr/system_asr_service.dart';
+import 'package:Cuplivo/core/providers/asr_provider.dart';
+import 'package:Cuplivo/core/services/asr/asr_audio_capture.dart';
+import 'package:Cuplivo/core/services/asr/asr_service_options.dart';
+import 'package:Cuplivo/core/services/asr/cloud_asr_service.dart';
+import 'package:Cuplivo/core/services/asr/system_asr_service.dart';
 
 void main() {
   test('unconfigured and unavailable local services stay hidden', () async {

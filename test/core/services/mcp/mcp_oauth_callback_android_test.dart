@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/services/auth/oauth_callback_io.dart'
+import 'package:Cuplivo/core/services/auth/oauth_callback_io.dart'
     show createAndroidOAuthCallbackForTesting;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,7 +41,7 @@ void main() {
     );
     await callback.close();
 
-    expect(callback.redirectUri.scheme, 'psyche.kelivo');
+    expect(callback.redirectUri.scheme, 'com.cuplivo.cuplivo');
     expect(callback.redirectUri.host, 'mcp-oauth-callback');
     expect(callback.redirectUri.pathSegments, hasLength(1));
     expect(callback.redirectUri.hasQuery, isFalse);

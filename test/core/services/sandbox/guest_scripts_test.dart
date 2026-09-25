@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/sandbox/guest_scripts.dart';
+import 'package:Cuplivo/core/services/sandbox/guest_scripts.dart';
 
 void main() {
   test('applyAptMirror golden', () {

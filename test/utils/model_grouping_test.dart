@@ -1,8 +1,8 @@
 import 'dart:io';
 
-import 'package:Kelivo/core/models/model_types.dart';
-import 'package:Kelivo/utils/brand_assets.dart';
-import 'package:Kelivo/utils/model_grouping.dart';
+import 'package:Cuplivo/core/models/model_types.dart';
+import 'package:Cuplivo/utils/brand_assets.dart';
+import 'package:Cuplivo/utils/model_grouping.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 String groupFor(String id, {ModelType type = ModelType.chat}) {

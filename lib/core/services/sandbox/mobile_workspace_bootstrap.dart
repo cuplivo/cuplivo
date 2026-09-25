@@ -1,18 +1,18 @@
-import 'package:Kelivo/core/services/sandbox/environment_dependencies.dart';
+import 'package:Cuplivo/core/services/sandbox/environment_dependencies.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:Kelivo/core/providers/environment_provider.dart';
-import 'package:Kelivo/core/services/sandbox/android_proot_runtime.dart';
-import 'package:Kelivo/core/services/sandbox/environment_installer.dart';
-import 'package:Kelivo/core/services/sandbox/environment_manager.dart';
-import 'package:Kelivo/core/services/sandbox/guest_script_runner.dart';
-import 'package:Kelivo/core/services/sandbox/ios_ish_runtime.dart';
-import 'package:Kelivo/core/services/sandbox/mirror_service.dart';
-import 'package:Kelivo/core/services/sandbox/mirror_speed_test.dart';
-import 'package:Kelivo/core/services/sandbox/rootfs_source.dart';
-import 'package:Kelivo/core/services/sandbox/workspace_channel.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
-import 'package:Kelivo/utils/app_directories.dart';
+import 'package:Cuplivo/core/providers/environment_provider.dart';
+import 'package:Cuplivo/core/services/sandbox/android_proot_runtime.dart';
+import 'package:Cuplivo/core/services/sandbox/environment_installer.dart';
+import 'package:Cuplivo/core/services/sandbox/environment_manager.dart';
+import 'package:Cuplivo/core/services/sandbox/guest_script_runner.dart';
+import 'package:Cuplivo/core/services/sandbox/ios_ish_runtime.dart';
+import 'package:Cuplivo/core/services/sandbox/mirror_service.dart';
+import 'package:Cuplivo/core/services/sandbox/mirror_speed_test.dart';
+import 'package:Cuplivo/core/services/sandbox/rootfs_source.dart';
+import 'package:Cuplivo/core/services/sandbox/workspace_channel.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/utils/app_directories.dart';
 
 class MobileWorkspaceStack {
   const MobileWorkspaceStack({

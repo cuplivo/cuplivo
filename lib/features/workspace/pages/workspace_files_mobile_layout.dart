@@ -1,16 +1,16 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:Kelivo/core/models/workspace.dart';
-import 'package:Kelivo/core/providers/workspace_provider.dart';
-import 'package:Kelivo/features/workspace/pages/workspace_files_page.dart';
-import 'package:Kelivo/features/workspace/widgets/workspace_tools_pane.dart';
-import 'package:Kelivo/features/workspace/terminal/open_terminal.dart';
-import 'package:Kelivo/features/workspace/widgets/files/file_browser.dart';
-import 'package:Kelivo/features/workspace/widgets/files/file_browser_ops.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/core/models/workspace.dart';
+import 'package:Cuplivo/core/providers/workspace_provider.dart';
+import 'package:Cuplivo/features/workspace/pages/workspace_files_page.dart';
+import 'package:Cuplivo/features/workspace/widgets/workspace_tools_pane.dart';
+import 'package:Cuplivo/features/workspace/terminal/open_terminal.dart';
+import 'package:Cuplivo/features/workspace/widgets/files/file_browser.dart';
+import 'package:Cuplivo/features/workspace/widgets/files/file_browser_ops.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

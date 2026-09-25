@@ -32,15 +32,15 @@ import 'mermaid_image_cache.dart';
 import 'diagram_exporter.dart';
 import 'plantuml_block.dart';
 import 'package:path/path.dart' as p;
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/theme/theme_factory.dart' show getPlatformFontFallback;
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/theme_factory.dart' show getPlatformFontFallback;
 import 'package:provider/provider.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../core/services/workspace/file_link_resolver.dart';
 import '../../features/workspace/workspace_file_navigation.dart';
-import 'package:Kelivo/desktop/html_preview_dialog.dart';
+import 'package:Cuplivo/desktop/html_preview_dialog.dart';
 import '../cache/byte_lru_cache.dart';
 import 'incremental_markdown_document.dart';
 import 'markdown_block_list.dart';
@@ -3975,7 +3975,7 @@ class _MarkdownTableBlockState extends State<_MarkdownTableBlock> {
     final result = await ImageGallerySaverPlus.saveImage(
       bytes,
       quality: 100,
-      name: 'kelivo-table-${DateTime.now().millisecondsSinceEpoch}',
+      name: 'cuplivo-table-${DateTime.now().millisecondsSinceEpoch}',
     );
     if (result is Map) {
       final isSuccess = result['isSuccess'] == true || result['isSuccess'] == 1;
@@ -4030,7 +4030,7 @@ class _MarkdownTableBlockState extends State<_MarkdownTableBlock> {
     final file = File(
       p.join(
         dir.path,
-        'kelivo-table-${DateTime.now().millisecondsSinceEpoch}.png',
+        'cuplivo-table-${DateTime.now().millisecondsSinceEpoch}.png',
       ),
     );
     await file.writeAsBytes(bytes, flush: true);
@@ -4068,7 +4068,7 @@ class _MarkdownTableBlockState extends State<_MarkdownTableBlock> {
     try {
       final clipboard = SystemClipboard.instance;
       if (clipboard != null) {
-        final item = DataWriterItem(suggestedName: 'kelivo-table.png');
+        final item = DataWriterItem(suggestedName: 'cuplivo-table.png');
         item.add(Formats.png(bytes));
         await clipboard.write([item]);
         return true;

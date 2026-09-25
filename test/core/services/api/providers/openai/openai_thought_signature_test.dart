@@ -1,6 +1,6 @@
-import 'package:Kelivo/core/services/api/providers/openai/chat_completions_api.dart';
-import 'package:Kelivo/core/services/api/providers/openai/openai_tool_transcript.dart';
-import 'package:Kelivo/core/services/api/providers/openai/openai_vendor_compat.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/chat_completions_api.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/openai_tool_transcript.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/openai_vendor_compat.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _extraContent = <String, dynamic>{

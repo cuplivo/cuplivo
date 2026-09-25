@@ -4,14 +4,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/models/chat_input_data.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/desktop/windows_paste_fix.dart';
-import 'package:Kelivo/features/home/widgets/chat_input_bar.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/utils/image_compressor.dart';
+import 'package:Cuplivo/core/models/chat_input_data.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/desktop/windows_paste_fix.dart';
+import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/utils/image_compressor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -155,112 +155,105 @@ void main() {
     );
   }
 
-  testWidgets(
-    'Windows 历史粘贴复用文本、长文本附件和图片入口',
-    (tester) async {
-      final nativeClipboardContext = MockMessageChannelContext()
-        ..registerMockMethodCallHandler('ClipboardReader', (_) {
-          throw PlatformException(code: 'unavailable-in-widget-test');
-        });
-      setContextOverride(nativeClipboardContext);
-      var clipboardText = 'history';
-      var clipboardImages = <String>[];
-      final messenger = tester.binding.defaultBinaryMessenger;
-      const clipboardChannel = MethodChannel('app.clipboard');
-      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
-        if (call.method == 'Clipboard.getData') {
-          return <String, dynamic>{'text': clipboardText};
-        }
-        return null;
+  testWidgets('Windows 历史粘贴复用文本、长文本附件和图片入口', (tester) async {
+    final nativeClipboardContext = MockMessageChannelContext()
+      ..registerMockMethodCallHandler('ClipboardReader', (_) {
+        throw PlatformException(code: 'unavailable-in-widget-test');
       });
-      messenger.setMockMethodCallHandler(clipboardChannel, (call) async {
-        if (call.method == 'getClipboardImages') return clipboardImages;
-        return null;
-      });
-      addTearDown(() {
-        messenger.setMockMethodCallHandler(SystemChannels.platform, null);
-        messenger.setMockMethodCallHandler(clipboardChannel, null);
-      });
+    setContextOverride(nativeClipboardContext);
+    var clipboardText = 'history';
+    var clipboardImages = <String>[];
+    final messenger = tester.binding.defaultBinaryMessenger;
+    const clipboardChannel = MethodChannel('app.clipboard');
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.getData') {
+        return <String, dynamic>{'text': clipboardText};
+      }
+      return null;
+    });
+    messenger.setMockMethodCallHandler(clipboardChannel, (call) async {
+      if (call.method == 'getClipboardImages') return clipboardImages;
+      return null;
+    });
+    addTearDown(() {
+      messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+      messenger.setMockMethodCallHandler(clipboardChannel, null);
+    });
 
-      final settings = SettingsProvider(createBusinessTestPreferences());
-      addTearDown(settings.dispose);
-      await settings.loaded;
-      await settings.setLongPasteAsFileThreshold(100);
-      final controller = TextEditingController(text: 'before after');
-      final focusNode = FocusNode();
-      final mediaController = ChatInputBarController();
-      addTearDown(controller.dispose);
-      addTearDown(focusNode.dispose);
-      await tester.pumpWidget(
-        buildHarness(
-          controller: controller,
-          focusNode: focusNode,
-          mediaController: mediaController,
-          settings: settings,
-          onSend: (_) async => ChatInputSubmissionResult.rejected,
+    final settings = SettingsProvider(createBusinessTestPreferences());
+    addTearDown(settings.dispose);
+    await settings.loaded;
+    await settings.setLongPasteAsFileThreshold(100);
+    final controller = TextEditingController(text: 'before after');
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    addTearDown(controller.dispose);
+    addTearDown(focusNode.dispose);
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+        settings: settings,
+        onSend: (_) async => ChatInputSubmissionResult.rejected,
+      ),
+    );
+    await tester.tap(find.byType(TextField));
+    controller.selection = const TextSelection.collapsed(offset: 7);
+    await tester.pump();
+    WindowsPasteFix.instance.install();
+    try {
+      await tester.runAsync(() => sendWindowsClipboardHistoryPaste(tester));
+      expect(
+        await pumpUntil(tester, () => controller.text == 'before historyafter'),
+        isTrue,
+      );
+      expect(controller.selection.baseOffset, 14);
+
+      clipboardText = List.filled(101, '长').join();
+      await tester.runAsync(() => sendWindowsClipboardHistoryPaste(tester));
+      expect(
+        await pumpUntil(
+          tester,
+          () => mediaController.snapshotInput('').documents.length == 1,
+        ),
+        isTrue,
+      );
+      expect(controller.text, 'before historyafter');
+      final document = mediaController.snapshotInput('').documents.single;
+      expect(
+        await tester.runAsync(() => File(document.path).readAsString()),
+        clipboardText,
+      );
+
+      final source = File('${appSupportDir.path}/clipboard.png');
+      await tester.runAsync(
+        () => source.writeAsBytes(
+          base64Decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+          ),
         ),
       );
-      await tester.tap(find.byType(TextField));
-      controller.selection = const TextSelection.collapsed(offset: 7);
-      await tester.pump();
-      WindowsPasteFix.instance.install();
-      try {
-        await tester.runAsync(() => sendWindowsClipboardHistoryPaste(tester));
-        expect(
-          await pumpUntil(
-            tester,
-            () => controller.text == 'before historyafter',
-          ),
-          isTrue,
-        );
-        expect(controller.selection.baseOffset, 14);
-
-        clipboardText = List.filled(101, '长').join();
-        await tester.runAsync(() => sendWindowsClipboardHistoryPaste(tester));
-        expect(
-          await pumpUntil(
-            tester,
-            () => mediaController.snapshotInput('').documents.length == 1,
-          ),
-          isTrue,
-        );
-        expect(controller.text, 'before historyafter');
-        final document = mediaController.snapshotInput('').documents.single;
-        expect(
-          await tester.runAsync(() => File(document.path).readAsString()),
-          clipboardText,
-        );
-
-        final source = File('${appSupportDir.path}/clipboard.png');
-        await tester.runAsync(
-          () => source.writeAsBytes(
-            base64Decode(
-              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-            ),
-          ),
-        );
-        clipboardText = '';
-        clipboardImages = [source.path];
-        await tester.runAsync(() => sendWindowsClipboardHistoryPaste(tester));
-        expect(
-          await pumpUntil(
-            tester,
-            () =>
-                !mediaController.hasUnreadyImages &&
-                mediaController.snapshotInput('').imagePaths.length == 1,
-          ),
-          isTrue,
-        );
-        final image = File(mediaController.snapshotInput('').imagePaths.single);
-        expect(await fileExists(tester, image), isTrue);
-        expect(controller.text, 'before historyafter');
-        expect(HardwareKeyboard.instance.physicalKeysPressed, isEmpty);
-      } finally {
-        WindowsPasteFix.instance.uninstall();
-      }
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.windows),
-  );
+      clipboardText = '';
+      clipboardImages = [source.path];
+      await tester.runAsync(() => sendWindowsClipboardHistoryPaste(tester));
+      expect(
+        await pumpUntil(
+          tester,
+          () =>
+              !mediaController.hasUnreadyImages &&
+              mediaController.snapshotInput('').imagePaths.length == 1,
+        ),
+        isTrue,
+      );
+      final image = File(mediaController.snapshotInput('').imagePaths.single);
+      expect(await fileExists(tester, image), isTrue);
+      expect(controller.text, 'before historyafter');
+      expect(HardwareKeyboard.instance.physicalKeysPressed, isEmpty);
+    } finally {
+      WindowsPasteFix.instance.uninstall();
+    }
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 
   testWidgets('超过 5000 个字符的粘贴内容转为文本附件', (tester) async {
     final nativeClipboardContext = MockMessageChannelContext()

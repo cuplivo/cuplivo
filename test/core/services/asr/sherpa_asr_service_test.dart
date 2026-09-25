@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/asr/sherpa_asr_service.dart';
+import 'package:Cuplivo/core/services/asr/sherpa_asr_service.dart';
 
 void main() {
   group('SherpaAsrService.pcm16ToFloat32', () {

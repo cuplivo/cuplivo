@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/memory_entry.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/memory/legacy_memory_migration.dart';
-import 'package:Kelivo/core/services/memory/memory_repository.dart';
+import 'package:Cuplivo/core/models/memory_entry.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/memory/legacy_memory_migration.dart';
+import 'package:Cuplivo/core/services/memory/memory_repository.dart';
 
 import '../../../support/business_test_harness.dart';
 

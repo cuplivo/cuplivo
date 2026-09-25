@@ -12,8 +12,8 @@ import '../../shared/widgets/ios_switch.dart';
 import '../../shared/widgets/ios_form_text_field.dart';
 import '../../theme/app_font_weights.dart';
 import '../widgets/desktop_select_dropdown.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 
 class DesktopSearchServicesPane extends StatefulWidget {
   const DesktopSearchServicesPane({super.key});
@@ -350,8 +350,7 @@ class _ServiceCardState extends State<_ServiceCard> {
                   ),
                 ),
               ),
-              if (widget.service is! BingLocalOptions &&
-                  widget.service is! KelivoOptions) ...[
+              if (widget.service is! BingLocalOptions) ...[
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -615,7 +614,6 @@ class _BrandBadge extends StatelessWidget {
     if (s is ParallelOptions) return 'parallel';
     if (s is KimiOptions) return 'kimi';
     if (s is YouSearchOptions) return 'you';
-    if (s is KelivoOptions) return 'kelivo';
     return 'search';
   }
 
@@ -2747,8 +2745,6 @@ String _serviceTypeName(BuildContext context, String type) {
       return l10n.searchServiceNameKimi;
     case 'you':
       return l10n.searchServiceNameYou;
-    case 'kelivo':
-      return l10n.searchServiceNameKelivo;
     default:
       return type;
   }

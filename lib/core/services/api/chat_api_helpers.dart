@@ -2,7 +2,7 @@ import '../../models/provider_oauth.dart';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/secrets/fallback.dart';
+import 'package:Cuplivo/secrets/fallback.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 

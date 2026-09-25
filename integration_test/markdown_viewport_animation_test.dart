@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:ui' as ui;
 
-import 'package:Kelivo/shared/widgets/incremental_markdown_document.dart';
-import 'package:Kelivo/shared/widgets/markdown_block_list.dart';
+import 'package:Cuplivo/shared/widgets/incremental_markdown_document.dart';
+import 'package:Cuplivo/shared/widgets/markdown_block_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';

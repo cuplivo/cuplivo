@@ -10,7 +10,7 @@ import '../../features/mcp/widgets/mcp_json_import.dart';
 import 'mcp_json_edit_dialog.dart' show showDesktopMcpJsonEditDialog;
 import 'mcp_timeout_dialog.dart' show showDesktopMcpTimeoutDialog;
 import '../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class DesktopMcpPane extends StatelessWidget {
   const DesktopMcpPane({super.key});

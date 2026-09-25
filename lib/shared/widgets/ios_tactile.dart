@@ -3,7 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../core/services/haptics.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 /// iOS-style icon button: no ripple, color tween on press, no scale.
 class IosIconButton extends StatefulWidget {

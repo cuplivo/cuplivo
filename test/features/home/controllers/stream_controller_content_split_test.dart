@@ -2,12 +2,12 @@ import 'dart:convert';
 
 import "../../../support/business_test_harness.dart";
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
-import 'package:Kelivo/features/chat/widgets/chat_message_widget.dart'
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart'
     show ToolUIPart;
-import 'package:Kelivo/features/home/controllers/stream_controller.dart';
+import 'package:Cuplivo/features/home/controllers/stream_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

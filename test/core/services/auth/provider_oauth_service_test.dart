@@ -1,14 +1,14 @@
-import 'package:Kelivo/core/database/business_settings_router.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_settings_router.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/auth/provider_oauth_service.dart';
-import 'package:Kelivo/core/services/api/providers/openai/openai_provider.dart';
-import 'package:Kelivo/core/services/api/providers/claude_official.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
-import 'package:Kelivo/features/provider/widgets/share_provider_sheet.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/auth/provider_oauth_service.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/openai_provider.dart';
+import 'package:Cuplivo/core/services/api/providers/claude_official.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/features/provider/widgets/share_provider_sheet.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';

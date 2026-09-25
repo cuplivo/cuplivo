@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
 
 /// Returns [conversationId] when it already names a chat, otherwise creates a
 /// draft conversation so per-conversation state (workspace binding, session

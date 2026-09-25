@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:Kelivo/core/services/haptics.dart';
-import 'package:Kelivo/features/workspace/widgets/environment/environment_pane.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/core/services/haptics.dart';
+import 'package:Cuplivo/features/workspace/widgets/environment/environment_pane.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
 
 class EnvironmentPageDesktopLayout extends StatelessWidget {
   const EnvironmentPageDesktopLayout({super.key});

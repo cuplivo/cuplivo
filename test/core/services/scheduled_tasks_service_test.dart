@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/scheduled_task.dart';
-import 'package:Kelivo/core/services/scheduled_tasks_service.dart';
+import 'package:Cuplivo/core/models/scheduled_task.dart';
+import 'package:Cuplivo/core/services/scheduled_tasks_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

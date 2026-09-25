@@ -9,12 +9,12 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:Kelivo/core/models/environment_state.dart';
-import 'package:Kelivo/core/providers/environment_provider.dart';
-import 'package:Kelivo/core/services/sandbox/environment_installer.dart';
-import 'package:Kelivo/core/services/sandbox/mirror_speed_test.dart';
-import 'package:Kelivo/core/services/sandbox/rootfs_source.dart';
-import 'package:Kelivo/core/services/sandbox/workspace_channel.dart';
+import 'package:Cuplivo/core/models/environment_state.dart';
+import 'package:Cuplivo/core/providers/environment_provider.dart';
+import 'package:Cuplivo/core/services/sandbox/environment_installer.dart';
+import 'package:Cuplivo/core/services/sandbox/mirror_speed_test.dart';
+import 'package:Cuplivo/core/services/sandbox/rootfs_source.dart';
+import 'package:Cuplivo/core/services/sandbox/workspace_channel.dart';
 
 import '../../../support/business_test_harness.dart';
 

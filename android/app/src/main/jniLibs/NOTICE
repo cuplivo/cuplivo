@@ -1,4 +1,4 @@
-Kelivo Android workspace sandbox — third-party native code
+Cuplivo Android workspace sandbox — third-party native code
 ==========================================================
 
 This directory packages prebuilt Termux binaries (fetched by
@@ -9,7 +9,7 @@ PRoot (libproot_exec.so, libproot_loader.so)
 PRoot <https://proot-me.github.io> / <https://github.com/termux/proot>
 License: GNU GPL-2.0-or-later
 
-Kelivo executes these binaries as a separate process (not linked into the
+Cuplivo executes these binaries as a separate process (not linked into the
 AGPL-3 application). Corresponding source is the Termux proot tree at the
 version below.
 
@@ -60,5 +60,5 @@ Derived from Termux terminal-emulator JNI
 <https://github.com/termux/termux-app>
 License: GNU GPL-3.0-or-later
 
-Compatible with Kelivo's AGPL-3. The C++ sources are included in this
-repository; the JNI class is com.psyche.kelivo.workspace.PtyJni.
+Compatible with Cuplivo's AGPL-3. The C++ sources are included in this
+repository; the JNI class is com.cup11.cuplivo.workspace.PtyJni.

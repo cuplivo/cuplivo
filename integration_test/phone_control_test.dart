@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/features/home/services/local_tools_service.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/features/home/services/local_tools_service.dart';
 
 // Run on an unlocked Android test device with Kelivo's accessibility service
 // enabled. Uses a local fixture and Android Settings; no model or account needed.
@@ -136,7 +136,7 @@ void main() {
     );
 
     var snapshot = await screen();
-    expect(snapshot['package_name'], 'com.psyche.kelivo');
+    expect(snapshot['package_name'], 'com.cup11.cuplivo');
     expect(jsonEncode(snapshot), isNot(contains('private-password')));
     var button = findNode(
       snapshot,
@@ -225,8 +225,8 @@ void main() {
       (name) => name != null && name != 'com.android.settings',
     );
     expect(snapshot['package_name'], isNot('com.android.settings'));
-    await call({'action': 'open_app', 'package_name': 'com.psyche.kelivo'});
-    snapshot = await waitForPackage((name) => name == 'com.psyche.kelivo');
-    expect(snapshot['package_name'], 'com.psyche.kelivo');
+    await call({'action': 'open_app', 'package_name': 'com.cup11.cuplivo'});
+    snapshot = await waitForPackage((name) => name == 'com.cup11.cuplivo');
+    expect(snapshot['package_name'], 'com.cup11.cuplivo');
   });
 }

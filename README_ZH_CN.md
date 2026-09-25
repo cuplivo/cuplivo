@@ -1,18 +1,18 @@
 <div align="center">
 
-<img src="assets/app_icon.png" alt="Kelivo" width="112" />
+<img src="assets/app_icon.png" alt="Cuplivo" width="112" />
 
-# Kelivo
+# Cuplivo
 
 **开源的 LLM 客户端，覆盖手机与桌面。**
 
 一个应用接入所有主流模型，给模型一个能真正做事的工作区，数据始终留在你自己的设备上。
 
 <p>
-  <a href="https://github.com/Chevey339/kelivo/releases/latest"><img src="https://img.shields.io/github/v/release/Chevey339/kelivo?style=flat-square&amp;label=release" alt="Latest release" /></a>
-  <a href="https://github.com/Chevey339/kelivo/releases"><img src="https://img.shields.io/github/downloads/Chevey339/kelivo/total?style=flat-square" alt="Downloads" /></a>
-  <a href="https://github.com/Chevey339/kelivo/stargazers"><img src="https://img.shields.io/github/stars/Chevey339/kelivo?style=flat-square" alt="Stars" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/Chevey339/kelivo?style=flat-square" alt="License" /></a>
+  <a href="https://github.com/cuplivo/cuplivo/releases/latest"><img src="https://img.shields.io/github/v/release/cuplivo/cuplivo?style=flat-square&amp;label=release" alt="Latest release" /></a>
+  <a href="https://github.com/cuplivo/cuplivo/releases"><img src="https://img.shields.io/github/downloads/cuplivo/cuplivo/total?style=flat-square" alt="Downloads" /></a>
+  <a href="https://github.com/cuplivo/cuplivo/stargazers"><img src="https://img.shields.io/github/stars/cuplivo/cuplivo?style=flat-square" alt="Stars" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/cuplivo/cuplivo?style=flat-square" alt="License" /></a>
   <a href="https://flutter.dev"><img src="https://img.shields.io/badge/built%20with-Flutter-02569B?style=flat-square&amp;logo=flutter&amp;logoColor=white" alt="Built with Flutter" /></a>
 </p>
 
@@ -21,9 +21,8 @@
   <a href="https://qm.qq.com/q/OQaXetKssC"><img src="https://img.shields.io/badge/QQ%20%E7%BE%A4-0366CC?style=for-the-badge&amp;logo=qq&amp;logoColor=white" alt="QQ 群" /></a>
 </p>
 
-<a href="https://trendshift.io/repositories/15452?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-15452" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/15452" alt="Chevey339%2Fkelivo | Trendshift" width="250" height="55"/></a>
 
-[官网](https://kelivo.psycheas.top) · [使用手册](https://kelivo.psycheas.top/guide) · [下载](#-下载) · [反馈问题](https://github.com/Chevey339/kelivo/issues)
+[官网](https://kelivo.psycheas.top) · [使用手册](https://kelivo.psycheas.top/guide) · [下载](#-下载) · [反馈问题](https://github.com/cuplivo/cuplivo/issues) · [QQ 群](https://qm.qq.com/q/9Rnnf7XyNO) · [Discord](https://discord.gg/kaTf8CXG4)
 
 [English](README.md) · **简体中文**
 
@@ -31,11 +30,11 @@
 
 ## 💡 简介
 
-Kelivo 是基于 Flutter 构建的跨平台 LLM 客户端，支持 Android、iOS、macOS、Windows 和 Linux。你可以填入自己的 API Key，也可以直接登录已支持的订阅账号，在同一个应用里使用 OpenAI、Gemini、Claude、DeepSeek、OpenRouter 以及任何 OpenAI 兼容服务。
+Cuplivo 是 Kelivo 的社区分支，是基于 Flutter 构建的跨平台 LLM 客户端，支持 Android、iOS、macOS、Windows 和 Linux。你可以填入自己的 API Key，也可以直接登录已支持的订阅账号，在同一个应用里使用 OpenAI、Gemini、Claude、DeepSeek、OpenRouter 以及任何 OpenAI 兼容服务。
 
-Kelivo 不只是聊天。模型可以联网搜索、调用 MCP 服务器、按技能完成任务，并记住对你重要的信息。为对话绑定**工作区**后，模型还能读写文件、执行命令：在手机上运行于 Linux 沙盒中，在电脑上直接使用本机 Shell。
+Cuplivo 不只是聊天。模型可以联网搜索、调用 MCP 服务器、按技能完成任务，并记住对你重要的信息。为对话绑定**工作区**后，模型还能读写文件、执行命令：在手机上运行于 Linux 沙盒中，在电脑上直接使用本机 Shell。
 
-对话、设置和文件都保存在本地。Kelivo 没有自己的账号体系，需要时可以备份到 WebDAV 或 S3 兼容存储。
+对话、设置和文件都保存在本地。Cuplivo 没有自己的账号体系，需要时可以备份到 WebDAV 或 S3 兼容存储。
 
 ## 💖 赞助
 
@@ -61,7 +60,7 @@ Kelivo 不只是聊天。模型可以联网搜索、调用 MCP 服务器、按�
 </tr>
 </table>
 
-如果 Kelivo 对你有帮助，也欢迎通过[微信赞赏](docx/sponsor.jpg)支持项目。
+如果上游 Kelivo 项目对你有帮助，也欢迎通过[微信赞赏](docx/sponsor.jpg)支持它。
 
 ## 📸 截图
 
@@ -76,12 +75,11 @@ Kelivo 不只是聊天。模型可以联网搜索、调用 MCP 服务器、按�
 
 | 平台 | 获取方式 | 安装包 | 系统要求 |
 | --- | --- | --- | --- |
-| iOS / iPadOS | [App Store](https://apps.apple.com/us/app/kelivo/id6752122930) · [TestFlight](https://testflight.apple.com/join/erbGGykR)（测试版） | App Store；[Releases](https://github.com/Chevey339/kelivo/releases/latest) 另提供未签名 IPA | iOS 15.0 及以上 |
-| Android | [GitHub Releases](https://github.com/Chevey339/kelivo/releases/latest) | APK（`arm64-v8a`、`armeabi-v7a`、`x86_64`） | Android 7.0 及以上 |
-| macOS | [GitHub Releases](https://github.com/Chevey339/kelivo/releases/latest) | DMG | macOS 11.0 及以上，支持 Apple 芯片与 Intel |
-| Windows | [GitHub Releases](https://github.com/Chevey339/kelivo/releases/latest) | 安装程序（`setup.exe`）或免安装 ZIP | Windows 10 / 11 |
-| Linux | [GitHub Releases](https://github.com/Chevey339/kelivo/releases/latest) | AppImage、DEB、RPM、tar.gz | x86_64 |
-| HarmonyOS | [kelivo-ohos](https://github.com/Chevey339/kelivo-ohos) | 在独立仓库中维护 | — |
+| iOS / iPadOS | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | 未签名 IPA（需自签） | iOS 15.0 及以上 |
+| Android | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | APK（`arm64-v8a`、`armeabi-v7a`、`x86_64`） | Android 7.0 及以上 |
+| macOS | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | DMG | macOS 11.0 及以上，支持 Apple 芯片与 Intel |
+| Windows | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | 安装程序（`setup.exe`）或免安装 ZIP | Windows 10 / 11 |
+| Linux | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | AppImage、DEB、RPM、tar.gz | x86_64 |
 
 官网的[下载页](https://kelivo.psycheas.top/downloads)提供同样的安装包。
 
@@ -129,7 +127,7 @@ Kelivo 不只是聊天。模型可以联网搜索、调用 MCP 服务器、按�
 
 ### 🔍 搜索、语音与视觉
 
-- **联网搜索**：支持 24 种搜索服务，包括 Bing、DuckDuckGo、SearXNG、Brave、Exa、Tavily、Jina、Perplexity、Serper、Firecrawl、You.com、LinkUp、Parallel、Querit、TinyFish、AnySearch、Grok、Ollama、博查、秘塔、智谱、豆包、阶跃星辰和 Kelivo。多个 API Key 自动轮换，回答附带引用来源。
+- **联网搜索**：支持 24 种搜索服务，包括 Bing、DuckDuckGo、SearXNG、Brave、Exa、Tavily、Jina、Perplexity、Serper、Firecrawl、You.com、LinkUp、Parallel、Querit、TinyFish、AnySearch、Grok、Ollama、博查、秘塔、智谱、豆包和阶跃星辰。多个 API Key 自动轮换，回答附带引用来源。
 - **文本转语音**：系统 TTS，或 OpenAI、Gemini、Azure、ElevenLabs、MiniMax、通义千问、Groq、xAI、MiMo、阶跃星辰和 Fish Audio。
 - **语音识别**：系统识别、离线本地模型，或 OpenAI Realtime、阿里云 DashScope、火山引擎、MiMo、阶跃星辰等云端服务。
 - **多模态输入**：图片、PDF 和 Word 文档、文本与代码文件，以及模型支持时的音频；可以指定视觉模型进行 OCR，图片上传压缩质量可调。
@@ -160,8 +158,8 @@ Kelivo 不只是聊天。模型可以联网搜索、调用 MCP 服务器、按�
 
 ### 🔗 系统集成
 
-- **手机端**：生成可在后台持续进行，并在完成时通知；iOS 支持实时活动，Android 支持实时通知和任务悬浮窗。可以从其他应用分享文本和文件到 Kelivo，Android 上还能通过文本选择菜单直接发送选中的文字。
-- **桌面端**：多栏布局、可自定义的快捷键（包括显示/隐藏 Kelivo 的全局快捷键）、系统托盘、拖拽添加附件，并在重新启动后恢复窗口大小与位置。
+- **手机端**：生成可在后台持续进行，并在完成时通知；iOS 支持实时活动，Android 支持实时通知和任务悬浮窗。可以从其他应用分享文本和文件到 Cuplivo，Android 上还能通过文本选择菜单直接发送选中的文字。
+- **桌面端**：多栏布局、可自定义的快捷键（包括显示/隐藏 Cuplivo 的全局快捷键）、系统托盘、拖拽添加附件，并在重新启动后恢复窗口大小与位置。
 
 ## 📊 平台差异
 
@@ -175,7 +173,7 @@ Kelivo 不只是聊天。模型可以联网搜索、调用 MCP 服务器、按�
 | 访问外部文件夹 | 最多挂载 10 个文件夹 | 最多挂载 10 个文件夹 | 链接任意本地文件夹 |
 | STDIO 类型的 MCP | 在沙盒中运行 | 在沙盒中运行 | 本机运行 |
 | 定时任务 | ✓ | — | ✓ |
-| 后台生成 | 常驻通知、实时通知、任务悬浮窗 | 增强后台运行、实时活动 | Kelivo 运行期间 |
+| 后台生成 | 常驻通知、实时通知、任务悬浮窗 | 增强后台运行、实时活动 | Cuplivo 运行期间 |
 | 平台专属设备工具 | 日历、定位、屏幕使用时间 | 日历、定位、天气、提醒事项、健康数据 | — |
 | 全局快捷键与系统托盘 | — | — | ✓ |
 
@@ -192,8 +190,8 @@ Kelivo 不只是聊天。模型可以联网搜索、调用 MCP 服务器、按�
 - 仅 Android：需要 `python3`、`curl` 和 `tar`。Gradle 构建时会自动下载 PRoot 二进制文件。
 
 ```bash
-git clone https://github.com/Chevey339/kelivo.git
-cd kelivo
+git clone https://github.com/cuplivo/cuplivo.git
+cd cuplivo
 flutter pub get
 flutter run
 ```
@@ -210,26 +208,32 @@ dart analyze --fatal-infos lib test
 flutter test
 ```
 
-- **问题反馈与功能建议**：请使用 [Issue 模板](https://github.com/Chevey339/kelivo/issues/new/choose)。
+- **问题反馈与功能建议**：请使用 [Issue 模板](https://github.com/cuplivo/cuplivo/issues/new/choose)。
 - **界面改动**：遵循 [AGENTS.md](AGENTS.md) 中的 UI 规范，新页面需要分别提供手机端和桌面端布局。
 - **本地化**：文案位于 [`lib/l10n`](lib/l10n)，以 `app_en.arb` 为模板。修改后运行 `flutter gen-l10n`，并一同提交生成的文件。
 - **交流讨论**：欢迎加入 [Discord](https://discord.gg/Tb8DyvvV5T) 或 [QQ 群](https://qm.qq.com/q/OQaXetKssC)。
 
 ## 🙏 致谢
 
+- [Kelivo](https://github.com/Chevey339/kelivo)（作者 Chevey339）—— 本分支所基于的上游项目。
+
 - [RikkaHub](https://github.com/re-ovo/rikkahub)：Kelivo 的界面设计深受其优美而实用的设计启发。
 - [Minis](https://github.com/OpenMinis/OpenMinis)：iOS 端的 Linux 沙盒基于其 [iSH-ARM64](https://github.com/OpenMinis/ish-arm64) 移植构建，工作区的许多设计也参考了 Minis。
 - [iSH](https://github.com/ish-app/ish)：iOS 沙盒所基于的上游 iOS Linux Shell 项目。
 - [PRoot](https://github.com/termux/proot) 与 [Termux](https://termux.dev)：Android Linux 沙盒的基础。
 - [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)：提供离线语音识别。
-- Kelivo 依赖的所有开源软件包，详见 [`pubspec.yaml`](pubspec.yaml)。
+- Cuplivo 依赖的所有开源软件包，详见 [`pubspec.yaml`](pubspec.yaml)。
 
 沙盒组件的完整第三方声明见 [`ios/sandbox/NOTICE`](ios/sandbox/NOTICE) 和 [`android/app/src/main/jniLibs/NOTICE`](android/app/src/main/jniLibs/NOTICE)。
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Chevey339/kelivo&type=Date)](https://star-history.com/#Chevey339/kelivo&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=cuplivo/cuplivo&type=Date)](https://star-history.com/#cuplivo/cuplivo&Date)
+
+## ⚠️ 说明
+
+Cuplivo 是 [Kelivo](https://github.com/Chevey339/kelivo) 的社区分支，基于 Kelivo v1.3.0 重新起线，尚未与原项目完全切割，部分地方可能存在名称混用。社区入口：QQ 群 `1101061750`、[Discord](https://discord.gg/kaTf8CXG4)。
 
 ## 📄 许可证
 
-Kelivo 基于 [GNU Affero General Public License v3.0](LICENSE) 开源。
+Cuplivo 基于 [GNU Affero General Public License v3.0](LICENSE) 开源。

@@ -2,10 +2,10 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:Kelivo/core/models/chat_input_data.dart';
-import 'package:Kelivo/core/services/incoming_share_service.dart';
-import 'package:Kelivo/core/services/chat/document_text_extractor.dart';
-import 'package:Kelivo/utils/upload_dedupe.dart';
+import 'package:Cuplivo/core/models/chat_input_data.dart';
+import 'package:Cuplivo/core/services/incoming_share_service.dart';
+import 'package:Cuplivo/core/services/chat/document_text_extractor.dart';
+import 'package:Cuplivo/utils/upload_dedupe.dart';
 import 'package:archive/archive_io.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:flutter/services.dart';

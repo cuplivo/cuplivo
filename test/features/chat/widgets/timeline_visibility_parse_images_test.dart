@@ -1,5 +1,5 @@
-import 'package:Kelivo/features/chat/widgets/timeline_visibility.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/features/chat/widgets/timeline_visibility.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

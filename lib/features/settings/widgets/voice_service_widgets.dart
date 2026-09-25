@@ -5,8 +5,8 @@ import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/haptics.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../theme/app_font_weights.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 /// Reorders [items] using the index reported by [SliverReorderableList].
 ///
@@ -72,7 +72,7 @@ class VoiceServiceCardSliver extends StatelessWidget {
 /// Shared visual vocabulary for the TTS and ASR halves of Voice Services.
 ///
 /// These controls intentionally mirror the compact settings surfaces already
-/// used by Kelivo instead of introducing stock dropdowns or switches.
+/// used by Cuplivo instead of introducing stock dropdowns or switches.
 class VoiceServiceSectionHeader extends StatelessWidget {
   const VoiceServiceSectionHeader({
     super.key,

@@ -2,7 +2,7 @@ import Flutter
 import Foundation
 
 final class IosIncomingShareHandler {
-  private let queue = DispatchQueue(label: "psyche.kelivo.incoming-share")
+  private let queue = DispatchQueue(label: "com.cup11.cuplivo.incoming-share")
   private var channel: FlutterMethodChannel?
   private let lock = NSLock()
   private var progress: [String: Any]?

@@ -107,11 +107,13 @@ final class KelivoFileUri {
   static const Set<String> _knownBundleIds = {
     'com.psyche.kelivo',
     'psyche.kelivo',
+    'com.cup11.cuplivo',
   };
 
-  /// Windows AppData folder name (Flutter BINARY_NAME). Compared
-  /// case-insensitively as a whole segment — not a substring.
-  static const String _windowsAppFolder = 'kelivo';
+  /// Windows AppData folder names (Flutter BINARY_NAME) for every lineage whose
+  /// legacy paths we still resolve. Compared case-insensitively as a whole
+  /// segment — not a substring.
+  static const Set<String> _windowsAppFolders = {'kelivo', 'cuplivo'};
 
   static final RegExp _iosUuid = RegExp(
     r'^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$',
@@ -121,7 +123,7 @@ final class KelivoFileUri {
   /// kelivo-file URI. Marker order (strict platform sandboxes only):
   /// 1. iOS device `/var/mobile/...` (path-start anchored)
   /// 2. iOS Simulator `/Users/.../CoreSimulator/...` (path-start anchored)
-  /// 3. macOS Kelivo container Documents (exact bundle whitelist)
+  /// 3. macOS Cuplivo container Documents (exact bundle whitelist)
   /// 4. macOS/Linux Application Support / `.local/share` (exact whitelist)
   /// 5. Windows `AppData\Local|Roaming\[com.psyche\]kelivo`
   /// 6. Android package-private app_flutter / files (exact package whitelist)
@@ -166,7 +168,7 @@ final class KelivoFileUri {
       }
     }
 
-    // macOS Kelivo app container Documents (exact bundle id).
+    // macOS Cuplivo app container Documents (exact bundle id).
     if (tail == null) {
       final macContainer = RegExp(
         r'^/Users/[^/]+/Library/Containers/([^/]+)/Data/Documents/',
@@ -180,7 +182,7 @@ final class KelivoFileUri {
       }
     }
 
-    // macOS/Linux Application Support / .local/share Kelivo root.
+    // macOS/Linux Application Support / .local/share Cuplivo root.
     if (tail == null) {
       final support = RegExp(
         r'^/(?:Users/[^/]+/Library/Application Support|'
@@ -192,15 +194,17 @@ final class KelivoFileUri {
       }
     }
 
-    // Windows: C:/Users/<user>/AppData/Local|Roaming/[com.psyche/]<Kelivo>/...
-    // Folder name must equal "kelivo" case-insensitively (not KelivoNotes).
+    // Windows: C:/Users/<user>/AppData/Local|Roaming/[com.<vendor>/]<folder>/...
+    // Folder name must equal "kelivo"/"cuplivo" case-insensitively (not
+    // CuplivoNotes).
     if (tail == null) {
       final win = RegExp(
         r'^[A-Za-z]:/Users/[^/]+/AppData/(?:Local|Roaming)/'
-        r'(?:com\.psyche/)?([^/]+)/',
+        r'(?:com\.(?:psyche|cup11|cuplivo)/)?([^/]+)/',
         caseSensitive: false,
       ).firstMatch(raw);
-      if (win != null && win.group(1)!.toLowerCase() == _windowsAppFolder) {
+      if (win != null &&
+          _windowsAppFolders.contains(win.group(1)!.toLowerCase())) {
         tail = _normalizeManagedTail('/${raw.substring(win.end)}', subdirs);
       }
     }

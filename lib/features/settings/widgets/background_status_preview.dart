@@ -185,7 +185,7 @@ Widget backgroundCapsulePreview() => const MaterialApp(
   home: Scaffold(
     body: Center(
       child: BackgroundStatusPreview(
-        title: 'Kelivo task',
+        title: 'Cuplivo task',
         detail: 'Generating reply',
         artwork: Text('🐱', style: TextStyle(fontSize: 32)),
       ),
@@ -198,7 +198,7 @@ Widget backgroundCirclePreview() => const MaterialApp(
   home: Scaffold(
     body: Center(
       child: BackgroundStatusPreview(
-        title: 'Kelivo task',
+        title: 'Cuplivo task',
         detail: 'Generating reply',
         appearance: BackgroundOverlayAppearance.circle,
         artwork: Text('🐱', style: TextStyle(fontSize: 32)),

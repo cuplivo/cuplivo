@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
 
 /// Test double that records [CommandRequest]s and either replays scripted
 /// [CommandEvent]s or runs a real `/bin/sh -c` process on macOS/Linux.

@@ -403,7 +403,7 @@ abstract class AppLocalizations {
   /// No description provided for @storageSpaceClearDisplacedDatabasesConfirmMessage.
   ///
   /// In en, this message translates to:
-  /// **'Delete these set-aside databases? Kelivo kept them when it rebuilt its database, and they may be the only surviving copy of those chats and settings. This cannot be undone.'**
+  /// **'Delete these set-aside databases? Cuplivo kept them when it rebuilt its database, and they may be the only surviving copy of those chats and settings. This cannot be undone.'**
   String get storageSpaceClearDisplacedDatabasesConfirmMessage;
 
   /// No description provided for @storageSpaceRestoreTracesHint.
@@ -3061,19 +3061,19 @@ abstract class AppLocalizations {
   /// No description provided for @backupPageRestartContent.
   ///
   /// In en, this message translates to:
-  /// **'Import successful. Restart Kelivo to apply it safely.'**
+  /// **'Import successful. Restart Cuplivo to apply it safely.'**
   String get backupPageRestartContent;
 
   /// No description provided for @backupPageRestartContentWithSkipped.
   ///
   /// In en, this message translates to:
-  /// **'Import completed, but {count} conversations with invalid message ordering were skipped. Restart Kelivo to apply the imported data safely.'**
+  /// **'Import completed, but {count} conversations with invalid message ordering were skipped. Restart Cuplivo to apply the imported data safely.'**
   String backupPageRestartContentWithSkipped(int count);
 
   /// No description provided for @restartAppFailedMessage.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo could not restart automatically. Fully close it, then open it again.'**
+  /// **'Cuplivo could not restart automatically. Fully close it, then open it again.'**
   String get restartAppFailedMessage;
 
   /// No description provided for @backupRestoreRolledBackTitle.
@@ -3085,7 +3085,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupRestoreRolledBackContent.
   ///
   /// In en, this message translates to:
-  /// **'The restore could not be completed. Kelivo verified and kept your previous data.'**
+  /// **'The restore could not be completed. Cuplivo verified and kept your previous data.'**
   String get backupRestoreRolledBackContent;
 
   /// No description provided for @backupRestoreFailureTitle.
@@ -3097,19 +3097,19 @@ abstract class AppLocalizations {
   /// No description provided for @backupRestoreFailureContent.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo could not verify a complete old or new data set, so chat data was not opened. Close Kelivo and try again. If this repeats, keep the diagnostic code for support.'**
+  /// **'Cuplivo could not verify a complete old or new data set, so chat data was not opened. Close Cuplivo and try again. If this repeats, keep the diagnostic code for support.'**
   String get backupRestoreFailureContent;
 
   /// No description provided for @backupRestoreBusinessLeaseUnavailableTitle.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo is already running'**
+  /// **'Cuplivo is already running'**
   String get backupRestoreBusinessLeaseUnavailableTitle;
 
   /// No description provided for @backupRestoreBusinessLeaseUnavailableContent.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo\'s data is still in use by another app process. Close any other Kelivo window, then restart. Your chat data has not been opened by this process.'**
+  /// **'Cuplivo\'s data is still in use by another app process. Close any other Cuplivo window, then restart. Your chat data has not been opened by this process.'**
   String get backupRestoreBusinessLeaseUnavailableContent;
 
   /// No description provided for @restoreProgressTitle.
@@ -3121,7 +3121,7 @@ abstract class AppLocalizations {
   /// No description provided for @restoreProgressWarning.
   ///
   /// In en, this message translates to:
-  /// **'Keep Kelivo open until this finishes. If you close it now, the next launch starts this over.'**
+  /// **'Keep Cuplivo open until this finishes. If you close it now, the next launch starts this over.'**
   String get restoreProgressWarning;
 
   /// No description provided for @restoreProgressStageCheckingBackup.
@@ -3163,7 +3163,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupRestoreFailureRestartButton.
   ///
   /// In en, this message translates to:
-  /// **'Restart Kelivo'**
+  /// **'Restart Cuplivo'**
   String get backupRestoreFailureRestartButton;
 
   /// No description provided for @backupRestoreFailureCopyButton.
@@ -3235,7 +3235,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoveryResetFailed.
   ///
   /// In en, this message translates to:
-  /// **'Reset failed. Fully close Kelivo, then open it again.'**
+  /// **'Reset failed. Fully close Cuplivo, then open it again.'**
   String get startupRecoveryResetFailed;
 
   /// No description provided for @startupRecoveryResetDialogTitle.
@@ -3247,7 +3247,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoveryResetDialogContent.
   ///
   /// In en, this message translates to:
-  /// **'This permanently deletes Kelivo\'s database on this device and starts fresh. If you might need this data, export a copy first. This cannot be undone.'**
+  /// **'This permanently deletes Cuplivo\'s database on this device and starts fresh. If you might need this data, export a copy first. This cannot be undone.'**
   String get startupRecoveryResetDialogContent;
 
   /// No description provided for @startupRecoveryResetDialogConfirm.
@@ -3445,7 +3445,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoveryDangerBody.
   ///
   /// In en, this message translates to:
-  /// **'Resetting permanently deletes Kelivo\'s database on this device. Export a copy of your data first — a reset also destroys the evidence needed to fix the underlying problem.'**
+  /// **'Resetting permanently deletes Cuplivo\'s database on this device. Export a copy of your data first — a reset also destroys the evidence needed to fix the underlying problem.'**
   String get startupRecoveryDangerBody;
 
   /// No description provided for @startupRecoveryResetAcknowledge.
@@ -3457,13 +3457,13 @@ abstract class AppLocalizations {
   /// No description provided for @startupDatabaseUpdateRequiredTitle.
   ///
   /// In en, this message translates to:
-  /// **'Update Kelivo to continue'**
+  /// **'Update Cuplivo to continue'**
   String get startupDatabaseUpdateRequiredTitle;
 
   /// No description provided for @startupDatabaseUpdateRequiredContent.
   ///
   /// In en, this message translates to:
-  /// **'The chat database on this device was created by a newer version of Kelivo and cannot be opened by this version. Your data has not been changed. Install the latest version of Kelivo, then open it again.'**
+  /// **'The chat database on this device was created by a newer version of Cuplivo and cannot be opened by this version. Your data has not been changed. Install the latest version of Cuplivo, then open it again.'**
   String get startupDatabaseUpdateRequiredContent;
 
   /// No description provided for @startupDatabaseUpdateRequiredDowngradeTitle.
@@ -3481,7 +3481,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupDatabaseUpdateRequiredDowngradeStep1.
   ///
   /// In en, this message translates to:
-  /// **'Install and open the latest Kelivo, then export a backup from Settings → Backup.'**
+  /// **'Install and open the latest Cuplivo, then export a backup from Settings → Backup.'**
   String get startupDatabaseUpdateRequiredDowngradeStep1;
 
   /// No description provided for @startupDatabaseUpdateRequiredDowngradeStep2.
@@ -3577,7 +3577,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupPageForwardCompatBody.
   ///
   /// In en, this message translates to:
-  /// **'This backup was created by a newer version of Kelivo (data format {backupVersion}; this version supports {currentVersion}), and it does not say whether older versions can read it.\n\nYou can continue: anything this version does not recognise will be skipped, and the backup file itself is not modified. But if the newer version changed how existing data is stored, some content may be imported incorrectly.\n\nUpdating Kelivo first is the safer choice.'**
+  /// **'This backup was created by a newer version of Cuplivo (data format {backupVersion}; this version supports {currentVersion}), and it does not say whether older versions can read it.\n\nYou can continue: anything this version does not recognise will be skipped, and the backup file itself is not modified. But if the newer version changed how existing data is stored, some content may be imported incorrectly.\n\nUpdating Cuplivo first is the safer choice.'**
   String backupPageForwardCompatBody(int backupVersion, int currentVersion);
 
   /// No description provided for @backupPageForwardCompatContinue.
@@ -3595,7 +3595,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupPageSchemaTooNewMessage.
   ///
   /// In en, this message translates to:
-  /// **'This backup was created by a newer version of Kelivo and cannot be read by this version. Please update Kelivo and try again.'**
+  /// **'This backup was created by a newer version of Cuplivo and cannot be read by this version. Please update Cuplivo and try again.'**
   String get backupPageSchemaTooNewMessage;
 
   /// No description provided for @backupPageBackupUploaded.
@@ -3925,7 +3925,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupPageCherryStudioUnsupportedBackupVersion.
   ///
   /// In en, this message translates to:
-  /// **'This backup uses Cherry Studio format version {version}, which Kelivo cannot import yet. Export from Cherry Studio v1 instead, or wait for a Kelivo update that supports Cherry Studio v2 backups.'**
+  /// **'This backup uses Cherry Studio format version {version}, which Cuplivo cannot import yet. Export from Cherry Studio v1 instead, or wait for a Cuplivo update that supports Cherry Studio v2 backups.'**
   String backupPageCherryStudioUnsupportedBackupVersion(String version);
 
   /// No description provided for @backupPageImportFromChatbox.
@@ -8215,22 +8215,22 @@ abstract class AppLocalizations {
   /// **'Nice!'**
   String get aboutPageEasterEggButton;
 
-  /// No description provided for @aboutPageKelivoSearchUnlocked.
+  /// No description provided for @aboutPageCuplivoSearchUnlocked.
   ///
   /// In en, this message translates to:
   /// **'An unnamed door opened a crack. You might find it in Settings.'**
-  String get aboutPageKelivoSearchUnlocked;
+  String get aboutPageCuplivoSearchUnlocked;
 
-  /// No description provided for @aboutPageKelivoSearchAlreadyUnlocked.
+  /// No description provided for @aboutPageCuplivoSearchAlreadyUnlocked.
   ///
   /// In en, this message translates to:
   /// **'You\'ve already been through this door.'**
-  String get aboutPageKelivoSearchAlreadyUnlocked;
+  String get aboutPageCuplivoSearchAlreadyUnlocked;
 
   /// No description provided for @aboutPageAppName.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo'**
+  /// **'Cuplivo'**
   String get aboutPageAppName;
 
   /// No description provided for @aboutPageAppDescription.
@@ -8335,23 +8335,11 @@ abstract class AppLocalizations {
   /// **'Join our QQ Group'**
   String get aboutPageJoinQQGroup;
 
-  /// No description provided for @aboutPageQQGroupOne.
+  /// No description provided for @aboutPageQQGroup.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo Group 1'**
-  String get aboutPageQQGroupOne;
-
-  /// No description provided for @aboutPageQQGroupTwo.
-  ///
-  /// In en, this message translates to:
-  /// **'Kelivo Group 2'**
-  String get aboutPageQQGroupTwo;
-
-  /// No description provided for @aboutPageQQGroupThree.
-  ///
-  /// In en, this message translates to:
-  /// **'Kelivo Group 3'**
-  String get aboutPageQQGroupThree;
+  /// **'Cuplivo Group'**
+  String get aboutPageQQGroup;
 
   /// No description provided for @aboutPageJoinDiscord.
   ///
@@ -10240,7 +10228,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsShare.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo - Open Source AI Assistant'**
+  /// **'Cuplivo - Open Source AI Assistant'**
   String get settingsShare;
 
   /// No description provided for @searchProviderBingLocalDescription.
@@ -10591,11 +10579,11 @@ abstract class AppLocalizations {
   /// **'Maximum tokens must be between 1024 and 32768.'**
   String get searchServicesDialogMaximumTokensInvalid;
 
-  /// No description provided for @searchServiceNameKelivo.
+  /// No description provided for @searchServiceNameCuplivo.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo'**
-  String get searchServiceNameKelivo;
+  /// **'Cuplivo'**
+  String get searchServiceNameCuplivo;
 
   /// No description provided for @searchServicesDialogCountryOptional.
   ///
@@ -11116,7 +11104,7 @@ abstract class AppLocalizations {
   /// No description provided for @healthDataSettingsDescription.
   ///
   /// In en, this message translates to:
-  /// **'HealthKit signals available to the current assistant in daily conversation. Switches control what Kelivo may try to read; iOS still manages actual Health access.'**
+  /// **'HealthKit signals available to the current assistant in daily conversation. Switches control what Cuplivo may try to read; iOS still manages actual Health access.'**
   String get healthDataSettingsDescription;
 
   /// No description provided for @healthDataSettingsBadge.
@@ -13546,7 +13534,7 @@ abstract class AppLocalizations {
   /// No description provided for @legacyMemoryExportTitle.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo legacy memory export'**
+  /// **'Cuplivo legacy memory export'**
   String get legacyMemoryExportTitle;
 
   /// No description provided for @legacyMemoryAssistantHeader.
@@ -14572,13 +14560,13 @@ abstract class AppLocalizations {
   /// No description provided for @migrationIntroSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo is moving chat history to a faster SQLite database. The upgrade runs before the app opens so your data stays consistent.'**
+  /// **'Cuplivo is moving chat history to a faster SQLite database. The upgrade runs before the app opens so your data stays consistent.'**
   String get migrationIntroSubtitle;
 
   /// No description provided for @migrationBackupNote.
   ///
   /// In en, this message translates to:
-  /// **'Before migration starts, Kelivo exports a ZIP backup with settings, chat history, and local files.'**
+  /// **'Before migration starts, Cuplivo exports a ZIP backup with settings, chat history, and local files.'**
   String get migrationBackupNote;
 
   /// No description provided for @migrationPerformanceNote.
@@ -14650,7 +14638,7 @@ abstract class AppLocalizations {
   /// No description provided for @migrationBackingUpSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Exporting settings, chat history, uploaded files, images, and fonts. Keep Kelivo open until this finishes.'**
+  /// **'Exporting settings, chat history, uploaded files, images, and fonts. Keep Cuplivo open until this finishes.'**
   String get migrationBackingUpSubtitle;
 
   /// No description provided for @migrationMigratingTitle.
@@ -14662,7 +14650,7 @@ abstract class AppLocalizations {
   /// No description provided for @migrationMigratingSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Writing conversations and messages in batches so large histories do not overload memory. Keep Kelivo in the foreground until migration finishes.'**
+  /// **'Writing conversations and messages in batches so large histories do not overload memory. Keep Cuplivo in the foreground until migration finishes.'**
   String get migrationMigratingSubtitle;
 
   /// No description provided for @migrationBackingUpDetail.
@@ -14770,7 +14758,7 @@ abstract class AppLocalizations {
   /// No description provided for @migrationCompleteSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Your chat history is now stored in SQLite. Restart Kelivo to enter the upgraded app.'**
+  /// **'Your chat history is now stored in SQLite. Restart Cuplivo to enter the upgraded app.'**
   String get migrationCompleteSubtitle;
 
   /// No description provided for @migrationConversationCount.
@@ -14806,7 +14794,7 @@ abstract class AppLocalizations {
   /// No description provided for @migrationRestartButton.
   ///
   /// In en, this message translates to:
-  /// **'Restart Kelivo'**
+  /// **'Restart Cuplivo'**
   String get migrationRestartButton;
 
   /// No description provided for @migrationFailedTitle.
@@ -14854,7 +14842,7 @@ abstract class AppLocalizations {
   /// No description provided for @migrationSkipDialogMessage.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo will start with an empty chat database. Your old chat history stays on disk (renamed with a .retired suffix) but will NOT be migrated and will not appear in the app. Use your backup ZIP if you need to recover it later.'**
+  /// **'Cuplivo will start with an empty chat database. Your old chat history stays on disk (renamed with a .retired suffix) but will NOT be migrated and will not appear in the app. Use your backup ZIP if you need to recover it later.'**
   String get migrationSkipDialogMessage;
 
   /// No description provided for @migrationSkipDialogCancel.
@@ -15634,7 +15622,7 @@ abstract class AppLocalizations {
   /// No description provided for @localSnapshotEnabledSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo periodically saves a copy of its database on this device, so it is never the only one.'**
+  /// **'Cuplivo periodically saves a copy of its database on this device, so it is never the only one.'**
   String get localSnapshotEnabledSubtitle;
 
   /// No description provided for @localSnapshotIntervalTitle.
@@ -15790,7 +15778,7 @@ abstract class AppLocalizations {
   /// No description provided for @localSnapshotCopiesScopeNote.
   ///
   /// In en, this message translates to:
-  /// **'Local copies live on this device only. They protect against damage to your data inside the app, not against losing the device or uninstalling Kelivo — use WebDAV or S3 backup for that.'**
+  /// **'Local copies live on this device only. They protect against damage to your data inside the app, not against losing the device or uninstalling Cuplivo — use WebDAV or S3 backup for that.'**
   String get localSnapshotCopiesScopeNote;
 
   /// No description provided for @localSnapshotOriginAutomatic.
@@ -17026,7 +17014,7 @@ abstract class AppLocalizations {
   /// No description provided for @workspaceEnvRestartBanner.
   ///
   /// In en, this message translates to:
-  /// **'Restart Kelivo to finish'**
+  /// **'Restart Cuplivo to finish'**
   String get workspaceEnvRestartBanner;
 
   /// No description provided for @workspaceEnvDetectingMirrors.
@@ -17194,7 +17182,7 @@ abstract class AppLocalizations {
   /// No description provided for @workspaceEnvNativeExplanation.
   ///
   /// In en, this message translates to:
-  /// **'On desktop, Kelivo uses your system shell instead of a Linux sandbox.'**
+  /// **'On desktop, Cuplivo uses your system shell instead of a Linux sandbox.'**
   String get workspaceEnvNativeExplanation;
 
   /// No description provided for @workspaceEnvNativeShellPath.
@@ -18870,7 +18858,7 @@ abstract class AppLocalizations {
   /// No description provided for @workspaceDesktopManagedHint.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo creates and manages a folder for this project.'**
+  /// **'Cuplivo creates and manages a folder for this project.'**
   String get workspaceDesktopManagedHint;
 
   /// No description provided for @workspaceDesktopHostHint.
@@ -19308,7 +19296,7 @@ abstract class AppLocalizations {
   /// No description provided for @workspaceExternalStorageMessage.
   ///
   /// In en, this message translates to:
-  /// **'To read and write external folders in the workspace and Shell, allow Kelivo to manage files in Android settings. On Android 11 or later, enable All files access. Then select an on-device folder to mount.'**
+  /// **'To read and write external folders in the workspace and Shell, allow Cuplivo to manage files in Android settings. On Android 11 or later, enable All files access. Then select an on-device folder to mount.'**
   String get workspaceExternalStorageMessage;
 
   /// No description provided for @workspaceExternalGrantAccess.
@@ -19740,7 +19728,7 @@ abstract class AppLocalizations {
   /// No description provided for @backgroundTaskTitle.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo task'**
+  /// **'Cuplivo task'**
   String get backgroundTaskTitle;
 
   /// No description provided for @backgroundCompleted.
@@ -19986,7 +19974,7 @@ abstract class AppLocalizations {
   /// No description provided for @backgroundIconDefault.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo icon'**
+  /// **'Cuplivo icon'**
   String get backgroundIconDefault;
 
   /// No description provided for @backgroundIconImage.
@@ -20394,7 +20382,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoverySnapshotBody.
   ///
   /// In en, this message translates to:
-  /// **'Choose a snapshot on this device to recover your chats and settings, even when the database cannot open. Do not uninstall Kelivo: uninstalling also removes these snapshots.'**
+  /// **'Choose a snapshot on this device to recover your chats and settings, even when the database cannot open. Do not uninstall Cuplivo: uninstalling also removes these snapshots.'**
   String get startupRecoverySnapshotBody;
 
   /// No description provided for @startupRecoverySnapshotEmpty.
@@ -20412,7 +20400,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoverySnapshotConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Restore chats and settings from {when}? Changes made after this snapshot will not be included. Existing attachment files and the snapshot will be kept. Kelivo will restart to complete the restore.'**
+  /// **'Restore chats and settings from {when}? Changes made after this snapshot will not be included. Existing attachment files and the snapshot will be kept. Cuplivo will restart to complete the restore.'**
   String startupRecoverySnapshotConfirm(String when);
 
   /// No description provided for @startupRecoverySnapshotFailed.
@@ -20424,7 +20412,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoverySnapshotReady.
   ///
   /// In en, this message translates to:
-  /// **'The snapshot is ready. Restart Kelivo to complete the restore.'**
+  /// **'The snapshot is ready. Restart Cuplivo to complete the restore.'**
   String get startupRecoverySnapshotReady;
 
   /// No description provided for @scheduledTasksTitle.
@@ -20562,7 +20550,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksReliability.
   ///
   /// In en, this message translates to:
-  /// **'Keep Kelivo unrestricted in battery settings for more reliable execution. Force stopping the app cancels alarms until you reopen it. Missed runs are skipped; tasks follow the device time zone.'**
+  /// **'Keep Cuplivo unrestricted in battery settings for more reliable execution. Force stopping the app cancels alarms until you reopen it. Missed runs are skipped; tasks follow the device time zone.'**
   String get scheduledTasksReliability;
 
   /// No description provided for @scheduledTasksExecutionDetail.
@@ -20904,7 +20892,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksDesktopReliability.
   ///
   /// In en, this message translates to:
-  /// **'Tasks run only while Kelivo is running, including when minimized or in the system tray. Missed times are skipped after quitting or computer sleep. Kelivo will not start automatically.'**
+  /// **'Tasks run only while Cuplivo is running, including when minimized or in the system tray. Missed times are skipped after quitting or computer sleep. Cuplivo will not start automatically.'**
   String get scheduledTasksDesktopReliability;
 
   /// No description provided for @scheduledTasksDesktopExecutionDetail.
@@ -21438,7 +21426,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksIOSDetail.
   ///
   /// In en, this message translates to:
-  /// **'iOS background limits prevent Kelivo from waking at a set time to run a model. Instead, content is prepared while the app can run, and the system shows a notification at the scheduled time. Only the next occurrence is prepared. Preparation may not finish after leaving the app; reopen Kelivo to prepare subsequent occurrences.'**
+  /// **'iOS background limits prevent Cuplivo from waking at a set time to run a model. Instead, content is prepared while the app can run, and the system shows a notification at the scheduled time. Only the next occurrence is prepared. Preparation may not finish after leaving the app; reopen Cuplivo to prepare subsequent occurrences.'**
   String get scheduledTasksIOSDetail;
 
   /// No description provided for @scheduledTasksContextPolicy.
@@ -21564,7 +21552,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksReminderBody.
   ///
   /// In en, this message translates to:
-  /// **'Your scheduled task is due. Open Kelivo to continue.'**
+  /// **'Your scheduled task is due. Open Cuplivo to continue.'**
   String get scheduledTasksReminderBody;
 
   /// No description provided for @scheduledTasksResultBody.
@@ -21588,7 +21576,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksAllowPreparationTip.
   ///
   /// In en, this message translates to:
-  /// **'Generate the next result before its scheduled time, while Kelivo can run. The result stays out of the chat until it is due. Preparation uses text only, without tools, attachments or custom request bodies. It may incur model charges.'**
+  /// **'Generate the next result before its scheduled time, while Cuplivo can run. The result stays out of the chat until it is due. Preparation uses text only, without tools, attachments or custom request bodies. It may incur model charges.'**
   String get scheduledTasksAllowPreparationTip;
 
   /// No description provided for @scheduledTasksContextPolicyTip.
@@ -21600,7 +21588,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksPreparationWindowTip.
   ///
   /// In en, this message translates to:
-  /// **'How far ahead of the scheduled time preparation may begin, up to 24 hours. For example, opening Kelivo at noon can prepare the next morning’s reminder. A larger window gives more chances to prepare, but the result may be less current. It does not change the scheduled time or guarantee background execution. Prepare now bypasses this automatic waiting period and all attempt limits.'**
+  /// **'How far ahead of the scheduled time preparation may begin, up to 24 hours. For example, opening Cuplivo at noon can prepare the next morning’s reminder. A larger window gives more chances to prepare, but the result may be less current. It does not change the scheduled time or guarantee background execution. Prepare now bypasses this automatic waiting period and all attempt limits.'**
   String get scheduledTasksPreparationWindowTip;
 
   /// No description provided for @scheduledTasksPreparationAttemptsTip.
@@ -21618,7 +21606,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksUnavailableTip.
   ///
   /// In en, this message translates to:
-  /// **'If no prepared result is available and the task cannot run when due, send a reminder or skip the occurrence. A reminder contains no generated answer and requires notifications to be enabled. If Kelivo is open when the task is due, it can run the task then.'**
+  /// **'If no prepared result is available and the task cannot run when due, send a reminder or skip the occurrence. A reminder contains no generated answer and requires notifications to be enabled. If Cuplivo is open when the task is due, it can run the task then.'**
   String get scheduledTasksUnavailableTip;
 
   /// No description provided for @scheduledTasksNotifyTip.
@@ -21921,7 +21909,7 @@ abstract class AppLocalizations {
   /// No description provided for @phoneControlAssistantHint.
   ///
   /// In en, this message translates to:
-  /// **'Both permissions are required: enable Kelivo phone control in system Accessibility settings, then enable Phone Control under your assistant’s Local Tools (also available in the chat tools menu). Each assistant is configured separately. Keep the phone unlocked while running a task.'**
+  /// **'Both permissions are required: enable Cuplivo phone control in system Accessibility settings, then enable Phone Control under your assistant’s Local Tools (also available in the chat tools menu). Each assistant is configured separately. Keep the phone unlocked while running a task.'**
   String get phoneControlAssistantHint;
 
   /// No description provided for @phoneControlRestrictedTitle.
@@ -21933,7 +21921,7 @@ abstract class AppLocalizations {
   /// No description provided for @phoneControlRestrictedHint.
   ///
   /// In en, this message translates to:
-  /// **'For some downloaded APKs, Android requires “Allow restricted settings” in the app info menu first. Tap to open Kelivo’s app info, then return to Accessibility settings.'**
+  /// **'For some downloaded APKs, Android requires “Allow restricted settings” in the app info menu first. Tap to open Cuplivo’s app info, then return to Accessibility settings.'**
   String get phoneControlRestrictedHint;
 
   /// No description provided for @phoneControlEnableAssistant.

@@ -557,7 +557,7 @@ class ToolHandlerService {
                   FlutterErrorDetails(
                     exception: error,
                     stack: stack,
-                    library: 'Kelivo local tools',
+                    library: 'Cuplivo local tools',
                     context: ErrorDescription('while playing text-to-speech'),
                   ),
                 );

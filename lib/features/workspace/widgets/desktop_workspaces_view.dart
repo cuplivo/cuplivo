@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import 'package:Kelivo/core/models/workspace.dart';
-import 'package:Kelivo/features/workspace/pages/workspace_files_desktop_layout.dart';
-import 'package:Kelivo/features/workspace/pages/workspaces_page.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/workspace.dart';
+import 'package:Cuplivo/features/workspace/pages/workspace_files_desktop_layout.dart';
+import 'package:Cuplivo/features/workspace/pages/workspaces_page.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'desktop_workspace_text_field.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 import 'desktop_workspace_button.dart';
 

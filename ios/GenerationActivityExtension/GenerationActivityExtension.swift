@@ -82,7 +82,7 @@ private func symbol(_ state: KelivoGenerationActivityAttributes.ContentState, st
 
 private func conversationURL(_ id: String) -> URL? {
   var components = URLComponents()
-  components.scheme = "kelivo"
+  components.scheme = "cuplivo"
   components.host = "conversation"
   components.path = "/\(id)"
   return components.url

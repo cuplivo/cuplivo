@@ -24,7 +24,7 @@ import '../widgets/provider_avatar.dart';
 import '../widgets/provider_group_select_sheet.dart';
 import '../../../utils/provider_grouping_logic.dart';
 import '../../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class ProvidersPage extends StatefulWidget {
   const ProvidersPage({super.key});
@@ -475,7 +475,6 @@ class _ProvidersPageState extends State<ProvidersPage> {
     ),
     _p('Gemini', 'Gemini', enabled: true, models: 0),
     _p('OpenRouter', 'OpenRouter', enabled: true, models: 0),
-    _p('KelivoIN', 'KelivoIN', enabled: true, models: 0),
     _p('Tensdaq', 'Tensdaq', enabled: false, models: 0),
     _p('DeepSeek', 'DeepSeek', enabled: false, models: 0),
     _p('AIhubmix', 'AIhubmix', enabled: false, models: 0),

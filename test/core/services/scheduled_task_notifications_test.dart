@@ -1,9 +1,9 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/scheduled_task.dart';
-import 'package:Kelivo/core/models/scheduled_task_payload.dart';
-import 'package:Kelivo/core/services/notification_service.dart';
-import 'package:Kelivo/core/services/scheduled_task_notifications.dart';
+import 'package:Cuplivo/core/models/scheduled_task.dart';
+import 'package:Cuplivo/core/models/scheduled_task_payload.dart';
+import 'package:Cuplivo/core/services/notification_service.dart';
+import 'package:Cuplivo/core/services/scheduled_task_notifications.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

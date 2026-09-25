@@ -6,8 +6,8 @@ import 'dart:isolate';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:Kelivo/core/services/backup/restore_business_lease.dart';
-import 'package:Kelivo/core/services/backup/restore_durability.dart';
+import 'package:Cuplivo/core/services/backup/restore_business_lease.dart';
+import 'package:Cuplivo/core/services/backup/restore_durability.dart';
 
 final class _FailingOwnerDurability implements RestoreDurability {
   _FailingOwnerDurability(this.delegate);
@@ -510,7 +510,7 @@ final class _FakeOwnerProbe {
 const _helperSource = r'''
 import 'dart:io';
 
-import 'package:Kelivo/core/services/backup/restore_business_lease.dart';
+import 'package:Cuplivo/core/services/backup/restore_business_lease.dart';
 
 Future<void> main(List<String> arguments) async {
   final lease = await RestoreBusinessLease.acquire(

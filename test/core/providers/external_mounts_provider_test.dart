@@ -4,11 +4,11 @@ import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/extension_entity_store.dart';
-import 'package:Kelivo/core/models/workspace_directory_access.dart';
-import 'package:Kelivo/core/providers/external_mounts_provider.dart';
-import 'package:Kelivo/core/services/sandbox/workspace_channel.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/models/workspace_directory_access.dart';
+import 'package:Cuplivo/core/providers/external_mounts_provider.dart';
+import 'package:Cuplivo/core/services/sandbox/workspace_channel.dart';
 import '../services/sandbox/sandbox_channel_harness.dart';
 
 void main() {

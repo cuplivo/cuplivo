@@ -35,7 +35,7 @@ import '../../../shared/widgets/snackbar.dart';
 import '../../../utils/app_directories.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import '../../../desktop/desktop_context_menu.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 class ChatInputBarController {
   final shareImport = ValueNotifier<ShareImportProgress?>(null);

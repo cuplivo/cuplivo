@@ -9,7 +9,7 @@ import '../../shared/widgets/snackbar.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 Future<void> showDesktopMcpJsonEditDialog(BuildContext context) async {
   await showDialog<void>(

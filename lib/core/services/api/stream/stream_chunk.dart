@@ -114,7 +114,7 @@ final class ToolCallEnd extends StreamChunk {
   final String id;
 }
 
-/// Local (Kelivo-executed) tool result.
+/// Local (Cuplivo-executed) tool result.
 ///
 /// Fills the matching [ToolCallPart] `content` without marking the part as a
 /// provider-hosted server tool. Provider-hosted search / code execution keep

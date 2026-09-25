@@ -9,7 +9,7 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_font_weights.dart';
 import 'custom_bottom_sheet.dart';
 import 'ios_tactile.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class _QQGroupEntry {
   const _QQGroupEntry({required this.name, required this.joinUrl});
@@ -20,16 +20,8 @@ class _QQGroupEntry {
 
 List<_QQGroupEntry> _groups(AppLocalizations l10n) => <_QQGroupEntry>[
   _QQGroupEntry(
-    name: l10n.aboutPageQQGroupOne,
-    joinUrl: 'https://qm.qq.com/q/OQaXetKssC',
-  ),
-  _QQGroupEntry(
-    name: l10n.aboutPageQQGroupTwo,
-    joinUrl: 'https://qm.qq.com/q/7t6VEqSXhm',
-  ),
-  _QQGroupEntry(
-    name: l10n.aboutPageQQGroupThree,
-    joinUrl: 'https://qm.qq.com/q/ebEJBgvDMs',
+    name: l10n.aboutPageQQGroup,
+    joinUrl: 'https://qm.qq.com/q/9Rnnf7XyNO',
   ),
 ];
 

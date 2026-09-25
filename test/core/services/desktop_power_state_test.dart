@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/services/desktop_power_state.dart';
+import 'package:Cuplivo/core/services/desktop_power_state.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

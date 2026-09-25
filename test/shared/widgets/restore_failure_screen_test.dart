@@ -7,11 +7,11 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
-import 'package:Kelivo/theme/palettes.dart';
-import 'package:Kelivo/core/services/backup/local_snapshot_schedule.dart';
-import 'package:Kelivo/shared/widgets/restore_failure_screen.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
+import 'package:Cuplivo/theme/palettes.dart';
+import 'package:Cuplivo/core/services/backup/local_snapshot_schedule.dart';
+import 'package:Cuplivo/shared/widgets/restore_failure_screen.dart';
 
 /// Stands in for the platform channel, which never answers under `flutter
 /// test` and would otherwise leave a pending timeout timer behind.

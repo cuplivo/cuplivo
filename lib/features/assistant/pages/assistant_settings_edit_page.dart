@@ -68,8 +68,8 @@ import 'assistant_settings_edit_skills_tab.dart';
 import '../widgets/assistant_default_workspace_row.dart';
 import 'health_data_settings_page.dart';
 import '../../settings/pages/phone_control_settings_page.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 
 part 'assistant_settings_edit_basic_tab.dart';
 part '../widgets/assistant_gradient_settings.dart';

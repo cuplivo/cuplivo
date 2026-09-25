@@ -1,14 +1,14 @@
-import 'package:Kelivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:provider/provider.dart';
 import '../../../support/business_test_harness.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/workspace/workspace_tool_metadata.dart';
-import 'package:Kelivo/core/services/workspace/file_link_resolver.dart';
-import 'package:Kelivo/features/chat/widgets/produced_files_row.dart';
-import 'package:Kelivo/features/chat/widgets/workspace_tool_ui.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_tool_metadata.dart';
+import 'package:Cuplivo/core/services/workspace/file_link_resolver.dart';
+import 'package:Cuplivo/features/chat/widgets/produced_files_row.dart';
+import 'package:Cuplivo/features/chat/widgets/workspace_tool_ui.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 WorkspaceToolPart _write({required List<String> links, List<String>? files}) {
   return WorkspaceToolPart(

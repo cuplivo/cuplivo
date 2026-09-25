@@ -5,7 +5,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/workspace/output_buffer.dart';
+import 'package:Cuplivo/core/services/workspace/output_buffer.dart';
 
 void main() {
   group('BoundedStreamBuffer', () {

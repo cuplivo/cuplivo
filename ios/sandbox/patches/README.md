@@ -1,4 +1,4 @@
-# iSH patches (Kelivo)
+# iSH patches (Cuplivo)
 
 Applied by `build_ish.sh` after the checkout is pinned to `ISH_SHA`
 (`3f6384c70eefd1a370f121d3492a5f21f7767df9`, Chevey339/ish-arm64).
@@ -33,7 +33,7 @@ in `build_ish.sh` so local and CI builds use the same source.
 `build_ish.sh` and bundled as an iOS resource. It is separate from these kernel
 patches. On every cold boot, `KelivoISHKernel` applies its manifest through the
 guest VFS before launching processes, including in existing environments.
-Kelivo's own `overlay/` is applied afterward. No environment reset is required.
+Cuplivo's own `overlay/` is applied afterward. No environment reset is required.
 
 The bundle provides `/lib/wasm-polyfill.js` and `/lib/fetch-polyfill.js`, which
 iSH's Node exec path preloads. The WebAssembly shim implements undici's llhttp

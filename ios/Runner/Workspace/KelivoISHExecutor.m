@@ -162,7 +162,7 @@ static dispatch_queue_t _readerQueue;
         _byRunId = [NSMutableDictionary dictionary];
         _cancelled = [NSMutableSet set];
         _queued = [NSMutableSet set];
-        _readerQueue = dispatch_queue_create("psyche.kelivo.workspace.ish.reader", DISPATCH_QUEUE_CONCURRENT);
+        _readerQueue = dispatch_queue_create("com.cup11.cuplivo.workspace.ish.reader", DISPATCH_QUEUE_CONCURRENT);
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(processDidExit:)
                                                      name:KelivoISHProcessExitedNotification

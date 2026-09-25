@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:Kelivo/core/services/fonts/google_fonts_service.dart';
+import 'package:Cuplivo/core/services/fonts/google_fonts_service.dart';
 
 Map<String, dynamic> entry(String family, {String? url, bool regular = true}) =>
     {

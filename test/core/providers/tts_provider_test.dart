@@ -2,12 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/providers/tts_provider.dart';
-import 'package:Kelivo/core/models/mobile_background_settings.dart';
-import 'package:Kelivo/core/services/mobile_background.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/core/services/tts/network_tts.dart';
-import 'package:Kelivo/core/services/tts/tts_playback_models.dart';
+import 'package:Cuplivo/core/providers/tts_provider.dart';
+import 'package:Cuplivo/core/models/mobile_background_settings.dart';
+import 'package:Cuplivo/core/services/mobile_background.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/services/tts/network_tts.dart';
+import 'package:Cuplivo/core/services/tts/tts_playback_models.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';

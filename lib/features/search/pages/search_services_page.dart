@@ -11,8 +11,8 @@ import '../../../core/services/haptics.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../theme/app_font_weights.dart';
 import 'search_service_editor_page.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 
 class SearchServicesPage extends StatefulWidget {
   const SearchServicesPage({super.key});
@@ -489,9 +489,7 @@ class _SearchServicesPageState extends State<SearchServicesPage> {
                         ),
                       ),
                     ),
-                    if (s is! BingLocalOptions &&
-                        s is! KelivoOptions &&
-                        statusText.isNotEmpty) ...[
+                    if (s is! BingLocalOptions && statusText.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -601,7 +599,6 @@ class _BrandBadge extends StatelessWidget {
     if (s is ParallelOptions) return 'parallel';
     if (s is KimiOptions) return 'kimi';
     if (s is YouSearchOptions) return 'you';
-    if (s is KelivoOptions) return 'kelivo';
     return 'search';
   }
 

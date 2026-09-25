@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
 
 void main() {
   group('MessagePart.fromRow / encodePayload roundtrip', () {

@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 /// Shared by the app and its Share extension. Only completed inbox manifests
 /// become visible to the app; each delivery owns a separate directory.
 enum IncomingShareInbox {
-  static let activationURL = URL(string: "kelivo://share")!
+  static let activationURL = URL(string: "cuplivo://share")!
   static let maxFiles = 32
 
   enum InboxError: Error { case unavailable, invalidFile, cancelled, empty }

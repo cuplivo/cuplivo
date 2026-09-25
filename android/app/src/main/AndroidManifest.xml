@@ -35,10 +35,10 @@
          tools:ignore="ProtectedPermissions" />
     <!-- OS auto-backup/device-transfer can restore a partial SQLite file
          family (db without -wal, receipt without db), which the fail-closed
-         startup gate rejects. Kelivo ships its own backup (WebDAV/S3/local
+         startup gate rejects. Cuplivo ships its own backup (WebDAV/S3/local
          export), so system backup is disabled. -->
     <application
-        android:label="Kelivo"
+        android:label="Cuplivo"
         android:name=".KelivoApplication"
         android:appCategory="productivity"
         android:allowBackup="false"
@@ -99,7 +99,7 @@
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="psyche.kelivo" android:host="mcp-oauth-callback"/>
+                <data android:scheme="com.cup11.cuplivo" android:host="mcp-oauth-callback"/>
             </intent-filter>
         </activity>
         <service

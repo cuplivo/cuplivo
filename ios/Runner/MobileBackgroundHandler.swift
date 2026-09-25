@@ -18,7 +18,7 @@ struct BackgroundGenerationTask {
   init(_ map: [String: Any]) {
     id = map["id"] as? String ?? ""
     conversationId = map["conversationId"] as? String ?? ""
-    title = String((map["title"] as? String ?? "Kelivo").prefix(120))
+    title = String((map["title"] as? String ?? "Cuplivo").prefix(120))
     detail = String((map["detail"] as? String ?? "").prefix(180))
     startedAt = Date(timeIntervalSince1970: ((map["startedAt"] as? NSNumber)?.doubleValue ?? 0) / 1000)
     tokens = map["tokens"] as? Int ?? 0
@@ -226,7 +226,7 @@ final class MobileBackgroundHandler: NSObject, CLLocationManagerDelegate {
   }
 
   func receive(_ url: URL) -> Bool {
-    guard url.scheme == "kelivo", url.host == "conversation" else { return false }
+    guard url.scheme == "cuplivo", url.host == "conversation" else { return false }
     let id = url.pathComponents.dropFirst().first ?? ""
     guard !id.isEmpty else { return false }
     if dartReady { channel?.invokeMethod("openConversation", arguments: id) }
@@ -236,7 +236,7 @@ final class MobileBackgroundHandler: NSObject, CLLocationManagerDelegate {
 
   private func requestPermission(_ permission: String, result: @escaping FlutterResult) {
     guard UIApplication.shared.applicationState == .active else {
-      result(FlutterError(code: "foreground_required", message: "Open Kelivo to request permission.", details: nil)); return
+      result(FlutterError(code: "foreground_required", message: "Open Cuplivo to request permission.", details: nil)); return
     }
     switch permission {
     case "notifications":
@@ -499,7 +499,7 @@ final class MobileBackgroundHandler: NSObject, CLLocationManagerDelegate {
       activeTaskCount: tasks.count,
       conversationId: task.conversationId,
       outcome: finished ? task.outcome : "",
-      staleMessage: labels["stale"] ?? "Open Kelivo to check the task.")
+      staleMessage: labels["stale"] ?? "Open Cuplivo to check the task.")
   }
 
   @available(iOS 16.1, *)
@@ -553,7 +553,7 @@ final class MobileBackgroundHandler: NSObject, CLLocationManagerDelegate {
 
   private func clearCompletionNotifications() {
     UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
-      let ids = notifications.filter { $0.request.content.threadIdentifier == "kelivo.chat-completion" }.map { $0.request.identifier }
+      let ids = notifications.filter { $0.request.content.threadIdentifier == "cuplivo.chat-completion" }.map { $0.request.identifier }
       UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
     }
   }
@@ -561,7 +561,7 @@ final class MobileBackgroundHandler: NSObject, CLLocationManagerDelegate {
   private func recordError(_ error: String) {
     lastError = error
     UserDefaults.standard.set(error, forKey: "kelivo.background.lastError")
-    NSLog("Kelivo background: %@", error)
+    NSLog("Cuplivo background: %@", error)
   }
 
   func prepareForTermination() {

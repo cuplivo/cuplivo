@@ -8,7 +8,7 @@
 	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.psyche.kelivo</string>
+		<string>group.com.cup11.cuplivo</string>
 	</array>
 </dict>
 </plist>

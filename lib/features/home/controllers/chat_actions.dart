@@ -328,7 +328,7 @@ class ChatActions {
       scheduledNotify: ctx.scheduledNotify,
       scheduledPreview: ctx.scheduledPreview,
       conversationId: conversationId,
-      title: chatService.getConversation(conversationId)?.title ?? 'Kelivo',
+      title: chatService.getConversation(conversationId)?.title ?? 'Cuplivo',
       cancel: () async {
         if (!_activeAssistantMessages.isActive(ctx.assistantMessage)) return;
         if (ctx.generationRunId != null &&

@@ -1,4 +1,4 @@
-import 'package:Kelivo/utils/kelivo_file_uri.dart';
+import 'package:Cuplivo/utils/kelivo_file_uri.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -145,6 +145,21 @@ void main() {
         ),
         'kelivo-file:///upload/legacy.pdf',
       );
+      // Cuplivo lineage: own BINARY_NAME folder and vendor prefix.
+      expect(
+        KelivoFileUri.tryEncodeLegacyAbsolutePath(
+          'C:/Users/me/AppData/Roaming/cuplivo/avatars/a.png',
+          allowGenericFallback: false,
+        ),
+        'kelivo-file:///avatars/a.png',
+      );
+      expect(
+        KelivoFileUri.tryEncodeLegacyAbsolutePath(
+          r'C:\Users\old-user\AppData\Roaming\com.cup11\cuplivo\upload\legacy.pdf',
+          allowGenericFallback: false,
+        ),
+        'kelivo-file:///upload/legacy.pdf',
+      );
       // Bare .../Kelivo/images without AppData must not match.
       expect(
         KelivoFileUri.tryEncodeLegacyAbsolutePath(
@@ -179,6 +194,13 @@ void main() {
             allowGenericFallback: false,
           ),
           'kelivo-file:///upload/doc.pdf',
+        );
+        expect(
+          KelivoFileUri.tryEncodeLegacyAbsolutePath(
+            '/data/user/0/com.cup11.cuplivo/app_flutter/fonts/a.ttf',
+            allowGenericFallback: false,
+          ),
+          'kelivo-file:///fonts/a.ttf',
         );
         // Non-kelivo package must not be claimed without generic fallback.
         expect(

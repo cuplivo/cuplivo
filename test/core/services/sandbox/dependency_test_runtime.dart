@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:Kelivo/core/services/sandbox/environment_dependencies.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/core/services/sandbox/environment_dependencies.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
 
 class DependencyTestRuntime extends WorkspaceRuntime {
   final requests = <CommandRequest>[];

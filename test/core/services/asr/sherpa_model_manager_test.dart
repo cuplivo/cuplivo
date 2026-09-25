@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:Kelivo/core/services/asr/sherpa_model_manager.dart';
+import 'package:Cuplivo/core/services/asr/sherpa_model_manager.dart';
 
 void main() {
   group('SherpaModelCatalog', () {

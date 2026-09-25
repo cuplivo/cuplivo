@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/skill_record.dart';
+import 'package:Cuplivo/core/models/skill_record.dart';
 
 void main() {
   group('SkillRecord', () {

@@ -166,7 +166,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get storageSpaceClearDisplacedDatabasesConfirmMessage =>
-      '确定删除这些保留的旧数据库吗？它们是 Kelivo 重建数据库时留下的，可能是那些聊天记录和设置仅存的一份。删除后无法恢复。';
+      '确定删除这些保留的旧数据库吗？它们是 Cuplivo 重建数据库时留下的，可能是那些聊天记录和设置仅存的一份。删除后无法恢复。';
 
   @override
   String get storageSpaceRestoreTracesHint => '恢复完成后保留的旧数据快照。清理不会影响当前应用数据。';
@@ -1544,41 +1544,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupPageRestartRequired => '需要重启应用';
 
   @override
-  String get backupPageRestartContent => '导入成功。重启 Kelivo 后将安全应用。';
+  String get backupPageRestartContent => '导入成功。重启 Cuplivo 后将安全应用。';
 
   @override
   String backupPageRestartContentWithSkipped(int count) {
-    return '导入已完成，但已跳过 $count 个消息顺序非法的会话。重启 Kelivo 后将安全应用已导入的数据。';
+    return '导入已完成，但已跳过 $count 个消息顺序非法的会话。重启 Cuplivo 后将安全应用已导入的数据。';
   }
 
   @override
-  String get restartAppFailedMessage => 'Kelivo 无法自动重启，请完全关闭后重新打开。';
+  String get restartAppFailedMessage => 'Cuplivo 无法自动重启，请完全关闭后重新打开。';
 
   @override
   String get backupRestoreRolledBackTitle => '恢复已回滚';
 
   @override
-  String get backupRestoreRolledBackContent => '恢复未能完成。Kelivo 已验证并保留原有数据。';
+  String get backupRestoreRolledBackContent => '恢复未能完成。Cuplivo 已验证并保留原有数据。';
 
   @override
   String get backupRestoreFailureTitle => '恢复需要处理';
 
   @override
   String get backupRestoreFailureContent =>
-      'Kelivo 无法验证完整的原有或新数据，因此未打开聊天数据。请关闭 Kelivo 后重试；若问题反复出现，请保留诊断码以便支持人员排查。';
+      'Cuplivo 无法验证完整的原有或新数据，因此未打开聊天数据。请关闭 Cuplivo 后重试；若问题反复出现，请保留诊断码以便支持人员排查。';
 
   @override
-  String get backupRestoreBusinessLeaseUnavailableTitle => 'Kelivo 已在运行';
+  String get backupRestoreBusinessLeaseUnavailableTitle => 'Cuplivo 已在运行';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableContent =>
-      'Kelivo 的数据仍被另一个应用进程占用。请关闭其他 Kelivo 窗口后重新启动；当前进程尚未打开聊天数据。';
+      'Cuplivo 的数据仍被另一个应用进程占用。请关闭其他 Cuplivo 窗口后重新启动；当前进程尚未打开聊天数据。';
 
   @override
   String get restoreProgressTitle => '正在恢复备份';
 
   @override
-  String get restoreProgressWarning => '请保持 Kelivo 开启直到完成。此时关闭应用，下次启动会从头再来一次。';
+  String get restoreProgressWarning => '请保持 Cuplivo 开启直到完成。此时关闭应用，下次启动会从头再来一次。';
 
   @override
   String get restoreProgressStageCheckingBackup => '正在校验备份';
@@ -1599,7 +1599,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get restoreProgressStageFinishing => '即将完成';
 
   @override
-  String get backupRestoreFailureRestartButton => '重启 Kelivo';
+  String get backupRestoreFailureRestartButton => '重启 Cuplivo';
 
   @override
   String get backupRestoreFailureCopyButton => '复制诊断码';
@@ -1637,14 +1637,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get startupRecoveryRepairFailed => '修复未能解决问题。请先导出数据副本，然后重置。';
 
   @override
-  String get startupRecoveryResetFailed => '重置失败。请彻底关闭 Kelivo 后重新打开。';
+  String get startupRecoveryResetFailed => '重置失败。请彻底关闭 Cuplivo 后重新打开。';
 
   @override
   String get startupRecoveryResetDialogTitle => '重置全部数据？';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      '这将永久删除本设备上 Kelivo 的数据库并重新开始。如果之后可能还需要这些数据，请先导出一份副本。此操作无法撤销。';
+      '这将永久删除本设备上 Cuplivo 的数据库并重新开始。如果之后可能还需要这些数据，请先导出一份副本。此操作无法撤销。';
 
   @override
   String get startupRecoveryResetDialogConfirm => '重置并重启';
@@ -1756,17 +1756,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get startupRecoveryDangerBody =>
-      '重置会永久删除本设备上 Kelivo 的数据库。请先导出数据副本——重置同时会销毁排查根本问题所需的证据。';
+      '重置会永久删除本设备上 Cuplivo 的数据库。请先导出数据副本——重置同时会销毁排查根本问题所需的证据。';
 
   @override
   String get startupRecoveryResetAcknowledge => '我已导出副本，或不需要这些数据。';
 
   @override
-  String get startupDatabaseUpdateRequiredTitle => '请更新 Kelivo 以继续';
+  String get startupDatabaseUpdateRequiredTitle => '请更新 Cuplivo 以继续';
 
   @override
   String get startupDatabaseUpdateRequiredContent =>
-      '本设备上的聊天数据库由更新版本的 Kelivo 创建，当前版本无法打开。数据未被改动。请安装最新版 Kelivo 后重新打开。';
+      '本设备上的聊天数据库由更新版本的 Cuplivo 创建，当前版本无法打开。数据未被改动。请安装最新版 Cuplivo 后重新打开。';
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeTitle => '若要改用旧版';
@@ -1777,7 +1777,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeStep1 =>
-      '先安装并打开最新版 Kelivo，在「设置 → 数据备份」导出一份备份文件。';
+      '先安装并打开最新版 Cuplivo，在「设置 → 数据备份」导出一份备份文件。';
 
   @override
   String startupDatabaseUpdateRequiredDowngradeStep2(String url) {
@@ -1835,7 +1835,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String backupPageForwardCompatBody(int backupVersion, int currentVersion) {
-    return '这份备份由更新版本的 Kelivo 创建（数据格式 $backupVersion，当前版本支持 $currentVersion），且未声明旧版本能否读取。\n\n你可以继续导入：当前版本不认识的内容会被跳过，备份文件本身不会被修改。但如果新版本改变了已有数据的存储方式，部分内容可能会被错误导入。\n\n更稳妥的做法是先升级 Kelivo。';
+    return '这份备份由更新版本的 Cuplivo 创建（数据格式 $backupVersion，当前版本支持 $currentVersion），且未声明旧版本能否读取。\n\n你可以继续导入：当前版本不认识的内容会被跳过，备份文件本身不会被修改。但如果新版本改变了已有数据的存储方式，部分内容可能会被错误导入。\n\n更稳妥的做法是先升级 Cuplivo。';
   }
 
   @override
@@ -1846,7 +1846,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupPageSchemaTooNewMessage =>
-      '这份备份由更新版本的 Kelivo 创建，当前版本无法读取。请先升级 Kelivo 后重试。';
+      '这份备份由更新版本的 Cuplivo 创建，当前版本无法读取。请先升级 Cuplivo 后重试。';
 
   @override
   String get backupPageBackupUploaded => '已上传备份';
@@ -2018,7 +2018,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return '此备份使用 Cherry Studio 格式版本 $version，Kelivo 目前尚无法导入。请改用 Cherry Studio v1 导出备份，或等待后续版本支持 Cherry Studio v2。';
+    return '此备份使用 Cherry Studio 格式版本 $version，Cuplivo 目前尚无法导入。请改用 Cherry Studio v1 导出备份，或等待后续版本支持 Cherry Studio v2。';
   }
 
   @override
@@ -4304,13 +4304,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutPageEasterEggButton => '好的';
 
   @override
-  String get aboutPageKelivoSearchUnlocked => '有扇没有名字的门开了一条缝。去设置里找找看。';
+  String get aboutPageCuplivoSearchUnlocked => '有扇没有名字的门开了一条缝。去设置里找找看。';
 
   @override
-  String get aboutPageKelivoSearchAlreadyUnlocked => '这扇门你已经推开过了。';
+  String get aboutPageCuplivoSearchAlreadyUnlocked => '这扇门你已经推开过了。';
 
   @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Cuplivo';
 
   @override
   String get aboutPageAppDescription => '开源AI 助手';
@@ -4368,13 +4368,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutPageJoinQQGroup => '加入QQ群';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo 一群';
-
-  @override
-  String get aboutPageQQGroupTwo => 'Kelivo 二群';
-
-  @override
-  String get aboutPageQQGroupThree => 'Kelivo 三群';
+  String get aboutPageQQGroup => 'Cuplivo 群';
 
   @override
   String get aboutPageJoinDiscord => '在 Discord 中加入我们';
@@ -5365,7 +5359,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get settingsShare => 'Kelivo - 开源AI助手';
+  String get settingsShare => 'Cuplivo - 开源AI助手';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -5561,7 +5555,7 @@ class AppLocalizationsZh extends AppLocalizations {
       '最大 token 数必须介于 1024 和 32768 之间。';
 
   @override
-  String get searchServiceNameKelivo => 'Kelivo';
+  String get searchServiceNameCuplivo => 'Cuplivo';
 
   @override
   String get searchServicesDialogCountryOptional => '国家/地区（可选）';
@@ -5837,7 +5831,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get healthDataSettingsDescription =>
-      '当前助手在日常对话中可使用的 HealthKit 信号。开关表示 Kelivo 可以尝试读取该范围，实际授权仍由 iOS 管理。';
+      '当前助手在日常对话中可使用的 HealthKit 信号。开关表示 Cuplivo 可以尝试读取该范围，实际授权仍由 iOS 管理。';
 
   @override
   String healthDataSettingsBadge(int selected, int total) {
@@ -7127,7 +7121,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get legacyMemoryExport => '导出';
 
   @override
-  String get legacyMemoryExportTitle => 'Kelivo 旧版记忆导出';
+  String get legacyMemoryExportTitle => 'Cuplivo 旧版记忆导出';
 
   @override
   String legacyMemoryAssistantHeader(String name) {
@@ -7709,7 +7703,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get migrationIntroSubtitle =>
-      'Kelivo 将聊天记录迁移到更快的 SQLite 数据库。升级会在应用打开前完成，避免新旧数据同时写入。';
+      'Cuplivo 将聊天记录迁移到更快的 SQLite 数据库。升级会在应用打开前完成，避免新旧数据同时写入。';
 
   @override
   String get migrationBackupNote => '迁移开始前，会先导出包含设置、聊天记录和本地文件的 ZIP 备份。';
@@ -7751,14 +7745,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get migrationBackingUpSubtitle =>
-      '正在导出设置、聊天记录、上传文件、图片和字体。请保持 Kelivo 开启，等待备份完成。';
+      '正在导出设置、聊天记录、上传文件、图片和字体。请保持 Cuplivo 开启，等待备份完成。';
 
   @override
   String get migrationMigratingTitle => '正在迁移到 SQLite';
 
   @override
   String get migrationMigratingSubtitle =>
-      '正在分批写入会话和消息，避免超大聊天记录占满内存。请保持 Kelivo 在前台，等待迁移完成。';
+      '正在分批写入会话和消息，避免超大聊天记录占满内存。请保持 Cuplivo 在前台，等待迁移完成。';
 
   @override
   String migrationBackingUpDetail(String fileName) {
@@ -7817,7 +7811,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get migrationCompleteSubtitle =>
-      '你的聊天记录已迁移到 SQLite。请重启 Kelivo 进入升级后的应用。';
+      '你的聊天记录已迁移到 SQLite。请重启 Cuplivo 进入升级后的应用。';
 
   @override
   String get migrationConversationCount => '对话';
@@ -7835,7 +7829,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get migrationMissingFilesCount => '缺失文件';
 
   @override
-  String get migrationRestartButton => '重启 Kelivo';
+  String get migrationRestartButton => '重启 Cuplivo';
 
   @override
   String get migrationFailedTitle => '迁移失败';
@@ -7861,7 +7855,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get migrationSkipDialogMessage =>
-      'Kelivo 将以空的聊天数据库启动。旧的聊天记录会保留在磁盘上（重命名为 .retired 后缀），但不会被迁移，也不会在应用中显示。之后如需找回，请使用已保存的备份 ZIP。';
+      'Cuplivo 将以空的聊天数据库启动。旧的聊天记录会保留在磁盘上（重命名为 .retired 后缀），但不会被迁移，也不会在应用中显示。之后如需找回，请使用已保存的备份 ZIP。';
 
   @override
   String get migrationSkipDialogCancel => '取消';
@@ -8269,7 +8263,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localSnapshotEnabledTitle => '保留本地副本';
 
   @override
-  String get localSnapshotEnabledSubtitle => 'Kelivo 会定期在本机存一份数据库副本，让数据不只有一份。';
+  String get localSnapshotEnabledSubtitle => 'Cuplivo 会定期在本机存一份数据库副本，让数据不只有一份。';
 
   @override
   String get localSnapshotIntervalTitle => '备份频率';
@@ -9063,7 +9057,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get workspaceEnvUpToDate => '已是最新';
 
   @override
-  String get workspaceEnvRestartBanner => '请重启 Kelivo 以完成安装';
+  String get workspaceEnvRestartBanner => '请重启 Cuplivo 以完成安装';
 
   @override
   String get workspaceEnvDetectingMirrors => '正在检测最快镜像…';
@@ -9159,7 +9153,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get workspaceEnvNativeExplanation =>
-      '在桌面端，Kelivo 使用系统终端，而不是 Linux 沙箱。';
+      '在桌面端，Cuplivo 使用系统终端，而不是 Linux 沙箱。';
 
   @override
   String workspaceEnvNativeShellPath(String path) {
@@ -10068,7 +10062,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get workspaceDesktopFolderMissing => '请选择已存在的文件夹，或输入它的绝对路径。';
 
   @override
-  String get workspaceDesktopManagedHint => '由 Kelivo 为此项目创建并管理文件夹。';
+  String get workspaceDesktopManagedHint => '由 Cuplivo 为此项目创建并管理文件夹。';
 
   @override
   String get workspaceDesktopHostHint => '在本机访问文件和执行命令。';
@@ -10298,7 +10292,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get workspaceExternalStorageMessage =>
-      '工作区和 Shell 需要直接读写外部文件夹，请在 Android 系统设置中允许 Kelivo 访问文件。Android 11 及以上需开启“所有文件访问权限”，然后选择要挂载的本地文件夹。';
+      '工作区和 Shell 需要直接读写外部文件夹，请在 Android 系统设置中允许 Cuplivo 访问文件。Android 11 及以上需开启“所有文件访问权限”，然后选择要挂载的本地文件夹。';
 
   @override
   String get workspaceExternalGrantAccess => '前往授权';
@@ -10529,7 +10523,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backgroundSettingsTitle => '后台任务';
 
   @override
-  String get backgroundTaskTitle => 'Kelivo 任务';
+  String get backgroundTaskTitle => 'Cuplivo 任务';
 
   @override
   String get backgroundCompleted => '生成完成';
@@ -10658,7 +10652,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backgroundOverlayIcon => '悬浮窗图标';
 
   @override
-  String get backgroundIconDefault => 'Kelivo 图标';
+  String get backgroundIconDefault => 'Cuplivo 图标';
 
   @override
   String get backgroundIconImage => '选择图片';
@@ -10867,7 +10861,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get startupRecoverySnapshotBody =>
-      '即使数据库无法打开，也可以选择本机快照恢复聊天和设置。请勿卸载 Kelivo，卸载会一并删除这些快照。';
+      '即使数据库无法打开，也可以选择本机快照恢复聊天和设置。请勿卸载 Cuplivo，卸载会一并删除这些快照。';
 
   @override
   String get startupRecoverySnapshotEmpty => '未在本机找到数据库快照。请先导出数据，再尝试其他恢复操作。';
@@ -10877,7 +10871,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
-    return '将聊天和设置恢复到 $when 的快照？快照之后的更改不会包含在内。现有附件文件和快照会保留，Kelivo 将重启以完成恢复。';
+    return '将聊天和设置恢复到 $when 的快照？快照之后的更改不会包含在内。现有附件文件和快照会保留，Cuplivo 将重启以完成恢复。';
   }
 
   @override
@@ -10886,7 +10880,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get startupRecoverySnapshotReady => '快照已准备好，请重启 Kelivo 完成恢复。';
+  String get startupRecoverySnapshotReady => '快照已准备好，请重启 Cuplivo 完成恢复。';
 
   @override
   String get scheduledTasksTitle => '定时任务';
@@ -10957,7 +10951,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksReliability =>
-      '建议在电池设置中允许 Kelivo 后台运行。强行停止后需重新打开应用。错过的任务不会补跑，执行时间跟随设备时区。';
+      '建议在电池设置中允许 Cuplivo 后台运行。强行停止后需重新打开应用。错过的任务不会补跑，执行时间跟随设备时区。';
 
   @override
   String get scheduledTasksExecutionDetail =>
@@ -11134,7 +11128,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksDesktopReliability =>
-      '仅在 Kelivo 运行时执行，最小化或驻留托盘时也会继续。退出或电脑休眠期间错过的任务不会补运行，也不会自动启动应用。';
+      '仅在 Cuplivo 运行时执行，最小化或驻留托盘时也会继续。退出或电脑休眠期间错过的任务不会补运行，也不会自动启动应用。';
 
   @override
   String get scheduledTasksDesktopExecutionDetail =>
@@ -11424,7 +11418,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksIOSDetail =>
-      '受 iOS 后台限制，Kelivo 不能在指定时间自动唤醒并运行模型。此功能会在 App 可运行时提前准备内容，由系统到点展示通知。每次仅准备下一次结果；离开 App 后不保证准备完成，后续任务需再次打开 Kelivo 才能补充。';
+      '受 iOS 后台限制，Cuplivo 不能在指定时间自动唤醒并运行模型。此功能会在 App 可运行时提前准备内容，由系统到点展示通知。每次仅准备下一次结果；离开 App 后不保证准备完成，后续任务需再次打开 Cuplivo 才能补充。';
 
   @override
   String get scheduledTasksContextPolicy => '对话上下文';
@@ -11488,7 +11482,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scheduledTasksCancelled => '已取消';
 
   @override
-  String get scheduledTasksReminderBody => '定时任务已到期，打开 Kelivo 继续。';
+  String get scheduledTasksReminderBody => '定时任务已到期，打开 Cuplivo 继续。';
 
   @override
   String get scheduledTasksResultBody => '定时任务结果已准备好。';
@@ -11502,7 +11496,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksAllowPreparationTip =>
-      '在 Kelivo 可运行时，提前生成下一次任务的结果，到期前不会显示在聊天中。仅使用文字，不使用工具、附件或自定义请求体；调用模型可能产生费用。';
+      '在 Cuplivo 可运行时，提前生成下一次任务的结果，到期前不会显示在聊天中。仅使用文字，不使用工具、附件或自定义请求体；调用模型可能产生费用。';
 
   @override
   String get scheduledTasksContextPolicyTip =>
@@ -11510,7 +11504,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksPreparationWindowTip =>
-      '允许在任务到期前多久开始准备，最长 24 小时。例如第二天早上提醒，前一天中午打开 Kelivo 时就有机会准备。时间越长，准备机会越多，但内容也可能更早过时。不会改变任务时间，也不代表能在后台定时运行。「立刻准备」不受这项自动等待和准备次数上限限制。';
+      '允许在任务到期前多久开始准备，最长 24 小时。例如第二天早上提醒，前一天中午打开 Cuplivo 时就有机会准备。时间越长，准备机会越多，但内容也可能更早过时。不会改变任务时间，也不代表能在后台定时运行。「立刻准备」不受这项自动等待和准备次数上限限制。';
 
   @override
   String get scheduledTasksPreparationAttemptsTip =>
@@ -11522,7 +11516,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksUnavailableTip =>
-      '到期时没有可用结果、也无法运行任务，就发送提醒或跳过本次。提醒不包含模型生成的回答，且需要开启通知。如果到期时 Kelivo 正在打开运行，可直接执行任务。';
+      '到期时没有可用结果、也无法运行任务，就发送提醒或跳过本次。提醒不包含模型生成的回答，且需要开启通知。如果到期时 Cuplivo 正在打开运行，可直接执行任务。';
 
   @override
   String get scheduledTasksNotifyTip =>
@@ -11698,14 +11692,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get phoneControlAssistantHint =>
-      '需要同时完成两项设置：在系统无障碍设置中启用“Kelivo 手机控制”，并在要使用的助手 → 本地工具中开启“手机控制”（也可从对话工具菜单开启）。每个助手单独配置，执行任务时请保持手机解锁。';
+      '需要同时完成两项设置：在系统无障碍设置中启用“Cuplivo 手机控制”，并在要使用的助手 → 本地工具中开启“手机控制”（也可从对话工具菜单开启）。每个助手单独配置，执行任务时请保持手机解锁。';
 
   @override
   String get phoneControlRestrictedTitle => '无法开启无障碍？';
 
   @override
   String get phoneControlRestrictedHint =>
-      '部分下载的 APK 需要先在应用信息右上角菜单中选择“允许受限制的设置”。点击打开 Kelivo 应用信息，完成后再返回无障碍设置。';
+      '部分下载的 APK 需要先在应用信息右上角菜单中选择“允许受限制的设置”。点击打开 Cuplivo 应用信息，完成后再返回无障碍设置。';
 
   @override
   String get phoneControlEnableAssistant => '允许此助手使用手机控制';
@@ -11873,7 +11867,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get storageSpaceClearDisplacedDatabasesConfirmMessage =>
-      '确定删除这些保留的旧数据库吗？它们是 Kelivo 重建数据库时留下的，可能是那些聊天记录和设置仅存的一份。删除后无法恢复。';
+      '确定删除这些保留的旧数据库吗？它们是 Cuplivo 重建数据库时留下的，可能是那些聊天记录和设置仅存的一份。删除后无法恢复。';
 
   @override
   String get storageSpaceRestoreTracesHint => '恢复完成后保留的旧数据快照。清理不会影响当前应用数据。';
@@ -13251,41 +13245,41 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupPageRestartRequired => '需要重启应用';
 
   @override
-  String get backupPageRestartContent => '导入成功。重启 Kelivo 后将安全应用。';
+  String get backupPageRestartContent => '导入成功。重启 Cuplivo 后将安全应用。';
 
   @override
   String backupPageRestartContentWithSkipped(int count) {
-    return '导入已完成，但已跳过 $count 个消息顺序非法的会话。重启 Kelivo 后将安全应用已导入的数据。';
+    return '导入已完成，但已跳过 $count 个消息顺序非法的会话。重启 Cuplivo 后将安全应用已导入的数据。';
   }
 
   @override
-  String get restartAppFailedMessage => 'Kelivo 无法自动重启，请完全关闭后重新打开。';
+  String get restartAppFailedMessage => 'Cuplivo 无法自动重启，请完全关闭后重新打开。';
 
   @override
   String get backupRestoreRolledBackTitle => '恢复已回滚';
 
   @override
-  String get backupRestoreRolledBackContent => '恢复未能完成。Kelivo 已验证并保留原有数据。';
+  String get backupRestoreRolledBackContent => '恢复未能完成。Cuplivo 已验证并保留原有数据。';
 
   @override
   String get backupRestoreFailureTitle => '恢复需要处理';
 
   @override
   String get backupRestoreFailureContent =>
-      'Kelivo 无法验证完整的原有或新数据，因此未打开聊天数据。请关闭 Kelivo 后重试；若问题反复出现，请保留诊断码以便支持人员排查。';
+      'Cuplivo 无法验证完整的原有或新数据，因此未打开聊天数据。请关闭 Cuplivo 后重试；若问题反复出现，请保留诊断码以便支持人员排查。';
 
   @override
-  String get backupRestoreBusinessLeaseUnavailableTitle => 'Kelivo 已在运行';
+  String get backupRestoreBusinessLeaseUnavailableTitle => 'Cuplivo 已在运行';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableContent =>
-      'Kelivo 的数据仍被另一个应用进程占用。请关闭其他 Kelivo 窗口后重新启动；当前进程尚未打开聊天数据。';
+      'Cuplivo 的数据仍被另一个应用进程占用。请关闭其他 Cuplivo 窗口后重新启动；当前进程尚未打开聊天数据。';
 
   @override
   String get restoreProgressTitle => '正在恢复备份';
 
   @override
-  String get restoreProgressWarning => '请保持 Kelivo 开启直到完成。此时关闭应用，下次启动会从头再来一次。';
+  String get restoreProgressWarning => '请保持 Cuplivo 开启直到完成。此时关闭应用，下次启动会从头再来一次。';
 
   @override
   String get restoreProgressStageCheckingBackup => '正在校验备份';
@@ -13306,7 +13300,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get restoreProgressStageFinishing => '即将完成';
 
   @override
-  String get backupRestoreFailureRestartButton => '重启 Kelivo';
+  String get backupRestoreFailureRestartButton => '重启 Cuplivo';
 
   @override
   String get backupRestoreFailureCopyButton => '复制诊断码';
@@ -13344,14 +13338,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get startupRecoveryRepairFailed => '修复未能解决问题。请先导出数据副本，然后重置。';
 
   @override
-  String get startupRecoveryResetFailed => '重置失败。请彻底关闭 Kelivo 后重新打开。';
+  String get startupRecoveryResetFailed => '重置失败。请彻底关闭 Cuplivo 后重新打开。';
 
   @override
   String get startupRecoveryResetDialogTitle => '重置全部数据？';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      '这将永久删除本设备上 Kelivo 的数据库并重新开始。如果之后可能还需要这些数据，请先导出一份副本。此操作无法撤销。';
+      '这将永久删除本设备上 Cuplivo 的数据库并重新开始。如果之后可能还需要这些数据，请先导出一份副本。此操作无法撤销。';
 
   @override
   String get startupRecoveryResetDialogConfirm => '重置并重启';
@@ -13463,17 +13457,17 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get startupRecoveryDangerBody =>
-      '重置会永久删除本设备上 Kelivo 的数据库。请先导出数据副本——重置同时会销毁排查根本问题所需的证据。';
+      '重置会永久删除本设备上 Cuplivo 的数据库。请先导出数据副本——重置同时会销毁排查根本问题所需的证据。';
 
   @override
   String get startupRecoveryResetAcknowledge => '我已导出副本，或不需要这些数据。';
 
   @override
-  String get startupDatabaseUpdateRequiredTitle => '请更新 Kelivo 以继续';
+  String get startupDatabaseUpdateRequiredTitle => '请更新 Cuplivo 以继续';
 
   @override
   String get startupDatabaseUpdateRequiredContent =>
-      '本设备上的聊天数据库由更新版本的 Kelivo 创建，当前版本无法打开。数据未被改动。请安装最新版 Kelivo 后重新打开。';
+      '本设备上的聊天数据库由更新版本的 Cuplivo 创建，当前版本无法打开。数据未被改动。请安装最新版 Cuplivo 后重新打开。';
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeTitle => '若要改用旧版';
@@ -13484,7 +13478,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeStep1 =>
-      '先安装并打开最新版 Kelivo，在「设置 → 数据备份」导出一份备份文件。';
+      '先安装并打开最新版 Cuplivo，在「设置 → 数据备份」导出一份备份文件。';
 
   @override
   String startupDatabaseUpdateRequiredDowngradeStep2(String url) {
@@ -13542,7 +13536,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String backupPageForwardCompatBody(int backupVersion, int currentVersion) {
-    return '这份备份由更新版本的 Kelivo 创建（数据格式 $backupVersion，当前版本支持 $currentVersion），且未声明旧版本能否读取。\n\n你可以继续导入：当前版本不认识的内容会被跳过，备份文件本身不会被修改。但如果新版本改变了已有数据的存储方式，部分内容可能会被错误导入。\n\n更稳妥的做法是先升级 Kelivo。';
+    return '这份备份由更新版本的 Cuplivo 创建（数据格式 $backupVersion，当前版本支持 $currentVersion），且未声明旧版本能否读取。\n\n你可以继续导入：当前版本不认识的内容会被跳过，备份文件本身不会被修改。但如果新版本改变了已有数据的存储方式，部分内容可能会被错误导入。\n\n更稳妥的做法是先升级 Cuplivo。';
   }
 
   @override
@@ -13553,7 +13547,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupPageSchemaTooNewMessage =>
-      '这份备份由更新版本的 Kelivo 创建，当前版本无法读取。请先升级 Kelivo 后重试。';
+      '这份备份由更新版本的 Cuplivo 创建，当前版本无法读取。请先升级 Cuplivo 后重试。';
 
   @override
   String get backupPageBackupUploaded => '已上传备份';
@@ -13725,7 +13719,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return '此备份使用 Cherry Studio 格式版本 $version，Kelivo 目前尚无法导入。请改用 Cherry Studio v1 导出备份，或等待后续版本支持 Cherry Studio v2。';
+    return '此备份使用 Cherry Studio 格式版本 $version，Cuplivo 目前尚无法导入。请改用 Cherry Studio v1 导出备份，或等待后续版本支持 Cherry Studio v2。';
   }
 
   @override
@@ -16011,13 +16005,13 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get aboutPageEasterEggButton => '好的';
 
   @override
-  String get aboutPageKelivoSearchUnlocked => '有扇没有名字的门开了一条缝。去设置里找找看。';
+  String get aboutPageCuplivoSearchUnlocked => '有扇没有名字的门开了一条缝。去设置里找找看。';
 
   @override
-  String get aboutPageKelivoSearchAlreadyUnlocked => '这扇门你已经推开过了。';
+  String get aboutPageCuplivoSearchAlreadyUnlocked => '这扇门你已经推开过了。';
 
   @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Cuplivo';
 
   @override
   String get aboutPageAppDescription => '开源 AI 助手';
@@ -16075,13 +16069,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get aboutPageJoinQQGroup => '加入QQ群';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo 一群';
-
-  @override
-  String get aboutPageQQGroupTwo => 'Kelivo 二群';
-
-  @override
-  String get aboutPageQQGroupThree => 'Kelivo 三群';
+  String get aboutPageQQGroup => 'Cuplivo 群';
 
   @override
   String get aboutPageJoinDiscord => '在 Discord 中加入我们';
@@ -16998,7 +16986,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get settingsShare => 'Kelivo - 开源AI助手';
+  String get settingsShare => 'Cuplivo - 开源AI助手';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -17194,7 +17182,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       '最大 token 数必须介于 1024 和 32768 之间。';
 
   @override
-  String get searchServiceNameKelivo => 'Kelivo';
+  String get searchServiceNameCuplivo => 'Cuplivo';
 
   @override
   String get searchServicesDialogCountryOptional => '国家/地区（可选）';
@@ -17470,7 +17458,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get healthDataSettingsDescription =>
-      '当前助手在日常对话中可使用的 HealthKit 信号。开关表示 Kelivo 可以尝试读取该范围，实际授权仍由 iOS 管理。';
+      '当前助手在日常对话中可使用的 HealthKit 信号。开关表示 Cuplivo 可以尝试读取该范围，实际授权仍由 iOS 管理。';
 
   @override
   String healthDataSettingsBadge(int selected, int total) {
@@ -18760,7 +18748,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get legacyMemoryExport => '导出';
 
   @override
-  String get legacyMemoryExportTitle => 'Kelivo 旧版记忆导出';
+  String get legacyMemoryExportTitle => 'Cuplivo 旧版记忆导出';
 
   @override
   String legacyMemoryAssistantHeader(String name) {
@@ -19342,7 +19330,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get migrationIntroSubtitle =>
-      'Kelivo 将聊天记录迁移到更快的 SQLite 数据库。升级会在应用打开前完成，避免新旧数据同时写入。';
+      'Cuplivo 将聊天记录迁移到更快的 SQLite 数据库。升级会在应用打开前完成，避免新旧数据同时写入。';
 
   @override
   String get migrationBackupNote => '迁移开始前，会先导出包含设置、聊天记录和本地文件的 ZIP 备份。';
@@ -19384,14 +19372,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get migrationBackingUpSubtitle =>
-      '正在导出设置、聊天记录、上传文件、图片和字体。请保持 Kelivo 开启，等待备份完成。';
+      '正在导出设置、聊天记录、上传文件、图片和字体。请保持 Cuplivo 开启，等待备份完成。';
 
   @override
   String get migrationMigratingTitle => '正在迁移到 SQLite';
 
   @override
   String get migrationMigratingSubtitle =>
-      '正在分批写入会话和消息，避免超大聊天记录占满内存。请保持 Kelivo 在前台，等待迁移完成。';
+      '正在分批写入会话和消息，避免超大聊天记录占满内存。请保持 Cuplivo 在前台，等待迁移完成。';
 
   @override
   String migrationBackingUpDetail(String fileName) {
@@ -19450,7 +19438,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get migrationCompleteSubtitle =>
-      '你的聊天记录已迁移到 SQLite。请重启 Kelivo 进入升级后的应用。';
+      '你的聊天记录已迁移到 SQLite。请重启 Cuplivo 进入升级后的应用。';
 
   @override
   String get migrationConversationCount => '对话';
@@ -19468,7 +19456,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get migrationMissingFilesCount => '缺失文件';
 
   @override
-  String get migrationRestartButton => '重启 Kelivo';
+  String get migrationRestartButton => '重启 Cuplivo';
 
   @override
   String get migrationFailedTitle => '迁移失败';
@@ -19494,7 +19482,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get migrationSkipDialogMessage =>
-      'Kelivo 将以空的聊天数据库启动。旧的聊天记录会保留在磁盘上（重命名为 .retired 后缀），但不会被迁移，也不会在应用中显示。之后如需找回，请使用已保存的备份 ZIP。';
+      'Cuplivo 将以空的聊天数据库启动。旧的聊天记录会保留在磁盘上（重命名为 .retired 后缀），但不会被迁移，也不会在应用中显示。之后如需找回，请使用已保存的备份 ZIP。';
 
   @override
   String get migrationSkipDialogCancel => '取消';
@@ -19902,7 +19890,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get localSnapshotEnabledTitle => '保留本地副本';
 
   @override
-  String get localSnapshotEnabledSubtitle => 'Kelivo 会定期在本机存一份数据库副本，让数据不只有一份。';
+  String get localSnapshotEnabledSubtitle => 'Cuplivo 会定期在本机存一份数据库副本，让数据不只有一份。';
 
   @override
   String get localSnapshotIntervalTitle => '备份频率';
@@ -20696,7 +20684,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get workspaceEnvUpToDate => '已是最新';
 
   @override
-  String get workspaceEnvRestartBanner => '请重启 Kelivo 以完成安装';
+  String get workspaceEnvRestartBanner => '请重启 Cuplivo 以完成安装';
 
   @override
   String get workspaceEnvDetectingMirrors => '正在检测最快镜像…';
@@ -20792,7 +20780,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get workspaceEnvNativeExplanation =>
-      '在桌面端，Kelivo 使用系统终端，而不是 Linux 沙箱。';
+      '在桌面端，Cuplivo 使用系统终端，而不是 Linux 沙箱。';
 
   @override
   String workspaceEnvNativeShellPath(String path) {
@@ -21701,7 +21689,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get workspaceDesktopFolderMissing => '请选择已存在的文件夹，或输入它的绝对路径。';
 
   @override
-  String get workspaceDesktopManagedHint => '由 Kelivo 为此项目创建并管理文件夹。';
+  String get workspaceDesktopManagedHint => '由 Cuplivo 为此项目创建并管理文件夹。';
 
   @override
   String get workspaceDesktopHostHint => '在本机访问文件和执行命令。';
@@ -21931,7 +21919,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get workspaceExternalStorageMessage =>
-      '工作区和 Shell 需要直接读写外部文件夹，请在 Android 系统设置中允许 Kelivo 访问文件。Android 11 及以上需开启“所有文件访问权限”，然后选择要挂载的本地文件夹。';
+      '工作区和 Shell 需要直接读写外部文件夹，请在 Android 系统设置中允许 Cuplivo 访问文件。Android 11 及以上需开启“所有文件访问权限”，然后选择要挂载的本地文件夹。';
 
   @override
   String get workspaceExternalGrantAccess => '前往授权';
@@ -22162,7 +22150,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backgroundSettingsTitle => '后台任务';
 
   @override
-  String get backgroundTaskTitle => 'Kelivo 任务';
+  String get backgroundTaskTitle => 'Cuplivo 任务';
 
   @override
   String get backgroundCompleted => '生成完成';
@@ -22291,7 +22279,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backgroundOverlayIcon => '悬浮窗图标';
 
   @override
-  String get backgroundIconDefault => 'Kelivo 图标';
+  String get backgroundIconDefault => 'Cuplivo 图标';
 
   @override
   String get backgroundIconImage => '选择图片';
@@ -22500,7 +22488,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get startupRecoverySnapshotBody =>
-      '即使数据库无法打开，也可以选择本机快照恢复聊天和设置。请勿卸载 Kelivo，卸载会一并删除这些快照。';
+      '即使数据库无法打开，也可以选择本机快照恢复聊天和设置。请勿卸载 Cuplivo，卸载会一并删除这些快照。';
 
   @override
   String get startupRecoverySnapshotEmpty => '未在本机找到数据库快照。请先导出数据，再尝试其他恢复操作。';
@@ -22510,7 +22498,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
-    return '将聊天和设置恢复到 $when 的快照？快照之后的更改不会包含在内。现有附件文件和快照会保留，Kelivo 将重启以完成恢复。';
+    return '将聊天和设置恢复到 $when 的快照？快照之后的更改不会包含在内。现有附件文件和快照会保留，Cuplivo 将重启以完成恢复。';
   }
 
   @override
@@ -22519,7 +22507,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get startupRecoverySnapshotReady => '快照已准备好，请重启 Kelivo 完成恢复。';
+  String get startupRecoverySnapshotReady => '快照已准备好，请重启 Cuplivo 完成恢复。';
 
   @override
   String get scheduledTasksTitle => '定时任务';
@@ -22590,7 +22578,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksReliability =>
-      '建议在电池设置中允许 Kelivo 后台运行。强行停止后需重新打开应用。错过的任务不会补跑，执行时间跟随设备时区。';
+      '建议在电池设置中允许 Cuplivo 后台运行。强行停止后需重新打开应用。错过的任务不会补跑，执行时间跟随设备时区。';
 
   @override
   String get scheduledTasksExecutionDetail =>
@@ -22767,7 +22755,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksDesktopReliability =>
-      '仅在 Kelivo 运行时执行，最小化或驻留托盘时也会继续。退出或电脑休眠期间错过的任务不会补运行，也不会自动启动应用。';
+      '仅在 Cuplivo 运行时执行，最小化或驻留托盘时也会继续。退出或电脑休眠期间错过的任务不会补运行，也不会自动启动应用。';
 
   @override
   String get scheduledTasksDesktopExecutionDetail =>
@@ -23057,7 +23045,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksIOSDetail =>
-      '受 iOS 后台限制，Kelivo 不能在指定时间自动唤醒并运行模型。此功能会在 App 可运行时提前准备内容，由系统到点展示通知。每次仅准备下一次结果；离开 App 后不保证准备完成，后续任务需再次打开 Kelivo 才能补充。';
+      '受 iOS 后台限制，Cuplivo 不能在指定时间自动唤醒并运行模型。此功能会在 App 可运行时提前准备内容，由系统到点展示通知。每次仅准备下一次结果；离开 App 后不保证准备完成，后续任务需再次打开 Cuplivo 才能补充。';
 
   @override
   String get scheduledTasksContextPolicy => '对话上下文';
@@ -23121,7 +23109,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get scheduledTasksCancelled => '已取消';
 
   @override
-  String get scheduledTasksReminderBody => '定时任务已到期，打开 Kelivo 继续。';
+  String get scheduledTasksReminderBody => '定时任务已到期，打开 Cuplivo 继续。';
 
   @override
   String get scheduledTasksResultBody => '定时任务结果已准备好。';
@@ -23135,7 +23123,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksAllowPreparationTip =>
-      '在 Kelivo 可运行时，提前生成下一次任务的结果，到期前不会显示在聊天中。仅使用文字，不使用工具、附件或自定义请求体；调用模型可能产生费用。';
+      '在 Cuplivo 可运行时，提前生成下一次任务的结果，到期前不会显示在聊天中。仅使用文字，不使用工具、附件或自定义请求体；调用模型可能产生费用。';
 
   @override
   String get scheduledTasksContextPolicyTip =>
@@ -23143,7 +23131,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksPreparationWindowTip =>
-      '允许在任务到期前多久开始准备，最长 24 小时。例如第二天早上提醒，前一天中午打开 Kelivo 时就有机会准备。时间越长，准备机会越多，但内容也可能更早过时。不会改变任务时间，也不代表能在后台定时运行。「立刻准备」不受这项自动等待和准备次数上限限制。';
+      '允许在任务到期前多久开始准备，最长 24 小时。例如第二天早上提醒，前一天中午打开 Cuplivo 时就有机会准备。时间越长，准备机会越多，但内容也可能更早过时。不会改变任务时间，也不代表能在后台定时运行。「立刻准备」不受这项自动等待和准备次数上限限制。';
 
   @override
   String get scheduledTasksPreparationAttemptsTip =>
@@ -23155,7 +23143,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksUnavailableTip =>
-      '到期时没有可用结果、也无法运行任务，就发送提醒或跳过本次。提醒不包含模型生成的回答，且需要开启通知。如果到期时 Kelivo 正在打开运行，可直接执行任务。';
+      '到期时没有可用结果、也无法运行任务，就发送提醒或跳过本次。提醒不包含模型生成的回答，且需要开启通知。如果到期时 Cuplivo 正在打开运行，可直接执行任务。';
 
   @override
   String get scheduledTasksNotifyTip =>
@@ -23331,14 +23319,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get phoneControlAssistantHint =>
-      '需要同时完成两项设置：在系统无障碍设置中启用“Kelivo 手机控制”，并在要使用的助手 → 本地工具中开启“手机控制”（也可从对话工具菜单开启）。每个助手单独配置，执行任务时请保持手机解锁。';
+      '需要同时完成两项设置：在系统无障碍设置中启用“Cuplivo 手机控制”，并在要使用的助手 → 本地工具中开启“手机控制”（也可从对话工具菜单开启）。每个助手单独配置，执行任务时请保持手机解锁。';
 
   @override
   String get phoneControlRestrictedTitle => '无法开启无障碍？';
 
   @override
   String get phoneControlRestrictedHint =>
-      '部分下载的 APK 需要先在应用信息右上角菜单中选择“允许受限制的设置”。点击打开 Kelivo 应用信息，完成后再返回无障碍设置。';
+      '部分下载的 APK 需要先在应用信息右上角菜单中选择“允许受限制的设置”。点击打开 Cuplivo 应用信息，完成后再返回无障碍设置。';
 
   @override
   String get phoneControlEnableAssistant => '允许此助手使用手机控制';
@@ -23506,7 +23494,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get storageSpaceClearDisplacedDatabasesConfirmMessage =>
-      '確定刪除這些保留的舊資料庫嗎？它們是 Kelivo 重建資料庫時留下的，可能是那些聊天記錄和設定僅存的一份。刪除後無法復原。';
+      '確定刪除這些保留的舊資料庫嗎？它們是 Cuplivo 重建資料庫時留下的，可能是那些聊天記錄和設定僅存的一份。刪除後無法復原。';
 
   @override
   String get storageSpaceRestoreTracesHint => '還原完成後保留的舊資料快照。清理不會影響目前的應用程式資料。';
@@ -24884,42 +24872,42 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupPageRestartRequired => '需要重啟應用程式';
 
   @override
-  String get backupPageRestartContent => '匯入成功。重新啟動 Kelivo 後將安全套用。';
+  String get backupPageRestartContent => '匯入成功。重新啟動 Cuplivo 後將安全套用。';
 
   @override
   String backupPageRestartContentWithSkipped(int count) {
-    return '匯入已完成，但已略過 $count 個訊息順序無效的會話。重新啟動 Kelivo 後將安全套用已匯入的資料。';
+    return '匯入已完成，但已略過 $count 個訊息順序無效的會話。重新啟動 Cuplivo 後將安全套用已匯入的資料。';
   }
 
   @override
-  String get restartAppFailedMessage => 'Kelivo 無法自動重新啟動，請完全關閉後再重新開啟。';
+  String get restartAppFailedMessage => 'Cuplivo 無法自動重新啟動，請完全關閉後再重新開啟。';
 
   @override
   String get backupRestoreRolledBackTitle => '已保留原有資料';
 
   @override
-  String get backupRestoreRolledBackContent => '還原未能完成。Kelivo 已驗證並保留先前的資料。';
+  String get backupRestoreRolledBackContent => '還原未能完成。Cuplivo 已驗證並保留先前的資料。';
 
   @override
   String get backupRestoreFailureTitle => '還原需要處理';
 
   @override
   String get backupRestoreFailureContent =>
-      'Kelivo 無法驗證完整的原有或新資料，因此未開啟聊天資料。請關閉 Kelivo 後重試；若問題持續發生，請保留診斷碼以供支援人員排查。';
+      'Cuplivo 無法驗證完整的原有或新資料，因此未開啟聊天資料。請關閉 Cuplivo 後重試；若問題持續發生，請保留診斷碼以供支援人員排查。';
 
   @override
-  String get backupRestoreBusinessLeaseUnavailableTitle => 'Kelivo 已在執行';
+  String get backupRestoreBusinessLeaseUnavailableTitle => 'Cuplivo 已在執行';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableContent =>
-      'Kelivo 的資料仍由另一個應用程式程序使用。請關閉其他 Kelivo 視窗後重新啟動；目前程序尚未開啟聊天資料。';
+      'Cuplivo 的資料仍由另一個應用程式程序使用。請關閉其他 Cuplivo 視窗後重新啟動；目前程序尚未開啟聊天資料。';
 
   @override
   String get restoreProgressTitle => '正在還原備份';
 
   @override
   String get restoreProgressWarning =>
-      '請保持 Kelivo 開啟直到完成。此時關閉應用程式，下次啟動會從頭再來一次。';
+      '請保持 Cuplivo 開啟直到完成。此時關閉應用程式，下次啟動會從頭再來一次。';
 
   @override
   String get restoreProgressStageCheckingBackup => '正在驗證備份';
@@ -24940,7 +24928,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get restoreProgressStageFinishing => '即將完成';
 
   @override
-  String get backupRestoreFailureRestartButton => '重新啟動 Kelivo';
+  String get backupRestoreFailureRestartButton => '重新啟動 Cuplivo';
 
   @override
   String get backupRestoreFailureCopyButton => '複製診斷碼';
@@ -24978,14 +24966,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get startupRecoveryRepairFailed => '修復未能解決問題。請先匯出資料副本，然後重設。';
 
   @override
-  String get startupRecoveryResetFailed => '重設失敗。請完全關閉 Kelivo 後再重新開啟。';
+  String get startupRecoveryResetFailed => '重設失敗。請完全關閉 Cuplivo 後再重新開啟。';
 
   @override
   String get startupRecoveryResetDialogTitle => '重設全部資料？';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      '這會永久刪除本裝置上 Kelivo 的資料庫並重新開始。如果之後可能還需要這些資料，請先匯出一份副本。此操作無法復原。';
+      '這會永久刪除本裝置上 Cuplivo 的資料庫並重新開始。如果之後可能還需要這些資料，請先匯出一份副本。此操作無法復原。';
 
   @override
   String get startupRecoveryResetDialogConfirm => '重設並重新啟動';
@@ -25097,17 +25085,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get startupRecoveryDangerBody =>
-      '重設會永久刪除本裝置上 Kelivo 的資料庫。請先匯出資料副本——重設同時會銷毀排查根本問題所需的證據。';
+      '重設會永久刪除本裝置上 Cuplivo 的資料庫。請先匯出資料副本——重設同時會銷毀排查根本問題所需的證據。';
 
   @override
   String get startupRecoveryResetAcknowledge => '我已匯出副本，或不需要這些資料。';
 
   @override
-  String get startupDatabaseUpdateRequiredTitle => '請更新 Kelivo 以繼續';
+  String get startupDatabaseUpdateRequiredTitle => '請更新 Cuplivo 以繼續';
 
   @override
   String get startupDatabaseUpdateRequiredContent =>
-      '本裝置上的聊天資料庫由更新版本的 Kelivo 建立，目前版本無法開啟。資料未被改動。請安裝最新版 Kelivo 後重新開啟。';
+      '本裝置上的聊天資料庫由更新版本的 Cuplivo 建立，目前版本無法開啟。資料未被改動。請安裝最新版 Cuplivo 後重新開啟。';
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeTitle => '若要改用舊版';
@@ -25118,7 +25106,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeStep1 =>
-      '先安裝並開啟最新版 Kelivo，在「設定 → 資料備份」匯出一份備份檔。';
+      '先安裝並開啟最新版 Cuplivo，在「設定 → 資料備份」匯出一份備份檔。';
 
   @override
   String startupDatabaseUpdateRequiredDowngradeStep2(String url) {
@@ -25176,7 +25164,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String backupPageForwardCompatBody(int backupVersion, int currentVersion) {
-    return '這份備份由更新版本的 Kelivo 建立（資料格式 $backupVersion，目前版本支援 $currentVersion），且未聲明舊版本能否讀取。\n\n你可以繼續匯入：目前版本不認識的內容會被略過，備份檔案本身不會被修改。但如果新版本改變了既有資料的儲存方式，部分內容可能會被錯誤匯入。\n\n更穩妥的做法是先升級 Kelivo。';
+    return '這份備份由更新版本的 Cuplivo 建立（資料格式 $backupVersion，目前版本支援 $currentVersion），且未聲明舊版本能否讀取。\n\n你可以繼續匯入：目前版本不認識的內容會被略過，備份檔案本身不會被修改。但如果新版本改變了既有資料的儲存方式，部分內容可能會被錯誤匯入。\n\n更穩妥的做法是先升級 Cuplivo。';
   }
 
   @override
@@ -25187,7 +25175,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupPageSchemaTooNewMessage =>
-      '這份備份由更新版本的 Kelivo 建立，目前版本無法讀取。請先升級 Kelivo 後重試。';
+      '這份備份由更新版本的 Cuplivo 建立，目前版本無法讀取。請先升級 Cuplivo 後重試。';
 
   @override
   String get backupPageBackupUploaded => '已上傳備份';
@@ -25359,7 +25347,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return '此備份使用 Cherry Studio 格式版本 $version，Kelivo 目前尚無法匯入。請改用 Cherry Studio v1 匯出備份，或等待後續版本支援 Cherry Studio v2。';
+    return '此備份使用 Cherry Studio 格式版本 $version，Cuplivo 目前尚無法匯入。請改用 Cherry Studio v1 匯出備份，或等待後續版本支援 Cherry Studio v2。';
   }
 
   @override
@@ -27643,13 +27631,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get aboutPageEasterEggButton => '好的';
 
   @override
-  String get aboutPageKelivoSearchUnlocked => '有扇沒有名字的門開了一條縫。去設定裡找找看。';
+  String get aboutPageCuplivoSearchUnlocked => '有扇沒有名字的門開了一條縫。去設定裡找找看。';
 
   @override
-  String get aboutPageKelivoSearchAlreadyUnlocked => '這扇門你已經推開過了。';
+  String get aboutPageCuplivoSearchAlreadyUnlocked => '這扇門你已經推開過了。';
 
   @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Cuplivo';
 
   @override
   String get aboutPageAppDescription => '開源 AI 助理';
@@ -27707,13 +27695,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get aboutPageJoinQQGroup => '加入 QQ 群';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo 一群';
-
-  @override
-  String get aboutPageQQGroupTwo => 'Kelivo 二群';
-
-  @override
-  String get aboutPageQQGroupThree => 'Kelivo 三群';
+  String get aboutPageQQGroup => 'Cuplivo 群';
 
   @override
   String get aboutPageJoinDiscord => '加入我們的 Discord';
@@ -28704,7 +28686,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get settingsShare => 'Kelivo - 開源AI助理';
+  String get settingsShare => 'Cuplivo - 開源AI助理';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -28901,7 +28883,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '最大 token 數必須介於 1024 和 32768 之間。';
 
   @override
-  String get searchServiceNameKelivo => 'Kelivo';
+  String get searchServiceNameCuplivo => 'Cuplivo';
 
   @override
   String get searchServicesDialogCountryOptional => '國家/地區（可選）';
@@ -29178,7 +29160,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get healthDataSettingsDescription =>
-      '目前助手在日常對話中可使用的 HealthKit 訊號。開關表示 Kelivo 可以嘗試讀取該範圍，實際授權仍由 iOS 管理。';
+      '目前助手在日常對話中可使用的 HealthKit 訊號。開關表示 Cuplivo 可以嘗試讀取該範圍，實際授權仍由 iOS 管理。';
 
   @override
   String healthDataSettingsBadge(int selected, int total) {
@@ -30468,7 +30450,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get legacyMemoryExport => '匯出';
 
   @override
-  String get legacyMemoryExportTitle => 'Kelivo 舊版記憶匯出';
+  String get legacyMemoryExportTitle => 'Cuplivo 舊版記憶匯出';
 
   @override
   String legacyMemoryAssistantHeader(String name) {
@@ -31050,7 +31032,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get migrationIntroSubtitle =>
-      'Kelivo 將聊天記錄遷移到更快的 SQLite 資料庫。升級會在應用程式開啟前完成，避免新舊資料同時寫入。';
+      'Cuplivo 將聊天記錄遷移到更快的 SQLite 資料庫。升級會在應用程式開啟前完成，避免新舊資料同時寫入。';
 
   @override
   String get migrationBackupNote => '遷移開始前，會先匯出包含設定、聊天記錄和本地檔案的 ZIP 備份。';
@@ -31092,14 +31074,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get migrationBackingUpSubtitle =>
-      '正在匯出設定、聊天記錄、上傳檔案、圖片和字體。請保持 Kelivo 開啟，等待備份完成。';
+      '正在匯出設定、聊天記錄、上傳檔案、圖片和字體。請保持 Cuplivo 開啟，等待備份完成。';
 
   @override
   String get migrationMigratingTitle => '正在遷移到 SQLite';
 
   @override
   String get migrationMigratingSubtitle =>
-      '正在分批寫入對話和訊息，避免超大聊天記錄占滿記憶體。請保持 Kelivo 在前台，等待遷移完成。';
+      '正在分批寫入對話和訊息，避免超大聊天記錄占滿記憶體。請保持 Cuplivo 在前台，等待遷移完成。';
 
   @override
   String migrationBackingUpDetail(String fileName) {
@@ -31158,7 +31140,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get migrationCompleteSubtitle =>
-      '你的聊天記錄已遷移到 SQLite。請重啟 Kelivo 進入升級後的應用程式。';
+      '你的聊天記錄已遷移到 SQLite。請重啟 Cuplivo 進入升級後的應用程式。';
 
   @override
   String get migrationConversationCount => '對話';
@@ -31176,7 +31158,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get migrationMissingFilesCount => '缺失檔案';
 
   @override
-  String get migrationRestartButton => '重啟 Kelivo';
+  String get migrationRestartButton => '重啟 Cuplivo';
 
   @override
   String get migrationFailedTitle => '遷移失敗';
@@ -31202,7 +31184,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get migrationSkipDialogMessage =>
-      'Kelivo 將以空的聊天資料庫啟動。舊的聊天記錄會保留在磁碟上（重新命名為 .retired 後綴），但不會被遷移，也不會在應用程式中顯示。之後如需找回，請使用已儲存的備份 ZIP。';
+      'Cuplivo 將以空的聊天資料庫啟動。舊的聊天記錄會保留在磁碟上（重新命名為 .retired 後綴），但不會被遷移，也不會在應用程式中顯示。之後如需找回，請使用已儲存的備份 ZIP。';
 
   @override
   String get migrationSkipDialogCancel => '取消';
@@ -31610,7 +31592,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get localSnapshotEnabledTitle => '保留本機副本';
 
   @override
-  String get localSnapshotEnabledSubtitle => 'Kelivo 會定期在本機存一份資料庫副本，讓資料不只有一份。';
+  String get localSnapshotEnabledSubtitle => 'Cuplivo 會定期在本機存一份資料庫副本，讓資料不只有一份。';
 
   @override
   String get localSnapshotIntervalTitle => '備份頻率';
@@ -32404,7 +32386,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get workspaceEnvUpToDate => '已是最新';
 
   @override
-  String get workspaceEnvRestartBanner => '請重新啟動 Kelivo 以完成安裝';
+  String get workspaceEnvRestartBanner => '請重新啟動 Cuplivo 以完成安裝';
 
   @override
   String get workspaceEnvDetectingMirrors => '正在偵測最快鏡像…';
@@ -32500,7 +32482,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get workspaceEnvNativeExplanation =>
-      '在桌面端，Kelivo 使用系統終端機，而不是 Linux 沙箱。';
+      '在桌面端，Cuplivo 使用系統終端機，而不是 Linux 沙箱。';
 
   @override
   String workspaceEnvNativeShellPath(String path) {
@@ -33410,7 +33392,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get workspaceDesktopFolderMissing => '請選擇已存在的資料夾，或輸入它的絕對路徑。';
 
   @override
-  String get workspaceDesktopManagedHint => '由 Kelivo 為此專案建立並管理資料夾。';
+  String get workspaceDesktopManagedHint => '由 Cuplivo 為此專案建立並管理資料夾。';
 
   @override
   String get workspaceDesktopHostHint => '在本機存取檔案和執行命令。';
@@ -33641,7 +33623,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get workspaceExternalStorageMessage =>
-      '工作區和 Shell 需要直接讀寫外部資料夾，請在 Android 系統設定中允許 Kelivo 存取檔案。Android 11 及以上需開啟「所有檔案存取權限」，然後選擇要掛載的本機資料夾。';
+      '工作區和 Shell 需要直接讀寫外部資料夾，請在 Android 系統設定中允許 Cuplivo 存取檔案。Android 11 及以上需開啟「所有檔案存取權限」，然後選擇要掛載的本機資料夾。';
 
   @override
   String get workspaceExternalGrantAccess => '前往授權';
@@ -33872,7 +33854,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backgroundSettingsTitle => '背景任務';
 
   @override
-  String get backgroundTaskTitle => 'Kelivo 任務';
+  String get backgroundTaskTitle => 'Cuplivo 任務';
 
   @override
   String get backgroundCompleted => '生成完成';
@@ -34003,7 +33985,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backgroundOverlayIcon => '懸浮視窗圖示';
 
   @override
-  String get backgroundIconDefault => 'Kelivo 圖示';
+  String get backgroundIconDefault => 'Cuplivo 圖示';
 
   @override
   String get backgroundIconImage => '選擇圖片';
@@ -34212,7 +34194,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get startupRecoverySnapshotBody =>
-      '即使資料庫無法開啟，也可以選擇本機快照還原聊天和設定。請勿解除安裝 Kelivo，解除安裝會一併刪除這些快照。';
+      '即使資料庫無法開啟，也可以選擇本機快照還原聊天和設定。請勿解除安裝 Cuplivo，解除安裝會一併刪除這些快照。';
 
   @override
   String get startupRecoverySnapshotEmpty => '未在本機找到資料庫快照。請先匯出資料，再嘗試其他還原操作。';
@@ -34222,7 +34204,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
-    return '將聊天和設定還原到 $when 的快照？快照之後的變更不會包含在內。現有附件檔案和快照會保留，Kelivo 將重新啟動以完成還原。';
+    return '將聊天和設定還原到 $when 的快照？快照之後的變更不會包含在內。現有附件檔案和快照會保留，Cuplivo 將重新啟動以完成還原。';
   }
 
   @override
@@ -34231,7 +34213,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get startupRecoverySnapshotReady => '快照已準備好，請重新啟動 Kelivo 完成還原。';
+  String get startupRecoverySnapshotReady => '快照已準備好，請重新啟動 Cuplivo 完成還原。';
 
   @override
   String get scheduledTasksTitle => '定時任務';
@@ -34302,7 +34284,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksReliability =>
-      '建議在電池設定中允許 Kelivo 背景執行。強制停止後需重新開啟應用程式。錯過的任務不會補跑，執行時間跟隨裝置時區。';
+      '建議在電池設定中允許 Cuplivo 背景執行。強制停止後需重新開啟應用程式。錯過的任務不會補跑，執行時間跟隨裝置時區。';
 
   @override
   String get scheduledTasksExecutionDetail =>
@@ -34479,7 +34461,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksDesktopReliability =>
-      '僅在 Kelivo 執行時運作，最小化或常駐系統匣時也會繼續。結束或電腦休眠期間錯過的任務不會補執行，也不會自動啟動應用程式。';
+      '僅在 Cuplivo 執行時運作，最小化或常駐系統匣時也會繼續。結束或電腦休眠期間錯過的任務不會補執行，也不會自動啟動應用程式。';
 
   @override
   String get scheduledTasksDesktopExecutionDetail =>
@@ -34769,7 +34751,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksIOSDetail =>
-      '受 iOS 背景限制，Kelivo 不能在指定時間自動喚醒並執行模型。此功能會在 App 可執行時提前準備內容，由系統到點顯示通知。每次僅準備下一次結果；離開 App 後不保證準備完成，後續任務需再次開啟 Kelivo 才能補充。';
+      '受 iOS 背景限制，Cuplivo 不能在指定時間自動喚醒並執行模型。此功能會在 App 可執行時提前準備內容，由系統到點顯示通知。每次僅準備下一次結果；離開 App 後不保證準備完成，後續任務需再次開啟 Cuplivo 才能補充。';
 
   @override
   String get scheduledTasksContextPolicy => '對話上下文';
@@ -34833,7 +34815,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get scheduledTasksCancelled => '已取消';
 
   @override
-  String get scheduledTasksReminderBody => '定時任務已到期，開啟 Kelivo 繼續。';
+  String get scheduledTasksReminderBody => '定時任務已到期，開啟 Cuplivo 繼續。';
 
   @override
   String get scheduledTasksResultBody => '定時任務結果已準備好。';
@@ -34847,7 +34829,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksAllowPreparationTip =>
-      '在 Kelivo 可執行時，提前產生下一次任務的結果，到期前不會顯示在聊天中。僅使用文字，不使用工具、附件或自訂請求內容；呼叫模型可能產生費用。';
+      '在 Cuplivo 可執行時，提前產生下一次任務的結果，到期前不會顯示在聊天中。僅使用文字，不使用工具、附件或自訂請求內容；呼叫模型可能產生費用。';
 
   @override
   String get scheduledTasksContextPolicyTip =>
@@ -34855,7 +34837,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksPreparationWindowTip =>
-      '允許在任務到期前多久開始準備，最長 24 小時。例如第二天早上提醒，前一天中午開啟 Kelivo 時就有機會準備。時間越長，準備機會越多，但內容也可能更早過時。不會改變任務時間，也不代表能在背景定時執行。「立刻準備」不受這項自動等待和準備次數上限限制。';
+      '允許在任務到期前多久開始準備，最長 24 小時。例如第二天早上提醒，前一天中午開啟 Cuplivo 時就有機會準備。時間越長，準備機會越多，但內容也可能更早過時。不會改變任務時間，也不代表能在背景定時執行。「立刻準備」不受這項自動等待和準備次數上限限制。';
 
   @override
   String get scheduledTasksPreparationAttemptsTip =>
@@ -34867,7 +34849,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksUnavailableTip =>
-      '到期時沒有可用結果、也無法執行任務，就傳送提醒或略過本次。提醒不包含模型產生的回答，且需要開啟通知。如果到期時 Kelivo 正在開啟執行，可直接執行任務。';
+      '到期時沒有可用結果、也無法執行任務，就傳送提醒或略過本次。提醒不包含模型產生的回答，且需要開啟通知。如果到期時 Cuplivo 正在開啟執行，可直接執行任務。';
 
   @override
   String get scheduledTasksNotifyTip =>
@@ -35043,14 +35025,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get phoneControlAssistantHint =>
-      '需要同時完成兩項設定：在系統無障礙設定中啟用「Kelivo 手機控制」，並在要使用的助手 → 本地工具中開啟「手機控制」（也可從對話工具選單開啟）。每個助手單獨設定，執行任務時請保持手機解鎖。';
+      '需要同時完成兩項設定：在系統無障礙設定中啟用「Cuplivo 手機控制」，並在要使用的助手 → 本地工具中開啟「手機控制」（也可從對話工具選單開啟）。每個助手單獨設定，執行任務時請保持手機解鎖。';
 
   @override
   String get phoneControlRestrictedTitle => '無法開啟無障礙？';
 
   @override
   String get phoneControlRestrictedHint =>
-      '部分下載的 APK 需要先在應用程式資訊右上角選單中選擇「允許受限制的設定」。點擊開啟 Kelivo 應用程式資訊，完成後再返回無障礙設定。';
+      '部分下載的 APK 需要先在應用程式資訊右上角選單中選擇「允許受限制的設定」。點擊開啟 Cuplivo 應用程式資訊，完成後再返回無障礙設定。';
 
   @override
   String get phoneControlEnableAssistant => '允許此助手使用手機控制';

@@ -7,14 +7,14 @@ import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/services/backup/restore_bundle_preparation.dart';
-import 'package:Kelivo/core/services/backup/restore_cutover_executor.dart';
-import 'package:Kelivo/core/services/backup/restore_durability.dart';
-import 'package:Kelivo/core/services/backup/restore_previous_store.dart';
-import 'package:Kelivo/core/services/backup/restore_receipt.dart';
-import 'package:Kelivo/core/services/backup/restore_workspace_lock.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/services/backup/restore_bundle_preparation.dart';
+import 'package:Cuplivo/core/services/backup/restore_cutover_executor.dart';
+import 'package:Cuplivo/core/services/backup/restore_durability.dart';
+import 'package:Cuplivo/core/services/backup/restore_previous_store.dart';
+import 'package:Cuplivo/core/services/backup/restore_receipt.dart';
+import 'package:Cuplivo/core/services/backup/restore_workspace_lock.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

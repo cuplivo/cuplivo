@@ -1,11 +1,11 @@
-import 'package:Kelivo/core/services/sandbox/environment_dependencies.dart';
-import 'package:Kelivo/core/services/sandbox/environment_installer.dart';
-import 'package:Kelivo/core/services/sandbox/workspace_channel.dart';
-import 'package:Kelivo/features/workspace/pages/external_mounts_page.dart';
-import 'package:Kelivo/features/workspace/pages/environment_download_page.dart';
-import 'package:Kelivo/features/workspace/pages/proot_options_page.dart';
-import 'package:Kelivo/features/workspace/widgets/files/workspace_prompts.dart';
-import 'package:Kelivo/features/workspace/pages/environment_variables_page.dart';
+import 'package:Cuplivo/core/services/sandbox/environment_dependencies.dart';
+import 'package:Cuplivo/core/services/sandbox/environment_installer.dart';
+import 'package:Cuplivo/core/services/sandbox/workspace_channel.dart';
+import 'package:Cuplivo/features/workspace/pages/external_mounts_page.dart';
+import 'package:Cuplivo/features/workspace/pages/environment_download_page.dart';
+import 'package:Cuplivo/features/workspace/pages/proot_options_page.dart';
+import 'package:Cuplivo/features/workspace/widgets/files/workspace_prompts.dart';
+import 'package:Cuplivo/features/workspace/pages/environment_variables_page.dart';
 import 'environment_dependencies_section.dart';
 import 'dart:async';
 
@@ -15,27 +15,27 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/models/environment_state.dart';
-import 'package:Kelivo/core/providers/environment_provider.dart';
-import 'package:Kelivo/core/services/sandbox/environment_manager.dart';
-import 'package:Kelivo/core/services/sandbox/mirror_service.dart';
-import 'package:Kelivo/core/services/sandbox/rootfs_disk_usage.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
-import 'package:Kelivo/features/workspace/widgets/environment/environment_chrome.dart';
-import 'package:Kelivo/features/workspace/widgets/environment/environment_dialogs.dart';
-import 'package:Kelivo/features/workspace/widgets/environment/environment_keys.dart';
-import 'package:Kelivo/features/workspace/widgets/environment/environment_labels.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/features/workspace/workspace_layout.dart';
-import 'package:Kelivo/shared/utils/format_bytes.dart';
-import 'package:Kelivo/shared/widgets/animated_progress_bar.dart';
-import 'package:Kelivo/shared/widgets/ios_settings_rows.dart';
-import 'package:Kelivo/shared/widgets/ios_tile_button.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/core/models/environment_state.dart';
+import 'package:Cuplivo/core/providers/environment_provider.dart';
+import 'package:Cuplivo/core/services/sandbox/environment_manager.dart';
+import 'package:Cuplivo/core/services/sandbox/mirror_service.dart';
+import 'package:Cuplivo/core/services/sandbox/rootfs_disk_usage.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/features/workspace/widgets/environment/environment_chrome.dart';
+import 'package:Cuplivo/features/workspace/widgets/environment/environment_dialogs.dart';
+import 'package:Cuplivo/features/workspace/widgets/environment/environment_keys.dart';
+import 'package:Cuplivo/features/workspace/widgets/environment/environment_labels.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/workspace/workspace_layout.dart';
+import 'package:Cuplivo/shared/utils/format_bytes.dart';
+import 'package:Cuplivo/shared/widgets/animated_progress_bar.dart';
+import 'package:Cuplivo/shared/widgets/ios_settings_rows.dart';
+import 'package:Cuplivo/shared/widgets/ios_tile_button.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 /// Embeddable environment body for the Environment page and desktop settings.
 class EnvironmentPane extends StatefulWidget {

@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/services/chat/prompt_transformer.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/services/chat/prompt_transformer.dart';
 
 import '../../support/business_preferences_test_harness.dart';
 

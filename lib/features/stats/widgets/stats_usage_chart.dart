@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../l10n/app_localizations.dart';
 import '../models/stats_models.dart';
 import '../../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 const double _usageDetailBubbleWidth = 228;
 const double _usageDetailBubbleTop = 8;

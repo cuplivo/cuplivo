@@ -6,8 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
-import 'package:Kelivo/desktop/desktop_window_controller.dart';
-import 'package:Kelivo/desktop/windows_window_geometry.dart';
+import 'package:Cuplivo/desktop/desktop_window_controller.dart';
+import 'package:Cuplivo/desktop/windows_window_geometry.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

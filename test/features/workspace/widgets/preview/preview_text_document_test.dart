@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:Kelivo/features/workspace/widgets/preview/preview_text_document.dart';
+import 'package:Cuplivo/features/workspace/widgets/preview/preview_text_document.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

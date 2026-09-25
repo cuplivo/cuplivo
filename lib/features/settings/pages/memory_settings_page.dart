@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/memory/memory_prompts.dart';

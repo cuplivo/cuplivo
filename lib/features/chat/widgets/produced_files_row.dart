@@ -1,17 +1,17 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:path/path.dart' as p;
-import 'package:Kelivo/features/workspace/widgets/files/file_browser_ops.dart';
-import 'package:Kelivo/features/workspace/widgets/files/workspace_file_thumbnail.dart';
+import 'package:Cuplivo/features/workspace/widgets/files/file_browser_ops.dart';
+import 'package:Cuplivo/features/workspace/widgets/files/workspace_file_thumbnail.dart';
 
 import 'package:flutter/material.dart';
 
-import 'package:Kelivo/core/services/workspace/workspace_tool_metadata.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_tool_metadata.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 import 'workspace_tool_ui.dart';
 

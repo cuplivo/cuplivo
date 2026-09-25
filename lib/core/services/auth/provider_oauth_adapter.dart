@@ -434,7 +434,7 @@ class ChatGptOAuthAdapter extends ProviderOAuthAdapter {
       'chatgpt-account-id': accountId,
     'originator': 'kelivo',
     'version': codexClientVersion,
-    'User-Agent': 'Kelivo',
+    'User-Agent': 'Cuplivo',
     'OpenAI-Beta': 'responses=experimental',
   };
 
@@ -782,7 +782,7 @@ class KimiOAuthAdapter extends ProviderOAuthAdapter {
     'User-Agent': 'KimiCLI/1.0',
     'X-Msh-Platform': 'kimi_cli',
     'X-Msh-Version': '1.0',
-    'X-Msh-Device-Name': 'Kelivo',
+    'X-Msh-Device-Name': 'Cuplivo',
     'X-Msh-Device-Model': Platform.operatingSystem,
     if (deviceId != null) 'X-Msh-Device-Id': deviceId,
   };

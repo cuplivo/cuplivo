@@ -177,7 +177,7 @@ class DioHttpClient extends http.BaseClient {
 
     final reqHeaders = Map<String, String>.from(request.headers);
     if (!reqHeaders.keys.any((key) => key.toLowerCase() == 'user-agent')) {
-      reqHeaders['User-Agent'] = 'Kelivo';
+      reqHeaders['User-Agent'] = 'Cuplivo';
     }
 
     if (logRequests && RequestLogger.enabled) {

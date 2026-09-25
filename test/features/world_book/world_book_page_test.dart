@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -9,15 +9,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/models/world_book.dart';
-import 'package:Kelivo/core/providers/world_book_provider.dart';
-import 'package:Kelivo/desktop/setting/world_book_pane.dart';
-import 'package:Kelivo/features/world_book/pages/world_book_page.dart';
-import 'package:Kelivo/features/world_book/widgets/world_book_entry_widgets.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_form_text_field.dart';
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/core/models/world_book.dart';
+import 'package:Cuplivo/core/providers/world_book_provider.dart';
+import 'package:Cuplivo/desktop/setting/world_book_pane.dart';
+import 'package:Cuplivo/features/world_book/pages/world_book_page.dart';
+import 'package:Cuplivo/features/world_book/widgets/world_book_entry_widgets.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_form_text_field.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 
 import '../../support/business_test_harness.dart';
 

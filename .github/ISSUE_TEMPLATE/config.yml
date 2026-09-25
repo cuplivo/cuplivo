@@ -1,1 +1,5 @@
 blank_issues_enabled: true
+contact_links:
+  - name: Upstream Kelivo issue tracker
+    url: https://github.com/Chevey339/kelivo/issues
+    about: Report bugs that also reproduce in Kelivo, the upstream project this fork re-bases on.

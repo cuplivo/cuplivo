@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:Kelivo/core/services/workspace/conversation_files.dart';
+import 'package:Cuplivo/core/services/workspace/conversation_files.dart';
 
 void main() {
   late Directory tmp;

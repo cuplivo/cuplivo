@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mcp_client/mcp_client.dart' as mcp;
 
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/core/services/mcp/mcp_tool_service.dart';
-import 'package:Kelivo/features/chat/widgets/timeline_visibility.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_tool_service.dart';
+import 'package:Cuplivo/features/chat/widgets/timeline_visibility.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
 
 import '../../../support/business_test_harness.dart';
 

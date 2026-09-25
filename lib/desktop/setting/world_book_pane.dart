@@ -1,4 +1,4 @@
-import 'package:Kelivo/features/world_book/widgets/world_book_entry_widgets.dart';
+import 'package:Cuplivo/features/world_book/widgets/world_book_entry_widgets.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -16,7 +16,7 @@ import '../../shared/widgets/ios_switch.dart';
 import '../../shared/widgets/snackbar.dart';
 import '../widgets/desktop_select_dropdown.dart';
 import '../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class DesktopWorldBookPane extends StatefulWidget {
   const DesktopWorldBookPane({super.key});

@@ -549,7 +549,7 @@ final class McpOAuthService {
       registration ??= await _cachedDynamicRegistration(
         discovery,
         redirectUri: callback.redirectUri,
-        clientName: serverName.trim().isEmpty ? 'Kelivo' : serverName.trim(),
+        clientName: serverName.trim().isEmpty ? 'Cuplivo' : serverName.trim(),
         scopes: scopes,
       );
       _validateClientRegistration(registration);
@@ -740,7 +740,7 @@ final class McpOAuthService {
     }
     final response = await _postJson(endpoint, {
       'client_name': clientName,
-      'client_uri': 'https://github.com/Chevey339/kelivo',
+      'client_uri': 'https://github.com/cuplivo/cuplivo',
       'redirect_uris': [redirectUri.toString()],
       'grant_types': ['authorization_code', 'refresh_token'],
       'response_types': ['code'],

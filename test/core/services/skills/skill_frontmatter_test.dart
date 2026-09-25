@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/skills/skill_frontmatter.dart';
+import 'package:Cuplivo/core/services/skills/skill_frontmatter.dart';
 
 void main() {
   test('parses standard YAML frontmatter', () {

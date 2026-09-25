@@ -1,6 +1,6 @@
-import 'package:Kelivo/core/services/search/search_service.dart';
-import 'package:Kelivo/desktop/setting/search_services_pane.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/services/search/search_service.dart';
+import 'package:Cuplivo/desktop/setting/search_services_pane.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

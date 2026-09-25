@@ -11,7 +11,7 @@ import '../../../core/models/conversation.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../home/controllers/chat_actions.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class ChatHistoryPage extends StatefulWidget {
   const ChatHistoryPage({super.key, this.assistantId});

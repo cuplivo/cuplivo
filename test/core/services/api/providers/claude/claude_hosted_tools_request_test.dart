@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/api/builtin_tools.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/core/services/api/builtin_tools.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
 import '../../../../../support/claude_test_api.dart';
 import '../../../../../support/collect_generation.dart';
 

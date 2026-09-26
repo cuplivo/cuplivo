@@ -208,4 +208,92 @@ A-->B''',
       expect(_allRichTextPlainText(tester), isNot(contains('graph TD')));
     },
   );
+
+  testWidgets(
+    'streaming status keeps its State when the first text arrives',
+    (tester) async {
+      final content = ValueNotifier('');
+      addTearDown(content.dispose);
+      const messageId = 'streaming-shell';
+
+      await tester.pumpWidget(
+        _buildHarness(
+          child: SizedBox(
+            width: 360,
+            child: ValueListenableBuilder<String>(
+              valueListenable: content,
+              builder: (context, value, _) => ChatMessageWidget(
+                message: ChatMessage(
+                  id: messageId,
+                  role: 'assistant',
+                  content: value,
+                  conversationId: 'conversation-1',
+                  isStreaming: true,
+                ),
+                showModelIcon: false,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final status = find.byKey(
+        const ValueKey('assistant-streaming-status:streaming-shell'),
+      );
+      final indicator = find.descendant(
+        of: status,
+        matching: find.byType(LoadingIndicator),
+      );
+      expect(indicator, findsOneWidget);
+      final initialIndicatorState = tester.state(indicator);
+
+      content.value = 'First visible token';
+      await tester.pump();
+
+      expect(_allRichTextPlainText(tester), contains('First visible token'));
+      expect(tester.state(indicator), same(initialIndicatorState));
+    },
+  );
+
+  testWidgets(
+    'completion actions keep their AnimatedSwitcher State after streaming',
+    (tester) async {
+      final streaming = ValueNotifier(true);
+      addTearDown(streaming.dispose);
+      const switcher = ValueKey('assistant-actions-switcher');
+
+      await tester.pumpWidget(
+        _buildHarness(
+          child: SizedBox(
+            width: 360,
+            child: ValueListenableBuilder<bool>(
+              valueListenable: streaming,
+              builder: (context, value, _) => ChatMessageWidget(
+                message: ChatMessage(
+                  id: 'completion-actions',
+                  role: 'assistant',
+                  content: 'Reply',
+                  conversationId: 'conversation-1',
+                  isStreaming: value,
+                ),
+                showModelIcon: false,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final finder = find.byKey(switcher);
+      expect(finder, findsOneWidget);
+      final initialSwitcherState = tester.state(finder);
+
+      streaming.value = false;
+      await tester.pump();
+
+      expect(tester.state(finder), same(initialSwitcherState));
+      expect(find.byKey(const ValueKey('assistant-actions')), findsOneWidget);
+    },
+  );
 }

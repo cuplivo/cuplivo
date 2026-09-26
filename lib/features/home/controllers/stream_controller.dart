@@ -1621,6 +1621,7 @@ class StreamingState {
   void appendBufferedReasoning(String delta) => _bufferedReasoning.add(delta);
   DateTime? reasoningStartAt;
   bool finishHandled = false;
+  bool uiFinishNotified = false;
   bool terminalPersisted = false;
   bool titleQueued = false;
   DateTime? streamStartedAt;

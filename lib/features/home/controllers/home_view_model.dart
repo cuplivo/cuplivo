@@ -118,7 +118,7 @@ class HomeViewModel extends ChangeNotifier {
 
     // Wire up callbacks
     _chatActions.onMessagesChanged = _onMessagesChanged;
-    _chatActions.onSendPairAppended = () => onScrollToBottom?.call();
+    _chatActions.onSendPairAppended = _onSendPairAppended;
     _chatActions.onLoadingChanged = _onLoadingChanged;
     _chatActions.onContentUpdated = _onContentUpdated;
     _chatActions.onStreamError = _onStreamError;
@@ -152,6 +152,7 @@ class HomeViewModel extends ChangeNotifier {
   ChatActions get debugChatActions => _chatActions;
   QueuedChatInput? _queuedInput;
   bool _isDrainingQueuedInput = false;
+  final Set<String> _directSendConversationIds = <String>{};
 
   /// Function to get localized title
   final String Function(BuildContext context) getTitleForLocale;
@@ -178,6 +179,11 @@ class HomeViewModel extends ChangeNotifier {
   /// Called to schedule inline image sanitization.
   void Function(String messageId, String content, {bool immediate})?
   onScheduleImageSanitize;
+
+  /// Called after a direct composer send pair reaches the visible tail. The
+  /// page uses the same event to begin tail positioning and dismiss the mobile
+  /// keyboard, so those two visual changes do not race unrelated future ends.
+  void Function(String conversationId)? onDirectSendPairAppended;
 
   /// Called when scrolling to bottom is needed.
   VoidCallback? onScrollToBottom;
@@ -247,6 +253,17 @@ class HomeViewModel extends ChangeNotifier {
   void _onMessagesChanged() {
     _chatController.invalidateCache();
     notifyListeners();
+  }
+
+  void _onSendPairAppended(SendPairAppended event) {
+    // Only an input-bar send owns the current mobile keyboard. Scheduled and
+    // queued sends share the tail-scroll behavior but must not dismiss a draft
+    // the user may already be composing.
+    if (_directSendConversationIds.remove(event.conversationId)) {
+      onDirectSendPairAppended?.call(event.conversationId);
+      return;
+    }
+    onScrollToBottom?.call();
   }
 
   void _onLoadingChanged(String conversationId, bool loading) {
@@ -444,7 +461,9 @@ class HomeViewModel extends ChangeNotifier {
       return ChatInputSubmissionResult.queued;
     }
 
+    _directSendConversationIds.add(activeConversation.id);
     final success = await _sendMessageToConversation(input, activeConversation);
+    _directSendConversationIds.remove(activeConversation.id);
     return success
         ? ChatInputSubmissionResult.sent
         : ChatInputSubmissionResult.rejected;

@@ -103,6 +103,22 @@ class _GenerationCheckpointCursor {
   int nextSeq;
 }
 
+/// Presentation event emitted after a newly sent user/assistant pair enters
+/// the visible tail window. It gives the UI one coordination point for the
+/// tail scroll and mobile composer dismissal, without leaking either concern
+/// into the generation layer.
+class SendPairAppended {
+  const SendPairAppended({
+    required this.conversationId,
+    required this.userMessageId,
+    required this.assistantMessageId,
+  });
+
+  final String conversationId;
+  final String userMessageId;
+  final String assistantMessageId;
+}
+
 /// Result of a send/regenerate action.
 class ChatActionResult {
   final bool success;
@@ -266,7 +282,7 @@ class ChatActions {
   VoidCallback? onMessagesChanged;
 
   /// Called once after a successful send pair is visible in the tail window.
-  VoidCallback? onSendPairAppended;
+  void Function(SendPairAppended event)? onSendPairAppended;
 
   /// Called when conversation loading state changes.
   void Function(String conversationId, bool loading)? onLoadingChanged;
@@ -308,6 +324,12 @@ class ChatActions {
   // ============================================================================
   // Private Helpers
   // ============================================================================
+
+  void _notifyStreamFinishedOnce(stream_ctrl.StreamingState state) {
+    if (state.uiFinishNotified) return;
+    state.uiFinishNotified = true;
+    onStreamFinished?.call(state.conversationId);
+  }
 
   String _backgroundTaskId(stream_ctrl.GenerationContext ctx) =>
       ctx.generationRunId ?? ctx.assistantMessage.id;
@@ -846,6 +868,11 @@ class ChatActions {
   }
 
   @visibleForTesting
+  void debugNotifyStreamFinished(stream_ctrl.StreamingState state) {
+    _notifyStreamFinishedOnce(state);
+  }
+
+  @visibleForTesting
   Future<void> debugHandleStreamError(
     Object error,
     stream_ctrl.StreamingState state,
@@ -1303,7 +1330,13 @@ class ChatActions {
     }
     onMessagesChanged?.call();
     if (chatController.currentConversation?.id == conversation.id) {
-      onSendPairAppended?.call();
+      onSendPairAppended?.call(
+        SendPairAppended(
+          conversationId: conversation.id,
+          userMessageId: userMessage.id,
+          assistantMessageId: assistantMessage.id,
+        ),
+      );
     }
 
     // The send pair is visible and owned by the loading guard from here on, so
@@ -2631,10 +2664,9 @@ class ChatActions {
     await finishFuture;
     _finishStreamingFutures.remove(messageId);
 
-    // Notify for background notification if needed
-    if (!state.finishHandled) {
-      onStreamFinished?.call(conversationId);
-    }
+    // The terminal callback is owned by _finishStreaming. Its finally block
+    // also runs when persistence fails, so the UI still leaves streaming before
+    // _handleStreamError converts the failed completion into an error message.
 
     // This finish handler runs inside the sequential drain, so awaiting the
     // barrier cancel here would wait on this very drain and never complete.
@@ -2752,7 +2784,7 @@ class ChatActions {
       // Terminal widgets are usually taller than the streaming ones; pin
       // once more after isGenerating becomes false so layout-phase follow
       // does not miss that height change.
-      onStreamFinished?.call(conversationId);
+      _notifyStreamFinishedOnce(state);
     }
   }
 
@@ -2832,7 +2864,7 @@ class ChatActions {
       // handler itself and prevent the UI error callback below from firing.
       _conversationStreams.remove(conversationId);
       if (!oauthFailure) onStreamError?.call(errorText);
-      onStreamFinished?.call(conversationId);
+      _notifyStreamFinishedOnce(state);
     }
   }
 
@@ -2869,7 +2901,7 @@ class ChatActions {
     }
     // Idempotent: ensure notifier is removed even if _finishStreaming was skipped
     streamController.removeStreamingNotifier(messageId);
-    onStreamFinished?.call(conversationId);
+    _notifyStreamFinishedOnce(state);
     // The source stream is already done and this handler runs inside the
     // sequential drain; awaiting the barrier cancel here would wait on this
     // very drain and never complete, so only drop the map entry.

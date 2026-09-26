@@ -80,7 +80,9 @@ contradicts one of them is a bug, not a preference.
   user commits. A PNG of a photo can legitimately grow, and the estimate is what tells the user so
   before they apply it.
 - **Split compare (分屏对比)**: the editor body's 1:1 comparison — the original on the left of a
-  draggable divider, the current parameters' result on the right, over the region on screen.
+  draggable divider, the current parameters' result on the right, over the region on screen. The image
+  is letterboxed inside the preview area at its own aspect ratio, never stretched or cropped to fill
+  it; 1:1 means one image pixel per logical pixel, and the fit state shows the whole image.
 - **Apply to all (应用到全部)**: broadcasts the editor's current parameters to every attached image.
 - **Compressed file naming (压缩产物命名)**: a compressed artifact is named `.jpeg` or `.png`, never
   `.jpg`: some providers accept only the `jpeg` spelling.

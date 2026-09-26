@@ -10,7 +10,9 @@ import 'compress_editor_controller.dart';
 
 /// The editor body: one image, one draggable divider. The left side shows the
 /// original pixels, the right side the current parameters' result for the
-/// region on screen, so the two halves can be compared at 1:1.
+/// region on screen, so the two halves can be compared at 1:1. The image is
+/// letterboxed: it is rendered at its own aspect ratio inside the preview
+/// area, never stretched to fill it.
 class CompressPreview extends StatefulWidget {
   const CompressPreview({
     super.key,
@@ -30,6 +32,7 @@ class CompressPreview extends StatefulWidget {
 class _CompressPreviewState extends State<CompressPreview> {
   Size _layout = Size.zero;
   Rect _gestureStartVisible = Rect.zero;
+  Rect _gestureStartDest = Rect.zero;
   Offset _gestureSourcePoint = Offset.zero;
 
   CompressEditorController get _controller => widget.controller;
@@ -51,6 +54,9 @@ class _CompressPreviewState extends State<CompressPreview> {
             _syncViewport(fit: _controller.visibleSource.isEmpty);
           });
         }
+        final dest = _fitDest();
+        // Tags sit inside the drawn image area, not in the letterbox bars.
+        final tagArea = dest.isEmpty ? Offset.zero & _layout : dest;
         return ClipRect(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -67,12 +73,13 @@ class _CompressPreviewState extends State<CompressPreview> {
                       tile: _controller.tile,
                       tileSource: _controller.tileSource,
                       source: _controller.visibleSource,
+                      destination: dest,
                       divider: _controller.divider,
                     ),
                   ),
                 Positioned(
-                  left: 10,
-                  top: 10,
+                  left: tagArea.left + 10,
+                  top: tagArea.top + 10,
                   child: _PreviewTag(
                     text: AppLocalizations.of(
                       context,
@@ -81,14 +88,14 @@ class _CompressPreviewState extends State<CompressPreview> {
                 ),
                 if (widget.formatLabel != null)
                   Positioned(
-                    right: 10,
-                    top: 10,
+                    right: (_layout.width - tagArea.right) + 10,
+                    top: tagArea.top + 10,
                     child: _PreviewTag(
                       text: widget.formatLabel!,
                       busy: _controller.tileBusy,
                     ),
                   ),
-                _dividerHandle(),
+                _dividerHandle(dest),
               ],
             ),
           ),
@@ -97,18 +104,18 @@ class _CompressPreviewState extends State<CompressPreview> {
     );
   }
 
-  Widget _dividerHandle() {
-    if (_layout.isEmpty) return const SizedBox.shrink();
-    final x = _controller.divider * _layout.width;
+  Widget _dividerHandle(Rect dest) {
+    if (dest.isEmpty) return const SizedBox.shrink();
+    final x = dest.left + _controller.divider * dest.width;
     return Positioned(
       left: x - 14,
-      top: 0,
-      bottom: 0,
+      top: dest.top,
+      height: dest.height,
       width: 28,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragUpdate: (details) => _controller.setDivider(
-          _controller.divider + details.delta.dx / _layout.width,
+          _controller.divider + details.delta.dx / dest.width,
         ),
         child: Center(
           child: Container(
@@ -140,18 +147,20 @@ class _CompressPreviewState extends State<CompressPreview> {
 
   void _onScaleStart(ScaleStartDetails details) {
     _gestureStartVisible = _controller.visibleSource;
+    _gestureStartDest = _fitDest();
     _gestureSourcePoint = _sourcePointAt(details.localFocalPoint);
   }
 
   void _onScaleUpdate(ScaleUpdateDetails details) {
     final start = _gestureStartVisible;
-    if (start.isEmpty || _layout.isEmpty) return;
+    final dest = _gestureStartDest;
+    if (start.isEmpty || dest.isEmpty) return;
     final factor = details.scale <= 0 ? 1.0 : details.scale;
     final width = start.width / factor;
     final height = start.height / factor;
     final rel = Offset(
-      details.localFocalPoint.dx / _layout.width,
-      details.localFocalPoint.dy / _layout.height,
+      (details.localFocalPoint.dx - dest.left) / dest.width,
+      (details.localFocalPoint.dy - dest.top) / dest.height,
     );
     final next = Rect.fromLTWH(
       _gestureSourcePoint.dx - rel.dx * width,
@@ -163,35 +172,46 @@ class _CompressPreviewState extends State<CompressPreview> {
   }
 
   void _toggleZoom(Offset viewPoint) {
-    if (_layout.isEmpty || _previewSize.isEmpty) return;
+    final dest = _fitDest();
+    if (dest.isEmpty || _previewSize.isEmpty) return;
     final current = _controller.visibleSource;
-    final isOneToOne = current.width <= _layout.width * 1.01;
+    final isOneToOne = current.width <= dest.width * 1.01;
     if (isOneToOne) {
       _syncViewport(visible: _fitRect());
       return;
     }
     final point = _sourcePointAt(viewPoint);
     final next = Rect.fromLTWH(
-      point.dx - _layout.width / 2,
-      point.dy - _layout.height / 2,
-      _layout.width,
-      _layout.height,
+      point.dx - dest.width / 2,
+      point.dy - dest.height / 2,
+      dest.width,
+      dest.height,
     );
     _syncViewport(visible: _clamp(next));
   }
 
+  /// The fit state shows the whole image; aspect correction happens in
+  /// [_fitDest], not by cropping the source.
   Rect _fitRect() {
     final preview = _previewSize;
-    if (preview.isEmpty || _layout.isEmpty) return Rect.zero;
+    if (preview.isEmpty) return Rect.zero;
+    return Rect.fromLTWH(0, 0, preview.width, preview.height);
+  }
+
+  /// Where the visible source is drawn: contain-fit inside the layout so the
+  /// image keeps its aspect ratio and the leftover area stays backdrop black.
+  Rect _fitDest() {
+    final visible = _controller.visibleSource;
+    if (visible.isEmpty || _layout.isEmpty) return Rect.zero;
     final scale = math.min(
-      _layout.width / preview.width,
-      _layout.height / preview.height,
+      _layout.width / visible.width,
+      _layout.height / visible.height,
     );
-    final width = preview.width * scale;
-    final height = preview.height * scale;
+    final width = visible.width * scale;
+    final height = visible.height * scale;
     return Rect.fromLTWH(
-      (preview.width - width) / 2,
-      (preview.height - height) / 2,
+      (_layout.width - width) / 2,
+      (_layout.height - height) / 2,
       width,
       height,
     );
@@ -214,10 +234,11 @@ class _CompressPreviewState extends State<CompressPreview> {
 
   Offset _sourcePointAt(Offset viewPoint) {
     final visible = _controller.visibleSource;
-    if (_layout.isEmpty) return visible.topLeft;
+    final dest = _fitDest();
+    if (dest.isEmpty) return visible.topLeft;
     return Offset(
-      visible.left + viewPoint.dx / _layout.width * visible.width,
-      visible.top + viewPoint.dy / _layout.height * visible.height,
+      visible.left + (viewPoint.dx - dest.left) / dest.width * visible.width,
+      visible.top + (viewPoint.dy - dest.top) / dest.height * visible.height,
     );
   }
 
@@ -278,6 +299,7 @@ class _SplitPreviewPainter extends CustomPainter {
     required this.tile,
     required this.tileSource,
     required this.source,
+    required this.destination,
     required this.divider,
   });
 
@@ -285,22 +307,34 @@ class _SplitPreviewPainter extends CustomPainter {
   final ui.Image? tile;
   final Rect? tileSource;
   final Rect source;
+
+  /// Aspect-correct contain-fit of [source] inside the canvas: the whole
+  /// drawing, the split and the handle live inside this rect.
+  final Rect destination;
   final double divider;
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (source.isEmpty) return;
+    if (source.isEmpty || destination.isEmpty) return;
     final paint = Paint()..filterQuality = FilterQuality.medium;
-    final destination = Offset.zero & size;
-    final split = (size.width * divider).clamp(0.0, size.width);
+    final split =
+        (destination.width * divider).clamp(0.0, destination.width).toDouble() +
+        destination.left;
 
     canvas.save();
-    canvas.clipRect(Rect.fromLTRB(0, 0, split, size.height));
+    canvas.clipRect(destination);
     canvas.drawImageRect(original, source, destination, paint);
     canvas.restore();
 
     canvas.save();
-    canvas.clipRect(Rect.fromLTRB(split, 0, size.width, size.height));
+    canvas.clipRect(
+      Rect.fromLTRB(
+        split,
+        destination.top,
+        destination.right,
+        destination.bottom,
+      ),
+    );
     final usableTile = tile;
     // Only paint a tile that belongs to the region currently on screen: a
     // stale region would silently misrepresent the result.
@@ -318,7 +352,12 @@ class _SplitPreviewPainter extends CustomPainter {
     canvas.restore();
 
     canvas.drawRect(
-      Rect.fromLTRB(split - 0.75, 0, split + 0.75, size.height),
+      Rect.fromLTRB(
+        split - 0.75,
+        destination.top,
+        split + 0.75,
+        destination.bottom,
+      ),
       Paint()
         ..color = Colors
             .white // color-gate: ignore (divider over photo preview)
@@ -332,6 +371,7 @@ class _SplitPreviewPainter extends CustomPainter {
         old.tile != tile ||
         old.tileSource != tileSource ||
         old.source != source ||
+        old.destination != destination ||
         old.divider != divider;
   }
 }

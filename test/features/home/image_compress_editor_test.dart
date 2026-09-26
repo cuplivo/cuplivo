@@ -107,6 +107,12 @@ void main() {
     late SettingsProvider settings;
     late String path;
 
+    // A portrait window: its preview area's aspect ratio is nowhere near the
+    // fixture's, which is what makes a stretched or cropped fit visible.
+    tester.view.physicalSize = const Size(500, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
     // Delegate loading, the drift-backed preference store and file writes are
     // real async work, so they run outside the widget test's fake-async zone.
     await tester.runAsync(() async {
@@ -160,6 +166,16 @@ void main() {
     await tester.pump();
     // The page decodes the image in an isolate; give that real time to land.
     await _pumpUntilFound(tester, find.byType(CompressPreview));
+    final preview = tester.widget<CompressPreview>(
+      find.byType(CompressPreview),
+    );
+
+    // Fit state maps the whole image, so the painter letterboxes it inside
+    // the preview area instead of stretching it to fill.
+    expect(
+      preview.controller.visibleSource,
+      const Rect.fromLTWH(0, 0, 400, 260),
+    );
 
     // JPEG is the remembered format, so the lossy control is offered.
     expect(find.text(l10n.compressEditorQualityLabel), findsOneWidget);
@@ -184,9 +200,6 @@ void main() {
     // Back to JPEG, then drag the divider handle off the centre.
     await tester.tap(_formatTab(l10n.compressEditorFormatJpeg));
     await tester.pump();
-    final preview = tester.widget<CompressPreview>(
-      find.byType(CompressPreview),
-    );
     final startDivider = preview.controller.divider;
     await tester.dragFrom(
       tester.getCenter(find.byType(CompressPreview)),
@@ -240,7 +253,9 @@ Future<void> _pumpUntilFound(
   final deadline = DateTime.now().add(timeout);
   while (finder.evaluate().isEmpty) {
     if (DateTime.now().isAfter(deadline)) {
-      fail('${finder.description} did not appear before the timeout');
+      fail(
+        '${finder.describeMatch(Plurality.one)} did not appear before the timeout',
+      );
     }
     // runAsync lets the page's isolate work and file reads actually finish.
     await tester.runAsync(
@@ -248,6 +263,11 @@ Future<void> _pumpUntilFound(
     );
     await tester.pump();
   }
+  // pump() without a duration never advances the fake clock, so the 300ms
+  // route transition would sit unfinished and shift the rightmost format tab
+  // past the test window's edge where tap() can no longer reach it.
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump();
 }
 
 img.Image _noiseImage(int width, int height) {

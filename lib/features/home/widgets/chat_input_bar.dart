@@ -14,6 +14,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../../utils/file_import_helper.dart';
 import '../../../utils/image_compressor.dart';
 import '../../../utils/upload_dedupe.dart';
+import '../../../shared/utils/format_bytes.dart';
+import 'image_compress/compress_editor.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import '../../../shared/responsive/breakpoints.dart';
@@ -98,13 +100,15 @@ class _ImageProcessingTask {
   const _ImageProcessingTask({
     required this.id,
     required this.sourcePath,
-    required this.config,
     required this.deleteSourceAfterProcessing,
+    this.config,
+    this.manualParams,
   });
 
   final int id;
   final String sourcePath;
-  final ImageCompressConfig config;
+  final ImageCompressConfig? config;
+  final ManualCompressParams? manualParams;
 
   /// Only ever true for app-owned temp sources (clipboard paste temps);
   /// user-picked files must never be flagged for deletion.
@@ -257,6 +261,14 @@ class _ChatInputBarState extends State<ChatInputBar>
   final Set<int> _failedImageIds = <int>{};
   final Set<int> _pendingImagePasteIds = <int>{};
   final Set<int> _pendingTextPasteIds = <int>{};
+
+  /// Whether this draft created the stored file a draft image currently points
+  /// at. Only an owned copy may be replaced or dropped by the draft itself.
+  final Map<int, bool> _imageOwnsFile = <int, bool>{};
+
+  /// Cached on-disk sizes for the chip badges, keyed by path so a compressed
+  /// replacement resolves a fresh size.
+  final Map<String, Future<int?>> _imageSizeFutures = <String, Future<int?>>{};
   static const int _maxConcurrentImageTasks = 2;
   int _activeImageTasks = 0;
   int _nextImageId = 0;
@@ -406,11 +418,17 @@ class _ChatInputBarState extends State<ChatInputBar>
     UploadWrite? saved;
     try {
       final dir = await AppDirectories.getUploadDirectory();
-      saved = await ImageCompressor.compressToUploadDir(
-        task.sourcePath,
-        dir,
-        task.config,
-      );
+      saved = task.manualParams != null
+          ? await ImageCompressor.compressManualToUploadDir(
+              task.sourcePath,
+              dir,
+              task.manualParams!,
+            )
+          : await ImageCompressor.compressToUploadDir(
+              task.sourcePath,
+              dir,
+              task.config!,
+            );
     } catch (_) {
       saved = null;
     } finally {
@@ -451,12 +469,22 @@ class _ChatInputBarState extends State<ChatInputBar>
 
     if (!mounted) return;
     if (taskIsActive) {
+      final previousPath = _images[index].path;
+      final ownedPrevious = _imageOwnsFile[task.id] ?? false;
       setState(() {
         _processingImageIds.remove(task.id);
         if (savedPath == null) {
           _failedImageIds.add(task.id);
         } else {
           _images[index].path = savedPath;
+          _imageOwnsFile[task.id] = !(saved?.reused ?? true);
+          // A manual replace supersedes the stored copy it read from: drop it
+          // when this draft owns it and nothing else has resolved to it.
+          if (task.manualParams != null &&
+              previousPath != savedPath &&
+              ownedPrevious) {
+            unawaited(UploadDedupe.deleteIfUnshared(previousPath));
+          }
         }
       });
     }
@@ -470,6 +498,9 @@ class _ChatInputBarState extends State<ChatInputBar>
         .toList(growable: false);
     _processingImageIds.removeAll(discarded);
     _failedImageIds.removeAll(discarded);
+    for (final id in discarded) {
+      _imageOwnsFile.remove(id);
+    }
     _imageProcessingQueue.removeWhere((task) => discarded.contains(task.id));
     for (final task in discardedQueuedTasks) {
       if (task.deleteSourceAfterProcessing) {
@@ -558,6 +589,57 @@ class _ChatInputBarState extends State<ChatInputBar>
 
   void _removeDocumentAt(int index) {
     setState(() => _docs.removeAt(index));
+  }
+
+  Future<int?> _imageSizeOf(String path) {
+    return _imageSizeFutures.putIfAbsent(
+      path,
+      () => File(
+        path,
+      ).length().then<int?>((value) => value, onError: (_) => null),
+    );
+  }
+
+  Future<void> _openCompressEditor(int idx) async {
+    if (idx < 0 || idx >= _images.length) return;
+    final image = _images[idx];
+    if (_processingImageIds.contains(image.id) ||
+        _failedImageIds.contains(image.id)) {
+      return;
+    }
+    final result = await showImageCompressEditor(
+      context,
+      imagePath: image.path,
+      totalImageCount: _images.length,
+    );
+    if (!mounted || result == null) return;
+    final ids = result is CompressEditorApplyAll
+        ? [for (final draft in _images) draft.id]
+        : <int>[image.id];
+    _applyManualParams(ids, result.params);
+  }
+
+  /// Enqueues [params] for [ids] through the shared processing queue, so chips
+  /// show the same spinner and the send button stays locked while it runs.
+  void _applyManualParams(List<int> ids, ManualCompressParams params) {
+    if (params.isNoOp) return;
+    setState(() {
+      for (final id in ids) {
+        final index = _images.indexWhere((draft) => draft.id == id);
+        if (index < 0 || _processingImageIds.contains(id)) continue;
+        _failedImageIds.remove(id);
+        _processingImageIds.add(id);
+        _imageProcessingQueue.add(
+          _ImageProcessingTask(
+            id: id,
+            sourcePath: _images[index].path,
+            manualParams: params,
+            deleteSourceAfterProcessing: false,
+          ),
+        );
+      }
+    });
+    _pumpImageProcessingQueue();
   }
 
   @override
@@ -2396,7 +2478,10 @@ class _ChatInputBarState extends State<ChatInputBar>
     final image = _images[idx];
     final processing = _processingImageIds.contains(image.id);
     final failed = !processing && _failedImageIds.contains(image.id);
-    return Stack(
+    final canEdit =
+        context.watch<SettingsProvider>().imageCompressionMode ==
+        ImageCompressionMode.manual;
+    final chip = Stack(
       clipBehavior: Clip.none,
       children: [
         DecoratedBox(
@@ -2488,6 +2573,67 @@ class _ChatInputBarState extends State<ChatInputBar>
               ),
             ),
           ),
+        if (!processing)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(6, 6, 6, 3),
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(9),
+                  ),
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      theme.colorScheme.scrim.withValues(alpha: 0.55),
+                      theme.colorScheme.scrim.withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (canEdit) ...[
+                      const Icon(
+                        Lucide.ImageDown,
+                        size: 10,
+                        color: Colors
+                            .white, // color-gate: ignore (on scrim over photo)
+                      ),
+                      const SizedBox(width: 3),
+                    ],
+                    Flexible(
+                      child: FutureBuilder<int?>(
+                        future: _imageSizeOf(image.path),
+                        builder: (context, snapshot) {
+                          final bytes = snapshot.data;
+                          if (bytes == null) return const SizedBox.shrink();
+                          return Text(
+                            formatBytes(bytes),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 9,
+                              height: 1.1,
+                              fontWeight: AppFontWeights.medium,
+                              color: Colors
+                                  .white, // color-gate: ignore (on scrim over photo)
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         Positioned(
           right: 4,
           top: 4,
@@ -2514,6 +2660,17 @@ class _ChatInputBarState extends State<ChatInputBar>
           ),
         ),
       ],
+    );
+    if (!canEdit || processing || failed) return chip;
+    return IosCardPress(
+      key: ValueKey('chat-input-image-compress:$idx'),
+      haptics: false,
+      baseColor: Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      padding: EdgeInsets.zero,
+      duration: const Duration(milliseconds: 140),
+      onTap: () => _openCompressEditor(idx),
+      child: chip,
     );
   }
 

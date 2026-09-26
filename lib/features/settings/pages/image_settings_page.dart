@@ -19,8 +19,20 @@ class ImageSettingsPage extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final settings = context.watch<SettingsProvider>();
+    final isAuto = settings.imageCompressionMode == ImageCompressionMode.auto;
     final compressionEnabled =
-        settings.imageUploadQuality != ImageUploadQuality.original;
+        isAuto && settings.imageUploadQuality != ImageUploadQuality.original;
+
+    final modeRows = <Widget>[
+      for (final mode in ImageCompressionMode.values)
+        _QualityRow(
+          title: _modeTitle(mode, l10n),
+          subtitle: _modeSubtitle(mode, l10n),
+          selected: settings.imageCompressionMode == mode,
+          onTap: () =>
+              context.read<SettingsProvider>().setImageCompressionMode(mode),
+        ),
+    ];
 
     final qualityRows = <Widget>[
       for (final quality in ImageUploadQuality.values)
@@ -98,10 +110,17 @@ class ImageSettingsPage extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           _SettingsSection(
-            title: l10n.imageSettingsPageQualitySectionTitle,
-            footer: l10n.imageSettingsPageFooter,
-            children: qualityRows,
+            title: l10n.imageSettingsPageModeTitle,
+            children: modeRows,
           ),
+          if (isAuto) ...[
+            const SizedBox(height: 18),
+            _SettingsSection(
+              title: l10n.imageSettingsPageQualitySectionTitle,
+              footer: l10n.imageSettingsPageFooter,
+              children: qualityRows,
+            ),
+          ],
         ],
       ),
     );
@@ -385,6 +404,22 @@ class _SettingsDivider extends StatelessWidget {
       color: cs.outlineVariant.withValues(alpha: 0.18),
     );
   }
+}
+
+String _modeTitle(ImageCompressionMode mode, AppLocalizations l10n) {
+  return switch (mode) {
+    ImageCompressionMode.manual => l10n.imageSettingsPageModeManual,
+    ImageCompressionMode.auto => l10n.imageSettingsPageModeAuto,
+    ImageCompressionMode.off => l10n.imageSettingsPageModeOff,
+  };
+}
+
+String _modeSubtitle(ImageCompressionMode mode, AppLocalizations l10n) {
+  return switch (mode) {
+    ImageCompressionMode.manual => l10n.imageSettingsPageModeManualSubtitle,
+    ImageCompressionMode.auto => l10n.imageSettingsPageModeAutoSubtitle,
+    ImageCompressionMode.off => l10n.imageSettingsPageModeOffSubtitle,
+  };
 }
 
 String _qualityTitle(ImageUploadQuality quality, AppLocalizations l10n) {

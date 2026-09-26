@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:Cuplivo/utils/image_compressor.dart';
+import 'package:downsize/downsize.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
@@ -209,7 +210,7 @@ void main() {
     expect(first, isNotNull);
     final firstPath = first!.path;
     expect(first.reused, isFalse);
-    expect(p.basename(firstPath), 'photo.jpg');
+    expect(p.basename(firstPath), 'photo.jpeg');
 
     // Re-importing the very same picture reuses the stored copy.
     final again = await ImageCompressor.compressToUploadDir(
@@ -232,7 +233,7 @@ void main() {
     );
     expect(second, isNotNull);
     expect(second!.reused, isFalse);
-    expect(p.basename(second.path), 'photo(1).jpg');
+    expect(p.basename(second.path), 'photo(1).jpeg');
     expect(await File(firstPath).readAsBytes(), orderedEquals(firstBytes));
 
     // Re-importing a stored upload never rewrites it in place.
@@ -278,6 +279,209 @@ void main() {
         isTrue,
       );
     }
+  });
+
+  group('manual compression', () {
+    // Kept inside the project so the sandbox never needs the system temp dir.
+    late Directory root;
+    late Directory uploadDir;
+
+    setUp(() async {
+      root = await Directory(
+        p.join('.dart_tool', 'manual_compress_test'),
+      ).create(recursive: true);
+      uploadDir = Directory(p.join(root.path, 'upload'));
+    });
+
+    tearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
+
+    Future<String> writeSource(String name, img.Image image) async {
+      final file = File(p.join(root.path, name));
+      await file.writeAsBytes(img.encodePng(image), flush: true);
+      return file.path;
+    }
+
+    test('names JPEG output .jpeg and applies quality and long edge', () async {
+      final source = await writeSource('photo.png', _noiseImage(800, 400));
+
+      final write = await ImageCompressor.compressManualToUploadDir(
+        source,
+        uploadDir,
+        const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 60,
+          maxLongEdge: 200,
+        ),
+      );
+
+      expect(write, isNotNull);
+      expect(p.basename(write!.path), 'photo.jpeg');
+      final decoded = img.decodeJpg(await File(write.path).readAsBytes())!;
+      expect(decoded.width, 200);
+      expect(decoded.height, 100);
+    });
+
+    test('keeps alpha and the .png name for PNG output', () async {
+      final transparent = img.Image(width: 200, height: 120, numChannels: 4)
+        ..clear(img.ColorRgba8(0, 0, 0, 0));
+      for (var y = 20; y < 100; y++) {
+        for (var x = 20; x < 180; x++) {
+          transparent.setPixelRgba(x, y, 220, 40, 40, 255);
+        }
+      }
+      final source = await writeSource('art.png', transparent);
+
+      final write = await ImageCompressor.compressManualToUploadDir(
+        source,
+        uploadDir,
+        const ManualCompressParams(
+          format: DownsizeFormat.png,
+          maxLongEdge: 100,
+        ),
+      );
+
+      expect(write, isNotNull);
+      expect(p.basename(write!.path), 'art.png');
+      final decoded = img.decodePng(await File(write.path).readAsBytes())!;
+      expect(decoded.width, 100);
+      expect(decoded.height, 60);
+      expect(decoded.getPixel(0, 0).a, 0);
+    });
+
+    test('原图 stores the source bytes untouched', () async {
+      final source = await writeSource('shot.png', _noiseImage(64, 32));
+      final original = await File(source).readAsBytes();
+
+      final write = await ImageCompressor.compressManualToUploadDir(
+        source,
+        uploadDir,
+        const ManualCompressParams(),
+      );
+
+      expect(write, isNotNull);
+      expect(p.basename(write!.path), 'shot.png');
+      expect(await File(write.path).readAsBytes(), orderedEquals(original));
+    });
+
+    test('has no minimum-size floor', () async {
+      // Far below the automatic pipeline's 64 KiB threshold.
+      final source = await writeSource('tiny.png', _noiseImage(48, 48));
+      final original = await File(source).readAsBytes();
+
+      final write = await ImageCompressor.compressManualToUploadDir(
+        source,
+        uploadDir,
+        const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 40,
+          maxLongEdge: 24,
+        ),
+      );
+
+      expect(write, isNotNull);
+      final bytes = await File(write!.path).readAsBytes();
+      expect(bytes, isNot(orderedEquals(original)));
+      expect(img.decodeJpg(bytes)!.width, 24);
+    });
+
+    test('allows an artifact larger than its source', () async {
+      // A noisy JPEG re-encoded as PNG is legitimately bigger; the explicit
+      // choice wins and the size estimate is what warns the user.
+      final source = await writeSource('noise.png', _noiseImage(200, 200));
+      final bytes = await File(source).readAsBytes();
+      final smaller = await ImageCompressor.compressManualToUploadDir(
+        source,
+        uploadDir,
+        const ManualCompressParams(format: DownsizeFormat.jpeg, quality: 60),
+      );
+      expect(smaller, isNotNull);
+
+      final grown = await ImageCompressor.compressManualToUploadDir(
+        smaller!.path,
+        uploadDir,
+        const ManualCompressParams(format: DownsizeFormat.png),
+      );
+
+      expect(grown, isNotNull);
+      expect(grown!.reused, isFalse);
+      expect(p.basename(grown.path), 'noise.png');
+      expect(
+        await File(grown.path).length(),
+        greaterThan(await File(smaller.path).length()),
+      );
+      expect(bytes, isNotEmpty);
+    });
+
+    test(
+      'falls back to the original when the source cannot be decoded',
+      () async {
+        final file = File(p.join(root.path, 'broken.png'));
+        await file.writeAsBytes(Uint8List.fromList(List<int>.filled(256, 7)));
+
+        final write = await ImageCompressor.compressManualToUploadDir(
+          file.path,
+          uploadDir,
+          const ManualCompressParams(format: DownsizeFormat.jpeg, quality: 70),
+        );
+
+        expect(write, isNotNull);
+        expect(
+          await File(write!.path).readAsBytes(),
+          orderedEquals(await file.readAsBytes()),
+        );
+      },
+    );
+
+    test('reuses an identical artifact instead of duplicating it', () async {
+      final source = await writeSource('dup.png', _noiseImage(120, 90));
+      const params = ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 75,
+        maxLongEdge: 60,
+      );
+
+      final first = await ImageCompressor.compressManualToUploadDir(
+        source,
+        uploadDir,
+        params,
+      );
+      final second = await ImageCompressor.compressManualToUploadDir(
+        source,
+        uploadDir,
+        params,
+      );
+
+      expect(first, isNotNull);
+      expect(second, isNotNull);
+      expect(second!.reused, isTrue);
+      expect(second.path, first!.path);
+      expect(uploadDir.listSync().whereType<File>(), hasLength(1));
+    });
+
+    test('encodeManualBytes is null for 原图 and encodes otherwise', () async {
+      final bytes = img.encodePng(_noiseImage(64, 64));
+
+      expect(
+        await ImageCompressor.encodeManualBytes(
+          bytes,
+          const ManualCompressParams(),
+        ),
+        isNull,
+      );
+
+      final encoded = await ImageCompressor.encodeManualBytes(
+        bytes,
+        const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 50,
+          maxLongEdge: 32,
+        ),
+      );
+      expect(encoded, isNotNull);
+      expect(img.decodeJpg(encoded!)!.width, 32);
+    });
   });
 }
 

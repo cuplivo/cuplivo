@@ -191,16 +191,57 @@ class _ImageCompressionRows extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
+    final isAuto = settings.imageCompressionMode == ImageCompressionMode.auto;
     return Column(
       children: [
-        const _ImageQualityRow(),
-        if (settings.imageUploadQuality == ImageUploadQuality.custom) ...[
+        const _ImageCompressionModeRow(),
+        if (isAuto) ...[
           const _RowDivider(),
-          const _ImageCustomQualityRow(),
+          const _ImageQualityRow(),
+          if (settings.imageUploadQuality == ImageUploadQuality.custom) ...[
+            const _RowDivider(),
+            const _ImageCustomQualityRow(),
+          ],
+          const _RowDivider(),
+          const _ImageCompressTransparentRow(),
         ],
-        const _RowDivider(),
-        const _ImageCompressTransparentRow(),
       ],
+    );
+  }
+}
+
+class _ImageCompressionModeRow extends StatelessWidget {
+  const _ImageCompressionModeRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return _LabeledRow(
+      label: l10n.imageSettingsPageModeTitle,
+      trailing: const _ImageCompressionModeDropdown(),
+    );
+  }
+}
+
+class _ImageCompressionModeDropdown extends StatelessWidget {
+  const _ImageCompressionModeDropdown();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final settings = context.watch<SettingsProvider>();
+    return DesktopSelectDropdown<ImageCompressionMode>(
+      value: settings.imageCompressionMode,
+      options: [
+        for (final mode in ImageCompressionMode.values)
+          DesktopSelectOption(
+            value: mode,
+            label: _imageCompressionModeTitle(mode, l10n),
+          ),
+      ],
+      minWidth: 140,
+      onSelected: (mode) =>
+          context.read<SettingsProvider>().setImageCompressionMode(mode),
     );
   }
 }
@@ -353,6 +394,17 @@ String _imageQualityTitle(ImageUploadQuality quality, AppLocalizations l10n) {
     ImageUploadQuality.balanced => l10n.imageSettingsPageQualityBalanced,
     ImageUploadQuality.saver => l10n.imageSettingsPageQualitySaver,
     ImageUploadQuality.custom => l10n.imageSettingsPageQualityCustom,
+  };
+}
+
+String _imageCompressionModeTitle(
+  ImageCompressionMode mode,
+  AppLocalizations l10n,
+) {
+  return switch (mode) {
+    ImageCompressionMode.manual => l10n.imageSettingsPageModeManual,
+    ImageCompressionMode.auto => l10n.imageSettingsPageModeAuto,
+    ImageCompressionMode.off => l10n.imageSettingsPageModeOff,
   };
 }
 

@@ -110,6 +110,139 @@ contradicts one of them is a bug, not a preference.
   with `p.equals` because a restored draft carries separator-normalized paths while the storage
   listing keeps the OS-native form (a raw string comparison never matches on Windows).
 
+## LAN Sync (局域网同步)
+
+- **Device continuity (设备间接续)** — the job LAN sync is hired for: conversations follow the
+  user across their devices with no manual merge step. Not a bulk-transfer tool, not a backup
+  channel (WebDAV/S3/local snapshots own that), not a hub topology with one canonical device.
+- **Paired device (已配对设备)**: a peer whose identity and trust were established once during
+  *pairing* and persist afterwards; discovery only automates reconnecting to paired devices.
+- **Device identity**: per-install keypair minted at first pairing use; deviceId = hash of
+  the public key; stable across app updates. Pairing = QR code (endpoint + key fingerprint —
+  MITM-proof on hostile LANs) or 6-digit PIN when no camera is available; both screens
+  confirm. Trust thereafter = pinned self-signed certificates over mutual TLS — the sync
+  face carries API keys, so the channel must resist LAN sniffing and impersonation.
+- **Sync payload = entity rows**: peers exchange versioned repository rows (JSON), never a
+  database file or a backup zip — a newer build's schema must never be handed to an older build.
+- **Foreground constraint**: sync runs while the app is running (foreground on mobile,
+  foreground-or-tray on desktop); no mobile background daemon in the first version.
+
+### Sync scope (同步面)
+
+- **Syncable** (rides sync): conversations + messages + parts + content-addressed asset
+  blobs; every business entity kind except **workspace** (assistant, provider, MCP server,
+  world book, quick phrase, memory entry, search/TTS service, instruction injection, tag,
+  skill, user profile field); and the `syncedPreference` keys below.
+- **Workspace stays device-local**: linked workspaces carry a host path by definition;
+  managed workspaces are the user's local project directories — unbounded in size and
+  semantically "work on this machine", not app content.
+- **Skill = record + directory blob**: a skill rides sync as two pieces — its entity
+  record (LWW for settings) and its on-disk directory as one zip blob keyed by a directory
+  hash (sha256 over sorted (relative path, file digest); the record's `updatedAt` does not
+  track content edits, so content delta detection is hash-based). Content conflict resolves
+  deterministically off the checkpointed hash (unchanged side adopts the changed side; both
+  changed → newer record `updatedAt`, then higher deviceId wins); the loser's edit is
+  reported, never silently dropped. Apply = staging + atomic directory swap, re-hash
+  verified on receipt; extraction reuses the `skill_archive` hardened unpacker.
+- **Device-local** (never rides sync): `localOnly`, `discarded` and `unknownPreference`
+  dispositions, all `display_*` keys (fonts reference local file paths), `global_proxy_*`,
+  `tts_engine_v1`/`tts_language_v1` (platform fallbacks), and the session-position keys
+  `current_assistant_id_v1` / `selected_model_v1` — those say where *this device* is
+  looking, not how the app should be configured.
+- **`syncedPreference`**: a new disposition in `BusinessKeyRegistry` (the classifier stays
+  the single authority; no parallel allowlist). Contains theme/locale, title/summary/
+  translate/ocr/compress model+prompt keys, memory prompts, `asr_services_v1`,
+  `tts_speech_rate_v1`/`tts_pitch_v1`/`tts_selected_service_id_v1`, `search_*`,
+  `pinned_models_v1`, user name/avatar, `webdav_config_v1`/`s3_config_v1`,
+  `chat_bubble_style_overrides_v1`, `tool_schema_overrides_v1`.
+- **New-device test** (新设备测试): the rule for classifying a preference key — *would a
+  brand-new device want this value to arrive with the pairing?* Business config yes;
+  window geometry, proxies, platform flags and fonts no.
+
+### Conversation merge semantics (对话合并语义)
+
+- **Transfer unit vs merge unit**: the two are distinct. The *transfer unit* is the
+  conversation subtree (conversation row + messages + parts + asset references, moved and
+  applied atomically — nothing can fall through a conversation boundary). The *merge unit*
+  is the row.
+- **Deterministic symmetric merge**: merging is a pure function of both sides' row states —
+  row present on both sides: newer `COALESCE(updated_at, timestamp)` wins, ties broken by
+  deviceId; row present on one side: union in. Both devices compute the same result
+  independently. There is deliberately **no direction knob** (no initiatorWins/serverWins) —
+  the 3.x session-priority control existed only because its merge was not symmetric.
+- **Concurrent append** (same conversation used offline on two devices) merges by timestamp
+  interleave into one conversation. Rare by nature; lossless by design.
+- **Deletions**: conversation deletion propagates via the existing `tombstone_rows`; message
+  deletion is detected by diffing against the per-peer sync checkpoint (the set of rows the
+  peer last saw), not by new tombstone scopes.
+
+### Discovery & pairing (发现与配对)
+
+- **mDNS/DNS-SD is the discovery path**: each device advertises `_cuplivo._sync._tcp`
+  (platform NSD on mobile, multicast DNS on desktop) while the app runs; a discovered
+  already-paired peer connects and syncs automatically. QR (endpoint + identity) and manual
+  IP entry are the fallbacks for hostile networks. AP isolation is a *connectivity* failure,
+  reported as such, not a discovery failure.
+- **Paired device (已配对设备)**: pairing happens once per device pair and exchanges durable
+  identity + trust; afterwards no user action is needed.
+
+### Sync session (同步会话)
+
+- **Trigger cadence (触发节律)**: event-driven — (1) a paired peer discovered on the LAN
+  starts a session; (2) local writes open another after a short debounce, if the peer is
+  still reachable; (3) a manual "sync now" escape hatch lives in settings. No polling; sync
+  density follows usage density.
+- **Symmetric version gate (对称拒绝)**: at hello each side refuses a peer whose database
+  schema version is newer than its own ("upgrade this device to sync"). Same or older is
+  accepted — an older peer's rows merely fill column defaults. Sessions therefore only run
+  between equal schema versions; a schema bump pauses sync for the upgrade window instead
+  of letting a stale peer mangle newer rows (dropped fields would later win via LWW and
+  propagate). The protocol version rides the same exchange; unknown protocol = refuse.
+- **N devices, pairwise sessions**: no hub. With A↔B↔C, C receives A's increments through
+  B; deterministic idempotent merge makes multi-hop convergence safe. Checkpoints are
+  stored per device pair.
+
+- **Session protocol**: a bounded six-beat run over mutual-TLS HTTP (REST-style JSON bodies,
+  binary endpoints for blobs): hello (protocol version, schema version, capabilities,
+  checkpoint summaries) → negotiate (each side computes deltas) → delta exchange
+  (conversation subtrees, entity rows, preference keys, tombstones, asset manifest) →
+  blob fetch (receiver pulls by contentHash, skipping hashes it already has) →
+  transactional apply + provider reload → checkpoint commit on both sides.
+- **Apply without restart**: sync writes ride repository transactions, then trigger one
+  state reload (`BusinessPreferences.reload()` + every provider's `_load()` + ChatService
+  list refresh). Restart is *not* structurally required — restore needs it only because it
+  swaps the database file (cutover), and the Cherry importer's restart dialog is a
+  coherence shortcut, not a constraint. Setters write per key and never write back a whole
+  in-memory snapshot, so a stale provider cannot clobber synced rows; the remaining native
+  SharedPreferences keys (log toggle, font scale, Linux title bar) are all device-local
+  and outside the sync face anyway. Restart remains only a crash-recovery fallback.
+- **Apply yields to generation**: applying changes to a conversation is deferred while a
+  generation is actively writing to it.
+
+### Failure policy (故障政策)
+
+- **Replay-safe recovery**: checkpoints advance only after a successful apply + commit; an
+  interrupted session simply recomputes its delta next time, and idempotent row upserts
+  make re-application safe. Per-subtree transactions bound the damage of a mid-apply crash.
+- **Duplicate session suppression**: when both sides dial simultaneously, the deterministic
+  initiator is the lower deviceId; the other side refuses with "busy".
+- **Clock skew: accept and surface (接受+显性化)**: hello exchanges clock readings; a
+  divergence beyond a threshold raises a yellow-flag warning in the sync report, but sync
+  proceeds — true concurrency is rare, ties already fall to deviceId, and fixing the clock
+  heals it. No logical clocks in v1.
+
+### Sync panel (同步面板)
+
+- The user-facing surface is a settings section only: pairing entry ("add device" —
+  show/scan QR, PIN fallback) + one card per paired device (editable name, platform,
+  online state, last sync outcome, unpair). **Pairing is the opt-in** — there is no master
+  switch, and no global chrome (no sync icon outside the panel).
+- **Nothing silent**: the per-session report lists transfers, conflicts and their losers
+  (LWW losers, skill-content losers), and warnings (clock skew, version refusal).
+- **File avatars degrade**: emoji/url avatars sync (portable values); a `file` avatar falls
+  back to the default on the peer, flagged in the report. Full-fidelity avatar carriage
+  (blob + path remap) is a deliberate later addition, not v1.
+
 ## Community channels (社区入口)
 
 - **Cuplivo QQ group**: `1101061750` — `https://qm.qq.com/q/9Rnnf7XyNO` (the only QQ entry).

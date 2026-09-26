@@ -27,6 +27,8 @@ import 'schema_migrations.dart';
 import '../services/api/stream/stream_chunk_handler.dart';
 import '../services/backup/restore_durability.dart';
 import '../services/backup/restore_previous_plan.dart';
+import '../services/sync/sync_merge.dart';
+import '../services/sync/sync_models.dart';
 
 typedef ChatDatabaseSnapshotInfo = ({
   int schemaVersion,
@@ -5077,6 +5079,329 @@ class ChatDatabaseRepository {
   /// Commits a fully parsed external import together with its business-data
   /// patch. Nothing is written unless both repositories share this exact
   /// [AppDatabase] instance.
+  // ---------------------------------------------------------------------------
+  // LAN sync (ADR-0002)
+  //
+  // Slice 1 exchanges conversation subtrees as raw row maps. Everything below
+  // speaks SQLite's own representation (µs integers, 0/1 booleans), so there is
+  // no translation layer between storage, wire and merge that could drift out
+  // of sync with the schema. Merge *decisions* live in the pure functions of
+  // `services/sync/sync_merge.dart`; this section only reads, decides and
+  // writes inside one transaction per conversation.
+  // ---------------------------------------------------------------------------
+
+  static const _syncConflictTargets = <String, List<String>>{
+    'conversation_rows': ['id'],
+    'conversation_mcp_server_rows': ['conversation_id', 'server_id'],
+    'message_rows': ['id'],
+  };
+
+  /// The schema version this build speaks, exchanged in the sync hello and
+  /// enforced by the symmetric version gate (ADR-0002).
+  int get syncSchemaVersion => _db.schemaVersion;
+
+  /// How far message orders are shifted before a re-derivation, so assigning
+  /// final values can never collide with a row still holding an old one under
+  /// the `(conversation_id, message_order)` unique key.
+  static const _syncOrderShift = 1000000;
+
+  /// Conversation references for manifest building.
+  Future<List<({String conversationId, int updatedAtUs})>>
+  syncConversationRefs() async {
+    final rows = await _db
+        .customSelect('SELECT id, updated_at FROM conversation_rows;')
+        .get();
+    return [
+      for (final row in rows)
+        (
+          conversationId: row.read<String>('id'),
+          updatedAtUs: row.read<int>('updated_at'),
+        ),
+    ];
+  }
+
+  /// Per-conversation digest input: `id:mutationUs` lines joined by newlines,
+  /// plus the message count. Aggregated in SQL so a manifest never materialises
+  /// one Dart object per message. Line order is *not* relied upon —
+  /// [digestFromDigestInput] sorts.
+  Future<List<({String conversationId, String digestInput, int messageCount})>>
+  syncMessageDigestInputs() async {
+    final rows = await _db.customSelect('''
+      SELECT conversation_id, group_concat(line, char(10)) AS digest_input,
+             COUNT(*) AS message_count
+      FROM (
+        SELECT conversation_id,
+               id || ':' || COALESCE(updated_at, timestamp) AS line
+        FROM message_rows
+        ORDER BY conversation_id, id
+      )
+      GROUP BY conversation_id;
+    ''').get();
+    return [
+      for (final row in rows)
+        (
+          conversationId: row.read<String>('conversation_id'),
+          digestInput: row.read<String>('digest_input'),
+          messageCount: row.read<int>('message_count'),
+        ),
+    ];
+  }
+
+  Future<Map<String, dynamic>?> syncReadConversationRow(String id) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM conversation_rows WHERE id = ?;',
+          variables: [Variable.withString(id)],
+        )
+        .get();
+    if (rows.isEmpty) return null;
+    return Map<String, dynamic>.from(rows.first.data);
+  }
+
+  Future<List<Map<String, dynamic>>> syncReadMessageRows(
+    String conversationId,
+  ) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM message_rows WHERE conversation_id = ? '
+          'ORDER BY message_order, id;',
+          variables: [Variable.withString(conversationId)],
+        )
+        .get();
+    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
+  }
+
+  Future<List<Map<String, dynamic>>> syncReadMessagePartRows(
+    String conversationId,
+  ) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM message_part_rows WHERE conversation_id = ? '
+          'ORDER BY revision_id, ordinal;',
+          variables: [Variable.withString(conversationId)],
+        )
+        .get();
+    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
+  }
+
+  Future<List<Map<String, dynamic>>> syncReadMcpServerRows(
+    String conversationId,
+  ) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM conversation_mcp_server_rows WHERE conversation_id = ? '
+          'ORDER BY ordinal;',
+          variables: [Variable.withString(conversationId)],
+        )
+        .get();
+    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
+  }
+
+  /// Whether a generation is currently writing to this conversation. Sync
+  /// apply yields to generation (ADR-0002).
+  Future<bool> syncConversationIsStreaming(String conversationId) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT 1 FROM message_rows '
+          'WHERE conversation_id = ? AND is_streaming != 0 LIMIT 1;',
+          variables: [Variable.withString(conversationId)],
+        )
+        .get();
+    return rows.isNotEmpty;
+  }
+
+  /// Applies a peer's conversation deletion using the standard tombstone path,
+  /// so a third paired device can learn about the deletion as well. Returns
+  /// false when the deletion is deferred (a generation is running).
+  Future<bool> syncApplyPeerDeletion(String conversationId) async {
+    if (await syncConversationIsStreaming(conversationId)) return false;
+    await deleteConversation(conversationId);
+    return true;
+  }
+
+  /// Merges one incoming conversation subtree into local state, atomically.
+  ///
+  /// Row-level LWW with deviceId tiebreak, append union, order re-derivation by
+  /// (timestamp, id), and checkpoint-based deletion detection — the rules of
+  /// `sync_merge.dart`, which both peers evaluate identically. Returns the
+  /// post-merge state so the caller can build the next checkpoint.
+  Future<SyncSubtreeApplyOutcome> syncApplySubtree({
+    required SyncSubtreePayload payload,
+    required String myDeviceId,
+    required String peerDeviceId,
+    required Map<String, int> checkpointRows,
+  }) async {
+    final conversationId = payload.conversation['id'] as String;
+    return _db.transaction(() async {
+      if (await syncConversationIsStreaming(conversationId)) {
+        return SyncSubtreeApplyOutcome.deferredOutcome;
+      }
+
+      final localConversation = await syncReadConversationRow(conversationId);
+      final localMessages = {
+        for (final row in await syncReadMessageRows(conversationId))
+          row['id'] as String: row,
+      };
+      // The peer's in-flight generation is not running here: never adopt its
+      // streaming flag, or the row would be stranded mid-stream on this device.
+      final incomingMessages = {
+        for (final row in payload.messages)
+          row['id'] as String: {...row, 'is_streaming': 0},
+      };
+
+      var conversationRowChanged = false;
+      var conversationRow = localConversation;
+      if (localConversation == null) {
+        conversationRow = Map<String, dynamic>.from(payload.conversation);
+        conversationRowChanged = true;
+      } else {
+        final merge = mergeConversationRow(
+          local: localConversation,
+          incoming: Map<String, dynamic>.from(payload.conversation),
+          myDeviceId: myDeviceId,
+          peerDeviceId: peerDeviceId,
+        );
+        conversationRow = Map<String, dynamic>.from(merge.winner);
+        conversationRowChanged = merge.incomingWon;
+      }
+      if (localConversation != null && conversationRowChanged) {
+        await _upsertSyncRow('conversation_rows', conversationRow);
+        await _replaceSyncMcpServers(conversationId, payload.mcpServers);
+      } else if (localConversation == null) {
+        await _upsertSyncRow('conversation_rows', conversationRow);
+        await _replaceSyncMcpServers(conversationId, payload.mcpServers);
+      }
+
+      final plan = mergeMessageRows(
+        local: localMessages,
+        incoming: incomingMessages,
+        checkpointRows: checkpointRows,
+        myDeviceId: myDeviceId,
+        peerDeviceId: peerDeviceId,
+      );
+
+      final finalRows = <String, Map<String, dynamic>>{...localMessages};
+      for (final id in plan.deletes) {
+        finalRows.remove(id);
+      }
+      for (final row in plan.upserts) {
+        finalRows[row['id'] as String] = row;
+      }
+      final order = rederiveMessageOrder(finalRows.values);
+      final upsertedIds = {for (final row in plan.upserts) row['id'] as String};
+
+      // Phase 1: shift every existing order out of the way, so phase 3 can
+      // assign final values without tripping the unique key.
+      if (plan.upserts.isNotEmpty || plan.deletes.isNotEmpty) {
+        await _db.customStatement(
+          'UPDATE message_rows SET message_order = message_order + ? '
+          'WHERE conversation_id = ?;',
+          [_syncOrderShift, conversationId],
+        );
+      }
+
+      // Phase 2: deletions (parts cascade).
+      if (plan.deletes.isNotEmpty) {
+        await (_db.delete(
+          _db.messageRows,
+        )..where((row) => row.id.isIn(plan.deletes))).go();
+      }
+
+      // Phase 3: upserts with final order, then re-point untouched rows.
+      final partsByRevision = <String, List<Map<String, dynamic>>>{};
+      for (final part in payload.parts) {
+        partsByRevision
+            .putIfAbsent(part['revision_id'] as String, () => [])
+            .add(part);
+      }
+      for (final row in plan.upserts) {
+        final id = row['id'] as String;
+        await _upsertSyncRow('message_rows', {
+          ...row,
+          'message_order': order[id]!,
+          'is_streaming': 0,
+        });
+        await (_db.delete(
+          _db.messagePartRows,
+        )..where((part) => part.revisionId.equals(id))).go();
+        final parts = partsByRevision[id] ?? const <Map<String, dynamic>>[];
+        for (final part in parts) {
+          await _upsertSyncRow('message_part_rows', part, insertOnly: true);
+        }
+      }
+      for (final entry in finalRows.entries) {
+        if (upsertedIds.contains(entry.key)) continue;
+        final target = order[entry.key]!;
+        final current = (entry.value['message_order'] as num).toInt();
+        if (current == target) continue;
+        await _db.customStatement(
+          'UPDATE message_rows SET message_order = ? WHERE id = ?;',
+          [target, entry.key],
+        );
+      }
+
+      return SyncSubtreeApplyOutcome(
+        conversationRow: conversationRow,
+        messageRows: [for (final row in finalRows.values) row],
+        upsertedMessages: plan.upserts.length,
+        deletedMessages: plan.deletes.length,
+        conversationRowChanged: conversationRowChanged,
+      );
+    });
+  }
+
+  Future<void> _upsertSyncRow(
+    String table,
+    Map<String, dynamic> row, {
+    bool insertOnly = false,
+  }) async {
+    final allColumns = currentSchemaColumns[table]!;
+    // `part_id` is an autoincrement rowid: incoming part rows are matched by
+    // their unique key (revision_id, ordinal), never by another device's id.
+    final columns = insertOnly
+        ? [
+            for (final column in allColumns)
+              if (column != 'part_id') column,
+          ]
+        : allColumns;
+    final values = [for (final column in columns) row[column]];
+    if (insertOnly && table == 'message_part_rows') {
+      await _db.customStatement(
+        'INSERT INTO message_part_rows (${columns.join(', ')}) '
+        'VALUES (${List.filled(columns.length, '?').join(', ')});',
+        values,
+      );
+      return;
+    }
+    final conflictTarget = _syncConflictTargets[table]!;
+    final updates = columns
+        .where((column) => !conflictTarget.contains(column))
+        .map((column) => '$column = excluded.$column')
+        .join(', ');
+    await _db.customStatement(
+      'INSERT INTO $table (${columns.join(', ')}) '
+      'VALUES (${List.filled(columns.length, '?').join(', ')}) '
+      'ON CONFLICT(${conflictTarget.join(', ')}) DO UPDATE SET $updates;',
+      values,
+    );
+  }
+
+  Future<void> _replaceSyncMcpServers(
+    String conversationId,
+    List<Map<String, dynamic>> servers,
+  ) async {
+    await (_db.delete(
+      _db.conversationMcpServerRows,
+    )..where((row) => row.conversationId.equals(conversationId))).go();
+    for (final server in servers) {
+      await _upsertSyncRow('conversation_mcp_server_rows', {
+        'conversation_id': conversationId,
+        'server_id': server['server_id'],
+        'ordinal': server['ordinal'],
+      });
+    }
+  }
+
   Future<void> commitParsedImport({
     required BusinessRepository businessRepository,
     required bool overwrite,

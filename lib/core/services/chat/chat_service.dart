@@ -2534,6 +2534,17 @@ class ChatService extends ChangeNotifier {
     return report;
   }
 
+  /// Re-reads persisted chat state after an external writer changed the
+  /// database — used by LAN sync apply (ADR-0002), which writes rows through
+  /// the repository and then needs the in-memory caches to catch up. Mirrors
+  /// the post-merge tail of [mergeDatabaseSnapshot]; no restart is involved.
+  Future<void> reloadAfterExternalChange() async {
+    _clearPersistedMessageCache();
+    await _backfillAssetReferencesForCurrentRoot();
+    await _loadConversationsCache();
+    notifyListeners();
+  }
+
   /// Chats-only merge/restore follow-up for imported conversations.
   Future<int> recomputeImportedAttachmentAvailability({
     required Iterable<String> conversationIds,

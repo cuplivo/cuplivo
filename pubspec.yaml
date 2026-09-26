@@ -56,6 +56,9 @@ dependencies:
   cupertino_http: ^3.0.2
   crypto: ^3.0.3
   hashlib: ^2.4.2
+  # Self-signed certificate generation + PEM/DER helpers for the LAN sync
+  # device identity (ADR-0002): the certificate IS the device identity.
+  basic_utils: ^5.8.2
   ffi: ^2.2.0
   dio: 5.9.2
   socks5_proxy: ^2.1.1

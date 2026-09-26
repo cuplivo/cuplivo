@@ -72,6 +72,11 @@ class AppDirectories {
   static Future<Directory> getEnvironmentDirectory() =>
       _ensureSubdir('environment');
 
+  /// LAN sync device state: `<appData>/sync` (identity, peers, checkpoints).
+  /// Deliberately outside the backup face — the device private key and the
+  /// per-peer checkpoints are device-local by definition (ADR-0002).
+  static Future<Directory> getSyncDirectory() => _ensureSubdir('sync');
+
   /// Files root for a managed workspace: `<appData>/workspaces/<id>/files`.
   static Future<Directory> workspaceFilesDir(String workspaceId) {
     return _ensurePath('workspaces/$workspaceId/files');

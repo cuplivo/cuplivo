@@ -14899,6 +14899,48 @@ abstract class AppLocalizations {
   /// **'Upload Image Quality'**
   String get imageSettingsPageQualitySectionTitle;
 
+  /// No description provided for @imageSettingsPageModeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression Mode'**
+  String get imageSettingsPageModeTitle;
+
+  /// No description provided for @imageSettingsPageModeManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get imageSettingsPageModeManual;
+
+  /// No description provided for @imageSettingsPageModeAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get imageSettingsPageModeAuto;
+
+  /// No description provided for @imageSettingsPageModeOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get imageSettingsPageModeOff;
+
+  /// No description provided for @imageSettingsPageModeManualSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Images are attached unchanged; tap an image to compress it yourself'**
+  String get imageSettingsPageModeManualSubtitle;
+
+  /// No description provided for @imageSettingsPageModeAutoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Images are re-encoded when attached, using the preset below'**
+  String get imageSettingsPageModeAutoSubtitle;
+
+  /// No description provided for @imageSettingsPageModeOffSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Images are never compressed'**
+  String get imageSettingsPageModeOffSubtitle;
+
   /// No description provided for @imageSettingsPageQualityOriginal.
   ///
   /// In en, this message translates to:
@@ -14982,6 +15024,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Compression happens when images are added. Previously saved or sent images are not affected. Compressed images are sent as JPEG files.'**
   String get imageSettingsPageFooter;
+
+  /// No description provided for @compressEditorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Compress Image'**
+  String get compressEditorTitle;
+
+  /// No description provided for @compressEditorFormatJpeg.
+  ///
+  /// In en, this message translates to:
+  /// **'JPEG'**
+  String get compressEditorFormatJpeg;
+
+  /// No description provided for @compressEditorFormatPng.
+  ///
+  /// In en, this message translates to:
+  /// **'PNG'**
+  String get compressEditorFormatPng;
+
+  /// No description provided for @compressEditorFormatOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Original'**
+  String get compressEditorFormatOriginal;
+
+  /// No description provided for @compressEditorLongEdgeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Long edge'**
+  String get compressEditorLongEdgeLabel;
+
+  /// No description provided for @compressEditorLongEdgeFull.
+  ///
+  /// In en, this message translates to:
+  /// **'100%'**
+  String get compressEditorLongEdgeFull;
+
+  /// No description provided for @compressEditorLongEdgeHalf.
+  ///
+  /// In en, this message translates to:
+  /// **'50%'**
+  String get compressEditorLongEdgeHalf;
+
+  /// No description provided for @compressEditorLongEdgeQuarter.
+  ///
+  /// In en, this message translates to:
+  /// **'25%'**
+  String get compressEditorLongEdgeQuarter;
+
+  /// No description provided for @compressEditorQualityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality'**
+  String get compressEditorQualityLabel;
+
+  /// No description provided for @compressEditorOriginalSide.
+  ///
+  /// In en, this message translates to:
+  /// **'Original'**
+  String get compressEditorOriginalSide;
+
+  /// No description provided for @compressEditorEstimating.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimating size…'**
+  String get compressEditorEstimating;
+
+  /// No description provided for @compressEditorEstimateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Size estimate unavailable'**
+  String get compressEditorEstimateFailed;
+
+  /// No description provided for @compressEditorEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'{source} → {target}{savings}'**
+  String compressEditorEstimate(Object savings, Object source, Object target);
+
+  /// No description provided for @compressEditorEstimateOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'{dimensions} · {size} · no re-encode'**
+  String compressEditorEstimateOriginal(Object dimensions, Object size);
+
+  /// No description provided for @compressEditorSavings.
+  ///
+  /// In en, this message translates to:
+  /// **' (−{percent}%)'**
+  String compressEditorSavings(Object percent);
+
+  /// No description provided for @compressEditorDecodeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'This image can\'t be previewed, so it can\'t be re-compressed.'**
+  String get compressEditorDecodeFailed;
+
+  /// No description provided for @compressEditorCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get compressEditorCancel;
+
+  /// No description provided for @compressEditorApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get compressEditorApply;
+
+  /// No description provided for @compressEditorApplyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to all'**
+  String get compressEditorApplyAll;
+
+  /// No description provided for @compressEditorDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get compressEditorDone;
 
   /// No description provided for @imageSettingsPageSendSectionTitle.
   ///

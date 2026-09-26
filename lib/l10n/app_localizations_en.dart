@@ -8226,6 +8226,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get imageSettingsPageQualitySectionTitle => 'Upload Image Quality';
 
   @override
+  String get imageSettingsPageModeTitle => 'Compression Mode';
+
+  @override
+  String get imageSettingsPageModeManual => 'Manual';
+
+  @override
+  String get imageSettingsPageModeAuto => 'Automatic';
+
+  @override
+  String get imageSettingsPageModeOff => 'Off';
+
+  @override
+  String get imageSettingsPageModeManualSubtitle =>
+      'Images are attached unchanged; tap an image to compress it yourself';
+
+  @override
+  String get imageSettingsPageModeAutoSubtitle =>
+      'Images are re-encoded when attached, using the preset below';
+
+  @override
+  String get imageSettingsPageModeOffSubtitle => 'Images are never compressed';
+
+  @override
   String get imageSettingsPageQualityOriginal => 'Original';
 
   @override
@@ -8274,6 +8297,73 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get imageSettingsPageFooter =>
       'Compression happens when images are added. Previously saved or sent images are not affected. Compressed images are sent as JPEG files.';
+
+  @override
+  String get compressEditorTitle => 'Compress Image';
+
+  @override
+  String get compressEditorFormatJpeg => 'JPEG';
+
+  @override
+  String get compressEditorFormatPng => 'PNG';
+
+  @override
+  String get compressEditorFormatOriginal => 'Original';
+
+  @override
+  String get compressEditorLongEdgeLabel => 'Long edge';
+
+  @override
+  String get compressEditorLongEdgeFull => '100%';
+
+  @override
+  String get compressEditorLongEdgeHalf => '50%';
+
+  @override
+  String get compressEditorLongEdgeQuarter => '25%';
+
+  @override
+  String get compressEditorQualityLabel => 'Quality';
+
+  @override
+  String get compressEditorOriginalSide => 'Original';
+
+  @override
+  String get compressEditorEstimating => 'Estimating size…';
+
+  @override
+  String get compressEditorEstimateFailed => 'Size estimate unavailable';
+
+  @override
+  String compressEditorEstimate(Object savings, Object source, Object target) {
+    return '$source → $target$savings';
+  }
+
+  @override
+  String compressEditorEstimateOriginal(Object dimensions, Object size) {
+    return '$dimensions · $size · no re-encode';
+  }
+
+  @override
+  String compressEditorSavings(Object percent) {
+    return ' (−$percent%)';
+  }
+
+  @override
+  String get compressEditorDecodeFailed =>
+      'This image can\'t be previewed, so it can\'t be re-compressed.';
+
+  @override
+  String get compressEditorCancel => 'Cancel';
+
+  @override
+  String get compressEditorApply => 'Apply';
+
+  @override
+  String get compressEditorApplyAll => 'Apply to all';
+
+  @override
+  String get compressEditorDone => 'Done';
 
   @override
   String get imageSettingsPageSendSectionTitle => 'Sending';

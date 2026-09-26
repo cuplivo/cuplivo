@@ -60,3 +60,40 @@ contradicts one of them is a bug, not a preference.
 - **Cuplivo QQ group**: `1101061750` — `https://qm.qq.com/q/9Rnnf7XyNO` (the only QQ entry).
 - **Cuplivo Discord**: `https://discord.gg/kaTf8CXG4`.
 - Upstream Kelivo's community channels are not listed in the app.
+
+## Image Compression (图片压缩) — ADR-0002
+
+- **Compression mode (压缩模式)**: one mutually exclusive stance for how attached images are handled,
+  chosen in settings.
+  - **auto (自动)**: every attached image is re-encoded at attach time with the configured preset.
+  - **manual (手动)**: attachments are kept as pristine originals and the compress editor is the only
+    compression surface. This is the default.
+  - **off (关闭)**: attachments stay pristine and no compression UI is offered at all.
+- **Original (原图)**: an attachment whose bytes are exactly what the picker handed over, before any
+  re-encode. It is also the third choice in the editor's format control, meaning "keep this image as it
+  is" — the escape hatch that makes per-image skipping explicit instead of inferred.
+- **Format (格式)**: the output encoding the user picks — JPEG (lossy, has 质量) or PNG (lossless, no
+  质量). WebP is never produced: some providers reject it.
+- **Long edge (长边)**: the target size of the image's longest side. It only ever shrinks.
+- **Quality (质量)**: 0-100 lossy strength, meaningful for JPEG only.
+- **Savings (节省)**: (original bytes − result bytes) / original bytes, shown as an estimate before the
+  user commits. A PNG of a photo can legitimately grow, and the estimate is what tells the user so
+  before they apply it.
+- **Split compare (分屏对比)**: the editor body's 1:1 comparison — the original on the left of a
+  draggable divider, the current parameters' result on the right, over the region on screen.
+- **Apply to all (应用到全部)**: broadcasts the editor's current parameters to every attached image.
+- **Compressed file naming (压缩产物命名)**: a compressed artifact is named `.jpeg` or `.png`, never
+  `.jpg`: some providers accept only the `jpeg` spelling.
+
+### Relationships
+
+- Exactly one 压缩模式 is active. 原图 attachments exist in 手动 and 关闭; re-encoded ones exist in 自动 or
+  after an explicit editor apply.
+- 质量 applies to JPEG only, so PNG hides the control.
+- The 分屏对比 and the artifact written to disk must come from the same parameter pipeline; a visible
+  difference between them is a bug, not a preview artifact.
+- Manual compression is one-way: the editor re-encodes from the image's current stored bytes, so
+  re-compressing a compressed image loses another generation, and the pristine 原图 is not recoverable
+  once a compression has been applied.
+- Short edge case that motivates the manual default: a long screenshot whose long edge is far larger
+  than any preset cap would be reduced to illegibility by 自动, so 手动 leaves that decision to the user.

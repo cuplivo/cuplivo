@@ -20,10 +20,41 @@ class ImageCompressConfig {
   final bool includeTransparent;
 }
 
+/// Parameters of one explicit, user-chosen compression in the manual editor.
+///
+/// A null [format] means 原图 (as-is): the stored bytes pass through
+/// untouched. Unlike the automatic pipeline there are no skip guards — no
+/// minimum size, no alpha gate, and the result may be larger than the input
+/// (a PNG of a JPEG photo legitimately grows); the editor shows the estimated
+/// size before anything is applied.
+class ManualCompressParams {
+  const ManualCompressParams({
+    this.format,
+    this.quality = 80,
+    this.maxLongEdge,
+  });
+
+  final DownsizeFormat? format;
+  final int quality;
+  final int? maxLongEdge;
+
+  bool get isNoOp => format == null;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ManualCompressParams &&
+      other.format == format &&
+      other.quality == quality &&
+      other.maxLongEdge == maxLongEdge;
+
+  @override
+  int get hashCode => Object.hash(format, quality, maxLongEdge);
+}
+
 class ImageCompressor {
   static const int kMinBytesToCompress = 64 * 1024;
 
-  /// Compresses [srcPath] into [dir].
+  /// Compresses [srcPath] into [dir] with the automatic pipeline.
   ///
   /// Images that are skipped, fail to decode, or would grow are copied
   /// unchanged; an image whose bytes are already stored in [dir] is reused.
@@ -41,19 +72,66 @@ class ImageCompressor {
         srcPath,
         dir,
         compressed ?? originalBytes,
-        asJpeg: compressed != null,
+        outputExtension: compressed != null ? 'jpeg' : null,
       );
     } catch (error, stackTrace) {
       debugPrint('[ImageCompressor] Failed to compress $srcPath: $error');
       debugPrintStack(stackTrace: stackTrace);
       if (originalBytes != null) {
         try {
-          return await _writeToUploadDir(
-            srcPath,
-            dir,
-            originalBytes,
-            asJpeg: false,
+          return await _writeToUploadDir(srcPath, dir, originalBytes);
+        } catch (copyError) {
+          debugPrint(
+            '[ImageCompressor] Failed to copy original $srcPath: $copyError',
           );
+        }
+      }
+      return null;
+    }
+  }
+
+  /// Applies exactly [params] to [srcPath] — the manual pipeline.
+  ///
+  /// No skip guards and no alpha gate: the user saw the image and picked the
+  /// format. Failure to decode falls back to storing the original unchanged,
+  /// mirroring the automatic path.
+  static Future<UploadWrite?> compressManualToUploadDir(
+    String srcPath,
+    Directory dir,
+    ManualCompressParams params,
+  ) async {
+    Uint8List? originalBytes;
+    try {
+      originalBytes = await File(srcPath).readAsBytes();
+      final encoded = params.isNoOp
+          ? null
+          : await compute(
+              _manualEncodeTask,
+              _ManualEncodeParams(
+                bytes: originalBytes,
+                format: params.format!,
+                quality: params.quality,
+                maxLongEdge: params.maxLongEdge,
+              ),
+            );
+      return await _writeToUploadDir(
+        srcPath,
+        dir,
+        encoded ?? originalBytes,
+        outputExtension: switch (params.format) {
+          DownsizeFormat.png => 'png',
+          DownsizeFormat.jpeg => 'jpeg',
+          null => null,
+        },
+      );
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[ImageCompressor] Manual compression failed for $srcPath: $error',
+      );
+      debugPrintStack(stackTrace: stackTrace);
+      if (originalBytes != null) {
+        try {
+          return await _writeToUploadDir(srcPath, dir, originalBytes);
         } catch (copyError) {
           debugPrint(
             '[ImageCompressor] Failed to copy original $srcPath: $copyError',
@@ -90,11 +168,29 @@ class ImageCompressor {
     }
   }
 
+  /// Runs the manual encode pipeline on raw bytes without touching the
+  /// upload directory. Returns `null` for a no-op ([ManualCompressParams.isNoOp]).
+  static Future<Uint8List?> encodeManualBytes(
+    Uint8List bytes,
+    ManualCompressParams params,
+  ) async {
+    if (params.isNoOp) return null;
+    return compute(
+      _manualEncodeTask,
+      _ManualEncodeParams(
+        bytes: bytes,
+        format: params.format!,
+        quality: params.quality,
+        maxLongEdge: params.maxLongEdge,
+      ),
+    );
+  }
+
   static Future<UploadWrite> _writeToUploadDir(
     String srcPath,
     Directory dir,
     Uint8List bytes, {
-    required bool asJpeg,
+    String? outputExtension,
   }) async {
     if (!await dir.exists()) {
       await dir.create(recursive: true);
@@ -102,8 +198,8 @@ class ImageCompressor {
 
     final originalName = p.basename(srcPath);
     final baseName = p.basenameWithoutExtension(originalName);
-    final outputName = asJpeg
-        ? '${baseName.isEmpty ? 'image' : baseName}.jpg'
+    final outputName = outputExtension != null
+        ? '${baseName.isEmpty ? 'image' : baseName}.$outputExtension'
         : (originalName.isEmpty ? 'image' : originalName);
 
     // Reuse an already stored image with the same name and bytes instead of
@@ -171,6 +267,31 @@ Uint8List? _compressTask(_CompressTaskParams params) {
     return null;
   }
   return compressed;
+}
+
+class _ManualEncodeParams {
+  const _ManualEncodeParams({
+    required this.bytes,
+    required this.format,
+    required this.quality,
+    required this.maxLongEdge,
+  });
+
+  final Uint8List bytes;
+  final DownsizeFormat format;
+  final int quality;
+  final int? maxLongEdge;
+}
+
+Uint8List? _manualEncodeTask(_ManualEncodeParams params) {
+  return Downsize().compress(
+    Config(
+      data: params.bytes,
+      format: params.format,
+      quality: params.quality,
+      maxLongEdge: params.maxLongEdge,
+    ),
+  );
 }
 
 _DetectedImageFormat _detectFormat(Uint8List bytes) {

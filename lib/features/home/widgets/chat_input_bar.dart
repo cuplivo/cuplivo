@@ -5,6 +5,7 @@ import 'dart:collection';
 import 'dart:ui' as ui;
 import 'dart:math' as math;
 import '../../../theme/design_tokens.dart';
+import '../../../theme/motion_tokens.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../icons/reasoning_icons.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -3393,6 +3394,9 @@ class _CompactSendButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final fastDuration = reduceMotion ? Duration.zero : AppMotion.fast;
+    final standardDuration = reduceMotion ? Duration.zero : AppMotion.standard;
     final bg = (enabled || loading)
         ? color
         : cs.onSurface.withValues(alpha: 0.12);
@@ -3400,29 +3404,47 @@ class _CompactSendButton extends StatelessWidget {
         ? cs.onPrimary
         : cs.onSurface.withValues(alpha: 0.38);
 
-    final button = Material(
-      color: bg,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: loading ? onStop : (enabled ? onSend : null),
-        child: Padding(
-          padding: const EdgeInsets.all(7),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            transitionBuilder: (child, anim) => ScaleTransition(
-              scale: anim,
-              child: FadeTransition(opacity: anim, child: child),
+    final button = AnimatedScale(
+      scale: enabled || loading ? 1 : 0.94,
+      duration: fastDuration,
+      curve: AppMotion.enter,
+      child: AnimatedContainer(
+        duration: standardDuration,
+        curve: AppMotion.enter,
+        decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+        child: Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: loading ? onStop : (enabled ? onSend : null),
+            child: Padding(
+              padding: const EdgeInsets.all(7),
+              child: AnimatedSwitcher(
+                duration: fastDuration,
+                reverseDuration: reduceMotion ? Duration.zero : AppMotion.instant,
+                switchInCurve: AppMotion.enter,
+                switchOutCurve: AppMotion.exit,
+                transitionBuilder: (child, anim) => ScaleTransition(
+                  scale: Tween<double>(begin: 0.72, end: 1).animate(anim),
+                  child: FadeTransition(opacity: anim, child: child),
+                ),
+                child: loading
+                    ? SvgPicture.asset(
+                        key: const ValueKey('stop'),
+                        'assets/icons/stop.svg',
+                        width: 18,
+                        height: 18,
+                        colorFilter: ColorFilter.mode(fg, BlendMode.srcIn),
+                      )
+                    : Icon(
+                        icon,
+                        key: const ValueKey('send'),
+                        size: 18,
+                        color: fg,
+                      ),
+              ),
             ),
-            child: loading
-                ? SvgPicture.asset(
-                    key: const ValueKey('stop'),
-                    'assets/icons/stop.svg',
-                    width: 18,
-                    height: 18,
-                    colorFilter: ColorFilter.mode(fg, BlendMode.srcIn),
-                  )
-                : Icon(icon, key: const ValueKey('send'), size: 18, color: fg),
           ),
         ),
       ),

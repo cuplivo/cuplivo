@@ -100,6 +100,7 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
     this.citationIndexResolver,
     this.baseStyle,
     this.streaming = false,
+    this.enableStreamingMotion = true,
     this.conversationId,
   });
 
@@ -113,6 +114,7 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
   final String? Function(String id)? citationIndexResolver;
   final TextStyle? baseStyle; // optional override for base markdown text style
   final bool streaming;
+  final bool enableStreamingMotion;
 
   static const int _streamingTableMaxRows = 30;
   static const int _streamingHighlightMaxLines = 300;
@@ -136,7 +138,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
   // to the tail while generating, each batch lands as a single upward step
   // instead of the steady crawl the character smoothing is there to produce.
   static const Duration _streamingLongRenderDebounce = Duration(
-    milliseconds: 50,
+    milliseconds: 24,
   );
 
   late String _renderText;
@@ -416,7 +418,10 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
         preprocessBlocks: _sourceScan.hasHtml ? detailsRegistry.rewrite : null,
         newlinesNormalized: !_sourceScan.hasCarriageReturns,
         generation: themeSignature,
-        textBuilder: (text) => StreamingRichText(text: text),
+        textBuilder: (text) => StreamingRichText(
+          text: text,
+          streaming: widget.streaming && widget.enableStreamingMotion,
+        ),
         streaming: widget.streaming,
         spanBuilder: fence == null
             ? null
@@ -5993,7 +5998,7 @@ class EscapeAwareTableMd extends TableMd {
   Widget build(
     BuildContext context,
     String text,
-    final GptMarkdownConfig config,
+    GptMarkdownConfig config,
   ) {
     final value = text
         .trim()

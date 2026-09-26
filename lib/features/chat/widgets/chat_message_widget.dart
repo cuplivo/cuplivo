@@ -32,6 +32,7 @@ import '../../../utils/assistant_regex.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/providers/tts_provider.dart';
 import '../../../shared/widgets/markdown_with_highlight.dart';
+import '../../../shared/widgets/fluid_streaming_text.dart';
 import '../../../shared/widgets/snackbar.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../l10n/app_localizations.dart';
@@ -2474,15 +2475,20 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
             _resolveCitationIndex(id, citationIndexLookup),
         baseStyle: TextStyle(fontSize: baseAssistant, height: 1.5),
         streaming: widget.message.isStreaming,
+        enableStreamingMotion: widget.enableStreamingTextMotion,
         conversationId: widget.message.conversationId,
       );
     } else {
-      assistantContent = Text(
-        visualContent,
-        style: TextStyle(
-          fontSize: baseAssistant,
-          height: 1.5,
-          color: chatSurfacePlainTextColor(context),
+      assistantContent = FluidStreamingText(
+        streaming:
+            widget.message.isStreaming && widget.enableStreamingTextMotion,
+        text: Text(
+          visualContent,
+          style: TextStyle(
+            fontSize: baseAssistant,
+            height: 1.5,
+            color: chatSurfacePlainTextColor(context),
+          ),
         ),
       );
     }

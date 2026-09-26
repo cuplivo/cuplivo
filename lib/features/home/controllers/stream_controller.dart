@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_part.dart';
 import '../../../core/models/token_usage.dart';
@@ -12,6 +13,7 @@ import '../../../core/services/api/stream/stream_chunk_handler.dart';
 import '../../../core/services/api/stream/stream_text_buffer.dart';
 import '../../chat/widgets/chat_message_widget.dart';
 import '../../../utils/markdown_media_sanitizer.dart';
+import 'stream_presentation_policy.dart';
 import 'streaming_content_notifier.dart';
 
 export 'streaming_content_notifier.dart';
@@ -138,13 +140,9 @@ class StreamController {
   // Throttle State
   // ============================================================================
 
-  /// UI output interval for streaming content.
-  static const Duration _streamThrottleInterval = Duration(milliseconds: 50);
-  static const int _streamSmoothMinCount = 2;
-  static const int _streamSmoothBaseCount = 40;
-  static const int _streamSmoothMaxCount = 240;
-  static const double _streamSmoothPickRate = 0.1;
-  static const int _streamSmoothMoveAverageLength = 10;
+  /// Provider text is exposed at a modest cadence; the per-frame reveal paint
+  /// then makes those small layout steps continuous on both 60 and 120 Hz.
+  static const Duration _streamThrottleInterval = Duration(milliseconds: 24);
 
   /// Throttle timers per message ID.
   final Map<String, Timer?> _streamThrottleTimers = <String, Timer?>{};
@@ -577,13 +575,7 @@ class StreamController {
     if (!_isPresented(state.conversationId)) return;
 
     _applyContentBuilder(state);
-    final nextContent = state.takeNextContentSlice(
-      minCount: _streamSmoothMinCount,
-      baseCount: _streamSmoothBaseCount,
-      maxCount: _streamSmoothMaxCount,
-      pickRate: _streamSmoothPickRate,
-      moveAverageLength: _streamSmoothMoveAverageLength,
-    );
+    final nextContent = state.takeNextContentSlice();
     if (nextContent != null || state.reasoningDirty || state.partsDirty) {
       _publishSmoothStreamContent(
         messageId,
@@ -1800,10 +1792,7 @@ class _StreamSmoothState {
   bool reasoningDirty = false;
   void Function(String messageId, String content, int totalTokens)?
   updateMessageInList;
-  final List<int> _recentPickCounts = <int>[];
-
-  /// Characters published by the previous tick, for the acceleration limit.
-  int _lastPickCount = 0;
+  final StreamPresentationPolicy _presentation = StreamPresentationPolicy();
 
   bool get hasPendingPresentation =>
       contentDirty ||
@@ -1811,112 +1800,21 @@ class _StreamSmoothState {
       reasoningDirty ||
       targetContent != visibleContent;
 
-  String? takeNextContentSlice({
-    required int minCount,
-    required int baseCount,
-    required int maxCount,
-    required double pickRate,
-    required int moveAverageLength,
-  }) {
-    if (targetContent == visibleContent) return null;
-    if (!targetContent.startsWith(visibleContent)) {
-      visibleContent = targetContent;
-      _recentPickCounts.clear();
-      _lastPickCount = 0;
-      return visibleContent;
-    }
-
-    final backlog = targetContent.length - visibleContent.length;
-    if (backlog <= 0) return null;
-    final pickCount = _nextPickCount(
-      backlog: backlog,
-      minCount: minCount,
-      baseCount: baseCount,
-      maxCount: maxCount,
-      pickRate: pickRate,
-      moveAverageLength: moveAverageLength,
+  String? takeNextContentSlice() {
+    final next = _presentation.advance(
+      target: targetContent,
+      visible: visibleContent,
     );
-    final nextLength = math.min(
-      targetContent.length,
-      visibleContent.length + pickCount,
-    );
-    visibleContent = targetContent.substring(0, nextLength);
+    if (next == null) return null;
+    visibleContent = next;
     return visibleContent;
   }
 
   String? flushTargetContent() {
     if (targetContent == visibleContent) return null;
     visibleContent = targetContent;
-    _recentPickCounts.clear();
-    _lastPickCount = 0;
+    _presentation.reset();
     return visibleContent;
-  }
-
-  int _nextPickCount({
-    required int backlog,
-    required int minCount,
-    required int baseCount,
-    required int maxCount,
-    required double pickRate,
-    required int moveAverageLength,
-  }) {
-    if (backlog <= minCount) return backlog;
-
-    final rawPick = _rawPickCount(
-      backlog: backlog,
-      minCount: minCount,
-      baseCount: baseCount,
-      maxCount: maxCount,
-      pickRate: pickRate,
-    );
-    _recentPickCounts.add(rawPick);
-    if (_recentPickCounts.length > moveAverageLength) {
-      _recentPickCounts.removeAt(0);
-    }
-
-    final average =
-        _recentPickCounts.reduce((a, b) => a + b) / _recentPickCounts.length;
-
-    // When the buffer falls far behind — a provider that flushes a large tail
-    // chunk is the usual cause — the raw rate approaches "publish everything",
-    // and the moving average alone still lets a single tick emit hundreds of
-    // characters. On a bottom-pinned timeline that is a screenful of text
-    // appearing in one frame. Let the display speed up towards the backlog
-    // instead of stepping to it: each tick may publish half again as much as
-    // the previous one, and never more than [maxCount].
-    final previous = _lastPickCount;
-    final accelerationLimit = previous <= minCount
-        ? maxCount
-        : math.max(minCount, (previous * 1.5).round());
-    final limit = math.min(maxCount, accelerationLimit);
-    final next = math
-        .min(average.round(), limit)
-        .clamp(minCount, backlog)
-        .toInt();
-    _lastPickCount = next;
-    return next;
-  }
-
-  int _rawPickCount({
-    required int backlog,
-    required int minCount,
-    required int baseCount,
-    required int maxCount,
-    required double pickRate,
-  }) {
-    if (backlog <= minCount) return backlog;
-
-    double effectivePickRate;
-    if (backlog < baseCount) {
-      effectivePickRate = pickRate * backlog / baseCount;
-    } else if (backlog >= maxCount) {
-      effectivePickRate = math.max((backlog - baseCount) / backlog, pickRate);
-    } else {
-      final t = (backlog - baseCount) / (maxCount - baseCount);
-      effectivePickRate = pickRate + (0.5 - pickRate) * t;
-    }
-
-    return math.max(minCount, (backlog * effectivePickRate).round());
   }
 }
 

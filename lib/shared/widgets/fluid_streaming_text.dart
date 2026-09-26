@@ -113,7 +113,13 @@ class _FluidStreamingTextState extends State<FluidStreamingText>
       return widget.text;
     }
 
-    final root = widget.text.textSpan ?? TextSpan(text: widget.text.data);
+    final inlineSpan = widget.text.textSpan;
+    if (inlineSpan != null && inlineSpan is! TextSpan) {
+      return widget.text;
+    }
+    final TextSpan root = inlineSpan is TextSpan
+        ? inlineSpan
+        : TextSpan(text: widget.text.data);
     final fallbackColor = DefaultTextStyle.of(context).style.color;
     var offset = 0;
     final faded = _fadeSpan(root, fallbackColor, () => offset, (value) {

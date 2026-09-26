@@ -522,7 +522,7 @@ void main() {
       assistantName: (_) => 'Writer',
       now: DateTime(2026, 8, 8, 14, 3),
     );
-    expect(text, contains('# Kelivo legacy memory export'));
+    expect(text, contains('# Cuplivo legacy memory export'));
     expect(text, contains('# 2026-08-08 14:03'));
     expect(text, contains('## Assistant: Writer'));
     expect(text, contains('- One'));

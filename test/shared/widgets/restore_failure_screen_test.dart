@@ -97,7 +97,7 @@ void main() {
 
     expect(find.text('Restore requires attention'), findsOneWidget);
     expect(find.textContaining('chat data was not opened'), findsOneWidget);
-    expect(find.text('Restart Kelivo'), findsOneWidget);
+    expect(find.text('Restart Cuplivo'), findsOneWidget);
 
     // The failure itself is on screen, not just a type name.
     expect(
@@ -107,7 +107,7 @@ void main() {
     expect(find.text('restore_startup_receipt'), findsOneWidget);
     expect(find.text('Restore gate'), findsOneWidget);
 
-    await tester.tap(find.text('Restart Kelivo'));
+    await tester.tap(find.text('Restart Cuplivo'));
     await tester.pump();
     expect(restartCalls, 1);
   });
@@ -150,9 +150,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Kelivo is already running'), findsOneWidget);
+    expect(find.text('Cuplivo is already running'), findsOneWidget);
     expect(find.textContaining('another app process'), findsOneWidget);
-    expect(find.text('Restart Kelivo'), findsOneWidget);
+    expect(find.text('Restart Cuplivo'), findsOneWidget);
     // A lease conflict is not a data problem, so no file-level actions.
     expect(find.text('Danger zone'), findsNothing);
   });

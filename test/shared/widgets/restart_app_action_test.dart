@@ -63,7 +63,7 @@ void main() {
     expect(find.text('Restart prompt'), findsOneWidget);
     expect(
       find.text(
-        'Kelivo could not restart automatically. Fully close it, then open it again.',
+        'Cuplivo could not restart automatically. Fully close it, then open it again.',
       ),
       findsOneWidget,
     );

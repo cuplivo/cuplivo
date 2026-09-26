@@ -39,10 +39,14 @@ class SyncClient {
 
   /// Pairs with a peer that is showing [pin]. Returns the peer's identity and
   /// the certificate to pin (the one this TLS session actually presented).
+  ///
+  /// [listenPort] is this device's own sync listener port, advertised so the
+  /// responder can store a usable endpoint for the return direction.
   Future<({SyncPairAnswer answer, String certPem})> pair({
     required String host,
     required int port,
     required String pin,
+    int? listenPort,
   }) async {
     X509Certificate? presented;
     final client = HttpClient(context: identity.buildContext())
@@ -61,6 +65,7 @@ class SyncClient {
         'deviceName': identity.name,
         'platform': _platformTag(),
         'certPem': identity.certPem,
+        if (listenPort != null) 'listenPort': listenPort,
       });
       final response = await request.close();
       final body = await _readJson(response);
@@ -75,6 +80,7 @@ class SyncClient {
         deviceName: (body['deviceName'] as String?) ?? '',
         platform: (body['platform'] as String?) ?? '',
         certPem: body['certPem'] as String,
+        secret: body['secret'] as String,
       );
       final seen = presented;
       if (seen == null) {
@@ -91,18 +97,27 @@ class SyncClient {
     }
   }
 
-  /// Opens a session against a paired peer.
+  /// Opens a session against a paired peer. The peer's pinned certificate is
+  /// what authenticates *this* side of the channel; the peer's secret is what
+  /// authenticates *us* to it (see [SyncServer]).
   SyncClientSession openSession(
     SyncPeerRecord peer, {
     required String host,
     required int port,
   }) {
-    return SyncClientSession(_httpForPeer(peer), 'https://$host:$port');
+    return SyncClientSession(
+      _httpForPeer(peer),
+      'https://$host:$port',
+      deviceId: identity.deviceId,
+      token: peer.secret,
+    );
   }
 
   HttpClient _httpForPeer(SyncPeerRecord peer) {
     final client = HttpClient(context: identity.buildContext())
       ..connectionTimeout = const Duration(seconds: 10)
+      // Pinning the listener's certificate is the whole server-side
+      // authentication: nothing else can answer as this peer.
       ..badCertificateCallback = (cert, _, _) =>
           crypto.sha256.convert(cert.der).toString() == peer.deviceId;
     return client;
@@ -140,10 +155,21 @@ class SyncClient {
 
 /// One bounded sync session from the initiator's side.
 class SyncClientSession {
-  SyncClientSession(this._client, this._baseUrl);
+  SyncClientSession(
+    this._client,
+    this._baseUrl, {
+    required String deviceId,
+    required String token,
+  }) : // Public names omit the private-field prefix (ChatService convention).
+       // ignore: prefer_initializing_formals
+       _deviceId = deviceId,
+       // ignore: prefer_initializing_formals
+       _token = token;
 
   final HttpClient _client;
   final String _baseUrl;
+  final String _deviceId;
+  final String _token;
 
   Future<SyncHelloOutcome> hello(SyncHello mine) async {
     final response = await _post('/sync/hello', mine.toJson());
@@ -193,6 +219,7 @@ class SyncClientSession {
     Map<String, dynamic> body,
   ) async {
     final request = await _client.postUrl(Uri.parse('$_baseUrl$path'));
+    _authenticate(request);
     SyncClient._writeJson(request, body);
     return request.close();
   }
@@ -202,7 +229,15 @@ class SyncClientSession {
     Map<String, dynamic> body,
   ) async {
     final request = await _client.putUrl(Uri.parse('$_baseUrl$path'));
+    _authenticate(request);
     SyncClient._writeJson(request, body);
     return request.close();
+  }
+
+  /// Every `/sync/*` request names this device and proves the pairing with its
+  /// secret; the listener has no TLS client certificate to check.
+  void _authenticate(HttpClientRequest request) {
+    request.headers.set(SyncServer.deviceHeader, _deviceId);
+    request.headers.set(SyncServer.tokenHeader, _token);
   }
 }

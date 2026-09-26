@@ -22097,6 +22097,366 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Allow this assistant to use phone control'**
   String get phoneControlEnableAssistant;
+
+  /// No description provided for @settingsPageLanSync.
+  ///
+  /// In en, this message translates to:
+  /// **'LAN Sync'**
+  String get settingsPageLanSync;
+
+  /// No description provided for @lanSyncThisDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'This device'**
+  String get lanSyncThisDevice;
+
+  /// No description provided for @lanSyncDeviceIdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Device ID'**
+  String get lanSyncDeviceIdLabel;
+
+  /// No description provided for @lanSyncListenerStarting.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting listener…'**
+  String get lanSyncListenerStarting;
+
+  /// No description provided for @lanSyncListenerNotRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Listener not running'**
+  String get lanSyncListenerNotRunning;
+
+  /// No description provided for @lanSyncListenerFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Listener failed to start: {error}'**
+  String lanSyncListenerFailed(Object error);
+
+  /// No description provided for @lanSyncPairSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair a device'**
+  String get lanSyncPairSectionTitle;
+
+  /// No description provided for @lanSyncPairIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the code on one device and enter it on the other. Both devices must be on the same network.'**
+  String get lanSyncPairIntro;
+
+  /// No description provided for @lanSyncShowCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Show pairing code'**
+  String get lanSyncShowCode;
+
+  /// No description provided for @lanSyncEnterCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter pairing code'**
+  String get lanSyncEnterCode;
+
+  /// No description provided for @lanSyncPairingCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing code'**
+  String get lanSyncPairingCode;
+
+  /// No description provided for @lanSyncPairingExpiresIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires in {time}'**
+  String lanSyncPairingExpiresIn(Object time);
+
+  /// No description provided for @lanSyncPairingEndpointHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter this on the other device'**
+  String get lanSyncPairingEndpointHint;
+
+  /// No description provided for @lanSyncPairingNoIpHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No LAN address was found. The other device can still reach this one by its IP or hostname.'**
+  String get lanSyncPairingNoIpHint;
+
+  /// No description provided for @lanSyncHostLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get lanSyncHostLabel;
+
+  /// No description provided for @lanSyncPortLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Port'**
+  String get lanSyncPortLabel;
+
+  /// No description provided for @lanSyncPairButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair'**
+  String get lanSyncPairButton;
+
+  /// No description provided for @lanSyncPairingBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing…'**
+  String get lanSyncPairingBusy;
+
+  /// No description provided for @lanSyncPairSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Paired with {name}'**
+  String lanSyncPairSuccess(Object name);
+
+  /// No description provided for @lanSyncPairErrorInvalidPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong pairing code, or the other device\'s pairing window is closed.'**
+  String get lanSyncPairErrorInvalidPin;
+
+  /// No description provided for @lanSyncPairErrorUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the device. Check the address and port, and that both devices are on the same network.'**
+  String get lanSyncPairErrorUnreachable;
+
+  /// No description provided for @lanSyncPairErrorNoCertificate.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device did not identify itself. Pairing aborted.'**
+  String get lanSyncPairErrorNoCertificate;
+
+  /// No description provided for @lanSyncPairErrorIdMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device\'s identity could not be verified. Pairing aborted.'**
+  String get lanSyncPairErrorIdMismatch;
+
+  /// No description provided for @lanSyncPairErrorNoListener.
+  ///
+  /// In en, this message translates to:
+  /// **'The sync listener on this device is not running yet.'**
+  String get lanSyncPairErrorNoListener;
+
+  /// No description provided for @lanSyncPairErrorUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing failed: {error}'**
+  String lanSyncPairErrorUnknown(Object error);
+
+  /// No description provided for @lanSyncClosePairing.
+  ///
+  /// In en, this message translates to:
+  /// **'Close pairing window'**
+  String get lanSyncClosePairing;
+
+  /// No description provided for @lanSyncPairedDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Paired devices'**
+  String get lanSyncPairedDevices;
+
+  /// No description provided for @lanSyncNoDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'No paired devices yet. Pair one to start syncing.'**
+  String get lanSyncNoDevices;
+
+  /// No description provided for @lanSyncPlatformAndroid.
+  ///
+  /// In en, this message translates to:
+  /// **'Android'**
+  String get lanSyncPlatformAndroid;
+
+  /// No description provided for @lanSyncPlatformIos.
+  ///
+  /// In en, this message translates to:
+  /// **'iOS'**
+  String get lanSyncPlatformIos;
+
+  /// No description provided for @lanSyncPlatformWindows.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows'**
+  String get lanSyncPlatformWindows;
+
+  /// No description provided for @lanSyncPlatformMacos.
+  ///
+  /// In en, this message translates to:
+  /// **'macOS'**
+  String get lanSyncPlatformMacos;
+
+  /// No description provided for @lanSyncPlatformLinux.
+  ///
+  /// In en, this message translates to:
+  /// **'Linux'**
+  String get lanSyncPlatformLinux;
+
+  /// No description provided for @lanSyncPlatformUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown device'**
+  String get lanSyncPlatformUnknown;
+
+  /// No description provided for @lanSyncLastSyncedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Last synced {time}'**
+  String lanSyncLastSyncedAt(Object time);
+
+  /// No description provided for @lanSyncNeverSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Never synced'**
+  String get lanSyncNeverSynced;
+
+  /// No description provided for @lanSyncSyncNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync now'**
+  String get lanSyncSyncNow;
+
+  /// No description provided for @lanSyncSyncing.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing…'**
+  String get lanSyncSyncing;
+
+  /// No description provided for @lanSyncRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get lanSyncRename;
+
+  /// No description provided for @lanSyncRenameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Device name'**
+  String get lanSyncRenameTitle;
+
+  /// No description provided for @lanSyncEditAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit address'**
+  String get lanSyncEditAddress;
+
+  /// No description provided for @lanSyncUnpair.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpair'**
+  String get lanSyncUnpair;
+
+  /// No description provided for @lanSyncUnpairConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpair {name}?'**
+  String lanSyncUnpairConfirmTitle(Object name);
+
+  /// No description provided for @lanSyncUnpairConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations stay on both devices. Syncing with it stops until you pair again.'**
+  String get lanSyncUnpairConfirmBody;
+
+  /// No description provided for @lanSyncReportSent.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} sent'**
+  String lanSyncReportSent(Object n);
+
+  /// No description provided for @lanSyncReportReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} received'**
+  String lanSyncReportReceived(Object n);
+
+  /// No description provided for @lanSyncReportMessagesUpserted.
+  ///
+  /// In en, this message translates to:
+  /// **'+{n} messages'**
+  String lanSyncReportMessagesUpserted(Object n);
+
+  /// No description provided for @lanSyncReportMessagesDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'-{n} messages'**
+  String lanSyncReportMessagesDeleted(Object n);
+
+  /// No description provided for @lanSyncReportConversationsDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'-{n} conversations'**
+  String lanSyncReportConversationsDeleted(Object n);
+
+  /// No description provided for @lanSyncReportDeferred.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} deferred'**
+  String lanSyncReportDeferred(Object n);
+
+  /// No description provided for @lanSyncReportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed: {error}'**
+  String lanSyncReportFailed(Object error);
+
+  /// No description provided for @lanSyncRefusedPeerSchemaNewer.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device\'s database is newer. Update this device first, then sync again.'**
+  String get lanSyncRefusedPeerSchemaNewer;
+
+  /// No description provided for @lanSyncRefusedProtocolUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device speaks a different sync protocol. Update the app on both devices.'**
+  String get lanSyncRefusedProtocolUnknown;
+
+  /// No description provided for @lanSyncRefusedNotPaired.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device no longer has this one paired. Pair again.'**
+  String get lanSyncRefusedNotPaired;
+
+  /// No description provided for @lanSyncRefusedBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Another sync session is in progress. Try again shortly.'**
+  String get lanSyncRefusedBusy;
+
+  /// No description provided for @lanSyncFirewallTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows Firewall'**
+  String get lanSyncFirewallTitle;
+
+  /// No description provided for @lanSyncFirewallHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The inbound rule for port {port} needs one-time administrator approval.'**
+  String lanSyncFirewallHint(Object port);
+
+  /// No description provided for @lanSyncFirewallFix.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow access (UAC)'**
+  String get lanSyncFirewallFix;
+
+  /// No description provided for @lanSyncFirewallFixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Inbound access allowed.'**
+  String get lanSyncFirewallFixed;
+
+  /// No description provided for @lanSyncKnownLimits.
+  ///
+  /// In en, this message translates to:
+  /// **'For now: image attachments do not travel with a conversation yet, and PIN pairing should only be used on networks you trust.'**
+  String get lanSyncKnownLimits;
 }
 
 class _AppLocalizationsDelegate

@@ -120,8 +120,11 @@ contradicts one of them is a bug, not a preference.
 - **Device identity**: per-install keypair minted at first pairing use; deviceId = hash of
   the public key; stable across app updates. Pairing = QR code (endpoint + key fingerprint —
   MITM-proof on hostile LANs) or 6-digit PIN when no camera is available; both screens
-  confirm. Trust thereafter = pinned self-signed certificates over mutual TLS — the sync
-  face carries API keys, so the channel must resist LAN sniffing and impersonation.
+  confirm. Trust thereafter = the client pins the listener's self-signed certificate, and every
+  `sync/*` request proves the pairing with the per-peer secret minted at pairing — the channel
+  must resist LAN sniffing and impersonation because the sync face carries API keys. Mutual TLS
+  is not the mechanism: `dart:io` aborts the handshake against a self-signed *client* certificate
+  (ADR-0002 amendment).
 - **Sync payload = entity rows**: peers exchange versioned repository rows (JSON), never a
   database file or a backup zip — a newer build's schema must never be handed to an older build.
 - **Foreground constraint**: sync runs while the app is running (foreground on mobile,
@@ -237,6 +240,13 @@ contradicts one of them is a bug, not a preference.
   show/scan QR, PIN fallback) + one card per paired device (editable name, platform,
   online state, last sync outcome, unpair). **Pairing is the opt-in** — there is no master
   switch, and no global chrome (no sync icon outside the panel).
+- **Listener lifecycle**: the listener runs whenever the app runs, on a preferred port
+  (`9527`) that falls back to an ephemeral one when taken, so a peer's stored endpoint and the
+  Windows firewall rule stay stable across launches. On Windows the inbound rule is
+  port-scoped (`Cuplivo-Sync-TCP-<port>`, no spaces or parentheses so `netsh` quoting
+  survives both a plain call and a UAC re-invocation); the preferred port's rule persists, an
+  ephemeral port's rule is deleted best-effort on stop. Adding it without administrator rights
+  fails silently, so the panel offers a one-click elevated retry.
 - **Nothing silent**: the per-session report lists transfers, conflicts and their losers
   (LWW losers, skill-content losers), and warnings (clock skew, version refusal).
 - **File avatars degrade**: emoji/url avatars sync (portable values); a `file` avatar falls

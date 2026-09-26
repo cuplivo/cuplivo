@@ -37,10 +37,13 @@ records the pillar decisions and the rejected alternatives.
 4. **Symmetric version gate.** Each side refuses a peer whose database schema version is
    newer than its own. A schema bump pauses sync for the upgrade window rather than letting
    an older build mangle newer rows and propagate the loss through LWW.
-5. **Per-device keypair, QR/PIN pairing, mutual TLS.** deviceId = hash of the public key;
-   pairing exchanges pinned certificates once; discovery (mDNS `_cuplivo._sync._tcp`)
-   automates reconnection afterwards. The sync face carries API keys, so the channel must
-   resist LAN sniffing and impersonation.
+5. **Per-device keypair, QR/PIN pairing, pinned listener certificate.** deviceId = hash of the
+   public key; pairing exchanges pinned certificates once and mints a per-peer secret; discovery
+   (mDNS `_cuplivo._sync._tcp`) automates reconnection afterwards. The sync face carries API keys,
+   so the channel must resist LAN sniffing and impersonation: TLS is server-authenticated (the
+   client pins the listener's certificate), and each `/sync/*` request proves the pairing with the
+   secret established at pairing. See the amendment below for why client certificates are not the
+   mechanism.
 6. **Preferences split by the classifier, not by storage.** `BusinessKeyRegistry` gains a
    `syncedPreference` disposition; the new-device test decides membership. Session-position
    keys (`current_assistant_id_v1`, `selected_model_v1`), proxies, fonts, platform flags and
@@ -54,6 +57,37 @@ records the pillar decisions and the rejected alternatives.
    Restore still restarts — it swaps the database file; sync does not.
 9. **Event-driven sessions.** Peer discovered → sync; local writes → debounced follow-up;
    manual button as escape hatch. No polling, no background daemon on mobile.
+
+## Amendment (2026-09, slice 1b): mutual TLS → pinned listener + per-peer secret
+
+Decision 5 originally said *mutual TLS with pinned client certificates*: the listener would
+request a client certificate and pin the presented certificate's SHA-256 against the peer store.
+Implementing slice 1b's end-to-end test showed that **this is not achievable with `dart:io`**:
+`HttpServer.bindSecure(..., requestClientCertificate: true)` aborts every handshake against a
+self-signed client certificate — `Connection closed before full header was received` on the
+client, with an empty trust store and with `withTrustedRoots: true` alike (measured on Dart 3.13 /
+Flutter 3.47; a control run with `requestClientCertificate: false` succeeds on the same code).
+Since unpaired devices must still reach `/pair` on the same listener, requesting a certificate
+cannot be the authentication mechanism at all.
+
+What replaced it keeps the property that motivated the decision — a paired identity must be
+proven before any sync route answers:
+
+- **Server → client**: the listener presents its self-signed certificate; the client pins it
+  (`badCertificateCallback` compares the presented DER hash against the paired deviceId). Nothing
+  else can answer as that peer.
+- **Client → server**: pairing mints a 32-byte secret, returned in the pair answer inside the
+  TLS session the initiator has already pinned, and stored on both sides. Every `/sync/*` request
+  carries `X-Cuplivo-Device` + `X-Cuplivo-Token`; the listener reads the peer record and compares
+  in constant time. Pairing and unpairing take effect immediately (no cached trust set).
+- **First contact** stays PIN-gated (one-shot, five-minute window), and the responder verifies
+  that the claimed deviceId hashes to the certificate in the request, so a passive relay cannot
+  forge the binding. The PIN path's MITM exposure is unchanged and still closed later by the QR
+  fingerprint.
+
+Identity, keypair and the certificate pin are unchanged; only the client-certificate half is
+gone. Revisit if `dart:io` gains a way to request a client certificate without verification, or
+if the listener moves to a transport that supports it.
 
 ## Considered options (rejected)
 

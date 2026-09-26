@@ -74,6 +74,7 @@ import 'core/database/startup_failure_report.dart';
 import 'core/services/backup/backup_activity.dart';
 import 'core/services/backup/local_snapshot_schedule.dart';
 import 'core/services/chat/chat_service.dart';
+import 'core/providers/sync_provider.dart';
 import 'core/services/app_exit_flush.dart';
 import 'core/services/backup/restore_archive_pruner.dart';
 import 'core/services/backup/restore_business_lease.dart';
@@ -695,6 +696,13 @@ class MyApp extends StatelessWidget {
           create: (_) =>
               ChatService(existingRepository: databaseLease.chatRepository),
         ),
+        ChangeNotifierProvider(
+          create: (ctx) => SyncProvider(
+            chatService: ctx.read<ChatService>(),
+            repository: databaseLease.chatRepository,
+            syncDirectory: AppDirectories.getSyncDirectory,
+          ),
+        ),
         ChangeNotifierProvider(create: (_) => McpToolService()),
         ChangeNotifierProvider(create: (_) => ToolApprovalService()),
         ChangeNotifierProvider(create: (_) => AskUserInteractionService()),
@@ -1099,6 +1107,14 @@ class MyApp extends StatelessWidget {
                       _wireWorkspaceServices(ctx);
                     });
                   }
+
+                  // LAN sync listener starts with the app (pairing is the
+                  // opt-in; the pairing window stays closed until opened).
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    try {
+                      unawaited(ctx.read<SyncProvider>().start());
+                    } catch (_) {}
+                  });
 
                   // Desktop tray + close behaviour (minimize to tray) sync
                   final l10n = AppLocalizations.of(ctx);

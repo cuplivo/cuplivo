@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:basic_utils/basic_utils.dart';
 import 'package:crypto/crypto.dart' as crypto;
 
 import 'sync_identity.dart';
@@ -27,7 +28,14 @@ abstract class SyncServerHandler {
 
   /// Pairing: validate the PIN, persist the peer, answer with our identity.
   /// Returns null when the PIN is wrong or pairing is not open.
-  Future<SyncPairAnswer?> handlePair(SyncPairRequest request);
+  ///
+  /// [initiatorHost] is the address the initiator connected from (as this
+  /// server saw it) and [request.listenPort] the initiator's own sync
+  /// listener — together they let the responder store a usable endpoint.
+  Future<SyncPairAnswer?> handlePair(
+    SyncPairRequest request,
+    String? initiatorHost,
+  );
 }
 
 class SyncPairRequest {
@@ -37,12 +45,17 @@ class SyncPairRequest {
   final String platform;
   final String certPem;
 
+  /// The initiator's own sync listener port, so the responder can store a
+  /// usable endpoint (its remote address is known from the connection).
+  final int? listenPort;
+
   const SyncPairRequest({
     required this.pin,
     required this.deviceId,
     required this.deviceName,
     required this.platform,
     required this.certPem,
+    this.listenPort,
   });
 
   static SyncPairRequest fromJson(Map<String, dynamic> json) => SyncPairRequest(
@@ -51,6 +64,7 @@ class SyncPairRequest {
     deviceName: (json['deviceName'] as String?) ?? '',
     platform: (json['platform'] as String?) ?? '',
     certPem: json['certPem'] as String,
+    listenPort: (json['listenPort'] as num?)?.toInt(),
   );
 }
 
@@ -60,11 +74,17 @@ class SyncPairAnswer {
   final String platform;
   final String certPem;
 
+  /// The per-peer secret this responder minted for the pairing. The initiator
+  /// stores it and presents it on every later `/sync/*` request; it never
+  /// travels outside the pinned TLS session.
+  final String secret;
+
   const SyncPairAnswer({
     required this.deviceId,
     required this.deviceName,
     required this.platform,
     required this.certPem,
+    required this.secret,
   });
 
   Map<String, dynamic> toJson() => {
@@ -72,17 +92,32 @@ class SyncPairAnswer {
     'deviceName': deviceName,
     'platform': platform,
     'certPem': certPem,
+    'secret': secret,
   };
 }
 
-/// mTLS HTTP server for LAN sync.
+/// HTTPS server for LAN sync.
 ///
-/// One listener serves both pairing and sync routes. TLS always *requests* a
-/// client certificate but never *requires* one at the handshake layer (an
-/// unpinned device must still be able to reach `/pair`); authentication of
-/// `/sync/*` happens at the application layer by pinning the presented
-/// certificate's SHA-256 (= deviceId) against the peer store. The sync face
-/// carries API keys in later slices — never weaken this pin.
+/// One listener serves both pairing and sync routes, authenticated in two
+/// layers:
+///
+/// - **Server → client**: the listener presents this device's self-signed
+///   certificate, and the client pins it (SHA-256 of the DER must equal the
+///   paired deviceId). A LAN attacker cannot impersonate the responder.
+/// - **Client → server**: a per-peer secret established at pairing, sent in
+///   the `X-Cuplivo-Token` header (with `X-Cuplivo-Device`) on every
+///   `/sync/*` request and compared in constant time against the peer store.
+///
+/// Mutual TLS with pinned client certificates is **not** what this is, and the
+/// reason is empirical rather than preferential: `HttpServer.bindSecure` with
+/// `requestClientCertificate: true` aborts the handshake against a self-signed
+/// client certificate on this platform (`Connection closed before full header
+/// was received`), with an empty *and* a system trust store alike (measured,
+/// Dart 3.13 / Flutter 3.47). Requesting a certificate therefore cannot be the
+/// authentication mechanism while unpaired devices must still reach `/pair`
+/// over the same listener. The token restores the property that matters — the
+/// sync face carries API keys, so a paired identity must be proven before any
+/// sync route answers — and the pairing PIN remains the human gate.
 class SyncServer {
   SyncServer({
     required this.identity,
@@ -96,21 +131,20 @@ class SyncServer {
 
   HttpServer? _server;
   int? get port => _server?.port;
-  final Set<String> _pinnedDeviceIds = {};
+
+  /// Header names of the app-layer peer authentication.
+  static const deviceHeader = 'x-cuplivo-device';
+  static const tokenHeader = 'x-cuplivo-token';
 
   Future<int> start({String address = '0.0.0.0', int requestedPort = 0}) async {
     await stop();
-    _pinnedDeviceIds.clear();
-    for (final peer in await store.listPeers()) {
-      _pinnedDeviceIds.add(peer.deviceId);
-    }
     final server = await HttpServer.bindSecure(
       address,
       requestedPort,
       identity.buildContext(),
-      // Requested, never required: an unpinned device must still reach /pair.
-      // /sync/* is authenticated at the application layer by certificate pin.
-      requestClientCertificate: true,
+      // Never request a client certificate: see the class comment. Peers are
+      // authenticated per request by their pairing-established secret.
+      requestClientCertificate: false,
     );
     _server = server;
     unawaited(_serve(server));
@@ -146,7 +180,7 @@ class SyncServer {
       _safeRespond(request, HttpStatus.notFound, {'error': 'not_found'});
       return;
     }
-    final peerDeviceId = _pinnedDeviceId(request);
+    final peerDeviceId = await _authenticatedPeer(request);
     if (peerDeviceId == null) {
       _safeRespond(request, HttpStatus.unauthorized, {
         'error': SyncRefusalReason.notPaired.wire,
@@ -165,13 +199,29 @@ class SyncServer {
     }
   }
 
-  /// /sync/* authentication: the certificate presented in this TLS session
-  /// must hash to a pinned deviceId. The peer's DER pin IS its identity.
-  String? _pinnedDeviceId(HttpRequest request) {
-    final cert = request.certificate;
-    if (cert == null) return null;
-    final deviceId = crypto.sha256.convert(cert.der).toString();
-    return _pinnedDeviceIds.contains(deviceId) ? deviceId : null;
+  /// /sync/* authentication: the caller must name a paired device and present
+  /// that peer's pairing-established secret. Compared in constant time so the
+  /// comparison itself leaks nothing. The peer is read from the store per
+  /// request, so pairing or unpairing while the listener runs takes effect
+  /// immediately.
+  Future<String?> _authenticatedPeer(HttpRequest request) async {
+    final deviceId = request.headers.value(deviceHeader);
+    final token = request.headers.value(tokenHeader);
+    if (deviceId == null || token == null) return null;
+    final peer = await store.readPeer(deviceId);
+    if (peer == null || peer.secret.isEmpty) return null;
+    return _constantTimeEquals(peer.secret, token) ? deviceId : null;
+  }
+
+  static bool _constantTimeEquals(String a, String b) {
+    final left = utf8.encode(a);
+    final right = utf8.encode(b);
+    if (left.length != right.length) return false;
+    var difference = 0;
+    for (var index = 0; index < left.length; index++) {
+      difference |= left[index] ^ right[index];
+    }
+    return difference == 0;
   }
 
   Future<void> _handlePair(HttpRequest request) async {
@@ -187,23 +237,25 @@ class SyncServer {
       return;
     }
     final pairRequest = SyncPairRequest.fromJson(body);
-    // The claimed deviceId must match the certificate actually presented —
-    // a passive relay cannot forge this binding. (A full MITM that terminates
+    // The claimed deviceId must hash to the certificate the caller sent: a
+    // passive relay cannot forge that binding. (A full MITM that terminates
     // both legs remains possible in the PIN path; the QR fingerprint path
     // added later closes it.)
-    final presented = request.certificate;
-    if (presented != null &&
-        crypto.sha256.convert(presented.der).toString() !=
-            pairRequest.deviceId) {
+    final presentedId = crypto.sha256
+        .convert(CryptoUtils.getBytesFromPEMString(pairRequest.certPem))
+        .toString();
+    if (presentedId != pairRequest.deviceId) {
       _safeRespond(request, HttpStatus.forbidden, {'error': 'id_mismatch'});
       return;
     }
-    final answer = await handler.handlePair(pairRequest);
+    final answer = await handler.handlePair(
+      pairRequest,
+      request.connectionInfo?.remoteAddress.address,
+    );
     if (answer == null) {
       _safeRespond(request, HttpStatus.forbidden, {'error': 'invalid_pin'});
       return;
     }
-    _pinnedDeviceIds.add(pairRequest.deviceId);
     _respondJson(request, HttpStatus.ok, answer.toJson());
   }
 

@@ -48,11 +48,25 @@ class SyncStore {
     return records;
   }
 
-  Future<SyncPeerRecord?> findPeer(String deviceId) async {
-    for (final peer in await listPeers()) {
-      if (peer.deviceId == deviceId) return peer;
+  Future<SyncPeerRecord?> findPeer(String deviceId) => readPeer(deviceId);
+
+  /// Reads one peer record. The file name *is* the deviceId, so this is a
+  /// single-file read — and always current: a peer paired (or unpaired) while
+  /// the listener is running is visible to the next request, with no cache to
+  /// invalidate.
+  Future<SyncPeerRecord?> readPeer(String deviceId) async {
+    final file = File(
+      '${_peersDir.path}${Platform.pathSeparator}$deviceId.json',
+    );
+    if (!await file.exists()) return null;
+    try {
+      return SyncPeerRecord.fromJson(
+        jsonDecode(await file.readAsString()) as Map<String, dynamic>,
+      );
+    } catch (error) {
+      debugPrint('sync store: skipping unreadable peer file: $error');
+      return null;
     }
-    return null;
   }
 
   Future<void> savePeer(SyncPeerRecord peer) async {
@@ -107,41 +121,56 @@ class SyncStore {
 class SyncPeerRecord {
   final String deviceId;
 
-  /// Pinned certificate (PEM). Trust = this exact certificate; anything else
-  /// fails the handshake.
+  /// Pinned certificate (PEM). Trust = this exact certificate; the client
+  /// refuses any other one when connecting.
   final String certPem;
+
+  /// Per-peer secret established at pairing, presented on every `/sync/*`
+  /// request (the listener does not use TLS client certificates — see
+  /// [SyncServer]).
+  String secret;
+
   String name;
   String platform;
   String? lastHost;
   int? lastPort;
   DateTime? lastSyncedAt;
-  String? lastResult;
+
+  /// Outcome of the most recent session with this peer, as counters so the
+  /// panel can localize it.
+  SyncPeerReport? lastReport;
 
   SyncPeerRecord({
     required this.deviceId,
     required this.certPem,
+    required this.secret,
     required this.name,
     required this.platform,
     this.lastHost,
     this.lastPort,
     this.lastSyncedAt,
-    this.lastResult,
+    this.lastReport,
   });
 
   Map<String, dynamic> toJson() => {
     'deviceId': deviceId,
     'certPem': certPem,
+    'secret': secret,
     'name': name,
     'platform': platform,
     'lastHost': lastHost,
     'lastPort': lastPort,
     'lastSyncedAtMs': lastSyncedAt?.millisecondsSinceEpoch,
-    'lastResult': lastResult,
+    'lastReport': lastReport?.toJson(),
   };
 
   static SyncPeerRecord fromJson(Map<String, dynamic> json) => SyncPeerRecord(
     deviceId: json['deviceId'] as String,
     certPem: json['certPem'] as String,
+    // Unreadable/absent secrets leave the peer unusable for auth; the empty
+    // string can never match a presented token, so the peer is refused until
+    // it is paired again.
+    secret: (json['secret'] as String?) ?? '',
     name: (json['name'] as String?) ?? 'Unknown device',
     platform: (json['platform'] as String?) ?? '',
     lastHost: json['lastHost'] as String?,
@@ -151,6 +180,10 @@ class SyncPeerRecord {
         : DateTime.fromMillisecondsSinceEpoch(
             (json['lastSyncedAtMs'] as num).toInt(),
           ),
-    lastResult: json['lastResult'] as String?,
+    lastReport: json['lastReport'] == null
+        ? null
+        : SyncPeerReport.fromJson(
+            (json['lastReport'] as Map).cast<String, dynamic>(),
+          ),
   );
 }

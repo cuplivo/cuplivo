@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -33,6 +34,19 @@ class SyncSessionReport {
     this.deferred = 0,
     this.conversationsDeletedLocally = 0,
   });
+
+  /// The persistable, localizable form stored on the peer record.
+  SyncPeerReport toPeerReport() => SyncPeerReport(
+    success: success,
+    sent: conversationsSent,
+    received: conversationsReceived,
+    upsertedMessages: messagesUpserted,
+    deletedMessages: messagesDeleted,
+    deletedConversations: conversationsDeletedLocally,
+    deferred: deferred,
+    refusal: refusal,
+    error: success || refusal != null ? null : summary,
+  );
 }
 
 /// Orchestrates LAN sync sessions (ADR-0002, slice 1: conversations only).
@@ -74,6 +88,14 @@ class SyncEngine implements SyncServerHandler {
   static const _pairingWindow = Duration(minutes: 5);
   static const _sessionTtl = Duration(minutes: 2);
 
+  /// The port a sync listener prefers, so a firewall rule and a peer's stored
+  /// endpoint stay stable across launches. A busy port falls back to an
+  /// ephemeral one (two app instances on one machine).
+  static const kPreferredPort = 9527;
+
+  /// The port this device's sync listener is bound to, or null when stopped.
+  int? get port => server.port;
+
   bool get isPairingOpen =>
       _pairingPin != null &&
       _pairingExpiresAt != null &&
@@ -83,10 +105,15 @@ class SyncEngine implements SyncServerHandler {
 
   DateTime? get pairingExpiresAt => isPairingOpen ? _pairingExpiresAt : null;
 
-  /// Starts listening. Returns the bound port.
-  Future<int> start({int requestedPort = 0}) async {
+  /// Starts listening on [preferredPort], falling back to an ephemeral port
+  /// when it is taken. Returns the bound port.
+  Future<int> start({int preferredPort = kPreferredPort}) async {
     await store.ensureDirectories();
-    return server.start(requestedPort: requestedPort);
+    try {
+      return await server.start(requestedPort: preferredPort);
+    } on SocketException {
+      return server.start(requestedPort: 0);
+    }
   }
 
   Future<void> stop() async {
@@ -118,11 +145,17 @@ class SyncEngine implements SyncServerHandler {
     required int port,
     required String pin,
   }) async {
-    final result = await client.pair(host: host, port: port, pin: pin);
+    final result = await client.pair(
+      host: host,
+      port: port,
+      pin: pin,
+      listenPort: this.port,
+    );
     final answer = result.answer;
     final peer = SyncPeerRecord(
       deviceId: answer.deviceId,
       certPem: result.certPem,
+      secret: answer.secret,
       name: answer.deviceName.isEmpty ? answer.deviceId : answer.deviceName,
       platform: answer.platform,
       lastHost: host,
@@ -228,24 +261,25 @@ class SyncEngine implements SyncServerHandler {
       ];
       final outcomes = <String, SyncSubtreeApplyOutcome>{};
       final missingIncoming = <String>{};
-      if (requested.isNotEmpty) {
-        final incoming = await session.fetchSubtrees(requested);
-        final delivered = {
-          for (final subtree in incoming.subtrees)
-            subtree.conversation['id'] as String,
-        };
-        missingIncoming.addAll(
-          requested.where((id) => !delivered.contains(id)),
-        );
-        outcomes.addAll(
-          await dataPlane.applySubtrees(
-            incoming.subtrees,
-            myDeviceId: identity.deviceId,
-            peerDeviceId: peer.deviceId,
-            checkpointRowsByConversation: _rowsOf(previous, delivered),
-          ),
-        );
-      }
+      // The fetch beat always runs, even with an empty request: it is where the
+      // responder executes its own plan — the deletions it must apply, its
+      // checkpoint advance and its report. Skipping it when this device wants
+      // nothing would leave a conversation this device deleted alive on an
+      // unmodified peer, which the dropped checkpoint entry then re-adopts.
+      final incoming = await session.fetchSubtrees(requested);
+      final delivered = {
+        for (final subtree in incoming.subtrees)
+          subtree.conversation['id'] as String,
+      };
+      missingIncoming.addAll(requested.where((id) => !delivered.contains(id)));
+      outcomes.addAll(
+        await dataPlane.applySubtrees(
+          incoming.subtrees,
+          myDeviceId: identity.deviceId,
+          peerDeviceId: peer.deviceId,
+          checkpointRowsByConversation: _rowsOf(previous, delivered),
+        ),
+      );
 
       final deleted = <String>{};
       final failedDeletes = <String>{};
@@ -416,13 +450,13 @@ class SyncEngine implements SyncServerHandler {
     final peer = await store.findPeer(peerDeviceId);
     if (peer != null) {
       peer.lastSyncedAt = DateTime.now();
-      peer.lastResult = _report(
+      peer.lastReport = _report(
         sent: outgoing.length,
         received: session.outcomes.length,
         outcomes: session.outcomes.values,
         deferred: skipped.length + missing.length,
         deletedLocally: deleted.length,
-      ).summary;
+      ).toPeerReport();
       await store.savePeer(peer);
     }
     _sessions.remove(peerDeviceId);
@@ -431,20 +465,33 @@ class SyncEngine implements SyncServerHandler {
   }
 
   @override
-  Future<SyncPairAnswer?> handlePair(SyncPairRequest request) async {
+  Future<SyncPairAnswer?> handlePair(
+    SyncPairRequest request,
+    String? initiatorHost,
+  ) async {
     if (!isPairingOpen) return null;
     if (request.pin != _pairingPin) return null;
     // One-shot: a PIN is spent on first success.
     _pairingPin = null;
     _pairingExpiresAt = null;
+    // The per-peer secret binds later sessions to this pairing: the listener
+    // has no TLS client certificate to authenticate the caller with, so this
+    // is what a paired peer must present (see [SyncServer]).
+    final secret = _newSecret();
     await store.savePeer(
       SyncPeerRecord(
         deviceId: request.deviceId,
         certPem: request.certPem,
+        secret: secret,
         name: request.deviceName.isEmpty
             ? request.deviceId
             : request.deviceName,
         platform: request.platform,
+        // Endpoint learned from the pairing itself: where the initiator
+        // connected from + the listener port it advertised. Null when the
+        // initiator had no listener running; the address can be fixed by hand.
+        lastHost: initiatorHost,
+        lastPort: request.listenPort,
       ),
     );
     onStateChanged();
@@ -453,6 +500,7 @@ class SyncEngine implements SyncServerHandler {
       deviceName: identity.name,
       platform: platformTag(),
       certPem: identity.certPem,
+      secret: secret,
     );
   }
 
@@ -563,13 +611,22 @@ class SyncEngine implements SyncServerHandler {
     lastReport = report;
     if (peer != null) {
       peer.lastSyncedAt = DateTime.now();
-      peer.lastResult = report.summary;
+      peer.lastReport = report.toPeerReport();
       if (host != null) peer.lastHost = host;
       if (port != null) peer.lastPort = port;
       unawaited(store.savePeer(peer));
     }
     onStateChanged();
     return report;
+  }
+
+  /// A fresh 32-byte secret for a newly paired peer, base64 in a form that is
+  /// safe in an HTTP header.
+  static String _newSecret() {
+    final random = Random.secure();
+    return base64Encode(
+      List<int>.generate(32, (_) => random.nextInt(256), growable: false),
+    );
   }
 
   void _dropExpiredSessions() {

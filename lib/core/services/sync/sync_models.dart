@@ -189,6 +189,59 @@ class SyncHelloRefusal {
       );
 }
 
+/// The last session's outcome as stored on a peer record. Structured rather
+/// than a rendered summary so the panel can localize it — the engine's own
+/// `summary` is machine text built for logs.
+class SyncPeerReport {
+  final bool success;
+  final int sent;
+  final int received;
+  final int upsertedMessages;
+  final int deletedMessages;
+  final int deletedConversations;
+  final int deferred;
+  final SyncRefusalReason? refusal;
+
+  /// Raw failure detail for non-refusal failures (transport errors).
+  final String? error;
+
+  const SyncPeerReport({
+    required this.success,
+    this.sent = 0,
+    this.received = 0,
+    this.upsertedMessages = 0,
+    this.deletedMessages = 0,
+    this.deletedConversations = 0,
+    this.deferred = 0,
+    this.refusal,
+    this.error,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'success': success,
+    'sent': sent,
+    'received': received,
+    'upserted': upsertedMessages,
+    'deleted': deletedMessages,
+    'deletedConversations': deletedConversations,
+    'deferred': deferred,
+    if (refusal != null) 'refusal': refusal!.wire,
+    if (error != null) 'error': error,
+  };
+
+  static SyncPeerReport fromJson(Map<String, dynamic> json) => SyncPeerReport(
+    success: (json['success'] as bool?) ?? true,
+    sent: (json['sent'] as num?)?.toInt() ?? 0,
+    received: (json['received'] as num?)?.toInt() ?? 0,
+    upsertedMessages: (json['upserted'] as num?)?.toInt() ?? 0,
+    deletedMessages: (json['deleted'] as num?)?.toInt() ?? 0,
+    deletedConversations: (json['deletedConversations'] as num?)?.toInt() ?? 0,
+    deferred: (json['deferred'] as num?)?.toInt() ?? 0,
+    refusal: SyncRefusalReason.tryParse(json['refusal'] as String?),
+    error: json['error'] as String?,
+  );
+}
+
 /// One conversation subtree on the wire: the conversation row, its message
 /// rows in stable order, its MCP server bindings, and the message part rows.
 /// All values are JSON primitives; timestamps as µs ints; nullable columns may

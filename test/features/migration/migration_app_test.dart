@@ -271,7 +271,7 @@ void main() {
     expect(restartCall?.method, 'restartApp');
     expect(restartCall?.arguments, containsPair('mode', 'process'));
     expect(reportedErrors, hasLength(1));
-    expect(find.text('Kelivo 无法自动重启，请完全关闭后重新打开。'), findsOneWidget);
+    expect(find.text('Cuplivo 无法自动重启，请完全关闭后重新打开。'), findsOneWidget);
 
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();

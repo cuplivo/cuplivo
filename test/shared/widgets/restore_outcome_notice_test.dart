@@ -27,7 +27,7 @@ void main() {
     expect(find.text('Restore was rolled back'), findsOneWidget);
     expect(
       find.text(
-        'The restore could not be completed. Kelivo verified and kept your previous data.',
+        'The restore could not be completed. Cuplivo verified and kept your previous data.',
       ),
       findsOneWidget,
     );

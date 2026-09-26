@@ -206,7 +206,7 @@ void main() {
         try {
           await pumpApp(tester);
           expect(
-            find.textContaining('Tasks run only while Kelivo is running'),
+            find.textContaining('Tasks run only while Cuplivo is running'),
             findsOneWidget,
           );
           expect(

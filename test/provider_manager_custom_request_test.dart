@@ -87,7 +87,7 @@ void main() {
         expect(receivedHeaders.value('x-model-only'), isNull);
         expect(
           receivedHeaders.value('user-agent'),
-          customUserAgent == null ? 'Kelivo' : 'GatewayClient/1.0',
+          customUserAgent == null ? 'Cuplivo' : 'GatewayClient/1.0',
         );
         expect(
           receivedHeaders.value(authHeader),

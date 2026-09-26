@@ -86,7 +86,7 @@ void main() {
       await notifications.schedule(task, run, payload);
       final args = calls.single.arguments as Map;
       expect(args['body'], 'Result ready');
-      expect(args['title'], 'Kelivo');
+      expect(args['title'], 'Cuplivo');
       expect(calls.where((c) => c.method == 'permission'), isEmpty);
     },
   );

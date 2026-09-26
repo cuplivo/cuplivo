@@ -51,22 +51,33 @@ class SyncStore {
   Future<SyncPeerRecord?> findPeer(String deviceId) => readPeer(deviceId);
 
   /// Reads one peer record. The file name *is* the deviceId, so this is a
-  /// single-file read — and always current: a peer paired (or unpaired) while
-  /// the listener is running is visible to the next request, with no cache to
-  /// invalidate.
+  /// single-file read. It retries once: [savePeer] publishes through a rename,
+  /// which on Windows needs the target removed first, so a reader can still
+  /// catch the file mid-swap.
   Future<SyncPeerRecord?> readPeer(String deviceId) async {
     final file = File(
       '${_peersDir.path}${Platform.pathSeparator}$deviceId.json',
     );
-    if (!await file.exists()) return null;
-    try {
-      return SyncPeerRecord.fromJson(
-        jsonDecode(await file.readAsString()) as Map<String, dynamic>,
-      );
-    } catch (error) {
-      debugPrint('sync store: skipping unreadable peer file: $error');
-      return null;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      if (!await file.exists()) return null;
+      try {
+        final text = await file.readAsString();
+        if (text.trim().isEmpty) {
+          throw const FormatException('peer file is momentarily empty');
+        }
+        return SyncPeerRecord.fromJson(
+          jsonDecode(text) as Map<String, dynamic>,
+        );
+      } catch (error) {
+        if (attempt == 0) {
+          await Future<void>.delayed(const Duration(milliseconds: 40));
+          continue;
+        }
+        debugPrint('sync store: skipping unreadable peer file: $error');
+        return null;
+      }
     }
+    return null;
   }
 
   Future<void> savePeer(SyncPeerRecord peer) async {
@@ -74,7 +85,22 @@ class SyncStore {
     final file = File(
       '${_peersDir.path}${Platform.pathSeparator}${peer.deviceId}.json',
     );
-    await file.writeAsString(jsonEncode(peer.toJson()));
+    await _writeAtomic(file, utf8.encode(jsonEncode(peer.toJson())));
+  }
+
+  /// Writes through a temporary file in the same directory, so a concurrent
+  /// reader sees either the previous contents or the complete new ones — never
+  /// the empty file a truncating write exposes.
+  Future<void> _writeAtomic(File file, List<int> bytes) async {
+    final temp = File('${file.path}.tmp');
+    await temp.writeAsBytes(bytes, flush: true);
+    try {
+      await temp.rename(file.path);
+    } on FileSystemException {
+      // Windows refuses to rename onto an existing file, hence the removal.
+      if (await file.exists()) await file.delete();
+      await temp.rename(file.path);
+    }
   }
 
   Future<void> deletePeer(String deviceId) async {
@@ -110,7 +136,7 @@ class SyncStore {
   ) async {
     await _checkpointsDir.create(recursive: true);
     final bytes = gzip.encode(utf8.encode(jsonEncode(checkpoint.toJson())));
-    await _checkpointFile(deviceId).writeAsBytes(bytes, flush: true);
+    await _writeAtomic(_checkpointFile(deviceId), bytes);
   }
 
   File _checkpointFile(String deviceId) =>

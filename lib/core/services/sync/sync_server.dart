@@ -132,12 +132,34 @@ class SyncServer {
   HttpServer? _server;
   int? get port => _server?.port;
 
+  /// deviceId → shared secret for every paired peer. Held in memory because it
+  /// is consulted on every `/sync/*` request: a disk read per request would put
+  /// a file write race on the authentication path. Both pairing roles call
+  /// [rememberPeer], so a peer paired while the listener runs is accepted at
+  /// once and [forgetPeer] refuses an unpaired one at once.
+  final Map<String, String> _peerSecrets = {};
+
   /// Header names of the app-layer peer authentication.
   static const deviceHeader = 'x-cuplivo-device';
   static const tokenHeader = 'x-cuplivo-token';
 
+  void rememberPeer(SyncPeerRecord peer) {
+    _peerSecrets[peer.deviceId] = peer.secret;
+  }
+
+  void forgetPeer(String deviceId) {
+    _peerSecrets.remove(deviceId);
+  }
+
   Future<int> start({String address = '0.0.0.0', int requestedPort = 0}) async {
     await stop();
+    _peerSecrets
+      ..clear()
+      ..addEntries(
+        (await store.listPeers()).map(
+          (peer) => MapEntry(peer.deviceId, peer.secret),
+        ),
+      );
     final server = await HttpServer.bindSecure(
       address,
       requestedPort,
@@ -180,7 +202,7 @@ class SyncServer {
       _safeRespond(request, HttpStatus.notFound, {'error': 'not_found'});
       return;
     }
-    final peerDeviceId = await _authenticatedPeer(request);
+    final peerDeviceId = _authenticatedPeer(request);
     if (peerDeviceId == null) {
       _safeRespond(request, HttpStatus.unauthorized, {
         'error': SyncRefusalReason.notPaired.wire,
@@ -201,16 +223,14 @@ class SyncServer {
 
   /// /sync/* authentication: the caller must name a paired device and present
   /// that peer's pairing-established secret. Compared in constant time so the
-  /// comparison itself leaks nothing. The peer is read from the store per
-  /// request, so pairing or unpairing while the listener runs takes effect
-  /// immediately.
-  Future<String?> _authenticatedPeer(HttpRequest request) async {
+  /// comparison itself leaks nothing.
+  String? _authenticatedPeer(HttpRequest request) {
     final deviceId = request.headers.value(deviceHeader);
     final token = request.headers.value(tokenHeader);
     if (deviceId == null || token == null) return null;
-    final peer = await store.readPeer(deviceId);
-    if (peer == null || peer.secret.isEmpty) return null;
-    return _constantTimeEquals(peer.secret, token) ? deviceId : null;
+    final expected = _peerSecrets[deviceId];
+    if (expected == null || expected.isEmpty) return null;
+    return _constantTimeEquals(expected, token) ? deviceId : null;
   }
 
   static bool _constantTimeEquals(String a, String b) {

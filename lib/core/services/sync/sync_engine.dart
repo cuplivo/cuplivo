@@ -162,12 +162,17 @@ class SyncEngine implements SyncServerHandler {
       lastPort: port,
     );
     await store.savePeer(peer);
+    // This listener must accept the peer too: pairing may have been initiated
+    // from this side, in which case the answer (not a request) carried the
+    // secret.
+    server.rememberPeer(peer);
     onStateChanged();
     return peer;
   }
 
   Future<void> unpair(String deviceId) async {
     await store.deletePeer(deviceId);
+    server.forgetPeer(deviceId);
     onStateChanged();
   }
 
@@ -180,7 +185,7 @@ class SyncEngine implements SyncServerHandler {
     final endpointHost = host ?? peer.lastHost;
     final endpointPort = port ?? peer.lastPort;
     if (endpointHost == null || endpointPort == null) {
-      return _finish(
+      return await _finish(
         const SyncSessionReport(success: false, summary: 'no_endpoint'),
       );
     }
@@ -203,7 +208,7 @@ class SyncEngine implements SyncServerHandler {
         ),
       );
       if (hello.refusal != null) {
-        return _finish(
+        return await _finish(
           SyncSessionReport(
             success: false,
             summary: 'refused:${hello.refusal!.reason.wire}',
@@ -215,7 +220,7 @@ class SyncEngine implements SyncServerHandler {
       // Symmetric version gate, our half: refuse a peer whose schema we do not
       // know (the peer enforces its half before answering).
       if (peerHello.schemaVersion > dataPlane.schemaVersion) {
-        return _finish(
+        return await _finish(
           const SyncSessionReport(
             success: false,
             summary: 'refused:peer_schema_newer',
@@ -300,7 +305,7 @@ class SyncEngine implements SyncServerHandler {
         failedDeletes: failedDeletes,
       );
       await store.saveCheckpoint(peer.deviceId, next);
-      return _finish(
+      return await _finish(
         _report(
           sent: outgoing.length,
           received: outcomes.length,
@@ -313,7 +318,7 @@ class SyncEngine implements SyncServerHandler {
         port: endpointPort,
       );
     } catch (error) {
-      return _finish(
+      return await _finish(
         SyncSessionReport(success: false, summary: 'error:$error'),
         peer: peer,
         host: endpointHost,
@@ -478,22 +483,22 @@ class SyncEngine implements SyncServerHandler {
     // has no TLS client certificate to authenticate the caller with, so this
     // is what a paired peer must present (see [SyncServer]).
     final secret = _newSecret();
-    await store.savePeer(
-      SyncPeerRecord(
-        deviceId: request.deviceId,
-        certPem: request.certPem,
-        secret: secret,
-        name: request.deviceName.isEmpty
-            ? request.deviceId
-            : request.deviceName,
-        platform: request.platform,
-        // Endpoint learned from the pairing itself: where the initiator
-        // connected from + the listener port it advertised. Null when the
-        // initiator had no listener running; the address can be fixed by hand.
-        lastHost: initiatorHost,
-        lastPort: request.listenPort,
-      ),
+    final peer = SyncPeerRecord(
+      deviceId: request.deviceId,
+      certPem: request.certPem,
+      secret: secret,
+      name: request.deviceName.isEmpty ? request.deviceId : request.deviceName,
+      platform: request.platform,
+      // Endpoint learned from the pairing itself: where the initiator
+      // connected from + the listener port it advertised. Null when the
+      // initiator had no listener running; the address can be fixed by hand.
+      lastHost: initiatorHost,
+      lastPort: request.listenPort,
     );
+    await store.savePeer(peer);
+    // The pairing request arrived on this listener, so the peer is known here
+    // already; the initiator learns the same secret from the answer.
+    server.rememberPeer(peer);
     onStateChanged();
     return SyncPairAnswer(
       deviceId: identity.deviceId,
@@ -602,19 +607,22 @@ class SyncEngine implements SyncServerHandler {
     );
   }
 
-  SyncSessionReport _finish(
+  /// Completes a session: records the outcome on the peer record and returns
+  /// the report. The save is awaited — the caller sees a report only once it is
+  /// durable, and nothing is left writing when the session is already over.
+  Future<SyncSessionReport> _finish(
     SyncSessionReport report, {
     SyncPeerRecord? peer,
     String? host,
     int? port,
-  }) {
+  }) async {
     lastReport = report;
     if (peer != null) {
       peer.lastSyncedAt = DateTime.now();
       peer.lastReport = report.toPeerReport();
       if (host != null) peer.lastHost = host;
       if (port != null) peer.lastPort = port;
-      unawaited(store.savePeer(peer));
+      await store.savePeer(peer);
     }
     onStateChanged();
     return report;

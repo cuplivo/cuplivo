@@ -43,15 +43,30 @@ problems with the inherited automatic pipeline:
 4. **WebP is never produced.** The user-facing format set is JPEG and PNG only.
 5. **Artifacts are named `.jpeg`/`.png`, never `.jpg`.** MIME inference already maps both spellings to
    `image/jpeg`, but the extension itself reaches provider-facing surfaces, so the safe spelling wins.
+   A pristine copy keeps the name it was picked under, except that an extensionless pick gets the
+   extension its own bytes imply — otherwise MIME inference declares it `image/png` whatever it holds.
+   `.jpg` and `.jpeg` are one name family when identical bytes are deduplicated.
 6. **The preview is a 1:1 split compare.** The image is decoded once per editor session; the left of a
    draggable divider shows original pixels, the right shows the current parameters' result for the
    region on screen (re-encoded on a debounce), and a full-image size estimate follows the parameters.
-   The preview and the artifact run the same pipeline, so what is compared is what is produced.
+   The preview and the artifact run the same pipeline, so what is compared is what is produced. A tile
+   is drawn only while it encodes the parameters currently selected: changing one, or choosing 原图,
+   drops it immediately rather than leaving a stale encode on screen. The decoded cache behind the
+   comparison is bounded in both dimensions (≤ 2048 px long edge and ≤ 4 MP), which keeps the cache,
+   its copies and the per-tick crop proportional to what can be displayed while staying above the
+   largest realistic preview viewport, so the comparison stays honest at display resolution.
 7. **Cropping is deferred, not rejected.** The pipeline is staged (decode → resize → encode) so a crop
    stage can be inserted later. The existing mobile-only `image_cropper` at pick time is untouched.
 8. **`downsize` is extended, not replaced.** The vendored package gains a format parameter and a real
    PNG encode (`compressPng` previously emitted JPEG). Its orientation bake, EXIF strip and
    only-shrink resize are kept.
+9. **The editor remembers what the user confirmed, 原图 included.** Those parameters seed the next
+   session, and a long edge remembered from another image is normalised to the image being edited so
+   the panel's readout always equals the value that will be applied.
+10. **Draft-owned copies have a lifecycle.** The stored copy a draft created is released when the
+    chip leaves the composer, but never once the attachment has been submitted — a persisted message
+    may reference it, and a rejected submission may already have persisted one. Ownership, not the
+    file, is what a rejection drops.
 
 ## Consequences
 
@@ -67,7 +82,10 @@ problems with the inherited automatic pipeline:
   paths recorded in existing conversations are untouched; nothing rewrites history.
 - A PNG artifact of a photographic source can be larger than its input. This is a deliberate
   consequence of removing the automatic guards from the manual path; the size estimate is shown before
-  the apply so the user can back out.
+  the apply so the user can back out, and it reports growth rather than hiding it.
+- The editor is offered only where it can act. An image whose bytes cannot be decoded offers no apply
+  action, and a remote or `data:` attachment never opens the editor: the manual pipeline reads local
+  files, and a failed apply would drop the attachment from the message and lock sending.
 
 ## Not in scope
 

@@ -1,11 +1,13 @@
 import '../../../support/business_test_harness.dart';
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/providers/asr_provider.dart';
@@ -14,6 +16,7 @@ import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/asr/asr_audio_capture.dart';
 import 'package:Cuplivo/core/services/asr/asr_service_options.dart';
 import 'package:Cuplivo/core/services/asr/system_asr_service.dart';
+import 'package:Cuplivo/features/home/services/input_draft_persistence.dart';
 import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 
@@ -22,14 +25,17 @@ void main() {
     required SettingsProvider settings,
     required AsrProvider asr,
     required TextEditingController controller,
+    AssistantProvider? assistants,
   }) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: settings),
         ChangeNotifierProvider.value(
-          value: AssistantProvider(
-            preferences: createBusinessTestPreferences(),
-          ),
+          // Callers that seed the local preference store pass their own
+          // instance: building one here resets that store.
+          value:
+              assistants ??
+              AssistantProvider(preferences: createBusinessTestPreferences()),
         ),
       ],
       child: MaterialApp(
@@ -242,6 +248,65 @@ void main() {
     expect(
       find.byKey(const ValueKey('voice-transcribing-indicator')),
       findsNothing,
+    );
+  });
+
+  testWidgets('背景挂起时草稿写的必须是回退后的输入，而不是被丢弃的部分转写', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final settings = SettingsProvider(createBusinessTestPreferences());
+    await settings.loaded;
+    final option = SystemAsrOptions(id: 'system-test');
+    await settings.setAsrServices(<AsrServiceOptions>[option]);
+    final assistants = AssistantProvider(
+      preferences: createBusinessTestPreferences(),
+    );
+    final backend = _FakeSystemBackend();
+    final asr = AsrProvider(systemService: SystemAsrService(backend: backend));
+    final controller = TextEditingController(text: 'draft');
+    addTearDown(asr.dispose);
+    addTearDown(controller.dispose);
+
+    // The providers built above reset the mock preference store, so the draft
+    // service is initialized after them and writes through the same handle.
+    final prefs = await SharedPreferences.getInstance();
+    await InputDraftPersistence.ensureInitialized();
+
+    await tester.pumpWidget(
+      harness(
+        settings: settings,
+        asr: asr,
+        controller: controller,
+        assistants: assistants,
+      ),
+    );
+    await tester.tap(find.byTooltip('Voice input'));
+    await tester.pump();
+    backend.emitTranscript('hello', false);
+    await tester.pump();
+    expect(controller.text, 'draft hello');
+
+    // Backgrounding mid-dictation cancels the session: the bar puts the
+    // pre-dictation value back.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    addTearDown(
+      () => tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      ),
+    );
+    expect(controller.text, 'draft');
+
+    final raw = prefs.getString(InputDraftPersistence.key);
+    expect(
+      raw,
+      isNotNull,
+      reason: 'the composer holds restored text, so that text must be drafted',
+    );
+    expect(
+      (jsonDecode(raw!) as Map<String, dynamic>)['text'],
+      'draft',
+      reason:
+          'a discarded partial transcript must not survive into the next launch',
     );
   });
 }

@@ -327,6 +327,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get storageSpaceDeleteConfirmTitle => 'Confirm deletion';
 
   @override
+  String storageSpaceDeleteDraftWarning(int count) {
+    return '$count of them are still referenced by your unsaved draft';
+  }
+
+  @override
   String storageSpaceDeleteUploadsConfirmMessage(int count) {
     return 'Delete $count items and their associated conversation attachment copies? These attachments will no longer be available in chat history.';
   }

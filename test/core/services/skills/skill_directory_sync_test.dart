@@ -186,10 +186,16 @@ void main() {
       Directory.systemTemp.path,
     ];
     for (final id in crafted) {
-      expect(await target.applyZip(skillId: id, dirHash: hash, zip: zip),
-          isFalse, reason: 'applyZip must refuse the crafted id "$id"');
-      expect(await target.hashOf(id), isNull,
-          reason: 'hashOf must not resolve the crafted id "$id"');
+      expect(
+        await target.applyZip(skillId: id, dirHash: hash, zip: zip),
+        isFalse,
+        reason: 'applyZip must refuse the crafted id "$id"',
+      );
+      expect(
+        await target.hashOf(id),
+        isNull,
+        reason: 'hashOf must not resolve the crafted id "$id"',
+      );
       expect(await target.hashesOf({id}), isEmpty);
       await target.deleteDirectory(id); // must be a no-op, not a delete
     }

@@ -172,11 +172,10 @@ void main() {
     );
 
     expect(outcome.deferred, isFalse);
-    expect(
-      await storedOrder(),
-      [(id: 'm1', order: 0), (id: 'm2', order: 1)],
-      reason: 'the carried slot leads, not the timestamp',
-    );
+    expect(await storedOrder(), [
+      (id: 'm1', order: 0),
+      (id: 'm2', order: 1),
+    ], reason: 'the carried slot leads, not the timestamp');
   });
 
   test(
@@ -227,7 +226,8 @@ void main() {
     },
   );
 
-  Future<List<({String id, String? groupId, int version})>> storedSlots() async {
+  Future<List<({String id, String? groupId, int version})>>
+  storedSlots() async {
     final rows = await database
         .customSelect(
           'SELECT id, group_id, version FROM message_rows '
@@ -352,55 +352,59 @@ void main() {
     ]);
   });
 
-  test('a tie on the slot clock falls to the higher row id, on both peers',
-      () async {
-    // Same clock on both rivals: only a device-independent rule can decide, and
-    // both peers must decide identically without negotiating.
-    await repository.putMigrationBatch(
-      conversations: [
-        Conversation(
-          id: conversationId,
-          title: conversationId,
-        ).copyWith(messageIds: const ['g1']),
-      ],
-      messages: [
-        (
-          message: ChatMessage(
-            id: 'g1',
-            conversationId: conversationId,
-            role: 'assistant',
-            content: 'g1',
-            timestamp: DateTime.fromMicrosecondsSinceEpoch(1000000),
-            groupId: 'g1',
-            version: 1,
-          ),
-          messageOrder: 0,
-        ),
-      ],
-      toolEventsByMessageId: const {},
-      geminiSignaturesByMessageId: const {},
-    );
-
-    final outcome = await apply(
-      SyncSubtreePayload(
-        conversation: conversationRow(),
+  test(
+    'a tie on the slot clock falls to the higher row id, on both peers',
+    () async {
+      // Same clock on both rivals: only a device-independent rule can decide, and
+      // both peers must decide identically without negotiating.
+      await repository.putMigrationBatch(
+        conversations: [
+          Conversation(
+            id: conversationId,
+            title: conversationId,
+          ).copyWith(messageIds: const ['g1']),
+        ],
         messages: [
-          messageRow(
-            'g0',
-            1000000,
-            order: 0,
-            role: 'assistant',
-            groupId: 'g1',
-            version: 1,
+          (
+            message: ChatMessage(
+              id: 'g1',
+              conversationId: conversationId,
+              role: 'assistant',
+              content: 'g1',
+              timestamp: DateTime.fromMicrosecondsSinceEpoch(1000000),
+              groupId: 'g1',
+              version: 1,
+            ),
+            messageOrder: 0,
           ),
         ],
-        parts: [partRow('g0', 1000000)],
-      ),
-    );
+        toolEventsByMessageId: const {},
+        geminiSignaturesByMessageId: const {},
+      );
 
-    expect(outcome.deferred, isFalse);
-    expect(await storedSlots(), [
-      (id: 'g1', groupId: 'g1', version: 1),
-    ], reason: 'the higher row id keeps the slot at a tied clock');
-  });
+      final outcome = await apply(
+        SyncSubtreePayload(
+          conversation: conversationRow(),
+          messages: [
+            messageRow(
+              'g0',
+              1000000,
+              order: 0,
+              role: 'assistant',
+              groupId: 'g1',
+              version: 1,
+            ),
+          ],
+          parts: [partRow('g0', 1000000)],
+        ),
+      );
+
+      expect(outcome.deferred, isFalse);
+      expect(
+        await storedSlots(),
+        [(id: 'g1', groupId: 'g1', version: 1)],
+        reason: 'the higher row id keeps the slot at a tied clock',
+      );
+    },
+  );
 }

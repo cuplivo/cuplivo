@@ -609,10 +609,8 @@ void main() {
             builder: (context) => Scaffold(
               body: Center(
                 child: TextButton(
-                  onPressed: () => showSyncPairingDialogs(
-                    context: context,
-                    showCode: true,
-                  ),
+                  onPressed: () =>
+                      showSyncPairingDialogs(context: context, showCode: true),
                   child: const Text('open'),
                 ),
               ),
@@ -1005,76 +1003,81 @@ void main() {
     expect(await _messageIds(b, 'conv-a'), contains('conv-a-m1'));
   });
 
-  test('a deferred business apply never deletes the sender\'s own row', () async {
-    final (a, b) = await pair();
-    await a.businessPreferences.setString('user_name', 'Alice');
+  test(
+    'a deferred business apply never deletes the sender\'s own row',
+    () async {
+      final (a, b) = await pair();
+      await a.businessPreferences.setString('user_name', 'Alice');
 
-    // B is mid-restore: the write fence makes the whole business apply defer.
-    final release = Completer<void>();
-    final fence = b.businessPreferences.runWithRestoreWriteFence(
-      () => release.future,
-    );
-    await Future<void>.delayed(Duration.zero);
+      // B is mid-restore: the write fence makes the whole business apply defer.
+      final release = Completer<void>();
+      final fence = b.businessPreferences.runWithRestoreWriteFence(
+        () => release.future,
+      );
+      await Future<void>.delayed(Duration.zero);
 
-    final pushed = await a.engine.syncWithPeer(await a.peer(b));
-    expect(pushed.success, isTrue, reason: pushed.summary);
-    expect(
-      await b.businessRepository.syncReadPreferenceRows({'user_name'}),
-      isEmpty,
-      reason: 'the fence deferred the apply',
-    );
+      final pushed = await a.engine.syncWithPeer(await a.peer(b));
+      expect(pushed.success, isTrue, reason: pushed.summary);
+      expect(
+        await b.businessRepository.syncReadPreferenceRows({'user_name'}),
+        isEmpty,
+        reason: 'the fence deferred the apply',
+      );
 
-    // The session after that used to plan an iDelete for A's own row: the
-    // write fence never advanced B's state, and A had recorded its send as
-    // received.
-    await a.engine.syncWithPeer(await a.peer(b));
-    expect(
-      await a.businessRepository.syncReadPreferenceRows({'user_name'}),
-      hasLength(1),
-      reason: 'A must keep the row it wrote',
-    );
+      // The session after that used to plan an iDelete for A's own row: the
+      // write fence never advanced B's state, and A had recorded its send as
+      // received.
+      await a.engine.syncWithPeer(await a.peer(b));
+      expect(
+        await a.businessRepository.syncReadPreferenceRows({'user_name'}),
+        hasLength(1),
+        reason: 'A must keep the row it wrote',
+      );
 
-    release.complete();
-    await fence;
-  });
+      release.complete();
+      await fence;
+    },
+  );
 
-  test('a deferred receive never makes the sender delete its own message',
-      () async {
-    // The mirror of the push case: B is the one that sends, and A is the one
-    // that defers. B's optimistic entry must not turn A's older copy into a
-    // deletion of B's new message when B initiates the next session.
-    final (a, b) = await pair();
-    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
-    await a.engine.syncWithPeer(await a.peer(b));
+  test(
+    'a deferred receive never makes the sender delete its own message',
+    () async {
+      // The mirror of the push case: B is the one that sends, and A is the one
+      // that defers. B's optimistic entry must not turn A's older copy into a
+      // deletion of B's new message when B initiates the next session.
+      final (a, b) = await pair();
+      await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+      await a.engine.syncWithPeer(await a.peer(b));
 
-    await b.repository.putMessage(
-      ChatMessage(
-        id: 'conv-a-m1',
-        conversationId: 'conv-a',
-        role: 'user',
-        content: 'written on b',
-      ),
-    );
-    await _setStreaming(a, 'conv-a', streaming: true);
-    final sent = await a.engine.syncWithPeer(await a.peer(b));
-    expect(sent.success, isTrue, reason: sent.summary);
-    expect(await _messageIds(a, 'conv-a'), isNot(contains('conv-a-m1')));
+      await b.repository.putMessage(
+        ChatMessage(
+          id: 'conv-a-m1',
+          conversationId: 'conv-a',
+          role: 'user',
+          content: 'written on b',
+        ),
+      );
+      await _setStreaming(a, 'conv-a', streaming: true);
+      final sent = await a.engine.syncWithPeer(await a.peer(b));
+      expect(sent.success, isTrue, reason: sent.summary);
+      expect(await _messageIds(a, 'conv-a'), isNot(contains('conv-a-m1')));
 
-    // A's generation ends without A ever applying B's message, and A says so
-    // on its hello. B, which recorded its own send as received, would
-    // otherwise read A's older copy as a deletion of its own message.
-    await _setStreaming(a, 'conv-a', streaming: false);
-    final mirrored = await b.engine.syncWithPeer(await b.peer(a));
-    expect(mirrored.success, isTrue, reason: mirrored.summary);
-    expect(
-      await _messageIds(b, 'conv-a'),
-      contains('conv-a-m1'),
-      reason: "B's own message must survive",
-    );
+      // A's generation ends without A ever applying B's message, and A says so
+      // on its hello. B, which recorded its own send as received, would
+      // otherwise read A's older copy as a deletion of its own message.
+      await _setStreaming(a, 'conv-a', streaming: false);
+      final mirrored = await b.engine.syncWithPeer(await b.peer(a));
+      expect(mirrored.success, isTrue, reason: mirrored.summary);
+      expect(
+        await _messageIds(b, 'conv-a'),
+        contains('conv-a-m1'),
+        reason: "B's own message must survive",
+      );
 
-    await a.engine.syncWithPeer(await a.peer(b));
-    expect(await _messageIds(a, 'conv-a'), contains('conv-a-m1'));
-  });
+      await a.engine.syncWithPeer(await a.peer(b));
+      expect(await _messageIds(a, 'conv-a'), contains('conv-a-m1'));
+    },
+  );
 
   test('a peer deletion the peer deferred is retried, not undone', () async {
     final (a, b) = await pair();

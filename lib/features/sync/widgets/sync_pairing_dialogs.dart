@@ -141,108 +141,109 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
       canPop: false,
       child: AlertDialog(
         title: Text(l10n.lanSyncPairingCode),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_qrData != null) ...[
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    // Always white: a QR must stay dark-on-light to scan.
-                    color: Colors.white, // color-gate: ignore (QR scannability)
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: SizedBox.square(
-                    dimension: 180,
-                    child: PrettyQrView.data(
-                      data: _qrData!,
-                      errorCorrectLevel: QrErrorCorrectLevel.M,
-                      decoration: const PrettyQrDecoration(
-                        shape: PrettyQrSmoothSymbol(roundFactor: 1),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_qrData != null) ...[
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      // Always white: a QR must stay dark-on-light to scan.
+                      color:
+                          Colors.white, // color-gate: ignore (QR scannability)
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: SizedBox.square(
+                      dimension: 180,
+                      child: PrettyQrView.data(
+                        data: _qrData!,
+                        errorCorrectLevel: QrErrorCorrectLevel.M,
+                        decoration: const PrettyQrDecoration(
+                          shape: PrettyQrSmoothSymbol(roundFactor: 1),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    l10n.lanSyncPairQrCaption,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: cs.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               Center(
                 child: Text(
-                  l10n.lanSyncPairQrCaption,
+                  '${widget.pin.substring(0, 3)} ${widget.pin.substring(3)}',
+                  style: TextStyle(
+                    fontSize: 34,
+                    fontWeight: AppFontWeights.emphasis,
+                    letterSpacing: 4,
+                    color: cs.onSurface,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Center(
+                child: Text(
+                  l10n.lanSyncPairingExpiresIn(_countdown),
                   style: TextStyle(
                     fontSize: 12,
                     color: cs.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-            ],
-            Center(
-              child: Text(
-                '${widget.pin.substring(0, 3)} ${widget.pin.substring(3)}',
-                style: TextStyle(
-                  fontSize: 34,
-                  fontWeight: AppFontWeights.emphasis,
-                  letterSpacing: 4,
-                  color: cs.onSurface,
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Center(
-              child: Text(
-                l10n.lanSyncPairingExpiresIn(_countdown),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: cs.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              l10n.lanSyncPairingEndpointHint,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: AppFontWeights.semibold,
-                color: cs.onSurface.withValues(alpha: 0.85),
-              ),
-            ),
-            const SizedBox(height: 4),
-            if (endpoints.isEmpty)
+              const SizedBox(height: 14),
               Text(
-                l10n.lanSyncPairingNoIpHint,
+                l10n.lanSyncPairingEndpointHint,
                 style: TextStyle(
-                  fontSize: 12,
-                  color: cs.onSurface.withValues(alpha: 0.6),
+                  fontSize: 13,
+                  fontWeight: AppFontWeights.semibold,
+                  color: cs.onSurface.withValues(alpha: 0.85),
                 ),
-              )
-            else
-              for (final endpoint in endpoints)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    endpoint,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: AppFontWeights.medium,
-                      color: cs.primary,
+              ),
+              const SizedBox(height: 4),
+              if (endpoints.isEmpty)
+                Text(
+                  l10n.lanSyncPairingNoIpHint,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: cs.onSurface.withValues(alpha: 0.6),
+                  ),
+                )
+              else
+                for (final endpoint in endpoints)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      endpoint,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: AppFontWeights.medium,
+                        color: cs.primary,
+                      ),
                     ),
                   ),
-                ),
-          ],
+            ],
+          ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            provider.cancelPairing();
-            Navigator.of(context).pop();
-          },
-          child: Text(l10n.lanSyncClosePairing),
-        ),
-      ],
+        actions: [
+          TextButton(
+            onPressed: () {
+              provider.cancelPairing();
+              Navigator.of(context).pop();
+            },
+            child: Text(l10n.lanSyncClosePairing),
+          ),
+        ],
       ),
     );
   }

@@ -904,9 +904,7 @@ void main() {
       expect(decoded.unappliedBusiness, isTrue);
       // Both fields are omitted when there is nothing to report, so an
       // untouched checkpoint file stays the shape it always was.
-      final quiet = SyncCheckpoint.fromJson(
-        SyncCheckpoint(const {}).toJson(),
-      );
+      final quiet = SyncCheckpoint.fromJson(SyncCheckpoint(const {}).toJson());
       expect(quiet.unappliedConversations, isEmpty);
       expect(quiet.unappliedBusiness, isFalse);
     });

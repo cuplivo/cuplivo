@@ -380,9 +380,7 @@ List<String> resolveVersionGroupCollisions(
   for (final row in rows) {
     final groupId = row['group_id'];
     if (groupId is! String || groupId.isEmpty) continue;
-    bySlot
-        .putIfAbsent('$groupId\u0000${row['version']}', () => [])
-        .add(row);
+    bySlot.putIfAbsent('$groupId\u0000${row['version']}', () => []).add(row);
   }
   final losers = <String>[];
   for (final cluster in bySlot.values) {

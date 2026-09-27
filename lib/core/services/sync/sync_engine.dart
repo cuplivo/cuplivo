@@ -971,8 +971,8 @@ class SyncEngine implements SyncServerHandler {
       failedDeletes: failedDeletes,
       // The initiator's report covers its own deferred applies, which must not
       // advance unconfirmed state here either.
-      peerDeferredConversations:
-          session.initiatorHello.unappliedConversations.toSet(),
+      peerDeferredConversations: session.initiatorHello.unappliedConversations
+          .toSet(),
     );
     final nextBusiness = await _advanceBusinessCheckpoint(
       previous: session.checkpoint,

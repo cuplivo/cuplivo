@@ -226,8 +226,7 @@ class SyncHello {
     'manifest': manifest.toJson(),
     if (listenPort != null) 'listenPort': listenPort,
     if (clockUs != null) 'clockUs': clockUs,
-    if (unappliedConversations.isNotEmpty)
-      'unapplied': unappliedConversations,
+    if (unappliedConversations.isNotEmpty) 'unapplied': unappliedConversations,
     if (unappliedBusiness) 'unappliedBusiness': true,
   };
 
@@ -243,8 +242,7 @@ class SyncHello {
     listenPort: (json['listenPort'] as num?)?.toInt(),
     clockUs: (json['clockUs'] as num?)?.toInt(),
     unappliedConversations: [
-      for (final id in (json['unapplied'] as List? ?? const []))
-        id.toString(),
+      for (final id in (json['unapplied'] as List? ?? const [])) id.toString(),
     ],
     unappliedBusiness: json['unappliedBusiness'] == true,
   );
@@ -743,8 +741,7 @@ class SyncCheckpoint {
       (target, entry) => MapEntry(target, entry.toJson()),
     ),
     'skillHashes': skillHashes,
-    if (unappliedConversations.isNotEmpty)
-      'unapplied': unappliedConversations,
+    if (unappliedConversations.isNotEmpty) 'unapplied': unappliedConversations,
     if (unappliedBusiness) 'unappliedBusiness': true,
   };
 
@@ -794,8 +791,7 @@ class SyncCheckpoint {
           entry.key.toString(): entry.value.toString(),
     },
     unappliedConversations: [
-      for (final id in (json['unapplied'] as List? ?? const []))
-        id.toString(),
+      for (final id in (json['unapplied'] as List? ?? const [])) id.toString(),
     ],
     unappliedBusiness: json['unappliedBusiness'] == true,
   );

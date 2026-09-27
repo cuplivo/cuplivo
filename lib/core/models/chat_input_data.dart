@@ -1,3 +1,9 @@
+/// Local-preference key of the persisted chat input draft. Single global
+/// draft — the input is shared across conversations. Local-only: registered
+/// in `BusinessKeyRegistry.localOnlyKeys` so the legacy business-prefs
+/// migration never sweeps or deletes it.
+const String chatInputDraftPrefsKey = 'chat_draft_v1';
+
 class DocumentAttachment {
   final String path; // absolute file path
   final String fileName;

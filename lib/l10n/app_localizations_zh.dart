@@ -311,6 +311,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get storageSpaceDeleteConfirmTitle => '确认删除';
 
   @override
+  String storageSpaceDeleteDraftWarning(int count) {
+    return '其中 $count 个文件仍被未发送的草稿引用';
+  }
+
+  @override
   String storageSpaceDeleteUploadsConfirmMessage(int count) {
     return '删除 $count 个项目及其对应的会话附件副本？删除后，聊天记录中的这些附件将无法使用。';
   }
@@ -12097,6 +12102,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get storageSpaceDeleteConfirmTitle => '确认删除';
 
   @override
+  String storageSpaceDeleteDraftWarning(int count) {
+    return '其中 $count 个文件仍被未发送的草稿引用';
+  }
+
+  @override
   String storageSpaceDeleteUploadsConfirmMessage(int count) {
     return '删除 $count 个项目及其对应的会话附件副本？删除后，聊天记录中的这些附件将无法使用。';
   }
@@ -23807,6 +23817,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get storageSpaceDeleteConfirmTitle => '確認刪除';
+
+  @override
+  String storageSpaceDeleteDraftWarning(int count) {
+    return '其中 $count 個檔案仍被未發送的草稿引用';
+  }
 
   @override
   String storageSpaceDeleteUploadsConfirmMessage(int count) {

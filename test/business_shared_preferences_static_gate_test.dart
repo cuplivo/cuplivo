@@ -11,6 +11,10 @@ void main() {
         'lib/core/providers/hotkey_provider.dart',
         'lib/core/providers/settings_provider.dart',
         'lib/desktop/window_size_manager.dart',
+        // Device-local transient state, like the window geometry above: the
+        // unsent chat draft is registered localOnly, so it never leaves the
+        // device through the business store, export or sync.
+        'lib/features/home/services/input_draft_persistence.dart',
         'lib/features/migration/hive_to_sqlite_migration_service.dart',
         'lib/main.dart',
       };

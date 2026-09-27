@@ -127,6 +127,52 @@ void main() {
 
     expect(await UploadDedupe.findIdentical(dir, big, 'clip.mp4'), isNull);
   });
+
+  test('a stored .jpg is the same file as a new .jpeg', () async {
+    // Both spellings mean the same encoding everywhere in the app, so identical
+    // bytes must not be stored twice under the two names.
+    final file = await store('photo.jpg', bytesOf('jpeg bytes'));
+
+    expect(
+      await UploadDedupe.findIdentical(
+        dir,
+        bytesOf('jpeg bytes'),
+        'photo.jpeg',
+      ),
+      file.path,
+    );
+  });
+
+  test('the other spelling matches by content too', () async {
+    await store('photo.jpeg', bytesOf('other bytes'));
+
+    expect(
+      await UploadDedupe.findIdentical(
+        dir,
+        bytesOf('other bytes'),
+        'photo.jpg',
+      ),
+      p.join(dir.path, 'photo.jpeg'),
+    );
+  });
+
+  test('a shared path is never deleted', () async {
+    final file = await store('photo.png', bytesOf('shared bytes'));
+    await UploadDedupe.findIdentical(dir, bytesOf('shared bytes'), 'photo.png');
+    expect(UploadDedupe.isShared(file.path), isTrue);
+
+    await UploadDedupe.deleteIfUnshared(file.path);
+
+    expect(await file.exists(), isTrue);
+  });
+
+  test('deleting an unusable path completes instead of throwing', () async {
+    final file = await store('file.txt', bytesOf('x'));
+
+    // A path whose parent is a regular file cannot be removed; the helper is
+    // best effort by contract and must not surface an async error.
+    await UploadDedupe.deleteIfUnshared(p.join(file.path, 'child.png'));
+  });
 }
 
 final class _DeleteOverride extends IOOverrides {

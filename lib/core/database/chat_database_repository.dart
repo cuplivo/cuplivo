@@ -7534,11 +7534,19 @@ class ChatDatabaseRepository {
   }
 
   MessageRowsCompanion _messageUpdate(ChatMessage message) {
+    final now = DateTime.now().toUtc();
+    // Floored at the row's own timestamp, exactly as parts and provider
+    // artifacts already are: the effective LWW clock is
+    // COALESCE(updated_at, timestamp), so a message authored under a skewed
+    // (future) peer clock must not have a local edit lower the row's clock —
+    // the peer's untouched copy would then win the next exchange and revert
+    // the edit on both devices.
+    final updatedAt = now.isBefore(message.timestamp) ? message.timestamp : now;
     return MessageRowsCompanion(
       // Every message UPDATE bumps updated_at so sync/LWW can see the change;
       // inserts leave it null (effective value = COALESCE(updated_at,
       // timestamp)).
-      updatedAt: Value(DateTime.now().toUtc()),
+      updatedAt: Value(updatedAt),
       totalTokens: Value(message.totalTokens),
       isStreaming: Value(message.isStreaming),
       reasoningStartAt: Value(message.reasoningStartAt),

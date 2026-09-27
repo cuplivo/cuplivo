@@ -210,6 +210,17 @@ contradicts one of them is a bug, not a preference.
   the 3.x session-priority control existed only because its merge was not symmetric.
 - **Concurrent append** (same conversation used offline on two devices) merges by timestamp
   interleave into one conversation. Rare by nature; lossless by design.
+- **One row per version slot**: a message version group (`group_id` + `version`) can hold
+  exactly one row — the schema's unique key says so — but two devices that regenerate the
+  same message each create a rival row with a different id. The merge keeps the newer
+  `COALESCE(updated_at, timestamp)`, ties to the higher row id (both peers hold the same two
+  rows, so both decide alike), and the loser is deleted with its parts and counted as a
+  deletion: a discarded regeneration is never silent.
+- **A deliberate slot leads the order**: `message_order` is assigned by the slot each row
+  carries, with `(timestamp, id)` only breaking a tie. The app itself places rows by slot —
+  deleting the version a group is anchored on moves the surviving revision onto the freed
+  slot — and the order is in no digest, so a "smarter" re-derivation by timestamp would
+  silently undo that placement permanently.
 - **Deletions**: conversation deletion propagates via the existing `tombstone_rows`; message
   deletion is detected by diffing against the per-peer sync checkpoint (the set of rows the
   peer last saw), not by new tombstone scopes.
@@ -237,6 +248,15 @@ contradicts one of them is a bug, not a preference.
   If that notice cannot land nothing is broken — the peer's next session is refused as "no
   longer paired", and the user unpairs it there. A revocation only ever removes the caller's own
   pairing, because the per-peer secret is what proves who is asking.
+- **The pairing window lives and dies with its dialog**: the code dialog refuses route-level
+  pops (barrier tap, system back), so the only exits are its own close button — which cancels
+  the window — and expiry. A dismissed dialog must never leave a live five-minute PIN and QR
+  with nothing on screen saying so.
+- **The authenticated identity is the caller's only identity**: `/sync/*` proves the caller by
+  its per-peer secret, and a hello whose body names a different paired device is refused
+  (`identity_mismatch`) rather than served that device's plan. `/pair` is the one route that
+  answers before authentication, so its body is capped and every parse failure (bad JSON,
+  missing field, unparseable certificate) is a 4xx rather than a 500.
 
 ### Sync session (同步会话)
 
@@ -257,9 +277,10 @@ contradicts one of them is a bug, not a preference.
 
 - **Session protocol**: a bounded six-beat run over mutual-TLS HTTP (REST-style JSON bodies,
   binary endpoints for blobs): hello (protocol version, schema version, capabilities, the
-  initiator's listener port, its clock reading, checkpoint summaries) → negotiate (each side
-  computes deltas) → delta exchange (conversation subtrees, entity rows, preference keys,
-  tombstones, and the asset manifest for what each side is sending) → blob fetch (receiver
+  initiator's listener port, its clock reading, checkpoint summaries, and what each side could
+  not apply last session) → negotiate (each side computes deltas) → delta exchange (conversation
+  subtrees, entity rows, preference keys, tombstones, and the asset manifest for what each side
+  is sending; the push is acknowledged with what was deferred) → blob fetch (receiver
   pulls by contentHash, skipping hashes it already has; the responder pulls back over the
   initiator's advertised listener) → transactional apply + provider reload → checkpoint commit
   on both sides. Checkpoints also carry what is still owed (pending blobs) and the
@@ -283,6 +304,15 @@ contradicts one of them is a bug, not a preference.
 
 ### Failure policy (故障政策)
 
+- **Sending is not receipt (发送≠收到)**: a checkpoint entry only advances to state the peer
+  actually reached. The push beat answers with what the responder deferred (a generation was
+  writing there, or a restore held its write fence), and each hello carries what the sender
+  could not apply last session, so the peer re-sends instead of reading the silence as a
+  deletion. Without it a deferred apply deleted the sender's own new message on the next
+  session — on both sides of the session, in both faces (conversations and business rows).
+  A conversation this device deleted keeps its checkpoint entry until the peer's manifest shows
+  the deletion landed, so a peer deletion that yielded to a generation is retried rather than
+  re-adopted.
 - **Replay-safe recovery**: checkpoints advance only after a successful apply + commit; an
   interrupted session simply recomputes its delta next time, and idempotent row upserts
   make re-application safe. Per-subtree transactions bound the damage of a mid-apply crash.

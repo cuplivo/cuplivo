@@ -279,6 +279,87 @@ What the implementation settled:
   property a re-stamping hop would break); and a row edited concurrently on all three converges
   identically everywhere, with the fixed point stable.
 
+## Amendment (2026-09, slice 6): sending is not receipt — review hardening
+
+An adversarial review of slices 1–5 found twelve defects; this amendment records what the
+fixes settled. The most important one is a correction to the checkpoint doctrine the earlier
+slices assumed.
+
+- **A checkpoint entry only advances to state the peer reached.** "Sent" and "received" were
+  indistinguishable: the responder answered the push with a bare count, so a conversation it
+  deferred (a generation was writing there) or a business apply it deferred (a restore held
+  the write fence) still advanced the initiator's checkpoint. On the next session the peer's
+  older copy matched that checkpoint, and the merge's deletion oracle — which reads the
+  checkpoint as "the rows the peer last had" — deleted the sender's own new rows. Both faces
+  did this, and so did the mirror: the responder recorded its own send optimistically, so when
+  *it* initiated next, it read the initiator's older copy as a deletion and dropped its own
+  message. The push beat now answers with an acknowledgement (`SyncApplyAck`: applied,
+  deferred conversation ids, `businessDeferred`) and both hellos carry the list of what that
+  side could not apply last session, persisted in the checkpoint, so the peer re-sends rather
+  than inferring a deletion. The oracle additionally skips conversations the peer reported as
+  never applied.
+- **Rejected: confirming every advance against the peer's next hello manifest.** Strictly
+  simpler on paper — an entry moves only when the peer's own advertisement equals it — but it
+  breaks deletion propagation, and the failure was measured, not argued: the sender's entry is
+  also what lets the *peer* tell "this device deleted the conversation" from "this device never
+  had it", and a device that refuses to record what it sent makes its own later deletion
+  uninterpretable. The peer either skips the deletion (it stays, forever, on one device) or
+  downloads the conversation back. Inferring from manifests alone cannot distinguish the two,
+  which is why the deferral has to be *reported* rather than inferred.
+- **A peer deletion keeps its checkpoint entry until the peer's manifest agrees.** Dropping the
+  entry when the deletion is requested made the next session read "a conversation the peer has
+  and this device never had" and download it back, so a deletion the peer deferred (a
+  generation writing there) resurrected the subtree. The entry is dropped by `bothDeleted`, the
+  state where both manifests agree it is gone. *Rejected: reporting failed deletions back in
+  the response batch* — the same rule covers it with no wire field, because the requesting side
+  retries until the peer's manifest catches up.
+- **Rival version-group rows resolve to one row per slot.** Two devices that each regenerate
+  the same message create rows with the same `(conversation_id, group_id, version)` and
+  different ids. The merge unions by id, so both rows had to exist and the second insert
+  violated the schema's unique key: the apply aborted, no checkpoint was written, and every
+  later session of that pair failed identically. One winner now takes the slot — newer
+  `COALESCE(updated_at, timestamp)`, ties to the higher row id; the clock and the id are both
+  device-independent, so both peers decide alike — and the losers are deleted with their parts
+  and counted as deletions.
+- **The slot a message row carries leads the order assignment.** The apply re-derived every
+  order by `(timestamp, id)`, which silently undid the placement the app itself maintains
+  (deleting a group's anchor version moves the surviving revision onto the freed slot). Because
+  `message_order` is in no digest, the local placement could never win the next session back
+  either. `(timestamp, id)` now only breaks a tie on the carried slot, and sequential
+  assignment keeps the result dense and unique; concurrent appends still interleave alike.
+- **A message's mutation clock is floored at its own timestamp.** `updated_at` was stamped with
+  bare `DateTime.now()`, unlike message parts and provider artifacts, which already floor it. A
+  message authored under a skewed (future) peer clock therefore had its clock *lowered* by a
+  local edit, and the peer's untouched copy won the next exchange, reverting the edit on both
+  devices.
+- **A peer-chosen skill id is contained.** `SkillDirectorySync` interpolated the id into
+  `p.join(root, id)` unchecked (the sibling `deleteDirectory` did check), so a crafted id could
+  rename a directory — and recursively delete the displaced one — outside the skills root on
+  POSIX targets. Every path built from a skill id now goes through the same canonicalize +
+  `isWithin` rule.
+- **Asset-reference replacement is scoped to its conversation, and only the subtree's own
+  messages register assets.** A revision id is a global primary key, so the unscoped delete let
+  a wire-crafted part unlink a same-named message in another conversation; with its references
+  gone, the asset GC quarantined and deleted the file while the victim message still showed it.
+- **The hello body identity must equal the authenticated caller.** `handleHello` never read its
+  `peerDeviceId`: the peer lookup, the busy guard and the session slot were keyed on the body's
+  `deviceId`, so a paired caller could name a different paired device and have that device's
+  next fetch beat run the caller's plan — including deletions — while the caller's own beats
+  died on a missing session. A mismatch is a new refusal reason (with localized wording).
+- **`/pair` is capped and every malformed body is a 4xx.** The route answers before any
+  authentication, yet its body was folded into memory whole and a JSON object missing the
+  pairing fields — or an unparseable certificate — threw out of the route as a 500 with the
+  server's stack printed. The body is read through one pass that stops buffering past 64 KB and
+  answers 413 once drained; missing fields and bad PEMs answer 400.
+- **Preference reads are registry-filtered, and business deletions join the write queue.** The
+  manifest, apply and delete paths all consult `BusinessKeyRegistry`, but the read path did not,
+  so a fetch request naming a device-local key was answered with its value. And
+  `deleteBusinessRow` called the repository directly while this ADR already said apply *and*
+  deletion share the serialized write queue a provider's whole-list rewrite runs on.
+- **The pairing code dialog refuses route-level pops.** It was barrier-dismissible and ignored
+  the back gesture while the five-minute window it opens had no other surface; only the explicit
+  close (which cancels) or expiry ends it now.
+
 ## Considered options (rejected)
 
 - **Whole-database / backup-zip exchange** — not version-portable; a newer schema on an
@@ -378,3 +459,14 @@ What the implementation settled:
 - `lastReport` now also changes on a refused attempt, so the card's "last synced" line marks the
   last *attempt*; that was already true of transport failures, and the outcome line beside it
   says what happened.
+- The checkpoint now also holds what this device owes itself (conversations and the business
+  face whose apply it deferred), and the peer reads it from the next hello: a peer that never
+  reports a deferral reintroduces the deletion bug, which is why the protocol gate is strict
+  equality rather than a compatibility window.
+- A deletion the peer deferred propagates one session later than before: the requesting device
+  keeps its checkpoint entry until the peer's manifest shows the deletion landed, trading a
+  resurrection for a retry.
+- Message order is now preserved across an apply, so a version group no longer jumps after a
+  peer-side change; the corollary is that a conversation whose stored orders were left in the
+  shifted range by the never-shipped slice-2 defect is no longer compacted by an apply either
+  (that compaction was the same re-derivation that erased deliberate placements).

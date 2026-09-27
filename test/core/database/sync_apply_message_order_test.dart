@@ -169,10 +169,11 @@ void main() {
     );
 
     expect(outcome.deferred, isFalse);
-    expect(await storedOrder(), [
-      (id: 'm2', order: 0),
-      (id: 'm1', order: 1),
-    ], reason: 'timestamp order wins, and no order may collide on the way');
+    expect(
+      await storedOrder(),
+      [(id: 'm2', order: 0), (id: 'm1', order: 1)],
+      reason: 'timestamp order wins, and no order may collide on the way',
+    );
   });
 
   test(
@@ -193,11 +194,11 @@ void main() {
         ),
       );
 
-      expect(await storedOrder(), [
-        (id: 'm1', order: 0),
-        (id: 'm2', order: 1),
-        (id: 'm3', order: 2),
-      ], reason: 'an inserted row must not leave the shifted locals behind');
+      expect(
+        await storedOrder(),
+        [(id: 'm1', order: 0), (id: 'm2', order: 1), (id: 'm3', order: 2)],
+        reason: 'an inserted row must not leave the shifted locals behind',
+      );
     },
   );
 

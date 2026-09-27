@@ -483,12 +483,39 @@ class _ChatInputBarState extends State<ChatInputBar>
           if (task.manualParams != null &&
               previousPath != savedPath &&
               ownedPrevious) {
-            unawaited(UploadDedupe.deleteIfUnshared(previousPath));
+            _releaseOwnedArtifact(previousPath);
           }
+          _pruneImageSizes();
         }
       });
     }
     _pumpImageProcessingQueue();
+  }
+
+  /// Releases a stored copy this draft created. Safe when the file is
+  /// already gone, and refused by [UploadDedupe] when another chip resolved
+  /// to the same path.
+  void _releaseOwnedArtifact(String path) {
+    unawaited(UploadDedupe.deleteIfUnshared(path));
+  }
+
+  /// Drops the copies this draft created for [images]. Only the paths where
+  /// the attachment never left the composer are released: the submit paths
+  /// deliberately keep their files, which the persisted message references.
+  void _dropOwnedArtifacts(Iterable<_DraftImage> images) {
+    for (final image in images) {
+      if (_imageOwnsFile[image.id] != true) continue;
+      _releaseOwnedArtifact(image.path);
+    }
+  }
+
+  /// Keeps the chip size cache to the paths the draft still shows: a stored
+  /// name that is deleted and later reused would otherwise keep serving the
+  /// previous file's size.
+  void _pruneImageSizes() {
+    if (_imageSizeFutures.isEmpty) return;
+    final live = _images.map((image) => image.path).toSet();
+    _imageSizeFutures.removeWhere((path, _) => !live.contains(path));
   }
 
   void _discardImageState(Iterable<int> ids) {
@@ -512,8 +539,10 @@ class _ChatInputBarState extends State<ChatInputBar>
   void _clearImages() {
     setState(() {
       _pendingImagePasteIds.clear();
+      _dropOwnedArtifacts(_images);
       _discardImageState(_images.map((image) => image.id));
       _images.clear();
+      _pruneImageSizes();
     });
   }
 
@@ -534,6 +563,7 @@ class _ChatInputBarState extends State<ChatInputBar>
       _draftReplacementRevision++;
       _pendingImagePasteIds.clear();
       _pendingTextPasteIds.clear();
+      _dropOwnedArtifacts(_images);
       _discardImageState(_images.map((image) => image.id));
       _images
         ..clear()
@@ -550,6 +580,7 @@ class _ChatInputBarState extends State<ChatInputBar>
       _docs
         ..clear()
         ..addAll(input.documents);
+      _pruneImageSizes();
     });
   }
 
@@ -574,16 +605,20 @@ class _ChatInputBarState extends State<ChatInputBar>
       _controller.clear();
       _pendingImagePasteIds.clear();
       _pendingTextPasteIds.clear();
+      _dropOwnedArtifacts(_images);
       _discardImageState(_images.map((image) => image.id));
       _images.clear();
       _docs.clear();
+      _pruneImageSizes();
     });
   }
 
   void _removeImageAt(int index) {
     setState(() {
       final image = _images.removeAt(index);
+      _dropOwnedArtifacts([image]);
       _discardImageState([image.id]);
+      _pruneImageSizes();
     });
   }
 
@@ -603,6 +638,9 @@ class _ChatInputBarState extends State<ChatInputBar>
   Future<void> _openCompressEditor(int idx) async {
     if (idx < 0 || idx >= _images.length) return;
     final image = _images[idx];
+    // A remote or data: path has no local bytes to decode, preview or
+    // re-encode, so the editor is not offered for it.
+    if (isRemoteOrDataUri(image.path)) return;
     if (_processingImageIds.contains(image.id) ||
         _failedImageIds.contains(image.id)) {
       return;
@@ -627,6 +665,8 @@ class _ChatInputBarState extends State<ChatInputBar>
       for (final id in ids) {
         final index = _images.indexWhere((draft) => draft.id == id);
         if (index < 0 || _processingImageIds.contains(id)) continue;
+        // 应用到全部 can span a draft that also holds remote/data: images.
+        if (isRemoteOrDataUri(_images[index].path)) continue;
         _failedImageIds.remove(id);
         _processingImageIds.add(id);
         _imageProcessingQueue.add(
@@ -1131,6 +1171,13 @@ class _ChatInputBarState extends State<ChatInputBar>
     List<_DraftImage> submittedImages,
     List<DocumentAttachment> submittedDocuments,
   ) {
+    // A rejected submission may already have persisted the message
+    // (temporary conversations write it before generation starts), so this
+    // draft stops claiming those stored copies: a later re-compress must
+    // not delete a file the conversation still references.
+    for (final image in submittedImages) {
+      _imageOwnsFile.remove(image.id);
+    }
     _restoreSubmittedText(submittedValue);
     final existingImageIds = _images.map((image) => image.id).toSet();
     _images.insertAll(

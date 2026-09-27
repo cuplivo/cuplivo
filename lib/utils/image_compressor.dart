@@ -186,6 +186,23 @@ class ImageCompressor {
     );
   }
 
+  /// A pristine copy keeps the name it was picked under, but an
+  /// extensionless pick would otherwise travel as `image/png` on the wire
+  /// whatever it holds, so the name gets the extension its bytes imply.
+  static String _withDetectedExtension(String originalName, Uint8List bytes) {
+    if (originalName.isEmpty || p.extension(originalName).isNotEmpty) {
+      return originalName;
+    }
+    final extension = switch (_detectFormat(bytes)) {
+      _DetectedImageFormat.jpeg => 'jpeg',
+      _DetectedImageFormat.png => 'png',
+      _DetectedImageFormat.gif => 'gif',
+      _DetectedImageFormat.other => null,
+    };
+    if (extension == null) return originalName;
+    return '${p.basenameWithoutExtension(originalName)}.$extension';
+  }
+
   static Future<UploadWrite> _writeToUploadDir(
     String srcPath,
     Directory dir,
@@ -200,7 +217,9 @@ class ImageCompressor {
     final baseName = p.basenameWithoutExtension(originalName);
     final outputName = outputExtension != null
         ? '${baseName.isEmpty ? 'image' : baseName}.$outputExtension'
-        : (originalName.isEmpty ? 'image' : originalName);
+        : (originalName.isEmpty
+              ? 'image'
+              : _withDetectedExtension(originalName, bytes));
 
     // Reuse an already stored image with the same name and bytes instead of
     // piling up copies; this also covers re-importing a file from [dir].

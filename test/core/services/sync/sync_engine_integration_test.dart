@@ -969,6 +969,49 @@ void main() {
     expect(await _conversationIds(a), {'conv-a'});
   });
 
+  test('a stale conversation entry is healed by the none beat', () async {
+    // An interrupted session can leave an entry older than the state both
+    // devices actually hold. `none` must refresh it from local (the business
+    // face always has): keeping the stale digest would read the peer's next
+    // deletion as a local edit and re-upload the conversation, silently
+    // undoing the deletion once.
+    final (a, b) = await pair();
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+    await a.engine.syncWithPeer(await a.peer(b));
+    await a.engine.syncWithPeer(await a.peer(b)); // fully converged
+
+    // Simulate the interrupted advance: keep the rows clock but backdate the
+    // digest, so `none` is planned yet the entry disagrees with both sides.
+    final checkpoint = await a.store.loadCheckpoint(b.identity.deviceId);
+    final entry = checkpoint.conversations['conv-a']!;
+    final healed = entry.digest;
+    await a.store.saveCheckpoint(
+      b.identity.deviceId,
+      SyncCheckpoint({
+        'conv-a': SyncCheckpointConversation(
+          updatedAtUs: entry.updatedAtUs,
+          digest: 'stale-${entry.digest}',
+          rows: entry.rows,
+        ),
+      }),
+    );
+
+    await a.engine.syncWithPeer(await a.peer(b));
+    final after = await a.store.loadCheckpoint(b.identity.deviceId);
+    expect(
+      after.conversations['conv-a']?.digest,
+      healed,
+      reason: 'none means both manifests agree: local state IS the entry',
+    );
+
+    // The healed entry is what lets B's deletion land instead of reading as
+    // an A-side edit that resurrects the conversation.
+    await b.repository.deleteConversation('conv-a');
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(await _conversationIds(a), isEmpty);
+    expect(await _conversationIds(b), isEmpty);
+  });
+
   test('a deferred push never deletes the sender\'s own new message', () async {
     // Sending is not receipt. While B is generating in the conversation it
     // accepts the push and writes nothing; treating that as "B has it" made

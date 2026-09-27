@@ -1134,8 +1134,17 @@ class SyncEngine implements SyncServerHandler {
       final prior = previous.conversations[id];
       switch (item.action) {
         case SyncConvAction.none:
-          final entry = prior ?? await dataPlane.checkpointFromLocal(id);
-          if (entry != null) next[id] = entry;
+          // Both manifests agree, so local state *is* the shared state: the
+          // entry is refreshed rather than kept, healing a stale entry an
+          // interrupted session left behind before it can misread a peer
+          // deletion as a local edit. The business face has always refreshed
+          // here (setFromLocal); this aligns the conversation face with it.
+          final entry = await dataPlane.checkpointFromLocal(id);
+          if (entry != null) {
+            next[id] = entry;
+          } else if (prior != null) {
+            next[id] = prior;
+          }
         case SyncConvAction.iSend:
           if (skippedSends.contains(id) ||
               peerDeferredConversations.contains(id)) {

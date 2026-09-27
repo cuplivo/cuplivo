@@ -25,9 +25,15 @@ SyncCheckpoint _checkpoint(Map<String, SyncManifestEntry> like) =>
         ),
     });
 
-Map<String, dynamic> _msg(String id, int timestampUs, {int? updatedAtUs}) => {
+Map<String, dynamic> _msg(
+  String id,
+  int timestampUs, {
+  int? updatedAtUs,
+  int messageOrder = 0,
+}) => {
   'id': id,
   'timestamp': timestampUs,
+  'message_order': messageOrder,
   if (updatedAtUs != null) 'updated_at': updatedAtUs,
 };
 
@@ -322,14 +328,41 @@ void main() {
   });
 
   group('rederiveMessageOrder', () {
-    test('concurrent appends interleave by timestamp then id', () {
+    test('the carried slot leads; a tie falls to timestamp then id', () {
       final order = rederiveMessageOrder([
-        _msg('b2', 20),
-        _msg('a1', 10),
-        _msg('b1', 20),
-        _msg('a2', 12),
+        _msg('b2', 20, messageOrder: 2),
+        _msg('b1', 20, messageOrder: 1),
+        _msg('a1', 10, messageOrder: 0),
+        _msg('a2', 12, messageOrder: 1),
       ]);
       expect(order, {'a1': 0, 'a2': 1, 'b1': 2, 'b2': 3});
+    });
+
+    test('a deliberate anchor slot survives a later change', () {
+      // m3 is a regeneration of m0 that the app moved back onto the slot its
+      // deleted sibling held, so it belongs before m2 even though its own
+      // timestamp is newer. Deriving from (timestamp, id) alone would move it
+      // after m2 and lose the placement for good.
+      final order = rederiveMessageOrder([
+        _msg('m5', 500, messageOrder: 3),
+        _msg('m3', 300, messageOrder: 1),
+        _msg('m0', 100, messageOrder: 0),
+        _msg('m2', 200, messageOrder: 2),
+      ]);
+      expect(order, {'m0': 0, 'm3': 1, 'm2': 2, 'm5': 3});
+    });
+
+    test('the assignment stays dense and unique', () {
+      // Two rows claim one slot: the result is still 0..n-1 with no repeats.
+      final order = rederiveMessageOrder([
+        _msg('x', 10, messageOrder: 7),
+        _msg('y', 20, messageOrder: 7),
+        _msg('z', 30, messageOrder: 9),
+      ]);
+      expect(order.values.toSet(), {0, 1, 2});
+      expect(order['x'], 0);
+      expect(order['y'], 1);
+      expect(order['z'], 2);
     });
   });
 

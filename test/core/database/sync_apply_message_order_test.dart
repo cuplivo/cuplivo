@@ -153,11 +153,12 @@ void main() {
         checkpointRows: const {},
       );
 
-  test('a swap among stored rows does not trip the unique key', () async {
-    // Stored order disagrees with timestamp order: m1 (newer) sits first, so a
-    // re-derivation wants to swap the two. The peer's rows are older, so they
-    // all lose LWW — no upserts, no deletions — which is exactly the case that
-    // used to swap the two orders in place under the unique key.
+  test('a stored order that disagrees with timestamps is left alone', () async {
+    // Stored order disagrees with timestamp order: m1 (newer) sits first. That
+    // placement is the app's own — a revision moved onto the slot its deleted
+    // sibling held — so the apply must not re-derive it away. The peer's rows
+    // are older, so they all lose LWW and the apply's only decision is the
+    // order.
     await seed([
       (id: 'm1', order: 0, timestampUs: 2000000),
       (id: 'm2', order: 1, timestampUs: 1000000),
@@ -173,8 +174,8 @@ void main() {
     expect(outcome.deferred, isFalse);
     expect(
       await storedOrder(),
-      [(id: 'm2', order: 0), (id: 'm1', order: 1)],
-      reason: 'timestamp order wins, and no order may collide on the way',
+      [(id: 'm1', order: 0), (id: 'm2', order: 1)],
+      reason: 'the carried slot leads, not the timestamp',
     );
   });
 
@@ -318,6 +319,36 @@ void main() {
     expect(await storedSlots(), [
       (id: 'm1', groupId: null, version: 0),
       (id: 'm3', groupId: 'm1', version: 1),
+    ]);
+  });
+
+  test('a deliberate anchor placement survives a peer-side change', () async {
+    // The app's own repair: the user edited a mid-conversation message and
+    // deleted the version it replaced, so the surviving revision was moved onto
+    // the freed anchor slot (order 1) although its timestamp is the newest.
+    await seed([
+      (id: 'm0', order: 0, timestampUs: 1000000),
+      (id: 'm3', order: 1, timestampUs: 3000000),
+      (id: 'm2', order: 2, timestampUs: 2000000),
+    ]);
+
+    // An unrelated peer edit, which is enough to make the apply re-derive every
+    // order — the step that used to sort by (timestamp, id) and drop m3 below
+    // m2 for good, since the order is in no digest.
+    final edited = messageRow('m0', 1000000, order: 0);
+    edited['updated_at'] = 2000000;
+    await apply(
+      SyncSubtreePayload(
+        conversation: conversationRow(),
+        messages: [edited],
+        parts: [partRow('m0', 1000000)],
+      ),
+    );
+
+    expect(await storedOrder(), [
+      (id: 'm0', order: 0),
+      (id: 'm3', order: 1),
+      (id: 'm2', order: 2),
     ]);
   });
 

@@ -401,14 +401,26 @@ List<String> resolveVersionGroupCollisions(
   return losers;
 }
 
-/// Deterministic message order for a merged conversation: sort by
-/// (timestamp, id) and assign sequential `messageOrder` values. Both peers
-/// run this over the same merged row set and land on identical orders, which
-/// resolves order collisions after concurrent appends without touching
+/// Deterministic message order for a merged conversation. The slot each row
+/// *carries* leads, and only a tie on that slot falls to `(timestamp, id)`;
+/// assigning sequential values then compacts the result and guarantees
+/// uniqueness. Both peers run this over the same merged rows and land on
+/// identical orders, which resolves concurrent appends without touching
 /// `updated_at`.
+///
+/// The carried slot has to lead because the app itself places rows by it: when
+/// a user deletes the version a group is anchored on, the surviving revision is
+/// moved onto the freed slot so the group does not jump to the bottom of the
+/// timeline. Re-deriving from `(timestamp, id)` alone silently undid exactly
+/// that, and the order is in no digest, so the local placement could never win
+/// the next session back either.
 Map<String, int> rederiveMessageOrder(Iterable<Map<String, dynamic>> rows) {
   final ordered = rows.toList()
     ..sort((a, b) {
+      final bySlot = ((a['message_order'] as num).toInt()).compareTo(
+        (b['message_order'] as num).toInt(),
+      );
+      if (bySlot != 0) return bySlot;
       final byTime = ((a['timestamp'] as num).toInt()).compareTo(
         (b['timestamp'] as num).toInt(),
       );

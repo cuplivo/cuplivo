@@ -32,9 +32,13 @@ abstract class SyncServerHandler {
   );
 
   /// Applies what the initiator sent (conversation subtrees + business rows).
-  /// Returns how many conversations were accepted (applied or deferred — the
-  /// engine owns the accounting).
-  Future<int> handleApplySubtrees(String peerDeviceId, SyncDeltaBatch batch);
+  /// Returns the acknowledgement the initiator's checkpoint advance needs:
+  /// what was applied, what was deferred, and whether the business apply was
+  /// deferred as a whole.
+  Future<SyncApplyAck> handleApplySubtrees(
+    String peerDeviceId,
+    SyncDeltaBatch batch,
+  );
 
   /// The local file backing one blob this device published, or null when the
   /// hash is unknown here (or the file is gone). The server only ever streams
@@ -406,11 +410,11 @@ class SyncServer {
         _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
         return;
       }
-      final applied = await handler.handleApplySubtrees(
+      final ack = await handler.handleApplySubtrees(
         peerDeviceId,
         SyncDeltaBatch.fromJson(body),
       );
-      _respondJson(request, HttpStatus.ok, {'applied': applied});
+      _respondJson(request, HttpStatus.ok, ack.toJson());
       return;
     }
     if (request.method == 'POST') {

@@ -193,6 +193,17 @@ class SyncHello {
   /// reading" rather than a parse error.
   final int? clockUs;
 
+  /// Conversations this device could not apply last session (a generation was
+  /// writing there), so the peer must assume its copy never arrived and send
+  /// it again rather than read this device's silence as a deletion. Carried on
+  /// both hellos: whichever side plans next needs it.
+  final List<String> unappliedConversations;
+
+  /// Whether this device's business apply was deferred last session (a restore
+  /// held the write fence). A peer must then treat every row this device lacks
+  /// as "never delivered", not as deleted here.
+  final bool unappliedBusiness;
+
   const SyncHello({
     required this.protocolVersion,
     required this.schemaVersion,
@@ -202,6 +213,8 @@ class SyncHello {
     required this.manifest,
     this.listenPort,
     this.clockUs,
+    this.unappliedConversations = const [],
+    this.unappliedBusiness = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -213,6 +226,9 @@ class SyncHello {
     'manifest': manifest.toJson(),
     if (listenPort != null) 'listenPort': listenPort,
     if (clockUs != null) 'clockUs': clockUs,
+    if (unappliedConversations.isNotEmpty)
+      'unapplied': unappliedConversations,
+    if (unappliedBusiness) 'unappliedBusiness': true,
   };
 
   static SyncHello fromJson(Map<String, dynamic> json) => SyncHello(
@@ -226,6 +242,11 @@ class SyncHello {
     ),
     listenPort: (json['listenPort'] as num?)?.toInt(),
     clockUs: (json['clockUs'] as num?)?.toInt(),
+    unappliedConversations: [
+      for (final id in (json['unapplied'] as List? ?? const []))
+        id.toString(),
+    ],
+    unappliedBusiness: json['unappliedBusiness'] == true,
   );
 }
 
@@ -588,6 +609,41 @@ class SyncDeltaBatch {
       fromJson(jsonDecode(source) as Map<String, dynamic>);
 }
 
+/// The responder's answer to the push beat. Sending is not receipt: a
+/// conversation the responder deferred (a generation was writing there) and a
+/// business apply it deferred (a restore held its write fence) must not advance
+/// the initiator's checkpoint, or the next session reads "the peer no longer
+/// has this" and deletes the sender's own rows.
+class SyncApplyAck {
+  final int applied;
+
+  /// Conversation ids the responder accepted the push for but did not apply.
+  final Set<String> deferred;
+
+  /// Whether the responder deferred the whole business apply.
+  final bool businessDeferred;
+
+  const SyncApplyAck({
+    required this.applied,
+    this.deferred = const {},
+    this.businessDeferred = false,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'applied': applied,
+    if (deferred.isNotEmpty) 'deferred': deferred.toList(growable: false),
+    if (businessDeferred) 'businessDeferred': true,
+  };
+
+  static SyncApplyAck fromJson(Map<String, dynamic> json) => SyncApplyAck(
+    applied: (json['applied'] as num?)?.toInt() ?? 0,
+    deferred: {
+      for (final id in (json['deferred'] as List? ?? const [])) id.toString(),
+    },
+    businessDeferred: json['businessDeferred'] == true,
+  );
+}
+
 /// What the initiator asks the responder to send back in the fetch beat:
 /// conversation subtrees, entity rows by kind, and preference keys. The fetch
 /// beat runs even when this is empty — that request is where the responder
@@ -652,12 +708,23 @@ class SyncCheckpoint {
   /// on it — the baseline for content-conflict detection (slice 3).
   final Map<String, String> skillHashes;
 
+  /// What this device still owes itself: conversations and the business face
+  /// whose *apply* it deferred (a generation writing there, or a restore
+  /// holding the write fence). Advertised in the next hello so the peer knows
+  /// its earlier send never landed and re-sends instead of reading the
+  /// absence as a deletion — the receive-side half of "sending is not
+  /// receipt".
+  final List<String> unappliedConversations;
+  final bool unappliedBusiness;
+
   const SyncCheckpoint(
     this.conversations, {
     this.entities = const {},
     this.preferences = const {},
     this.pendingBlobs = const {},
     this.skillHashes = const {},
+    this.unappliedConversations = const [],
+    this.unappliedBusiness = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -676,6 +743,9 @@ class SyncCheckpoint {
       (target, entry) => MapEntry(target, entry.toJson()),
     ),
     'skillHashes': skillHashes,
+    if (unappliedConversations.isNotEmpty)
+      'unapplied': unappliedConversations,
+    if (unappliedBusiness) 'unappliedBusiness': true,
   };
 
   static SyncCheckpoint fromJson(Map<String, dynamic> json) => SyncCheckpoint(
@@ -723,6 +793,11 @@ class SyncCheckpoint {
             in (json['skillHashes'] as Map).cast<String, dynamic>().entries)
           entry.key.toString(): entry.value.toString(),
     },
+    unappliedConversations: [
+      for (final id in (json['unapplied'] as List? ?? const []))
+        id.toString(),
+    ],
+    unappliedBusiness: json['unappliedBusiness'] == true,
   );
 
   static const empty = SyncCheckpoint({});

@@ -840,6 +840,58 @@ void main() {
       final legacy = SyncCheckpoint.fromJson(const {'version': 1});
       expect(legacy.pendingBlobs, isEmpty);
       expect(legacy.skillHashes, isEmpty);
+      expect(legacy.unappliedConversations, isEmpty);
+      expect(legacy.unappliedBusiness, isFalse);
+    });
+
+    test('hello and checkpoint round-trip the deferred-apply report', () {
+      // A device that could not apply what it received must be able to say so:
+      // without it the peer reads the silence as a deletion.
+      final hello = SyncHello(
+        protocolVersion: kSyncProtocolVersion,
+        schemaVersion: 3,
+        deviceId: 'd1',
+        deviceName: 'one',
+        platform: 'test',
+        manifest: const SyncManifest({}),
+        unappliedConversations: const ['conv-1', 'conv-2'],
+        unappliedBusiness: true,
+      );
+      final decodedHello = SyncHello.fromJson(hello.toJson());
+      expect(decodedHello.unappliedConversations, ['conv-1', 'conv-2']);
+      expect(decodedHello.unappliedBusiness, isTrue);
+
+      final checkpoint = SyncCheckpoint(
+        const {},
+        unappliedConversations: const ['conv-1'],
+        unappliedBusiness: true,
+      );
+      final decoded = SyncCheckpoint.fromJson(checkpoint.toJson());
+      expect(decoded.unappliedConversations, ['conv-1']);
+      expect(decoded.unappliedBusiness, isTrue);
+      // Both fields are omitted when there is nothing to report, so an
+      // untouched checkpoint file stays the shape it always was.
+      final quiet = SyncCheckpoint.fromJson(
+        SyncCheckpoint(const {}).toJson(),
+      );
+      expect(quiet.unappliedConversations, isEmpty);
+      expect(quiet.unappliedBusiness, isFalse);
+    });
+
+    test('an apply acknowledgement round-trips what it deferred', () {
+      final ack = SyncApplyAck(
+        applied: 2,
+        deferred: const {'conv-2'},
+        businessDeferred: true,
+      );
+      final decoded = SyncApplyAck.fromJson(ack.toJson());
+      expect(decoded.applied, 2);
+      expect(decoded.deferred, {'conv-2'});
+      expect(decoded.businessDeferred, isTrue);
+      // Nothing deferred: the fields are absent, and both mean "confirmed".
+      final empty = SyncApplyAck.fromJson(const {'applied': 0});
+      expect(empty.deferred, isEmpty);
+      expect(empty.businessDeferred, isFalse);
     });
   });
 }

@@ -298,6 +298,10 @@ class SyncEngine implements SyncServerHandler {
     try {
       final myManifest = await dataPlane.buildManifest();
       final myClockUs = clockUs();
+      // Read before the hello: the checkpoint carries what this device owes
+      // itself from last session (applies it had to defer), and the peer needs
+      // that in the hello to tell "never delivered" from "deleted here".
+      final previous = await store.loadCheckpoint(peer.deviceId);
       final hello = await session.hello(
         SyncHello(
           protocolVersion: kSyncProtocolVersion,
@@ -311,6 +315,8 @@ class SyncEngine implements SyncServerHandler {
           // own `port` parameter is the peer's endpoint, not ours.
           listenPort: this.port,
           clockUs: myClockUs,
+          unappliedConversations: previous.unappliedConversations,
+          unappliedBusiness: previous.unappliedBusiness,
         ),
       );
       if (hello.refusal != null) {
@@ -344,16 +350,24 @@ class SyncEngine implements SyncServerHandler {
         );
       }
 
-      final previous = await store.loadCheckpoint(peer.deviceId);
-      final plan = planSync(
-        mine: myManifest,
-        peers: peerHello.manifest,
-        checkpoint: previous,
+      // Conversations the peer says it could not apply: its copy is stale or
+      // absent, so re-send rather than read its silence as a deletion.
+      final peerUnapplied = peerHello.unappliedConversations.toSet();
+      final plan = _reSendUnapplied(
+        planSync(
+          mine: myManifest,
+          peers: peerHello.manifest,
+          checkpoint: previous,
+        ),
+        peerUnapplied,
       );
-      final businessPlan = planBusinessSync(
-        mine: myManifest,
-        peers: peerHello.manifest,
-        checkpoint: previous,
+      final businessPlan = _keepRowsPeerMayNeverHaveSeen(
+        planBusinessSync(
+          mine: myManifest,
+          peers: peerHello.manifest,
+          checkpoint: previous,
+        ),
+        peerHello.unappliedBusiness,
       );
       final skillPlan = planSkillContentSync(
         mine: myManifest,
@@ -407,6 +421,11 @@ class SyncEngine implements SyncServerHandler {
       // between) is not sent, and must not advance the checkpoint.
       final sentBusiness = outgoingRead.keys;
 
+      // What the responder acknowledged about this push: a conversation it
+      // deferred is *not* state the peer holds, and an entry advanced as if it
+      // were would turn the peer's older copy into a deletion next session.
+      var peerDeferred = const <String>{};
+      var peerBusinessDeferred = false;
       if (outgoing.isNotEmpty || !outgoingBusiness.isEmpty) {
         // The blob manifest describes exactly what this push carries, so the
         // responder can ask for any asset it lacks before applying the rows.
@@ -418,7 +437,7 @@ class SyncEngine implements SyncServerHandler {
         // Only the skill bodies this push actually carries advertise a hash.
         final sentSkillIds =
             outgoingEntityIds[SyncDataPlane.skillWire] ?? const <String>{};
-        await session.pushDelta(
+        final ack = await session.pushDelta(
           SyncDeltaBatch(
             outgoing,
             business: outgoingBusiness,
@@ -429,6 +448,8 @@ class SyncEngine implements SyncServerHandler {
             },
           ),
         );
+        peerDeferred = ack.deferred;
+        peerBusinessDeferred = ack.businessDeferred;
       }
 
       final requested = [
@@ -509,7 +530,14 @@ class SyncEngine implements SyncServerHandler {
           incoming.subtrees,
           myDeviceId: identity.deviceId,
           peerDeviceId: peer.deviceId,
-          checkpointRowsByConversation: _rowsOf(previous, delivered),
+          // A conversation the peer reported as unapplied is one whose rows it
+          // may never have seen: the merge must not treat this device's local
+          // rows as rows the peer deleted.
+          checkpointRowsByConversation: _rowsOf(
+            previous,
+            delivered,
+            unconfirmed: peerUnapplied,
+          ),
         ),
       );
       if (pulled.landedByUri.isNotEmpty) {
@@ -569,6 +597,7 @@ class SyncEngine implements SyncServerHandler {
         outcomes: outcomes,
         deletedIds: deleted,
         failedDeletes: failedDeletes,
+        peerDeferredConversations: peerDeferred,
       );
       final nextBusiness = await _advanceBusinessCheckpoint(
         previous: previous,
@@ -578,6 +607,7 @@ class SyncEngine implements SyncServerHandler {
         deletedKeys: deletedBusiness,
         failedDeleteKeys: failedBusinessDeletes,
         applyDeferred: businessOutcome.deferred,
+        peerApplyDeferred: peerBusinessDeferred,
       );
       // Read back after every apply: on both sides the local hash *is* the
       // converged value once the exchange succeeded.
@@ -596,6 +626,14 @@ class SyncEngine implements SyncServerHandler {
           preferences: nextBusiness.preferences,
           pendingBlobs: pulled.failed,
           skillHashes: nextSkillHashes,
+          // What this device could not apply is owed to the peer as a report
+          // on the next hello: it is the only way the peer can tell "never
+          // delivered" from "deleted on the other device".
+          unappliedConversations: [
+            for (final entry in outcomes.entries)
+              if (entry.value.deferred) entry.key,
+          ],
+          unappliedBusiness: businessOutcome.deferred,
         ),
       );
       return await _finish(
@@ -682,17 +720,27 @@ class SyncEngine implements SyncServerHandler {
     final myManifest = await dataPlane.buildManifest();
     final checkpoint = await store.loadCheckpoint(initiatorHello.deviceId);
     final myClockUs = clockUs();
+    // What the initiator reports it could not apply decides whether its silence
+    // about a conversation or a business row means "deleted there" or "never
+    // arrived there".
+    final peerUnapplied = initiatorHello.unappliedConversations.toSet();
     final session = _ResponderSession(
       initiatorHello: initiatorHello,
-      plan: planSync(
-        mine: myManifest,
-        peers: initiatorHello.manifest,
-        checkpoint: checkpoint,
+      plan: _reSendUnapplied(
+        planSync(
+          mine: myManifest,
+          peers: initiatorHello.manifest,
+          checkpoint: checkpoint,
+        ),
+        peerUnapplied,
       ),
-      businessPlan: planBusinessSync(
-        mine: myManifest,
-        peers: initiatorHello.manifest,
-        checkpoint: checkpoint,
+      businessPlan: _keepRowsPeerMayNeverHaveSeen(
+        planBusinessSync(
+          mine: myManifest,
+          peers: initiatorHello.manifest,
+          checkpoint: checkpoint,
+        ),
+        initiatorHello.unappliedBusiness,
       ),
       skillPlan: planSkillContentSync(
         mine: myManifest,
@@ -716,11 +764,15 @@ class SyncEngine implements SyncServerHandler {
       manifest: myManifest,
       listenPort: port,
       clockUs: myClockUs,
+      // The responder answers with the same report: it too may have deferred
+      // an apply, and the initiator needs it before it plans.
+      unappliedConversations: checkpoint.unappliedConversations,
+      unappliedBusiness: checkpoint.unappliedBusiness,
     );
   }
 
   @override
-  Future<int> handleApplySubtrees(
+  Future<SyncApplyAck> handleApplySubtrees(
     String peerDeviceId,
     SyncDeltaBatch batch,
   ) async {
@@ -767,10 +819,17 @@ class SyncEngine implements SyncServerHandler {
       batch.subtrees,
       myDeviceId: identity.deviceId,
       peerDeviceId: peerDeviceId,
-      checkpointRowsByConversation: _rowsOf(session.checkpoint, {
-        for (final subtree in batch.subtrees)
-          subtree.conversation['id'] as String,
-      }),
+      checkpointRowsByConversation: _rowsOf(
+        session.checkpoint,
+        {
+          for (final subtree in batch.subtrees)
+            subtree.conversation['id'] as String,
+        },
+        // Same protection as on the initiator's side: a conversation the
+        // caller said it could not apply proves nothing about the caller's
+        // rows.
+        unconfirmed: session.initiatorHello.unappliedConversations.toSet(),
+      ),
     );
     session.outcomes.addAll(outcomes);
     if (session.blobPull.landedByUri.isNotEmpty) {
@@ -796,7 +855,17 @@ class SyncEngine implements SyncServerHandler {
     if (session.blobPull.landedSkillIds.isNotEmpty) {
       await dataPlane.reloadBusiness();
     }
-    return outcomes.length;
+    // The acknowledgement the initiator's checkpoint advance needs: which
+    // conversations were accepted but not applied, and whether the business
+    // apply as a whole was deferred.
+    return SyncApplyAck(
+      applied: outcomes.length,
+      deferred: {
+        for (final entry in outcomes.entries)
+          if (entry.value.deferred) entry.key,
+      },
+      businessDeferred: session.businessOutcome?.deferred ?? false,
+    );
   }
 
   /// Pulls blobs from the initiator over its own listener, using the pairing
@@ -900,6 +969,10 @@ class SyncEngine implements SyncServerHandler {
       outcomes: session.outcomes,
       deletedIds: deleted,
       failedDeletes: failedDeletes,
+      // The initiator's report covers its own deferred applies, which must not
+      // advance unconfirmed state here either.
+      peerDeferredConversations:
+          session.initiatorHello.unappliedConversations.toSet(),
     );
     final nextBusiness = await _advanceBusinessCheckpoint(
       previous: session.checkpoint,
@@ -911,6 +984,7 @@ class SyncEngine implements SyncServerHandler {
       deletedKeys: deletedBusiness,
       failedDeleteKeys: failedBusinessDeletes,
       applyDeferred: session.businessOutcome?.deferred ?? false,
+      peerApplyDeferred: session.initiatorHello.unappliedBusiness,
     );
     final skillHashes = await _advanceSkillHashes(
       previous: session.checkpoint,
@@ -949,6 +1023,13 @@ class SyncEngine implements SyncServerHandler {
         preferences: nextBusiness.preferences,
         pendingBlobs: session.blobPull.failed,
         skillHashes: skillHashes,
+        // The responder answers the initiator with the same report on its next
+        // hello: an apply it deferred here must not read as a deletion there.
+        unappliedConversations: [
+          for (final entry in session.outcomes.entries)
+            if (entry.value.deferred) entry.key,
+        ],
+        unappliedBusiness: session.businessOutcome?.deferred ?? false,
       ),
     );
     final peer = await store.findPeer(peerDeviceId);
@@ -1029,8 +1110,14 @@ class SyncEngine implements SyncServerHandler {
 
   /// Advances the per-peer checkpoint. A conversation only gets a *new* entry
   /// once this device knows the peer reached the same state: skipped sends,
-  /// undelivered fetches and deferred applies all keep the previous entry so
-  /// the next session retries them.
+  /// undelivered fetches, deferred applies — this device's own and, per the
+  /// push acknowledgement, the peer's — and a peer deletion the peer reported
+  /// as failed all keep the previous entry so the next session retries them.
+  ///
+  /// [peerDeferredConversations] are the conversations the peer accepted but
+  /// did not apply; without it "sent" would be indistinguishable from
+  /// "received" and the next session would read the peer's older copy as a
+  /// deletion of the rows this device had just written.
   Future<SyncCheckpoint> _advanceCheckpoint({
     required SyncCheckpoint previous,
     required List<SyncConvPlan> plan,
@@ -1039,6 +1126,7 @@ class SyncEngine implements SyncServerHandler {
     required Map<String, SyncSubtreeApplyOutcome> outcomes,
     required Set<String> deletedIds,
     required Set<String> failedDeletes,
+    Set<String> peerDeferredConversations = const {},
   }) async {
     final next = <String, SyncCheckpointConversation>{};
     for (final item in plan) {
@@ -1049,7 +1137,8 @@ class SyncEngine implements SyncServerHandler {
           final entry = prior ?? await dataPlane.checkpointFromLocal(id);
           if (entry != null) next[id] = entry;
         case SyncConvAction.iSend:
-          if (skippedSends.contains(id)) {
+          if (skippedSends.contains(id) ||
+              peerDeferredConversations.contains(id)) {
             if (prior != null) next[id] = prior;
           } else {
             final entry = await dataPlane.checkpointFromLocal(id);
@@ -1058,7 +1147,9 @@ class SyncEngine implements SyncServerHandler {
         case SyncConvAction.peerSends:
         case SyncConvAction.bothSend:
           final outcome = outcomes[id];
-          if (outcome == null || outcome.deferred) {
+          if (outcome == null ||
+              outcome.deferred ||
+              peerDeferredConversations.contains(id)) {
             if (prior != null) next[id] = prior;
             break;
           }
@@ -1074,6 +1165,13 @@ class SyncEngine implements SyncServerHandler {
         case SyncConvAction.iDelete:
           if (failedDeletes.contains(id) && prior != null) next[id] = prior;
         case SyncConvAction.peerDeletes:
+          // The peer still holds it and must delete it. The entry must not
+          // drop yet: with no entry the next session reads "a conversation
+          // the peer has and this device never had" and downloads it back, so
+          // a deletion the peer deferred (a generation was writing there)
+          // would resurrect the subtree. It is dropped by `bothDeleted`, on
+          // the session where the peer's manifest has caught up.
+          if (prior != null) next[id] = prior;
         case SyncConvAction.bothDeleted:
           break; // entry drops: neither side has the conversation any more
       }
@@ -1081,21 +1179,60 @@ class SyncEngine implements SyncServerHandler {
     return SyncCheckpoint(next);
   }
 
+  /// The peer-observed row state for the conversations in [conversationIds],
+  /// which is what the merge's deletion oracle reads. Ids in [unconfirmed] are
+  /// left out: the peer reported that its apply of them never happened, so its
+  /// copy proves nothing about rows this device holds on top of it.
   Map<String, Map<String, int>> _rowsOf(
     SyncCheckpoint checkpoint,
-    Set<String> conversationIds,
-  ) => {
+    Set<String> conversationIds, {
+    Set<String> unconfirmed = const {},
+  }) => {
     for (final id in conversationIds)
-      if (checkpoint.conversations[id] != null)
+      if (!unconfirmed.contains(id) && checkpoint.conversations[id] != null)
         id: checkpoint.conversations[id]!.rows,
   };
+
+  /// Conversations the peer reported it could not apply. Its copy of them is
+  /// stale or missing, so this device re-sends: the alternative reading (the
+  /// peer deleted them) would lose rows the peer never received.
+  static List<SyncConvPlan> _reSendUnapplied(
+    List<SyncConvPlan> plan,
+    Set<String> peerUnapplied,
+  ) {
+    if (peerUnapplied.isEmpty) return plan;
+    return [
+      for (final item in plan)
+        peerUnapplied.contains(item.conversationId)
+            ? SyncConvPlan(item.conversationId, SyncConvAction.iSend)
+            : item,
+    ];
+  }
+
+  /// Business rows a peer's deferred apply makes ambiguous. A row that peer
+  /// lacks may have been deleted there or may simply never have arrived (a
+  /// restore held its write fence), and only the second reading is safe: the
+  /// row stays here, and the peer requests it in its own plan.
+  static List<SyncBusinessPlanItem> _keepRowsPeerMayNeverHaveSeen(
+    List<SyncBusinessPlanItem> plan,
+    bool peerUnappliedBusiness,
+  ) {
+    if (!peerUnappliedBusiness) return plan;
+    return [
+      for (final item in plan)
+        item.action == SyncConvAction.iDelete
+            ? SyncBusinessPlanItem(item.kindWire, item.id, SyncConvAction.none)
+            : item,
+    ];
+  }
 
   /// Advances the business half of the checkpoint. The rule mirrors
   /// conversations: an entry moves to the current shared state (read back from
   /// local, which *is* the shared state once the exchange succeeded) only when
   /// both sides demonstrably reached it; anything skipped, undelivered or
-  /// deferred keeps its previous entry so the next session retries it. A row
-  /// gone on both sides drops its entry.
+  /// deferred — here or, per the push acknowledgement, on the peer — keeps its
+  /// previous entry so the next session retries it. A row gone on both sides
+  /// drops its entry.
   Future<SyncCheckpoint> _advanceBusinessCheckpoint({
     required SyncCheckpoint previous,
     required List<SyncBusinessPlanItem> plan,
@@ -1104,6 +1241,7 @@ class SyncEngine implements SyncServerHandler {
     required Set<String> deletedKeys,
     required Set<String> failedDeleteKeys,
     required bool applyDeferred,
+    bool peerApplyDeferred = false,
   }) async {
     final entities = <String, Map<String, SyncCheckpointEntry>>{
       for (final entry in previous.entities.entries)
@@ -1162,7 +1300,7 @@ class SyncEngine implements SyncServerHandler {
         case SyncConvAction.none:
           await setFromLocal();
         case SyncConvAction.iSend:
-          if (sentKeys.contains(key)) {
+          if (sentKeys.contains(key) && !peerApplyDeferred) {
             await setFromLocal();
           } else {
             keepPrior();
@@ -1175,6 +1313,7 @@ class SyncEngine implements SyncServerHandler {
           }
         case SyncConvAction.bothSend:
           if (applyDeferred ||
+              peerApplyDeferred ||
               !sentKeys.contains(key) ||
               !receivedKeys.contains(key)) {
             keepPrior();

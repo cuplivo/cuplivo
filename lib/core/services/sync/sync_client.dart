@@ -277,7 +277,9 @@ class SyncClientSession {
   }
 
   /// Sends this device's changed conversation subtrees and business rows.
-  Future<int> pushDelta(SyncDeltaBatch batch) async {
+  /// The answer is an acknowledgement, not a receipt: the responder reports
+  /// what it deferred, and only confirmed state may advance the checkpoint.
+  Future<SyncApplyAck> pushDelta(SyncDeltaBatch batch) async {
     final response = await _put('/sync/subtrees', batch.toJson());
     final body = await SyncClient._readJson(response);
     if (response.statusCode != HttpStatus.ok || body == null) {
@@ -286,7 +288,7 @@ class SyncClientSession {
         statusCode: response.statusCode,
       );
     }
-    return (body['applied'] as num?)?.toInt() ?? 0;
+    return SyncApplyAck.fromJson(body);
   }
 
   /// Streams one blob into [destination]. A file blob is hashed while it

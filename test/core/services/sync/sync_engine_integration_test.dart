@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -286,6 +287,18 @@ Future<void> _forceUpdatedAt(
 }) => side.database.customStatement(
   'UPDATE $table SET updated_at = ? WHERE $idColumn = ?;',
   <Object?>[updatedAtUs, id],
+);
+
+/// Marks a conversation as mid-generation on [side] — the state that makes sync
+/// apply and peer deletion yield and be retried. The flag is not part of any
+/// digest, so it changes nothing except the deferral.
+Future<void> _setStreaming(
+  _Side side,
+  String conversationId, {
+  required bool streaming,
+}) => side.database.customStatement(
+  'UPDATE message_rows SET is_streaming = ? WHERE conversation_id = ?;',
+  <Object?>[streaming ? 1 : 0, conversationId],
 );
 
 /// Reads a row's mutation clock — the value the LWW comparison actually uses.
@@ -956,6 +969,139 @@ void main() {
     expect(await a.repository.syncReadConversationRow('conv-b'), isNull);
     expect(await b.repository.syncReadConversationRow('conv-b'), isNull);
     expect(await _conversationIds(a), {'conv-a'});
+  });
+
+  test('a deferred push never deletes the sender\'s own new message', () async {
+    // Sending is not receipt. While B is generating in the conversation it
+    // accepts the push and writes nothing; treating that as "B has it" made
+    // the next session read B's older copy as a deletion of A's own message.
+    final (a, b) = await pair();
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(await _messageIds(b, 'conv-a'), {'conv-a-m0'});
+
+    await _setStreaming(b, 'conv-a', streaming: true);
+    await a.repository.putMessage(
+      ChatMessage(
+        id: 'conv-a-m1',
+        conversationId: 'conv-a',
+        role: 'user',
+        content: 'written on a',
+      ),
+    );
+    final pushed = await a.engine.syncWithPeer(await a.peer(b));
+    expect(pushed.success, isTrue, reason: pushed.summary);
+    expect(await _messageIds(b, 'conv-a'), isNot(contains('conv-a-m1')));
+
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(
+      await _messageIds(a, 'conv-a'),
+      contains('conv-a-m1'),
+      reason: 'the session must not undo the message its own device wrote',
+    );
+
+    await _setStreaming(b, 'conv-a', streaming: false);
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(await _messageIds(b, 'conv-a'), contains('conv-a-m1'));
+  });
+
+  test('a deferred business apply never deletes the sender\'s own row', () async {
+    final (a, b) = await pair();
+    await a.businessPreferences.setString('user_name', 'Alice');
+
+    // B is mid-restore: the write fence makes the whole business apply defer.
+    final release = Completer<void>();
+    final fence = b.businessPreferences.runWithRestoreWriteFence(
+      () => release.future,
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    final pushed = await a.engine.syncWithPeer(await a.peer(b));
+    expect(pushed.success, isTrue, reason: pushed.summary);
+    expect(
+      await b.businessRepository.syncReadPreferenceRows({'user_name'}),
+      isEmpty,
+      reason: 'the fence deferred the apply',
+    );
+
+    // The session after that used to plan an iDelete for A's own row: the
+    // write fence never advanced B's state, and A had recorded its send as
+    // received.
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(
+      await a.businessRepository.syncReadPreferenceRows({'user_name'}),
+      hasLength(1),
+      reason: 'A must keep the row it wrote',
+    );
+
+    release.complete();
+    await fence;
+  });
+
+  test('a deferred receive never makes the sender delete its own message',
+      () async {
+    // The mirror of the push case: B is the one that sends, and A is the one
+    // that defers. B's optimistic entry must not turn A's older copy into a
+    // deletion of B's new message when B initiates the next session.
+    final (a, b) = await pair();
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+    await a.engine.syncWithPeer(await a.peer(b));
+
+    await b.repository.putMessage(
+      ChatMessage(
+        id: 'conv-a-m1',
+        conversationId: 'conv-a',
+        role: 'user',
+        content: 'written on b',
+      ),
+    );
+    await _setStreaming(a, 'conv-a', streaming: true);
+    final sent = await a.engine.syncWithPeer(await a.peer(b));
+    expect(sent.success, isTrue, reason: sent.summary);
+    expect(await _messageIds(a, 'conv-a'), isNot(contains('conv-a-m1')));
+
+    // A's generation ends without A ever applying B's message, and A says so
+    // on its hello. B, which recorded its own send as received, would
+    // otherwise read A's older copy as a deletion of its own message.
+    await _setStreaming(a, 'conv-a', streaming: false);
+    final mirrored = await b.engine.syncWithPeer(await b.peer(a));
+    expect(mirrored.success, isTrue, reason: mirrored.summary);
+    expect(
+      await _messageIds(b, 'conv-a'),
+      contains('conv-a-m1'),
+      reason: "B's own message must survive",
+    );
+
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(await _messageIds(a, 'conv-a'), contains('conv-a-m1'));
+  });
+
+  test('a peer deletion the peer deferred is retried, not undone', () async {
+    final (a, b) = await pair();
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(await _conversationIds(b), {'conv-a'});
+
+    // B is generating, so its deletion of conv-a yields and must be retried.
+    await _setStreaming(b, 'conv-a', streaming: true);
+    await a.repository.deleteConversation('conv-a');
+    final first = await a.engine.syncWithPeer(await a.peer(b));
+    expect(first.success, isTrue, reason: first.summary);
+    expect(
+      await b.repository.syncReadConversationRow('conv-a'),
+      isNotNull,
+      reason: 'the peer could not delete yet',
+    );
+    expect(await a.repository.syncReadConversationRow('conv-a'), isNull);
+
+    await _setStreaming(b, 'conv-a', streaming: false);
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(await b.repository.syncReadConversationRow('conv-a'), isNull);
+    expect(
+      await a.repository.syncReadConversationRow('conv-a'),
+      isNull,
+      reason: 'the peer retried the deletion; A must not re-adopt it',
+    );
   });
 
   test(

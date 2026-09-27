@@ -284,8 +284,9 @@ enum SyncRefusalReason {
   /// device must not build a session under that device's name.
   identityMismatch('identity_mismatch'),
 
-  /// Another session is running; the deterministic initiator (lower deviceId)
-  /// wins.
+  /// A session for this pair is already running on the answering side, in
+  /// either role: one session per pair at a time. The refused round is retried
+  /// by the next trigger — a launch, a resume, or the manual button.
   busy('busy');
 
   final String wire;

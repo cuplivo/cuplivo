@@ -732,6 +732,72 @@ void main() {
     );
   });
 
+  test('a pair runs one session at a time, in both roles', () async {
+    // Both roles write the same checkpoint file from the copy each read at its
+    // own hello, so two concurrent sessions for a pair would lose one of the
+    // advances — and both devices resuming at once is routine.
+    final (a, b) = await pair();
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+    final aPeer = await a.peer(b);
+    final bPeer = await b.peer(a);
+
+    // (1) A responder session is live here: initiating to that peer is refused.
+    final hello = await b.engine.handleHello(
+      a.identity.deviceId,
+      SyncHello(
+        protocolVersion: kSyncProtocolVersion,
+        schemaVersion: a.dataPlane.schemaVersion,
+        deviceId: a.identity.deviceId,
+        deviceName: a.label,
+        platform: 'test',
+        manifest: await a.dataPlane.buildManifest(),
+      ),
+    );
+    expect(hello, isA<SyncHello>(), reason: 'the session was accepted');
+    final refused = await b.engine.syncWithPeer(bPeer);
+    expect(refused.success, isFalse);
+    expect(refused.refusal, SyncRefusalReason.busy);
+    // The live session survived: its fetch beat still finds it.
+    await b.engine.handleFetchSubtrees(
+      a.identity.deviceId,
+      const SyncFetchRequest(),
+    );
+
+    // (2) An initiator round in flight here: the peer's hello is refused. The
+    // target is a listener that speaks the peer's certificate and never
+    // answers, so the round is still waiting when the hello arrives.
+    final silent = await HttpServer.bindSecure(
+      InternetAddress.loopbackIPv4,
+      0,
+      b.identity.buildContext(),
+      requestClientCertificate: false,
+    );
+    final pending = a.engine.syncWithPeer(
+      aPeer,
+      host: '127.0.0.1',
+      port: silent.port,
+    );
+    final answer = await a.engine.handleHello(
+      b.identity.deviceId,
+      SyncHello(
+        protocolVersion: kSyncProtocolVersion,
+        schemaVersion: b.dataPlane.schemaVersion,
+        deviceId: b.identity.deviceId,
+        deviceName: b.label,
+        platform: 'test',
+        manifest: await b.dataPlane.buildManifest(),
+      ),
+    );
+    expect(answer, isA<SyncHelloRefusal>());
+    expect((answer as SyncHelloRefusal).reason, SyncRefusalReason.busy);
+
+    // Dropping the listener ends A's round; the marker is released, so the
+    // next attempt is admitted rather than refused for good.
+    await silent.close(force: true);
+    await pending;
+    await a.engine.syncWithPeer(aPeer, host: '127.0.0.1', port: b.port);
+  });
+
   testWidgets('the pairing code dialog cannot be dismissed by a gesture', (
     tester,
   ) async {

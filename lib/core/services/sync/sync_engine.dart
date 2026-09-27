@@ -133,6 +133,11 @@ class SyncEngine implements SyncServerHandler {
   final Random _random = Random.secure();
   final Map<String, _ResponderSession> _sessions = {};
 
+  /// Peers this device is currently initiating *to*. Together with [_sessions]
+  /// it is the single-flight lock for a pair: both roles write the same
+  /// checkpoint file, so they must never run at once (see [syncWithPeer]).
+  final Set<String> _initiatorRounds = {};
+
   /// What this device published for a manifest, by content hash: files are
   /// served straight from their canonical path, skill directories are zipped
   /// on demand. Populated whenever a manifest is built or received, so a blob
@@ -273,14 +278,36 @@ class SyncEngine implements SyncServerHandler {
   }
 
   /// Runs one session against a paired peer. This is the initiator role.
+  ///
+  /// One session per pair at a time, in both roles. Two sessions for the same
+  /// peer (this device initiating while it also answers the peer's hello) would
+  /// write the same checkpoint file from two call sites, each computed from the
+  /// checkpoint it read at its own hello, so the later write would discard the
+  /// other advance. The marker is taken before the first await — Dart's single
+  /// isolate makes that the whole lock — and a peer initiating at the same
+  /// moment is refused instead of interleaved.
   Future<SyncSessionReport> syncWithPeer(
     SyncPeerRecord peer, {
     String? host,
     int? port,
   }) async {
+    if (_sessions.containsKey(peer.deviceId) ||
+        !_initiatorRounds.add(peer.deviceId)) {
+      return await _finish(
+        const SyncSessionReport(
+          success: false,
+          summary: 'refused:busy',
+          refusal: SyncRefusalReason.busy,
+        ),
+        peer: peer,
+        host: host ?? peer.lastHost,
+        port: port ?? peer.lastPort,
+      );
+    }
     final endpointHost = host ?? peer.lastHost;
     final endpointPort = port ?? peer.lastPort;
     if (endpointHost == null || endpointPort == null) {
+      _initiatorRounds.remove(peer.deviceId);
       // Recorded on the peer like every other outcome: the card reads
       // `peer.lastReport`, so an unpersisted failure would leave a stale
       // success on screen.
@@ -703,6 +730,7 @@ class SyncEngine implements SyncServerHandler {
       );
     } finally {
       session.close();
+      _initiatorRounds.remove(peer.deviceId);
       onStateChanged();
     }
   }
@@ -753,6 +781,15 @@ class SyncEngine implements SyncServerHandler {
       return const SyncHelloRefusal(
         SyncRefusalReason.busy,
         'Another sync session is already running.',
+      );
+    }
+    // This device is initiating to the caller right now. Answering would give
+    // the pair two sessions, each advancing the same checkpoint file from the
+    // copy it read, so the later write would discard the other's advance.
+    if (_initiatorRounds.contains(initiatorHello.deviceId)) {
+      return const SyncHelloRefusal(
+        SyncRefusalReason.busy,
+        'This device is already syncing with you.',
       );
     }
 

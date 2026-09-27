@@ -1107,6 +1107,69 @@ void main() {
     },
   );
 
+  test('a reference already present survives a landed subset', () async {
+    // A revision that references two files where only one needs fetching (the
+    // other is already here with the advertised hash) must keep both
+    // references: the registration replaces the revision's whole set, so
+    // registering only this session's arrivals unlinked the present file and
+    // left it to the asset GC.
+    final (a, b) = await pair();
+    for (final entry in {
+      'images/one.png': 'one',
+      'images/two.png': 'two',
+    }.entries) {
+      final file = File('${a.dir.path}/${entry.key}');
+      await file.parent.create(recursive: true);
+      await file.writeAsString(entry.value, flush: true);
+    }
+    // B already holds the second file, byte-identical.
+    final present = File('${b.dir.path}/images/two.png');
+    await present.parent.create(recursive: true);
+    await present.writeAsString('two', flush: true);
+
+    final message = ChatMessage(
+      id: 'conv-a-m0',
+      conversationId: 'conv-a',
+      role: 'user',
+      content: '',
+      parts: [
+        ImagePart(uri: 'kelivo-file:///images/one.png', mime: 'image/png'),
+        FilePart(uri: 'kelivo-file:///images/two.png', name: 'two.png'),
+      ],
+    );
+    await a.repository.putMigrationBatch(
+      conversations: [
+        Conversation(
+          id: 'conv-a',
+          title: 'conv-a',
+        ).copyWith(messageIds: [message.id]),
+      ],
+      messages: [(message: message, messageOrder: 0)],
+      toolEventsByMessageId: const {},
+      geminiSignaturesByMessageId: const {},
+    );
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+
+    final refs = await b.database
+        .customSelect(
+          'SELECT asset_id FROM message_asset_rows WHERE revision_id = ?;',
+          variables: [Variable.withString('conv-a-m0')],
+        )
+        .get();
+    expect(
+      refs.length,
+      2,
+      reason: 'both referenced files stay linked, fetched or already present',
+    );
+    expect(
+      await File('${b.dir.path}/images/one.png').readAsString(),
+      'one',
+    );
+    expect(await present.readAsString(), 'two');
+  });
+
   test('a pending blob retry survives a session with nothing to push', () async {
     // The fetch beat persists what the push beat pulled, so skipping the push
     // when this device had nothing outgoing wrote the empty default over the

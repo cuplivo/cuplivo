@@ -523,9 +523,10 @@ class SyncEngine implements SyncServerHandler {
         myDeviceId: identity.deviceId,
         peerDeviceId: peer.deviceId,
       );
+      final neededAssets = await dataPlane.neededFileBlobs(incoming.assets);
+      final neededTargets = {for (final entry in neededAssets) entry.target};
       final wanted = <String, SyncBlobEntry>{
-        for (final entry in await dataPlane.neededFileBlobs(incoming.assets))
-          entry.target: entry,
+        for (final entry in neededAssets) entry.target: entry,
         for (final adoption in adoptions.wanted) adoption.target: adoption,
         // Retries from earlier sessions: a superseded target is replaced by
         // the fresh entry above, an already-satisfied one is re-checked below.
@@ -534,6 +535,17 @@ class SyncEngine implements SyncServerHandler {
         wanted.putIfAbsent(pending.target, () => pending);
       }
       final pulled = await _pullBlobs(wanted.values.toList(), session);
+      // Advertised file blobs that were *not* fetched: they are already here
+      // with the advertised hash, so the reference they carry must survive the
+      // registration below exactly like a freshly landed one — the rewrite
+      // replaces a revision's whole reference set, not just this session's
+      // arrivals.
+      final alreadyPresent = {
+        for (final entry in incoming.assets)
+          if (entry.kind == SyncBlobEntry.kindFile &&
+              !neededTargets.contains(entry.target))
+            entry.key: entry,
+      };
       final deferredSkills = {
         ...adoptions.deferred,
         for (final id in adoptions.wantedSkillIds)
@@ -560,10 +572,12 @@ class SyncEngine implements SyncServerHandler {
           ),
         ),
       );
-      if (pulled.landedByUri.isNotEmpty) {
+      if (pulled.landedByUri.isNotEmpty || alreadyPresent.isNotEmpty) {
         await dataPlane.registerLandedAssets(
           subtrees: incoming.subtrees,
-          landedByUri: pulled.landedByUri,
+          // Landed this session and already present both count: the
+          // registration is the revision's complete reference set.
+          landedByUri: {...alreadyPresent, ...pulled.landedByUri},
         );
       }
 
@@ -825,9 +839,10 @@ class SyncEngine implements SyncServerHandler {
       myDeviceId: identity.deviceId,
       peerDeviceId: peerDeviceId,
     );
+    final neededAssets = await dataPlane.neededFileBlobs(batch.assets);
+    final neededTargets = {for (final entry in neededAssets) entry.target};
     final wanted = <String, SyncBlobEntry>{
-      for (final entry in await dataPlane.neededFileBlobs(batch.assets))
-        entry.target: entry,
+      for (final entry in neededAssets) entry.target: entry,
       for (final adoption in adoptions.wanted) adoption.target: adoption,
       for (final pending in session.checkpoint.pendingBlobs.values)
         pending.target: pending,
@@ -862,10 +877,19 @@ class SyncEngine implements SyncServerHandler {
       ),
     );
     session.outcomes.addAll(outcomes);
-    if (session.blobPull.landedByUri.isNotEmpty) {
+    // Advertised file blobs that needed no fetch are already here with the
+    // advertised hash; they belong in the reference set exactly as landed ones
+    // do, since the registration replaces the revision's whole set.
+    final alreadyPresent = {
+      for (final entry in batch.assets)
+        if (entry.kind == SyncBlobEntry.kindFile &&
+            !neededTargets.contains(entry.target))
+          entry.key: entry,
+    };
+    if (session.blobPull.landedByUri.isNotEmpty || alreadyPresent.isNotEmpty) {
       await dataPlane.registerLandedAssets(
         subtrees: batch.subtrees,
-        landedByUri: session.blobPull.landedByUri,
+        landedByUri: {...alreadyPresent, ...session.blobPull.landedByUri},
       );
     }
     // Business rows arrive in the same push; the responder's own plan already

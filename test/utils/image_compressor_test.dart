@@ -482,6 +482,55 @@ void main() {
       expect(encoded, isNotNull);
       expect(img.decodeJpg(encoded!)!.width, 32);
     });
+
+    test(
+      'gives an extensionless pristine copy the extension it holds',
+      () async {
+        final file = File(p.join(root.path, 'IMG_0042'));
+        await file.writeAsBytes(
+          img.encodePng(_noiseImage(64, 48)),
+          flush: true,
+        );
+
+        final write = await ImageCompressor.compressToUploadDir(
+          file.path,
+          uploadDir,
+          const ImageCompressConfig(
+            enabled: false,
+            quality: 100,
+            maxLongEdge: 0,
+            includeTransparent: false,
+          ),
+        );
+
+        // The copy keeps its own name, but an extensionless one would travel as
+        // image/png on the wire whatever it actually holds.
+        expect(write, isNotNull);
+        expect(p.basename(write!.path), 'IMG_0042.png');
+        expect(img.decodePng(await File(write.path).readAsBytes()), isNotNull);
+      },
+    );
+
+    test('a remote or data URI fails soft instead of throwing', () async {
+      for (final uri in const [
+        'https://example.com/photo.png',
+        'data:image/png;base64,iVBORw0KGgo=',
+      ]) {
+        expect(
+          await ImageCompressor.compressManualToUploadDir(
+            uri,
+            uploadDir,
+            const ManualCompressParams(
+              format: DownsizeFormat.jpeg,
+              quality: 80,
+              maxLongEdge: 512,
+            ),
+          ),
+          isNull,
+          reason: '$uri is not a local file',
+        );
+      }
+    });
   });
 }
 

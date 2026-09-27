@@ -3571,9 +3571,23 @@
   "compressEditorOriginalSide": "Original",
   "compressEditorEstimating": "Estimating size…",
   "compressEditorEstimateFailed": "Size estimate unavailable",
-  "compressEditorEstimate": "{source} → {target}{savings}",
-  "compressEditorEstimateOriginal": "{dimensions} · {size} · no re-encode",
-  "compressEditorSavings": " (−{percent}%)",
+  "compressEditorSavings": "−{percent}%",
+  "@compressEditorSavings": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "compressEditorGrowth": "+{percent}%",
+  "@compressEditorGrowth": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "compressEditorNoReencode": "no re-encode",
   "compressEditorDecodeFailed": "This image can't be previewed, so it can't be re-compressed.",
   "compressEditorCancel": "Cancel",
   "compressEditorApply": "Apply",

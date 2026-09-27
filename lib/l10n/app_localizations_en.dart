@@ -8335,19 +8335,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get compressEditorEstimateFailed => 'Size estimate unavailable';
 
   @override
-  String compressEditorEstimate(Object savings, Object source, Object target) {
-    return '$source → $target$savings';
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
   }
 
   @override
-  String compressEditorEstimateOriginal(Object dimensions, Object size) {
-    return '$dimensions · $size · no re-encode';
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
   }
 
   @override
-  String compressEditorSavings(Object percent) {
-    return ' (−$percent%)';
-  }
+  String get compressEditorNoReencode => 'no re-encode';
 
   @override
   String get compressEditorDecodeFailed =>

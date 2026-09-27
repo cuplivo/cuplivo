@@ -122,16 +122,21 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
   void _setParams(ManualCompressParams next) => _controller.setParams(next);
 
   void _apply({required bool toAll}) {
+    _remember();
     if (_params.isNoOp) {
       Navigator.of(context).pop();
       return;
     }
-    // Remembered as the starting point of the next session.
-    unawaited(
-      context.read<SettingsProvider>().setManualCompressParams(_params),
-    );
     Navigator.of(context).pop(
       toAll ? CompressEditorApplyAll(_params) : CompressEditorApply(_params),
+    );
+  }
+
+  /// Remembers the current parameters as the starting point of the next popup
+  /// session, 原图 included: the last choice is what the next session opens on.
+  void _remember() {
+    unawaited(
+      context.read<SettingsProvider>().setManualCompressParams(_params),
     );
   }
 
@@ -293,12 +298,17 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
     final cs = Theme.of(context).colorScheme;
     final original = _controller.sourceLongEdge;
     if (original <= 0) return const SizedBox.shrink();
-    final minEdge = math.min(256, original).toDouble();
+    final min = minEditorLongEdge(original);
+    final minEdge = min.toDouble();
     final maxEdge = original.toDouble();
     final value = (_params.maxLongEdge ?? original)
         .clamp(minEdge, maxEdge)
         .toDouble();
     final divisions = ((maxEdge - minEdge) / 64).ceil().clamp(1, 512);
+    // Each preset is clamped into the slider's own range, so the number the
+    // panel shows is always the number that will be applied.
+    int edgeFor(double fraction) =>
+        (original * fraction).round().clamp(min, original);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -347,24 +357,24 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
             const SizedBox(width: 8),
             _EdgePreset(
               label: l10n.compressEditorLongEdgeHalf,
-              selected: _params.maxLongEdge == (original / 2).round(),
+              selected: _params.maxLongEdge == edgeFor(0.5),
               onTap: () => _setParams(
                 ManualCompressParams(
                   format: _params.format,
                   quality: _params.quality,
-                  maxLongEdge: (original / 2).round(),
+                  maxLongEdge: edgeFor(0.5),
                 ),
               ),
             ),
             const SizedBox(width: 8),
             _EdgePreset(
               label: l10n.compressEditorLongEdgeQuarter,
-              selected: _params.maxLongEdge == (original / 4).round(),
+              selected: _params.maxLongEdge == edgeFor(0.25),
               onTap: () => _setParams(
                 ManualCompressParams(
                   format: _params.format,
                   quality: _params.quality,
-                  maxLongEdge: (original / 4).round(),
+                  maxLongEdge: edgeFor(0.25),
                 ),
               ),
             ),
@@ -417,17 +427,38 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
     final cs = Theme.of(context).colorScheme;
     final sourceBytes = _controller.sourceBytes;
     if (sourceBytes == null) return const SizedBox.shrink();
-    final String detail;
+    final sourceDimensions =
+        '${_controller.sourceWidth}×${_controller.sourceHeight}';
+    final sourceSize = formatBytes(sourceBytes);
+
+    Widget message(String text) =>
+        Text(text, style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant));
+
+    final Widget content;
     if (_params.isNoOp) {
-      detail = l10n.compressEditorEstimateOriginal(
-        formatBytes(sourceBytes),
-        '${_controller.sourceWidth}×${_controller.sourceHeight}',
+      // 原图 has no result to compare against, so the note takes the middle
+      // column instead of an arrow.
+      content = Row(
+        children: [
+          Expanded(
+            child: _EstimateSide(
+              dimensions: sourceDimensions,
+              size: sourceSize,
+              alignEnd: true,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: 10),
+          message(l10n.compressEditorNoReencode),
+          const SizedBox(width: 10),
+          const Expanded(child: SizedBox.shrink()),
+        ],
       );
     } else if (_controller.estimating) {
-      detail = l10n.compressEditorEstimating;
+      content = message(l10n.compressEditorEstimating);
     } else if (_controller.estimateFailed ||
         _controller.estimatedBytes == null) {
-      detail = l10n.compressEditorEstimateFailed;
+      content = message(l10n.compressEditorEstimateFailed);
     } else {
       final estimated = _controller.estimatedBytes!;
       final longEdge = _params.maxLongEdge ?? _controller.sourceLongEdge;
@@ -440,27 +471,62 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
       final saved = sourceBytes <= 0
           ? 0
           : ((sourceBytes - estimated) / sourceBytes * 100).round();
-      detail = l10n.compressEditorEstimate(
-        '${_controller.sourceWidth}×${_controller.sourceHeight} · ${formatBytes(sourceBytes)}',
-        '$outWidth×$outHeight · ${formatBytes(estimated)}',
-        saved > 0 ? l10n.compressEditorSavings(saved) : '',
+      content = Row(
+        children: [
+          Expanded(
+            child: _EstimateSide(
+              dimensions: sourceDimensions,
+              size: sourceSize,
+              alignEnd: true,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: 8),
+          _EstimateArrow(
+            label: switch (saved) {
+              > 0 => l10n.compressEditorSavings(saved),
+              < 0 => l10n.compressEditorGrowth(-saved),
+              _ => null,
+            },
+            grew: saved < 0,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _EstimateSide(
+              dimensions: '$outWidth×$outHeight',
+              size: formatBytes(estimated),
+              alignEnd: false,
+              color: cs.onSurface,
+            ),
+          ),
+        ],
       );
     }
+
     return Row(
       children: [
         Icon(Lucide.info, size: 13, color: cs.onSurfaceVariant),
         const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            detail,
-            style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
-          ),
-        ),
+        Expanded(child: content),
       ],
     );
   }
 
   Widget _actions(BuildContext context, AppLocalizations l10n) {
+    if (_controller.decodeFailed) {
+      // The copy above already says the image cannot be re-compressed, so
+      // the panel must not offer an action that tries anyway: the apply
+      // would fail, drop the attachment from the message and lock sending.
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.compressEditorCancel),
+          ),
+        ],
+      );
+    }
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -477,12 +543,88 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
         ],
         const SizedBox(width: 8),
         FilledButton(
-          onPressed: _params.isNoOp
-              ? () => Navigator.of(context).pop()
-              : () => _apply(toAll: false),
+          onPressed: () => _apply(toAll: false),
           child: Text(
             _params.isNoOp ? l10n.compressEditorDone : l10n.compressEditorApply,
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One side of the estimate row: the resolution above, the size below.
+class _EstimateSide extends StatelessWidget {
+  const _EstimateSide({
+    required this.dimensions,
+    required this.size,
+    required this.alignEnd,
+    required this.color,
+  });
+
+  final String dimensions;
+  final String size;
+  final bool alignEnd;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        Text(
+          dimensions,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: AppFontWeights.medium,
+            color: color,
+          ),
+        ),
+        Text(
+          size,
+          style: TextStyle(fontSize: 12, color: color.withValues(alpha: 0.75)),
+        ),
+      ],
+    );
+  }
+}
+
+/// The arrow between the two estimate sides, with the size change above it.
+class _EstimateArrow extends StatelessWidget {
+  const _EstimateArrow({this.label, this.grew = false});
+
+  /// "−85%" for a smaller result, "+12%" for a larger one, null when the size
+  /// does not change.
+  final String? label;
+  final bool grew;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final delta = label;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (delta != null)
+          Text(
+            delta,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: AppFontWeights.semibold,
+              color: grew
+                  ? context.appColors.warning
+                  : context.appColors.success,
+            ),
+          ),
+        Icon(
+          Directionality.of(context) == TextDirection.rtl
+              ? Lucide.ArrowLeft
+              : Lucide.ArrowRight,
+          size: 16,
+          color: cs.onSurfaceVariant,
         ),
       ],
     );

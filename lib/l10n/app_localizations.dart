@@ -15097,23 +15097,23 @@ abstract class AppLocalizations {
   /// **'Size estimate unavailable'**
   String get compressEditorEstimateFailed;
 
-  /// No description provided for @compressEditorEstimate.
-  ///
-  /// In en, this message translates to:
-  /// **'{source} → {target}{savings}'**
-  String compressEditorEstimate(Object savings, Object source, Object target);
-
-  /// No description provided for @compressEditorEstimateOriginal.
-  ///
-  /// In en, this message translates to:
-  /// **'{dimensions} · {size} · no re-encode'**
-  String compressEditorEstimateOriginal(Object dimensions, Object size);
-
   /// No description provided for @compressEditorSavings.
   ///
   /// In en, this message translates to:
-  /// **' (−{percent}%)'**
-  String compressEditorSavings(Object percent);
+  /// **'−{percent}%'**
+  String compressEditorSavings(int percent);
+
+  /// No description provided for @compressEditorGrowth.
+  ///
+  /// In en, this message translates to:
+  /// **'+{percent}%'**
+  String compressEditorGrowth(int percent);
+
+  /// No description provided for @compressEditorNoReencode.
+  ///
+  /// In en, this message translates to:
+  /// **'no re-encode'**
+  String get compressEditorNoReencode;
 
   /// No description provided for @compressEditorDecodeFailed.
   ///

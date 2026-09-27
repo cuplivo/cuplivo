@@ -7989,19 +7989,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get compressEditorEstimateFailed => '无法估算体积';
 
   @override
-  String compressEditorEstimate(Object savings, Object source, Object target) {
-    return '$source → $target$savings';
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
   }
 
   @override
-  String compressEditorEstimateOriginal(Object dimensions, Object size) {
-    return '$dimensions · $size · 不做重编码';
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
   }
 
   @override
-  String compressEditorSavings(Object percent) {
-    return ' (−$percent%)';
-  }
+  String get compressEditorNoReencode => '不做重编码';
 
   @override
   String get compressEditorDecodeFailed => '此图片无法预览，因此无法重新压缩。';
@@ -19703,19 +19701,17 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get compressEditorEstimateFailed => '无法估算体积';
 
   @override
-  String compressEditorEstimate(Object savings, Object source, Object target) {
-    return '$source → $target$savings';
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
   }
 
   @override
-  String compressEditorEstimateOriginal(Object dimensions, Object size) {
-    return '$dimensions · $size · 不做重编码';
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
   }
 
   @override
-  String compressEditorSavings(Object percent) {
-    return ' (−$percent%)';
-  }
+  String get compressEditorNoReencode => '不做重编码';
 
   @override
   String get compressEditorDecodeFailed => '此图片无法预览，因此无法重新压缩。';
@@ -31492,19 +31488,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get compressEditorEstimateFailed => '無法估算體積';
 
   @override
-  String compressEditorEstimate(Object savings, Object source, Object target) {
-    return '$source → $target$savings';
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
   }
 
   @override
-  String compressEditorEstimateOriginal(Object dimensions, Object size) {
-    return '$dimensions · $size · 不做重編碼';
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
   }
 
   @override
-  String compressEditorSavings(Object percent) {
-    return ' (−$percent%)';
-  }
+  String get compressEditorNoReencode => '不做重編碼';
 
   @override
   String get compressEditorDecodeFailed => '此圖片無法預覽，因此無法重新壓縮。';

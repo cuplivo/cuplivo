@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:Cuplivo/core/database/business_data.dart';
 import 'package:Cuplivo/core/database/business_settings_router.dart';
 import 'package:Cuplivo/core/models/assistant_memory.dart';
+import 'package:Cuplivo/core/models/chat_input_data.dart';
 
 Map<String, Object?> _completeEntityRowIds({
   String? sourceKey,
@@ -53,6 +54,12 @@ void main() {
         );
         expect(
           BusinessKeyRegistry.classify('linux_hide_title_bar_v1'),
+          BusinessKeyDisposition.localOnly,
+        );
+        // The unsent chat draft is transient per-device state: the legacy-prefs
+        // migration must keep it in SharedPreferences instead of sweeping it.
+        expect(
+          BusinessKeyRegistry.classify(chatInputDraftPrefsKey),
           BusinessKeyDisposition.localOnly,
         );
         expect(

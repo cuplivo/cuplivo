@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 
+import '../models/chat_input_data.dart';
 import 'business_data.dart';
 
 enum BusinessKeyDisposition {
@@ -29,6 +30,10 @@ final class BusinessKeyRegistry {
     'desktop_hotkeys_enabled_v1',
     'display_chat_font_scale_v1',
     'flutter_log_enabled_v1',
+    // Transient per-device UI state: restoring a backup or syncing another
+    // device must never resurrect (or overwrite) an unsent chat draft, and the
+    // legacy-prefs migration must never sweep the key out of the local store.
+    chatInputDraftPrefsKey,
   };
 
   static const discardedKeys = <String>{

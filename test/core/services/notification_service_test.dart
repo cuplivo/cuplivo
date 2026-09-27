@@ -23,6 +23,26 @@ void main() {
     },
   );
 
+  test('proactive care payloads route to their conversation target', () {
+    expect(
+      NotificationService.conversationIdFromPayload(
+        'proactive-care:conversation-9',
+      ),
+      'conversation-9',
+    );
+    expect(
+      NotificationService.conversationIdFromPayload('proactive-care:'),
+      isNull,
+    );
+    // The chat-completion prefix must not swallow letter payloads.
+    expect(
+      NotificationService.conversationIdFromPayload(
+        'proactive-care:chat-complete:x',
+      ),
+      'chat-complete:x',
+    );
+  });
+
   test('notification IDs are stable and avoid foreground-service IDs', () {
     final first = NotificationService.notificationIdForConversation(
       'conversation-1',

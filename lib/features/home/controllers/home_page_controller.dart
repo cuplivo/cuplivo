@@ -28,6 +28,7 @@ import '../../../core/utils/scheduler_idle.dart';
 import '../../../core/services/tts/tts_text_selection.dart';
 import '../../../core/services/haptics.dart';
 import '../../../core/services/notification_service.dart';
+import '../../../core/services/proactive_care_alarm_service.dart';
 import '../../../core/services/mobile_background.dart';
 import '../../../core/services/screen_wakelock.dart';
 import '../../../l10n/app_localizations.dart';
@@ -348,6 +349,9 @@ class HomePageController extends ChangeNotifier {
 
   ValueNotifier<String?> get processingFilesMessageId =>
       _viewModel.processingFilesMessageId;
+
+  /// Delivers every due proactive care letter (start/resume catch-up).
+  Future<int> deliverDueProactiveCare() => _viewModel.deliverDueProactiveCare();
 
   bool get isTemporaryConversation =>
       _chatService.isTemporaryConversation(currentConversation?.id);
@@ -876,6 +880,22 @@ class HomePageController extends ChangeNotifier {
               onConversation,
             );
         await ScheduledTasksService.instance.attach(executor);
+      }
+      if (ProactiveCareAlarmService.isSupported) {
+        // Letter alarms: native fires hand off to the provider stack here;
+        // then re-arm everything still pending in the database.
+        await ProactiveCareAlarmService.attach(
+          (conversationId, expectedAt) =>
+              _viewModel.deliverProactiveCareSchedule(
+                conversationId: conversationId,
+                expectedAt: expectedAt,
+              ),
+        );
+        if (!_context.mounted) return;
+        await ProactiveCareAlarmService.rescheduleAll(
+          conversations: _chatService.getAllConversations(),
+          assistants: _context.read<AssistantProvider>().assistants,
+        );
       }
     } finally {
       _startupConversationPending = false;
@@ -2858,6 +2878,9 @@ class HomePageController extends ChangeNotifier {
     }
     if (state == AppLifecycleState.resumed) {
       ScreenWakelock.reassert();
+      // Proactive care catch-up: deliver anything the alarms missed while
+      // the process was dead or frozen (claim contract prevents doubles).
+      unawaited(_viewModel.deliverDueProactiveCare());
     }
   }
 

@@ -35,6 +35,9 @@ class NotificationService {
   static String? takePendingMessageId(String conversationId) =>
       _pendingMessageIds.remove(conversationId);
   static const String _chatCompletionPayloadPrefix = 'chat-complete:';
+  static const String _proactiveCarePayloadPrefix = 'proactive-care:';
+  static const String proactiveCareNotificationChannelId =
+      'cuplivo_proactive_care';
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
     'cuplivo_bg_chat_v2',
     'Chat Background',
@@ -42,6 +45,15 @@ class NotificationService {
     importance: Importance.high,
     playSound: true,
   );
+
+  static const AndroidNotificationChannel _proactiveCareChannel =
+      AndroidNotificationChannel(
+        proactiveCareNotificationChannelId,
+        'Proactive Care',
+        description: 'Proactive care messages from assistants',
+        importance: Importance.high,
+        playSound: true,
+      );
 
   static Stream<String> get conversationTaps =>
       _conversationTapController.stream;
@@ -97,6 +109,7 @@ class NotificationService {
         >();
     if (android != null) {
       await android.createNotificationChannel(_channel);
+      await android.createNotificationChannel(_proactiveCareChannel);
       // Runtime notification permission (Android 13+) should be requested by app UI if needed
     }
     _inited = true;
@@ -171,6 +184,50 @@ class NotificationService {
     );
   }
 
+  /// A proactive care ("Ta的来信") letter. Same routing as chat
+  /// completion: tapping opens the conversation.
+  static Future<void> showProactiveCareLetter({
+    int? id,
+    required String conversationId,
+    required String title,
+    required String body,
+    String? largeIconPath,
+  }) async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
+    if (conversationId.trim().isEmpty) return;
+    await ensureInitialized();
+    final style = BigTextStyleInformation(body);
+    await _plugin.show(
+      id ?? proactiveCareIdFor(conversationId),
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _proactiveCareChannel.id,
+          _proactiveCareChannel.name,
+          channelDescription: _proactiveCareChannel.description,
+          importance: Importance.max,
+          priority: Priority.max,
+          playSound: true,
+          enableVibration: true,
+          category: AndroidNotificationCategory.message,
+          visibility: NotificationVisibility.public,
+          ticker: 'Cuplivo',
+          styleInformation: style,
+          largeIcon: (largeIconPath == null || largeIconPath.isEmpty)
+              ? null
+              : FilePathAndroidBitmap(largeIconPath),
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentSound: true,
+          threadIdentifier: 'cuplivo.proactive-care',
+        ),
+      ),
+      payload: '$_proactiveCarePayloadPrefix$conversationId',
+    );
+  }
+
   static void _handleNotificationResponse(NotificationResponse response) {
     final runId = scheduledRunIdFromPayload(response.payload);
     if (runId != null) {
@@ -200,12 +257,25 @@ class NotificationService {
 
   @visibleForTesting
   static String? conversationIdFromPayload(String? payload) {
-    if (payload == null || !payload.startsWith(_chatCompletionPayloadPrefix)) {
+    final conversationId = _conversationIdFromPrefixedPayload(
+      payload,
+      _chatCompletionPayloadPrefix,
+    );
+    if (conversationId != null) return conversationId;
+    return _conversationIdFromPrefixedPayload(
+      payload,
+      _proactiveCarePayloadPrefix,
+    );
+  }
+
+  static String? _conversationIdFromPrefixedPayload(
+    String? payload,
+    String prefix,
+  ) {
+    if (payload == null || !payload.startsWith(prefix)) {
       return null;
     }
-    final conversationId = payload
-        .substring(_chatCompletionPayloadPrefix.length)
-        .trim();
+    final conversationId = payload.substring(prefix.length).trim();
     return conversationId.isEmpty ? null : conversationId;
   }
 
@@ -228,5 +298,18 @@ class NotificationService {
     const firstChatNotificationId = 10000;
     return firstChatNotificationId +
         (hash % (0x7fffffff - firstChatNotificationId));
+  }
+
+  /// Stable conversation-owned id for proactive care letters. Kept in a
+  /// distinct space from [notificationIdForConversation] so a letter never
+  /// replaces (or is replaced by) a chat-completion notification of the
+  /// same conversation.
+  static int proactiveCareIdFor(String conversationId) {
+    var hash = 0x811c9dc5;
+    for (final byte in utf8.encode(conversationId)) {
+      hash = ((hash ^ byte) * 0x01000193) & 0x7fffffff;
+    }
+    const firstProactiveCareId = 30000;
+    return firstProactiveCareId + (hash % (0x7fffffff - firstProactiveCareId));
   }
 }

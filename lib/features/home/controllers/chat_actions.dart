@@ -2665,7 +2665,7 @@ class ChatActions {
     _finishStreamingFutures.remove(messageId);
 
     // The terminal callback is owned by _finishStreaming. Its finally block
-    // also runs when persistence fails, so the UI still leaves streaming before
+    // also runs when persistence fails, so the UI leaves streaming before
     // _handleStreamError converts the failed completion into an error message.
 
     // This finish handler runs inside the sequential drain, so awaiting the

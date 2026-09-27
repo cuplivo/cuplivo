@@ -2591,7 +2591,9 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
               Semantics(
                 label: statusLabel,
                 child: KeyedSubtree(
-                  key: ValueKey('assistant-streaming-status:${widget.message.id}'),
+                  key: ValueKey(
+                    'assistant-streaming-status:${widget.message.id}',
+                  ),
                   child: _streamingIndicator(),
                 ),
               ),

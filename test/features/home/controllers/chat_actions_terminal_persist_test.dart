@@ -309,75 +309,77 @@ void main() {
     expect(notifications, ['Generation failed. Open the chat for details.']);
   });
 
-  testWidgets('stream finish notification is emitted once across terminal paths', (
-    tester,
-  ) async {
-    final service = _ThrowingFinalizeChatService(failCompletion: false);
-    final settings = SettingsProvider(createBusinessTestPreferences());
-    final background = MobileBackgroundCoordinator(
-      platform: TargetPlatform.linux,
-    );
-    addTearDown(background.dispose);
-    addTearDown(settings.dispose);
-    late ChatActions actions;
+  testWidgets(
+    'stream finish notification is emitted once across terminal paths',
+    (tester) async {
+      final service = _ThrowingFinalizeChatService(failCompletion: false);
+      final settings = SettingsProvider(createBusinessTestPreferences());
+      final background = MobileBackgroundCoordinator(
+        platform: TargetPlatform.linux,
+      );
+      addTearDown(background.dispose);
+      addTearDown(settings.dispose);
+      late ChatActions actions;
 
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<SettingsProvider>.value(value: settings),
-          ChangeNotifierProvider<ChatService>.value(value: service),
-        ],
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Builder(
-            builder: (context) {
-              actions =
-                  _actionsFor(context, service, settings, background).actions;
-              return const SizedBox.shrink();
-            },
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<SettingsProvider>.value(value: settings),
+            ChangeNotifierProvider<ChatService>.value(value: service),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Builder(
+              builder: (context) {
+                final result =
+                    _actionsFor(context, service, settings, background);
+                actions = result.actions;
+                return const SizedBox.shrink();
+              },
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    final state = StreamingState(
-      GenerationContext(
-        assistantMessage: ChatMessage(
-          id: 'assistant-once',
-          role: 'assistant',
-          content: 'reply',
-          conversationId: 'conversation-1',
-          isStreaming: true,
+      final state = StreamingState(
+        GenerationContext(
+          assistantMessage: ChatMessage(
+            id: 'assistant-once',
+            role: 'assistant',
+            content: 'reply',
+            conversationId: 'conversation-1',
+            isStreaming: true,
+          ),
+          apiMessages: const [],
+          userImagePaths: const [],
+          allowImagesApiRouting: false,
+          providerKey: 'test',
+          modelId: 'test-model',
+          assistant: null,
+          settings: settings,
+          config: ProviderConfig(
+            id: 'test',
+            enabled: true,
+            name: 'Test',
+            apiKey: '',
+            baseUrl: '',
+          ),
+          toolDefs: const [],
+          supportsReasoning: false,
+          enableReasoning: false,
+          streamOutput: true,
         ),
-        apiMessages: const [],
-        userImagePaths: const [],
-        allowImagesApiRouting: false,
-        providerKey: 'test',
-        modelId: 'test-model',
-        assistant: null,
-        settings: settings,
-        config: ProviderConfig(
-          id: 'test',
-          enabled: true,
-          name: 'Test',
-          apiKey: '',
-          baseUrl: '',
-        ),
-        toolDefs: const [],
-        supportsReasoning: false,
-        enableReasoning: false,
-        streamOutput: true,
-      ),
-    )..fullContentRaw = 'reply';
-    final finished = <String>[];
-    actions.onStreamFinished = finished.add;
+      )..fullContentRaw = 'reply';
+      final finished = <String>[];
+      actions.onStreamFinished = finished.add;
 
-    await actions.debugFinishStreaming(state);
-    actions.debugNotifyStreamFinished(state);
+      await actions.debugFinishStreaming(state);
+      actions.debugNotifyStreamFinished(state);
 
-    expect(finished, ['conversation-1']);
-  });
+      expect(finished, ['conversation-1']);
+    },
+  );
 
   testWidgets(
     'generation waits for narration handoff through the ViewModel callback',

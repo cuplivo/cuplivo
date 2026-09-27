@@ -450,11 +450,19 @@ class SyncDataPlane {
     for (final subtree in subtrees) {
       final conversationId = subtree.conversation['id'];
       if (conversationId is! String) continue;
+      // Only revisions this subtree actually carries may register assets: a
+      // wire part naming some other conversation's message id is a crafted
+      // cross-reference, and the apply already ignores such a part.
+      final messageIds = {
+        for (final message in subtree.messages)
+          if (message['id'] is String) message['id'] as String,
+      };
       final byRevision = <String, List<({String uri, String kind})>>{};
       for (final part in subtree.parts) {
         final revisionId = part['revision_id'];
         final payload = part['payload'];
         if (revisionId is! String || payload is! String) continue;
+        if (!messageIds.contains(revisionId)) continue;
         final kind = (part['kind'] as String?) ?? 'file';
         for (final uri in kelivoFileUrisInRows([
           <String, dynamic>{'payload': payload},

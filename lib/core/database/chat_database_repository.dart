@@ -3524,6 +3524,11 @@ class ChatDatabaseRepository {
     });
   }
 
+  /// Replaces [revisionId]'s asset references inside [conversationId] with
+  /// [assets]. The delete is scoped to the conversation: a revision id is a
+  /// global primary key, so an unscoped `WHERE revision_id = ?` would unlink a
+  /// message of that name in *any* conversation — and the sync caller feeds
+  /// this function ids that arrive from the wire.
   Future<void> replaceMessageAssetReferences({
     required String conversationId,
     required String revisionId,
@@ -3531,8 +3536,9 @@ class ChatDatabaseRepository {
   }) async {
     await _db.transaction(() async {
       await _db.customStatement(
-        'DELETE FROM message_asset_rows WHERE revision_id = ?;',
-        [revisionId],
+        'DELETE FROM message_asset_rows '
+        'WHERE revision_id = ? AND conversation_id = ?;',
+        [revisionId, conversationId],
       );
       final now = DateTime.now().microsecondsSinceEpoch;
       for (final asset in assets) {

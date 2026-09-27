@@ -142,5 +142,47 @@ void main() {
         );
       },
     );
+
+    test(
+      'updateMessageFields never lowers the LWW clock below the row timestamp',
+      () async {
+        // Same skewed-clock premise as updateMessage, on the partial-column
+        // path the UI takes for translations and artifact writes: the floor
+        // must hold here too.
+        final createdAt = DateTime.utc(2026, 8, 1);
+        final future = DateTime.now().toUtc().add(const Duration(hours: 1));
+        final futureMessage = ChatMessage(
+          id: 'u1',
+          role: 'user',
+          content: 'from the future',
+          conversationId: 'topic',
+          timestamp: future,
+        );
+        await repository.putMigrationBatch(
+          conversations: [
+            Conversation(
+              id: 'topic',
+              title: 'Topic',
+              createdAt: createdAt,
+              updatedAt: createdAt,
+              messageIds: const ['u1'],
+            ),
+          ],
+          messages: [(message: futureMessage, messageOrder: 0)],
+          toolEventsByMessageId: const {},
+          geminiSignaturesByMessageId: const {},
+        );
+
+        await repository.updateMessageFields('u1', translation: 'bonjour');
+
+        final stored = rawUpdatedAt('u1') as int?;
+        expect(stored, isNotNull);
+        expect(
+          stored,
+          greaterThanOrEqualTo(future.microsecondsSinceEpoch),
+          reason: 'updated_at must never sit below the row timestamp',
+        );
+      },
+    );
   });
 }

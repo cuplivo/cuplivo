@@ -6224,38 +6224,55 @@ class ChatDatabaseRepository {
     int? cachedTokens,
     int? durationMs,
   }) {
-    final companion = MessageRowsCompanion(
-      updatedAt: Value(DateTime.now().toUtc()),
-      totalTokens: totalTokens != null
-          ? Value(totalTokens)
-          : const Value.absent(),
-      isStreaming: isStreaming != null
-          ? Value(isStreaming)
-          : const Value.absent(),
-      reasoningStartAt: reasoningStartAt != null
-          ? Value(reasoningStartAt)
-          : const Value.absent(),
-      reasoningFinishedAt: reasoningFinishedAt != null
-          ? Value(reasoningFinishedAt)
-          : const Value.absent(),
-      translation: translation != null
-          ? Value(translation)
-          : const Value.absent(),
-      reasoningSegmentsJson: reasoningSegmentsJson != null
-          ? Value(reasoningSegmentsJson)
-          : const Value.absent(),
-      promptTokens: promptTokens != null
-          ? Value(promptTokens)
-          : const Value.absent(),
-      completionTokens: completionTokens != null
-          ? Value(completionTokens)
-          : const Value.absent(),
-      cachedTokens: cachedTokens != null
-          ? Value(cachedTokens)
-          : const Value.absent(),
-      durationMs: durationMs != null ? Value(durationMs) : const Value.absent(),
-    );
     return _db.transaction(() async {
+      // Built inside the transaction because updated_at is floored at the
+      // row's own timestamp, exactly as [_messageUpdate] floors it: the
+      // effective LWW clock is COALESCE(updated_at, timestamp), and an edit on
+      // this device must not lower the clock of a message authored under a
+      // skewed (future) peer clock, or the peer's untouched copy would win the
+      // next exchange and revert the edit on both devices.
+      final existing = await (_db.select(_db.messageRows)
+            ..where((row) => row.id.equals(messageId))
+            ..limit(1))
+          .getSingleOrNull();
+      if (existing == null) return null;
+      final now = DateTime.now().toUtc();
+      final updatedAt = now.isBefore(existing.timestamp)
+          ? existing.timestamp
+          : now;
+      final companion = MessageRowsCompanion(
+        updatedAt: Value(updatedAt),
+        totalTokens: totalTokens != null
+            ? Value(totalTokens)
+            : const Value.absent(),
+        isStreaming: isStreaming != null
+            ? Value(isStreaming)
+            : const Value.absent(),
+        reasoningStartAt: reasoningStartAt != null
+            ? Value(reasoningStartAt)
+            : const Value.absent(),
+        reasoningFinishedAt: reasoningFinishedAt != null
+            ? Value(reasoningFinishedAt)
+            : const Value.absent(),
+        translation: translation != null
+            ? Value(translation)
+            : const Value.absent(),
+        reasoningSegmentsJson: reasoningSegmentsJson != null
+            ? Value(reasoningSegmentsJson)
+            : const Value.absent(),
+        promptTokens: promptTokens != null
+            ? Value(promptTokens)
+            : const Value.absent(),
+        completionTokens: completionTokens != null
+            ? Value(completionTokens)
+            : const Value.absent(),
+        cachedTokens: cachedTokens != null
+            ? Value(cachedTokens)
+            : const Value.absent(),
+        durationMs: durationMs != null
+            ? Value(durationMs)
+            : const Value.absent(),
+      );
       await (_db.update(
         _db.messageRows,
       )..where((t) => t.id.equals(messageId))).write(companion);

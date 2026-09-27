@@ -45,6 +45,13 @@ void main() {
 
       await settings.loaded;
 
+      // 手动 is the default and resolves to a disabled config, because the
+      // editor is the only compression surface there. The preset table below
+      // is 自动's semantics, so select it explicitly.
+      expect(settings.imageCompressionMode, ImageCompressionMode.manual);
+      expect(settings.resolveImageCompressConfig().enabled, isFalse);
+      await settings.setImageCompressionMode(ImageCompressionMode.auto);
+
       expect(settings.imageUploadQuality, ImageUploadQuality.balanced);
       expect(settings.imageCompressCustomQuality, 85);
       expect(settings.imageCompressTransparentEnabled, isFalse);

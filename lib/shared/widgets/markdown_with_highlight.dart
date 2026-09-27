@@ -3570,8 +3570,15 @@ class _MarkdownTableBlockState extends State<_MarkdownTableBlock> {
   static const int _initialRows = 40;
   static const int _rowPageSize = 100;
   final GlobalKey _tableBoundaryKey = GlobalKey();
+  final ScrollController _horizontalScrollController = ScrollController();
   int _visibleRows = _initialRows;
   bool _capturingTableImage = false;
+
+  @override
+  void dispose() {
+    _horizontalScrollController.dispose();
+    super.dispose();
+  }
 
   _MarkdownTableData get rows => widget.rows;
   TextStyle get style => widget.style;
@@ -3840,6 +3847,7 @@ class _MarkdownTableBlockState extends State<_MarkdownTableBlock> {
     if (!scrollable) return child;
     return SingleChildScrollView(
       key: const ValueKey('markdown-table-horizontal-scroll'),
+      controller: _horizontalScrollController,
       scrollDirection: Axis.horizontal,
       primary: false,
       physics: const ClampingScrollPhysics(),

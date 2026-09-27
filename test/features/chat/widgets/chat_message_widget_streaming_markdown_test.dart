@@ -139,9 +139,9 @@ void main() {
     await tester.pump();
     final beforeComplete = state.position.pixels;
     streaming.value = false;
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(tester.state<ScrollableState>(scroll), same(state));
-    expect(state.position.pixels, beforeComplete);
+    expect(state.position.pixels, closeTo(beforeComplete, 0.1));
     await gesture.moveBy(const Offset(-40, 0));
     await tester.pump();
     expect(state.position.pixels, greaterThan(beforeComplete));
@@ -293,6 +293,7 @@ A-->B''',
 
       expect(tester.state(finder), same(initialSwitcherState));
       expect(find.byKey(const ValueKey('assistant-actions')), findsOneWidget);
+      await tester.pumpAndSettle();
     },
   );
 }

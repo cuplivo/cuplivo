@@ -21,6 +21,7 @@ import 'package:Cuplivo/core/services/sync/sync_engine.dart';
 import 'package:Cuplivo/core/services/sync/sync_identity.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:Cuplivo/core/services/sync/sync_pair_qr.dart';
+import 'package:Cuplivo/core/services/sync/sync_server.dart';
 import 'package:Cuplivo/core/services/sync/sync_store.dart';
 import 'package:Cuplivo/features/sync/widgets/sync_pairing_dialogs.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
@@ -626,6 +627,109 @@ void main() {
     );
     expect(idleStatus, HttpStatus.forbidden);
     expect(idleBody, contains('invalid_pin'));
+  });
+
+  test('a half-sent /pair body does not wedge the listener', () async {
+    // The request loop is serial: a body that announces itself and then stops
+    // arriving used to hold it forever, so no pairing and no sync request was
+    // ever served again. The route deadline frees the loop; the short budget
+    // here is the test seam for the same path.
+    final b = _Side('b');
+    await b.start(root);
+    sides.add(b);
+    final server = SyncServer(
+      identity: b.identity,
+      store: b.store,
+      handler: b.engine,
+      deadlineFor: (_) => const Duration(milliseconds: 300),
+    );
+    final port = await server.start(address: '127.0.0.1', requestedPort: 0);
+    addTearDown(server.stop);
+
+    final socket = await SecureSocket.connect(
+      '127.0.0.1',
+      port,
+      onBadCertificate: (_) => true,
+    );
+    socket.write(
+      'POST /pair HTTP/1.1\r\n'
+      'Host: 127.0.0.1\r\n'
+      'Content-Type: application/json\r\n'
+      'Content-Length: 100000\r\n'
+      '\r\n'
+      '{"',
+    );
+    await socket.flush();
+
+    // A normal request is served while the partial one is still open.
+    final client = HttpClient()
+      ..badCertificateCallback = (cert, host, port) => true;
+    try {
+      final request = await client.postUrl(
+        Uri.parse('https://127.0.0.1:$port/pair'),
+      );
+      request.headers.contentType = ContentType.json;
+      request.write('{"hello": "world"}');
+      final response = await request.close();
+      await response.drain<void>();
+      expect(response.statusCode, HttpStatus.badRequest);
+    } finally {
+      client.close(force: true);
+    }
+
+    // And the stalled request itself is answered with the timeout status. The
+    // five-second guard is what makes a regression fail fast instead of
+    // hanging: with the deadline gone, the answer only arrives after the
+    // production budget. The bytes are read raw — the body is gzipped JSON, but
+    // the status line is plain ASCII.
+    final raw = await socket
+        .cast<List<int>>()
+        .expand((chunk) => chunk)
+        .toList()
+        .timeout(const Duration(seconds: 5));
+    final head = latin1.decode(raw.take(512).toList(), allowInvalid: true);
+    expect(head, contains('504'));
+    socket.destroy();
+  });
+
+  test('a request against a peer that stops answering times out', () async {
+    // Trigger (a) of the review: a peer that completes the handshake and then
+    // stalls must not leave the caller's await pending forever — the provider's
+    // busyDeviceIds would stay set and automatic rounds would stop for the life
+    // of the process.
+    final (a, b) = await pair();
+    final silent = await HttpServer.bindSecure(
+      InternetAddress.loopbackIPv4,
+      0,
+      b.identity.buildContext(),
+      requestClientCertificate: false,
+    );
+    addTearDown(() => silent.close(force: true));
+
+    final session = a.engine.client.openSession(
+      await a.peer(b),
+      host: '127.0.0.1',
+      port: silent.port,
+      helloDeadline: const Duration(milliseconds: 300),
+    );
+    final started = DateTime.now();
+    Object? failure;
+    try {
+      await session.hello(
+        a.hello(),
+      ).timeout(const Duration(seconds: 10));
+    } catch (error) {
+      failure = error;
+    }
+    final elapsed = DateTime.now().difference(started);
+    session.close();
+
+    expect(failure, isA<TimeoutException>());
+    expect(
+      elapsed,
+      lessThan(const Duration(seconds: 5)),
+      reason: 'the request deadline must be what ends the wait',
+    );
   });
 
   testWidgets('the pairing code dialog cannot be dismissed by a gesture', (

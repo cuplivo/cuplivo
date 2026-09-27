@@ -29,6 +29,17 @@ class SyncClientException implements Exception {
   String toString() => 'SyncClientException($statusCode): $message';
 }
 
+/// Default request budgets (see [SyncClientSession]). The control beats answer
+/// in milliseconds on a LAN; the data beats are sized for a large push.
+const Duration kSyncHelloDeadline = Duration(seconds: 60);
+const Duration kSyncDataDeadline = Duration(minutes: 20);
+const Duration kSyncBlobDeadline = Duration(minutes: 15);
+
+/// Budget for the pairing round: one control request against a device the user
+/// is standing in front of, so the provider's `unreachable` wording stays
+/// reachable instead of an `await` that never settles.
+const Duration kSyncPairDeadline = Duration(seconds: 60);
+
 /// The result of a hello: either the peer's hello or its refusal.
 class SyncHelloOutcome {
   final SyncHello? hello;
@@ -90,8 +101,8 @@ class SyncClient {
         'certPem': identity.certPem,
         if (listenPort != null) 'listenPort': listenPort,
       });
-      final response = await request.close();
-      final body = await _readJson(response);
+      final response = await request.close().timeout(kSyncPairDeadline);
+      final body = await _readJson(response).timeout(kSyncPairDeadline);
       if (response.statusCode != HttpStatus.ok) {
         throw SyncClientException(
           (body?['error'] ?? 'pair_failed').toString(),
@@ -135,12 +146,18 @@ class SyncClient {
     SyncPeerRecord peer, {
     required String host,
     required int port,
+    Duration helloDeadline = kSyncHelloDeadline,
+    Duration dataDeadline = kSyncDataDeadline,
+    Duration blobDeadline = kSyncBlobDeadline,
   }) {
     return SyncClientSession(
       _httpForPeer(peer),
       'https://$host:$port',
       deviceId: identity.deviceId,
       token: peer.secret,
+      helloDeadline: helloDeadline,
+      dataDeadline: dataDeadline,
+      blobDeadline: blobDeadline,
     );
   }
 
@@ -219,12 +236,22 @@ class SyncClient {
 }
 
 /// One bounded sync session from the initiator's side.
+///
+/// Every request runs under a deadline. The peer is on the same LAN, so a
+/// request that does not answer within one is not slow — it is gone (Wi-Fi
+/// dropped, process killed). Without a deadline the caller's `await` never
+/// settles: the provider's `busyDeviceIds` would stay set and automatic rounds
+/// would stop for the life of the process. The deadlines are injectable so a
+/// test can drive the stalled-peer paths without waiting one out.
 class SyncClientSession {
   SyncClientSession(
     this._client,
     this._baseUrl, {
     required String deviceId,
     required String token,
+    this.helloDeadline = kSyncHelloDeadline,
+    this.dataDeadline = kSyncDataDeadline,
+    this.blobDeadline = kSyncBlobDeadline,
   }) : // Public names omit the private-field prefix (ChatService convention).
        // ignore: prefer_initializing_formals
        _deviceId = deviceId,
@@ -236,9 +263,21 @@ class SyncClientSession {
   final String _deviceId;
   final String _token;
 
+  /// Budget for the control beats: the hello carries a manifest, nothing more.
+  final Duration helloDeadline;
+
+  /// Budget for a push or a fetch: rows for every conversation in play.
+  final Duration dataDeadline;
+
+  /// Budget for one blob: a file up to the import cap, or a skill's zip.
+  final Duration blobDeadline;
+
   Future<SyncHelloOutcome> hello(SyncHello mine) async {
-    final response = await _post('/sync/hello', mine.toJson());
-    final body = await SyncClient._readJson(response);
+    final response = await _post(
+      '/sync/hello',
+      mine.toJson(),
+    ).timeout(helloDeadline);
+    final body = await SyncClient._readJson(response).timeout(helloDeadline);
     if (response.statusCode == HttpStatus.conflict && body != null) {
       return SyncHelloOutcome(null, SyncHelloRefusal.fromJson(body));
     }
@@ -265,8 +304,11 @@ class SyncClientSession {
   /// device. Runs even for an empty request: the responder finalises its own
   /// plan (deletions, checkpoint, report) inside this beat.
   Future<SyncDeltaBatch> fetchSubtrees(SyncFetchRequest request) async {
-    final response = await _post('/sync/subtrees', request.toJson());
-    final body = await SyncClient._readJson(response);
+    final response = await _post(
+      '/sync/subtrees',
+      request.toJson(),
+    ).timeout(dataDeadline);
+    final body = await SyncClient._readJson(response).timeout(dataDeadline);
     if (response.statusCode != HttpStatus.ok || body == null) {
       throw SyncClientException(
         (body?['error'] ?? 'fetch_failed').toString(),
@@ -280,8 +322,11 @@ class SyncClientSession {
   /// The answer is an acknowledgement, not a receipt: the responder reports
   /// what it deferred, and only confirmed state may advance the checkpoint.
   Future<SyncApplyAck> pushDelta(SyncDeltaBatch batch) async {
-    final response = await _put('/sync/subtrees', batch.toJson());
-    final body = await SyncClient._readJson(response);
+    final response = await _put(
+      '/sync/subtrees',
+      batch.toJson(),
+    ).timeout(dataDeadline);
+    final body = await SyncClient._readJson(response).timeout(dataDeadline);
     if (response.statusCode != HttpStatus.ok || body == null) {
       throw SyncClientException(
         (body?['error'] ?? 'push_failed').toString(),
@@ -305,7 +350,7 @@ class SyncClientSession {
       Uri.parse('$_baseUrl${SyncServer.blobPathPrefix}${entry.contentHash}'),
     );
     _authenticate(request);
-    final response = await request.close();
+    final response = await request.close().timeout(blobDeadline);
     if (response.statusCode != HttpStatus.ok) {
       // Drain so the connection can be reused/closed cleanly.
       await response.drain<void>();
@@ -319,7 +364,9 @@ class SyncClientSession {
     var received = 0;
     final sink = destination.openWrite();
     try {
-      await for (final chunk in response) {
+      // A stream that goes silent is the stalled-peer case: inactivity, not
+      // total size, is what a blob transfer must not wait out forever.
+      await for (final chunk in response.timeout(blobDeadline)) {
         conversion.add(chunk);
         received += chunk.length;
         sink.add(chunk);

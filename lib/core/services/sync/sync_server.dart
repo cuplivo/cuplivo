@@ -148,11 +148,17 @@ class SyncServer {
     required this.identity,
     required this.store,
     required this.handler,
-  });
+    Duration Function(String path)? deadlineFor,
+  }) : _deadlineForOverride = deadlineFor;
 
   final SyncDeviceIdentity identity;
   final SyncStore store;
   final SyncServerHandler handler;
+
+  /// Test seam for the route budgets: a test that proves the recovery from a
+  /// stalled request must not wait a real one out. Production leaves it null
+  /// and gets [_defaultDeadlineFor].
+  final Duration Function(String path)? _deadlineForOverride;
 
   HttpServer? _server;
   int? get port => _server?.port;
@@ -205,9 +211,20 @@ class SyncServer {
   }
 
   Future<void> _serve(HttpServer server) async {
+    // The request loop is serial, so one handler that never returns stops
+    // every later request — pairing included — for the life of the process.
+    // Each route therefore runs under a deadline: a stalled peer (Wi-Fi gone,
+    // process killed) or a body that stops arriving mid-request is answered
+    // and abandoned instead of holding the loop.
     await for (final request in server) {
       try {
-        await _route(request);
+        await _route(request).timeout(_deadlineFor(request.uri.path));
+      } on TimeoutException {
+        _safeRespond(request, HttpStatus.gatewayTimeout, {'error': 'timeout'});
+      } on _RequestBodyTooLarge {
+        _safeRespond(request, HttpStatus.requestEntityTooLarge, {
+          'error': 'body_too_large',
+        });
       } catch (error, stack) {
         _safeRespond(request, HttpStatus.internalServerError, {
           'error': '$error',
@@ -217,6 +234,24 @@ class SyncServer {
       }
     }
   }
+
+  /// A route's total budget. These are backstops against a peer that stops
+  /// answering, not performance targets: the data routes are sized for a large
+  /// push and the reverse blob pulls the responder performs inside it.
+  static const _pairDeadline = Duration(seconds: 60);
+  static const _helloDeadline = Duration(seconds: 60);
+  static const _revokeDeadline = Duration(seconds: 30);
+  static const _dataDeadline = Duration(minutes: 30);
+
+  Duration _deadlineFor(String path) =>
+      _deadlineForOverride?.call(path) ?? _defaultDeadlineFor(path);
+
+  static Duration _defaultDeadlineFor(String path) => switch (path) {
+    '/pair' => _pairDeadline,
+    '/sync/hello' => _helloDeadline,
+    '/sync/revoke' => _revokeDeadline,
+    _ => _dataDeadline,
+  };
 
   Future<void> _route(HttpRequest request) async {
     if (request.uri.path == '/pair') {
@@ -351,7 +386,7 @@ class SyncServer {
       });
       return;
     }
-    final body = await _readJson(request);
+    final body = await _readJson(request, maxBytes: _syncMaxBodyBytes);
     if (body == null) {
       _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
       return;
@@ -405,7 +440,7 @@ class SyncServer {
 
   Future<void> _handleSubtrees(HttpRequest request, String peerDeviceId) async {
     if (request.method == 'PUT') {
-      final body = await _readJson(request);
+      final body = await _readJson(request, maxBytes: _syncMaxBodyBytes);
       if (body == null) {
         _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
         return;
@@ -418,7 +453,7 @@ class SyncServer {
       return;
     }
     if (request.method == 'POST') {
-      final body = await _readJson(request);
+      final body = await _readJson(request, maxBytes: _syncMaxBodyBytes);
       if (body == null) {
         _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
         return;
@@ -453,6 +488,13 @@ class SyncServer {
   /// so this is the one body an unauthenticated host controls; a real pairing
   /// request (certificate PEM + metadata) is a few KB.
   static const int _pairMaxBodyBytes = 64 * 1024;
+
+  /// Cap on an authenticated `/sync/*` JSON body, counted after decompression.
+  /// Only a paired peer reaches these routes, so the cap is not a defense
+  /// against a hostile LAN host — it bounds what a buggy or wedged peer can
+  /// make this device allocate. A push body carries rows (skill bodies travel
+  /// as blobs, not in the body), so this sits far above any real batch.
+  static const int _syncMaxBodyBytes = 256 * 1024 * 1024;
 
   /// Reads and decodes one JSON object body. Null means the body was not a
   /// decodable JSON object (the caller answers 400). A body whose wire or

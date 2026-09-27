@@ -4408,5 +4408,184 @@
   "lanSyncFirewallHint": "端口 {port} 的入站规则需要一次管理员授权。",
   "lanSyncFirewallFix": "允许访问（UAC）",
   "lanSyncFirewallFixed": "入站访问已允许。",
-  "lanSyncKnownLimits": "目前：工作区仍只留在创建它的设备上；PIN 配对请仅在可信网络中使用。"
+  "lanSyncKnownLimits": "目前：工作区仍只留在创建它的设备上；PIN 配对请仅在可信网络中使用。",
+
+  "assistantEditProactiveCareEnableTitle": "主动关怀",
+  "@assistantEditProactiveCareEnableTitle": {
+    "description": "主动关怀开关标题"
+  },
+  "assistantEditProactiveCareDefaultDescription": "未单独设置的对话默认跟随此开关",
+  "@assistantEditProactiveCareDefaultDescription": {
+    "description": "说明助手主动关怀开关只是对话默认值"
+  },
+  "assistantEditProactiveCareDecisionHistoryLimitTitle": "时间决策所用消息条数",
+  "@assistantEditProactiveCareDecisionHistoryLimitTitle": {
+    "description": "主动关怀时间决策历史消息数量限制标题"
+  },
+  "assistantEditProactiveCareDecisionHistoryLimitDescription": "决定下次主动发消息时间时，最多发送给决策模型的最近历史消息数量",
+  "@assistantEditProactiveCareDecisionHistoryLimitDescription": {
+    "description": "主动关怀时间决策历史消息数量限制说明"
+  },
+  "assistantEditProactiveCareConversationTimesTitle": "各对话下次来信时间",
+  "@assistantEditProactiveCareConversationTimesTitle": {
+    "description": "对话主动关怀时间折叠区域标题"
+  },
+  "assistantEditProactiveCareNoEligibleConversations": "此助手暂无已开启的对话",
+  "@assistantEditProactiveCareNoEligibleConversations": {
+    "description": "助手对话主动关怀时间列表空状态"
+  },
+  "assistantEditProactiveCareConversationTimeFuture": "未来 · {time}",
+  "@assistantEditProactiveCareConversationTimeFuture": {
+    "description": "对话主动关怀时间为未来时的状态",
+    "placeholders": {"time": {"type": "String"}}
+  },
+  "assistantEditProactiveCareConversationTimeExpired": "已过期 · {time}",
+  "@assistantEditProactiveCareConversationTimeExpired": {
+    "description": "对话主动关怀时间已过期时的状态",
+    "placeholders": {"time": {"type": "String"}}
+  },
+  "assistantEditProactiveCareConversationTimeUnset": "未设置",
+  "@assistantEditProactiveCareConversationTimeUnset": {
+    "description": "已开启对话未设置主动关怀时间时的状态"
+  },
+  "assistantEditProactiveCarePermissionsTitle": "Android 运行条件",
+  "@assistantEditProactiveCarePermissionsTitle": {
+    "description": "Android 主动关怀运行条件折叠区域标题"
+  },
+  "assistantEditProactiveCareNotificationsTitle": "通知",
+  "@assistantEditProactiveCareNotificationsTitle": {
+    "description": "Android 应用通知和主动关怀通知渠道状态行"
+  },
+  "assistantEditProactiveCareExactAlarmTitle": "精确闹钟",
+  "@assistantEditProactiveCareExactAlarmTitle": {
+    "description": "Android 精确闹钟状态行"
+  },
+  "assistantEditProactiveCareAutoStartTitle": "自启动",
+  "@assistantEditProactiveCareAutoStartTitle": {
+    "description": "Android 自启动设置行"
+  },
+  "assistantEditProactiveCareBatteryTitle": "忽略电池优化",
+  "@assistantEditProactiveCareBatteryTitle": {
+    "description": "Android 忽略电池优化状态行"
+  },
+  "assistantEditProactiveCarePermissionRequired": "必需",
+  "@assistantEditProactiveCarePermissionRequired": {
+    "description": "标记 Android 主动关怀必需设置"
+  },
+  "assistantEditProactiveCarePermissionRecommended": "建议",
+  "@assistantEditProactiveCarePermissionRecommended": {
+    "description": "标记 Android 主动关怀建议设置"
+  },
+  "assistantEditProactiveCarePermissionReady": "已就绪",
+  "@assistantEditProactiveCarePermissionReady": {
+    "description": "Android 主动关怀设置已就绪"
+  },
+  "assistantEditProactiveCarePermissionMissing": "点击获取权限",
+  "@assistantEditProactiveCarePermissionMissing": {
+    "description": "Android 主动关怀设置未开启"
+  },
+  "assistantEditProactiveCarePermissionManual": "需手动确认",
+  "@assistantEditProactiveCarePermissionManual": {
+    "description": "Android 主动关怀设置需手动确认"
+  },
+  "assistantEditProactiveCarePermissionUnknown": "未知",
+  "@assistantEditProactiveCarePermissionUnknown": {
+    "description": "无法确定 Android 主动关怀设置状态"
+  },
+  "assistantEditProactiveCareNextMessageTimeTitle": "下次助手主动发消息时间",
+  "@assistantEditProactiveCareNextMessageTimeTitle": {
+    "description": "下次主动发消息时间标签"
+  },
+  "assistantEditProactiveCareNextMessageTimeUnset": "未设置",
+  "@assistantEditProactiveCareNextMessageTimeUnset": {
+    "description": "未设置主动发消息时间时显示"
+  },
+  "assistantEditProactiveCarePromptTitle": "主动关怀提示词",
+  "@assistantEditProactiveCarePromptTitle": {
+    "description": "主动关怀提示词编辑器标题"
+  },
+  "assistantEditProactiveCarePromptHint": "助手主动发消息时使用的提示词",
+  "@assistantEditProactiveCarePromptHint": {
+    "description": "主动关怀提示词输入框提示"
+  },
+  "assistantEditProactiveCarePromptDefault": "请根据助手的角色设定、上下文、以及目前时间，给用户发一条消息",
+  "@assistantEditProactiveCarePromptDefault": {
+    "description": "默认主动关怀提示词"
+  },
+  "assistantEditProactiveCareDecisionPromptTitle": "决策时间功能说明提示词",
+  "@assistantEditProactiveCareDecisionPromptTitle": {
+    "description": "决策提示词编辑器标题"
+  },
+  "assistantEditProactiveCareDecisionPromptDefault": "你是一个角色扮演场景的导演，负责判断助手（assistant）下一次应主动向用户发消息的时间。\n\n【功能说明】\n· 主动发消息：助手可在设定时间主动向用户发送消息，无需用户提问。\n· 若不设置主动发消息的时间，则助手无法在用户不发言的情况下主动发送任何消息。\n· 你需要评估当前设定的下次发消息时间：若认为无需调整，则保持原时间；否则进行修改。\n\n【注意】\n· 只考虑助手的视角看到的信息，不考虑用户的视角。\n\n【考虑角度】\n1. 助手在睡醒、完成某件事、安全回到宿舍等情况下，应主动向用户报备或打招呼。\n2. 若上下文中提到助手因睡着、忙碌等原因未能及时查看用户的消息，则应设定在助手睡醒或忙完后，主动给用户发一条消息。\n3. 若上下文中提到助手需要在某个时间点监督或提醒用户，则设定在该时间点主动发消息。\n4. 当一个话题尚未聊完时，需要假设：用户在助手最后一条消息发出后始终没有回复，那么助手应在什么时间主动发消息？请据此设定时间。\n\n【示例】\n1. 聊天记录中，用户凌晨发消息称自己失眠，预计早上10:30起床，但助手没有失眠，会按正常时间（如8:30）起床。此时应将主动发消息时间设为助手的起床时间。\n2. 聊天记录中，用户与助手正在聊考试话题。你在8:30看到的最后一条消息是助手在8:30发出的一个提问。依据第4条规则，需考虑用户一直未回复的情况，助手应在10分钟之内主动发消息追问。",
+  "@assistantEditProactiveCareDecisionPromptDefault": {
+    "description": "默认决策时间提示词"
+  },
+  "assistantEditProactiveCareDateTimePickerTitle": "选择日期和时间",
+  "@assistantEditProactiveCareDateTimePickerTitle": {
+    "description": "日期时间选择器标题"
+  },
+  "assistantEditProactiveCareTimeMustBeFuture": "请选择未来的时间。",
+  "@assistantEditProactiveCareTimeMustBeFuture": {
+    "description": "主动关怀时间已不是未来时间时的提示"
+  },
+  "conversationProactiveCareTitle": "对话主动关怀",
+  "@conversationProactiveCareTitle": {
+    "description": "对话级主动关怀标题和输入栏操作标签"
+  },
+  "conversationProactiveCareFollowingAssistantOn": "跟随助手设置：已开启",
+  "@conversationProactiveCareFollowingAssistantOn": {
+    "description": "对话继承助手已开启主动关怀设置时的状态"
+  },
+  "conversationProactiveCareFollowingAssistantOff": "跟随助手设置：已关闭",
+  "@conversationProactiveCareFollowingAssistantOff": {
+    "description": "对话继承助手已关闭主动关怀设置时的状态"
+  },
+  "conversationProactiveCareExplicitOn": "对话设置：已开启",
+  "@conversationProactiveCareExplicitOn": {
+    "description": "对话主动关怀已明确开启时的状态"
+  },
+  "conversationProactiveCareExplicitOff": "对话设置：已关闭",
+  "@conversationProactiveCareExplicitOff": {
+    "description": "对话主动关怀已明确关闭时的状态"
+  },
+  "conversationProactiveCareRestoreFollowing": "跟随助手设置",
+  "@conversationProactiveCareRestoreFollowing": {
+    "description": "清除对话主动关怀覆盖设置的操作"
+  },
+  "conversationProactiveCareClearTime": "清除下次发消息时间",
+  "@conversationProactiveCareClearTime": {
+    "description": "清除对话主动关怀时间的操作"
+  },
+  "conversationProactiveCareUpdateFailed": "无法更新对话主动关怀设置。",
+  "@conversationProactiveCareUpdateFailed": {
+    "description": "更新对话主动关怀失败时的错误提示"
+  },
+  "assistantEditProactiveCareExactAlarmPermissionDenied": "未授予精确闹钟权限，主动关怀无法按时唤醒应用，请在系统设置中允许「闹钟和提醒」。",
+  "@assistantEditProactiveCareExactAlarmPermissionDenied": {
+    "description": "精确闹钟权限被拒绝时的警告"
+  },
+  "assistantEditProactiveCareNotificationPermissionDenied": "未授予通知权限，主动关怀消息将无法通知你，请在系统设置中开启通知。",
+  "@assistantEditProactiveCareNotificationPermissionDenied": {
+    "description": "通知权限被拒绝时的警告"
+  },
+  "defaultModelPageProactiveCareModelTitle": "Ta的来信决策模型",
+  "@defaultModelPageProactiveCareModelTitle": {
+    "description": "主动关怀决策模型卡片标题"
+  },
+  "defaultModelPageProactiveCareModelSubtitle": "用于决定助手何时主动发消息的模型",
+  "@defaultModelPageProactiveCareModelSubtitle": {
+    "description": "主动关怀决策模型卡片副标题"
+  },
+  "proactiveCareFailedNotificationBody": "主动关怀消息生成失败，请打开应用检查模型配置与网络。",
+  "@proactiveCareFailedNotificationBody": {
+    "description": "主动关怀消息生成失败时的通知内容"
+  },
+"assistantEditPageRoleplayTab": "角色扮演",
+  "@assistantEditPageRoleplayTab": {
+    "description": "Assistant edit page tab for roleplay features (Their Letter)"
+  },
+"assistantEditProactiveCareFeatureTitle": "Ta的来信",
+  "@assistantEditProactiveCareFeatureTitle": {
+    "description": "Feature header for the proactive care (Their Letter) section"
+  }
 }

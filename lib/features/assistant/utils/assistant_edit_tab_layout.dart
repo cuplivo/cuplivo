@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 const String assistantEditTabBasic = 'basic';
 const String assistantEditTabPrompts = 'prompts';
 const String assistantEditTabMemory = 'memory';
@@ -7,6 +9,10 @@ const String assistantEditTabSkills = 'skills';
 const String assistantEditTabQuickPhrase = 'quickPhrase';
 const String assistantEditTabCustom = 'custom';
 const String assistantEditTabRegex = 'regex';
+
+/// Android-only roleplay tab ("角色扮演"): Ta的来信 and future roleplay
+/// features live here.
+const String assistantEditTabRoleplay = 'roleplay';
 
 const List<String> defaultAssistantEditTabIds = [
   assistantEditTabBasic,
@@ -19,6 +25,27 @@ const List<String> defaultAssistantEditTabIds = [
   assistantEditTabCustom,
   assistantEditTabRegex,
 ];
+
+/// Default tab order with the roleplay tab included, right after 记忆
+/// (memory) and before 本地工具 (local tools).
+const List<String> defaultAssistantEditTabIdsWithRoleplay = [
+  assistantEditTabBasic,
+  assistantEditTabPrompts,
+  assistantEditTabMemory,
+  assistantEditTabRoleplay,
+  assistantEditTabLocalTools,
+  assistantEditTabSkills,
+  assistantEditTabMcp,
+  assistantEditTabQuickPhrase,
+  assistantEditTabCustom,
+  assistantEditTabRegex,
+];
+
+/// The default order to use on this platform: the roleplay tab only exists
+/// on Android (it depends on Android letter alarms).
+List<String> platformDefaultAssistantEditTabIds() => Platform.isAndroid
+    ? defaultAssistantEditTabIdsWithRoleplay
+    : defaultAssistantEditTabIds;
 
 List<String> orderAssistantEditTabIds({
   required List<String> savedOrder,

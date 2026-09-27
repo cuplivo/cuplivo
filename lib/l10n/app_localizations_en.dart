@@ -12765,4 +12765,163 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get lanSyncKnownLimits =>
       'For now: workspaces stay on the device that created them, and PIN pairing should only be used on networks you trust.';
+
+  @override
+  String get assistantEditProactiveCareEnableTitle => 'Proactive Care';
+
+  @override
+  String get assistantEditProactiveCareDefaultDescription =>
+      'Default for conversations without an override';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      'Messages used for time decisions';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      'Maximum number of recent conversation messages sent to the model when deciding the next proactive message time';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle =>
+      'Conversation next-letter times';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations =>
+      'No enabled conversations for this assistant';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return 'Future · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return 'Expired · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => 'Unset';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android readiness';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => 'Notifications';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => 'Exact alarms';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => 'Auto-start';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle =>
+      'Battery optimization exemption';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => 'Required';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => 'Recommended';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => 'Ready';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => 'Tap to grant';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => 'Manual';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => 'Unknown';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeTitle =>
+      'Next proactive message time';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeUnset => 'Not set';
+
+  @override
+  String get assistantEditProactiveCarePromptTitle => 'Proactive care prompt';
+
+  @override
+  String get assistantEditProactiveCarePromptHint =>
+      'Prompt used when the assistant proactively sends a message';
+
+  @override
+  String get assistantEditProactiveCarePromptDefault =>
+      'Based on the assistant\'s character settings, conversation context, and the current time, send a message to the user.';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptTitle =>
+      'Decision time instruction prompt';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptDefault =>
+      'You are the director of a role-playing scenario, responsible for deciding when the assistant should next proactively message the user.\n\n[Feature description]\n· Proactive messaging: the assistant can send a message to the user at a scheduled time without waiting for the user to speak first.\n· If no proactive message time is set, the assistant cannot send any message while the user is silent.\n· Evaluate the currently scheduled next message time: keep it if no adjustment is needed; otherwise change it.\n\n[Note]\n· Only consider information visible from the assistant\'s perspective, not the user\'s.\n\n[Considerations]\n1. The assistant should proactively check in or greet the user after waking up, finishing a task, arriving safely at the dorm, etc.\n2. If the context mentions the assistant missed the user\'s messages due to sleeping or being busy, schedule a message for when the assistant wakes up or finishes.\n3. If the context mentions the assistant needs to supervise or remind the user at a specific time, schedule the message for that time.\n4. When a topic is unfinished, assume the user never replies after the assistant\'s last message — decide when the assistant should proactively follow up.\n\n[Examples]\n1. The user messaged at midnight saying they have insomnia and plan to wake at 10:30, but the assistant sleeps normally and wakes at 8:30. Set the proactive message time to the assistant\'s wake-up time.\n2. The user and assistant are discussing an exam. At 8:30 the last message is a question from the assistant. Per rule 4, assume the user never replies — the assistant should follow up within 10 minutes.';
+
+  @override
+  String get assistantEditProactiveCareDateTimePickerTitle =>
+      'Choose date and time';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture =>
+      'Choose a time in the future.';
+
+  @override
+  String get conversationProactiveCareTitle => 'Conversation proactive care';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn =>
+      'Following assistant setting: On';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff =>
+      'Following assistant setting: Off';
+
+  @override
+  String get conversationProactiveCareExplicitOn => 'Conversation setting: On';
+
+  @override
+  String get conversationProactiveCareExplicitOff =>
+      'Conversation setting: Off';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing =>
+      'Follow assistant setting';
+
+  @override
+  String get conversationProactiveCareClearTime => 'Clear next message time';
+
+  @override
+  String get conversationProactiveCareUpdateFailed =>
+      'Couldn\'t update conversation proactive care.';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmPermissionDenied =>
+      'Exact alarm permission not granted. Proactive care cannot wake the app on time. Please allow \"Alarms & reminders\" in system settings.';
+
+  @override
+  String get assistantEditProactiveCareNotificationPermissionDenied =>
+      'Notification permission not granted. Proactive care messages cannot notify you. Please enable notifications in system settings.';
+
+  @override
+  String get defaultModelPageProactiveCareModelTitle =>
+      'Ta\'s Letter Decision Model';
+
+  @override
+  String get defaultModelPageProactiveCareModelSubtitle =>
+      'Model used to decide when the assistant should proactively message';
+
+  @override
+  String get proactiveCareFailedNotificationBody =>
+      'Couldn\'t generate the proactive care message. Open the app to check the model settings and network.';
+
+  @override
+  String get assistantEditPageRoleplayTab => 'Roleplay';
+
+  @override
+  String get assistantEditProactiveCareFeatureTitle => 'Their Letter';
 }

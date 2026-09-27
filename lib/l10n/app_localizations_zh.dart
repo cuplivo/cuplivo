@@ -7888,6 +7888,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get imageSettingsPageQualitySectionTitle => '上传图片质量';
 
   @override
+  String get imageSettingsPageModeTitle => '压缩模式';
+
+  @override
+  String get imageSettingsPageModeManual => '手动';
+
+  @override
+  String get imageSettingsPageModeAuto => '自动';
+
+  @override
+  String get imageSettingsPageModeOff => '关闭';
+
+  @override
+  String get imageSettingsPageModeManualSubtitle => '图片按原样附加，点按图片自行压缩';
+
+  @override
+  String get imageSettingsPageModeAutoSubtitle => '附加图片时按下方预设自动压缩';
+
+  @override
+  String get imageSettingsPageModeOffSubtitle => '图片从不压缩';
+
+  @override
   String get imageSettingsPageQualityOriginal => '原图';
 
   @override
@@ -7930,6 +7951,78 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get imageSettingsPageFooter =>
       '压缩在添加图片时进行，已保存或已发送的图片不受影响；压缩后图片以 JPEG 格式随消息发送。';
+
+  @override
+  String get compressEditorTitle => '压缩图片';
+
+  @override
+  String get compressEditorFormatJpeg => 'JPEG';
+
+  @override
+  String get compressEditorFormatPng => 'PNG';
+
+  @override
+  String get compressEditorFormatOriginal => '原图';
+
+  @override
+  String get compressEditorLongEdgeLabel => '长边';
+
+  @override
+  String get compressEditorLongEdgeFull => '100%';
+
+  @override
+  String get compressEditorLongEdgeHalf => '50%';
+
+  @override
+  String get compressEditorLongEdgeQuarter => '25%';
+
+  @override
+  String get compressEditorQualityLabel => '质量';
+
+  @override
+  String get compressEditorOriginalSide => '原图';
+
+  @override
+  String get compressEditorEstimating => '正在估算体积…';
+
+  @override
+  String get compressEditorEstimateFailed => '无法估算体积';
+
+  @override
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
+  }
+
+  @override
+  String get compressEditorNoReencode => '不做重编码';
+
+  @override
+  String get compressEditorDecodeFailed => '此图片无法预览，因此无法重新压缩。';
+
+  @override
+  String get compressEditorTooLarge => '此图片过大，无法在编辑器中打开，因此无法在这里重新压缩；附件将按原样保留。';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return '源图 $source，为控制内存按 $percent% 载入';
+  }
+
+  @override
+  String get compressEditorCancel => '取消';
+
+  @override
+  String get compressEditorApply => '应用';
+
+  @override
+  String get compressEditorApplyAll => '应用到全部';
+
+  @override
+  String get compressEditorDone => '完成';
 
   @override
   String get imageSettingsPageSendSectionTitle => '发送';
@@ -19515,6 +19608,27 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get imageSettingsPageQualitySectionTitle => '上传图片质量';
 
   @override
+  String get imageSettingsPageModeTitle => '压缩模式';
+
+  @override
+  String get imageSettingsPageModeManual => '手动';
+
+  @override
+  String get imageSettingsPageModeAuto => '自动';
+
+  @override
+  String get imageSettingsPageModeOff => '关闭';
+
+  @override
+  String get imageSettingsPageModeManualSubtitle => '图片按原样附加，点按图片自行压缩';
+
+  @override
+  String get imageSettingsPageModeAutoSubtitle => '附加图片时按下方预设自动压缩';
+
+  @override
+  String get imageSettingsPageModeOffSubtitle => '图片从不压缩';
+
+  @override
   String get imageSettingsPageQualityOriginal => '原图';
 
   @override
@@ -19557,6 +19671,78 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String get imageSettingsPageFooter =>
       '压缩在添加图片时进行，已保存或已发送的图片不受影响；压缩后图片以 JPEG 格式随消息发送。';
+
+  @override
+  String get compressEditorTitle => '压缩图片';
+
+  @override
+  String get compressEditorFormatJpeg => 'JPEG';
+
+  @override
+  String get compressEditorFormatPng => 'PNG';
+
+  @override
+  String get compressEditorFormatOriginal => '原图';
+
+  @override
+  String get compressEditorLongEdgeLabel => '长边';
+
+  @override
+  String get compressEditorLongEdgeFull => '100%';
+
+  @override
+  String get compressEditorLongEdgeHalf => '50%';
+
+  @override
+  String get compressEditorLongEdgeQuarter => '25%';
+
+  @override
+  String get compressEditorQualityLabel => '质量';
+
+  @override
+  String get compressEditorOriginalSide => '原图';
+
+  @override
+  String get compressEditorEstimating => '正在估算体积…';
+
+  @override
+  String get compressEditorEstimateFailed => '无法估算体积';
+
+  @override
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
+  }
+
+  @override
+  String get compressEditorNoReencode => '不做重编码';
+
+  @override
+  String get compressEditorDecodeFailed => '此图片无法预览，因此无法重新压缩。';
+
+  @override
+  String get compressEditorTooLarge => '此图片过大，无法在编辑器中打开，因此无法在这里重新压缩；附件将按原样保留。';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return '源图 $source，为控制内存按 $percent% 载入';
+  }
+
+  @override
+  String get compressEditorCancel => '取消';
+
+  @override
+  String get compressEditorApply => '应用';
+
+  @override
+  String get compressEditorApplyAll => '应用到全部';
+
+  @override
+  String get compressEditorDone => '完成';
 
   @override
   String get imageSettingsPageSendSectionTitle => '发送';
@@ -31217,6 +31403,27 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get imageSettingsPageQualitySectionTitle => '上傳圖片品質';
 
   @override
+  String get imageSettingsPageModeTitle => '壓縮模式';
+
+  @override
+  String get imageSettingsPageModeManual => '手動';
+
+  @override
+  String get imageSettingsPageModeAuto => '自動';
+
+  @override
+  String get imageSettingsPageModeOff => '關閉';
+
+  @override
+  String get imageSettingsPageModeManualSubtitle => '圖片按原樣附加，點按圖片自行壓縮';
+
+  @override
+  String get imageSettingsPageModeAutoSubtitle => '附加圖片時按下方預設自動壓縮';
+
+  @override
+  String get imageSettingsPageModeOffSubtitle => '圖片從不壓縮';
+
+  @override
   String get imageSettingsPageQualityOriginal => '原圖';
 
   @override
@@ -31259,6 +31466,78 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get imageSettingsPageFooter =>
       '壓縮會在加入圖片時進行，已儲存或已傳送的圖片不受影響；壓縮後圖片會以 JPEG 格式隨訊息傳送。';
+
+  @override
+  String get compressEditorTitle => '壓縮圖片';
+
+  @override
+  String get compressEditorFormatJpeg => 'JPEG';
+
+  @override
+  String get compressEditorFormatPng => 'PNG';
+
+  @override
+  String get compressEditorFormatOriginal => '原圖';
+
+  @override
+  String get compressEditorLongEdgeLabel => '長邊';
+
+  @override
+  String get compressEditorLongEdgeFull => '100%';
+
+  @override
+  String get compressEditorLongEdgeHalf => '50%';
+
+  @override
+  String get compressEditorLongEdgeQuarter => '25%';
+
+  @override
+  String get compressEditorQualityLabel => '品質';
+
+  @override
+  String get compressEditorOriginalSide => '原圖';
+
+  @override
+  String get compressEditorEstimating => '正在估算體積…';
+
+  @override
+  String get compressEditorEstimateFailed => '無法估算體積';
+
+  @override
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
+  }
+
+  @override
+  String get compressEditorNoReencode => '不做重編碼';
+
+  @override
+  String get compressEditorDecodeFailed => '此圖片無法預覽，因此無法重新壓縮。';
+
+  @override
+  String get compressEditorTooLarge => '此圖片過大，無法在編輯器中開啟，因此無法在這裡重新壓縮；附件將按原樣保留。';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return '來源圖片 $source，為控制記憶體按 $percent% 載入';
+  }
+
+  @override
+  String get compressEditorCancel => '取消';
+
+  @override
+  String get compressEditorApply => '套用';
+
+  @override
+  String get compressEditorApplyAll => '套用到全部';
+
+  @override
+  String get compressEditorDone => '完成';
 
   @override
   String get imageSettingsPageSendSectionTitle => '傳送';

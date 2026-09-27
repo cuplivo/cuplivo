@@ -1107,6 +1107,133 @@ void main() {
     },
   );
 
+  test('an announced deletion does not remove a copy edited since', () async {
+    // The announcement carries the digest both sides last agreed on, so a
+    // local copy that has moved on since is an edit, and an edit beats a
+    // delete exactly as it does in the plan table: the deletion loses.
+    final (a, b) = await pair();
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(await _messageIds(b, 'conv-a'), {'conv-a-m0'});
+
+    await a.repository.deleteConversation('conv-a');
+    await b.repository.putMessage(
+      ChatMessage(
+        id: 'conv-a-m1',
+        conversationId: 'conv-a',
+        role: 'user',
+        content: 'edited on b',
+      ),
+    );
+
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(
+      await _messageIds(a, 'conv-a'),
+      contains('conv-a-m1'),
+      reason: 'the edit wins, so the announced deletion must not fire here',
+    );
+    expect(await _messageIds(b, 'conv-a'), contains('conv-a-m1'));
+  });
+
+  test(
+    'a fetch beat the initiator never applies keeps the responder copy',
+    () async {
+      // The fetch response is not acknowledged. This drives the beat by hand
+      // and throws the result away — an initiator killed between fetching and
+      // applying, with the responder's checkpoint already committed. Before the
+      // responder stopped advancing unconfirmed sends, the next sessions read
+      // the initiator's silence as a deletion and destroyed the only copy on
+      // both devices.
+      final (a, b) = await pair();
+      await _seedConversation(b, id: 'c1', contents: ['the only copy']);
+      expect(await _conversationIds(a), isEmpty);
+      final aPeer = await a.peer(b);
+
+      final session = a.engine.client.openSession(
+        aPeer,
+        host: '127.0.0.1',
+        port: b.port,
+      );
+      final hello = await session.hello(
+        SyncHello(
+          protocolVersion: kSyncProtocolVersion,
+          schemaVersion: a.dataPlane.schemaVersion,
+          deviceId: a.identity.deviceId,
+          deviceName: a.label,
+          platform: 'test',
+          manifest: await a.dataPlane.buildManifest(),
+          listenPort: a.port,
+          clockUs: DateTime.now().microsecondsSinceEpoch,
+        ),
+      );
+      expect(hello.hello, isNotNull, reason: 'the peer answered the hello');
+      final batch = await session.fetchSubtrees(
+        const SyncFetchRequest(conversationIds: ['c1']),
+      );
+      expect(
+        [for (final subtree in batch.subtrees) subtree.conversation['id']],
+        contains('c1'),
+        reason: 'the responder sent its conversation in this beat',
+      );
+      session.close();
+      expect(
+        await _conversationIds(a),
+        isEmpty,
+        reason: 'the batch was never applied (an interrupted initiator)',
+      );
+
+      // Ordinary sessions after that: B re-sends, A applies, and the entry
+      // appears once both manifests agree.
+      await a.engine.syncWithPeer(aPeer);
+      expect(await _conversationIds(a), contains('c1'));
+      expect(await _conversationIds(b), contains('c1'));
+
+      await a.engine.syncWithPeer(aPeer);
+      expect(await _conversationIds(a), contains('c1'));
+      expect(
+        await _conversationIds(b),
+        contains('c1'),
+        reason: 'an unacknowledged fetch is not a deletion on either device',
+      );
+    },
+  );
+
+  test('a skill body the peer never received is not a deleted skill', () async {
+    // Sending is not receipt, on the compound unit: a skill is a record plus
+    // its directory, and the receiver strips the record when the body cannot be
+    // fetched. The acknowledgement must say so, or the sender records the push
+    // as delivered and the next session deletes its own skill.
+    final (a, b) = await pair();
+    await a.putSkill('demo', {'SKILL.md': '# demo'});
+    expect(await a.hasSkillRow('demo'), isTrue);
+    final aPeer = await a.peer(b);
+
+    // The responder cannot reach the initiator's listener — the state the ADR
+    // documents for a Windows host whose firewall rule needed elevation. Every
+    // wanted blob fails, so the body is deferred and its record is deliberately
+    // not applied.
+    await a.engine.stop();
+    final first = await a.engine.syncWithPeer(aPeer);
+    expect(first.success, isTrue, reason: first.summary);
+    expect(
+      await b.hasSkillRow('demo'),
+      isFalse,
+      reason: 'the record is stripped while the body is missing',
+    );
+
+    // The next session must re-send: the peer's silence about a skill it never
+    // received is not a deletion of the sender's own skill.
+    await a.engine.syncWithPeer(aPeer);
+    expect(await a.hasSkillRow('demo'), isTrue);
+    expect(await a.skillBody('demo'), '# demo');
+
+    // With the listener reachable again the body lands and converges.
+    await a.engine.start(preferredPort: 0);
+    await a.engine.syncWithPeer(aPeer);
+    expect(await b.hasSkillRow('demo'), isTrue);
+    expect(await b.skillBody('demo'), '# demo');
+  });
+
   test('a deferred push never deletes the sender\'s own new message', () async {
     // Sending is not receipt. While B is generating in the conversation it
     // accepts the push and writes nothing; treating that as "B has it" made

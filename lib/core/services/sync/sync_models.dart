@@ -204,6 +204,17 @@ class SyncHello {
   /// as "never delivered", not as deleted here.
   final bool unappliedBusiness;
 
+  /// Conversations this device shared with the peer and no longer holds — a
+  /// deletion the peer has not confirmed yet — mapped to the digest both sides
+  /// last agreed on. A deletion is otherwise inferred from the peer's absence,
+  /// which cannot be told apart from "the peer never received it": this list
+  /// says which of the two it is, and the digest lets the receiver keep an edit
+  /// it made since (`edit beats delete`), exactly as the plan table does.
+  ///
+  /// Derived from the checkpoint rather than a separate table, so an entry
+  /// survives exactly as long as the peer has not caught up.
+  final Map<String, String> deletedConversations;
+
   const SyncHello({
     required this.protocolVersion,
     required this.schemaVersion,
@@ -215,6 +226,7 @@ class SyncHello {
     this.clockUs,
     this.unappliedConversations = const [],
     this.unappliedBusiness = false,
+    this.deletedConversations = const {},
   });
 
   Map<String, dynamic> toJson() => {
@@ -228,6 +240,7 @@ class SyncHello {
     if (clockUs != null) 'clockUs': clockUs,
     if (unappliedConversations.isNotEmpty) 'unapplied': unappliedConversations,
     if (unappliedBusiness) 'unappliedBusiness': true,
+    if (deletedConversations.isNotEmpty) 'deleted': deletedConversations,
   };
 
   static SyncHello fromJson(Map<String, dynamic> json) => SyncHello(
@@ -245,6 +258,13 @@ class SyncHello {
       for (final id in (json['unapplied'] as List? ?? const [])) id.toString(),
     ],
     unappliedBusiness: json['unappliedBusiness'] == true,
+    deletedConversations: {
+      for (final entry
+          in ((json['deleted'] as Map?)?.cast<String, dynamic>() ??
+                  const <String, dynamic>{})
+              .entries)
+        entry.key: entry.value.toString(),
+    },
   );
 }
 
@@ -621,16 +641,25 @@ class SyncApplyAck {
   /// Whether the responder deferred the whole business apply.
   final bool businessDeferred;
 
+  /// Skill records the responder received but did not apply because the body
+  /// did not land. A skill is a record *plus* its directory, and the receiver
+  /// strips the record when the body is missing — so the push delivered
+  /// nothing for it and the sender must not record it as peer-seen.
+  final Set<String> deferredSkills;
+
   const SyncApplyAck({
     required this.applied,
     this.deferred = const {},
     this.businessDeferred = false,
+    this.deferredSkills = const {},
   });
 
   Map<String, dynamic> toJson() => {
     'applied': applied,
     if (deferred.isNotEmpty) 'deferred': deferred.toList(growable: false),
     if (businessDeferred) 'businessDeferred': true,
+    if (deferredSkills.isNotEmpty)
+      'deferredSkills': deferredSkills.toList(growable: false),
   };
 
   static SyncApplyAck fromJson(Map<String, dynamic> json) => SyncApplyAck(
@@ -639,6 +668,10 @@ class SyncApplyAck {
       for (final id in (json['deferred'] as List? ?? const [])) id.toString(),
     },
     businessDeferred: json['businessDeferred'] == true,
+    deferredSkills: {
+      for (final id in (json['deferredSkills'] as List? ?? const []))
+        id.toString(),
+    },
   );
 }
 

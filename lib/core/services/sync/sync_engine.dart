@@ -317,6 +317,8 @@ class SyncEngine implements SyncServerHandler {
           clockUs: myClockUs,
           unappliedConversations: previous.unappliedConversations,
           unappliedBusiness: previous.unappliedBusiness,
+          // Deletions this device has not seen confirmed by the peer.
+          deletedConversations: _deletionsToAnnounce(previous, myManifest),
         ),
       );
       if (hello.refusal != null) {
@@ -351,15 +353,21 @@ class SyncEngine implements SyncServerHandler {
       }
 
       // Conversations the peer says it could not apply: its copy is stale or
-      // absent, so re-send rather than read its silence as a deletion.
+      // absent, so re-send rather than read its silence as a deletion. Its
+      // announced deletions are the mirror image and take precedence: they name
+      // deletions rather than absences.
       final peerUnapplied = peerHello.unappliedConversations.toSet();
-      final plan = _reSendUnapplied(
-        planSync(
-          mine: myManifest,
-          peers: peerHello.manifest,
-          checkpoint: previous,
+      final plan = _applyDeletionAnnouncements(
+        _reSendUnapplied(
+          planSync(
+            mine: myManifest,
+            peers: peerHello.manifest,
+            checkpoint: previous,
+          ),
+          peerUnapplied,
         ),
-        peerUnapplied,
+        peerHello.deletedConversations,
+        myManifest,
       );
       final businessPlan = _keepRowsPeerMayNeverHaveSeen(
         planBusinessSync(
@@ -436,6 +444,7 @@ class SyncEngine implements SyncServerHandler {
       // were would turn the peer's older copy into a deletion next session.
       var peerDeferred = const <String>{};
       var peerBusinessDeferred = false;
+      var peerDeferredSkills = const <String>{};
       if (outgoing.isNotEmpty || !outgoingBusiness.isEmpty) {
         // The blob manifest describes exactly what this push carries, so the
         // responder can ask for any asset it lacks before applying the rows.
@@ -460,6 +469,7 @@ class SyncEngine implements SyncServerHandler {
         );
         peerDeferred = ack.deferred;
         peerBusinessDeferred = ack.businessDeferred;
+        peerDeferredSkills = ack.deferredSkills;
       }
 
       final requested = [
@@ -619,13 +629,17 @@ class SyncEngine implements SyncServerHandler {
         failedDeleteKeys: failedBusinessDeletes,
         applyDeferred: businessOutcome.deferred,
         peerApplyDeferred: peerBusinessDeferred,
+        // A skill whose body never landed was stripped on the peer, so the
+        // push delivered nothing for it: keep the entry and re-send.
+        peerDeferredSkillIds: peerDeferredSkills,
       );
       // Read back after every apply: on both sides the local hash *is* the
-      // converged value once the exchange succeeded.
+      // converged value once the exchange succeeded. A skill the peer deferred
+      // keeps its previous baseline for the same reason its row does.
       final nextSkillHashes = await _advanceSkillHashes(
         previous: previous,
         plan: skillPlan,
-        deferredSkills: deferredSkills,
+        deferredSkills: {...deferredSkills, ...peerDeferredSkills},
         deletedSkills: deletedSkillIds,
         localHashes: await dataPlane.skillDirHashes(),
       );
@@ -737,13 +751,17 @@ class SyncEngine implements SyncServerHandler {
     final peerUnapplied = initiatorHello.unappliedConversations.toSet();
     final session = _ResponderSession(
       initiatorHello: initiatorHello,
-      plan: _reSendUnapplied(
-        planSync(
-          mine: myManifest,
-          peers: initiatorHello.manifest,
-          checkpoint: checkpoint,
+      plan: _applyDeletionAnnouncements(
+        _reSendUnapplied(
+          planSync(
+            mine: myManifest,
+            peers: initiatorHello.manifest,
+            checkpoint: checkpoint,
+          ),
+          peerUnapplied,
         ),
-        peerUnapplied,
+        initiatorHello.deletedConversations,
+        myManifest,
       ),
       businessPlan: _keepRowsPeerMayNeverHaveSeen(
         planBusinessSync(
@@ -779,6 +797,7 @@ class SyncEngine implements SyncServerHandler {
       // an apply, and the initiator needs it before it plans.
       unappliedConversations: checkpoint.unappliedConversations,
       unappliedBusiness: checkpoint.unappliedBusiness,
+      deletedConversations: _deletionsToAnnounce(checkpoint, myManifest),
     );
   }
 
@@ -867,8 +886,16 @@ class SyncEngine implements SyncServerHandler {
       await dataPlane.reloadBusiness();
     }
     // The acknowledgement the initiator's checkpoint advance needs: which
-    // conversations were accepted but not applied, and whether the business
-    // apply as a whole was deferred.
+    // conversations were accepted but not applied, whether the business
+    // apply as a whole was deferred, and which skill records were stripped
+    // because their body did not land.
+    final deferredSkills = {
+      for (final row
+          in batch.business.entities[SyncDataPlane.skillWire] ?? const [])
+        if (row['id'] is String &&
+            session.deferredSkills.contains(row['id'] as String))
+          row['id'] as String,
+    };
     return SyncApplyAck(
       applied: outcomes.length,
       deferred: {
@@ -876,6 +903,7 @@ class SyncEngine implements SyncServerHandler {
           if (entry.value.deferred) entry.key,
       },
       businessDeferred: session.businessOutcome?.deferred ?? false,
+      deferredSkills: deferredSkills,
     );
   }
 
@@ -984,6 +1012,12 @@ class SyncEngine implements SyncServerHandler {
       // advance unconfirmed state here either.
       peerDeferredConversations: session.initiatorHello.unappliedConversations
           .toSet(),
+      // The fetch response is never acknowledged, so a conversation this beat
+      // sends back is not state the peer holds. Advancing it would make the
+      // next session read the peer's missing copy as a deletion and destroy
+      // the only remaining one; the entry appears one session later, when both
+      // manifests agree (`none`).
+      sendsConfirmed: false,
     );
     final nextBusiness = await _advanceBusinessCheckpoint(
       previous: session.checkpoint,
@@ -996,6 +1030,10 @@ class SyncEngine implements SyncServerHandler {
       failedDeleteKeys: failedBusinessDeletes,
       applyDeferred: session.businessOutcome?.deferred ?? false,
       peerApplyDeferred: session.initiatorHello.unappliedBusiness,
+      // The fetch response is not acknowledged: this beat's sends stay
+      // unconfirmed and are healed by `none` once the peer's manifest shows
+      // them.
+      sendsConfirmed: false,
     );
     final skillHashes = await _advanceSkillHashes(
       previous: session.checkpoint,
@@ -1135,6 +1173,12 @@ class SyncEngine implements SyncServerHandler {
   /// what actually crossed the wire — a row written while the session was in
   /// flight was never sent, and recording it as peer-seen would make the next
   /// merge delete it here.
+  ///
+  /// [sendsConfirmed] is false for the responder's fetch beat, whose response
+  /// is never acknowledged: a conversation this device *sent* back is not
+  /// state the peer holds, and advancing it would make the next session read
+  /// the peer's silence as a deletion. Such an entry is created by [none] one
+  /// session later, when the peer's manifest confirms the transfer.
   Future<SyncCheckpoint> _advanceCheckpoint({
     required SyncCheckpoint previous,
     required List<SyncConvPlan> plan,
@@ -1145,6 +1189,7 @@ class SyncEngine implements SyncServerHandler {
     required Set<String> failedDeletes,
     Set<String> peerDeferredConversations = const {},
     Map<String, SyncSubtreePayload> sentSubtrees = const {},
+    bool sendsConfirmed = true,
   }) async {
     final next = <String, SyncCheckpointConversation>{};
     for (final item in plan) {
@@ -1164,7 +1209,8 @@ class SyncEngine implements SyncServerHandler {
             next[id] = prior;
           }
         case SyncConvAction.iSend:
-          if (skippedSends.contains(id) ||
+          if (!sendsConfirmed ||
+              skippedSends.contains(id) ||
               peerDeferredConversations.contains(id)) {
             if (prior != null) next[id] = prior;
           } else {
@@ -1243,6 +1289,42 @@ class SyncEngine implements SyncServerHandler {
     ];
   }
 
+  /// Deletions to announce on this hello: conversations this device still has a
+  /// shared-history record for (it and the peer reached that state) but no
+  /// longer carries. The alternative — letting the peer infer the deletion from
+  /// this device's absent manifest — cannot tell a deletion from a transfer the
+  /// peer never confirmed, which is exactly what the fetch-beat rule stopped
+  /// claiming. The entry stops being announced once the peer's manifest drops
+  /// it too.
+  static Map<String, String> _deletionsToAnnounce(
+    SyncCheckpoint checkpoint,
+    SyncManifest manifest,
+  ) => {
+    for (final entry in checkpoint.conversations.entries)
+      if (!manifest.conversations.containsKey(entry.key))
+        entry.key: entry.value.digest,
+  };
+
+  /// Applies the peer's announced deletions. A local copy whose digest still
+  /// equals the one the peer last shared is a copy the peer really deleted;
+  /// a copy that differs was edited here since, and an edit beats a delete
+  /// exactly as it does in the plan table.
+  static List<SyncConvPlan> _applyDeletionAnnouncements(
+    List<SyncConvPlan> plan,
+    Map<String, String> announced,
+    SyncManifest mine,
+  ) {
+    if (announced.isEmpty) return plan;
+    return [
+      for (final item in plan)
+        announced[item.conversationId] != null &&
+                mine.conversations[item.conversationId]?.digest ==
+                    announced[item.conversationId]
+            ? SyncConvPlan(item.conversationId, SyncConvAction.iDelete)
+            : item,
+    ];
+  }
+
   /// Business rows a peer's deferred apply makes ambiguous. A row that peer
   /// lacks may have been deleted there or may simply never have arrived (a
   /// restore held its write fence), and only the second reading is safe: the
@@ -1276,7 +1358,15 @@ class SyncEngine implements SyncServerHandler {
     required Set<String> failedDeleteKeys,
     required bool applyDeferred,
     bool peerApplyDeferred = false,
+    bool sendsConfirmed = true,
+    Set<String> peerDeferredSkillIds = const {},
   }) async {
+    // A skill the peer stripped (its body never landed) delivered nothing, so
+    // its row must keep the previous entry exactly as a deferred apply does.
+    final peerDeferredKeys = {
+      for (final id in peerDeferredSkillIds)
+        syncBusinessKey(SyncDataPlane.skillWire, id),
+    };
     final entities = <String, Map<String, SyncCheckpointEntry>>{
       for (final entry in previous.entities.entries)
         entry.key: Map<String, SyncCheckpointEntry>.of(entry.value),
@@ -1334,7 +1424,10 @@ class SyncEngine implements SyncServerHandler {
         case SyncConvAction.none:
           await setFromLocal();
         case SyncConvAction.iSend:
-          if (sentKeys.contains(key) && !peerApplyDeferred) {
+          if (sendsConfirmed &&
+              sentKeys.contains(key) &&
+              !peerApplyDeferred &&
+              !peerDeferredKeys.contains(key)) {
             await setFromLocal();
           } else {
             keepPrior();

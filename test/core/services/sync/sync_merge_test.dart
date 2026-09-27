@@ -914,15 +914,50 @@ void main() {
         applied: 2,
         deferred: const {'conv-2'},
         businessDeferred: true,
+        deferredSkills: const {'skill-1'},
       );
       final decoded = SyncApplyAck.fromJson(ack.toJson());
       expect(decoded.applied, 2);
       expect(decoded.deferred, {'conv-2'});
       expect(decoded.businessDeferred, isTrue);
+      expect(decoded.deferredSkills, {'skill-1'});
       // Nothing deferred: the fields are absent, and both mean "confirmed".
       final empty = SyncApplyAck.fromJson(const {'applied': 0});
       expect(empty.deferred, isEmpty);
       expect(empty.businessDeferred, isFalse);
+      expect(empty.deferredSkills, isEmpty);
+    });
+
+    test('a hello round-trips its announced deletions and their digests', () {
+      // A deleted conversation is announced by name and by the digest both
+      // sides last agreed on: the digest is what lets the receiver tell a
+      // deletion from an edit it made since.
+      final hello = SyncHello(
+        protocolVersion: kSyncProtocolVersion,
+        schemaVersion: 3,
+        deviceId: 'd1',
+        deviceName: 'one',
+        platform: 'test',
+        manifest: const SyncManifest({}),
+        deletedConversations: const {'conv-1': 'digest-a', 'conv-2': 'digest-b'},
+      );
+      final decoded = SyncHello.fromJson(hello.toJson());
+      expect(decoded.deletedConversations, {
+        'conv-1': 'digest-a',
+        'conv-2': 'digest-b',
+      });
+      // Omitted when there is nothing to announce.
+      final quiet = SyncHello.fromJson(
+        SyncHello(
+          protocolVersion: kSyncProtocolVersion,
+          schemaVersion: 3,
+          deviceId: 'd1',
+          deviceName: 'one',
+          platform: 'test',
+          manifest: const SyncManifest({}),
+        ).toJson(),
+      );
+      expect(quiet.deletedConversations, isEmpty);
     });
   });
 }

@@ -213,6 +213,19 @@ Future<Set<String>> _messageIds(_Side side, String conversationId) async => {
     row['id'] as String,
 };
 
+/// The stored `message_order` of every row, in order — the property the apply's
+/// re-derivation must produce, and the one id-set assertions cannot see.
+Future<List<int>> _messageOrders(_Side side, String conversationId) async {
+  final rows = await side.database
+      .customSelect(
+        'SELECT message_order FROM message_rows WHERE conversation_id = ? '
+        'ORDER BY message_order, id;',
+        variables: [Variable.withString(conversationId)],
+      )
+      .get();
+  return [for (final row in rows) row.read<int>('message_order')];
+}
+
 /// Message content lives in `message_part_rows.payload`; comparing it is what
 /// proves the wire carried content, not just row skeleton.
 Future<Map<String, String>> _partPayloads(
@@ -328,6 +341,12 @@ void main() {
       for (final id in ['conv-a', 'conv-b']) {
         expect(await _messageIds(a, id), await _messageIds(b, id));
         expect(await _partPayloads(a, id), await _partPayloads(b, id));
+        // Orders form a dense sequence on both sides. An apply that left rows
+        // in the shifted range would pass the id comparison above and still
+        // show the conversation in the wrong order.
+        final orders = await _messageOrders(b, id);
+        expect(orders, [for (var i = 0; i < orders.length; i++) i]);
+        expect(await _messageOrders(a, id), orders);
       }
       expect(await _messageIds(b, 'conv-a'), {'conv-a-m0', 'conv-a-m1'});
 

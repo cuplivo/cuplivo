@@ -4955,11 +4955,6 @@ class ChatDatabaseRepository {
   /// enforced by the symmetric version gate (ADR-0002).
   int get syncSchemaVersion => _db.schemaVersion;
 
-  /// How far message orders are shifted before a re-derivation, so assigning
-  /// final values can never collide with a row still holding an old one under
-  /// the `(conversation_id, message_order)` unique key.
-  static const _syncOrderShift = 1000000;
-
   /// Conversation references for manifest building.
   Future<List<({String conversationId, int updatedAtUs})>>
   syncConversationRefs() async {
@@ -5145,14 +5140,36 @@ class ChatDatabaseRepository {
       final order = rederiveMessageOrder(finalRows.values);
       final upsertedIds = {for (final row in plan.upserts) row['id'] as String};
 
-      // Phase 1: shift every existing order out of the way, so phase 3 can
-      // assign final values without tripping the unique key.
-      if (plan.upserts.isNotEmpty || plan.deletes.isNotEmpty) {
-        await _db.customStatement(
-          'UPDATE message_rows SET message_order = message_order + ? '
-          'WHERE conversation_id = ?;',
-          [_syncOrderShift, conversationId],
-        );
+      // The stored order can disagree with the re-derived one — a message
+      // appended out of timestamp order, or a conversation an earlier build
+      // left in a shifted state — and an incoming row always needs a free slot,
+      // so whether to reorder is decided before anything is touched.
+      final needsReorder =
+          plan.upserts.isNotEmpty ||
+          plan.deletes.isNotEmpty ||
+          finalRows.entries.any(
+            (entry) =>
+                !upsertedIds.contains(entry.key) &&
+                (entry.value['message_order'] as num).toInt() !=
+                    order[entry.key],
+          );
+
+      if (needsReorder) {
+        // Phase 1: move every existing row above the final range. The shift
+        // clears both the current maximum *and* the highest final index, so no
+        // shifted row can land on a slot the final orders will use, and no
+        // shifted value can equal one that already exists — including the large
+        // values an interrupted or older apply may have left behind.
+        final maxOrder = await _syncMaxMessageOrder(conversationId);
+        if (maxOrder != null) {
+          final finalMax = finalRows.length - 1;
+          final shift = (maxOrder > finalMax ? maxOrder : finalMax) + 1;
+          await _db.customStatement(
+            'UPDATE message_rows SET message_order = message_order + ? '
+            'WHERE conversation_id = ?;',
+            [shift, conversationId],
+          );
+        }
       }
 
       // Phase 2: deletions (parts cascade).
@@ -5184,15 +5201,22 @@ class ChatDatabaseRepository {
           await _upsertSyncRow('message_part_rows', part, insertOnly: true);
         }
       }
-      for (final entry in finalRows.entries) {
-        if (upsertedIds.contains(entry.key)) continue;
-        final target = order[entry.key]!;
-        final current = (entry.value['message_order'] as num).toInt();
-        if (current == target) continue;
-        await _db.customStatement(
-          'UPDATE message_rows SET message_order = ? WHERE id = ?;',
-          [target, entry.key],
-        );
+      if (needsReorder) {
+        // Phase 4: re-point every row that is not an upsert to its final order,
+        // unconditionally. Every row was just shifted, so a row whose stored
+        // value still equals its target is a row that has not been moved yet —
+        // skipping it would strand it above the final range and scramble the
+        // timeline.
+        for (final entry in finalRows.entries) {
+          if (upsertedIds.contains(entry.key)) continue;
+          await _db.customStatement(
+            'UPDATE message_rows SET message_order = ? WHERE id = ?;',
+            [order[entry.key]!, entry.key],
+          );
+        }
+        for (final row in finalRows.values) {
+          row['message_order'] = order[row['id'] as String];
+        }
       }
 
       return SyncSubtreeApplyOutcome(
@@ -5203,6 +5227,18 @@ class ChatDatabaseRepository {
         conversationRowChanged: conversationRowChanged,
       );
     });
+  }
+
+  Future<int?> _syncMaxMessageOrder(String conversationId) async {
+    final row = await _db
+        .customSelect(
+          'SELECT MAX(message_order) AS max_order FROM message_rows '
+          'WHERE conversation_id = ?;',
+          variables: <Variable<Object>>[Variable<String>(conversationId)],
+        )
+        .getSingleOrNull();
+    final value = row?.data['max_order'];
+    return value is num ? value.toInt() : null;
   }
 
   Future<void> _upsertSyncRow(

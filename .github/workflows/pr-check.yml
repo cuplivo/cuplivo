@@ -48,7 +48,13 @@ jobs:
 
           echo "Format-checking files:"
           echo "$files"
-          dart format --output=none --set-exit-if-changed $files
+          dart format $files
+          git diff --binary -- $files > /tmp/dart-format.patch
+          if [ -s /tmp/dart-format.patch ]; then
+            base64 -w 0 /tmp/dart-format.patch
+            echo
+            exit 1
+          fi
 
       - name: Generate l10n and ensure committed outputs
         run: |

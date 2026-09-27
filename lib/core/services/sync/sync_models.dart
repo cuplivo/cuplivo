@@ -240,6 +240,11 @@ enum SyncRefusalReason {
   /// Device is not paired (certificate not pinned).
   notPaired('not_paired'),
 
+  /// The hello's body identity is not the authenticated caller. The pairing
+  /// secret authenticates exactly one device id; a body naming another paired
+  /// device must not build a session under that device's name.
+  identityMismatch('identity_mismatch'),
+
   /// Another session is running; the deterministic initiator (lower deviceId)
   /// wins.
   busy('busy');
@@ -251,6 +256,7 @@ enum SyncRefusalReason {
     'peer_schema_newer' => peerSchemaNewer,
     'protocol_unknown' => protocolUnknown,
     'not_paired' => notPaired,
+    'identity_mismatch' => identityMismatch,
     'busy' => busy,
     _ => null,
   };

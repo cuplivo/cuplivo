@@ -639,6 +639,19 @@ class SyncEngine implements SyncServerHandler {
     String? remoteAddress,
   }) async {
     _dropExpiredSessions();
+    // The authenticated identity is the only one this session may act as:
+    // [peerDeviceId] is the device whose per-peer secret authenticated the
+    // request, and a hello body naming some other paired device would
+    // otherwise look up, plan against and store the session under that
+    // device's checkpoint — substituting the caller's plan into the named
+    // peer's next fetch beat and holding the single session slot under a
+    // foreign name.
+    if (initiatorHello.deviceId != peerDeviceId) {
+      return const SyncHelloRefusal(
+        SyncRefusalReason.identityMismatch,
+        'The hello names a device other than the authenticated caller.',
+      );
+    }
     if (initiatorHello.protocolVersion != kSyncProtocolVersion) {
       return const SyncHelloRefusal(
         SyncRefusalReason.protocolUnknown,

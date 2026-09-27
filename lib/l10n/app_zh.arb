@@ -4396,6 +4396,7 @@
   "lanSyncRefusedPeerSchemaNewer": "对方数据库版本较新。请先更新本设备再同步。",
   "lanSyncRefusedProtocolUnknown": "对方使用不同的同步协议。请将两台设备都更新到最新版本。",
   "lanSyncRefusedNotPaired": "对方已不记得本设备。请重新配对。",
+  "lanSyncRefusedIdentityMismatch": "对方设备的身份不一致。请在两台设备上重新配对。",
   "lanSyncRefusedBusy": "另一个同步会话正在进行，请稍后再试。",
   "lanSyncFirewallTitle": "Windows 防火墙",
   "lanSyncFirewallHint": "端口 {port} 的入站规则需要一次管理员授权。",

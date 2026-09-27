@@ -22518,6 +22518,12 @@ abstract class AppLocalizations {
   /// **'The other device no longer has this one paired. Pair again.'**
   String get lanSyncRefusedNotPaired;
 
+  /// No description provided for @lanSyncRefusedIdentityMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device presented a mismatched identity. Pair again on both devices.'**
+  String get lanSyncRefusedIdentityMismatch;
+
   /// No description provided for @lanSyncRefusedBusy.
   ///
   /// In en, this message translates to:

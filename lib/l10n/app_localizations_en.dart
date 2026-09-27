@@ -12627,6 +12627,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The other device no longer has this one paired. Pair again.';
 
   @override
+  String get lanSyncRefusedIdentityMismatch =>
+      'The other device presented a mismatched identity. Pair again on both devices.';
+
+  @override
   String get lanSyncRefusedBusy =>
       'Another sync session is in progress. Try again shortly.';
 

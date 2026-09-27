@@ -70,6 +70,8 @@ String syncRefusalMessage(AppLocalizations l10n, SyncRefusalReason reason) {
       return l10n.lanSyncRefusedProtocolUnknown;
     case SyncRefusalReason.notPaired:
       return l10n.lanSyncRefusedNotPaired;
+    case SyncRefusalReason.identityMismatch:
+      return l10n.lanSyncRefusedIdentityMismatch;
     case SyncRefusalReason.busy:
       return l10n.lanSyncRefusedBusy;
   }

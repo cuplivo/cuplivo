@@ -12049,6 +12049,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncRefusedNotPaired => '对方已不记得本设备。请重新配对。';
 
   @override
+  String get lanSyncRefusedIdentityMismatch => '对方设备的身份不一致。请在两台设备上重新配对。';
+
+  @override
   String get lanSyncRefusedBusy => '另一个同步会话正在进行，请稍后再试。';
 
   @override
@@ -24038,6 +24041,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncRefusedNotPaired => '对方已不记得本设备。请重新配对。';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch => '对方设备的身份不一致。请在两台设备上重新配对。';
 
   @override
   String get lanSyncRefusedBusy => '另一个同步会话正在进行，请稍后再试。';
@@ -36108,6 +36114,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncRefusedNotPaired => '對方已不記得本裝置。請重新配對。';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch => '對方裝置的身分不一致。請在兩台裝置上重新配對。';
 
   @override
   String get lanSyncRefusedBusy => '另一個同步工作階段正在進行，請稍後再試。';

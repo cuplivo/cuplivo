@@ -5483,6 +5483,7 @@
   "lanSyncRefusedPeerSchemaNewer": "The other device's database is newer. Update this device first, then sync again.",
   "lanSyncRefusedProtocolUnknown": "The other device speaks a different sync protocol. Update the app on both devices.",
   "lanSyncRefusedNotPaired": "The other device no longer has this one paired. Pair again.",
+  "lanSyncRefusedIdentityMismatch": "The other device presented a mismatched identity. Pair again on both devices.",
   "lanSyncRefusedBusy": "Another sync session is in progress. Try again shortly.",
   "lanSyncFirewallTitle": "Windows Firewall",
   "lanSyncFirewallHint": "The inbound rule for port {port} needs one-time administrator approval.",

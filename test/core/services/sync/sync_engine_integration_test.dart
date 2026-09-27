@@ -966,6 +966,25 @@ void main() {
         SyncRefusalReason.notPaired,
       );
 
+      // A paired caller whose hello body names another paired device must not
+      // build a session under that device's name: the secret authenticates
+      // exactly one identity, and the substitution would serve the caller's
+      // plan to the named peer's next fetch beat (and hold the single session
+      // slot under a foreign name).
+      final c = _Side('c');
+      await c.start(root);
+      sides.add(c);
+      await pairSides(c, a);
+      final mismatch = await a.engine.handleHello(
+        b.identity.deviceId,
+        b.hello(deviceId: c.identity.deviceId),
+      );
+      expect(mismatch, isA<SyncHelloRefusal>());
+      expect(
+        (mismatch as SyncHelloRefusal).reason,
+        SyncRefusalReason.identityMismatch,
+      );
+
       // A same-schema paired caller is answered with a hello, not a refusal.
       final accepted = await a.engine.handleHello(
         b.identity.deviceId,

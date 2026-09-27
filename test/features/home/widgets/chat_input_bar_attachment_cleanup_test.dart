@@ -1176,7 +1176,7 @@ void main() {
     focusNode.dispose();
   });
 
-  testWidgets('移除 chip 会回收草稿自有的副本，保留用户源文件', (tester) async {
+  testWidgets('移除 chip 会回收自有副本', (tester) async {
     final controller = TextEditingController();
     final focusNode = FocusNode();
     final mediaController = ChatInputBarController();
@@ -1221,7 +1221,7 @@ void main() {
     focusNode.dispose();
   });
 
-  testWidgets('被拒绝的发送不再持有副本，之后丢弃也不会删文件', (tester) async {
+  testWidgets('被拒绝的发送不再持有副本', (tester) async {
     final controller = TextEditingController(text: 'with image');
     final focusNode = FocusNode();
     final mediaController = ChatInputBarController();

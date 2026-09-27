@@ -4,7 +4,7 @@ import 'package:crypto/crypto.dart' as crypto;
 
 import 'sync_models.dart';
 
-/// Pure, side-effect-free sync planning and merge rules (ADR-0002).
+/// Pure, side-effect-free sync planning and merge rules (ADR-0003).
 ///
 /// Every function here is deterministic and symmetric: both peers, given the
 /// same three views (mine, peer, checkpoint), compute the same plan; both

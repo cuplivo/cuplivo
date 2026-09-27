@@ -96,7 +96,7 @@ class SyncSessionReport {
   );
 }
 
-/// Orchestrates LAN sync sessions (ADR-0002, slice 1: conversations only).
+/// Orchestrates LAN sync sessions (ADR-0003, slice 1: conversations only).
 ///
 /// The engine owns both roles. As the initiator it drives the six-beat session;
 /// as the responder it implements [SyncServerHandler], keeping one bounded

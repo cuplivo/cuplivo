@@ -13,7 +13,7 @@ import 'sync_models.dart';
 
 /// Everything sync needs from the stores, in one place: manifest building,
 /// subtree and business-row reading, transactional apply, and the reload tail
-/// that makes applied rows visible without restarting the app (ADR-0002).
+/// that makes applied rows visible without restarting the app (ADR-0003).
 ///
 /// Both roles (initiator and responder) go through this class, which is what
 /// guarantees the two sides plan against the same kind of inputs.

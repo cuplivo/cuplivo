@@ -118,7 +118,7 @@ bool _didWireSyncReloaders = false;
 
 /// Tells LAN sync how to refresh the providers that read business state, so a
 /// session that applied entity or preference rows shows up without a restart
-/// (ADR-0002 decision 8: apply → one state reload).
+/// (ADR-0003 decision 8: apply → one state reload).
 ///
 /// Settings comes first because providers that derive their own state from
 /// settings (ASR, for one) refresh through its notification. Providers whose

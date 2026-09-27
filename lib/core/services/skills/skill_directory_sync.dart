@@ -7,7 +7,7 @@ import 'package:path/path.dart' as p;
 
 import 'skill_archive.dart';
 
-/// Skill-directory carriage for LAN sync (ADR-0002 slice 3): a skill travels
+/// Skill-directory carriage for LAN sync (ADR-0003 slice 3): a skill travels
 /// as its entity record plus its on-disk directory as one zip blob keyed by a
 /// directory hash — sha256 over the sorted `relpath\0fileDigest` lines. The
 /// record's `updated_at` does not track content edits, so the hash is the

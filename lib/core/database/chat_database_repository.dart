@@ -4935,7 +4935,7 @@ class ChatDatabaseRepository {
   /// patch. Nothing is written unless both repositories share this exact
   /// [AppDatabase] instance.
   // ---------------------------------------------------------------------------
-  // LAN sync (ADR-0002)
+  // LAN sync (ADR-0003)
   //
   // Slice 1 exchanges conversation subtrees as raw row maps. Everything below
   // speaks SQLite's own representation (µs integers, 0/1 booleans), so there is
@@ -4952,7 +4952,7 @@ class ChatDatabaseRepository {
   };
 
   /// The schema version this build speaks, exchanged in the sync hello and
-  /// enforced by the symmetric version gate (ADR-0002).
+  /// enforced by the symmetric version gate (ADR-0003).
   int get syncSchemaVersion => _db.schemaVersion;
 
   /// The registered path for a content hash, or null when this device never
@@ -5063,7 +5063,7 @@ class ChatDatabaseRepository {
   }
 
   /// Whether a generation is currently writing to this conversation. Sync
-  /// apply yields to generation (ADR-0002).
+  /// apply yields to generation (ADR-0003).
   Future<bool> syncConversationIsStreaming(String conversationId) async {
     final rows = await _db
         .customSelect(

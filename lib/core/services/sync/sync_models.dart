@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart' as crypto;
 
-/// Wire vocabulary for LAN sync slice 1 (ADR-0002).
+/// Wire vocabulary for LAN sync slice 1 (ADR-0003).
 ///
 /// Everything on the wire is JSON built from plain maps. Conversation subtrees
 /// are exchanged as *raw database row maps* — column name to JSON value — not
@@ -768,7 +768,7 @@ class SyncCheckpointConversation {
 /// engine can build the next checkpoint without re-reading the database.
 class SyncSubtreeApplyOutcome {
   /// True when the apply was skipped because a generation is writing to this
-  /// conversation (ADR-0002: apply yields to generation). The checkpoint entry
+  /// conversation (ADR-0003: apply yields to generation). The checkpoint entry
   /// for this conversation must then be left untouched so the next session
   /// retries it.
   final bool deferred;

@@ -38,7 +38,7 @@ final class BusinessKeyRegistry {
   };
 
   /// Business preferences a brand-new device wants to arrive with the pairing
-  /// (ADR-0002 decision 6). Membership follows the new-device test: business
+  /// (ADR-0003 decision 6). Membership follows the new-device test: business
   /// configuration yes; window geometry, proxies, platform flags, fonts and
   /// session-position keys no. This set is the single authority for what LAN
   /// sync carries — keys outside it never ride sync, so adding a key here is

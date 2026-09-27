@@ -41,7 +41,7 @@ class AssistantProvider extends ChangeNotifier {
   late final Future<void> loaded;
 
   /// Re-reads assistants after LAN sync wrote business rows outside this
-  /// provider's own write path (ADR-0002 apply → reload).
+  /// provider's own write path (ADR-0003 apply → reload).
   Future<void> reloadAfterExternalChange() async {
     await _load();
     notifyListeners();

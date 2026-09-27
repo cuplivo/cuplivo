@@ -60,7 +60,7 @@ bool shouldAutoSyncNow(DateTime now, DateTime? lastRoundAt) {
   return now.difference(lastRoundAt) >= autoSyncInterval;
 }
 
-/// UI-facing state of the LAN sync engine (ADR-0002, slice 1b).
+/// UI-facing state of the LAN sync engine (ADR-0003, slice 1b).
 ///
 /// The engine is transport + session logic; this provider owns its lifecycle:
 /// start the listener with the app, keep the peer list the panels show in

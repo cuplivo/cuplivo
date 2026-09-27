@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../database/business_preferences.dart';
 
 /// Refreshes the business state that LAN sync just changed, without a restart
-/// (ADR-0002 decision 8: apply → one state reload).
+/// (ADR-0003 decision 8: apply → one state reload).
 ///
 /// Two layers, in order:
 ///

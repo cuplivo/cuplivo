@@ -138,7 +138,7 @@ contradicts one of them is a bug, not a preference.
   `sync/*` request proves the pairing with the per-peer secret minted at pairing — the channel
   must resist LAN sniffing and impersonation because the sync face carries API keys. Mutual TLS
   is not the mechanism: `dart:io` aborts the handshake against a self-signed *client* certificate
-  (ADR-0002 amendment).
+  (ADR-0003 amendment).
 - **Blob**: a content-addressed transfer unit on the sync wire — the bytes of one file whose
   canonical URI appears in a travelling row, or of one skill directory as a zip. A blob's
   identity is its hash (`/sync/blob/<sha256>`): the receiver pulls what it lacks and skips what

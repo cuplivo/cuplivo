@@ -29,7 +29,7 @@ void main() {
           BusinessKeyDisposition.entity,
         );
         // Synced preferences are still business preferences; they just also
-        // ride LAN sync (ADR-0002 decision 6).
+        // ride LAN sync (ADR-0003 decision 6).
         expect(
           BusinessKeyRegistry.classify('theme_mode_v1'),
           BusinessKeyDisposition.syncedPreference,

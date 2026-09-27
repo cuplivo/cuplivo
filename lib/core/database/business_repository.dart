@@ -542,7 +542,7 @@ WHERE id IN ($placeholders);
       left.assistantId == right.assistantId;
 
   // ---------------------------------------------------------------------------
-  // LAN sync (ADR-0002, slice 2)
+  // LAN sync (ADR-0003, slice 2)
   //
   // Business rows travel as raw column maps, exactly like conversation
   // subtrees: storage format is wire format, so no translation layer can drift

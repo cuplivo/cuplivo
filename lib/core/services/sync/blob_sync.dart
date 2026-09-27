@@ -6,7 +6,7 @@ import '../../../utils/kelivo_file_uri.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import 'sync_models.dart';
 
-/// Blob plane for LAN sync (ADR-0002 slice 3): the "blobs follow URIs" rule.
+/// Blob plane for LAN sync (ADR-0003 slice 3): the "blobs follow URIs" rule.
 ///
 /// A blob is a content-addressed transfer unit. The sender scans the rows it
 /// is *actually sending* (message parts, entity payloads, preference values)

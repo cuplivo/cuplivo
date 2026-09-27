@@ -12,7 +12,7 @@ class SyncPairQrException implements Exception {
   String toString() => 'SyncPairQrException($code)';
 }
 
-/// The pairing QR payload (ADR-0002, slice 4): one image carries everything
+/// The pairing QR payload (ADR-0003, slice 4): one image carries everything
 /// the joining device needs —
 ///
 /// - `deviceId`, which **is** the responder's certificate fingerprint: the

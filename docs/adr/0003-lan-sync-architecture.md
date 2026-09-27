@@ -1,4 +1,4 @@
-# ADR-0002: LAN sync — entity-row payload, deterministic symmetric merge, per-device pairing
+# ADR-0003: LAN sync — entity-row payload, deterministic symmetric merge, per-device pairing
 
 **Status:** Accepted (2026-09)
 **Deciders:** cuplivo

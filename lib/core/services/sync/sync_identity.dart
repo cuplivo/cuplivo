@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:crypto/crypto.dart' as crypto;
 
-/// Per-install sync identity (ADR-0002): a self-signed certificate IS the
+/// Per-install sync identity (ADR-0003): a self-signed certificate IS the
 /// device identity — `deviceId` is the SHA-256 of its DER encoding, and the
 /// certificate doubles as the TLS credential so pairing = certificate pinning.
 ///

@@ -2535,7 +2535,7 @@ class ChatService extends ChangeNotifier {
   }
 
   /// Re-reads persisted chat state after an external writer changed the
-  /// database — used by LAN sync apply (ADR-0002), which writes rows through
+  /// database — used by LAN sync apply (ADR-0003), which writes rows through
   /// the repository and then needs the in-memory caches to catch up. Mirrors
   /// the post-merge tail of [mergeDatabaseSnapshot]; no restart is involved.
   Future<void> reloadAfterExternalChange() async {

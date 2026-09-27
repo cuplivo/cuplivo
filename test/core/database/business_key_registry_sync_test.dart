@@ -3,7 +3,7 @@ import 'package:Cuplivo/core/database/business_settings_router.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Pins the sync face's membership. These lists are the single authority for
-/// what LAN sync carries (ADR-0002 decision 6), so a change here is a change to
+/// what LAN sync carries (ADR-0003 decision 6), so a change here is a change to
 /// the wire face and should be a deliberate edit to this expectation too.
 void main() {
   const synced = BusinessKeyRegistry.syncedPreferenceKeys;

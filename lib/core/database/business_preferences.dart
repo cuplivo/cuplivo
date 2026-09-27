@@ -34,7 +34,7 @@ final class BusinessPreferences {
 
   /// True while a restore holds the write fence: nothing may be written through
   /// this view until the process restarts, which also means LAN sync must defer
-  /// rather than write (ADR-0002 apply path).
+  /// rather than write (ADR-0003 apply path).
   bool get writesBlockedForRestore => _writesBlockedForRestore;
 
   /// Re-reads the database into this view, for writers that bypassed it (LAN

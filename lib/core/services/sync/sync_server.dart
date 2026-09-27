@@ -285,19 +285,46 @@ class SyncServer {
       });
       return;
     }
-    final body = await _readJson(request);
+    // /pair is the one route that answers before any authentication, so its
+    // body is the only unauthenticated input this listener ever folds into
+    // memory: a pairing request is a certificate plus metadata (a few KB), and
+    // anything past the cap is answered, not buffered.
+    final Map<String, dynamic>? body;
+    try {
+      body = await _readJson(request, maxBytes: _pairMaxBodyBytes);
+    } on _RequestBodyTooLarge {
+      _safeRespond(request, HttpStatus.requestEntityTooLarge, {
+        'error': 'body_too_large',
+      });
+      return;
+    }
     if (body == null) {
       _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
       return;
     }
-    final pairRequest = SyncPairRequest.fromJson(body);
+    final SyncPairRequest pairRequest;
+    try {
+      pairRequest = SyncPairRequest.fromJson(body);
+    } catch (_) {
+      // Malformed but authenticated-shape JSON: a 4xx answer, not a 500 with
+      // the server's stack trace in the log.
+      _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_request'});
+      return;
+    }
     // The claimed deviceId must hash to the certificate the caller sent: a
     // passive relay cannot forge that binding. (A full MITM that terminates
     // both legs remains possible in the PIN path; the QR fingerprint path
     // added later closes it.)
-    final presentedId = crypto.sha256
-        .convert(CryptoUtils.getBytesFromPEMString(pairRequest.certPem))
-        .toString();
+    final String presentedId;
+    try {
+      presentedId = crypto.sha256
+          .convert(CryptoUtils.getBytesFromPEMString(pairRequest.certPem))
+          .toString();
+    } catch (_) {
+      // An unparseable certificate is a client error, not a 500.
+      _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_cert'});
+      return;
+    }
     if (presentedId != pairRequest.deviceId) {
       _safeRespond(request, HttpStatus.forbidden, {'error': 'id_mismatch'});
       return;
@@ -418,16 +445,44 @@ class SyncServer {
 
   // ---- codecs ----
 
-  Future<Map<String, dynamic>?> _readJson(HttpRequest request) async {
+  /// Cap on a `/pair` request body. The route is reachable without a pairing,
+  /// so this is the one body an unauthenticated host controls; a real pairing
+  /// request (certificate PEM + metadata) is a few KB.
+  static const int _pairMaxBodyBytes = 64 * 1024;
+
+  /// Reads and decodes one JSON object body. Null means the body was not a
+  /// decodable JSON object (the caller answers 400). A body whose wire or
+  /// decompressed size exceeds [maxBytes] throws [_RequestBodyTooLarge]
+  /// instead — only after the body has been read to the end (an HttpRequest
+  /// allows a single listen, and abandoning it mid-stream aborts the
+  /// connection before the refusal can be delivered), while nothing past the
+  /// cap is buffered.
+  Future<Map<String, dynamic>?> _readJson(
+    HttpRequest request, {
+    int? maxBytes,
+  }) async {
+    final buffer = <int>[];
+    var received = 0;
+    var tooLarge = false;
     try {
-      final bytes = await request.fold<List<int>>(
-        <int>[],
-        (buffer, chunk) => buffer..addAll(chunk),
-      );
-      final decoded = request.headers.value('content-encoding') == 'gzip'
-          ? gzip.decode(bytes)
-          : bytes;
-      return jsonDecode(utf8.decode(decoded)) as Map<String, dynamic>;
+      final source = request.headers.value('content-encoding') == 'gzip'
+          ? gzip.decoder.bind(request)
+          : request;
+      await for (final chunk in source) {
+        received += chunk.length;
+        if (maxBytes != null && received > maxBytes) {
+          if (!tooLarge) buffer.clear();
+          tooLarge = true;
+          continue;
+        }
+        buffer.addAll(chunk);
+      }
+    } catch (_) {
+      return null;
+    }
+    if (tooLarge) throw const _RequestBodyTooLarge();
+    try {
+      return jsonDecode(utf8.decode(buffer)) as Map<String, dynamic>;
     } catch (_) {
       return null;
     }
@@ -457,4 +512,11 @@ class SyncServer {
       // The peer hung up mid-response; nothing to salvage.
     }
   }
+}
+
+/// Raised by `_readJson` when a body exceeded its cap. A class of its own so
+/// the size refusal can surface as 413 while every other malformed body stays
+/// a 400.
+class _RequestBodyTooLarge implements Exception {
+  const _RequestBodyTooLarge();
 }

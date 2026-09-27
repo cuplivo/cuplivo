@@ -507,6 +507,63 @@ void main() {
     expect(b.engine.isPairingOpen, isTrue, reason: 'a failed attempt keeps it');
   });
 
+  /// A raw TLS client that accepts the self-signed listener — for /pair
+  /// requests no honest SyncClient would ever send.
+  Future<(int, String)> postPair(_Side target, String body) async {
+    final client = HttpClient()
+      ..badCertificateCallback = (cert, host, port) => true;
+    try {
+      final request = await client.postUrl(
+        Uri.parse('https://127.0.0.1:${target.port}/pair'),
+      );
+      request.headers.contentType = ContentType.json;
+      request.write(body);
+      final response = await request.close();
+      final text = await response.transform(utf8.decoder).join();
+      return (response.statusCode, text);
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  test('an unauthenticated /pair body is capped and shape-checked', () async {
+    final b = _Side('b');
+    await b.start(root);
+    sides.add(b);
+
+    // Valid JSON without the pairing fields is a client error, not a 500
+    // that prints the server's stack trace into the log.
+    final (badStatus, _) = await postPair(b, '{"hello": "world"}');
+    expect(badStatus, HttpStatus.badRequest);
+
+    // A body past the cap is refused while being read — it is the only
+    // unauthenticated input the listener buffers.
+    final overCap = '{ "pad": "${'x' * (70 * 1024)}" }';
+    final (bigStatus, bigBody) = await postPair(b, overCap);
+    expect(bigStatus, HttpStatus.requestEntityTooLarge);
+    expect(bigBody, contains('body_too_large'));
+
+    // An unparseable certificate is a client error too, not a 500.
+    final (badCertStatus, badCertBody) = await postPair(
+      b,
+      '{"pin": "000000", "deviceId": "d", "deviceName": "", '
+      '"platform": "t", "certPem": "not-a-pem"}',
+    );
+    expect(badCertStatus, HttpStatus.badRequest);
+    expect(badCertBody, contains('bad_cert'));
+
+    // A well-shaped request still reaches the pairing logic (refused here
+    // because no window is open), so the guards gate nothing else.
+    final (idleStatus, idleBody) = await postPair(
+      b,
+      '{"pin": "000000", "deviceId": "${b.identity.deviceId}", '
+      '"deviceName": "", "platform": "t", '
+      '"certPem": ${jsonEncode(b.identity.certPem)}}',
+    );
+    expect(idleStatus, HttpStatus.forbidden);
+    expect(idleBody, contains('invalid_pin'));
+  });
+
   test('a QR-scanned fingerprint pairs without a typed PIN', () async {
     final a = _Side('a');
     final b = _Side('b');

@@ -39,6 +39,11 @@ class UploadDedupe {
     try {
       final file = File(path);
       if (await file.exists()) await file.delete();
+    } catch (error) {
+      // Best effort by contract: the caller is dropping a copy it owns,
+      // and a file that is locked or already gone must not surface as an
+      // unhandled async error.
+      debugPrint('[UploadDedupe] Failed to delete $path: $error');
     } finally {
       _deleting.remove(key);
     }
@@ -106,6 +111,7 @@ class UploadDedupe {
       // user happens to have named that way.
       final matchesName =
           name == fileName ||
+          (_sameBaseName(name, fileName) && _sameExtension(name, fileName)) ||
           (storedNames.contains(fileName) && _isVersionOf(name, fileName));
       if (!matchesName) continue;
       try {
@@ -159,10 +165,26 @@ class UploadDedupe {
     }
   }
 
+  /// Extensions that name the same encoding. A stored "photo.jpg" is the same
+  /// file as a new "photo.jpeg" to every consumer in the app, so identical
+  /// bytes must not be stored twice under both spellings.
+  static bool _sameExtension(String a, String b) {
+    final left = p.extension(a).toLowerCase();
+    final right = p.extension(b).toLowerCase();
+    if (left == right) return true;
+    return _isJpeg(left) && _isJpeg(right);
+  }
+
+  static bool _isJpeg(String extension) =>
+      extension == '.jpg' || extension == '.jpeg';
+
+  static bool _sameBaseName(String a, String b) =>
+      p.basenameWithoutExtension(a) == p.basenameWithoutExtension(b);
+
   /// True when [candidateName] is a versioned variant of [fileName], e.g.
   /// "notes(2).txt" for "notes.txt".
   static bool _isVersionOf(String candidateName, String fileName) {
-    if (p.extension(candidateName) != p.extension(fileName)) return false;
+    if (!_sameExtension(candidateName, fileName)) return false;
     final base = p.basenameWithoutExtension(fileName);
     final candidateBase = p.basenameWithoutExtension(candidateName);
     if (!candidateBase.startsWith(base)) return false;

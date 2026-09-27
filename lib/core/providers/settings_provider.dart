@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:path/path.dart' as p;
+import 'package:downsize/downsize.dart' show DownsizeFormat;
 import '../services/search/search_service.dart';
 import '../services/tts/network_tts.dart';
 import '../services/tts/tts_text_selection.dart';
@@ -63,6 +64,12 @@ enum DesktopMessageNavButtonsMode {
 enum MobileMessageNavButtonsMode { always, scroll, never }
 
 enum ImageUploadQuality { original, high, balanced, saver, custom }
+
+/// How attached images are treated. The modes are mutually exclusive:
+/// [manual] stores pristine originals and compresses only through the editor,
+/// [auto] re-encodes at attach time with the preset pipeline, [off] never
+/// compresses and shows no compression UI.
+enum ImageCompressionMode { manual, auto, off }
 
 class SettingsProvider extends ChangeNotifier {
   static const String _providersOrderKey = 'providers_order_v1';
@@ -288,6 +295,11 @@ class SettingsProvider extends ChangeNotifier {
       'image_compress_custom_quality_v1';
   static const String _imageCompressTransparentEnabledKey =
       'image_compress_transparent_enabled_v1';
+  static const String _imageCompressionModeKey = 'image_compression_mode_v1';
+  static const String _manualCompressFormatKey = 'manual_compress_format_v1';
+  static const String _manualCompressQualityKey = 'manual_compress_quality_v1';
+  static const String _manualCompressMaxLongEdgeKey =
+      'manual_compress_max_long_edge_v1';
   static const String _sendMarkdownImageLinksAsImagesKey =
       'send_markdown_image_links_as_images_v1';
   static const String _displayMobileCodeBlockWrapKey =
@@ -1242,6 +1254,23 @@ class SettingsProvider extends ChangeNotifier {
         (prefs.getInt(_imageCompressCustomQualityKey) ?? 85).clamp(10, 100);
     _imageCompressTransparentEnabled =
         prefs.getBool(_imageCompressTransparentEnabledKey) ?? false;
+    _imageCompressionMode = switch (prefs.getString(_imageCompressionModeKey)) {
+      'auto' => ImageCompressionMode.auto,
+      'off' => ImageCompressionMode.off,
+      _ => ImageCompressionMode.manual,
+    };
+    _manualCompressParams = ManualCompressParams(
+      format: switch (prefs.getString(_manualCompressFormatKey)) {
+        'png' => DownsizeFormat.png,
+        'original' => null,
+        _ => DownsizeFormat.jpeg,
+      },
+      quality: (prefs.getInt(_manualCompressQualityKey) ?? 80).clamp(30, 100),
+      maxLongEdge: () {
+        final stored = prefs.getInt(_manualCompressMaxLongEdgeKey) ?? 1536;
+        return stored > 0 ? stored : null;
+      }(),
+    );
     _sendMarkdownImageLinksAsImages =
         prefs.getBool(_sendMarkdownImageLinksAsImagesKey) ?? false;
     _mobileCodeBlockWrap =
@@ -5205,6 +5234,37 @@ Requirements:
     await _preferences.setBool(_imageCompressTransparentEnabledKey, value);
   }
 
+  ImageCompressionMode _imageCompressionMode = ImageCompressionMode.manual;
+  ImageCompressionMode get imageCompressionMode => _imageCompressionMode;
+  Future<void> setImageCompressionMode(ImageCompressionMode value) async {
+    if (_imageCompressionMode == value) return;
+    _imageCompressionMode = value;
+    notifyListeners();
+    await _preferences.setString(_imageCompressionModeKey, value.name);
+  }
+
+  /// Last-used manual editor parameters; they seed the next popup session.
+  ManualCompressParams _manualCompressParams = const ManualCompressParams();
+  ManualCompressParams get manualCompressParams => _manualCompressParams;
+  Future<void> setManualCompressParams(ManualCompressParams value) async {
+    if (_manualCompressParams == value) return;
+    _manualCompressParams = value;
+    notifyListeners();
+    await _preferences.setString(
+      _manualCompressFormatKey,
+      switch (value.format) {
+        DownsizeFormat.jpeg => 'jpeg',
+        DownsizeFormat.png => 'png',
+        null => 'original',
+      },
+    );
+    await _preferences.setInt(_manualCompressQualityKey, value.quality);
+    await _preferences.setInt(
+      _manualCompressMaxLongEdgeKey,
+      value.maxLongEdge ?? 0,
+    );
+  }
+
   // When off, `![alt](url)` in message text stays literal text instead of
   // being turned into a multimodal image part. Explicit attachments are
   // unaffected: they travel as media paths, not Markdown.
@@ -5218,6 +5278,17 @@ Requirements:
   }
 
   ImageCompressConfig resolveImageCompressConfig() {
+    // Manual and off both attach a pristine, byte-identical copy: in manual
+    // mode the editor is the only compression surface, in off mode there is
+    // none at all.
+    if (_imageCompressionMode != ImageCompressionMode.auto) {
+      return ImageCompressConfig(
+        enabled: false,
+        quality: 100,
+        maxLongEdge: 0,
+        includeTransparent: _imageCompressTransparentEnabled,
+      );
+    }
     return switch (_imageUploadQuality) {
       ImageUploadQuality.original => ImageCompressConfig(
         enabled: false,

@@ -398,6 +398,16 @@ class SyncEngine implements SyncServerHandler {
         outgoing.add(subtree);
       }
 
+      // The push payload exactly as it was read. A sent conversation's
+      // checkpoint entry must describe what crossed the wire: re-reading local
+      // state at advance time would record a message written during the session
+      // as peer-seen, and the next session's deletion oracle would then remove
+      // it from this device — the peer never received it.
+      final sentSubtrees = {
+        for (final subtree in outgoing)
+          subtree.conversation['id'] as String: subtree,
+      };
+
       // Business rows this device owes the peer.
       final outgoingEntityIds = <String, Set<String>>{};
       final outgoingPreferenceKeys = <String>{};
@@ -598,6 +608,7 @@ class SyncEngine implements SyncServerHandler {
         deletedIds: deleted,
         failedDeletes: failedDeletes,
         peerDeferredConversations: peerDeferred,
+        sentSubtrees: sentSubtrees,
       );
       final nextBusiness = await _advanceBusinessCheckpoint(
         previous: previous,
@@ -1118,6 +1129,12 @@ class SyncEngine implements SyncServerHandler {
   /// did not apply; without it "sent" would be indistinguishable from
   /// "received" and the next session would read the peer's older copy as a
   /// deletion of the rows this device had just written.
+  ///
+  /// [sentSubtrees] is the push payload as it was read. An `iSend` entry is
+  /// built from it rather than from a fresh local read, so the entry describes
+  /// what actually crossed the wire — a row written while the session was in
+  /// flight was never sent, and recording it as peer-seen would make the next
+  /// merge delete it here.
   Future<SyncCheckpoint> _advanceCheckpoint({
     required SyncCheckpoint previous,
     required List<SyncConvPlan> plan,
@@ -1127,6 +1144,7 @@ class SyncEngine implements SyncServerHandler {
     required Set<String> deletedIds,
     required Set<String> failedDeletes,
     Set<String> peerDeferredConversations = const {},
+    Map<String, SyncSubtreePayload> sentSubtrees = const {},
   }) async {
     final next = <String, SyncCheckpointConversation>{};
     for (final item in plan) {
@@ -1150,8 +1168,15 @@ class SyncEngine implements SyncServerHandler {
               peerDeferredConversations.contains(id)) {
             if (prior != null) next[id] = prior;
           } else {
-            final entry = await dataPlane.checkpointFromLocal(id);
-            if (entry != null) next[id] = entry;
+            final sent = sentSubtrees[id];
+            if (sent != null) {
+              next[id] = buildCheckpointConversation(
+                conversationRow: sent.conversation,
+                messageRows: sent.messages,
+              );
+            } else if (prior != null) {
+              next[id] = prior;
+            }
           }
         case SyncConvAction.peerSends:
         case SyncConvAction.bothSend:

@@ -71,6 +71,39 @@ class _NewerSchemaPlane extends SyncDataPlane {
   int get schemaVersion => super.schemaVersion + 1;
 }
 
+/// A data plane that writes one extra message into the first conversation of
+/// the push payload at the moment that payload is packaged. `buildBlobManifest`
+/// runs after `readSubtree` and before the checkpoint advance, so this is
+/// exactly the window a real user write (or a generation appending a row) lands
+/// in — the window the sent-payload rule is about.
+class _MidPushWritePlane extends SyncDataPlane {
+  _MidPushWritePlane({
+    required super.repository,
+    required super.chatService,
+    required super.businessRepository,
+    super.businessPreferences,
+    super.skillDirectories,
+    super.blobPathResolver,
+    required this.writeInto,
+  });
+
+  /// Called once, with the first outgoing conversation id.
+  final Future<void> Function(String conversationId) writeInto;
+  var _fired = false;
+
+  @override
+  Future<List<SyncBlobEntry>> buildBlobManifest({
+    required List<SyncSubtreePayload> subtrees,
+    required SyncBusinessPayload business,
+  }) async {
+    if (!_fired && subtrees.isNotEmpty) {
+      _fired = true;
+      await writeInto(subtrees.first.conversation['id'] as String);
+    }
+    return super.buildBlobManifest(subtrees: subtrees, business: business);
+  }
+}
+
 /// One device: its own sync directory, database, chat and business stores, and
 /// its own listener.
 class _Side {
@@ -163,7 +196,11 @@ class _Side {
   /// engine — the provider owns the listener then (QR flow, foreground round).
   SyncProvider? provider;
 
-  Future<void> start(Directory root, {bool withEngine = true}) async {
+  Future<void> start(
+    Directory root, {
+    bool withEngine = true,
+    Future<void> Function(String conversationId)? midPushWrite,
+  }) async {
     dir = Directory('${root.path}/$label');
     await dir.create(recursive: true);
     database = AppDatabase(NativeDatabase.memory());
@@ -185,6 +222,16 @@ class _Side {
             businessPreferences: businessPreferences,
             skillDirectories: skillDirectories,
             blobPathResolver: resolveBlob,
+          )
+        : midPushWrite != null
+        ? _MidPushWritePlane(
+            repository: repository,
+            chatService: chatService,
+            businessRepository: businessRepository,
+            businessPreferences: businessPreferences,
+            skillDirectories: skillDirectories,
+            blobPathResolver: resolveBlob,
+            writeInto: midPushWrite,
           )
         : SyncDataPlane(
             repository: repository,
@@ -1011,6 +1058,54 @@ void main() {
     expect(await _conversationIds(a), isEmpty);
     expect(await _conversationIds(b), isEmpty);
   });
+
+  test(
+    'a message written while the session is in flight is not peer-seen',
+    () async {
+      // "Sending is not receipt" applied to the content of the send: the entry
+      // for a pushed conversation must describe the payload that crossed the
+      // wire, not a re-read taken later in the session. A row written in that
+      // window was never sent, so recording it as peer-seen makes the next
+      // session's deletion oracle remove it here.
+      final a = _Side('a');
+      final b = _Side('b');
+      await a.start(
+        root,
+        midPushWrite: (conversationId) async {
+          await a.repository.putMessage(
+            ChatMessage(
+              id: 'conv-a-m1',
+              conversationId: conversationId,
+              role: 'user',
+              content: 'written mid-session',
+            ),
+          );
+        },
+      );
+      await b.start(root);
+      sides.addAll([a, b]);
+      final pin = b.engine.openPairing();
+      await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+      await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+
+      // The push carries m0 only: m1 is written as the payload is packaged.
+      final first = await a.engine.syncWithPeer(await a.peer(b));
+      expect(first.success, isTrue, reason: first.summary);
+      expect(await _messageIds(b, 'conv-a'), {'conv-a-m0'});
+
+      // The next session must re-send, not read B's older copy as a deletion
+      // of the row A wrote after the payload was read.
+      await a.engine.syncWithPeer(await a.peer(b));
+      expect(
+        await _messageIds(a, 'conv-a'),
+        contains('conv-a-m1'),
+        reason: 'a row written during the session must not be deleted here',
+      );
+
+      await a.engine.syncWithPeer(await a.peer(b));
+      expect(await _messageIds(b, 'conv-a'), contains('conv-a-m1'));
+    },
+  );
 
   test('a deferred push never deletes the sender\'s own new message', () async {
     // Sending is not receipt. While B is generating in the conversation it

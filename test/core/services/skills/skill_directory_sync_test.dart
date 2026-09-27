@@ -206,4 +206,61 @@ void main() {
     // And nothing was installed inside the root either.
     expect(await otherRoot.list().toList(), isEmpty);
   });
+
+  test('dot-named body content moves the hash; OS noise does not', () async {
+    // The directory hash is the only content clock, and the extractor installs
+    // every entry of a received archive: any name the hash skips is a
+    // divergence no session can detect. Dot-directories are real skill content
+    // (a body installed from a git checkout carries `.github/`, `.gitignore`),
+    // while the bookkeeping files Finder and Explorer drop in would make two
+    // identical bodies hash differently per platform.
+    final sync = SkillDirectorySync(root);
+    await writeSkill({
+      'SKILL.md': '# demo\n',
+      '.github/workflows/ci.yml': 'on: push\n',
+      '.gitignore': 'build/\n',
+      '.DS_Store': 'noise',
+    });
+    final first = await sync.hashOf('demo');
+
+    // A dot-only edit must move the clock...
+    await writeSkill({'.github/workflows/ci.yml': 'on: pull_request\n'});
+    final edited = await sync.hashOf('demo');
+    expect(edited, isNot(first));
+
+    // ...while platform noise must not.
+    await writeSkill({'.DS_Store': 'other noise'});
+    expect(await sync.hashOf('demo'), edited);
+  });
+
+  test('the served zip carries exactly what the hash counts', () async {
+    // The zip and the hash must agree on what a body is, so a peer receives the
+    // content whose hash it verified.
+    final source = SkillDirectorySync(root);
+    await writeSkill({
+      'SKILL.md': '# demo\n',
+      '.github/workflows/ci.yml': 'on: push\n',
+      '.DS_Store': 'noise',
+    });
+    final hash = (await source.hashOf('demo'))!;
+    final zip = await source.zipToCache(skillId: 'demo', dirHash: hash);
+
+    final otherRoot = await Directory.systemTemp.createTemp('skill_dir_peer_');
+    addTearDown(() async {
+      if (await otherRoot.exists()) await otherRoot.delete(recursive: true);
+    });
+    final target = SkillDirectorySync(otherRoot);
+    expect(
+      await target.applyZip(skillId: 'demo', dirHash: hash, zip: zip),
+      isTrue,
+    );
+    expect(
+      await File(
+        '${otherRoot.path}/demo/.github/workflows/ci.yml',
+      ).readAsString(),
+      'on: push\n',
+    );
+    expect(await File('${otherRoot.path}/demo/.DS_Store').exists(), isFalse);
+    expect(await target.hashOf('demo'), hash);
+  });
 }

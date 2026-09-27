@@ -194,7 +194,7 @@ class SkillDirectorySync {
       final current = stack.removeLast();
       for (final entity in Directory(current).listSync(followLinks: false)) {
         final name = p.basename(entity.path);
-        if (name.startsWith('.')) continue;
+        if (!_carriesSkillEntry(name)) continue;
         if (entity is Directory) {
           stack.add(entity.path);
         } else if (entity is File) {
@@ -210,6 +210,23 @@ class SkillDirectorySync {
   }
 }
 
+/// Whether a skill-directory entry rides the body. The hash, the fingerprint
+/// and the zip must agree on this set: the extractor installs every entry of a
+/// received archive, so any name the hash ignores is a divergence the content
+/// clock can never see — an edit touching only those names would never
+/// converge between two devices.
+///
+/// Excluded are the sync plane's own scratch directories (`.sync-blob-cache`
+/// beside the skills, the `.sync-apply-*` staging and `.sync-old-*` trashed
+/// bodies) and the bookkeeping files Finder and Explorer drop in, which would
+/// otherwise make two identical bodies hash differently per platform.
+bool _carriesSkillEntry(String name) {
+  if (name == '.DS_Store' || name == 'Thumbs.db' || name == 'desktop.ini') {
+    return false;
+  }
+  return !name.startsWith('.sync-');
+}
+
 /// sha256 over the sorted `relpath\0fileDigest` lines of every regular file
 /// under [dirPath]. Deterministic across platforms (posix separators, UTF-8,
 /// sorted) and independent of mtimes.
@@ -220,7 +237,7 @@ String _hashSkillDirectory(String dirPath) {
     final current = stack.removeLast();
     for (final entity in Directory(current).listSync(followLinks: false)) {
       final name = p.basename(entity.path);
-      if (name.startsWith('.')) continue;
+      if (!_carriesSkillEntry(name)) continue;
       if (entity is Directory) {
         stack.add(entity.path);
       } else if (entity is File) {
@@ -244,7 +261,7 @@ void _writeSkillZip(String dirPath, String outputPath) {
     final current = stack.removeLast();
     for (final entity in Directory(current).listSync(followLinks: false)) {
       final name = p.basename(entity.path);
-      if (name.startsWith('.')) continue;
+      if (!_carriesSkillEntry(name)) continue;
       if (entity is Directory) {
         stack.add(entity.path);
       } else if (entity is File) {

@@ -52,6 +52,23 @@ void main() {
     );
   });
 
+  test('a sync read returns only registry-synced preferences', () async {
+    // The read answers fetch requests whose key list arrives from the wire;
+    // a peer naming a device-local (or unclassified) key must not have its
+    // value handed back, exactly as the manifest never advertises it.
+    await preferences.setString('user_name', 'Alice');
+    await preferences.setString('current_assistant_id_v1', 'a1');
+
+    final rows = await repository.syncReadPreferenceRows({
+      'user_name',
+      'current_assistant_id_v1',
+      'never_classified_key_v9',
+    });
+
+    expect(rows.map((row) => row['key']), ['user_name']);
+    expect(rows.single['value'] as String, contains('Alice'));
+  });
+
   test('an applied row keeps the peer clock and older rows never win', () async {
     await setAssistants([(id: 'a1', name: 'Mine')]);
     final mine = (await repository.readEntities(

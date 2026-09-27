@@ -678,13 +678,24 @@ WHERE id IN ($placeholders);
     return rows;
   }
 
-  /// The named preference rows, as raw column maps.
+  /// The named preference rows, as raw column maps. Only keys the registry
+  /// classifies as synced preferences are read: the caller's key list can
+  /// arrive from the wire (a fetch request names what a peer wants), and a
+  /// device-local or discarded key must not leave the device even then —
+  /// the same filter the manifest, apply and delete paths already apply.
   Future<List<Map<String, dynamic>>> syncReadPreferenceRows(
     Set<String> keys,
   ) async {
-    if (keys.isEmpty) return const [];
+    final synced = keys
+        .where(
+          (key) =>
+              BusinessKeyRegistry.classify(key) ==
+              BusinessKeyDisposition.syncedPreference,
+        )
+        .toSet();
+    if (synced.isEmpty) return const [];
     final rows = <Map<String, dynamic>>[];
-    for (final batch in _batched(keys)) {
+    for (final batch in _batched(synced)) {
       final result = await _database
           .customSelect(
             'SELECT * FROM preference_rows WHERE key IN '

@@ -1063,6 +1063,28 @@ void main() {
     expect(b.businessPreferences.getString('user_name'), isNull);
   });
 
+  test('a business deletion through the data plane removes the row', () async {
+    // The engine's own deletions go through SyncDataPlane.deleteBusinessRow,
+    // which now runs on the serialized write queue (a provider's whole-list
+    // read-modify-write must not interleave and re-insert the row); this
+    // pins that the rerouting still deletes.
+    final a = _Side('a');
+    await a.start(root);
+    sides.add(a);
+    await a.businessPreferences.setString('user_name', 'Alice');
+
+    final removed = await a.dataPlane.deleteBusinessRow(
+      kSyncPreferenceWire,
+      'user_name',
+    );
+
+    expect(removed, isTrue);
+    expect(
+      await a.businessRepository.syncReadPreferenceRows({'user_name'}),
+      isEmpty,
+    );
+  });
+
   test('a clock tie resolves to the higher deviceId on both sides', () async {
     final (a, b) = await pair();
     await _setAssistants(a, [(id: 'assistant-1', name: 'From A')]);

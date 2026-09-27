@@ -301,15 +301,27 @@ class SyncDataPlane {
   /// Deletes one business row the peer no longer has. A skill's body goes with
   /// its record: a row-less directory would be resurrected as a fresh record by
   /// the skills rescan, and a directory-less row installs a broken skill.
+  ///
+  /// The delete rides the same serialized write queue as applies and local
+  /// entity edits (ADR-0003): a provider's whole-list read-modify-write must
+  /// not interleave with a sync deletion either, or it re-inserts the row the
+  /// checkpoint entry already dropped.
   Future<bool> deleteBusinessRow(String kindWire, String id) async {
-    if (kindWire == kSyncPreferenceWire) {
-      return businessRepository.syncDeletePreference(id);
+    Future<bool> delete() async {
+      if (kindWire == kSyncPreferenceWire) {
+        return businessRepository.syncDeletePreference(id);
+      }
+      final removed = await businessRepository.syncDeleteEntity(kindWire, id);
+      if (removed && kindWire == skillWire) {
+        await skillDirectories?.deleteDirectory(id);
+      }
+      return removed;
     }
-    final removed = await businessRepository.syncDeleteEntity(kindWire, id);
-    if (removed && kindWire == skillWire) {
-      await skillDirectories?.deleteDirectory(id);
-    }
-    return removed;
+
+    final preferences = businessPreferences;
+    return preferences == null
+        ? await delete()
+        : await preferences.serializeExternalWrite(delete);
   }
 
   /// The checkpoint entry for a business row whose local state is the state

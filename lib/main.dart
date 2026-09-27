@@ -104,6 +104,7 @@ import 'dart:io'
 import 'core/services/mobile_background.dart';
 import 'core/services/notification_service.dart';
 import 'features/home/controllers/chat_actions.dart';
+import 'features/home/services/input_draft_persistence.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final RouteObserver<ModalRoute<dynamic>> routeObserver =
@@ -219,6 +220,10 @@ Future<void> main() async {
         final enabled = prefs.getBool('flutter_log_enabled_v1') ?? false;
         await FlutterLogger.setEnabled(enabled);
       } catch (_) {}
+      // Preload the chat input draft before runApp: the restore at input-bar
+      // mount is then race-free (the event loop cannot deliver user input
+      // first), so no overwrite-confirm dialog is needed.
+      await InputDraftPersistence.ensureInitialized();
       // Trim Flutter global image cache to reduce memory pressure from large images
       try {
         PaintingBinding.instance.imageCache.maximumSize = 200;

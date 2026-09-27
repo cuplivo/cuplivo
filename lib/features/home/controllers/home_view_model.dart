@@ -185,6 +185,11 @@ class HomeViewModel extends ChangeNotifier {
   /// Called for haptic feedback.
   VoidCallback? onHapticFeedback;
 
+  /// Called when a queued input has actually been sent. The composer kept the
+  /// queued content as its persisted draft (the queue is memory-only), so it
+  /// drops that copy once the message is durable in the conversation.
+  VoidCallback? onQueuedInputDrained;
+
   /// Called when conversation is successfully switched (for animations).
   VoidCallback? onConversationSwitched;
 
@@ -525,6 +530,10 @@ class HomeViewModel extends ChangeNotifier {
     final success = await _sendMessageToConversation(input, conversation);
     if (!success) {
       _queuedInput = queued;
+    } else {
+      // Durable in the conversation now, so the composer may drop the safety
+      // copy it held for this queued input.
+      onQueuedInputDrained?.call();
     }
 
     _isDrainingQueuedInput = false;

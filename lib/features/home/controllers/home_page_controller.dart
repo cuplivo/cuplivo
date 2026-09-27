@@ -545,6 +545,8 @@ class HomePageController extends ChangeNotifier {
         if (settings.hapticsOnGenerate) Haptics.light();
       } catch (_) {}
     };
+    _viewModel.onQueuedInputDrained = () =>
+        _mediaController.clearPersistedDraft();
     _viewModel.onScheduleImageSanitize =
         (messageId, content, {bool immediate = false}) {
           _scheduleInlineImageSanitize(

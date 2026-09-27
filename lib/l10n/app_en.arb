@@ -129,6 +129,15 @@
   "storageSpaceClearLegacyChatDataConfirmMessage": "Clear the retained old chat files? Your current SQLite chat records will remain available.",
   "storageSpaceViewLogsButton": "View Logs",
   "storageSpaceDeleteConfirmTitle": "Confirm deletion",
+  "storageSpaceDeleteDraftWarning": "{count} of them are still referenced by your unsaved draft",
+  "@storageSpaceDeleteDraftWarning": {
+    "description": "Storage delete guardrail: the selection is still referenced by the unsent input draft",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "storageSpaceDeleteUploadsConfirmMessage": "Delete {count} items and their associated conversation attachment copies? These attachments will no longer be available in chat history.",
   "@storageSpaceDeleteUploadsConfirmMessage": {
     "placeholders": {

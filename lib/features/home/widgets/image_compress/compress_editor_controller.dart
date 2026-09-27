@@ -10,11 +10,39 @@ import 'package:image/image.dart' as img;
 
 import '../../../../utils/image_compressor.dart';
 
-/// Longest edge of the decoded preview cache. Larger images are cached at a
+/// Total pixels of the decoded preview cache. Larger images are cached at a
 /// reduced size so a phone photo never materialises a full-resolution RGBA
 /// copy in both Dart and GPU memory. Artifacts are always produced from the
 /// original bytes, never from this cache.
-const int _kMaxDecodedPixels = 16 * 1000 * 1000;
+const int _kMaxDecodedPixels = 4 * 1000 * 1000;
+
+/// Longest edge of the decoded preview cache. A pixel budget alone still
+/// leaves a 12 MP photo at full resolution, and every comparison tick then
+/// crops the whole thing, so both dimensions are bounded. 2048 px stays above
+/// the largest realistic preview viewport (about 1290 device pixels on a
+/// phone, about 1400 on desktop), so the 1:1 comparison stays honest at the
+/// resolution it is actually displayed at.
+const int _kMaxPreviewLongEdge = 2048;
+
+/// The size [width]×[height] is cached at: shrunk until it fits both the
+/// pixel budget and the long-edge cap, never enlarged.
+({int width, int height}) previewCacheSize(int width, int height) {
+  if (width <= 0 || height <= 0) return (width: width, height: height);
+  final pixels = width * height;
+  final longEdge = math.max(width, height);
+  var factor = 1.0;
+  if (longEdge > _kMaxPreviewLongEdge) {
+    factor = _kMaxPreviewLongEdge / longEdge;
+  }
+  if (pixels * factor * factor > _kMaxDecodedPixels) {
+    factor = math.min(factor, math.sqrt(_kMaxDecodedPixels / pixels));
+  }
+  if (factor >= 1) return (width: width, height: height);
+  return (
+    width: math.max(1, (width * factor).round()),
+    height: math.max(1, (height * factor).round()),
+  );
+}
 
 /// Longest edge of the comparison tile rendered on the compressed side of the
 /// divider: large enough to stay honest at 1:1, small enough to re-encode
@@ -23,6 +51,15 @@ const int _kTileLongEdgeCap = 1280;
 
 const Duration _kTileDebounce = Duration(milliseconds: 180);
 const Duration _kEstimateDebounce = Duration(milliseconds: 600);
+
+/// Smallest long edge the editor offers for an image whose longest side is
+/// [originalLongEdge]: the 25% preset has to stay reachable, so the slider's
+/// minimum follows the image down instead of sitting at a flat 256 px and
+/// disagreeing with a preset it cannot represent.
+int minEditorLongEdge(int originalLongEdge) {
+  if (originalLongEdge <= 0) return 1;
+  return math.min(256, math.max(1, (originalLongEdge / 4).round()));
+}
 
 /// Decoded preview pixels: RGBA bytes plus both the cache size and the true
 /// source size.
@@ -44,12 +81,12 @@ PreviewDecode decodeForPreview(Uint8List bytes) {
   image.exif.clear();
   final sourceWidth = image.width;
   final sourceHeight = image.height;
-  final pixels = sourceWidth * sourceHeight;
-  if (pixels > _kMaxDecodedPixels) {
-    final factor = math.sqrt(_kMaxDecodedPixels / pixels);
+  final cache = previewCacheSize(sourceWidth, sourceHeight);
+  if (cache.width != sourceWidth || cache.height != sourceHeight) {
     image = img.copyResize(
       image,
-      width: math.max(1, (image.width * factor).round()),
+      width: cache.width,
+      height: cache.height,
       interpolation: img.Interpolation.average,
     );
   }
@@ -186,6 +223,7 @@ class CompressEditorController extends ChangeNotifier {
       _sourceWidth = outcome.sourceWidth;
       _sourceHeight = outcome.sourceHeight;
       _original = display;
+      _params = _normalizedParams(outcome.sourceWidth, outcome.sourceHeight);
       _preparing = false;
       notifyListeners();
       _scheduleEstimate();
@@ -202,9 +240,36 @@ class CompressEditorController extends ChangeNotifier {
   void setParams(ManualCompressParams value) {
     if (value == _params) return;
     _params = value;
+    // The tile encodes the previous parameters: showing it next to the new
+    // ones would present a stale result as the current one.
+    _invalidateTile();
     notifyListeners();
     _scheduleTile();
     _scheduleEstimate();
+  }
+
+  /// The remembered long edge can come from a different image and therefore
+  /// sit outside this image's slider range. Clamping keeps the readout and the
+  /// applied value identical; a cap above the source only ever means "do not
+  /// downscale", so clamping it down never changes the result.
+  ManualCompressParams _normalizedParams(int sourceWidth, int sourceHeight) {
+    final longEdge = _params.maxLongEdge;
+    if (longEdge == null) return _params;
+    final source = math.max(sourceWidth, sourceHeight);
+    final clamped = longEdge.clamp(minEditorLongEdge(source), source);
+    if (clamped == longEdge) return _params;
+    return ManualCompressParams(
+      format: _params.format,
+      quality: _params.quality,
+      maxLongEdge: clamped,
+    );
+  }
+
+  void _invalidateTile() {
+    if (_tile == null && _tileSource == null) return;
+    _tile?.dispose();
+    _tile = null;
+    _tileSource = null;
   }
 
   /// Called by the preview whenever its layout or transform changes.
@@ -230,7 +295,13 @@ class CompressEditorController extends ChangeNotifier {
   Future<void> _computeTile() async {
     final decoded = _decoded;
     final format = _params.format;
-    if (decoded == null || format == null) return;
+    if (decoded == null) return;
+    if (format == null) {
+      final hadTile = _tile != null || _tileSource != null;
+      _invalidateTile();
+      if (hadTile) notifyListeners();
+      return;
+    }
     final source = _clampedVisible(decoded);
     if (source == null) return;
 
@@ -329,30 +400,41 @@ class CompressEditorController extends ChangeNotifier {
     }
   }
 
-  Future<ui.Image> _decodeUiImage(Uint8List bytes) {
-    final completer = Completer<ui.Image>();
-    ui.instantiateImageCodec(bytes).then((codec) {
-      codec.getNextFrame().then((frame) {
-        completer.complete(frame.image);
-        codec.dispose();
-      }, onError: completer.completeError);
-    }, onError: completer.completeError);
-    return completer.future;
+  Future<ui.Image> _decodeUiImage(Uint8List bytes) async {
+    final codec = await ui.instantiateImageCodec(bytes);
+    try {
+      final frame = await codec.getNextFrame();
+      return frame.image;
+    } finally {
+      codec.dispose();
+    }
   }
 
+  /// Builds the preview texture from raw pixels. The descriptor API reports
+  /// a rejected buffer as an error, where `decodeImageFromPixels` would leave
+  /// its callback pending and the editor spinning forever.
   static Future<ui.Image> _uiImageFromRgba(
     Uint8List rgba,
     int width,
     int height,
-  ) {
-    final completer = Completer<ui.Image>();
-    ui.decodeImageFromPixels(
-      rgba,
-      width,
-      height,
-      ui.PixelFormat.rgba8888,
-      completer.complete,
-    );
-    return completer.future;
+  ) async {
+    final buffer = await ui.ImmutableBuffer.fromUint8List(rgba);
+    ui.ImageDescriptor? descriptor;
+    ui.Codec? codec;
+    try {
+      descriptor = ui.ImageDescriptor.raw(
+        buffer,
+        width: width,
+        height: height,
+        pixelFormat: ui.PixelFormat.rgba8888,
+      );
+      codec = await descriptor.instantiateCodec();
+      final frame = await codec.getNextFrame();
+      return frame.image;
+    } finally {
+      codec?.dispose();
+      descriptor?.dispose();
+      buffer.dispose();
+    }
   }
 }

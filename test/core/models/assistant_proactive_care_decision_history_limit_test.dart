@@ -41,21 +41,43 @@ void main() {
       );
     });
 
-    test('clamps configured values to the supported range', () {
+    test('clamps configured values to the supported range on writes', () {
+      // The const constructor passes through (same as contextMessageSize);
+      // every write path (fromJson restore, copyWith UI edits) normalizes.
+      final passthrough = Assistant(
+        id: 'low',
+        name: 'Low',
+        proactiveCareDecisionHistoryMessageLimit: 0,
+      );
+      expect(passthrough.proactiveCareDecisionHistoryMessageLimit, 0);
+
       expect(
-        Assistant(
-          id: 'low',
-          name: 'Low',
-          proactiveCareDecisionHistoryMessageLimit: 0,
-        ).proactiveCareDecisionHistoryMessageLimit,
+        Assistant.fromJson({
+          ...passthrough.toJson(),
+          'id': 'restored',
+        }).proactiveCareDecisionHistoryMessageLimit,
         Assistant.minContextMessageSize,
+      );
+      expect(
+        passthrough
+            .copyWith(proactiveCareDecisionHistoryMessageLimit: 0)
+            .proactiveCareDecisionHistoryMessageLimit,
+        Assistant.minContextMessageSize,
+      );
+      expect(
+        Assistant.fromJson({
+          'id': 'high',
+          'name': 'High',
+          'proactiveCareDecisionHistoryMessageLimit': 9999,
+        }).proactiveCareDecisionHistoryMessageLimit,
+        Assistant.maxContextMessageSize,
       );
       expect(
         Assistant(
           id: 'high',
           name: 'High',
-          proactiveCareDecisionHistoryMessageLimit: 9999,
-        ).proactiveCareDecisionHistoryMessageLimit,
+        ).copyWith(proactiveCareDecisionHistoryMessageLimit: 9999)
+            .proactiveCareDecisionHistoryMessageLimit,
         Assistant.maxContextMessageSize,
       );
     });

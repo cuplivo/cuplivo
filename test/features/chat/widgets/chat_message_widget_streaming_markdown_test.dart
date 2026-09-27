@@ -209,52 +209,51 @@ A-->B''',
     },
   );
 
-  testWidgets(
-    'streaming status keeps its State when the first text arrives',
-    (tester) async {
-      final content = ValueNotifier('');
-      addTearDown(content.dispose);
-      const messageId = 'streaming-shell';
+  testWidgets('streaming status keeps its State when the first text arrives', (
+    tester,
+  ) async {
+    final content = ValueNotifier('');
+    addTearDown(content.dispose);
+    const messageId = 'streaming-shell';
 
-      await tester.pumpWidget(
-        _buildHarness(
-          child: SizedBox(
-            width: 360,
-            child: ValueListenableBuilder<String>(
-              valueListenable: content,
-              builder: (context, value, _) => ChatMessageWidget(
-                message: ChatMessage(
-                  id: messageId,
-                  role: 'assistant',
-                  content: value,
-                  conversationId: 'conversation-1',
-                  isStreaming: true,
-                ),
-                showModelIcon: false,
+    await tester.pumpWidget(
+      _buildHarness(
+        child: SizedBox(
+          width: 360,
+          child: ValueListenableBuilder<String>(
+            valueListenable: content,
+            builder: (context, value, _) => ChatMessageWidget(
+              message: ChatMessage(
+                id: messageId,
+                role: 'assistant',
+                content: value,
+                conversationId: 'conversation-1',
+                isStreaming: true,
               ),
+              showModelIcon: false,
             ),
           ),
         ),
-      );
-      await tester.pump();
+      ),
+    );
+    await tester.pump();
 
-      final status = find.byKey(
-        const ValueKey('assistant-streaming-status:streaming-shell'),
-      );
-      final indicator = find.descendant(
-        of: status,
-        matching: find.byType(LoadingIndicator),
-      );
-      expect(indicator, findsOneWidget);
-      final initialIndicatorState = tester.state(indicator);
+    final status = find.byKey(
+      const ValueKey('assistant-streaming-status:streaming-shell'),
+    );
+    final indicator = find.descendant(
+      of: status,
+      matching: find.byType(LoadingIndicator),
+    );
+    expect(indicator, findsOneWidget);
+    final initialIndicatorState = tester.state(indicator);
 
-      content.value = 'First visible token';
-      await tester.pump();
+    content.value = 'First visible token';
+    await tester.pump();
 
-      expect(_allRichTextPlainText(tester), contains('First visible token'));
-      expect(tester.state(indicator), same(initialIndicatorState));
-    },
-  );
+    expect(_allRichTextPlainText(tester), contains('First visible token'));
+    expect(tester.state(indicator), same(initialIndicatorState));
+  });
 
   testWidgets(
     'completion actions keep their AnimatedSwitcher State after streaming',

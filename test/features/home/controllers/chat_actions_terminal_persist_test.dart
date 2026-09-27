@@ -332,8 +332,12 @@ void main() {
             supportedLocales: AppLocalizations.supportedLocales,
             home: Builder(
               builder: (context) {
-                final result =
-                    _actionsFor(context, service, settings, background);
+                final result = _actionsFor(
+                  context,
+                  service,
+                  settings,
+                  background,
+                );
                 actions = result.actions;
                 return const SizedBox.shrink();
               },

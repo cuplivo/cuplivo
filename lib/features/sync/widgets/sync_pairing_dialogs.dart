@@ -42,8 +42,14 @@ Future<void> _showCodeDialog(BuildContext context) async {
   final provider = context.read<SyncProvider>();
   final pin = provider.openPairing();
   if (pin == null || !context.mounted) return;
+  // The window this dialog opens lives for five minutes and is invisible
+  // anywhere else, so the dialog must not be dismissible on its own: a barrier
+  // tap or a system back gesture would leave a live PIN and QR on screen for
+  // no one. Only the explicit close (which cancels) or expiry (which closes the
+  // window first) ends it.
   await showDialog<void>(
     context: context,
+    barrierDismissible: false,
     builder: (_) => _PairingCodeDialog(provider: provider, pin: pin),
   );
 }
@@ -77,14 +83,17 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
       final expiresAt = widget.provider.pairingExpiresAt;
       if (!mounted) return;
       if (expiresAt == null) {
-        Navigator.of(context).maybePop();
+        // `pop`, not `maybePop`: this route refuses route-level pops (the
+        // window must not be dismissible by a gesture), and an expired window
+        // is the one close that is not a user pop.
+        Navigator.of(context).pop();
         return;
       }
       setState(() {
         _remaining = expiresAt.difference(DateTime.now());
       });
       if (!_remaining.isNegative && _remaining == Duration.zero) {
-        Navigator.of(context).maybePop();
+        Navigator.of(context).pop();
       }
     });
   }
@@ -125,8 +134,13 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
     final endpoints = [
       for (final ip in provider.localIps) '$ip:${provider.port ?? ''}',
     ];
-    return AlertDialog(
-      title: Text(l10n.lanSyncPairingCode),
+    // The dialog closes only through its own button (which cancels the
+    // window) or the expiry ticker; a system back gesture must not leave the
+    // window open behind a dismissed dialog.
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        title: Text(l10n.lanSyncPairingCode),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -229,6 +243,7 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
           child: Text(l10n.lanSyncClosePairing),
         ),
       ],
+      ),
     );
   }
 }

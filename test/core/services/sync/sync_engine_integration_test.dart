@@ -21,11 +21,15 @@ import 'package:Cuplivo/core/services/sync/sync_identity.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:Cuplivo/core/services/sync/sync_pair_qr.dart';
 import 'package:Cuplivo/core/services/sync/sync_store.dart';
+import 'package:Cuplivo/features/sync/widgets/sync_pairing_dialogs.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:provider/provider.dart';
 
 /// End-to-end LAN sync over the real stack: two independent databases, two
 /// device identities, mutual TLS on loopback. This is the only place the wire
@@ -562,6 +566,68 @@ void main() {
     );
     expect(idleStatus, HttpStatus.forbidden);
     expect(idleBody, contains('invalid_pin'));
+  });
+
+  testWidgets('the pairing code dialog cannot be dismissed by a gesture', (
+    tester,
+  ) async {
+    // The pairing window outlives a dismissed dialog: the PIN and QR stay
+    // valid for five minutes and nothing else on screen shows it. The dialog
+    // therefore refuses barrier taps and system back.
+    final a = _Side('a');
+    // Real sockets and the identity filesystem do not complete under the
+    // widget tester's fake clock, so the setup runs on the real one.
+    late final SyncProvider provider;
+    late final AppLocalizations l10n;
+    await tester.runAsync(() async {
+      await a.start(root, withEngine: false);
+      sides.add(a);
+      provider = await a.startProvider();
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    });
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SyncProvider>.value(
+        value: provider,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () => showSyncPairingDialogs(
+                    context: context,
+                    showCode: true,
+                  ),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    // No pumpAndSettle: the dialog runs a one-second countdown ticker.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(provider.isPairingOpen, isTrue);
+
+    // A barrier tap must not close it — that is the path that used to leave
+    // an invisible open window behind.
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(provider.isPairingOpen, isTrue);
+
+    // The explicit close cancels the window with the dialog.
+    await tester.tap(find.text(l10n.lanSyncClosePairing));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(provider.isPairingOpen, isFalse);
   });
 
   test('a QR-scanned fingerprint pairs without a typed PIN', () async {

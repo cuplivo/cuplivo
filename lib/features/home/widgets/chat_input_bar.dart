@@ -3422,7 +3422,9 @@ class _CompactSendButton extends StatelessWidget {
               padding: const EdgeInsets.all(7),
               child: AnimatedSwitcher(
                 duration: fastDuration,
-                reverseDuration: reduceMotion ? Duration.zero : AppMotion.instant,
+                reverseDuration: reduceMotion
+                    ? Duration.zero
+                    : AppMotion.instant,
                 switchInCurve: AppMotion.enter,
                 switchOutCurve: AppMotion.exit,
                 transitionBuilder: (child, anim) => ScaleTransition(

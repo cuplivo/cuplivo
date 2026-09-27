@@ -5995,11 +5995,7 @@ class ModernRadioMd extends BlockMd {
 
 class EscapeAwareTableMd extends TableMd {
   @override
-  Widget build(
-    BuildContext context,
-    String text,
-    GptMarkdownConfig config,
-  ) {
+  Widget build(BuildContext context, String text, GptMarkdownConfig config) {
     final value = text
         .trim()
         .split('\n')

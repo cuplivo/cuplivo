@@ -93,6 +93,7 @@
   "storageSpaceClearLegacyChatDataConfirmMessage": "確定清理保留的舊聊天檔案嗎？目前的 SQLite 聊天記錄不會受到影響。",
   "storageSpaceViewLogsButton": "查看日誌",
   "storageSpaceDeleteConfirmTitle": "確認刪除",
+  "storageSpaceDeleteDraftWarning": "其中 {count} 個檔案仍被未發送的草稿引用",
   "storageSpaceDeleteUploadsConfirmMessage": "刪除 {count} 個項目及其對應的對話附件副本？刪除後，聊天記錄中的這些附件將無法使用。",
   "storageSpaceDeletedUploadsDone": "已刪除 {count} 個項目",
   "storageSpaceNoUploads": "暫無內容",

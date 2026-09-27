@@ -664,6 +664,12 @@ abstract class AppLocalizations {
   /// **'Confirm deletion'**
   String get storageSpaceDeleteConfirmTitle;
 
+  /// Storage delete guardrail: the selection is still referenced by the unsent input draft
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of them are still referenced by your unsaved draft'**
+  String storageSpaceDeleteDraftWarning(int count);
+
   /// No description provided for @storageSpaceDeleteUploadsConfirmMessage.
   ///
   /// In en, this message translates to:

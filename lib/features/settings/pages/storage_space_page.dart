@@ -19,6 +19,7 @@ import '../../../theme/app_font_weights.dart';
 import '../../../utils/platform_utils.dart';
 import '../../backup/pages/local_snapshots_page.dart';
 import '../../chat/pages/image_viewer_page.dart';
+import '../../home/services/input_draft_persistence.dart';
 import '../../workspace/pages/environment_page.dart';
 import '../../workspace/pages/skills_page.dart';
 import '../../workspace/pages/workspaces_page.dart';
@@ -2199,12 +2200,23 @@ class _UploadManagerState extends State<_UploadManager> {
     if (_selected.isEmpty) return;
     final l10n = AppLocalizations.of(context)!;
     final count = _selected.length;
+    // Deletion guardrail: warn (but never block) when the selection is still
+    // referenced by the unsent input draft, which now survives restarts.
+    final draftFiles =
+        InputDraftPersistence.maybeInstance?.draftReferencedFiles() ??
+        const <String>{};
+    final draftHitCount = _selected.where(draftFiles.contains).length;
+    var content = l10n.storageSpaceDeleteUploadsConfirmMessage(count);
+    if (draftHitCount > 0) {
+      content =
+          '$content\n\n${l10n.storageSpaceDeleteDraftWarning(draftHitCount)}';
+    }
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) {
         return AlertDialog(
           title: Text(l10n.storageSpaceDeleteConfirmTitle),
-          content: Text(l10n.storageSpaceDeleteUploadsConfirmMessage(count)),
+          content: Text(content),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),

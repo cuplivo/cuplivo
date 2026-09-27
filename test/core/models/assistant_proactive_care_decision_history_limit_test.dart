@@ -54,7 +54,7 @@ void main() {
         Assistant(
           id: 'high',
           name: 'High',
-          proactiveCareDecisionHistoryMessageLimit: 2048,
+          proactiveCareDecisionHistoryMessageLimit: 9999,
         ).proactiveCareDecisionHistoryMessageLimit,
         Assistant.maxContextMessageSize,
       );

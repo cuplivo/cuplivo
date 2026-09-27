@@ -5162,8 +5162,23 @@ class ChatDatabaseRepository {
       for (final row in plan.upserts) {
         finalRows[row['id'] as String] = row;
       }
+      // Two devices that each regenerated the same message contribute rival
+      // rows with the same (group_id, version) and different ids — a union both
+      // rows of which the schema's unique key forbids, so the second insert
+      // would abort the apply and every later session with it. One
+      // deterministic winner per slot (identical on both peers), the rest
+      // removed here and deleted below with their parts.
+      final slotLosers = resolveVersionGroupCollisions(finalRows.values);
+      for (final id in slotLosers) {
+        finalRows.remove(id);
+      }
+      final deletes = <String>{...plan.deletes, ...slotLosers};
       final order = rederiveMessageOrder(finalRows.values);
-      final upsertedIds = {for (final row in plan.upserts) row['id'] as String};
+      var upserted = 0;
+      final upsertedIds = {
+        for (final row in plan.upserts)
+          if (finalRows.containsKey(row['id'])) row['id'] as String,
+      };
 
       // The stored order can disagree with the re-derived one — a message
       // appended out of timestamp order, or a conversation an earlier build
@@ -5171,7 +5186,7 @@ class ChatDatabaseRepository {
       // so whether to reorder is decided before anything is touched.
       final needsReorder =
           plan.upserts.isNotEmpty ||
-          plan.deletes.isNotEmpty ||
+          deletes.isNotEmpty ||
           finalRows.entries.any(
             (entry) =>
                 !upsertedIds.contains(entry.key) &&
@@ -5197,11 +5212,12 @@ class ChatDatabaseRepository {
         }
       }
 
-      // Phase 2: deletions (parts cascade).
-      if (plan.deletes.isNotEmpty) {
+      // Phase 2: deletions (parts cascade). The checkpoint-detected ones plus
+      // the rival rows a version-group slot had to resolve.
+      if (deletes.isNotEmpty) {
         await (_db.delete(
           _db.messageRows,
-        )..where((row) => row.id.isIn(plan.deletes))).go();
+        )..where((row) => row.id.isIn(deletes))).go();
       }
 
       // Phase 3: upserts with final order, then re-point untouched rows.
@@ -5213,6 +5229,10 @@ class ChatDatabaseRepository {
       }
       for (final row in plan.upserts) {
         final id = row['id'] as String;
+        // An incoming row that lost its version slot was removed above and is
+        // deleted in phase 2 instead of written.
+        if (!finalRows.containsKey(id)) continue;
+        upserted++;
         await _upsertSyncRow('message_rows', {
           ...row,
           'message_order': order[id]!,
@@ -5247,8 +5267,11 @@ class ChatDatabaseRepository {
       return SyncSubtreeApplyOutcome(
         conversationRow: conversationRow,
         messageRows: [for (final row in finalRows.values) row],
-        upsertedMessages: plan.upserts.length,
-        deletedMessages: plan.deletes.length,
+        upsertedMessages: upserted,
+        // A rival row a version-group slot had to resolve is a deletion too:
+        // its content lost the deterministic rule, and the report says so
+        // rather than dropping it silently.
+        deletedMessages: deletes.length,
         conversationRowChanged: conversationRowChanged,
       );
     });

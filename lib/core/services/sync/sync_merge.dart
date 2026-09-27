@@ -359,6 +359,48 @@ MessageMergePlan mergeMessageRows({
   return MessageMergePlan(upserts, deletes);
 }
 
+/// The ids of message rows that must lose the `(conversation_id, group_id,
+/// version)` slot they share with another row of [rows].
+///
+/// Two devices that each regenerate (or edit-append) the same message create
+/// rival rows with the same group and version but different ids, and the
+/// schema's `UNIQUE(conversation_id, group_id, version)` allows only one: the
+/// union of both sides would violate it and abort the apply — and every later
+/// session with it. The winner is the newer mutation clock, ties to the higher
+/// row id; both peers hold the same rival rows, and neither the clock nor the
+/// id depends on which side is asking, so both reach the same verdict without
+/// negotiating (the same property the per-row LWW rule has).
+///
+/// Rows without a group id cannot collide — SQLite treats NULLs as distinct in
+/// a unique index — and are left alone.
+List<String> resolveVersionGroupCollisions(
+  Iterable<Map<String, dynamic>> rows,
+) {
+  final bySlot = <String, List<Map<String, dynamic>>>{};
+  for (final row in rows) {
+    final groupId = row['group_id'];
+    if (groupId is! String || groupId.isEmpty) continue;
+    bySlot
+        .putIfAbsent('$groupId\u0000${row['version']}', () => [])
+        .add(row);
+  }
+  final losers = <String>[];
+  for (final cluster in bySlot.values) {
+    if (cluster.length < 2) continue;
+    cluster.sort((a, b) {
+      final byClock = messageRowMutationUs(
+        b,
+      ).compareTo(messageRowMutationUs(a));
+      if (byClock != 0) return byClock;
+      return (b['id'] as String).compareTo(a['id'] as String);
+    });
+    for (final loser in cluster.skip(1)) {
+      losers.add(loser['id'] as String);
+    }
+  }
+  return losers;
+}
+
 /// Deterministic message order for a merged conversation: sort by
 /// (timestamp, id) and assign sequential `messageOrder` values. Both peers
 /// run this over the same merged row set and land on identical orders, which

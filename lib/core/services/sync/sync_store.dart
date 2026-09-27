@@ -12,6 +12,7 @@ import 'sync_models.dart';
 /// - `identity.json`          — owned by [SyncDeviceIdentity]
 /// - `peers/<deviceId>.json`  — pinned certificate + display info + endpoint
 /// - `checkpoints/<deviceId>.json.gz` — per-peer checkpoint
+/// - `epoch.json`             — this device's data epoch (see [readDataEpoch])
 class SyncStore {
   SyncStore(this.root);
 
@@ -171,6 +172,64 @@ class SyncStore {
 
   File _checkpointFile(String deviceId) =>
       File('${_checkpointsDir.path}${Platform.pathSeparator}$deviceId.json.gz');
+
+  // ---- data epoch ----
+
+  /// This device's data epoch: a counter bumped whenever the local database is
+  /// bulk-replaced outside the sync write path — a backup restore, an overwrite
+  /// import. The checkpoint's whole premise is that "the peer lacks a row"
+  /// means "the peer deleted it"; a bulk replacement breaks exactly that
+  /// premise, because every row it dropped is an absence that was never a
+  /// deletion, and the peer would delete its own copies to match. Advertising
+  /// the epoch in the hello lets the peer see the replacement and re-converge
+  /// from "nothing shared" instead, while a device that merely lost an
+  /// unconfirmed transfer (no checkpoint entry, no epoch change) still reads as
+  /// "never delivered".
+  Future<int> readDataEpoch() async {
+    final file = _epochFile;
+    if (!await file.exists()) return 0;
+    try {
+      final json =
+          jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      return (json['epoch'] as num?)?.toInt() ?? 0;
+    } catch (error) {
+      debugPrint('sync store: unreadable data epoch: $error');
+      return 0;
+    }
+  }
+
+  Future<void> writeDataEpoch(int epoch) async {
+    await root.create(recursive: true);
+    await _writeAtomic(_epochFile, utf8.encode(jsonEncode({'epoch': epoch})));
+  }
+
+  /// Drops every per-peer checkpoint — what a bulk replacement owes this
+  /// device's own bookkeeping. Entries describe state the peer demonstrably
+  /// held; after a replacement they describe a history this device no longer
+  /// has.
+  Future<void> resetCheckpoints() async {
+    if (!await _checkpointsDir.exists()) return;
+    try {
+      await _checkpointsDir.delete(recursive: true);
+    } catch (error) {
+      debugPrint('sync store: could not reset checkpoints: $error');
+    }
+  }
+
+  /// The bulk-replacement hook, callable where no engine exists yet: the
+  /// restore cutover runs at startup, before any provider is built. Resets the
+  /// checkpoints and bumps the epoch so paired devices re-converge from
+  /// "nothing shared" rather than reading the lost rows as deletions. Idempotent
+  /// enough to repeat after an interrupted cutover: a second bump only makes
+  /// the next session re-converge once more.
+  static Future<void> resetForBulkReplacement(Directory root) async {
+    final store = SyncStore(root);
+    await store.resetCheckpoints();
+    await store.writeDataEpoch(await store.readDataEpoch() + 1);
+  }
+
+  File get _epochFile =>
+      File('${root.path}${Platform.pathSeparator}epoch.json');
 }
 
 /// One paired device as this device knows it.

@@ -329,6 +329,7 @@ class SyncEngine implements SyncServerHandler {
       // itself from last session (applies it had to defer), and the peer needs
       // that in the hello to tell "never delivered" from "deleted here".
       final previous = await store.loadCheckpoint(peer.deviceId);
+      final myEpoch = await store.readDataEpoch();
       final hello = await session.hello(
         SyncHello(
           protocolVersion: kSyncProtocolVersion,
@@ -346,6 +347,9 @@ class SyncEngine implements SyncServerHandler {
           unappliedBusiness: previous.unappliedBusiness,
           // Deletions this device has not seen confirmed by the peer.
           deletedConversations: _deletionsToAnnounce(previous, myManifest),
+          // This device's data epoch: a bulk replacement since the last session
+          // tells the peer not to read this device's missing rows as deletions.
+          epoch: myEpoch,
         ),
       );
       if (hello.refusal != null) {
@@ -384,7 +388,11 @@ class SyncEngine implements SyncServerHandler {
       // announced deletions are the mirror image and take precedence: they name
       // deletions rather than absences.
       final peerUnapplied = peerHello.unappliedConversations.toSet();
-      final plan = _applyDeletionAnnouncements(
+      // A different epoch means the peer's database was bulk-replaced: rows it
+      // lacks were dropped by that replacement, not deleted, so no absence of
+      // its may justify a deletion here.
+      final peerReplaced = peerHello.epoch != previous.peerEpoch;
+      var plan = _applyDeletionAnnouncements(
         _reSendUnapplied(
           planSync(
             mine: myManifest,
@@ -396,7 +404,7 @@ class SyncEngine implements SyncServerHandler {
         peerHello.deletedConversations,
         myManifest,
       );
-      final businessPlan = _keepRowsPeerMayNeverHaveSeen(
+      var businessPlan = _keepRowsPeerMayNeverHaveSeen(
         planBusinessSync(
           mine: myManifest,
           peers: peerHello.manifest,
@@ -404,6 +412,13 @@ class SyncEngine implements SyncServerHandler {
         ),
         peerHello.unappliedBusiness,
       );
+      if (peerReplaced) {
+        // A deletion this device made itself still stands (it plans
+        // `peerDeletes`, carried to the peer by the announcement); what is
+        // overridden is deleting our own rows to match a peer that lost them.
+        plan = _reSendInsteadOfDelete(plan);
+        businessPlan = _keepInsteadOfDelete(businessPlan);
+      }
       final skillPlan = planSkillContentSync(
         mine: myManifest,
         peers: peerHello.manifest,
@@ -594,7 +609,9 @@ class SyncEngine implements SyncServerHandler {
           // rows as rows the peer deleted.
           checkpointRowsByConversation: _rowsOf(
             previous,
-            delivered,
+            // A replaced peer's absences prove nothing about this device's
+            // rows: its old copy never carried them at all.
+            peerReplaced ? const <String>{} : delivered,
             unconfirmed: peerUnapplied,
           ),
         ),
@@ -700,6 +717,7 @@ class SyncEngine implements SyncServerHandler {
               if (entry.value.deferred) entry.key,
           ],
           unappliedBusiness: businessOutcome.deferred,
+          peerEpoch: peerHello.epoch,
         ),
       );
       return await _finish(
@@ -796,32 +814,43 @@ class SyncEngine implements SyncServerHandler {
     final myManifest = await dataPlane.buildManifest();
     final checkpoint = await store.loadCheckpoint(initiatorHello.deviceId);
     final myClockUs = clockUs();
+    final myEpoch = await store.readDataEpoch();
     // What the initiator reports it could not apply decides whether its silence
     // about a conversation or a business row means "deleted there" or "never
     // arrived there".
     final peerUnapplied = initiatorHello.unappliedConversations.toSet();
-    final session = _ResponderSession(
-      initiatorHello: initiatorHello,
-      plan: _applyDeletionAnnouncements(
-        _reSendUnapplied(
-          planSync(
-            mine: myManifest,
-            peers: initiatorHello.manifest,
-            checkpoint: checkpoint,
-          ),
-          peerUnapplied,
-        ),
-        initiatorHello.deletedConversations,
-        myManifest,
-      ),
-      businessPlan: _keepRowsPeerMayNeverHaveSeen(
-        planBusinessSync(
+    // A different epoch means the caller's database was bulk-replaced: its
+    // missing rows were dropped, not deleted, so none of its absences may
+    // justify a deletion here.
+    final peerReplaced = initiatorHello.epoch != checkpoint.peerEpoch;
+    var plan = _applyDeletionAnnouncements(
+      _reSendUnapplied(
+        planSync(
           mine: myManifest,
           peers: initiatorHello.manifest,
           checkpoint: checkpoint,
         ),
-        initiatorHello.unappliedBusiness,
+        peerUnapplied,
       ),
+      initiatorHello.deletedConversations,
+      myManifest,
+    );
+    var businessPlan = _keepRowsPeerMayNeverHaveSeen(
+      planBusinessSync(
+        mine: myManifest,
+        peers: initiatorHello.manifest,
+        checkpoint: checkpoint,
+      ),
+      initiatorHello.unappliedBusiness,
+    );
+    if (peerReplaced) {
+      plan = _reSendInsteadOfDelete(plan);
+      businessPlan = _keepInsteadOfDelete(businessPlan);
+    }
+    final session = _ResponderSession(
+      initiatorHello: initiatorHello,
+      plan: plan,
+      businessPlan: businessPlan,
       skillPlan: planSkillContentSync(
         mine: myManifest,
         peers: initiatorHello.manifest,
@@ -833,6 +862,7 @@ class SyncEngine implements SyncServerHandler {
       startedAt: DateTime.now(),
       initiatorHost: remoteAddress,
       clockSkewMs: _clockSkewMs(myClockUs, initiatorHello.clockUs),
+      peerReplaced: peerReplaced,
     );
     _sessions[initiatorHello.deviceId] = session;
     return SyncHello(
@@ -849,6 +879,7 @@ class SyncEngine implements SyncServerHandler {
       unappliedConversations: checkpoint.unappliedConversations,
       unappliedBusiness: checkpoint.unappliedBusiness,
       deletedConversations: _deletionsToAnnounce(checkpoint, myManifest),
+      epoch: myEpoch,
     );
   }
 
@@ -903,10 +934,13 @@ class SyncEngine implements SyncServerHandler {
       peerDeviceId: peerDeviceId,
       checkpointRowsByConversation: _rowsOf(
         session.checkpoint,
-        {
-          for (final subtree in batch.subtrees)
-            subtree.conversation['id'] as String,
-        },
+        // A replaced caller's absences prove nothing about this device's rows.
+        session.peerReplaced
+            ? const <String>{}
+            : {
+                for (final subtree in batch.subtrees)
+                  subtree.conversation['id'] as String,
+              },
         // Same protection as on the initiator's side: a conversation the
         // caller said it could not apply proves nothing about the caller's
         // rows.
@@ -1140,6 +1174,7 @@ class SyncEngine implements SyncServerHandler {
             if (entry.value.deferred) entry.key,
         ],
         unappliedBusiness: session.businessOutcome?.deferred ?? false,
+        peerEpoch: session.initiatorHello.epoch,
       ),
     );
     final peer = await store.findPeer(peerDeviceId);
@@ -1399,6 +1434,34 @@ class SyncEngine implements SyncServerHandler {
       for (final item in plan)
         item.action == SyncConvAction.iDelete
             ? SyncBusinessPlanItem(item.kindWire, item.id, SyncConvAction.none)
+            : item,
+    ];
+  }
+
+  /// A peer whose database was bulk-replaced lost rows that were never deleted,
+  /// so nothing it lacks may make this device delete its own copy. Deleting to
+  /// match the peer becomes re-sending to restore it; a deletion this device
+  /// made itself is unaffected, because that plans `peerDeletes` (carried to
+  /// the peer by the announcement), not `iDelete`.
+  static List<SyncConvPlan> _reSendInsteadOfDelete(List<SyncConvPlan> plan) {
+    if (!plan.any((item) => item.action == SyncConvAction.iDelete)) return plan;
+    return [
+      for (final item in plan)
+        item.action == SyncConvAction.iDelete
+            ? SyncConvPlan(item.conversationId, SyncConvAction.iSend)
+            : item,
+    ];
+  }
+
+  /// The business face of [_reSendInsteadOfDelete].
+  static List<SyncBusinessPlanItem> _keepInsteadOfDelete(
+    List<SyncBusinessPlanItem> plan,
+  ) {
+    if (!plan.any((item) => item.action == SyncConvAction.iDelete)) return plan;
+    return [
+      for (final item in plan)
+        item.action == SyncConvAction.iDelete
+            ? SyncBusinessPlanItem(item.kindWire, item.id, SyncConvAction.iSend)
             : item,
     ];
   }
@@ -1877,6 +1940,7 @@ class _ResponderSession {
     required this.startedAt,
     this.initiatorHost,
     this.clockSkewMs,
+    this.peerReplaced = false,
   });
 
   final SyncHello initiatorHello;
@@ -1897,6 +1961,11 @@ class _ResponderSession {
   /// Clock divergence against the initiator, when it exceeded the warn
   /// threshold — lands in this side's report at the fetch beat.
   final int? clockSkewMs;
+
+  /// The caller advertised a different data epoch than the last session: its
+  /// database was bulk-replaced, so its absences may not justify a deletion
+  /// here (see [SyncStore.readDataEpoch]).
+  final bool peerReplaced;
 
   final Map<String, SyncSubtreeApplyOutcome> outcomes = {};
 

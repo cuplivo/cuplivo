@@ -798,6 +798,44 @@ void main() {
     await a.engine.syncWithPeer(aPeer, host: '127.0.0.1', port: b.port);
   });
 
+  test('a replaced database makes the peer re-send, not delete', () async {
+    // A restore (or an overwrite import) replaces the local history wholesale.
+    // The rows it drops were never deleted, so the peer's checkpoint — which
+    // says "we both had conv-a" — must not turn their absence into a deletion
+    // of the peer's own copy: it re-sends instead, and the two converge again.
+    final (a, b) = await pair();
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(await _conversationIds(b), contains('conv-a'));
+
+    // What a restore leaves behind: the rows are gone, with no deletion event
+    // written (deleteConversation would write a tombstone, which is the
+    // deliberate-deletion path), plus the bulk-replacement sync reset.
+    await b.database.customStatement(
+      'DELETE FROM message_rows WHERE conversation_id = ?;',
+      ['conv-a'],
+    );
+    await b.database.customStatement(
+      'DELETE FROM conversation_rows WHERE id = ?;',
+      ['conv-a'],
+    );
+    await SyncStore.resetForBulkReplacement(b.dir);
+    expect(await _conversationIds(b), isEmpty);
+
+    await a.engine.syncWithPeer(await a.peer(b));
+
+    expect(
+      await _conversationIds(a),
+      contains('conv-a'),
+      reason: 'the peer lost the row; it did not delete it',
+    );
+    expect(await _conversationIds(b), contains('conv-a'));
+    // The epoch is recorded, so only the first session after the replacement
+    // pays for the re-convergence.
+    final checkpoint = await a.store.loadCheckpoint(b.identity.deviceId);
+    expect(checkpoint.peerEpoch, 1);
+  });
+
   testWidgets('the pairing code dialog cannot be dismissed by a gesture', (
     tester,
   ) async {

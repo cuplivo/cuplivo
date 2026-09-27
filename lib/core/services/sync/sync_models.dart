@@ -204,6 +204,13 @@ class SyncHello {
   /// as "never delivered", not as deleted here.
   final bool unappliedBusiness;
 
+  /// This device's data epoch: bumped whenever the local database is
+  /// bulk-replaced (a restore, an overwrite import). A peer that last synced
+  /// under a different epoch must treat everything it lacks here as "never
+  /// delivered" rather than "deleted here", because a replacement's dropped
+  /// rows were never deletions.
+  final int epoch;
+
   /// Conversations this device shared with the peer and no longer holds — a
   /// deletion the peer has not confirmed yet — mapped to the digest both sides
   /// last agreed on. A deletion is otherwise inferred from the peer's absence,
@@ -227,6 +234,7 @@ class SyncHello {
     this.unappliedConversations = const [],
     this.unappliedBusiness = false,
     this.deletedConversations = const {},
+    this.epoch = 0,
   });
 
   Map<String, dynamic> toJson() => {
@@ -241,6 +249,7 @@ class SyncHello {
     if (unappliedConversations.isNotEmpty) 'unapplied': unappliedConversations,
     if (unappliedBusiness) 'unappliedBusiness': true,
     if (deletedConversations.isNotEmpty) 'deleted': deletedConversations,
+    if (epoch != 0) 'epoch': epoch,
   };
 
   static SyncHello fromJson(Map<String, dynamic> json) => SyncHello(
@@ -265,6 +274,7 @@ class SyncHello {
               .entries)
         entry.key: entry.value.toString(),
     },
+    epoch: (json['epoch'] as num?)?.toInt() ?? 0,
   );
 }
 
@@ -749,6 +759,12 @@ class SyncCheckpoint {
   final List<String> unappliedConversations;
   final bool unappliedBusiness;
 
+  /// The peer's data epoch at the last session. A different value on the next
+  /// hello means the peer's database was bulk-replaced since, so its missing
+  /// rows prove nothing and every plan must be computed as if nothing had ever
+  /// been shared (see [SyncStore.readDataEpoch]).
+  final int peerEpoch;
+
   const SyncCheckpoint(
     this.conversations, {
     this.entities = const {},
@@ -757,6 +773,7 @@ class SyncCheckpoint {
     this.skillHashes = const {},
     this.unappliedConversations = const [],
     this.unappliedBusiness = false,
+    this.peerEpoch = 0,
   });
 
   Map<String, dynamic> toJson() => {
@@ -777,6 +794,7 @@ class SyncCheckpoint {
     'skillHashes': skillHashes,
     if (unappliedConversations.isNotEmpty) 'unapplied': unappliedConversations,
     if (unappliedBusiness) 'unappliedBusiness': true,
+    if (peerEpoch != 0) 'peerEpoch': peerEpoch,
   };
 
   static SyncCheckpoint fromJson(Map<String, dynamic> json) => SyncCheckpoint(
@@ -828,6 +846,7 @@ class SyncCheckpoint {
       for (final id in (json['unapplied'] as List? ?? const [])) id.toString(),
     ],
     unappliedBusiness: json['unappliedBusiness'] == true,
+    peerEpoch: (json['peerEpoch'] as num?)?.toInt() ?? 0,
   );
 
   static const empty = SyncCheckpoint({});

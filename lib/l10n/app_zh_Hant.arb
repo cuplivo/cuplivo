@@ -4376,6 +4376,8 @@
   "lanSyncReportMessagesDeleted": "-{n} 條訊息",
   "lanSyncReportConversationsDeleted": "-{n} 個對話",
   "lanSyncReportDeferred": "{n} 項延後",
+  "lanSyncReportEntities": "{n} 個實體",
+  "lanSyncReportPreferences": "{n} 項偏好",
   "lanSyncReportFailed": "同步失敗：{error}",
   "lanSyncRefusedPeerSchemaNewer": "對方資料庫版本較新。請先更新本裝置再同步。",
   "lanSyncRefusedProtocolUnknown": "對方使用不同的同步協定。請將兩台裝置都更新到最新版本。",

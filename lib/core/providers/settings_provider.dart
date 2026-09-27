@@ -774,6 +774,16 @@ class SettingsProvider extends ChangeNotifier {
   late final Future<void> _loaded;
   Future<void> get loaded => _loaded;
 
+  /// Re-reads every synced setting after LAN sync wrote them outside this
+  /// provider (ADR-0002 apply → reload). Providers that derive their own state
+  /// from settings (ASR, for one) listen to this notify and refresh too, so
+  /// this runs first in the reloader's order.
+  Future<void> reloadAfterExternalChange() async {
+    _appLocaleTag = _readAppLocaleTag(_preferences);
+    await _load();
+    notifyListeners();
+  }
+
   Future<void> _load() async {
     final prefs = _preferences;
     await prefs.load();

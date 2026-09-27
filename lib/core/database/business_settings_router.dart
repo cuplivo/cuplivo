@@ -9,6 +9,7 @@ enum BusinessKeyDisposition {
   entity,
   providerOrder,
   preference,
+  syncedPreference,
   localOnly,
   discarded,
   unknownPreference,
@@ -34,6 +35,88 @@ final class BusinessKeyRegistry {
     // device must never resurrect (or overwrite) an unsent chat draft, and the
     // legacy-prefs migration must never sweep the key out of the local store.
     chatInputDraftPrefsKey,
+  };
+
+  /// Business preferences a brand-new device wants to arrive with the pairing
+  /// (ADR-0002 decision 6). Membership follows the new-device test: business
+  /// configuration yes; window geometry, proxies, platform flags, fonts and
+  /// session-position keys no. This set is the single authority for what LAN
+  /// sync carries — keys outside it never ride sync, so adding a key here is
+  /// the whole act of making it sync.
+  ///
+  /// Strictly a subset of [preferenceKeys]: a synced key is still an ordinary
+  /// business preference to every non-sync consumer (backup merge, restore,
+  /// the runtime view).
+  static const syncedPreferenceKeys = <String>{
+    // Theme and language.
+    'theme_mode_v1',
+    'theme_palette_v1',
+    'use_dynamic_color_v1',
+    'app_locale_v1',
+    // Generation configuration: models, prompts and thinking toggles.
+    'title_model_v1',
+    'title_generation_enabled_v1',
+    'title_prompt_v1',
+    'title_generation_thinking_enabled_v1',
+    'summary_model_v1',
+    'summary_prompt_v1',
+    'summary_generation_thinking_enabled_v1',
+    'suggestion_model_v1',
+    'suggestion_generation_enabled_v1',
+    'suggestion_prompt_v1',
+    'suggestion_generation_thinking_enabled_v1',
+    'suggestion_insert_on_tap_only_v1',
+    'compress_model_v1',
+    'compress_prompt_v1',
+    'translate_model_v1',
+    'translate_prompt_v1',
+    'translate_target_lang_v1',
+    'translate_generation_thinking_enabled_v1',
+    'ocr_model_v1',
+    'ocr_prompt_v1',
+    'ocr_enabled_v1',
+    'ocr_generation_thinking_enabled_v1',
+    'thinking_budget_v1',
+    // Memory prompts (wording only — runtime state stays device-local).
+    'memory_prompt_lang_v1',
+    'memory_legacy_prompt_zh_v1',
+    'memory_legacy_prompt_en_v1',
+    'memory_rules_prompt_zh_v1',
+    'memory_rules_prompt_en_v1',
+    'memory_gate_prompt_zh_v1',
+    'memory_gate_prompt_en_v1',
+    'memory_extract_prompt_zh_v1',
+    'memory_extract_prompt_en_v1',
+    'memory_smart_add_prompt_zh_v1',
+    'memory_smart_add_prompt_en_v1',
+    'memory_smart_add_batch_prompt_zh_v1',
+    'memory_smart_add_batch_prompt_en_v1',
+    'memory_profile_distill_prompt_zh_v1',
+    'memory_profile_distill_prompt_en_v1',
+    'memory_migrate_prompt_zh_v1',
+    'memory_migrate_prompt_en_v1',
+    // Service configuration.
+    'asr_services_v1',
+    'tts_speech_rate_v1',
+    'tts_pitch_v1',
+    'tts_selected_service_id_v1',
+    'search_common_v1',
+    'search_selected_v1',
+    'search_enabled_v1',
+    // Models and user identity.
+    'pinned_models_v1',
+    'user_name',
+    'avatar_type',
+    'avatar_value',
+    // Backup configuration (state such as the last-backup stamp stays local).
+    'webdav_config_v1',
+    's3_config_v1',
+    'backup_reminder_enabled_v1',
+    'backup_reminder_interval_days_v1',
+    'backup_reminder_minutes_of_day_v1',
+    // Style and tool overrides.
+    'chat_bubble_style_overrides_v1',
+    'tool_schema_overrides_v1',
   };
 
   static const discardedKeys = <String>{
@@ -198,6 +281,9 @@ final class BusinessKeyRegistry {
     }
     if (discardedKeys.contains(key)) {
       return BusinessKeyDisposition.discarded;
+    }
+    if (syncedPreferenceKeys.contains(key)) {
+      return BusinessKeyDisposition.syncedPreference;
     }
     if (preferenceKeys.contains(key) || key.startsWith('display_')) {
       return BusinessKeyDisposition.preference;

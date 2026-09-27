@@ -75,6 +75,7 @@ import 'core/services/backup/backup_activity.dart';
 import 'core/services/backup/local_snapshot_schedule.dart';
 import 'core/services/chat/chat_service.dart';
 import 'core/providers/sync_provider.dart';
+import 'core/services/sync/business_state_reloader.dart';
 import 'core/services/app_exit_flush.dart';
 import 'core/services/backup/restore_archive_pruner.dart';
 import 'core/services/backup/restore_business_lease.dart';
@@ -113,6 +114,58 @@ final RouteObserver<ModalRoute<dynamic>> routeObserver =
 bool _didCheckUpdates = false; // one-time update check flag
 bool _didEnsureAssistants = false; // ensure defaults after l10n ready
 bool _didWireWorkspace = false;
+bool _didWireSyncReloaders = false;
+
+/// Tells LAN sync how to refresh the providers that read business state, so a
+/// session that applied entity or preference rows shows up without a restart
+/// (ADR-0002 decision 8: apply → one state reload).
+///
+/// Settings comes first because providers that derive their own state from
+/// settings (ASR, for one) refresh through its notification. Providers whose
+/// state is read on demand rather than cached are absent on purpose.
+void _wireSyncReloaders(BuildContext ctx) {
+  try {
+    final reloader = ctx.read<BusinessStateReloader>();
+    reloader.register(
+      () => ctx.read<SettingsProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<AssistantProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<McpProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<TagProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<UserProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<QuickPhraseProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<WorldBookProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () =>
+          ctx.read<InstructionInjectionProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx
+          .read<InstructionInjectionGroupProvider>()
+          .reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<TtsProvider>().reloadAfterExternalChange(),
+    );
+    // Memory entries ride sync as entity rows; this re-reads the current scope
+    // without narrowing what the memory UI is showing.
+    reloader.register(() => ctx.read<MemoryProviderV2>().reloadCurrentScope());
+  } catch (error) {
+    debugPrint('Failed to wire sync reloaders: $error');
+  }
+}
 
 void _wireWorkspaceServices(BuildContext ctx) {
   try {
@@ -680,6 +733,9 @@ class MyApp extends StatelessWidget {
           value: databaseLease.businessRepository,
         ),
         Provider<BusinessPreferences>.value(value: businessPreferences),
+        Provider<BusinessStateReloader>(
+          create: (_) => BusinessStateReloader(businessPreferences),
+        ),
         ChangeNotifierProvider(
           create: (_) => UserProvider(preferences: businessPreferences),
         ),
@@ -700,6 +756,9 @@ class MyApp extends StatelessWidget {
           create: (ctx) => SyncProvider(
             chatService: ctx.read<ChatService>(),
             repository: databaseLease.chatRepository,
+            businessRepository: databaseLease.businessRepository,
+            businessPreferences: businessPreferences,
+            reloader: ctx.read<BusinessStateReloader>(),
             syncDirectory: AppDirectories.getSyncDirectory,
           ),
         ),
@@ -1105,6 +1164,12 @@ class MyApp extends StatelessWidget {
                     _didWireWorkspace = true;
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       _wireWorkspaceServices(ctx);
+                    });
+                  }
+                  if (!_didWireSyncReloaders) {
+                    _didWireSyncReloaders = true;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _wireSyncReloaders(ctx);
                     });
                   }
 

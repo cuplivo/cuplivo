@@ -4,9 +4,12 @@ import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 
+import '../database/business_preferences.dart';
+import '../database/business_repository.dart';
 import '../database/chat_database_repository.dart';
 import '../services/app_exit_flush.dart';
 import '../services/chat/chat_service.dart';
+import '../services/sync/business_state_reloader.dart';
 import '../services/sync/sync_client.dart';
 import '../services/sync/sync_data_plane.dart';
 import '../services/sync/sync_engine.dart';
@@ -43,6 +46,9 @@ class SyncProvider extends ChangeNotifier {
   SyncProvider({
     required ChatService chatService,
     required ChatDatabaseRepository repository,
+    required BusinessRepository businessRepository,
+    required BusinessPreferences businessPreferences,
+    required BusinessStateReloader reloader,
     required Future<Directory> Function() syncDirectory,
   }) : // Public injection names intentionally omit the private-field prefix
        // (same convention as ChatService's own dependencies).
@@ -51,10 +57,19 @@ class SyncProvider extends ChangeNotifier {
        // ignore: prefer_initializing_formals
        _repository = repository,
        // ignore: prefer_initializing_formals
+       _businessRepository = businessRepository,
+       // ignore: prefer_initializing_formals
+       _businessPreferences = businessPreferences,
+       // ignore: prefer_initializing_formals
+       _reloader = reloader,
+       // ignore: prefer_initializing_formals
        _syncDirectory = syncDirectory;
 
   final ChatService _chatService;
   final ChatDatabaseRepository _repository;
+  final BusinessRepository _businessRepository;
+  final BusinessPreferences _businessPreferences;
+  final BusinessStateReloader _reloader;
   final Future<Directory> Function() _syncDirectory;
 
   SyncEngine? _engine;
@@ -122,6 +137,9 @@ class SyncProvider extends ChangeNotifier {
         dataPlane: SyncDataPlane(
           repository: _repository,
           chatService: _chatService,
+          businessRepository: _businessRepository,
+          businessPreferences: _businessPreferences,
+          reloader: _reloader,
         ),
         onStateChanged: _onEngineStateChanged,
       );

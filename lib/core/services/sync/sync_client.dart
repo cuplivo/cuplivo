@@ -186,9 +186,11 @@ class SyncClientSession {
     return SyncHelloOutcome(SyncHello.fromJson(body), null);
   }
 
-  /// Fetches the subtrees the peer owes this device.
-  Future<SyncSubtreeBatch> fetchSubtrees(List<String> conversationIds) async {
-    final response = await _post('/sync/subtrees', {'ids': conversationIds});
+  /// Fetches the conversation subtrees and business rows the peer owes this
+  /// device. Runs even for an empty request: the responder finalises its own
+  /// plan (deletions, checkpoint, report) inside this beat.
+  Future<SyncDeltaBatch> fetchSubtrees(SyncFetchRequest request) async {
+    final response = await _post('/sync/subtrees', request.toJson());
     final body = await SyncClient._readJson(response);
     if (response.statusCode != HttpStatus.ok || body == null) {
       throw SyncClientException(
@@ -196,11 +198,11 @@ class SyncClientSession {
         statusCode: response.statusCode,
       );
     }
-    return SyncSubtreeBatch.fromJson(body);
+    return SyncDeltaBatch.fromJson(body);
   }
 
-  /// Sends this device's subtrees to the peer.
-  Future<int> pushSubtrees(SyncSubtreeBatch batch) async {
+  /// Sends this device's changed conversation subtrees and business rows.
+  Future<int> pushDelta(SyncDeltaBatch batch) async {
     final response = await _put('/sync/subtrees', batch.toJson());
     final body = await SyncClient._readJson(response);
     if (response.statusCode != HttpStatus.ok || body == null) {

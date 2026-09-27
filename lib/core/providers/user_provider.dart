@@ -25,6 +25,13 @@ class UserProvider extends ChangeNotifier {
     _load();
   }
 
+  /// Re-reads the user name and avatar after LAN sync wrote them outside this
+  /// provider.
+  Future<void> reloadAfterExternalChange() async {
+    await _load();
+    notifyListeners();
+  }
+
   Future<void> _load() async {
     await preferences.load();
     final n = preferences.getString(_prefsUserNameKey);

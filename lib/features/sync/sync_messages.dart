@@ -72,6 +72,8 @@ String syncReportMessage(AppLocalizations l10n, SyncSessionReport report) {
     deleted: report.messagesDeleted,
     deletedConversations: report.conversationsDeletedLocally,
     deferred: report.deferred,
+    entityRows: report.entityRows,
+    preferenceRows: report.preferenceRows,
   );
 }
 
@@ -89,6 +91,8 @@ String syncPeerReportMessage(AppLocalizations l10n, SyncPeerReport report) {
     deleted: report.deletedMessages,
     deletedConversations: report.deletedConversations,
     deferred: report.deferred,
+    entityRows: report.entityRows,
+    preferenceRows: report.preferenceRows,
   );
 }
 
@@ -100,6 +104,8 @@ String _syncCountsMessage(
   required int deleted,
   required int deletedConversations,
   required int deferred,
+  required int entityRows,
+  required int preferenceRows,
 }) {
   final parts = <String>[
     l10n.lanSyncReportSent(sent),
@@ -108,6 +114,8 @@ String _syncCountsMessage(
     if (deleted > 0) l10n.lanSyncReportMessagesDeleted(deleted),
     if (deletedConversations > 0)
       l10n.lanSyncReportConversationsDeleted(deletedConversations),
+    if (entityRows > 0) l10n.lanSyncReportEntities(entityRows),
+    if (preferenceRows > 0) l10n.lanSyncReportPreferences(preferenceRows),
     if (deferred > 0) l10n.lanSyncReportDeferred(deferred),
   ];
   return parts.join(' · ');

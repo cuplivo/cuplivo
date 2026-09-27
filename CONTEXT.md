@@ -158,6 +158,9 @@ contradicts one of them is a bug, not a preference.
   `tts_speech_rate_v1`/`tts_pitch_v1`/`tts_selected_service_id_v1`, `search_*`,
   `pinned_models_v1`, user name/avatar, `webdav_config_v1`/`s3_config_v1`,
   `chat_bubble_style_overrides_v1`, `tool_schema_overrides_v1`.
+- **Skill and workspace holdbacks (slice 2)**: workspaces stay device-local permanently; a
+  skill's *record* is deliberately not synced until its directory blob arrives, because a
+  record without its body would install a broken skill on the peer.
 - **New-device test** (新设备测试): the rule for classifying a preference key — *would a
   brand-new device want this value to arrive with the pairing?* Business config yes;
   window geometry, proxies, platform flags and fonts no.
@@ -211,6 +214,12 @@ contradicts one of them is a bug, not a preference.
   (conversation subtrees, entity rows, preference keys, tombstones, asset manifest) →
   blob fetch (receiver pulls by contentHash, skipping hashes it already has) →
   transactional apply + provider reload → checkpoint commit on both sides.
+- **One plan, two faces**: conversations and business rows (entities + preferences) are decided
+  by the same table — present on one side, newer clock, tie to the higher deviceId — and travel
+  in the same batch, so one session moves a conversation and the assistant it references.
+- **Business rows carry their own clock**: an applied row keeps the peer's `updated_at`
+  (never stamped with local time); that timestamp is what the next session compares. Deletions
+  ride the per-peer checkpoint, as message deletions do.
 - **Apply without restart**: sync writes ride repository transactions, then trigger one
   state reload (`BusinessPreferences.reload()` + every provider's `_load()` + ChatService
   list refresh). Restart is *not* structurally required — restore needs it only because it

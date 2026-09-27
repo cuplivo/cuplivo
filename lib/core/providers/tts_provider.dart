@@ -141,6 +141,27 @@ class TtsProvider extends ChangeNotifier {
     _init();
   }
 
+  /// Re-reads the synced TTS preferences after LAN sync wrote them outside this
+  /// provider. Only cached scalars move: the service list and the selected
+  /// service are read on demand, and re-running [_init] would rebind the
+  /// platform engine for a preference change.
+  Future<void> reloadAfterExternalChange() async {
+    await preferences.load();
+    _speechRate = (preferences.getDouble(_rateKey) ?? _speechRate)
+        .clamp(0.1, 1.0)
+        .toDouble();
+    _pitch = (preferences.getDouble(_pitchKey) ?? _pitch)
+        .clamp(0.5, 2.0)
+        .toDouble();
+    _cacheNetworkAudioForReplay =
+        preferences.getBool(_cacheNetworkAudioForReplayKey) ??
+        _cacheNetworkAudioForReplay;
+    _playbackState = _playbackState.copyWith(
+      speed: TtsPlaybackSpeed.normalize(_speechRate * 2),
+    );
+    notifyListeners();
+  }
+
   Future<void> _init() async {
     try {
       _tts = FlutterTts();

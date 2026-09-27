@@ -1,6 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/business_data.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
@@ -42,13 +46,19 @@ class _FakePathProviderPlatform extends PathProviderPlatform {
 /// A data plane that claims a newer schema, standing in for a peer built on a
 /// future app version (the symmetric version gate's other half).
 class _NewerSchemaPlane extends SyncDataPlane {
-  _NewerSchemaPlane({required super.repository, required super.chatService});
+  _NewerSchemaPlane({
+    required super.repository,
+    required super.chatService,
+    required super.businessRepository,
+    super.businessPreferences,
+  });
 
   @override
   int get schemaVersion => super.schemaVersion + 1;
 }
 
-/// One device: its own sync directory, database, chat service and listener.
+/// One device: its own sync directory, database, chat and business stores, and
+/// its own listener.
 class _Side {
   _Side(this.label, {this.newerSchema = false});
 
@@ -59,6 +69,8 @@ class _Side {
   late final AppDatabase database;
   late final ChatDatabaseRepository repository;
   late final ChatService chatService;
+  late final BusinessRepository businessRepository;
+  late final BusinessPreferences businessPreferences;
   late final SyncDeviceIdentity identity;
   late final SyncStore store;
   late final SyncDataPlane dataPlane;
@@ -71,13 +83,26 @@ class _Side {
     database = AppDatabase(NativeDatabase.memory());
     repository = ChatDatabaseRepository(database);
     await repository.ensureReady();
+    businessRepository = BusinessRepository(database);
+    businessPreferences = BusinessPreferences(businessRepository);
+    await businessPreferences.load();
     chatService = ChatService(existingRepository: repository);
     await chatService.init();
     identity = await SyncDeviceIdentity.loadOrCreate(dir, fallbackName: label);
     store = SyncStore(dir);
     dataPlane = newerSchema
-        ? _NewerSchemaPlane(repository: repository, chatService: chatService)
-        : SyncDataPlane(repository: repository, chatService: chatService);
+        ? _NewerSchemaPlane(
+            repository: repository,
+            chatService: chatService,
+            businessRepository: businessRepository,
+            businessPreferences: businessPreferences,
+          )
+        : SyncDataPlane(
+            repository: repository,
+            chatService: chatService,
+            businessRepository: businessRepository,
+            businessPreferences: businessPreferences,
+          );
     engine = SyncEngine(
       identity: identity,
       store: store,
@@ -114,6 +139,39 @@ class _Side {
     manifest: const SyncManifest(<String, SyncManifestEntry>{}),
   );
 }
+
+/// Writes an assistant list the way a provider does: one whole-list rewrite of
+/// a business entity key, routed into `assistant_rows`.
+Future<void> _setAssistants(
+  _Side side,
+  List<({String id, String name})> list,
+) => side.businessPreferences.setString(
+  'assistants_v1',
+  jsonEncode([
+    for (final item in list) {'id': item.id, 'name': item.name},
+  ]),
+);
+
+/// The assistant entities this side holds, as `id → payload`.
+Future<Map<String, String>> _assistantsOf(_Side side) async => {
+  for (final row in await side.businessRepository.readEntities(
+    BusinessEntityKind.assistant,
+  ))
+    row.id: row.payload,
+};
+
+/// Forces a row's mutation clock, so a test can create the clock tie that the
+/// deviceId rule exists for.
+Future<void> _forceUpdatedAt(
+  _Side side, {
+  required String table,
+  required String idColumn,
+  required String id,
+  required int updatedAtUs,
+}) => side.database.customStatement(
+  'UPDATE $table SET updated_at = ? WHERE $idColumn = ?;',
+  <Object?>[updatedAtUs, id],
+);
 
 Future<void> _seedConversation(
   _Side side, {
@@ -389,4 +447,122 @@ void main() {
       expect(accepted, isA<SyncHello>());
     },
   );
+
+  test('a new device receives entities and synced preferences', () async {
+    final (a, b) = await pair();
+    await _setAssistants(a, [
+      (id: 'assistant-1', name: 'Researcher'),
+      (id: 'assistant-2', name: 'Editor'),
+    ]);
+    await a.businessPreferences.setString('user_name', 'Alice');
+    await a.businessPreferences.setString('theme_mode_v1', 'dark');
+    // Device-local: the new device must keep its own value.
+    await b.businessPreferences.setString('current_assistant_id_v1', 'b-only');
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(report.entityRows, 2);
+    expect(report.preferenceRows, greaterThanOrEqualTo(2));
+
+    expect(await _assistantsOf(b), await _assistantsOf(a));
+    expect((await _assistantsOf(b)).keys, {'assistant-1', 'assistant-2'});
+
+    // The in-memory view the providers read was refreshed by the apply, so the
+    // synced values are visible without a restart.
+    expect(b.businessPreferences.getString('user_name'), 'Alice');
+    expect(b.businessPreferences.getString('theme_mode_v1'), 'dark');
+    expect(
+      b.businessPreferences.getString('current_assistant_id_v1'),
+      'b-only',
+      reason: 'session-position keys are device-local by the new-device test',
+    );
+
+    // Nothing left to move.
+    final second = await a.engine.syncWithPeer(await a.peer(b));
+    expect(second.success, isTrue, reason: second.summary);
+    expect(second.entityRows, 0);
+    expect(second.preferenceRows, 0);
+  });
+
+  test('an entity deleted on one device disappears on the peer', () async {
+    final (a, b) = await pair();
+    await _setAssistants(a, [
+      (id: 'assistant-1', name: 'Keep'),
+      (id: 'assistant-2', name: 'Drop'),
+    ]);
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect((await _assistantsOf(b)).keys, {'assistant-1', 'assistant-2'});
+
+    await _setAssistants(a, [(id: 'assistant-1', name: 'Keep')]);
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+
+    expect((await _assistantsOf(a)).keys, {'assistant-1'});
+    expect((await _assistantsOf(b)).keys, {'assistant-1'});
+
+    // And it stays gone: no checkpoint entry survives to re-adopt it.
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect((await _assistantsOf(b)).keys, {'assistant-1'});
+  });
+
+  test('a preference cleared on one device disappears on the peer', () async {
+    final (a, b) = await pair();
+    await a.businessPreferences.setString('user_name', 'Alice');
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(b.businessPreferences.getString('user_name'), 'Alice');
+
+    await a.businessPreferences.remove('user_name');
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(b.businessPreferences.getString('user_name'), isNull);
+  });
+
+  test('a clock tie resolves to the higher deviceId on both sides', () async {
+    final (a, b) = await pair();
+    await _setAssistants(a, [(id: 'assistant-1', name: 'From A')]);
+    await _setAssistants(b, [(id: 'assistant-1', name: 'From B')]);
+    // Same clock instant on both sides: only the deviceId rule can decide, and
+    // both peers must decide identically without negotiating.
+    const tie = 1700000000000000;
+    await _forceUpdatedAt(
+      a,
+      table: 'assistant_rows',
+      idColumn: 'id',
+      id: 'assistant-1',
+      updatedAtUs: tie,
+    );
+    await _forceUpdatedAt(
+      b,
+      table: 'assistant_rows',
+      idColumn: 'id',
+      id: 'assistant-1',
+      updatedAtUs: tie,
+    );
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+
+    final expected = await _assistantsOf(
+      a.identity.deviceId.compareTo(b.identity.deviceId) > 0 ? a : b,
+    );
+    expect(await _assistantsOf(a), expected);
+    expect(await _assistantsOf(b), expected);
+  });
+
+  test('the responder pushes its own entity edits back', () async {
+    final (a, b) = await pair();
+    await _setAssistants(a, [(id: 'assistant-1', name: 'From A')]);
+    await a.engine.syncWithPeer(await a.peer(b));
+
+    // b edits the same assistant and starts the next session itself.
+    await _setAssistants(b, [(id: 'assistant-1', name: 'Edited on B')]);
+    final report = await b.engine.syncWithPeer(await b.peer(a));
+    expect(report.success, isTrue, reason: report.summary);
+
+    expect(
+      (await _assistantsOf(a))['assistant-1'],
+      (await _assistantsOf(b))['assistant-1'],
+    );
+    expect((await _assistantsOf(a))['assistant-1'], contains('Edited on B'));
+  });
 }

@@ -16,15 +16,17 @@ abstract class SyncServerHandler {
   /// identity of the caller.
   Future<Object> handleHello(String peerDeviceId, SyncHello initiatorHello);
 
-  /// Subtrees this device owes the initiator.
-  Future<SyncSubtreeBatch> handleFetchSubtrees(
+  /// Everything this device owes the initiator for the request's conversations
+  /// and business rows.
+  Future<SyncDeltaBatch> handleFetchSubtrees(
     String peerDeviceId,
-    List<String> conversationIds,
+    SyncFetchRequest request,
   );
 
-  /// Applies subtrees the initiator sent. Returns how many conversations were
-  /// accepted (applied or deferred — the engine owns the accounting).
-  Future<int> handleApplySubtrees(String peerDeviceId, SyncSubtreeBatch batch);
+  /// Applies what the initiator sent (conversation subtrees + business rows).
+  /// Returns how many conversations were accepted (applied or deferred — the
+  /// engine owns the accounting).
+  Future<int> handleApplySubtrees(String peerDeviceId, SyncDeltaBatch batch);
 
   /// Pairing: validate the PIN, persist the peer, answer with our identity.
   /// Returns null when the PIN is wrong or pairing is not open.
@@ -311,7 +313,7 @@ class SyncServer {
       }
       final applied = await handler.handleApplySubtrees(
         peerDeviceId,
-        SyncSubtreeBatch.fromJson(body),
+        SyncDeltaBatch.fromJson(body),
       );
       _respondJson(request, HttpStatus.ok, {'applied': applied});
       return;
@@ -322,10 +324,10 @@ class SyncServer {
         _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
         return;
       }
-      final ids = (body['ids'] as List? ?? const [])
-          .map((id) => id.toString())
-          .toList(growable: false);
-      final batch = await handler.handleFetchSubtrees(peerDeviceId, ids);
+      final batch = await handler.handleFetchSubtrees(
+        peerDeviceId,
+        SyncFetchRequest.fromJson(body),
+      );
       _respondJson(request, HttpStatus.ok, batch.toJson());
       return;
     }

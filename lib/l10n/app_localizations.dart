@@ -22398,6 +22398,18 @@ abstract class AppLocalizations {
   /// **'{n} deferred'**
   String lanSyncReportDeferred(Object n);
 
+  /// No description provided for @lanSyncReportEntities.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} entities'**
+  String lanSyncReportEntities(Object n);
+
+  /// No description provided for @lanSyncReportPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} preferences'**
+  String lanSyncReportPreferences(Object n);
+
   /// No description provided for @lanSyncReportFailed.
   ///
   /// In en, this message translates to:

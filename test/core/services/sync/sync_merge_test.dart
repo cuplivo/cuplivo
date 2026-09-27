@@ -354,4 +354,210 @@ void main() {
       expect(first.rows, {'m1': 5, 'm2': 6});
     });
   });
+
+  group('planRowSync', () {
+    // The decision table both faces share. One row, three views of it.
+    test('agreement is nothing to do', () {
+      expect(
+        planRowSync(mineDigest: 'd', peerDigest: 'd', checkpointDigest: 'd'),
+        SyncConvAction.none,
+      );
+      expect(
+        planRowSync(mineDigest: 'd', peerDigest: 'd', checkpointDigest: null),
+        SyncConvAction.none,
+      );
+    });
+
+    test('a row only one side has travels that way', () {
+      expect(
+        planRowSync(mineDigest: 'd', peerDigest: null, checkpointDigest: null),
+        SyncConvAction.iSend,
+      );
+      expect(
+        planRowSync(mineDigest: null, peerDigest: 'd', checkpointDigest: null),
+        SyncConvAction.peerSends,
+      );
+    });
+
+    test('deletions propagate only when the other side is unmodified', () {
+      // Peer deleted it; we still hold exactly what the checkpoint recorded.
+      expect(
+        planRowSync(mineDigest: 'd', peerDigest: null, checkpointDigest: 'd'),
+        SyncConvAction.iDelete,
+      );
+      // We edited it since: edit beats delete.
+      expect(
+        planRowSync(
+          mineDigest: 'edited',
+          peerDigest: null,
+          checkpointDigest: 'd',
+        ),
+        SyncConvAction.iSend,
+      );
+      // We deleted it; the peer is unmodified, so it must delete too.
+      expect(
+        planRowSync(mineDigest: null, peerDigest: 'd', checkpointDigest: 'd'),
+        SyncConvAction.peerDeletes,
+      );
+      expect(
+        planRowSync(
+          mineDigest: null,
+          peerDigest: 'edited',
+          checkpointDigest: 'd',
+        ),
+        SyncConvAction.peerSends,
+      );
+      expect(
+        planRowSync(mineDigest: null, peerDigest: null, checkpointDigest: 'd'),
+        SyncConvAction.bothDeleted,
+      );
+    });
+
+    test('divergence since the checkpoint exchanges both ways', () {
+      expect(
+        planRowSync(mineDigest: 'a', peerDigest: 'b', checkpointDigest: 'c'),
+        SyncConvAction.bothSend,
+      );
+      expect(
+        planRowSync(mineDigest: 'a', peerDigest: 'b', checkpointDigest: null),
+        SyncConvAction.bothSend,
+      );
+      expect(
+        planRowSync(
+          mineDigest: 'mine',
+          peerDigest: 'cp',
+          checkpointDigest: 'cp',
+        ),
+        SyncConvAction.iSend,
+      );
+      expect(
+        planRowSync(
+          mineDigest: 'cp',
+          peerDigest: 'theirs',
+          checkpointDigest: 'cp',
+        ),
+        SyncConvAction.peerSends,
+      );
+    });
+  });
+
+  group('planBusinessSync', () {
+    SyncManifestEntry entry(String digest) =>
+        SyncManifestEntry(updatedAtUs: 1, messageCount: 0, digest: digest);
+
+    test('covers entity kinds and preference keys with one table', () {
+      final mine = SyncManifest(
+        const {},
+        entities: {
+          'assistant_rows': {'a1': entry('x')},
+        },
+        preferences: {'user_name': entry('y')},
+      );
+      final peers = SyncManifest(
+        const {},
+        entities: {
+          'world_book_rows': {'w1': entry('z')},
+        },
+      );
+      final plan = planBusinessSync(
+        mine: mine,
+        peers: peers,
+        checkpoint: SyncCheckpoint.empty,
+      );
+      final byId = {
+        for (final item in plan) syncBusinessKey(item.kindWire, item.id): item,
+      };
+      expect(
+        byId[syncBusinessKey('assistant_rows', 'a1')]!.action,
+        SyncConvAction.iSend,
+      );
+      expect(
+        byId[syncBusinessKey('world_book_rows', 'w1')]!.action,
+        SyncConvAction.peerSends,
+      );
+      expect(
+        byId[syncBusinessKey(kSyncPreferenceWire, 'user_name')]!.action,
+        SyncConvAction.iSend,
+      );
+    });
+
+    test('a key the peer dropped since the checkpoint is deleted here', () {
+      final mine = SyncManifest(
+        const {},
+        preferences: {'user_name': entry('y')},
+      );
+      final checkpoint = SyncCheckpoint(
+        const {},
+        preferences: {
+          'user_name': const SyncCheckpointEntry(updatedAtUs: 1, digest: 'y'),
+        },
+      );
+      final plan = planBusinessSync(
+        mine: mine,
+        peers: const SyncManifest({}),
+        checkpoint: checkpoint,
+      );
+      expect(plan.single.action, SyncConvAction.iDelete);
+    });
+  });
+
+  group('incomingBusinessRowWins', () {
+    test('the newer clock wins', () {
+      expect(
+        incomingBusinessRowWins(
+          localUpdatedAtUs: 10,
+          incomingUpdatedAtUs: 11,
+          myDeviceId: 'aaa',
+          peerDeviceId: 'bbb',
+        ),
+        isTrue,
+      );
+      expect(
+        incomingBusinessRowWins(
+          localUpdatedAtUs: 11,
+          incomingUpdatedAtUs: 10,
+          myDeviceId: 'aaa',
+          peerDeviceId: 'bbb',
+        ),
+        isFalse,
+      );
+    });
+
+    test('a tie falls to the higher deviceId, on both sides', () {
+      // The peer has the higher id: it wins here...
+      expect(
+        incomingBusinessRowWins(
+          localUpdatedAtUs: 10,
+          incomingUpdatedAtUs: 10,
+          myDeviceId: 'aaa',
+          peerDeviceId: 'bbb',
+        ),
+        isTrue,
+      );
+      // ...and on the peer, the same comparison is evaluated from its side with
+      // the same verdict (its own id is higher, so it keeps its row).
+      expect(
+        incomingBusinessRowWins(
+          localUpdatedAtUs: 10,
+          incomingUpdatedAtUs: 10,
+          myDeviceId: 'bbb',
+          peerDeviceId: 'aaa',
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('businessContentDigest', () {
+    test('is content-sensitive and stable', () {
+      expect(
+        businessContentDigest('{"a":1}'),
+        businessContentDigest('{"a":1}'),
+      );
+      expect(
+        businessContentDigest('{"a":1}'),
+        isNot(businessContentDigest('{"a":2}')),
+      );
+    });
+  });
 }

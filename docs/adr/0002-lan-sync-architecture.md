@@ -47,8 +47,7 @@ records the pillar decisions and the rejected alternatives.
 6. **Preferences split by the classifier, not by storage.** `BusinessKeyRegistry` gains a
    `syncedPreference` disposition; the new-device test decides membership. Session-position
    keys (`current_assistant_id_v1`, `selected_model_v1`), proxies, fonts, platform flags and
-   all `display_*` stay device-local.
-7. **Skills ride sync as record + directory blob.** The record's `updatedAt` does not track
+   all `display_*` stay device-local.7. **Skills ride sync as record + directory blob.** The record's `updatedAt` does not track
    content edits, so skill content is delta-detected by directory hash and transferred as a
    zip blob with deterministic conflict resolution off the checkpointed hash. Workspace
    entities stay device-local.
@@ -88,6 +87,40 @@ proven before any sync route answers:
 Identity, keypair and the certificate pin are unchanged; only the client-certificate half is
 gone. Revisit if `dart:io` gains a way to request a client certificate without verification, or
 if the listener moves to a transport that supports it.
+
+## Amendment (2026-09, slice 2): business entities and preferences
+
+Decision 1 (entity rows) and decision 6 (`syncedPreference`) are implemented, over the same
+session and the same decision table as conversations. What the implementation settled:
+
+- **One decision table.** `planRowSync` decides a conversation and a business row with the same
+  presence-and-digest reasoning; `planSync` and `planBusinessSync` are two projections of it.
+  LWW is likewise one rule — newer `updated_at` wins, an exact tie falls to the higher deviceId
+  — so both peers reach the same verdict without negotiating.
+- **The wire protocol went to v2.** The hello manifest and the session batch carry business
+  sections (entity rows under their stable table name, plus synced preference keys); a v1 peer is
+  refused at hello. A business manifest entry reuses the conversation entry shape: `u` is the
+  row's `updated_at` and `d` a content hash of its payload (or preference value), which is what
+  makes "same clock, different content" visible instead of silently diverging.
+- **Deletions ride the per-peer checkpoint**, exactly as message deletions do, so no tombstone
+  bookkeeping was added to the hot path of every entity edit.
+- **`providers_order_v1` is not synced**: the runtime view derives provider order from the
+  provider rows' `sort_order`, which travels with each row.
+- **Skills and workspaces are excluded from this slice.** Workspaces are device-local by
+  decision; a skill's record is deliberately held back until its directory blob lands (slice 3),
+  because a record without its body installs a broken skill.
+- **Apply writes rows with the peer's clock**, never `DateTime.now()` — that timestamp is the
+  entire basis for the next session's comparison.
+- **Reload without restart** (decision 8) needed real plumbing: `BusinessPreferences.reload()`
+  re-reads the database into the in-memory view, and a `BusinessStateReloader` re-runs each
+  provider's load afterwards. Sync apply and deletion join the same serialized write queue as
+  local entity edits, because a provider rewrites a whole entity list at a time and could
+  otherwise clobber rows an apply just wrote; the residual read-modify-write window is
+  self-healing (the loser's row is still newer on its own device, so the next session re-sends
+  it).
+- **A restore defers sync writes**: `BusinessPreferences.writesBlockedForRestore` makes the apply
+  return deferred, and the session keeps its previous checkpoint entries to retry later rather
+  than writing over a restore.
 
 ## Considered options (rejected)
 

@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart' as crypto;
+
 import 'sync_models.dart';
 
 /// Pure, side-effect-free sync planning and merge rules (ADR-0002).
@@ -76,33 +80,141 @@ SyncConvAction _planConversation({
   SyncManifestEntry? mine,
   SyncManifestEntry? peers,
   SyncCheckpointConversation? checkpoint,
+}) => planRowSync(
+  mineDigest: mine?.digest,
+  peerDigest: peers?.digest,
+  checkpointDigest: checkpoint?.digest,
+);
+
+/// The one decision table both sync faces use: a conversation and a business
+/// row (entity or preference) differ only in what "row state" means, so the
+/// presence-and-digest reasoning is shared rather than copied.
+///
+/// A null digest means "this side does not have the row".
+SyncConvAction planRowSync({
+  required String? mineDigest,
+  required String? peerDigest,
+  required String? checkpointDigest,
 }) {
-  if (mine == null && peers == null) {
-    return checkpoint == null
+  if (mineDigest == null && peerDigest == null) {
+    return checkpointDigest == null
         ? SyncConvAction.none
         : SyncConvAction.bothDeleted;
   }
-  if (mine == null) {
+  if (mineDigest == null) {
     // Deleted here (or never had it) since the checkpoint.
-    if (checkpoint == null) return SyncConvAction.peerSends;
-    return peers != null && peers.digest == checkpoint.digest
+    if (checkpointDigest == null) return SyncConvAction.peerSends;
+    return peerDigest == checkpointDigest
         ? SyncConvAction.peerDeletes
         : SyncConvAction.peerSends; // peer modified: edit beats delete
   }
-  if (peers == null) {
-    if (checkpoint == null) return SyncConvAction.iSend;
-    return mine.digest == checkpoint.digest
+  if (peerDigest == null) {
+    if (checkpointDigest == null) return SyncConvAction.iSend;
+    return mineDigest == checkpointDigest
         ? SyncConvAction.iDelete
         : SyncConvAction.iSend; // modified here: edit beats delete
   }
-  if (mine.digest == peers.digest) return SyncConvAction.none;
-  final cpDigest = checkpoint?.digest;
-  if (cpDigest != null && peers.digest == cpDigest) return SyncConvAction.iSend;
-  if (cpDigest != null && mine.digest == cpDigest) {
+  if (mineDigest == peerDigest) return SyncConvAction.none;
+  if (checkpointDigest != null && peerDigest == checkpointDigest) {
+    return SyncConvAction.iSend;
+  }
+  if (checkpointDigest != null && mineDigest == checkpointDigest) {
     return SyncConvAction.peerSends;
   }
   return SyncConvAction.bothSend;
 }
+
+/// One business row's plan. [kindWire] is a table name or
+/// [kSyncPreferenceWire]; [id] is a row id or a preference key.
+class SyncBusinessPlanItem {
+  final String kindWire;
+  final String id;
+  final SyncConvAction action;
+
+  const SyncBusinessPlanItem(this.kindWire, this.id, this.action);
+}
+
+/// Plans every business row in one pass over the union of both manifests and
+/// the checkpoint. Entity kinds and preference keys go through the same table:
+/// they are rows on the same clock.
+List<SyncBusinessPlanItem> planBusinessSync({
+  required SyncManifest mine,
+  required SyncManifest peers,
+  required SyncCheckpoint checkpoint,
+}) {
+  final plans = <SyncBusinessPlanItem>[];
+
+  final kinds = <String>{
+    ...mine.entities.keys,
+    ...peers.entities.keys,
+    ...checkpoint.entities.keys,
+  };
+  for (final kind in kinds) {
+    final mineRows = mine.entities[kind] ?? const <String, SyncManifestEntry>{};
+    final peerRows =
+        peers.entities[kind] ?? const <String, SyncManifestEntry>{};
+    final checkpointRows =
+        checkpoint.entities[kind] ?? const <String, SyncCheckpointEntry>{};
+    final ids = <String>{
+      ...mineRows.keys,
+      ...peerRows.keys,
+      ...checkpointRows.keys,
+    };
+    for (final id in ids) {
+      plans.add(
+        SyncBusinessPlanItem(
+          kind,
+          id,
+          planRowSync(
+            mineDigest: mineRows[id]?.digest,
+            peerDigest: peerRows[id]?.digest,
+            checkpointDigest: checkpointRows[id]?.digest,
+          ),
+        ),
+      );
+    }
+  }
+
+  final keys = <String>{
+    ...mine.preferences.keys,
+    ...peers.preferences.keys,
+    ...checkpoint.preferences.keys,
+  };
+  for (final key in keys) {
+    plans.add(
+      SyncBusinessPlanItem(
+        kSyncPreferenceWire,
+        key,
+        planRowSync(
+          mineDigest: mine.preferences[key]?.digest,
+          peerDigest: peers.preferences[key]?.digest,
+          checkpointDigest: checkpoint.preferences[key]?.digest,
+        ),
+      ),
+    );
+  }
+  return plans;
+}
+
+/// LWW for one business row: the newer `updated_at` wins; an exact tie falls
+/// to the higher deviceId, so both peers reach the same verdict without
+/// talking to each other. Same rule as message and conversation rows.
+bool incomingBusinessRowWins({
+  required int localUpdatedAtUs,
+  required int incomingUpdatedAtUs,
+  required String myDeviceId,
+  required String peerDeviceId,
+}) {
+  var cmp = incomingUpdatedAtUs.compareTo(localUpdatedAtUs);
+  if (cmp == 0) cmp = peerDeviceId.compareTo(myDeviceId);
+  return cmp >= 0;
+}
+
+/// Content hash of a business row's payload or a preference's value. It rides
+/// the manifest alongside `updated_at` so "same clock, different content"
+/// (skewed or coarse clocks) still counts as divergence and gets exchanged.
+String businessContentDigest(String content) =>
+    crypto.sha256.convert(utf8.encode(content)).toString();
 
 /// Result of merging one conversation row.
 class ConversationRowMerge {

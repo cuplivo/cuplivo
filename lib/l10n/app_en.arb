@@ -5463,6 +5463,8 @@
   "lanSyncReportMessagesDeleted": "-{n} messages",
   "lanSyncReportConversationsDeleted": "-{n} conversations",
   "lanSyncReportDeferred": "{n} deferred",
+  "lanSyncReportEntities": "{n} entities",
+  "lanSyncReportPreferences": "{n} preferences",
   "lanSyncReportFailed": "Sync failed: {error}",
   "lanSyncRefusedPeerSchemaNewer": "The other device's database is newer. Update this device first, then sync again.",
   "lanSyncRefusedProtocolUnknown": "The other device speaks a different sync protocol. Update the app on both devices.",

@@ -28,17 +28,19 @@ void main() {
           BusinessKeyRegistry.classify('assistants_v1'),
           BusinessKeyDisposition.entity,
         );
+        // Synced preferences are still business preferences; they just also
+        // ride LAN sync (ADR-0002 decision 6).
         expect(
           BusinessKeyRegistry.classify('theme_mode_v1'),
-          BusinessKeyDisposition.preference,
+          BusinessKeyDisposition.syncedPreference,
         );
         expect(
           BusinessKeyRegistry.classify('asr_services_v1'),
-          BusinessKeyDisposition.preference,
+          BusinessKeyDisposition.syncedPreference,
         );
         expect(
           BusinessKeyRegistry.classify('tts_selected_service_id_v1'),
-          BusinessKeyDisposition.preference,
+          BusinessKeyDisposition.syncedPreference,
         );
         expect(
           BusinessKeyRegistry.classify('providers_order_v1'),
@@ -46,6 +48,10 @@ void main() {
         );
         expect(
           BusinessKeyRegistry.classify('mobile_assistant_edit_tab_order_v1'),
+          BusinessKeyDisposition.preference,
+        );
+        expect(
+          BusinessKeyRegistry.classify('current_assistant_id_v1'),
           BusinessKeyDisposition.preference,
         );
         expect(

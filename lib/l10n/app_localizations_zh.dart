@@ -11969,6 +11969,16 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportEntities(Object n) {
+    return '$n 个实体';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n 项偏好';
+  }
+
+  @override
   String lanSyncReportFailed(Object error) {
     return '同步失败：$error';
   }
@@ -23891,6 +23901,16 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String lanSyncReportDeferred(Object n) {
     return '$n 项延后';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n 个实体';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n 项偏好';
   }
 
   @override
@@ -35895,6 +35915,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String lanSyncReportDeferred(Object n) {
     return '$n 項延後';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n 個實體';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n 項偏好';
   }
 
   @override

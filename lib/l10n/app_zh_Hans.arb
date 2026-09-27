@@ -4352,6 +4352,8 @@
   "lanSyncReportMessagesDeleted": "-{n} 条消息",
   "lanSyncReportConversationsDeleted": "-{n} 个对话",
   "lanSyncReportDeferred": "{n} 项延后",
+  "lanSyncReportEntities": "{n} 个实体",
+  "lanSyncReportPreferences": "{n} 项偏好",
   "lanSyncReportFailed": "同步失败：{error}",
   "lanSyncRefusedPeerSchemaNewer": "对方数据库版本较新。请先更新本设备再同步。",
   "lanSyncRefusedProtocolUnknown": "对方使用不同的同步协议。请将两台设备都更新到最新版本。",

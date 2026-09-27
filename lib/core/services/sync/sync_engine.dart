@@ -23,6 +23,12 @@ class SyncSessionReport {
   final int deferred;
   final int conversationsDeletedLocally;
 
+  /// Business rows exchanged in either direction (entities + preferences).
+  /// One number per face: the card says how much business state moved, and the
+  /// per-row detail lives in the logs.
+  final int entityRows;
+  final int preferenceRows;
+
   const SyncSessionReport({
     required this.success,
     required this.summary,
@@ -33,6 +39,8 @@ class SyncSessionReport {
     this.messagesDeleted = 0,
     this.deferred = 0,
     this.conversationsDeletedLocally = 0,
+    this.entityRows = 0,
+    this.preferenceRows = 0,
   });
 
   /// The persistable, localizable form stored on the peer record.
@@ -44,6 +52,8 @@ class SyncSessionReport {
     deletedMessages: messagesDeleted,
     deletedConversations: conversationsDeletedLocally,
     deferred: deferred,
+    entityRows: entityRows,
+    preferenceRows: preferenceRows,
     refusal: refusal,
     error: success || refusal != null ? null : summary,
   );
@@ -235,6 +245,11 @@ class SyncEngine implements SyncServerHandler {
         peers: peerHello.manifest,
         checkpoint: previous,
       );
+      final businessPlan = planBusinessSync(
+        mine: myManifest,
+        peers: peerHello.manifest,
+        checkpoint: previous,
+      );
 
       final skippedSends = <String>{};
       final outgoing = <SyncSubtreePayload>[];
@@ -254,8 +269,34 @@ class SyncEngine implements SyncServerHandler {
         }
         outgoing.add(subtree);
       }
-      if (outgoing.isNotEmpty) {
-        await session.pushSubtrees(SyncSubtreeBatch(outgoing));
+
+      // Business rows this device owes the peer.
+      final outgoingEntityIds = <String, Set<String>>{};
+      final outgoingPreferenceKeys = <String>{};
+      for (final item in businessPlan) {
+        if (item.action != SyncConvAction.iSend &&
+            item.action != SyncConvAction.bothSend) {
+          continue;
+        }
+        if (item.kindWire == kSyncPreferenceWire) {
+          outgoingPreferenceKeys.add(item.id);
+        } else {
+          (outgoingEntityIds[item.kindWire] ??= <String>{}).add(item.id);
+        }
+      }
+      final outgoingRead = await dataPlane.readBusinessRows(
+        entityIds: outgoingEntityIds,
+        preferenceKeys: outgoingPreferenceKeys,
+      );
+      final outgoingBusiness = outgoingRead.payload;
+      // A row the manifest promised but the read did not deliver (deleted in
+      // between) is not sent, and must not advance the checkpoint.
+      final sentBusiness = outgoingRead.keys;
+
+      if (outgoing.isNotEmpty || !outgoingBusiness.isEmpty) {
+        await session.pushDelta(
+          SyncDeltaBatch(outgoing, business: outgoingBusiness),
+        );
       }
 
       final requested = [
@@ -264,6 +305,20 @@ class SyncEngine implements SyncServerHandler {
               item.action == SyncConvAction.bothSend)
             item.conversationId,
       ];
+      final requestedEntityIds = <String, Set<String>>{};
+      final requestedPreferenceKeys = <String>{};
+      for (final item in businessPlan) {
+        if (item.action != SyncConvAction.peerSends &&
+            item.action != SyncConvAction.bothSend) {
+          continue;
+        }
+        if (item.kindWire == kSyncPreferenceWire) {
+          requestedPreferenceKeys.add(item.id);
+        } else {
+          (requestedEntityIds[item.kindWire] ??= <String>{}).add(item.id);
+        }
+      }
+
       final outcomes = <String, SyncSubtreeApplyOutcome>{};
       final missingIncoming = <String>{};
       // The fetch beat always runs, even with an empty request: it is where the
@@ -271,7 +326,16 @@ class SyncEngine implements SyncServerHandler {
       // checkpoint advance and its report. Skipping it when this device wants
       // nothing would leave a conversation this device deleted alive on an
       // unmodified peer, which the dropped checkpoint entry then re-adopts.
-      final incoming = await session.fetchSubtrees(requested);
+      final incoming = await session.fetchSubtrees(
+        SyncFetchRequest(
+          conversationIds: requested,
+          entityIds: {
+            for (final entry in requestedEntityIds.entries)
+              entry.key: entry.value.toList(growable: false),
+          },
+          preferenceKeys: requestedPreferenceKeys.toList(growable: false),
+        ),
+      );
       final delivered = {
         for (final subtree in incoming.subtrees)
           subtree.conversation['id'] as String,
@@ -286,6 +350,13 @@ class SyncEngine implements SyncServerHandler {
         ),
       );
 
+      final receivedBusiness = dataPlane.businessKeysOf(incoming.business);
+      final businessOutcome = await dataPlane.applyBusiness(
+        incoming.business,
+        myDeviceId: identity.deviceId,
+        peerDeviceId: peer.deviceId,
+      );
+
       final deleted = <String>{};
       final failedDeletes = <String>{};
       for (final item in plan) {
@@ -294,6 +365,19 @@ class SyncEngine implements SyncServerHandler {
         (ok ? deleted : failedDeletes).add(item.conversationId);
       }
       if (deleted.isNotEmpty) await dataPlane.reload();
+
+      final deletedBusiness = <String>{};
+      final failedBusinessDeletes = <String>{};
+      for (final item in businessPlan) {
+        if (item.action != SyncConvAction.iDelete) continue;
+        final key = syncBusinessKey(item.kindWire, item.id);
+        final ok = await dataPlane.deleteBusinessRow(item.kindWire, item.id);
+        (ok ? deletedBusiness : failedBusinessDeletes).add(key);
+      }
+      // A deletion writes through the repository, not through
+      // BusinessPreferences, so the in-memory view the providers read has to be
+      // refreshed here — the apply path only refreshes when it wrote something.
+      if (deletedBusiness.isNotEmpty) await dataPlane.reloadBusiness();
 
       final next = await _advanceCheckpoint(
         previous: previous,
@@ -304,7 +388,23 @@ class SyncEngine implements SyncServerHandler {
         deletedIds: deleted,
         failedDeletes: failedDeletes,
       );
-      await store.saveCheckpoint(peer.deviceId, next);
+      final nextBusiness = await _advanceBusinessCheckpoint(
+        previous: previous,
+        plan: businessPlan,
+        sentKeys: sentBusiness,
+        receivedKeys: receivedBusiness,
+        deletedKeys: deletedBusiness,
+        failedDeleteKeys: failedBusinessDeletes,
+        applyDeferred: businessOutcome.deferred,
+      );
+      await store.saveCheckpoint(
+        peer.deviceId,
+        SyncCheckpoint(
+          next.conversations,
+          entities: nextBusiness.entities,
+          preferences: nextBusiness.preferences,
+        ),
+      );
       return await _finish(
         _report(
           sent: outgoing.length,
@@ -312,6 +412,9 @@ class SyncEngine implements SyncServerHandler {
           outcomes: outcomes.values,
           deferred: skippedSends.length + missingIncoming.length,
           deletedLocally: deleted.length,
+          business: outgoingBusiness,
+          receivedBusiness: incoming.business,
+          appliedBusiness: businessOutcome,
         ),
         peer: peer,
         host: endpointHost,
@@ -374,6 +477,11 @@ class SyncEngine implements SyncServerHandler {
         peers: initiatorHello.manifest,
         checkpoint: checkpoint,
       ),
+      businessPlan: planBusinessSync(
+        mine: myManifest,
+        peers: initiatorHello.manifest,
+        checkpoint: checkpoint,
+      ),
       checkpoint: checkpoint,
       startedAt: DateTime.now(),
     );
@@ -390,7 +498,7 @@ class SyncEngine implements SyncServerHandler {
   @override
   Future<int> handleApplySubtrees(
     String peerDeviceId,
-    SyncSubtreeBatch batch,
+    SyncDeltaBatch batch,
   ) async {
     final session = _sessions[peerDeviceId];
     if (session == null) throw StateError('sync_session_missing');
@@ -404,19 +512,29 @@ class SyncEngine implements SyncServerHandler {
       }),
     );
     session.outcomes.addAll(outcomes);
+    // Business rows arrive in the same push; the responder's own plan already
+    // decided what it needs from the initiator, so this is purely an apply.
+    // One push per session, so the payload is kept as-is for the checkpoint
+    // and the report.
+    session.receivedBusiness = batch.business;
+    session.businessOutcome = await dataPlane.applyBusiness(
+      batch.business,
+      myDeviceId: identity.deviceId,
+      peerDeviceId: peerDeviceId,
+    );
     return outcomes.length;
   }
 
   @override
-  Future<SyncSubtreeBatch> handleFetchSubtrees(
+  Future<SyncDeltaBatch> handleFetchSubtrees(
     String peerDeviceId,
-    List<String> conversationIds,
+    SyncFetchRequest request,
   ) async {
     final session = _sessions[peerDeviceId];
     if (session == null) throw StateError('sync_session_missing');
     final outgoing = <SyncSubtreePayload>[];
     final skipped = <String>{};
-    for (final id in conversationIds) {
+    for (final id in request.conversationIds) {
       if (await dataPlane.isStreaming(id)) {
         skipped.add(id);
         continue;
@@ -431,7 +549,15 @@ class SyncEngine implements SyncServerHandler {
     final delivered = {
       for (final subtree in outgoing) subtree.conversation['id'] as String,
     };
-    final missing = conversationIds.toSet().difference(delivered);
+    final missing = request.conversationIds.toSet().difference(delivered);
+
+    final businessRead = await dataPlane.readBusinessRows(
+      entityIds: {
+        for (final entry in request.entityIds.entries)
+          entry.key: entry.value.toSet(),
+      },
+      preferenceKeys: request.preferenceKeys.toSet(),
+    );
 
     final deleted = <String>{};
     final failedDeletes = <String>{};
@@ -442,6 +568,18 @@ class SyncEngine implements SyncServerHandler {
     }
     if (deleted.isNotEmpty) await dataPlane.reload();
 
+    final deletedBusiness = <String>{};
+    final failedBusinessDeletes = <String>{};
+    for (final item in session.businessPlan) {
+      if (item.action != SyncConvAction.iDelete) continue;
+      final key = syncBusinessKey(item.kindWire, item.id);
+      final ok = await dataPlane.deleteBusinessRow(item.kindWire, item.id);
+      (ok ? deletedBusiness : failedBusinessDeletes).add(key);
+    }
+    // Deletions bypass BusinessPreferences, so refresh the in-memory view the
+    // providers read; the apply above only refreshes when it wrote a row.
+    if (deletedBusiness.isNotEmpty) await dataPlane.reloadBusiness();
+
     final next = await _advanceCheckpoint(
       previous: session.checkpoint,
       plan: session.plan,
@@ -451,7 +589,25 @@ class SyncEngine implements SyncServerHandler {
       deletedIds: deleted,
       failedDeletes: failedDeletes,
     );
-    await store.saveCheckpoint(peerDeviceId, next);
+    final nextBusiness = await _advanceBusinessCheckpoint(
+      previous: session.checkpoint,
+      plan: session.businessPlan,
+      // What this device actually packed into the response; a row the plan
+      // promised but the read did not deliver stays at its previous entry.
+      sentKeys: businessRead.keys,
+      receivedKeys: dataPlane.businessKeysOf(session.receivedBusiness),
+      deletedKeys: deletedBusiness,
+      failedDeleteKeys: failedBusinessDeletes,
+      applyDeferred: session.businessOutcome?.deferred ?? false,
+    );
+    await store.saveCheckpoint(
+      peerDeviceId,
+      SyncCheckpoint(
+        next.conversations,
+        entities: nextBusiness.entities,
+        preferences: nextBusiness.preferences,
+      ),
+    );
     final peer = await store.findPeer(peerDeviceId);
     if (peer != null) {
       peer.lastSyncedAt = DateTime.now();
@@ -461,12 +617,15 @@ class SyncEngine implements SyncServerHandler {
         outcomes: session.outcomes.values,
         deferred: skipped.length + missing.length,
         deletedLocally: deleted.length,
+        business: businessRead.payload,
+        receivedBusiness: session.receivedBusiness,
+        appliedBusiness: session.businessOutcome,
       ).toPeerReport();
       await store.savePeer(peer);
     }
     _sessions.remove(peerDeviceId);
     onStateChanged();
-    return SyncSubtreeBatch(outgoing);
+    return SyncDeltaBatch(outgoing, business: businessRead.payload);
   }
 
   @override
@@ -574,12 +733,128 @@ class SyncEngine implements SyncServerHandler {
         id: checkpoint.conversations[id]!.rows,
   };
 
+  /// Advances the business half of the checkpoint. The rule mirrors
+  /// conversations: an entry moves to the current shared state (read back from
+  /// local, which *is* the shared state once the exchange succeeded) only when
+  /// both sides demonstrably reached it; anything skipped, undelivered or
+  /// deferred keeps its previous entry so the next session retries it. A row
+  /// gone on both sides drops its entry.
+  Future<SyncCheckpoint> _advanceBusinessCheckpoint({
+    required SyncCheckpoint previous,
+    required List<SyncBusinessPlanItem> plan,
+    required Set<String> sentKeys,
+    required Set<String> receivedKeys,
+    required Set<String> deletedKeys,
+    required Set<String> failedDeleteKeys,
+    required bool applyDeferred,
+  }) async {
+    final entities = <String, Map<String, SyncCheckpointEntry>>{
+      for (final entry in previous.entities.entries)
+        entry.key: Map<String, SyncCheckpointEntry>.of(entry.value),
+    };
+    final preferences = <String, SyncCheckpointEntry>{...previous.preferences};
+
+    for (final item in plan) {
+      final key = syncBusinessKey(item.kindWire, item.id);
+      final prior = item.kindWire == kSyncPreferenceWire
+          ? preferences[item.id]
+          : entities[item.kindWire]?[item.id];
+
+      Future<void> setFromLocal() async {
+        final entry = await dataPlane.checkpointBusinessFromLocal(
+          item.kindWire,
+          item.id,
+        );
+        if (item.kindWire == kSyncPreferenceWire) {
+          if (entry == null) {
+            preferences.remove(item.id);
+          } else {
+            preferences[item.id] = entry;
+          }
+          return;
+        }
+        final rows = entities[item.kindWire] ??=
+            <String, SyncCheckpointEntry>{};
+        if (entry == null) {
+          rows.remove(item.id);
+        } else {
+          rows[item.id] = entry;
+        }
+      }
+
+      void keepPrior() {
+        if (prior == null) return;
+        if (item.kindWire == kSyncPreferenceWire) {
+          preferences[item.id] = prior;
+        } else {
+          (entities[item.kindWire] ??=
+                  <String, SyncCheckpointEntry>{})[item.id] =
+              prior;
+        }
+      }
+
+      void drop() {
+        if (item.kindWire == kSyncPreferenceWire) {
+          preferences.remove(item.id);
+        } else {
+          entities[item.kindWire]?.remove(item.id);
+        }
+      }
+
+      switch (item.action) {
+        case SyncConvAction.none:
+          await setFromLocal();
+        case SyncConvAction.iSend:
+          if (sentKeys.contains(key)) {
+            await setFromLocal();
+          } else {
+            keepPrior();
+          }
+        case SyncConvAction.peerSends:
+          if (applyDeferred || !receivedKeys.contains(key)) {
+            keepPrior();
+          } else {
+            await setFromLocal();
+          }
+        case SyncConvAction.bothSend:
+          if (applyDeferred ||
+              !sentKeys.contains(key) ||
+              !receivedKeys.contains(key)) {
+            keepPrior();
+          } else {
+            await setFromLocal();
+          }
+        case SyncConvAction.iDelete:
+          if (failedDeleteKeys.contains(key)) {
+            keepPrior();
+          } else {
+            drop();
+          }
+        case SyncConvAction.peerDeletes:
+        case SyncConvAction.bothDeleted:
+          drop();
+      }
+    }
+
+    // A kind whose rows all disappeared would otherwise leave an empty map
+    // behind and grow the checkpoint file for no reason.
+    entities.removeWhere((_, rows) => rows.isEmpty);
+    return SyncCheckpoint(
+      previous.conversations,
+      entities: entities,
+      preferences: preferences,
+    );
+  }
+
   SyncSessionReport _report({
     required int sent,
     required int received,
     required Iterable<SyncSubtreeApplyOutcome> outcomes,
     required int deferred,
     required int deletedLocally,
+    SyncBusinessPayload business = const SyncBusinessPayload(),
+    SyncBusinessPayload receivedBusiness = const SyncBusinessPayload(),
+    SyncBusinessApplyOutcome? appliedBusiness,
   }) {
     var upserted = 0;
     var deleted = 0;
@@ -587,13 +862,20 @@ class SyncEngine implements SyncServerHandler {
       upserted += outcome.upsertedMessages;
       deleted += outcome.deletedMessages;
     }
+    final entityRows =
+        _entityRowCount(business) + _entityRowCount(receivedBusiness);
+    final preferenceRows =
+        business.preferences.length + receivedBusiness.preferences.length;
     final parts = <String>[
       'sent $sent',
       'received $received',
       if (upserted > 0) '+$upserted msgs',
       if (deleted > 0) '-$deleted msgs',
       if (deletedLocally > 0) '-$deletedLocally convs',
+      if (entityRows > 0) 'entities $entityRows',
+      if (preferenceRows > 0) 'prefs $preferenceRows',
       if (deferred > 0) 'deferred $deferred',
+      if (appliedBusiness?.deferred == true) 'business deferred',
     ];
     return SyncSessionReport(
       success: true,
@@ -604,7 +886,17 @@ class SyncEngine implements SyncServerHandler {
       messagesDeleted: deleted,
       deferred: deferred,
       conversationsDeletedLocally: deletedLocally,
+      entityRows: entityRows,
+      preferenceRows: preferenceRows,
     );
+  }
+
+  static int _entityRowCount(SyncBusinessPayload payload) {
+    var total = 0;
+    for (final rows in payload.entities.values) {
+      total += rows.length;
+    }
+    return total;
   }
 
   /// Completes a session: records the outcome on the peer record and returns
@@ -658,13 +950,21 @@ class _ResponderSession {
   _ResponderSession({
     required this.initiatorHello,
     required this.plan,
+    required this.businessPlan,
     required this.checkpoint,
     required this.startedAt,
   });
 
   final SyncHello initiatorHello;
   final List<SyncConvPlan> plan;
+  final List<SyncBusinessPlanItem> businessPlan;
   final SyncCheckpoint checkpoint;
   final DateTime startedAt;
   final Map<String, SyncSubtreeApplyOutcome> outcomes = {};
+
+  /// Business rows the initiator pushed in this session's one PUT.
+  SyncBusinessPayload receivedBusiness = const SyncBusinessPayload();
+
+  /// Result of applying them, for the checkpoint and the report.
+  SyncBusinessApplyOutcome? businessOutcome;
 }

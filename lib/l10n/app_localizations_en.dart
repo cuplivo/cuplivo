@@ -12539,6 +12539,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportEntities(Object n) {
+    return '$n entities';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n preferences';
+  }
+
+  @override
   String lanSyncReportFailed(Object error) {
     return 'Sync failed: $error';
   }

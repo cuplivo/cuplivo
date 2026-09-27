@@ -14,13 +14,31 @@ import 'package:crypto/crypto.dart' as crypto;
 /// Version of the sync wire protocol itself. Both peers must agree; unknown
 /// means refuse. Bump when a message shape changes in a way old builds cannot
 /// parse safely.
-const int kSyncProtocolVersion = 1;
+///
+/// v2: the hello manifest and the session batch gained the business sections
+/// (entity rows by table name + synced preference rows); v1 peers are refused
+/// at hello instead of parsing a manifest they cannot understand.
+const int kSyncProtocolVersion = 2;
+
+/// Wire name of the preference "kind" inside business manifests and payloads.
+/// Entity kinds travel under their stable table name, which can never collide
+/// with this sentinel (they all end in `_rows`).
+const String kSyncPreferenceWire = '__preference__';
+
+/// Stable identity of one business row across manifests, plans and checkpoints:
+/// its kind plus its row id (or preference key). The separator cannot occur in
+/// a table name or a preference key.
+String syncBusinessKey(String kindWire, String id) => '$kindWire\u0000$id';
 
 /// A conversation's identity inside a sync manifest: the row's `updated_at`
 /// (µs), its message count, and a digest over every message id with its
 /// coalesced mutation time (`COALESCE(updated_at, timestamp)`). The digest
 /// changes on insert, edit *and* delete, which is what makes manifest
 /// comparison sufficient to detect divergence without shipping rows.
+///
+/// The same entry shape describes business rows (entities and preferences):
+/// `u` is the row's `updated_at`, `d` a content hash of the payload/value
+/// (which catches "same clock, different content"), and `c` is unused (0).
 class SyncManifestEntry {
   final int updatedAtUs;
   final int messageCount;
@@ -56,24 +74,53 @@ class SyncManifestEntry {
   int get hashCode => Object.hash(updatedAtUs, messageCount, digest);
 }
 
-/// One peer's whole conversation state, sent in hello.
+/// One peer's whole conversation state, sent in hello. Slice 2 added the
+/// business sections: entity rows by wire kind (table name) and the synced
+/// preference keys; a v1 manifest simply has neither map present.
 class SyncManifest {
   final Map<String, SyncManifestEntry> conversations;
+  final Map<String, Map<String, SyncManifestEntry>> entities;
+  final Map<String, SyncManifestEntry> preferences;
 
-  const SyncManifest(this.conversations);
+  const SyncManifest(
+    this.conversations, {
+    this.entities = const {},
+    this.preferences = const {},
+  });
 
   Map<String, dynamic> toJson() => {
     'conversations': conversations.map(
       (id, entry) => MapEntry(id, entry.toJson()),
     ),
+    'entities': entities.map(
+      (kind, rows) =>
+          MapEntry(kind, rows.map((id, entry) => MapEntry(id, entry.toJson()))),
+    ),
+    'preferences': preferences.map(
+      (key, entry) => MapEntry(key, entry.toJson()),
+    ),
   };
 
-  static SyncManifest fromJson(Map<String, dynamic> json) => SyncManifest({
-    for (final entry in (json['conversations'] as Map<String, dynamic>).entries)
-      entry.key: SyncManifestEntry.fromJson(
-        (entry.value as Map).cast<String, dynamic>(),
-      ),
-  });
+  static SyncManifest fromJson(Map<String, dynamic> json) => SyncManifest(
+    _flatEntries(json['conversations']),
+    entities: _nestedEntries(json['entities']),
+    preferences: _flatEntries(json['preferences']),
+  );
+
+  static Map<String, SyncManifestEntry> _flatEntries(Object? raw) => {
+    if (raw is Map)
+      for (final entry in raw.entries)
+        entry.key: SyncManifestEntry.fromJson(
+          (entry.value as Map).cast<String, dynamic>(),
+        ),
+  };
+
+  static Map<String, Map<String, SyncManifestEntry>> _nestedEntries(
+    Object? raw,
+  ) => {
+    if (raw is Map)
+      for (final kind in raw.entries) kind.key: _flatEntries(kind.value),
+  };
 }
 
 /// Digest over a conversation's message rows: sha256 of the sorted
@@ -200,6 +247,10 @@ class SyncPeerReport {
   final int deletedMessages;
   final int deletedConversations;
   final int deferred;
+
+  /// Business rows exchanged in either direction (entities + preferences).
+  final int entityRows;
+  final int preferenceRows;
   final SyncRefusalReason? refusal;
 
   /// Raw failure detail for non-refusal failures (transport errors).
@@ -213,6 +264,8 @@ class SyncPeerReport {
     this.deletedMessages = 0,
     this.deletedConversations = 0,
     this.deferred = 0,
+    this.entityRows = 0,
+    this.preferenceRows = 0,
     this.refusal,
     this.error,
   });
@@ -225,6 +278,8 @@ class SyncPeerReport {
     'deleted': deletedMessages,
     'deletedConversations': deletedConversations,
     'deferred': deferred,
+    'entityRows': entityRows,
+    'preferenceRows': preferenceRows,
     if (refusal != null) 'refusal': refusal!.wire,
     if (error != null) 'error': error,
   };
@@ -237,6 +292,8 @@ class SyncPeerReport {
     deletedMessages: (json['deleted'] as num?)?.toInt() ?? 0,
     deletedConversations: (json['deletedConversations'] as num?)?.toInt() ?? 0,
     deferred: (json['deferred'] as num?)?.toInt() ?? 0,
+    entityRows: (json['entityRows'] as num?)?.toInt() ?? 0,
+    preferenceRows: (json['preferenceRows'] as num?)?.toInt() ?? 0,
     refusal: SyncRefusalReason.tryParse(json['refusal'] as String?),
     error: json['error'] as String?,
   );
@@ -284,52 +341,204 @@ class SyncSubtreePayload {
       );
 }
 
-/// A batch of subtrees travelling in one direction.
-class SyncSubtreeBatch {
-  final List<SyncSubtreePayload> subtrees;
+/// Business rows travelling in one direction: entity rows by wire kind (table
+/// name) plus synced preference rows. Every row map uses raw column names and
+/// raw SQLite values, exactly like a conversation subtree — storage format is
+/// wire format.
+class SyncBusinessPayload {
+  final Map<String, List<Map<String, dynamic>>> entities;
+  final List<Map<String, dynamic>> preferences;
 
-  const SyncSubtreeBatch(this.subtrees);
+  const SyncBusinessPayload({
+    this.entities = const {},
+    this.preferences = const [],
+  });
+
+  bool get isEmpty =>
+      entities.values.every((rows) => rows.isEmpty) && preferences.isEmpty;
+
+  Map<String, dynamic> toJson() => {
+    'entities': entities.map(
+      (kind, rows) => MapEntry(kind, rows.map((row) => row).toList()),
+    ),
+    'preferences': preferences,
+  };
+
+  static SyncBusinessPayload fromJson(Map<String, dynamic> json) =>
+      SyncBusinessPayload(
+        entities: {
+          if (json['entities'] is Map)
+            for (final kind in (json['entities'] as Map).entries)
+              kind.key.toString(): [
+                for (final row in (kind.value as List? ?? const []))
+                  (row as Map).cast<String, dynamic>(),
+              ],
+        },
+        preferences: [
+          for (final row in (json['preferences'] as List? ?? const []))
+            (row as Map).cast<String, dynamic>(),
+        ],
+      );
+}
+
+/// A batch of changes travelling in one direction: conversation subtrees and,
+/// since slice 2, the business rows (entities + preferences) that changed.
+class SyncDeltaBatch {
+  final List<SyncSubtreePayload> subtrees;
+  final SyncBusinessPayload business;
+
+  const SyncDeltaBatch(
+    this.subtrees, {
+    this.business = const SyncBusinessPayload(),
+  });
 
   Map<String, dynamic> toJson() => {
     'subtrees': subtrees.map((s) => s.toJson()).toList(),
+    'business': business.toJson(),
   };
 
-  static SyncSubtreeBatch fromJson(Map<String, dynamic> json) =>
-      SyncSubtreeBatch([
-        for (final subtree in (json['subtrees'] as List? ?? const []))
-          SyncSubtreePayload.fromJson((subtree as Map).cast<String, dynamic>()),
-      ]);
+  static SyncDeltaBatch fromJson(Map<String, dynamic> json) => SyncDeltaBatch(
+    [
+      for (final subtree in (json['subtrees'] as List? ?? const []))
+        SyncSubtreePayload.fromJson((subtree as Map).cast<String, dynamic>()),
+    ],
+    business: json['business'] == null
+        ? const SyncBusinessPayload()
+        : SyncBusinessPayload.fromJson(
+            (json['business'] as Map).cast<String, dynamic>(),
+          ),
+  );
 
   String encodeJson() => jsonEncode(toJson());
 
-  static SyncSubtreeBatch decodeJson(String source) =>
+  static SyncDeltaBatch decodeJson(String source) =>
       fromJson(jsonDecode(source) as Map<String, dynamic>);
+}
+
+/// What the initiator asks the responder to send back in the fetch beat:
+/// conversation subtrees, entity rows by kind, and preference keys. The fetch
+/// beat runs even when this is empty — that request is where the responder
+/// executes its own plan (deletions, checkpoint advance, report).
+class SyncFetchRequest {
+  final List<String> conversationIds;
+  final Map<String, List<String>> entityIds;
+  final List<String> preferenceKeys;
+
+  const SyncFetchRequest({
+    this.conversationIds = const [],
+    this.entityIds = const {},
+    this.preferenceKeys = const [],
+  });
+
+  Map<String, dynamic> toJson() => {
+    'ids': conversationIds,
+    'entities': entityIds,
+    'preferences': preferenceKeys,
+  };
+
+  static SyncFetchRequest fromJson(Map<String, dynamic> json) =>
+      SyncFetchRequest(
+        conversationIds: [
+          for (final id in (json['ids'] as List? ?? const [])) id.toString(),
+        ],
+        entityIds: {
+          if (json['entities'] is Map)
+            for (final kind in (json['entities'] as Map).entries)
+              kind.key.toString(): [
+                for (final id in (kind.value as List? ?? const []))
+                  id.toString(),
+              ],
+        },
+        preferenceKeys: [
+          for (final key in (json['preferences'] as List? ?? const []))
+            key.toString(),
+        ],
+      );
 }
 
 /// The per-peer checkpoint: the row state this peer last observed on the other
 /// device. `rows` holds each message's coalesced mutation time so the merge
 /// can tell "the peer deleted this row" from "I edited it since".
+///
+/// Since slice 2 it also remembers the business rows (entities by table name,
+/// plus preference keys) this peer last had, which is what lets the plan tell
+/// "the peer deleted this row" from "the peer never had it".
 class SyncCheckpoint {
   final Map<String, SyncCheckpointConversation> conversations;
+  final Map<String, Map<String, SyncCheckpointEntry>> entities;
+  final Map<String, SyncCheckpointEntry> preferences;
 
-  const SyncCheckpoint(this.conversations);
+  const SyncCheckpoint(
+    this.conversations, {
+    this.entities = const {},
+    this.preferences = const {},
+  });
 
   Map<String, dynamic> toJson() => {
     'version': 1,
     'conversations': conversations.map(
       (id, entry) => MapEntry(id, entry.toJson()),
     ),
+    'entities': entities.map(
+      (kind, rows) =>
+          MapEntry(kind, rows.map((id, entry) => MapEntry(id, entry.toJson()))),
+    ),
+    'preferences': preferences.map(
+      (key, entry) => MapEntry(key, entry.toJson()),
+    ),
   };
 
-  static SyncCheckpoint fromJson(Map<String, dynamic> json) => SyncCheckpoint({
-    for (final entry
-        in ((json['conversations'] as Map).cast<String, dynamic>()).entries)
-      entry.key: SyncCheckpointConversation.fromJson(
-        (entry.value as Map).cast<String, dynamic>(),
-      ),
-  });
+  static SyncCheckpoint fromJson(Map<String, dynamic> json) => SyncCheckpoint(
+    {
+      for (final entry
+          in ((json['conversations'] as Map?)?.cast<String, dynamic>() ??
+                  const <String, dynamic>{})
+              .entries)
+        entry.key: SyncCheckpointConversation.fromJson(
+          (entry.value as Map).cast<String, dynamic>(),
+        ),
+    },
+    entities: {
+      for (final kind
+          in ((json['entities'] as Map?)?.cast<String, dynamic>() ??
+                  const <String, dynamic>{})
+              .entries)
+        kind.key: {
+          for (final row in ((kind.value as Map?) ?? const {}).entries)
+            row.key.toString(): SyncCheckpointEntry.fromJson(
+              (row.value as Map).cast<String, dynamic>(),
+            ),
+        },
+    },
+    preferences: {
+      for (final entry
+          in ((json['preferences'] as Map?)?.cast<String, dynamic>() ??
+                  const <String, dynamic>{})
+              .entries)
+        entry.key: SyncCheckpointEntry.fromJson(
+          (entry.value as Map).cast<String, dynamic>(),
+        ),
+    },
+  );
 
   static const empty = SyncCheckpoint({});
+}
+
+/// What this peer last had for one business row: its mutation clock and the
+/// content hash that was current then.
+class SyncCheckpointEntry {
+  final int updatedAtUs;
+  final String digest;
+
+  const SyncCheckpointEntry({required this.updatedAtUs, required this.digest});
+
+  Map<String, dynamic> toJson() => {'u': updatedAtUs, 'd': digest};
+
+  static SyncCheckpointEntry fromJson(Map<String, dynamic> json) =>
+      SyncCheckpointEntry(
+        updatedAtUs: (json['u'] as num).toInt(),
+        digest: json['d'] as String,
+      );
 }
 
 class SyncCheckpointConversation {
@@ -387,4 +596,29 @@ class SyncSubtreeApplyOutcome {
   });
 
   static const deferredOutcome = SyncSubtreeApplyOutcome(deferred: true);
+}
+
+/// Result of applying a business payload (entities + preferences). Deferred
+/// means nothing was written — a restore holds the write fence, so the session
+/// must keep the previous checkpoint entries and retry next time.
+class SyncBusinessApplyOutcome {
+  final bool deferred;
+  final int entityRowsWritten;
+  final int entityRowsDeleted;
+  final int preferencesWritten;
+  final int preferencesDeleted;
+  final bool changed;
+
+  const SyncBusinessApplyOutcome({
+    this.deferred = false,
+    this.entityRowsWritten = 0,
+    this.entityRowsDeleted = 0,
+    this.preferencesWritten = 0,
+    this.preferencesDeleted = 0,
+    this.changed = false,
+  });
+
+  static const deferredOutcome = SyncBusinessApplyOutcome(deferred: true);
+
+  static const nothing = SyncBusinessApplyOutcome();
 }

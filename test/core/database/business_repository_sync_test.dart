@@ -1,0 +1,187 @@
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/business_data.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+/// The business sync section at repository level: manifest refs, LWW apply and
+/// the guarantees the engine relies on (the peer's clock is preserved, an older
+/// row never overwrites a newer one, unknown kinds are inert).
+void main() {
+  late AppDatabase database;
+  late BusinessRepository repository;
+  late BusinessPreferences preferences;
+
+  setUp(() async {
+    database = AppDatabase(NativeDatabase.memory());
+    repository = BusinessRepository(database);
+    preferences = BusinessPreferences(repository);
+    await preferences.load();
+  });
+
+  tearDown(() => database.close());
+
+  Future<void> setAssistants(
+    List<({String id, String name})> list,
+  ) => preferences.setString(
+    'assistants_v1',
+    '[${[for (final item in list) '{"id":"${item.id}","name":"${item.name}"}'].join(',')}]',
+  );
+
+  test('refs cover entity rows and only synced preferences', () async {
+    await setAssistants([(id: 'a1', name: 'One')]);
+    await preferences.setString('user_name', 'Alice');
+    await preferences.setString('current_assistant_id_v1', 'a1');
+
+    final entityRefs = await repository.syncEntityRefs();
+    expect(
+      entityRefs
+          .where((ref) => ref.kindWire == 'assistant_rows')
+          .map((r) => r.id),
+      contains('a1'),
+    );
+    expect(entityRefs.every((ref) => ref.updatedAtUs > 0), isTrue);
+
+    final preferenceRefs = await repository.syncPreferenceRefs();
+    expect(preferenceRefs.map((ref) => ref.key), contains('user_name'));
+    expect(
+      preferenceRefs.map((ref) => ref.key),
+      isNot(contains('current_assistant_id_v1')),
+      reason: 'device-local keys never reach the wire',
+    );
+  });
+
+  test('an applied row keeps the peer clock and older rows never win', () async {
+    await setAssistants([(id: 'a1', name: 'Mine')]);
+    final mine = (await repository.readEntities(
+      BusinessEntityKind.assistant,
+    )).single;
+    final mineAt = (await repository.syncEntityRefs())
+        .firstWhere((ref) => ref.id == 'a1')
+        .updatedAtUs;
+
+    // An older row from the peer loses...
+    await repository.syncApplyBusinessRows(
+      entities: {
+        'assistant_rows': [
+          {
+            'id': 'a1',
+            'sort_order': 0,
+            'payload': '{"id":"a1","name":"Older peer"}',
+            'updated_at': mineAt - 1000,
+          },
+        ],
+      },
+      preferences: const [],
+      myDeviceId: 'me',
+      peerDeviceId: 'peer',
+    );
+    expect(
+      (await repository.readEntities(
+        BusinessEntityKind.assistant,
+      )).single.payload,
+      mine.payload,
+    );
+
+    // ...a newer one wins, and carries the peer's timestamp rather than a fresh
+    // local one — that clock is what the next session compares against.
+    final peerAt = mineAt + 5000;
+    final outcome = await repository.syncApplyBusinessRows(
+      entities: {
+        'assistant_rows': [
+          {
+            'id': 'a1',
+            'sort_order': 0,
+            'payload': '{"id":"a1","name":"Newer peer"}',
+            'updated_at': peerAt,
+          },
+        ],
+      },
+      preferences: const [],
+      myDeviceId: 'me',
+      peerDeviceId: 'peer',
+    );
+    expect(outcome.entityRowsWritten, 1);
+    expect(outcome.changed, isTrue);
+    final applied = (await repository.readEntities(
+      BusinessEntityKind.assistant,
+    )).single;
+    expect(applied.payload, contains('Newer peer'));
+    final appliedAt = (await repository.syncEntityRefs())
+        .firstWhere((ref) => ref.id == 'a1')
+        .updatedAtUs;
+    expect(appliedAt, peerAt);
+  });
+
+  test('a preference is applied and deleted through the same rules', () async {
+    await repository.syncApplyBusinessRows(
+      entities: const {},
+      preferences: [
+        {'key': 'user_name', 'value': '"Alice"', 'updated_at': 5000},
+      ],
+      myDeviceId: 'me',
+      peerDeviceId: 'peer',
+    );
+    expect((await repository.syncPreferenceRefs()).single.key, 'user_name');
+
+    // A device-local key cannot be pushed in, even by a peer.
+    final ignored = await repository.syncApplyBusinessRows(
+      entities: const {},
+      preferences: [
+        {
+          'key': 'current_assistant_id_v1',
+          'value': '"injected"',
+          'updated_at': 9000,
+        },
+      ],
+      myDeviceId: 'me',
+      peerDeviceId: 'peer',
+    );
+    expect(ignored.preferencesWritten, 0);
+    expect(await repository.getPreference('current_assistant_id_v1'), isNull);
+
+    expect(await repository.syncDeletePreference('user_name'), isTrue);
+    expect(await repository.getPreference('user_name'), isNull);
+    // A device-local key is not deletable through the sync path either.
+    expect(
+      await repository.syncDeletePreference('current_assistant_id_v1'),
+      isFalse,
+    );
+  });
+
+  test('unknown kinds and rows without an id are inert', () async {
+    final outcome = await repository.syncApplyBusinessRows(
+      entities: {
+        'future_rows': [
+          {'id': 'x', 'payload': '{}', 'updated_at': 1},
+        ],
+        'assistant_rows': [
+          {'sort_order': 0, 'payload': '{}', 'updated_at': 1},
+        ],
+      },
+      preferences: const [],
+      myDeviceId: 'me',
+      peerDeviceId: 'peer',
+    );
+    expect(outcome.entityRowsWritten, 0);
+    expect(outcome.changed, isFalse);
+  });
+
+  test('the reload picks up writes that bypassed the view', () async {
+    await preferences.setString('user_name', 'Local');
+    await repository.syncApplyBusinessRows(
+      entities: const {},
+      preferences: [
+        {'key': 'theme_mode_v1', 'value': '"dark"', 'updated_at': 10},
+      ],
+      myDeviceId: 'me',
+      peerDeviceId: 'peer',
+    );
+    // Written straight to the repository: the in-memory view does not know yet.
+    expect(preferences.getString('theme_mode_v1'), isNull);
+    await preferences.reload();
+    expect(preferences.getString('theme_mode_v1'), 'dark');
+    expect(preferences.getString('user_name'), 'Local');
+  });
+}

@@ -69,10 +69,15 @@ class _NewerSchemaPlane extends SyncDataPlane {
 /// One device: its own sync directory, database, chat and business stores, and
 /// its own listener.
 class _Side {
-  _Side(this.label, {this.newerSchema = false});
+  _Side(this.label, {this.newerSchema = false, this.clockOffsetUs = 0});
 
   final String label;
   final bool newerSchema;
+
+  /// Shifts this side's hello clock, so a test can manufacture the skew the
+  /// report is supposed to flag. Row clocks are untouched (they come from the
+  /// write path), which is exactly the split the warning exists for.
+  final int clockOffsetUs;
 
   late final Directory dir;
   late final AppDatabase database;
@@ -190,6 +195,7 @@ class _Side {
       store: store,
       dataPlane: dataPlane,
       onStateChanged: () {},
+      clockUs: () => DateTime.now().microsecondsSinceEpoch + clockOffsetUs,
     );
     port = await engine.start(preferredPort: 0);
   }
@@ -278,6 +284,22 @@ Future<void> _forceUpdatedAt(
   <Object?>[updatedAtUs, id],
 );
 
+/// Reads a row's mutation clock — the value the LWW comparison actually uses.
+Future<int?> _rowClock(
+  _Side side, {
+  required String table,
+  required String idColumn,
+  required String id,
+}) async {
+  final row = await side.database
+      .customSelect(
+        'SELECT updated_at FROM $table WHERE $idColumn = ?;',
+        variables: <Variable<Object>>[Variable<String>(id)],
+      )
+      .getSingleOrNull();
+  return row?.read<int>('updated_at');
+}
+
 Future<void> _seedConversation(
   _Side side, {
   required String id,
@@ -340,6 +362,20 @@ Future<int> _unusedPort() async {
   final port = socket.port;
   await socket.close();
   return port;
+}
+
+/// Unpair propagation is fire-and-forget on purpose (unpairing must not wait
+/// on a peer), so a test that asserts the *peer* reacted has to poll for it.
+Future<void> _waitUntil(
+  Future<bool> Function() check, {
+  Duration timeout = const Duration(seconds: 10),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    if (await check()) return;
+    await Future<void>.delayed(const Duration(milliseconds: 25));
+  }
+  fail('condition not met within $timeout');
 }
 
 Future<Set<String>> _conversationIds(_Side side) async => {
@@ -411,6 +447,17 @@ void main() {
     final pin = b.engine.openPairing();
     await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
     return (a, b);
+  }
+
+  /// Pairs two already-started sides — the explicit form a three-device
+  /// topology needs, where not every pair is paired.
+  Future<void> pairSides(_Side initiator, _Side responder) async {
+    final pin = responder.engine.openPairing();
+    await initiator.engine.pairWith(
+      host: '127.0.0.1',
+      port: responder.port,
+      pin: pin,
+    );
   }
 
   test(
@@ -591,6 +638,12 @@ void main() {
     final report = await a.engine.syncWithPeer(stale);
     expect(report.success, isFalse);
     expect(report.summary, contains('not_paired'));
+    // A dead secret must land as a *refusal*, not as a raw transport error:
+    // the card renders the localized "no longer paired" line from this field,
+    // and an unparsed 401 would leave the user staring at an exception string.
+    expect(report.refusal, SyncRefusalReason.notPaired);
+    final persisted = (await a.store.findPeer(b.identity.deviceId))!;
+    expect(persisted.lastReport?.refusal, SyncRefusalReason.notPaired);
   });
 
   test(
@@ -821,6 +874,18 @@ void main() {
       expect(unknownProtocol, isA<SyncHelloRefusal>());
       expect(
         (unknownProtocol as SyncHelloRefusal).reason,
+        SyncRefusalReason.protocolUnknown,
+      );
+
+      // v4 added the clock reading. An older build is refused rather than
+      // synced quietly without the skew warning it cannot produce.
+      final olderProtocol = await a.engine.handleHello(
+        b.identity.deviceId,
+        b.hello(protocolVersion: kSyncProtocolVersion - 1),
+      );
+      expect(olderProtocol, isA<SyncHelloRefusal>());
+      expect(
+        (olderProtocol as SyncHelloRefusal).reason,
         SyncRefusalReason.protocolUnknown,
       );
 
@@ -1156,4 +1221,284 @@ void main() {
       expect(await _conversationIds(b), contains('conv-ghost'));
     },
   );
+
+  // ---- slice 5: clock skew, lost rows, unpair propagation, three devices ----
+
+  test('a divergent clock warns on both sides and still syncs', () async {
+    final a = _Side('a', clockOffsetUs: 6 * 60 * 1000 * 1000); // +6 min
+    final b = _Side('b');
+    await a.start(root);
+    await b.start(root);
+    sides.addAll([a, b]);
+    final pin = b.engine.openPairing();
+    await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _setAssistants(a, [(id: 'assistant-1', name: 'Researcher')]);
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(report.clockSkewMs, isNotNull);
+    expect(report.clockSkewMs! > 0, isTrue, reason: 'A runs ahead of B');
+
+    // The responder reads the same divergence from its side of the hello pair
+    // and persists it on the record its card renders.
+    final bReport = (await b.store.findPeer(a.identity.deviceId))!.lastReport!;
+    expect(bReport.clockSkewMs, isNotNull);
+    expect(bReport.clockSkewMs! < 0, isTrue, reason: 'A is ahead of B');
+
+    // The warning is informational: the rows moved anyway.
+    expect((await _assistantsOf(b)).keys, {'assistant-1'});
+  });
+
+  test('a clock inside the warn threshold is not flagged', () async {
+    final a = _Side('a', clockOffsetUs: 60 * 1000 * 1000); // +1 min
+    final b = _Side('b');
+    await a.start(root);
+    await b.start(root);
+    sides.addAll([a, b]);
+    final pin = b.engine.openPairing();
+    await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(report.clockSkewMs, isNull);
+    final bReport = (await b.store.findPeer(a.identity.deviceId))!.lastReport!;
+    expect(bReport.clockSkewMs, isNull);
+  });
+
+  test('a lost local edit is counted on the device that lost it', () async {
+    final (a, b) = await pair();
+    // A shared baseline first, so both sides then diverge from one checkpoint.
+    await _setAssistants(a, [(id: 'assistant-1', name: 'Original')]);
+    await a.businessPreferences.setString('user_name', 'Original');
+    await a.engine.syncWithPeer(await a.peer(b));
+
+    // Both edit the same rows; A's clocks are newer, so A wins and B's edits
+    // are the ones that vanish.
+    await _setAssistants(a, [(id: 'assistant-1', name: 'From A')]);
+    await _setAssistants(b, [(id: 'assistant-1', name: 'From B')]);
+    await a.businessPreferences.setString('user_name', 'From A');
+    await b.businessPreferences.setString('user_name', 'From B');
+    const base = 1700000000000000;
+    await _forceUpdatedAt(
+      a,
+      table: 'assistant_rows',
+      idColumn: 'id',
+      id: 'assistant-1',
+      updatedAtUs: base + 1000,
+    );
+    await _forceUpdatedAt(
+      b,
+      table: 'assistant_rows',
+      idColumn: 'id',
+      id: 'assistant-1',
+      updatedAtUs: base,
+    );
+    await _forceUpdatedAt(
+      a,
+      table: 'preference_rows',
+      idColumn: 'key',
+      id: 'user_name',
+      updatedAtUs: base + 1000,
+    );
+    await _forceUpdatedAt(
+      b,
+      table: 'preference_rows',
+      idColumn: 'key',
+      id: 'user_name',
+      updatedAtUs: base,
+    );
+
+    // The setup is asserted, never assumed: an override that silently matched
+    // no row would turn this into a deviceId tie-break race (device ids are
+    // fresh per run) instead of the clock decision the counters describe.
+    expect(
+      await _rowClock(
+        a,
+        table: 'assistant_rows',
+        idColumn: 'id',
+        id: 'assistant-1',
+      ),
+      base + 1000,
+    );
+    expect(
+      await _rowClock(
+        b,
+        table: 'assistant_rows',
+        idColumn: 'id',
+        id: 'assistant-1',
+      ),
+      base,
+    );
+    expect(
+      await _rowClock(
+        a,
+        table: 'preference_rows',
+        idColumn: 'key',
+        id: 'user_name',
+      ),
+      base + 1000,
+    );
+    expect(
+      await _rowClock(
+        b,
+        table: 'preference_rows',
+        idColumn: 'key',
+        id: 'user_name',
+      ),
+      base,
+    );
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    final bReport = (await b.store.findPeer(a.identity.deviceId))!.lastReport!;
+    expect(report.success, isTrue, reason: report.summary);
+    // A's side is the echo path: its own row came back at a tied clock, which
+    // is a no-op write, not a loss. This is the assertion that would have read
+    // 1 whenever the peer's deviceId won the tie.
+    expect(report.entityRowsLost, 0);
+    expect(report.preferencesLost, 0);
+    // A kept its own versions, so nothing was lost here.
+    expect(report.entityRowsLost, 0);
+    expect(report.preferencesLost, 0);
+
+    expect(bReport.entityRowsLost, 1);
+    expect(bReport.preferencesLost, 1);
+    // The counters describe what actually happened to B's edits.
+    expect((await _assistantsOf(b))['assistant-1'], contains('From A'));
+    expect(b.businessPreferences.getString('user_name'), 'From A');
+  });
+
+  test('unpairing tells a reachable peer to forget this device', () async {
+    final (a, b) = await pair();
+    expect(await b.store.findPeer(a.identity.deviceId), isNotNull);
+
+    await a.engine.unpair(b.identity.deviceId);
+    expect(await a.store.findPeer(b.identity.deviceId), isNull);
+
+    // A's revoke is fire-and-forget, so B reacts a beat later.
+    await _waitUntil(
+      () async => await b.store.findPeer(a.identity.deviceId) == null,
+    );
+    expect(await b.store.findPeer(a.identity.deviceId), isNull);
+  });
+
+  test(
+    'an unreachable peer keeps its record and learns at the next session',
+    () async {
+      final (a, b) = await pair();
+      // B's listener is gone before A unpairs, so the revoke cannot land.
+      await b.engine.stop();
+      await a.engine.unpair(b.identity.deviceId);
+      expect(await a.store.findPeer(b.identity.deviceId), isNull);
+      expect(
+        await b.store.findPeer(a.identity.deviceId),
+        isNotNull,
+        reason: 'B was never told',
+      );
+
+      // B still holds the stale record; its next session ends as a localized
+      // refusal, because A's listener no longer honours the old secret.
+      final report = await b.engine.syncWithPeer(await b.peer(a));
+      expect(report.success, isFalse);
+      expect(report.refusal, SyncRefusalReason.notPaired);
+      final persisted = (await b.store.findPeer(
+        a.identity.deviceId,
+      ))!.lastReport!;
+      expect(persisted.refusal, SyncRefusalReason.notPaired);
+      expect(
+        persisted.error,
+        isNull,
+        reason: 'a refusal, not a raw 401 transport string',
+      );
+    },
+  );
+
+  test(
+    'three devices converge through a middle hop, without re-flooding',
+    () async {
+      final a = _Side('a');
+      final b = _Side('b');
+      final c = _Side('c');
+      await a.start(root);
+      await b.start(root);
+      await c.start(root);
+      sides.addAll([a, b, c]);
+      await pairSides(a, b); // A ↔ B
+      await pairSides(b, c); // B ↔ C — deliberately no A ↔ C pairing
+
+      await _setAssistants(a, [(id: 'assistant-1', name: 'From A')]);
+      await _seedConversation(a, id: 'conv-a', contents: ['hello from a']);
+
+      // A's state reaches C through B.
+      await a.engine.syncWithPeer(await a.peer(b));
+      await b.engine.syncWithPeer(await b.peer(c));
+      expect((await _assistantsOf(c)).keys, {'assistant-1'});
+      expect(await _conversationIds(c), contains('conv-a'));
+
+      // Re-running the chain moves nothing: B holds A's rows at A's own clock
+      // (never re-stamped), so it cannot push them back, and C cannot push them
+      // back at B. A re-stamping hop would ping-pong here forever.
+      final back = await a.engine.syncWithPeer(await a.peer(b));
+      expect(back.entityRows, 0);
+      expect(back.conversationsSent, 0);
+      final mid = await b.engine.syncWithPeer(await b.peer(c));
+      expect(mid.entityRows, 0);
+      expect(mid.conversationsSent, 0);
+    },
+  );
+
+  test('a three-way concurrent edit converges on every device', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    final c = _Side('c');
+    await a.start(root);
+    await b.start(root);
+    await c.start(root);
+    sides.addAll([a, b, c]);
+    await pairSides(a, b);
+    await pairSides(b, c);
+
+    // The same row, edited independently on all three, on distinct clocks so
+    // the newest is unambiguous and the merge is a pure function of the rows.
+    await _setAssistants(a, [(id: 'assistant-1', name: 'From A')]);
+    await _setAssistants(b, [(id: 'assistant-1', name: 'From B')]);
+    await _setAssistants(c, [(id: 'assistant-1', name: 'From C')]);
+    const base = 1700000000000000;
+    await _forceUpdatedAt(
+      a,
+      table: 'assistant_rows',
+      idColumn: 'id',
+      id: 'assistant-1',
+      updatedAtUs: base,
+    );
+    await _forceUpdatedAt(
+      b,
+      table: 'assistant_rows',
+      idColumn: 'id',
+      id: 'assistant-1',
+      updatedAtUs: base + 1000,
+    );
+    await _forceUpdatedAt(
+      c,
+      table: 'assistant_rows',
+      idColumn: 'id',
+      id: 'assistant-1',
+      updatedAtUs: base + 2000,
+    );
+
+    // Walk the chain until it reaches a fixed point; three rounds is more than
+    // the two hops a three-node chain needs.
+    for (var round = 0; round < 3; round++) {
+      await a.engine.syncWithPeer(await a.peer(b));
+      await b.engine.syncWithPeer(await b.peer(c));
+    }
+
+    final winner = await _assistantsOf(c);
+    expect(winner['assistant-1'], contains('From C'), reason: 'newest clock');
+    expect(await _assistantsOf(a), winner, reason: 'A reached the same row');
+    expect(await _assistantsOf(b), winner, reason: 'B reached the same row');
+
+    // And the fixed point is stable.
+    final after = await a.engine.syncWithPeer(await a.peer(b));
+    expect(after.entityRows, 0);
+  });
 }

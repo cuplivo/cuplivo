@@ -12025,6 +12025,16 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n 条本地记录被对端更新的版本覆盖';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return '两台设备的时钟相差约 $n 分钟，请校准设备时钟后重新同步';
+  }
+
+  @override
   String lanSyncReportFailed(Object error) {
     return '同步失败：$error';
   }
@@ -24003,6 +24013,16 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String lanSyncReportBlobsMissing(Object n) {
     return '$n 个文件在对方设备上缺失';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n 条本地记录被对端更新的版本覆盖';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return '两台设备的时钟相差约 $n 分钟，请校准设备时钟后重新同步';
   }
 
   @override
@@ -36063,6 +36083,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String lanSyncReportBlobsMissing(Object n) {
     return '$n 個檔案在對方裝置上缺失';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n 條本地記錄被對端更新的版本覆蓋';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return '兩台設備的時鐘相差約 $n 分鐘，請校準設備時鐘後重新同步';
   }
 
   @override

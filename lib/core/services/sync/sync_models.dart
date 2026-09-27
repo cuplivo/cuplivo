@@ -24,7 +24,20 @@ import 'package:crypto/crypto.dart' as crypto;
 /// responder can pull blobs back. A v2 peer would apply rows whose blobs it
 /// never received — the exact broken-skill case the record holdback guards —
 /// so v2 peers are refused at hello too.
-const int kSyncProtocolVersion = 3;
+///
+/// v4: clock readings (slice 5). Hello gained `clockUs` so each side can flag
+/// a divergent wall clock; the reading is informational (sync proceeds, only
+/// the report warns), but a v3 peer would silently never warn, so it is
+/// refused rather than half-spoken to. This revision also adds the
+/// `/sync/revoke` route (unpair propagation).
+const int kSyncProtocolVersion = 4;
+
+/// Wall-clock divergence (milliseconds) beyond which a session report carries
+/// a clock-skew warning. Kerberos-style tolerance: below it, LWW comparisons
+/// stay honest for any realistic edit rhythm; above it, timestamps start
+/// lying systematically and the user should fix a device clock. Hardcoded on
+/// purpose — it is a health threshold, not a preference.
+const int kClockSkewWarnMs = 5 * 60 * 1000;
 
 /// Wire name of the preference "kind" inside business manifests and payloads.
 /// Entity kinds travel under their stable table name, which can never collide
@@ -173,6 +186,13 @@ class SyncHello {
   /// holds, to pull blobs back from the initiator over its own listener.
   final int? listenPort;
 
+  /// This device's wall clock when the hello was built, in µs since epoch —
+  /// the same unit row clocks use, so the peer can flag divergence (slice 5).
+  /// Purely informational: sync proceeds regardless; only the report warns.
+  /// Parsed leniently (null when absent) so a truncated body degrades to "no
+  /// reading" rather than a parse error.
+  final int? clockUs;
+
   const SyncHello({
     required this.protocolVersion,
     required this.schemaVersion,
@@ -181,6 +201,7 @@ class SyncHello {
     required this.platform,
     required this.manifest,
     this.listenPort,
+    this.clockUs,
   });
 
   Map<String, dynamic> toJson() => {
@@ -191,6 +212,7 @@ class SyncHello {
     'platform': platform,
     'manifest': manifest.toJson(),
     if (listenPort != null) 'listenPort': listenPort,
+    if (clockUs != null) 'clockUs': clockUs,
   };
 
   static SyncHello fromJson(Map<String, dynamic> json) => SyncHello(
@@ -203,6 +225,7 @@ class SyncHello {
       (json['manifest'] as Map).cast<String, dynamic>(),
     ),
     listenPort: (json['listenPort'] as num?)?.toInt(),
+    clockUs: (json['clockUs'] as num?)?.toInt(),
   );
 }
 
@@ -274,6 +297,17 @@ class SyncPeerReport {
   final int skillsUpdated;
   final int skillConflicts;
   final int blobsMissing;
+
+  /// Business rows whose local version was replaced by the peer's newer row
+  /// (slice 5): entities and synced preferences counted separately. "One
+  /// number per face" — which row lost lives in the logs, not on the card.
+  final int entityRowsLost;
+  final int preferencesLost;
+
+  /// Signed clock divergence against this peer in milliseconds, present only
+  /// when it exceeded [kClockSkewWarnMs] (positive: this device ran ahead).
+  /// The session still succeeded — this is the yellow flag, not a failure.
+  final int? clockSkewMs;
   final SyncRefusalReason? refusal;
 
   /// Raw failure detail for non-refusal failures (transport errors).
@@ -294,6 +328,9 @@ class SyncPeerReport {
     this.skillsUpdated = 0,
     this.skillConflicts = 0,
     this.blobsMissing = 0,
+    this.entityRowsLost = 0,
+    this.preferencesLost = 0,
+    this.clockSkewMs,
     this.refusal,
     this.error,
   });
@@ -313,6 +350,9 @@ class SyncPeerReport {
     'skillsUpdated': skillsUpdated,
     'skillConflicts': skillConflicts,
     'blobsMissing': blobsMissing,
+    'entityRowsLost': entityRowsLost,
+    'preferencesLost': preferencesLost,
+    if (clockSkewMs != null) 'clockSkewMs': clockSkewMs,
     if (refusal != null) 'refusal': refusal!.wire,
     if (error != null) 'error': error,
   };
@@ -332,6 +372,9 @@ class SyncPeerReport {
     skillsUpdated: (json['skillsUpdated'] as num?)?.toInt() ?? 0,
     skillConflicts: (json['skillConflicts'] as num?)?.toInt() ?? 0,
     blobsMissing: (json['blobsMissing'] as num?)?.toInt() ?? 0,
+    entityRowsLost: (json['entityRowsLost'] as num?)?.toInt() ?? 0,
+    preferencesLost: (json['preferencesLost'] as num?)?.toInt() ?? 0,
+    clockSkewMs: (json['clockSkewMs'] as num?)?.toInt(),
     refusal: SyncRefusalReason.tryParse(json['refusal'] as String?),
     error: json['error'] as String?,
   );
@@ -764,6 +807,14 @@ class SyncBusinessApplyOutcome {
   final int preferencesDeleted;
   final bool changed;
 
+  /// Business rows the incoming payload replaced: a local row existed, the
+  /// peer's row won the LWW comparison, and the content actually differed, so
+  /// the local version is gone (slice 5). Counted, not named — the report shows
+  /// the number, logs hold the ids. A winning row that carried the same content
+  /// back (a bothSend echo) is not a loss and is not counted.
+  final int entityRowsLost;
+  final int preferencesLost;
+
   const SyncBusinessApplyOutcome({
     this.deferred = false,
     this.entityRowsWritten = 0,
@@ -771,6 +822,8 @@ class SyncBusinessApplyOutcome {
     this.preferencesWritten = 0,
     this.preferencesDeleted = 0,
     this.changed = false,
+    this.entityRowsLost = 0,
+    this.preferencesLost = 0,
   });
 
   static const deferredOutcome = SyncBusinessApplyOutcome(deferred: true);

@@ -114,6 +114,65 @@ void main() {
     expect(appliedAt, peerAt);
   });
 
+  test('a loss is counted only when the local content changes', () async {
+    await setAssistants([(id: 'a1', name: 'Mine')]);
+    await preferences.setString('user_name', 'Mine');
+    final mineAt = (await repository.syncEntityRefs())
+        .firstWhere((ref) => ref.id == 'a1')
+        .updatedAtUs;
+    final minePrefAt = (await repository.syncPreferenceRefs())
+        .firstWhere((ref) => ref.key == 'user_name')
+        .updatedAtUs;
+
+    // The bothSend echo: this device's own row comes back at a tied clock
+    // (deviceId `peer` wins the tie). It is written — adopting the peer's clock
+    // is what makes the next session's digests agree — but the content is
+    // unchanged, so calling it a lost edit would be false.
+    final echo = await repository.syncApplyBusinessRows(
+      entities: {
+        'assistant_rows': [
+          {
+            'id': 'a1',
+            'sort_order': 0,
+            'payload': '{"id":"a1","name":"Mine"}',
+            'updated_at': mineAt,
+          },
+        ],
+      },
+      preferences: [
+        // Preference values travel JSON-encoded, exactly as they are stored.
+        {'key': 'user_name', 'value': '"Mine"', 'updated_at': minePrefAt},
+      ],
+      myDeviceId: 'me',
+      peerDeviceId: 'peer',
+    );
+    expect(echo.entityRowsWritten, 1, reason: 'the clock is still adopted');
+    expect(echo.entityRowsLost, 0);
+    expect(echo.preferencesLost, 0);
+
+    // A different row at the same tied clock does replace the local content,
+    // and that is the case the report has to name.
+    final replaced = await repository.syncApplyBusinessRows(
+      entities: {
+        'assistant_rows': [
+          {
+            'id': 'a1',
+            'sort_order': 0,
+            'payload': '{"id":"a1","name":"Peer"}',
+            'updated_at': mineAt,
+          },
+        ],
+      },
+      preferences: [
+        {'key': 'user_name', 'value': '"Peer"', 'updated_at': minePrefAt},
+      ],
+      myDeviceId: 'me',
+      peerDeviceId: 'peer',
+    );
+    expect(replaced.entityRowsLost, 1);
+    expect(replaced.preferencesLost, 1);
+  });
+
   test('a preference is applied and deleted through the same rules', () async {
     await repository.syncApplyBusinessRows(
       entities: const {},

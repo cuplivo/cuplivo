@@ -4390,6 +4390,8 @@
   "lanSyncReportSkills": "{n} 個技能",
   "lanSyncReportSkillConflicts": "{n} 處技能修改被覆蓋",
   "lanSyncReportBlobsMissing": "{n} 個檔案在對方裝置上缺失",
+  "lanSyncReportRowsLost": "{n} 條本地記錄被對端更新的版本覆蓋",
+  "lanSyncReportClockSkew": "兩台設備的時鐘相差約 {n} 分鐘，請校準設備時鐘後重新同步",
   "lanSyncReportFailed": "同步失敗：{error}",
   "lanSyncRefusedPeerSchemaNewer": "對方資料庫版本較新。請先更新本裝置再同步。",
   "lanSyncRefusedProtocolUnknown": "對方使用不同的同步協定。請將兩台裝置都更新到最新版本。",

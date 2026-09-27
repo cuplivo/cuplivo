@@ -12600,6 +12600,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n local rows replaced by newer versions on the peer';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return 'Clocks differ by ~$n min — fix the device clock, then sync again';
+  }
+
+  @override
   String lanSyncReportFailed(Object error) {
     return 'Sync failed: $error';
   }

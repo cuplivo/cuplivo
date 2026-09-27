@@ -232,6 +232,53 @@ What the implementation settled:
   later is purely additive (the peer store is already the trust anchor a discovered deviceId is
   checked against).
 
+## Amendment (2026-09, slice 5): clock skew surfaced, lost rows counted, unpair propagated
+
+The last slice closes the claims `CONTEXT.md` made but the code did not yet keep, plus the
+evidence gap in the multi-device story.
+
+What the implementation settled:
+
+- **Clock skew is surfaced on both devices, and the protocol version moved to 4.** Hello carries
+  the sender's wall clock (`clockUs`, the same µs unit row clocks use); each side compares the
+  peer's reading with its own and flags a divergence beyond five minutes in the session report — a
+  yellow-flag line, never a failure: the session completes and the rows move. Both sides compute it
+  independently from the same two readings, so either card can carry the warning. The threshold is
+  a hardcoded health constant (Kerberos-style tolerance): below it, LWW comparisons stay honest for
+  any realistic edit rhythm; above it, timestamps lie systematically and the fix is a device clock,
+  not a setting. The version bump is deliberate rather than additive — nothing has shipped, the gate
+  is strict equality, and a v3 peer would sync *silently* without the warning it cannot compute. A
+  missing reading parses to "no warning", not an error.
+- **A lost local edit is counted where it was lost.** The apply path already knew which incoming
+  rows won LWW; it discarded the losers in silence. It now counts them per face (entity rows,
+  synced preferences) and the report carries the number, so "local rows replaced by newer versions
+  on the peer" appears on the card. Counters, not names: which row lost stays in the log (the "one
+  number per face" doctrine). A loss means the local *content* changed, which is not the same as
+  the incoming row winning the comparison: a `bothSend` echoes this device's own row back at a tied
+  clock, and the tie-break (higher deviceId) hands it the win — the row is rewritten to adopt the
+  peer's clock, which is what keeps the next session's digests equal, but nothing was lost. Only a
+  genuinely different incoming row counts. (This is not hypothetical: the first version counted
+  every winning apply and reported a phantom lost row on whichever side lost the deviceId
+  tie-break, i.e. on a coin flip.)
+- **Unpairing is local-first with a best-effort remote notice.** This device always drops the
+  pairing at once; it then asks the peer to forget it over the same authenticated listener
+  (`POST /sync/revoke`, authenticated by the pairing secret it still holds, so a device can only
+  ever revoke its own pairing and never a third device's). The call is fire-and-forget with a short
+  timeout: unpairing must not wait on a peer that may be gone. When the notice cannot land, the
+  fallback is the ordinary path — the next session is refused as `not_paired`.
+- **A refusal now reaches the peer card.** The card renders `peer.lastReport`, but the early-return
+  paths (peer refusal, schema refusal, missing endpoint) returned without persisting anything, so a
+  refusal left the card showing the *previous* successful session. Every attempt against a peer
+  record now lands its outcome on that record, which is what the transport-error path already did.
+  The 401 the listener answers an unpaired caller with is likewise parsed as a `not_paired`
+  *refusal* instead of surfacing as a raw `SyncClientException(401)` string: the localized "no
+  longer paired" wording exists for exactly this case and was unreachable for it.
+- **Multi-hop convergence is tested, not just argued.** A↔B↔C (with no A↔C pairing) proves the three
+  properties the pairwise-session design claims: A's rows reach C through B; a repeat round moves
+  nothing, because B holds A's rows at A's own clock and cannot push them back (the no-ping-pong
+  property a re-stamping hop would break); and a row edited concurrently on all three converges
+  identically everywhere, with the fixed point stable.
+
 ## Considered options (rejected)
 
 - **Whole-database / backup-zip exchange** — not version-portable; a newer schema on an
@@ -276,6 +323,17 @@ What the implementation settled:
 - **mDNS/DNS-SD discovery in this slice** — see the amendment; the platform surface (Bonjour
   declarations, local-network permission, multicast lock, inbound UDP rule) is real and
   endpoint drift has a one-gesture repair.
+- **An optional clock field that keeps protocol v3** — strictly more forgiving (a v3 peer would
+  simply never warn), but it buys a silent gap in the exact report line this slice exists to make
+  true, to stay compatible with a protocol nothing had shipped against yet.
+- **A "revoked remotely" state on the peer record** — showing the peer a tombstone card
+  ("unpaired on the other device") instead of deleting its record. Most explicit, but it adds a
+  state and a way to leave it, so a device that can never sync again keeps a permanent card;
+  deleting on the notice, with the fallback refusal as the safety net, keeps one representation of
+  "not paired".
+- **Listing the losing rows by name on the card** — the ids are opaque (a skill id, a preference
+  key) and a concurrent-edit burst would inflate the card without bound; the number on the card
+  plus the ids in the log is the split the rest of the report already uses.
 
 ## Consequences
 
@@ -308,3 +366,15 @@ What the implementation settled:
   the package supports it — this target declares no camera usage description or entitlement, and
   an undeclared camera access kills the process; adding those is platform config, not a Dart
   change, and belongs with a macOS build to verify it.
+- A clock more than five minutes off shows on both cards after any session, successful ones
+  included; the warning clears itself once the clock is fixed and the next session runs, since
+  only the last report is stored.
+- Unpairing a device that is off leaves its record on the peer until that peer's next attempt
+  fails with "no longer paired" — the user unpairs it there, the same gesture as any other
+  cleanup.
+- A `/sync/revoke` arriving while a session with that peer is running drops the responder's
+  session state; the in-flight session then fails on its next beat because the peer no longer
+  authenticates — the same end state as a revocation landing between sessions.
+- `lastReport` now also changes on a refused attempt, so the card's "last synced" line marks the
+  last *attempt*; that was already true of transport failures, and the outcome line beside it
+  says what happened.

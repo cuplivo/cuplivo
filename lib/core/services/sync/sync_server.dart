@@ -51,6 +51,12 @@ abstract class SyncServerHandler {
     SyncPairRequest request,
     String? initiatorHost,
   );
+
+  /// Unpair propagation (slice 5): a paired peer presented its secret and
+  /// asks this device to forget it. The handler drops the caller's peer
+  /// record; only the caller's — the secret authenticates exactly that
+  /// identity.
+  Future<void> handleRevoke(String peerDeviceId);
 }
 
 class SyncPairRequest {
@@ -231,6 +237,9 @@ class SyncServer {
       case '/sync/subtrees':
         await _handleSubtrees(request, peerDeviceId);
         break;
+      case '/sync/revoke':
+        await _handleRevoke(request, peerDeviceId);
+        break;
       default:
         if (request.uri.path.startsWith(blobPathPrefix)) {
           await _handleBlob(request, peerDeviceId);
@@ -391,6 +400,20 @@ class SyncServer {
       return;
     }
     _safeRespond(request, HttpStatus.methodNotAllowed, {'error': 'bad_method'});
+  }
+
+  /// Unpair propagation. The auth gate already proved the caller holds the
+  /// paired secret, so this is the minimal "forget me" — one status, no body
+  /// semantics to version.
+  Future<void> _handleRevoke(HttpRequest request, String peerDeviceId) async {
+    if (request.method != 'POST') {
+      _safeRespond(request, HttpStatus.methodNotAllowed, {
+        'error': 'post_only',
+      });
+      return;
+    }
+    await handler.handleRevoke(peerDeviceId);
+    _safeRespond(request, HttpStatus.ok, {'revoked': true});
   }
 
   // ---- codecs ----

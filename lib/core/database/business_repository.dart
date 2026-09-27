@@ -702,6 +702,9 @@ WHERE id IN ($placeholders);
   /// Applies incoming business rows in one transaction, keeping only those that
   /// win their row's LWW comparison. Unknown kinds are skipped: a peer built
   /// with a kind this build does not know must not break the session.
+  ///
+  /// `*RowsLost` counts the rows whose local *content* a winning incoming row
+  /// replaced — a win over an identical row (a bothSend echo) is not a loss.
   Future<SyncBusinessApplyOutcome> syncApplyBusinessRows({
     required Map<String, List<Map<String, dynamic>>> entities,
     required List<Map<String, dynamic>> preferences,
@@ -709,7 +712,9 @@ WHERE id IN ($placeholders);
     required String peerDeviceId,
   }) async {
     var entityRowsWritten = 0;
+    var entityRowsLost = 0;
     var preferencesWritten = 0;
+    var preferencesLost = 0;
     await _database.transaction(() async {
       for (final entry in entities.entries) {
         final kind = syncKindForWire(entry.key);
@@ -724,15 +729,24 @@ WHERE id IN ($placeholders);
           // carry (or receive) exactly that kind value, never another. The
           // table's primary key is (kind, id), so the conflict target grows.
           if (kind.extensionKind != null) row['kind'] = kind.extensionKind;
-          final localAt = await _syncEntityClock(kind, id);
-          if (localAt != null &&
-              !incomingBusinessRowWins(
-                localUpdatedAtUs: localAt,
-                incomingUpdatedAtUs: incomingAt,
-                myDeviceId: myDeviceId,
-                peerDeviceId: peerDeviceId,
-              )) {
-            continue;
+          final local = await _syncEntityRow(kind, id);
+          if (local != null) {
+            if (!incomingBusinessRowWins(
+              localUpdatedAtUs: local.updatedAtUs,
+              incomingUpdatedAtUs: incomingAt,
+              myDeviceId: myDeviceId,
+              peerDeviceId: peerDeviceId,
+            )) {
+              continue;
+            }
+            // The row is written either way — adopting the peer's clock is what
+            // makes the next session's digests agree. It is only a *loss* when
+            // the local content actually changed: a bothSend echoes this
+            // device's own row back at a tied clock, and reporting "your edit
+            // was replaced" for an identical row would be false.
+            if (!_sameEntityContent(local.payload, row['payload'])) {
+              entityRowsLost++;
+            }
           }
           await _upsertSyncRow(
             kind.tableName,
@@ -753,15 +767,17 @@ WHERE id IN ($placeholders);
             BusinessKeyDisposition.syncedPreference) {
           continue;
         }
-        final localAt = await _syncPreferenceClock(key);
-        if (localAt != null &&
-            !incomingBusinessRowWins(
-              localUpdatedAtUs: localAt,
-              incomingUpdatedAtUs: incomingAt,
-              myDeviceId: myDeviceId,
-              peerDeviceId: peerDeviceId,
-            )) {
-          continue;
+        final local = await _syncPreferenceRow(key);
+        if (local != null) {
+          if (!incomingBusinessRowWins(
+            localUpdatedAtUs: local.updatedAtUs,
+            incomingUpdatedAtUs: incomingAt,
+            myDeviceId: myDeviceId,
+            peerDeviceId: peerDeviceId,
+          )) {
+            continue;
+          }
+          if (local.value != value) preferencesLost++;
         }
         await _upsertSyncRow(
           'preference_rows',
@@ -776,6 +792,8 @@ WHERE id IN ($placeholders);
       entityRowsWritten: entityRowsWritten,
       preferencesWritten: preferencesWritten,
       changed: entityRowsWritten > 0 || preferencesWritten > 0,
+      entityRowsLost: entityRowsLost,
+      preferencesLost: preferencesLost,
     );
   }
 
@@ -809,29 +827,50 @@ WHERE id IN ($placeholders);
     return true;
   }
 
-  Future<int?> _syncEntityClock(BusinessEntityKind kind, String id) async {
+  /// A local entity row's LWW clock plus the content a loss verdict compares.
+  /// One query, because the comparison needs both halves of the same row.
+  Future<({int updatedAtUs, Object? payload})?> _syncEntityRow(
+    BusinessEntityKind kind,
+    String id,
+  ) async {
     final extensionFilter = kind.extensionKind == null
         ? ''
         : " AND kind = '${kind.extensionKind}'";
     final row = await _database
         .customSelect(
-          'SELECT updated_at FROM ${kind.tableName} '
+          'SELECT updated_at, payload FROM ${kind.tableName} '
           'WHERE ${kind.idColumn} = ?$extensionFilter;',
           variables: <Variable<Object>>[Variable<String>(id)],
         )
         .getSingleOrNull();
-    return row?.read<int>('updated_at');
+    if (row == null) return null;
+    return (
+      updatedAtUs: row.read<int>('updated_at'),
+      payload: row.read<String?>('payload'),
+    );
   }
 
-  Future<int?> _syncPreferenceClock(String key) async {
+  /// The same for one synced preference: its clock and its value.
+  Future<({int updatedAtUs, Object? value})?> _syncPreferenceRow(
+    String key,
+  ) async {
     final row = await _database
         .customSelect(
-          'SELECT updated_at FROM preference_rows WHERE key = ?;',
+          'SELECT updated_at, value FROM preference_rows WHERE key = ?;',
           variables: <Variable<Object>>[Variable<String>(key)],
         )
         .getSingleOrNull();
-    return row?.read<int>('updated_at');
+    if (row == null) return null;
+    return (
+      updatedAtUs: row.read<int>('updated_at'),
+      value: row.read<String?>('value'),
+    );
   }
+
+  /// Whether an incoming row carries the content this device already holds.
+  /// Compared as JSON text, which is the form both sides travel in.
+  static bool _sameEntityContent(Object? local, Object? incoming) =>
+      local == incoming;
 
   /// INSERT ... ON CONFLICT over an allowlisted column list. Values come from
   /// the wire row by column name, so a column the peer cannot name simply

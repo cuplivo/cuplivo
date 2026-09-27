@@ -22482,6 +22482,18 @@ abstract class AppLocalizations {
   /// **'{n} files missing on the other device'**
   String lanSyncReportBlobsMissing(Object n);
 
+  /// No description provided for @lanSyncReportRowsLost.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} local rows replaced by newer versions on the peer'**
+  String lanSyncReportRowsLost(Object n);
+
+  /// No description provided for @lanSyncReportClockSkew.
+  ///
+  /// In en, this message translates to:
+  /// **'Clocks differ by ~{n} min — fix the device clock, then sync again'**
+  String lanSyncReportClockSkew(Object n);
+
   /// No description provided for @lanSyncReportFailed.
   ///
   /// In en, this message translates to:

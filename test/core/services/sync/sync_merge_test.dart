@@ -754,6 +754,53 @@ void main() {
       );
     });
 
+    test('hello carries the clock reading the skew warning comes from', () {
+      final hello = SyncHello(
+        protocolVersion: kSyncProtocolVersion,
+        schemaVersion: 7,
+        deviceId: 'd1',
+        deviceName: 'laptop',
+        platform: 'windows',
+        manifest: const SyncManifest({}),
+        clockUs: 1700000000000000,
+      );
+      expect(SyncHello.fromJson(hello.toJson()).clockUs, 1700000000000000);
+      // A body without the reading degrades to "no reading", not an error.
+      expect(
+        SyncHello.fromJson(
+          SyncHello(
+            protocolVersion: kSyncProtocolVersion,
+            schemaVersion: 7,
+            deviceId: 'd1',
+            deviceName: 'laptop',
+            platform: 'windows',
+            manifest: const SyncManifest({}),
+          ).toJson(),
+        ).clockUs,
+        isNull,
+      );
+    });
+
+    test('a peer report round-trips the lost-row counters and the skew', () {
+      const report = SyncPeerReport(
+        success: true,
+        entityRowsLost: 2,
+        preferencesLost: 1,
+        clockSkewMs: -420000,
+      );
+      final decoded = SyncPeerReport.fromJson(report.toJson());
+      expect(decoded.entityRowsLost, 2);
+      expect(decoded.preferencesLost, 1);
+      expect(decoded.clockSkewMs, -420000);
+
+      // No warning is an absent field, never an invented zero: "not measured"
+      // and "measured, perfectly aligned" must stay distinguishable.
+      const clean = SyncPeerReport(success: true);
+      expect(clean.toJson().containsKey('clockSkewMs'), isFalse);
+      expect(SyncPeerReport.fromJson(clean.toJson()).clockSkewMs, isNull);
+      expect(SyncPeerReport.fromJson(clean.toJson()).entityRowsLost, 0);
+    });
+
     test('a delta batch round-trips its manifest and skill hashes', () {
       final batch = SyncDeltaBatch(
         const [],

@@ -154,6 +154,40 @@ class SyncClient {
     return client;
   }
 
+  /// Unpair propagation (slice 5): tells a still-reachable peer to forget
+  /// this device, authenticated by the pairing secret the caller still
+  /// holds. Best effort by contract — the caller proceeds with its local
+  /// unpair regardless of the outcome, and an unreachable peer falls back to
+  /// discovering the revocation at its next session.
+  Future<void> revoke({
+    required SyncPeerRecord peer,
+    required String host,
+    required int port,
+  }) async {
+    final client = _httpForPeer(peer)..connectionTimeout = _revokeTimeout;
+    try {
+      final request = await client.postUrl(
+        Uri.parse('https://$host:$port/sync/revoke'),
+      );
+      request.headers.set(SyncServer.deviceHeader, identity.deviceId);
+      request.headers.set(SyncServer.tokenHeader, peer.secret);
+      request.headers.contentType = ContentType.json;
+      request.add(const []);
+      final response = await request.close().timeout(_revokeTimeout);
+      await response.drain<void>();
+      if (response.statusCode != HttpStatus.ok) {
+        throw SyncClientException(
+          'revoke_failed',
+          statusCode: response.statusCode,
+        );
+      }
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  static const _revokeTimeout = Duration(seconds: 3);
+
   static String _platformTag() {
     if (Platform.isAndroid) return 'android';
     if (Platform.isIOS) return 'ios';
@@ -207,6 +241,16 @@ class SyncClientSession {
     final body = await SyncClient._readJson(response);
     if (response.statusCode == HttpStatus.conflict && body != null) {
       return SyncHelloOutcome(null, SyncHelloRefusal.fromJson(body));
+    }
+    if (response.statusCode == HttpStatus.unauthorized) {
+      // The peer's auth gate refused our secret: from this side the pairing
+      // is gone — unpaired over there, or re-paired with a rotated secret.
+      // Surfacing it as a refusal keeps the localized wording reachable
+      // instead of a raw `SyncClientException(401)` on the peer card.
+      return const SyncHelloOutcome(
+        null,
+        SyncHelloRefusal(SyncRefusalReason.notPaired, 'unauthenticated'),
+      );
     }
     if (response.statusCode != HttpStatus.ok || body == null) {
       throw SyncClientException(

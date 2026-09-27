@@ -41,6 +41,15 @@ class SyncSessionReport {
   final int skillConflicts;
   final int blobsMissing;
 
+  /// Business rows whose local version the peer's newer row replaced (slice
+  /// 5). The counters exist so an overwritten local edit is never silent.
+  final int entityRowsLost;
+  final int preferencesLost;
+
+  /// Signed clock divergence observed at hello, in milliseconds — present
+  /// only beyond [kClockSkewWarnMs]. The session succeeded anyway.
+  final int? clockSkewMs;
+
   const SyncSessionReport({
     required this.success,
     required this.summary,
@@ -58,6 +67,9 @@ class SyncSessionReport {
     this.skillsUpdated = 0,
     this.skillConflicts = 0,
     this.blobsMissing = 0,
+    this.entityRowsLost = 0,
+    this.preferencesLost = 0,
+    this.clockSkewMs,
   });
 
   /// The persistable, localizable form stored on the peer record.
@@ -76,6 +88,9 @@ class SyncSessionReport {
     skillsUpdated: skillsUpdated,
     skillConflicts: skillConflicts,
     blobsMissing: blobsMissing,
+    entityRowsLost: entityRowsLost,
+    preferencesLost: preferencesLost,
+    clockSkewMs: clockSkewMs,
     refusal: refusal,
     error: success || refusal != null ? null : summary,
   );
@@ -93,11 +108,16 @@ class SyncEngine implements SyncServerHandler {
     required this.store,
     required this.dataPlane,
     required this.onStateChanged,
-  });
+    int Function()? clockUs,
+  }) : clockUs = clockUs ?? (() => DateTime.now().microsecondsSinceEpoch);
 
   final SyncDeviceIdentity identity;
   final SyncStore store;
   final SyncDataPlane dataPlane;
+
+  /// The wall clock stamped into hellos, so tests can manufacture a skew. It
+  /// feeds nothing else — row clocks keep coming from the write path.
+  final int Function() clockUs;
 
   /// Called whenever engine-visible state changes (pairing window, session
   /// progress, peer list) so the UI can rebuild.
@@ -221,9 +241,34 @@ class SyncEngine implements SyncServerHandler {
     return peer;
   }
 
+  /// Removes a pairing from this device, and — best effort — tells the peer to
+  /// forget us too. The remote call is fire-and-forget with the secret we
+  /// still hold: unpairing must not wait on a peer that may be gone, and any
+  /// failure leaves the fallback intact (the peer's next session ends as a
+  /// localized `not_paired` refusal instead of a raw error).
   Future<void> unpair(String deviceId) async {
+    final peer = await store.findPeer(deviceId);
+    if (peer != null && peer.lastHost != null && peer.lastPort != null) {
+      final host = peer.lastHost!;
+      final port = peer.lastPort!;
+      unawaited(
+        client.revoke(peer: peer, host: host, port: port).catchError((_) {}),
+      );
+    }
     await store.deletePeer(deviceId);
     server.forgetPeer(deviceId);
+    onStateChanged();
+  }
+
+  /// The other half of unpairing: a paired peer proved its identity and asks
+  /// this device to drop the pairing. Only the caller's own record goes — the
+  /// per-peer secret is what authenticated the request, so no third device
+  /// can revoke someone else's pairing.
+  @override
+  Future<void> handleRevoke(String peerDeviceId) async {
+    _sessions.remove(peerDeviceId);
+    await store.deletePeer(peerDeviceId);
+    server.forgetPeer(peerDeviceId);
     onStateChanged();
   }
 
@@ -236,8 +281,12 @@ class SyncEngine implements SyncServerHandler {
     final endpointHost = host ?? peer.lastHost;
     final endpointPort = port ?? peer.lastPort;
     if (endpointHost == null || endpointPort == null) {
+      // Recorded on the peer like every other outcome: the card reads
+      // `peer.lastReport`, so an unpersisted failure would leave a stale
+      // success on screen.
       return await _finish(
         const SyncSessionReport(success: false, summary: 'no_endpoint'),
+        peer: peer,
       );
     }
     onStateChanged();
@@ -248,6 +297,7 @@ class SyncEngine implements SyncServerHandler {
     );
     try {
       final myManifest = await dataPlane.buildManifest();
+      final myClockUs = clockUs();
       final hello = await session.hello(
         SyncHello(
           protocolVersion: kSyncProtocolVersion,
@@ -260,6 +310,7 @@ class SyncEngine implements SyncServerHandler {
           // device's listener (slice 3). `this.port` on purpose: the method's
           // own `port` parameter is the peer's endpoint, not ours.
           listenPort: this.port,
+          clockUs: myClockUs,
         ),
       );
       if (hello.refusal != null) {
@@ -269,9 +320,15 @@ class SyncEngine implements SyncServerHandler {
             summary: 'refused:${hello.refusal!.reason.wire}',
             refusal: hello.refusal!.reason,
           ),
+          peer: peer,
+          host: endpointHost,
+          port: endpointPort,
         );
       }
       final peerHello = hello.hello!;
+      // Yellow-flag clock divergence (slice 5): informational only, the
+      // session proceeds regardless.
+      final clockSkewMs = _clockSkewMs(myClockUs, peerHello.clockUs);
       // Symmetric version gate, our half: refuse a peer whose schema we do not
       // know (the peer enforces its half before answering).
       if (peerHello.schemaVersion > dataPlane.schemaVersion) {
@@ -281,6 +338,9 @@ class SyncEngine implements SyncServerHandler {
             summary: 'refused:peer_schema_newer',
             refusal: SyncRefusalReason.peerSchemaNewer,
           ),
+          peer: peer,
+          host: endpointHost,
+          port: endpointPort,
         );
       }
 
@@ -551,6 +611,7 @@ class SyncEngine implements SyncServerHandler {
           blobPull: pulled,
           skillConflicts: adoptions.conflicts.length,
           deferredSkills: deferredSkills.length,
+          clockSkewMs: clockSkewMs,
         ),
         peer: peer,
         host: endpointHost,
@@ -607,7 +668,8 @@ class SyncEngine implements SyncServerHandler {
 
     final myManifest = await dataPlane.buildManifest();
     final checkpoint = await store.loadCheckpoint(initiatorHello.deviceId);
-    _sessions[initiatorHello.deviceId] = _ResponderSession(
+    final myClockUs = clockUs();
+    final session = _ResponderSession(
       initiatorHello: initiatorHello,
       plan: planSync(
         mine: myManifest,
@@ -629,7 +691,9 @@ class SyncEngine implements SyncServerHandler {
       checkpoint: checkpoint,
       startedAt: DateTime.now(),
       initiatorHost: remoteAddress,
+      clockSkewMs: _clockSkewMs(myClockUs, initiatorHello.clockUs),
     );
+    _sessions[initiatorHello.deviceId] = session;
     return SyncHello(
       protocolVersion: kSyncProtocolVersion,
       schemaVersion: dataPlane.schemaVersion,
@@ -638,6 +702,7 @@ class SyncEngine implements SyncServerHandler {
       platform: platformTag(),
       manifest: myManifest,
       listenPort: port,
+      clockUs: myClockUs,
     );
   }
 
@@ -888,6 +953,7 @@ class SyncEngine implements SyncServerHandler {
         blobPull: session.blobPull,
         skillConflicts: session.skillConflicts.length,
         deferredSkills: session.deferredSkills.length,
+        clockSkewMs: session.clockSkewMs,
       ).toPeerReport();
       await store.savePeer(peer);
     }
@@ -1333,6 +1399,7 @@ class SyncEngine implements SyncServerHandler {
     _BlobPullOutcome? blobPull,
     int skillConflicts = 0,
     int deferredSkills = 0,
+    int? clockSkewMs,
   }) {
     var upserted = 0;
     var deleted = 0;
@@ -1348,6 +1415,11 @@ class SyncEngine implements SyncServerHandler {
     final blobBytes = blobPull?.bytes ?? 0;
     final skillsUpdated = blobPull?.landedSkillIds.length ?? 0;
     final blobsMissing = blobPull?.failed.length ?? 0;
+    final entityRowsLost = appliedBusiness?.entityRowsLost ?? 0;
+    final preferencesLost = appliedBusiness?.preferencesLost ?? 0;
+    final skewMinutes = clockSkewMs == null
+        ? null
+        : (clockSkewMs.abs() / 60000).round();
     final parts = <String>[
       'sent $sent',
       'received $received',
@@ -1363,6 +1435,9 @@ class SyncEngine implements SyncServerHandler {
       if (deferredSkills > 0) 'deferred $deferredSkills skills',
       if (deferred > 0) 'deferred $deferred',
       if (appliedBusiness?.deferred == true) 'business deferred',
+      if (entityRowsLost > 0) 'lost $entityRowsLost entity rows',
+      if (preferencesLost > 0) 'lost $preferencesLost prefs',
+      if (skewMinutes != null) 'clock skew ~$skewMinutes min',
     ];
     return SyncSessionReport(
       success: true,
@@ -1380,7 +1455,20 @@ class SyncEngine implements SyncServerHandler {
       skillsUpdated: skillsUpdated,
       skillConflicts: skillConflicts,
       blobsMissing: blobsMissing,
+      entityRowsLost: entityRowsLost,
+      preferencesLost: preferencesLost,
+      clockSkewMs: clockSkewMs,
     );
+  }
+
+  /// Signed clock divergence against a peer, in milliseconds, or null when
+  /// either reading is absent or the gap sits inside the warn threshold. The
+  /// comparison uses each side's own clock at hello-build time, so LAN
+  /// latency (~ms) is noise against a threshold measured in minutes.
+  static int? _clockSkewMs(int? myClockUs, int? peerClockUs) {
+    if (myClockUs == null || peerClockUs == null) return null;
+    final skewMs = ((myClockUs - peerClockUs) / 1000).round();
+    return skewMs.abs() > kClockSkewWarnMs ? skewMs : null;
   }
 
   static int _entityRowCount(SyncBusinessPayload payload) {
@@ -1448,6 +1536,7 @@ class _ResponderSession {
     required this.checkpoint,
     required this.startedAt,
     this.initiatorHost,
+    this.clockSkewMs,
   });
 
   final SyncHello initiatorHello;
@@ -1464,6 +1553,10 @@ class _ResponderSession {
   /// The address the initiator connected from, as this listener saw it: with
   /// `initiatorHello.listenPort` it is the endpoint used to pull blobs back.
   final String? initiatorHost;
+
+  /// Clock divergence against the initiator, when it exceeded the warn
+  /// threshold — lands in this side's report at the fetch beat.
+  final int? clockSkewMs;
 
   final Map<String, SyncSubtreeApplyOutcome> outcomes = {};
 

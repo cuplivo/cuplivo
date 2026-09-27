@@ -232,6 +232,11 @@ contradicts one of them is a bug, not a preference.
   as such — never a discovery failure.
 - **AP isolation** is likewise a *connectivity* failure: on a network that blocks peer-to-peer
   traffic no pairing path helps, and the report says so.
+- **Unpairing (解除配对) is local-first, then best-effort remote**: this device always drops the
+  pairing immediately; it also asks the peer to forget it, over the same authenticated listener.
+  If that notice cannot land nothing is broken — the peer's next session is refused as "no
+  longer paired", and the user unpairs it there. A revocation only ever removes the caller's own
+  pairing, because the per-peer secret is what proves who is asking.
 
 ### Sync session (同步会话)
 
@@ -252,13 +257,13 @@ contradicts one of them is a bug, not a preference.
 
 - **Session protocol**: a bounded six-beat run over mutual-TLS HTTP (REST-style JSON bodies,
   binary endpoints for blobs): hello (protocol version, schema version, capabilities, the
-  initiator's listener port, checkpoint summaries) → negotiate (each side computes
-  deltas) → delta exchange (conversation subtrees, entity rows, preference keys, tombstones,
-  and the asset manifest for what each side is sending) → blob fetch (receiver pulls by
-  contentHash, skipping hashes it already has; the responder pulls back over the initiator's
-  advertised listener) → transactional apply + provider reload → checkpoint commit on both
-  sides. Checkpoints also carry what is still owed (pending blobs) and the skill-content
-  baseline.
+  initiator's listener port, its clock reading, checkpoint summaries) → negotiate (each side
+  computes deltas) → delta exchange (conversation subtrees, entity rows, preference keys,
+  tombstones, and the asset manifest for what each side is sending) → blob fetch (receiver
+  pulls by contentHash, skipping hashes it already has; the responder pulls back over the
+  initiator's advertised listener) → transactional apply + provider reload → checkpoint commit
+  on both sides. Checkpoints also carry what is still owed (pending blobs) and the
+  skill-content baseline.
 - **One plan, two faces**: conversations and business rows (entities + preferences) are decided
   by the same table — present on one side, newer clock, tie to the higher deviceId — and travel
   in the same batch, so one session moves a conversation and the assistant it references.
@@ -283,10 +288,12 @@ contradicts one of them is a bug, not a preference.
   make re-application safe. Per-subtree transactions bound the damage of a mid-apply crash.
 - **Duplicate session suppression**: when both sides dial simultaneously, the deterministic
   initiator is the lower deviceId; the other side refuses with "busy".
-- **Clock skew: accept and surface (接受+显性化)**: hello exchanges clock readings; a
-  divergence beyond a threshold raises a yellow-flag warning in the sync report, but sync
-  proceeds — true concurrency is rare, ties already fall to deviceId, and fixing the clock
-  heals it. No logical clocks in v1.
+- **Clock skew: accept and surface (接受+显性化)**: hello exchanges clock readings (protocol
+  v4); a divergence beyond five minutes raises a yellow-flag line in the sync report — on
+  **both** devices, each computing it from the same pair of readings — but sync proceeds
+  regardless. The threshold is a fixed health number, not a setting: below it LWW comparisons
+  stay honest for any realistic edit rhythm; above it timestamps lie systematically and the fix
+  is a device clock. No logical clocks in v1.
 
 ### Sync panel (同步面板)
 
@@ -304,9 +311,12 @@ contradicts one of them is a bug, not a preference.
   survives both a plain call and a UAC re-invocation); the preferred port's rule persists, an
   ephemeral port's rule is deleted best-effort on stop. Adding it without administrator rights
   fails silently, so the panel offers a one-click elevated retry.
-- **Nothing silent**: the per-session report lists transfers, conflicts and their losers
-  (LWW losers, skill-content losers), blobs that arrived, bytes moved, skills whose body
-  converged, and warnings (clock skew, version refusal, files that never arrived).
+- **Nothing silent**: the per-session report lists transfers, conflicts and their losers —
+  business rows whose local *content* an incoming newer row replaced (LWW losers, counted per
+  face), and skill-content losers — plus blobs that arrived, bytes moved, skills whose body
+  converged, and warnings (clock skew, version refusal, files that never arrived). Counters,
+  not per-row names: which row lost lives in the log. Adopting a row that carries the same
+  content (the peer echoing this device's own row back) is not a loss.
 - **File avatars travel**: the stored value is the canonical `kelivo-file` form, so an avatar
   blob follows it like any other referenced file and the peer renders the real image. Legacy
   absolute values keep resolving (dual-form reads) and canonicalize on load.

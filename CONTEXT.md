@@ -169,13 +169,19 @@ contradicts one of them is a bug, not a preference.
   deterministically off the checkpointed hash (unchanged side adopts the changed side; both
   changed → newer record `updatedAt`, then higher deviceId wins); the loser's edit is
   reported, never silently dropped. Apply = staging + atomic directory swap, re-hash
-  verified on receipt; extraction reuses the `skill_archive` hardened unpacker. A record whose
+  verified on receipt; extraction reuses the `skill_archive` hardened unpacker. The hash, the
+  served zip and the extraction share **one dot-file policy** — everything rides except the sync
+  plane's own `.sync-*` scratch names and the OS bookkeeping files (`.DS_Store`, `Thumbs.db`,
+  `desktop.ini`) — because a name the hash ignores but the extractor installs is a divergence the
+  content clock can never see. A record whose
   body did not converge is **deferred**, never installed broken; deleting a skill removes the row
   and the directory together, or the rescan resurrects it.
 - **Blob rules**: a received file lands at the path its URI names (URIs are never rewritten —
   that would diverge the conversation digest); writes are confined to the managed asset roots;
   the serving side answers only hashes it published or has registered; a landed blob is
-  registered against its revisions, which is what protects it from the asset GC; a blob that
+  registered against its revisions, which is what protects it from the asset GC — and so is a
+  referenced file that was *already* here with the advertised hash, since the registration
+  replaces the revision's whole reference set; a blob that
   does not arrive goes pending and is retried once per session, reported meanwhile. A blob
   failure defers a skill record but not a conversation.
 - **Device-local** (never rides sync): `localOnly`, `discarded` and `unknownPreference`
@@ -192,7 +198,9 @@ contradicts one of them is a bug, not a preference.
 - **Skill and workspace holdbacks**: workspaces stay device-local permanently. A skill's record
   and its directory blob travel together (slice 3): the record is applied only once its body has
   converged — already identical here, or pulled and re-hash verified in this session — because a
-  record without its body would install a broken skill on the peer.
+  record without its body would install a broken skill on the peer. A body that did not converge
+  is reported back in the push acknowledgement, so the sender keeps its record and body and
+  re-sends instead of reading the peer's silence as a deletion.
 - **New-device test** (新设备测试): the rule for classifying a preference key — *would a
   brand-new device want this value to arrive with the pairing?* Business config yes;
   window geometry, proxies, platform flags and fonts no.
@@ -208,6 +216,11 @@ contradicts one of them is a bug, not a preference.
   deviceId; row present on one side: union in. Both devices compute the same result
   independently. There is deliberately **no direction knob** (no initiatorWins/serverWins) —
   the 3.x session-priority control existed only because its merge was not symmetric.
+- **A local edit never lowers a row's clock**: every update path floors `updated_at` at the row's
+  own `timestamp` (message updates, the UI's partial-field writes, parts and provider artifacts
+  alike), because the effective LWW clock is `COALESCE(updated_at, timestamp)`: a message authored
+  under a skewed (future) peer clock must not have a local edit sink below it, or the peer's
+  untouched copy wins the next exchange and reverts the edit on both devices.
 - **Concurrent append** (same conversation used offline on two devices) merges by timestamp
   interleave into one conversation. Rare by nature; lossless by design.
 - **One row per version slot**: a message version group (`group_id` + `version`) can hold
@@ -221,9 +234,14 @@ contradicts one of them is a bug, not a preference.
   deleting the version a group is anchored on moves the surviving revision onto the freed
   slot — and the order is in no digest, so a "smarter" re-derivation by timestamp would
   silently undo that placement permanently.
-- **Deletions**: conversation deletion propagates via the existing `tombstone_rows`; message
-  deletion is detected by diffing against the per-peer sync checkpoint (the set of rows the
-  peer last saw), not by new tombstone scopes.
+- **Deletions**: a conversation deletion is announced on the hello — the conversations this
+  device still holds a shared-history record for but no longer has, with the digest both sides
+  last agreed on — so the peer deletes its copy only when it still matches that digest (an edit
+  beats the deletion). The list is derived from the per-peer checkpoint, which means it is
+  announced for exactly as long as the peer has not caught up, with no retention window; the
+  `tombstone_rows` written on deletion stay local bookkeeping. Message deletion is detected by
+  diffing against the same checkpoint (the set of rows the peer last saw), not by new tombstone
+  scopes.
 
 ### Discovery & pairing (发现与配对)
 
@@ -277,14 +295,17 @@ contradicts one of them is a bug, not a preference.
 
 - **Session protocol**: a bounded six-beat run over mutual-TLS HTTP (REST-style JSON bodies,
   binary endpoints for blobs): hello (protocol version, schema version, capabilities, the
-  initiator's listener port, its clock reading, checkpoint summaries, and what each side could
-  not apply last session) → negotiate (each side computes deltas) → delta exchange (conversation
-  subtrees, entity rows, preference keys, tombstones, and the asset manifest for what each side
-  is sending; the push is acknowledged with what was deferred) → blob fetch (receiver
-  pulls by contentHash, skipping hashes it already has; the responder pulls back over the
-  initiator's advertised listener) → transactional apply + provider reload → checkpoint commit
-  on both sides. Checkpoints also carry what is still owed (pending blobs) and the
-  skill-content baseline.
+  initiator's listener port, its clock reading, its data epoch, the deletions it has not seen
+  confirmed, checkpoint summaries, and what each side could not apply last session) → negotiate
+  (each side computes deltas) → delta exchange (conversation subtrees, entity rows, preference
+  keys, and the asset manifest for what each side is sending; the push is acknowledged with what
+  was deferred, including skill bodies that did not land) → blob fetch (receiver pulls by
+  contentHash, skipping hashes it already has; the responder pulls back over the initiator's
+  advertised listener) → transactional apply + provider reload → checkpoint commit on both sides.
+  The push and fetch beats always run, even with nothing to send: they are also where the
+  responder performs its own blob pull, including the retries its checkpoint still owes.
+  Checkpoints also carry what is still owed (pending blobs), the skill-content baseline and the
+  peer's data epoch.
 - **One plan, two faces**: conversations and business rows (entities + preferences) are decided
   by the same table — present on one side, newer clock, tie to the higher deviceId — and travel
   in the same batch, so one session moves a conversation and the assistant it references.
@@ -306,18 +327,41 @@ contradicts one of them is a bug, not a preference.
 
 - **Sending is not receipt (发送≠收到)**: a checkpoint entry only advances to state the peer
   actually reached. The push beat answers with what the responder deferred (a generation was
-  writing there, or a restore held its write fence), and each hello carries what the sender
-  could not apply last session, so the peer re-sends instead of reading the silence as a
-  deletion. Without it a deferred apply deleted the sender's own new message on the next
-  session — on both sides of the session, in both faces (conversations and business rows).
-  A conversation this device deleted keeps its checkpoint entry until the peer's manifest shows
-  the deletion landed, so a peer deletion that yielded to a generation is retried rather than
-  re-adopted.
+  writing there, a restore held its write fence, or a skill's body did not land), and each hello
+  carries what the sender could not apply last session, so the peer re-sends instead of reading
+  the silence as a deletion. The fetch beat is acknowledged by nothing, so a conversation sent
+  back is *not* advanced there: its entry appears one session later, when both manifests agree
+  (`none` means local state is the shared state). Without these a deferred apply deleted the
+  sender's own new message on the next session — on both sides of the session, in both faces
+  (conversations and business rows) — and an interrupted fetch deleted the only copy on both
+  devices. An `iSend` entry also describes the payload that was actually sent, never a fresh read:
+  a row written while the session was in flight was never sent, and recording it as peer-seen made
+  the next merge delete it here.
+- **A deletion is announced, never inferred from an absence**: with the fetch beat no longer
+  advancing optimistically, "the peer lacks this" cannot mean "the peer deleted it" — that
+  ambiguity is what the announcement resolves. A conversation this device deleted keeps its
+  checkpoint entry until the peer's manifest shows the deletion landed, so a peer deletion that
+  yielded to a generation is retried rather than re-adopted.
+- **A bulk replacement is an epoch, not a deletion**: a restore or an overwrite import replaces
+  the local history wholesale, so the rows it drops were never deletions. The replaced device
+  resets its own checkpoints and bumps a **data epoch** carried on the hello; a peer seeing a
+  different epoch converts its own deletions to re-sends for that session (recovering what was
+  lost) while a deletion it made itself still stands, because that travels through the
+  announcement rather than an absence. Hooks: the restore cutover and an overwrite import — not a
+  restore rollback (which returns to the tracked state) and not an in-app "clear all data" (a
+  deletion intent, which propagates).
 - **Replay-safe recovery**: checkpoints advance only after a successful apply + commit; an
   interrupted session simply recomputes its delta next time, and idempotent row upserts
   make re-application safe. Per-subtree transactions bound the damage of a mid-apply crash.
-- **Duplicate session suppression**: when both sides dial simultaneously, the deterministic
-  initiator is the lower deviceId; the other side refuses with "busy".
+- **One session per pair (一对设备一个会话)**: a per-peer single-flight lock covers both roles,
+  because the responder and the initiator paths write the same checkpoint file from the copy each
+  read at its own hello. An initiator round is refused while a session exists for that pair, and a
+  hello from a peer this device is initiating to is refused as busy; a simultaneous
+  double-initiate refuses both rounds and the next trigger (launch, resume, manual) retries.
+- **Every request is bounded**: a peer that stops answering costs one deadline, not the process.
+  Client budgets are hello 60 s, push/fetch 20 min, blob 15 min of inactivity, pairing 60 s;
+  server routes are bounded too (pair/hello 60 s, revoke 30 s, data routes 30 min), so a body that
+  stops arriving cannot hold the serial request loop open and silence pairing and sync alike.
 - **Clock skew: accept and surface (接受+显性化)**: hello exchanges clock readings (protocol
   v4); a divergence beyond five minutes raises a yellow-flag line in the sync report — on
   **both** devices, each computing it from the same pair of readings — but sync proceeds

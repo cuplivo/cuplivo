@@ -360,6 +360,98 @@ slices assumed.
   the back gesture while the five-minute window it opens had no other surface; only the explicit
   close (which cancels) or expiry ends it now.
 
+## Amendment (2026-09, slice 7): confirmed receipt everywhere, and a replaced database
+
+A second adversarial review found eleven more defects, ten of them in the same family as the
+slice-6 correction: places where the checkpoint advanced, or was read, on something other than
+state the peer demonstrably reached. It also produced the one missing concept — a device whose
+database is replaced wholesale.
+
+- **The fetch beat's sends are not receipt either.** Slice 6 fixed the push beat; the responder's
+  answer to the fetch beat stayed optimistic, so an initiator killed between fetching and applying
+  left the responder asserting the peer held the conversation, and the next sessions deleted the
+  only copy on both devices (reproduced end to end). The responder no longer advances an `iSend`
+  entry on that beat: the entry appears one session later, on `none`, when both manifests agree —
+  the manifest *is* the receipt, and no fourth beat is needed.
+- **A deletion is announced, not inferred from an absence.** Removing the optimistic advance
+  removed the only signal that a conversation the peer lacks was *deleted* rather than never
+  delivered, and the plan read it as "never had it" — so a deletion could no longer propagate at
+  all (measured: the conversation stayed on one device forever). Each hello now carries the
+  conversations this device still holds a shared-history record for but no longer has, with the
+  digest both sides last agreed on: the entry is derived from the checkpoint, so it is announced
+  for exactly as long as the peer has not caught up, and the digest preserves *edit beats delete* —
+  a copy that moved on since is not deleted. This is the alternative the slice-6 amendment
+  predicted would eventually be needed, and it is what lets the fetch beat stay unconfirmed.
+- **A skill is a record plus a directory, and the acknowledgement says so.** A skill whose body
+  could not be fetched has its record stripped on the receiver (a record without a body installs a
+  broken skill), yet the acknowledgement reported only that the row apply succeeded — so the sender
+  recorded the skill as peer-seen and deleted its own record and directory next session
+  (reproduced). `SyncApplyAck` now carries `deferredSkills`, and those rows keep their entries and
+  content baselines.
+- **An `iSend` entry is built from the payload that was sent.** The advance re-read local state, so
+  a message written while the session was in flight — a user send, or a generation appending a row
+  — was recorded as peer-seen although it never crossed the wire; the next session planned
+  `peerSends`, the incoming subtree lacked the row, and the deletion oracle removed it. The entry
+  now describes the outgoing subtree read for the push.
+- **A bulk replacement of the database is announced as an epoch.** A restore (or an overwrite
+  import) drops rows that were never deleted, and every such absence read as a deletion: a peer
+  holding the only copy of a conversation the restored device no longer had deleted it to match.
+  Resetting the replaced device's own checkpoints is not enough — the peer's checkpoint still
+  asserts a shared history — so the replacement also bumps a data epoch kept beside the
+  checkpoints, the epoch rides the hello, and is recorded per peer. A peer that sees a different
+  epoch converts its own deletions to re-sends for that session (recovering what was lost) while a
+  deletion it made itself still stands, because that plans `peerDeletes` and travels through the
+  announcement rather than through an absence. The row-level oracle is silenced for that session
+  too. Hooks: the restore cutover, after the new database is installed and verified; an overwrite
+  import. A *rollback* is not hooked — it returns to the exact state the checkpoints tracked — and
+  an in-app "clear all data" is not either: that is a deletion intent, which propagates.
+- **A stale entry heals on `none`.** The `none` arm kept the previous entry whenever one existed,
+  so an entry an interrupted session left behind never refreshed; with a stale digest the next
+  session read the peer's deletion as a local edit and re-uploaded the conversation, silently
+  undoing the deletion once. `none` means both manifests agree, so local state *is* the shared
+  state: the entry is refreshed from local (the business face already did this).
+- **The push beat always runs.** It was skipped when this device had nothing outgoing, but it is
+  also where the responder performs its blob pull — including the retries its checkpoint still
+  owes — and where the value the fetch beat persists as `pendingBlobs` comes from. A session with
+  an empty push wrote the empty default over that list, so a blob the responder still owed was
+  never requested again. An empty batch costs one round trip; the pull is skipped when nothing is
+  wanted.
+- **Every request has a deadline, on both planes.** The only timeout in the plane was the
+  three-second revoke. A paired peer that stopped answering left the initiator's `await` pending
+  forever — `busyDeviceIds` stayed set and automatic rounds stopped for the life of the process —
+  and any LAN host could wedge the *serial* request loop with a `/pair` body that announced a
+  length and then stopped arriving, silencing pairing and sync alike until restart. Client
+  budgets: hello 60 s, push/fetch 20 min, blob 15 min of inactivity, pairing 60 s. Server route
+  budgets: pair and hello 60 s, revoke 30 s, the data routes 30 min as a backstop for a large push
+  and the reverse pulls inside it. Both are injectable so the stalled-peer paths are testable
+  without waiting one out.
+- **One session per pair, in both roles.** The busy guard refused only a *different* device, a
+  same-device hello replaced the live slot, and both roles write the same checkpoint file from the
+  copy each read at its own hello. Both devices firing their launch round at once is routine, and
+  the later write discarded the other's advance — which is what manufactures a stale entry. A
+  per-peer initiator marker now sits beside the responder session map, taken before the first
+  await (Dart's single isolate is the whole lock): an initiator round is refused while a session
+  exists for that pair, and a hello from a peer this device is initiating to is refused as busy.
+  Both sides may refuse a simultaneous round; the next trigger retries, and the ADR no longer
+  claims a deterministic lower-deviceId winner that the code never had.
+- **References are registered for every present file, not just this session's arrivals.** The
+  registration replaces a revision's whole reference set, and a referenced file the receiver
+  already held with the advertised hash was never fetched (`neededFileBlobs` skips it) — so its
+  reference was deleted although the message still named it, leaving the file to the unreferenced
+  asset GC. Advertised file blobs that needed no fetch are now part of the registered set, on both
+  roles.
+- **A skill directory's hash, its zip and its extraction share one dot-file policy.** All three
+  walks skipped every dot-prefixed basename while the extractor installed every entry, so
+  `.github/**` and `.gitignore` were invisible to the content clock: an edit touching only those
+  names could never converge, and the zip the peer verified did not carry everything the hash
+  counted. The skip existed to hide `.sync-blob-cache`, which lives beside the skills rather than
+  inside a body; the walks now exclude exactly the sync plane's own `.sync-*` scratch names and the
+  Finder/Explorer bookkeeping files.
+- **`updateMessageFields` floors the clock too.** The slice-6 floor covered `_messageUpdate` but
+  not the partial-column path the UI takes for translations and artifact writes, so an edit there
+  could still lower a row's effective LWW clock below its own timestamp and let the peer's
+  untouched copy win.
+
 ## Considered options (rejected)
 
 - **Whole-database / backup-zip exchange** — not version-portable; a newer schema on an
@@ -415,6 +507,25 @@ slices assumed.
 - **Listing the losing rows by name on the card** — the ids are opaque (a skill id, a preference
   key) and a concurrent-edit burst would inflate the card without bound; the number on the card
   plus the ids in the log is the split the rest of the report already uses.
+- **A fourth beat acknowledging the fetch response** — it would confirm the responder's sends
+  exactly, but the next session's manifest already carries the same fact (both manifests agree ⇒
+  `none` ⇒ the entry is the shared state), and a deletion that intervenes is covered by the
+  announcement. An extra round trip per session buys nothing the manifest does not say.
+- **Deriving announced deletions from `tombstone_rows`** — the app already writes a tombstone on
+  every conversation deletion, so the wire list could be read from there. Rejected: tombstones are
+  pruned after 90 days, so a peer offline longer than that would miss the deletion and resurrect
+  the conversation, and it would put a second source of truth beside the checkpoint. The
+  checkpoint-derived list has no expiry and disappears exactly when the peer catches up.
+- **Planning a replaced peer's session against an empty checkpoint** — the obvious reading of "a
+  bulk replacement invalidates the checkpoint". Rejected because it also invalidates *this*
+  device's own deletions: a conversation this device deleted and the peer still holds would plan
+  `peerSends`, and the device would download back what it deliberately removed. The epoch converts
+  only deletions to re-sends, which is the direction that recovers data without reversing intent.
+- **A per-pair lock inside `SyncStore`** — file locking or a read-modify-write guard on
+  `saveCheckpoint`. Rejected: both writers live in one isolate, where the interleaving is decided
+  by the engine's own awaits, so the lock belongs where both roles are visible
+  (`_initiatorRounds` beside the responder session map) rather than in the store, which cannot see
+  that a responder session and an initiator round are the same pair.
 
 ## Consequences
 
@@ -470,3 +581,22 @@ slices assumed.
   peer-side change; the corollary is that a conversation whose stored orders were left in the
   shifted range by the never-shipped slice-2 defect is no longer compacted by an apply either
   (that compaction was the same re-derivation that erased deliberate placements).
+- A conversation this device sends in a fetch response is recorded as peer-seen one session later,
+  when the peer's manifest confirms it: convergence is unchanged, but a session that ends before
+  that confirmation re-sends rather than assuming. The alternative — a second acknowledgement
+  round-trip — was rejected as a fourth beat for a fact the next manifest already carries.
+- A deletion now needs a checkpoint entry to be announced. A device that never recorded the
+  conversation (an unconfirmed transfer, a checkpoint reset) stays silent about it, which is the
+  safe direction: it re-sends instead. A device whose checkpoints were reset cannot announce the
+  deletions it made before the reset — the epoch already makes the peer re-converge from "nothing
+  shared", so the rows return and a fresh deletion propagates normally from there.
+- A simultaneous double-initiate between two devices now refuses both rounds instead of losing one
+  device's checkpoint advance; the next trigger (launch, resume, or the manual button) retries. A
+  device that is only ever resumed in lockstep with its peer could collide repeatedly, which is why
+  the refusal is visible on the card rather than silent.
+- Every request is bounded, so a peer that stops answering costs one deadline rather than the
+  process: the corollary is that a genuinely slow transfer past 20 minutes (push/fetch) or 15
+  minutes without a blob byte aborts and is retried by the next session rather than completing.
+- A restore or an overwrite import costs one full re-convergence with every paired device: the
+  rows both sides still hold are re-exchanged under `edit beats delete`, and the one-session
+  override only suppresses deletions.

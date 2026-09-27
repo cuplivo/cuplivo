@@ -1107,6 +1107,45 @@ void main() {
     },
   );
 
+  test('a pending blob retry survives a session with nothing to push', () async {
+    // The fetch beat persists what the push beat pulled, so skipping the push
+    // when this device had nothing outgoing wrote the empty default over the
+    // responder's retry list: a blob it still owes would never be asked for
+    // again, despite the checkpoint contract promising the retry.
+    final (a, b) = await pair();
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+    await a.engine.syncWithPeer(await a.peer(b));
+
+    // B owes a blob A can no longer serve (the hash was never published).
+    final pending = SyncBlobEntry(
+      kind: SyncBlobEntry.kindFile,
+      key: 'kelivo-file:///missing.bin',
+      contentHash: 'f' * 64,
+      byteSize: 1,
+    );
+    final checkpoint = await b.store.loadCheckpoint(a.identity.deviceId);
+    await b.store.saveCheckpoint(
+      a.identity.deviceId,
+      SyncCheckpoint(
+        checkpoint.conversations,
+        entities: checkpoint.entities,
+        preferences: checkpoint.preferences,
+        pendingBlobs: {pending.target: pending},
+        skillHashes: checkpoint.skillHashes,
+      ),
+    );
+
+    // A has nothing to push in this session.
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    final after = await b.store.loadCheckpoint(a.identity.deviceId);
+    expect(
+      after.pendingBlobs.keys,
+      contains(pending.target),
+      reason: 'the retry list must survive a session with an empty push',
+    );
+  });
+
   test('an announced deletion does not remove a copy edited since', () async {
     // The announcement carries the digest both sides last agreed on, so a
     // local copy that has moved on since is an edit, and an edit beats a

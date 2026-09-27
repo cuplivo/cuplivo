@@ -445,32 +445,32 @@ class SyncEngine implements SyncServerHandler {
       var peerDeferred = const <String>{};
       var peerBusinessDeferred = false;
       var peerDeferredSkills = const <String>{};
-      if (outgoing.isNotEmpty || !outgoingBusiness.isEmpty) {
-        // The blob manifest describes exactly what this push carries, so the
-        // responder can ask for any asset it lacks before applying the rows.
-        final outgoingAssets = await dataPlane.buildBlobManifest(
-          subtrees: outgoing,
+      // The push beat always runs, even with nothing to push. It is where the
+      // responder executes its own blob pull — including the retries its
+      // checkpoint still owes — and skipping it would both lose that retry and
+      // persist the empty pull outcome over the pending list.
+      final outgoingAssets = await dataPlane.buildBlobManifest(
+        subtrees: outgoing,
+        business: outgoingBusiness,
+      );
+      _rememberPublished(outgoingAssets);
+      // Only the skill bodies this push actually carries advertise a hash.
+      final sentSkillIds =
+          outgoingEntityIds[SyncDataPlane.skillWire] ?? const <String>{};
+      final ack = await session.pushDelta(
+        SyncDeltaBatch(
+          outgoing,
           business: outgoingBusiness,
-        );
-        _rememberPublished(outgoingAssets);
-        // Only the skill bodies this push actually carries advertise a hash.
-        final sentSkillIds =
-            outgoingEntityIds[SyncDataPlane.skillWire] ?? const <String>{};
-        final ack = await session.pushDelta(
-          SyncDeltaBatch(
-            outgoing,
-            business: outgoingBusiness,
-            assets: outgoingAssets,
-            skillHashes: {
-              for (final id in sentSkillIds)
-                if (mySkillHashes[id] != null) id: mySkillHashes[id]!,
-            },
-          ),
-        );
-        peerDeferred = ack.deferred;
-        peerBusinessDeferred = ack.businessDeferred;
-        peerDeferredSkills = ack.deferredSkills;
-      }
+          assets: outgoingAssets,
+          skillHashes: {
+            for (final id in sentSkillIds)
+              if (mySkillHashes[id] != null) id: mySkillHashes[id]!,
+          },
+        ),
+      );
+      peerDeferred = ack.deferred;
+      peerBusinessDeferred = ack.businessDeferred;
+      peerDeferredSkills = ack.deferredSkills;
 
       final requested = [
         for (final item in plan)

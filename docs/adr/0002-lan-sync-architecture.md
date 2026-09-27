@@ -38,8 +38,9 @@ records the pillar decisions and the rejected alternatives.
    newer than its own. A schema bump pauses sync for the upgrade window rather than letting
    an older build mangle newer rows and propagate the loss through LWW.
 5. **Per-device keypair, QR/PIN pairing, pinned listener certificate.** deviceId = hash of the
-   public key; pairing exchanges pinned certificates once and mints a per-peer secret; discovery
-   (mDNS `_cuplivo._sync._tcp`) automates reconnection afterwards. The sync face carries API keys,
+   public key; pairing exchanges pinned certificates once and mints a per-peer secret. The QR
+   path pins the scanned fingerprint inside the handshake (slice-4 amendment); LAN discovery is
+   deferred, not part of this decision. The sync face carries API keys,
    so the channel must resist LAN sniffing and impersonation: TLS is server-authenticated (the
    client pins the listener's certificate), and each `/sync/*` request proves the pairing with the
    secret established at pairing. See the amendment below for why client certificates are not the
@@ -47,15 +48,17 @@ records the pillar decisions and the rejected alternatives.
 6. **Preferences split by the classifier, not by storage.** `BusinessKeyRegistry` gains a
    `syncedPreference` disposition; the new-device test decides membership. Session-position
    keys (`current_assistant_id_v1`, `selected_model_v1`), proxies, fonts, platform flags and
-   all `display_*` stay device-local.7. **Skills ride sync as record + directory blob.** The record's `updatedAt` does not track
+   all `display_*` stay device-local.
+7. **Skills ride sync as record + directory blob.** The record's `updatedAt` does not track
    content edits, so skill content is delta-detected by directory hash and transferred as a
    zip blob with deterministic conflict resolution off the checkpointed hash. Workspace
    entities stay device-local.
 8. **Apply without restart.** Sync writes ride repository transactions, then one state
    reload (`BusinessPreferences.reload()` + providers' `_load()` + ChatService refresh).
    Restore still restarts — it swaps the database file; sync does not.
-9. **Event-driven sessions.** Peer discovered → sync; local writes → debounced follow-up;
-   manual button as escape hatch. No polling, no background daemon on mobile.
+9. **Foreground-driven sessions.** An app-resume round (and one after start) plus a manual
+   button; no polling, no background daemon on mobile. *Superseded in form by the slice-4
+   amendment*: the original discovery trigger and the write-debounce follow-up are not built.
 
 ## Amendment (2026-09, slice 1b): mutual TLS → pinned listener + per-peer secret
 
@@ -181,6 +184,54 @@ No order-repair maintenance task was added for the slice-2 message-order defect:
 never shipped in a release, so the only affected data is unreleased test-device state, which any
 message edit in the affected conversation repairs.
 
+## Amendment (2026-09, slice 4): QR pairing; LAN discovery deferred
+
+Decision 5 said "QR/PIN pairing"; this slice makes the QR the recommended path and settles what
+it carries. Decision 9's cadence is replaced by the foreground round, because the discovery
+trigger it named is not being built.
+
+What the implementation settled:
+
+- **The QR carries endpoints, the certificate fingerprint and the window's PIN.** One image, one
+  scan, no typing: the joiner tries the advertised `ip:port` candidates in order (the responder
+  knows its actually bound port, including an ephemeral fallback, and its adapter list — the
+  multi-NIC guess is taken away from the human). The payload is versioned
+  (`cuplivo-pair:v1:<base64 json>`, the same convention as the provider-share codes) and bound to
+  the open five-minute window by the PIN, so a stale photo pairs nothing. Its exposure is the
+  same as the dialog it replaces, which already printed the endpoints and the PIN side by side.
+- **The fingerprint is pinned inside the TLS callback.** With `expectedDeviceId` set, a
+  certificate that does not hash to the scanned deviceId is refused *during* the handshake, so
+  the request body — the PIN included — never reaches a wrong endpoint, and the responder's
+  window is not spent. This closes the hole PIN typing cannot: a typed code proves nothing about
+  which device answered, so an active relay can terminate both legs and mint its own secret for
+  each side. Six digits cannot carry a 256-bit fingerprint; a scanned image can. The manual path
+  keeps its weaker-but-real property (the answer is bound to the certificate actually seen, which
+  defeats a passive relay only).
+- **An endpoint that answers wrongly stops the attempt; a dead one moves on.** Connection
+  refused or timed out → try the next candidate. Wrong PIN, wrong certificate or identity
+  mismatch → stop, because the same answer awaits on every candidate, and a certificate mismatch
+  is either a spoof or a recycled address the user can fix by hand.
+- **Re-pairing is the repair action for a drifted endpoint.** Scanning a paired device again
+  overwrites its address and rotates the secret (the old one is dead on the responder). This is
+  why discovery can be deferred without stranding a user whose peer moved, and why the UI says
+  "pairing updated" rather than pretending it is a first pairing.
+- **Five wrong PINs close the window.** The window did not count failures, and a 6-digit code is
+  brute-forceable inside five minutes; reopening mints a fresh PIN and resets the counter. The
+  window remains the consent mechanism — there is no approval prompt on the responder (the
+  joiner is at the screen showing the code, and the image set is exactly what the old dialog
+  exposed).
+- **The trigger became the foreground round.** Without a discovery event, the cadence is: the
+  app resuming (the "picked the device up" journey) and once after start run one quiet round over
+  every paired peer with an endpoint, throttled to one round per minute; "sync now" is never
+  throttled. Results land on the peer cards, with no notification — an automatic round must not
+  interrupt.
+- **Discovery is deferred, not deleted.** mDNS/DNS-SD would cost iOS Bonjour service
+  declarations plus the local-network permission, an Android multicast lock, a Windows inbound
+  UDP 5353 rule, and a background traffic story — for endpoint auto-healing that a one-gesture
+  re-scan covers. The service name `_cuplivo._sync._tcp` is reserved in `CONTEXT.md` so adding it
+  later is purely additive (the peer store is already the trust anchor a discovered deviceId is
+  checked against).
+
 ## Considered options (rejected)
 
 - **Whole-database / backup-zip exchange** — not version-portable; a newer schema on an
@@ -209,6 +260,22 @@ message edit in the affected conversation repairs.
 - **A GC lease for in-flight transfers** — the registry registration that already protects a
   referenced asset is the same thing that protects a freshly landed blob, so a lease would be
   machinery for a window that no longer exists.
+- **A responder-side approval prompt for QR pairing** — the image set is what the old dialog
+  already showed side by side (endpoints + PIN), so a prompt would add a step without removing
+  an exposure: the gate stays "the responder opened the window and a human is holding the code
+  in front of the joiner's camera".
+- **A separate nonce inside the QR** — the one-shot window PIN already plays that role (random
+  per window, spent on use, dead when the window closes), so a second replay guard would be
+  redundancy with its own lifetime to get wrong.
+- **A URI-scheme QR payload** (with deep-link registration) — the app's QR convention is a
+  versioned prefix plus base64 JSON (`ai-provider:v1:`); nothing here needs the OS to route a
+  scan into the app, and a custom scheme would tempt exactly that.
+- **A local-write debounced sync trigger** — it means touching every write path to serve a
+  journey the foreground round already covers (open the other device → it syncs); the write
+  burst it would capture is small next to the complexity of hooking repositories.
+- **mDNS/DNS-SD discovery in this slice** — see the amendment; the platform surface (Bonjour
+  declarations, local-network permission, multicast lock, inbound UDP rule) is real and
+  endpoint drift has a one-gesture repair.
 
 ## Consequences
 
@@ -229,3 +296,15 @@ message edit in the affected conversation repairs.
   blocks a conversation.
 - Serving a skill body costs one zip build per content hash and launch (cached under
   `<skills>/.sync-blob-cache`), and directory hashing is memoised per launch by fingerprint.
+- A peer whose address drifted reports `unreachable` until the user re-scans its QR or edits the
+  address: without discovery nothing heals an endpoint change on its own, and the panel shows the
+  last attempt rather than an "online" state it cannot verify.
+- A foreground round over an unreachable peer waits out the client's 10-second connect timeout
+  before moving to the next one; the one-minute throttle keeps that from becoming a loop, and
+  nothing blocks the UI.
+- Scanner availability follows the platform, not the package: `mobile_scanner` has Android and
+  iOS implementations wired here, so desktop devices show a QR and pair by typing the code (the
+  port field is prefilled with the preferred port). macOS is deliberately excluded even though
+  the package supports it — this target declares no camera usage description or entitlement, and
+  an undeclared camera access kills the process; adding those is platform config, not a Dart
+  change, and belongs with a macOS build to verify it.

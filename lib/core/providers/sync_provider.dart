@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import '../../utils/app_directories.dart';
 import '../database/business_preferences.dart';
@@ -17,12 +18,14 @@ import '../services/sync/sync_data_plane.dart';
 import '../services/sync/sync_engine.dart';
 import '../services/sync/sync_identity.dart';
 import '../services/sync/sync_local_addresses.dart';
+import '../services/sync/sync_pair_qr.dart';
 import '../services/sync/sync_store.dart';
 import '../services/sync/windows_firewall.dart';
 
 /// Outcome of a pairing attempt, with a stable error code the UI maps to a
 /// localized message (`invalid_pin`, `unreachable`, `no_certificate`,
-/// `id_mismatch`, `no_listener`, `unknown`).
+/// `id_mismatch`, `fingerprint_mismatch`, `no_endpoint_in_qr`,
+/// `invalid_qr`, `no_listener`, `unknown`).
 class SyncPairOutcome {
   final bool success;
   final String? errorCode;
@@ -37,14 +40,35 @@ class SyncPairOutcome {
     : success = false;
 }
 
+/// Result of pairing from a scanned QR: the pair outcome plus whether the
+/// scanned device was already paired (re-scanning updates its endpoint and
+/// rotates the secret — the drift-repair journey).
+class SyncPairQrOutcome {
+  final SyncPairOutcome outcome;
+  final bool wasKnownPeer;
+  const SyncPairQrOutcome(this.outcome, this.wasKnownPeer);
+}
+
+/// Minimum spacing between two automatic sync rounds; a manual "sync now"
+/// is never throttled.
+const autoSyncInterval = Duration(seconds: 60);
+
+/// The auto-round cadence decision, pure so tests can cover it: run when
+/// there is no previous round, or when the interval has fully elapsed.
+bool shouldAutoSyncNow(DateTime now, DateTime? lastRoundAt) {
+  if (lastRoundAt == null) return true;
+  return now.difference(lastRoundAt) >= autoSyncInterval;
+}
+
 /// UI-facing state of the LAN sync engine (ADR-0002, slice 1b).
 ///
 /// The engine is transport + session logic; this provider owns its lifecycle:
 /// start the listener with the app, keep the peer list the panels show in
-/// sync with the store, and mediate the pairing window. Pairing is the
+/// sync with the store, mediate the pairing window, and run one quiet sync
+/// round whenever the app comes back to the foreground. Pairing is the
 /// opt-in — there is no master switch and the listener simply runs while the
 /// app does (the pairing window is closed by default; `/pair` refuses then).
-class SyncProvider extends ChangeNotifier {
+class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   SyncProvider({
     required ChatService chatService,
     required ChatDatabaseRepository repository,
@@ -99,6 +123,11 @@ class SyncProvider extends ChangeNotifier {
   bool get isPairingOpen => _engine?.isPairingOpen ?? false;
   String? get pairingPin => _engine?.pairingPin;
   DateTime? get pairingExpiresAt => _engine?.pairingExpiresAt;
+
+  /// This device's certificate fingerprint (= deviceId) and peer-visible
+  /// name; the pairing QR pins the former and carries the latter.
+  String? get deviceId => _engine?.identity.deviceId;
+  String? get deviceName => _engine?.identity.name;
 
   /// Starts the listener. Idempotent; safe to call repeatedly (the app calls
   /// it once per launch from a post-frame callback).
@@ -158,6 +187,10 @@ class SyncProvider extends ChangeNotifier {
       peers = await store.listPeers();
       unawaited(_refreshLocalIps());
       unawaited(_ensureFirewallRule());
+      // Foreground rounds: one right after start ("opened the app" is the
+      // pickup journey), then one per resume, throttled by [autoSyncInterval].
+      WidgetsBinding.instance.addObserver(this);
+      unawaited(autoSyncRound());
       // Desktop graceful exit: stop the listener and drop the ephemeral-port
       // firewall rule (the preferred-port rule stays for next launch).
       AppExitFlush.register(stop);
@@ -209,38 +242,102 @@ class SyncProvider extends ChangeNotifier {
     required String host,
     required int port,
     required String pin,
+    String? expectedDeviceId,
   }) async {
     final engine = _engine;
     if (engine == null) {
       return const SyncPairOutcome.failure('no_listener');
     }
     try {
-      await engine.pairWith(host: host, port: port, pin: pin);
+      await engine.pairWith(
+        host: host,
+        port: port,
+        pin: pin,
+        expectedDeviceId: expectedDeviceId,
+      );
       await refreshPeers();
       return const SyncPairOutcome.success();
     } on SyncClientException catch (error) {
-      switch (error.message) {
-        case 'invalid_pin':
-          return SyncPairOutcome.failure(
-            'invalid_pin',
-            error.statusCode?.toString(),
-          );
-        case 'pair_no_certificate':
-          return const SyncPairOutcome.failure('no_certificate');
-        case 'pair_identity_mismatch':
-          return const SyncPairOutcome.failure('id_mismatch');
-        default:
-          return SyncPairOutcome.failure(
-            'unreachable',
-            '${error.message}${error.statusCode == null ? '' : ' (${error.statusCode})'}',
-          );
-      }
+      return _mapPairError(error);
     } on SocketException catch (error) {
       return SyncPairOutcome.failure('unreachable', error.message);
     } on TimeoutException catch (error) {
       return SyncPairOutcome.failure('unreachable', error.message);
     } catch (error) {
       return SyncPairOutcome.failure('unknown', '$error');
+    }
+  }
+
+  /// Pairs from a scanned QR payload: tries the payload's endpoints in
+  /// order, hard-pinning the scanned fingerprint. A dead endpoint (refused
+  /// connection, timeout) moves on to the next candidate; an *answering*
+  /// endpoint that is wrong (bad PIN, wrong certificate, identity mismatch)
+  /// stops immediately — the same answer awaits on every candidate.
+  Future<SyncPairQrOutcome> pairWithQr(SyncPairQrPayload payload) async {
+    final engine = _engine;
+    if (engine == null) {
+      return const SyncPairQrOutcome(
+        SyncPairOutcome.failure('no_listener'),
+        false,
+      );
+    }
+    final wasKnownPeer = peers.any((p) => p.deviceId == payload.deviceId);
+    if (payload.endpoints.isEmpty) {
+      // Fingerprint + PIN without an address: the joiner enters the host by
+      // hand but keeps the pinning.
+      return SyncPairQrOutcome(
+        const SyncPairOutcome.failure('no_endpoint_in_qr'),
+        wasKnownPeer,
+      );
+    }
+    Object? lastConnectivityDetail;
+    for (final (host, endpointPort) in payload.endpoints) {
+      try {
+        await engine.pairWith(
+          host: host,
+          port: endpointPort,
+          pin: payload.pin,
+          expectedDeviceId: payload.deviceId,
+        );
+        await refreshPeers();
+        return SyncPairQrOutcome(const SyncPairOutcome.success(), wasKnownPeer);
+      } on SyncClientException catch (error) {
+        return SyncPairQrOutcome(_mapPairError(error), wasKnownPeer);
+      } on SocketException catch (error) {
+        lastConnectivityDetail = error.message;
+      } on TimeoutException catch (error) {
+        lastConnectivityDetail = error.message;
+      } catch (error) {
+        return SyncPairQrOutcome(
+          SyncPairOutcome.failure('unknown', '$error'),
+          wasKnownPeer,
+        );
+      }
+    }
+    return SyncPairQrOutcome(
+      SyncPairOutcome.failure('unreachable', '$lastConnectivityDetail'),
+      wasKnownPeer,
+    );
+  }
+
+  static SyncPairOutcome _mapPairError(SyncClientException error) {
+    switch (error.message) {
+      case 'invalid_pin':
+        return SyncPairOutcome.failure(
+          'invalid_pin',
+          error.statusCode?.toString(),
+        );
+      case 'pair_no_certificate':
+        return const SyncPairOutcome.failure('no_certificate');
+      case 'pair_identity_mismatch':
+        return const SyncPairOutcome.failure('id_mismatch');
+      case 'pair_fingerprint_mismatch':
+        return const SyncPairOutcome.failure('fingerprint_mismatch');
+      default:
+        return SyncPairOutcome.failure(
+          'unreachable',
+          '${error.message}${error.statusCode == null ? '' : ' (${error.statusCode})'}',
+        );
     }
   }
 
@@ -293,6 +390,45 @@ class SyncProvider extends ChangeNotifier {
     }
   }
 
+  // ---- automatic rounds (foreground) ----
+
+  DateTime? _lastAutoSyncAt;
+  bool _autoRoundRunning = false;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Desktop fires `resumed` on every window focus gain too; the global
+    // throttle in [shouldAutoSyncNow] is what keeps that cheap.
+    if (state == AppLifecycleState.resumed) {
+      unawaited(autoSyncRound());
+    }
+  }
+
+  /// One quiet round over every paired peer that has an endpoint: no
+  /// snackbar, results land on the peer cards as their last report. Skipped
+  /// entirely while a round is still running or the throttle window has not
+  /// elapsed; the manual button is never throttled.
+  Future<void> autoSyncRound() async {
+    if (!started || peers.isEmpty || _autoRoundRunning) return;
+    final now = DateTime.now();
+    if (!shouldAutoSyncNow(now, _lastAutoSyncAt)) return;
+    _lastAutoSyncAt = now;
+    _autoRoundRunning = true;
+    try {
+      for (final peer in List.of(peers)) {
+        if (peer.lastHost == null || peer.lastPort == null) continue;
+        if (busyDeviceIds.contains(peer.deviceId)) continue;
+        try {
+          await syncNow(peer.deviceId);
+        } catch (_) {
+          // A failed round already shows on the peer card; the round moves on.
+        }
+      }
+    } finally {
+      _autoRoundRunning = false;
+    }
+  }
+
   // ---- firewall (Windows) ----
 
   /// One-click elevated rule add; returns whether the rule exists afterwards.
@@ -328,6 +464,7 @@ class SyncProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     AppExitFlush.unregister(stop);
     super.dispose();
   }

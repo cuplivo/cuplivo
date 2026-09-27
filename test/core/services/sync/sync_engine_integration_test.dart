@@ -9,13 +9,17 @@ import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/providers/sync_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/skills/skill_directory_sync.dart';
 import 'package:Cuplivo/core/services/sync/blob_sync.dart';
+import 'package:Cuplivo/core/services/sync/business_state_reloader.dart';
+import 'package:Cuplivo/core/services/sync/sync_client.dart';
 import 'package:Cuplivo/core/services/sync/sync_data_plane.dart';
 import 'package:Cuplivo/core/services/sync/sync_engine.dart';
 import 'package:Cuplivo/core/services/sync/sync_identity.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
+import 'package:Cuplivo/core/services/sync/sync_pair_qr.dart';
 import 'package:Cuplivo/core/services/sync/sync_store.dart';
 import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
@@ -145,7 +149,11 @@ class _Side {
         BusinessEntityKind.skill.wireName,
       )).contains(id);
 
-  Future<void> start(Directory root) async {
+  /// Set when this side is driven through [SyncProvider] instead of a raw
+  /// engine — the provider owns the listener then (QR flow, foreground round).
+  SyncProvider? provider;
+
+  Future<void> start(Directory root, {bool withEngine = true}) async {
     dir = Directory('${root.path}/$label');
     await dir.create(recursive: true);
     database = AppDatabase(NativeDatabase.memory());
@@ -176,6 +184,7 @@ class _Side {
             skillDirectories: skillDirectories,
             blobPathResolver: resolveBlob,
           );
+    if (!withEngine) return;
     engine = SyncEngine(
       identity: identity,
       store: store,
@@ -185,8 +194,31 @@ class _Side {
     port = await engine.start(preferredPort: 0);
   }
 
+  /// Drives this side through the real [SyncProvider] — the layer the QR
+  /// pairing and the foreground round live in.
+  Future<SyncProvider> startProvider() async {
+    final started = SyncProvider(
+      chatService: chatService,
+      repository: repository,
+      businessRepository: businessRepository,
+      businessPreferences: businessPreferences,
+      reloader: BusinessStateReloader(businessPreferences),
+      syncDirectory: () async => dir,
+    );
+    provider = started;
+    await started.start();
+    port = started.port ?? 0;
+    return started;
+  }
+
   Future<void> dispose() async {
-    await engine.stop();
+    final viaProvider = provider;
+    if (viaProvider != null) {
+      await viaProvider.stop();
+      viaProvider.dispose();
+    } else {
+      await engine.stop();
+    }
     await chatService.close();
     await repository.close();
   }
@@ -299,6 +331,15 @@ Future<void> _seedConversationWithImage(
     toolEventsByMessageId: const {},
     geminiSignaturesByMessageId: const {},
   );
+}
+
+/// A loopback port nothing is listening on (bound then released): the dead
+/// candidate the QR endpoint iteration must skip.
+Future<int> _unusedPort() async {
+  final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+  final port = socket.port;
+  await socket.close();
+  return port;
 }
 
 Future<Set<String>> _conversationIds(_Side side) async => {
@@ -417,6 +458,254 @@ void main() {
     );
     expect(await a.store.findPeer(b.identity.deviceId), isNull);
     expect(b.engine.isPairingOpen, isTrue, reason: 'a failed attempt keeps it');
+  });
+
+  test('a QR-scanned fingerprint pairs without a typed PIN', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root);
+    await b.start(root);
+    sides.addAll([a, b]);
+
+    final pin = b.engine.openPairing();
+    await a.engine.pairWith(
+      host: '127.0.0.1',
+      port: b.port,
+      pin: pin,
+      expectedDeviceId: b.identity.deviceId,
+    );
+
+    final aPeer = await a.peer(b);
+    expect(aPeer.deviceId, b.identity.deviceId);
+    expect(aPeer.lastHost, '127.0.0.1');
+    expect(aPeer.lastPort, b.port);
+    expect(b.engine.isPairingOpen, isFalse, reason: 'the PIN is spent');
+  });
+
+  test('a mismatched fingerprint aborts before the PIN is spent', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    final c = _Side('c'); // only a source of a wrong fingerprint
+    await a.start(root);
+    await b.start(root);
+    await c.start(root);
+    sides.addAll([a, b, c]);
+
+    final pin = b.engine.openPairing();
+    await expectLater(
+      a.engine.pairWith(
+        host: '127.0.0.1',
+        port: b.port,
+        pin: pin,
+        expectedDeviceId: c.identity.deviceId,
+      ),
+      throwsA(
+        isA<SyncClientException>().having(
+          (error) => error.message,
+          'message',
+          'pair_fingerprint_mismatch',
+        ),
+      ),
+    );
+    expect(await a.store.findPeer(b.identity.deviceId), isNull);
+    expect(
+      b.engine.isPairingOpen,
+      isTrue,
+      reason: 'the handshake never completed, so nothing was spent here',
+    );
+
+    // The very same PIN still pairs once the fingerprint is the right one:
+    // the refusal cost the joiner nothing but the attempt.
+    await a.engine.pairWith(
+      host: '127.0.0.1',
+      port: b.port,
+      pin: pin,
+      expectedDeviceId: b.identity.deviceId,
+    );
+    expect(await a.store.findPeer(b.identity.deviceId), isNotNull);
+  });
+
+  test('five wrong PINs close the pairing window', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root);
+    await b.start(root);
+    sides.addAll([a, b]);
+
+    final pin = b.engine.openPairing();
+    final wrong = pin == '000000' ? '111111' : '000000';
+    for (var attempt = 0; attempt < 5; attempt++) {
+      await expectLater(
+        a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: wrong),
+        throwsA(isA<Exception>()),
+      );
+      expect(
+        b.engine.isPairingOpen,
+        attempt < 4,
+        reason: 'attempt ${attempt + 1}',
+      );
+    }
+    // A fresh window resets the counter and mints a new PIN.
+    final reopened = b.engine.openPairing();
+    await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: reopened);
+    expect(await a.peer(b), isNotNull);
+  });
+
+  test('re-pairing repairs the endpoint and rotates the secret', () async {
+    final (a, b) = await pair();
+
+    // Pretend the peer moved: A's stored endpoint is stale.
+    final drifted = await a.peer(b);
+    final staleSecret = drifted.secret;
+    drifted.lastHost = '10.255.255.1';
+    drifted.lastPort = 1;
+    await a.store.savePeer(drifted);
+
+    final pin = b.engine.openPairing();
+    await a.engine.pairWith(
+      host: '127.0.0.1',
+      port: b.port,
+      pin: pin,
+      expectedDeviceId: b.identity.deviceId,
+    );
+
+    final refreshed = await a.peer(b);
+    expect(refreshed.lastHost, '127.0.0.1');
+    expect(
+      refreshed.lastPort,
+      b.port,
+      reason: 'the drifted endpoint is repaired',
+    );
+    expect(refreshed.secret, isNot(staleSecret), reason: 'a fresh secret');
+
+    // The secret the old pairing minted is dead on the responder.
+    final stale = SyncPeerRecord(
+      deviceId: b.identity.deviceId,
+      certPem: b.identity.certPem,
+      secret: staleSecret,
+      name: b.label,
+      platform: 'test',
+      lastHost: '127.0.0.1',
+      lastPort: b.port,
+    );
+    final report = await a.engine.syncWithPeer(stale);
+    expect(report.success, isFalse);
+    expect(report.summary, contains('not_paired'));
+  });
+
+  test(
+    'a QR payload skips a dead endpoint and pairs on the live one',
+    () async {
+      final a = _Side('a');
+      final b = _Side('b');
+      await a.start(root, withEngine: false);
+      await b.start(root);
+      sides.addAll([a, b]);
+      final provider = await a.startProvider();
+
+      final deadPort = await _unusedPort();
+      final pin = b.engine.openPairing();
+      final payload = SyncPairQrPayload(
+        deviceId: b.identity.deviceId,
+        name: b.label,
+        endpoints: [('127.0.0.1', deadPort), ('127.0.0.1', b.port)],
+        pin: pin,
+      );
+
+      final result = await provider.pairWithQr(payload);
+      expect(
+        result.outcome.success,
+        isTrue,
+        reason: result.outcome.errorDetail,
+      );
+      expect(result.wasKnownPeer, isFalse);
+
+      final peer = provider.peers.single;
+      expect(peer.deviceId, b.identity.deviceId);
+      expect(peer.lastPort, b.port, reason: 'the live candidate won');
+      // The joiner advertised its own listener, so the responder can dial back.
+      expect((await b.peer(a)).lastPort, provider.port);
+
+      // Scanning a fresh code for the same device is the drift-repair journey,
+      // and the UI says so instead of pretending it is a first pairing.
+      final secondPin = b.engine.openPairing();
+      final second = await provider.pairWithQr(
+        SyncPairQrPayload(
+          deviceId: b.identity.deviceId,
+          name: b.label,
+          endpoints: [('127.0.0.1', b.port)],
+          pin: secondPin,
+        ),
+      );
+      expect(second.outcome.success, isTrue);
+      expect(second.wasKnownPeer, isTrue);
+      expect(
+        provider.peers.length,
+        1,
+        reason: 'the record is updated, not added',
+      );
+    },
+  );
+
+  test('a QR payload with only dead endpoints reports unreachable', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+    final provider = await a.startProvider();
+
+    final pin = b.engine.openPairing();
+    final result = await provider.pairWithQr(
+      SyncPairQrPayload(
+        deviceId: b.identity.deviceId,
+        name: b.label,
+        endpoints: [('127.0.0.1', await _unusedPort())],
+        pin: pin,
+      ),
+    );
+    expect(result.outcome.success, isFalse);
+    expect(result.outcome.errorCode, 'unreachable');
+    expect(provider.peers, isEmpty);
+    expect(b.engine.isPairingOpen, isTrue, reason: 'nothing reached the peer');
+  });
+
+  test('a foreground round syncs paired peers, then throttles', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+    final provider = await a.startProvider();
+
+    // Nothing paired: the round is a no-op rather than an error.
+    await provider.autoSyncRound();
+    expect(provider.peers, isEmpty);
+
+    final pin = b.engine.openPairing();
+    await provider.pairWithQr(
+      SyncPairQrPayload(
+        deviceId: b.identity.deviceId,
+        name: b.label,
+        endpoints: [('127.0.0.1', b.port)],
+        pin: pin,
+      ),
+    );
+
+    await _seedConversation(b, id: 'conv-b', contents: ['b1']);
+    await provider.autoSyncRound();
+    expect(await _conversationIds(a), contains('conv-b'));
+
+    // A second round inside the interval is skipped — the new conversation
+    // the peer just wrote stays put until the interval elapses or the user
+    // presses sync now.
+    await _seedConversation(b, id: 'conv-later', contents: ['b2']);
+    await provider.autoSyncRound();
+    expect(await _conversationIds(a), isNot(contains('conv-later')));
+
+    final report = await provider.syncNow(b.identity.deviceId);
+    expect(report?.success, isTrue, reason: report?.summary);
+    expect(await _conversationIds(a), contains('conv-later'));
   });
 
   test(

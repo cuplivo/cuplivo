@@ -11818,13 +11818,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncPairSectionTitle => '配对设备';
 
   @override
-  String get lanSyncPairIntro => '在一台设备上出示配对码，在另一台上输入。两台设备需处于同一网络。';
+  String get lanSyncPairIntro => '在一台设备上显示二维码，用另一台扫描；没有摄像头时输入配对码。两台设备需在同一网络。';
 
   @override
-  String get lanSyncShowCode => '出示配对码';
+  String get lanSyncShowCode => '显示配对二维码';
 
   @override
-  String get lanSyncEnterCode => '输入配对码';
+  String get lanSyncEnterCode => '扫码或输入配对码';
 
   @override
   String get lanSyncPairingCode => '配对码';
@@ -11876,6 +11876,32 @@ class AppLocalizationsZh extends AppLocalizations {
   String lanSyncPairErrorUnknown(Object error) {
     return '配对失败：$error';
   }
+
+  @override
+  String get lanSyncScanQr => '扫描配对二维码';
+
+  @override
+  String get lanSyncPairQrCaption => '扫码配对，或在另一台设备输入下方信息';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return '已更新与 $name 的配对';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch => '设备证书与二维码不符，已中止配对。';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr => '二维码中没有可用地址，请在下方输入地址完成配对。';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr => '这不是 Cuplivo 的配对二维码。';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => '配对二维码内容无法解析。';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion => '二维码版本较新，请更新应用后重试。';
 
   @override
   String get lanSyncClosePairing => '关闭配对窗口';
@@ -23773,13 +23799,13 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncPairSectionTitle => '配对设备';
 
   @override
-  String get lanSyncPairIntro => '在一台设备上出示配对码，在另一台上输入。两台设备需处于同一网络。';
+  String get lanSyncPairIntro => '在一台设备上显示二维码，用另一台扫描；没有摄像头时输入配对码。两台设备需在同一网络。';
 
   @override
-  String get lanSyncShowCode => '出示配对码';
+  String get lanSyncShowCode => '显示配对二维码';
 
   @override
-  String get lanSyncEnterCode => '输入配对码';
+  String get lanSyncEnterCode => '扫码或输入配对码';
 
   @override
   String get lanSyncPairingCode => '配对码';
@@ -23831,6 +23857,32 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String lanSyncPairErrorUnknown(Object error) {
     return '配对失败：$error';
   }
+
+  @override
+  String get lanSyncScanQr => '扫描配对二维码';
+
+  @override
+  String get lanSyncPairQrCaption => '扫码配对，或在另一台设备输入下方信息';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return '已更新与 $name 的配对';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch => '设备证书与二维码不符，已中止配对。';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr => '二维码中没有可用地址，请在下方输入地址完成配对。';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr => '这不是 Cuplivo 的配对二维码。';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => '配对二维码内容无法解析。';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion => '二维码版本较新，请更新应用后重试。';
 
   @override
   String get lanSyncClosePairing => '关闭配对窗口';
@@ -35807,13 +35859,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get lanSyncPairSectionTitle => '配對裝置';
 
   @override
-  String get lanSyncPairIntro => '在一台裝置上出示配對碼，在另一台上輸入。兩台裝置需處於同一網路。';
+  String get lanSyncPairIntro => '在一台裝置上顯示二維碼，用另一台掃描；沒有相機時輸入配對碼。兩台裝置需在同一網路。';
 
   @override
-  String get lanSyncShowCode => '出示配對碼';
+  String get lanSyncShowCode => '顯示配對二維碼';
 
   @override
-  String get lanSyncEnterCode => '輸入配對碼';
+  String get lanSyncEnterCode => '掃碼或輸入配對碼';
 
   @override
   String get lanSyncPairingCode => '配對碼';
@@ -35865,6 +35917,32 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String lanSyncPairErrorUnknown(Object error) {
     return '配對失敗：$error';
   }
+
+  @override
+  String get lanSyncScanQr => '掃描配對二維碼';
+
+  @override
+  String get lanSyncPairQrCaption => '掃碼配對，或在另一台裝置輸入下方資訊';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return '已更新與 $name 的配對';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch => '裝置憑證與二維碼不符，已中止配對。';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr => '二維碼中沒有可用位址，請在下方輸入位址完成配對。';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr => '這不是 Cuplivo 的配對二維碼。';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => '配對二維碼內容無法解析。';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion => '二維碼版本較新，請更新應用後重試。';
 
   @override
   String get lanSyncClosePairing => '關閉配對視窗';

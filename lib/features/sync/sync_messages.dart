@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/services/sync/sync_engine.dart';
 import '../../core/services/sync/sync_models.dart';
+import '../../core/services/sync/sync_pair_qr.dart';
 import '../../l10n/app_localizations.dart';
 
 /// Localized text for the LAN sync surface. Pure mapping — no widget state,
@@ -33,6 +34,10 @@ String syncPairErrorMessage(AppLocalizations l10n, SyncPairOutcome outcome) {
       return l10n.lanSyncPairErrorNoCertificate;
     case 'id_mismatch':
       return l10n.lanSyncPairErrorIdMismatch;
+    case 'fingerprint_mismatch':
+      return l10n.lanSyncPairErrorFingerprintMismatch;
+    case 'no_endpoint_in_qr':
+      return l10n.lanSyncPairErrorNoEndpointInQr;
     case 'no_listener':
       return l10n.lanSyncPairErrorNoListener;
     case 'unreachable':
@@ -41,6 +46,19 @@ String syncPairErrorMessage(AppLocalizations l10n, SyncPairOutcome outcome) {
       return l10n.lanSyncPairErrorUnknown(
         outcome.errorDetail ?? outcome.errorCode ?? 'unknown',
       );
+  }
+}
+
+/// Message for a scanned string that is not a usable pairing QR.
+String syncQrErrorMessage(AppLocalizations l10n, SyncPairQrException error) {
+  switch (error.code) {
+    case 'bad_version':
+      return l10n.lanSyncPairErrorQrBadVersion;
+    case 'malformed':
+      return l10n.lanSyncPairErrorInvalidQr;
+    case 'not_pairing_qr':
+    default:
+      return l10n.lanSyncPairErrorNotPairingQr;
   }
 }
 

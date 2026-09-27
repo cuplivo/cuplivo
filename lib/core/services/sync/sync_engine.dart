@@ -122,6 +122,7 @@ class SyncEngine implements SyncServerHandler {
 
   String? _pairingPin;
   DateTime? _pairingExpiresAt;
+  int _pairingFailures = 0;
   SyncSessionReport? lastReport;
 
   static const _pairingWindow = Duration(minutes: 5);
@@ -166,6 +167,7 @@ class SyncEngine implements SyncServerHandler {
     _publishedSkillIds.clear();
     _pairingPin = null;
     _pairingExpiresAt = null;
+    _pairingFailures = 0;
   }
 
   /// Opens a one-shot pairing window and returns the PIN to type on the other
@@ -174,6 +176,7 @@ class SyncEngine implements SyncServerHandler {
     final pin = List.generate(6, (_) => _random.nextInt(10)).join();
     _pairingPin = pin;
     _pairingExpiresAt = DateTime.now().add(_pairingWindow);
+    _pairingFailures = 0;
     onStateChanged();
     return pin;
   }
@@ -184,17 +187,20 @@ class SyncEngine implements SyncServerHandler {
     onStateChanged();
   }
 
-  /// Pairs with a peer showing [pin] at `host:port`.
+  /// Pairs with a peer showing [pin] at `host:port`. [expectedDeviceId] is
+  /// the QR-scanned certificate fingerprint; see [SyncClient.pair].
   Future<SyncPeerRecord> pairWith({
     required String host,
     required int port,
     required String pin,
+    String? expectedDeviceId,
   }) async {
     final result = await client.pair(
       host: host,
       port: port,
       pin: pin,
       listenPort: this.port,
+      expectedDeviceId: expectedDeviceId,
     );
     final answer = result.answer;
     final peer = SyncPeerRecord(
@@ -896,7 +902,17 @@ class SyncEngine implements SyncServerHandler {
     String? initiatorHost,
   ) async {
     if (!isPairingOpen) return null;
-    if (request.pin != _pairingPin) return null;
+    if (request.pin != _pairingPin) {
+      // A 6-digit PIN is brute-forceable inside the window unless wrong
+      // guesses cost something: five of them close the window (reopening
+      // resets the counter and mints a fresh PIN).
+      if (++_pairingFailures >= 5) {
+        _pairingPin = null;
+        _pairingExpiresAt = null;
+        onStateChanged();
+      }
+      return null;
+    }
     // One-shot: a PIN is spent on first success.
     _pairingPin = null;
     _pairingExpiresAt = null;

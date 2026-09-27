@@ -116,11 +116,25 @@ contradicts one of them is a bug, not a preference.
   user across their devices with no manual merge step. Not a bulk-transfer tool, not a backup
   channel (WebDAV/S3/local snapshots own that), not a hub topology with one canonical device.
 - **Paired device (已配对设备)**: a peer whose identity and trust were established once during
-  *pairing* and persist afterwards; discovery only automates reconnecting to paired devices.
+  *pairing* and persist afterwards. Pairing is the opt-in: nothing syncs until a device is
+  paired, and a paired device is reached at the address it was last seen at.
 - **Device identity**: per-install keypair minted at first pairing use; deviceId = hash of
-  the public key; stable across app updates. Pairing = QR code (endpoint + key fingerprint —
-  MITM-proof on hostile LANs) or 6-digit PIN when no camera is available; both screens
-  confirm. Trust thereafter = the client pins the listener's self-signed certificate, and every
+  the public key; stable across app updates.
+- **Pairing QR (配对二维码)**: the pairing path — one image shown by the responder carrying its
+  candidate endpoints, its certificate fingerprint (= deviceId) and the open window's PIN, so
+  scanning pairs in one step with no typing. The fingerprint is what the joiner pins inside the
+  TLS callback, before any request byte leaves the device: that is the difference from a typed
+  PIN, which proves nothing about *which* device answered (an active relay can terminate both
+  legs). The image is bound to the one-shot window, so a stale photo pairs nothing, and its
+  exposure equals the old same-screen "endpoints + PIN" display. Re-scanning a paired device is
+  the repair action for a drifted endpoint: it overwrites the address and rotates the secret.
+- **Pairing window (配对窗口)**: how the responder consents — it opens a five-minute, one-shot
+  window and shows the QR/PIN; the window closes when a peer pairs (its dialog pops), when it
+  expires, or after five wrong PIN guesses (the counter that keeps a 6-digit code from being
+  brute-forced inside the window). There is no separate approval prompt: showing the code *is*
+  the approval, and the joiner's half is the scan (or typing the PIN). Without a camera the PIN
+  path remains, and then only the typed code plus line of sight stands in for the fingerprint.
+- **Trust thereafter**: the client pins the listener's self-signed certificate, and every
   `sync/*` request proves the pairing with the per-peer secret minted at pairing — the channel
   must resist LAN sniffing and impersonation because the sync face carries API keys. Mutual TLS
   is not the mechanism: `dart:io` aborts the handshake against a self-signed *client* certificate
@@ -202,20 +216,30 @@ contradicts one of them is a bug, not a preference.
 
 ### Discovery & pairing (发现与配对)
 
-- **mDNS/DNS-SD is the discovery path**: each device advertises `_cuplivo._sync._tcp`
-  (platform NSD on mobile, multicast DNS on desktop) while the app runs; a discovered
-  already-paired peer connects and syncs automatically. QR (endpoint + identity) and manual
-  IP entry are the fallbacks for hostile networks. AP isolation is a *connectivity* failure,
-  reported as such, not a discovery failure.
-- **Paired device (已配对设备)**: pairing happens once per device pair and exchanges durable
-  identity + trust; afterwards no user action is needed.
+- **Pairing, then nothing automatic about addresses**: the QR image (endpoints + fingerprint +
+  PIN) is the recommended path; the PIN dialog is the fallback for a device without a scanner
+  (desktop — the phone scans the computer's QR in the primary journey). Both leave a durable peer
+  record, and sync uses the stored endpoint.
+- **No LAN discovery is implemented**: mDNS/DNS-SD (`_cuplivo._sync._tcp`) is a *deferred*
+  option, not a missing piece — the platform cost (iOS Bonjour declarations and local-network
+  permission, Android multicast locks, a Windows inbound UDP 5353 rule) buys endpoint
+  auto-healing that a re-scan repairs in one gesture. The naming is reserved so adding it later
+  is purely additive.
+- **Endpoint drift (端点漂移) is a normal, repairable state**: the DHCP/network change that
+  moves a peer makes "sync now" report `unreachable` until the address is fixed. Two repairs
+  exist and both are ordinary: re-scan the peer's QR (updates the address, rotates the secret),
+  or edit the address on the peer card. A drifted endpoint is a connectivity failure, reported
+  as such — never a discovery failure.
+- **AP isolation** is likewise a *connectivity* failure: on a network that blocks peer-to-peer
+  traffic no pairing path helps, and the report says so.
 
 ### Sync session (同步会话)
 
-- **Trigger cadence (触发节律)**: event-driven — (1) a paired peer discovered on the LAN
-  starts a session; (2) local writes open another after a short debounce, if the peer is
-  still reachable; (3) a manual "sync now" escape hatch lives in settings. No polling; sync
-  density follows usage density.
+- **Trigger cadence (触发节律)**: (1) the app coming to the foreground (and once after launch)
+  runs one quiet round over every paired device with an endpoint, throttled to one round per
+  minute; (2) a manual "sync now" in settings, never throttled. No polling, no background
+  daemon, and — without discovery — no "peer appeared" trigger: the round is what "picked the
+  device up" means.
 - **Symmetric version gate (对称拒绝)**: at hello each side refuses a peer whose database
   schema version is newer than its own ("upgrade this device to sync"). Same or older is
   accepted — an older peer's rows merely fill column defaults. Sessions therefore only run
@@ -266,10 +290,13 @@ contradicts one of them is a bug, not a preference.
 
 ### Sync panel (同步面板)
 
-- The user-facing surface is a settings section only: pairing entry ("add device" —
-  show/scan QR, PIN fallback) + one card per paired device (editable name, platform,
-  online state, last sync outcome, unpair). **Pairing is the opt-in** — there is no master
-  switch, and no global chrome (no sync icon outside the panel).
+- The user-facing surface is a settings section only: pairing entry ("add device" — show a
+  pairing QR on this device, scan or type the code from another) + one card per paired device
+  (editable name, platform, endpoint, last sync outcome, sync now, unpair). **Pairing is the
+  opt-in** — there is no master switch, and no global chrome (no sync icon outside the panel).
+- **No online state**: the card shows the last sync attempt and its outcome, never a presence
+  badge. Nothing probes the peer between sessions, so "online" would be a claim the app cannot
+  make; a drifted address shows up as a failed attempt, not as an offline device.
 - **Listener lifecycle**: the listener runs whenever the app runs, on a preferred port
   (`9527`) that falls back to an ephemeral one when taken, so a peer's stored endpoint and the
   Windows firewall rule stay stable across launches. On Windows the inbound rule is

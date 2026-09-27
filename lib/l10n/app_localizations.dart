@@ -22143,19 +22143,19 @@ abstract class AppLocalizations {
   /// No description provided for @lanSyncPairIntro.
   ///
   /// In en, this message translates to:
-  /// **'Show the code on one device and enter it on the other. Both devices must be on the same network.'**
+  /// **'Show the QR on one device and scan it with the other. Without a camera, type the code instead. Both devices must be on the same network.'**
   String get lanSyncPairIntro;
 
   /// No description provided for @lanSyncShowCode.
   ///
   /// In en, this message translates to:
-  /// **'Show pairing code'**
+  /// **'Show pairing QR'**
   String get lanSyncShowCode;
 
   /// No description provided for @lanSyncEnterCode.
   ///
   /// In en, this message translates to:
-  /// **'Enter pairing code'**
+  /// **'Scan or enter code'**
   String get lanSyncEnterCode;
 
   /// No description provided for @lanSyncPairingCode.
@@ -22247,6 +22247,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pairing failed: {error}'**
   String lanSyncPairErrorUnknown(Object error);
+
+  /// No description provided for @lanSyncScanQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan pairing QR'**
+  String get lanSyncScanQr;
+
+  /// No description provided for @lanSyncPairQrCaption.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan to pair, or enter the details below on the other device'**
+  String get lanSyncPairQrCaption;
+
+  /// No description provided for @lanSyncPairUpdatedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing with {name} updated'**
+  String lanSyncPairUpdatedSnackbar(Object name);
+
+  /// No description provided for @lanSyncPairErrorFingerprintMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The device\'s certificate does not match the scanned code. Pairing aborted.'**
+  String get lanSyncPairErrorFingerprintMismatch;
+
+  /// No description provided for @lanSyncPairErrorNoEndpointInQr.
+  ///
+  /// In en, this message translates to:
+  /// **'The code carries no address. Enter one below to pair.'**
+  String get lanSyncPairErrorNoEndpointInQr;
+
+  /// No description provided for @lanSyncPairErrorNotPairingQr.
+  ///
+  /// In en, this message translates to:
+  /// **'This is not a Cuplivo pairing code.'**
+  String get lanSyncPairErrorNotPairingQr;
+
+  /// No description provided for @lanSyncPairErrorInvalidQr.
+  ///
+  /// In en, this message translates to:
+  /// **'The pairing code could not be read.'**
+  String get lanSyncPairErrorInvalidQr;
+
+  /// No description provided for @lanSyncPairErrorQrBadVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'This pairing code is from a newer version. Update the app and try again.'**
+  String get lanSyncPairErrorQrBadVersion;
 
   /// No description provided for @lanSyncClosePairing.
   ///

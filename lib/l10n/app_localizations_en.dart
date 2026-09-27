@@ -12380,13 +12380,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lanSyncPairIntro =>
-      'Show the code on one device and enter it on the other. Both devices must be on the same network.';
+      'Show the QR on one device and scan it with the other. Without a camera, type the code instead. Both devices must be on the same network.';
 
   @override
-  String get lanSyncShowCode => 'Show pairing code';
+  String get lanSyncShowCode => 'Show pairing QR';
 
   @override
-  String get lanSyncEnterCode => 'Enter pairing code';
+  String get lanSyncEnterCode => 'Scan or enter code';
 
   @override
   String get lanSyncPairingCode => 'Pairing code';
@@ -12444,6 +12444,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String lanSyncPairErrorUnknown(Object error) {
     return 'Pairing failed: $error';
   }
+
+  @override
+  String get lanSyncScanQr => 'Scan pairing QR';
+
+  @override
+  String get lanSyncPairQrCaption =>
+      'Scan to pair, or enter the details below on the other device';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return 'Pairing with $name updated';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch =>
+      'The device\'s certificate does not match the scanned code. Pairing aborted.';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr =>
+      'The code carries no address. Enter one below to pair.';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr =>
+      'This is not a Cuplivo pairing code.';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => 'The pairing code could not be read.';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion =>
+      'This pairing code is from a newer version. Update the app and try again.';
 
   @override
   String get lanSyncClosePairing => 'Close pairing window';

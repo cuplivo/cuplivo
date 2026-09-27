@@ -53,16 +53,28 @@ class SyncClient {
   ///
   /// [listenPort] is this device's own sync listener port, advertised so the
   /// responder can store a usable endpoint for the return direction.
+  ///
+  /// [expectedDeviceId] is the QR path: the certificate fingerprint scanned
+  /// out-of-band. When set, the TLS callback itself refuses any other
+  /// certificate, so the request body — the PIN included — never leaves this
+  /// device towards a wrong endpoint. Without it (manual PIN entry) the
+  /// answer is still bound to the certificate actually seen, which defeats a
+  /// passive relay but not an active one; the QR is the recommended path.
   Future<({SyncPairAnswer answer, String certPem})> pair({
     required String host,
     required int port,
     required String pin,
     int? listenPort,
+    String? expectedDeviceId,
   }) async {
     X509Certificate? presented;
     final client = HttpClient(context: identity.buildContext())
       ..badCertificateCallback = (cert, _, _) {
         presented = cert;
+        if (expectedDeviceId != null) {
+          // Hard pin: reject inside the handshake, before any request byte.
+          return crypto.sha256.convert(cert.der).toString() == expectedDeviceId;
+        }
         return true; // first contact: trust happens below, bound to this cert
       }
       ..connectionTimeout = const Duration(seconds: 10);
@@ -103,6 +115,14 @@ class SyncClient {
         throw const SyncClientException('pair_identity_mismatch');
       }
       return (answer: answer, certPem: answer.certPem);
+    } on HandshakeException {
+      // Only the QR path refuses a certificate inside the callback, and such
+      // a refusal must not surface as "unreachable" (HandshakeException
+      // extends SocketException).
+      if (expectedDeviceId != null) {
+        throw const SyncClientException('pair_fingerprint_mismatch');
+      }
+      rethrow;
     } finally {
       client.close(force: true);
     }

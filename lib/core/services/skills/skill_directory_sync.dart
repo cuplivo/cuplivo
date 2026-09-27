@@ -33,6 +33,19 @@ class SkillDirectorySync {
     }
   }
 
+  /// The directory of [skillId], or null when the id is not contained in the
+  /// skills root. Skill ids arrive from the wire (a peer's manifest names
+  /// them), so every path this class builds from one goes through here: a
+  /// crafted id (`../victim`, an absolute path) is refused before any stat,
+  /// create, rename or delete can leave the root — the same rule
+  /// [deleteDirectory] has always enforced, now applied to every entry point.
+  Directory? _skillDir(String skillId) {
+    final rootCanonical = p.canonicalize(root.path);
+    final dest = p.canonicalize(p.join(rootCanonical, skillId));
+    if (!p.isWithin(rootCanonical, dest)) return null;
+    return Directory(dest);
+  }
+
   /// The directory hash of one skill, or null when it has no body here.
   Future<String?> hashOf(String skillId) async {
     final hashes = await hashesOf({skillId});
@@ -43,7 +56,8 @@ class SkillDirectorySync {
   Future<Map<String, String>> hashesOf(Set<String> skillIds) async {
     final out = <String, String>{};
     for (final id in skillIds) {
-      final dir = Directory(p.join(root.path, id));
+      final dir = _skillDir(id);
+      if (dir == null) continue;
       if (!await dir.exists()) continue;
       final fingerprint = _fingerprintOf(dir.path);
       final memo = _memos[id];
@@ -67,7 +81,10 @@ class SkillDirectorySync {
     required String dirHash,
     required File output,
   }) async {
-    final dirPath = p.join(root.path, skillId);
+    final dirPath = _skillDir(skillId)?.path;
+    if (dirPath == null) {
+      throw StateError('skill id escapes the skills root: $skillId');
+    }
     final current = await Isolate.run(() => _hashSkillDirectory(dirPath));
     if (current != dirHash) {
       throw StateError('skill body changed while serving: $skillId');
@@ -83,6 +100,8 @@ class SkillDirectorySync {
     required String dirHash,
     required File zip,
   }) async {
+    final dest = _skillDir(skillId);
+    if (dest == null) return false;
     await ensureRoot();
     if (zip.lengthSync() > kSkillImportMaxBytes) {
       throw const FormatException('skill blob exceeds 200 MB');
@@ -104,7 +123,6 @@ class SkillDirectorySync {
       if (received != dirHash) return false;
       _memos[skillId] = _SkillHashMemo(_fingerprintOf(staging.path), received);
 
-      final dest = Directory(p.join(root.path, skillId));
       final trash =
           '${dest.path}.sync-old-${DateTime.now().microsecondsSinceEpoch}';
       if (await dest.exists()) {
@@ -147,10 +165,8 @@ class SkillDirectorySync {
   /// call — a row-less directory would be resurrected as a fresh record by
   /// the skills rescan, and a directory-less row installs a broken skill.
   Future<void> deleteDirectory(String skillId) async {
-    final dest = p.canonicalize(p.join(root.path, skillId));
-    final rootCanonical = p.canonicalize(root.path);
-    if (!p.isWithin(rootCanonical, dest)) return;
-    final dir = Directory(dest);
+    final dir = _skillDir(skillId);
+    if (dir == null) return;
     if (await dir.exists()) {
       await dir.delete(recursive: true);
     }

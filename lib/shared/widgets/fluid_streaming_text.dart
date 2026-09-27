@@ -29,7 +29,8 @@ class FluidStreamingText extends StatefulWidget {
 
 class _FluidStreamingTextState extends State<FluidStreamingText>
     with SingleTickerProviderStateMixin {
-  late final Ticker _ticker = createTicker(_onTick);
+  Ticker? _ticker;
+  Ticker get _animationTicker => _ticker ??= createTicker(_onTick);
   final List<_RevealRange> _ranges = <_RevealRange>[];
   Duration _elapsed = Duration.zero;
   late String _plainText = _textOf(widget.text);
@@ -51,7 +52,7 @@ class _FluidStreamingTextState extends State<FluidStreamingText>
       _ranges.add(
         _RevealRange(start: 0, end: _plainText.length, born: Duration.zero),
       );
-      _ticker.start();
+      _animationTicker.start();
     }
   }
 
@@ -61,10 +62,10 @@ class _FluidStreamingTextState extends State<FluidStreamingText>
     final next = _textOf(widget.text);
     final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     if (widget.streaming && !reduceMotion) {
-      if (!_ticker.isActive) {
+      if (!(_ticker?.isActive ?? false)) {
         _elapsed = Duration.zero;
         _ranges.clear();
-        _ticker.start();
+        _animationTicker.start();
       }
       if (next.length > _plainText.length && next.startsWith(_plainText)) {
         _ranges.add(
@@ -79,7 +80,7 @@ class _FluidStreamingTextState extends State<FluidStreamingText>
       }
     } else {
       _ranges.clear();
-      if (_ticker.isActive) _ticker.stop();
+      if ((_ticker?.isActive ?? false)) _ticker?.stop();
     }
     _plainText = next;
   }
@@ -87,7 +88,7 @@ class _FluidStreamingTextState extends State<FluidStreamingText>
   void _onTick(Duration elapsed) {
     _elapsed = elapsed;
     if (_ranges.isEmpty || !mounted) {
-      if (_ticker.isActive) _ticker.stop();
+      if ((_ticker?.isActive ?? false)) _ticker?.stop();
       return;
     }
     final durationUs = widget.revealDuration.inMicroseconds;
@@ -95,13 +96,13 @@ class _FluidStreamingTextState extends State<FluidStreamingText>
       (range) =>
           elapsed.inMicroseconds - range.born.inMicroseconds >= durationUs,
     );
-    if (_ranges.isEmpty) _ticker.stop();
+    if (_ranges.isEmpty) _ticker?.stop();
     setState(() {});
   }
 
   @override
   void dispose() {
-    _ticker.dispose();
+    _ticker?.dispose();
     super.dispose();
   }
 

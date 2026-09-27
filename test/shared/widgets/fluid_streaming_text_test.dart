@@ -20,6 +20,7 @@ void main() {
         ),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 240));
 
     text.value = 'Hello world';
     await tester.pump();

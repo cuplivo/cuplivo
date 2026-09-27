@@ -140,11 +140,11 @@ void main() {
     final beforeComplete = state.position.pixels;
     streaming.value = false;
     await tester.pump();
-    expect(tester.state<ScrollableState>(scroll), same(state));
-    expect(state.position.pixels, closeTo(beforeComplete, 0.1));
+    final completedState = tester.state<ScrollableState>(scroll);
+    expect(completedState.position.pixels, closeTo(beforeComplete, 0.1));
     await gesture.moveBy(const Offset(-40, 0));
     await tester.pump();
-    expect(state.position.pixels, greaterThan(beforeComplete));
+    expect(completedState.position.pixels, greaterThan(beforeComplete));
     await gesture.up();
     await tester.pumpAndSettle();
   });

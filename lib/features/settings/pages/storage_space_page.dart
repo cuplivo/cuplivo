@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../../core/services/chat/chat_service.dart';
@@ -27,6 +28,24 @@ import 'log_viewer_page.dart';
 import '../widgets/storage_contents_list.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import 'package:Cuplivo/shared/widgets/section_card.dart';
+
+/// Number of [selected] storage paths that the unsent chat draft still
+/// references.
+///
+/// The comparison is platform-aware on purpose: a draft restored from disk
+/// carries paths that went through `SandboxPathResolver.fix`, which normalizes
+/// separators (`\` → `/`) on Windows, while the storage listing keeps the
+/// OS-native form. A raw string comparison therefore never matches there.
+@visibleForTesting
+int countDraftReferencedPaths(
+  Iterable<String> selected,
+  Set<String> draftFiles,
+) {
+  if (draftFiles.isEmpty) return 0;
+  return selected
+      .where((path) => draftFiles.any((draft) => p.equals(draft, path)))
+      .length;
+}
 
 Set<String>? _conversationIdsOrNull(BuildContext context) {
   try {
@@ -2205,7 +2224,7 @@ class _UploadManagerState extends State<_UploadManager> {
     final draftFiles =
         InputDraftPersistence.maybeInstance?.draftReferencedFiles() ??
         const <String>{};
-    final draftHitCount = _selected.where(draftFiles.contains).length;
+    final draftHitCount = countDraftReferencedPaths(_selected, draftFiles);
     var content = l10n.storageSpaceDeleteUploadsConfirmMessage(count);
     if (draftHitCount > 0) {
       content =

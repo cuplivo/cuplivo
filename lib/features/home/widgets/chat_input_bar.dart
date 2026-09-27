@@ -87,6 +87,11 @@ class ChatInputBarController {
   ChatInputData snapshotInput(String text) =>
       _state?._snapshotInput(text) ?? ChatInputData(text: text.trim());
   void clearDraft() => _state?._clearDraft();
+
+  /// Drops the persisted draft without touching the composer. Used when the
+  /// queued input the draft was kept for has actually drained into the
+  /// conversation.
+  void clearPersistedDraft() => _state?._clearPersistedDraft();
 }
 
 class _DraftImage {
@@ -569,6 +574,10 @@ class _ChatInputBarState extends State<ChatInputBar>
       _images.clear();
       _docs.clear();
     });
+    // `_controller.clear()` notifies the listener while the media is still in
+    // the lists, so that snapshot would resurrect the key this method just
+    // removed. Re-schedule from the emptied composer: the clear is final.
+    _scheduleDraftSave();
   }
 
   void _removeImageAt(int index) {
@@ -656,6 +665,26 @@ class _ChatInputBarState extends State<ChatInputBar>
         text: _controller.text,
         imagePaths: images,
         documents: documents,
+      ),
+    );
+  }
+
+  /// Persists [text] + the submitted media as the draft's safety copy. Called
+  /// from the send path, where the composer is already empty: a snapshot derived
+  /// from it would keep the media and drop the text. The send result decides
+  /// what happens to this copy (`sent` clears it, `queued` keeps it).
+  void _saveSubmittedDraft(
+    String text,
+    List<_DraftImage> images,
+    List<DocumentAttachment> documents,
+  ) {
+    final persistence = _draftPersistence;
+    if (persistence == null) return;
+    persistence.save(
+      ChatInputData(
+        text: text,
+        imagePaths: [for (final image in images) image.path],
+        documents: List<DocumentAttachment>.of(documents),
       ),
     );
   }
@@ -915,6 +944,12 @@ class _ChatInputBarState extends State<ChatInputBar>
     _voiceLevels.clear();
     if (original != null) _controller.value = original;
     if (mounted) setState(() {});
+    // The draft service is registered before this widget, so its lifecycle
+    // flush already wrote the cancelled transcript. Write the restored value
+    // now, in the same synchronous lifecycle dispatch, so a suspend cannot
+    // leave the discarded transcript as the draft.
+    _scheduleDraftSave();
+    _draftPersistence?.flushNow();
     try {
       await asr?.cancel();
     } catch (error) {
@@ -1106,6 +1141,10 @@ class _ChatInputBarState extends State<ChatInputBar>
         _docs.remove(document);
       }
     });
+    // The composer is empty now, so a composer-derived snapshot would lose the
+    // text. Persist what was actually handed to `onSend` as the draft's safety
+    // copy instead; the send's own result decides its final state below.
+    _saveSubmittedDraft(text, submittedImages, submittedDocuments);
     try {
       final result =
           await widget.onSend?.call(
@@ -1121,10 +1160,14 @@ class _ChatInputBarState extends State<ChatInputBar>
       if (result == ChatInputSubmissionResult.sent ||
           result == ChatInputSubmissionResult.queued) {
         if (_draftReplacementRevision != submittedDraftRevision) return;
-        // The content has moved into the conversation or the queue — clear the
-        // persisted draft immediately so a process death right after sending
-        // cannot resurrect it (best-effort: the prefs write is itself async).
-        _clearPersistedDraft();
+        if (result == ChatInputSubmissionResult.sent) {
+          // The content is durable in the conversation — drop the safety copy
+          // so a process death right after sending cannot resurrect it
+          // (best-effort: the prefs write is itself async).
+          _clearPersistedDraft();
+        }
+        // `queued` keeps the safety copy: the queue is memory-only, so the
+        // draft is the only durable copy until the queued input drains.
         widget.mediaController?.sharedDraftAction.value = null;
         _discardImageState(submittedImageIds);
         setState(() {});
@@ -1180,6 +1223,10 @@ class _ChatInputBarState extends State<ChatInputBar>
       0,
       submittedDocuments.where((document) => !_docs.contains(document)),
     );
+    // The media came back after `_restoreSubmittedText` had already scheduled a
+    // text-only snapshot, so the persisted draft must be refreshed once the
+    // composer is whole again.
+    _scheduleDraftSave();
   }
 
   void _restoreSubmittedText(TextEditingValue submittedValue) {

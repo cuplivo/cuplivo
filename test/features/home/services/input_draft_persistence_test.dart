@@ -269,4 +269,68 @@ void main() {
       expect(service.draftReferencedFiles(), isEmpty);
     });
   });
+
+  group('encoded size guard', () {
+    const oversized = InputDraftPersistence.maxEncodedLength + 1;
+
+    Future<void> waitForWrite() => Future<void>.delayed(
+      InputDraftPersistence.debounceDuration +
+          const Duration(milliseconds: 100),
+    );
+
+    test(
+      'oversized remote/data images are dropped, the rest is kept',
+      () async {
+        final service = buildService();
+        addTearDown(service.disposeInternal);
+        service.save(
+          ChatInputData(
+            text: 'keep me',
+            imagePaths: ['data:image/png;base64,${'A' * oversized}'],
+            documents: const [
+              DocumentAttachment(
+                path: '/tmp/a.pdf',
+                fileName: 'a.pdf',
+                mime: 'application/pdf',
+              ),
+            ],
+          ),
+        );
+        await waitForWrite();
+
+        final decoded =
+            jsonDecode(prefs.getString(InputDraftPersistence.key)!)
+                as Map<String, dynamic>;
+        expect(decoded['text'], 'keep me');
+        expect(decoded['images'], isEmpty);
+        expect((decoded['documents'] as List).single['fileName'], 'a.pdf');
+      },
+    );
+
+    test('a draft that cannot fit the bound is not persisted', () async {
+      final service = buildService();
+      addTearDown(service.disposeInternal);
+      service.save(ChatInputData(text: 'x' * oversized));
+      await waitForWrite();
+
+      expect(prefs.getString(InputDraftPersistence.key), isNull);
+    });
+
+    test('an unbounded draft never leaves an older one behind', () async {
+      await prefs.setString(
+        InputDraftPersistence.key,
+        encodeDraft(text: 'stale content'),
+      );
+      final service = buildService();
+      addTearDown(service.disposeInternal);
+      service.save(ChatInputData(text: 'x' * oversized));
+      await waitForWrite();
+
+      expect(
+        prefs.getString(InputDraftPersistence.key),
+        isNull,
+        reason: 'the stored draft must mirror the composer, never an older one',
+      );
+    });
+  });
 }

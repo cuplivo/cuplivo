@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/models/chat_input_data.dart';
+import '../../../core/utils/multimodal_input_utils.dart';
 
 /// Persists the chat input bar's unsent content (`text` + media) across app
 /// restarts, under the single global key `chat_draft_v1`.
@@ -28,6 +29,12 @@ class InputDraftPersistence with WidgetsBindingObserver {
 
   static const String key = chatInputDraftPrefsKey;
   static const Duration debounceDuration = Duration(milliseconds: 800);
+
+  /// Upper bound for one encoded draft. A draft is text plus local file
+  /// references and normally stays in the low kilobytes; a `data:` image URI
+  /// would put a whole base64 blob into the local preference store, which the
+  /// platform reads and writes as a single value.
+  static const int maxEncodedLength = 256 * 1024;
 
   static InputDraftPersistence? _instance;
 
@@ -153,7 +160,33 @@ class InputDraftPersistence with WidgetsBindingObserver {
       prefs.remove(key);
       return;
     }
-    prefs.setString(key, _encode(input));
+    var encoded = _encode(input);
+    if (encoded.length > maxEncodedLength) {
+      // Keep the restorable part (local files) instead of the blob: dropping
+      // the non-local image paths is what brings a data-URI draft back under
+      // the bound.
+      encoded = _encode(
+        ChatInputData(
+          text: input.text,
+          imagePaths: [
+            for (final path in input.imagePaths)
+              if (!isRemoteOrDataUri(path)) path,
+          ],
+          documents: input.documents,
+        ),
+      );
+    }
+    if (encoded.length > maxEncodedLength) {
+      debugPrint(
+        '[InputDraftPersistence] draft exceeds $maxEncodedLength characters, '
+        'not persisted',
+      );
+      // Never leave a stale earlier draft behind: the stored copy must mirror
+      // the composer, or a restart would restore discarded content.
+      prefs.remove(key);
+      return;
+    }
+    prefs.setString(key, encoded);
   }
 
   static String _encode(ChatInputData input) {

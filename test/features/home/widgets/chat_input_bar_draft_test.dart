@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -269,9 +270,10 @@ void main() {
     expect(persistedDraft(), isNull);
   });
 
-  testWidgets('入队同样立即清除草稿键', (tester) async {
+  testWidgets('入队保留草稿安全副本（队列仅内存，是唯一的持久副本）', (tester) async {
     final controller = TextEditingController();
     final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
     addTearDown(controller.dispose);
     addTearDown(focusNode.dispose);
 
@@ -279,20 +281,34 @@ void main() {
       tester,
       controller: controller,
       focusNode: focusNode,
+      mediaController: mediaController,
       onSend: (_) async => ChatInputSubmissionResult.queued,
     );
 
     await tester.enterText(find.byType(TextField), 'to queue');
+    mediaController.addFiles(const [
+      DocumentAttachment(
+        path: '/tmp/queued.pdf',
+        fileName: 'queued.pdf',
+        mime: 'application/pdf',
+      ),
+    ]);
     await pumpDebounce(tester);
-    expect(persistedDraft(), isNotNull);
 
     await tapSendButton(tester);
-    expect(persistedDraft(), isNull);
+    expect(controller.text, isEmpty, reason: '输入框照常清空');
+
+    final draft = persistedDraft();
+    expect(draft, isNotNull, reason: '排队中的内容只能靠草稿跨重启保留');
+    expect(draft!['text'], 'to queue');
+    expect((draft['documents'] as List).single['fileName'], 'queued.pdf');
   });
 
-  testWidgets('发送被拒绝时草稿保留', (tester) async {
+  testWidgets('发送未决期间草稿是已提交内容的安全副本', (tester) async {
     final controller = TextEditingController();
     final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    final sendGate = Completer<ChatInputSubmissionResult>();
     addTearDown(controller.dispose);
     addTearDown(focusNode.dispose);
 
@@ -300,16 +316,76 @@ void main() {
       tester,
       controller: controller,
       focusNode: focusNode,
+      mediaController: mediaController,
+      onSend: (_) => sendGate.future,
+    );
+
+    await tester.enterText(find.byType(TextField), 'in flight');
+    mediaController.addFiles(const [
+      DocumentAttachment(
+        path: '/tmp/inflight.pdf',
+        fileName: 'inflight.pdf',
+        mime: 'application/pdf',
+      ),
+    ]);
+    await pumpDebounce(tester);
+
+    await tester.tap(find.byIcon(Lucide.ArrowUp));
+    await tester.pump();
+    expect(controller.text, isEmpty);
+
+    await pumpDebounce(tester);
+    final draft = persistedDraft();
+    expect(draft, isNotNull);
+    expect(draft!['text'], 'in flight', reason: '进程在发送未决期间死亡时，草稿必须还是用户发出去的内容');
+    expect((draft['documents'] as List).single['fileName'], 'inflight.pdf');
+
+    sendGate.complete(ChatInputSubmissionResult.sent);
+    await tester.pumpAndSettle();
+    expect(persistedDraft(), isNull, reason: 'sent 之后清除安全副本');
+  });
+
+  testWidgets('发送被拒绝时草稿保留（包括恢复回来的附件）', (tester) async {
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    addTearDown(controller.dispose);
+    addTearDown(focusNode.dispose);
+
+    await pumpBar(
+      tester,
+      controller: controller,
+      focusNode: focusNode,
+      mediaController: mediaController,
       onSend: (_) async => ChatInputSubmissionResult.rejected,
     );
 
     await tester.enterText(find.byType(TextField), 'keep me');
+    mediaController.addFiles(const [
+      DocumentAttachment(
+        path: '/tmp/keep.pdf',
+        fileName: 'keep.pdf',
+        mime: 'application/pdf',
+      ),
+    ]);
     await pumpDebounce(tester);
 
     await tapSendButton(tester);
     expect(controller.text, 'keep me');
+    expect(
+      mediaController.snapshotInput(controller.text).documents,
+      hasLength(1),
+      reason: '输入框拿回了附件',
+    );
+
     await pumpDebounce(tester);
-    expect(persistedDraft()!['text'], 'keep me');
+    final draft = persistedDraft()!;
+    expect(draft['text'], 'keep me');
+    expect(
+      (draft['documents'] as List).single['fileName'],
+      'keep.pdf',
+      reason: '草稿必须和输入框一致：恢复回来的附件也要落盘',
+    );
   });
 
   testWidgets('程序化写入输入框（建议词/快捷短语/语音）同样落盘', (tester) async {
@@ -356,7 +432,7 @@ void main() {
     expect(persistedDraft()!['text'], 'flushed on dispose');
   });
 
-  testWidgets('清空输入框同时移除持久化草稿', (tester) async {
+  testWidgets('清空输入框同时移除持久化草稿（带附件也不得复活）', (tester) async {
     final controller = TextEditingController();
     final focusNode = FocusNode();
     final mediaController = ChatInputBarController();
@@ -372,12 +448,49 @@ void main() {
     );
 
     await tester.enterText(find.byType(TextField), 'drop me');
+    mediaController.addFiles(const [
+      DocumentAttachment(
+        path: '/tmp/phantom.pdf',
+        fileName: 'phantom.pdf',
+        mime: 'application/pdf',
+      ),
+    ]);
     await pumpDebounce(tester);
     expect(persistedDraft(), isNotNull);
 
     mediaController.clearDraft();
+    expect(persistedDraft(), isNull, reason: '清除是同步的');
     await pumpDebounce(tester);
     expect(controller.text, isEmpty);
+    expect(
+      persistedDraft(),
+      isNull,
+      reason: 'clearDraft 必须是最终状态：防抖快照不得让丢弃的附件复活草稿键',
+    );
+  });
+
+  testWidgets('队列真正发送后只清草稿，不动输入框', (tester) async {
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    addTearDown(controller.dispose);
+    addTearDown(focusNode.dispose);
+
+    await pumpBar(
+      tester,
+      controller: controller,
+      focusNode: focusNode,
+      mediaController: mediaController,
+      onSend: (_) async => ChatInputSubmissionResult.rejected,
+    );
+
+    await tester.enterText(find.byType(TextField), 'queued then sent');
+    await pumpDebounce(tester);
+    expect(persistedDraft(), isNotNull);
+
+    mediaController.clearPersistedDraft();
+    await pumpDebounce(tester);
+    expect(controller.text, 'queued then sent', reason: '只清草稿');
     expect(persistedDraft(), isNull);
   });
 }

@@ -1,7 +1,12 @@
+import 'dart:io';
+
+import '../../database/business_data.dart';
 import '../../database/business_preferences.dart';
 import '../../database/business_repository.dart';
 import '../../database/chat_database_repository.dart';
 import '../chat/chat_service.dart';
+import '../skills/skill_directory_sync.dart';
+import 'blob_sync.dart';
 import 'business_state_reloader.dart';
 import 'sync_merge.dart';
 import 'sync_models.dart';
@@ -19,7 +24,10 @@ class SyncDataPlane {
     required this.businessRepository,
     this.businessPreferences,
     this.reloader,
-  });
+    this.skillDirectories,
+    BlobFileHasher? fileHasher,
+    this.blobPathResolver = defaultBlobPathResolver,
+  }) : fileHasher = fileHasher ?? BlobFileHasher();
 
   final ChatDatabaseRepository repository;
   final ChatService chatService;
@@ -34,6 +42,27 @@ class SyncDataPlane {
   /// a successful apply. Null in conversation-only tests.
   final BusinessStateReloader? reloader;
 
+  /// Skill directory hashing, zip serving and atomic apply (slice 3). Null in
+  /// conversation-only tests; skill bodies then hash as "missing", so a skill
+  /// record still converges on its own but no body is transferred.
+  final SkillDirectorySync? skillDirectories;
+
+  /// Content hashing for file blobs, memoised per (path, length, mtime).
+  final BlobFileHasher fileHasher;
+
+  /// URI → local file mapping for file blobs. Production is the sandbox
+  /// resolver; a two-device test process injects one root per side.
+  final BlobPathResolver blobPathResolver;
+
+  /// Wire name of the skill entity kind — the single authority for it lives on
+  /// `BusinessEntityKind`.
+  static String get skillWire => BusinessEntityKind.skill.wireName;
+
+  /// Sentinel directory hash for a skill whose body this device does not have.
+  /// It is a legal digest value, so it rides the ordinary combined digest and
+  /// makes "record without body" compare unequal to any real directory hash.
+  static const String missingSkillBody = 'missing';
+
   int get schemaVersion => repository.syncSchemaVersion;
 
   /// Conversation, entity and preference state of this device, as a manifest.
@@ -45,14 +74,28 @@ class SyncDataPlane {
     };
     final entityRefs = await businessRepository.syncEntityRefs();
     final preferenceRefs = await businessRepository.syncPreferenceRefs();
+    // A skill's manifest digest combines its record payload with its directory
+    // hash: the record clock does not track content edits, so the directory
+    // hash is the only thing that can make a body edit visible to the plan.
+    final skillIds = {
+      for (final ref in entityRefs)
+        if (ref.kindWire == skillWire) ref.id,
+    };
+    final dirHashes = await _directoryHashes(skillIds);
     final entities = <String, Map<String, SyncManifestEntry>>{};
     for (final ref in entityRefs) {
+      final digest = ref.kindWire == skillWire
+          ? combineSkillDigest(
+              ref.digest,
+              dirHashes[ref.id] ?? missingSkillBody,
+            )
+          : ref.digest;
       (entities[ref.kindWire] ??=
           <String, SyncManifestEntry>{})[ref.id] = SyncManifestEntry(
         updatedAtUs: ref.updatedAtUs,
         // Unused for business rows: they have no sub-rows to count.
         messageCount: 0,
-        digest: ref.digest,
+        digest: digest,
       );
     }
     return SyncManifest(
@@ -255,11 +298,19 @@ class SyncDataPlane {
     return outcome;
   }
 
-  /// Deletes one business row the peer no longer has.
-  Future<bool> deleteBusinessRow(String kindWire, String id) =>
-      kindWire == kSyncPreferenceWire
-      ? businessRepository.syncDeletePreference(id)
-      : businessRepository.syncDeleteEntity(kindWire, id);
+  /// Deletes one business row the peer no longer has. A skill's body goes with
+  /// its record: a row-less directory would be resurrected as a fresh record by
+  /// the skills rescan, and a directory-less row installs a broken skill.
+  Future<bool> deleteBusinessRow(String kindWire, String id) async {
+    if (kindWire == kSyncPreferenceWire) {
+      return businessRepository.syncDeletePreference(id);
+    }
+    final removed = await businessRepository.syncDeleteEntity(kindWire, id);
+    if (removed && kindWire == skillWire) {
+      await skillDirectories?.deleteDirectory(id);
+    }
+    return removed;
+  }
 
   /// The checkpoint entry for a business row whose local state is the state
   /// both sides now agree on, or null when the row does not exist here.
@@ -279,9 +330,19 @@ class SyncDataPlane {
     if (rows.isEmpty) return null;
     final kind = BusinessRepository.syncKindForWire(kindWire);
     if (kind == null) return null;
+    final payloadDigest = businessContentDigest(
+      rows.first['payload'] as String,
+    );
+    if (kindWire != skillWire) {
+      return SyncCheckpointEntry(
+        updatedAtUs: (rows.first['updated_at'] as num).toInt(),
+        digest: payloadDigest,
+      );
+    }
+    final dirHash = (await _directoryHashes({id}))[id] ?? missingSkillBody;
     return SyncCheckpointEntry(
       updatedAtUs: (rows.first['updated_at'] as num).toInt(),
-      digest: businessContentDigest(rows.first['payload'] as String),
+      digest: combineSkillDigest(payloadDigest, dirHash),
     );
   }
 
@@ -295,4 +356,196 @@ class SyncDataPlane {
     }
     await businessPreferences?.reload();
   }
+
+  // ---- blobs (slice 3) ----
+
+  /// Directory hashes of every skill this device has a record for — the
+  /// current baseline for skill-content planning.
+  Future<Map<String, String>> skillDirHashes() async {
+    final ids = await businessRepository.syncEntityIds(skillWire);
+    return _directoryHashes(ids);
+  }
+
+  /// The blob manifest for exactly the rows about to travel: every
+  /// `kelivo-file` URI they reference that this device can serve, plus one
+  /// directory entry per skill record being sent.
+  Future<List<SyncBlobEntry>> buildBlobManifest({
+    required List<SyncSubtreePayload> subtrees,
+    required SyncBusinessPayload business,
+  }) async {
+    final rows = <Map<String, dynamic>>[
+      for (final subtree in subtrees) ...[
+        subtree.conversation,
+        ...subtree.messages,
+        ...subtree.parts,
+        ...subtree.mcpServers,
+      ],
+      for (final entityRows in business.entities.values) ...entityRows,
+      ...business.preferences,
+    ];
+    final entries = await buildFileBlobEntries(
+      kelivoFileUrisInRows(rows),
+      fileHasher,
+      resolve: blobPathResolver,
+    );
+    // One directory entry per skill record being sent: the receiver verifies
+    // its re-hash against this value before swapping the directory in.
+    final sentSkillIds = {
+      for (final row in business.entities[skillWire] ?? const [])
+        if (row['id'] is String) row['id'] as String,
+    };
+    if (sentSkillIds.isNotEmpty && skillDirectories != null) {
+      final hashes = await _directoryHashes(sentSkillIds);
+      for (final entry in hashes.entries) {
+        entries.add(
+          SyncBlobEntry(
+            kind: SyncBlobEntry.kindSkillDir,
+            key: entry.key,
+            contentHash: entry.value,
+          ),
+        );
+      }
+    }
+    return entries;
+  }
+
+  /// Which of the peer's file entries this device must still fetch.
+  Future<List<SyncBlobEntry>> neededFileBlobs(List<SyncBlobEntry> entries) =>
+      neededFileBlobEntries(entries, fileHasher, resolve: blobPathResolver);
+
+  /// Removes rows of [skillIds] from an incoming business payload, so a skill
+  /// whose body has not converged is deferred rather than installed broken.
+  SyncBusinessPayload withoutSkillRows(
+    SyncBusinessPayload payload,
+    Set<String> skillIds,
+  ) {
+    if (skillIds.isEmpty) return payload;
+    final entities = <String, List<Map<String, dynamic>>>{};
+    for (final entry in payload.entities.entries) {
+      if (entry.key != skillWire) {
+        entities[entry.key] = entry.value;
+        continue;
+      }
+      final kept = [
+        for (final row in entry.value)
+          if (!skillIds.contains(row['id'])) row,
+      ];
+      if (kept.isNotEmpty) entities[entry.key] = kept;
+    }
+    return SyncBusinessPayload(
+      entities: entities,
+      preferences: payload.preferences,
+    );
+  }
+
+  /// Registers landed file blobs against the revisions that reference them, so
+  /// the asset registry owns them (GC protection and future dedupe). The
+  /// registry is what makes the fetched file a first-class local asset rather
+  /// than an orphan next to a message.
+  Future<void> registerLandedAssets({
+    required List<SyncSubtreePayload> subtrees,
+    required Map<String, SyncBlobEntry> landedByUri,
+  }) async {
+    if (landedByUri.isEmpty) return;
+    for (final subtree in subtrees) {
+      final conversationId = subtree.conversation['id'];
+      if (conversationId is! String) continue;
+      final byRevision = <String, List<({String uri, String kind})>>{};
+      for (final part in subtree.parts) {
+        final revisionId = part['revision_id'];
+        final payload = part['payload'];
+        if (revisionId is! String || payload is! String) continue;
+        final kind = (part['kind'] as String?) ?? 'file';
+        for (final uri in kelivoFileUrisInRows([
+          <String, dynamic>{'payload': payload},
+        ])) {
+          if (!landedByUri.containsKey(uri)) continue;
+          byRevision.putIfAbsent(revisionId, () => []).add((
+            uri: uri,
+            kind: kind,
+          ));
+        }
+      }
+      for (final entry in byRevision.entries) {
+        await repository.replaceMessageAssetReferences(
+          conversationId: conversationId,
+          revisionId: entry.key,
+          assets: [
+            for (final item in entry.value)
+              MessageAssetRegistration(
+                assetId: 'asset_${landedByUri[item.uri]!.contentHash}',
+                contentHash: landedByUri[item.uri]!.contentHash,
+                path: item.uri,
+                byteSize: landedByUri[item.uri]!.byteSize,
+                kind: item.kind,
+              ),
+          ],
+        );
+      }
+    }
+  }
+
+  /// Directory hashes for [ids], or an empty map when this device has no skill
+  /// body support (conversation-only tests).
+  Future<Map<String, String>> _directoryHashes(Set<String> ids) async {
+    final dirs = skillDirectories;
+    if (dirs == null || ids.isEmpty) return const {};
+    await dirs.ensureRoot();
+    return dirs.hashesOf(ids);
+  }
+
+  /// Extracts a received skill zip into a staging directory, verifies the
+  /// re-hash and swaps it in. False means nothing was installed.
+  Future<bool> applySkillBlob({
+    required String skillId,
+    required String dirHash,
+    required File zip,
+  }) async {
+    final dirs = skillDirectories;
+    if (dirs == null) return false;
+    return dirs.applyZip(skillId: skillId, dirHash: dirHash, zip: zip);
+  }
+
+  /// The zip for one named skill, when its current directory hash still equals
+  /// [dirHash]; null otherwise (it changed since the manifest was published).
+  Future<File?> skillBlobForHash({
+    required String skillId,
+    required String dirHash,
+  }) async {
+    final dirs = skillDirectories;
+    if (dirs == null) return null;
+    final current = await dirs.hashOf(skillId);
+    if (current == null || current != dirHash) return null;
+    return dirs.zipToCache(skillId: skillId, dirHash: dirHash);
+  }
+
+  /// The zip for whichever local skill currently hashes to [contentHash] —
+  /// what serves a blob pending from an earlier session, after a restart
+  /// cleared the in-memory published set.
+  Future<File?> skillBlobForContentHash(String contentHash) async {
+    final dirs = skillDirectories;
+    if (dirs == null) return null;
+    final hashes = await skillDirHashes();
+    for (final entry in hashes.entries) {
+      if (entry.value == contentHash) {
+        return dirs.zipToCache(skillId: entry.key, dirHash: contentHash);
+      }
+    }
+    return null;
+  }
+
+  /// The file behind a content hash in the asset registry, or null when this
+  /// device never registered that content.
+  Future<File?> assetFileForContentHash(String contentHash) async {
+    final path = await repository.assetPathForContentHash(contentHash);
+    if (path == null) return null;
+    final resolved = blobPathResolver(path);
+    if (resolved == null) return null;
+    final file = File(resolved);
+    return await file.exists() ? file : null;
+  }
+
+  /// Drops the served-zip cache (reproducible from the live skill bodies).
+  Future<void> clearSkillBlobCache() =>
+      skillDirectories?.clearBlobCache() ?? Future<void>.value();
 }

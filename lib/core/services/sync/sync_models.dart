@@ -18,7 +18,13 @@ import 'package:crypto/crypto.dart' as crypto;
 /// v2: the hello manifest and the session batch gained the business sections
 /// (entity rows by table name + synced preference rows); v1 peers are refused
 /// at hello instead of parsing a manifest they cannot understand.
-const int kSyncProtocolVersion = 2;
+///
+/// v3: blob carriage (slice 3). The session batch gained an asset manifest and
+/// the skill directory hashes; hello gained the initiator's listen port so the
+/// responder can pull blobs back. A v2 peer would apply rows whose blobs it
+/// never received — the exact broken-skill case the record holdback guards —
+/// so v2 peers are refused at hello too.
+const int kSyncProtocolVersion = 3;
 
 /// Wire name of the preference "kind" inside business manifests and payloads.
 /// Entity kinds travel under their stable table name, which can never collide
@@ -162,6 +168,11 @@ class SyncHello {
   final String platform;
   final SyncManifest manifest;
 
+  /// This device's own sync listener port (slice 3). The responder uses it,
+  /// together with the request's remote address and the pairing it already
+  /// holds, to pull blobs back from the initiator over its own listener.
+  final int? listenPort;
+
   const SyncHello({
     required this.protocolVersion,
     required this.schemaVersion,
@@ -169,6 +180,7 @@ class SyncHello {
     required this.deviceName,
     required this.platform,
     required this.manifest,
+    this.listenPort,
   });
 
   Map<String, dynamic> toJson() => {
@@ -178,6 +190,7 @@ class SyncHello {
     'deviceName': deviceName,
     'platform': platform,
     'manifest': manifest.toJson(),
+    if (listenPort != null) 'listenPort': listenPort,
   };
 
   static SyncHello fromJson(Map<String, dynamic> json) => SyncHello(
@@ -189,6 +202,7 @@ class SyncHello {
     manifest: SyncManifest.fromJson(
       (json['manifest'] as Map).cast<String, dynamic>(),
     ),
+    listenPort: (json['listenPort'] as num?)?.toInt(),
   );
 }
 
@@ -251,6 +265,15 @@ class SyncPeerReport {
   /// Business rows exchanged in either direction (entities + preferences).
   final int entityRows;
   final int preferenceRows;
+
+  /// Blobs exchanged in either direction (slice 3): files landed, total bytes,
+  /// skills whose directory body converged, skills where this device's content
+  /// lost the deterministic conflict rule, and blobs that could not be fetched.
+  final int blobsMoved;
+  final int blobBytes;
+  final int skillsUpdated;
+  final int skillConflicts;
+  final int blobsMissing;
   final SyncRefusalReason? refusal;
 
   /// Raw failure detail for non-refusal failures (transport errors).
@@ -266,6 +289,11 @@ class SyncPeerReport {
     this.deferred = 0,
     this.entityRows = 0,
     this.preferenceRows = 0,
+    this.blobsMoved = 0,
+    this.blobBytes = 0,
+    this.skillsUpdated = 0,
+    this.skillConflicts = 0,
+    this.blobsMissing = 0,
     this.refusal,
     this.error,
   });
@@ -280,6 +308,11 @@ class SyncPeerReport {
     'deferred': deferred,
     'entityRows': entityRows,
     'preferenceRows': preferenceRows,
+    'blobsMoved': blobsMoved,
+    'blobBytes': blobBytes,
+    'skillsUpdated': skillsUpdated,
+    'skillConflicts': skillConflicts,
+    'blobsMissing': blobsMissing,
     if (refusal != null) 'refusal': refusal!.wire,
     if (error != null) 'error': error,
   };
@@ -294,6 +327,11 @@ class SyncPeerReport {
     deferred: (json['deferred'] as num?)?.toInt() ?? 0,
     entityRows: (json['entityRows'] as num?)?.toInt() ?? 0,
     preferenceRows: (json['preferenceRows'] as num?)?.toInt() ?? 0,
+    blobsMoved: (json['blobsMoved'] as num?)?.toInt() ?? 0,
+    blobBytes: (json['blobBytes'] as num?)?.toInt() ?? 0,
+    skillsUpdated: (json['skillsUpdated'] as num?)?.toInt() ?? 0,
+    skillConflicts: (json['skillConflicts'] as num?)?.toInt() ?? 0,
+    blobsMissing: (json['blobsMissing'] as num?)?.toInt() ?? 0,
     refusal: SyncRefusalReason.tryParse(json['refusal'] as String?),
     error: json['error'] as String?,
   );
@@ -381,20 +419,97 @@ class SyncBusinessPayload {
       );
 }
 
-/// A batch of changes travelling in one direction: conversation subtrees and,
-/// since slice 2, the business rows (entities + preferences) that changed.
+/// One blob the sender can serve, discovered from the payloads it is sending:
+/// every `kelivo-file` URI that appears in a travelling row (message part,
+/// entity payload, preference value) becomes a file entry; a skill whose
+/// record travels becomes a skill-directory entry keyed by the directory hash.
+///
+/// The GET path is always `/sync/blob/<contentHash>`; [kind] tells the
+/// receiver how to apply the bytes, and [key] is the placement target (the
+/// canonical URI for a file, the skill id for a directory).
+class SyncBlobEntry {
+  static const String kindFile = 'file';
+  static const String kindSkillDir = 'skill-dir';
+
+  final String kind;
+  final String key;
+  final String contentHash;
+  final int byteSize;
+
+  const SyncBlobEntry({
+    required this.kind,
+    required this.key,
+    required this.contentHash,
+    this.byteSize = 0,
+  });
+
+  /// Stable identity of what this entry wants, independent of content: used
+  /// to key pending-blob retries (a new hash for the same target supersedes).
+  String get target => '$kind\u0000$key';
+
+  /// The same entry with the byte size actually landed (the manifest may not
+  /// know it — a skill zip is produced on demand).
+  SyncBlobEntry withSize(int bytes) => SyncBlobEntry(
+    kind: kind,
+    key: key,
+    contentHash: contentHash,
+    byteSize: bytes,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'k': kind,
+    't': key,
+    'h': contentHash,
+    's': byteSize,
+  };
+
+  static SyncBlobEntry fromJson(Map<String, dynamic> json) => SyncBlobEntry(
+    kind: (json['k'] as String?) ?? kindFile,
+    key: json['t'] as String,
+    contentHash: json['h'] as String,
+    byteSize: (json['s'] as num?)?.toInt() ?? 0,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is SyncBlobEntry &&
+      other.kind == kind &&
+      other.key == key &&
+      other.contentHash == contentHash;
+
+  @override
+  int get hashCode => Object.hash(kind, key, contentHash);
+}
+
+/// Digest that makes a skill's content edits visible in the business
+/// manifest: the record payload digest combined with the directory hash. A
+/// content-only edit leaves `updated_at` alone, so without this combination
+/// the plan would say "same clock, same content" and never transfer the body.
+String combineSkillDigest(String payloadDigest, String dirHash) =>
+    crypto.sha256.convert(utf8.encode('$payloadDigest\n$dirHash')).toString();
+
+/// A batch of changes travelling in one direction: conversation subtrees,
+/// the business rows (entities + preferences) that changed, and since slice 3
+/// the blob manifest for everything these rows reference — the file blobs the
+/// receiver may need plus the directory hashes of travelling skill records.
 class SyncDeltaBatch {
   final List<SyncSubtreePayload> subtrees;
   final SyncBusinessPayload business;
+  final List<SyncBlobEntry> assets;
+  final Map<String, String> skillHashes;
 
   const SyncDeltaBatch(
     this.subtrees, {
     this.business = const SyncBusinessPayload(),
+    this.assets = const [],
+    this.skillHashes = const {},
   });
 
   Map<String, dynamic> toJson() => {
     'subtrees': subtrees.map((s) => s.toJson()).toList(),
     'business': business.toJson(),
+    'assets': [for (final entry in assets) entry.toJson()],
+    'skillHashes': skillHashes,
   };
 
   static SyncDeltaBatch fromJson(Map<String, dynamic> json) => SyncDeltaBatch(
@@ -407,6 +522,15 @@ class SyncDeltaBatch {
         : SyncBusinessPayload.fromJson(
             (json['business'] as Map).cast<String, dynamic>(),
           ),
+    assets: [
+      for (final entry in (json['assets'] as List? ?? const []))
+        SyncBlobEntry.fromJson((entry as Map).cast<String, dynamic>()),
+    ],
+    skillHashes: {
+      if (json['skillHashes'] is Map)
+        for (final entry in (json['skillHashes'] as Map).entries)
+          entry.key.toString(): entry.value.toString(),
+    },
   );
 
   String encodeJson() => jsonEncode(toJson());
@@ -468,10 +592,23 @@ class SyncCheckpoint {
   final Map<String, Map<String, SyncCheckpointEntry>> entities;
   final Map<String, SyncCheckpointEntry> preferences;
 
+  /// Blobs this device still owes from the peer, keyed by entry identity:
+  /// a fetch that failed (peer GC'd the file, IO error, reverse connection
+  /// refused) is retried at the start of the next session. Entries are
+  /// removed on success and superseded when a newer hash arrives for the
+  /// same target (slice 3).
+  final Map<String, SyncBlobEntry> pendingBlobs;
+
+  /// The directory hash of each skill at the moment both sides last agreed
+  /// on it — the baseline for content-conflict detection (slice 3).
+  final Map<String, String> skillHashes;
+
   const SyncCheckpoint(
     this.conversations, {
     this.entities = const {},
     this.preferences = const {},
+    this.pendingBlobs = const {},
+    this.skillHashes = const {},
   });
 
   Map<String, dynamic> toJson() => {
@@ -486,6 +623,10 @@ class SyncCheckpoint {
     'preferences': preferences.map(
       (key, entry) => MapEntry(key, entry.toJson()),
     ),
+    'pendingBlobs': pendingBlobs.map(
+      (target, entry) => MapEntry(target, entry.toJson()),
+    ),
+    'skillHashes': skillHashes,
   };
 
   static SyncCheckpoint fromJson(Map<String, dynamic> json) => SyncCheckpoint(
@@ -518,6 +659,20 @@ class SyncCheckpoint {
         entry.key: SyncCheckpointEntry.fromJson(
           (entry.value as Map).cast<String, dynamic>(),
         ),
+    },
+    pendingBlobs: {
+      if (json['pendingBlobs'] is Map)
+        for (final entry
+            in (json['pendingBlobs'] as Map).cast<String, dynamic>().entries)
+          entry.key.toString(): SyncBlobEntry.fromJson(
+            (entry.value as Map).cast<String, dynamic>(),
+          ),
+    },
+    skillHashes: {
+      if (json['skillHashes'] is Map)
+        for (final entry
+            in (json['skillHashes'] as Map).cast<String, dynamic>().entries)
+          entry.key.toString(): entry.value.toString(),
     },
   );
 

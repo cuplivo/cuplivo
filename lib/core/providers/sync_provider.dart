@@ -4,11 +4,13 @@ import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 
+import '../../utils/app_directories.dart';
 import '../database/business_preferences.dart';
 import '../database/business_repository.dart';
 import '../database/chat_database_repository.dart';
 import '../services/app_exit_flush.dart';
 import '../services/chat/chat_service.dart';
+import '../services/skills/skill_directory_sync.dart';
 import '../services/sync/business_state_reloader.dart';
 import '../services/sync/sync_client.dart';
 import '../services/sync/sync_data_plane.dart';
@@ -140,6 +142,11 @@ class SyncProvider extends ChangeNotifier {
           businessRepository: _businessRepository,
           businessPreferences: _businessPreferences,
           reloader: _reloader,
+          // Skill bodies ride sync as directory blobs (slice 3); the root is
+          // the same one the skills service installs into.
+          skillDirectories: SkillDirectorySync(
+            await AppDirectories.getSkillsDirectory(),
+          ),
         ),
         onStateChanged: _onEngineStateChanged,
       );

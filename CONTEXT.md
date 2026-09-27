@@ -125,8 +125,17 @@ contradicts one of them is a bug, not a preference.
   must resist LAN sniffing and impersonation because the sync face carries API keys. Mutual TLS
   is not the mechanism: `dart:io` aborts the handshake against a self-signed *client* certificate
   (ADR-0002 amendment).
+- **Blob**: a content-addressed transfer unit on the sync wire — the bytes of one file whose
+  canonical URI appears in a travelling row, or of one skill directory as a zip. A blob's
+  identity is its hash (`/sync/blob/<sha256>`): the receiver pulls what it lacks and skips what
+  it already has. Blobs follow URIs: whatever a travelling row references is offered, without
+  enumerating payload kinds.
+- **Asset manifest**: the blob list a side publishes alongside the rows it sends (kind, target,
+  content hash, size). It travels in the same batch as the rows, in both directions, so each
+  side can compute its own needs without a negotiation beat.
 - **Sync payload = entity rows**: peers exchange versioned repository rows (JSON), never a
   database file or a backup zip — a newer build's schema must never be handed to an older build.
+  Blobs are the one binary exception, and they are content, not schema.
 - **Foreground constraint**: sync runs while the app is running (foreground on mobile,
   foreground-or-tray on desktop); no mobile background daemon in the first version.
 
@@ -146,7 +155,15 @@ contradicts one of them is a bug, not a preference.
   deterministically off the checkpointed hash (unchanged side adopts the changed side; both
   changed → newer record `updatedAt`, then higher deviceId wins); the loser's edit is
   reported, never silently dropped. Apply = staging + atomic directory swap, re-hash
-  verified on receipt; extraction reuses the `skill_archive` hardened unpacker.
+  verified on receipt; extraction reuses the `skill_archive` hardened unpacker. A record whose
+  body did not converge is **deferred**, never installed broken; deleting a skill removes the row
+  and the directory together, or the rescan resurrects it.
+- **Blob rules**: a received file lands at the path its URI names (URIs are never rewritten —
+  that would diverge the conversation digest); writes are confined to the managed asset roots;
+  the serving side answers only hashes it published or has registered; a landed blob is
+  registered against its revisions, which is what protects it from the asset GC; a blob that
+  does not arrive goes pending and is retried once per session, reported meanwhile. A blob
+  failure defers a skill record but not a conversation.
 - **Device-local** (never rides sync): `localOnly`, `discarded` and `unknownPreference`
   dispositions, all `display_*` keys (fonts reference local file paths), `global_proxy_*`,
   `tts_engine_v1`/`tts_language_v1` (platform fallbacks), and the session-position keys
@@ -158,8 +175,9 @@ contradicts one of them is a bug, not a preference.
   `tts_speech_rate_v1`/`tts_pitch_v1`/`tts_selected_service_id_v1`, `search_*`,
   `pinned_models_v1`, user name/avatar, `webdav_config_v1`/`s3_config_v1`,
   `chat_bubble_style_overrides_v1`, `tool_schema_overrides_v1`.
-- **Skill and workspace holdbacks (slice 2)**: workspaces stay device-local permanently; a
-  skill's *record* is deliberately not synced until its directory blob arrives, because a
+- **Skill and workspace holdbacks**: workspaces stay device-local permanently. A skill's record
+  and its directory blob travel together (slice 3): the record is applied only once its body has
+  converged — already identical here, or pulled and re-hash verified in this session — because a
   record without its body would install a broken skill on the peer.
 - **New-device test** (新设备测试): the rule for classifying a preference key — *would a
   brand-new device want this value to arrive with the pairing?* Business config yes;
@@ -209,11 +227,14 @@ contradicts one of them is a bug, not a preference.
   stored per device pair.
 
 - **Session protocol**: a bounded six-beat run over mutual-TLS HTTP (REST-style JSON bodies,
-  binary endpoints for blobs): hello (protocol version, schema version, capabilities,
-  checkpoint summaries) → negotiate (each side computes deltas) → delta exchange
-  (conversation subtrees, entity rows, preference keys, tombstones, asset manifest) →
-  blob fetch (receiver pulls by contentHash, skipping hashes it already has) →
-  transactional apply + provider reload → checkpoint commit on both sides.
+  binary endpoints for blobs): hello (protocol version, schema version, capabilities, the
+  initiator's listener port, checkpoint summaries) → negotiate (each side computes
+  deltas) → delta exchange (conversation subtrees, entity rows, preference keys, tombstones,
+  and the asset manifest for what each side is sending) → blob fetch (receiver pulls by
+  contentHash, skipping hashes it already has; the responder pulls back over the initiator's
+  advertised listener) → transactional apply + provider reload → checkpoint commit on both
+  sides. Checkpoints also carry what is still owed (pending blobs) and the skill-content
+  baseline.
 - **One plan, two faces**: conversations and business rows (entities + preferences) are decided
   by the same table — present on one side, newer clock, tie to the higher deviceId — and travel
   in the same batch, so one session moves a conversation and the assistant it references.
@@ -257,10 +278,11 @@ contradicts one of them is a bug, not a preference.
   ephemeral port's rule is deleted best-effort on stop. Adding it without administrator rights
   fails silently, so the panel offers a one-click elevated retry.
 - **Nothing silent**: the per-session report lists transfers, conflicts and their losers
-  (LWW losers, skill-content losers), and warnings (clock skew, version refusal).
-- **File avatars degrade**: emoji/url avatars sync (portable values); a `file` avatar falls
-  back to the default on the peer, flagged in the report. Full-fidelity avatar carriage
-  (blob + path remap) is a deliberate later addition, not v1.
+  (LWW losers, skill-content losers), blobs that arrived, bytes moved, skills whose body
+  converged, and warnings (clock skew, version refusal, files that never arrived).
+- **File avatars travel**: the stored value is the canonical `kelivo-file` form, so an avatar
+  blob follows it like any other referenced file and the peer renders the real image. Legacy
+  absolute values keep resolving (dual-form reads) and canonicalize on load.
 
 ## Community channels (社区入口)
 

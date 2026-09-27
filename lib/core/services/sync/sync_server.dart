@@ -14,7 +14,15 @@ import 'sync_store.dart';
 abstract class SyncServerHandler {
   /// Returns this device's hello, or a refusal. [peerDeviceId] is the pinned
   /// identity of the caller.
-  Future<Object> handleHello(String peerDeviceId, SyncHello initiatorHello);
+  ///
+  /// [remoteAddress] is the address the caller connected from, as this server
+  /// saw it: with the caller's advertised `listenPort` it is what lets the
+  /// responder pull blobs back over the initiator's own listener (slice 3).
+  Future<Object> handleHello(
+    String peerDeviceId,
+    SyncHello initiatorHello, {
+    String? remoteAddress,
+  });
 
   /// Everything this device owes the initiator for the request's conversations
   /// and business rows.
@@ -27,6 +35,11 @@ abstract class SyncServerHandler {
   /// Returns how many conversations were accepted (applied or deferred — the
   /// engine owns the accounting).
   Future<int> handleApplySubtrees(String peerDeviceId, SyncDeltaBatch batch);
+
+  /// The local file backing one blob this device published, or null when the
+  /// hash is unknown here (or the file is gone). The server only ever streams
+  /// a file the handler names — a request never supplies a path.
+  Future<File?> handleFetchBlob(String peerDeviceId, String contentHash);
 
   /// Pairing: validate the PIN, persist the peer, answer with our identity.
   /// Returns null when the PIN is wrong or pairing is not open.
@@ -219,6 +232,10 @@ class SyncServer {
         await _handleSubtrees(request, peerDeviceId);
         break;
       default:
+        if (request.uri.path.startsWith(blobPathPrefix)) {
+          await _handleBlob(request, peerDeviceId);
+          break;
+        }
         _safeRespond(request, HttpStatus.notFound, {'error': 'not_found'});
     }
   }
@@ -234,6 +251,12 @@ class SyncServer {
     if (expected == null || expected.isEmpty) return null;
     return _constantTimeEquals(expected, token) ? deviceId : null;
   }
+
+  /// Path prefix of the blob route: `/sync/blob/<sha256>`.
+  static const blobPathPrefix = '/sync/blob/';
+
+  /// A well-formed blob hash: the sha256 hex digest the manifest publishes.
+  static final RegExp _blobHashPattern = RegExp(r'^[0-9a-f]{64}$');
 
   static bool _constantTimeEquals(String a, String b) {
     final left = utf8.encode(a);
@@ -296,12 +319,48 @@ class SyncServer {
     final result = await handler.handleHello(
       peerDeviceId,
       SyncHello.fromJson(body),
+      remoteAddress: request.connectionInfo?.remoteAddress.address,
     );
     if (result is SyncHelloRefusal) {
       _respondJson(request, HttpStatus.conflict, result.toJson());
       return;
     }
     _respondJson(request, HttpStatus.ok, (result as SyncHello).toJson());
+  }
+
+  /// Streams one blob. The hash names the content; the handler decides which
+  /// local file (if any) backs it, so a request can never read an arbitrary
+  /// path off this device.
+  Future<void> _handleBlob(HttpRequest request, String peerDeviceId) async {
+    if (request.method != 'GET') {
+      _safeRespond(request, HttpStatus.methodNotAllowed, {'error': 'get_only'});
+      return;
+    }
+    final hash = Uri.decodeComponent(
+      request.uri.path.substring(blobPathPrefix.length),
+    );
+    if (!_blobHashPattern.hasMatch(hash)) {
+      _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_hash'});
+      return;
+    }
+    final file = await handler.handleFetchBlob(peerDeviceId, hash);
+    if (file == null || !await file.exists()) {
+      _safeRespond(request, HttpStatus.notFound, {'error': 'blob_unavailable'});
+      return;
+    }
+    try {
+      final length = await file.length();
+      request.response.statusCode = HttpStatus.ok;
+      request.response.headers.contentType = ContentType.binary;
+      request.response.headers.set(HttpHeaders.contentLengthHeader, '$length');
+      await request.response.addStream(file.openRead());
+      await request.response.close();
+    } catch (_) {
+      // The peer hung up mid-stream; nothing to salvage.
+      try {
+        await request.response.close();
+      } catch (_) {}
+    }
   }
 
   Future<void> _handleSubtrees(HttpRequest request, String peerDeviceId) async {

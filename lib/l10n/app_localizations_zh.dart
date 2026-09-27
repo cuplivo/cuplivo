@@ -11979,6 +11979,26 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n 个文件';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n 个技能';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n 处技能修改被覆盖';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n 个文件在对方设备上缺失';
+  }
+
+  @override
   String lanSyncReportFailed(Object error) {
     return '同步失败：$error';
   }
@@ -12010,7 +12030,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncFirewallFixed => '入站访问已允许。';
 
   @override
-  String get lanSyncKnownLimits => '目前限制：图片附件暂不随对话同步；PIN 配对请仅在你信任的网络中使用。';
+  String get lanSyncKnownLimits => '目前：工作区仍只留在创建它的设备上；PIN 配对请仅在可信网络中使用。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -23914,6 +23934,26 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n 个文件';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n 个技能';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n 处技能修改被覆盖';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n 个文件在对方设备上缺失';
+  }
+
+  @override
   String lanSyncReportFailed(Object error) {
     return '同步失败：$error';
   }
@@ -23945,7 +23985,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncFirewallFixed => '入站访问已允许。';
 
   @override
-  String get lanSyncKnownLimits => '目前限制：图片附件暂不随对话同步；PIN 配对请仅在你信任的网络中使用。';
+  String get lanSyncKnownLimits => '目前：工作区仍只留在创建它的设备上；PIN 配对请仅在可信网络中使用。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -35928,6 +35968,26 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n 個檔案';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n 個技能';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n 處技能修改被覆蓋';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n 個檔案在對方裝置上缺失';
+  }
+
+  @override
   String lanSyncReportFailed(Object error) {
     return '同步失敗：$error';
   }
@@ -35959,5 +36019,5 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get lanSyncFirewallFixed => '入站存取已允許。';
 
   @override
-  String get lanSyncKnownLimits => '目前限制：圖片附件暫不隨對話同步；PIN 配對請僅在你信任的網路中使用。';
+  String get lanSyncKnownLimits => '目前：工作區仍只留在建立它的裝置上；PIN 配對請僅在可信網路中使用。';
 }

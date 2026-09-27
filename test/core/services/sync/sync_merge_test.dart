@@ -560,4 +560,239 @@ void main() {
       );
     });
   });
+
+  group('skill content planning (slice 3)', () {
+    const skillWire = 'skill';
+    const payloadDigest = 'payload-digest';
+
+    SyncManifest skillManifest(String id, int clockUs, String dirHash) =>
+        SyncManifest(
+          const {},
+          entities: {
+            skillWire: {
+              id: SyncManifestEntry(
+                updatedAtUs: clockUs,
+                messageCount: 0,
+                digest: combineSkillDigest(payloadDigest, dirHash),
+              ),
+            },
+          },
+        );
+
+    test('a content-only edit is visible even though the record clock is '
+        'unchanged', () {
+      const clock = 1000;
+      final mine = skillManifest('s', clock, 'hash-a');
+      // Same record clock, same payload digest, a different body: without the
+      // directory hash in the digest this would read as "nothing changed".
+      final peers = skillManifest('s', clock, 'hash-b');
+      final checkpoint = SyncCheckpoint(
+        const {},
+        entities: {
+          skillWire: {
+            's': SyncCheckpointEntry(
+              updatedAtUs: clock,
+              digest: combineSkillDigest(payloadDigest, 'hash-a'),
+            ),
+          },
+        },
+      );
+
+      final plan = planSkillContentSync(
+        mine: mine,
+        peers: peers,
+        checkpoint: checkpoint,
+        skillWire: skillWire,
+      );
+
+      // The unchanged side adopts the changed side.
+      expect(plan.single.action, SyncConvAction.peerSends);
+    });
+
+    test('both sides changed the body with different clocks', () {
+      const mine = SyncManifestEntry(
+        updatedAtUs: 2000,
+        messageCount: 0,
+        digest: 'mine',
+      );
+      const peer = SyncManifestEntry(
+        updatedAtUs: 3000,
+        messageCount: 0,
+        digest: 'peer',
+      );
+      final plan = planSkillContentSync(
+        mine: SyncManifest(
+          const {},
+          entities: {
+            skillWire: {'s': mine},
+          },
+        ),
+        peers: SyncManifest(
+          const {},
+          entities: {
+            skillWire: {'s': peer},
+          },
+        ),
+        checkpoint: SyncCheckpoint(
+          const {},
+          entities: {
+            skillWire: {
+              's': const SyncCheckpointEntry(updatedAtUs: 1000, digest: 'old'),
+            },
+          },
+        ),
+        skillWire: skillWire,
+      );
+
+      expect(plan.single.action, SyncConvAction.bothSend);
+      // The one LWW rule decides the winner: the newer record clock, then the
+      // higher deviceId — evaluated symmetrically by both peers.
+      expect(
+        incomingBusinessRowWins(
+          localUpdatedAtUs: mine.updatedAtUs,
+          incomingUpdatedAtUs: peer.updatedAtUs,
+          myDeviceId: 'aaa',
+          peerDeviceId: 'bbb',
+        ),
+        isTrue,
+      );
+      expect(
+        incomingBusinessRowWins(
+          localUpdatedAtUs: peer.updatedAtUs,
+          incomingUpdatedAtUs: mine.updatedAtUs,
+          myDeviceId: 'bbb',
+          peerDeviceId: 'aaa',
+        ),
+        isFalse,
+      );
+    });
+
+    test('an untouched skill deleted on the peer is deleted here', () {
+      final plan = planSkillContentSync(
+        mine: skillManifest('s', 1000, 'hash-a'),
+        peers: const SyncManifest({}),
+        checkpoint: SyncCheckpoint(
+          const {},
+          entities: {
+            skillWire: {
+              's': SyncCheckpointEntry(
+                updatedAtUs: 1000,
+                digest: combineSkillDigest(payloadDigest, 'hash-a'),
+              ),
+            },
+          },
+        ),
+        skillWire: skillWire,
+      );
+      expect(plan.single.action, SyncConvAction.iDelete);
+    });
+
+    test('a skill local to one device is offered to the other', () {
+      final plan = planSkillContentSync(
+        mine: skillManifest('s', 1000, 'hash-a'),
+        peers: const SyncManifest({}),
+        checkpoint: SyncCheckpoint.empty,
+        skillWire: skillWire,
+      );
+      expect(plan.single.action, SyncConvAction.iSend);
+    });
+
+    test('a record without a body compares unequal to one with a body', () {
+      // The sentinel is a legal digest value, so "no directory here" cannot
+      // silently equal a real directory hash.
+      expect(
+        combineSkillDigest(payloadDigest, 'missing'),
+        isNot(combineSkillDigest(payloadDigest, 'hash-a')),
+      );
+    });
+  });
+
+  group('blob wire shapes (slice 3)', () {
+    test('a blob entry round-trips and keys its retry by target', () {
+      const entry = SyncBlobEntry(
+        kind: SyncBlobEntry.kindSkillDir,
+        key: 'writer',
+        contentHash: 'abc123',
+      );
+      final decoded = SyncBlobEntry.fromJson(entry.toJson());
+      expect(decoded.kind, entry.kind);
+      expect(decoded.key, entry.key);
+      expect(decoded.contentHash, entry.contentHash);
+      expect(decoded.target, entry.target);
+      expect(decoded, entry, reason: 'equality ignores byteSize');
+
+      expect(entry.withSize(42).byteSize, 42);
+      expect(entry.withSize(42), entry);
+    });
+
+    test('hello carries the listener port the responder pulls from', () {
+      final hello = SyncHello(
+        protocolVersion: kSyncProtocolVersion,
+        schemaVersion: 7,
+        deviceId: 'd1',
+        deviceName: 'laptop',
+        platform: 'windows',
+        manifest: const SyncManifest({}),
+        listenPort: 9527,
+      );
+      final decoded = SyncHello.fromJson(hello.toJson());
+      expect(decoded.listenPort, 9527);
+      expect(decoded.protocolVersion, kSyncProtocolVersion);
+      // Absent means "no listener": a v3 peer never invents one.
+      expect(
+        SyncHello.fromJson(
+          SyncHello(
+            protocolVersion: kSyncProtocolVersion,
+            schemaVersion: 7,
+            deviceId: 'd1',
+            deviceName: 'laptop',
+            platform: 'windows',
+            manifest: const SyncManifest({}),
+          ).toJson(),
+        ).listenPort,
+        isNull,
+      );
+    });
+
+    test('a delta batch round-trips its manifest and skill hashes', () {
+      final batch = SyncDeltaBatch(
+        const [],
+        assets: const [
+          SyncBlobEntry(
+            kind: SyncBlobEntry.kindFile,
+            key: 'kelivo-file:///images/a.png',
+            contentHash: 'h1',
+            byteSize: 12,
+          ),
+        ],
+        skillHashes: const {'writer': 'dirhash'},
+      );
+      final decoded = SyncDeltaBatch.decodeJson(batch.encodeJson());
+      expect(decoded.assets.single.key, 'kelivo-file:///images/a.png');
+      expect(decoded.assets.single.byteSize, 12);
+      expect(decoded.skillHashes, {'writer': 'dirhash'});
+    });
+
+    test('a checkpoint round-trips pending blobs and skill baselines', () {
+      final checkpoint = SyncCheckpoint(
+        const {},
+        pendingBlobs: const {
+          'file\u0000kelivo-file:///images/a.png': SyncBlobEntry(
+            kind: SyncBlobEntry.kindFile,
+            key: 'kelivo-file:///images/a.png',
+            contentHash: 'h1',
+          ),
+        },
+        skillHashes: const {'writer': 'dirhash'},
+      );
+      final decoded = SyncCheckpoint.fromJson(checkpoint.toJson());
+      expect(decoded.pendingBlobs.keys.single, contains('images/a.png'));
+      expect(decoded.pendingBlobs.values.single.contentHash, 'h1');
+      expect(decoded.skillHashes, {'writer': 'dirhash'});
+      // A checkpoint written before slice 3 simply has neither map.
+      final legacy = SyncCheckpoint.fromJson(const {'version': 1});
+      expect(legacy.pendingBlobs, isEmpty);
+      expect(legacy.skillHashes, isEmpty);
+    });
+  });
 }

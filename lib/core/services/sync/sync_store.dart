@@ -25,6 +25,36 @@ class SyncStore {
   Future<void> ensureDirectories() async {
     await _peersDir.create(recursive: true);
     await _checkpointsDir.create(recursive: true);
+    await _blobCacheDir.create(recursive: true);
+  }
+
+  // ---- blob transfer scratch space ----
+
+  Directory get _blobCacheDir =>
+      Directory('${root.path}${Platform.pathSeparator}blob-cache');
+
+  /// A fresh empty file for one incoming blob. The caller deletes it after
+  /// applying (or failing); nothing here is durable state.
+  Future<File> newBlobTempFile() async {
+    await _blobCacheDir.create(recursive: true);
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    final file = File(
+      '${_blobCacheDir.path}${Platform.pathSeparator}in-$stamp-$_tempCounter.bin',
+    );
+    _tempCounter++;
+    return file;
+  }
+
+  static int _tempCounter = 0;
+
+  /// Drops transfer scratch space left behind by a previous run.
+  Future<void> clearBlobCache() async {
+    if (!await _blobCacheDir.exists()) return;
+    try {
+      await _blobCacheDir.delete(recursive: true);
+    } catch (error) {
+      debugPrint('sync store: could not clear blob cache: $error');
+    }
   }
 
   // ---- peers ----

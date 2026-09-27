@@ -22410,6 +22410,30 @@ abstract class AppLocalizations {
   /// **'{n} preferences'**
   String lanSyncReportPreferences(Object n);
 
+  /// No description provided for @lanSyncReportBlobs.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} files'**
+  String lanSyncReportBlobs(Object n);
+
+  /// No description provided for @lanSyncReportSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} skills'**
+  String lanSyncReportSkills(Object n);
+
+  /// No description provided for @lanSyncReportSkillConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} skill edits replaced'**
+  String lanSyncReportSkillConflicts(Object n);
+
+  /// No description provided for @lanSyncReportBlobsMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} files missing on the other device'**
+  String lanSyncReportBlobsMissing(Object n);
+
   /// No description provided for @lanSyncReportFailed.
   ///
   /// In en, this message translates to:
@@ -22467,7 +22491,7 @@ abstract class AppLocalizations {
   /// No description provided for @lanSyncKnownLimits.
   ///
   /// In en, this message translates to:
-  /// **'For now: image attachments do not travel with a conversation yet, and PIN pairing should only be used on networks you trust.'**
+  /// **'For now: workspaces stay on the device that created them, and PIN pairing should only be used on networks you trust.'**
   String get lanSyncKnownLimits;
 }
 

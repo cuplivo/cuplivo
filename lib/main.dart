@@ -162,6 +162,10 @@ void _wireSyncReloaders(BuildContext ctx) {
     // Memory entries ride sync as entity rows; this re-reads the current scope
     // without narrowing what the memory UI is showing.
     reloader.register(() => ctx.read<MemoryProviderV2>().reloadCurrentScope());
+    // Skill records and bodies ride sync (slice 3): a record row arrives as an
+    // entity row and a swapped-in directory changes what the service exposes,
+    // so the rescan must run even when only a body moved.
+    reloader.register(() => ctx.read<SkillsService>().rescan());
   } catch (error) {
     debugPrint('Failed to wire sync reloaders: $error');
   }

@@ -12549,6 +12549,26 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n files';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n skills';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n skill edits replaced';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n files missing on the other device';
+  }
+
+  @override
   String lanSyncReportFailed(Object error) {
     return 'Sync failed: $error';
   }
@@ -12585,5 +12605,5 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lanSyncKnownLimits =>
-      'For now: image attachments do not travel with a conversation yet, and PIN pairing should only be used on networks you trust.';
+      'For now: workspaces stay on the device that created them, and PIN pairing should only be used on networks you trust.';
 }

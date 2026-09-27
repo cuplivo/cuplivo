@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
+
+import 'blob_sync.dart';
 import 'sync_client.dart';
 import 'sync_data_plane.dart';
 import 'sync_identity.dart';
@@ -29,6 +32,15 @@ class SyncSessionReport {
   final int entityRows;
   final int preferenceRows;
 
+  /// Blobs this device received and landed (slice 3), the bytes they carried,
+  /// skill bodies that converged, skills whose local content lost the
+  /// deterministic conflict rule, and blobs that could not be fetched.
+  final int blobsMoved;
+  final int blobBytes;
+  final int skillsUpdated;
+  final int skillConflicts;
+  final int blobsMissing;
+
   const SyncSessionReport({
     required this.success,
     required this.summary,
@@ -41,6 +53,11 @@ class SyncSessionReport {
     this.conversationsDeletedLocally = 0,
     this.entityRows = 0,
     this.preferenceRows = 0,
+    this.blobsMoved = 0,
+    this.blobBytes = 0,
+    this.skillsUpdated = 0,
+    this.skillConflicts = 0,
+    this.blobsMissing = 0,
   });
 
   /// The persistable, localizable form stored on the peer record.
@@ -54,6 +71,11 @@ class SyncSessionReport {
     deferred: deferred,
     entityRows: entityRows,
     preferenceRows: preferenceRows,
+    blobsMoved: blobsMoved,
+    blobBytes: blobBytes,
+    skillsUpdated: skillsUpdated,
+    skillConflicts: skillConflicts,
+    blobsMissing: blobsMissing,
     refusal: refusal,
     error: success || refusal != null ? null : summary,
   );
@@ -91,6 +113,13 @@ class SyncEngine implements SyncServerHandler {
   final Random _random = Random.secure();
   final Map<String, _ResponderSession> _sessions = {};
 
+  /// What this device published for a manifest, by content hash: files are
+  /// served straight from their canonical path, skill directories are zipped
+  /// on demand. Populated whenever a manifest is built or received, so a blob
+  /// pending from an earlier session in this launch is still servable.
+  final Map<String, File> _publishedBlobs = {};
+  final Map<String, String> _publishedSkillIds = {};
+
   String? _pairingPin;
   DateTime? _pairingExpiresAt;
   SyncSessionReport? lastReport;
@@ -119,6 +148,10 @@ class SyncEngine implements SyncServerHandler {
   /// when it is taken. Returns the bound port.
   Future<int> start({int preferredPort = kPreferredPort}) async {
     await store.ensureDirectories();
+    // Transfer scratch and served-zip caches are reproducible, so a launch
+    // starts from an empty cache instead of accumulating stale archives.
+    await store.clearBlobCache();
+    await dataPlane.clearSkillBlobCache();
     try {
       return await server.start(requestedPort: preferredPort);
     } on SocketException {
@@ -129,6 +162,8 @@ class SyncEngine implements SyncServerHandler {
   Future<void> stop() async {
     await server.stop();
     _sessions.clear();
+    _publishedBlobs.clear();
+    _publishedSkillIds.clear();
     _pairingPin = null;
     _pairingExpiresAt = null;
   }
@@ -215,6 +250,10 @@ class SyncEngine implements SyncServerHandler {
           deviceName: identity.name,
           platform: platformTag(),
           manifest: myManifest,
+          // Advertised so the responder can pull its blobs back over this
+          // device's listener (slice 3). `this.port` on purpose: the method's
+          // own `port` parameter is the peer's endpoint, not ours.
+          listenPort: this.port,
         ),
       );
       if (hello.refusal != null) {
@@ -250,6 +289,15 @@ class SyncEngine implements SyncServerHandler {
         peers: peerHello.manifest,
         checkpoint: previous,
       );
+      final skillPlan = planSkillContentSync(
+        mine: myManifest,
+        peers: peerHello.manifest,
+        checkpoint: previous,
+        skillWire: SyncDataPlane.skillWire,
+      );
+      // Skill directory hashes as they stand *before* anything is applied:
+      // both the outgoing manifest and the content verdict are read from here.
+      final mySkillHashes = await dataPlane.skillDirHashes();
 
       final skippedSends = <String>{};
       final outgoing = <SyncSubtreePayload>[];
@@ -294,8 +342,26 @@ class SyncEngine implements SyncServerHandler {
       final sentBusiness = outgoingRead.keys;
 
       if (outgoing.isNotEmpty || !outgoingBusiness.isEmpty) {
+        // The blob manifest describes exactly what this push carries, so the
+        // responder can ask for any asset it lacks before applying the rows.
+        final outgoingAssets = await dataPlane.buildBlobManifest(
+          subtrees: outgoing,
+          business: outgoingBusiness,
+        );
+        _rememberPublished(outgoingAssets);
+        // Only the skill bodies this push actually carries advertise a hash.
+        final sentSkillIds =
+            outgoingEntityIds[SyncDataPlane.skillWire] ?? const <String>{};
         await session.pushDelta(
-          SyncDeltaBatch(outgoing, business: outgoingBusiness),
+          SyncDeltaBatch(
+            outgoing,
+            business: outgoingBusiness,
+            assets: outgoingAssets,
+            skillHashes: {
+              for (final id in sentSkillIds)
+                if (mySkillHashes[id] != null) id: mySkillHashes[id]!,
+            },
+          ),
         );
       }
 
@@ -336,6 +402,37 @@ class SyncEngine implements SyncServerHandler {
           preferenceKeys: requestedPreferenceKeys.toList(growable: false),
         ),
       );
+      _rememberPublished(incoming.assets);
+
+      // Blob beat: what this device must pull from the peer, in one pass —
+      // the files the incoming rows reference, any skill body whose content
+      // arc says the peer wins, and whatever a previous session still owes.
+      final adoptions = _planSkillAdoptions(
+        plan: skillPlan,
+        mine: myManifest,
+        peers: peerHello.manifest,
+        peerSkillHashes: incoming.skillHashes,
+        mySkillHashes: mySkillHashes,
+        myDeviceId: identity.deviceId,
+        peerDeviceId: peer.deviceId,
+      );
+      final wanted = <String, SyncBlobEntry>{
+        for (final entry in await dataPlane.neededFileBlobs(incoming.assets))
+          entry.target: entry,
+        for (final adoption in adoptions.wanted) adoption.target: adoption,
+        // Retries from earlier sessions: a superseded target is replaced by
+        // the fresh entry above, an already-satisfied one is re-checked below.
+      };
+      for (final pending in previous.pendingBlobs.values) {
+        wanted.putIfAbsent(pending.target, () => pending);
+      }
+      final pulled = await _pullBlobs(wanted.values.toList(), session);
+      final deferredSkills = {
+        ...adoptions.deferred,
+        for (final id in adoptions.wantedSkillIds)
+          if (!pulled.landedSkillIds.contains(id)) id,
+      };
+
       final delivered = {
         for (final subtree in incoming.subtrees)
           subtree.conversation['id'] as String,
@@ -349,13 +446,28 @@ class SyncEngine implements SyncServerHandler {
           checkpointRowsByConversation: _rowsOf(previous, delivered),
         ),
       );
+      if (pulled.landedByUri.isNotEmpty) {
+        await dataPlane.registerLandedAssets(
+          subtrees: incoming.subtrees,
+          landedByUri: pulled.landedByUri,
+        );
+      }
 
-      final receivedBusiness = dataPlane.businessKeysOf(incoming.business);
-      final businessOutcome = await dataPlane.applyBusiness(
+      // A skill record whose body did not converge is deferred: a record
+      // without its directory would only install a broken skill here.
+      final applicableBusiness = dataPlane.withoutSkillRows(
         incoming.business,
+        deferredSkills,
+      );
+      final receivedBusiness = dataPlane.businessKeysOf(applicableBusiness);
+      final businessOutcome = await dataPlane.applyBusiness(
+        applicableBusiness,
         myDeviceId: identity.deviceId,
         peerDeviceId: peer.deviceId,
       );
+      // A swapped-in or deleted skill body changes what the skills service
+      // exposes even when the record row itself did not move.
+      if (pulled.landedSkillIds.isNotEmpty) await dataPlane.reloadBusiness();
 
       final deleted = <String>{};
       final failedDeletes = <String>{};
@@ -368,11 +480,15 @@ class SyncEngine implements SyncServerHandler {
 
       final deletedBusiness = <String>{};
       final failedBusinessDeletes = <String>{};
+      final deletedSkillIds = <String>{};
       for (final item in businessPlan) {
         if (item.action != SyncConvAction.iDelete) continue;
         final key = syncBusinessKey(item.kindWire, item.id);
         final ok = await dataPlane.deleteBusinessRow(item.kindWire, item.id);
         (ok ? deletedBusiness : failedBusinessDeletes).add(key);
+        if (ok && item.kindWire == SyncDataPlane.skillWire) {
+          deletedSkillIds.add(item.id);
+        }
       }
       // A deletion writes through the repository, not through
       // BusinessPreferences, so the in-memory view the providers read has to be
@@ -397,12 +513,23 @@ class SyncEngine implements SyncServerHandler {
         failedDeleteKeys: failedBusinessDeletes,
         applyDeferred: businessOutcome.deferred,
       );
+      // Read back after every apply: on both sides the local hash *is* the
+      // converged value once the exchange succeeded.
+      final nextSkillHashes = await _advanceSkillHashes(
+        previous: previous,
+        plan: skillPlan,
+        deferredSkills: deferredSkills,
+        deletedSkills: deletedSkillIds,
+        localHashes: await dataPlane.skillDirHashes(),
+      );
       await store.saveCheckpoint(
         peer.deviceId,
         SyncCheckpoint(
           next.conversations,
           entities: nextBusiness.entities,
           preferences: nextBusiness.preferences,
+          pendingBlobs: pulled.failed,
+          skillHashes: nextSkillHashes,
         ),
       );
       return await _finish(
@@ -413,8 +540,11 @@ class SyncEngine implements SyncServerHandler {
           deferred: skippedSends.length + missingIncoming.length,
           deletedLocally: deleted.length,
           business: outgoingBusiness,
-          receivedBusiness: incoming.business,
+          receivedBusiness: applicableBusiness,
           appliedBusiness: businessOutcome,
+          blobPull: pulled,
+          skillConflicts: adoptions.conflicts.length,
+          deferredSkills: deferredSkills.length,
         ),
         peer: peer,
         host: endpointHost,
@@ -438,8 +568,9 @@ class SyncEngine implements SyncServerHandler {
   @override
   Future<Object> handleHello(
     String peerDeviceId,
-    SyncHello initiatorHello,
-  ) async {
+    SyncHello initiatorHello, {
+    String? remoteAddress,
+  }) async {
     _dropExpiredSessions();
     if (initiatorHello.protocolVersion != kSyncProtocolVersion) {
       return const SyncHelloRefusal(
@@ -482,8 +613,16 @@ class SyncEngine implements SyncServerHandler {
         peers: initiatorHello.manifest,
         checkpoint: checkpoint,
       ),
+      skillPlan: planSkillContentSync(
+        mine: myManifest,
+        peers: initiatorHello.manifest,
+        checkpoint: checkpoint,
+        skillWire: SyncDataPlane.skillWire,
+      ),
+      myManifest: myManifest,
       checkpoint: checkpoint,
       startedAt: DateTime.now(),
+      initiatorHost: remoteAddress,
     );
     return SyncHello(
       protocolVersion: kSyncProtocolVersion,
@@ -492,6 +631,7 @@ class SyncEngine implements SyncServerHandler {
       deviceName: identity.name,
       platform: platformTag(),
       manifest: myManifest,
+      listenPort: port,
     );
   }
 
@@ -502,6 +642,43 @@ class SyncEngine implements SyncServerHandler {
   ) async {
     final session = _sessions[peerDeviceId];
     if (session == null) throw StateError('sync_session_missing');
+    _rememberPublished(batch.assets);
+
+    // Blob beat, responder side. The initiator pushed rows before the fetch
+    // beat, so anything those rows reference has to arrive now — and the only
+    // way here is back over the initiator's own listener, which its hello
+    // advertised. A missing endpoint or a refused connection is not fatal:
+    // the blobs go pending and the rows still apply (a skill record waits).
+    final mySkillHashes = await dataPlane.skillDirHashes();
+    final adoptions = _planSkillAdoptions(
+      plan: session.skillPlan,
+      mine: session.myManifest,
+      peers: session.initiatorHello.manifest,
+      peerSkillHashes: batch.skillHashes,
+      mySkillHashes: mySkillHashes,
+      myDeviceId: identity.deviceId,
+      peerDeviceId: peerDeviceId,
+    );
+    final wanted = <String, SyncBlobEntry>{
+      for (final entry in await dataPlane.neededFileBlobs(batch.assets))
+        entry.target: entry,
+      for (final adoption in adoptions.wanted) adoption.target: adoption,
+      for (final pending in session.checkpoint.pendingBlobs.values)
+        pending.target: pending,
+    };
+    session.blobPull = await _pullBlobsFrom(
+      peerDeviceId: peerDeviceId,
+      host: session.initiatorHost,
+      port: session.initiatorHello.listenPort,
+      wanted: wanted.values.toList(),
+    );
+    session.deferredSkills = {
+      ...adoptions.deferred,
+      for (final id in adoptions.wantedSkillIds)
+        if (!session.blobPull.landedSkillIds.contains(id)) id,
+    };
+    session.skillConflicts = adoptions.conflicts;
+
     final outcomes = await dataPlane.applySubtrees(
       batch.subtrees,
       myDeviceId: identity.deviceId,
@@ -512,17 +689,64 @@ class SyncEngine implements SyncServerHandler {
       }),
     );
     session.outcomes.addAll(outcomes);
+    if (session.blobPull.landedByUri.isNotEmpty) {
+      await dataPlane.registerLandedAssets(
+        subtrees: batch.subtrees,
+        landedByUri: session.blobPull.landedByUri,
+      );
+    }
     // Business rows arrive in the same push; the responder's own plan already
     // decided what it needs from the initiator, so this is purely an apply.
     // One push per session, so the payload is kept as-is for the checkpoint
     // and the report.
-    session.receivedBusiness = batch.business;
-    session.businessOutcome = await dataPlane.applyBusiness(
+    final applicable = dataPlane.withoutSkillRows(
       batch.business,
+      session.deferredSkills,
+    );
+    session.receivedBusiness = applicable;
+    session.businessOutcome = await dataPlane.applyBusiness(
+      applicable,
       myDeviceId: identity.deviceId,
       peerDeviceId: peerDeviceId,
     );
+    if (session.blobPull.landedSkillIds.isNotEmpty) {
+      await dataPlane.reloadBusiness();
+    }
     return outcomes.length;
+  }
+
+  /// Pulls blobs from the initiator over its own listener, using the pairing
+  /// this device already holds (pinned certificate + per-peer secret). Returns
+  /// an all-failed outcome when no endpoint is known — the session continues
+  /// and the entries stay pending.
+  Future<_BlobPullOutcome> _pullBlobsFrom({
+    required String peerDeviceId,
+    required String? host,
+    required int? port,
+    required List<SyncBlobEntry> wanted,
+  }) async {
+    if (wanted.isEmpty) return _BlobPullOutcome();
+    final peer = await store.findPeer(peerDeviceId);
+    if (peer == null || host == null || port == null) {
+      final outcome = _BlobPullOutcome();
+      for (final entry in wanted) {
+        outcome.failed[entry.target] = entry;
+      }
+      return outcome;
+    }
+    final reverse = client.openSession(peer, host: host, port: port);
+    try {
+      return await _pullBlobs(wanted, reverse);
+    } catch (error) {
+      debugPrint('sync: reverse blob pull failed: $error');
+      final outcome = _BlobPullOutcome();
+      for (final entry in wanted) {
+        outcome.failed[entry.target] = entry;
+      }
+      return outcome;
+    } finally {
+      reverse.close();
+    }
   }
 
   @override
@@ -570,11 +794,15 @@ class SyncEngine implements SyncServerHandler {
 
     final deletedBusiness = <String>{};
     final failedBusinessDeletes = <String>{};
+    final deletedSkillIds = <String>{};
     for (final item in session.businessPlan) {
       if (item.action != SyncConvAction.iDelete) continue;
       final key = syncBusinessKey(item.kindWire, item.id);
       final ok = await dataPlane.deleteBusinessRow(item.kindWire, item.id);
       (ok ? deletedBusiness : failedBusinessDeletes).add(key);
+      if (ok && item.kindWire == SyncDataPlane.skillWire) {
+        deletedSkillIds.add(item.id);
+      }
     }
     // Deletions bypass BusinessPreferences, so refresh the in-memory view the
     // providers read; the apply above only refreshes when it wrote a row.
@@ -600,12 +828,43 @@ class SyncEngine implements SyncServerHandler {
       failedDeleteKeys: failedBusinessDeletes,
       applyDeferred: session.businessOutcome?.deferred ?? false,
     );
+    final skillHashes = await _advanceSkillHashes(
+      previous: session.checkpoint,
+      plan: session.skillPlan,
+      deferredSkills: session.deferredSkills,
+      deletedSkills: deletedSkillIds,
+      localHashes: await dataPlane.skillDirHashes(),
+    );
+    // The response batch carries this side's blob manifest for exactly what it
+    // is sending, so the initiator can pull the same way this device just did.
+    final responseAssets = await dataPlane.buildBlobManifest(
+      subtrees: outgoing,
+      business: businessRead.payload,
+    );
+    _rememberPublished(responseAssets);
+    final sentSkillIds = {
+      for (final row
+          in businessRead.payload.entities[SyncDataPlane.skillWire] ?? const [])
+        if (row['id'] is String) row['id'] as String,
+    };
+    final mySkillHashes = await dataPlane.skillDirHashes();
+    final responseBatch = SyncDeltaBatch(
+      outgoing,
+      business: businessRead.payload,
+      assets: responseAssets,
+      skillHashes: {
+        for (final id in sentSkillIds)
+          if (mySkillHashes[id] != null) id: mySkillHashes[id]!,
+      },
+    );
     await store.saveCheckpoint(
       peerDeviceId,
       SyncCheckpoint(
         next.conversations,
         entities: nextBusiness.entities,
         preferences: nextBusiness.preferences,
+        pendingBlobs: session.blobPull.failed,
+        skillHashes: skillHashes,
       ),
     );
     final peer = await store.findPeer(peerDeviceId);
@@ -620,12 +879,15 @@ class SyncEngine implements SyncServerHandler {
         business: businessRead.payload,
         receivedBusiness: session.receivedBusiness,
         appliedBusiness: session.businessOutcome,
+        blobPull: session.blobPull,
+        skillConflicts: session.skillConflicts.length,
+        deferredSkills: session.deferredSkills.length,
       ).toPeerReport();
       await store.savePeer(peer);
     }
     _sessions.remove(peerDeviceId);
     onStateChanged();
-    return SyncDeltaBatch(outgoing, business: businessRead.payload);
+    return responseBatch;
   }
 
   @override
@@ -846,6 +1108,203 @@ class SyncEngine implements SyncServerHandler {
     );
   }
 
+  // ---- blobs (slice 3) ----
+
+  /// Advances the per-peer skill-content baseline. The rule is the row rule
+  /// applied to bodies: a skill the session resolved converges on the local
+  /// hash (which *is* the shared value once the exchange succeeded), a deleted
+  /// skill drops its entry, and a deferred body keeps the previous baseline so
+  /// the next session re-plans it.
+  Future<Map<String, String>> _advanceSkillHashes({
+    required SyncCheckpoint previous,
+    required List<SkillContentPlan> plan,
+    required Set<String> deferredSkills,
+    required Set<String> deletedSkills,
+    required Map<String, String> localHashes,
+  }) async {
+    final next = <String, String>{...previous.skillHashes};
+    for (final item in plan) {
+      final id = item.skillId;
+      if (deletedSkills.contains(id)) {
+        next.remove(id);
+        continue;
+      }
+      if (deferredSkills.contains(id)) continue; // keep the prior baseline
+      switch (item.action) {
+        case SyncConvAction.iDelete:
+        case SyncConvAction.peerDeletes:
+        case SyncConvAction.bothDeleted:
+          next.remove(id);
+        case SyncConvAction.none:
+        case SyncConvAction.iSend:
+        case SyncConvAction.peerSends:
+        case SyncConvAction.bothSend:
+          final hash = localHashes[id];
+          if (hash == null) {
+            next.remove(id);
+          } else {
+            next[id] = hash;
+          }
+      }
+    }
+    return next;
+  }
+
+  /// What the skill plan means for this device's content: the peer bodies to
+  /// pull, the records that cannot be verified yet, and the local edits the
+  /// deterministic rule discards (reported, never silent).
+  _SkillAdoptionPlan _planSkillAdoptions({
+    required List<SkillContentPlan> plan,
+    required SyncManifest mine,
+    required SyncManifest peers,
+    required Map<String, String> peerSkillHashes,
+    required Map<String, String> mySkillHashes,
+    required String myDeviceId,
+    required String peerDeviceId,
+  }) {
+    final out = _SkillAdoptionPlan();
+    final mineRows =
+        mine.entities[SyncDataPlane.skillWire] ??
+        const <String, SyncManifestEntry>{};
+    final peerRows =
+        peers.entities[SyncDataPlane.skillWire] ??
+        const <String, SyncManifestEntry>{};
+    for (final item in plan) {
+      final bothChanged = item.action == SyncConvAction.bothSend;
+      final adopt = switch (item.action) {
+        SyncConvAction.peerSends => true,
+        // Both bodies changed: the record clock decides, exactly as it does
+        // for a row, and both peers reach the same verdict independently.
+        SyncConvAction.bothSend => incomingBusinessRowWins(
+          localUpdatedAtUs: mineRows[item.skillId]?.updatedAtUs ?? 0,
+          incomingUpdatedAtUs: peerRows[item.skillId]?.updatedAtUs ?? 0,
+          myDeviceId: myDeviceId,
+          peerDeviceId: peerDeviceId,
+        ),
+        _ => false,
+      };
+      if (!adopt) continue;
+      // Adopting the peer's body means the local edit is gone; that is the
+      // "loser" the report must name.
+      if (bothChanged) out.conflicts.add(item.skillId);
+      final peerHash = peerSkillHashes[item.skillId];
+      if (peerHash == null) {
+        // A record arrived whose body hash did not: nothing can be verified,
+        // so the record waits for a session that carries the hash.
+        out.deferred.add(item.skillId);
+        continue;
+      }
+      if (mySkillHashes[item.skillId] == peerHash) {
+        continue; // already identical
+      }
+      out.wanted.add(
+        SyncBlobEntry(
+          kind: SyncBlobEntry.kindSkillDir,
+          key: item.skillId,
+          contentHash: peerHash,
+        ),
+      );
+      out.wantedSkillIds.add(item.skillId);
+    }
+    return out;
+  }
+
+  /// Pulls and applies every wanted blob over [session], returning what landed
+  /// and what must be retried. One blob's failure never aborts the session: a
+  /// conversation is still a conversation without its picture, and a skill
+  /// record is simply deferred.
+  Future<_BlobPullOutcome> _pullBlobs(
+    List<SyncBlobEntry> wanted,
+    SyncClientSession session,
+  ) async {
+    final outcome = _BlobPullOutcome();
+    for (final entry in wanted) {
+      File? temp;
+      try {
+        temp = await store.newBlobTempFile();
+        final bytes = await session.fetchBlob(entry, temp);
+        if (entry.kind == SyncBlobEntry.kindSkillDir) {
+          final applied = await dataPlane.applySkillBlob(
+            skillId: entry.key,
+            dirHash: entry.contentHash,
+            zip: temp,
+          );
+          if (applied) {
+            outcome.landedSkillIds.add(entry.key);
+            outcome.bytes += bytes;
+          } else {
+            outcome.failed[entry.target] = entry;
+          }
+        } else {
+          final landed = await placeFileBlob(
+            entry,
+            temp,
+            resolve: dataPlane.blobPathResolver,
+          );
+          if (landed == null) {
+            outcome.failed[entry.target] = entry;
+          } else {
+            outcome.landedByUri[entry.key] = entry.withSize(landed);
+            outcome.bytes += landed;
+          }
+        }
+      } catch (error) {
+        debugPrint('sync blob ${entry.contentHash} failed: $error');
+        outcome.failed[entry.target] = entry;
+      } finally {
+        if (temp != null) {
+          try {
+            if (await temp.exists()) await temp.delete();
+          } catch (_) {}
+        }
+      }
+    }
+    return outcome;
+  }
+
+  /// Remembers what this device can serve for a manifest it just published.
+  /// The server resolves a blob hash from here first (the common case), then
+  /// falls back to the asset registry and a live skill hash scan — which is
+  /// what lets a blob pending from an *earlier* session still be served.
+  void _rememberPublished(List<SyncBlobEntry> entries) {
+    for (final entry in entries) {
+      if (entry.kind == SyncBlobEntry.kindFile) {
+        final resolved = dataPlane.blobPathResolver(entry.key);
+        if (resolved != null) {
+          _publishedBlobs[entry.contentHash] = File(resolved);
+        }
+      } else if (entry.kind == SyncBlobEntry.kindSkillDir) {
+        _publishedSkillIds[entry.contentHash] = entry.key;
+      }
+    }
+  }
+
+  @override
+  Future<File?> handleFetchBlob(String peerDeviceId, String contentHash) async {
+    try {
+      final published = _publishedBlobs[contentHash];
+      if (published != null && await published.exists()) return published;
+      final skillId = _publishedSkillIds[contentHash];
+      if (skillId != null) {
+        return await dataPlane.skillBlobForHash(
+          skillId: skillId,
+          dirHash: contentHash,
+        );
+      }
+      // A pending retry from a previous launch: the content-addressed asset
+      // registry is the durable authority for what this device holds.
+      final registered = await dataPlane.assetFileForContentHash(contentHash);
+      if (registered != null && await registered.exists()) return registered;
+      // A skill body that still hashes to the requested value.
+      return await dataPlane.skillBlobForContentHash(contentHash);
+    } catch (error) {
+      // A body that changed between the manifest and the fetch is simply not
+      // servable: the peer records the miss and retries next session.
+      debugPrint('sync: serving blob $contentHash failed: $error');
+      return null;
+    }
+  }
+
   SyncSessionReport _report({
     required int sent,
     required int received,
@@ -855,6 +1314,9 @@ class SyncEngine implements SyncServerHandler {
     SyncBusinessPayload business = const SyncBusinessPayload(),
     SyncBusinessPayload receivedBusiness = const SyncBusinessPayload(),
     SyncBusinessApplyOutcome? appliedBusiness,
+    _BlobPullOutcome? blobPull,
+    int skillConflicts = 0,
+    int deferredSkills = 0,
   }) {
     var upserted = 0;
     var deleted = 0;
@@ -866,6 +1328,10 @@ class SyncEngine implements SyncServerHandler {
         _entityRowCount(business) + _entityRowCount(receivedBusiness);
     final preferenceRows =
         business.preferences.length + receivedBusiness.preferences.length;
+    final blobsMoved = blobPull?.landedCount ?? 0;
+    final blobBytes = blobPull?.bytes ?? 0;
+    final skillsUpdated = blobPull?.landedSkillIds.length ?? 0;
+    final blobsMissing = blobPull?.failed.length ?? 0;
     final parts = <String>[
       'sent $sent',
       'received $received',
@@ -874,6 +1340,11 @@ class SyncEngine implements SyncServerHandler {
       if (deletedLocally > 0) '-$deletedLocally convs',
       if (entityRows > 0) 'entities $entityRows',
       if (preferenceRows > 0) 'prefs $preferenceRows',
+      if (blobsMoved > 0) 'blobs $blobsMoved ($blobBytes B)',
+      if (skillsUpdated > 0) 'skills $skillsUpdated',
+      if (skillConflicts > 0) '$skillConflicts skill conflicts',
+      if (blobsMissing > 0) '$blobsMissing blobs missing',
+      if (deferredSkills > 0) 'deferred $deferredSkills skills',
       if (deferred > 0) 'deferred $deferred',
       if (appliedBusiness?.deferred == true) 'business deferred',
     ];
@@ -888,6 +1359,11 @@ class SyncEngine implements SyncServerHandler {
       conversationsDeletedLocally: deletedLocally,
       entityRows: entityRows,
       preferenceRows: preferenceRows,
+      blobsMoved: blobsMoved,
+      blobBytes: blobBytes,
+      skillsUpdated: skillsUpdated,
+      skillConflicts: skillConflicts,
+      blobsMissing: blobsMissing,
     );
   }
 
@@ -951,15 +1427,28 @@ class _ResponderSession {
     required this.initiatorHello,
     required this.plan,
     required this.businessPlan,
+    required this.skillPlan,
+    required this.myManifest,
     required this.checkpoint,
     required this.startedAt,
+    this.initiatorHost,
   });
 
   final SyncHello initiatorHello;
   final List<SyncConvPlan> plan;
   final List<SyncBusinessPlanItem> businessPlan;
+  final List<SkillContentPlan> skillPlan;
+
+  /// This device's manifest as built for the hello: the skill-content verdict
+  /// and the response batch are both read from it.
+  final SyncManifest myManifest;
   final SyncCheckpoint checkpoint;
   final DateTime startedAt;
+
+  /// The address the initiator connected from, as this listener saw it: with
+  /// `initiatorHello.listenPort` it is the endpoint used to pull blobs back.
+  final String? initiatorHost;
+
   final Map<String, SyncSubtreeApplyOutcome> outcomes = {};
 
   /// Business rows the initiator pushed in this session's one PUT.
@@ -967,4 +1456,32 @@ class _ResponderSession {
 
   /// Result of applying them, for the checkpoint and the report.
   SyncBusinessApplyOutcome? businessOutcome;
+
+  /// Blobs this responder pulled from the initiator in this session.
+  _BlobPullOutcome blobPull = _BlobPullOutcome();
+
+  /// Skill records the push carried whose body could not be verified here.
+  Set<String> deferredSkills = {};
+
+  /// Local skill edits the deterministic content rule discarded.
+  Set<String> skillConflicts = {};
+}
+
+/// Outcome of pulling one session's blobs: what landed, what must be retried,
+/// and how many bytes crossed.
+class _BlobPullOutcome {
+  final Map<String, SyncBlobEntry> landedByUri = {};
+  final Set<String> landedSkillIds = {};
+  final Map<String, SyncBlobEntry> failed = {};
+  int bytes = 0;
+
+  int get landedCount => landedByUri.length + landedSkillIds.length;
+}
+
+/// What the skill-content plan asks of this device.
+class _SkillAdoptionPlan {
+  final List<SyncBlobEntry> wanted = [];
+  final Set<String> wantedSkillIds = {};
+  final Set<String> deferred = {};
+  final Set<String> conflicts = {};
 }

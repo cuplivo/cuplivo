@@ -3277,9 +3277,9 @@ class SettingsProvider extends ChangeNotifier {
       final old = getProviderConfig(key);
       if (old.avatarType == 'file' && (old.avatarValue ?? '').isNotEmpty) {
         try {
-          final oldFile = File(old.avatarValue!);
+          final oldFile = File(SandboxPathResolver.fix(old.avatarValue!));
           if ((oldFile.path.contains('/avatars/') ||
-                  oldFile.path.contains('\\\\avatars\\\\')) &&
+                  oldFile.path.contains('\\avatars\\')) &&
               await oldFile.exists()) {
             await oldFile.delete();
           }
@@ -3288,14 +3288,20 @@ class SettingsProvider extends ChangeNotifier {
 
       await setProviderConfig(
         key,
-        old.copyWith(avatarType: 'file', avatarValue: dest.path),
+        old.copyWith(
+          avatarType: 'file',
+          avatarValue: SandboxPathResolver.canonicalStorage(dest.path),
+        ),
       );
     } catch (_) {
       // Fallback: still save original path
       final old = getProviderConfig(key);
       await setProviderConfig(
         key,
-        old.copyWith(avatarType: 'file', avatarValue: fixedInput),
+        old.copyWith(
+          avatarType: 'file',
+          avatarValue: SandboxPathResolver.canonicalStorage(fixedInput),
+        ),
       );
     }
   }
@@ -3323,21 +3329,20 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> resetProviderAvatar(String key) async {
     final old = getProviderConfig(key);
-    // Attempt to remove old local file if we managed it
-    if (old.avatarType == 'file' && (old.avatarValue ?? '').isNotEmpty) {
-      try {
-        final f = File(old.avatarValue!);
-        if ((f.path.contains('/avatars/') ||
-                f.path.contains('\\\\avatars\\\\')) &&
-            await f.exists()) {
-          await f.delete();
-        }
-      } catch (_) {}
-    }
     // Best-effort: evict cached URL avatar
     if (old.avatarType == 'url' && (old.avatarValue ?? '').isNotEmpty) {
       try {
         await AvatarCache.evict(old.avatarValue!);
+      } catch (_) {}
+    }
+    // Remove old local file if we managed it (dual-form: URI or legacy path).
+    if (old.avatarType == 'file' && (old.avatarValue ?? '').isNotEmpty) {
+      try {
+        final f = File(SandboxPathResolver.fix(old.avatarValue!));
+        if ((f.path.contains('/avatars/') || f.path.contains('\\avatars\\')) &&
+            await f.exists()) {
+          await f.delete();
+        }
       } catch (_) {}
     }
     await setProviderConfig(

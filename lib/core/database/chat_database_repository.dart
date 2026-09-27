@@ -4955,6 +4955,21 @@ class ChatDatabaseRepository {
   /// enforced by the symmetric version gate (ADR-0002).
   int get syncSchemaVersion => _db.schemaVersion;
 
+  /// The registered path for a content hash, or null when this device never
+  /// registered that content. The registry is content-addressed
+  /// (`asset_rows.id = 'asset_<sha256>'`), which is what lets a blob served to
+  /// a peer be looked up by hash alone instead of by path.
+  Future<String?> assetPathForContentHash(String contentHash) async {
+    if (contentHash.isEmpty) return null;
+    final row = await _db
+        .customSelect(
+          'SELECT path FROM asset_rows WHERE id = ?;',
+          variables: <Variable<Object>>[Variable<String>('asset_$contentHash')],
+        )
+        .getSingleOrNull();
+    return row?.read<String>('path');
+  }
+
   /// Conversation references for manifest building.
   Future<List<({String conversationId, int updatedAtUs})>>
   syncConversationRefs() async {

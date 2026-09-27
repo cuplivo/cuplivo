@@ -74,6 +74,10 @@ String syncReportMessage(AppLocalizations l10n, SyncSessionReport report) {
     deferred: report.deferred,
     entityRows: report.entityRows,
     preferenceRows: report.preferenceRows,
+    blobsMoved: report.blobsMoved,
+    skillsUpdated: report.skillsUpdated,
+    skillConflicts: report.skillConflicts,
+    blobsMissing: report.blobsMissing,
   );
 }
 
@@ -93,6 +97,10 @@ String syncPeerReportMessage(AppLocalizations l10n, SyncPeerReport report) {
     deferred: report.deferred,
     entityRows: report.entityRows,
     preferenceRows: report.preferenceRows,
+    blobsMoved: report.blobsMoved,
+    skillsUpdated: report.skillsUpdated,
+    skillConflicts: report.skillConflicts,
+    blobsMissing: report.blobsMissing,
   );
 }
 
@@ -106,6 +114,10 @@ String _syncCountsMessage(
   required int deferred,
   required int entityRows,
   required int preferenceRows,
+  int blobsMoved = 0,
+  int skillsUpdated = 0,
+  int skillConflicts = 0,
+  int blobsMissing = 0,
 }) {
   final parts = <String>[
     l10n.lanSyncReportSent(sent),
@@ -116,6 +128,12 @@ String _syncCountsMessage(
       l10n.lanSyncReportConversationsDeleted(deletedConversations),
     if (entityRows > 0) l10n.lanSyncReportEntities(entityRows),
     if (preferenceRows > 0) l10n.lanSyncReportPreferences(preferenceRows),
+    if (blobsMoved > 0) l10n.lanSyncReportBlobs(blobsMoved),
+    if (skillsUpdated > 0) l10n.lanSyncReportSkills(skillsUpdated),
+    // "Nothing silent": both the discarded local edit and the blob that never
+    // arrived are named in the summary rather than left to a log.
+    if (skillConflicts > 0) l10n.lanSyncReportSkillConflicts(skillConflicts),
+    if (blobsMissing > 0) l10n.lanSyncReportBlobsMissing(blobsMissing),
     if (deferred > 0) l10n.lanSyncReportDeferred(deferred),
   ];
   return parts.join(' · ');

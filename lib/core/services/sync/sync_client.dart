@@ -8,6 +8,17 @@ import 'sync_models.dart';
 import 'sync_server.dart';
 import 'sync_store.dart';
 
+/// Collects the single digest a chunked hash conversion produces.
+class _DigestSink implements Sink<crypto.Digest> {
+  crypto.Digest? value;
+
+  @override
+  void add(crypto.Digest data) => value = data;
+
+  @override
+  void close() {}
+}
+
 /// Raised when the peer answers a request with a refusal or an error status.
 class SyncClientException implements Exception {
   final String message;
@@ -212,6 +223,61 @@ class SyncClientSession {
       );
     }
     return (body['applied'] as num?)?.toInt() ?? 0;
+  }
+
+  /// Streams one blob into [destination]. A file blob is hashed while it
+  /// writes and refused when the digest does not match [entry]'s content hash.
+  ///
+  /// A skill-directory entry is *not* byte-verified: its hash describes the
+  /// unpacked tree (see `SkillDirectorySync`), and the zip bytes have no
+  /// published digest of their own. That entry is verified by re-hashing the
+  /// extracted directory before it is swapped in, which is strictly stronger
+  /// than a transport checksum. Returns the received byte size; [destination]
+  /// is deleted on any failure.
+  Future<int> fetchBlob(SyncBlobEntry entry, File destination) async {
+    final request = await _client.getUrl(
+      Uri.parse('$_baseUrl${SyncServer.blobPathPrefix}${entry.contentHash}'),
+    );
+    _authenticate(request);
+    final response = await request.close();
+    if (response.statusCode != HttpStatus.ok) {
+      // Drain so the connection can be reused/closed cleanly.
+      await response.drain<void>();
+      throw SyncClientException(
+        'blob_unavailable',
+        statusCode: response.statusCode,
+      );
+    }
+    final digestSink = _DigestSink();
+    final conversion = crypto.sha256.startChunkedConversion(digestSink);
+    var received = 0;
+    final sink = destination.openWrite();
+    try {
+      await for (final chunk in response) {
+        conversion.add(chunk);
+        received += chunk.length;
+        sink.add(chunk);
+      }
+      conversion.close();
+      await sink.flush();
+      await sink.close();
+    } catch (_) {
+      await sink.close();
+      await _deleteQuietly(destination);
+      rethrow;
+    }
+    final mustVerifyBytes = entry.kind == SyncBlobEntry.kindFile;
+    if (mustVerifyBytes && digestSink.value?.toString() != entry.contentHash) {
+      await _deleteQuietly(destination);
+      throw const SyncClientException('blob_digest_mismatch');
+    }
+    return received;
+  }
+
+  static Future<void> _deleteQuietly(File file) async {
+    try {
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
   }
 
   void close() => _client.close(force: true);

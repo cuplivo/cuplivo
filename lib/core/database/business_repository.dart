@@ -561,28 +561,27 @@ WHERE id IN ($placeholders);
   // ---------------------------------------------------------------------------
 
   /// Entity kinds that never ride sync. Workspaces are host paths and local
-  /// project directories by definition; a skill travels as a record plus its
-  /// directory blob (slice 3), and a record without its body would only install
-  /// a broken skill on the peer.
+  /// project directories by definition. Skills ride as record + directory
+  /// blob since slice 3; the record no longer travels alone because the blob
+  /// channel guarantees the body follows it.
   static const syncExcludedKinds = <BusinessEntityKind>{
     BusinessEntityKind.workspace,
-    BusinessEntityKind.skill,
   };
 
   /// Ids per `IN (...)` batch, well under SQLite's bound-variable limit.
   static const _syncIdBatch = 200;
 
-  static final Map<String, BusinessEntityKind> _syncKindByTable = {
+  static final Map<String, BusinessEntityKind> _syncKindByWire = {
     for (final kind in BusinessEntityKind.values)
-      if (!syncExcludedKinds.contains(kind)) kind.tableName: kind,
+      if (!syncExcludedKinds.contains(kind)) kind.wireName: kind,
   };
 
-  static Iterable<BusinessEntityKind> get _syncKinds => _syncKindByTable.values;
+  static Iterable<BusinessEntityKind> get _syncKinds => _syncKindByWire.values;
 
-  /// The entity kind behind a wire kind (table) name, or null for a kind this
-  /// build does not sync — an unknown name is ignored rather than fatal.
+  /// The entity kind behind a wire name, or null for a kind this build does
+  /// not sync — an unknown name is ignored rather than fatal.
   static BusinessEntityKind? syncKindForWire(String wire) =>
-      _syncKindByTable[wire];
+      _syncKindByWire[wire];
 
   /// Every syncable entity row as a manifest ref: wire kind, row id, the row's
   /// mutation clock and a content hash of its payload. The hash is what makes
@@ -593,17 +592,20 @@ WHERE id IN ($placeholders);
     final refs =
         <({String kindWire, String id, int updatedAtUs, String digest})>[];
     for (final kind in _syncKinds) {
+      final extensionFilter = kind.extensionKind == null
+          ? ''
+          : " WHERE kind = '${kind.extensionKind}'";
       final rows = await _database
           .customSelect(
             'SELECT ${kind.idColumn}, payload, updated_at FROM '
-            '${kind.tableName};',
+            '${kind.tableName}$extensionFilter;',
           )
           .get();
       for (final row in rows) {
         final id = row.read<String>(kind.idColumn);
         final payload = row.read<String>('payload');
         refs.add((
-          kindWire: kind.tableName,
+          kindWire: kind.wireName,
           id: id,
           updatedAtUs: row.read<int>('updated_at'),
           digest: businessContentDigest(payload),
@@ -633,6 +635,22 @@ WHERE id IN ($placeholders);
     ];
   }
 
+  /// The row ids of one syncable kind (empty for a kind this build does not
+  /// sync). Extension kinds share a table, so the kind column filters.
+  Future<Set<String>> syncEntityIds(String kindWire) async {
+    final kind = syncKindForWire(kindWire);
+    if (kind == null) return const {};
+    final extensionFilter = kind.extensionKind == null
+        ? ''
+        : " WHERE kind = '${kind.extensionKind}'";
+    final rows = await _database
+        .customSelect(
+          'SELECT ${kind.idColumn} FROM ${kind.tableName}$extensionFilter;',
+        )
+        .get();
+    return {for (final row in rows) row.read<String>(kind.idColumn)};
+  }
+
   /// The named entity rows, as raw column maps ready to travel.
   Future<List<Map<String, dynamic>>> syncReadEntityRows(
     String kindWire,
@@ -642,10 +660,14 @@ WHERE id IN ($placeholders);
     if (kind == null || ids.isEmpty) return const [];
     final rows = <Map<String, dynamic>>[];
     for (final batch in _batched(ids)) {
+      final extensionFilter = kind.extensionKind == null
+          ? ''
+          : " AND kind = '${kind.extensionKind}'";
       final result = await _database
           .customSelect(
-            'SELECT * FROM ${kind.tableName} WHERE ${kind.idColumn} IN '
-            '(${List.filled(batch.length, '?').join(', ')});',
+            'SELECT * FROM ${kind.tableName} '
+            'WHERE ${kind.idColumn} IN '
+            '(${List.filled(batch.length, '?').join(', ')})$extensionFilter;',
             variables: [for (final id in batch) Variable<String>(id)],
           )
           .get();
@@ -698,6 +720,10 @@ WHERE id IN ($placeholders);
           if (id is! String || id.isEmpty) continue;
           final incomingAt = (row['updated_at'] as num?)?.toInt();
           if (incomingAt == null) continue;
+          // An extension kind travels under its own wire name; the row must
+          // carry (or receive) exactly that kind value, never another. The
+          // table's primary key is (kind, id), so the conflict target grows.
+          if (kind.extensionKind != null) row['kind'] = kind.extensionKind;
           final localAt = await _syncEntityClock(kind, id);
           if (localAt != null &&
               !incomingBusinessRowWins(
@@ -708,7 +734,12 @@ WHERE id IN ($placeholders);
               )) {
             continue;
           }
-          await _upsertSyncRow(kind.tableName, columns, row, [kind.idColumn]);
+          await _upsertSyncRow(
+            kind.tableName,
+            columns,
+            row,
+            kind.extensionKind == null ? [kind.idColumn] : const ['kind', 'id'],
+          );
           entityRowsWritten++;
         }
       }
@@ -753,8 +784,11 @@ WHERE id IN ($placeholders);
   Future<bool> syncDeleteEntity(String kindWire, String id) async {
     final kind = syncKindForWire(kindWire);
     if (kind == null || id.isEmpty) return false;
+    final extensionFilter = kind.extensionKind == null
+        ? ''
+        : " AND kind = '${kind.extensionKind}'";
     final statement = _database.customStatement(
-      'DELETE FROM ${kind.tableName} WHERE ${kind.idColumn} = ?;',
+      'DELETE FROM ${kind.tableName} WHERE ${kind.idColumn} = ?$extensionFilter;',
       <Object?>[id],
     );
     await statement;
@@ -776,9 +810,13 @@ WHERE id IN ($placeholders);
   }
 
   Future<int?> _syncEntityClock(BusinessEntityKind kind, String id) async {
+    final extensionFilter = kind.extensionKind == null
+        ? ''
+        : " AND kind = '${kind.extensionKind}'";
     final row = await _database
         .customSelect(
-          'SELECT updated_at FROM ${kind.tableName} WHERE ${kind.idColumn} = ?;',
+          'SELECT updated_at FROM ${kind.tableName} '
+          'WHERE ${kind.idColumn} = ?$extensionFilter;',
           variables: <Variable<Object>>[Variable<String>(id)],
         )
         .getSingleOrNull();

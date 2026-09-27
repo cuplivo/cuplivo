@@ -4378,6 +4378,10 @@
   "lanSyncReportDeferred": "{n} 項延後",
   "lanSyncReportEntities": "{n} 個實體",
   "lanSyncReportPreferences": "{n} 項偏好",
+  "lanSyncReportBlobs": "{n} 個檔案",
+  "lanSyncReportSkills": "{n} 個技能",
+  "lanSyncReportSkillConflicts": "{n} 處技能修改被覆蓋",
+  "lanSyncReportBlobsMissing": "{n} 個檔案在對方裝置上缺失",
   "lanSyncReportFailed": "同步失敗：{error}",
   "lanSyncRefusedPeerSchemaNewer": "對方資料庫版本較新。請先更新本裝置再同步。",
   "lanSyncRefusedProtocolUnknown": "對方使用不同的同步協定。請將兩台裝置都更新到最新版本。",
@@ -4387,5 +4391,5 @@
   "lanSyncFirewallHint": "連接埠 {port} 的入站規則需要一次管理員授權。",
   "lanSyncFirewallFix": "允許存取（UAC）",
   "lanSyncFirewallFixed": "入站存取已允許。",
-  "lanSyncKnownLimits": "目前限制：圖片附件暫不隨對話同步；PIN 配對請僅在你信任的網路中使用。"
+  "lanSyncKnownLimits": "目前：工作區仍只留在建立它的裝置上；PIN 配對請僅在可信網路中使用。"
 }

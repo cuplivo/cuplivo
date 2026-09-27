@@ -4354,6 +4354,10 @@
   "lanSyncReportDeferred": "{n} 项延后",
   "lanSyncReportEntities": "{n} 个实体",
   "lanSyncReportPreferences": "{n} 项偏好",
+  "lanSyncReportBlobs": "{n} 个文件",
+  "lanSyncReportSkills": "{n} 个技能",
+  "lanSyncReportSkillConflicts": "{n} 处技能修改被覆盖",
+  "lanSyncReportBlobsMissing": "{n} 个文件在对方设备上缺失",
   "lanSyncReportFailed": "同步失败：{error}",
   "lanSyncRefusedPeerSchemaNewer": "对方数据库版本较新。请先更新本设备再同步。",
   "lanSyncRefusedProtocolUnknown": "对方使用不同的同步协议。请将两台设备都更新到最新版本。",
@@ -4363,5 +4367,5 @@
   "lanSyncFirewallHint": "端口 {port} 的入站规则需要一次管理员授权。",
   "lanSyncFirewallFix": "允许访问（UAC）",
   "lanSyncFirewallFixed": "入站访问已允许。",
-  "lanSyncKnownLimits": "目前限制：图片附件暂不随对话同步；PIN 配对请仅在你信任的网络中使用。"
+  "lanSyncKnownLimits": "目前：工作区仍只留在创建它的设备上；PIN 配对请仅在可信网络中使用。"
 }

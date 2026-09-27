@@ -5465,6 +5465,10 @@
   "lanSyncReportDeferred": "{n} deferred",
   "lanSyncReportEntities": "{n} entities",
   "lanSyncReportPreferences": "{n} preferences",
+  "lanSyncReportBlobs": "{n} files",
+  "lanSyncReportSkills": "{n} skills",
+  "lanSyncReportSkillConflicts": "{n} skill edits replaced",
+  "lanSyncReportBlobsMissing": "{n} files missing on the other device",
   "lanSyncReportFailed": "Sync failed: {error}",
   "lanSyncRefusedPeerSchemaNewer": "The other device's database is newer. Update this device first, then sync again.",
   "lanSyncRefusedProtocolUnknown": "The other device speaks a different sync protocol. Update the app on both devices.",
@@ -5474,5 +5478,5 @@
   "lanSyncFirewallHint": "The inbound rule for port {port} needs one-time administrator approval.",
   "lanSyncFirewallFix": "Allow access (UAC)",
   "lanSyncFirewallFixed": "Inbound access allowed.",
-  "lanSyncKnownLimits": "For now: image attachments do not travel with a conversation yet, and PIN pairing should only be used on networks you trust."
+  "lanSyncKnownLimits": "For now: workspaces stay on the device that created them, and PIN pairing should only be used on networks you trust."
 }

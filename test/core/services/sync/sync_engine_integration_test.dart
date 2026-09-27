@@ -8,7 +8,10 @@ import 'package:Cuplivo/core/database/business_repository.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/skills/skill_directory_sync.dart';
+import 'package:Cuplivo/core/services/sync/blob_sync.dart';
 import 'package:Cuplivo/core/services/sync/sync_data_plane.dart';
 import 'package:Cuplivo/core/services/sync/sync_engine.dart';
 import 'package:Cuplivo/core/services/sync/sync_identity.dart';
@@ -51,6 +54,8 @@ class _NewerSchemaPlane extends SyncDataPlane {
     required super.chatService,
     required super.businessRepository,
     super.businessPreferences,
+    super.skillDirectories,
+    super.blobPathResolver,
   });
 
   @override
@@ -73,9 +78,72 @@ class _Side {
   late final BusinessPreferences businessPreferences;
   late final SyncDeviceIdentity identity;
   late final SyncStore store;
+  late final SkillDirectorySync skillDirectories;
   late final SyncDataPlane dataPlane;
   late final SyncEngine engine;
   late final int port;
+
+  /// This side's managed file root: `kelivo-file:///<rel>` resolves under it.
+  /// One test process hosts both peers, so the sandbox resolver's single
+  /// global root cannot serve both — each plane gets this instead.
+  String? resolveBlob(String uri) {
+    const prefix = 'kelivo-file:///';
+    if (!uri.startsWith(prefix)) return null;
+    final rest = uri.substring(prefix.length);
+    if (rest.isEmpty) return null;
+    return '${dir.path}/$rest';
+  }
+
+  /// The skills root the data plane hashes, zips and swaps in.
+  Directory get skillsRoot => Directory('${dir.path}/skills');
+
+  /// Installs a skill body the way the skills service does: files on disk plus
+  /// the extension entity row that owns them.
+  Future<void> putSkill(
+    String id,
+    Map<String, String> files, {
+    bool enabled = true,
+  }) async {
+    for (final entry in files.entries) {
+      final file = File('${skillsRoot.path}/$id/${entry.key}');
+      await file.parent.create(recursive: true);
+      await file.writeAsString(entry.value, flush: true);
+    }
+    await businessRepository.syncApplyBusinessRows(
+      entities: {
+        BusinessEntityKind.skill.wireName: [
+          {
+            'kind': 'skill',
+            'id': id,
+            'sort_order': 0,
+            'owner_id': null,
+            'payload': jsonEncode({
+              'id': id,
+              'enabled': enabled,
+              'useCount': 0,
+              'source': 'file',
+              'installedAt': '2026-01-01T00:00:00.000Z',
+              'updatedAt': '2026-01-01T00:00:00.000Z',
+            }),
+            'updated_at': 1000000,
+          },
+        ],
+      },
+      preferences: const [],
+      myDeviceId: 'seed',
+      peerDeviceId: 'seed',
+    );
+  }
+
+  Future<String> skillBody(String id) async {
+    final file = File('${skillsRoot.path}/$id/SKILL.md');
+    return await file.exists() ? file.readAsString() : '';
+  }
+
+  Future<bool> hasSkillRow(String id) async =>
+      (await businessRepository.syncEntityIds(
+        BusinessEntityKind.skill.wireName,
+      )).contains(id);
 
   Future<void> start(Directory root) async {
     dir = Directory('${root.path}/$label');
@@ -90,18 +158,23 @@ class _Side {
     await chatService.init();
     identity = await SyncDeviceIdentity.loadOrCreate(dir, fallbackName: label);
     store = SyncStore(dir);
+    skillDirectories = SkillDirectorySync(skillsRoot);
     dataPlane = newerSchema
         ? _NewerSchemaPlane(
             repository: repository,
             chatService: chatService,
             businessRepository: businessRepository,
             businessPreferences: businessPreferences,
+            skillDirectories: skillDirectories,
+            blobPathResolver: resolveBlob,
           )
         : SyncDataPlane(
             repository: repository,
             chatService: chatService,
             businessRepository: businessRepository,
             businessPreferences: businessPreferences,
+            skillDirectories: skillDirectories,
+            blobPathResolver: resolveBlob,
           );
     engine = SyncEngine(
       identity: identity,
@@ -203,11 +276,35 @@ Future<void> _seedConversation(
   );
 }
 
+/// A conversation whose only message carries an attachment part pointing at
+/// [uri]. Written the way the backup importer does, so parts and the asset
+/// reference dirty markers are produced by the real write path.
+Future<void> _seedConversationWithImage(
+  _Side side, {
+  required String id,
+  required String uri,
+}) async {
+  final message = ChatMessage(
+    id: '$id-m0',
+    conversationId: id,
+    role: 'user',
+    content: '',
+    parts: [ImagePart(uri: uri, mime: 'image/png')],
+  );
+  await side.repository.putMigrationBatch(
+    conversations: [
+      Conversation(id: id, title: id).copyWith(messageIds: [message.id]),
+    ],
+    messages: [(message: message, messageOrder: 0)],
+    toolEventsByMessageId: const {},
+    geminiSignaturesByMessageId: const {},
+  );
+}
+
 Future<Set<String>> _conversationIds(_Side side) async => {
   for (final ref in await side.repository.syncConversationRefs())
     ref.conversationId,
 };
-
 Future<Set<String>> _messageIds(_Side side, String conversationId) async => {
   for (final row in await side.repository.syncReadMessageRows(conversationId))
     row['id'] as String,
@@ -584,4 +681,190 @@ void main() {
     );
     expect((await _assistantsOf(a))['assistant-1'], contains('Edited on B'));
   });
+
+  // ---- slice 3: blobs ----
+
+  test('a skill record and its body both arrive', () async {
+    final (a, b) = await pair();
+    await a.putSkill('writer', {
+      'SKILL.md': '# writer\n\nWrites things.\n',
+      'scripts/run.sh': 'echo run\n',
+    });
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    final responderReport = (await b.peer(a)).lastReport;
+    expect(
+      await b.hasSkillRow('writer'),
+      isTrue,
+      reason:
+          'A=${report.summary} B=${jsonEncode(responderReport?.toJson() ?? const {})}',
+    );
+    // The body moved during the responder's reverse pull, so the counter that
+    // names it lives on the responder's record.
+    expect(responderReport?.skillsUpdated, 1);
+    expect(responderReport?.blobsMissing, 0);
+    // The body, not just the row: a record without its directory would install
+    // a broken skill.
+    expect(await b.skillBody('writer'), contains('Writes things.'));
+    expect(
+      await File('${b.skillsRoot.path}/writer/scripts/run.sh').readAsString(),
+      'echo run\n',
+    );
+    // Both sides agree on the directory hash, which is the content baseline
+    // the next session compares.
+    expect(
+      await b.skillDirectories.hashOf('writer'),
+      await a.skillDirectories.hashOf('writer'),
+    );
+
+    // Nothing left to move.
+    final second = await a.engine.syncWithPeer(await a.peer(b));
+    expect(second.skillsUpdated, 0);
+    expect(second.blobsMoved, 0);
+  });
+
+  test(
+    'a body-only edit converges even though the record clock does not move',
+    () async {
+      final (a, b) = await pair();
+      await a.putSkill('writer', {'SKILL.md': '# writer v1\n'});
+      await a.engine.syncWithPeer(await a.peer(b));
+      expect(await b.skillBody('writer'), '# writer v1\n');
+
+      // Editing the body alone: the record row and its `updated_at` are
+      // untouched, so only the directory hash can make this visible.
+      await File(
+        '${a.skillsRoot.path}/writer/SKILL.md',
+      ).writeAsString('# writer v2\n', flush: true);
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+      // The body is pulled by the responder, so its record carries the counters.
+      expect((await b.peer(a)).lastReport?.skillsUpdated, 1);
+      expect(await b.skillBody('writer'), '# writer v2\n');
+    },
+  );
+
+  test('a skill deleted on one device loses its body on the other', () async {
+    final (a, b) = await pair();
+    await a.putSkill('writer', {'SKILL.md': '# writer\n'});
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(await b.hasSkillRow('writer'), isTrue);
+
+    // Deleting the record and the directory together is what the skills
+    // service does; sync must do the same, or the rescan resurrects the row.
+    await a.businessRepository.syncDeleteEntity('skill', 'writer');
+    await a.skillDirectories.deleteDirectory('writer');
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(await b.hasSkillRow('writer'), isFalse);
+    expect(await Directory('${b.skillsRoot.path}/writer').exists(), isFalse);
+
+    // And it stays gone across another session.
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(await b.hasSkillRow('writer'), isFalse);
+  });
+
+  test('a concurrent skill edit discards the loser and names it', () async {
+    final (a, b) = await pair();
+    await a.putSkill('writer', {'SKILL.md': '# shared\n'});
+    await a.engine.syncWithPeer(await a.peer(b));
+
+    // Both sides edit the body; the record clocks stay equal, so the deviceId
+    // rule decides — and the loser is reported rather than dropped in silence.
+    await File(
+      '${a.skillsRoot.path}/writer/SKILL.md',
+    ).writeAsString('# from A\n', flush: true);
+    await File(
+      '${b.skillsRoot.path}/writer/SKILL.md',
+    ).writeAsString('# from B\n', flush: true);
+    const tie = 1700000000000000;
+    await _forceUpdatedAt(
+      a,
+      table: 'extension_entity_rows',
+      idColumn: 'id',
+      id: 'writer',
+      updatedAtUs: tie,
+    );
+    await _forceUpdatedAt(
+      b,
+      table: 'extension_entity_rows',
+      idColumn: 'id',
+      id: 'writer',
+      updatedAtUs: tie,
+    );
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+
+    final aWins = a.identity.deviceId.compareTo(b.identity.deviceId) > 0;
+    final winner = aWins ? '# from A\n' : '# from B\n';
+    expect(await a.skillBody('writer'), winner);
+    expect(await b.skillBody('writer'), winner);
+    // The side that lost its edit says so; the winner's report names nothing.
+    expect(report.skillConflicts, aWins ? 0 : 1);
+  });
+
+  test('an attachment blob reaches the peer and is registered', () async {
+    final (a, b) = await pair();
+    // The peer has no such file: its own root is empty until the blob lands.
+    final image = File('${a.dir.path}/images/shot.png');
+    await image.parent.create(recursive: true);
+    await image.writeAsBytes(
+      List<int>.generate(4096, (index) => index % 251),
+      flush: true,
+    );
+    await _seedConversationWithImage(
+      a,
+      id: 'conv-img',
+      uri: 'kelivo-file:///images/shot.png',
+    );
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    // The file moved during the responder's reverse pull.
+    final responderReport = (await b.peer(a)).lastReport;
+    expect(responderReport?.blobsMoved, 1);
+    expect(responderReport?.blobsMissing, 0);
+
+    final landed = File('${b.dir.path}/images/shot.png');
+    expect(await landed.exists(), isTrue);
+    expect(
+      await landed.readAsBytes(),
+      await image.readAsBytes(),
+      reason: 'the blob is byte-identical',
+    );
+    // The asset registry owns it on the receiving side, which is what protects
+    // it from the GC sweep and lets a later session skip the transfer.
+    final registered = await b.repository.assetPathForContentHash(
+      await BlobFileHasher().hashOf(landed) ?? '',
+    );
+    expect(registered, 'kelivo-file:///images/shot.png');
+
+    // The next session has nothing to fetch.
+    final second = await a.engine.syncWithPeer(await a.peer(b));
+    expect(second.blobsMoved, 0);
+    expect(second.blobsMissing, 0);
+  });
+
+  test(
+    'a blob the peer cannot serve is reported and retried, not fatal',
+    () async {
+      final (a, b) = await pair();
+      // Reference a file that no longer exists on the sender: its own manifest
+      // skips it, so the receiver simply never learns about it — the session
+      // succeeds with no blob traffic and no missing-blob count.
+      await _seedConversationWithImage(
+        a,
+        id: 'conv-ghost',
+        uri: 'kelivo-file:///images/ghost.png',
+      );
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+      expect(report.blobsMoved, 0);
+      expect(await _conversationIds(b), contains('conv-ghost'));
+    },
+  );
 }

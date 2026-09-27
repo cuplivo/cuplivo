@@ -122,6 +122,65 @@ session and the same decision table as conversations. What the implementation se
   return deferred, and the session keeps its previous checkpoint entries to retry later rather
   than writing over a restore.
 
+## Amendment (2026-09, slice 3): blobs — attachments, avatars and skill bodies
+
+Decision 7 is implemented, and with it the general rule it implied: **blobs follow URIs**.
+The sender scans the rows it is actually sending (message parts, entity payloads, synced
+preference values) for `kelivo-file` URIs and publishes one blob entry per referenced file —
+canonical URI, sha256, byte size. A skill record publishes a directory entry instead, keyed by
+its directory hash. The receiver keeps what it already has (hash match), pulls the rest, and
+lands each file at the path its URI names.
+
+What the implementation settled:
+
+- **The wire protocol went to v3.** The session batch carries the blob manifest and the skill
+  directory hashes; hello carries the initiator's own listener port. A v2 peer is refused at
+  hello, because it would apply rows whose blobs it never receives — the broken-skill case the
+  slice-2 holdback existed to prevent.
+- **Blobs are pulled, never pushed, and the responder pulls back over the initiator's
+  listener.** The manifest travels with the rows, in both directions: the initiator pulls its
+  needs over the session it already has, and the responder — which has no session of its own —
+  opens a short authenticated client connection to `hello.listenPort` at the address the request
+  came from, using the certificate pin and per-peer secret pairing already established. One GET
+  per blob (`/sync/blob/<sha256>`), no Range or resume: a LAN retry is cheaper than a resumable
+  transfer state machine, and a failed blob is simply retried next session.
+- **URIs are never rewritten.** Placement is the canonical path the URI names, so the applied
+  rows keep byte-identical payloads and the conversation digests stay comparable. Rewriting a
+  URI locally would diverge that conversation's digest and re-send it forever.
+- **The server serves only what it published.** `handleFetchBlob` resolves a hash from the
+  manifest this device advertised, then from the content-addressed asset registry, then from a
+  live skill-directory hash scan; a request never names a path. The receiver's own writes are
+  root-allowlisted (`upload`, `images`, `avatars`, `fonts`) — `skills` is a directory blob, and
+  workspaces and sessions are device-local.
+- **GC needs no lease.** A landed blob is registered against the revisions that reference it
+  (`message_asset_rows`), which is exactly what protects it from the sweep and what makes the
+  next session skip it on the hash check. The residual race is the sender's own file
+  disappearing between manifest and fetch, which surfaces as a reported 404.
+- **A blob failure does not defer a conversation but does defer a skill.** A conversation
+  without its picture is still a conversation (the row applies, the blob goes pending, the
+  report names it); a skill record without its body would install a broken skill, so the record
+  waits — the slice-2 holdback, now enforced by the blob outcome rather than by excluding the
+  kind.
+- **A skill's content clock is its directory hash.** The record's `updated_at` does not track
+  body edits, so the manifest digest for a skill is the record payload digest combined with the
+  directory hash. That single change makes a body-only edit visible to the ordinary
+  presence-and-digest table: the unchanged side adopts the changed side, and a genuine
+  concurrent edit falls to the same clock-then-deviceId rule as every other row, with the loser
+  named in the report. Deletion removes the row *and* the directory in one operation, because
+  the skills rescan would otherwise resurrect a record for a directory that is still on disk.
+- **File avatars became portable.** `avatar_type: file` values were stored as host absolute
+  paths — meaningless on the peer. They are now written in canonical `kelivo-file` form (the
+  same storage form the branding rule already prescribed for managed files), which makes sync,
+  backup and cross-platform rendering work through the reading path that was already
+  dual-form. Legacy absolute values keep resolving and are canonicalized on load.
+- **A directory blob is verified after extraction, not as bytes.** Its hash describes the
+  unpacked tree, so the transport checksum would be the wrong check; the receiver re-hashes the
+  staged extraction and only then swaps it in, which subsumes a byte check.
+
+No order-repair maintenance task was added for the slice-2 message-order defect: the buggy code
+never shipped in a release, so the only affected data is unreleased test-device state, which any
+message edit in the affected conversation repairs.
+
 ## Considered options (rejected)
 
 - **Whole-database / backup-zip exchange** — not version-portable; a newer schema on an
@@ -139,6 +198,17 @@ session and the same decision table as conversations. What the implementation se
   upstream repository code; skew is surfaced in the report instead.
 - **Workspace sync** — managed workspaces are unbounded local project directories; linked
   workspaces are host paths by definition.
+- **Byte-verifying a skill zip against its entry hash** — the entry hash is the *directory*
+  hash (that is what makes content edits visible to the row plan), so verifying the zip bytes
+  against it rejects every honest transfer. Structural extraction plus a re-hash of the staged
+  tree is the check that matches the value's meaning. (Measured: the integration test failed
+  every skill transfer with `blob_digest_mismatch` until this was fixed.)
+- **Blob push in the session body** — no second connection, but custom binary framing, no
+  per-blob retry, and a huge response body; pulling one blob per GET over an authenticated
+  connection reuses the transport, the pin and the secret unchanged.
+- **A GC lease for in-flight transfers** — the registry registration that already protects a
+  referenced asset is the same thing that protects a freshly landed blob, so a lease would be
+  machinery for a window that no longer exists.
 
 ## Consequences
 
@@ -152,4 +222,10 @@ session and the same decision table as conversations. What the implementation se
   would reuse.
 - Clock skew tilts LWW within the warning threshold; the sync report names the offending
   device.
-- File avatars degrade on the peer in v1 (report-flagged); carrying them is additive later.
+- File avatars now travel (slice 3) instead of degrading: the stored value is canonical, so the
+  blob follows it like any other referenced file.
+- A blob that the sender no longer has is retried once per session while it stays pending, and
+  the report says how many never arrived; the *rows* still converge, so a missing picture never
+  blocks a conversation.
+- Serving a skill body costs one zip build per content hash and launch (cached under
+  `<skills>/.sync-blob-cache`), and directory hashing is memoised per launch by fingerprint.

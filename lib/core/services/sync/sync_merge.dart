@@ -210,6 +210,58 @@ bool incomingBusinessRowWins({
   return cmp >= 0;
 }
 
+/// One skill's content verdict for this session (slice 3).
+///
+/// The skill *record* rides the ordinary business plan; this is the separate
+/// decision about its directory body, which has no clock of its own. The
+/// record's `updated_at` does not track content edits, so the manifest digest
+/// for a skill is `combineSkillDigest(payloadDigest, dirHash)` — content edits
+/// are visible to [planRowSync], and the checkpoint holds the same combined
+/// digest, which is what makes "unchanged side adopts the changed side" work.
+class SkillContentPlan {
+  final String skillId;
+  final SyncConvAction action;
+
+  const SkillContentPlan(this.skillId, this.action);
+}
+
+/// Plans every skill directory against the same three views as the row plan.
+/// [skillWire] is the wire kind name of the skill entity kind (the authority
+/// is `BusinessEntityKind.skill.wireName`).
+///
+/// The caller resolves [SyncConvAction.bothSend] with the one LWW rule —
+/// newer record clock, ties to the higher deviceId — and reports the loser;
+/// this planner only says that both sides changed.
+List<SkillContentPlan> planSkillContentSync({
+  required SyncManifest mine,
+  required SyncManifest peers,
+  required SyncCheckpoint checkpoint,
+  required String skillWire,
+}) {
+  final mineRows =
+      mine.entities[skillWire] ?? const <String, SyncManifestEntry>{};
+  final peerRows =
+      peers.entities[skillWire] ?? const <String, SyncManifestEntry>{};
+  final checkpointRows =
+      checkpoint.entities[skillWire] ?? const <String, SyncCheckpointEntry>{};
+  final ids = <String>{
+    ...mineRows.keys,
+    ...peerRows.keys,
+    ...checkpointRows.keys,
+  };
+  return [
+    for (final id in ids)
+      SkillContentPlan(
+        id,
+        planRowSync(
+          mineDigest: mineRows[id]?.digest,
+          peerDigest: peerRows[id]?.digest,
+          checkpointDigest: checkpointRows[id]?.digest,
+        ),
+      ),
+  ];
+}
+
 /// Content hash of a business row's payload or a preference's value. It rides
 /// the manifest alongside `updated_at` so "same clock, different content"
 /// (skewed or coarse clocks) still counts as divergence and gets exchanged.

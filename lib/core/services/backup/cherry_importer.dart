@@ -114,7 +114,9 @@ class CherryImporter {
       // longer has, and a peer reading that absence as a deletion would delete
       // its own copies. Resetting them and bumping the data epoch makes the
       // paired devices re-converge from "nothing shared" instead.
-      await SyncStore.resetForBulkReplacement(await AppDirectories.getSyncDirectory());
+      await SyncStore.resetForBulkReplacement(
+        await AppDirectories.getSyncDirectory(),
+      );
     }
 
     // Materialize stays after the first DB write so overwrite cannot delete

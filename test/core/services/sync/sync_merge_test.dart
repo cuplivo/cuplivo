@@ -939,7 +939,10 @@ void main() {
         deviceName: 'one',
         platform: 'test',
         manifest: const SyncManifest({}),
-        deletedConversations: const {'conv-1': 'digest-a', 'conv-2': 'digest-b'},
+        deletedConversations: const {
+          'conv-1': 'digest-a',
+          'conv-2': 'digest-b',
+        },
       );
       final decoded = SyncHello.fromJson(hello.toJson());
       expect(decoded.deletedConversations, {

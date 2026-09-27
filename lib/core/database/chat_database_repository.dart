@@ -6231,10 +6231,11 @@ class ChatDatabaseRepository {
       // this device must not lower the clock of a message authored under a
       // skewed (future) peer clock, or the peer's untouched copy would win the
       // next exchange and revert the edit on both devices.
-      final existing = await (_db.select(_db.messageRows)
-            ..where((row) => row.id.equals(messageId))
-            ..limit(1))
-          .getSingleOrNull();
+      final existing =
+          await (_db.select(_db.messageRows)
+                ..where((row) => row.id.equals(messageId))
+                ..limit(1))
+              .getSingleOrNull();
       if (existing == null) return null;
       final now = DateTime.now().toUtc();
       final updatedAt = now.isBefore(existing.timestamp)

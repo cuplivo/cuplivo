@@ -73,10 +73,8 @@ void main() {
         Assistant.maxContextMessageSize,
       );
       expect(
-        Assistant(
-          id: 'high',
-          name: 'High',
-        ).copyWith(proactiveCareDecisionHistoryMessageLimit: 9999)
+        Assistant(id: 'high', name: 'High')
+            .copyWith(proactiveCareDecisionHistoryMessageLimit: 9999)
             .proactiveCareDecisionHistoryMessageLimit,
         Assistant.maxContextMessageSize,
       );

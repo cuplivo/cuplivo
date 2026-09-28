@@ -177,6 +177,32 @@ class _MidApplyWritePlane extends SyncDataPlane {
   }
 }
 
+/// A data plane that advertises file entries of the test's choosing — what a
+/// hostile (or compromised) paired peer can put on the wire: a path outside
+/// the managed roots, with a hash it picked.
+class _CraftedBlobPlane extends SyncDataPlane {
+  _CraftedBlobPlane({
+    required super.repository,
+    required super.chatService,
+    required super.businessRepository,
+    super.businessPreferences,
+    super.skillDirectories,
+    required super.blobPathResolver,
+    required this.crafted,
+  });
+
+  final List<SyncBlobEntry> crafted;
+
+  @override
+  Future<List<SyncBlobEntry>> buildBlobManifest({
+    required List<SyncSubtreePayload> subtrees,
+    required SyncBusinessPayload business,
+  }) async => [
+    ...await super.buildBlobManifest(subtrees: subtrees, business: business),
+    ...crafted,
+  ];
+}
+
 /// One device: its own sync directory, database, chat and business stores, and
 /// its own listener.
 class _Side {
@@ -275,6 +301,7 @@ class _Side {
     Future<void> Function(String conversationId)? midPushWrite,
     Future<void> Function(String conversationId)? midApplyWrite,
     Future<void> Function()? vanishBlob,
+    List<SyncBlobEntry>? craftedBlobs,
   }) async {
     dir = Directory('${root.path}/$label');
     await dir.create(recursive: true);
@@ -327,6 +354,16 @@ class _Side {
             skillDirectories: skillDirectories,
             blobPathResolver: resolveBlob,
             writeBeforeApply: midApplyWrite,
+          )
+        : craftedBlobs != null
+        ? _CraftedBlobPlane(
+            repository: repository,
+            chatService: chatService,
+            businessRepository: businessRepository,
+            businessPreferences: businessPreferences,
+            skillDirectories: skillDirectories,
+            blobPathResolver: resolveBlob,
+            crafted: craftedBlobs,
           )
         : SyncDataPlane(
             repository: repository,
@@ -1586,6 +1623,45 @@ void main() {
       );
     },
   );
+
+  test('a peer-named path outside the blob roots is never served', () async {
+    // The blob manifest arrives from the peer. Remembering a file entry by
+    // whatever path it names let a paired peer point at any readable local
+    // file and fetch it back by the hash it chose: the resolver returns an
+    // existing path unchanged, and the only gate left is the root allowlist.
+    final outside = File('${root.path}/a/outside/secret.txt');
+    await outside.parent.create(recursive: true);
+    await outside.writeAsString('secret', flush: true);
+
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(
+      root,
+      craftedBlobs: [
+        SyncBlobEntry(
+          kind: SyncBlobEntry.kindFile,
+          key: 'kelivo-file:///outside/secret.txt',
+          contentHash: 'a' * 64,
+          byteSize: 6,
+        ),
+      ],
+    );
+    await b.start(root);
+    sides.addAll([a, b]);
+    final pin = b.engine.openPairing();
+    await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+
+    // The session publishes that manifest on A's own push beat.
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+
+    expect(
+      await a.engine.handleFetchBlob(b.identity.deviceId, 'a' * 64),
+      isNull,
+      reason: 'the blob route must not serve a path the peer named',
+    );
+  });
 
   test('a conversation-row-only change transfers', () async {
     // A rename, a pin and a version selection touch only conversation_rows:

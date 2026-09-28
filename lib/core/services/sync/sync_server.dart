@@ -404,8 +404,9 @@ class SyncServer {
   }
 
   /// Streams one blob. The hash names the content; the handler decides which
-  /// local file (if any) backs it, so a request can never read an arbitrary
-  /// path off this device.
+  /// local file (if any) backs it, and a peer-supplied file entry is only ever
+  /// remembered for a managed blob root, so a request can never read an
+  /// arbitrary path off this device.
   Future<void> _handleBlob(HttpRequest request, String peerDeviceId) async {
     if (request.method != 'GET') {
       _safeRespond(request, HttpStatus.methodNotAllowed, {'error': 'get_only'});

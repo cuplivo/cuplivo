@@ -1732,9 +1732,15 @@ class SyncEngine implements SyncServerHandler {
   /// The server resolves a blob hash from here first (the common case), then
   /// falls back to the asset registry and a live skill hash scan — which is
   /// what lets a blob pending from an *earlier* session still be served.
+  ///
+  /// The entries come off the wire, so a file entry is only remembered when it
+  /// names a managed blob root — the same allowlist the manifest builder and
+  /// the placement path enforce. Without it a paired peer could name any
+  /// readable local file and fetch it back by a hash it chose.
   void _rememberPublished(List<SyncBlobEntry> entries) {
     for (final entry in entries) {
       if (entry.kind == SyncBlobEntry.kindFile) {
+        if (!isAllowedFileBlobUri(entry.key)) continue;
         final resolved = dataPlane.blobPathResolver(entry.key);
         if (resolved != null) {
           _publishedBlobs[entry.contentHash] = File(resolved);

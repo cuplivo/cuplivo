@@ -2545,6 +2545,22 @@ void main() {
 
   // ---- slice 3: blobs ----
 
+  test('a skill with no carried files still converges', () async {
+    // A directory whose only entry the policy excludes (a lone .DS_Store)
+    // hashes to the empty body. The sender has to be able to serve that body,
+    // or the peer asks for it every session and the record never lands.
+    final (a, b) = await pair();
+    await a.putSkill('blank', {'.DS_Store': 'junk'});
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(report.blobsMissing, 0);
+
+    expect(await b.hasSkillRow('blank'), isTrue);
+    expect(await b.skillDirectories.hashOf('blank'), kEmptySkillBodyHash);
+    expect(await b.skillBody('blank'), '');
+  });
+
   test('a skill record and its body both arrive', () async {
     final (a, b) = await pair();
     await a.putSkill('writer', {

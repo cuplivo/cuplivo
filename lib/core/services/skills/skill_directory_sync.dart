@@ -7,6 +7,15 @@ import 'package:path/path.dart' as p;
 
 import 'skill_archive.dart';
 
+/// The body hash of a skill whose carried set is empty — a directory that
+/// holds nothing that rides (or only names the policy excludes). It is a real
+/// body, and the hash, the zip and the extraction have to agree on it: when
+/// they did not, a peer holding this hash asked for a body this device could
+/// never produce, so the record stayed deferred session after session.
+final String kEmptySkillBodyHash = crypto.sha256
+    .convert(const <int>[])
+    .toString();
+
 /// Skill-directory carriage for LAN sync (ADR-0003 slice 3): a skill travels
 /// as its entity record plus its on-disk directory as one zip blob keyed by a
 /// directory hash — sha256 over the sorted `relpath\0fileDigest` lines. The
@@ -116,7 +125,13 @@ class SkillDirectorySync {
     try {
       final zipPath = zip.path;
       final stagingPath = staging.path;
-      await Isolate.run(() => extractSkillArchive(zipPath, stagingPath));
+      // An empty body is a body: its zip carries no entries, which the archive
+      // importer refuses outright, so staging is left as it is and the re-hash
+      // below is the verification. `dirHash` is the contract either way — a
+      // body that hashes to the empty set *is* the empty set.
+      if (dirHash != kEmptySkillBodyHash) {
+        await Isolate.run(() => extractSkillArchive(zipPath, stagingPath));
+      }
       final received = await Isolate.run(
         () => _hashSkillDirectory(stagingPath),
       );
@@ -277,9 +292,10 @@ void _writeSkillZip(String dirPath, String outputPath) {
       }
     }
   }
-  if (files.isEmpty) {
-    throw const FormatException('skill body has no files');
-  }
+  // An empty carried set still produces the empty body's zip: the hash
+  // advertised for it is servable, and the receiver converges to a directory
+  // with nothing that rides — refusing to write it made that hash a body no
+  // device could ever deliver.
   File(outputPath).writeAsBytesSync(encodeSkillZip(files), flush: true);
 }
 

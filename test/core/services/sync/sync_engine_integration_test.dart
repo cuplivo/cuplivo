@@ -203,6 +203,37 @@ class _CraftedBlobPlane extends SyncDataPlane {
   ];
 }
 
+/// A data plane that appends wire rows of the test's choosing to every subtree
+/// it reads back — what a crafted peer sends: a row carrying another
+/// conversation's message id, or one that labels itself as another
+/// conversation.
+class _CrossReferencingPlane extends SyncDataPlane {
+  _CrossReferencingPlane({
+    required super.repository,
+    required super.chatService,
+    required super.businessRepository,
+    super.businessPreferences,
+    super.skillDirectories,
+    required super.blobPathResolver,
+    required this.craft,
+  });
+
+  final List<Map<String, dynamic>> Function() craft;
+
+  @override
+  Future<SyncSubtreePayload?> readSubtree(String conversationId) async {
+    final subtree = await super.readSubtree(conversationId);
+    final extra = craft();
+    if (subtree == null || extra.isEmpty) return subtree;
+    return SyncSubtreePayload(
+      conversation: subtree.conversation,
+      messages: [...subtree.messages, ...extra],
+      parts: subtree.parts,
+      mcpServers: subtree.mcpServers,
+    );
+  }
+}
+
 /// One device: its own sync directory, database, chat and business stores, and
 /// its own listener.
 class _Side {
@@ -302,6 +333,7 @@ class _Side {
     Future<void> Function(String conversationId)? midApplyWrite,
     Future<void> Function()? vanishBlob,
     List<SyncBlobEntry>? craftedBlobs,
+    List<Map<String, dynamic>> Function()? craftedRows,
   }) async {
     dir = Directory('${root.path}/$label');
     await dir.create(recursive: true);
@@ -364,6 +396,16 @@ class _Side {
             skillDirectories: skillDirectories,
             blobPathResolver: resolveBlob,
             crafted: craftedBlobs,
+          )
+        : craftedRows != null
+        ? _CrossReferencingPlane(
+            repository: repository,
+            chatService: chatService,
+            businessRepository: businessRepository,
+            businessPreferences: businessPreferences,
+            skillDirectories: skillDirectories,
+            blobPathResolver: resolveBlob,
+            craft: craftedRows,
           )
         : SyncDataPlane(
             repository: repository,
@@ -2395,6 +2437,49 @@ void main() {
     final report = await a.engine.syncWithPeer(await a.peer(b));
     expect(report.success, isTrue, reason: report.summary);
     expect(await _assistantOrder(b), ['assistant-2', 'assistant-1']);
+  });
+
+  test('a crafted wire row cannot re-home or inject messages', () async {
+    // A message id is a global primary key, so a wire row that carries
+    // another conversation's id moves that message once the upsert's conflict
+    // target fires, and one that labels itself as another conversation inserts
+    // into it. An honest peer produces neither — its own reader filters by
+    // conversation — so both are dropped before the merge.
+    final a = _Side('a');
+    final b = _Side('b');
+    var inject = false;
+    final crafted = <Map<String, dynamic>>[];
+    await a.start(root, craftedRows: () => inject ? crafted : const []);
+    await b.start(root);
+    sides.addAll([a, b]);
+    final pin = b.engine.openPairing();
+    await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+    await _seedConversation(a, id: 'conv-b', contents: ['b1']);
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(await _messageIds(b, 'conv-b'), {'conv-b-m0'});
+
+    final convBRow = (await a.repository.syncReadMessageRows('conv-b')).single;
+    crafted
+      ..add({...convBRow, 'conversation_id': 'conv-a'})
+      ..add({...convBRow, 'id': 'ghost-m9'});
+    inject = true;
+    // A change here is what puts conv-a back on the wire carrying the rows.
+    await a.repository.putMessage(
+      ChatMessage(
+        id: 'conv-a-m1',
+        conversationId: 'conv-a',
+        role: 'user',
+        content: 'a2',
+      ),
+    );
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(await _messageIds(b, 'conv-b'), {
+      'conv-b-m0',
+    }, reason: "the other conversation's row must not move, nor gain a ghost");
+    expect(await _messageIds(b, 'conv-a'), {'conv-a-m0', 'conv-a-m1'});
   });
 
   // ---- slice 3: blobs ----

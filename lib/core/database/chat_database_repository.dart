@@ -4957,6 +4957,36 @@ class ChatDatabaseRepository {
     'message_rows': ['id'],
   };
 
+  /// Ids per `IN (...)` batch, well under SQLite's bound-variable limit.
+  static const _syncMessageIdBatch = 200;
+
+  /// The subset of [ids] that already belongs to a conversation other than
+  /// [conversationId] — the wire rows this device must refuse to re-home.
+  Future<Set<String>> _syncForeignMessageIds(
+    String conversationId,
+    Set<String> ids,
+  ) async {
+    if (ids.isEmpty) return const {};
+    final list = ids.toList(growable: false);
+    final foreign = <String>{};
+    for (var start = 0; start < list.length; start += _syncMessageIdBatch) {
+      final end = start + _syncMessageIdBatch;
+      final batch = list.sublist(start, end > list.length ? list.length : end);
+      final rows = await _db
+          .customSelect(
+            'SELECT id FROM message_rows WHERE conversation_id != ? '
+            'AND id IN (${List.filled(batch.length, '?').join(', ')});',
+            variables: <Variable<Object>>[
+              Variable<String>(conversationId),
+              for (final id in batch) Variable<String>(id),
+            ],
+          )
+          .get();
+      foreign.addAll([for (final row in rows) row.read<String>('id')]);
+    }
+    return foreign;
+  }
+
   /// The schema version this build speaks, exchanged in the sync hello and
   /// enforced by the symmetric version gate (ADR-0003).
   int get syncSchemaVersion => _db.schemaVersion;
@@ -5115,9 +5145,25 @@ class ChatDatabaseRepository {
       };
       // The peer's in-flight generation is not running here: never adopt its
       // streaming flag, or the row would be stranded mid-stream on this device.
-      final incomingMessages = {
+      //
+      // A wire row is only accepted where it says it belongs, and only when
+      // its id is not already another conversation's message here. A message
+      // id is a global primary key, so an upsert whose conflict target fires
+      // would move that message into this conversation — a crafted
+      // cross-reference no honest peer can produce, since its own reader
+      // filters by conversation.
+      final labelled = {
         for (final row in payload.messages)
-          row['id'] as String: {...row, 'is_streaming': 0},
+          if (row['id'] is String && row['conversation_id'] == conversationId)
+            row['id'] as String: {...row, 'is_streaming': 0},
+      };
+      final foreignIds = await _syncForeignMessageIds(
+        conversationId,
+        labelled.keys.toSet(),
+      );
+      final incomingMessages = {
+        for (final entry in labelled.entries)
+          if (!foreignIds.contains(entry.key)) entry.key: entry.value,
       };
 
       var conversationRowChanged = false;
@@ -5219,9 +5265,9 @@ class ChatDatabaseRepository {
       // Phase 3: upserts with final order, then re-point untouched rows.
       final partsByRevision = <String, List<Map<String, dynamic>>>{};
       for (final part in payload.parts) {
-        partsByRevision
-            .putIfAbsent(part['revision_id'] as String, () => [])
-            .add(part);
+        final revisionId = part['revision_id'];
+        if (revisionId is! String) continue;
+        partsByRevision.putIfAbsent(revisionId, () => []).add(part);
       }
       for (final row in plan.upserts) {
         final id = row['id'] as String;

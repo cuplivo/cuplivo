@@ -342,8 +342,9 @@ class SyncDataPlane {
     if (rows.isEmpty) return null;
     final kind = BusinessRepository.syncKindForWire(kindWire);
     if (kind == null) return null;
-    final payloadDigest = businessContentDigest(
+    final payloadDigest = entityRowDigest(
       rows.first['payload'] as String,
+      (rows.first['sort_order'] as num).toInt(),
     );
     if (kindWire != skillWire) {
       return SyncCheckpointEntry(

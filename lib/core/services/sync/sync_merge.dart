@@ -288,6 +288,14 @@ List<SkillContentPlan> planSkillContentSync({
 String businessContentDigest(String content) =>
     crypto.sha256.convert(utf8.encode(content)).toString();
 
+/// Content hash of one entity row: its payload plus the list position it
+/// occupies. The position is its own column and a reorder leaves the payload
+/// untouched, so a payload-only digest made the reorder invisible — the plan
+/// said "none" while the two devices held different orders. Preferences have
+/// no position and keep [businessContentDigest].
+String entityRowDigest(String payload, int sortOrder) =>
+    businessContentDigest('$sortOrder\u0000$payload');
+
 /// Result of merging one conversation row.
 class ConversationRowMerge {
   /// The row to persist (local or incoming) plus whether it changed locally.

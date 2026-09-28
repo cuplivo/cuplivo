@@ -455,6 +455,14 @@ Future<Map<String, String>> _assistantsOf(_Side side) async => {
     row.id: row.payload,
 };
 
+/// The assistants in the order the app renders them (their `sort_order`).
+Future<List<String>> _assistantOrder(_Side side) async => [
+  for (final row in await side.businessRepository.readEntities(
+    BusinessEntityKind.assistant,
+  ))
+    row.id,
+];
+
 /// Forces a row's mutation clock, so a test can create the clock tie that the
 /// deviceId rule exists for.
 Future<void> _forceUpdatedAt(
@@ -2366,6 +2374,27 @@ void main() {
       (await _assistantsOf(b))['assistant-1'],
     );
     expect((await _assistantsOf(a))['assistant-1'], contains('Edited on B'));
+  });
+
+  test('a reorder of a list entity transfers', () async {
+    // A drag rewrites every row's position and clock but not its payload, so
+    // the manifest digest is the only thing that can tell the two devices
+    // apart. A payload-only digest left each one on its own order forever.
+    final (a, b) = await pair();
+    await _setAssistants(a, [
+      (id: 'assistant-1', name: 'One'),
+      (id: 'assistant-2', name: 'Two'),
+    ]);
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(await _assistantOrder(b), ['assistant-1', 'assistant-2']);
+
+    await _setAssistants(a, [
+      (id: 'assistant-2', name: 'Two'),
+      (id: 'assistant-1', name: 'One'),
+    ]);
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(await _assistantOrder(b), ['assistant-2', 'assistant-1']);
   });
 
   // ---- slice 3: blobs ----

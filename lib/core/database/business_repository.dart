@@ -597,7 +597,7 @@ WHERE id IN ($placeholders);
           : " WHERE kind = '${kind.extensionKind}'";
       final rows = await _database
           .customSelect(
-            'SELECT ${kind.idColumn}, payload, updated_at FROM '
+            'SELECT ${kind.idColumn}, payload, updated_at, sort_order FROM '
             '${kind.tableName}$extensionFilter;',
           )
           .get();
@@ -608,7 +608,7 @@ WHERE id IN ($placeholders);
           kindWire: kind.wireName,
           id: id,
           updatedAtUs: row.read<int>('updated_at'),
-          digest: businessContentDigest(payload),
+          digest: entityRowDigest(payload, row.read<int>('sort_order')),
         ));
       }
     }

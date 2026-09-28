@@ -56,6 +56,12 @@ class WorldBookProvider with ChangeNotifier {
     }
   }
 
+  /// Re-reads world books after LAN sync wrote them outside this provider.
+  Future<void> reloadAfterExternalChange() async {
+    await loadAll();
+    notifyListeners();
+  }
+
   Future<void> loadAll() async {
     try {
       _books = await _store.getAll();

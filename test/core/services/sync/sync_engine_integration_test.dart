@@ -2851,12 +2851,35 @@ void main() {
       ))!.lastReport!;
       expect(persisted.refusal, SyncRefusalReason.notPaired);
       expect(
-        persisted.error,
+        persisted.failure,
         isNull,
         reason: 'a refusal, not a raw 401 transport string',
       );
     },
   );
+
+  test('a failed session reports a reason, not the exception', () async {
+    // The card and the snackbar localize the reason. The raw exception — which
+    // carries the peer's address and port — must reach neither, including
+    // through the record that outlives the session.
+    final (a, b) = await pair();
+    await b.engine.stop();
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isFalse);
+    expect(report.refusal, isNull);
+    expect(report.failure, SyncFailureReason.unreachable);
+
+    final persisted = (await a.store.findPeer(
+      b.identity.deviceId,
+    ))!.lastReport!;
+    expect(persisted.failure, SyncFailureReason.unreachable);
+    expect(
+      persisted.toJson().containsKey('error'),
+      isFalse,
+      reason: 'the record carries a reason, not rendered text',
+    );
+  });
 
   test(
     'three devices converge through a middle hop, without re-flooding',

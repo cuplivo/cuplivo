@@ -12035,9 +12035,16 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String lanSyncReportFailed(Object error) {
-    return '同步失败：$error';
-  }
+  String get lanSyncReportUnreachable => '同步失败：无法连接到对方设备。';
+
+  @override
+  String get lanSyncReportTimeout => '同步失败：对方设备停止响应。';
+
+  @override
+  String get lanSyncReportPeerError => '同步失败：对方设备报告了错误。';
+
+  @override
+  String get lanSyncReportInternal => '同步失败，详情见日志。';
 
   @override
   String get lanSyncRefusedPeerSchemaNewer => '对方数据库版本较新。请先更新本设备再同步。';
@@ -24029,9 +24036,16 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String lanSyncReportFailed(Object error) {
-    return '同步失败：$error';
-  }
+  String get lanSyncReportUnreachable => '同步失败：无法连接到对方设备。';
+
+  @override
+  String get lanSyncReportTimeout => '同步失败：对方设备停止响应。';
+
+  @override
+  String get lanSyncReportPeerError => '同步失败：对方设备报告了错误。';
+
+  @override
+  String get lanSyncReportInternal => '同步失败，详情见日志。';
 
   @override
   String get lanSyncRefusedPeerSchemaNewer => '对方数据库版本较新。请先更新本设备再同步。';
@@ -36102,9 +36116,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String lanSyncReportFailed(Object error) {
-    return '同步失敗：$error';
-  }
+  String get lanSyncReportUnreachable => '同步失敗：無法連線到對方裝置。';
+
+  @override
+  String get lanSyncReportTimeout => '同步失敗：對方裝置停止回應。';
+
+  @override
+  String get lanSyncReportPeerError => '同步失敗：對方裝置回報了錯誤。';
+
+  @override
+  String get lanSyncReportInternal => '同步失敗，詳情見日誌。';
 
   @override
   String get lanSyncRefusedPeerSchemaNewer => '對方資料庫版本較新。請先更新本裝置再同步。';

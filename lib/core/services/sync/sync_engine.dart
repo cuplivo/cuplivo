@@ -19,6 +19,11 @@ class SyncSessionReport {
   final bool success;
   final String summary;
   final SyncRefusalReason? refusal;
+
+  /// Why the session failed when it was not a refusal — the structured form
+  /// the panel localizes. A raw exception never leaves the engine: it carries
+  /// the peer's address, and it is not a sentence.
+  final SyncFailureReason? failure;
   final int conversationsSent;
   final int conversationsReceived;
   final int messagesUpserted;
@@ -54,6 +59,7 @@ class SyncSessionReport {
     required this.success,
     required this.summary,
     this.refusal,
+    this.failure,
     this.conversationsSent = 0,
     this.conversationsReceived = 0,
     this.messagesUpserted = 0,
@@ -92,7 +98,7 @@ class SyncSessionReport {
     preferencesLost: preferencesLost,
     clockSkewMs: clockSkewMs,
     refusal: refusal,
-    error: success || refusal != null ? null : summary,
+    failure: success || refusal != null ? null : failure,
   );
 }
 
@@ -312,7 +318,11 @@ class SyncEngine implements SyncServerHandler {
       // `peer.lastReport`, so an unpersisted failure would leave a stale
       // success on screen.
       return await _finish(
-        const SyncSessionReport(success: false, summary: 'no_endpoint'),
+        const SyncSessionReport(
+          success: false,
+          summary: 'no_endpoint',
+          failure: SyncFailureReason.unreachable,
+        ),
         peer: peer,
       );
     }
@@ -729,9 +739,17 @@ class SyncEngine implements SyncServerHandler {
         host: endpointHost,
         port: endpointPort,
       );
-    } catch (error) {
+    } catch (error, stack) {
+      // The machine summary stays for the logs; the card and the persisted
+      // record get the classified reason instead, so no exception text (with
+      // the peer's address) is ever rendered.
+      debugPrint('sync: session with ${peer.deviceId} failed: $error\n$stack');
       return await _finish(
-        SyncSessionReport(success: false, summary: 'error:$error'),
+        SyncSessionReport(
+          success: false,
+          summary: 'error:$error',
+          failure: _failureReason(error),
+        ),
         peer: peer,
         host: endpointHost,
         port: endpointPort,
@@ -1888,6 +1906,23 @@ class SyncEngine implements SyncServerHandler {
     }
     onStateChanged();
     return report;
+  }
+
+  /// Classifies a failed session. The transport failures get their own
+  /// reasons so the panel can say what happened; everything else is internal,
+  /// which is the only case where the logs hold the detail.
+  static SyncFailureReason _failureReason(Object error) {
+    if (error is TimeoutException) return SyncFailureReason.timeout;
+    if (error is SocketException ||
+        error is HttpException ||
+        error is HandshakeException) {
+      return SyncFailureReason.unreachable;
+    }
+    if (error is SyncClientException) {
+      final status = error.statusCode;
+      if (status != null && status >= 500) return SyncFailureReason.peerError;
+    }
+    return SyncFailureReason.internal;
   }
 
   /// A fresh 32-byte secret for a newly paired peer, base64 in a form that is

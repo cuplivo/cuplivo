@@ -22494,11 +22494,29 @@ abstract class AppLocalizations {
   /// **'Clocks differ by ~{n} min — fix the device clock, then sync again'**
   String lanSyncReportClockSkew(Object n);
 
-  /// No description provided for @lanSyncReportFailed.
+  /// No description provided for @lanSyncReportUnreachable.
   ///
   /// In en, this message translates to:
-  /// **'Sync failed: {error}'**
-  String lanSyncReportFailed(Object error);
+  /// **'Sync failed: the other device could not be reached.'**
+  String get lanSyncReportUnreachable;
+
+  /// No description provided for @lanSyncReportTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed: the other device stopped responding.'**
+  String get lanSyncReportTimeout;
+
+  /// No description provided for @lanSyncReportPeerError.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed: the other device reported an error.'**
+  String get lanSyncReportPeerError;
+
+  /// No description provided for @lanSyncReportInternal.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed. See the logs for details.'**
+  String get lanSyncReportInternal;
 
   /// No description provided for @lanSyncRefusedPeerSchemaNewer.
   ///

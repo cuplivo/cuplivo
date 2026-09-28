@@ -12610,9 +12610,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String lanSyncReportFailed(Object error) {
-    return 'Sync failed: $error';
-  }
+  String get lanSyncReportUnreachable =>
+      'Sync failed: the other device could not be reached.';
+
+  @override
+  String get lanSyncReportTimeout =>
+      'Sync failed: the other device stopped responding.';
+
+  @override
+  String get lanSyncReportPeerError =>
+      'Sync failed: the other device reported an error.';
+
+  @override
+  String get lanSyncReportInternal => 'Sync failed. See the logs for details.';
 
   @override
   String get lanSyncRefusedPeerSchemaNewer =>

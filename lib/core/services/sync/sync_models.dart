@@ -329,6 +329,36 @@ class SyncHelloRefusal {
       );
 }
 
+/// Why a session failed when it was not a refusal. Structured rather than a
+/// rendered string for the same reason as [SyncRefusalReason]: the panel
+/// localizes it, and a raw exception — which carries the peer's address and
+/// port — never reaches the card or a snackbar.
+enum SyncFailureReason {
+  /// The peer could not be reached at all: no endpoint known, a refused
+  /// connection, a dead address.
+  unreachable('unreachable'),
+
+  /// A beat stopped answering mid-session.
+  timeout('timeout'),
+
+  /// The peer answered, and answered with a failure of its own.
+  peerError('peer_error'),
+
+  /// Anything else: a database error, a corrupt payload, a bug.
+  internal('internal');
+
+  final String wire;
+  const SyncFailureReason(this.wire);
+
+  static SyncFailureReason? tryParse(String? raw) => switch (raw) {
+    'unreachable' => unreachable,
+    'timeout' => timeout,
+    'peer_error' => peerError,
+    'internal' => internal,
+    _ => null,
+  };
+}
+
 /// The last session's outcome as stored on a peer record. Structured rather
 /// than a rendered summary so the panel can localize it — the engine's own
 /// `summary` is machine text built for logs.
@@ -366,8 +396,10 @@ class SyncPeerReport {
   final int? clockSkewMs;
   final SyncRefusalReason? refusal;
 
-  /// Raw failure detail for non-refusal failures (transport errors).
-  final String? error;
+  /// Why the session failed, when it was not a refusal. Null on success, and
+  /// on records written before the reason was structured — the panel falls
+  /// back to a generic line rather than showing a stored exception text.
+  final SyncFailureReason? failure;
 
   const SyncPeerReport({
     required this.success,
@@ -388,7 +420,7 @@ class SyncPeerReport {
     this.preferencesLost = 0,
     this.clockSkewMs,
     this.refusal,
-    this.error,
+    this.failure,
   });
 
   Map<String, dynamic> toJson() => {
@@ -410,7 +442,7 @@ class SyncPeerReport {
     'preferencesLost': preferencesLost,
     if (clockSkewMs != null) 'clockSkewMs': clockSkewMs,
     if (refusal != null) 'refusal': refusal!.wire,
-    if (error != null) 'error': error,
+    if (failure != null) 'failure': failure!.wire,
   };
 
   static SyncPeerReport fromJson(Map<String, dynamic> json) => SyncPeerReport(
@@ -432,7 +464,7 @@ class SyncPeerReport {
     preferencesLost: (json['preferencesLost'] as num?)?.toInt() ?? 0,
     clockSkewMs: (json['clockSkewMs'] as num?)?.toInt(),
     refusal: SyncRefusalReason.tryParse(json['refusal'] as String?),
-    error: json['error'] as String?,
+    failure: SyncFailureReason.tryParse(json['failure'] as String?),
   );
 }
 

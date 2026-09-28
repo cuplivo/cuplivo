@@ -77,12 +77,30 @@ String syncRefusalMessage(AppLocalizations l10n, SyncRefusalReason reason) {
   }
 }
 
+/// One line for a failed session that was not a refusal. The reason is
+/// structured, so no raw exception text — which carries the peer's address —
+/// can reach a card or a snackbar; an unrecognized (or absent) reason falls
+/// back to the generic line, with the detail left in the logs.
+String syncFailureMessage(AppLocalizations l10n, SyncFailureReason? reason) {
+  switch (reason) {
+    case SyncFailureReason.unreachable:
+      return l10n.lanSyncReportUnreachable;
+    case SyncFailureReason.timeout:
+      return l10n.lanSyncReportTimeout;
+    case SyncFailureReason.peerError:
+      return l10n.lanSyncReportPeerError;
+    case SyncFailureReason.internal:
+    case null:
+      return l10n.lanSyncReportInternal;
+  }
+}
+
 /// One-line summary of a session for a peer card or a snackbar. A refusal is
-/// the most actionable message, so it wins over the raw error text.
+/// the most actionable message, so it wins over the failure text.
 String syncReportMessage(AppLocalizations l10n, SyncSessionReport report) {
   if (report.refusal != null) return syncRefusalMessage(l10n, report.refusal!);
   if (!report.success) {
-    return l10n.lanSyncReportFailed(report.summary);
+    return syncFailureMessage(l10n, report.failure);
   }
   return _syncCountsMessage(
     l10n,
@@ -108,7 +126,7 @@ String syncReportMessage(AppLocalizations l10n, SyncSessionReport report) {
 String syncPeerReportMessage(AppLocalizations l10n, SyncPeerReport report) {
   if (report.refusal != null) return syncRefusalMessage(l10n, report.refusal!);
   if (!report.success) {
-    return l10n.lanSyncReportFailed(report.error ?? '');
+    return syncFailureMessage(l10n, report.failure);
   }
   return _syncCountsMessage(
     l10n,

@@ -851,6 +851,28 @@ void main() {
       expect(SyncPeerReport.fromJson(clean.toJson()).entityRowsLost, 0);
     });
 
+    test('a peer report round-trips the structured failure reason', () {
+      const report = SyncPeerReport(
+        success: false,
+        failure: SyncFailureReason.timeout,
+      );
+      expect(report.toJson()['failure'], 'timeout');
+      expect(
+        SyncPeerReport.fromJson(report.toJson()).failure,
+        SyncFailureReason.timeout,
+      );
+      // An unknown or absent value is no reason at all: the panel falls back
+      // to a generic line instead of rendering whatever was stored.
+      expect(
+        SyncPeerReport.fromJson(const {
+          'success': false,
+          'failure': 'mystery',
+        }).failure,
+        isNull,
+      );
+      expect(SyncPeerReport.fromJson(const {'success': false}).failure, isNull);
+    });
+
     test('a delta batch round-trips its manifest and skill hashes', () {
       final batch = SyncDeltaBatch(
         const [],

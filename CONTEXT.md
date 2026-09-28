@@ -173,15 +173,18 @@ contradicts one of them is a bug, not a preference.
   served zip and the extraction share **one dot-file policy** — everything rides except the sync
   plane's own `.sync-*` scratch names and the OS bookkeeping files (`.DS_Store`, `Thumbs.db`,
   `desktop.ini`) — because a name the hash ignores but the extractor installs is a divergence the
-  content clock can never see. A record whose
+  content clock can never see. A directory whose carried set is empty still has a body — the empty
+  one — which the writer serves and the receiver applies, so the empty-body hash is never an
+  unservable promise. A record whose
   body did not converge is **deferred**, never installed broken; deleting a skill removes the row
   and the directory together, or the rescan resurrects it.
 - **Blob rules**: a received file lands at the path its URI names (URIs are never rewritten —
   that would diverge the conversation digest); writes are confined to the managed asset roots;
-  the serving side answers only hashes it published or has registered; a landed blob is
-  registered against its revisions, which is what protects it from the asset GC — and so is a
-  referenced file that was *already* here with the advertised hash, since the registration
-  replaces the revision's whole reference set; a blob that
+  the serving side answers only hashes it published or has registered, and a path a peer names is
+  served only from a managed asset root (the path is not the credential); a landed blob is
+  registered against the revisions the apply **actually wrote**, keyed off the advertisement rather
+  than off what landed — so a rejected revision's parts cannot unlink the winner's own attachment,
+  and a blob whose fetch failed is already referenced when its retry lands; a blob that
   does not arrive goes pending and is retried once per session, reported meanwhile. A blob
   failure defers a skill record but not a conversation.
 - **Device-local** (never rides sync): `localOnly`, `discarded` and `unknownPreference`
@@ -249,6 +252,10 @@ contradicts one of them is a bug, not a preference.
   PIN) is the recommended path; the PIN dialog is the fallback for a device without a scanner
   (desktop — the phone scans the computer's QR in the primary journey). Both leave a durable peer
   record, and sync uses the stored endpoint.
+- **The pairing form names the field that is wrong**: address/port and the pairing code are
+  validated and reported separately, so a mistyped address never sends the user to re-check the
+  other device. The code is compared with its spaces stripped — the dialog shows it as `123 456`,
+  so the space a user copies is not a wrong code.
 - **No LAN discovery is implemented**: mDNS/DNS-SD (`_cuplivo._sync._tcp`) is a *deferred*
   option, not a missing piece — the platform cost (iOS Bonjour declarations and local-network
   permission, Android multicast locks, a Windows inbound UDP 5353 rule) buys endpoint
@@ -309,6 +316,13 @@ contradicts one of them is a bug, not a preference.
 - **One plan, two faces**: conversations and business rows (entities + preferences) are decided
   by the same table — present on one side, newer clock, tie to the higher deviceId — and travel
   in the same batch, so one session moves a conversation and the assistant it references.
+- **What the plan compares**: each face's digest covers the whole state that face means. A
+  conversation's digest covers its message rows (`id:COALESCE(updated_at, timestamp)` lines), so
+  the conversation row's own clock is compared *alongside* it — otherwise a rename, a pin or a
+  version selection moves nothing the plan looks at and can never transfer. An entity's digest
+  covers its payload **and** the list position it occupies (`sort_order`), because a drag rewrites
+  every position while leaving every payload untouched. A preference has no position and hashes its
+  value alone.
 - **Business rows carry their own clock**: an applied row keeps the peer's `updated_at`
   (never stamped with local time); that timestamp is what the next session compares. Deletions
   ride the per-peer checkpoint, as message deletions do.
@@ -353,6 +367,16 @@ contradicts one of them is a bug, not a preference.
 - **Replay-safe recovery**: checkpoints advance only after a successful apply + commit; an
   interrupted session simply recomputes its delta next time, and idempotent row upserts
   make re-application safe. Per-subtree transactions bound the damage of a mid-apply crash.
+- **A settled conversation is not re-read**: the `none` arm refreshes an entry only when it
+  disagrees with the manifest it is compared against (digest or row clock). Equal ones are computed
+  from the same rows, so rebuilding them would read every message of the whole settled library on
+  every launch, resume and manual round; an entry that disagrees — what an interrupted session
+  leaves behind — is still rebuilt, which is the heal that keeps a peer deletion from reading as a
+  local edit.
+- **A failure is a reason, not a sentence**: a failed session carries a structured reason
+  (unreachable, timeout, peer error, internal) that the panel and the stored record localize. The
+  exception text — which carries the peer's address and port — goes to the log only; it never
+  reaches a card or a snackbar, and an unrecognized or absent reason falls back to a generic line.
 - **One session per pair (一对设备一个会话)**: a per-peer single-flight lock covers both roles,
   because the responder and the initiator paths write the same checkpoint file from the copy each
   read at its own hello. An initiator round is refused while a session exists for that pair, and a

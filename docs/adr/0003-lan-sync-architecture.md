@@ -452,6 +452,84 @@ database is replaced wholesale.
   could still lower a row's effective LWW clock below its own timestamp and let the peer's
   untouched copy win.
 
+## Amendment (2026-09, slice 8): references follow the apply, and the row state the plan never read
+
+A third adversarial review found eleven defects. Two are the same mistake in different places — a
+rule applied to the wrong set — one corrects a claim this document itself made, and two are
+reachable only through a narrower window than the review described; the corrections are recorded
+below as measured, not as reported.
+
+- **Asset references are registered for the revisions the apply wrote.** The registration replaced
+  a revision's whole reference set from the wire parts of every incoming subtree. A revision the
+  merge *kept* (the local copy won LWW) was therefore described by the parts it beat: the winner's
+  own attachment was unlinked and its file left to the seven-day asset GC, while a revision that
+  never landed (a deferred conversation, a resolved version-group loser) dangled against the
+  revision foreign key — `INSERT OR IGNORE` does not cover foreign keys — and aborted the session
+  between the committed apply and the checkpoint, repeating every session. Registration is now
+  scoped to the outcome's written revisions, and keyed off the peer's advertised manifest rather
+  than off what the pull landed, so a blob whose fetch failed is already referenced when a later
+  session's retry lands it.
+- **A conversation-row-only change is visible to the plan.** The conversation digest covers message
+  rows only, so a rename, a pin, a version selection or an extras edit moved nothing the planner
+  compared: the plan said `none`, the checkpoint was re-recorded from local, and the change could
+  never transfer in any later session either. The conversation row's own clock now decides the
+  agreement case — equal digests with different clocks is `bothSend`, which the apply's row-level
+  LWW settles. Business rows pass no clocks: their digest already covers the whole row.
+- **A peer-supplied path is only served from a managed root.** A file entry in the peer's manifest
+  was remembered by whatever path it carried; the resolver returns an existing absolute path
+  unchanged, and the serving path re-checked nothing, so a paired peer could name any readable local
+  file and fetch it back by a hash it chose. The published map now applies the same allowlist every
+  other consumer of a wire key already did (registration applies it too, which also closes the
+  registry fallback), making the route's own comment true again.
+- **An entity's list position is part of its digest.** A drag rewrites every row's `sort_order` and
+  clock while leaving its payload untouched, so a payload-only digest compared equal and each device
+  stayed on its own order — the claim that the order "travels with the row" did not hold. The entity
+  digest now covers the position; preferences, which have none, keep the payload digest. Accepted
+  consequence: the formula change makes the first session after the upgrade exchange every entity
+  once, then settle. A reorder is a row write, so it still beats an older content edit under LWW —
+  that is the doctrine, not a defect.
+- **A wire message row must be this conversation's, and not another conversation's already.** A
+  message id is a global primary key and the apply's upsert conflicts on it, so a crafted subtree
+  could carry another conversation's id and move that message into itself, or label a row as a
+  different conversation and insert it there. An honest peer produces neither (its own reader filters
+  by conversation), and the analogous asset path already refused the same shape. Both are dropped
+  before the merge, and non-string ids and revision ids are skipped rather than thrown on.
+- **A failed session reports a reason, not an exception.** A transport failure was persisted as the
+  engine's machine summary and rendered verbatim on the card and in the snackbar — the peer's
+  address and port in a sentence no localizer could touch, surviving restarts in the record. Failures
+  now carry a structured reason (unreachable, timeout, peer error, internal) classified at the catch,
+  with the exception text going to the log only; `no_endpoint` is unreachable; the panel and the
+  record render the reason, and the key that took rendered text is gone.
+- **A settled conversation is not rebuilt every session.** The `none` arm refreshed every settled
+  conversation from local — a full message-row read, a hash and a share of the checkpoint rewrite,
+  for the whole library, on every launch, resume and manual round. The manifest already carries the
+  digest and row clock that refresh would read, and both come from the same rows, so an entry that
+  equals them cannot change; an entry that disagrees is still rebuilt, which is exactly the heal
+  slice 7 introduced.
+- **Pairing names the field that is wrong.** An empty address or an unparsable port reported "wrong
+  pairing code": the user was sent to re-check the other device while the field that needed fixing
+  was never named. Validation is now one pure helper that reports the address/port and the code
+  separately, and the code is compared with its spaces stripped — the dialog shows it as `123 456`,
+  so the space a user copies is not a wrong code.
+- **`zh_Hans` says it in Simplified characters.** The listener string carried Traditional characters
+  and rendered as such in the panel.
+- **A skill with no carried files still has a body.** A directory whose carried set is empty (a lone
+  `.DS_Store`, or every name excluded by the policy) hashes to the empty body, and that hash
+  travelled in the manifest — but the zip writer refused to produce it and the importer refused to
+  unpack an empty archive, so the fetch 404ed every session and the record stayed deferred forever.
+  The empty body is now first-class: the writer emits the zero-entry zip, and the apply path
+  recognises the hash, skips the importer that rejects it, and lets the re-hash verify the empty
+  directory it swaps in. The import flow's own refusal of empty archives is untouched.
+
+Reachability, measured rather than assumed: the losing side's parts do **not** reach the winner on a
+first-sync `bothSend` (the push beat aligns them before the fetch beat reads its subtree), so the
+reachable trigger for the reference defect is a local write landing between the payload's blob pull
+and the merge — that is the window the regression test models; the version-group-loser variant of
+the dangling-reference abort is likewise unreachable, while a deferred (streaming) conversation is
+not; and the crafted-row defect is reachable as a re-home and as a cross-conversation insert, not as
+the unique-slot collision the review also described, because the order re-derivation compacts slots
+before writing.
+
 ## Considered options (rejected)
 
 - **Whole-database / backup-zip exchange** — not version-portable; a newer schema on an

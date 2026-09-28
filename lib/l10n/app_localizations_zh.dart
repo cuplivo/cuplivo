@@ -11861,6 +11861,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncPairErrorInvalidPin => '配对码错误，或对方的配对窗口已关闭。';
 
   @override
+  String get lanSyncPairErrorInvalidAddress => '请填写对方设备的地址和端口。';
+
+  @override
   String get lanSyncPairErrorUnreachable => '无法连接到该设备。请检查地址与端口，并确认两台设备在同一网络。';
 
   @override
@@ -23860,6 +23863,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncPairErrorInvalidPin => '配对码错误，或对方的配对窗口已关闭。';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress => '请填写对方设备的地址和端口。';
 
   @override
   String get lanSyncPairErrorUnreachable => '无法连接到该设备。请检查地址与端口，并确认两台设备在同一网络。';
@@ -35940,6 +35946,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncPairErrorInvalidPin => '配對碼錯誤，或對方的配對視窗已關閉。';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress => '請填寫對方裝置的位址和連接埠。';
 
   @override
   String get lanSyncPairErrorUnreachable => '無法連線到該裝置。請檢查位址與連接埠，並確認兩台裝置在同一網路。';

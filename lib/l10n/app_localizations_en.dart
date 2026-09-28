@@ -12425,6 +12425,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Wrong pairing code, or the other device\'s pairing window is closed.';
 
   @override
+  String get lanSyncPairErrorInvalidAddress =>
+      'Enter the other device\'s address and port.';
+
+  @override
   String get lanSyncPairErrorUnreachable =>
       'Could not reach the device. Check the address and port, and that both devices are on the same network.';
 

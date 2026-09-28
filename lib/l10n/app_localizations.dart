@@ -22218,6 +22218,12 @@ abstract class AppLocalizations {
   /// **'Wrong pairing code, or the other device\'s pairing window is closed.'**
   String get lanSyncPairErrorInvalidPin;
 
+  /// No description provided for @lanSyncPairErrorInvalidAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the other device\'s address and port.'**
+  String get lanSyncPairErrorInvalidAddress;
+
   /// No description provided for @lanSyncPairErrorUnreachable.
   ///
   /// In en, this message translates to:

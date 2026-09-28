@@ -349,12 +349,18 @@ class _EnterCodeDialogState extends State<_EnterCodeDialog> {
   Future<void> _pair() async {
     final l10n = AppLocalizations.of(context)!;
     final host = _host.text.trim();
-    final port = int.tryParse(_port.text.trim());
-    final pin = _pin.text.trim();
-    if (host.isEmpty || port == null || pin.length != 6) {
-      setState(() => _error = l10n.lanSyncPairErrorInvalidPin);
+    final pin = normalizePairingCode(_pin.text);
+    final error = manualPairingFormError(
+      l10n: l10n,
+      host: host,
+      port: _port.text,
+      pin: pin,
+    );
+    if (error != null) {
+      setState(() => _error = error);
       return;
     }
+    final port = int.tryParse(_port.text.trim())!;
     setState(() {
       _busy = true;
       _error = null;
@@ -428,7 +434,7 @@ class _EnterCodeDialogState extends State<_EnterCodeDialog> {
               keyboardType: TextInputType.number,
               onChanged: (text) {
                 // Auto-submit at six digits — one less tap on the phone.
-                if (text.trim().length == 6 && !_busy) _pair();
+                if (normalizePairingCode(text).length == 6 && !_busy) _pair();
               },
             ),
             if (_error != null) ...[

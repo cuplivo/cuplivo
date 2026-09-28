@@ -5433,6 +5433,7 @@
   "lanSyncPairingBusy": "Pairing…",
   "lanSyncPairSuccess": "Paired with {name}",
   "lanSyncPairErrorInvalidPin": "Wrong pairing code, or the other device's pairing window is closed.",
+  "lanSyncPairErrorInvalidAddress": "Enter the other device's address and port.",
   "lanSyncPairErrorUnreachable": "Could not reach the device. Check the address and port, and that both devices are on the same network.",
   "lanSyncPairErrorNoCertificate": "The other device did not identify itself. Pairing aborted.",
   "lanSyncPairErrorIdMismatch": "The other device's identity could not be verified. Pairing aborted.",

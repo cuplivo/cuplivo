@@ -49,6 +49,26 @@ String syncPairErrorMessage(AppLocalizations l10n, SyncPairOutcome outcome) {
   }
 }
 
+/// The digits of a typed pairing code. The app shows the code as `123 456`, so
+/// the space a user copies from the screen is not a wrong code.
+String normalizePairingCode(String raw) => raw.replaceAll(RegExp(r'\s+'), '');
+
+/// The error for the manual pairing form, or null when it can be submitted.
+/// The address and port are named separately from the code: a mistyped address
+/// must not send the user to re-check the other device's screen.
+String? manualPairingFormError({
+  required AppLocalizations l10n,
+  required String host,
+  required String port,
+  required String pin,
+}) {
+  if (host.trim().isEmpty || int.tryParse(port.trim()) == null) {
+    return l10n.lanSyncPairErrorInvalidAddress;
+  }
+  if (pin.length != 6) return l10n.lanSyncPairErrorInvalidPin;
+  return null;
+}
+
 /// Message for a scanned string that is not a usable pairing QR.
 String syncQrErrorMessage(AppLocalizations l10n, SyncPairQrException error) {
   switch (error.code) {

@@ -53,6 +53,64 @@ void main() {
     expect(syncPeerReportMessage(l10n, persisted), isNot(contains('192.168')));
   });
 
+  test('a bad address is named as such, not as a bad code', () {
+    expect(
+      manualPairingFormError(l10n: l10n, host: '', port: '9527', pin: '123456'),
+      l10n.lanSyncPairErrorInvalidAddress,
+    );
+    expect(
+      manualPairingFormError(
+        l10n: l10n,
+        host: '192.168.1.5',
+        port: '',
+        pin: '123456',
+      ),
+      l10n.lanSyncPairErrorInvalidAddress,
+    );
+    expect(
+      manualPairingFormError(
+        l10n: l10n,
+        host: '192.168.1.5',
+        port: 'not a port',
+        pin: '123456',
+      ),
+      l10n.lanSyncPairErrorInvalidAddress,
+    );
+    expect(
+      manualPairingFormError(
+        l10n: l10n,
+        host: '192.168.1.5',
+        port: '9527',
+        pin: '12345',
+      ),
+      l10n.lanSyncPairErrorInvalidPin,
+    );
+    expect(
+      manualPairingFormError(
+        l10n: l10n,
+        host: '192.168.1.5',
+        port: '9527',
+        pin: '123456',
+      ),
+      isNull,
+    );
+  });
+
+  test('a code typed as it is shown is still the code', () {
+    // The dialog renders the code as "123 456".
+    expect(normalizePairingCode('123 456'), '123456');
+    expect(normalizePairingCode(' 123456 '), '123456');
+    expect(
+      manualPairingFormError(
+        l10n: l10n,
+        host: '192.168.1.5',
+        port: '9527',
+        pin: normalizePairingCode('123 456'),
+      ),
+      isNull,
+    );
+  });
+
   test('a refusal is the message even beside a failure reason', () {
     const report = SyncSessionReport(
       success: false,

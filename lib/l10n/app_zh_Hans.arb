@@ -4322,6 +4322,7 @@
   "lanSyncPairingBusy": "配对中…",
   "lanSyncPairSuccess": "已与 {name} 配对",
   "lanSyncPairErrorInvalidPin": "配对码错误，或对方的配对窗口已关闭。",
+  "lanSyncPairErrorInvalidAddress": "请填写对方设备的地址和端口。",
   "lanSyncPairErrorUnreachable": "无法连接到该设备。请检查地址与端口，并确认两台设备在同一网络。",
   "lanSyncPairErrorNoCertificate": "对方未能出示身份，配对已中止。",
   "lanSyncPairErrorIdMismatch": "无法核实对方身份，配对已中止。",

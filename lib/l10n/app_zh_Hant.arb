@@ -4346,6 +4346,7 @@
   "lanSyncPairingBusy": "配對中…",
   "lanSyncPairSuccess": "已與 {name} 配對",
   "lanSyncPairErrorInvalidPin": "配對碼錯誤，或對方的配對視窗已關閉。",
+  "lanSyncPairErrorInvalidAddress": "請填寫對方裝置的位址和連接埠。",
   "lanSyncPairErrorUnreachable": "無法連線到該裝置。請檢查位址與連接埠，並確認兩台裝置在同一網路。",
   "lanSyncPairErrorNoCertificate": "對方未能出示身分，配對已中止。",
   "lanSyncPairErrorIdMismatch": "無法核實對方身分，配對已中止。",

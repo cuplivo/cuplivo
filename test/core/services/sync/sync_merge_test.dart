@@ -51,6 +51,23 @@ void main() {
       expect(plan.single.action, SyncConvAction.none);
     });
 
+    test('a conversation-row-only change still transfers', () {
+      // The message rows agree, so the digests are equal: a rename, a pin or a
+      // version selection moves only the conversation row, and its clock is
+      // the one place that change is visible to the plan.
+      final peers = _manifest({
+        'c1': _entry(10, {'m1': 5}),
+      });
+      final plan = planSync(
+        mine: _manifest({
+          'c1': _entry(20, {'m1': 5}),
+        }),
+        peers: peers,
+        checkpoint: _checkpoint(peers.conversations),
+      );
+      expect(plan.single.action, SyncConvAction.bothSend);
+    });
+
     test('one-sided change routes to the sender', () {
       final base = {
         'c1': _entry(10, {'m1': 5}),

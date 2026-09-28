@@ -84,6 +84,11 @@ SyncConvAction _planConversation({
   mineDigest: mine?.digest,
   peerDigest: peers?.digest,
   checkpointDigest: checkpoint?.digest,
+  // The conversation row's own clock: its content travels only with the
+  // subtree, so a rename or a version selection that leaves every message row
+  // untouched is visible here and nowhere else.
+  mineClock: mine?.updatedAtUs,
+  peerClock: peers?.updatedAtUs,
 );
 
 /// The one decision table both sync faces use: a conversation and a business
@@ -91,10 +96,18 @@ SyncConvAction _planConversation({
 /// presence-and-digest reasoning is shared rather than copied.
 ///
 /// A null digest means "this side does not have the row".
+///
+/// [mineClock] and [peerClock] are the conversation row's mutation clocks,
+/// passed only by the conversation face: its digest covers the message rows,
+/// so a change to the row itself (title, pin, selected version, extras) is
+/// otherwise invisible and would never transfer. Business rows pass no clocks
+/// because their digest already covers the whole row.
 SyncConvAction planRowSync({
   required String? mineDigest,
   required String? peerDigest,
   required String? checkpointDigest,
+  int? mineClock,
+  int? peerClock,
 }) {
   if (mineDigest == null && peerDigest == null) {
     return checkpointDigest == null
@@ -114,7 +127,14 @@ SyncConvAction planRowSync({
         ? SyncConvAction.iDelete
         : SyncConvAction.iSend; // modified here: edit beats delete
   }
-  if (mineDigest == peerDigest) return SyncConvAction.none;
+  if (mineDigest == peerDigest) {
+    if (mineClock != null && peerClock != null && mineClock != peerClock) {
+      // Same rows, different row state: both sides hold a version the other
+      // has not seen, and the apply's row-level LWW settles it.
+      return SyncConvAction.bothSend;
+    }
+    return SyncConvAction.none;
+  }
   if (checkpointDigest != null && peerDigest == checkpointDigest) {
     return SyncConvAction.iSend;
   }

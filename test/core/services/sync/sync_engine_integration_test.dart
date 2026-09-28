@@ -1587,6 +1587,67 @@ void main() {
     },
   );
 
+  test('a conversation-row-only change transfers', () async {
+    // A rename, a pin and a version selection touch only conversation_rows:
+    // no message row moves, so the conversation digest cannot see them — the
+    // row's own clock is the only thing that makes them visible.
+    final (a, b) = await pair();
+    await a.repository.putMigrationBatch(
+      conversations: [
+        Conversation(
+          id: 'conv-a',
+          title: 'first',
+        ).copyWith(messageIds: ['conv-a-v0', 'conv-a-v1']),
+      ],
+      messages: [
+        (
+          message: ChatMessage(
+            id: 'conv-a-v0',
+            conversationId: 'conv-a',
+            role: 'assistant',
+            content: 'v0',
+            groupId: 'g',
+            version: 0,
+          ),
+          messageOrder: 0,
+        ),
+        (
+          message: ChatMessage(
+            id: 'conv-a-v1',
+            conversationId: 'conv-a',
+            role: 'assistant',
+            content: 'v1',
+            groupId: 'g',
+            version: 1,
+          ),
+          messageOrder: 1,
+        ),
+      ],
+      toolEventsByMessageId: const {},
+      geminiSignaturesByMessageId: const {},
+    );
+    await a.chatService.reloadAfterExternalChange();
+    await a.engine.syncWithPeer(await a.peer(b));
+    expect(
+      (await b.repository.syncReadConversationRow('conv-a'))!['title'],
+      'first',
+    );
+
+    await a.chatService.renameConversation('conv-a', 'renamed');
+    await a.chatService.togglePinConversation('conv-a');
+    await a.chatService.setSelectedVersion('conv-a', 'g', 1);
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+
+    final rowB = (await b.repository.syncReadConversationRow('conv-a'))!;
+    expect(rowB['title'], 'renamed');
+    expect(rowB['is_pinned'], 1);
+    expect(rowB['version_selections_json'], jsonEncode({'g': 1}));
+    // And nothing about the messages moved with it.
+    expect(await _messageIds(b, 'conv-a'), {'conv-a-v0', 'conv-a-v1'});
+  });
+
   test(
     'a blob-carrying push into a streaming conversation does not abort',
     () async {

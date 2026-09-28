@@ -100,6 +100,7 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
     this.citationIndexResolver,
     this.baseStyle,
     this.streaming = false,
+    this.enableStreamingMotion = true,
     this.conversationId,
   });
 
@@ -113,6 +114,7 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
   final String? Function(String id)? citationIndexResolver;
   final TextStyle? baseStyle; // optional override for base markdown text style
   final bool streaming;
+  final bool enableStreamingMotion;
 
   static const int _streamingTableMaxRows = 30;
   static const int _streamingHighlightMaxLines = 300;
@@ -136,7 +138,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
   // to the tail while generating, each batch lands as a single upward step
   // instead of the steady crawl the character smoothing is there to produce.
   static const Duration _streamingLongRenderDebounce = Duration(
-    milliseconds: 50,
+    milliseconds: 24,
   );
 
   late String _renderText;
@@ -416,7 +418,10 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
         preprocessBlocks: _sourceScan.hasHtml ? detailsRegistry.rewrite : null,
         newlinesNormalized: !_sourceScan.hasCarriageReturns,
         generation: themeSignature,
-        textBuilder: (text) => StreamingRichText(text: text),
+        textBuilder: (text) => StreamingRichText(
+          text: text,
+          streaming: widget.streaming && widget.enableStreamingMotion,
+        ),
         streaming: widget.streaming,
         spanBuilder: fence == null
             ? null
@@ -3565,8 +3570,15 @@ class _MarkdownTableBlockState extends State<_MarkdownTableBlock> {
   static const int _initialRows = 40;
   static const int _rowPageSize = 100;
   final GlobalKey _tableBoundaryKey = GlobalKey();
+  final ScrollController _horizontalScrollController = ScrollController();
   int _visibleRows = _initialRows;
   bool _capturingTableImage = false;
+
+  @override
+  void dispose() {
+    _horizontalScrollController.dispose();
+    super.dispose();
+  }
 
   _MarkdownTableData get rows => widget.rows;
   TextStyle get style => widget.style;
@@ -3835,6 +3847,7 @@ class _MarkdownTableBlockState extends State<_MarkdownTableBlock> {
     if (!scrollable) return child;
     return SingleChildScrollView(
       key: const ValueKey('markdown-table-horizontal-scroll'),
+      controller: _horizontalScrollController,
       scrollDirection: Axis.horizontal,
       primary: false,
       physics: const ClampingScrollPhysics(),
@@ -5990,11 +6003,7 @@ class ModernRadioMd extends BlockMd {
 
 class EscapeAwareTableMd extends TableMd {
   @override
-  Widget build(
-    BuildContext context,
-    String text,
-    final GptMarkdownConfig config,
-  ) {
+  Widget build(BuildContext context, String text, GptMarkdownConfig config) {
     final value = text
         .trim()
         .split('\n')

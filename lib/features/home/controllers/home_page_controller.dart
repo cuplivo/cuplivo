@@ -539,6 +539,12 @@ class HomePageController extends ChangeNotifier {
         animate: !_chatController.isCurrentConversationLoading,
       );
     };
+    _viewModel.onDirectSendPairAppended = (conversationId) {
+      if (currentConversation?.id != conversationId) return;
+      _scrollCtrl.resetUserScrolling();
+      _scrollCtrl.scrollToBottom(animate: false);
+      if (PlatformUtils.isMobileTarget) dismissKeyboard();
+    };
     _viewModel.onHapticFeedback = () {
       try {
         final settings = _context.read<SettingsProvider>();

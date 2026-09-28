@@ -1603,15 +1603,7 @@ class _HomePageState extends State<HomePage>
           );
         }
       },
-      onSend: (text) async {
-        final result = await _controller.sendMessage(text);
-        if (!mounted) return result;
-        if (PlatformUtils.isMobile &&
-            result == ChatInputSubmissionResult.sent) {
-          _controller.dismissKeyboard();
-        }
-        return result;
-      },
+      onSend: (text) => _controller.sendMessage(text),
       onStop: _controller.cancelStreaming,
       hasQueuedInput: _controller.currentQueuedInput != null,
       queuedPreviewText: _controller.currentQueuedInput?.input.text,

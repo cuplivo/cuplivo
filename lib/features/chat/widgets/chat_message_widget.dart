@@ -32,6 +32,7 @@ import '../../../utils/assistant_regex.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/providers/tts_provider.dart';
 import '../../../shared/widgets/markdown_with_highlight.dart';
+import '../../../shared/widgets/fluid_streaming_text.dart';
 import '../../../shared/widgets/snackbar.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../l10n/app_localizations.dart';
@@ -2474,15 +2475,20 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
             _resolveCitationIndex(id, citationIndexLookup),
         baseStyle: TextStyle(fontSize: baseAssistant, height: 1.5),
         streaming: widget.message.isStreaming,
+        enableStreamingMotion: widget.enableStreamingTextMotion,
         conversationId: widget.message.conversationId,
       );
     } else {
-      assistantContent = Text(
-        visualContent,
-        style: TextStyle(
-          fontSize: baseAssistant,
-          height: 1.5,
-          color: chatSurfacePlainTextColor(context),
+      assistantContent = FluidStreamingText(
+        streaming:
+            widget.message.isStreaming && widget.enableStreamingTextMotion,
+        text: Text(
+          visualContent,
+          style: TextStyle(
+            fontSize: baseAssistant,
+            height: 1.5,
+            color: chatSurfacePlainTextColor(context),
+          ),
         ),
       );
     }
@@ -2552,6 +2558,57 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
         bubbles[i],
       ],
     ];
+  }
+
+  /// A stable shell for the no-content phase of a streamed reply. Keeping the
+  /// status footer in the same bubble means the first visible text grows above
+  /// the existing indicator instead of replacing a waiting bubble with a
+  /// separate body-and-footer tree.
+  Widget _buildAssistantStreamingShell(
+    BuildContext context, {
+    required Widget? content,
+    required String statusLabel,
+  }) {
+    final hasContent = content != null;
+    final media = MediaQuery.maybeOf(context);
+    final reduceMotion =
+        (media?.disableAnimations ?? false) ||
+        (media?.accessibleNavigation ?? false);
+    final shell = _assistantBlockWidth(
+      context,
+      child: _buildAssistantBubbleContainer(
+        context: context,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          widthFactor: hasContent ? null : 1,
+          child: Column(
+            key: ValueKey('assistant-streaming-shell:${widget.message.id}'),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (content != null) content,
+              if (content != null) const SizedBox(height: 4),
+              Semantics(
+                label: statusLabel,
+                child: KeyedSubtree(
+                  key: ValueKey(
+                    'assistant-streaming-status:${widget.message.id}',
+                  ),
+                  child: _streamingIndicator(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (reduceMotion) return shell;
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topLeft,
+      child: shell,
+    );
   }
 
   /// One bubble per text block, or one per paragraph when the split option is
@@ -2947,55 +3004,62 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                 showToolCards: showToolCards,
                 isPendingApproval: isPending,
               );
+              final hasOnlyTextBlocks = visibleBlocks.every(
+                (block) => block.isText,
+              );
               if (visibleBlocks.isEmpty &&
                   widget.message.isStreaming &&
                   visualContent.isEmpty) {
                 return <Widget>[
-                  _assistantBlockWidth(
+                  _buildAssistantStreamingShell(
                     context,
-                    child: _buildAssistantBubbleContainer(
-                      context: context,
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        // widthFactor keeps the waiting bubble from filling a
-                        // loose row under the fit-content option; with tight
-                        // constraints (option off) Align ignores it.
-                        widthFactor: 1,
-                        child: Semantics(
-                          label: widget.retryStatus == null
-                              ? l10n.chatMessageWidgetThinking
-                              : l10n.autoRetryCountdown(
-                                  _retrySecondsLeft(widget.retryStatus!),
-                                  widget.retryStatus!.attempt,
-                                  widget.retryStatus!.maxRetries,
-                                ),
-                          child: _streamingIndicator(),
-                        ),
-                      ),
+                    content: null,
+                    statusLabel: widget.retryStatus == null
+                        ? l10n.chatMessageWidgetThinking
+                        : l10n.autoRetryCountdown(
+                            _retrySecondsLeft(widget.retryStatus!),
+                            widget.retryStatus!.attempt,
+                            widget.retryStatus!.maxRetries,
+                          ),
+                  ),
+                ];
+              }
+              if (hasOnlyTextBlocks &&
+                  visualContent.isNotEmpty &&
+                  widget.message.isStreaming) {
+                return <Widget>[
+                  _buildAssistantStreamingShell(
+                    context,
+                    content: _buildAssistantTextContent(
+                      context,
+                      visualContent,
+                      enableAssistantMarkdown,
+                      citationIndexLookup,
+                      contentKey: 'body',
                     ),
+                    statusLabel: widget.retryStatus == null
+                        ? l10n.chatMessageWidgetThinking
+                        : l10n.autoRetryCountdown(
+                            _retrySecondsLeft(widget.retryStatus!),
+                            widget.retryStatus!.attempt,
+                            widget.retryStatus!.maxRetries,
+                          ),
                   ),
                 ];
               }
               // Projector omits trim-empty visualContent. Newline-only history
               // still has to occupy body height so a short scroll from the
-              // bottom does not evict the last streaming bubble.
+              // bottom does not evict the last assistant bubble.
               if (visibleBlocks.isEmpty && visualContent.isNotEmpty) {
-                return <Widget>[
-                  ..._interleaveAssistantBubbles(
-                    _buildAssistantTextBubbles(
-                      context,
-                      visualContent,
-                      enableAssistantMarkdown,
-                      citationIndexLookup,
-                      blockKey: 'body',
-                    ),
+                return _interleaveAssistantBubbles(
+                  _buildAssistantTextBubbles(
+                    context,
+                    visualContent,
+                    enableAssistantMarkdown,
+                    citationIndexLookup,
+                    blockKey: 'body',
                   ),
-                  if (widget.message.isStreaming && visualContent.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4, top: 4),
-                      child: _streamingIndicator(),
-                    ),
-                ];
+                );
               }
 
               final widgets = <Widget>[];
@@ -3253,9 +3317,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
               OAuthMessageRecovery(error: error),
             // Action buttons (hidden while generating)
             AnimatedSwitcher(
-              // Completion previously remounted the row at its final height.
-              // Keep that geometry while retaining the expensive Markdown tree.
-              key: ValueKey(('assistant-actions', widget.message.isStreaming)),
+              key: const ValueKey('assistant-actions-switcher'),
               duration: const Duration(milliseconds: 220),
               switchInCurve: Curves.easeOutCubic,
               switchOutCurve: Curves.easeInCubic,
@@ -3265,7 +3327,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                 child: FadeTransition(opacity: anim, child: child),
               ),
               child: widget.message.isStreaming
-                  ? const SizedBox.shrink()
+                  ? const SizedBox(key: ValueKey('assistant-actions-hidden'))
                   : Padding(
                       key: const ValueKey('assistant-actions'),
                       padding: const EdgeInsets.only(top: 8),

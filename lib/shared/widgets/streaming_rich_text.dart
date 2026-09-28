@@ -6,14 +6,20 @@ import 'package:flutter/material.dart';
 
 import 'incremental_markdown_document.dart';
 import 'markdown_block_list.dart';
+import 'fluid_streaming_text.dart';
 
 /// Shapes long text in bounded windows, committing only complete visual lines.
 /// Markdown still supplies the styled spans; embedded widgets and bidi text
 /// keep Flutter's single-paragraph layout, where their context is significant.
 class StreamingRichText extends StatefulWidget {
-  const StreamingRichText({super.key, required this.text});
+  const StreamingRichText({
+    super.key,
+    required this.text,
+    this.streaming = false,
+  });
 
   final Text text;
+  final bool streaming;
 
   @override
   State<StreamingRichText> createState() => _StreamingRichTextState();
@@ -204,8 +210,14 @@ class _StreamingRichTextState extends State<StreamingRichText> {
               constraints.minWidth > 0 ||
                       constraints.minHeight > 0 ||
                       constraints.hasBoundedHeight
-                  ? ConstrainedBox(constraints: constraints, child: text)
-                  : text,
+                  ? ConstrainedBox(
+                      constraints: constraints,
+                      child: FluidStreamingText(
+                        text: text,
+                        streaming: widget.streaming,
+                      ),
+                    )
+                  : FluidStreamingText(text: text, streaming: widget.streaming),
             ),
           );
         } else {
@@ -280,21 +292,27 @@ class _StreamingRichTextState extends State<StreamingRichText> {
                 text: '',
                 stable: lines != null,
               );
+              final richText = Text.rich(
+                content,
+                textDirection: direction,
+                textAlign: align,
+                textScaler: scale,
+                locale: locale,
+                maxLines: lines,
+                overflow: text.overflow,
+                selectionColor: text.selectionColor,
+                textWidthBasis: text.textWidthBasis,
+              );
               _chunks.add(
                 _TextChunk(
                   block,
                   end,
-                  Text.rich(
-                    content,
-                    textDirection: direction,
-                    textAlign: align,
-                    textScaler: scale,
-                    locale: locale,
-                    maxLines: lines,
-                    overflow: text.overflow,
-                    selectionColor: text.selectionColor,
-                    textWidthBasis: text.textWidthBasis,
-                  ),
+                  lines == null
+                      ? FluidStreamingText(
+                          text: richText,
+                          streaming: widget.streaming,
+                        )
+                      : richText,
                 ),
               );
               start = end;

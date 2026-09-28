@@ -105,6 +105,78 @@ class _MidPushWritePlane extends SyncDataPlane {
   }
 }
 
+/// A data plane that deletes the first advertised file *after* the blob
+/// manifest is built: the rows still name the file and the hash is still
+/// advertised, but the peer's pull can only 404 — the exact "advertised,
+/// never landed" state a pending-blob retry has to survive.
+class _VanishingBlobPlane extends SyncDataPlane {
+  _VanishingBlobPlane({
+    required super.repository,
+    required super.chatService,
+    required super.businessRepository,
+    super.businessPreferences,
+    super.skillDirectories,
+    required super.blobPathResolver,
+    required this.vanish,
+  });
+
+  final Future<void> Function() vanish;
+  var _fired = false;
+
+  @override
+  Future<List<SyncBlobEntry>> buildBlobManifest({
+    required List<SyncSubtreePayload> subtrees,
+    required SyncBusinessPayload business,
+  }) async {
+    final entries = await super.buildBlobManifest(
+      subtrees: subtrees,
+      business: business,
+    );
+    if (!_fired && entries.isNotEmpty) {
+      _fired = true;
+      await vanish();
+    }
+    return entries;
+  }
+}
+
+/// A data plane that writes into the conversation being merged, at the moment
+/// the merge is entered: the window between the incoming payload's blob pull
+/// and the apply, where a real user edit lands.
+class _MidApplyWritePlane extends SyncDataPlane {
+  _MidApplyWritePlane({
+    required super.repository,
+    required super.chatService,
+    required super.businessRepository,
+    super.businessPreferences,
+    super.skillDirectories,
+    required super.blobPathResolver,
+    required this.writeBeforeApply,
+  });
+
+  final Future<void> Function(String conversationId) writeBeforeApply;
+  var _fired = false;
+
+  @override
+  Future<Map<String, SyncSubtreeApplyOutcome>> applySubtrees(
+    List<SyncSubtreePayload> subtrees, {
+    required String myDeviceId,
+    required String peerDeviceId,
+    required Map<String, Map<String, int>> checkpointRowsByConversation,
+  }) async {
+    if (!_fired && subtrees.isNotEmpty) {
+      _fired = true;
+      await writeBeforeApply(subtrees.first.conversation['id'] as String);
+    }
+    return super.applySubtrees(
+      subtrees,
+      myDeviceId: myDeviceId,
+      peerDeviceId: peerDeviceId,
+      checkpointRowsByConversation: checkpointRowsByConversation,
+    );
+  }
+}
+
 /// One device: its own sync directory, database, chat and business stores, and
 /// its own listener.
 class _Side {
@@ -201,6 +273,8 @@ class _Side {
     Directory root, {
     bool withEngine = true,
     Future<void> Function(String conversationId)? midPushWrite,
+    Future<void> Function(String conversationId)? midApplyWrite,
+    Future<void> Function()? vanishBlob,
   }) async {
     dir = Directory('${root.path}/$label');
     await dir.create(recursive: true);
@@ -233,6 +307,26 @@ class _Side {
             skillDirectories: skillDirectories,
             blobPathResolver: resolveBlob,
             writeInto: midPushWrite,
+          )
+        : vanishBlob != null
+        ? _VanishingBlobPlane(
+            repository: repository,
+            chatService: chatService,
+            businessRepository: businessRepository,
+            businessPreferences: businessPreferences,
+            skillDirectories: skillDirectories,
+            blobPathResolver: resolveBlob,
+            vanish: vanishBlob,
+          )
+        : midApplyWrite != null
+        ? _MidApplyWritePlane(
+            repository: repository,
+            chatService: chatService,
+            businessRepository: businessRepository,
+            businessPreferences: businessPreferences,
+            skillDirectories: skillDirectories,
+            blobPathResolver: resolveBlob,
+            writeBeforeApply: midApplyWrite,
           )
         : SyncDataPlane(
             repository: repository,
@@ -418,6 +512,27 @@ Future<void> _seedConversationWithImage(
     toolEventsByMessageId: const {},
     geminiSignaturesByMessageId: const {},
   );
+}
+
+/// Writes a managed file the way an upload does, so a blob exists to be
+/// hashed, advertised and pulled.
+Future<void> _writeBlob(_Side side, String rel, String content) async {
+  final file = File('${side.dir.path}/$rel');
+  await file.parent.create(recursive: true);
+  await file.writeAsString(content, flush: true);
+}
+
+/// The paths whose assets [revisionId] references here — the reference set the
+/// registration maintains.
+Future<Set<String>> _assetPathsFor(_Side side, String revisionId) async {
+  final rows = await side.database
+      .customSelect(
+        'SELECT a.path AS path FROM message_asset_rows r '
+        'JOIN asset_rows a ON a.id = r.asset_id WHERE r.revision_id = ?;',
+        variables: [Variable.withString(revisionId)],
+      )
+      .get();
+  return {for (final row in rows) row.read<String>('path')};
 }
 
 /// A loopback port nothing is listening on (bound then released): the dead
@@ -1371,6 +1486,200 @@ void main() {
     );
     expect(await File('${b.dir.path}/images/one.png').readAsString(), 'one');
     expect(await present.readAsString(), 'two');
+  });
+
+  test(
+    "a revision the merge kept does not adopt the rejected parts' references",
+    () async {
+      // A local edit landing between the incoming payload's blob pull and the
+      // merge makes the local row win LWW: the wire parts then describe a
+      // revision this device rejected. Building the revision's reference set
+      // from them would replace the winner's own file with the loser's and
+      // leave the live attachment to the asset GC.
+      final a = _Side('a');
+      final b = _Side('b');
+      await a.start(
+        root,
+        midApplyWrite: (conversationId) async {
+          await a.repository.putMessage(
+            ChatMessage(
+              id: 'conv-a-m0',
+              conversationId: conversationId,
+              role: 'user',
+              content: 'edited here',
+              parts: [
+                ImagePart(
+                  uri: 'kelivo-file:///images/mine.png',
+                  mime: 'image/png',
+                ),
+              ],
+            ),
+          );
+        },
+      );
+      await b.start(root);
+      sides.addAll([a, b]);
+      final pin = b.engine.openPairing();
+      await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+
+      await _writeBlob(a, 'images/mine.png', 'mine');
+      await _writeBlob(b, 'images/theirs.png', 'theirs');
+      await _seedConversationWithImage(
+        a,
+        id: 'conv-a',
+        uri: 'kelivo-file:///images/mine.png',
+      );
+      await _seedConversationWithImage(
+        b,
+        id: 'conv-a',
+        uri: 'kelivo-file:///images/theirs.png',
+      );
+      // B's copy is newer at hello, so A requests it; the edit above then
+      // makes A's own row win at merge time.
+      await _forceUpdatedAt(
+        a,
+        table: 'message_rows',
+        idColumn: 'id',
+        id: 'conv-a-m0',
+        updatedAtUs: 1000000,
+      );
+      await _forceUpdatedAt(
+        b,
+        table: 'message_rows',
+        idColumn: 'id',
+        id: 'conv-a-m0',
+        updatedAtUs: 2000000,
+      );
+      // The reference state the merge must preserve, registered the way the
+      // asset backfill does.
+      await a.repository.replaceMessageAssetReferences(
+        conversationId: 'conv-a',
+        revisionId: 'conv-a-m0',
+        assets: const [
+          MessageAssetRegistration(
+            assetId: 'asset_local',
+            contentHash: 'localhash',
+            path: 'kelivo-file:///images/mine.png',
+            byteSize: 4,
+            kind: 'image',
+          ),
+        ],
+      );
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+
+      // The local row kept the merge, so its own parts — and only they —
+      // describe the revision. (The harness's asset backfill resolves files
+      // against one shared root, so the registry is asserted on what the sync
+      // registration must not do, not on what that backfill later re-adds.)
+      final parts = await a.repository.syncReadMessagePartRows('conv-a');
+      expect(
+        parts.map((part) => part['payload']).join(),
+        contains('kelivo-file:///images/mine.png'),
+        reason: 'the local edit must have won the merge',
+      );
+      expect(
+        await _assetPathsFor(a, 'conv-a-m0'),
+        isNot(contains('kelivo-file:///images/theirs.png')),
+        reason: "the rejected parts' file must not take the revision over",
+      );
+    },
+  );
+
+  test(
+    'a blob-carrying push into a streaming conversation does not abort',
+    () async {
+      // The responder pulls the blob before the apply defers the whole
+      // conversation, so a registration keyed off the wire payload would
+      // insert a reference for a revision that was never written — the
+      // revision foreign key aborts the session after the push committed
+      // and before the checkpoint, and every later session repeats it.
+      final (a, b) = await pair();
+      await _writeBlob(a, 'images/first.png', 'first');
+      await _seedConversationWithImage(
+        a,
+        id: 'conv-a',
+        uri: 'kelivo-file:///images/first.png',
+      );
+      await a.engine.syncWithPeer(await a.peer(b));
+
+      // B is now generating in that conversation; A appends a message with
+      // a fresh attachment.
+      await _setStreaming(b, 'conv-a', streaming: true);
+      await _writeBlob(a, 'images/second.png', 'second');
+      await a.repository.putMessage(
+        ChatMessage(
+          id: 'conv-a-m1',
+          conversationId: 'conv-a',
+          role: 'assistant',
+          content: '',
+          parts: [
+            ImagePart(
+              uri: 'kelivo-file:///images/second.png',
+              mime: 'image/png',
+            ),
+          ],
+        ),
+      );
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+      expect(await _messageIds(b, 'conv-a'), {'conv-a-m0'});
+    },
+  );
+
+  test('a blob whose pull failed is referenced before it lands', () async {
+    // The reference must exist from the moment the advertisement is
+    // believed: the retry that finally lands the file arrives in a session
+    // that carries no subtree for this conversation, and an unregistered
+    // file is GC meat.
+    final a = _Side('a');
+    final b = _Side('b');
+    File? blob;
+    await a.start(
+      root,
+      vanishBlob: () async {
+        final target = blob;
+        if (target != null && await target.exists()) await target.delete();
+      },
+    );
+    await b.start(root);
+    sides.addAll([a, b]);
+    final pin = b.engine.openPairing();
+    await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+
+    blob = File('${a.dir.path}/images/vanish.png');
+    await blob.parent.create(recursive: true);
+    await blob.writeAsString('vanish', flush: true);
+    await _seedConversationWithImage(
+      a,
+      id: 'conv-a',
+      uri: 'kelivo-file:///images/vanish.png',
+    );
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+
+    final registeredOnB =
+        (await b.database
+                .customSelect(
+                  'SELECT COUNT(*) AS n FROM message_asset_rows '
+                  'WHERE revision_id = ?;',
+                  variables: [Variable.withString('conv-a-m0')],
+                )
+                .getSingle())
+            .read<int>('n');
+    expect(
+      registeredOnB,
+      1,
+      reason: 'the advertisement alone must own the reference',
+    );
+    final checkpoint = await b.store.loadCheckpoint(a.identity.deviceId);
+    expect(
+      checkpoint.pendingBlobs.values.map((entry) => entry.key),
+      contains('kelivo-file:///images/vanish.png'),
+    );
   });
 
   test(

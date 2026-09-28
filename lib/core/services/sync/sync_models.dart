@@ -914,6 +914,13 @@ class SyncSubtreeApplyOutcome {
   final int deletedMessages;
   final bool conversationRowChanged;
 
+  /// The revisions this apply actually wrote (the incoming rows that survived
+  /// the merge). Asset registration keys off this set: a revision that never
+  /// landed here (a deferred conversation, a resolved version-group loser)
+  /// would dangle against the revision foreign key, and the wire parts of a
+  /// row the local copy beat describe references this device does not hold.
+  final Set<String> appliedRevisionIds;
+
   const SyncSubtreeApplyOutcome({
     this.deferred = false,
     this.conversationRow,
@@ -921,6 +928,7 @@ class SyncSubtreeApplyOutcome {
     this.upsertedMessages = 0,
     this.deletedMessages = 0,
     this.conversationRowChanged = false,
+    this.appliedRevisionIds = const {},
   });
 
   static const deferredOutcome = SyncSubtreeApplyOutcome(deferred: true);

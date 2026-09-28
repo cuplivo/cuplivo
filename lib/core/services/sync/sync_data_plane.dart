@@ -450,36 +450,50 @@ class SyncDataPlane {
     );
   }
 
-  /// Registers landed file blobs against the revisions that reference them, so
-  /// the asset registry owns them (GC protection and future dedupe). The
-  /// registry is what makes the fetched file a first-class local asset rather
-  /// than an orphan next to a message.
+  /// Registers the file blobs a peer advertised for the revisions its push
+  /// actually applied, so the asset registry owns them (GC protection and
+  /// future dedupe). The registry is what makes the fetched file a first-class
+  /// local asset rather than an orphan next to a message.
+  ///
+  /// Registration is scoped to [SyncSubtreeApplyOutcome.appliedRevisionIds]:
+  /// the wire parts of a row the local copy beat describe references this
+  /// device does not hold (replacing the set with them would unlink the
+  /// winner's own attachments), and a revision that never landed here (a
+  /// deferred conversation, a resolved version-group loser) would dangle
+  /// against the revision foreign key and abort the session.
+  ///
+  /// Keyed off the advertised manifest rather than what landed: a blob whose
+  /// pull failed still gets its reference now, so the retry that lands it in a
+  /// later session — one that carries no subtree for this conversation — is
+  /// already protected.
   Future<void> registerLandedAssets({
     required List<SyncSubtreePayload> subtrees,
-    required Map<String, SyncBlobEntry> landedByUri,
+    required Map<String, SyncSubtreeApplyOutcome> outcomes,
+    required Map<String, SyncBlobEntry> advertisedByUri,
   }) async {
-    if (landedByUri.isEmpty) return;
+    final allowed = {
+      for (final entry in advertisedByUri.entries)
+        if (entry.value.kind == SyncBlobEntry.kindFile &&
+            isAllowedFileBlobUri(entry.key))
+          entry.key: entry.value,
+    };
+    if (allowed.isEmpty) return;
     for (final subtree in subtrees) {
       final conversationId = subtree.conversation['id'];
       if (conversationId is! String) continue;
-      // Only revisions this subtree actually carries may register assets: a
-      // wire part naming some other conversation's message id is a crafted
-      // cross-reference, and the apply already ignores such a part.
-      final messageIds = {
-        for (final message in subtree.messages)
-          if (message['id'] is String) message['id'] as String,
-      };
+      final revisions = outcomes[conversationId]?.appliedRevisionIds;
+      if (revisions == null || revisions.isEmpty) continue;
       final byRevision = <String, List<({String uri, String kind})>>{};
       for (final part in subtree.parts) {
         final revisionId = part['revision_id'];
         final payload = part['payload'];
         if (revisionId is! String || payload is! String) continue;
-        if (!messageIds.contains(revisionId)) continue;
+        if (!revisions.contains(revisionId)) continue;
         final kind = (part['kind'] as String?) ?? 'file';
         for (final uri in kelivoFileUrisInRows([
           <String, dynamic>{'payload': payload},
         ])) {
-          if (!landedByUri.containsKey(uri)) continue;
+          if (!allowed.containsKey(uri)) continue;
           byRevision.putIfAbsent(revisionId, () => []).add((
             uri: uri,
             kind: kind,
@@ -493,10 +507,10 @@ class SyncDataPlane {
           assets: [
             for (final item in entry.value)
               MessageAssetRegistration(
-                assetId: 'asset_${landedByUri[item.uri]!.contentHash}',
-                contentHash: landedByUri[item.uri]!.contentHash,
+                assetId: 'asset_${allowed[item.uri]!.contentHash}',
+                contentHash: allowed[item.uri]!.contentHash,
                 path: item.uri,
-                byteSize: landedByUri[item.uri]!.byteSize,
+                byteSize: allowed[item.uri]!.byteSize,
                 kind: item.kind,
               ),
           ],

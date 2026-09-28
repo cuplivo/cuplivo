@@ -566,7 +566,6 @@ class SyncEngine implements SyncServerHandler {
         peerDeviceId: peer.deviceId,
       );
       final neededAssets = await dataPlane.neededFileBlobs(incoming.assets);
-      final neededTargets = {for (final entry in neededAssets) entry.target};
       final wanted = <String, SyncBlobEntry>{
         for (final entry in neededAssets) entry.target: entry,
         for (final adoption in adoptions.wanted) adoption.target: adoption,
@@ -577,17 +576,6 @@ class SyncEngine implements SyncServerHandler {
         wanted.putIfAbsent(pending.target, () => pending);
       }
       final pulled = await _pullBlobs(wanted.values.toList(), session);
-      // Advertised file blobs that were *not* fetched: they are already here
-      // with the advertised hash, so the reference they carry must survive the
-      // registration below exactly like a freshly landed one — the rewrite
-      // replaces a revision's whole reference set, not just this session's
-      // arrivals.
-      final alreadyPresent = {
-        for (final entry in incoming.assets)
-          if (entry.kind == SyncBlobEntry.kindFile &&
-              !neededTargets.contains(entry.target))
-            entry.key: entry,
-      };
       final deferredSkills = {
         ...adoptions.deferred,
         for (final id in adoptions.wantedSkillIds)
@@ -616,14 +604,16 @@ class SyncEngine implements SyncServerHandler {
           ),
         ),
       );
-      if (pulled.landedByUri.isNotEmpty || alreadyPresent.isNotEmpty) {
-        await dataPlane.registerLandedAssets(
-          subtrees: incoming.subtrees,
-          // Landed this session and already present both count: the
-          // registration is the revision's complete reference set.
-          landedByUri: {...alreadyPresent, ...pulled.landedByUri},
-        );
-      }
+      // Registration keys off the peer's whole advertisement, not what the
+      // pull landed: a blob whose fetch failed still gets its reference now,
+      // so the retry that lands it in a later session is already protected.
+      await dataPlane.registerLandedAssets(
+        subtrees: incoming.subtrees,
+        outcomes: outcomes,
+        advertisedByUri: {
+          for (final entry in incoming.assets) entry.key: entry,
+        },
+      );
 
       // A skill record whose body did not converge is deferred: a record
       // without its directory would only install a broken skill here.
@@ -908,7 +898,6 @@ class SyncEngine implements SyncServerHandler {
       peerDeviceId: peerDeviceId,
     );
     final neededAssets = await dataPlane.neededFileBlobs(batch.assets);
-    final neededTargets = {for (final entry in neededAssets) entry.target};
     final wanted = <String, SyncBlobEntry>{
       for (final entry in neededAssets) entry.target: entry,
       for (final adoption in adoptions.wanted) adoption.target: adoption,
@@ -948,21 +937,13 @@ class SyncEngine implements SyncServerHandler {
       ),
     );
     session.outcomes.addAll(outcomes);
-    // Advertised file blobs that needed no fetch are already here with the
-    // advertised hash; they belong in the reference set exactly as landed ones
-    // do, since the registration replaces the revision's whole set.
-    final alreadyPresent = {
-      for (final entry in batch.assets)
-        if (entry.kind == SyncBlobEntry.kindFile &&
-            !neededTargets.contains(entry.target))
-          entry.key: entry,
-    };
-    if (session.blobPull.landedByUri.isNotEmpty || alreadyPresent.isNotEmpty) {
-      await dataPlane.registerLandedAssets(
-        subtrees: batch.subtrees,
-        landedByUri: {...alreadyPresent, ...session.blobPull.landedByUri},
-      );
-    }
+    // Same rule as the initiator's side: the advertisement (not the pull
+    // outcome) owns the reference set, scoped to revisions this apply wrote.
+    await dataPlane.registerLandedAssets(
+      subtrees: batch.subtrees,
+      outcomes: outcomes,
+      advertisedByUri: {for (final entry in batch.assets) entry.key: entry},
+    );
     // Business rows arrive in the same push; the responder's own plan already
     // decided what it needs from the initiator, so this is purely an apply.
     // One push per session, so the payload is kept as-is for the checkpoint

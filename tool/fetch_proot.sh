@@ -16,7 +16,15 @@
 
 set -euo pipefail
 
-for need in python3 curl tar; do
+# Windows Python installs usually expose only `python`; accept either. Git Bash
+# and MSYS bring the rest of the list, but not an interpreter.
+PYTHON="$(command -v python3 || command -v python || true)"
+if [[ -z "$PYTHON" ]]; then
+  echo "error: required tool missing: python3 (or python)" >&2
+  exit 1
+fi
+
+for need in curl tar; do
   if ! command -v "$need" >/dev/null 2>&1; then
     echo "error: required tool missing: $need" >&2
     exit 1
@@ -31,7 +39,8 @@ JNI_LIBS="$REPO_ROOT/android/app/src/main/jniLibs"
 TERMUX_POOL="${TERMUX_POOL:-https://packages.termux.dev/apt/termux-main/pool/main}"
 
 # Rolling Termux versions. Override with env vars if the pool moves again.
-PROOT_VERSION="${PROOT_VERSION:-5.1.107.92}"
+# 5.1.107.92 rolled off the pool in 2026-09; 5.1.107.95 is the current build.
+PROOT_VERSION="${PROOT_VERSION:-5.1.107.95}"
 TALLOC_VERSION="${TALLOC_VERSION:-2.4.3}"
 SHMEM_VERSION="${SHMEM_VERSION:-0.7}"
 
@@ -55,7 +64,7 @@ sha256_of() {
 extract_ar() {
   local deb="$1"
   local dest="$2"
-  python3 - "$deb" "$dest" <<'PY'
+  "$PYTHON" - "$deb" "$dest" <<'PY'
 import sys
 from pathlib import Path
 
@@ -110,7 +119,14 @@ extract_deb() {
       ls -la
       exit 1
     fi
-    tar xf "$data"
+    # These packages carry symlinks (SONAME aliases, licence docs). MSYS tar on
+    # Windows cannot create them without Developer Mode or administrator rights,
+    # and GNU tar then exits non-zero even though every regular file was
+    # extracted. Nothing here consumes a symlink: `find_regular_file` locates
+    # real files, `copy_elf` resolves before copying, and `verify_checksums`
+    # proves the result byte-exact at the end — so a link failure is not a
+    # fetch failure.
+    tar xf "$data" || true
   )
 }
 
@@ -170,15 +186,31 @@ echo "Fetching Termux proot ${PROOT_VERSION} (+ libtalloc ${TALLOC_VERSION}, lib
 echo "Pool: $TERMUX_POOL"
 
 # The historical OpenMinis pin is documented; fail clearly if someone overrides
-# to a version the pool no longer serves.
-if ! curl -fsI --retry 5 --retry-delay 2 --retry-all-errors \
-    "${TERMUX_POOL}/p/proot/proot_${PROOT_VERSION}_aarch64.deb" >/dev/null; then
-  echo "error: proot_${PROOT_VERSION} is not on the Termux pool." >&2
-  echo "  Tried: ${TERMUX_POOL}/p/proot/proot_${PROOT_VERSION}_aarch64.deb" >&2
-  echo "  OpenMinis used 5.1.107-70; that package has rolled off." >&2
-  echo "  Set PROOT_VERSION to a version listed at ${TERMUX_POOL}/p/proot/" >&2
-  exit 1
-fi
+# to a version the pool no longer serves. Distinguish that from "we cannot reach
+# the pool at all": curl answers 000 on a DNS/connection failure, and `-f` would
+# collapse both cases into one message that sends the reader after the wrong
+# cause.
+probe_url="${TERMUX_POOL}/p/proot/proot_${PROOT_VERSION}_aarch64.deb"
+probe_code="$(curl -s -o /dev/null -w '%{http_code}' --retry 5 --retry-delay 2 \
+  --retry-all-errors "$probe_url" || true)"
+case "$probe_code" in
+  200) ;;
+  403 | 404)
+    echo "error: proot_${PROOT_VERSION} is not on the Termux pool (HTTP $probe_code)." >&2
+    echo "  Tried: $probe_url" >&2
+    echo "  OpenMinis used 5.1.107-70; that package has rolled off." >&2
+    echo "  Set PROOT_VERSION to a version listed at ${TERMUX_POOL}/p/proot/," >&2
+    echo "  then regenerate tool/proot_checksums.txt and update the NOTICE." >&2
+    exit 1
+    ;;
+  *)
+    echo "error: cannot reach the Termux pool (HTTP ${probe_code:-none})." >&2
+    echo "  Tried: $probe_url" >&2
+    echo "  This is a network problem, not a missing version: check DNS or a" >&2
+    echo "  proxy, or point TERMUX_POOL at a mirror and retry." >&2
+    exit 1
+    ;;
+esac
 
 for pair in "${ABIS[@]}"; do
   termux_arch="${pair%%:*}"

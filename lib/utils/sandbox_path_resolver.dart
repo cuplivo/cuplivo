@@ -279,6 +279,22 @@ class SandboxPathResolver {
         portable;
   }
 
+  /// Canonical *storage* form for a value that may name a managed file:
+  /// a `kelivo-file:///` URI whenever the value maps under managed storage,
+  /// otherwise the legacy `fix`-resolved path (device-local dirty value).
+  ///
+  /// This is what avatar-style payload fields persist — the portable form
+  /// that sync and backup can carry across operating systems. Reading stays
+  /// dual-form everywhere via [fix] / [resolveForIo], so legacy absolute
+  /// values keep working until they are rewritten.
+  static String canonicalStorage(String value) {
+    if (value.isEmpty) return value;
+    if (KelivoFileUri.isKelivoFileUri(value)) return value;
+    final canonical = canonicalize(value);
+    if (KelivoFileUri.isKelivoFileUri(canonical)) return canonical;
+    return fix(value);
+  }
+
   /// Restore-boundary remap: if [uri] is a known previous managed sandbox
   /// absolute path and the corresponding file exists under the current docs
   /// root (because backup files were copied), return the kelivo-file URI.

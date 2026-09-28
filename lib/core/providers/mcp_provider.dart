@@ -463,6 +463,14 @@ class McpProvider extends ChangeNotifier {
   bool isOAuthAuthorized(String id) =>
       getById(id)?.oauth?.accessToken.isNotEmpty == true;
 
+  /// Re-reads MCP servers after LAN sync wrote them outside this provider.
+  /// Serialized against server mutations so a reload cannot interleave with a
+  /// tool call editing the same list.
+  Future<void> reloadAfterExternalChange() async {
+    await _serializeServerMutation(_load);
+    notifyListeners();
+  }
+
   Future<void> _load() async {
     await preferences.load();
     final timeoutMs = preferences.getInt(_prefsTimeoutKey);

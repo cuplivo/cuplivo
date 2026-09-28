@@ -115,6 +115,315 @@ contradicts one of them is a bug, not a preference.
   with `p.equals` because a restored draft carries separator-normalized paths while the storage
   listing keeps the OS-native form (a raw string comparison never matches on Windows).
 
+## LAN Sync (局域网同步)
+
+- **Device continuity (设备间接续)** — the job LAN sync is hired for: conversations follow the
+  user across their devices with no manual merge step. Not a bulk-transfer tool, not a backup
+  channel (WebDAV/S3/local snapshots own that), not a hub topology with one canonical device.
+- **Paired device (已配对设备)**: a peer whose identity and trust were established once during
+  *pairing* and persist afterwards. Pairing is the opt-in: nothing syncs until a device is
+  paired, and a paired device is reached at the address it was last seen at.
+- **Device identity**: per-install keypair minted at first pairing use; deviceId = hash of
+  the public key; stable across app updates.
+- **Pairing QR (配对二维码)**: the pairing path — one image shown by the responder carrying its
+  candidate endpoints, its certificate fingerprint (= deviceId) and the open window's PIN, so
+  scanning pairs in one step with no typing. The fingerprint is what the joiner pins inside the
+  TLS callback, before any request byte leaves the device: that is the difference from a typed
+  PIN, which proves nothing about *which* device answered (an active relay can terminate both
+  legs). The image is bound to the one-shot window, so a stale photo pairs nothing, and its
+  exposure equals the old same-screen "endpoints + PIN" display. Re-scanning a paired device is
+  the repair action for a drifted endpoint: it overwrites the address and rotates the secret.
+- **Pairing window (配对窗口)**: how the responder consents — it opens a five-minute, one-shot
+  window and shows the QR/PIN; the window closes when a peer pairs (its dialog pops), when it
+  expires, or after five wrong PIN guesses (the counter that keeps a 6-digit code from being
+  brute-forced inside the window). There is no separate approval prompt: showing the code *is*
+  the approval, and the joiner's half is the scan (or typing the PIN). Without a camera the PIN
+  path remains, and then only the typed code plus line of sight stands in for the fingerprint.
+- **Trust thereafter**: the client pins the listener's self-signed certificate, and every
+  `sync/*` request proves the pairing with the per-peer secret minted at pairing — the channel
+  must resist LAN sniffing and impersonation because the sync face carries API keys. Mutual TLS
+  is not the mechanism: `dart:io` aborts the handshake against a self-signed *client* certificate
+  (ADR-0003 amendment).
+- **Blob**: a content-addressed transfer unit on the sync wire — the bytes of one file whose
+  canonical URI appears in a travelling row, or of one skill directory as a zip. A blob's
+  identity is its hash (`/sync/blob/<sha256>`): the receiver pulls what it lacks and skips what
+  it already has. Blobs follow URIs: whatever a travelling row references is offered, without
+  enumerating payload kinds.
+- **Asset manifest**: the blob list a side publishes alongside the rows it sends (kind, target,
+  content hash, size). It travels in the same batch as the rows, in both directions, so each
+  side can compute its own needs without a negotiation beat.
+- **Sync payload = entity rows**: peers exchange versioned repository rows (JSON), never a
+  database file or a backup zip — a newer build's schema must never be handed to an older build.
+  Blobs are the one binary exception, and they are content, not schema.
+- **Foreground constraint**: sync runs while the app is running (foreground on mobile,
+  foreground-or-tray on desktop); no mobile background daemon in the first version.
+
+### Sync scope (同步面)
+
+- **Syncable** (rides sync): conversations + messages + parts + content-addressed asset
+  blobs; every business entity kind except **workspace** (assistant, provider, MCP server,
+  world book, quick phrase, memory entry, search/TTS service, instruction injection, tag,
+  skill, user profile field); and the `syncedPreference` keys below.
+- **Workspace stays device-local**: linked workspaces carry a host path by definition;
+  managed workspaces are the user's local project directories — unbounded in size and
+  semantically "work on this machine", not app content.
+- **Skill = record + directory blob**: a skill rides sync as two pieces — its entity
+  record (LWW for settings) and its on-disk directory as one zip blob keyed by a directory
+  hash (sha256 over sorted (relative path, file digest); the record's `updatedAt` does not
+  track content edits, so content delta detection is hash-based). Content conflict resolves
+  deterministically off the checkpointed hash (unchanged side adopts the changed side; both
+  changed → newer record `updatedAt`, then higher deviceId wins); the loser's edit is
+  reported, never silently dropped. Apply = staging + atomic directory swap, re-hash
+  verified on receipt; extraction reuses the `skill_archive` hardened unpacker. The hash, the
+  served zip and the extraction share **one dot-file policy** — everything rides except the sync
+  plane's own `.sync-*` scratch names and the OS bookkeeping files (`.DS_Store`, `Thumbs.db`,
+  `desktop.ini`) — because a name the hash ignores but the extractor installs is a divergence the
+  content clock can never see. A directory whose carried set is empty still has a body — the empty
+  one — which the writer serves and the receiver applies, so the empty-body hash is never an
+  unservable promise. A record whose
+  body did not converge is **deferred**, never installed broken; deleting a skill removes the row
+  and the directory together, or the rescan resurrects it.
+- **Blob rules**: a received file lands at the path its URI names (URIs are never rewritten —
+  that would diverge the conversation digest); writes are confined to the managed asset roots;
+  the serving side answers only hashes it published or has registered, and a path a peer names is
+  served only from a managed asset root (the path is not the credential); a landed blob is
+  registered against the revisions the apply **actually wrote**, keyed off the advertisement rather
+  than off what landed — so a rejected revision's parts cannot unlink the winner's own attachment,
+  and a blob whose fetch failed is already referenced when its retry lands; a blob that
+  does not arrive goes pending and is retried once per session, reported meanwhile. A blob
+  failure defers a skill record but not a conversation.
+- **Device-local** (never rides sync): `localOnly`, `discarded` and `unknownPreference`
+  dispositions, all `display_*` keys (fonts reference local file paths), `global_proxy_*`,
+  `tts_engine_v1`/`tts_language_v1` (platform fallbacks), and the session-position keys
+  `current_assistant_id_v1` / `selected_model_v1` — those say where *this device* is
+  looking, not how the app should be configured.
+- **`syncedPreference`**: a new disposition in `BusinessKeyRegistry` (the classifier stays
+  the single authority; no parallel allowlist). Contains theme/locale, title/summary/
+  translate/ocr/compress model+prompt keys, memory prompts, `asr_services_v1`,
+  `tts_speech_rate_v1`/`tts_pitch_v1`/`tts_selected_service_id_v1`, `search_*`,
+  `pinned_models_v1`, user name/avatar, `webdav_config_v1`/`s3_config_v1`,
+  `chat_bubble_style_overrides_v1`, `tool_schema_overrides_v1`.
+- **Skill and workspace holdbacks**: workspaces stay device-local permanently. A skill's record
+  and its directory blob travel together (slice 3): the record is applied only once its body has
+  converged — already identical here, or pulled and re-hash verified in this session — because a
+  record without its body would install a broken skill on the peer. A body that did not converge
+  is reported back in the push acknowledgement, so the sender keeps its record and body and
+  re-sends instead of reading the peer's silence as a deletion.
+- **New-device test** (新设备测试): the rule for classifying a preference key — *would a
+  brand-new device want this value to arrive with the pairing?* Business config yes;
+  window geometry, proxies, platform flags and fonts no.
+
+### Conversation merge semantics (对话合并语义)
+
+- **Transfer unit vs merge unit**: the two are distinct. The *transfer unit* is the
+  conversation subtree (conversation row + messages + parts + asset references, moved and
+  applied atomically — nothing can fall through a conversation boundary). The *merge unit*
+  is the row.
+- **Deterministic symmetric merge**: merging is a pure function of both sides' row states —
+  row present on both sides: newer `COALESCE(updated_at, timestamp)` wins, ties broken by
+  deviceId; row present on one side: union in. Both devices compute the same result
+  independently. There is deliberately **no direction knob** (no initiatorWins/serverWins) —
+  the 3.x session-priority control existed only because its merge was not symmetric.
+- **A local edit never lowers a row's clock**: every update path floors `updated_at` at the row's
+  own `timestamp` (message updates, the UI's partial-field writes, parts and provider artifacts
+  alike), because the effective LWW clock is `COALESCE(updated_at, timestamp)`: a message authored
+  under a skewed (future) peer clock must not have a local edit sink below it, or the peer's
+  untouched copy wins the next exchange and reverts the edit on both devices.
+- **Concurrent append** (same conversation used offline on two devices) merges by timestamp
+  interleave into one conversation. Rare by nature; lossless by design.
+- **One row per version slot**: a message version group (`group_id` + `version`) can hold
+  exactly one row — the schema's unique key says so — but two devices that regenerate the
+  same message each create a rival row with a different id. The merge keeps the newer
+  `COALESCE(updated_at, timestamp)`, ties to the higher row id (both peers hold the same two
+  rows, so both decide alike), and the loser is deleted with its parts and counted as a
+  deletion: a discarded regeneration is never silent.
+- **A deliberate slot leads the order**: `message_order` is assigned by the slot each row
+  carries, with `(timestamp, id)` only breaking a tie. The app itself places rows by slot —
+  deleting the version a group is anchored on moves the surviving revision onto the freed
+  slot — and the order is in no digest, so a "smarter" re-derivation by timestamp would
+  silently undo that placement permanently.
+- **Deletions**: a conversation deletion is announced on the hello — the conversations this
+  device still holds a shared-history record for but no longer has, with the digest both sides
+  last agreed on — so the peer deletes its copy only when it still matches that digest (an edit
+  beats the deletion). The list is derived from the per-peer checkpoint, which means it is
+  announced for exactly as long as the peer has not caught up, with no retention window; the
+  `tombstone_rows` written on deletion stay local bookkeeping. Message deletion is detected by
+  diffing against the same checkpoint (the set of rows the peer last saw), not by new tombstone
+  scopes.
+
+### Discovery & pairing (发现与配对)
+
+- **Pairing, then nothing automatic about addresses**: the QR image (endpoints + fingerprint +
+  PIN) is the recommended path; the PIN dialog is the fallback for a device without a scanner
+  (desktop — the phone scans the computer's QR in the primary journey). Both leave a durable peer
+  record, and sync uses the stored endpoint.
+- **The pairing form names the field that is wrong**: address/port and the pairing code are
+  validated and reported separately, so a mistyped address never sends the user to re-check the
+  other device. The code is compared with its spaces stripped — the dialog shows it as `123 456`,
+  so the space a user copies is not a wrong code.
+- **No LAN discovery is implemented**: mDNS/DNS-SD (`_cuplivo._sync._tcp`) is a *deferred*
+  option, not a missing piece — the platform cost (iOS Bonjour declarations and local-network
+  permission, Android multicast locks, a Windows inbound UDP 5353 rule) buys endpoint
+  auto-healing that a re-scan repairs in one gesture. The naming is reserved so adding it later
+  is purely additive.
+- **Endpoint drift (端点漂移) is a normal, repairable state**: the DHCP/network change that
+  moves a peer makes "sync now" report `unreachable` until the address is fixed. Two repairs
+  exist and both are ordinary: re-scan the peer's QR (updates the address, rotates the secret),
+  or edit the address on the peer card. A drifted endpoint is a connectivity failure, reported
+  as such — never a discovery failure.
+- **AP isolation** is likewise a *connectivity* failure: on a network that blocks peer-to-peer
+  traffic no pairing path helps, and the report says so.
+- **Unpairing (解除配对) is local-first, then best-effort remote**: this device always drops the
+  pairing immediately; it also asks the peer to forget it, over the same authenticated listener.
+  If that notice cannot land nothing is broken — the peer's next session is refused as "no
+  longer paired", and the user unpairs it there. A revocation only ever removes the caller's own
+  pairing, because the per-peer secret is what proves who is asking.
+- **The pairing window lives and dies with its dialog**: the code dialog refuses route-level
+  pops (barrier tap, system back), so the only exits are its own close button — which cancels
+  the window — and expiry. A dismissed dialog must never leave a live five-minute PIN and QR
+  with nothing on screen saying so.
+- **The authenticated identity is the caller's only identity**: `/sync/*` proves the caller by
+  its per-peer secret, and a hello whose body names a different paired device is refused
+  (`identity_mismatch`) rather than served that device's plan. `/pair` is the one route that
+  answers before authentication, so its body is capped and every parse failure (bad JSON,
+  missing field, unparseable certificate) is a 4xx rather than a 500.
+
+### Sync session (同步会话)
+
+- **Trigger cadence (触发节律)**: (1) the app coming to the foreground (and once after launch)
+  runs one quiet round over every paired device with an endpoint, throttled to one round per
+  minute; (2) a manual "sync now" in settings, never throttled. No polling, no background
+  daemon, and — without discovery — no "peer appeared" trigger: the round is what "picked the
+  device up" means.
+- **Symmetric version gate (对称拒绝)**: at hello each side refuses a peer whose database
+  schema version is newer than its own ("upgrade this device to sync"). Same or older is
+  accepted — an older peer's rows merely fill column defaults. Sessions therefore only run
+  between equal schema versions; a schema bump pauses sync for the upgrade window instead
+  of letting a stale peer mangle newer rows (dropped fields would later win via LWW and
+  propagate). The protocol version rides the same exchange; unknown protocol = refuse.
+- **N devices, pairwise sessions**: no hub. With A↔B↔C, C receives A's increments through
+  B; deterministic idempotent merge makes multi-hop convergence safe. Checkpoints are
+  stored per device pair.
+
+- **Session protocol**: a bounded six-beat run over mutual-TLS HTTP (REST-style JSON bodies,
+  binary endpoints for blobs): hello (protocol version, schema version, capabilities, the
+  initiator's listener port, its clock reading, its data epoch, the deletions it has not seen
+  confirmed, checkpoint summaries, and what each side could not apply last session) → negotiate
+  (each side computes deltas) → delta exchange (conversation subtrees, entity rows, preference
+  keys, and the asset manifest for what each side is sending; the push is acknowledged with what
+  was deferred, including skill bodies that did not land) → blob fetch (receiver pulls by
+  contentHash, skipping hashes it already has; the responder pulls back over the initiator's
+  advertised listener) → transactional apply + provider reload → checkpoint commit on both sides.
+  The push and fetch beats always run, even with nothing to send: they are also where the
+  responder performs its own blob pull, including the retries its checkpoint still owes.
+  Checkpoints also carry what is still owed (pending blobs), the skill-content baseline and the
+  peer's data epoch.
+- **One plan, two faces**: conversations and business rows (entities + preferences) are decided
+  by the same table — present on one side, newer clock, tie to the higher deviceId — and travel
+  in the same batch, so one session moves a conversation and the assistant it references.
+- **What the plan compares**: each face's digest covers the whole state that face means. A
+  conversation's digest covers its message rows (`id:COALESCE(updated_at, timestamp)` lines), so
+  the conversation row's own clock is compared *alongside* it — otherwise a rename, a pin or a
+  version selection moves nothing the plan looks at and can never transfer. An entity's digest
+  covers its payload **and** the list position it occupies (`sort_order`), because a drag rewrites
+  every position while leaving every payload untouched. A preference has no position and hashes its
+  value alone.
+- **Business rows carry their own clock**: an applied row keeps the peer's `updated_at`
+  (never stamped with local time); that timestamp is what the next session compares. Deletions
+  ride the per-peer checkpoint, as message deletions do.
+- **Apply without restart**: sync writes ride repository transactions, then trigger one
+  state reload (`BusinessPreferences.reload()` + every provider's `_load()` + ChatService
+  list refresh). Restart is *not* structurally required — restore needs it only because it
+  swaps the database file (cutover), and the Cherry importer's restart dialog is a
+  coherence shortcut, not a constraint. Setters write per key and never write back a whole
+  in-memory snapshot, so a stale provider cannot clobber synced rows; the remaining native
+  SharedPreferences keys (log toggle, font scale, Linux title bar) are all device-local
+  and outside the sync face anyway. Restart remains only a crash-recovery fallback.
+- **Apply yields to generation**: applying changes to a conversation is deferred while a
+  generation is actively writing to it.
+
+### Failure policy (故障政策)
+
+- **Sending is not receipt (发送≠收到)**: a checkpoint entry only advances to state the peer
+  actually reached. The push beat answers with what the responder deferred (a generation was
+  writing there, a restore held its write fence, or a skill's body did not land), and each hello
+  carries what the sender could not apply last session, so the peer re-sends instead of reading
+  the silence as a deletion. The fetch beat is acknowledged by nothing, so a conversation sent
+  back is *not* advanced there: its entry appears one session later, when both manifests agree
+  (`none` means local state is the shared state). Without these a deferred apply deleted the
+  sender's own new message on the next session — on both sides of the session, in both faces
+  (conversations and business rows) — and an interrupted fetch deleted the only copy on both
+  devices. An `iSend` entry also describes the payload that was actually sent, never a fresh read:
+  a row written while the session was in flight was never sent, and recording it as peer-seen made
+  the next merge delete it here.
+- **A deletion is announced, never inferred from an absence**: with the fetch beat no longer
+  advancing optimistically, "the peer lacks this" cannot mean "the peer deleted it" — that
+  ambiguity is what the announcement resolves. A conversation this device deleted keeps its
+  checkpoint entry until the peer's manifest shows the deletion landed, so a peer deletion that
+  yielded to a generation is retried rather than re-adopted.
+- **A bulk replacement is an epoch, not a deletion**: a restore or an overwrite import replaces
+  the local history wholesale, so the rows it drops were never deletions. The replaced device
+  resets its own checkpoints and bumps a **data epoch** carried on the hello; a peer seeing a
+  different epoch converts its own deletions to re-sends for that session (recovering what was
+  lost) while a deletion it made itself still stands, because that travels through the
+  announcement rather than an absence. Hooks: the restore cutover and an overwrite import — not a
+  restore rollback (which returns to the tracked state) and not an in-app "clear all data" (a
+  deletion intent, which propagates).
+- **Replay-safe recovery**: checkpoints advance only after a successful apply + commit; an
+  interrupted session simply recomputes its delta next time, and idempotent row upserts
+  make re-application safe. Per-subtree transactions bound the damage of a mid-apply crash.
+- **A settled conversation is not re-read**: the `none` arm refreshes an entry only when it
+  disagrees with the manifest it is compared against (digest or row clock). Equal ones are computed
+  from the same rows, so rebuilding them would read every message of the whole settled library on
+  every launch, resume and manual round; an entry that disagrees — what an interrupted session
+  leaves behind — is still rebuilt, which is the heal that keeps a peer deletion from reading as a
+  local edit.
+- **A failure is a reason, not a sentence**: a failed session carries a structured reason
+  (unreachable, timeout, peer error, internal) that the panel and the stored record localize. The
+  exception text — which carries the peer's address and port — goes to the log only; it never
+  reaches a card or a snackbar, and an unrecognized or absent reason falls back to a generic line.
+- **One session per pair (一对设备一个会话)**: a per-peer single-flight lock covers both roles,
+  because the responder and the initiator paths write the same checkpoint file from the copy each
+  read at its own hello. An initiator round is refused while a session exists for that pair, and a
+  hello from a peer this device is initiating to is refused as busy; a simultaneous
+  double-initiate refuses both rounds and the next trigger (launch, resume, manual) retries.
+- **Every request is bounded**: a peer that stops answering costs one deadline, not the process.
+  Client budgets are hello 60 s, push/fetch 20 min, blob 15 min of inactivity, pairing 60 s;
+  server routes are bounded too (pair/hello 60 s, revoke 30 s, data routes 30 min), so a body that
+  stops arriving cannot hold the serial request loop open and silence pairing and sync alike.
+- **Clock skew: accept and surface (接受+显性化)**: hello exchanges clock readings (protocol
+  v4); a divergence beyond five minutes raises a yellow-flag line in the sync report — on
+  **both** devices, each computing it from the same pair of readings — but sync proceeds
+  regardless. The threshold is a fixed health number, not a setting: below it LWW comparisons
+  stay honest for any realistic edit rhythm; above it timestamps lie systematically and the fix
+  is a device clock. No logical clocks in v1.
+
+### Sync panel (同步面板)
+
+- The user-facing surface is a settings section only: pairing entry ("add device" — show a
+  pairing QR on this device, scan or type the code from another) + one card per paired device
+  (editable name, platform, endpoint, last sync outcome, sync now, unpair). **Pairing is the
+  opt-in** — there is no master switch, and no global chrome (no sync icon outside the panel).
+- **No online state**: the card shows the last sync attempt and its outcome, never a presence
+  badge. Nothing probes the peer between sessions, so "online" would be a claim the app cannot
+  make; a drifted address shows up as a failed attempt, not as an offline device.
+- **Listener lifecycle**: the listener runs whenever the app runs, on a preferred port
+  (`9527`) that falls back to an ephemeral one when taken, so a peer's stored endpoint and the
+  Windows firewall rule stay stable across launches. On Windows the inbound rule is
+  port-scoped (`Cuplivo-Sync-TCP-<port>`, no spaces or parentheses so `netsh` quoting
+  survives both a plain call and a UAC re-invocation); the preferred port's rule persists, an
+  ephemeral port's rule is deleted best-effort on stop. Adding it without administrator rights
+  fails silently, so the panel offers a one-click elevated retry.
+- **Nothing silent**: the per-session report lists transfers, conflicts and their losers —
+  business rows whose local *content* an incoming newer row replaced (LWW losers, counted per
+  face), and skill-content losers — plus blobs that arrived, bytes moved, skills whose body
+  converged, and warnings (clock skew, version refusal, files that never arrived). Counters,
+  not per-row names: which row lost lives in the log. Adopting a row that carries the same
+  content (the peer echoing this device's own row back) is not a loss.
+- **File avatars travel**: the stored value is the canonical `kelivo-file` form, so an avatar
+  blob follows it like any other referenced file and the peer renders the real image. Legacy
+  absolute values keep resolving (dual-form reads) and canonicalize on load.
+
 ## Release & upstream policy (发版与上游策略) — ADR-0004
 
 - **Follow upstream (随上游)**: a new version re-bases the code base on the latest Kelivo stable and

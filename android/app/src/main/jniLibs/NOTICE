@@ -13,21 +13,21 @@ Cuplivo executes these binaries as a separate process (not linked into the
 AGPL-3 application). Corresponding source is the Termux proot tree at the
 version below.
 
-Termux package: proot 5.1.107.92
+Termux package: proot 5.1.107.95
 Pool: https://packages.termux.dev/apt/termux-main/pool/main/p/proot/
 
-  proot_5.1.107.92_arm.deb      →  jniLibs/armeabi-v7a/
-  proot_5.1.107.92_aarch64.deb  →  jniLibs/arm64-v8a/
-  proot_5.1.107.92_x86_64.deb   →  jniLibs/x86_64/
+  proot_5.1.107.95_arm.deb      →  jniLibs/armeabi-v7a/
+  proot_5.1.107.95_aarch64.deb  →  jniLibs/arm64-v8a/
+  proot_5.1.107.95_x86_64.deb   →  jniLibs/x86_64/
 
 SHA-256 of deployed files (also in tool/proot_checksums.txt):
 
-  efb41b19b15aaa13b4498cde3ca051fed8e2c39ae5d8d21f308c07934a0eb215  armeabi-v7a/libproot_exec.so
-  c64fcdc4e487ac6ec39955faf0049235258cbe284a6255797945817dd7c36198  armeabi-v7a/libproot_loader.so
-  ea47e17da8e6ff4882c169c6508861e5b4be9227e477c6020f4f14facc85c10d  arm64-v8a/libproot_exec.so
-  44ef39c1e1a18c09f6e4c4b5d6f8bba82d30596598bd155ec162d05c5122ff04  arm64-v8a/libproot_loader.so
-  5c6b99c48ebb87580551afd654e49eb8d178fd45fef0b65397c99a1d901c417b  x86_64/libproot_exec.so
-  914564ea1c66f50b38f18cac857fcf814c6b1ab027789178880fca1d530599b3  x86_64/libproot_loader.so
+  d19babe2ad6da6d5d76f9b1fe99b4ff822f126ff74e91ead2353554e273387f9  armeabi-v7a/libproot_exec.so
+  7c3d9f74b8c8a87c46766d8bbeebeabf24cc4de507690ab04ba7f0190a598500  armeabi-v7a/libproot_loader.so
+  98a5f86aad8d7f91e36ee039c64c8f5ac20738e545c883c559bf93e9b94e7bfa  arm64-v8a/libproot_exec.so
+  cbdef0e652c2b78af25d867e1719fdebbb0915e25aae2dd35b3b5c1835f6b551  arm64-v8a/libproot_loader.so
+  7c129d9d10a90e3baa73b7784381b34b961ffadb1de4f9773695432e88b7823f  x86_64/libproot_exec.so
+  a836b0569c84b1661333d16bacf6b396ff08fea816a5c936a82e08ddeeca8341  x86_64/libproot_loader.so
 
 libtalloc (libtalloc.so)
 ------------------------
@@ -47,8 +47,9 @@ libandroid-shmem (libandroid-shmem.so)
 Termux libandroid-shmem <https://github.com/termux/libandroid-shmem>
 License: BSD-3-Clause
 Termux package: libandroid-shmem 0.7
-Required by Termux proot 5.1.107.92 (DT_NEEDED libandroid-shmem.so).
-The older OpenMinis pin (proot 5.1.107-70) is no longer on the Termux pool.
+Required by Termux proot 5.1.107.95 (DT_NEEDED libandroid-shmem.so).
+The older OpenMinis pin (proot 5.1.107-70) and the 5.1.107.92 build are no
+longer on the Termux pool.
 
   ef35602fa6c8bca9081af1594fabeacbd98b6e8921dd6be54484291933b8040f  armeabi-v7a/libandroid-shmem.so
   84475798e07c8174dbbfaec70a827fdb02f19ffa69a589380c13e7507fd0e731  arm64-v8a/libandroid-shmem.so

@@ -25,6 +25,13 @@ class UserProvider extends ChangeNotifier {
     _load();
   }
 
+  /// Re-reads the user name and avatar after LAN sync wrote them outside this
+  /// provider.
+  Future<void> reloadAfterExternalChange() async {
+    await _load();
+    notifyListeners();
+  }
+
   Future<void> _load() async {
     await preferences.load();
     final n = preferences.getString(_prefsUserNameKey);
@@ -35,9 +42,12 @@ class UserProvider extends ChangeNotifier {
     }
     _avatarType = preferences.getString(_prefsAvatarTypeKey);
     final rawAvatar = preferences.getString(_prefsAvatarValueKey);
+    // Stored form is canonical (kelivo-file URI under managed storage); a
+    // legacy absolute path is canonicalized here once and written back, so a
+    // portable value never decodes back into a device-local path.
     _avatarValue = rawAvatar == null
         ? null
-        : SandboxPathResolver.fix(rawAvatar);
+        : SandboxPathResolver.canonicalStorage(rawAvatar);
     // Persist the fixed path back if it changed (helps desktop after imports)
     if (rawAvatar != null &&
         _avatarValue != null &&
@@ -123,7 +133,7 @@ class UserProvider extends ChangeNotifier {
       // Optionally clean old local avatar if it was stored inside our avatars folder
       if (_avatarType == 'file' && _avatarValue != null) {
         try {
-          final old = File(_avatarValue!);
+          final old = File(SandboxPathResolver.fix(_avatarValue!));
           if ((old.path.contains('/avatars/') ||
                   old.path.contains('\\avatars\\')) &&
               await old.exists()) {
@@ -133,14 +143,14 @@ class UserProvider extends ChangeNotifier {
       }
 
       _avatarType = 'file';
-      _avatarValue = dest.path;
+      _avatarValue = SandboxPathResolver.canonicalStorage(dest.path);
       notifyListeners();
       await preferences.setString(_prefsAvatarTypeKey, _avatarType!);
       await preferences.setString(_prefsAvatarValueKey, _avatarValue!);
     } catch (_) {
       // Fallback to original path if copy fails (may still be temporary)
       _avatarType = 'file';
-      _avatarValue = fixedInput;
+      _avatarValue = SandboxPathResolver.canonicalStorage(fixedInput);
       notifyListeners();
       await preferences.setString(_prefsAvatarTypeKey, _avatarType!);
       await preferences.setString(_prefsAvatarValueKey, _avatarValue!);

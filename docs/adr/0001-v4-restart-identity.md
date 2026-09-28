@@ -102,3 +102,6 @@ One `kelivo://` string covered two different jobs upstream:
 - Porting the `CuplivoSymbolFallback` font, the `website/` workspace, CHANGELOG or a v4
   re-baseline announcement.
 - Rebranding the GitHub issue templates / FUNDING (still upstream-worded, as on the archived line).
+  **Superseded in 4.0.0**: the issue templates, the repository description and the release/build
+  identity were rebranded (ADR-0004); `FUNDING.yml` still points at upstream's sponsor image on
+  purpose.

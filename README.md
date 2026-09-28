@@ -22,7 +22,7 @@ Use every major model in one app, give it a workspace to get real work done, and
 </p>
 
 
-[Website](https://kelivo.psycheas.top) · [User Guide](https://kelivo.psycheas.top/guide) · [Download](#-download) · [Report an Issue](https://github.com/cuplivo/cuplivo/issues) · [QQ Group](https://qm.qq.com/q/9Rnnf7XyNO) · [Discord](https://discord.gg/kaTf8CXG4)
+[Website](https://kelivo.psycheas.top) · [User Guide](https://kelivo.psycheas.top/guide) · [Download](#-download) · [Changelog](CHANGELOG.md) · [Report an Issue](https://github.com/cuplivo/cuplivo/issues) · [QQ Group](https://qm.qq.com/q/9Rnnf7XyNO) · [Discord](https://discord.gg/kaTf8CXG4)
 
 **English** · [简体中文](README_ZH_CN.md)
 
@@ -35,6 +35,16 @@ Cuplivo is a community fork of Kelivo: a cross-platform LLM client built with Fl
 Cuplivo goes beyond chat. Models can search the web, call MCP servers, follow skills and remember what matters to you. Bind a conversation to a **workspace** and the model can read and edit files and run commands: inside a Linux sandbox on your phone, or in a native shell on your computer.
 
 Conversations, settings and files are stored locally. Cuplivo has no account system of its own; back up to WebDAV or S3-compatible storage whenever you choose.
+
+## ✨ What's new in 4.0
+
+Cuplivo 4.0 moves the whole code base onto the **Kelivo v1.3.0** baseline and re-implements Cuplivo's own features on top of it. From here on the repository re-bases on every Kelivo release instead of diverging permanently, so upstream's work keeps arriving.
+
+- **LAN sync** — conversations, the business data behind them, attachments and skills follow you across your own devices over the LAN. Pair once by QR code (endpoints + certificate fingerprint + a one-shot PIN), then sync without restarting: no server, no hub device, no manual merge.
+- **Input draft** — the unsent composer content (text, image paths and document attachments) is kept across restarts, so an accidental exit no longer loses what you were writing.
+- **Manual-first image compression** — alongside Kelivo's automatic pipeline you can compress by hand: pick JPEG / PNG / original, set the long edge and quality, and compare before and after 1:1 with a real full-image size estimate.
+
+4.0 installs **side by side** with Kelivo and Cuplivo 3.x: nothing is overwritten and data is not migrated automatically. The [changelog](CHANGELOG.md) has the migration steps (from 3.x, use **Data Migration → Export Kelivo-Compatible Backup**, not the plain export).
 
 ## 💖 Sponsors
 
@@ -232,7 +242,7 @@ Full third-party notices for the sandbox components are in [`ios/sandbox/NOTICE`
 
 ## ⚠️ Note
 
-Cuplivo is a community fork of [Kelivo](https://github.com/Chevey339/kelivo), re-baselined on Kelivo v1.3.0. It has not been fully separated from the upstream project, so some references may retain the original name. Community: QQ group `1101061750`, [Discord](https://discord.gg/kaTf8CXG4).
+Cuplivo is a community fork of [Kelivo](https://github.com/Chevey339/kelivo), re-baselined on Kelivo v1.3.0 and re-based on each Kelivo release from 4.0 on. Outward-facing identity is Cuplivo; names that belong to a protocol, to persisted data or to upstream infrastructure are kept on purpose (`kelivo://` content links, `kelivo-file://` URIs, `kelivo_*` MCP tool ids, `kelivo.db` and the like), because renaming them would break imported conversations and recorded tool calls. Community: QQ group `1101061750`, [Discord](https://discord.gg/kaTf8CXG4).
 
 ## 📄 License
 

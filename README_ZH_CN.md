@@ -22,7 +22,7 @@
 </p>
 
 
-[官网](https://kelivo.psycheas.top) · [使用手册](https://kelivo.psycheas.top/guide) · [下载](#-下载) · [反馈问题](https://github.com/cuplivo/cuplivo/issues) · [QQ 群](https://qm.qq.com/q/9Rnnf7XyNO) · [Discord](https://discord.gg/kaTf8CXG4)
+[官网](https://kelivo.psycheas.top) · [使用手册](https://kelivo.psycheas.top/guide) · [下载](#-下载) · [更新日志](CHANGELOG_CN.md) · [反馈问题](https://github.com/cuplivo/cuplivo/issues) · [QQ 群](https://qm.qq.com/q/9Rnnf7XyNO) · [Discord](https://discord.gg/kaTf8CXG4)
 
 [English](README.md) · **简体中文**
 
@@ -35,6 +35,16 @@ Cuplivo 是 Kelivo 的社区分支，是基于 Flutter 构建的跨平台 LLM �
 Cuplivo 不只是聊天。模型可以联网搜索、调用 MCP 服务器、按技能完成任务，并记住对你重要的信息。为对话绑定**工作区**后，模型还能读写文件、执行命令：在手机上运行于 Linux 沙盒中，在电脑上直接使用本机 Shell。
 
 对话、设置和文件都保存在本地。Cuplivo 没有自己的账号体系，需要时可以备份到 WebDAV 或 S3 兼容存储。
+
+## ✨ 4.0 新增
+
+Cuplivo 4.0 把代码基线整体搬到 **Kelivo v1.3.0**，并在其上重新实现 Cuplivo 自有特性。此后本仓库随 Kelivo 的版本更新持续 rebase，而非永久 diverge，上游的改进会持续到来。
+
+- **局域网同步** —— 对话、其背后的业务数据、附件与技能在同一局域网内的多台设备之间跟随你。扫码一次性配对（端点 + 证书指纹 + 一次性 PIN），同步后无需重启：无服务器、无中心设备、无需手工合并。
+- **输入草稿** —— 未发送的输入内容（文本、图片路径与文档附件）跨重启保留，意外退出不再白写。
+- **手动优先的图片压缩** —— 在 Kelivo 自动压缩之外，还可以手动压缩：选择 JPEG / PNG / 原图，设置长边与质量，1:1 对比前后效果，并给出整图体积预估。
+
+4.0 与 Kelivo、Cuplivo 3.x **并存安装**：不会覆盖任何一方，数据也不会自动迁移。迁移方法见[更新日志](CHANGELOG_CN.md)（从 3.x 迁移请用「数据迁移 → 导出 Kelivo 兼容备份」，而非常规导出）。
 
 ## 💖 赞助
 
@@ -232,7 +242,7 @@ flutter test
 
 ## ⚠️ 说明
 
-Cuplivo 是 [Kelivo](https://github.com/Chevey339/kelivo) 的社区分支，基于 Kelivo v1.3.0 重新起线，尚未与原项目完全切割，部分地方可能存在名称混用。社区入口：QQ 群 `1101061750`、[Discord](https://discord.gg/kaTf8CXG4)。
+Cuplivo 是 [Kelivo](https://github.com/Chevey339/kelivo) 的社区分支，基于 Kelivo v1.3.0 重新起线，且自 4.0 起随 Kelivo 的版本更新持续 rebase。对外身份统一为 Cuplivo；属于协议、持久化数据或上游基础设施的名称（`kelivo://` 内容链接、`kelivo-file://` URI、`kelivo_*` MCP 工具名、`kelivo.db` 等）为兼容已导入的对话与已记录的工具调用而有意保留。社区入口：QQ 群 `1101061750`、[Discord](https://discord.gg/kaTf8CXG4)。
 
 ## 📄 许可证
 

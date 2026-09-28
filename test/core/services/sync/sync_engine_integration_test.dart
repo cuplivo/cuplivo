@@ -2537,9 +2537,11 @@ void main() {
 
     final report = await a.engine.syncWithPeer(await a.peer(b));
     expect(report.success, isTrue, reason: report.summary);
-    expect(await _messageIds(b, 'conv-b'), {
-      'conv-b-m0',
-    }, reason: "the other conversation's row must not move, nor gain a ghost");
+    expect(
+      await _messageIds(b, 'conv-b'),
+      {'conv-b-m0'},
+      reason: "the other conversation's row must not move, nor gain a ghost",
+    );
     expect(await _messageIds(b, 'conv-a'), {'conv-a-m0', 'conv-a-m1'});
   });
 

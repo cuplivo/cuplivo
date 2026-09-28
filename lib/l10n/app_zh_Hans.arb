@@ -4306,7 +4306,7 @@
   "lanSyncThisDevice": "本设备",
   "lanSyncDeviceIdLabel": "设备 ID",
   "lanSyncListenerStarting": "正在启动监听…",
-  "lanSyncListenerNotRunning": "監聽未運行",
+  "lanSyncListenerNotRunning": "监听未运行",
   "lanSyncListenerFailed": "监听启动失败：{error}",
   "lanSyncPairSectionTitle": "配对设备",
   "lanSyncPairIntro": "在一台设备上显示二维码，用另一台扫描；没有摄像头时输入配对码。两台设备需在同一网络。",

@@ -23811,7 +23811,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncListenerStarting => '正在启动监听…';
 
   @override
-  String get lanSyncListenerNotRunning => '監聽未運行';
+  String get lanSyncListenerNotRunning => '监听未运行';
 
   @override
   String lanSyncListenerFailed(Object error) {

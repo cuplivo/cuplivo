@@ -234,6 +234,29 @@ class _CrossReferencingPlane extends SyncDataPlane {
   }
 }
 
+/// A data plane that counts the per-conversation local checkpoint reads — the
+/// cost a settled library must not pay again on every session.
+class _CountingCheckpointPlane extends SyncDataPlane {
+  _CountingCheckpointPlane({
+    required super.repository,
+    required super.chatService,
+    required super.businessRepository,
+    super.businessPreferences,
+    super.skillDirectories,
+    required super.blobPathResolver,
+  });
+
+  int reads = 0;
+
+  @override
+  Future<SyncCheckpointConversation?> checkpointFromLocal(
+    String conversationId,
+  ) {
+    reads++;
+    return super.checkpointFromLocal(conversationId);
+  }
+}
+
 /// One device: its own sync directory, database, chat and business stores, and
 /// its own listener.
 class _Side {
@@ -334,6 +357,7 @@ class _Side {
     Future<void> Function()? vanishBlob,
     List<SyncBlobEntry>? craftedBlobs,
     List<Map<String, dynamic>> Function()? craftedRows,
+    bool countCheckpointReads = false,
   }) async {
     dir = Directory('${root.path}/$label');
     await dir.create(recursive: true);
@@ -406,6 +430,15 @@ class _Side {
             skillDirectories: skillDirectories,
             blobPathResolver: resolveBlob,
             craft: craftedRows,
+          )
+        : countCheckpointReads
+        ? _CountingCheckpointPlane(
+            repository: repository,
+            chatService: chatService,
+            businessRepository: businessRepository,
+            businessPreferences: businessPreferences,
+            skillDirectories: skillDirectories,
+            blobPathResolver: resolveBlob,
           )
         : SyncDataPlane(
             repository: repository,
@@ -1465,6 +1498,34 @@ void main() {
     await a.engine.syncWithPeer(await a.peer(b));
     expect(await _conversationIds(a), isEmpty);
     expect(await _conversationIds(b), isEmpty);
+  });
+
+  test('a settled library is not re-read on every session', () async {
+    // The none beat used to rebuild each settled conversation's entry from
+    // local — every message row of every conversation, once per session. The
+    // manifest carries the same digest and row clock the refresh would read,
+    // so when they equal the entry there is nothing to rebuild.
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, countCheckpointReads: true);
+    await b.start(root);
+    sides.addAll([a, b]);
+    final pin = b.engine.openPairing();
+    await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _seedConversation(a, id: 'conv-a', contents: ['a1', 'a2']);
+    await _seedConversation(a, id: 'conv-b', contents: ['b1']);
+    await a.engine.syncWithPeer(await a.peer(b));
+
+    final plane = a.dataPlane as _CountingCheckpointPlane;
+    plane.reads = 0;
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(report.conversationsSent, 0);
+    expect(
+      plane.reads,
+      0,
+      reason: 'a settled conversation must not be re-read from local',
+    );
   });
 
   test(

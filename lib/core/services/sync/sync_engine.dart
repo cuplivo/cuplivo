@@ -668,6 +668,7 @@ class SyncEngine implements SyncServerHandler {
       if (deletedBusiness.isNotEmpty) await dataPlane.reloadBusiness();
 
       final next = await _advanceCheckpoint(
+        myManifest: myManifest,
         previous: previous,
         plan: plan,
         skippedSends: skippedSends,
@@ -1095,6 +1096,7 @@ class SyncEngine implements SyncServerHandler {
     if (deletedBusiness.isNotEmpty) await dataPlane.reloadBusiness();
 
     final next = await _advanceCheckpoint(
+      myManifest: session.myManifest,
       previous: session.checkpoint,
       plan: session.plan,
       skippedSends: skipped,
@@ -1275,6 +1277,7 @@ class SyncEngine implements SyncServerHandler {
   /// the peer's silence as a deletion. Such an entry is created by [none] one
   /// session later, when the peer's manifest confirms the transfer.
   Future<SyncCheckpoint> _advanceCheckpoint({
+    required SyncManifest myManifest,
     required SyncCheckpoint previous,
     required List<SyncConvPlan> plan,
     required Set<String> skippedSends,
@@ -1297,6 +1300,19 @@ class SyncEngine implements SyncServerHandler {
           // interrupted session left behind before it can misread a peer
           // deletion as a local edit. The business face has always refreshed
           // here (setFromLocal); this aligns the conversation face with it.
+          //
+          // The manifest already carries the same digest and row clock, and
+          // both are computed from the same rows this refresh would read: when
+          // they match the entry, re-reading every message of every settled
+          // conversation would rebuild exactly the entry already in hand.
+          final mine = myManifest.conversations[id];
+          if (prior != null &&
+              mine != null &&
+              prior.digest == mine.digest &&
+              prior.updatedAtUs == mine.updatedAtUs) {
+            next[id] = prior;
+            break;
+          }
           final entry = await dataPlane.checkpointFromLocal(id);
           if (entry != null) {
             next[id] = entry;

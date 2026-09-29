@@ -530,6 +530,59 @@ not; and the crafted-row defect is reachable as a re-home and as a cross-convers
 the unique-slot collision the review also described, because the order re-derivation compacts slots
 before writing.
 
+## Amendment (2026-09, slice 9): advertised candidates, a remembered endpoint set, the rebuilt window
+
+Three defects from field use of 4.0, none of them in the merge: a device that advertised no
+address at all, a peer record that could hold only one address, and an open conversation that
+kept showing pre-sync content.
+
+- **The candidate filter excluded the addresses that work.** The list was restricted to RFC1918 —
+  the reasoning was that a human types it. A campus network that hands out globally routable IPv4
+  directly then had nothing left to advertise: no endpoint in the QR, "no LAN address" in the
+  panel, while a peer on the same segment could reach it. The rule is now every unicast IPv4, with
+  loopback, link-local, multicast and the reserved blocks dropped (the enumeration excludes
+  loopback and link-local itself).
+- **The same filter kept the addresses that do not work.** Virtual adapters live in the private
+  ranges, so VMware's host-only network was advertised — and two machines running the same
+  hypervisor carry the same default clone subnet, so a joiner trying that candidate reaches
+  *itself* and fails the pin. Interfaces are now filtered by name (stems `vmware`, `virtualbox`,
+  `vethernet`, `docker`, `wsl`, the tunnel and VPN families, and `rmnet`/`clat`/`pdp_ip` on
+  phones): excluded rather than demoted, because a demoted candidate keeps that failure reachable.
+  Names a tethered peer must dial are deliberately kept — `bridge*` (an iPhone's personal
+  hotspot), Windows' "Local Area Connection* N" (the mobile hotspot adapter) and `swlan*` (Android
+  soft AP) — and the advertised list is capped at four addresses so the QR stays scannable.
+- **An address is a (device, network) fact, not a device fact.** The peer record stored one
+  `lastHost`/`lastPort`, so every move between home, office and a phone hotspot became a re-scan.
+  It now holds up to six endpoints, best first: a session promotes the endpoint that answered and
+  keeps the rest behind it as hints, which is what makes roaming back to a known network heal in
+  one round. Only "could not be reached at all" falls through to the next candidate — a refusal is
+  the peer's verdict on *all* of its addresses — and a handshake mismatch counts as unreachable,
+  because the pin refuses inside the handshake before any request byte. That is what makes trying
+  the next address free.
+- **Both sides start with a set.** Pairing keeps the QR's other candidates as hints, and the joiner
+  advertises its own addresses in the pair request (`candidateHosts`, additive: a 4.0 peer ignores
+  the field, so no protocol bump) so the responder remembers more than the single address the
+  pairing arrived from. Manual repair replaces the whole set — the automatic memory is what failed,
+  or the user would not be typing.
+- **4.0 records are upgraded on read.** The stored pair becomes a one-element set seeded with
+  `lastSyncedAt`, and the next save writes the new shape. The peer store is plain JSON per peer, so
+  there is no database migration; letting every paired device re-pair on update was not an
+  acceptable cost for a feature whose whole point is durable pairing.
+- **An open conversation is rebuilt, not left behind.** The apply already reloaded the caches, but
+  the controller's only reaction to that notification was "does the conversation still exist?", so
+  a conversation the peer had just written into kept showing pre-sync content until the user left
+  it and came back — the take-the-phone-and-keep-chatting journey ended on a stale screen. The
+  apply now names the conversations it changed, and the controller compares a per-conversation
+  external-write counter against the one its window was built from: it rebuilds the window
+  (tail-following at the bottom, anchored on the first loaded row above it) and refreshes the row
+  the page renders outside the window. A write that lands while a local generation owns the window
+  is held back and applied when the stream releases it; every other notification costs one integer
+  comparison. *Rejected: a targeted partial cache reload* — the shared persisted caches are the
+  trap it opens, and the full reload is what the apply has always run, so the counter alone buys
+  the user-visible fix. *Rejected: live-reloading open editor pages* — a form rewritten under the
+  user's hands is worse than a snapshot, and the row-level LWW rule plus the report's lost-row
+  counter already covers the outcome.
+
 ## Considered options (rejected)
 
 - **Whole-database / backup-zip exchange** — not version-portable; a newer schema on an
@@ -624,12 +677,14 @@ before writing.
   blocks a conversation.
 - Serving a skill body costs one zip build per content hash and launch (cached under
   `<skills>/.sync-blob-cache`), and directory hashing is memoised per launch by fingerprint.
-- A peer whose address drifted reports `unreachable` until the user re-scans its QR or edits the
-  address: without discovery nothing heals an endpoint change on its own, and the panel shows the
-  last attempt rather than an "online" state it cannot verify.
-- A foreground round over an unreachable peer waits out the client's 10-second connect timeout
-  before moving to the next one; the one-minute throttle keeps that from becoming a loop, and
-  nothing blocks the UI.
+- An address a peer has moved away from costs one failed connect before the remembered set moves on
+  to the one that answers; `unreachable` on the panel therefore means *no* remembered address
+  answered — the peer is off, or it is on a network this pair has never met, where re-scanning its
+  QR or typing the address remains the repair. Without discovery nothing anticipates a change, and
+  the panel still shows the last attempt rather than an "online" state it cannot verify.
+- A foreground round over an unreachable peer walks its remembered candidates instead of stopping
+  at the first: the cost is one connect timeout per candidate, bounded by the six-endpoint cap, and
+  the one-minute throttle keeps that from becoming a loop.
 - Scanner availability follows the platform, not the package: `mobile_scanner` has Android and
   iOS implementations wired here, so desktop devices show a QR and pair by typing the code (the
   port field is prefilled with the preferred port). macOS is deliberately excluded even though

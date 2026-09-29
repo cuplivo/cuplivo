@@ -253,10 +253,28 @@ contradicts one of them is a bug, not a preference.
 
 ### Discovery & pairing (发现与配对)
 
-- **Pairing, then nothing automatic about addresses**: the QR image (endpoints + fingerprint +
+- **Pairing, then a learned endpoint set**: the QR image (endpoints + fingerprint +
   PIN) is the recommended path; the PIN dialog is the fallback for a device without a scanner
   (desktop — the phone scans the computer's QR in the primary journey). Both leave a durable peer
-  record, and sync uses the stored endpoint.
+  record, and sync dials the endpoints that record remembers, best first.
+- **An address belongs to the (device, network) pair** (端点集): the same laptop is reachable at
+  an office address, a home address and a phone hotspot, so a peer record holds up to six
+  endpoints instead of one. A session promotes the endpoint it succeeded over to the front and
+  keeps the rest behind it as hints, so roaming back to a known network heals itself in one round.
+  Only the certificate fingerprint identifies a peer — every connection re-verifies it — so
+  remembering several addresses can never reach the wrong device. Manual repair ("edit address")
+  replaces the whole set: the automatic memory is what failed, or the user would not be typing.
+- **Advertised candidates are chosen, not dumped** (候选地址): a device advertises every unicast
+  IPv4 the OS reports, minus the interfaces a peer cannot use — virtual adapters (VMware,
+  VirtualBox, Hyper-V, Docker/WSL), VPN and tunnel interfaces (Tailscale, ZeroTier, WireGuard,
+  `tun`/`tap`/`utun`), and a phone's cellular interfaces (`rmnet`, `clat`, `pdp_ip`). A shared
+  clone subnet is why they are excluded rather than demoted: two machines running the same
+  hypervisor carry the same host-only network, and a joiner trying that candidate reaches itself
+  and fails the pin. Names a tethered peer *must* dial stay in: `bridge*` (iPhone hotspot),
+  Windows' "Local Area Connection* N" (mobile hotspot) and `swlan*` (Android soft AP). The list is
+  capped at four addresses so the QR stays scannable. A public address is never filtered out:
+  campus networks hand out globally routable IPv4 directly, and filtering to RFC1918 alone left
+  those devices advertising nothing at all. VPN-only users fall back to typing the address.
 - **The pairing form names the field that is wrong**: address/port and the pairing code are
   validated and reported separately, so a mistyped address never sends the user to re-check the
   other device. The code is compared with its spaces stripped — the dialog shows it as `123 456`,
@@ -264,13 +282,20 @@ contradicts one of them is a bug, not a preference.
 - **No LAN discovery is implemented**: mDNS/DNS-SD (`_cuplivo._sync._tcp`) is a *deferred*
   option, not a missing piece — the platform cost (iOS Bonjour declarations and local-network
   permission, Android multicast locks, a Windows inbound UDP 5353 rule) buys endpoint
-  auto-healing that a re-scan repairs in one gesture. The naming is reserved so adding it later
-  is purely additive.
-- **Endpoint drift (端点漂移) is a normal, repairable state**: the DHCP/network change that
-  moves a peer makes "sync now" report `unreachable` until the address is fixed. Two repairs
-  exist and both are ordinary: re-scan the peer's QR (updates the address, rotates the secret),
-  or edit the address on the peer card. A drifted endpoint is a connectivity failure, reported
-  as such — never a discovery failure.
+  auto-healing that the remembered endpoint set already covers for every network the pair has
+  met, and a re-scan covers for the first visit to a new one. The naming is reserved so adding it
+  later is purely additive.
+- **Endpoint drift (端点漂移) is a normal, self-healing state**: the DHCP/network change that
+  moves a peer makes a session walk its remembered endpoints; the one that answers becomes the
+  new head. `unreachable` means *none* of them answered — the peer is off, or it is on a network
+  this device has never met, and the two repairs are re-scanning its QR (which updates the set and
+  rotates the secret) or typing the address on its card. A drifted endpoint is a connectivity
+  failure, reported as such — never a discovery failure.
+- **Reaching a candidate is not the same as it being the peer**: an endpoint that cannot be
+  connected (refused, timed out) and one that answers with the wrong certificate both fall through
+  to the next candidate — the pin refuses the wrong device inside the handshake, before any request
+  byte, so nothing leaks and the next address is still a fair attempt. A *refusal* is different:
+  it is that peer's verdict, and its other addresses would only repeat it, so the session ends.
 - **AP isolation** is likewise a *connectivity* failure: on a network that blocks peer-to-peer
   traffic no pairing path helps, and the report says so.
 - **Unpairing (解除配对) is local-first, then best-effort remote**: this device always drops the
@@ -341,6 +366,19 @@ contradicts one of them is a bug, not a preference.
   and outside the sync face anyway. Restart remains only a crash-recovery fallback.
 - **Apply yields to generation**: applying changes to a conversation is deferred while a
   generation is actively writing to it.
+- **An open conversation is rebuilt, not left behind**: the apply names the conversations it
+  changed, and the chat controller rebuilds the window it is showing when that window's
+  conversation is among them. At the bottom the window follows the tail — the messages that just
+  arrived are what the user picked the device up for — and above the bottom it is rebuilt around
+  the first loaded row, so a reader is not thrown to the end. A write that lands while a local
+  generation owns the window is held back and applied when that generation ends. Every other
+  notification costs one integer comparison (the per-conversation external-write counter), which
+  is what keeps the app's own frequent write traffic from rebuilding windows.
+- **An open editor keeps its snapshot**: settings and entity editor pages load once and save what
+  they show, so a sync apply that lands underneath one is overwritten on save by the row-level LWW
+  rule — and, as everywhere else in the merge, the report counts the local rows it replaced. Live
+  reloading a form the user is typing into would be worse than the staleness; the doctrine is
+  "never silent", not "never stale".
 
 ### Failure policy (故障政策)
 

@@ -174,7 +174,9 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
     }
     final endpoints = [
       for (final address in provider.localAddresses)
-        '${address.address}:${provider.port ?? ''}',
+        provider.port == null
+            ? uriHost(address.address)
+            : formatHostPort(address.address, provider.port!),
     ];
     // The dialog closes only through its own button (which cancels the
     // window) or the expiry ticker; a system back gesture must not leave the

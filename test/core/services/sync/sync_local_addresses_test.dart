@@ -27,19 +27,52 @@ void main() {
       ]);
     });
 
-    test('drops loopback, link-local, multicast, reserved and IPv6', () {
+    test(
+      'drops loopback, link-local, multicast and reserved, both families',
+      () {
+        expect(
+          filterLanAddresses([
+            (name: 'lo', address: '127.0.0.1'),
+            (name: 'en0', address: '169.254.10.1'),
+            (name: 'en0', address: '224.0.0.5'),
+            (name: 'en0', address: '255.255.255.255'),
+            (name: 'en0', address: '0.0.0.0'),
+            (name: 'en0', address: 'fe80::1'),
+            (name: 'en0', address: '::1'),
+            (name: 'en0', address: '::'),
+            (name: 'en0', address: 'ff02::1'),
+            (name: 'en0', address: 'fc00::1'),
+          ]),
+          isEmpty,
+        );
+      },
+    );
+
+    test('keeps global unicast and unique-local IPv6', () {
+      // The IPv6 half of the campus-network story: a network that hands out
+      // globally routable addresses hands them out in v6 too, and its peers
+      // reach them exactly the same way.
       expect(
         filterLanAddresses([
-          (name: 'lo', address: '127.0.0.1'),
-          (name: 'en0', address: '169.254.10.1'),
-          (name: 'en0', address: '224.0.0.5'),
-          (name: 'en0', address: '255.255.255.255'),
-          (name: 'en0', address: '0.0.0.0'),
-          (name: 'en0', address: 'fe80::1'),
-          (name: 'en0', address: '::1'),
-          (name: 'en0', address: '2001:da8::1'),
+          (name: 'wlan0', address: '2001:da8:215:8f2::1'),
+          (name: 'wlan0', address: '2400:3200::1'),
+          (name: 'en0', address: 'fd00::a1b2:c3d4'),
         ]),
-        isEmpty,
+        [
+          (name: 'wlan0', address: '2001:da8:215:8f2::1'),
+          (name: 'wlan0', address: '2400:3200::1'),
+          (name: 'en0', address: 'fd00::a1b2:c3d4'),
+        ],
+      );
+    });
+
+    test('an IPv4 address wearing a v6 shape is one candidate, not two', () {
+      expect(
+        filterLanAddresses([
+          (name: 'en0', address: '192.168.1.5'),
+          (name: 'en0', address: '::ffff:192.168.1.5'),
+        ]),
+        [(name: 'en0', address: '192.168.1.5')],
       );
     });
 
@@ -124,6 +157,27 @@ void main() {
             (name: 'wlan$i', address: '192.168.1.${i + 1}'),
         ]).length,
         kMaxLanCandidates,
+      );
+    });
+
+    test('the cap counts both families in interface order', () {
+      // One list, one cap: a machine with an address of each family keeps the
+      // four its interfaces reported first, not four of each.
+      expect(
+        selectLanCandidates([
+          (name: 'wlan0', address: '192.168.1.5'),
+          (name: 'wlan0', address: '2001:da8:215:8f2::1'),
+          (name: 'eth0', address: '10.0.0.3'),
+          (name: 'eth0', address: 'fd00::a1b2'),
+          (name: 'en0', address: '192.168.9.9'),
+          (name: 'en0', address: '2400:3200::1'),
+        ]),
+        [
+          (name: 'wlan0', address: '192.168.1.5'),
+          (name: 'wlan0', address: '2001:da8:215:8f2::1'),
+          (name: 'eth0', address: '10.0.0.3'),
+          (name: 'eth0', address: 'fd00::a1b2'),
+        ],
       );
     });
   });

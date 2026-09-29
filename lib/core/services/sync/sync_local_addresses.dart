@@ -39,26 +39,69 @@ bool _isUsableUnicast(InternetAddress address) {
   return true;
 }
 
-/// Keeps unique usable unicast IPv4 addresses, preserving input order.
+/// Whether [address] is a unicast IPv6 a peer could dial.
+///
+/// Kept: global unicast (`2000::/3`) and unique local (`fd00::/8`) — the two
+/// ranges an interface actually holds and a peer on the same network can reach.
+///
+/// Dropped: link-local (`fe80::/10`), whose zone id is a property of *this*
+/// device's interface and means nothing to a peer; multicast; the unspecified
+/// address; the reserved `fc00::/8` half of the unique-local block; and the
+/// IPv4-mapped (`::ffff:0:0/96`) and IPv4-compatible (`::/96`) forms, which are
+/// an IPv4 address wearing an IPv6 shape and are enumerated as IPv4 instead.
+bool _isUsableIpv6(InternetAddress address) {
+  final raw = address.rawAddress;
+  if (raw.length != 16) return false;
+  var leadingZero = true;
+  for (var i = 0; i < 10; i++) {
+    if (raw[i] != 0) {
+      leadingZero = false;
+      break;
+    }
+  }
+  if (leadingZero &&
+      ((raw[10] == 0xff && raw[11] == 0xff) ||
+          (raw[10] == 0 && raw[11] == 0))) {
+    return false;
+  }
+  final first = raw[0];
+  if (first == 0xfd) return true; // unique local (fd00::/8)
+  if (first >= 0x20 && first <= 0x3f) return true; // global unicast (2000::/3)
+  return false;
+}
+
+/// Whether [address] is a unicast address of either family a peer could dial.
+bool _isUsableAddress(InternetAddress address) {
+  if (address.type == InternetAddressType.IPv4) {
+    return _isUsableUnicast(address);
+  }
+  if (address.type == InternetAddressType.IPv6) return _isUsableIpv6(address);
+  return false;
+}
+
+/// Keeps unique usable unicast addresses of either family, preserving input
+/// order.
 List<LanAddress> filterLanAddresses(List<LanAddress> addresses) {
   final kept = <LanAddress>[];
   final seen = <String>{};
   for (final candidate in addresses) {
-    final address = InternetAddress.tryParse(candidate.address);
+    final normalized = normalizeHost(candidate.address);
+    final address = InternetAddress.tryParse(normalized);
     if (address == null) continue;
-    if (address.type != InternetAddressType.IPv4) continue;
-    if (!_isUsableUnicast(address)) continue;
-    if (!seen.add(candidate.address)) continue;
-    kept.add(candidate);
+    if (!_isUsableAddress(address)) continue;
+    // Deduplicated and stored in the canonical form, so one interface reporting
+    // an IPv4 address twice (plain and mapped) yields one candidate.
+    if (!seen.add(normalized)) continue;
+    kept.add((name: candidate.name, address: normalized));
   }
   return kept;
 }
 
-/// All unique unicast IPv4 addresses of this device, in interface order.
+/// All unique usable unicast addresses of this device, in interface order —
+/// IPv4 and IPv6 in one list, because a peer dials whichever it can reach.
 Future<List<LanAddress>> listLanAddresses() async {
   try {
     final interfaces = await NetworkInterface.list(
-      type: InternetAddressType.IPv4,
       includeLoopback: false,
       includeLinkLocal: false,
     );

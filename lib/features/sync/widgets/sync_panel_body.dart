@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/providers/sync_provider.dart';
+import '../../../core/services/sync/sync_local_addresses.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/section_card.dart';
@@ -184,7 +185,8 @@ class _ThisDeviceCard extends StatelessWidget {
     final provider = this.provider;
     final endpoints = [
       for (final address in provider.localAddresses)
-        if (provider.port != null) '${address.address}:${provider.port}',
+        if (provider.port != null)
+          formatHostPort(address.address, provider.port!),
     ];
 
     final String state;

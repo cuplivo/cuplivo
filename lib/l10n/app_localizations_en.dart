@@ -12517,6 +12517,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lanSyncNeverSynced => 'Never synced';
 
   @override
+  String get lanSyncJustSynced => 'Just synced';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n min ago';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n h ago';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n d ago';
+  }
+
+  @override
   String get lanSyncSyncNow => 'Sync now';
 
   @override
@@ -12530,6 +12548,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lanSyncEditAddress => 'Edit address';
+
+  @override
+  String get lanSyncAddressCopied => 'Address copied';
 
   @override
   String get lanSyncUnpair => 'Unpair';

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/providers/sync_provider.dart';
@@ -36,6 +37,17 @@ class SyncPeerCard extends StatelessWidget {
     final primary = peer.primaryEndpoint;
     final endpoint = primary?.label;
     final report = peer.lastReport;
+    // How many addresses are remembered, as a count beside the one in use: a
+    // peer this device has reached on two networks should not look like a peer
+    // with a single address. The count rides with the address rather than being
+    // one more field of the list, so it reads as "and two more like this".
+    final subtitle = [
+      syncPlatformLabel(l10n, peer.platform),
+      if (endpoint != null)
+        peer.endpoints.length > 1
+            ? '$endpoint (+${peer.endpoints.length - 1})'
+            : endpoint,
+    ].join(' · ');
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -65,16 +77,22 @@ class SyncPeerCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      [
-                        syncPlatformLabel(l10n, peer.platform),
-                        if (endpoint != null) endpoint,
-                      ].join(' · '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: cs.onSurface.withValues(alpha: 0.55),
+                    GestureDetector(
+                      // The address is the one string on this card that has
+                      // somewhere else to be — typed into another device, or
+                      // handed to whoever is on the other end of a call. Tapping
+                      // copies it, the way the app copies a path or a code.
+                      onTap: endpoint == null
+                          ? null
+                          : () => _copyAddress(context, endpoint),
+                      child: Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurface.withValues(alpha: 0.55),
+                        ),
                       ),
                     ),
                   ],
@@ -110,11 +128,18 @@ class SyncPeerCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            syncLastSyncedLabel(l10n, peer.lastSyncedAt),
-            style: TextStyle(
-              fontSize: 12,
-              color: cs.onSurface.withValues(alpha: 0.6),
+          Tooltip(
+            // The exact time is one hover away: this line answers "is this
+            // current?", which a bare timestamp makes the reader work out.
+            message: peer.lastSyncedAt == null
+                ? l10n.lanSyncNeverSynced
+                : syncAbsoluteLastSyncedLabel(l10n, peer.lastSyncedAt!),
+            child: Text(
+              syncLastSyncedLabel(l10n, peer.lastSyncedAt),
+              style: TextStyle(
+                fontSize: 12,
+                color: cs.onSurface.withValues(alpha: 0.6),
+              ),
             ),
           ),
           if (report != null) ...[
@@ -162,6 +187,22 @@ class SyncPeerCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _copyAddress(BuildContext context, String endpoint) async {
+    final l10n = AppLocalizations.of(context)!;
+    await Clipboard.setData(ClipboardData(text: endpoint));
+    if (!context.mounted) return;
+    try {
+      showAppSnackBar(
+        context,
+        message: l10n.lanSyncAddressCopied,
+        type: NotificationType.success,
+      );
+    } catch (_) {
+      // No overlay above this point (dialog-hosted card); the clipboard already
+      // holds the address, which is what the tap was for.
+    }
   }
 
   Future<void> _syncNow(BuildContext context, SyncProvider provider) async {

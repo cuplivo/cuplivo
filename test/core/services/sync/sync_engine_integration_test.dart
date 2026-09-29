@@ -25,11 +25,13 @@ import 'package:Cuplivo/core/services/sync/sync_pair_qr.dart';
 import 'package:Cuplivo/core/services/sync/sync_server.dart';
 import 'package:Cuplivo/core/services/sync/sync_store.dart';
 import 'package:Cuplivo/features/sync/widgets/sync_pairing_dialogs.dart';
+import 'package:Cuplivo/features/sync/widgets/sync_peer_card.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/widgets/snackbar.dart';
 import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
@@ -1459,6 +1461,93 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
     expect(AppSnackBarManager().activeToasts, isEmpty);
+
+    provider.dispose();
+    await a.chatService.close();
+    await a.repository.close();
+  });
+
+  testWidgets('a peer card says how long ago, and copies its address', (
+    tester,
+  ) async {
+    // Not added to `sides`, for the same reason as the pairing-dialog test
+    // above: this side runs no engine of its own.
+    final a = _Side('a');
+    late final _StubSyncProvider provider;
+    late final AppLocalizations l10n;
+    await tester.runAsync(() async {
+      await a.start(root, withEngine: false);
+      provider = _StubSyncProvider(a);
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    });
+
+    final copied = <MethodCall>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') copied.add(call);
+        return null;
+      },
+    );
+
+    final peer = SyncPeerRecord(
+      deviceId: 'peer-1',
+      certPem: 'pem',
+      secret: 'secret',
+      name: 'Studio desktop',
+      platform: 'android',
+      endpoints: [
+        SyncPeerEndpoint(host: '192.168.1.5', port: 9527),
+        SyncPeerEndpoint(host: 'fd00::5', port: 9527),
+      ],
+      lastSyncedAt: DateTime.now().subtract(const Duration(minutes: 4)),
+    );
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SyncProvider>.value(
+        value: provider,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: SyncPeerCard(peer: peer)),
+        ),
+      ),
+    );
+
+    // A peer reached on two networks should not look like a peer with one
+    // address: the count is beside the address in use.
+    final subtitle = '${l10n.lanSyncPlatformAndroid} · 192.168.1.5:9527 (+1)';
+    expect(find.text(subtitle), findsOneWidget);
+
+    // How long ago, not a timestamp — the tooltip keeps the exact time.
+    expect(
+      find.text(l10n.lanSyncLastSyncedAt('4 min ago')),
+      findsOneWidget,
+      reason: 'the line answers "is this current?", not "when exactly?"',
+    );
+
+    await tester.tap(find.text(subtitle));
+    await tester.pumpAndSettle();
+
+    expect(
+      (copied.single.arguments as Map)['text'],
+      '192.168.1.5:9527',
+      reason: 'the address in use is what a tap copies',
+    );
+    expect(
+      AppSnackBarManager().activeToasts.any(
+        (toast) => toast.notification.message == l10n.lanSyncAddressCopied,
+      ),
+      isTrue,
+      reason: 'a copy with no feedback is indistinguishable from a dead tap',
+    );
+
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      null,
+    );
 
     provider.dispose();
     await a.chatService.close();

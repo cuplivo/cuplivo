@@ -11942,6 +11942,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncNeverSynced => '从未同步';
 
   @override
+  String get lanSyncJustSynced => '刚刚同步';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n 分钟前';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n 小时前';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n 天前';
+  }
+
+  @override
   String get lanSyncSyncNow => '立即同步';
 
   @override
@@ -11955,6 +11973,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get lanSyncEditAddress => '修改地址';
+
+  @override
+  String get lanSyncAddressCopied => '地址已复制';
 
   @override
   String get lanSyncUnpair => '取消配对';
@@ -23951,6 +23972,24 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncNeverSynced => '从未同步';
 
   @override
+  String get lanSyncJustSynced => '刚刚同步';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n 分钟前';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n 小时前';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n 天前';
+  }
+
+  @override
   String get lanSyncSyncNow => '立即同步';
 
   @override
@@ -23964,6 +24003,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncEditAddress => '修改地址';
+
+  @override
+  String get lanSyncAddressCopied => '地址已复制';
 
   @override
   String get lanSyncUnpair => '取消配对';
@@ -36039,6 +36081,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get lanSyncNeverSynced => '從未同步';
 
   @override
+  String get lanSyncJustSynced => '剛剛同步';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n 分鐘前';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n 小時前';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n 天前';
+  }
+
+  @override
   String get lanSyncSyncNow => '立即同步';
 
   @override
@@ -36052,6 +36112,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncEditAddress => '修改位址';
+
+  @override
+  String get lanSyncAddressCopied => '位址已複製';
 
   @override
   String get lanSyncUnpair => '取消配對';

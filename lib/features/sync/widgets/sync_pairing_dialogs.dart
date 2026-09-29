@@ -40,6 +40,11 @@ Future<void> showSyncPairingDialogs({
 
 Future<void> _showCodeDialog(BuildContext context) async {
   final provider = context.read<SyncProvider>();
+  // Re-enumerate before the window opens, not only on resume: on a desktop the
+  // network can change with the app in the foreground, which fires no lifecycle
+  // event, and a QR showing the network the device just left is worse than no
+  // QR. The dialog follows the list if this lands late (see the state below).
+  unawaited(provider.refreshLocalAddresses());
   final pin = provider.openPairing();
   if (pin == null || !context.mounted) return;
   // The window this dialog opens lives for five minutes and is invisible
@@ -68,9 +73,14 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
   Timer? _ticker;
   Duration _remaining = Duration.zero;
 
-  /// Encoded once: the QR carries pin + port + addresses, none of which
-  /// change per second, so the countdown ticker must not rebuild it.
+  /// Encoded once per *endpoint set*, not once per frame: the fingerprint, the
+  /// PIN and the bound port are fixed for the window, so the once-a-second
+  /// countdown tick must not rebuild the image — but the address list is a live
+  /// fact (the device can join another network while this dialog is open) and
+  /// the list below reads it live. Re-encoding when it changes is what keeps
+  /// the image and the text underneath it from telling two different stories.
   String? _qrData;
+  List<(String, int)> _encodedEndpoints = const [];
 
   @override
   void initState() {
@@ -78,7 +88,7 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
     _remaining = DateTime.now().isBefore(widget.provider.pairingExpiresAt!)
         ? widget.provider.pairingExpiresAt!.difference(DateTime.now())
         : Duration.zero;
-    _qrData = _buildQrData();
+    _encodeQr(_currentEndpoints());
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       final expiresAt = widget.provider.pairingExpiresAt;
       if (!mounted) return;
@@ -95,6 +105,32 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
     });
   }
 
+  /// The endpoints the QR should carry: this device's addresses on the port the
+  /// listener is actually bound to. Empty while the listener is still starting,
+  /// which is a QR with no address — the joiner then types the host by hand.
+  List<(String, int)> _currentEndpoints() {
+    final port = widget.provider.port;
+    if (port == null) return const [];
+    return [
+      for (final address in widget.provider.localAddresses)
+        (address.address, port),
+    ];
+  }
+
+  /// Re-encodes the QR when, and only when, its endpoints changed.
+  void _encodeQr(List<(String, int)> endpoints) {
+    final deviceId = widget.provider.deviceId;
+    _encodedEndpoints = endpoints;
+    _qrData = deviceId == null
+        ? null
+        : SyncPairQrPayload(
+            deviceId: deviceId,
+            name: widget.provider.deviceName ?? '',
+            endpoints: endpoints,
+            pin: widget.pin,
+          ).toQrString();
+  }
+
   /// Pops this dialog exactly once, disarming the ticker first. `mounted`
   /// stays true for the whole exit animation, so a tick landing there after
   /// the close button cancelled the window sees a null expiry and would pop
@@ -109,22 +145,6 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
     final route = ModalRoute.of(context);
     if (route == null || !route.isCurrent) return;
     Navigator.of(context).pop();
-  }
-
-  String? _buildQrData() {
-    final provider = widget.provider;
-    final deviceId = provider.deviceId;
-    final port = provider.port;
-    if (deviceId == null) return null;
-    return SyncPairQrPayload(
-      deviceId: deviceId,
-      name: provider.deviceName ?? '',
-      endpoints: [
-        for (final address in provider.localAddresses)
-          if (port != null) (address.address, port),
-      ],
-      pin: widget.pin,
-    ).toQrString();
   }
 
   @override
@@ -144,6 +164,13 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final provider = widget.provider;
+    // The address list is a live fact: the ticker rebuilds this every second, so
+    // re-encoding whenever it moved is what keeps the image and the text below
+    // it from telling two different stories.
+    final currentEndpoints = _currentEndpoints();
+    if (!listEquals(currentEndpoints, _encodedEndpoints)) {
+      _encodeQr(currentEndpoints);
+    }
     final endpoints = [
       for (final address in provider.localAddresses)
         '${address.address}:${provider.port ?? ''}',
@@ -161,27 +188,7 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (_qrData != null) ...[
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      // Always white: a QR must stay dark-on-light to scan.
-                      color:
-                          Colors.white, // color-gate: ignore (QR scannability)
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: SizedBox.square(
-                      dimension: 180,
-                      child: PrettyQrView.data(
-                        data: _qrData!,
-                        errorCorrectLevel: QrErrorCorrectLevel.M,
-                        decoration: const PrettyQrDecoration(
-                          shape: PrettyQrSmoothSymbol(roundFactor: 1),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                Center(child: PairingQrImage(data: _qrData!)),
                 const SizedBox(height: 8),
                 Center(
                   child: Text(
@@ -258,6 +265,45 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
             child: Text(l10n.lanSyncClosePairing),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The pairing QR image: the encoded payload on the one background that keeps a
+/// code scannable, dark on light.
+///
+/// A named widget rather than a bare `PrettyQrView.data` call because the
+/// library's data view is not exported — this makes the payload that is
+/// actually on screen an assertable input, which is what the pairing window's
+/// tests need.
+class PairingQrImage extends StatelessWidget {
+  const PairingQrImage({super.key, required this.data, this.size = 180});
+
+  /// The encoded `cuplivo-pair:v1:` payload this image carries.
+  final String data;
+
+  /// Side length of the square the code is drawn into.
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        // Always white: a QR must stay dark-on-light to scan.
+        color: Colors.white, // color-gate: ignore (QR scannability)
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: SizedBox.square(
+        dimension: size,
+        child: PrettyQrView.data(
+          data: data,
+          errorCorrectLevel: QrErrorCorrectLevel.M,
+          decoration: const PrettyQrDecoration(
+            shape: PrettyQrSmoothSymbol(roundFactor: 1),
+          ),
+        ),
       ),
     );
   }

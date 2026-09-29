@@ -76,6 +76,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     required BusinessPreferences businessPreferences,
     required BusinessStateReloader reloader,
     required Future<Directory> Function() syncDirectory,
+    Future<List<LanAddress>> Function()? addressSource,
   }) : // Public injection names intentionally omit the private-field prefix
        // (same convention as ChatService's own dependencies).
        // ignore: prefer_initializing_formals
@@ -89,7 +90,8 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
        // ignore: prefer_initializing_formals
        _reloader = reloader,
        // ignore: prefer_initializing_formals
-       _syncDirectory = syncDirectory;
+       _syncDirectory = syncDirectory,
+       _addressSource = addressSource;
 
   final ChatService _chatService;
   final ChatDatabaseRepository _repository;
@@ -97,6 +99,11 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   final BusinessPreferences _businessPreferences;
   final BusinessStateReloader _reloader;
   final Future<Directory> Function() _syncDirectory;
+
+  /// Where [refreshLocalAddresses] enumerates interfaces from. Null means the
+  /// real [listLanAddresses]; a test injects a fixed device instead, so it can
+  /// move between networks without a NIC.
+  final Future<List<LanAddress>> Function()? _addressSource;
 
   SyncEngine? _engine;
   SyncStore? _store;
@@ -122,6 +129,12 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// The bound port, or the preferred one while starting.
   int? get effectivePort =>
       port ?? (starting ? SyncEngine.kPreferredPort : null);
+
+  /// The engine this provider drives, for tests that have to observe what was
+  /// pushed *into* it (the address list the dial orders candidates by) — the
+  /// panels and the pairing flow read the provider instead.
+  @visibleForTesting
+  SyncEngine? get engine => _engine;
 
   bool get isPairingOpen => _engine?.isPairingOpen ?? false;
   String? get pairingPin => _engine?.pairingPin;
@@ -188,7 +201,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       port = boundPort;
       started = true;
       peers = await store.listPeers();
-      unawaited(_refreshLocalAddresses());
+      unawaited(refreshLocalAddresses());
       unawaited(_ensureFirewallRule());
       // Foreground rounds: one right after start ("opened the app" is the
       // pickup journey), then one per resume, throttled by [autoSyncInterval].
@@ -405,6 +418,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     // Desktop fires `resumed` on every window focus gain too; the global
     // throttle in [shouldAutoSyncNow] is what keeps that cheap.
     if (state == AppLifecycleState.resumed) {
+      // The addresses are re-read here for the same reason the round is run:
+      // the device may have changed networks while it was away, and the round
+      // below is worthless if it dials where the peer used to be.
+      unawaited(refreshLocalAddresses());
       unawaited(autoSyncRound());
     }
   }
@@ -462,8 +479,14 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     for (final address in localAddresses) address.address,
   ];
 
-  Future<void> _refreshLocalAddresses() async {
-    localAddresses = selectLanCandidates(await listLanAddresses());
+  /// Re-enumerates this device's addresses. Called on start, on every resume and
+  /// whenever the pairing dialog opens: a laptop changes networks without
+  /// relaunching the app — and on a desktop, pulling a cable or joining Wi-Fi
+  /// fires no lifecycle event at all — while the pairing QR and the typed
+  /// endpoint list are only ever as good as the list this refreshes.
+  Future<void> refreshLocalAddresses() async {
+    final source = _addressSource ?? listLanAddresses;
+    localAddresses = selectLanCandidates(await source());
     // The engine orders dial candidates by which network they sit on, so it
     // reads the same list the pairing screen shows.
     _engine?.localAddresses = localAddresses;

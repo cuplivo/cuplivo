@@ -19,6 +19,7 @@ import 'package:Cuplivo/core/services/sync/sync_client.dart';
 import 'package:Cuplivo/core/services/sync/sync_data_plane.dart';
 import 'package:Cuplivo/core/services/sync/sync_engine.dart';
 import 'package:Cuplivo/core/services/sync/sync_identity.dart';
+import 'package:Cuplivo/core/services/sync/sync_local_addresses.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:Cuplivo/core/services/sync/sync_pair_qr.dart';
 import 'package:Cuplivo/core/services/sync/sync_server.dart';
@@ -460,8 +461,12 @@ class _Side {
   }
 
   /// Drives this side through the real [SyncProvider] — the layer the QR
-  /// pairing and the foreground round live in.
-  Future<SyncProvider> startProvider() async {
+  /// pairing and the foreground round live in. [addressSource] stands in for
+  /// the machine's interface enumeration, so a test can move this device to
+  /// another network without touching a real NIC.
+  Future<SyncProvider> startProvider({
+    Future<List<LanAddress>> Function()? addressSource,
+  }) async {
     final started = SyncProvider(
       chatService: chatService,
       repository: repository,
@@ -469,6 +474,7 @@ class _Side {
       businessPreferences: businessPreferences,
       reloader: BusinessStateReloader(businessPreferences),
       syncDirectory: () async => dir,
+      addressSource: addressSource,
     );
     provider = started;
     await started.start();
@@ -1187,6 +1193,73 @@ void main() {
     expect(find.text('open'), findsOneWidget);
   });
 
+  testWidgets('the pairing QR follows this device onto another network', (
+    tester,
+  ) async {
+    final a = _Side('a');
+    late final SyncProvider provider;
+    late final AppLocalizations l10n;
+    var source = <LanAddress>[(name: 'wlan0', address: '10.9.0.5')];
+    await tester.runAsync(() async {
+      await a.start(root, withEngine: false);
+      sides.add(a);
+      provider = await a.startProvider(addressSource: () async => source);
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      await pumpEventQueue();
+    });
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SyncProvider>.value(
+        value: provider,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () =>
+                      showSyncPairingDialogs(context: context, showCode: true),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 950));
+
+    // What the image on screen actually encodes, not what the list says.
+    SyncPairQrPayload encoded() => SyncPairQrPayload.parse(
+      tester.widget<PairingQrImage>(find.byType(PairingQrImage)).data,
+    );
+    expect(encoded().endpoints, [('10.9.0.5', provider.port)]);
+
+    // The device joins another network while the dialog is open. The QR used to
+    // be encoded once, at open, so it kept advertising the network this device
+    // had just left while the list below it showed the new one.
+    source = [(name: 'wlan0', address: '192.168.44.9')];
+    await tester.runAsync(() => provider.refreshLocalAddresses());
+    await tester.pump(
+      const Duration(seconds: 1),
+    ); // the countdown tick rebuilds
+
+    expect(encoded().endpoints, [('192.168.44.9', provider.port)]);
+    expect(
+      find.text('192.168.44.9:${provider.port}'),
+      findsOneWidget,
+      reason: 'the image and the list agree',
+    );
+
+    // Close it, so the countdown ticker does not outlive the test.
+    await tester.tap(find.text(l10n.lanSyncClosePairing));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
   test('a QR-scanned fingerprint pairs without a typed PIN', () async {
     final a = _Side('a');
     final b = _Side('b');
@@ -1593,6 +1666,36 @@ void main() {
     final report = await provider.syncNow(b.identity.deviceId);
     expect(report?.success, isTrue, reason: report?.summary);
     expect(await _conversationIds(a), contains('conv-later'));
+  });
+
+  test('resuming re-enumerates this device addresses', () async {
+    final a = _Side('a');
+    await a.start(root, withEngine: false);
+    sides.add(a);
+    var source = <LanAddress>[(name: 'wlan0', address: '10.9.0.5')];
+    final provider = await a.startProvider(addressSource: () async => source);
+    await pumpEventQueue();
+
+    expect(
+      provider.localAddresses.single.address,
+      '10.9.0.5',
+      reason: 'the address source is read on start',
+    );
+    expect(
+      provider.engine!.localAddresses.single.address,
+      '10.9.0.5',
+      reason: 'the dial orders candidates by the list the screen shows',
+    );
+
+    // The device moved to another network while it was in the background: the
+    // list it advertises — and the list the dial reads — has to describe where
+    // it is now.
+    source = [(name: 'wlan0', address: '192.168.44.9')];
+    provider.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await pumpEventQueue();
+
+    expect(provider.localAddresses.single.address, '192.168.44.9');
+    expect(provider.engine!.localAddresses.single.address, '192.168.44.9');
   });
 
   test(

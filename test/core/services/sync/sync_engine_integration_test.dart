@@ -1412,6 +1412,87 @@ void main() {
     expect(b.engine.isPairingOpen, isTrue, reason: 'nothing reached the peer');
   });
 
+  test(
+    'a QR pairing moves past an endpoint answering with the wrong certificate',
+    () async {
+      final a = _Side('a');
+      final b = _Side('b');
+      final c = _Side('c'); // a live listener that is not the scanned device
+      await a.start(root, withEngine: false);
+      await b.start(root);
+      await c.start(root);
+      sides.addAll([a, b, c]);
+      final provider = await a.startProvider();
+
+      final pin = b.engine.openPairing();
+      // The scanned code lists another device's address first: a recycled lease,
+      // or a machine that happens to answer on the sync port. The fingerprint in
+      // the code is B's, so that address is refused inside the handshake — and
+      // B's own address is right behind it.
+      final payload = SyncPairQrPayload(
+        deviceId: b.identity.deviceId,
+        name: b.label,
+        endpoints: [('127.0.0.1', c.port), ('127.0.0.1', b.port)],
+        pin: pin,
+      );
+
+      final result = await provider.pairWithQr(payload);
+
+      expect(
+        result.outcome.success,
+        isTrue,
+        reason: result.outcome.errorDetail,
+      );
+      final peer = provider.peers.single;
+      expect(peer.deviceId, b.identity.deviceId);
+      expect(
+        peer.primaryEndpoint?.port,
+        b.port,
+        reason: 'the endpoint that actually presented the scanned certificate',
+      );
+      // A wrong certificate disqualifies the address, not the pairing: the
+      // refusal happened before any request byte, so nothing arrived at C, and
+      // the window B spent is the one this pairing used.
+      expect(await c.store.findPeer(a.identity.deviceId), isNull);
+      expect(b.engine.isPairingOpen, isFalse, reason: 'the PIN was spent on B');
+    },
+  );
+
+  test('a QR payload whose every endpoint answers as another device reports '
+      'fingerprint_mismatch', () async {
+    final a = _Side('a');
+    final b = _Side('b'); // the scanned device, on none of the endpoints
+    final c = _Side('c');
+    final d = _Side('d');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    await c.start(root);
+    await d.start(root);
+    sides.addAll([a, b, c, d]);
+    final provider = await a.startProvider();
+
+    final pin = b.engine.openPairing();
+    final result = await provider.pairWithQr(
+      SyncPairQrPayload(
+        deviceId: b.identity.deviceId,
+        name: b.label,
+        endpoints: [('127.0.0.1', c.port), ('127.0.0.1', d.port)],
+        pin: pin,
+      ),
+    );
+
+    expect(result.outcome.success, isFalse);
+    expect(
+      result.outcome.errorCode,
+      'fingerprint_mismatch',
+      reason:
+          'addresses answered, and none of them was the scanned device — '
+          'a re-scan is the fix, not a retry',
+    );
+    expect(provider.peers, isEmpty);
+    expect(b.engine.isPairingOpen, isTrue, reason: 'nothing reached B');
+  });
+
   test('a session falls through a stale endpoint to the live one', () async {
     final (a, b) = await pair();
 

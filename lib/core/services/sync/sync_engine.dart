@@ -272,11 +272,23 @@ class SyncEngine implements SyncServerHandler {
   ///
   /// The candidates are probed in parallel first (see [orderCandidates]), so a
   /// black-holed address costs one shared probe instead of a full dial budget
-  /// per candidate. A dead endpoint (refused connection, timeout) then moves on
-  /// to the next candidate; an *answering* endpoint that is wrong (bad PIN,
-  /// wrong certificate, identity mismatch) throws immediately — the same answer
-  /// awaits on every candidate. When nothing answers, the last connectivity
-  /// error is rethrown for the caller to classify; it is never rendered raw.
+  /// per candidate.
+  ///
+  /// What a failing candidate means decides whether the next one is tried:
+  ///
+  /// - A dead address (refused connection, timeout, failed handshake) moves on:
+  ///   the next candidate is still a fair attempt. A failed handshake in
+  ///   particular says nothing about the pairing — the pin refuses that address
+  ///   inside the handshake, before any request byte leaves this device — so an
+  ///   address belonging to someone else disqualifies the *address*.
+  /// - A verdict from the scanned device itself (a refused PIN, an identity
+  ///   mismatch) ends the attempt: the device answered, and it would answer the
+  ///   same way on every other address it holds.
+  ///
+  /// When nothing answers, the last connectivity error is rethrown for the
+  /// caller to classify — unless some address answered as a different device,
+  /// which is the more actionable outcome (no retry helps; a fresh code does).
+  /// Neither is ever rendered raw.
   ///
   /// Every endpoint this loop does *not* spend the pairing on stays on the
   /// record as a hint behind the winner: the peer's other addresses are
@@ -292,6 +304,7 @@ class SyncEngine implements SyncServerHandler {
       localAddresses: localAddresses,
     );
     Object? lastConnectivityError;
+    var sawWrongCertificate = false;
     for (final (host, port) in candidates) {
       try {
         return await pairWith(
@@ -304,11 +317,23 @@ class SyncEngine implements SyncServerHandler {
           knownCandidates: candidates,
           advertisedAddresses: advertisedAddresses,
         );
+      } on SyncClientException catch (error) {
+        if (error.message != 'pair_fingerprint_mismatch') rethrow;
+        // Not a verdict from the scanned device: this address presented another
+        // certificate, so the pin refused it before the PIN was sent anywhere.
+        // The peer's remaining addresses are still untried.
+        sawWrongCertificate = true;
       } on SocketException catch (error) {
         lastConnectivityError = error;
       } on TimeoutException catch (error) {
         lastConnectivityError = error;
       }
+    }
+    if (sawWrongCertificate) {
+      // An address answered and it was not the scanned device. That is more
+      // actionable than silence: the code in hand is wrong or stale, and
+      // retrying the same list changes nothing.
+      throw const SyncClientException('pair_fingerprint_mismatch');
     }
     throw lastConnectivityError ??
         const SocketException('no pairing endpoint answered');

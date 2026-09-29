@@ -272,12 +272,12 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  /// Pairs from a scanned QR payload: the engine tries the payload's
-  /// endpoints in order, hard-pinning the scanned fingerprint. A dead
-  /// endpoint (refused connection, timeout) moves on to the next candidate;
-  /// an *answering* endpoint that is wrong (bad PIN, wrong certificate,
-  /// identity mismatch) stops immediately — the same answer awaits on every
-  /// candidate.
+  /// Pairs from a scanned QR payload: the engine probes the payload's
+  /// endpoints, dials them hard-pinned to the scanned fingerprint, and walks
+  /// past an address that answers as another device — the pin refused it before
+  /// the PIN was sent, so only that address is disqualified. A verdict from the
+  /// scanned device itself (a refused PIN, an identity mismatch) ends the
+  /// attempt; see [SyncEngine.pairWithCandidates] for the whole taxonomy.
   Future<SyncPairQrOutcome> pairWithQr(SyncPairQrPayload payload) async {
     final engine = _engine;
     if (engine == null) {

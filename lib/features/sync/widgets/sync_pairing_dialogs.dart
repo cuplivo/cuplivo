@@ -408,10 +408,7 @@ class _EnterCodeDialogState extends State<_EnterCodeDialog> {
     final result = await context.read<SyncProvider>().pairWithQr(payload);
     if (!mounted) return;
     if (result.outcome.success) {
-      final name = payload.name.isEmpty
-          ? payload.deviceId.substring(0, 8)
-          : payload.name;
-      _notifyPaired(l10n, name, result.wasKnownPeer);
+      _notifyPaired(l10n, _pairedName(result.outcome), result.wasKnownPeer);
       Navigator.of(context).pop();
       return;
     }
@@ -419,6 +416,16 @@ class _EnterCodeDialogState extends State<_EnterCodeDialog> {
       _busy = false;
       _error = syncPairErrorMessage(l10n, result.outcome);
     });
+  }
+
+  /// The name to announce a pairing by: the record the pairing wrote, whose name
+  /// is the one its card shows — or the short id of a device that announced no
+  /// name at all.
+  String _pairedName(SyncPairOutcome outcome) {
+    final name = outcome.peerName;
+    if (name != null && name.isNotEmpty) return name;
+    final id = outcome.peerDeviceId ?? '';
+    return id.length > 8 ? id.substring(0, 8) : id;
   }
 
   void _notifyPaired(AppLocalizations l10n, String name, bool wasKnownPeer) {
@@ -457,27 +464,26 @@ class _EnterCodeDialogState extends State<_EnterCodeDialog> {
       _busy = true;
       _error = null;
     });
-    // Known-ness must be read before pairing refreshes the peer list.
-    final scanned = _scanned;
-    final wasKnown =
-        scanned != null &&
-        context.read<SyncProvider>().peers.any(
-          (p) => p.deviceId == scanned.deviceId,
-        );
-    final outcome = await context.read<SyncProvider>().pairWith(
+    final provider = context.read<SyncProvider>();
+    // Known-ness must be read before pairing refreshes the peer list, and the
+    // outcome carries the paired device's id, so which line to show is decided
+    // against the list as it stood.
+    final knownBefore = {for (final peer in provider.peers) peer.deviceId};
+    final outcome = await provider.pairWith(
       host: host,
       port: port,
       pin: pin,
-      expectedDeviceId: scanned?.deviceId,
+      expectedDeviceId: _scanned?.deviceId,
     );
     if (!mounted) return;
     if (outcome.success) {
-      if (scanned != null) {
-        final name = scanned.name.isEmpty
-            ? scanned.deviceId.substring(0, 8)
-            : scanned.name;
-        _notifyPaired(l10n, name, wasKnown);
-      }
+      // Typing the code by hand used to pop in silence: the one success the user
+      // had to trigger themselves was the only one with no confirmation.
+      _notifyPaired(
+        l10n,
+        _pairedName(outcome),
+        knownBefore.contains(outcome.peerDeviceId),
+      );
       Navigator.of(context).pop();
       return;
     }

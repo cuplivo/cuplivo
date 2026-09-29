@@ -31,13 +31,22 @@ class SyncPairOutcome {
   final String? errorCode;
   final String? errorDetail;
 
-  const SyncPairOutcome.success()
+  /// The device that was paired, on success: the record's own name and id, so a
+  /// caller can announce *which* device it just paired with. The engine returns
+  /// the record it wrote, so this is the same name that device's card shows —
+  /// not a second spelling assembled from the request.
+  final String? peerName;
+  final String? peerDeviceId;
+
+  const SyncPairOutcome.success({this.peerName, this.peerDeviceId})
     : success = true,
       errorCode = null,
       errorDetail = null;
 
   const SyncPairOutcome.failure(this.errorCode, [this.errorDetail])
-    : success = false;
+    : success = false,
+      peerName = null,
+      peerDeviceId = null;
 }
 
 /// Result of pairing from a scanned QR: the pair outcome plus whether the
@@ -281,7 +290,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       return const SyncPairOutcome.failure('no_listener');
     }
     try {
-      await engine.pairWith(
+      final record = await engine.pairWith(
         host: host,
         port: port,
         pin: pin,
@@ -289,7 +298,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         advertisedAddresses: _advertisedAddresses,
       );
       await refreshPeers();
-      return const SyncPairOutcome.success();
+      return SyncPairOutcome.success(
+        peerName: record.name,
+        peerDeviceId: record.deviceId,
+      );
     } on SyncClientException catch (error) {
       return _mapPairError(error);
     } on SocketException catch (error) {
@@ -325,14 +337,20 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       );
     }
     try {
-      await engine.pairWithCandidates(
+      final record = await engine.pairWithCandidates(
         endpoints: payload.endpoints,
         pin: payload.pin,
         expectedDeviceId: payload.deviceId,
         advertisedAddresses: _advertisedAddresses,
       );
       await refreshPeers();
-      return SyncPairQrOutcome(const SyncPairOutcome.success(), wasKnownPeer);
+      return SyncPairQrOutcome(
+        SyncPairOutcome.success(
+          peerName: record.name,
+          peerDeviceId: record.deviceId,
+        ),
+        wasKnownPeer,
+      );
     } on SyncClientException catch (error) {
       return SyncPairQrOutcome(_mapPairError(error), wasKnownPeer);
     } on SocketException catch (error) {

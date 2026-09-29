@@ -26,6 +26,7 @@ import 'package:Cuplivo/core/services/sync/sync_server.dart';
 import 'package:Cuplivo/core/services/sync/sync_store.dart';
 import 'package:Cuplivo/features/sync/widgets/sync_pairing_dialogs.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -515,6 +516,32 @@ class _Side {
     platform: 'test',
     manifest: const SyncManifest(<String, SyncManifestEntry>{}),
   );
+}
+
+/// A [SyncProvider] whose pairing verdict is canned, so the pairing dialog's own
+/// behavior — what it announces, and whether it tells a new pairing from an
+/// update — is testable without a listener or a socket.
+class _StubSyncProvider extends SyncProvider {
+  _StubSyncProvider(_Side side)
+    : super(
+        chatService: side.chatService,
+        repository: side.repository,
+        businessRepository: side.businessRepository,
+        businessPreferences: side.businessPreferences,
+        reloader: BusinessStateReloader(side.businessPreferences),
+        syncDirectory: () async => side.dir,
+      );
+
+  /// What [pairWith] answers; set before the dialog submits.
+  SyncPairOutcome outcome = const SyncPairOutcome.success();
+
+  @override
+  Future<SyncPairOutcome> pairWith({
+    required String host,
+    required int port,
+    required String pin,
+    String? expectedDeviceId,
+  }) async => outcome;
 }
 
 /// Writes an assistant list the way a provider does: one whole-list rewrite of
@@ -1343,6 +1370,101 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
   });
 
+  testWidgets('a hand-typed code announces the device it paired with', (
+    tester,
+  ) async {
+    // Deliberately not added to `sides`: this side runs no engine of its own —
+    // the dialog's provider is a stub — and the shared teardown disposes either
+    // an engine or a provider started through `startProvider`. The cleanup at
+    // the end of this test is what that teardown would do.
+    final a = _Side('a');
+    late final AppLocalizations l10n;
+    late final _StubSyncProvider provider;
+    await tester.runAsync(() async {
+      await a.start(root, withEngine: false);
+      provider = _StubSyncProvider(a);
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    });
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SyncProvider>.value(
+        value: provider,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () =>
+                      showSyncPairingDialogs(context: context, showCode: false),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Future<void> pairByHand() async {
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).at(0), '192.168.1.7');
+      await tester.enterText(find.byType(TextField).at(1), '9527');
+      // Six digits submits the form, which is the path the phone user takes.
+      await tester.enterText(find.byType(TextField).at(2), '123456');
+      await tester.pumpAndSettle();
+    }
+
+    bool announced(String message) => AppSnackBarManager().activeToasts.any(
+      (toast) => toast.notification.message == message,
+    );
+
+    provider.outcome = const SyncPairOutcome.success(
+      peerName: 'Studio desktop',
+      peerDeviceId: 'abc1234567890def',
+    );
+    await pairByHand();
+
+    // Typing the code by hand used to pop in silence, so the one success the
+    // user had to trigger themselves was the only one with no confirmation.
+    expect(
+      announced(l10n.lanSyncPairSuccess('Studio desktop')),
+      isTrue,
+      reason: 'the manual path names the device it paired with',
+    );
+    expect(find.byType(AlertDialog), findsNothing, reason: 'paired: it closes');
+
+    // A device already in the list is an update rather than a new pairing — the
+    // same distinction the scanned path draws from the peer list.
+    provider.peers = [
+      SyncPeerRecord(
+        deviceId: 'abc1234567890def',
+        certPem: 'pem',
+        secret: 'secret',
+        name: 'Studio desktop',
+        platform: 'test',
+      ),
+    ];
+    await pairByHand();
+    expect(
+      announced(l10n.lanSyncPairUpdatedSnackbar('Studio desktop')),
+      isTrue,
+      reason: 're-pairing an existing device reads as an update',
+    );
+
+    // Let both toasts expire: neither their own timer nor their exit animation
+    // may outlive the test.
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+    expect(AppSnackBarManager().activeToasts, isEmpty);
+
+    provider.dispose();
+    await a.chatService.close();
+    await a.repository.close();
+  });
+
   test('a QR-scanned fingerprint pairs without a typed PIN', () async {
     final a = _Side('a');
     final b = _Side('b');
@@ -1694,6 +1816,29 @@ void main() {
     // failure left out of the record would keep the previous success on screen.
     final persisted = (await a.store.findPeer(b.identity.deviceId))!;
     expect(persisted.lastReport?.failure, SyncFailureReason.noEndpoint);
+  });
+
+  test('a hand-typed pairing names the device it paired with', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+    final provider = await a.startProvider();
+
+    final pin = b.engine.openPairing();
+    final outcome = await provider.pairWith(
+      host: '127.0.0.1',
+      port: b.port,
+      pin: pin,
+    );
+    expect(outcome.success, isTrue, reason: outcome.errorCode);
+
+    // The manual form has no payload to read a device name out of, which is why
+    // this path used to announce nothing. The record the pairing wrote carries
+    // the name its card shows, so the announcement names that device.
+    expect(outcome.peerName, b.label);
+    expect(outcome.peerDeviceId, b.identity.deviceId);
   });
 
   test('pairing hands the responder the joiner addresses', () async {

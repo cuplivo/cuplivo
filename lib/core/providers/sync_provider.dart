@@ -107,7 +107,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   bool starting = false;
   String? startError;
   int? port;
-  List<String> localIps = const [];
+
+  /// This device's candidate addresses, in interface order. The pairing QR, the
+  /// pairing dialog and the "this device" card all read exactly this list.
+  List<LanAddress> localAddresses = const [];
   List<SyncPeerRecord> peers = const [];
   final Set<String> busyDeviceIds = {};
   SyncSessionReport? lastReport;
@@ -185,7 +188,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       port = boundPort;
       started = true;
       peers = await store.listPeers();
-      unawaited(_refreshLocalIps());
+      unawaited(_refreshLocalAddresses());
       unawaited(_ensureFirewallRule());
       // Foreground rounds: one right after start ("opened the app" is the
       // pickup journey), then one per resume, throttled by [autoSyncInterval].
@@ -451,8 +454,8 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
-  Future<void> _refreshLocalIps() async {
-    localIps = await listLocalIpv4s();
+  Future<void> _refreshLocalAddresses() async {
+    localAddresses = await listLanAddresses();
     notifyListeners();
   }
 

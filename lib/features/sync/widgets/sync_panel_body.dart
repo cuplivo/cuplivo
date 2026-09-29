@@ -183,8 +183,8 @@ class _ThisDeviceCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final provider = this.provider;
     final endpoints = [
-      for (final ip in provider.localIps)
-        if (provider.port != null) '$ip:${provider.port}',
+      for (final address in provider.localAddresses)
+        if (provider.port != null) '${address.address}:${provider.port}',
     ];
 
     final String state;

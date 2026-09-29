@@ -2,45 +2,70 @@ import 'package:Cuplivo/core/services/sync/sync_local_addresses.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('filterLanIpv4s', () {
-    test('keeps RFC1918 addresses in input order', () {
-      expect(filterLanIpv4s(['192.168.1.5', '10.0.0.3', '172.16.4.9']), [
-        '192.168.1.5',
-        '10.0.0.3',
-        '172.16.4.9',
+  group('filterLanAddresses', () {
+    test('keeps unicast IPv4 in input order, public addresses included', () {
+      expect(
+        filterLanAddresses([
+          (name: 'wlan0', address: '183.173.213.34'),
+          (name: 'wlan0', address: '192.168.1.5'),
+          (name: 'eth0', address: '10.0.0.3'),
+        ]),
+        [
+          (name: 'wlan0', address: '183.173.213.34'),
+          (name: 'wlan0', address: '192.168.1.5'),
+          (name: 'eth0', address: '10.0.0.3'),
+        ],
+      );
+    });
+
+    test('keeps a campus network public address (the v4 regression)', () {
+      // A campus network hands out globally routable IPv4 directly, with no NAT
+      // in between: filtering to RFC1918 alone left such a device advertising
+      // no address at all, while its peer on the same segment could reach it.
+      expect(filterLanAddresses([(name: 'wlan0', address: '183.173.213.34')]), [
+        (name: 'wlan0', address: '183.173.213.34'),
       ]);
     });
 
-    test('drops loopback, link-local, public, CGNAT and IPv6', () {
+    test('drops loopback, link-local, multicast, reserved and IPv6', () {
       expect(
-        filterLanIpv4s([
-          '127.0.0.1',
-          '169.254.10.1',
-          '8.8.8.8',
-          '100.64.0.1',
-          'fe80::1',
-          '::1',
+        filterLanAddresses([
+          (name: 'lo', address: '127.0.0.1'),
+          (name: 'en0', address: '169.254.10.1'),
+          (name: 'en0', address: '224.0.0.5'),
+          (name: 'en0', address: '255.255.255.255'),
+          (name: 'en0', address: '0.0.0.0'),
+          (name: 'en0', address: 'fe80::1'),
+          (name: 'en0', address: '::1'),
+          (name: 'en0', address: '2001:da8::1'),
         ]),
         isEmpty,
       );
     });
 
-    test('honours the 172.16/12 boundaries', () {
-      expect(filterLanIpv4s(['172.15.255.255']), isEmpty);
-      expect(filterLanIpv4s(['172.16.0.0']), ['172.16.0.0']);
-      expect(filterLanIpv4s(['172.31.255.255']), ['172.31.255.255']);
-      expect(filterLanIpv4s(['172.32.0.1']), isEmpty);
-    });
-
-    test('deduplicates while keeping the first occurrence', () {
-      expect(filterLanIpv4s(['192.168.1.5', '10.0.0.3', '192.168.1.5']), [
-        '192.168.1.5',
-        '10.0.0.3',
-      ]);
+    test('deduplicates by address, keeping the first interface', () {
+      expect(
+        filterLanAddresses([
+          (name: 'wlan0', address: '192.168.1.5'),
+          (name: 'eth0', address: '192.168.1.5'),
+          (name: 'eth0', address: '10.0.0.3'),
+        ]),
+        [
+          (name: 'wlan0', address: '192.168.1.5'),
+          (name: 'eth0', address: '10.0.0.3'),
+        ],
+      );
     });
 
     test('ignores unparseable entries', () {
-      expect(filterLanIpv4s(['', 'not-an-ip', '192.168.1.5']), ['192.168.1.5']);
+      expect(
+        filterLanAddresses([
+          (name: 'en0', address: ''),
+          (name: 'en0', address: 'not-an-ip'),
+          (name: 'en0', address: '192.168.1.5'),
+        ]),
+        [(name: 'en0', address: '192.168.1.5')],
+      );
     });
   });
 }

@@ -120,8 +120,8 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
       deviceId: deviceId,
       name: provider.deviceName ?? '',
       endpoints: [
-        for (final ip in provider.localIps)
-          if (port != null) (ip, port),
+        for (final address in provider.localAddresses)
+          if (port != null) (address.address, port),
       ],
       pin: widget.pin,
     ).toQrString();
@@ -145,7 +145,8 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
     final cs = Theme.of(context).colorScheme;
     final provider = widget.provider;
     final endpoints = [
-      for (final ip in provider.localIps) '$ip:${provider.port ?? ''}',
+      for (final address in provider.localAddresses)
+        '${address.address}:${provider.port ?? ''}',
     ];
     // The dialog closes only through its own button (which cancels the
     // window) or the expiry ticker; a system back gesture must not leave the

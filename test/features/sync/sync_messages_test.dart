@@ -111,6 +111,31 @@ void main() {
     );
   });
 
+  test('a peer with no address asks for one, not for a retry', () {
+    const report = SyncSessionReport(
+      success: false,
+      summary: 'no_endpoint',
+      failure: SyncFailureReason.noEndpoint,
+    );
+    expect(syncReportMessage(l10n, report), l10n.lanSyncReportNoEndpoint);
+    // The two "nothing answered" shapes must not read as one thing: one is fixed
+    // by an address, the other by turning the other device on.
+    expect(
+      syncReportMessage(l10n, report),
+      isNot(syncFailureMessage(l10n, SyncFailureReason.unreachable)),
+    );
+
+    // The card shows the persisted record after a restart, so the wire value has
+    // to survive the round trip — and it must not come back as `unreachable`,
+    // which is what a record of this shape used to say.
+    final persisted = SyncPeerReport.fromJson(report.toPeerReport().toJson());
+    expect(persisted.failure, SyncFailureReason.noEndpoint);
+    expect(
+      syncPeerReportMessage(l10n, persisted),
+      l10n.lanSyncReportNoEndpoint,
+    );
+  });
+
   test('a refusal is the message even beside a failure reason', () {
     const report = SyncSessionReport(
       success: false,

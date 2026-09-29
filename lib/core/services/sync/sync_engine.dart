@@ -421,12 +421,13 @@ class SyncEngine implements SyncServerHandler {
       if (candidates.isEmpty) {
         // Recorded on the peer like every other outcome: the card reads
         // `peer.lastReport`, so an unpersisted failure would leave a stale
-        // success on screen.
+        // success on screen. `noEndpoint` rather than `unreachable`: nothing
+        // was dialed, so the card must ask for an address instead of a retry.
         return await _finish(
           const SyncSessionReport(
             success: false,
             summary: 'no_endpoint',
-            failure: SyncFailureReason.unreachable,
+            failure: SyncFailureReason.noEndpoint,
           ),
           peer: peer,
         );

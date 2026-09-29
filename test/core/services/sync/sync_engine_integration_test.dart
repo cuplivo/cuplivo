@@ -1674,6 +1674,28 @@ void main() {
     );
   });
 
+  test('a peer that remembers no address asks for one, not for a retry', () async {
+    final (a, b) = await pair();
+
+    // The record is real, its endpoint set is not: a peer paired without an
+    // address at all. Nothing was dialed, so "unreachable" would send the user
+    // to check the other device's power state instead of the missing address —
+    // which is the thing they can actually fix.
+    final record = await a.peer(b);
+    record.endpoints.clear();
+    await a.store.savePeer(record);
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isFalse);
+    expect(report.summary, 'no_endpoint');
+    expect(report.failure, SyncFailureReason.noEndpoint);
+
+    // Persisted like every other outcome: the card renders `lastReport`, so a
+    // failure left out of the record would keep the previous success on screen.
+    final persisted = (await a.store.findPeer(b.identity.deviceId))!;
+    expect(persisted.lastReport?.failure, SyncFailureReason.noEndpoint);
+  });
+
   test('pairing hands the responder the joiner addresses', () async {
     final a = _Side('a');
     final b = _Side('b');

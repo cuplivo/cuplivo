@@ -22503,8 +22503,14 @@ abstract class AppLocalizations {
   /// No description provided for @lanSyncReportUnreachable.
   ///
   /// In en, this message translates to:
-  /// **'Sync failed: the other device could not be reached.'**
+  /// **'Sync failed: the other device could not be reached. It may be offline or on another network — rescan its QR code, or edit its address on the card.'**
   String get lanSyncReportUnreachable;
+
+  /// No description provided for @lanSyncReportNoEndpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed: no address is stored for the other device. Rescan its QR code, or enter the address on its card.'**
+  String get lanSyncReportNoEndpoint;
 
   /// No description provided for @lanSyncReportTimeout.
   ///

@@ -334,8 +334,12 @@ class SyncHelloRefusal {
 /// localizes it, and a raw exception — which carries the peer's address and
 /// port — never reaches the card or a snackbar.
 enum SyncFailureReason {
-  /// The peer could not be reached at all: no endpoint known, a refused
-  /// connection, a dead address.
+  /// The peer record carries no endpoint at all: there is nothing to dial, so
+  /// the fix is a new address (rescan the peer's QR, or edit its card), not a
+  /// retry.
+  noEndpoint('no_endpoint'),
+
+  /// The peer could not be reached: a refused connection, a dead address.
   unreachable('unreachable'),
 
   /// A beat stopped answering mid-session.
@@ -351,6 +355,7 @@ enum SyncFailureReason {
   const SyncFailureReason(this.wire);
 
   static SyncFailureReason? tryParse(String? raw) => switch (raw) {
+    'no_endpoint' => noEndpoint,
     'unreachable' => unreachable,
     'timeout' => timeout,
     'peer_error' => peerError,

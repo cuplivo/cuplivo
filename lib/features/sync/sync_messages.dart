@@ -103,6 +103,8 @@ String syncRefusalMessage(AppLocalizations l10n, SyncRefusalReason reason) {
 /// back to the generic line, with the detail left in the logs.
 String syncFailureMessage(AppLocalizations l10n, SyncFailureReason? reason) {
   switch (reason) {
+    case SyncFailureReason.noEndpoint:
+      return l10n.lanSyncReportNoEndpoint;
     case SyncFailureReason.unreachable:
       return l10n.lanSyncReportUnreachable;
     case SyncFailureReason.timeout:

@@ -54,6 +54,12 @@ class CompressEditorController extends ChangeNotifier {
 
   WorkingImage? _working;
 
+  /// What the header said about the source when its decode was refused. The gate
+  /// must not hide dimensions that were known before any pixel was touched: the
+  /// panel needs them to offer a working resolution that would fit, and to say
+  /// which image it is refusing.
+  ({int width, int height, int bytes})? _refusedSource;
+
   /// The long edge [_working] was decoded at, so a parameter change that does
   /// not move the target can reuse the pixels.
   int _workingEdge = 0;
@@ -109,9 +115,11 @@ class CompressEditorController extends ChangeNotifier {
 
   double get divider => _divider;
 
-  int get sourceWidth => _working?.sourceWidth ?? 0;
-  int get sourceHeight => _working?.sourceHeight ?? 0;
-  int get sourceBytes => _working?.sourceBytes ?? 0;
+  // The source's facts survive a refused decode: the header provided them, and
+  // the panel needs them to offer a working resolution that would fit.
+  int get sourceWidth => _working?.sourceWidth ?? _refusedSource?.width ?? 0;
+  int get sourceHeight => _working?.sourceHeight ?? _refusedSource?.height ?? 0;
+  int get sourceBytes => _working?.sourceBytes ?? _refusedSource?.bytes ?? 0;
   int get sourceLongEdge => math.max(sourceWidth, sourceHeight);
 
   /// Coordinate space of [visibleSource]: the working image's size.
@@ -125,14 +133,17 @@ class CompressEditorController extends ChangeNotifier {
 
   /// The largest long edge this image can be worked at: the source's own edge,
   /// capped by the working budget. It is also the long-edge slider's maximum, so
-  /// the panel can never offer a resolution the pipeline will not produce.
+  /// the panel can never offer a resolution the pipeline will not produce — and
+  /// it stays available after a refusal, because a smaller working resolution is
+  /// exactly what can make a borderline source fit.
   int get reachableLongEdge => sourceLongEdge <= 0
       ? 0
-      : targetLongEdge(
+      : resolveWorkingEdge(
           sourceWidth: sourceWidth,
           sourceHeight: sourceHeight,
           requestedLongEdge: sourceLongEdge,
           budgetPixels: _budgetPixels,
+          floorAtQuarterOfSource: true,
         );
 
   /// The region of the working image currently mapped onto the viewport.
@@ -154,7 +165,7 @@ class CompressEditorController extends ChangeNotifier {
 
   /// Reads the source's dimensions from the container, then produces the first
   /// working image and artifact. Dimensions are available before the pixels are,
-  /// because the header carries them.
+  /// because the header carries them — including when the pixels are refused.
   Future<void> prepare() async {
     try {
       final working = await _workingFor(_params);
@@ -167,12 +178,27 @@ class CompressEditorController extends ChangeNotifier {
       _preparing = false;
       notifyListeners();
       unawaited(_rebuild());
+    } on WorkingImageTooLargeException catch (error) {
+      // The refusal carries what the header already knew, so the panel can show
+      // the source's size and offer a working resolution that fits instead of
+      // collapsing to a dead end.
+      debugPrint('[CompressEditor] Decode refused for $imagePath: $error');
+      if (_disposed) return;
+      _preparing = false;
+      _tooLarge = true;
+      _refusedSource = (
+        width: error.sourceWidth,
+        height: error.sourceHeight,
+        bytes: error.sourceBytes,
+      );
+      _params = _normalize(_params);
+      notifyListeners();
     } catch (error, stackTrace) {
       debugPrint('[CompressEditor] Prepare failed for $imagePath: $error');
       debugPrintStack(stackTrace: stackTrace);
       if (_disposed) return;
       _preparing = false;
-      _decodeFailed = !_tooLarge;
+      _decodeFailed = true;
       notifyListeners();
     }
   }
@@ -198,16 +224,15 @@ class CompressEditorController extends ChangeNotifier {
     // Before the source's size is known there is no range to clamp into, and
     // clamping into an empty one would silently destroy the value.
     if (sourceLongEdge <= 0 || reachableLongEdge <= 0) return value;
-    final reachable = math.max(1, reachableLongEdge);
-    // The 25% floor can sit above what the budget reaches on a tightly-budgeted
-    // source; the bounds are ordered here rather than assumed, because clamping
-    // with a lower bound above the upper one throws.
-    final clamped = longEdge
-        .clamp(
-          math.min(minEditorLongEdge(sourceLongEdge), reachable),
-          reachable,
-        )
-        .toInt();
+    // The pipeline resolves the edge a decode will actually use; asking it keeps
+    // the panel's readout and the produced resolution on one implementation.
+    final clamped = resolveWorkingEdge(
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight,
+      requestedLongEdge: longEdge,
+      budgetPixels: _budgetPixels,
+      floorAtQuarterOfSource: true,
+    );
     if (clamped == longEdge) return value;
     return ManualCompressParams(
       format: value.format,
@@ -271,6 +296,9 @@ class CompressEditorController extends ChangeNotifier {
       return null;
     }
     _tooLarge = false;
+    // The source is no longer being refused, so the facts now come from the
+    // decoded image itself.
+    _refusedSource = null;
     _workingEdge = _edgeFor(params, next.sourceWidth, next.sourceHeight);
     final previous = _working;
     _working = next;
@@ -333,8 +361,17 @@ class CompressEditorController extends ChangeNotifier {
       _result = image;
       _artifact = bytes;
       _artifactParams = params;
-    } on WorkingImageTooLargeException {
-      // The gate is reported through `tooLarge`; there is no artifact.
+    } on WorkingImageTooLargeException catch (error) {
+      // A parameter change can newly hit the gate: a longer edge needs a bigger
+      // decode. The gate is reported through `tooLarge`, there is no artifact to
+      // apply, and the source's facts are kept so the panel can still offer a
+      // working resolution that would fit.
+      _tooLarge = true;
+      _refusedSource = (
+        width: error.sourceWidth,
+        height: error.sourceHeight,
+        bytes: error.sourceBytes,
+      );
     } catch (error, stackTrace) {
       debugPrint('[CompressEditor] Encode failed for $imagePath: $error');
       debugPrintStack(stackTrace: stackTrace);

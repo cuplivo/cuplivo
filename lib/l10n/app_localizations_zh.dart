@@ -8010,7 +8010,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get compressEditorDecodeFailed => '此图片无法预览，因此无法重新压缩。';
 
   @override
-  String get compressEditorTooLarge => '此图片过大，无法安全解码，因此无法重新压缩。';
+  String get compressEditorTooLarge => '此图片过大，无法在编辑器中打开，因此无法在这里重新压缩；附件将按原样保留。';
 
   @override
   String compressEditorWorkingScale(String source, int percent) {
@@ -20022,7 +20022,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get compressEditorDecodeFailed => '此图片无法预览，因此无法重新压缩。';
 
   @override
-  String get compressEditorTooLarge => '此图片过大，无法安全解码，因此无法重新压缩。';
+  String get compressEditorTooLarge => '此图片过大，无法在编辑器中打开，因此无法在这里重新压缩；附件将按原样保留。';
 
   @override
   String compressEditorWorkingScale(String source, int percent) {
@@ -32109,7 +32109,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get compressEditorDecodeFailed => '此圖片無法預覽，因此無法重新壓縮。';
 
   @override
-  String get compressEditorTooLarge => '此圖片過大，無法安全解碼，因此無法重新壓縮。';
+  String get compressEditorTooLarge => '此圖片過大，無法在編輯器中開啟，因此無法在這裡重新壓縮；附件將按原樣保留。';
 
   @override
   String compressEditorWorkingScale(String source, int percent) {

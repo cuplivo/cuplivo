@@ -170,6 +170,69 @@ void main() {
     expect(controller.decodeFailed, isFalse);
     expect(controller.original, isNull);
     expect(controller.artifactBytes, isNull);
+    // The refusal must not discard what the header already provided: the panel
+    // needs the source's size to offer a working resolution that would fit.
+    expect(controller.sourceWidth, 400);
+    expect(controller.sourceHeight, 260);
+    expect(controller.sourceBytes, greaterThan(0));
+    expect(controller.reachableLongEdge, 400);
+    // The reached value is normalised into what is reachable, as always.
+    expect(controller.params.maxLongEdge, 200);
+  });
+
+  test('a gated source is admitted once the target is small enough', () async {
+    // A flat fixture on purpose: this measures the raster judgement, and a noisy
+    // PNG would trip the file ceiling first and hide what is being tested.
+    final file = File(p.join(root.path, 'recovered.png'));
+    await file.writeAsBytes(
+      img.encodePng(
+        img.Image(width: 400, height: 260, numChannels: 3)
+          ..clear(img.ColorRgb8(120, 140, 160)),
+      ),
+    );
+    // The file's own bytes must stay far below the ceiling, so the only thing
+    // that can refuse this source is the raster it would decode into.
+    expect(await file.length(), lessThan(150000 ~/ 2));
+
+    // For a source the engine cannot sub-scale (this fixture is a PNG), the
+    // raster is source-proportional, so the threshold is set by the source plus
+    // whatever target is asked for. A budget between the two makes the
+    // difference reachable: the maximum edge is refused, a quarter of it fits.
+    final controller = CompressEditorController(
+      imagePath: file.path,
+      initialParams: const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 80,
+        maxLongEdge: 400,
+      ),
+      budgetBytes: 600000,
+    );
+    addTearDown(controller.dispose);
+
+    await controller.prepare();
+    expect(
+      controller.tooLarge,
+      isTrue,
+      reason: '400x260 decoded to 400x260 is (104k + 104k) * 4 = 832 kB',
+    );
+
+    // The panel can still reach the long edge, so this is a recoverable refusal
+    // rather than a dead end.
+    expect(controller.sourceLongEdge, 400);
+    controller.setParams(
+      const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 80,
+        maxLongEdge: 100,
+      ),
+    );
+    await _waitFor(() => !controller.tooLarge && controller.artifact != null);
+
+    expect(controller.tooLarge, isFalse);
+    expect(controller.decodeFailed, isFalse);
+    expect(controller.workingWidth, 100);
+    expect(controller.workingHeight, 65);
+    expect(controller.artifactBytes, greaterThan(0));
   });
 
   testWidgets('a gated image offers no action that would re-compress', (
@@ -187,6 +250,15 @@ void main() {
       final harness = await createBusinessTestHarness();
       settings = SettingsProvider(harness.preferences);
       await settings.loaded;
+      // A remembered lossy format, because which controls the panel offers in
+      // the gate state depends on it.
+      await settings.setManualCompressParams(
+        const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 80,
+          maxLongEdge: 200,
+        ),
+      );
       path = await writeFixture('gated_panel.png', 400, 260);
     });
 
@@ -212,9 +284,17 @@ void main() {
     await _pumpUntilFound(tester, find.text(l10n.compressEditorTooLarge));
 
     expect(find.text(l10n.compressEditorTooLarge), findsOneWidget);
+    // Nothing may try to re-compress what could not be decoded...
     expect(find.text(l10n.compressEditorApply), findsNothing);
     expect(find.text(l10n.compressEditorApplyAll), findsNothing);
-    expect(find.text(l10n.compressEditorCancel), findsOneWidget);
+    // ...but closing keeps the attachment as it is, so the action reads as
+    // "done", not as a cancel of a failed operation.
+    expect(find.text(l10n.compressEditorDone), findsOneWidget);
+    expect(find.text(l10n.compressEditorCancel), findsNothing);
+    // The refusal is recoverable: the long-edge control is still there, and the
+    // panel says what the source is.
+    expect(find.text(l10n.compressEditorLongEdgeLabel), findsOneWidget);
+    expect(find.text('400×260'), findsOneWidget);
   });
 
   testWidgets('format control drives the panel and the apply action', (
@@ -734,42 +814,62 @@ void main() {
     );
   });
 
-  test('the decode budget admits JPEG at any size and gates a huge PNG', () {
+  test('the gate judges the raster, and the file separately', () {
     const budget = kDecodeBudgetBytesMobile;
-    const jpeg = ImageSourceFormat.jpeg;
-    const png = ImageSourceFormat.png;
     const target = 1568000;
+    const hugeSource = 17000 * 11765;
+    const hugeTarget = 14 * 1000 * 1000;
 
     // Measured: the engine sub-scales JPEG at decode (a 200 MP source cost
-    // +19 MB), so its requirement does not grow with the source.
-    final jpegHuge = decodePeakBytes(
-      sourceCanSubScale: jpeg == ImageSourceFormat.jpeg,
-      sourcePixels: 17000 * 11765,
-      targetPixels: target,
-      fileBytes: 5 * 1024 * 1024,
+    // +19 MB), so its raster does not grow with the source. A *large file* on a
+    // huge JPEG must not change that: this is the case a file-inclusive gate
+    // used to refuse at the maximum edge, despite a measured peak of 19 MB.
+    final jpeg = decodePeakBytes(
+      sourceCanSubScale: true,
+      sourcePixels: hugeSource,
+      targetPixels: hugeTarget,
+      fileBytes: 30 * 1024 * 1024,
     );
-    expect(jpegHuge, lessThan(budget));
+    expect(
+      jpeg.rasterBytes,
+      lessThan(budget),
+      reason: 'a 200 MP JPEG decodes at 4x its target, not at its size',
+    );
+    expect(
+      jpeg.fileBytesHeld,
+      lessThan(budget ~/ 2),
+      reason: 'a 30 MB file is not itself a reason to refuse',
+    );
 
     // Measured: PNG allocates the whole source (+768 MB for 200 MP), which is
     // what has to be refused before the engine tries.
-    final pngHuge = decodePeakBytes(
-      sourceCanSubScale: png == ImageSourceFormat.jpeg,
-      sourcePixels: 17000 * 11765,
+    final png = decodePeakBytes(
+      sourceCanSubScale: false,
+      sourcePixels: hugeSource,
       targetPixels: target,
       fileBytes: 1024 * 1024,
     );
-    expect(pngHuge, greaterThan(budget));
+    expect(png.rasterBytes, greaterThan(budget));
 
     // An ordinary screenshot stays far inside it.
-    expect(
-      decodePeakBytes(
-        sourceCanSubScale: false,
-        sourcePixels: 1000 * 8000,
-        targetPixels: 313600,
-        fileBytes: 2 * 1024 * 1024,
-      ),
-      lessThan(budget),
+    final screenshot = decodePeakBytes(
+      sourceCanSubScale: false,
+      sourcePixels: 1000 * 8000,
+      targetPixels: 313600,
+      fileBytes: 2 * 1024 * 1024,
     );
+    expect(screenshot.rasterBytes, lessThan(budget));
+
+    // Small pixels with an enormous file: the raster is cheap, so only the file
+    // judgement can catch it — and it must, or the file is held twice for free.
+    final bloatedFile = decodePeakBytes(
+      sourceCanSubScale: false,
+      sourcePixels: 20 * 1000 * 1000,
+      targetPixels: target,
+      fileBytes: 200 * 1024 * 1024,
+    );
+    expect(bloatedFile.rasterBytes, lessThan(budget));
+    expect(bloatedFile.fileBytesHeld, greaterThan(budget ~/ 2));
   });
 
   test('the artwork the pipeline compares is the artwork it encodes', () async {
@@ -805,6 +905,80 @@ void main() {
     expect(decoded.width, 13);
     expect(decoded.height, 7);
   });
+
+  test('the working pixels survive the engine round trip unmoved', () async {
+    // The encode reads `WorkingImage.rgba` through `img.Image.fromBytes`, which
+    // copies via a byte view and derives its own row stride: a shifted window or
+    // a channel swap would produce wrong pixels without any error. Dimensions
+    // alone cannot catch that, so every pixel is compared.
+    final source = _tinyImage();
+    final file = File(p.join(root.path, 'pixels.png'));
+    await file.writeAsBytes(img.encodePng(source));
+
+    final working = await decodeWorkingImage(
+      file.path,
+      params: const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 90,
+      ),
+      budgetPixels: kWorkingPixelsDesktop,
+      budgetBytes: kDecodeBudgetBytesDesktop,
+    );
+    addTearDown(working.dispose);
+
+    expect(working.width, source.width);
+    expect(working.height, source.height);
+    expect(working.rgba.lengthInBytes, source.width * source.height * 4);
+
+    final rebuilt = img.Image.fromBytes(
+      width: working.width,
+      height: working.height,
+      bytes: working.rgba.buffer,
+      bytesOffset: working.rgba.offsetInBytes,
+      numChannels: 4,
+      order: img.ChannelOrder.rgba,
+    );
+    for (var y = 0; y < source.height; y++) {
+      for (var x = 0; x < source.width; x++) {
+        final expected = source.getPixel(x, y);
+        final actual = rebuilt.getPixel(x, y);
+        expect(
+          [actual.r, actual.g, actual.b, actual.a],
+          [expected.r, expected.g, expected.b, 255],
+          reason: 'pixel ($x,$y) moved, changed channel or lost its alpha',
+        );
+      }
+    }
+  });
+
+  test(
+    'the source dimensions are EXIF-corrected, without decoding pixels',
+    () async {
+      // The whole target computation rests on `ImageDescriptor.width/height`
+      // being the *oriented* size. A 400x200 JPEG tagged orientation 6 is shown
+      // and stored as 200x400, so the panel's long edge must be 400 and not 200.
+      final file = File(p.join(root.path, 'rotated.jpg'));
+      // `encodeJpg` writes whatever `image.exif` holds, so the tag is set there.
+      final rotated = _noiseImage(400, 200);
+      rotated.exif.imageIfd.orientation = 6;
+      await file.writeAsBytes(img.encodeJpg(rotated), flush: true);
+
+      final working = await decodeWorkingImage(
+        file.path,
+        params: const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 80,
+        ),
+        budgetPixels: kWorkingPixelsDesktop,
+        budgetBytes: kDecodeBudgetBytesDesktop,
+      );
+      addTearDown(working.dispose);
+
+      expect(working.sourceWidth, 200);
+      expect(working.sourceHeight, 400);
+      expect(working.longEdge, 400);
+    },
+  );
 
   test('the estimate messages keep their glyphs', () async {
     final l10n = await AppLocalizations.delegate.load(const Locale('en'));

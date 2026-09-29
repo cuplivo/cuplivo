@@ -15130,7 +15130,7 @@ abstract class AppLocalizations {
   /// No description provided for @compressEditorTooLarge.
   ///
   /// In en, this message translates to:
-  /// **'This image is too large to decode safely, so it can\'t be re-compressed.'**
+  /// **'This image is too large to open in the editor, so it can\'t be re-compressed here. It will be attached as it is.'**
   String get compressEditorTooLarge;
 
   /// Shown when a very large image is worked at a reduced resolution.

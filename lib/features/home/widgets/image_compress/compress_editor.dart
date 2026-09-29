@@ -302,7 +302,11 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
             if (!_params.isNoOp) ...[
               const SizedBox(height: 14),
               _edgeRow(context, l10n),
-              if (_params.format == DownsizeFormat.jpeg) ...[
+              // The quality slider is meaningless while the decode is refused:
+              // no encode is coming, and a control that changes nothing reads as
+              // a broken one.
+              if (_params.format == DownsizeFormat.jpeg &&
+                  !_controller.tooLarge) ...[
                 const SizedBox(height: 6),
                 _qualityRow(context, l10n),
               ],
@@ -454,6 +458,26 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
 
   Widget _estimateRow(BuildContext context, AppLocalizations l10n) {
     final cs = Theme.of(context).colorScheme;
+    if (_controller.tooLarge) {
+      // No result exists to compare against, but the panel must still say which
+      // image it is refusing and how big it is: that is what the user needs to
+      // decide between a smaller working resolution and attaching it as it is.
+      final refusedBytes = _controller.sourceBytes;
+      if (refusedBytes <= 0) return const SizedBox.shrink();
+      return Row(
+        children: [
+          Icon(Lucide.info, size: 13, color: cs.onSurfaceVariant),
+          const SizedBox(width: 6),
+          _EstimateSide(
+            dimensions:
+                '${_controller.sourceWidth}×${_controller.sourceHeight}',
+            size: formatBytes(refusedBytes),
+            alignEnd: false,
+            color: cs.onSurfaceVariant,
+          ),
+        ],
+      );
+    }
     final sourceBytes = _controller.sourceBytes;
     if (sourceBytes <= 0) return const SizedBox.shrink();
     final sourceDimensions =
@@ -558,16 +582,26 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
 
   Widget _actions(BuildContext context, AppLocalizations l10n) {
     if (_controller.decodeFailed || _controller.tooLarge) {
-      // The copy above already says the image cannot be re-compressed, so
-      // the panel must not offer an action that tries anyway: the apply
+      // No action may try to re-compress what could not be decoded: the apply
       // would fail, drop the attachment from the message and lock sending.
+      //
+      // A refused decode is not the same dead end as an unreadable file, though:
+      // closing keeps the attachment as it is, and the panel above still offers a
+      // smaller working resolution, which is what makes a borderline source fit.
+      // So the primary action reads as "keep it", not as a failed operation.
       return Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.compressEditorCancel),
-          ),
+          if (_controller.decodeFailed)
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.compressEditorCancel),
+            )
+          else
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.compressEditorDone),
+            ),
         ],
       );
     }

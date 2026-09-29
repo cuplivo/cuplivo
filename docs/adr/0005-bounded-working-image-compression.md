@@ -69,29 +69,45 @@ orientation 6 reports 200×400 without decoding pixels).
    during a pass only sets a pending flag: the pass re-runs once with the newest parameters. The
    editor exposes a test-only counter for this, since a second overlapping pass is what doubles the
    peak.
-5. **Budgets, and a gate instead of a crash.** The working image is capped at **14 MP (mobile) /
-   20 MP (desktop)** of working pixels — enough for a 13 MP attachment to keep 100% — and a decode may
-   allocate at most **300 MB / 500 MB**. A source that cannot be decoded inside the budget is refused
-   with an explanation and no apply action, which extends ADR-0002's "offered only where it can act"
-   rule to memory. This is what refuses a 200 MP PNG (768 MB) while admitting any JPEG at any
-   reachable target.
-6. **The reachable range is the honest range.** The long-edge slider's maximum is
+5. **Budgets, and a gate instead of a crash, judged by what it can actually prevent.** The working
+   image is capped at **14 MP (mobile) / 20 MP (desktop)** of working pixels — enough for a 13 MP
+   attachment to keep 100% — and the gate refuses a decode on **two separate judgements**: the raster
+   it would allocate (source bitmap + target bitmap, the allocation that can abort the process) against
+   **300 MB / 500 MB**, and the source file held twice against half that budget. The file is judged
+   separately because including it refused sources whose decode is cheap: a 200 MP JPEG with a 30 MB
+   file needs 280 MB of raster — inside the budget — and was refused for its file size alone. This is
+   what refuses a 200 MP PNG (856 MB of raster) while admitting any JPEG at any reachable target.
+6. **A refusal is a state the user can leave, not a dead end.** The refusal carries the dimensions and
+   size the header already provided, so the panel still shows the source and its size and still offers
+   the long-edge control: lowering the working resolution is exactly what makes a borderline source fit
+   (a source the codec *can* sub-scale needs less raster the smaller the target), and a PNG that cannot
+   fit at any reachable edge says so by staying refused. The panel never offers an apply action for
+   something it could not decode, and its primary action reads as "keep it as is" — the attachment is
+   untouched; it is only the editor's re-compression that is unavailable.
+7. **The reachable range is the honest range.** The long-edge slider's maximum is
    `min(sourceLongEdge, budgetLongEdge)`, so the panel cannot offer a resolution the pipeline will not
    produce, and when the source had to be reduced the panel says so ("Source 20000×10000, loaded at
    37%…"). A remembered long edge is normalised into that range once the source's size is known —
-   not before, when there is no range yet.
-7. **Framing defaults to fit-to-width, capped at 1:1.** Contain-fit is always ≤ fit-to-width and the
+   not before, when there is no range yet. The decoder, the slider's maximum and that normalisation all
+   call one `resolveWorkingEdge`, so the resolution shown and the resolution produced cannot drift.
+8. **Framing defaults to fit-to-width, capped at 1:1.** Contain-fit is always ≤ fit-to-width and the
    two differ only for tall images, which is precisely the failing case: a 1000×8000 screenshot in a
    390 px viewport was drawn 75 px wide. Fitting the width keeps it legible and pans vertically. 1:1
    now means one artifact pixel per logical pixel, which is true because the working image *is* at the
    artifact's resolution.
-8. **The automatic pipeline shares the decode and keeps its own rules.** `auto` keeps its attach-time
+9. **The automatic pipeline shares the decode and keeps its own rules.** `auto` keeps its attach-time
    presets, its minimum-size guard, its transparency opt-in and its always-JPEG output; what changed is
    that it decodes through the same budgeted working image instead of `Downsize.compress(sourceBytes)`,
    and with the preset as an exact long-edge cap rather than the editor's 25% floor. A source too large
    for the decode budget is **skipped like any other skip** — the pristine copy stays in place — because
    "skip and keep" is already this pipeline's contract. Without this, a 200 MP attach in `auto` still
    materialised the full source at ~3 GB, which is the same crash the editor was fixed for.
+10. **What the two budgets do and do not cover.** They bound the *pixel* work of one task, which is what
+    could abort the process; they are not a whole-process ceiling. The source file is held twice while
+    its descriptor lives (a `Uint8List` and the `ImmutableBuffer`), the working image keeps a texture
+    plus its straight-RGBA bytes, and the encoded artifact is held until it is applied: those are
+    bounded by the file size, the working budget and the artifact respectively, and the file term is
+    what the second judgement above exists for.
 
 ## Consequences
 
@@ -105,11 +121,22 @@ orientation 6 reports 200×400 without decoding pixels).
 - The tile machinery is gone: no crop, no per-tick re-encode, no 1280 px tile cap, no stale-tile
   branch. `encodeManualBytes` and `decodeForPreview`/`previewCacheSize` are deleted rather than kept
   as compatibility shims.
-- A PNG source above the budget loses its editor entry point (message, no action) instead of
-  attempting a decode. Ordinary screenshots are far below it: the motivating 1080×8000 case needs
-  ~40 MB.
+- A source the gate refuses keeps its editor entry point, loses only the ability to re-compress, and
+  says so: the panel shows its dimensions and size, keeps the long-edge control so a smaller working
+  resolution can be tried, and offers no apply action for something that was never decoded. Ordinary
+  screenshots are far below the gate: the motivating 1080×8000 case needs ~40 MB.
 - `dart:ui` owns the decode, so the editor's pipeline needs the UI isolate; only the encode runs in an
   isolate, and its pixels cross as `TransferableTypedData` (a move, not a copy).
+- The engine's straight-RGBA pixels are read with an explicit offset and length, and a length that does
+  not match `width * height * 4` is an error rather than a silently shifted window. `toByteData` hands
+  back `encoded.buffer.asByteData()` today, so this states the contract instead of assuming it.
+- The engine's `ImageDescriptor.width`/`height` being **EXIF-corrected** is the assumption the whole
+  target computation rests on, so it has a test: a 400×200 JPEG tagged orientation 6 must report
+  200×400 with no pixels decoded.
+- Wide-gamut sources lose gamut: `rawStraightRgba` gives sRGB bytes, so a Display-P3 PNG's artifact
+  does not carry its original color space. The comparison stays self-consistent because both sides are
+  those same converted pixels, and the pre-ADR pipeline had no color management either — it wrote the
+  sampled values out as if they were sRGB. Recorded as a limit, not fixed here.
 - **`auto` mode is bounded too, and its resampling changed with it.** A 200 MP attach no longer
   full-decodes, and a source over the budget is skipped (pristine copy) instead of risking the process.
   Its artifact bytes can differ from an older build's for the same preset, for the same reason the

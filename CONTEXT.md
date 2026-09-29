@@ -466,9 +466,14 @@ contradicts one of them is a bug, not a preference.
   It is bounded by the working budget (14 MP mobile / 20 MP desktop), and its long edge is what the
   long-edge slider can reach. See ADR-0005.
 - **Working budget (工作预算)**: the ceiling on a working image, in pixels, and on a single decode, in
-  bytes. When a source cannot be decoded inside it, the editor refuses with an explanation and no
-  apply action rather than risking a process abort — an out-of-memory kill inside a decode is not
-  catchable from Dart.
+  bytes. The byte ceiling is judged twice, because the risks differ: the raster a decode would allocate
+  against the whole budget, and the source file held twice against half of it. A file-inclusive
+  judgement used to refuse sources whose decode is cheap — a 200 MP JPEG needs 280 MB of raster and was
+  refused for its 30 MB file. When a source cannot be decoded inside the budget, the editor refuses with
+  an explanation and no apply action rather than risking a process abort — an out-of-memory kill inside
+  a decode is not catchable from Dart. The refusal is a state, not a dead end: the panel keeps the
+  source's dimensions and its long-edge control, because a smaller 工作图 is what makes a borderline
+  source fit.
 - **Artifact (产物)**: the exact byte sequence the current parameters produce, encoded from the working
   image. The size row shows its length, the compressed side of the 分屏对比 draws it, and the apply
   writes those same bytes, so the three can never disagree. It is dropped the moment a parameter

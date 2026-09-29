@@ -170,11 +170,38 @@ int workingLongEdge(int width, int height, int budgetPixels) {
 /// The long edge an artifact is actually produced at, given the user's choice
 /// and what the working image can reach. A remembered value from another image
 /// is normalised here so the panel's readout always equals what is applied.
+///
+/// The editor's view of [resolveWorkingEdge]: same math, with the 25% floor.
 int targetLongEdge({
   required int sourceWidth,
   required int sourceHeight,
   required int? requestedLongEdge,
   required int budgetPixels,
+}) {
+  return resolveWorkingEdge(
+    sourceWidth: sourceWidth,
+    sourceHeight: sourceHeight,
+    requestedLongEdge: requestedLongEdge,
+    budgetPixels: budgetPixels,
+    floorAtQuarterOfSource: true,
+  );
+}
+
+/// The long edge a decode will actually use: the requested value (or the
+/// source's own edge) clamped into the range the source and the working budget
+/// leave open.
+///
+/// One implementation for the decoder, the panel's slider maximum and the
+/// controller's normalisation, so the resolution the panel shows cannot drift
+/// from the resolution the artifact is produced at. [floorAtQuarterOfSource] is
+/// the editor's 25% floor; a preset passes false, because a preset is an exact
+/// cap rather than a floor.
+int resolveWorkingEdge({
+  required int sourceWidth,
+  required int sourceHeight,
+  required int? requestedLongEdge,
+  required int budgetPixels,
+  required bool floorAtQuarterOfSource,
 }) {
   final source = math.max(sourceWidth, sourceHeight);
   if (source <= 0) return 0;
@@ -182,26 +209,36 @@ int targetLongEdge({
     source,
     workingLongEdge(sourceWidth, sourceHeight, budgetPixels),
   );
-  final wanted = requestedLongEdge ?? source;
+  final floor = floorAtQuarterOfSource ? minEditorLongEdge(source) : 1;
   // The floor can exceed what the budget reaches on a tightly-budgeted source;
   // clamping with a lower bound above the upper one throws, so the bounds are
   // ordered here rather than assumed.
-  return wanted.clamp(
-    math.min(minEditorLongEdge(source), reachable),
-    reachable,
-  );
+  return (requestedLongEdge ?? source)
+      .clamp(math.min(floor, reachable), reachable)
+      .toInt();
 }
 
-/// Pixels a decode of a [sourcePixels] image to [targetPixels] will allocate,
-/// plus the source bytes the descriptor holds.
+/// What a decode of [sourcePixels] into [targetPixels] allocates, split into the
+/// part the gate is about and the part it is not.
+///
+/// [rasterBytes] is the raster the decode itself allocates: the bitmap the engine
+/// decodes — bounded by `4 * targetPixels` when the codec sub-scales at decode,
+/// the whole source when it does not — plus the target bitmap. This is the
+/// allocation that can abort the process, so [decodeByteBudget] bounds it.
+///
+/// [fileBytesHeld] is the source file, held twice while the descriptor is alive
+/// (the `Uint8List` read from disk and the `ImmutableBuffer` the descriptor
+/// owns). It is bounded separately and generously: gating it with the raster
+/// refused sources that decode cheaply — a 200 MP JPEG with a 30 MB file needs
+/// 280 MB of raster, well inside the budget, and was refused before this split
+/// only because its file size was added to that number.
 ///
 /// The engine decodes at a codec-supported scale when the codec offers one
-/// (`ImageDecoderSkia::ImageFromCompressedData` only allocates
-/// `get_scaled_dimensions(...)` when it differs from the source) and otherwise
-/// decodes the full image and scales it afterwards. JPEG is in the first group,
-/// PNG in the second — so for PNG this is source-proportional and the gate is
-/// what keeps a huge screenshot from aborting the process.
-int decodePeakBytes({
+/// (`ImageDecoderSkia::ImageFromCompressedData` allocates
+/// `get_scaled_dimensions(...)` only when it differs from the source) and
+/// otherwise decodes the full image and scales it afterwards. JPEG is in the
+/// first group, PNG in the second.
+({int rasterBytes, int fileBytesHeld}) decodePeakBytes({
   required bool sourceCanSubScale,
   required int sourcePixels,
   required int targetPixels,
@@ -210,23 +247,31 @@ int decodePeakBytes({
   final decodedPixels = sourceCanSubScale
       ? math.min(sourcePixels, 4 * targetPixels)
       : sourcePixels;
-  // decode bitmap + target bitmap, both 4 bytes per pixel, plus the file bytes
-  // held twice while the descriptor is alive (the Uint8List read from disk and
-  // the ImmutableBuffer the descriptor owns).
-  return (decodedPixels + targetPixels) * 4 + 2 * fileBytes;
+  return (
+    rasterBytes: (decodedPixels + targetPixels) * 4,
+    fileBytesHeld: 2 * fileBytes,
+  );
 }
 
 /// Raised when re-compressing this image would exceed the decode budget.
+///
+/// It carries the facts the header already provided, because the panel needs the
+/// source's size to offer a working resolution that would fit: a refusal is not a
+/// reason to hide dimensions that were known before any pixel was touched.
 class WorkingImageTooLargeException implements Exception {
   const WorkingImageTooLargeException({
     required this.sourceWidth,
     required this.sourceHeight,
+    required this.sourceBytes,
     required this.requiredBytes,
     required this.budgetBytes,
   });
 
   final int sourceWidth;
   final int sourceHeight;
+  final int sourceBytes;
+
+  /// The number that violated [budgetBytes].
   final int requiredBytes;
   final int budgetBytes;
 
@@ -338,29 +383,35 @@ Future<WorkingImage> decodeWorkingImageBytes(
       throw StateError('image reports an empty size');
     }
 
-    final source = math.max(sourceWidth, sourceHeight);
-    final reachable = math.min(
-      source,
-      workingLongEdge(sourceWidth, sourceHeight, budgetPixels),
+    final edge = resolveWorkingEdge(
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight,
+      requestedLongEdge: requestedLongEdge,
+      budgetPixels: budgetPixels,
+      floorAtQuarterOfSource: floorAtQuarterOfSource,
     );
-    final floor = floorAtQuarterOfSource ? minEditorLongEdge(source) : 1;
-    final edge = (requestedLongEdge ?? source)
-        .clamp(math.min(floor, reachable), reachable)
-        .toInt();
     final target = _scaleToLongEdge(sourceWidth, sourceHeight, edge);
 
-    final required = decodePeakBytes(
+    final peak = decodePeakBytes(
       sourceCanSubScale: sourceFormat == ImageSourceFormat.jpeg,
       sourcePixels: sourceWidth * sourceHeight,
       targetPixels: target.width * target.height,
       fileBytes: bytes.length,
     );
-    if (required > budgetBytes) {
+    // Two judgements, because they are two different risks. The raster is what
+    // can abort the process, so it is measured against the whole budget. The file
+    // is held twice and is unavoidable on any path, so it gets a generous ceiling
+    // of its own: it may not consume the budget the raster still needs, but it no
+    // longer refuses a source whose decode is cheap.
+    final rasterRefused = peak.rasterBytes > budgetBytes;
+    final fileRefused = peak.fileBytesHeld > budgetBytes ~/ 2;
+    if (rasterRefused || fileRefused) {
       throw WorkingImageTooLargeException(
         sourceWidth: sourceWidth,
         sourceHeight: sourceHeight,
-        requiredBytes: required,
-        budgetBytes: budgetBytes,
+        sourceBytes: bytes.length,
+        requiredBytes: rasterRefused ? peak.rasterBytes : peak.fileBytesHeld,
+        budgetBytes: rasterRefused ? budgetBytes : budgetBytes ~/ 2,
       );
     }
 
@@ -376,9 +427,21 @@ Future<WorkingImage> decodeWorkingImageBytes(
         format: ui.ImageByteFormat.rawStraightRgba,
       );
       if (raw == null) throw StateError('image has no readable pixels');
+      // `ByteData.buffer` is the whole underlying buffer and `asUint8List()`
+      // would start at 0, ignoring the offset; today the engine hands back
+      // `encoded.buffer.asByteData()` (offset 0, exactly the image), so the
+      // contract is stated and asserted rather than assumed — a shifted window
+      // or a pooling buffer would otherwise produce wrong pixels silently.
+      final expected = display.width * display.height * 4;
+      if (raw.lengthInBytes != expected) {
+        throw StateError(
+          'decoded pixels are ${raw.lengthInBytes} bytes, expected $expected '
+          'for ${display.width}x${display.height}',
+        );
+      }
       return WorkingImage(
         display: display,
-        rgba: raw.buffer.asUint8List(),
+        rgba: raw.buffer.asUint8List(raw.offsetInBytes, raw.lengthInBytes),
         width: display.width,
         height: display.height,
         sourceWidth: sourceWidth,

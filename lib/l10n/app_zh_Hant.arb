@@ -3037,7 +3037,7 @@
   "compressEditorGrowth": "+{percent}%",
   "compressEditorNoReencode": "不做重編碼",
   "compressEditorDecodeFailed": "此圖片無法預覽，因此無法重新壓縮。",
-  "compressEditorTooLarge": "此圖片過大，無法安全解碼，因此無法重新壓縮。",
+  "compressEditorTooLarge": "此圖片過大，無法在編輯器中開啟，因此無法在這裡重新壓縮；附件將按原樣保留。",
   "compressEditorWorkingScale": "來源圖片 {source}，為控制記憶體按 {percent}% 載入",
   "compressEditorCancel": "取消",
   "compressEditorApply": "套用",

@@ -33,9 +33,8 @@ class SyncPeerCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final provider = context.watch<SyncProvider>();
     final busy = provider.busyDeviceIds.contains(peer.deviceId);
-    final endpoint = (peer.lastHost == null || peer.lastPort == null)
-        ? null
-        : '${peer.lastHost}:${peer.lastPort}';
+    final primary = peer.primaryEndpoint;
+    final endpoint = primary?.label;
     final report = peer.lastReport;
 
     return Padding(
@@ -216,8 +215,9 @@ class SyncPeerCard extends StatelessWidget {
 
   Future<void> _editAddress(BuildContext context, SyncProvider provider) async {
     final l10n = AppLocalizations.of(context)!;
-    final host = TextEditingController(text: peer.lastHost ?? '');
-    final port = TextEditingController(text: '${peer.lastPort ?? ''}');
+    final primary = peer.primaryEndpoint;
+    final host = TextEditingController(text: primary?.host ?? '');
+    final port = TextEditingController(text: '${primary?.port ?? ''}');
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(

@@ -257,6 +257,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         port: port,
         pin: pin,
         expectedDeviceId: expectedDeviceId,
+        advertisedAddresses: _advertisedAddresses,
       );
       await refreshPeers();
       return const SyncPairOutcome.success();
@@ -301,6 +302,11 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
           port: endpointPort,
           pin: payload.pin,
           expectedDeviceId: payload.deviceId,
+          // The endpoints this candidate beat stay on the record as hints: the
+          // peer's other addresses are exactly what a later roaming round needs
+          // when this one stops working.
+          knownCandidates: payload.endpoints,
+          advertisedAddresses: _advertisedAddresses,
         );
         await refreshPeers();
         return SyncPairQrOutcome(const SyncPairOutcome.success(), wasKnownPeer);
@@ -363,8 +369,9 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     final store = _store;
     final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
     if (store == null || peer == null) return;
-    peer.lastHost = host.trim();
-    peer.lastPort = port;
+    // Manual repair replaces the whole set: the automatic memory is what failed
+    // (or the user would not be typing), so keeping the rest keeps the problem.
+    peer.replaceEndpoints(host.trim(), port);
     await store.savePeer(peer);
     await refreshPeers();
   }
@@ -419,7 +426,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     _autoRoundRunning = true;
     try {
       for (final peer in List.of(peers)) {
-        if (peer.lastHost == null || peer.lastPort == null) continue;
+        if (peer.primaryEndpoint == null) continue;
         if (busyDeviceIds.contains(peer.deviceId)) continue;
         try {
           await syncNow(peer.deviceId);
@@ -453,6 +460,12 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     firewallNeedsElevation = !added;
     notifyListeners();
   }
+
+  /// This device's own addresses as sent to a peer while pairing, so the
+  /// responder remembers more than the single address the pairing arrived from.
+  List<String> get _advertisedAddresses => [
+    for (final address in localAddresses) address.address,
+  ];
 
   Future<void> _refreshLocalAddresses() async {
     localAddresses = selectLanCandidates(await listLanAddresses());

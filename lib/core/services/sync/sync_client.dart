@@ -65,6 +65,10 @@ class SyncClient {
   /// [listenPort] is this device's own sync listener port, advertised so the
   /// responder can store a usable endpoint for the return direction.
   ///
+  /// [candidateHosts] is this device's own advertised addresses: the responder
+  /// remembers them beside the address this connection came from, so a peer
+  /// that later roams is still reachable on a network it was never paired on.
+  ///
   /// [expectedDeviceId] is the QR path: the certificate fingerprint scanned
   /// out-of-band. When set, the TLS callback itself refuses any other
   /// certificate, so the request body — the PIN included — never leaves this
@@ -77,6 +81,7 @@ class SyncClient {
     required String pin,
     int? listenPort,
     String? expectedDeviceId,
+    List<String> candidateHosts = const [],
   }) async {
     X509Certificate? presented;
     final client = HttpClient(context: identity.buildContext())
@@ -100,6 +105,7 @@ class SyncClient {
         'platform': _platformTag(),
         'certPem': identity.certPem,
         if (listenPort != null) 'listenPort': listenPort,
+        if (candidateHosts.isNotEmpty) 'candidateHosts': candidateHosts,
       });
       final response = await request.close().timeout(kSyncPairDeadline);
       final body = await _readJson(response).timeout(kSyncPairDeadline);

@@ -74,6 +74,12 @@ class SyncPairRequest {
   /// usable endpoint (its remote address is known from the connection).
   final int? listenPort;
 
+  /// The initiator's own candidate addresses, so the responder remembers more
+  /// than the one address this connection came from: a device that roams would
+  /// otherwise be reachable only at the network it paired on. Additive and
+  /// optional — a peer that does not send it pairs exactly as it did before.
+  final List<String> candidateHosts;
+
   const SyncPairRequest({
     required this.pin,
     required this.deviceId,
@@ -81,6 +87,7 @@ class SyncPairRequest {
     required this.platform,
     required this.certPem,
     this.listenPort,
+    this.candidateHosts = const [],
   });
 
   static SyncPairRequest fromJson(Map<String, dynamic> json) => SyncPairRequest(
@@ -90,6 +97,10 @@ class SyncPairRequest {
     platform: (json['platform'] as String?) ?? '',
     certPem: json['certPem'] as String,
     listenPort: (json['listenPort'] as num?)?.toInt(),
+    candidateHosts: [
+      for (final host in (json['candidateHosts'] as List?) ?? const [])
+        if (host is String && host.isNotEmpty) host,
+    ],
   );
 }
 

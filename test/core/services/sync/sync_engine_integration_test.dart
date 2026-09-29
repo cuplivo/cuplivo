@@ -777,15 +777,15 @@ void main() {
       expect(b.engine.isPairingOpen, isFalse, reason: 'the PIN is one-shot');
 
       final aPeer = await a.peer(b);
-      expect(aPeer.lastHost, '127.0.0.1');
-      expect(aPeer.lastPort, b.port);
+      expect(aPeer.primaryEndpoint?.host, '127.0.0.1');
+      expect(aPeer.primaryEndpoint?.port, b.port);
       expect(aPeer.certPem, b.identity.certPem, reason: 'pinned certificate');
 
       // The responder learns where the initiator connected from plus the
       // listener port it advertised, so it can start sessions too.
       final bPeer = await b.peer(a);
-      expect(bPeer.lastHost, '127.0.0.1');
-      expect(bPeer.lastPort, a.port);
+      expect(bPeer.primaryEndpoint?.host, '127.0.0.1');
+      expect(bPeer.primaryEndpoint?.port, a.port);
       expect(bPeer.certPem, a.identity.certPem);
     },
   );
@@ -1204,8 +1204,8 @@ void main() {
 
     final aPeer = await a.peer(b);
     expect(aPeer.deviceId, b.identity.deviceId);
-    expect(aPeer.lastHost, '127.0.0.1');
-    expect(aPeer.lastPort, b.port);
+    expect(aPeer.primaryEndpoint?.host, '127.0.0.1');
+    expect(aPeer.primaryEndpoint?.port, b.port);
     expect(b.engine.isPairingOpen, isFalse, reason: 'the PIN is spent');
   });
 
@@ -1281,11 +1281,10 @@ void main() {
   test('re-pairing repairs the endpoint and rotates the secret', () async {
     final (a, b) = await pair();
 
-    // Pretend the peer moved: A's stored endpoint is stale.
+    // Pretend the peer moved: A's remembered endpoint is stale.
     final drifted = await a.peer(b);
     final staleSecret = drifted.secret;
-    drifted.lastHost = '10.255.255.1';
-    drifted.lastPort = 1;
+    drifted.replaceEndpoints('10.255.255.1', 1);
     await a.store.savePeer(drifted);
 
     final pin = b.engine.openPairing();
@@ -1297,9 +1296,9 @@ void main() {
     );
 
     final refreshed = await a.peer(b);
-    expect(refreshed.lastHost, '127.0.0.1');
+    expect(refreshed.primaryEndpoint?.host, '127.0.0.1');
     expect(
-      refreshed.lastPort,
+      refreshed.primaryEndpoint?.port,
       b.port,
       reason: 'the drifted endpoint is repaired',
     );
@@ -1312,8 +1311,7 @@ void main() {
       secret: staleSecret,
       name: b.label,
       platform: 'test',
-      lastHost: '127.0.0.1',
-      lastPort: b.port,
+      endpoints: [SyncPeerEndpoint(host: '127.0.0.1', port: b.port)],
     );
     final report = await a.engine.syncWithPeer(stale);
     expect(report.success, isFalse);
@@ -1355,9 +1353,20 @@ void main() {
 
       final peer = provider.peers.single;
       expect(peer.deviceId, b.identity.deviceId);
-      expect(peer.lastPort, b.port, reason: 'the live candidate won');
+      expect(
+        peer.primaryEndpoint?.port,
+        b.port,
+        reason: 'the live candidate won',
+      );
+      // The endpoint that lost is remembered behind the winner: it is the
+      // candidate a later round tries when this network goes away.
+      expect(
+        peer.endpoints.map((e) => e.port),
+        contains(deadPort),
+        reason: 'the dead candidate was kept as a hint',
+      );
       // The joiner advertised its own listener, so the responder can dial back.
-      expect((await b.peer(a)).lastPort, provider.port);
+      expect((await b.peer(a)).primaryEndpoint?.port, provider.port);
 
       // Scanning a fresh code for the same device is the drift-repair journey,
       // and the UI says so instead of pretending it is a first pairing.
@@ -1401,6 +1410,70 @@ void main() {
     expect(result.outcome.errorCode, 'unreachable');
     expect(provider.peers, isEmpty);
     expect(b.engine.isPairingOpen, isTrue, reason: 'nothing reached the peer');
+  });
+
+  test('a session falls through a stale endpoint to the live one', () async {
+    final (a, b) = await pair();
+
+    // The peer moved: the remembered head is an address this device has left,
+    // and the one it is actually reachable at sits behind it in the set.
+    final drifted = await a.peer(b);
+    drifted.replaceEndpoints('127.0.0.1', await _unusedPort());
+    drifted.rememberEndpointCandidates([('127.0.0.1', b.port)]);
+    await a.store.savePeer(drifted);
+    expect(drifted.endpoints.length, 2);
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+
+    // The candidate that worked is promoted, so the next round starts there
+    // instead of paying for the stale address again.
+    final refreshed = await a.peer(b);
+    expect(refreshed.primaryEndpoint?.port, b.port);
+    expect(
+      refreshed.endpoints.map((e) => e.port),
+      contains(drifted.endpoints.last.port),
+      reason: 'the stale endpoint is kept as a hint, not forgotten',
+    );
+  });
+
+  test('pairing hands the responder the joiner addresses', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+    final provider = await a.startProvider();
+
+    // Deterministic advertisement: the addresses a peer is told about. The
+    // provider's own enumeration is asynchronous, so the machine's real
+    // interface list is not a stable expectation inside a test.
+    provider.localAddresses = [
+      (name: 'wlan0', address: '10.9.8.7'),
+      (name: 'eth0', address: '10.9.8.8'),
+    ];
+
+    final pin = b.engine.openPairing();
+    final result = await provider.pairWithQr(
+      SyncPairQrPayload(
+        deviceId: b.identity.deviceId,
+        name: b.label,
+        endpoints: [('127.0.0.1', b.port)],
+        pin: pin,
+      ),
+    );
+    expect(result.outcome.success, isTrue, reason: result.outcome.errorDetail);
+
+    // The responder remembers the address the pairing came from as the proven
+    // one, then the joiner's own advertised addresses behind it — the network
+    // knowledge that lets a peer which later roams keep syncing.
+    final bPeer = await b.peer(a);
+    expect(bPeer.primaryEndpoint?.host, '127.0.0.1');
+    expect(bPeer.primaryEndpoint?.port, provider.port);
+    expect(bPeer.endpoints.skip(1).map((endpoint) => endpoint.label).toList(), [
+      '10.9.8.7:${provider.port}',
+      '10.9.8.8:${provider.port}',
+    ], reason: 'only advertised candidates join the set, after the proven one');
   });
 
   test('a foreground round syncs paired peers, then throttles', () async {

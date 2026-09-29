@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import 'blob_sync.dart';
+import 'sync_candidate_prober.dart';
 import 'sync_client.dart';
 import 'sync_data_plane.dart';
 import 'sync_identity.dart';
@@ -262,9 +263,11 @@ class SyncEngine implements SyncServerHandler {
 
   /// Pairs with a peer by trying [endpoints] in order until one answers.
   ///
-  /// A dead endpoint (refused connection, timeout) moves on to the next
-  /// candidate; an *answering* endpoint that is wrong (bad PIN, wrong
-  /// certificate, identity mismatch) throws immediately — the same answer
+  /// The candidates are probed in parallel first (see [orderCandidates]), so a
+  /// black-holed address costs one shared probe instead of a full dial budget
+  /// per candidate. A dead endpoint (refused connection, timeout) then moves on
+  /// to the next candidate; an *answering* endpoint that is wrong (bad PIN,
+  /// wrong certificate, identity mismatch) throws immediately — the same answer
   /// awaits on every candidate. When nothing answers, the last connectivity
   /// error is rethrown for the caller to classify; it is never rendered raw.
   ///
@@ -277,15 +280,18 @@ class SyncEngine implements SyncServerHandler {
     String? expectedDeviceId,
     List<String> advertisedAddresses = const [],
   }) async {
+    final candidates = await orderCandidates(endpoints);
     Object? lastConnectivityError;
-    for (final (host, port) in endpoints) {
+    for (final (host, port) in candidates) {
       try {
         return await pairWith(
           host: host,
           port: port,
           pin: pin,
           expectedDeviceId: expectedDeviceId,
-          knownCandidates: endpoints,
+          // Probe-ordered rather than as scanned: the addresses that answered
+          // just now are the ones a later roaming round should try first.
+          knownCandidates: candidates,
           advertisedAddresses: advertisedAddresses,
         );
       } on SocketException catch (error) {
@@ -344,13 +350,14 @@ class SyncEngine implements SyncServerHandler {
   /// isolate makes that the whole lock — and a peer initiating at the same
   /// moment is refused instead of interleaved.
   ///
-  /// The remembered endpoints run in order and the first one that answers runs
-  /// the session: an address is a hint from a network this device may have left
-  /// — the same laptop sits at a different address at home, at work and on a
-  /// phone hotspot — and the certificate pin re-verifies whoever answers. Only
-  /// "could not be reached at all" falls through to the next candidate; a
-  /// refusal from the peer is that peer's verdict, and its other addresses would
-  /// only repeat it.
+  /// The remembered endpoints are probed in parallel and then run in order, and
+  /// the first one that answers runs the session: an address is a hint from a
+  /// network this device may have left — the same laptop sits at a different
+  /// address at home, at work and on a phone hotspot — and the certificate pin
+  /// re-verifies whoever answers. The probe is what keeps a set of stale
+  /// addresses from costing one dial budget each. Only "could not be reached at
+  /// all" falls through to the next candidate; a refusal from the peer is that
+  /// peer's verdict, and its other addresses would only repeat it.
   Future<SyncSessionReport> syncWithPeer(
     SyncPeerRecord peer, {
     String? host,
@@ -389,7 +396,9 @@ class SyncEngine implements SyncServerHandler {
           peer: peer,
         );
       }
-      for (final (candidateHost, candidatePort) in candidates) {
+      for (final (candidateHost, candidatePort) in await orderCandidates(
+        candidates,
+      )) {
         final report = await _syncWithPeerAt(
           peer,
           host: candidateHost,

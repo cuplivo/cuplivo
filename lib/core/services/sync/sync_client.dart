@@ -40,6 +40,12 @@ const Duration kSyncBlobDeadline = Duration(minutes: 15);
 /// reachable instead of an `await` that never settles.
 const Duration kSyncPairDeadline = Duration(seconds: 60);
 
+/// Budget for one TCP connect attempt towards a candidate address. The probe
+/// layer has already established that a reached candidate answers, so this only
+/// has to cover the address dying between the probe and the dial: ten seconds
+/// of LAN timeout would only make a black-holed address feel slower.
+const Duration kSyncDialConnectTimeout = Duration(seconds: 3);
+
 /// The result of a hello: either the peer's hello or its refusal.
 class SyncHelloOutcome {
   final SyncHello? hello;
@@ -93,7 +99,7 @@ class SyncClient {
         }
         return true; // first contact: trust happens below, bound to this cert
       }
-      ..connectionTimeout = const Duration(seconds: 10);
+      ..connectionTimeout = kSyncDialConnectTimeout;
     try {
       final request = await client.postUrl(
         Uri.parse('https://$host:$port/pair'),
@@ -169,7 +175,7 @@ class SyncClient {
 
   HttpClient _httpForPeer(SyncPeerRecord peer) {
     final client = HttpClient(context: identity.buildContext())
-      ..connectionTimeout = const Duration(seconds: 10)
+      ..connectionTimeout = kSyncDialConnectTimeout
       // Pinning the listener's certificate is the whole server-side
       // authentication: nothing else can answer as this peer.
       ..badCertificateCallback = (cert, _, _) =>

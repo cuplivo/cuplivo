@@ -4,7 +4,13 @@ import 'package:downsize/downsize.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import 'manual_compress_pipeline.dart';
 import 'upload_dedupe.dart';
+
+// The manual path's vocabulary lives with its decoder; this library stays the
+// compression facade callers already import.
+export 'manual_compress_pipeline.dart'
+    show ManualCompressParams, ImageSourceFormat, detectImageSourceFormat;
 
 class ImageCompressConfig {
   const ImageCompressConfig({
@@ -18,37 +24,6 @@ class ImageCompressConfig {
   final int quality;
   final int maxLongEdge;
   final bool includeTransparent;
-}
-
-/// Parameters of one explicit, user-chosen compression in the manual editor.
-///
-/// A null [format] means 原图 (as-is): the stored bytes pass through
-/// untouched. Unlike the automatic pipeline there are no skip guards — no
-/// minimum size, no alpha gate, and the result may be larger than the input
-/// (a PNG of a JPEG photo legitimately grows); the editor shows the estimated
-/// size before anything is applied.
-class ManualCompressParams {
-  const ManualCompressParams({
-    this.format,
-    this.quality = 80,
-    this.maxLongEdge,
-  });
-
-  final DownsizeFormat? format;
-  final int quality;
-  final int? maxLongEdge;
-
-  bool get isNoOp => format == null;
-
-  @override
-  bool operator ==(Object other) =>
-      other is ManualCompressParams &&
-      other.format == format &&
-      other.quality == quality &&
-      other.maxLongEdge == maxLongEdge;
-
-  @override
-  int get hashCode => Object.hash(format, quality, maxLongEdge);
 }
 
 class ImageCompressor {
@@ -93,97 +68,145 @@ class ImageCompressor {
   /// Applies exactly [params] to [srcPath] — the manual pipeline.
   ///
   /// No skip guards and no alpha gate: the user saw the image and picked the
-  /// format. Failure to decode falls back to storing the original unchanged,
-  /// mirroring the automatic path.
+  /// format. The pixels come from the shared working-image decode, so this
+  /// never materialises the source at full resolution. Failure to decode falls
+  /// back to storing the original unchanged, mirroring the automatic path.
   static Future<UploadWrite?> compressManualToUploadDir(
     String srcPath,
     Directory dir,
-    ManualCompressParams params,
-  ) async {
+    ManualCompressParams params, {
+    bool? desktop,
+  }) async {
     Uint8List? originalBytes;
     try {
-      originalBytes = await File(srcPath).readAsBytes();
-      final encoded = params.isNoOp
-          ? null
-          : await compute(
-              _manualEncodeTask,
-              _ManualEncodeParams(
-                bytes: originalBytes,
-                format: params.format!,
-                quality: params.quality,
-                maxLongEdge: params.maxLongEdge,
-              ),
-            );
-      return await _writeToUploadDir(
+      if (params.isNoOp) {
+        originalBytes = await File(srcPath).readAsBytes();
+        return await _writeToUploadDir(srcPath, dir, originalBytes);
+      }
+      final isDesktop = desktop ?? isDesktopPlatform;
+      final working = await decodeWorkingImage(
         srcPath,
-        dir,
-        encoded ?? originalBytes,
-        outputExtension: switch (params.format) {
-          DownsizeFormat.png => 'png',
-          DownsizeFormat.jpeg => 'jpeg',
-          null => null,
-        },
+        params: params,
+        budgetPixels: workingPixelBudget(desktop: isDesktop),
+        budgetBytes: decodeByteBudget(desktop: isDesktop),
       );
+      try {
+        final encoded = await encodeArtifact(working, params);
+        return await writeManualArtifactToUploadDir(
+          srcPath,
+          dir,
+          encoded,
+          params,
+        );
+      } finally {
+        working.dispose();
+      }
     } catch (error, stackTrace) {
       debugPrint(
         '[ImageCompressor] Manual compression failed for $srcPath: $error',
       );
       debugPrintStack(stackTrace: stackTrace);
-      if (originalBytes != null) {
-        try {
-          return await _writeToUploadDir(srcPath, dir, originalBytes);
-        } catch (copyError) {
-          debugPrint(
-            '[ImageCompressor] Failed to copy original $srcPath: $copyError',
-          );
-        }
+      try {
+        return await _writeToUploadDir(
+          srcPath,
+          dir,
+          originalBytes ?? await File(srcPath).readAsBytes(),
+        );
+      } catch (copyError) {
+        debugPrint(
+          '[ImageCompressor] Failed to copy original $srcPath: $copyError',
+        );
       }
       return null;
     }
   }
 
+  /// Writes an artifact the editor already encoded straight to [dir].
+  ///
+  /// The bytes are the ones the size row reported, so this is a file write and
+  /// nothing else — no second decode and no second encode.
+  static Future<UploadWrite> writeManualArtifactToUploadDir(
+    String srcPath,
+    Directory dir,
+    Uint8List artifact,
+    ManualCompressParams params,
+  ) {
+    return _writeToUploadDir(
+      srcPath,
+      dir,
+      artifact,
+      outputExtension: switch (params.format) {
+        DownsizeFormat.png => 'png',
+        DownsizeFormat.jpeg => 'jpeg',
+        null => null,
+      },
+    );
+  }
+
   /// Returns a smaller JPEG, or `null` when compression should be skipped.
+  ///
+  /// The skip guards are Kelivo's: a disabled pipeline, a source under
+  /// [kMinBytesToCompress], transparency the preset did not opt into, and a
+  /// result that would be larger than the input. What changed in ADR-0005 is how
+  /// the pixels arrive — through the same budgeted working-image decode the
+  /// editor uses, so a huge attach no longer full-decodes at roughly 15 bytes per
+  /// source pixel. A source too large for the decode budget is skipped like any
+  /// other skip, leaving the pristine copy in place.
   static Future<Uint8List?> compressBytes(
     Uint8List bytes,
-    ImageCompressConfig config,
-  ) async {
+    ImageCompressConfig config, {
+    bool? desktop,
+  }) async {
     if (!config.enabled || bytes.lengthInBytes < kMinBytesToCompress) {
       return null;
     }
 
+    switch (detectImageSourceFormat(bytes)) {
+      case ImageSourceFormat.jpeg:
+        break;
+      case ImageSourceFormat.png:
+        if (!config.includeTransparent && _pngNeedsOptIn(bytes)) {
+          return null;
+        }
+        break;
+      case ImageSourceFormat.gif:
+      case ImageSourceFormat.other:
+        if (!config.includeTransparent) {
+          return null;
+        }
+        break;
+    }
+
+    final isDesktop = desktop ?? isDesktopPlatform;
+    WorkingImage? working;
     try {
-      return await compute(
-        _compressTask,
-        _CompressTaskParams(
-          bytes: bytes,
+      working = await decodeWorkingImageBytes(
+        bytes,
+        requestedLongEdge: config.maxLongEdge <= 0 ? null : config.maxLongEdge,
+        // A preset is an exact cap, not the editor's 25% floor.
+        floorAtQuarterOfSource: false,
+        budgetPixels: workingPixelBudget(desktop: isDesktop),
+        budgetBytes: decodeByteBudget(desktop: isDesktop),
+      );
+      final encoded = await encodeArtifact(
+        working,
+        ManualCompressParams(
+          format: DownsizeFormat.jpeg,
           quality: config.quality,
-          maxLongEdge: config.maxLongEdge,
-          includeTransparent: config.includeTransparent,
         ),
       );
+      if (encoded.lengthInBytes >= bytes.lengthInBytes) return null;
+      return encoded;
+    } on WorkingImageTooLargeException catch (error) {
+      debugPrint('[ImageCompressor] Skipping oversized source: $error');
+      return null;
     } catch (error, stackTrace) {
       debugPrint('[ImageCompressor] Compression failed: $error');
       debugPrintStack(stackTrace: stackTrace);
       return null;
+    } finally {
+      working?.dispose();
     }
-  }
-
-  /// Runs the manual encode pipeline on raw bytes without touching the
-  /// upload directory. Returns `null` for a no-op ([ManualCompressParams.isNoOp]).
-  static Future<Uint8List?> encodeManualBytes(
-    Uint8List bytes,
-    ManualCompressParams params,
-  ) async {
-    if (params.isNoOp) return null;
-    return compute(
-      _manualEncodeTask,
-      _ManualEncodeParams(
-        bytes: bytes,
-        format: params.format!,
-        quality: params.quality,
-        maxLongEdge: params.maxLongEdge,
-      ),
-    );
   }
 
   /// A pristine copy keeps the name it was picked under, but an
@@ -193,11 +216,11 @@ class ImageCompressor {
     if (originalName.isEmpty || p.extension(originalName).isNotEmpty) {
       return originalName;
     }
-    final extension = switch (_detectFormat(bytes)) {
-      _DetectedImageFormat.jpeg => 'jpeg',
-      _DetectedImageFormat.png => 'png',
-      _DetectedImageFormat.gif => 'gif',
-      _DetectedImageFormat.other => null,
+    final extension = switch (detectImageSourceFormat(bytes)) {
+      ImageSourceFormat.jpeg => 'jpeg',
+      ImageSourceFormat.png => 'png',
+      ImageSourceFormat.gif => 'gif',
+      ImageSourceFormat.other => null,
     };
     if (extension == null) return originalName;
     return '${p.basenameWithoutExtension(originalName)}.$extension';
@@ -237,110 +260,6 @@ class ImageCompressor {
       rethrow;
     }
   }
-}
-
-enum _DetectedImageFormat { jpeg, png, gif, other }
-
-class _CompressTaskParams {
-  const _CompressTaskParams({
-    required this.bytes,
-    required this.quality,
-    required this.maxLongEdge,
-    required this.includeTransparent,
-  });
-
-  final Uint8List bytes;
-  final int quality;
-  final int maxLongEdge;
-  final bool includeTransparent;
-}
-
-Uint8List? _compressTask(_CompressTaskParams params) {
-  final format = _detectFormat(params.bytes);
-
-  switch (format) {
-    case _DetectedImageFormat.jpeg:
-      break;
-    case _DetectedImageFormat.png:
-      if (!params.includeTransparent && _pngNeedsOptIn(params.bytes)) {
-        return null;
-      }
-      break;
-    case _DetectedImageFormat.gif:
-    case _DetectedImageFormat.other:
-      if (!params.includeTransparent) {
-        return null;
-      }
-      break;
-  }
-
-  final compressed = Downsize().compress(
-    Config(
-      data: params.bytes,
-      quality: params.quality,
-      maxLongEdge: params.maxLongEdge,
-    ),
-  );
-  if (compressed == null ||
-      compressed.lengthInBytes >= params.bytes.lengthInBytes) {
-    return null;
-  }
-  return compressed;
-}
-
-class _ManualEncodeParams {
-  const _ManualEncodeParams({
-    required this.bytes,
-    required this.format,
-    required this.quality,
-    required this.maxLongEdge,
-  });
-
-  final Uint8List bytes;
-  final DownsizeFormat format;
-  final int quality;
-  final int? maxLongEdge;
-}
-
-Uint8List? _manualEncodeTask(_ManualEncodeParams params) {
-  return Downsize().compress(
-    Config(
-      data: params.bytes,
-      format: params.format,
-      quality: params.quality,
-      maxLongEdge: params.maxLongEdge,
-    ),
-  );
-}
-
-_DetectedImageFormat _detectFormat(Uint8List bytes) {
-  if (bytes.lengthInBytes >= 3 &&
-      bytes[0] == 0xff &&
-      bytes[1] == 0xd8 &&
-      bytes[2] == 0xff) {
-    return _DetectedImageFormat.jpeg;
-  }
-  if (bytes.lengthInBytes >= 8 &&
-      bytes[0] == 0x89 &&
-      bytes[1] == 0x50 &&
-      bytes[2] == 0x4e &&
-      bytes[3] == 0x47 &&
-      bytes[4] == 0x0d &&
-      bytes[5] == 0x0a &&
-      bytes[6] == 0x1a &&
-      bytes[7] == 0x0a) {
-    return _DetectedImageFormat.png;
-  }
-  if (bytes.lengthInBytes >= 6 &&
-      bytes[0] == 0x47 &&
-      bytes[1] == 0x49 &&
-      bytes[2] == 0x46 &&
-      bytes[3] == 0x38 &&
-      (bytes[4] == 0x37 || bytes[4] == 0x39) &&
-      bytes[5] == 0x61) {
-    return _DetectedImageFormat.gif;
-  }
-  return _DetectedImageFormat.other;
 }
 
 bool _pngNeedsOptIn(Uint8List bytes) {

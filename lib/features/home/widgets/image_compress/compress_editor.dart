@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:downsize/downsize.dart';
 import 'package:flutter/material.dart';
@@ -14,7 +15,7 @@ import '../../../../shared/widgets/ios_tactile.dart';
 import '../../../../shared/widgets/segmented_tabs.dart';
 import '../../../../theme/app_font_weights.dart';
 import '../../../../theme/app_semantic_colors.dart';
-import '../../../../utils/image_compressor.dart';
+import '../../../../utils/manual_compress_pipeline.dart';
 import 'compress_editor_controller.dart';
 import 'compress_editor_preview.dart';
 
@@ -26,8 +27,15 @@ sealed class CompressEditorResult {
 }
 
 /// Apply the parameters to the image the editor was opened for.
+///
+/// [artifact] is the exact byte sequence the editor already produced and showed
+/// the size of, so the caller stores it without re-encoding. It is null only when
+/// the user confirmed before the debounced pass for these parameters finished,
+/// in which case the caller runs the pipeline itself.
 final class CompressEditorApply extends CompressEditorResult {
-  const CompressEditorApply(super.params);
+  const CompressEditorApply(super.params, this.artifact);
+
+  final Uint8List? artifact;
 }
 
 /// Apply the parameters to every image currently attached to the draft.
@@ -88,11 +96,19 @@ class CompressEditorPage extends StatefulWidget {
     required this.imagePath,
     required this.totalImageCount,
     this.desktop = false,
+    this.budgetPixels,
+    this.budgetBytes,
   });
 
   final String imagePath;
   final int totalImageCount;
   final bool desktop;
+
+  /// Overrides for the working-image budgets, used by tests to exercise the
+  /// clamp and the gate without multi-hundred-megapixel fixtures. Production
+  /// callers leave them null and get the platform budgets.
+  final int? budgetPixels;
+  final int? budgetBytes;
 
   @override
   State<CompressEditorPage> createState() => _CompressEditorPageState();
@@ -109,6 +125,9 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
     _controller = CompressEditorController(
       imagePath: widget.imagePath,
       initialParams: context.read<SettingsProvider>().manualCompressParams,
+      desktop: widget.desktop ? true : null,
+      budgetPixels: widget.budgetPixels,
+      budgetBytes: widget.budgetBytes,
     );
     unawaited(_controller.prepare());
   }
@@ -128,7 +147,9 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
       return;
     }
     Navigator.of(context).pop(
-      toAll ? CompressEditorApplyAll(_params) : CompressEditorApply(_params),
+      toAll
+          ? CompressEditorApplyAll(_params)
+          : CompressEditorApply(_params, _controller.readyArtifact),
     );
   }
 
@@ -166,7 +187,7 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
     if (_controller.preparing) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_controller.decodeFailed) {
+    if (_controller.decodeFailed || _controller.tooLarge) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -180,7 +201,9 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
               ),
               const SizedBox(height: 12),
               Text(
-                l10n.compressEditorDecodeFailed,
+                _controller.tooLarge
+                    ? l10n.compressEditorTooLarge
+                    : l10n.compressEditorDecodeFailed,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 13,
@@ -300,15 +323,21 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
     if (original <= 0) return const SizedBox.shrink();
     final min = minEditorLongEdge(original);
     final minEdge = min.toDouble();
-    final maxEdge = original.toDouble();
-    final value = (_params.maxLongEdge ?? original)
+    // The slider stops at the resolution the pipeline will actually produce: a
+    // source beyond the working budget is worked at a reduced long edge, and
+    // offering the source's own edge would promise a result that never appears.
+    final maxEdge = _controller.reachableLongEdge.toDouble().clamp(
+      minEdge,
+      original.toDouble(),
+    );
+    final value = (_params.maxLongEdge ?? maxEdge)
         .clamp(minEdge, maxEdge)
         .toDouble();
     final divisions = ((maxEdge - minEdge) / 64).ceil().clamp(1, 512);
     // Each preset is clamped into the slider's own range, so the number the
     // panel shows is always the number that will be applied.
     int edgeFor(double fraction) =>
-        (original * fraction).round().clamp(min, original);
+        (original * fraction).round().clamp(min, maxEdge.round());
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -426,7 +455,7 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
   Widget _estimateRow(BuildContext context, AppLocalizations l10n) {
     final cs = Theme.of(context).colorScheme;
     final sourceBytes = _controller.sourceBytes;
-    if (sourceBytes == null) return const SizedBox.shrink();
+    if (sourceBytes <= 0) return const SizedBox.shrink();
     final sourceDimensions =
         '${_controller.sourceWidth}×${_controller.sourceHeight}';
     final sourceSize = formatBytes(sourceBytes);
@@ -454,23 +483,18 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
           const Expanded(child: SizedBox.shrink()),
         ],
       );
-    } else if (_controller.estimating) {
+    } else if (_controller.encoding) {
       content = message(l10n.compressEditorEstimating);
-    } else if (_controller.estimateFailed ||
-        _controller.estimatedBytes == null) {
+    } else if (_controller.artifactBytes == null) {
       content = message(l10n.compressEditorEstimateFailed);
     } else {
-      final estimated = _controller.estimatedBytes!;
-      final longEdge = _params.maxLongEdge ?? _controller.sourceLongEdge;
-      final factor = math.min(1.0, longEdge / _controller.sourceLongEdge);
-      final outWidth = math.max(1, (_controller.sourceWidth * factor).round());
-      final outHeight = math.max(
-        1,
-        (_controller.sourceHeight * factor).round(),
-      );
+      // The artifact has already been encoded at the working resolution, so its
+      // size and its dimensions are facts, not projections: the number below is
+      // the number of bytes the apply writes.
+      final result = _controller.artifactBytes!;
       final saved = sourceBytes <= 0
           ? 0
-          : ((sourceBytes - estimated) / sourceBytes * 100).round();
+          : ((sourceBytes - result) / sourceBytes * 100).round();
       content = Row(
         children: [
           Expanded(
@@ -493,8 +517,9 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
           const SizedBox(width: 8),
           Expanded(
             child: _EstimateSide(
-              dimensions: '$outWidth×$outHeight',
-              size: formatBytes(estimated),
+              dimensions:
+                  '${_controller.workingWidth}×${_controller.workingHeight}',
+              size: formatBytes(result),
               alignEnd: false,
               color: cs.onSurface,
             ),
@@ -503,17 +528,36 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
       );
     }
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Lucide.info, size: 13, color: cs.onSurfaceVariant),
-        const SizedBox(width: 6),
-        Expanded(child: content),
+        Row(
+          children: [
+            Icon(Lucide.info, size: 13, color: cs.onSurfaceVariant),
+            const SizedBox(width: 6),
+            Expanded(child: content),
+          ],
+        ),
+        if (_controller.workingIsReduced) ...[
+          const SizedBox(height: 4),
+          Text(
+            l10n.compressEditorWorkingScale(
+              sourceDimensions,
+              (_controller.workingLongEdge /
+                      math.max(1, _controller.sourceLongEdge) *
+                      100)
+                  .round(),
+            ),
+            style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+          ),
+        ],
       ],
     );
   }
 
   Widget _actions(BuildContext context, AppLocalizations l10n) {
-    if (_controller.decodeFailed) {
+    if (_controller.decodeFailed || _controller.tooLarge) {
       // The copy above already says the image cannot be re-compressed, so
       // the panel must not offer an action that tries anyway: the apply
       // would fail, drop the attachment from the message and lock sending.

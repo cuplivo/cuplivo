@@ -8,11 +8,13 @@ import '../../../../l10n/app_localizations.dart';
 import '../../../../theme/app_font_weights.dart';
 import 'compress_editor_controller.dart';
 
-/// The editor body: one image, one draggable divider. The left side shows the
-/// original pixels, the right side the current parameters' result for the
-/// region on screen, so the two halves can be compared at 1:1. The image is
-/// letterboxed: it is rendered at its own aspect ratio inside the preview
-/// area, never stretched to fill it.
+/// The editor body: one image, one draggable divider.
+///
+/// Both halves are drawn from the *same* region of the same size — the left from
+/// the working image (the source at the artifact's resolution), the right from
+/// the artifact itself — so 1:1 means one artifact pixel per logical pixel and
+/// the comparison shows what the encoder actually did. Nothing is stretched: the
+/// region is letterboxed inside the preview area at its own aspect ratio.
 class CompressPreview extends StatefulWidget {
   const CompressPreview({
     super.key,
@@ -37,9 +39,9 @@ class _CompressPreviewState extends State<CompressPreview> {
 
   CompressEditorController get _controller => widget.controller;
 
-  Size get _previewSize => Size(
-    _controller.previewWidth.toDouble(),
-    _controller.previewHeight.toDouble(),
+  Size get _workingSize => Size(
+    _controller.workingWidth.toDouble(),
+    _controller.workingHeight.toDouble(),
   );
 
   @override
@@ -70,8 +72,7 @@ class _CompressPreviewState extends State<CompressPreview> {
                   CustomPaint(
                     painter: _SplitPreviewPainter(
                       original: _controller.original!,
-                      tile: _controller.tile,
-                      tileSource: _controller.tileSource,
+                      result: _controller.result,
                       source: _controller.visibleSource,
                       destination: dest,
                       divider: _controller.divider,
@@ -92,7 +93,7 @@ class _CompressPreviewState extends State<CompressPreview> {
                     top: tagArea.top + 10,
                     child: _PreviewTag(
                       text: widget.formatLabel!,
-                      busy: _controller.tileBusy,
+                      busy: _controller.encoding,
                     ),
                   ),
                 _dividerHandle(dest),
@@ -171,13 +172,17 @@ class _CompressPreviewState extends State<CompressPreview> {
     _syncViewport(visible: _clamp(next));
   }
 
+  /// Double tap toggles between the framing and true 1:1.
+  ///
+  /// The working image is decoded at the artifact's size, so 1:1 here is
+  /// genuinely one artifact pixel per logical pixel — not one cached pixel.
   void _toggleZoom(Offset viewPoint) {
     final dest = _fitDest();
-    if (dest.isEmpty || _previewSize.isEmpty) return;
+    if (dest.isEmpty || _workingSize.isEmpty) return;
     final current = _controller.visibleSource;
     final isOneToOne = current.width <= dest.width * 1.01;
     if (isOneToOne) {
-      _syncViewport(visible: _fitRect());
+      _syncViewport(visible: _defaultView());
       return;
     }
     final point = _sourcePointAt(viewPoint);
@@ -190,12 +195,23 @@ class _CompressPreviewState extends State<CompressPreview> {
     _syncViewport(visible: _clamp(next));
   }
 
-  /// The fit state shows the whole image; aspect correction happens in
-  /// [_fitDest], not by cropping the source.
-  Rect _fitRect() {
-    final preview = _previewSize;
-    if (preview.isEmpty) return Rect.zero;
-    return Rect.fromLTWH(0, 0, preview.width, preview.height);
+  /// The default framing: fit to the viewport's width, never magnified.
+  ///
+  /// Contain-fit is always ≤ this, and the two only differ for a tall image —
+  /// where contain-fit is exactly the case that fails: a 1000×8000 screenshot in
+  /// a 390 px wide viewport would be drawn 75 px wide. Fitting the width keeps
+  /// it legible and lets the vertical overflow pan.
+  Rect _defaultView() {
+    final working = _workingSize;
+    if (working.isEmpty || _layout.isEmpty) return Rect.zero;
+    // At most one working pixel per logical pixel, never magnified.
+    final scale = math.min(1.0, _layout.width / working.width);
+    return Rect.fromLTWH(
+      0,
+      0,
+      working.width,
+      math.min(working.height, _layout.height / scale),
+    );
   }
 
   /// Where the visible source is drawn: contain-fit inside the layout so the
@@ -218,12 +234,12 @@ class _CompressPreviewState extends State<CompressPreview> {
   }
 
   Rect _clamp(Rect rect) {
-    final preview = _previewSize;
-    if (preview.isEmpty) return rect;
-    final width = rect.width.clamp(1.0, preview.width);
-    final height = rect.height.clamp(1.0, preview.height);
-    final maxLeft = math.max(0.0, preview.width - width);
-    final maxTop = math.max(0.0, preview.height - height);
+    final working = _workingSize;
+    if (working.isEmpty) return rect;
+    final width = rect.width.clamp(1.0, working.width);
+    final height = rect.height.clamp(1.0, working.height);
+    final maxLeft = math.max(0.0, working.width - width);
+    final maxTop = math.max(0.0, working.height - height);
     return Rect.fromLTWH(
       rect.left.clamp(0.0, maxLeft),
       rect.top.clamp(0.0, maxTop),
@@ -243,10 +259,10 @@ class _CompressPreviewState extends State<CompressPreview> {
   }
 
   void _syncViewport({Rect? visible, bool fit = false}) {
-    if (_layout.isEmpty || _previewSize.isEmpty) return;
-    final next = visible ?? (fit ? _fitRect() : _controller.visibleSource);
+    if (_layout.isEmpty || _workingSize.isEmpty) return;
+    final next = visible ?? (fit ? _defaultView() : _controller.visibleSource);
     if (next.isEmpty) return;
-    _controller.updateViewport(visible: next, viewport: _layout);
+    _controller.updateViewport(visible: next);
   }
 }
 
@@ -296,16 +312,19 @@ class _PreviewTag extends StatelessWidget {
 class _SplitPreviewPainter extends CustomPainter {
   _SplitPreviewPainter({
     required this.original,
-    required this.tile,
-    required this.tileSource,
+    required this.result,
     required this.source,
     required this.destination,
     required this.divider,
   });
 
   final ui.Image original;
-  final ui.Image? tile;
-  final Rect? tileSource;
+
+  /// The artifact, decoded at its own size. Null while 原图 is selected or the
+  /// artifact for the current parameters is not ready: the compressed side then
+  /// shows the original, which is exactly what an unencoded result is.
+  final ui.Image? result;
+
   final Rect source;
 
   /// Aspect-correct contain-fit of [source] inside the canvas: the whole
@@ -335,17 +354,11 @@ class _SplitPreviewPainter extends CustomPainter {
         destination.bottom,
       ),
     );
-    final usableTile = tile;
-    // Only paint a tile that belongs to the region currently on screen: a
-    // stale region would silently misrepresent the result.
-    if (usableTile != null && tileSource == source) {
-      canvas.drawImageRect(
-        usableTile,
-        Offset.zero &
-            Size(usableTile.width.toDouble(), usableTile.height.toDouble()),
-        destination,
-        paint,
-      );
+    final artifact = result;
+    if (artifact != null) {
+      // The artifact covers the same region of the same image, so one `source`
+      // rect describes both sides; its own pixels are the encoding's result.
+      canvas.drawImageRect(artifact, source, destination, paint);
     } else {
       canvas.drawImageRect(original, source, destination, paint);
     }
@@ -368,8 +381,7 @@ class _SplitPreviewPainter extends CustomPainter {
   @override
   bool shouldRepaint(_SplitPreviewPainter old) {
     return old.original != original ||
-        old.tile != tile ||
-        old.tileSource != tileSource ||
+        old.result != result ||
         old.source != source ||
         old.destination != destination ||
         old.divider != divider;

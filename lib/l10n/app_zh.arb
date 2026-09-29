@@ -3037,6 +3037,8 @@
   "compressEditorGrowth": "+{percent}%",
   "compressEditorNoReencode": "不做重编码",
   "compressEditorDecodeFailed": "此图片无法预览，因此无法重新压缩。",
+  "compressEditorTooLarge": "此图片过大，无法安全解码，因此无法重新压缩。",
+  "compressEditorWorkingScale": "源图 {source}，为控制内存按 {percent}% 载入",
   "compressEditorCancel": "取消",
   "compressEditorApply": "应用",
   "compressEditorApplyAll": "应用到全部",

@@ -8357,6 +8357,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'This image can\'t be previewed, so it can\'t be re-compressed.';
 
   @override
+  String get compressEditorTooLarge =>
+      'This image is too large to decode safely, so it can\'t be re-compressed.';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return 'Source $source, loaded at $percent% to stay within memory';
+  }
+
+  @override
   String get compressEditorCancel => 'Cancel';
 
   @override

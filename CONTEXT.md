@@ -450,7 +450,9 @@ contradicts one of them is a bug, not a preference.
 
 - **Compression mode (压缩模式)**: one mutually exclusive stance for how attached images are handled,
   chosen in settings.
-  - **auto (自动)**: every attached image is re-encoded at attach time with the configured preset.
+  - **auto (自动)**: every attached image is re-encoded at attach time with the configured preset, through
+    the same 工作图 decode the editor uses. A source over the 工作预算 is skipped like any other skip, so the
+    attachment keeps its pristine bytes instead of risking the process.
   - **manual (手动)**: attachments are kept as pristine originals and the compress editor is the only
     compression surface. This is the default.
   - **off (关闭)**: attachments stay pristine and no compression UI is offered at all.
@@ -459,24 +461,42 @@ contradicts one of them is a bug, not a preference.
   is" — the escape hatch that makes per-image skipping explicit instead of inferred.
 - **Format (格式)**: the output encoding the user picks — JPEG (lossy, has 质量) or PNG (lossless, no
   质量). WebP is never produced: some providers reject it.
-- **Long edge (长边)**: the target size of the image's longest side. It only ever shrinks.
+- **Working image (工作图)**: the pixels the editor actually holds — the source decoded once at the
+  resolution the artifact will have, so peak memory follows the chosen output rather than the file.
+  It is bounded by the working budget (14 MP mobile / 20 MP desktop), and its long edge is what the
+  long-edge slider can reach. See ADR-0005.
+- **Working budget (工作预算)**: the ceiling on a working image, in pixels, and on a single decode, in
+  bytes. When a source cannot be decoded inside it, the editor refuses with an explanation and no
+  apply action rather than risking a process abort — an out-of-memory kill inside a decode is not
+  catchable from Dart.
+- **Artifact (产物)**: the exact byte sequence the current parameters produce, encoded from the working
+  image. The size row shows its length, the compressed side of the 分屏对比 draws it, and the apply
+  writes those same bytes, so the three can never disagree. It is dropped the moment a parameter
+  changes, and only ever written while its parameters still equal the selected ones.
+- **Long edge (长边)**: the target size of the image's longest side. It only ever shrinks, and its
+  reachable range ends at the working image's long edge, so the slider cannot promise a resolution the
+  pipeline will not produce. When the source had to be reduced to fit the budget, the panel says so.
 - **Quality (质量)**: 30-100 lossy strength, meaningful for JPEG only — the editor's slider
   floor is 30, and the stored value is clamped to the same range.
-- **Savings (节省)**: (original bytes − result bytes) / original bytes, shown as an estimate before the
-  user commits. The estimate row reads as two sides — resolution above size on each side — with the
-  change above an arrow between them. A PNG of a photo can legitimately grow, and the estimate says so
-  before the apply by showing that growth (a `+N%` warning tone) instead of hiding it.
+- **Savings (节省)**: (original bytes − artifact bytes) / original bytes, shown before the user
+  commits. The row reads as two sides — resolution above size on each side — with the change above an
+  arrow between them. A PNG of a photo can legitimately grow, and the row says so before the apply by
+  showing that growth (a `+N%` warning tone) instead of hiding it.
 - **Split compare (分屏对比)**: the editor body's 1:1 comparison — the original on the left of a
-  draggable divider, the current parameters' result on the right, over the region on screen. The image
-  is letterboxed inside the preview area at its own aspect ratio, never stretched or cropped to fill
-  it; 1:1 means one image pixel per logical pixel, and the fit state shows the whole image. A result
-  tile is drawn only while it belongs to the parameters currently selected, so changing a parameter
-  never leaves a stale encode on screen. The decoded cache behind the comparison is bounded in both
-  dimensions, which keeps memory and the per-tick crop proportional to what can be displayed.
+  draggable divider, the artifact on the right, over the region on screen. Both halves are the working
+  image's own pixels, so 1:1 means one artifact pixel per logical pixel and the comparison shows the
+  encoding's real damage rather than a re-encode of a reduced copy. The image is letterboxed inside the
+  preview area at its own aspect ratio, never stretched or cropped to fill it; the default framing fits
+  the viewport's width and never magnifies, so a tall screenshot stays legible instead of shrinking to a
+  strip. Changing a parameter drops the shown artifact immediately, so a stale encode is never
+  presented as the current one.
 - **Apply to all (应用到全部)**: broadcasts the editor's current parameters to every attached image.
+  Only the image the editor was opened for can reuse the editor's artifact; the others run the same
+  budgeted pipeline themselves.
 - **Remembered parameters (记住的参数)**: the last parameters the user confirmed in the editor — 原图
   included — which seed the next editor session. A long edge remembered from a larger image is
-  normalised to the image being edited, so the panel's readout always equals what will be applied.
+  normalised to the image being edited once its size is known, so the panel's readout always equals
+  what will be applied.
 - **Draft-owned copy (草稿自有副本)**: a stored copy the draft itself created. It is released when the
   chip is dropped from the composer, but never once the attachment has been submitted: a persisted
   message may reference it.
@@ -491,13 +511,20 @@ contradicts one of them is a bug, not a preference.
 - Exactly one 压缩模式 is active. 原图 attachments exist in 手动 and 关闭; re-encoded ones exist in 自动 or
   after an explicit editor apply.
 - 质量 applies to JPEG only, so PNG hides the control.
+- 自动 and 手动 share one 工作图 decode and one 工作预算; they differ in who decides the parameters and in
+  what happens to a source that cannot be worked: 自动 skips it and keeps the pristine copy, 手动 offers no
+  apply action and says why.
 - The editor is offered only where it can act: an attachment whose bytes cannot be decoded shows no
-  apply action, and a remote or `data:` attachment never opens the editor at all.
-- The 分屏对比 and the artifact written to disk must come from the same parameter pipeline; a visible
-  difference between them is a bug, not a preview artifact. A tile is shown only while it encodes the
-  parameters currently selected.
+  apply action, a source that cannot be decoded inside the 工作预算 shows an explanation and no apply
+  action, and a remote or `data:` attachment never opens the editor at all.
+- The 分屏对比, the size row and the artifact written to disk are one value; a difference between them
+  is a bug, not a preview artifact. The shown artifact belongs to the parameters currently selected.
+- The working image and the artifact are at the same resolution by construction, so a re-encode can
+  never exceed the working image's long edge, and 1:1 is always one artifact pixel per logical pixel.
 - Manual compression is one-way: the editor re-encodes from the image's current stored bytes, so
   re-compressing a compressed image loses another generation, and the pristine 原图 is not recoverable
-  once a compression has been applied.
+  once a compression has been applied. An applied artifact may differ byte-for-byte from what an older
+  build produced for the same parameters, because the resampling now happens in the decode.
 - Short edge case that motivates the manual default: a long screenshot whose long edge is far larger
   than any preset cap would be reduced to illegibility by 自动, so 手动 leaves that decision to the user.
+  The same screenshots are why the editor decodes at the artifact's size instead of the source's.

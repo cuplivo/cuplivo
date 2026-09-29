@@ -110,12 +110,18 @@ class _ImageProcessingTask {
     required this.deleteSourceAfterProcessing,
     this.config,
     this.manualParams,
+    this.precomputedArtifact,
   });
 
   final int id;
   final String sourcePath;
   final ImageCompressConfig? config;
   final ManualCompressParams? manualParams;
+
+  /// The exact bytes the compress editor already produced and showed the size
+  /// of, when it had them ready. Storing them skips a second decode and encode;
+  /// a null simply means the pipeline runs here instead.
+  final Uint8List? precomputedArtifact;
 
   /// Only ever true for app-owned temp sources (clipboard paste temps);
   /// user-picked files must never be flagged for deletion.
@@ -434,17 +440,27 @@ class _ChatInputBarState extends State<ChatInputBar>
     UploadWrite? saved;
     try {
       final dir = await AppDirectories.getUploadDirectory();
-      saved = task.manualParams != null
-          ? await ImageCompressor.compressManualToUploadDir(
-              task.sourcePath,
-              dir,
-              task.manualParams!,
-            )
-          : await ImageCompressor.compressToUploadDir(
-              task.sourcePath,
-              dir,
-              task.config!,
-            );
+      final artifact = task.precomputedArtifact;
+      saved = switch (task) {
+        _ when artifact != null && task.manualParams != null =>
+          await ImageCompressor.writeManualArtifactToUploadDir(
+            task.sourcePath,
+            dir,
+            artifact,
+            task.manualParams!,
+          ),
+        _ when task.manualParams != null =>
+          await ImageCompressor.compressManualToUploadDir(
+            task.sourcePath,
+            dir,
+            task.manualParams!,
+          ),
+        _ => await ImageCompressor.compressToUploadDir(
+          task.sourcePath,
+          dir,
+          task.config!,
+        ),
+      };
     } catch (_) {
       saved = null;
     } finally {
@@ -788,15 +804,24 @@ class _ChatInputBarState extends State<ChatInputBar>
       totalImageCount: _images.length,
     );
     if (!mounted || result == null) return;
+    final artifact = result is CompressEditorApply ? result.artifact : null;
     final ids = result is CompressEditorApplyAll
         ? [for (final draft in _images) draft.id]
         : <int>[image.id];
-    _applyManualParams(ids, result.params);
+    _applyManualParams(ids, result.params, artifact: artifact);
   }
 
   /// Enqueues [params] for [ids] through the shared processing queue, so chips
   /// show the same spinner and the send button stays locked while it runs.
-  void _applyManualParams(List<int> ids, ManualCompressParams params) {
+  ///
+  /// [artifact] is the bytes the editor already produced for the edited image.
+  /// It only belongs to that one image, so it is only used when [ids] is the
+  /// single id it was made for.
+  void _applyManualParams(
+    List<int> ids,
+    ManualCompressParams params, {
+    Uint8List? artifact,
+  }) {
     if (params.isNoOp) return;
     setState(() {
       for (final id in ids) {
@@ -811,6 +836,7 @@ class _ChatInputBarState extends State<ChatInputBar>
             id: id,
             sourcePath: _images[index].path,
             manualParams: params,
+            precomputedArtifact: ids.length == 1 ? artifact : null,
             deleteSourceAfterProcessing: false,
           ),
         );

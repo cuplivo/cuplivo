@@ -46,15 +46,14 @@ problems with the inherited automatic pipeline:
    A pristine copy keeps the name it was picked under, except that an extensionless pick gets the
    extension its own bytes imply — otherwise MIME inference declares it `image/png` whatever it holds.
    `.jpg` and `.jpeg` are one name family when identical bytes are deduplicated.
-6. **The preview is a 1:1 split compare.** The image is decoded once per editor session; the left of a
-   draggable divider shows original pixels, the right shows the current parameters' result for the
-   region on screen (re-encoded on a debounce), and a full-image size estimate follows the parameters.
-   The preview and the artifact run the same pipeline, so what is compared is what is produced. A tile
-   is drawn only while it encodes the parameters currently selected: changing one, or choosing 原图,
-   drops it immediately rather than leaving a stale encode on screen. The decoded cache behind the
-   comparison is bounded in both dimensions (≤ 2048 px long edge and ≤ 4 MP), which keeps the cache,
-   its copies and the per-tick crop proportional to what can be displayed while staying above the
-   largest realistic preview viewport, so the comparison stays honest at display resolution.
+6. **The preview is a 1:1 split compare.** The left of a draggable divider shows the original pixels,
+   the right the current parameters' result, and a size readout follows the parameters. Both halves are
+   drawn from the working image at the artifact's own resolution, and the right half *is* the artifact
+   — so what is compared is exactly what is produced, and 1:1 means one artifact pixel per logical
+   pixel. Changing a parameter drops the shown result immediately rather than leaving a stale encode on
+   screen. **Amended by ADR-0005**: the region decoded for the comparison is the working image at the
+   artifact's size, not a crop of a fixed 2048 px cache, because a cache-capped crop both measured the
+   wrong resolution and made every long edge above the cap look identical.
 7. **Cropping is deferred, not rejected.** The pipeline is staged (decode → resize → encode) so a crop
    stage can be inserted later. The existing mobile-only `image_cropper` at pick time is untouched.
 8. **`downsize` is extended, not replaced.** The vendored package gains a format parameter and a real

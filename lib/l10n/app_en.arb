@@ -3598,6 +3598,19 @@
   },
   "compressEditorNoReencode": "no re-encode",
   "compressEditorDecodeFailed": "This image can't be previewed, so it can't be re-compressed.",
+  "compressEditorTooLarge": "This image is too large to decode safely, so it can't be re-compressed.",
+  "compressEditorWorkingScale": "Source {source}, loaded at {percent}% to stay within memory",
+  "@compressEditorWorkingScale": {
+    "description": "Shown when a very large image is worked at a reduced resolution.",
+    "placeholders": {
+      "source": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
   "compressEditorCancel": "Cancel",
   "compressEditorApply": "Apply",
   "compressEditorApplyAll": "Apply to all",

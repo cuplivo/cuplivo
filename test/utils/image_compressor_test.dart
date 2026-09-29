@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:Cuplivo/utils/image_compressor.dart';
+import 'package:Cuplivo/utils/manual_compress_pipeline.dart';
 import 'package:downsize/downsize.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
@@ -460,28 +461,53 @@ void main() {
       expect(uploadDir.listSync().whereType<File>(), hasLength(1));
     });
 
-    test('encodeManualBytes is null for 原图 and encodes otherwise', () async {
-      final bytes = img.encodePng(_noiseImage(64, 64));
-
-      expect(
-        await ImageCompressor.encodeManualBytes(
-          bytes,
-          const ManualCompressParams(),
-        ),
-        isNull,
-      );
-
-      final encoded = await ImageCompressor.encodeManualBytes(
-        bytes,
-        const ManualCompressParams(
+    test(
+      'writes the artifact the editor produced, without re-encoding',
+      () async {
+        final source = p.join(root.path, 'artifact_src.png');
+        await File(
+          source,
+        ).writeAsBytes(img.encodePng(_noiseImage(64, 64)), flush: true);
+        const params = ManualCompressParams(
           format: DownsizeFormat.jpeg,
           quality: 50,
           maxLongEdge: 32,
-        ),
-      );
-      expect(encoded, isNotNull);
-      expect(img.decodeJpg(encoded!)!.width, 32);
-    });
+        );
+
+        // The editor's pipeline produces the bytes it showed the size of...
+        final working = await decodeWorkingImage(
+          source,
+          params: params,
+          budgetPixels: kWorkingPixelsDesktop,
+          budgetBytes: kDecodeBudgetBytesDesktop,
+        );
+        addTearDown(working.dispose);
+        final artifact = await encodeArtifact(working, params);
+        expect(working.longEdge, 32);
+        expect(artifact.lengthInBytes, greaterThan(0));
+
+        // ...and the write path stores exactly those, with the chosen format's
+        // name: no second decode and no second encode.
+        final write = await ImageCompressor.writeManualArtifactToUploadDir(
+          source,
+          uploadDir,
+          artifact,
+          params,
+        );
+        expect(p.basename(write.path), 'artifact_src.jpeg');
+        expect(await File(write.path).readAsBytes(), orderedEquals(artifact));
+
+        // The same bytes again resolve to the stored copy instead of piling up.
+        final again = await ImageCompressor.writeManualArtifactToUploadDir(
+          source,
+          uploadDir,
+          artifact,
+          params,
+        );
+        expect(again.reused, isTrue);
+        expect(again.path, write.path);
+      },
+    );
 
     test(
       'gives an extensionless pristine copy the extension it holds',

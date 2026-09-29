@@ -91,6 +91,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
        _reloader = reloader,
        // ignore: prefer_initializing_formals
        _syncDirectory = syncDirectory,
+       // ignore: prefer_initializing_formals
        _addressSource = addressSource;
 
   final ChatService _chatService;

@@ -1963,10 +1963,11 @@ void main() {
     final bPeer = await b.peer(a);
     expect(bPeer.primaryEndpoint?.host, '127.0.0.1');
     expect(bPeer.primaryEndpoint?.port, provider.port);
-    expect(bPeer.endpoints.skip(1).map((endpoint) => endpoint.label).toList(), [
-      '10.9.8.7:${provider.port}',
-      '10.9.8.8:${provider.port}',
-    ], reason: 'only advertised candidates join the set, after the proven one');
+    expect(
+      bPeer.endpoints.skip(1).map((endpoint) => endpoint.label).toList(),
+      ['10.9.8.7:${provider.port}', '10.9.8.8:${provider.port}'],
+      reason: 'only advertised candidates join the set, after the proven one',
+    );
   });
 
   test('a foreground round syncs paired peers, then throttles', () async {
@@ -3191,9 +3192,11 @@ void main() {
 
     final report = await a.engine.syncWithPeer(await a.peer(b));
     expect(report.success, isTrue, reason: report.summary);
-    expect(await _messageIds(b, 'conv-b'), {
-      'conv-b-m0',
-    }, reason: "the other conversation's row must not move, nor gain a ghost");
+    expect(
+      await _messageIds(b, 'conv-b'),
+      {'conv-b-m0'},
+      reason: "the other conversation's row must not move, nor gain a ghost",
+    );
     expect(await _messageIds(b, 'conv-a'), {'conv-a-m0', 'conv-a-m1'});
   });
 

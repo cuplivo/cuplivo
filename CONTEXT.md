@@ -264,6 +264,15 @@ contradicts one of them is a bug, not a preference.
   Only the certificate fingerprint identifies a peer — every connection re-verifies it — so
   remembering several addresses can never reach the wrong device. Manual repair ("edit address")
   replaces the whole set: the automatic memory is what failed, or the user would not be typing.
+- **Candidates are probed in parallel, then dialed nearest-subnet first** (候选探测): a peer with
+  several remembered addresses costs one bare TCP probe per address, all at once — the wait is the
+  slowest probe, not their sum — and the ones that answered are dialed in sequence under a three
+  second connect budget. A probe loser is kept at the back rather than dropped: one lost SYN is not
+  evidence that the serial dial could not reach the address. Within each of those two groups the
+  candidates sharing an IPv4 /24 with an address this device holds come first, because the
+  remembered order is a history of networks rather than a statement about the one this device is
+  standing on — reachability still outranks proximity. A single candidate is dialed directly, where
+  the dial already is the probe.
 - **Advertised candidates are chosen, not dumped** (候选地址): a device advertises every unicast
   IPv4 the OS reports, minus the interfaces a peer cannot use — virtual adapters (VMware,
   VirtualBox, Hyper-V, Docker/WSL), VPN and tunnel interfaces (Tailscale, ZeroTier, WireGuard,
@@ -294,8 +303,17 @@ contradicts one of them is a bug, not a preference.
 - **Reaching a candidate is not the same as it being the peer**: an endpoint that cannot be
   connected (refused, timed out) and one that answers with the wrong certificate both fall through
   to the next candidate — the pin refuses the wrong device inside the handshake, before any request
-  byte, so nothing leaks and the next address is still a fair attempt. A *refusal* is different:
-  it is that peer's verdict, and its other addresses would only repeat it, so the session ends.
+  byte, so nothing leaks and the next address is still a fair attempt. Pairing follows the same
+  rule: a QR whose first address belongs to something else still pairs on the address behind it,
+  and when *every* address answered as another device the failure says exactly that
+  (`fingerprint_mismatch` — a re-scan, not a retry). A *refusal* is different: it is that peer's
+  verdict, and its other addresses would only repeat it, so the attempt ends. That covers the
+  pairing code too — a wrong PIN is the scanned device answering.
+- **The advertised address list is a live fact, and the QR follows it**: the list is re-enumerated
+  when the app resumes and when the pairing dialog opens — on a desktop, changing networks fires no
+  lifecycle event at all — and it is the same list the dial orders candidates by, so the screen and
+  the dial cannot disagree. The QR image is re-encoded whenever, and only when, its endpoints
+  changed, so it can never keep advertising a network the list underneath it has already left.
 - **AP isolation** is likewise a *connectivity* failure: on a network that blocks peer-to-peer
   traffic no pairing path helps, and the report says so.
 - **Unpairing (解除配对) is local-first, then best-effort remote**: this device always drops the

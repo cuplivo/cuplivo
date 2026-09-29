@@ -211,6 +211,9 @@ What the implementation settled:
   refused or timed out → try the next candidate. Wrong PIN, wrong certificate or identity
   mismatch → stop, because the same answer awaits on every candidate, and a certificate mismatch
   is either a spoof or a recycled address the user can fix by hand.
+  *Superseded for the certificate case by slice 10*: a failed handshake is the *address* being
+  wrong, not the device answering, so it now disqualifies that address and the walk continues. A
+  refused PIN or an identity mismatch — the device itself — still ends the attempt.
 - **Re-pairing is the repair action for a drifted endpoint.** Scanning a paired device again
   overwrites its address and rotates the secret (the old one is dead on the responder). This is
   why discovery can be deferred without stranding a user whose peer moved, and why the UI says
@@ -582,6 +585,51 @@ kept showing pre-sync content.
   the user-visible fix. *Rejected: live-reloading open editor pages* — a form rewritten under the
   user's hands is worse than a snapshot, and the row-level LWW rule plus the report's lost-row
   counter already covers the outcome.
+
+## Amendment (2026-09, slice 10): candidates are probed first, and one address is not the pairing
+
+Slice 9 made a peer record hold every address a peer was known at. That turned a single dial into a
+sequence of dials, and the sequence inherited two rules that only made sense for one address: a
+failed attempt cost a full dial budget, and an answer that was not the peer stopped everything.
+
+- **Candidates are probed in parallel, then dialed in order.** Every candidate is first reached with
+  a bare TCP connect, all at once, under a two-second budget; the addresses that answered are dialed
+  in sequence under a three-second connect budget (ten seconds before — a LAN host answers a SYN in
+  milliseconds, so the only thing ten seconds bought was a slower failure). The cost of unreachable
+  addresses becomes the maximum instead of the sum: a peer remembered at six addresses across three
+  networks used to cost up to a minute of a background round before the live one was tried. A probe
+  loser is appended rather than dropped — a probe is one SYN, and losing one is not evidence that the
+  serial dial could not reach the address — and a single candidate skips the probe entirely, where
+  the dial already is one. The probe classifies the address only: identity is still the certificate
+  pin, checked at dial time. *Rejected: full RFC 8305 racing* — the pairing PIN is one-shot, so two
+  concurrent `/pair` requests would race for one window instead of one of them simply being tried
+  second, and with at most six candidates the serial TLS leg costs nothing worth that.
+- **The remembered order is a history of networks; the subnet says where this device is.** Given
+  equal reachability, candidates sharing an IPv4 /24 with one of this device's own addresses are
+  dialed first. A laptop arriving home still has the office address at the head of its set from last
+  night, and that head is exactly what the round needs to skip. The preference is applied *inside*
+  each of the probe's two groups, so topology can never promote an address that did not answer above
+  one that did.
+- **An address that answers with the wrong certificate no longer ends a pairing.** Slice 4's rule
+  ("an endpoint that answers wrongly stops the attempt, because the same answer awaits on every
+  candidate") conflated two different verdicts. A refused PIN or an identity mismatch *is* the
+  scanned device answering, and it would answer the same way on every address it holds — still
+  terminal. A failed handshake is not an answer from the device at all: the pin refused that address
+  before any request byte left, which is what the slice-4 security argument already rested on. Such
+  an address is now disqualified and the loop continues, so a QR whose first address is a recycled
+  lease or a machine that happens to answer on the sync port still pairs on the address behind it.
+  When *every* address answered as something else, that is the reported failure
+  (`fingerprint_mismatch`): no retry helps, a fresh code does. *Rejected: reporting the mismatch as
+  unreachable* — "nothing answered" and "something answered and it was not your peer" need different
+  repairs.
+- **The address list is re-enumerated, not remembered from startup.** It used to be computed once
+  per launch, so a device that changed networks kept advertising the one it had left: a QR pointing
+  at a dead address, and a dial ordered by a network the device was no longer on. It is now refreshed
+  when the app resumes and when the pairing dialog opens — on a desktop, changing networks fires no
+  lifecycle event at all — and the same list is pushed into the engine so the screen and the dial
+  cannot disagree. The QR follows it too: the image was encoded once at open while the list beside it
+  was read live, so the two could show different networks. It is re-encoded when, and only when, its
+  endpoints changed, which keeps the once-a-second countdown tick from rebuilding it.
 
 ## Considered options (rejected)
 

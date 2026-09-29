@@ -194,7 +194,15 @@ class SyncServer {
     _peerSecrets.remove(deviceId);
   }
 
-  Future<int> start({String address = '0.0.0.0', int requestedPort = 0}) async {
+  /// The IPv6 any-address, which a dual-stack stack also accepts IPv4 callers
+  /// on (they arrive mapped, see [_remoteHost]).
+  static const anyIpv6 = '::';
+
+  /// The IPv4 any-address this listener used before it went dual-stack, kept as
+  /// the fallback for a machine where the IPv6 bind cannot succeed.
+  static const anyIpv4 = '0.0.0.0';
+
+  Future<int> start({String address = anyIpv6, int requestedPort = 0}) async {
     await stop();
     _peerSecrets
       ..clear()
@@ -203,17 +211,46 @@ class SyncServer {
           (peer) => MapEntry(peer.deviceId, peer.secret),
         ),
       );
-    final server = await HttpServer.bindSecure(
-      address,
-      requestedPort,
-      identity.buildContext(),
-      // Never request a client certificate: see the class comment. Peers are
-      // authenticated per request by their pairing-established secret.
-      requestClientCertificate: false,
-    );
+    final server = await _bind(address, requestedPort);
     _server = server;
     unawaited(_serve(server));
     return server.port;
+  }
+
+  /// Binds [address], falling back to IPv4 when the IPv6 any-address is
+  /// refused.
+  ///
+  /// `::` is the dual-stack bind: measured on Windows, a listener on it accepts
+  /// IPv4 callers as well (they appear as `::ffff:a.b.c.d`). A machine with IPv6
+  /// disabled, or a Linux host configured with `bindv6only=1`, refuses it or
+  /// would serve only one stack — those fall back to the IPv4 any-address, which
+  /// is exactly what this listener was before, so no configuration ends up worse
+  /// off than the previous release. A port already in use fails both attempts;
+  /// the original error is rethrown then, and the caller's ephemeral-port
+  /// fallback handles it either way.
+  Future<HttpServer> _bind(String address, int port) async {
+    try {
+      return await HttpServer.bindSecure(
+        address,
+        port,
+        identity.buildContext(),
+        // Never request a client certificate: see the class comment. Peers are
+        // authenticated per request by their pairing-established secret.
+        requestClientCertificate: false,
+      );
+    } on SocketException catch (error) {
+      if (address != anyIpv6) rethrow;
+      try {
+        return await HttpServer.bindSecure(
+          anyIpv4,
+          port,
+          identity.buildContext(),
+          requestClientCertificate: false,
+        );
+      } on SocketException {
+        throw error;
+      }
+    }
   }
 
   Future<void> stop() async {

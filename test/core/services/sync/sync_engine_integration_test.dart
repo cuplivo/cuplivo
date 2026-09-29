@@ -768,14 +768,17 @@ void main() {
     await a.repository.close();
   });
 
-  Future<(_Side, _Side)> pair({bool newerSchema = false}) async {
+  Future<(_Side, _Side)> pair({
+    bool newerSchema = false,
+    String host = '127.0.0.1',
+  }) async {
     final a = _Side('a');
     final b = _Side('b', newerSchema: newerSchema);
     await a.start(root);
     await b.start(root);
     sides.addAll([a, b]);
     final pin = b.engine.openPairing();
-    await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await a.engine.pairWith(host: host, port: b.port, pin: pin);
     return (a, b);
   }
 
@@ -789,6 +792,43 @@ void main() {
       pin: pin,
     );
   }
+
+  test('the listener pairs and syncs over IPv6 loopback', () async {
+    final (a, b) = await pair(host: '::1');
+
+    // Stored bare on both sides: the socket wants `::1`, a URI wants `[::1]`,
+    // and the boundary that brackets it is the client's.
+    expect((await a.peer(b)).primaryEndpoint?.host, '::1');
+    expect(
+      (await b.peer(a)).primaryEndpoint?.host,
+      '::1',
+      reason: 'the responder learned the address the caller connected from',
+    );
+
+    await _seedConversation(a, id: 'conv-v6', contents: ['over v6']);
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(await _conversationIds(b), contains('conv-v6'));
+  });
+
+  test('an IPv4 caller is stored as IPv4, not as its mapped form', () async {
+    final (a, b) = await pair();
+
+    // The listener is dual-stack, so an IPv4 caller arrives as
+    // `::ffff:127.0.0.1`. Stored as-is, that endpoint cannot be dialed back —
+    // `Uri.parse` refuses an unbracketed literal — so the server normalizes the
+    // address before the engine ever sees it.
+    final bPeer = await b.peer(a);
+    expect(bPeer.primaryEndpoint?.host, '127.0.0.1');
+    expect(
+      bPeer.endpoints.map((endpoint) => endpoint.host),
+      isNot(contains('::ffff:127.0.0.1')),
+    );
+
+    // The return direction works over that stored host.
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+  });
 
   test(
     'pairing pins both sides and backfills the initiator endpoint',

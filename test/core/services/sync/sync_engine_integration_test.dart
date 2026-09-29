@@ -32,6 +32,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:provider/provider.dart';
 
 /// End-to-end LAN sync over the real stack: two independent databases, two
@@ -1255,6 +1256,24 @@ void main() {
     expect(provider.isPairingOpen, isFalse);
     // Exactly one pop: the page that hosted the dialog survived the close.
     expect(find.text('open'), findsOneWidget);
+  });
+
+  testWidgets('the pairing QR is sized for an IPv6 endpoint', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Center(child: PairingQrImage(data: 'cuplivo-pair:v1:whatever')),
+        ),
+      ),
+    );
+
+    final image = tester.widget<PairingQrImage>(find.byType(PairingQrImage));
+    expect(image.size, kPairingQrEdge);
+    expect(image.errorCorrectLevel, kPairingQrErrorCorrectLevel);
+    expect(kPairingQrErrorCorrectLevel, QrErrorCorrectLevel.L);
+    // The rendered square really is that size — the module size a camera sees
+    // is this number divided by the symbol's module count.
+    expect(tester.getSize(find.byType(PrettyQrView)), const Size(220, 220));
   });
 
   testWidgets('the pairing QR follows this device onto another network', (

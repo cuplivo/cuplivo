@@ -273,6 +273,24 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
   }
 }
 
+/// The side length of the pairing QR's square.
+///
+/// Sized for the worst case the payload can reach, not for yesterday's: with
+/// four IPv4 endpoints the encoded string is already ~280 characters, which at
+/// 180 px left under 2.8 px per module — and an IPv6 endpoint is roughly 45
+/// characters where an IPv4 one is 19, so a mixed code would have dropped to
+/// ~2.4 px. 220 px puts the same worst case back above 3 px.
+const double kPairingQrEdge = 220;
+
+/// Error correction for the pairing QR.
+///
+/// `L` rather than `M`: the two correct about 7% and 15% of the symbol
+/// respectively, while the levels differ by roughly one QR version at these
+/// payload sizes — and a version step costs more scannability than the extra
+/// correction buys, since this code is scanned at close range off a clean
+/// screen rather than printed and handled.
+const int kPairingQrErrorCorrectLevel = QrErrorCorrectLevel.L;
+
 /// The pairing QR image: the encoded payload on the one background that keeps a
 /// code scannable, dark on light.
 ///
@@ -281,13 +299,21 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
 /// actually on screen an assertable input, which is what the pairing window's
 /// tests need.
 class PairingQrImage extends StatelessWidget {
-  const PairingQrImage({super.key, required this.data, this.size = 180});
+  const PairingQrImage({
+    super.key,
+    required this.data,
+    this.size = kPairingQrEdge,
+    this.errorCorrectLevel = kPairingQrErrorCorrectLevel,
+  });
 
   /// The encoded `cuplivo-pair:v1:` payload this image carries.
   final String data;
 
   /// Side length of the square the code is drawn into.
   final double size;
+
+  /// Error correction level, see [kPairingQrErrorCorrectLevel].
+  final int errorCorrectLevel;
 
   @override
   Widget build(BuildContext context) {
@@ -302,7 +328,7 @@ class PairingQrImage extends StatelessWidget {
         dimension: size,
         child: PrettyQrView.data(
           data: data,
-          errorCorrectLevel: QrErrorCorrectLevel.M,
+          errorCorrectLevel: errorCorrectLevel,
           decoration: const PrettyQrDecoration(
             shape: PrettyQrSmoothSymbol(roundFactor: 1),
           ),

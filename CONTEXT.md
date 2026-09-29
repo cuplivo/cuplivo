@@ -301,6 +301,11 @@ contradicts one of them is a bug, not a preference.
   validated and reported separately, so a mistyped address never sends the user to re-check the
   other device. The code is compared with its spaces stripped — the dialog shows it as `123 456`,
   so the space a user copies is not a wrong code.
+- **A pairing is announced by the paired device's own name**: the name comes from the record the
+  pairing wrote — the same name its card will show — so the scanned and the typed paths say the same
+  thing, and re-pairing an already-paired device reads as an update rather than as a first pairing.
+  The manual form used to close in silence, which left the one success the user triggered entirely by
+  hand as the only unreported one.
 - **No LAN discovery is implemented**: mDNS/DNS-SD (`_cuplivo._sync._tcp`) is a *deferred*
   option, not a missing piece — the platform cost (iOS Bonjour declarations and local-network
   permission, Android multicast locks, a Windows inbound UDP 5353 rule) buys endpoint
@@ -449,9 +454,17 @@ contradicts one of them is a bug, not a preference.
   leaves behind — is still rebuilt, which is the heal that keeps a peer deletion from reading as a
   local edit.
 - **A failure is a reason, not a sentence**: a failed session carries a structured reason
-  (unreachable, timeout, peer error, internal) that the panel and the stored record localize. The
-  exception text — which carries the peer's address and port — goes to the log only; it never
-  reaches a card or a snackbar, and an unrecognized or absent reason falls back to a generic line.
+  (no address, unreachable, timeout, peer error, internal) that the panel and the stored record
+  localize. The exception text — which carries the peer's address and port — goes to the log only; it
+  never reaches a card or a snackbar, and an unrecognized or absent reason falls back to a generic
+  line rather than nothing — which is what makes adding a reason safe: a record written before this
+  one still holds the value it was written with, and that value still reads.
+- **No address is not unreachable (无地址≠连不上)**: "this record remembers nowhere to dial" and
+  "every remembered address was tried and none answered" are different states with different
+  repairs. Nothing is dialed in the first, so "the other device could not be reached" would send the
+  user to check a device this app never tried to reach; it carries its own reason (`no_endpoint`) and
+  its own line, which asks for an address. The unreachable line, in turn, names the repairs drift
+  already defines rather than stating the fact alone.
 - **One session per pair (一对设备一个会话)**: a per-peer single-flight lock covers both roles,
   because the responder and the initiator paths write the same checkpoint file from the copy each
   read at its own hello. An initiator round is refused while a session exists for that pair, and a
@@ -477,6 +490,12 @@ contradicts one of them is a bug, not a preference.
 - **No online state**: the card shows the last sync attempt and its outcome, never a presence
   badge. Nothing probes the peer between sessions, so "online" would be a claim the app cannot
   make; a drifted address shows up as a failed attempt, not as an offline device.
+- **The card shows the facts a user acts on**: "last synced" is how long ago, not a timestamp — the
+  question on that line is recency, the exact time rides in the tooltip, and past a week the date
+  returns, because at nine days old the date is the more useful fact. The address in use carries a
+  count of the other remembered ones (`(+2)`), so a peer reached on two networks does not look like a
+  peer with one address. The address itself copies on tap with the usual confirmation: it is the one
+  string on the card that belongs somewhere else.
 - **Listener lifecycle**: the listener runs whenever the app runs, on a preferred port
   (`9527`) that falls back to an ephemeral one when taken, so a peer's stored endpoint and the
   Windows firewall rule stay stable across launches. On Windows the inbound rule is

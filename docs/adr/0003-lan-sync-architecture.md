@@ -683,6 +683,52 @@ had nothing to pair with.
   (a notification after `dispose`, reported as an unhandled async error against an unrelated test),
   now guarded by a `_disposed` flag the provider's notification helper checks.
 
+## Amendment (2026-09, slice 12): the panel says what to do about it
+
+The session layer was already honest about *why* something failed; the panel was not. This slice
+closes the gap between what the engine knows and what the card says.
+
+- **A peer with no address is not an unreachable peer.** The engine recorded "this record remembers
+  nowhere to dial" as `unreachable` — the value a peer that *was* dialed and never answered also gets
+  — so both rendered one sentence, and each one's repair was wrong for the other: turning the other
+  device on does nothing for a record with no address at all. `noEndpoint` is its own reason (wire
+  `no_endpoint`), with a line that asks for an address. *Rejected: carrying the engine's `summary`
+  string on the stored report* — the summary is machine text built for logs, while the reason is the
+  value the panel localizes, and the enum's unknown-value fallback is exactly what makes adding one
+  safe: a value the enum cannot parse renders the generic line rather than nothing, and a record
+  written before this one still holds `unreachable`, which is a reason it can still read.
+- **The failure line names the repair.** The unreachable line stated the fact and stopped, while the
+  code already knew the remedy — a peer that moved is healed by re-scanning its QR or by typing the
+  address on its card (this is the drift rule below, in slice 9) — so the line now names both.
+  *Rejected: a separate guidance line on the card* — "a failure is a reason, not a sentence" is the
+  panel's rule, and a second line would have to be wired into two renderers (the card and the
+  snackbar) to stay in step.
+- **A pairing typed by hand is announced like every other one.** The manual form closed in silence,
+  so the one success the user triggered entirely by hand was the only unreported one. The name does
+  not have to be assembled from the form: the engine returns the record it wrote and the provider was
+  discarding it, so the outcome now carries that record's name and id and every path announces the
+  name the card will show. Known-ness is read from the peer list *before* the call, so re-pairing an
+  already-paired device still reads as an update rather than as a first pairing.
+- **The card's time line answers "is this current?"** How long ago, not a timestamp: a date makes the
+  reader subtract, and the question on that line is recency. Past a week the stamp returns — at nine
+  days old the date *is* the more useful fact — the exact time rides in the tooltip, and a stamp in
+  the future (a peer whose clock ran ahead, or a clock that moved backwards) reads as just synced
+  rather than as a countdown on a line about the past. The units are ARB strings: `intl` dropped
+  `RelativeDateTimeFormatter` in 0.20, so the alternative was a dependency or a formatter that does
+  not exist — and this keeps the wording in the app's own four translations. *Rejected: keeping the
+  absolute timestamp as the line itself* — it is already in the tooltip, so the line would spend its
+  width on the less useful half.
+- **The remembered set is counted, and the address copies.** A peer this device has reached on two
+  networks showed only the address in use, which is indistinguishable from a peer with one address;
+  the count now rides with it ("(+2)"). The address itself copies on tap, with the confirmation every
+  other copy in the app gives: it is the one string on this card that belongs somewhere else — typed
+  into another device, or read out to whoever is on the other end of the call.
+- **A widget test does not join the shared side list.** The pairing-dialog and peer-card tests drive
+  a stub provider over a side that runs no engine; adding such a side to a suite's shared `sides`
+  list made the shared teardown dispose an uninitialised engine, and a teardown that throws never
+  clears the list — so every later test in the file re-disposed the leak. Sixty tests failed that
+  way, none of them about the change under test. Such a side cleans up after itself instead.
+
 ## Considered options (rejected)
 
 - **Whole-database / backup-zip exchange** — not version-portable; a newer schema on an

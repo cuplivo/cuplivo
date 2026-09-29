@@ -104,6 +104,51 @@ String? _ipv4Prefix(String address) {
 
 final RegExp _octetPattern = RegExp(r'^\d{1,3}$');
 
+/// The canonical host form every layer stores and dials: surrounding brackets
+/// stripped, and an IPv4-mapped IPv6 literal (`::ffff:a.b.c.d` — what a
+/// dual-stack listener reports for an IPv4 caller) reduced to its IPv4 form.
+///
+/// A mapped form must not survive into storage: it is a valid address to a
+/// socket but not to a URI (`Uri.parse` wants brackets) or to a human, and the
+/// same endpoint would otherwise live under two names. Anything unparseable
+/// passes through untouched — deciding what to *drop* is the job of the
+/// usability predicates, not this one's.
+String normalizeHost(String host) {
+  var candidate = host.trim();
+  if (candidate.startsWith('[') && candidate.endsWith(']')) {
+    candidate = candidate.substring(1, candidate.length - 1);
+  }
+  final address = InternetAddress.tryParse(candidate);
+  if (address != null && address.type == InternetAddressType.IPv6) {
+    final raw = address.rawAddress;
+    var mapped = true;
+    for (var i = 0; i < 10; i++) {
+      if (raw[i] != 0) {
+        mapped = false;
+        break;
+      }
+    }
+    if (mapped && raw[10] == 0xff && raw[11] == 0xff) {
+      return '${raw[12]}.${raw[13]}.${raw[14]}.${raw[15]}';
+    }
+  }
+  return candidate;
+}
+
+/// The host as a URI authority carries it: an IPv6 literal bracketed, an IPv4
+/// address unchanged. A bare IPv6 literal inside `Uri.parse` is not a URI.
+String uriHost(String host) {
+  final address = InternetAddress.tryParse(host);
+  return address != null && address.type == InternetAddressType.IPv6
+      ? '[$host]'
+      : host;
+}
+
+/// The endpoint as a human and the pairing QR read it: `host:port`, the IPv6
+/// literal bracketed so the port is unambiguous to both a parser (the payload
+/// splits on the last colon) and a person typing it.
+String formatHostPort(String host, int port) => '${uriHost(host)}:$port';
+
 /// Interface stems that are never a peer's route to this device: virtual
 /// adapters (VMware, VirtualBox, Hyper-V, Docker/WSL), VPN and tunnel
 /// interfaces, and a phone's cellular interfaces.

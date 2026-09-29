@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import 'sync_local_addresses.dart';
 import 'sync_models.dart';
 
 /// File-backed persistence for sync state, all under the app's `sync/`
@@ -259,8 +260,9 @@ class SyncPeerEndpoint {
     this.lastSuccessAt,
   });
 
-  /// How a human types it: `192.168.1.7:9527`.
-  String get label => '$host:$port';
+  /// How a human types it: `192.168.1.7:9527`, or `[fd00::1]:9527` for an IPv6
+  /// literal — whose port would otherwise be one more colon in a row.
+  String get label => formatHostPort(host, port);
 
   Map<String, dynamic> toJson() => {
     'host': host,

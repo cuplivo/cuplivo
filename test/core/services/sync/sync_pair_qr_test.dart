@@ -33,6 +33,61 @@ void main() {
     expect(parsed.pin, pin);
   });
 
+  test('an IPv6 endpoint travels bracketed and comes back bare', () {
+    final payload = SyncPairQrPayload(
+      deviceId: deviceId,
+      name: 'desktop',
+      endpoints: const [('fd00::a1b2:c3d4', 9527), ('192.168.1.10', 9527)],
+      pin: pin,
+    );
+    final raw = payload.toQrString();
+    final body = utf8.decode(
+      base64Decode(raw.substring('cuplivo-pair:v1:'.length)),
+    );
+
+    // The wire form brackets the literal, so the port is unambiguous to the
+    // parser and to a person reading the payload.
+    expect(body, contains('[fd00::a1b2:c3d4]:9527'));
+    expect(body, contains('192.168.1.10:9527'));
+
+    // Storage and the dial keep it bare.
+    expect(roundTrip(payload).endpoints, const [
+      ('fd00::a1b2:c3d4', 9527),
+      ('192.168.1.10', 9527),
+    ]);
+  });
+
+  test('a bracketed IPv6 endpoint is accepted and stored bare', () {
+    final parsed = SyncPairQrPayload.parse(
+      rawQr({
+        'd': deviceId,
+        'pin': pin,
+        'e': ['[2001:db8:1234::9]:41000'],
+      }),
+    );
+    expect(parsed.endpoints, const [('2001:db8:1234::9', 41000)]);
+  });
+
+  test(
+    'an IPv4 payload from a 4.0 peer still round-trips byte-identically',
+    () {
+      // The wire format did not change for IPv4: same string, same order.
+      final payload = SyncPairQrPayload(
+        deviceId: deviceId,
+        name: 'desktop',
+        endpoints: const [('192.168.1.10', 9527), ('10.0.0.4', 41000)],
+        pin: pin,
+      );
+      final raw = payload.toQrString();
+      final body = utf8.decode(
+        base64Decode(raw.substring('cuplivo-pair:v1:'.length)),
+      );
+      expect(body, contains('192.168.1.10:9527'));
+      expect(body, contains('10.0.0.4:41000'));
+      expect(roundTrip(payload).endpoints, payload.endpoints);
+    },
+  );
+
   test('empty endpoint list is valid (fingerprint + pin only)', () {
     final parsed = roundTrip(
       SyncPairQrPayload(

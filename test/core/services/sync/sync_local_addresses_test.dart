@@ -154,4 +154,56 @@ void main() {
       expect(sameIpv4Subnet('10.168.1.5', '+10.168.1.5'), isFalse);
     });
   });
+
+  group('normalizeHost', () {
+    test('reduces an IPv4-mapped literal to its IPv4 form', () {
+      // What a dual-stack listener reports for an IPv4 caller.
+      expect(normalizeHost('::ffff:127.0.0.1'), '127.0.0.1');
+      expect(normalizeHost('::ffff:192.168.1.23'), '192.168.1.23');
+    });
+
+    test('strips the brackets a URI or a label wears', () {
+      expect(normalizeHost('[fd00::1]'), 'fd00::1');
+      expect(normalizeHost(' [2001:db8::5] '), '2001:db8::5');
+      expect(normalizeHost('192.168.1.5'), '192.168.1.5');
+    });
+
+    test('leaves anything else untouched', () {
+      expect(normalizeHost('fd00::a1b2'), 'fd00::a1b2');
+      expect(normalizeHost('fe80::1%eth0'), 'fe80::1%eth0');
+      expect(normalizeHost('not-an-address'), 'not-an-address');
+      expect(normalizeHost(''), '');
+    });
+  });
+
+  group('uriHost', () {
+    test('brackets an IPv6 literal and nothing else', () {
+      expect(uriHost('fd00::1'), '[fd00::1]');
+      expect(uriHost('2001:db8:1234::9'), '[2001:db8:1234::9]');
+      expect(uriHost('192.168.1.5'), '192.168.1.5');
+      expect(uriHost('127.0.0.1'), '127.0.0.1');
+    });
+
+    test('the bracketed form actually parses as a URI', () {
+      final uri = Uri.parse('https://${uriHost('fd00::1')}:9527/pair');
+      expect(uri.host, 'fd00::1');
+      expect(uri.port, 9527);
+    });
+  });
+
+  group('formatHostPort', () {
+    test('is the human and QR form of an endpoint', () {
+      expect(formatHostPort('192.168.1.7', 9527), '192.168.1.7:9527');
+      expect(formatHostPort('fd00::1', 9527), '[fd00::1]:9527');
+    });
+
+    test('round-trips through the payload split rule', () {
+      // The QR parser splits on the last colon; the bracket is what keeps an
+      // IPv6 literal's own colons out of the port's way.
+      final formatted = formatHostPort('2001:db8:1234:5678::9', 41000);
+      final split = formatted.lastIndexOf(':');
+      expect(formatted.substring(0, split), '[2001:db8:1234:5678::9]');
+      expect(int.parse(formatted.substring(split + 1)), 41000);
+    });
+  });
 }

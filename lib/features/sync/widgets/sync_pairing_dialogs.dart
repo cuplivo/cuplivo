@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/providers/sync_provider.dart';
 import '../../../core/services/sync/sync_engine.dart';
+import '../../../core/services/sync/sync_local_addresses.dart';
 import '../../../core/services/sync/sync_pair_qr.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
@@ -408,7 +409,10 @@ class _EnterCodeDialogState extends State<_EnterCodeDialog> {
 
   Future<void> _pair() async {
     final l10n = AppLocalizations.of(context)!;
-    final host = _host.text.trim();
+    // Typed either way: `fd00::1` or `[fd00::1]`. Storage and the dial take the
+    // bare form, so the brackets a URI (or a peer's label) wears are stripped
+    // here rather than becoming part of the address.
+    final host = normalizeHost(_host.text);
     final pin = normalizePairingCode(_pin.text);
     final error = manualPairingFormError(
       l10n: l10n,

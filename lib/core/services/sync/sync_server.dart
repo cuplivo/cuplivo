@@ -6,6 +6,7 @@ import 'package:basic_utils/basic_utils.dart';
 import 'package:crypto/crypto.dart' as crypto;
 
 import 'sync_identity.dart';
+import 'sync_local_addresses.dart';
 import 'sync_models.dart';
 import 'sync_store.dart';
 
@@ -328,6 +329,17 @@ class SyncServer {
     return difference == 0;
   }
 
+  /// The caller's address, in the canonical form the engine stores.
+  ///
+  /// On a dual-stack listener an IPv4 caller arrives as `::ffff:a.b.c.d`, and
+  /// that mapped form is a valid address to a socket but not to a URI or to a
+  /// human: stored as-is it would become an endpoint that cannot be dialed
+  /// back and would double every IPv4 peer under two names.
+  String? _remoteHost(HttpRequest request) {
+    final address = request.connectionInfo?.remoteAddress.address;
+    return address == null ? null : normalizeHost(address);
+  }
+
   Future<void> _handlePair(HttpRequest request) async {
     if (request.method != 'POST') {
       _safeRespond(request, HttpStatus.methodNotAllowed, {
@@ -379,10 +391,7 @@ class SyncServer {
       _safeRespond(request, HttpStatus.forbidden, {'error': 'id_mismatch'});
       return;
     }
-    final answer = await handler.handlePair(
-      pairRequest,
-      request.connectionInfo?.remoteAddress.address,
-    );
+    final answer = await handler.handlePair(pairRequest, _remoteHost(request));
     if (answer == null) {
       _safeRespond(request, HttpStatus.forbidden, {'error': 'invalid_pin'});
       return;
@@ -405,7 +414,7 @@ class SyncServer {
     final result = await handler.handleHello(
       peerDeviceId,
       SyncHello.fromJson(body),
-      remoteAddress: request.connectionInfo?.remoteAddress.address,
+      remoteAddress: _remoteHost(request),
     );
     if (result is SyncHelloRefusal) {
       _respondJson(request, HttpStatus.conflict, result.toJson());

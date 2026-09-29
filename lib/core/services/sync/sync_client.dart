@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart' as crypto;
 
 import 'sync_identity.dart';
+import 'sync_local_addresses.dart';
 import 'sync_models.dart';
 import 'sync_server.dart';
 import 'sync_store.dart';
@@ -102,7 +103,7 @@ class SyncClient {
       ..connectionTimeout = kSyncDialConnectTimeout;
     try {
       final request = await client.postUrl(
-        Uri.parse('https://$host:$port/pair'),
+        Uri.parse('https://${uriHost(host)}:$port/pair'),
       );
       _writeJson(request, {
         'pin': pin,
@@ -164,7 +165,7 @@ class SyncClient {
   }) {
     return SyncClientSession(
       _httpForPeer(peer),
-      'https://$host:$port',
+      'https://${uriHost(host)}:$port',
       deviceId: identity.deviceId,
       token: peer.secret,
       helloDeadline: helloDeadline,
@@ -196,7 +197,7 @@ class SyncClient {
     final client = _httpForPeer(peer)..connectionTimeout = _revokeTimeout;
     try {
       final request = await client.postUrl(
-        Uri.parse('https://$host:$port/sync/revoke'),
+        Uri.parse('https://${uriHost(host)}:$port/sync/revoke'),
       );
       request.headers.set(SyncServer.deviceHeader, identity.deviceId);
       request.headers.set(SyncServer.tokenHeader, peer.secret);

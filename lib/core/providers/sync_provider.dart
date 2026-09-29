@@ -272,11 +272,12 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  /// Pairs from a scanned QR payload: tries the payload's endpoints in
-  /// order, hard-pinning the scanned fingerprint. A dead endpoint (refused
-  /// connection, timeout) moves on to the next candidate; an *answering*
-  /// endpoint that is wrong (bad PIN, wrong certificate, identity mismatch)
-  /// stops immediately — the same answer awaits on every candidate.
+  /// Pairs from a scanned QR payload: the engine tries the payload's
+  /// endpoints in order, hard-pinning the scanned fingerprint. A dead
+  /// endpoint (refused connection, timeout) moves on to the next candidate;
+  /// an *answering* endpoint that is wrong (bad PIN, wrong certificate,
+  /// identity mismatch) stops immediately — the same answer awaits on every
+  /// candidate.
   Future<SyncPairQrOutcome> pairWithQr(SyncPairQrPayload payload) async {
     final engine = _engine;
     if (engine == null) {
@@ -294,39 +295,33 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         wasKnownPeer,
       );
     }
-    Object? lastConnectivityDetail;
-    for (final (host, endpointPort) in payload.endpoints) {
-      try {
-        await engine.pairWith(
-          host: host,
-          port: endpointPort,
-          pin: payload.pin,
-          expectedDeviceId: payload.deviceId,
-          // The endpoints this candidate beat stay on the record as hints: the
-          // peer's other addresses are exactly what a later roaming round needs
-          // when this one stops working.
-          knownCandidates: payload.endpoints,
-          advertisedAddresses: _advertisedAddresses,
-        );
-        await refreshPeers();
-        return SyncPairQrOutcome(const SyncPairOutcome.success(), wasKnownPeer);
-      } on SyncClientException catch (error) {
-        return SyncPairQrOutcome(_mapPairError(error), wasKnownPeer);
-      } on SocketException catch (error) {
-        lastConnectivityDetail = error.message;
-      } on TimeoutException catch (error) {
-        lastConnectivityDetail = error.message;
-      } catch (error) {
-        return SyncPairQrOutcome(
-          SyncPairOutcome.failure('unknown', '$error'),
-          wasKnownPeer,
-        );
-      }
+    try {
+      await engine.pairWithCandidates(
+        endpoints: payload.endpoints,
+        pin: payload.pin,
+        expectedDeviceId: payload.deviceId,
+        advertisedAddresses: _advertisedAddresses,
+      );
+      await refreshPeers();
+      return SyncPairQrOutcome(const SyncPairOutcome.success(), wasKnownPeer);
+    } on SyncClientException catch (error) {
+      return SyncPairQrOutcome(_mapPairError(error), wasKnownPeer);
+    } on SocketException catch (error) {
+      return SyncPairQrOutcome(
+        SyncPairOutcome.failure('unreachable', error.message),
+        wasKnownPeer,
+      );
+    } on TimeoutException catch (error) {
+      return SyncPairQrOutcome(
+        SyncPairOutcome.failure('unreachable', error.message),
+        wasKnownPeer,
+      );
+    } catch (error) {
+      return SyncPairQrOutcome(
+        SyncPairOutcome.failure('unknown', '$error'),
+        wasKnownPeer,
+      );
     }
-    return SyncPairQrOutcome(
-      SyncPairOutcome.failure('unreachable', '$lastConnectivityDetail'),
-      wasKnownPeer,
-    );
   }
 
   static SyncPairOutcome _mapPairError(SyncClientException error) {

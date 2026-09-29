@@ -260,6 +260,44 @@ class SyncEngine implements SyncServerHandler {
     return peer;
   }
 
+  /// Pairs with a peer by trying [endpoints] in order until one answers.
+  ///
+  /// A dead endpoint (refused connection, timeout) moves on to the next
+  /// candidate; an *answering* endpoint that is wrong (bad PIN, wrong
+  /// certificate, identity mismatch) throws immediately — the same answer
+  /// awaits on every candidate. When nothing answers, the last connectivity
+  /// error is rethrown for the caller to classify; it is never rendered raw.
+  ///
+  /// Every endpoint this loop does *not* spend the pairing on stays on the
+  /// record as a hint behind the winner: the peer's other addresses are
+  /// exactly what a later roaming round needs when this one stops working.
+  Future<SyncPeerRecord> pairWithCandidates({
+    required List<(String, int)> endpoints,
+    required String pin,
+    String? expectedDeviceId,
+    List<String> advertisedAddresses = const [],
+  }) async {
+    Object? lastConnectivityError;
+    for (final (host, port) in endpoints) {
+      try {
+        return await pairWith(
+          host: host,
+          port: port,
+          pin: pin,
+          expectedDeviceId: expectedDeviceId,
+          knownCandidates: endpoints,
+          advertisedAddresses: advertisedAddresses,
+        );
+      } on SocketException catch (error) {
+        lastConnectivityError = error;
+      } on TimeoutException catch (error) {
+        lastConnectivityError = error;
+      }
+    }
+    throw lastConnectivityError ??
+        const SocketException('no pairing endpoint answered');
+  }
+
   /// Removes a pairing from this device, and — best effort — tells the peer to
   /// forget us too. The remote call is fire-and-forget with the secret we
   /// still hold: unpairing must not wait on a peer that may be gone, and any

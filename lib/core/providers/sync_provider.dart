@@ -110,6 +110,21 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   SyncStore? _store;
   Future<void>? _startFuture;
   bool _stopRequested = false;
+  bool _disposed = false;
+
+  /// Notifies the listeners, unless this provider is already disposed.
+  ///
+  /// Several paths start work that finishes after the widget tree is gone: the
+  /// firewall's `netsh` child process, the interface enumeration, a session
+  /// that outlives the screen it was started from. Each of them ends in a
+  /// notification, and `ChangeNotifier` asserts on a notification after
+  /// `dispose` — an assertion that surfaces as an *unhandled* async error, so
+  /// it is reported against whatever test (or frame) happens to be running
+  /// when it lands rather than against the code that disposed the provider.
+  void _notify() {
+    if (_disposed) return;
+    notifyListeners();
+  }
 
   bool started = false;
   bool starting = false;
@@ -164,7 +179,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _start() async {
     starting = true;
     startError = null;
-    notifyListeners();
+    _notify();
     try {
       final directory = await _syncDirectory();
       final directoryPath = directory.path;
@@ -215,7 +230,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       startError = '$error';
     } finally {
       starting = false;
-      notifyListeners();
+      _notify();
     }
   }
 
@@ -233,14 +248,14 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         boundPort != SyncEngine.kPreferredPort) {
       unawaited(WindowsFirewall.tryDeleteRule(boundPort));
     }
-    notifyListeners();
+    _notify();
   }
 
   Future<void> refreshPeers() async {
     final store = _store;
     if (store == null) return;
     peers = await store.listPeers();
-    notifyListeners();
+    _notify();
   }
 
   // ---- pairing ----
@@ -398,7 +413,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
     if (peer == null) return null;
     busyDeviceIds.add(deviceId);
-    notifyListeners();
+    _notify();
     try {
       final report = await engine.syncWithPeer(peer);
       lastReport = report;
@@ -460,7 +475,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (boundPort == null) return false;
     final ok = await WindowsFirewall.addRuleElevated(boundPort);
     firewallNeedsElevation = !ok;
-    notifyListeners();
+    _notify();
     return ok;
   }
 
@@ -471,7 +486,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (await WindowsFirewall.ruleExists(boundPort)) return;
     final added = await WindowsFirewall.tryAddRule(boundPort);
     firewallNeedsElevation = !added;
-    notifyListeners();
+    _notify();
   }
 
   /// This device's own addresses as sent to a peer while pairing, so the
@@ -491,7 +506,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     // The engine orders dial candidates by which network they sit on, so it
     // reads the same list the pairing screen shows.
     _engine?.localAddresses = localAddresses;
-    notifyListeners();
+    _notify();
   }
 
   void _onEngineStateChanged() {
@@ -502,6 +517,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _disposed = true;
     WidgetsBinding.instance.removeObserver(this);
     AppExitFlush.unregister(stop);
     super.dispose();

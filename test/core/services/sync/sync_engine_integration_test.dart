@@ -744,6 +744,30 @@ void main() {
     if (await root.exists()) await root.delete(recursive: true);
   });
 
+  test('a disposed provider is never notified again', () async {
+    // Deliberately not added to `sides`: this test disposes the provider itself,
+    // and the shared teardown would dispose it a second time (which
+    // ChangeNotifier asserts on). The cleanup below is what teardown would do.
+    final a = _Side('a');
+    await a.start(root, withEngine: false);
+    final provider = await a.startProvider(addressSource: () async => const []);
+
+    await provider.stop();
+    provider.dispose();
+
+    // Every unawaited tail the provider starts ends in a notification: the
+    // interface enumeration, the firewall child process, a session that
+    // outlives the screen. `ChangeNotifier` asserts on a notification after
+    // dispose, and that assertion surfaces as an unhandled async error — it is
+    // reported against whatever test happens to be running when it lands, not
+    // against the one that disposed the provider.
+    await provider.refreshPeers();
+    await provider.refreshLocalAddresses();
+
+    await a.chatService.close();
+    await a.repository.close();
+  });
+
   Future<(_Side, _Side)> pair({bool newerSchema = false}) async {
     final a = _Side('a');
     final b = _Side('b', newerSchema: newerSchema);

@@ -631,6 +631,58 @@ failed attempt cost a full dial budget, and an answer that was not the peer stop
   was read live, so the two could show different networks. It is re-encoded when, and only when, its
   endpoints changed, which keeps the once-a-second countdown tick from rebuilding it.
 
+## Amendment (2026-09, slice 11): the dual stack
+
+Slice 9 fixed what a device *advertises*; this one fixes what it *listens on and stores*. Both were
+IPv4-shaped, so a network that hands out IPv6 only — and every peer reaching this device over IPv6 —
+had nothing to pair with.
+
+- **One listener, both stacks.** `HttpServer.bindSecure` now binds the IPv6 any-address. Measured on
+  Windows: a listener on `::` answers `127.0.0.1`, and the caller arrives as `::ffff:127.0.0.1`; and
+  `::` is a genuinely exclusive wildcard — it refuses to bind while another socket holds `0.0.0.0` on
+  that port, and the reverse fails too, so there is no window in which two listeners both serve it. A
+  machine with IPv6 disabled, or a Linux host with `bindv6only=1`, falls back to the IPv4 wildcard,
+  which is exactly what the listener was before: no configuration ends up worse off than 4.0.
+  *Rejected: a second listener per family* — it would need its own port, its own firewall rule and its
+  own peer memory for a socket flag the platform already provides.
+- **Storage is bare, everything that faces a URI or a human is bracketed.** The mapped form a
+  dual-stack listener reports for an IPv4 caller is a valid address to a socket but not to
+  `Uri.parse` and not to a person: stored as-is, every IPv4 peer would live under two names and the
+  stored one could not be dialed back. `normalizeHost` (strip brackets, reduce a mapped literal to
+  IPv4), `uriHost` and `formatHostPort` are the entire boundary, and the storage layer, the dial, the
+  QR payload, the peer label and the typed address all route through them. The QR wire format is
+  unchanged for IPv4 — a payload from a 4.0 peer round-trips identically — and the payload's
+  last-colon split needs no change for IPv6 because the literal travels bracketed.
+- **Both families are advertised, under one cap.** Kept: global unicast (`2000::/3`) and unique local
+  (`fd00::/8`) — the two ranges an interface actually holds and a peer on the same network reaches.
+  Dropped: link-local (`fe80::/10`, whose zone id is a property of *this* device's interface and
+  means nothing to a peer), multicast, the unspecified address, the reserved `fc00::/8` half, and the
+  IPv4-mapped and IPv4-compatible forms, which are an IPv4 address wearing an IPv6 shape and are
+  enumerated as IPv4 instead. The four-address cap counts both families together: a machine with an
+  address of each keeps the four its interfaces reported first. *Rejected: a per-family quota* — a
+  typical machine holds one or two global addresses per family, so a quota would add a selection rule
+  to defend against a shape that does not occur, and the probe layer already handles any mix.
+- **The pairing QR was resized for the payload it now carries.** Four IPv4 endpoints already encoded
+  to ~280 characters — version 12 at error correction M, under 2.8 px per module in the 180 px square
+  — while an IPv6 endpoint is ~45 characters where an IPv4 one is 19, which would have crossed into
+  version 14 and ~2.4 px per module. The square is now 220 px and the correction level L, putting the
+  worst case (four IPv6 endpoints, ~380 characters) at version 13 and ~3.2 px per module: better than
+  what shipped for IPv4 alone. *Rejected: keeping M at 220 px* — the same worst case lands on version
+  15 and ~2.9 px, and at these payload sizes a version step costs more scannability than the extra
+  correction buys for a code read at close range off a clean screen.
+- **Known limits, recorded rather than papered over.** A Linux host with `bindv6only=1` binds `::`
+  successfully but serves only IPv6; peers reach it over the IPv4 endpoint they already remember, and
+  the fallback above only covers a bind that *fails*. Windows privacy extensions rotate temporary
+  IPv6 addresses, so an advertised v6 endpoint can go stale — the probe, the endpoint set and the
+  promotion-on-success rule already treat a stale address as an ordinary drift to heal. And an older
+  build reading a peer record that holds an IPv6 endpoint cannot dial it, which is the same
+  downgrade position as slice 9: unsupported, not worked around.
+- **The tests are sensitive to a running app.** The suite's providers prefer port 9527; when the
+  installed app is running, that port is taken, so every provider falls back to an ephemeral port —
+  which has no firewall rule, which is the branch that notifies. That surfaced a pre-existing defect
+  (a notification after `dispose`, reported as an unhandled async error against an unrelated test),
+  now guarded by a `_disposed` flag the provider's notification helper checks.
+
 ## Considered options (rejected)
 
 - **Whole-database / backup-zip exchange** — not version-portable; a newer schema on an

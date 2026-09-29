@@ -273,17 +273,30 @@ contradicts one of them is a bug, not a preference.
   remembered order is a history of networks rather than a statement about the one this device is
   standing on — reachability still outranks proximity. A single candidate is dialed directly, where
   the dial already is the probe.
-- **Advertised candidates are chosen, not dumped** (候选地址): a device advertises every unicast
-  IPv4 the OS reports, minus the interfaces a peer cannot use — virtual adapters (VMware,
+- **Advertised candidates are chosen, not dumped** (候选地址): a device advertises every usable
+  unicast address the OS reports — IPv4 and IPv6 alike — minus the interfaces a peer cannot use —
+  virtual adapters (VMware,
   VirtualBox, Hyper-V, Docker/WSL), VPN and tunnel interfaces (Tailscale, ZeroTier, WireGuard,
   `tun`/`tap`/`utun`), and a phone's cellular interfaces (`rmnet`, `clat`, `pdp_ip`). A shared
   clone subnet is why they are excluded rather than demoted: two machines running the same
   hypervisor carry the same host-only network, and a joiner trying that candidate reaches itself
   and fails the pin. Names a tethered peer *must* dial stay in: `bridge*` (iPhone hotspot),
   Windows' "Local Area Connection* N" (mobile hotspot) and `swlan*` (Android soft AP). The list is
-  capped at four addresses so the QR stays scannable. A public address is never filtered out:
-  campus networks hand out globally routable IPv4 directly, and filtering to RFC1918 alone left
-  those devices advertising nothing at all. VPN-only users fall back to typing the address.
+  capped at four addresses — both families together, in interface order — so the QR stays
+  scannable. A public address is never filtered out: campus networks hand out globally routable
+  addresses directly (in either family), and filtering to RFC1918 alone left those devices
+  advertising nothing at all. IPv6 candidates are global unicast (`2000::/3`) and unique local
+  (`fd00::/8`); link-local is never advertised, because `fe80::1`'s zone id belongs to *this*
+  device's interface and means nothing to a peer. VPN-only users fall back to typing the address.
+- **The listener is one socket on both stacks** (双栈): it binds the IPv6 any-address, which also
+  answers IPv4 callers — they arrive mapped, `::ffff:a.b.c.d`, and are normalized to their IPv4
+  form before storage, since a mapped literal is a valid address to a socket but not to a URI. A
+  machine where that bind cannot succeed (IPv6 disabled, `bindv6only=1`) serves IPv4 only, which is
+  what every release before this one did.
+- **An endpoint is stored bare and bracketed only where a human or a URI reads it**: `fd00::1` in
+  the endpoint set and the dial, `[fd00::1]:9527` in the QR payload, the address line and the field
+  a user types into. Anything that keeps a host of its own keeps the bare form, so the same peer is
+  never remembered under two names.
 - **The pairing form names the field that is wrong**: address/port and the pairing code are
   validated and reported separately, so a mistyped address never sends the user to re-check the
   other device. The code is compared with its spaces stripped — the dialog shows it as `123 456`,
@@ -299,7 +312,8 @@ contradicts one of them is a bug, not a preference.
   new head. `unreachable` means *none* of them answered — the peer is off, or it is on a network
   this device has never met, and the two repairs are re-scanning its QR (which updates the set and
   rotates the secret) or typing the address on its card. A drifted endpoint is a connectivity
-  failure, reported as such — never a discovery failure.
+  failure, reported as such — never a discovery failure. A Windows privacy address that rotated out
+  from under an advertised IPv6 endpoint is the same kind of drift, healed the same way.
 - **Reaching a candidate is not the same as it being the peer**: an endpoint that cannot be
   connected (refused, timed out) and one that answers with the wrong certificate both fall through
   to the next candidate — the pin refuses the wrong device inside the handshake, before any request

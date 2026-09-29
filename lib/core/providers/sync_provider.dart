@@ -455,7 +455,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> _refreshLocalAddresses() async {
-    localAddresses = await listLanAddresses();
+    localAddresses = selectLanCandidates(await listLanAddresses());
     notifyListeners();
   }
 

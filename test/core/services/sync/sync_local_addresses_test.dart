@@ -68,4 +68,63 @@ void main() {
       );
     });
   });
+
+  group('isVirtualInterfaceName', () {
+    test('excludes virtual adapters, tunnels and cellular interfaces', () {
+      expect(isVirtualInterfaceName('VMware Network Adapter VMnet1'), isTrue);
+      expect(isVirtualInterfaceName('VirtualBox Host-Only Network'), isTrue);
+      expect(isVirtualInterfaceName('vEthernet (Default Switch)'), isTrue);
+      expect(isVirtualInterfaceName('vEthernet (WSL)'), isTrue);
+      expect(isVirtualInterfaceName('docker0'), isTrue);
+      expect(isVirtualInterfaceName('utun3'), isTrue);
+      expect(isVirtualInterfaceName('awdl0'), isTrue);
+      expect(isVirtualInterfaceName('rmnet_data0'), isTrue);
+      expect(isVirtualInterfaceName('clat4'), isTrue);
+      expect(isVirtualInterfaceName('pdp_ip0'), isTrue);
+      expect(isVirtualInterfaceName('Tailscale'), isTrue);
+      expect(isVirtualInterfaceName('ZeroTier One [7f7f]'), isTrue);
+    });
+
+    test('keeps the interfaces a peer actually dials', () {
+      expect(isVirtualInterfaceName('wlan0'), isFalse);
+      expect(isVirtualInterfaceName('WLAN'), isFalse);
+      expect(isVirtualInterfaceName('eth0'), isFalse);
+      expect(isVirtualInterfaceName('Ethernet'), isFalse);
+      expect(isVirtualInterfaceName('en0'), isFalse);
+      expect(isVirtualInterfaceName('Wi-Fi'), isFalse);
+      expect(isVirtualInterfaceName('以太网'), isFalse);
+      // A tethered peer dials these: an iPhone's personal hotspot, Windows'
+      // mobile hotspot adapter and an Android soft AP.
+      expect(isVirtualInterfaceName('bridge100'), isFalse);
+      expect(isVirtualInterfaceName('Local Area Connection* 12'), isFalse);
+      expect(isVirtualInterfaceName('swlan0'), isFalse);
+    });
+  });
+
+  group('selectLanCandidates', () {
+    test('drops virtual interfaces and keeps interface order', () {
+      expect(
+        selectLanCandidates([
+          (name: 'VMware Network Adapter VMnet1', address: '192.168.56.1'),
+          (name: 'wlan0', address: '192.168.1.5'),
+          (name: 'rmnet_data0', address: '10.20.30.40'),
+          (name: 'eth0', address: '10.0.0.3'),
+        ]),
+        [
+          (name: 'wlan0', address: '192.168.1.5'),
+          (name: 'eth0', address: '10.0.0.3'),
+        ],
+      );
+    });
+
+    test('caps the advertised list', () {
+      expect(
+        selectLanCandidates([
+          for (var i = 0; i < 6; i++)
+            (name: 'wlan$i', address: '192.168.1.${i + 1}'),
+        ]).length,
+        kMaxLanCandidates,
+      );
+    });
+  });
 }

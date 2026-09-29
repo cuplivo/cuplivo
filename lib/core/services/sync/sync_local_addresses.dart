@@ -20,6 +20,11 @@ import 'dart:io';
 /// One address of this device, tagged with the interface carrying it.
 typedef LanAddress = ({String name, String address});
 
+/// How many addresses this device advertises at most. The pairing QR has to
+/// stay scannable at its fixed size and a human may be typing the list by hand,
+/// so an unbounded adapter list is worse than a bounded, well-chosen one.
+const kMaxLanCandidates = 4;
+
 /// Whether [address] is a unicast IPv4 a peer could dial: not loopback, not
 /// link-local, not multicast and not the reserved/broadcast blocks.
 bool _isUsableUnicast(InternetAddress address) {
@@ -65,4 +70,81 @@ Future<List<LanAddress>> listLanAddresses() async {
   } catch (_) {
     return const [];
   }
+}
+
+/// Interface stems that are never a peer's route to this device: virtual
+/// adapters (VMware, VirtualBox, Hyper-V, Docker/WSL), VPN and tunnel
+/// interfaces, and a phone's cellular interfaces.
+///
+/// They are excluded rather than demoted because a *shared clone* subnet is
+/// actively harmful on the pairing path: two machines that both run VirtualBox
+/// carry the same default host-only network, so a joiner trying that candidate
+/// reaches *itself*, fails the certificate pin, and aborts the attempt. A
+/// demoted-but-present candidate would keep that failure reachable.
+const _excludedStems = <String>[
+  'vmware',
+  'vmnet',
+  'virtualbox',
+  'vethernet',
+  'hyper-v',
+  'docker',
+  'wsl',
+  'wireguard',
+  'tailscale',
+  'zerotier',
+  'nordlynx',
+  'bluetooth',
+  'teredo',
+  'isatap',
+  'dummy',
+];
+
+/// Stems matched by prefix, because the platform appends an index
+/// (`rmnet_data0`, `utun3`) and an indexed name is what the OS reports.
+const _excludedPrefixes = <String>[
+  'tun',
+  'tap',
+  'utun',
+  'wg',
+  'ppp',
+  'ipsec',
+  'rmnet',
+  'clat',
+  'pdp_ip',
+  'ccmni',
+  'awdl',
+  'llw',
+];
+
+/// Whether [name] belongs to an interface a peer should not be pointed at.
+///
+/// Deliberately **not** excluded, because they carry the address a tethered
+/// peer must dial: `bridge*` (an iPhone's personal hotspot lives on
+/// `bridge100`), Windows' "Local Area Connection* N" (the mobile hotspot
+/// adapter), `swlan*` (Android soft AP) and every ordinary `en`/`eth`/`wlan`/
+/// `Wi-Fi` name — including the localized ones a non-English Windows reports.
+bool isVirtualInterfaceName(String name) {
+  // Trailing digits come from the platform's adapter index, not the stem.
+  final base = name.toLowerCase().replaceAll(RegExp(r'\d+$'), '').trim();
+  if (base.isEmpty) return false;
+  for (final stem in _excludedStems) {
+    if (base.contains(stem)) return true;
+  }
+  for (final prefix in _excludedPrefixes) {
+    if (base.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
+/// The candidates this device advertises: the usable addresses that are not
+/// carried by a virtual, tunnel or cellular interface, in interface order,
+/// capped at [kMaxLanCandidates].
+List<LanAddress> selectLanCandidates(List<LanAddress> addresses) {
+  final kept = <LanAddress>[];
+  for (final address in addresses) {
+    if (isVirtualInterfaceName(address.name)) continue;
+    kept.add(address);
+    if (kept.length >= kMaxLanCandidates) break;
+  }
+  return kept;
 }

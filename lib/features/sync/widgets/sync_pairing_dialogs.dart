@@ -83,19 +83,32 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
       final expiresAt = widget.provider.pairingExpiresAt;
       if (!mounted) return;
       if (expiresAt == null) {
-        // `pop`, not `maybePop`: this route refuses route-level pops (the
-        // window must not be dismissible by a gesture), and an expired window
-        // is the one close that is not a user pop.
-        Navigator.of(context).pop();
+        _close();
         return;
       }
       setState(() {
         _remaining = expiresAt.difference(DateTime.now());
       });
       if (!_remaining.isNegative && _remaining == Duration.zero) {
-        Navigator.of(context).pop();
+        _close();
       }
     });
+  }
+
+  /// Pops this dialog exactly once, disarming the ticker first. `mounted`
+  /// stays true for the whole exit animation, so a tick landing there after
+  /// the close button cancelled the window sees a null expiry and would pop
+  /// a second time — taking the page beneath the dialog with it. The
+  /// `isCurrent` guard covers the mirror order: the ticker closed the dialog
+  /// just before a late tap landed on the already-leaving button.
+  ///
+  /// `pop`, not `maybePop`: this route refuses route-level pops (the window
+  /// must not be dismissible by a gesture).
+  void _close() {
+    _ticker?.cancel();
+    final route = ModalRoute.of(context);
+    if (route == null || !route.isCurrent) return;
+    Navigator.of(context).pop();
   }
 
   String? _buildQrData() {
@@ -239,7 +252,7 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
           TextButton(
             onPressed: () {
               provider.cancelPairing();
-              Navigator.of(context).pop();
+              _close();
             },
             child: Text(l10n.lanSyncClosePairing),
           ),

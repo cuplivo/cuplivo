@@ -1129,6 +1129,64 @@ void main() {
     expect(provider.isPairingOpen, isFalse);
   });
 
+  testWidgets('closing the pairing code dialog pops only the dialog', (
+    tester,
+  ) async {
+    // Two closers race: the close button cancels the window (the expiry
+    // reads null from then on) and pops, but `mounted` stays true until the
+    // exit animation finishes — a countdown tick landing inside that window
+    // used to see the nulled expiry and pop a second time, taking the page
+    // beneath the dialog with it. The pumps below land a tick 50 ms into the
+    // exit animation, which reproduces the race deterministically.
+    final a = _Side('a');
+    late final SyncProvider provider;
+    late final AppLocalizations l10n;
+    await tester.runAsync(() async {
+      await a.start(root, withEngine: false);
+      sides.add(a);
+      provider = await a.startProvider();
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    });
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SyncProvider>.value(
+        value: provider,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () =>
+                      showSyncPairingDialogs(context: context, showCode: true),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pump(); // Dialog built; the ticker's first tick is due at +1s.
+    // Stop 50 ms short of the tick, so the close below starts its exit
+    // animation with the next tick still ahead of it.
+    await tester.pump(const Duration(milliseconds: 950));
+    expect(find.byType(AlertDialog), findsOneWidget);
+
+    await tester.tap(find.text(l10n.lanSyncClosePairing));
+    // The due tick fires 50 ms into the exit animation, while the dialog's
+    // state is still mounted.
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(provider.isPairingOpen, isFalse);
+    // Exactly one pop: the page that hosted the dialog survived the close.
+    expect(find.text('open'), findsOneWidget);
+  });
+
   test('a QR-scanned fingerprint pairs without a typed PIN', () async {
     final a = _Side('a');
     final b = _Side('b');
@@ -2537,11 +2595,9 @@ void main() {
 
     final report = await a.engine.syncWithPeer(await a.peer(b));
     expect(report.success, isTrue, reason: report.summary);
-    expect(
-      await _messageIds(b, 'conv-b'),
-      {'conv-b-m0'},
-      reason: "the other conversation's row must not move, nor gain a ghost",
-    );
+    expect(await _messageIds(b, 'conv-b'), {
+      'conv-b-m0',
+    }, reason: "the other conversation's row must not move, nor gain a ghost");
     expect(await _messageIds(b, 'conv-a'), {'conv-a-m0', 'conv-a-m1'});
   });
 

@@ -464,6 +464,9 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _refreshLocalAddresses() async {
     localAddresses = selectLanCandidates(await listLanAddresses());
+    // The engine orders dial candidates by which network they sit on, so it
+    // reads the same list the pairing screen shows.
+    _engine?.localAddresses = localAddresses;
     notifyListeners();
   }
 

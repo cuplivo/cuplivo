@@ -10,6 +10,7 @@ import 'sync_candidate_prober.dart';
 import 'sync_client.dart';
 import 'sync_data_plane.dart';
 import 'sync_identity.dart';
+import 'sync_local_addresses.dart';
 import 'sync_merge.dart';
 import 'sync_models.dart';
 import 'sync_server.dart';
@@ -129,6 +130,12 @@ class SyncEngine implements SyncServerHandler {
   /// Called whenever engine-visible state changes (pairing window, session
   /// progress, peer list) so the UI can rebuild.
   final void Function() onStateChanged;
+
+  /// This device's own candidate addresses, pushed by the provider whenever it
+  /// re-enumerates them. The dial uses them to tell an address on the network
+  /// this device is standing on from a memory of another one; empty until the
+  /// first enumeration lands, which leaves candidate order untouched.
+  List<LanAddress> localAddresses = const [];
 
   late final SyncServer server = SyncServer(
     identity: identity,
@@ -280,7 +287,10 @@ class SyncEngine implements SyncServerHandler {
     String? expectedDeviceId,
     List<String> advertisedAddresses = const [],
   }) async {
-    final candidates = await orderCandidates(endpoints);
+    final candidates = await orderCandidates(
+      endpoints,
+      localAddresses: localAddresses,
+    );
     Object? lastConnectivityError;
     for (final (host, port) in candidates) {
       try {
@@ -398,6 +408,7 @@ class SyncEngine implements SyncServerHandler {
       }
       for (final (candidateHost, candidatePort) in await orderCandidates(
         candidates,
+        localAddresses: localAddresses,
       )) {
         final report = await _syncWithPeerAt(
           peer,

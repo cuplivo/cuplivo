@@ -127,4 +127,31 @@ void main() {
       );
     });
   });
+
+  group('sameIpv4Subnet', () {
+    test('matches on the first three octets', () {
+      expect(sameIpv4Subnet('192.168.1.5', '192.168.1.200'), isTrue);
+      expect(sameIpv4Subnet('192.168.1.5', '192.168.1.5'), isTrue);
+      expect(sameIpv4Subnet('192.168.1.5', '192.168.2.5'), isFalse);
+      expect(
+        sameIpv4Subnet('172.16.0.1', '172.16.1.1'),
+        isFalse,
+        reason: 'a /24 is the unit, not a /16',
+      );
+    });
+
+    test('anything that is not an IPv4 literal is never the same subnet', () {
+      expect(sameIpv4Subnet('fe80::1', 'fe80::2'), isFalse);
+      expect(sameIpv4Subnet('fe80::1', '192.168.1.5'), isFalse);
+      expect(sameIpv4Subnet('192.168.1.5', 'fe80::1'), isFalse);
+      expect(sameIpv4Subnet('', ''), isFalse);
+      expect(sameIpv4Subnet('192.168.1.5', '192.168.1'), isFalse);
+      expect(sameIpv4Subnet('192.168.1.5', '192.168.1.256'), isFalse);
+    });
+
+    test('a padded octet is not the literal it looks like', () {
+      expect(sameIpv4Subnet('10.168.1.5', '010.168.1.5'), isFalse);
+      expect(sameIpv4Subnet('10.168.1.5', '+10.168.1.5'), isFalse);
+    });
+  });
 }

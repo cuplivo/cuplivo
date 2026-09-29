@@ -72,6 +72,38 @@ Future<List<LanAddress>> listLanAddresses() async {
   }
 }
 
+/// Whether two addresses are literals on the same IPv4 /24.
+///
+/// A /24 is the unit a home or office LAN hands out, so a candidate that shares
+/// one with an address this device holds is on the network this device is
+/// standing on, while one that does not is a memory of somewhere else. That is
+/// the ordering hint a dial needs when a peer carries addresses from several
+/// networks: the address this network reaches directly is tried first.
+///
+/// Anything that is not an IPv4 literal is never "same subnet", IPv6 included —
+/// a v6 candidate arrives with its own round.
+bool sameIpv4Subnet(String a, String b) {
+  final left = _ipv4Prefix(a);
+  if (left == null) return false;
+  return left == _ipv4Prefix(b);
+}
+
+/// The `a.b.c` prefix of an IPv4 literal, or null when [address] is not one.
+/// Only plain digits are an octet: a padded or signed form (`010.0.0.1`,
+/// `+10.0.0.1`) is not the literal a peer sends, and treating it as equal would
+/// match two different addresses.
+String? _ipv4Prefix(String address) {
+  final parts = address.split('.');
+  if (parts.length != 4) return null;
+  for (final part in parts) {
+    if (!_octetPattern.hasMatch(part)) return null;
+    if (int.parse(part) > 255) return null;
+  }
+  return '${parts[0]}.${parts[1]}.${parts[2]}';
+}
+
+final RegExp _octetPattern = RegExp(r'^\d{1,3}$');
+
 /// Interface stems that are never a peer's route to this device: virtual
 /// adapters (VMware, VirtualBox, Hyper-V, Docker/WSL), VPN and tunnel
 /// interfaces, and a phone's cellular interfaces.

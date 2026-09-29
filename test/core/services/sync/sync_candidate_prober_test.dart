@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:Cuplivo/core/services/sync/sync_candidate_prober.dart';
+import 'package:Cuplivo/core/services/sync/sync_local_addresses.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A probe that answers from a fixed verdict per host: `true` connects, `false`
@@ -14,6 +15,9 @@ CandidateConnect _probe(Map<String, bool> verdicts, {List<String>? started}) {
   };
 }
 
+/// The network order is irrelevant to the probe tests; only the subnet hint is.
+const _nowhere = <LanAddress>[];
+
 void main() {
   group('orderCandidates', () {
     test('a single candidate is returned untouched, without a probe', () async {
@@ -22,6 +26,7 @@ void main() {
 
       final ordered = await orderCandidates(
         single,
+        localAddresses: _nowhere,
         connect: (host, port, timeout) async {
           probed = true;
         },
@@ -36,6 +41,7 @@ void main() {
 
       final ordered = await orderCandidates(
         candidates,
+        localAddresses: _nowhere,
         connect: _probe({'a': true, 'b': false, 'c': true, 'd': false}),
       );
 
@@ -49,6 +55,7 @@ void main() {
 
       final pending = orderCandidates(
         candidates,
+        localAddresses: _nowhere,
         connect: (host, port, timeout) async {
           started.add(host);
           await gate.future;
@@ -69,6 +76,7 @@ void main() {
 
       final ordered = await orderCandidates(
         candidates,
+        localAddresses: _nowhere,
         connect: _probe({'live': true}),
       );
 
@@ -87,6 +95,7 @@ void main() {
       // address rather than abort the whole round.
       final ordered = await orderCandidates(
         candidates,
+        localAddresses: _nowhere,
         connect: (host, port, timeout) => throw StateError('probe exploded'),
       );
 
@@ -98,6 +107,7 @@ void main() {
 
       final ordered = await orderCandidates(
         candidates,
+        localAddresses: _nowhere,
         connect: _probe(const {}),
       );
 
@@ -105,7 +115,65 @@ void main() {
     });
 
     test('an empty list is returned as-is', () async {
-      expect(await orderCandidates(const []), isEmpty);
+      expect(
+        await orderCandidates(const [], localAddresses: _nowhere),
+        isEmpty,
+      );
+    });
+  });
+
+  group('orderCandidates, subnet preference', () {
+    // The address this device holds: 192.168.1.0/24 is "here", 10.20.30.0/24 is
+    // a memory of another network.
+    const here = <LanAddress>[(name: 'wlan0', address: '192.168.1.20')];
+
+    test('an address on this device own subnet is dialed first', () async {
+      final candidates = [('10.20.30.40', 1), ('192.168.1.7', 2)];
+
+      final ordered = await orderCandidates(
+        candidates,
+        localAddresses: here,
+        connect: _probe({'10.20.30.40': true, '192.168.1.7': true}),
+      );
+
+      expect(ordered, [('192.168.1.7', 2), ('10.20.30.40', 1)]);
+    });
+
+    test('reachability outranks the subnet hint', () async {
+      // The same-subnet candidate did not answer, so it may not jump a winner.
+      final candidates = [('192.168.1.7', 1), ('10.20.30.40', 2)];
+
+      final ordered = await orderCandidates(
+        candidates,
+        localAddresses: here,
+        connect: _probe({'10.20.30.40': true}),
+      );
+
+      expect(ordered, [('10.20.30.40', 2), ('192.168.1.7', 1)]);
+    });
+
+    test('a same-subnet loser is ordered before a far loser', () async {
+      final candidates = [('10.20.30.40', 1), ('192.168.1.7', 2)];
+
+      final ordered = await orderCandidates(
+        candidates,
+        localAddresses: here,
+        connect: _probe(const {}),
+      );
+
+      expect(ordered, [('192.168.1.7', 2), ('10.20.30.40', 1)]);
+    });
+
+    test('without local addresses the probe order stands', () async {
+      final candidates = [('10.20.30.40', 1), ('192.168.1.7', 2)];
+
+      final ordered = await orderCandidates(
+        candidates,
+        localAddresses: _nowhere,
+        connect: _probe({'10.20.30.40': true, '192.168.1.7': true}),
+      );
+
+      expect(ordered, candidates);
     });
   });
 }

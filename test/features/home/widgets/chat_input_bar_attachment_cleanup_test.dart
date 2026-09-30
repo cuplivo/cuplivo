@@ -12,6 +12,7 @@ import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/utils/image_compressor.dart';
+import 'package:path/path.dart' as p;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -155,105 +156,112 @@ void main() {
     );
   }
 
-  testWidgets('Windows 历史粘贴复用文本、长文本附件和图片入口', (tester) async {
-    final nativeClipboardContext = MockMessageChannelContext()
-      ..registerMockMethodCallHandler('ClipboardReader', (_) {
-        throw PlatformException(code: 'unavailable-in-widget-test');
+  testWidgets(
+    'Windows 历史粘贴复用文本、长文本附件和图片入口',
+    (tester) async {
+      final nativeClipboardContext = MockMessageChannelContext()
+        ..registerMockMethodCallHandler('ClipboardReader', (_) {
+          throw PlatformException(code: 'unavailable-in-widget-test');
+        });
+      setContextOverride(nativeClipboardContext);
+      var clipboardText = 'history';
+      var clipboardImages = <String>[];
+      final messenger = tester.binding.defaultBinaryMessenger;
+      const clipboardChannel = MethodChannel('app.clipboard');
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.getData') {
+          return <String, dynamic>{'text': clipboardText};
+        }
+        return null;
       });
-    setContextOverride(nativeClipboardContext);
-    var clipboardText = 'history';
-    var clipboardImages = <String>[];
-    final messenger = tester.binding.defaultBinaryMessenger;
-    const clipboardChannel = MethodChannel('app.clipboard');
-    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
-      if (call.method == 'Clipboard.getData') {
-        return <String, dynamic>{'text': clipboardText};
-      }
-      return null;
-    });
-    messenger.setMockMethodCallHandler(clipboardChannel, (call) async {
-      if (call.method == 'getClipboardImages') return clipboardImages;
-      return null;
-    });
-    addTearDown(() {
-      messenger.setMockMethodCallHandler(SystemChannels.platform, null);
-      messenger.setMockMethodCallHandler(clipboardChannel, null);
-    });
+      messenger.setMockMethodCallHandler(clipboardChannel, (call) async {
+        if (call.method == 'getClipboardImages') return clipboardImages;
+        return null;
+      });
+      addTearDown(() {
+        messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+        messenger.setMockMethodCallHandler(clipboardChannel, null);
+      });
 
-    final settings = SettingsProvider(createBusinessTestPreferences());
-    addTearDown(settings.dispose);
-    await settings.loaded;
-    await settings.setLongPasteAsFileThreshold(100);
-    final controller = TextEditingController(text: 'before after');
-    final focusNode = FocusNode();
-    final mediaController = ChatInputBarController();
-    addTearDown(controller.dispose);
-    addTearDown(focusNode.dispose);
-    await tester.pumpWidget(
-      buildHarness(
-        controller: controller,
-        focusNode: focusNode,
-        mediaController: mediaController,
-        settings: settings,
-        onSend: (_) async => ChatInputSubmissionResult.rejected,
-      ),
-    );
-    await tester.tap(find.byType(TextField));
-    controller.selection = const TextSelection.collapsed(offset: 7);
-    await tester.pump();
-    WindowsPasteFix.instance.install();
-    try {
-      await tester.runAsync(() => sendWindowsClipboardHistoryPaste(tester));
-      expect(
-        await pumpUntil(tester, () => controller.text == 'before historyafter'),
-        isTrue,
-      );
-      expect(controller.selection.baseOffset, 14);
-
-      clipboardText = List.filled(101, '长').join();
-      await tester.runAsync(() => sendWindowsClipboardHistoryPaste(tester));
-      expect(
-        await pumpUntil(
-          tester,
-          () => mediaController.snapshotInput('').documents.length == 1,
+      final settings = SettingsProvider(createBusinessTestPreferences());
+      addTearDown(settings.dispose);
+      await settings.loaded;
+      await settings.setLongPasteAsFileThreshold(100);
+      final controller = TextEditingController(text: 'before after');
+      final focusNode = FocusNode();
+      final mediaController = ChatInputBarController();
+      addTearDown(controller.dispose);
+      addTearDown(focusNode.dispose);
+      await tester.pumpWidget(
+        buildHarness(
+          controller: controller,
+          focusNode: focusNode,
+          mediaController: mediaController,
+          settings: settings,
+          onSend: (_) async => ChatInputSubmissionResult.rejected,
         ),
-        isTrue,
       );
-      expect(controller.text, 'before historyafter');
-      final document = mediaController.snapshotInput('').documents.single;
-      expect(
-        await tester.runAsync(() => File(document.path).readAsString()),
-        clipboardText,
-      );
-
-      final source = File('${appSupportDir.path}/clipboard.png');
-      await tester.runAsync(
-        () => source.writeAsBytes(
-          base64Decode(
-            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      await tester.tap(find.byType(TextField));
+      controller.selection = const TextSelection.collapsed(offset: 7);
+      await tester.pump();
+      WindowsPasteFix.instance.install();
+      try {
+        await tester.runAsync(() => sendWindowsClipboardHistoryPaste(tester));
+        expect(
+          await pumpUntil(
+            tester,
+            () => controller.text == 'before historyafter',
           ),
-        ),
-      );
-      clipboardText = '';
-      clipboardImages = [source.path];
-      await tester.runAsync(() => sendWindowsClipboardHistoryPaste(tester));
-      expect(
-        await pumpUntil(
-          tester,
-          () =>
-              !mediaController.hasUnreadyImages &&
-              mediaController.snapshotInput('').imagePaths.length == 1,
-        ),
-        isTrue,
-      );
-      final image = File(mediaController.snapshotInput('').imagePaths.single);
-      expect(await fileExists(tester, image), isTrue);
-      expect(controller.text, 'before historyafter');
-      expect(HardwareKeyboard.instance.physicalKeysPressed, isEmpty);
-    } finally {
-      WindowsPasteFix.instance.uninstall();
-    }
-  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
+          isTrue,
+        );
+        expect(controller.selection.baseOffset, 14);
+
+        clipboardText = List.filled(101, '长').join();
+        await tester.runAsync(() => sendWindowsClipboardHistoryPaste(tester));
+        expect(
+          await pumpUntil(
+            tester,
+            () => mediaController.snapshotInput('').documents.length == 1,
+          ),
+          isTrue,
+        );
+        expect(controller.text, 'before historyafter');
+        final document = mediaController.snapshotInput('').documents.single;
+        expect(
+          await tester.runAsync(() => File(document.path).readAsString()),
+          clipboardText,
+        );
+
+        final source = File('${appSupportDir.path}/clipboard.png');
+        await tester.runAsync(
+          () => source.writeAsBytes(
+            base64Decode(
+              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+            ),
+          ),
+        );
+        clipboardText = '';
+        clipboardImages = [source.path];
+        await tester.runAsync(() => sendWindowsClipboardHistoryPaste(tester));
+        expect(
+          await pumpUntil(
+            tester,
+            () =>
+                !mediaController.hasUnreadyImages &&
+                mediaController.snapshotInput('').imagePaths.length == 1,
+          ),
+          isTrue,
+        );
+        final image = File(mediaController.snapshotInput('').imagePaths.single);
+        expect(await fileExists(tester, image), isTrue);
+        expect(controller.text, 'before historyafter');
+        expect(HardwareKeyboard.instance.physicalKeysPressed, isEmpty);
+      } finally {
+        WindowsPasteFix.instance.uninstall();
+      }
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
 
   testWidgets('超过 5000 个字符的粘贴内容转为文本附件', (tester) async {
     final nativeClipboardContext = MockMessageChannelContext()
@@ -794,7 +802,9 @@ void main() {
     await tester.runAsync(() async {
       source = await writeUserImage('user_photo.png');
     });
-    final product = File('${appSupportDir.path}/upload/user_photo.png');
+    final product = File(
+      p.join(appSupportDir.path, 'upload', 'user_photo.png'),
+    );
     final controller = TextEditingController(text: 'with image');
     final focusNode = FocusNode();
     final mediaController = ChatInputBarController();
@@ -830,7 +840,9 @@ void main() {
     await tester.tap(find.byIcon(Lucide.ArrowUp));
     await tester.pumpAndSettle();
 
-    expect(submitted?.imagePaths.single, product.path);
+    expect(submitted, isNotNull);
+    // The stored copy path mixes separators, so compare it as a path.
+    expect(p.equals(submitted!.imagePaths.single, product.path), isTrue);
     expect(await fileExists(tester, source), isTrue);
 
     controller.dispose();
@@ -990,13 +1002,13 @@ void main() {
       );
       final uploadDir = Directory('${appSupportDir.path}/upload');
       await uploadDir.create(recursive: true);
-      final product = File('${uploadDir.path}/inflight_user.png');
+      final product = File(p.join(uploadDir.path, 'inflight_user.png'));
       var sawProductCreated = false;
       final productDeleted = Completer<void>();
       final subscription = uploadDir
           .watch(events: FileSystemEvent.create | FileSystemEvent.delete)
           .listen((event) {
-            if (event.path != product.path) return;
+            if (!p.equals(event.path, product.path)) return;
             if (event.type == FileSystemEvent.create) {
               sawProductCreated = true;
             } else if (event.type == FileSystemEvent.delete &&

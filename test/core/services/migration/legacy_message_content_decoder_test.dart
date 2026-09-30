@@ -62,12 +62,12 @@ void main() {
       expect((result.parts[0] as TextPart).text, '帮我看看');
       expect(result.parts[1], isA<ImagePart>());
       final imagePart = result.parts[1] as ImagePart;
-      expect(imagePart.uri, image.path);
+      expect(imagePart.uri, image.path.replaceAll(r'\', '/'));
       expect(imagePart.mime, 'image/png');
       expect(imagePart.unavailable, isFalse);
       expect(result.parts[2], isA<FilePart>());
       final filePart = result.parts[2] as FilePart;
-      expect(filePart.uri, pdf.path);
+      expect(filePart.uri, pdf.path.replaceAll(r'\', '/'));
       expect(filePart.name, 'spec.pdf');
       expect(filePart.mime, 'application/pdf');
       expect(filePart.unavailable, isFalse);
@@ -128,7 +128,7 @@ void main() {
     expect(result.converted, 1);
     expect(result.missingFiles, 1);
     final image = result.parts.single as ImagePart;
-    expect(image.uri, missing);
+    expect(image.uri, missing.replaceAll(r'\', '/'));
     expect(image.unavailable, isTrue);
     expect(image.mime, 'image/png'); // extension fallback
   });

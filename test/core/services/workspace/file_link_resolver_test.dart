@@ -39,6 +39,14 @@ class _FakePathProviderPlatform extends PathProviderPlatform {
   Future<String?> getTemporaryPath() async => p.join(path, 'tmp');
 }
 
+/// `FileLinkResolver` resolves symbolic links, so it returns the on-disk
+/// casing while the test builds its path from the temp directory it created.
+/// `p.equals` compares paths case- and separator-insensitively on Windows.
+void expectSamePath(String? actual, String expected) {
+  expect(actual, isNotNull);
+  expect(p.equals(actual!, expected), isTrue, reason: 'actual: $actual');
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -221,7 +229,7 @@ void main() {
         conversationId: 'conv-1',
         binding: binding(),
       );
-      expect(resolved?.path, file.path);
+      expectSamePath(resolved?.path, file.path);
     });
 
     test('returns null when workspace is unbound', () async {
@@ -295,8 +303,8 @@ void main() {
           conversationId: conversationId,
           binding: const WorkspaceBinding(),
         );
-        expect(attachResolved?.path, attach.path);
-        expect(outputResolved?.path, output.path);
+        expectSamePath(attachResolved?.path, attach.path);
+        expectSamePath(outputResolved?.path, output.path);
       },
     );
 
@@ -312,7 +320,7 @@ void main() {
         conversationId: 'conv-1',
         binding: const WorkspaceBinding(),
       );
-      expect(resolved?.path, skillFile.path);
+      expectSamePath(resolved?.path, skillFile.path);
 
       final escaped = await resolver.resolveToHostFile(
         const KelivoLink(
@@ -355,7 +363,7 @@ void main() {
           conversationId: 'conv-1',
           binding: binding(),
         );
-        expect(resolved?.path, file.path);
+        expectSamePath(resolved?.path, file.path);
       },
     );
 
@@ -375,7 +383,7 @@ void main() {
         conversationId: 'other-conv',
         binding: const WorkspaceBinding(),
       );
-      expect(resolved?.path, output.path);
+      expectSamePath(resolved?.path, output.path);
     });
 
     test(
@@ -388,7 +396,7 @@ void main() {
           binding: binding(),
         );
         expect(directory, isA<Directory>());
-        expect(directory?.path, workspaceRoot.path);
+        expectSamePath(directory?.path, workspaceRoot.path);
         expect(
           await resolver.resolveToHostFile(
             rootLink,
@@ -491,7 +499,7 @@ void main() {
             externalMounts: mounts,
           );
           await mounts.update(parsed.mountId!, name: 'Renamed', readOnly: true);
-          expect(
+          expectSamePath(
             (await mountResolver.resolveToHostFile(
               parsed,
               conversationId: 'conv-1',

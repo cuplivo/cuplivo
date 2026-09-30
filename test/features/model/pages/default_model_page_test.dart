@@ -91,92 +91,96 @@ void main() {
     expect(find.byTooltip('Use current chat model'), findsWidgets);
   });
 
-  testWidgets('follow-current title picker opens on the conversation model', (
-    tester,
-  ) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    try {
-      final settings = SettingsProvider(createBusinessTestPreferences());
-      await settings.loaded;
-      await settings.setPerChatModelEnabled(true);
-      for (final model in const {
-        'global-provider': 'global-model',
-        'assistant-provider': 'assistant-model',
-        'conversation-provider': 'conversation-model',
-      }.entries) {
-        await settings.setProviderConfig(
-          model.key,
-          _providerConfig(model.key, model.value),
+  testWidgets(
+    'follow-current title picker opens on the conversation model',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      try {
+        final settings = SettingsProvider(createBusinessTestPreferences());
+        await settings.loaded;
+        await settings.setPerChatModelEnabled(true);
+        for (final model in const {
+          'global-provider': 'global-model',
+          'assistant-provider': 'assistant-model',
+          'conversation-provider': 'conversation-model',
+        }.entries) {
+          await settings.setProviderConfig(
+            model.key,
+            _providerConfig(model.key, model.value),
+          );
+        }
+        await settings.setProvidersOrder(const [
+          'global-provider',
+          'assistant-provider',
+          'conversation-provider',
+        ]);
+        await settings.setCurrentModel('global-provider', 'global-model');
+
+        final assistants = AssistantProvider(
+          preferences: createBusinessTestPreferences(),
         );
-      }
-      await settings.setProvidersOrder(const [
-        'global-provider',
-        'assistant-provider',
-        'conversation-provider',
-      ]);
-      await settings.setCurrentModel('global-provider', 'global-model');
-
-      final assistants = AssistantProvider(
-        preferences: createBusinessTestPreferences(),
-      );
-      await assistants.loaded;
-      final assistantId = await assistants.addAssistant(name: 'Assistant');
-      await assistants.setCurrentAssistant(assistantId);
-      await assistants.updateAssistant(
-        assistants.currentAssistant!.copyWith(
-          chatModelProvider: 'assistant-provider',
-          chatModelId: 'assistant-model',
-        ),
-      );
-      final chats = _FakeChatService(
-        Conversation(
-          title: 'Chat',
-          assistantId: assistantId,
-          chatModelProvider: 'conversation-provider',
-          chatModelId: 'conversation-model',
-        ),
-      );
-      addTearDown(chats.dispose);
-      addTearDown(settings.dispose);
-      addTearDown(assistants.dispose);
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider<SettingsProvider>.value(value: settings),
-            ChangeNotifierProvider<AssistantProvider>.value(value: assistants),
-            ChangeNotifierProvider<ChatService>.value(value: chats),
-          ],
-          child: const MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: DefaultModelPage(),
+        await assistants.loaded;
+        final assistantId = await assistants.addAssistant(name: 'Assistant');
+        await assistants.setCurrentAssistant(assistantId);
+        await assistants.updateAssistant(
+          assistants.currentAssistant!.copyWith(
+            chatModelProvider: 'assistant-provider',
+            chatModelId: 'assistant-model',
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        final chats = _FakeChatService(
+          Conversation(
+            title: 'Chat',
+            assistantId: assistantId,
+            chatModelProvider: 'conversation-provider',
+            chatModelId: 'conversation-model',
+          ),
+        );
+        addTearDown(chats.dispose);
+        addTearDown(settings.dispose);
+        addTearDown(assistants.dispose);
 
-      Haptics.setEnabled(false);
-      await tester.tap(find.text('Use current chat model').first);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 500)),
-      );
-      await tester.pump(const Duration(milliseconds: 500));
+        await tester.pumpWidget(
+          MultiProvider(
+            providers: [
+              ChangeNotifierProvider<SettingsProvider>.value(value: settings),
+              ChangeNotifierProvider<AssistantProvider>.value(
+                value: assistants,
+              ),
+              ChangeNotifierProvider<ChatService>.value(value: chats),
+            ],
+            child: const MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: DefaultModelPage(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(_providerTabSelected(tester, 'conversation-provider'), isTrue);
-      expect(_providerTabSelected(tester, 'assistant-provider'), isFalse);
+        Haptics.setEnabled(false);
+        await tester.tap(find.text('Use current chat model').first);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 500)),
+        );
+        await tester.pump(const Duration(milliseconds: 500));
 
-      Navigator.of(tester.element(find.byType(BottomSheet))).pop();
-      await tester.pumpAndSettle();
-    } finally {
-      Haptics.setEnabled(true);
-      debugDefaultTargetPlatformOverride = null;
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    }
-  }, timeout: const Timeout(Duration(seconds: 20)));
+        expect(_providerTabSelected(tester, 'conversation-provider'), isTrue);
+        expect(_providerTabSelected(tester, 'assistant-provider'), isFalse);
+
+        Navigator.of(tester.element(find.byType(BottomSheet))).pop();
+        await tester.pumpAndSettle();
+      } finally {
+        Haptics.setEnabled(true);
+        debugDefaultTargetPlatformOverride = null;
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      }
+    },
+    timeout: const Timeout(Duration(seconds: 20)),
+  );
 }

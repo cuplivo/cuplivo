@@ -26,6 +26,7 @@ import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../../../support/business_test_harness.dart';
+import '../../../../support/temp_directory_cleanup.dart';
 
 const _pngBytes = <int>[
   0x89,
@@ -230,11 +231,9 @@ void main() {
     tempDir = Directory.systemTemp.createTempSync('kelivo_preview_');
   });
 
-  tearDown(() {
-    if (tempDir.existsSync()) {
-      tempDir.deleteSync(recursive: true);
-    }
-  });
+  tearDown(
+    () => deleteDirectoryWhenReleased(tempDir, keepLockedLeftovers: true),
+  );
 
   test('classifies preview kind by extension and content sniff', () async {
     final image = File(p.join(tempDir.path, 'pic.png'))
@@ -295,6 +294,10 @@ void main() {
     expect(find.byKey(CodeFilePreview.codeKey), findsNothing);
     expect(find.byType(SelectableText).evaluate().length, lessThan(10));
     expect(tester.takeException(), isNull);
+    // Unmount before the temp directory goes away: the preview reader closes
+    // its file asynchronously in dispose, and Windows refuses to unlink it until
+    // then.
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('showFilePreview opens markdown with a source/rendered toggle', (

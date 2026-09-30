@@ -18,7 +18,7 @@ void main() {
       const uri = 'kelivo-file:///upload/missing_no_fs_probe.png';
       final fixed = SandboxPathResolver.fix(uri);
 
-      expect(fixed, p.join(docs, 'upload', 'missing_no_fs_probe.png'));
+      expect(fixed, p.posix.join(docs, 'upload', 'missing_no_fs_probe.png'));
       expect(File(fixed).existsSync(), isFalse);
     });
 
@@ -54,7 +54,7 @@ void main() {
 
       const oldPath =
           '/var/mobile/Containers/Data/Application/OLDUUID/Documents/upload/legacy.png';
-      expect(SandboxPathResolver.fix(oldPath), file.path);
+      expect(p.equals(SandboxPathResolver.fix(oldPath), file.path), isTrue);
     });
   });
 
@@ -109,7 +109,7 @@ void main() {
       const docs = '/tmp/kelivo_docs';
       SandboxPathResolver.debugSetDirs(docsDir: docs);
 
-      final abs = p.join(docs, 'upload', 'a.png');
+      final abs = p.posix.join(docs, 'upload', 'a.png');
       expect(
         SandboxPathResolver.canonicalize(abs),
         'kelivo-file:///upload/a.png',
@@ -182,7 +182,7 @@ void main() {
     test('round-trips with encodeFromAbsolute helper', () {
       const docs = '/data/app';
       SandboxPathResolver.debugSetDirs(docsDir: docs);
-      final abs = p.join(docs, 'avatars', 'me.png');
+      final abs = p.posix.join(docs, 'avatars', 'me.png');
       final uri = SandboxPathResolver.canonicalize(abs);
       expect(uri, KelivoFileUri.encodeFromAbsolute(abs, root: docs));
       expect(SandboxPathResolver.fix(uri), abs);

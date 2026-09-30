@@ -417,10 +417,20 @@ final class SherpaModelManager {
     } finally {
       _activeTokens.remove(modelId);
       _activeProgress.remove(modelId);
-      await _deleteFileIfPresent(partFile);
-      await _deleteFileIfPresent(archiveFile);
-      await _deleteFileIfPresent(File('${archiveFile.path}.uncompressed.part'));
-      await _deleteDirectoryIfPresent(staging);
+      // A killed extraction isolate releases the archive handle only a moment
+      // after `exitPort` fires, and Windows refuses to unlink a file whose
+      // handle is still open, so retry briefly. Cleanup must never replace the
+      // in-flight cancellation with its own PathAccessException; anything still
+      // locked is removed by the next install, which deletes both temp files up
+      // front.
+      await _cleanupTemporaryArtifacts(() async {
+        await _deleteFileIfPresent(partFile);
+        await _deleteFileIfPresent(archiveFile);
+        await _deleteFileIfPresent(
+          File('${archiveFile.path}.uncompressed.part'),
+        );
+        await _deleteDirectoryIfPresent(staging);
+      });
     }
   }
 
@@ -576,7 +586,13 @@ Future<void> _extractTarBz2Cancellable(
       token.whenCancelled.then<Object>((_) => _cancelledMarker),
     ]);
     if (identical(result, _cancelledMarker)) {
-      isolate.kill(priority: Isolate.immediate);
+      // `Isolate.immediate` terminates the isolate without running the decoder's
+      // `finally`, so the archive it still holds stays open for the rest of the
+      // process' life; on Windows that also blocks deleting the temp files and
+      // therefore the next download. Killing at the next event-loop turn lets
+      // the isolate close its streams first, so cancellation costs the remainder
+      // of the in-flight decode instead of leaking a locked file.
+      isolate.kill(priority: Isolate.beforeNextEvent);
       await exitPort.first;
       throw const SherpaDownloadCancelledException();
     }
@@ -730,6 +746,23 @@ bool _isSafeRelativePath(String value) {
 
 Future<void> _deleteFileIfPresent(File file) async {
   if (await file.exists()) await file.delete();
+}
+
+/// Runs [cleanup], retrying while the OS still reports a locked handle.
+Future<void> _cleanupTemporaryArtifacts(
+  Future<void> Function() cleanup, {
+  int attempts = 10,
+  Duration delay = const Duration(milliseconds: 50),
+}) async {
+  for (var attempt = 0; ; attempt++) {
+    try {
+      await cleanup();
+      return;
+    } on FileSystemException {
+      if (attempt >= attempts - 1) return;
+      await Future<void>.delayed(delay);
+    }
+  }
 }
 
 Future<void> _deleteDirectoryIfPresent(Directory directory) async {

@@ -35,6 +35,14 @@ class _Chat extends ChatService {
       id == conversation.id ? conversation : null;
 }
 
+/// `FileLinkResolver` resolves symbolic links, so it returns the on-disk
+/// casing while the test builds its path from the temp directory it created.
+/// `p.equals` compares paths case- and separator-insensitively on Windows.
+void expectSamePath(String? actual, String expected) {
+  expect(actual, isNotNull);
+  expect(p.equals(actual!, expected), isTrue, reason: 'actual: $actual');
+}
+
 void main() {
   late Directory root;
   late AppDatabase db;
@@ -127,7 +135,7 @@ void main() {
       await tester.tap(find.text('note.txt'));
       await settle(tester);
       expect(find.byType(FilePreviewFrame), findsOneWidget);
-      expect(
+      expectSamePath(
         tester
             .widget<FilePreviewFrame>(find.byType(FilePreviewFrame))
             .file
@@ -166,7 +174,7 @@ void main() {
         expect(find.byType(FileBrowser), findsOneWidget);
         final browser = tester.widget<FileBrowser>(find.byType(FileBrowser));
         expect(browser.readOnly, isTrue);
-        expect(browser.root.path, p.join(root.path, 'folder'));
+        expectSamePath(browser.root.path, p.join(root.path, 'folder'));
         expect(
           browser.modelPathOf(p.join(root.path, 'folder', 'child.txt')),
           p.join(root.path, 'folder', 'child.txt'),
@@ -219,7 +227,7 @@ void main() {
     );
     await settle(tester);
     expect(find.byType(WorkspaceFileThumbnail), findsOneWidget);
-    expect(
+    expectSamePath(
       tester
           .widget<WorkspaceFileThumbnail>(find.byType(WorkspaceFileThumbnail))
           .entry

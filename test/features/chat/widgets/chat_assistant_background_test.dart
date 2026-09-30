@@ -11,6 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import '../../../support/business_test_harness.dart';
+import '../../../support/temp_directory_cleanup.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 
 const _wallpaperColor = Color(0xFF4080C0);
 
@@ -30,7 +32,7 @@ void main() {
           addTearDown(tester.view.reset);
 
           final directory = Directory.systemTemp.createTempSync('chat-mask-');
-          addTearDown(() => directory.deleteSync(recursive: true));
+          addTearDown(() => deleteDirectoryWhenReleased(directory));
           final file = File('${directory.path}/wallpaper.png');
           final recorder = ui.PictureRecorder();
           Canvas(recorder).drawColor(_wallpaperColor, BlendMode.src);
@@ -46,7 +48,11 @@ void main() {
           await tester.pumpWidget(const SizedBox());
           await tester.runAsync(
             () => precacheImage(
-              FileImage(file),
+              // The widget resolves the stored path through
+              // SandboxPathResolver.fix, which rewrites separators on Windows;
+              // pre-caching the raw path would key a different FileImage and no
+              // frame would ever be painted.
+              FileImage(File(SandboxPathResolver.fix(file.path))),
               tester.element(find.byType(SizedBox)),
             ),
           );

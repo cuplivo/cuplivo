@@ -537,6 +537,19 @@ class _StubSyncProvider extends SyncProvider {
   /// What [pairWith] answers; set before the dialog submits.
   SyncPairOutcome outcome = const SyncPairOutcome.success();
 
+  /// The addresses a repair asked this provider to store, so a test can see the
+  /// form that reached it.
+  final repaired = <(String, int)>[];
+
+  @override
+  Future<void> updatePeerEndpoint(
+    String deviceId,
+    String host,
+    int port,
+  ) async {
+    repaired.add((host, port));
+  }
+
   @override
   Future<SyncPairOutcome> pairWith({
     required String host,
@@ -1678,6 +1691,56 @@ void main() {
       SystemChannels.platform,
       null,
     );
+
+    provider.dispose();
+    await a.chatService.close();
+    await a.repository.close();
+  });
+
+  testWidgets('the address repair stores the bare host, like pairing does', (
+    tester,
+  ) async {
+    // Not added to `sides`, for the same reason as the peer-card test above.
+    final a = _Side('a');
+    late final _StubSyncProvider provider;
+    late final AppLocalizations l10n;
+    await tester.runAsync(() async {
+      await a.start(root, withEngine: false);
+      provider = _StubSyncProvider(a);
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    });
+
+    final peer = SyncPeerRecord(
+      deviceId: 'peer-1',
+      certPem: 'pem',
+      secret: 'secret',
+      name: 'Studio desktop',
+      platform: 'linux',
+      endpoints: [SyncPeerEndpoint(host: 'fd00::5', port: 9527)],
+    );
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SyncProvider>.value(
+        value: provider,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: SyncPeerCard(peer: peer)),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text(l10n.lanSyncEditAddress));
+    await tester.pumpAndSettle();
+    // The bracketed literal is what the card itself shows and copies, so pasting
+    // the address back into the repair field is the journey this field exists
+    // for — and storage keeps the bare host, which is what the dial needs.
+    await tester.enterText(find.byType(TextField).at(0), '[fd00::9]');
+    await tester.enterText(find.byType(TextField).at(1), '9528');
+    await tester.tap(find.widgetWithText(FilledButton, 'OK'));
+    await tester.pumpAndSettle();
+
+    expect(provider.repaired.single, ('fd00::9', 9528));
 
     provider.dispose();
     await a.chatService.close();

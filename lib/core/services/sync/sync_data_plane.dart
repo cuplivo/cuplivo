@@ -186,7 +186,10 @@ class SyncDataPlane {
       if (!outcome.deferred &&
           (outcome.upsertedMessages > 0 ||
               outcome.deletedMessages > 0 ||
-              outcome.conversationRowChanged)) {
+              outcome.conversationRowChanged ||
+              // A repaired order is a change to what the user reads while every
+              // counter stays at zero, so it admits the conversation here too.
+              outcome.reordered)) {
         touched.add(conversationId);
       }
     }

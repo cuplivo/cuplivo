@@ -5230,15 +5230,17 @@ class ChatDatabaseRepository {
       // appended out of timestamp order, or a conversation an earlier build
       // left in a shifted state — and an incoming row always needs a free slot,
       // so whether to reorder is decided before anything is touched.
+      //
+      // Kept apart from the two counter conditions below because it is the one
+      // change the counters cannot express: the caller has to reload the window
+      // for a repair that writes no content (SyncSubtreeApplyOutcome.reordered).
+      final orderDrifted = finalRows.entries.any(
+        (entry) =>
+            !upsertedIds.contains(entry.key) &&
+            (entry.value['message_order'] as num).toInt() != order[entry.key],
+      );
       final needsReorder =
-          plan.upserts.isNotEmpty ||
-          deletes.isNotEmpty ||
-          finalRows.entries.any(
-            (entry) =>
-                !upsertedIds.contains(entry.key) &&
-                (entry.value['message_order'] as num).toInt() !=
-                    order[entry.key],
-          );
+          plan.upserts.isNotEmpty || deletes.isNotEmpty || orderDrifted;
 
       if (needsReorder) {
         // Phase 1: move every existing row above the final range. The shift
@@ -5319,6 +5321,7 @@ class ChatDatabaseRepository {
         // rather than dropping it silently.
         deletedMessages: deletes.length,
         conversationRowChanged: conversationRowChanged,
+        reordered: orderDrifted,
         appliedRevisionIds: upsertedIds,
       );
     });

@@ -951,6 +951,18 @@ class SyncSubtreeApplyOutcome {
   final int deletedMessages;
   final bool conversationRowChanged;
 
+  /// True when the apply repaired a message order that disagreed with the order
+  /// the re-derivation produced — a conversation an earlier build left shifted,
+  /// or one whose rows arrived out of order.
+  ///
+  /// It rides beside the counters instead of inside them because no row's
+  /// *content* changed: every other field here reports nothing while the
+  /// timeline the user is reading is not the one the database now holds. Without
+  /// this flag such an apply reloads nothing, and a window open on the
+  /// conversation keeps rendering the pre-sync order until the user leaves and
+  /// comes back.
+  final bool reordered;
+
   /// The revisions this apply actually wrote (the incoming rows that survived
   /// the merge). Asset registration keys off this set: a revision that never
   /// landed here (a deferred conversation, a resolved version-group loser)
@@ -965,6 +977,7 @@ class SyncSubtreeApplyOutcome {
     this.upsertedMessages = 0,
     this.deletedMessages = 0,
     this.conversationRowChanged = false,
+    this.reordered = false,
     this.appliedRevisionIds = const {},
   });
 

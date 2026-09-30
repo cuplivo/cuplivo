@@ -16,6 +16,59 @@ import 'sync_models.dart';
 import 'sync_server.dart';
 import 'sync_store.dart';
 
+/// One beat of an initiator session, for the card's progress line.
+enum SyncSessionPhase {
+  /// Dialing the remembered endpoints.
+  connecting,
+
+  /// Hello: exchanging manifests and planning.
+  exchanging,
+
+  /// Pushing this device's changes.
+  sending,
+
+  /// Fetching the peer's changes.
+  receiving,
+
+  /// Pulling file/skill blobs, counting [SyncSessionProgress.done] of [total].
+  files,
+
+  /// Applying what arrived to the local database.
+  applying,
+}
+
+/// What the panel shows while this device initiates a session with a peer.
+/// Transient by design — it lives exactly as long as the session.
+class SyncSessionProgress {
+  const SyncSessionProgress(
+    this.phase, {
+    this.done = 0,
+    this.total = 0,
+    this.address,
+    this.attempt = 0,
+    this.attempts = 0,
+  });
+
+  final SyncSessionPhase phase;
+
+  /// How many of [total] items the phase has finished. Only
+  /// [SyncSessionPhase.files] counts; the other phases are open-ended.
+  final int done;
+  final int total;
+
+  /// The endpoint this beat is working on, `host:port`. Only
+  /// [SyncSessionPhase.connecting] names one: a candidate that never answers is
+  /// the one case where "which address?" is the whole story, and without it the
+  /// card showed an opaque spinner while the dial, the handshake and a hello in
+  /// flight (up to the hello deadline) all looked like "comparing data".
+  final String? address;
+
+  /// Which candidate of [attempts] is being dialed, 1-based. Both zero when the
+  /// phase is not a dial.
+  final int attempt;
+  final int attempts;
+}
+
 /// Outcome of one session, for the peer card and the sync report.
 class SyncSessionReport {
   final bool success;
@@ -152,6 +205,33 @@ class SyncEngine implements SyncServerHandler {
   /// checkpoint file, so they must never run at once (see [syncWithPeer]).
   final Set<String> _initiatorRounds = {};
 
+  /// Live progress of this device's initiator sessions, by peer id — the
+  /// provider surfaces it on the peer cards. Entries live exactly as long as
+  /// the session in [syncWithPeer]'s `finally`.
+  final Map<String, SyncSessionProgress> initiatorProgress = {};
+
+  /// Publishes one progress beat. A phase change is one line of UI; the file
+  /// count is the only sub-beat worth a rebuild.
+  void _setProgress(
+    String deviceId,
+    SyncSessionPhase phase, {
+    int done = 0,
+    int total = 0,
+    String? address,
+    int attempt = 0,
+    int attempts = 0,
+  }) {
+    initiatorProgress[deviceId] = SyncSessionProgress(
+      phase,
+      done: done,
+      total: total,
+      address: address,
+      attempt: attempt,
+      attempts: attempts,
+    );
+    onStateChanged();
+  }
+
   /// What this device published for a manifest, by content hash: files are
   /// served straight from their canonical path, skill directories are zipped
   /// on demand. Populated whenever a manifest is built or received, so a blob
@@ -257,6 +337,7 @@ class SyncEngine implements SyncServerHandler {
       name: answer.deviceName.isEmpty ? answer.deviceId : answer.deviceName,
       platform: answer.platform,
     );
+    _carryPairingFacts(peer, await store.findPeer(answer.deviceId));
     peer.noteEndpointSuccess(host, port);
     peer.rememberEndpointCandidates(knownCandidates);
     await store.savePeer(peer);
@@ -410,6 +491,7 @@ class SyncEngine implements SyncServerHandler {
       );
     }
     try {
+      _setProgress(peer.deviceId, SyncSessionPhase.connecting);
       // An explicit endpoint (a repair attempt) is the only candidate; the
       // remembered set is the default, best first.
       final candidates = (host != null && port != null)
@@ -432,10 +514,23 @@ class SyncEngine implements SyncServerHandler {
           peer: peer,
         );
       }
-      for (final (candidateHost, candidatePort) in await orderCandidates(
+      final ordered = await orderCandidates(
         candidates,
         localAddresses: localAddresses,
-      )) {
+      );
+      for (var i = 0; i < ordered.length; i++) {
+        final (candidateHost, candidatePort) = ordered[i];
+        // The dial, the handshake and the hello in flight are one opaque beat
+        // from the outside, and it is the one that can hang: naming the address
+        // — and which candidate of how many — is what turns "it is stuck" into
+        // "it is stuck on *this* address".
+        _setProgress(
+          peer.deviceId,
+          SyncSessionPhase.connecting,
+          address: formatHostPort(candidateHost, candidatePort),
+          attempt: i + 1,
+          attempts: ordered.length,
+        );
         final report = await _syncWithPeerAt(
           peer,
           host: candidateHost,
@@ -455,6 +550,7 @@ class SyncEngine implements SyncServerHandler {
       );
     } finally {
       _initiatorRounds.remove(peer.deviceId);
+      initiatorProgress.remove(peer.deviceId);
       onStateChanged();
     }
   }
@@ -559,6 +655,12 @@ class SyncEngine implements SyncServerHandler {
           port: port,
         );
       }
+      // Both manifests are in hand and the peer answered: this is the beat the
+      // label can honestly call "comparing data". It must not be set any
+      // earlier — the hello round trip is where a silent address spends its
+      // whole budget, and showing that as "comparing data" is what made a
+      // hanging dial look like a hung comparison.
+      _setProgress(peer.deviceId, SyncSessionPhase.exchanging);
 
       // Conversations the peer says it could not apply: its copy is stale or
       // absent, so re-send rather than read its silence as a deletion. Its
@@ -676,6 +778,7 @@ class SyncEngine implements SyncServerHandler {
       // Only the skill bodies this push actually carries advertise a hash.
       final sentSkillIds =
           outgoingEntityIds[SyncDataPlane.skillWire] ?? const <String>{};
+      _setProgress(peer.deviceId, SyncSessionPhase.sending);
       final ack = await session.pushDelta(
         SyncDeltaBatch(
           outgoing,
@@ -718,6 +821,7 @@ class SyncEngine implements SyncServerHandler {
       // checkpoint advance and its report. Skipping it when this device wants
       // nothing would leave a conversation this device deleted alive on an
       // unmodified peer, which the dropped checkpoint entry then re-adopts.
+      _setProgress(peer.deviceId, SyncSessionPhase.receiving);
       final incoming = await session.fetchSubtrees(
         SyncFetchRequest(
           conversationIds: requested,
@@ -752,7 +856,16 @@ class SyncEngine implements SyncServerHandler {
       for (final pending in previous.pendingBlobs.values) {
         wanted.putIfAbsent(pending.target, () => pending);
       }
-      final pulled = await _pullBlobs(wanted.values.toList(), session);
+      final pulled = await _pullBlobs(
+        wanted.values.toList(),
+        session,
+        onProgress: (done, total) => _setProgress(
+          peer.deviceId,
+          SyncSessionPhase.files,
+          done: done,
+          total: total,
+        ),
+      );
       final deferredSkills = {
         ...adoptions.deferred,
         for (final id in adoptions.wantedSkillIds)
@@ -764,6 +877,7 @@ class SyncEngine implements SyncServerHandler {
           subtree.conversation['id'] as String,
       };
       missingIncoming.addAll(requested.where((id) => !delivered.contains(id)));
+      _setProgress(peer.deviceId, SyncSessionPhase.applying);
       outcomes.addAll(
         await dataPlane.applySubtrees(
           incoming.subtrees,
@@ -1407,6 +1521,9 @@ class SyncEngine implements SyncServerHandler {
       name: request.deviceName.isEmpty ? request.deviceId : request.deviceName,
       platform: request.platform,
     );
+    // Same carry-over as the initiator's side: this responder may hold the
+    // older (and richer) record of the pair.
+    _carryPairingFacts(peer, await store.findPeer(request.deviceId));
     // The endpoint that demonstrably works: where the initiator connected from,
     // paired with the listener port it advertised. Null when the initiator had
     // no listener running; the address can be fixed by hand.
@@ -1893,13 +2010,21 @@ class SyncEngine implements SyncServerHandler {
   /// Pulls and applies every wanted blob over [session], returning what landed
   /// and what must be retried. One blob's failure never aborts the session: a
   /// conversation is still a conversation without its picture, and a skill
-  /// record is simply deferred.
+  /// record is simply deferred. [onProgress] (if given) is called per blob with
+  /// how many are done out of the total — the one beat that can take minutes on
+  /// a first sync.
   Future<_BlobPullOutcome> _pullBlobs(
     List<SyncBlobEntry> wanted,
-    SyncClientSession session,
-  ) async {
+    SyncClientSession session, {
+    void Function(int done, int total)? onProgress,
+  }) async {
     final outcome = _BlobPullOutcome();
-    for (final entry in wanted) {
+    // Nothing to pull is not a beat: publishing "downloading files" for an
+    // empty set would flash a phase this session never enters.
+    if (wanted.isEmpty) return outcome;
+    for (var i = 0; i < wanted.length; i++) {
+      final entry = wanted[i];
+      onProgress?.call(i, wanted.length);
       File? temp;
       try {
         temp = await store.newBlobTempFile();
@@ -1940,6 +2065,7 @@ class SyncEngine implements SyncServerHandler {
         }
       }
     }
+    onProgress?.call(wanted.length, wanted.length);
     return outcome;
   }
 
@@ -2091,6 +2217,11 @@ class SyncEngine implements SyncServerHandler {
   /// [host]/[port] are the endpoint the session ran over. A session that got as
   /// far as an answer proves that address reaches the peer on this network
   /// (refusals included), so it is promoted to the front of the remembered set.
+  ///
+  /// A failed session updates [SyncPeerRecord.lastReport] but not
+  /// [SyncPeerRecord.lastSyncedAt]: "last synced" is a claim about the data the
+  /// user sees, and an unreachable peer changed none of it. The stamp otherwise
+  /// regressed to "just now" on every failure — exactly when nothing synced.
   Future<SyncSessionReport> _finish(
     SyncSessionReport report, {
     SyncPeerRecord? peer,
@@ -2099,7 +2230,7 @@ class SyncEngine implements SyncServerHandler {
   }) async {
     lastReport = report;
     if (peer != null) {
-      peer.lastSyncedAt = DateTime.now();
+      if (report.success) peer.lastSyncedAt = DateTime.now();
       peer.lastReport = report.toPeerReport();
       if (host != null && port != null) peer.noteEndpointSuccess(host, port);
       await store.savePeer(peer);
@@ -2132,6 +2263,25 @@ class SyncEngine implements SyncServerHandler {
     return base64Encode(
       List<int>.generate(32, (_) => random.nextInt(256), growable: false),
     );
+  }
+
+  /// Carries the facts a re-pair must not lose from [existing] onto [peer].
+  ///
+  /// Pairing rebuilds the record (new certificate pin, rotated secret, fresh
+  /// address set) — but a re-pair is the *drift-repair journey*, not a new
+  /// relationship, so three fields of the old record are still true: the
+  /// manual rename (a fact about this device's user, not about the peer), and
+  /// the last-sync stamp and report (the sessions that produced them happened,
+  /// and the checkpoint they advanced survives the re-pair untouched — it is
+  /// keyed by deviceId, which pairing does not change).
+  static void _carryPairingFacts(
+    SyncPeerRecord peer,
+    SyncPeerRecord? existing,
+  ) {
+    if (existing == null) return;
+    peer.customName = existing.customName;
+    peer.lastSyncedAt = existing.lastSyncedAt;
+    peer.lastReport = existing.lastReport;
   }
 
   void _dropExpiredSessions() {

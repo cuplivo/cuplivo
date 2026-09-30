@@ -810,6 +810,117 @@ that was red before it went in.
 Verification: the fixes' red proofs are the pre-fix runs recorded in each commit body; the full
 suite reports the same 77 known failures as this branch's baseline, with none added.
 
+## Amendment (2026-09, slice 14): the panel says what is true about a peer, and a first sync shows its work
+
+The panel's wording was written for a feature that ran rarely and finished quickly: one
+"Sync failed" line for every non-success, one " · "-joined counter line for success, a spinner with
+no beat behind it, and a "last synced" stamp that moved on failures. Field reports all said the same
+thing — alarmist where the situation was ordinary (a peer asleep), silent where the wait was long
+(the first sync), and forgetful about what the user had set (a renamed peer). This is the UI-facing
+half of the fix; three facts below it are what make it possible.
+
+- **A rename is *this device's* fact, so it has its own field.** The record kept one `name` and
+  pairing rebuilt the whole record, so a re-pair silently reset a name the user had typed — and a
+  re-pair is the drift-repair journey, which this feature expects users to perform whenever an
+  address changes. `customName` now holds the override (absent means none; a blank string is not an
+  override, so an empty rename dialog cannot blank a card), the card renders `displayName`, and a
+  re-pair carries the override, the last-sync stamp and the last report across from the record it
+  replaces. *Rejected: inferring a rename by comparing the stored name with the hello's* — the two
+  are equal whenever the user retyped what the peer already called itself, so the heuristic is
+  silently wrong in exactly the case it exists for.
+- **A re-pair does not reset the checkpoint, and it no longer looks like it does.** The checkpoint
+  file is keyed by `deviceId`, which pairing never changes, so the drift-repair journey always
+  re-used it; what a re-pair *did* reset was the record's own stamp and report, which the panel
+  renders as "never synced". Carrying them over is what makes "pair again" read as the repair it is.
+- **"Last synced" means the last *successful* session.** `_finish` stamped `lastSyncedAt` for every
+  outcome, so a peer that was switched off made the line claim the data was current — the one moment
+  it must not. `lastReport` still changes on failures and refusals, which is what the outcome area
+  beside it renders.
+- **Reachability is probed, so the card can say "offline" instead of "sync failed".**
+  `anyEndpointReachable` reuses the dial's own bare-TCP probe over the remembered endpoints — the
+  same probe, budget and "the probe classifies the address, never the peer" contract as the
+  candidate ordering — and the provider re-runs it on start, on resume, on a 30-second timer while
+  the app is visible, and after every session; a session in flight counts as its own proof. The card
+  draws it as a green/gray dot on the platform badge, and an `unreachable` outcome renders as a calm
+  "not reachable right now" note rather than a failure banner: a peer that is asleep is routine, and
+  it syncs again by itself when both devices are back on one network. The durable-socket gap (the
+  probe cannot tell "asleep" from "moved to an unknown network") is accepted — the actionable repair
+  still reaches the user through the manual sync's toast, which keeps the rescan/edit-address
+  wording. *Rejected: a persistent discovery protocol* — out of scope since slice 4 deferred it, and
+  a probe answers the only question a dot asks: does an address this pair already knows answer now?
+- **A running session publishes its beat.** The engine records `SyncSessionProgress` (connecting,
+  exchanging, sending, receiving, files with a done/total count, applying) and clears it when the
+  session ends; the card names the beat where the sync button was. That is the difference between a
+  first sync that looks hung and one that is visibly working, and the file beat is the one that can
+  take minutes.
+- **Pairing starts the first session itself.** Pairing has just proved the peer reachable with both
+  apps open — the exact window a first (whole-history) sync needs, and one a mobile OS closes the
+  moment the app leaves the foreground. `pairWith`/`pairWithQr` therefore kick the session and
+  return; the card shows the beats and, on a never-synced peer, the keep-both-devices-awake note.
+  Both pairing dialogs carry the same advisory, because that is the only moment the user is holding
+  both devices. A round that lands while that session runs is skipped as busy, by the existing
+  single-flight rule. *Rejected: waiting for the next foreground round* — the round is throttled by
+  a minute and the phone is usually pocketed by then.
+- **The success line is a card, not a string.** Counters render as icon chips (sent, received,
+  messages, entities, preferences, files with their size, skills) and the sentence-shaped warnings —
+  skill edits replaced, local rows replaced, files missing on the other device, deferred items,
+  clock skew — get a row each; a session that moved nothing reads "up to date" instead of "0 sent ·
+  0 received". The engine's machine `summary` stays for the logs, and the one-line form survives
+  only for the snackbar, which has room for one line.
+- **The window rebuild is triggered by "the peer sent this conversation", not by "a counter moved".**
+  Applying a subtree told an open chat window to rebuild only when one of four counters was non-zero
+  (upserted/deleted messages, a changed conversation row, a repaired order), and the fourth of those
+  existed precisely because counters cannot express every change: a written asset reference — the
+  retry that lands a file's bytes in a later session — makes an attachment start resolving while the
+  row it hangs off never moves, so the window kept showing the pre-sync state until the user switched
+  conversations and back. A rule that has to grow a flag per newly discovered silent write is a rule
+  that will be wrong again, so the apply now publishes every non-deferred conversation the peer sent,
+  and the asset-reference registration publishes its own conversations. The cost is one window
+  rebuild per arrived conversation per session (only for the conversation that is actually open); the
+  counters stay exactly as they are for the report. The one case this still does not cover is bytes
+  landing in a session that carries no subtree for the conversation — the reference is registered
+  before the bytes arrive, so that attachment appears on the next session or on re-entry.
+- **The dot's evidence is layered, and a session outranks a probe.** A bare TCP connect and a
+  session are not the same measurement: an address behind a NAT port-forward (or any listener that
+  is not this peer) can accept a connection and never complete the TLS handshake a session needs,
+  so a probe-only dot stayed green while every session failed. The probe keeps its cheap
+  address-level contract, but a finished session now files a verdict — answered (success, any
+  refusal, or a failure that needed an answer to happen) or silent (`unreachable`, `timeout`) —
+  which outranks the probe for `sessionVerdictTtl` (one minute, so the verdict cannot outlive the
+  peer's actual state). The probe itself gained jitter tolerance: one miss is remembered, two in a
+  row clear the dot, because a green dot that flickers gray every half minute is worse than one
+  that is half a minute stale. The card's tooltip says which evidence it is reporting.
+  *Rejected: upgrading the probe to a pinned TLS handshake* — it would overturn the documented
+  "a probe tests the *address*, never the peer" contract, make the 30-second probe carry crypto and
+  a new failure surface (self-signed certificates, IPv6 literals), and still be a weaker statement
+  than the session verdict that is now in the model for free.
+- **The dial beat names its address, and "comparing data" may only appear after the hello.** The
+  connecting phase was published once, before the candidate walk, and the exchanging phase was set
+  *before* the hello call — so "dial → handshake → hello in flight" (up to the 3-second connect
+  timeout plus the 60-second hello deadline, per candidate) was displayed to the user as "comparing
+  data", which is what made a hanging dial look like a hung comparison with nothing to act on.
+  `connecting` now carries the endpoint and the candidate's rank (`正在连接 13.173.213.34:9527…（2/3）`),
+  and `exchanging` is published only once both manifests are in hand. A candidate that will never
+  answer is now visibly *the* thing taking the time, and it is bounded: each candidate ends in
+  `unreachable`, which the session verdict turns into a gray dot.
+- **A peer dial is always DIRECT.** Dart's `HttpClient` defaults to
+  `findProxyFromEnvironment`, so a proxy exported in the environment (the Clash/v2ray-style
+  `HTTP_PROXY`/`ALL_PROXY` that desktop users and every developer with a VPN client run) captured every
+  dial to a peer whose address was not in the environment's `NO_PROXY` — and that list covers private
+  ranges only, while the addresses a pairing actually remembers are whatever the network handed out: a
+  NAT'd public address, or an IPv6 one. Both clients (pairing and session) are now built through one
+  factory that sets `findProxy = DIRECT`. The symptom that found this is worth keeping: the *probe*
+  behind the online dot is a bare `Socket.connect` and never consulted the proxy, so the card showed a
+  green dot next to sessions that could never connect — a reminder that when two measurements disagree,
+  the cheaper one is the one that is wrong.
+- **A `not_paired` refusal comes with the repair gesture.** The refusal is the client's reading of a
+  401: the peer's auth gate refused this device's secret, which means the pairing is gone *there* —
+  unpaired on the other device, reset there, or a re-pairing that only one side finished (the
+  responder rotates the secret the moment its `/pair` handler runs, so a lost answer leaves the
+  initiator holding the old one). Nothing this device can do on its own repairs it, so the card's
+  refusal banner now carries a "pair again" button that opens the pairing dialog prefilled with the
+  address the card already knows (the code still comes from the other device's screen).
+
 ## Considered options (rejected)
 
 - **Whole-database / backup-zip exchange** — not version-portable; a newer schema on an
@@ -907,8 +1018,10 @@ suite reports the same 77 known failures as this branch's baseline, with none ad
 - An address a peer has moved away from costs one failed connect before the remembered set moves on
   to the one that answers; `unreachable` on the panel therefore means *no* remembered address
   answered — the peer is off, or it is on a network this pair has never met, where re-scanning its
-  QR or typing the address remains the repair. Without discovery nothing anticipates a change, and
-  the panel still shows the last attempt rather than an "online" state it cannot verify.
+  QR or typing the address remains the repair. Without discovery nothing anticipates a change, so
+  the panel still shows the last attempt — and since slice 14 it also shows whether any remembered
+  address answers a probe right now, which is a claim about the addresses rather than about the
+  peer.
 - A foreground round over an unreachable peer walks its remembered candidates instead of stopping
   at the first: the cost is one connect timeout per candidate, bounded by the six-endpoint cap, and
   the one-minute throttle keeps that from becoming a loop.
@@ -927,9 +1040,9 @@ suite reports the same 77 known failures as this branch's baseline, with none ad
 - A `/sync/revoke` arriving while a session with that peer is running drops the responder's
   session state; the in-flight session then fails on its next beat because the peer no longer
   authenticates — the same end state as a revocation landing between sessions.
-- `lastReport` now also changes on a refused attempt, so the card's "last synced" line marks the
-  last *attempt*; that was already true of transport failures, and the outcome line beside it
-  says what happened.
+- `lastReport` changes on a refused attempt as well as a failed one, so the card's outcome area
+  describes the last *attempt*; the "last synced" line beside it is success-only (slice 14), because
+  it answers "how fresh is what I see?" rather than "when did the app last try?".
 - The checkpoint now also holds what this device owes itself (conversations and the business
   face whose apply it deferred), and the peer reads it from the next hello: a peer that never
   reports a deferral reintroduces the deletion bug, which is why the protocol gate is strict

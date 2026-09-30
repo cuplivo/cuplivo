@@ -117,8 +117,42 @@ String syncFailureMessage(AppLocalizations l10n, SyncFailureReason? reason) {
   }
 }
 
-/// One-line summary of a session for a peer card or a snackbar. A refusal is
-/// the most actionable message, so it wins over the failure text.
+/// The label for one beat of a running session: what the card says instead of
+/// a bare spinner while a first sync moves a whole history.
+///
+/// The dial beat names the address (and the candidate's rank), because that is
+/// the one beat that can sit for seconds on an address that will never answer —
+/// an unqualified "connecting…" turns a diagnosable wait into a mystery.
+String syncPhaseLabel(AppLocalizations l10n, SyncSessionProgress progress) {
+  switch (progress.phase) {
+    case SyncSessionPhase.connecting:
+      final address = progress.address;
+      if (address == null) return l10n.lanSyncPhaseConnecting;
+      return progress.attempts > 1
+          ? l10n.lanSyncPhaseConnectingAt(
+              address,
+              progress.attempt,
+              progress.attempts,
+            )
+          : l10n.lanSyncPhaseConnectingTo(address);
+    case SyncSessionPhase.exchanging:
+      return l10n.lanSyncPhaseExchanging;
+    case SyncSessionPhase.sending:
+      return l10n.lanSyncPhaseSending;
+    case SyncSessionPhase.receiving:
+      return l10n.lanSyncPhaseReceiving;
+    case SyncSessionPhase.files:
+      return progress.total > 0
+          ? l10n.lanSyncPhaseFiles(progress.done, progress.total)
+          : l10n.lanSyncPhaseFilesNoTotal;
+    case SyncSessionPhase.applying:
+      return l10n.lanSyncPhaseApplying;
+  }
+}
+
+/// One-line summary of a session, for the snackbar that covers the desktop pane
+/// when a card has scrolled out of view. The card itself renders the structured
+/// breakdown instead; this is the line for a toast that has room for one.
 String syncReportMessage(AppLocalizations l10n, SyncSessionReport report) {
   if (report.refusal != null) return syncRefusalMessage(l10n, report.refusal!);
   if (!report.success) {
@@ -131,32 +165,6 @@ String syncReportMessage(AppLocalizations l10n, SyncSessionReport report) {
     upserted: report.messagesUpserted,
     deleted: report.messagesDeleted,
     deletedConversations: report.conversationsDeletedLocally,
-    deferred: report.deferred,
-    entityRows: report.entityRows,
-    preferenceRows: report.preferenceRows,
-    blobsMoved: report.blobsMoved,
-    skillsUpdated: report.skillsUpdated,
-    skillConflicts: report.skillConflicts,
-    blobsMissing: report.blobsMissing,
-    entityRowsLost: report.entityRowsLost,
-    preferencesLost: report.preferencesLost,
-    clockSkewMs: report.clockSkewMs,
-  );
-}
-
-/// The same line, rebuilt from the counters persisted on a peer record.
-String syncPeerReportMessage(AppLocalizations l10n, SyncPeerReport report) {
-  if (report.refusal != null) return syncRefusalMessage(l10n, report.refusal!);
-  if (!report.success) {
-    return syncFailureMessage(l10n, report.failure);
-  }
-  return _syncCountsMessage(
-    l10n,
-    sent: report.sent,
-    received: report.received,
-    upserted: report.upsertedMessages,
-    deleted: report.deletedMessages,
-    deletedConversations: report.deletedConversations,
     deferred: report.deferred,
     entityRows: report.entityRows,
     preferenceRows: report.preferenceRows,

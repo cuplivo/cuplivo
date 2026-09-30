@@ -3,17 +3,21 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/providers/sync_provider.dart';
+import '../../../core/services/sync/sync_engine.dart';
 import '../../../core/services/sync/sync_local_addresses.dart';
 import '../../../core/services/sync/sync_store.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
+import '../../../theme/app_semantic_colors.dart';
 import '../sync_messages.dart';
-import 'sync_pairing_dialogs.dart' show IosDialogField;
+import 'sync_pairing_dialogs.dart' show IosDialogField, showSyncEnterCodeDialog;
+import 'sync_report_breakdown.dart';
 
-/// One paired device: identity, endpoint, last outcome, and the three actions
-/// that exist without discovery — sync now, fix the address, unpair.
+/// One paired device: identity, endpoint, whether it is reachable right now,
+/// the last outcome, and the three actions that exist without discovery — sync
+/// now, fix the address, unpair.
 class SyncPeerCard extends StatelessWidget {
   const SyncPeerCard({super.key, required this.peer});
 
@@ -35,6 +39,9 @@ class SyncPeerCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final provider = context.watch<SyncProvider>();
     final busy = provider.busyDeviceIds.contains(peer.deviceId);
+    final online = provider.isPeerOnline(peer.deviceId);
+    final presence = provider.peerPresenceSource(peer.deviceId);
+    final progress = provider.progressFor(peer.deviceId);
     final primary = peer.primaryEndpoint;
     final endpoint = primary?.label;
     final report = peer.lastReport;
@@ -57,10 +64,10 @@ class SyncPeerCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
-                _platformIcon,
-                size: 20,
-                color: cs.onSurface.withValues(alpha: 0.85),
+              _PlatformBadge(
+                icon: _platformIcon,
+                online: online,
+                presence: presence,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -68,7 +75,7 @@ class SyncPeerCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      peer.name,
+                      peer.displayName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -101,25 +108,14 @@ class SyncPeerCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               busy
-                  ? Row(
-                      children: [
-                        SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: cs.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          l10n.lanSyncSyncing,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: cs.onSurface.withValues(alpha: 0.7),
-                          ),
-                        ),
-                      ],
+                  ? _SessionProgress(
+                      label: syncPhaseLabel(
+                        l10n,
+                        progress ??
+                            const SyncSessionProgress(
+                              SyncSessionPhase.connecting,
+                            ),
+                      ),
                     )
                   : TextButton.icon(
                       onPressed: () => _syncNow(context, provider),
@@ -143,27 +139,42 @@ class SyncPeerCard extends StatelessWidget {
               ),
             ),
           ),
-          if (report != null) ...[
-            const SizedBox(height: 2),
+          // The first session after pairing moves the whole history at once and
+          // needs both apps alive — the one moment the card owes a warning.
+          if (busy && peer.lastSyncedAt == null) ...[
+            const SizedBox(height: 6),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (report.refusal != null || !report.success) ...[
-                  Icon(Lucide.TriangleAlert, size: 13, color: cs.error),
-                  const SizedBox(width: 5),
-                ],
+                Icon(
+                  Lucide.TriangleAlert,
+                  size: 13,
+                  color: context.appColors.warning,
+                ),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    syncPeerReportMessage(l10n, report),
+                    l10n.lanSyncFirstSyncHint,
                     style: TextStyle(
                       fontSize: 12,
-                      color: report.refusal != null || !report.success
-                          ? cs.error
-                          : cs.onSurface.withValues(alpha: 0.65),
+                      color: cs.onSurface.withValues(alpha: 0.65),
                     ),
                   ),
                 ),
               ],
+            ),
+          ],
+          if (report != null) ...[
+            const SizedBox(height: 8),
+            SyncReportBreakdown(
+              report: report,
+              // The refusal that says "pair again" gets the gesture, prefilled
+              // with the address this card already shows.
+              onPairAgain: () => showSyncEnterCodeDialog(
+                context: context,
+                host: peer.primaryEndpoint?.host,
+                port: peer.primaryEndpoint?.port,
+              ),
             ),
           ],
           const SizedBox(height: 4),
@@ -249,7 +260,7 @@ class SyncPeerCard extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.lanSyncUnpairConfirmTitle(peer.name)),
+        title: Text(l10n.lanSyncUnpairConfirmTitle(peer.displayName)),
         content: Text(l10n.lanSyncUnpairConfirmBody),
         actions: [
           TextButton(
@@ -268,6 +279,116 @@ class SyncPeerCard extends StatelessWidget {
     );
     if (confirmed != true) return;
     await provider.unpair(peer.deviceId);
+  }
+}
+
+/// The peer's platform icon with its reachability as a corner dot.
+///
+/// A dot and not a sentence: a peer being away is routine (asleep, off the
+/// Wi-Fi), so it must be readable at a glance without a card that looks broken.
+/// The ring is the card's own fill, which is what makes the dot sit *on* the
+/// badge instead of over it.
+///
+/// [presence] rides along into the tooltip, because "offline" has two meanings
+/// the dot cannot show: a probe that found no answer, and a session that needed
+/// a real handshake and could not get one. The second is the stronger statement
+/// and the one a user staring at a failed sync is asking about.
+class _PlatformBadge extends StatelessWidget {
+  const _PlatformBadge({
+    required this.icon,
+    required this.online,
+    required this.presence,
+  });
+
+  final IconData icon;
+  final bool online;
+  final PresenceSource presence;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final colors = context.appColors;
+    final label = switch (presence) {
+      PresenceSource.sessionAnswered => l10n.lanSyncOnlineFromSession,
+      PresenceSource.sessionSilent => l10n.lanSyncOfflineFromSession,
+      PresenceSource.probe || PresenceSource.unknown =>
+        online ? l10n.lanSyncOnline : l10n.lanSyncOffline,
+    };
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        label: label,
+        child: SizedBox(
+          width: 38,
+          height: 38,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: cs.onSurface.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  size: 18,
+                  color: cs.onSurface.withValues(alpha: 0.75),
+                ),
+              ),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  width: 11,
+                  height: 11,
+                  decoration: BoxDecoration(
+                    color: online
+                        ? colors.success
+                        : cs.onSurface.withValues(alpha: 0.3),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: colors.surfaceCard, width: 2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// What the card shows in place of the sync button while a session runs: a
+/// spinner and the beat it is on, because a first sync can be minutes long.
+class _SessionProgress extends StatelessWidget {
+  const _SessionProgress({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 14,
+          height: 14,
+          child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            color: cs.onSurface.withValues(alpha: 0.7),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -364,7 +485,7 @@ class _RenameDialog extends StatefulWidget {
 
 class _RenameDialogState extends State<_RenameDialog> {
   late final TextEditingController _name = TextEditingController(
-    text: widget.peer.name,
+    text: widget.peer.displayName,
   );
 
   @override
@@ -381,7 +502,7 @@ class _RenameDialogState extends State<_RenameDialog> {
       content: IosDialogField(
         controller: _name,
         label: l10n.lanSyncRenameTitle,
-        hint: widget.peer.name,
+        hint: widget.peer.displayName,
       ),
       actions: [
         TextButton(

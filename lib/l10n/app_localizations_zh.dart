@@ -11826,6 +11826,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncPairSectionTitle => '配对设备';
 
   @override
+  String get lanSyncPairFirstSyncNote =>
+      '配对成功后会自动开始首次同步，可能耗时较长。请保持电脑端应用运行，手机端保持在本应用前台。';
+
+  @override
   String get lanSyncPairIntro => '在一台设备上显示二维码，用另一台扫描；没有摄像头时输入配对码。两台设备需在同一网络。';
 
   @override
@@ -11856,6 +11860,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get lanSyncPairButton => '配对';
+
+  @override
+  String get lanSyncPairAgain => '重新配对';
 
   @override
   String get lanSyncPairingBusy => '配对中…';
@@ -11971,7 +11978,56 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncSyncNow => '立即同步';
 
   @override
-  String get lanSyncSyncing => '同步中…';
+  String get lanSyncOnline => '在线';
+
+  @override
+  String get lanSyncOnlineFromSession => '在线——上次同步成功连上';
+
+  @override
+  String get lanSyncOfflineFromSession => '离线——上次同步没能连上';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return '正在连接 $address…';
+  }
+
+  @override
+  String lanSyncPhaseConnectingAt(Object address, Object index, Object total) {
+    return '正在连接 $address…（$index/$total）';
+  }
+
+  @override
+  String get lanSyncOffline => '离线';
+
+  @override
+  String get lanSyncUpToDate => '已是最新';
+
+  @override
+  String get lanSyncPhaseConnecting => '正在连接…';
+
+  @override
+  String get lanSyncPhaseExchanging => '正在对比数据…';
+
+  @override
+  String get lanSyncPhaseSending => '正在发送变更…';
+
+  @override
+  String get lanSyncPhaseReceiving => '正在接收变更…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return '正在下载文件…（$done/$total）';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => '正在下载文件…';
+
+  @override
+  String get lanSyncPhaseApplying => '正在应用变更…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      '首次同步进行中——请保持两台设备唤醒、Cuplivo 保持开启（手机端请保持前台），直到同步完成。';
 
   @override
   String get lanSyncRename => '重命名';
@@ -12037,6 +12093,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n 个文件 · $size';
+  }
+
+  @override
   String lanSyncReportBlobs(Object n) {
     return '$n 个文件';
   }
@@ -12067,6 +12128,10 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get lanSyncReportPeerOffline =>
+      '暂时连不上——对方可能已休眠或换了网络；两台设备回到同一网络后会自动同步。';
+
+  @override
   String get lanSyncReportUnreachable =>
       '同步失败：无法连接到对方设备。它可能已离线或换了网络——重新扫描它的二维码，或在卡片上修改地址。';
 
@@ -12090,7 +12155,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncRefusedProtocolUnknown => '对方使用不同的同步协议。请将两台设备都更新到最新版本。';
 
   @override
-  String get lanSyncRefusedNotPaired => '对方已不记得本设备。请重新配对。';
+  String get lanSyncRefusedNotPaired =>
+      '本设备与对方对这次配对的记录已不一致——对方解除了配对，或重新配对没有在两台设备上完成。请在两台设备上重新配对。';
 
   @override
   String get lanSyncRefusedIdentityMismatch => '对方设备的身份不一致。请在两台设备上重新配对。';
@@ -23864,6 +23930,10 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncPairSectionTitle => '配对设备';
 
   @override
+  String get lanSyncPairFirstSyncNote =>
+      '配对成功后会自动开始首次同步，可能耗时较长。请保持电脑端应用运行，手机端保持在本应用前台。';
+
+  @override
   String get lanSyncPairIntro => '在一台设备上显示二维码，用另一台扫描；没有摄像头时输入配对码。两台设备需在同一网络。';
 
   @override
@@ -23894,6 +23964,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncPairButton => '配对';
+
+  @override
+  String get lanSyncPairAgain => '重新配对';
 
   @override
   String get lanSyncPairingBusy => '配对中…';
@@ -24009,7 +24082,56 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncSyncNow => '立即同步';
 
   @override
-  String get lanSyncSyncing => '同步中…';
+  String get lanSyncOnline => '在线';
+
+  @override
+  String get lanSyncOnlineFromSession => '在线——上次同步成功连上';
+
+  @override
+  String get lanSyncOfflineFromSession => '离线——上次同步没能连上';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return '正在连接 $address…';
+  }
+
+  @override
+  String lanSyncPhaseConnectingAt(Object address, Object index, Object total) {
+    return '正在连接 $address…（$index/$total）';
+  }
+
+  @override
+  String get lanSyncOffline => '离线';
+
+  @override
+  String get lanSyncUpToDate => '已是最新';
+
+  @override
+  String get lanSyncPhaseConnecting => '正在连接…';
+
+  @override
+  String get lanSyncPhaseExchanging => '正在对比数据…';
+
+  @override
+  String get lanSyncPhaseSending => '正在发送变更…';
+
+  @override
+  String get lanSyncPhaseReceiving => '正在接收变更…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return '正在下载文件…（$done/$total）';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => '正在下载文件…';
+
+  @override
+  String get lanSyncPhaseApplying => '正在应用变更…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      '首次同步进行中——请保持两台设备唤醒、Cuplivo 保持开启（手机端请保持前台），直到同步完成。';
 
   @override
   String get lanSyncRename => '重命名';
@@ -24075,6 +24197,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n 个文件 · $size';
+  }
+
+  @override
   String lanSyncReportBlobs(Object n) {
     return '$n 个文件';
   }
@@ -24105,6 +24232,10 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
+  String get lanSyncReportPeerOffline =>
+      '暂时连不上——对方可能已休眠或换了网络；两台设备回到同一网络后会自动同步。';
+
+  @override
   String get lanSyncReportUnreachable =>
       '同步失败：无法连接到对方设备。它可能已离线或换了网络——重新扫描它的二维码，或在卡片上修改地址。';
 
@@ -24128,7 +24259,8 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncRefusedProtocolUnknown => '对方使用不同的同步协议。请将两台设备都更新到最新版本。';
 
   @override
-  String get lanSyncRefusedNotPaired => '对方已不记得本设备。请重新配对。';
+  String get lanSyncRefusedNotPaired =>
+      '本设备与对方对这次配对的记录已不一致——对方解除了配对，或重新配对没有在两台设备上完成。请在两台设备上重新配对。';
 
   @override
   String get lanSyncRefusedIdentityMismatch => '对方设备的身份不一致。请在两台设备上重新配对。';
@@ -35981,6 +36113,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get lanSyncPairSectionTitle => '配對裝置';
 
   @override
+  String get lanSyncPairFirstSyncNote =>
+      '配對成功後會自動開始首次同步，可能耗時較長。請保持電腦端應用程式執行，手機端保持在這個應用程式前台。';
+
+  @override
   String get lanSyncPairIntro => '在一台裝置上顯示二維碼，用另一台掃描；沒有相機時輸入配對碼。兩台裝置需在同一網路。';
 
   @override
@@ -36011,6 +36147,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncPairButton => '配對';
+
+  @override
+  String get lanSyncPairAgain => '重新配對';
 
   @override
   String get lanSyncPairingBusy => '配對中…';
@@ -36126,7 +36265,56 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get lanSyncSyncNow => '立即同步';
 
   @override
-  String get lanSyncSyncing => '同步中…';
+  String get lanSyncOnline => '線上';
+
+  @override
+  String get lanSyncOnlineFromSession => '線上——上次同步成功連上';
+
+  @override
+  String get lanSyncOfflineFromSession => '離線——上次同步沒能連上';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return '正在連線 $address…';
+  }
+
+  @override
+  String lanSyncPhaseConnectingAt(Object address, Object index, Object total) {
+    return '正在連線 $address…（$index/$total）';
+  }
+
+  @override
+  String get lanSyncOffline => '離線';
+
+  @override
+  String get lanSyncUpToDate => '已是最新';
+
+  @override
+  String get lanSyncPhaseConnecting => '正在連線…';
+
+  @override
+  String get lanSyncPhaseExchanging => '正在比對資料…';
+
+  @override
+  String get lanSyncPhaseSending => '正在傳送變更…';
+
+  @override
+  String get lanSyncPhaseReceiving => '正在接收變更…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return '正在下載檔案…（$done/$total）';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => '正在下載檔案…';
+
+  @override
+  String get lanSyncPhaseApplying => '正在套用變更…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      '首次同步進行中——請保持兩台裝置喚醒、Cuplivo 保持開啟（手機端請保持前台），直到同步完成。';
 
   @override
   String get lanSyncRename => '重新命名';
@@ -36192,6 +36380,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n 個檔案 · $size';
+  }
+
+  @override
   String lanSyncReportBlobs(Object n) {
     return '$n 個檔案';
   }
@@ -36222,6 +36415,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String get lanSyncReportPeerOffline =>
+      '暫時連不上——對方可能已休眠或換了網路；兩台裝置回到同一網路後會自動同步。';
+
+  @override
   String get lanSyncReportUnreachable =>
       '同步失敗：無法連線到對方裝置。它可能已離線或換了網路——重新掃描它的二維碼，或在卡片上修改位址。';
 
@@ -36245,7 +36442,8 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get lanSyncRefusedProtocolUnknown => '對方使用不同的同步協定。請將兩台裝置都更新到最新版本。';
 
   @override
-  String get lanSyncRefusedNotPaired => '對方已不記得本裝置。請重新配對。';
+  String get lanSyncRefusedNotPaired =>
+      '本裝置與對方對這次配對的記錄已不一致——對方解除了配對，或重新配對沒有在兩台裝置上完成。請在兩台裝置上重新配對。';
 
   @override
   String get lanSyncRefusedIdentityMismatch => '對方裝置的身分不一致。請在兩台裝置上重新配對。';

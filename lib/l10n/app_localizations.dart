@@ -22152,6 +22152,12 @@ abstract class AppLocalizations {
   /// **'Pair a device'**
   String get lanSyncPairSectionTitle;
 
+  /// No description provided for @lanSyncPairFirstSyncNote.
+  ///
+  /// In en, this message translates to:
+  /// **'After pairing, the first sync starts automatically and can take a while. Keep the desktop app running and this app in the foreground on mobile.'**
+  String get lanSyncPairFirstSyncNote;
+
   /// No description provided for @lanSyncPairIntro.
   ///
   /// In en, this message translates to:
@@ -22211,6 +22217,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pair'**
   String get lanSyncPairButton;
+
+  /// No description provided for @lanSyncPairAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair again'**
+  String get lanSyncPairAgain;
 
   /// No description provided for @lanSyncPairingBusy.
   ///
@@ -22410,11 +22422,95 @@ abstract class AppLocalizations {
   /// **'Sync now'**
   String get lanSyncSyncNow;
 
-  /// No description provided for @lanSyncSyncing.
+  /// No description provided for @lanSyncOnline.
   ///
   /// In en, this message translates to:
-  /// **'Syncing…'**
-  String get lanSyncSyncing;
+  /// **'Online'**
+  String get lanSyncOnline;
+
+  /// No description provided for @lanSyncOnlineFromSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Online — the last sync connected'**
+  String get lanSyncOnlineFromSession;
+
+  /// No description provided for @lanSyncOfflineFromSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline — the last sync could not connect'**
+  String get lanSyncOfflineFromSession;
+
+  /// No description provided for @lanSyncPhaseConnectingTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to {address}…'**
+  String lanSyncPhaseConnectingTo(Object address);
+
+  /// No description provided for @lanSyncPhaseConnectingAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to {address}… ({index}/{total})'**
+  String lanSyncPhaseConnectingAt(Object address, Object index, Object total);
+
+  /// No description provided for @lanSyncOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get lanSyncOffline;
+
+  /// No description provided for @lanSyncUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date'**
+  String get lanSyncUpToDate;
+
+  /// No description provided for @lanSyncPhaseConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get lanSyncPhaseConnecting;
+
+  /// No description provided for @lanSyncPhaseExchanging.
+  ///
+  /// In en, this message translates to:
+  /// **'Comparing data…'**
+  String get lanSyncPhaseExchanging;
+
+  /// No description provided for @lanSyncPhaseSending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending changes…'**
+  String get lanSyncPhaseSending;
+
+  /// No description provided for @lanSyncPhaseReceiving.
+  ///
+  /// In en, this message translates to:
+  /// **'Receiving changes…'**
+  String get lanSyncPhaseReceiving;
+
+  /// No description provided for @lanSyncPhaseFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading files… ({done}/{total})'**
+  String lanSyncPhaseFiles(Object done, Object total);
+
+  /// No description provided for @lanSyncPhaseFilesNoTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading files…'**
+  String get lanSyncPhaseFilesNoTotal;
+
+  /// No description provided for @lanSyncPhaseApplying.
+  ///
+  /// In en, this message translates to:
+  /// **'Applying changes…'**
+  String get lanSyncPhaseApplying;
+
+  /// No description provided for @lanSyncFirstSyncHint.
+  ///
+  /// In en, this message translates to:
+  /// **'First sync in progress — keep both devices awake and Cuplivo open (in the foreground on mobile) until it finishes.'**
+  String get lanSyncFirstSyncHint;
 
   /// No description provided for @lanSyncRename.
   ///
@@ -22506,6 +22602,12 @@ abstract class AppLocalizations {
   /// **'{n} preferences'**
   String lanSyncReportPreferences(Object n);
 
+  /// No description provided for @lanSyncReportBlobsWithSize.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} files · {size}'**
+  String lanSyncReportBlobsWithSize(Object n, Object size);
+
   /// No description provided for @lanSyncReportBlobs.
   ///
   /// In en, this message translates to:
@@ -22541,6 +22643,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clocks differ by ~{n} min — fix the device clock, then sync again'**
   String lanSyncReportClockSkew(Object n);
+
+  /// No description provided for @lanSyncReportPeerOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Not reachable right now — it may be asleep or on another network. Syncing resumes when both devices are back on the same one.'**
+  String get lanSyncReportPeerOffline;
 
   /// No description provided for @lanSyncReportUnreachable.
   ///
@@ -22587,7 +22695,7 @@ abstract class AppLocalizations {
   /// No description provided for @lanSyncRefusedNotPaired.
   ///
   /// In en, this message translates to:
-  /// **'The other device no longer has this one paired. Pair again.'**
+  /// **'This device and the other one no longer agree on this pairing — it was unpaired there, or a re-pairing did not finish on both sides. Pair again on both devices.'**
   String get lanSyncRefusedNotPaired;
 
   /// No description provided for @lanSyncRefusedIdentityMismatch.

@@ -1885,6 +1885,72 @@ void main() {
     );
   });
 
+  test(
+    'a session falls through an endpoint answering with the wrong certificate',
+    () async {
+      final (a, b) = await pair();
+      // A live sync listener that is not the peer: a recycled lease a second
+      // install now holds, or a machine that happens to answer on the sync port.
+      final c = _Side('c');
+      await c.start(root);
+      sides.add(c);
+
+      final drifted = await a.peer(b);
+      // The dial order is forced to meet the stranger first without depending on
+      // the prober's ordering: this device stands on 127.0.0.1, so the address
+      // sharing that subnet is dialed before the peer's ::1 one.
+      drifted.replaceEndpoints('::1', b.port);
+      drifted.rememberEndpointCandidates([('127.0.0.1', c.port)]);
+      await a.store.savePeer(drifted);
+      a.engine.localAddresses = [(name: 'en0', address: '127.0.0.1')];
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+
+      // The peer was live right behind the stranger, so the session must have
+      // reached it: a refused certificate is a verdict on the address, not on
+      // the peer. Anything else ends the walk with the peer still untried.
+      expect(
+        report.success,
+        isTrue,
+        reason: '${report.summary} ${report.failure}',
+      );
+
+      // And the address that answered as another device is neither promoted
+      // over the endpoint that reached the peer, nor stamped as one that
+      // worked — nothing there ever answered as the peer.
+      final refreshed = await a.peer(b);
+      expect(refreshed.primaryEndpoint?.host, '::1');
+      expect(refreshed.primaryEndpoint?.port, b.port);
+      final stranger = refreshed.endpoints.firstWhere((e) => e.port == c.port);
+      expect(stranger.lastSuccessAt, isNull);
+    },
+  );
+
+  test('a session whose every address answers as another device reports '
+      'unreachable', () async {
+    final (a, b) = await pair();
+    final c = _Side('c');
+    final d = _Side('d');
+    await c.start(root);
+    await d.start(root);
+    sides.addAll([c, d]);
+
+    // Both remembered addresses are live listeners that are not the peer. The
+    // walk tries both and can then only report that nothing reached the peer;
+    // the addresses stay as hints, because the peer may sit behind one of them
+    // again after the next DHCP lease.
+    final drifted = await a.peer(b);
+    drifted.replaceEndpoints('127.0.0.1', c.port);
+    drifted.rememberEndpointCandidates([('127.0.0.1', d.port)]);
+    await a.store.savePeer(drifted);
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+
+    expect(report.success, isFalse);
+    expect(report.failure, SyncFailureReason.unreachable);
+    expect((await a.peer(b)).endpoints.length, 2);
+  });
+
   test('a peer that remembers no address asks for one, not for a retry', () async {
     final (a, b) = await pair();
 

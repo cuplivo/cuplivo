@@ -463,11 +463,11 @@ class SyncEngine implements SyncServerHandler {
   /// null when the endpoint never answered — the caller then tries the next
   /// remembered candidate.
   ///
-  /// A `HandshakeException` is a null too, on purpose: it means the address now
-  /// belongs to another device (a recycled lease) or something claims to be the
-  /// peer. The pin refused it inside the handshake, before any request byte, so
-  /// nothing leaked towards the wrong endpoint and the next candidate is still
-  /// a fair attempt.
+  /// A `TlsException` — a `HandshakeException` among them — is a null too, on
+  /// purpose: it means the address now belongs to another device (a recycled
+  /// lease) or something claims to be the peer. The pin refused it inside the
+  /// handshake, before any request byte, so nothing leaked towards the wrong
+  /// endpoint and the next candidate is still a fair attempt.
   Future<SyncSessionReport?> _syncWithPeerAt(
     SyncPeerRecord peer, {
     required String host,
@@ -508,9 +508,22 @@ class SyncEngine implements SyncServerHandler {
           ),
         );
       } on SocketException catch (error) {
-        // Refused, unroutable, or another device's certificate: this address
-        // did not answer as the peer. The caller tries the next one.
+        // Refused, unroutable: nothing answered at this address. The caller
+        // tries the next one.
         debugPrint('sync: ${peer.deviceId} unreachable at $host:$port: $error');
+        return null;
+      } on TlsException catch (error) {
+        // The address answered, and the pin refused what answered: a recycled
+        // lease a second install now holds, or an identity that rotated after a
+        // wipe. That is a verdict on the *address*, so the walk continues — the
+        // same reading the pairing walk gives it. A `HandshakeException`
+        // implements `TlsException` (it is **not** a `SocketException`), and the
+        // refusal happens inside the handshake, before any request byte, so
+        // nothing leaked towards the endpoint that answered.
+        debugPrint(
+          'sync: ${peer.deviceId} answered as another device at $host:$port: '
+          '$error',
+        );
         return null;
       } on TimeoutException catch (error) {
         debugPrint('sync: ${peer.deviceId} timed out at $host:$port: $error');

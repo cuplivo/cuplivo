@@ -749,3 +749,46 @@ jobs:
         with:
           name: Linux-RPM
           path: Cuplivo_linux_*.rpm
+
+  # softprops/action-gh-release 没有传 body，所以每次发布都会得到空 body。
+  # 这里在所有平台产物上传完成后补写一次：从两份 changelog 里各取本版本块，
+  # 中文块在前、英文块在后（AGENTS.md 的发布说明约定）。
+  release-notes:
+    name: 补写 Release 说明
+    needs: [android, ios, macos, windows, linux]
+    # 选中的平台被 if 跳过时也要运行，故用 always()
+    if: ${{ always() && github.event.inputs.publish_release == 'true' && github.event.inputs.release_tag != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: 组装并写入 Release 说明
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          ESCAPED="${VERSION//./\\.}"
+          extract() {
+            awk -v ver="$ESCAPED" '
+              $0 ~ "^## \\[" ver "\\]" { inside = 1; print; next }
+              inside && /^## \[/ { exit }
+              inside { print }
+            ' "$1"
+          }
+          CN="$(extract CHANGELOG_CN.md)"
+          EN="$(extract CHANGELOG.md)"
+          if [ -z "$CN" ] && [ -z "$EN" ]; then
+            echo "::error::CHANGELOG_CN.md / CHANGELOG.md have no block for $VERSION"
+            exit 1
+          fi
+          {
+            [ -n "$CN" ] && printf '%s\n' "$CN"
+            [ -n "$CN" ] && [ -n "$EN" ] && printf '\n---\n\n'
+            [ -n "$EN" ] && printf '%s\n' "$EN"
+          } > release_notes.md
+          echo "release_notes.md:"; wc -l release_notes.md
+          gh release edit "$TAG" --notes-file release_notes.md

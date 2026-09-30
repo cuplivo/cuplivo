@@ -2095,70 +2095,70 @@ void main() {
     expect(persisted.lastReport?.refusal, SyncRefusalReason.notPaired);
   });
 
-  test(
-    'a QR payload skips a dead endpoint and pairs on the live one',
-    () async {
-      final a = _Side('a');
-      final b = _Side('b');
-      await a.start(root, withEngine: false);
-      await b.start(root);
-      sides.addAll([a, b]);
-      final provider = await a.startProvider();
+  test('a QR payload skips a dead endpoint and pairs on the live one', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+    final provider = await a.startProvider();
 
-      final deadPort = await _unusedPort();
-      final pin = b.engine.openPairing();
-      final payload = SyncPairQrPayload(
+    final deadPort = await _unusedPort();
+    final pin = b.engine.openPairing();
+    final payload = SyncPairQrPayload(
+      deviceId: b.identity.deviceId,
+      name: b.label,
+      endpoints: [('127.0.0.1', deadPort), ('127.0.0.1', b.port)],
+      pin: pin,
+    );
+
+    final result = await provider.pairWithQr(payload);
+    expect(result.outcome.success, isTrue, reason: result.outcome.errorDetail);
+    expect(result.wasKnownPeer, isFalse);
+
+    final peer = provider.peers.single;
+    expect(peer.deviceId, b.identity.deviceId);
+    expect(
+      peer.primaryEndpoint?.port,
+      b.port,
+      reason: 'the live candidate won',
+    );
+    // The endpoint that lost is remembered behind the winner: it is the
+    // candidate a later round tries when this network goes away.
+    expect(
+      peer.endpoints.map((e) => e.port),
+      contains(deadPort),
+      reason: 'the dead candidate was kept as a hint',
+    );
+    // The joiner advertised its own listener, so the responder can dial back.
+    expect((await b.peer(a)).primaryEndpoint?.port, provider.port);
+
+    // The first pairing kicked its own session (see [SyncProvider]): pairing
+    // again while that session is still beating drops the responder's secret
+    // rotation into the middle of it, and under load the pair itself can then
+    // come back as a failure even though the peer has already rotated. Let the
+    // kick settle — this assertion is about the re-pair, not that overlap.
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+
+    // Scanning a fresh code for the same device is the drift-repair journey,
+    // and the UI says so instead of pretending it is a first pairing.
+    final secondPin = b.engine.openPairing();
+    final second = await provider.pairWithQr(
+      SyncPairQrPayload(
         deviceId: b.identity.deviceId,
         name: b.label,
-        endpoints: [('127.0.0.1', deadPort), ('127.0.0.1', b.port)],
-        pin: pin,
-      );
-
-      final result = await provider.pairWithQr(payload);
-      expect(
-        result.outcome.success,
-        isTrue,
-        reason: result.outcome.errorDetail,
-      );
-      expect(result.wasKnownPeer, isFalse);
-
-      final peer = provider.peers.single;
-      expect(peer.deviceId, b.identity.deviceId);
-      expect(
-        peer.primaryEndpoint?.port,
-        b.port,
-        reason: 'the live candidate won',
-      );
-      // The endpoint that lost is remembered behind the winner: it is the
-      // candidate a later round tries when this network goes away.
-      expect(
-        peer.endpoints.map((e) => e.port),
-        contains(deadPort),
-        reason: 'the dead candidate was kept as a hint',
-      );
-      // The joiner advertised its own listener, so the responder can dial back.
-      expect((await b.peer(a)).primaryEndpoint?.port, provider.port);
-
-      // Scanning a fresh code for the same device is the drift-repair journey,
-      // and the UI says so instead of pretending it is a first pairing.
-      final secondPin = b.engine.openPairing();
-      final second = await provider.pairWithQr(
-        SyncPairQrPayload(
-          deviceId: b.identity.deviceId,
-          name: b.label,
-          endpoints: [('127.0.0.1', b.port)],
-          pin: secondPin,
-        ),
-      );
-      expect(second.outcome.success, isTrue);
-      expect(second.wasKnownPeer, isTrue);
-      expect(
-        provider.peers.length,
-        1,
-        reason: 'the record is updated, not added',
-      );
-    },
-  );
+        endpoints: [('127.0.0.1', b.port)],
+        pin: secondPin,
+      ),
+    );
+    expect(second.outcome.success, isTrue, reason: second.outcome.errorDetail);
+    expect(second.wasKnownPeer, isTrue);
+    expect(
+      provider.peers.length,
+      1,
+      reason: 'the record is updated, not added',
+    );
+  });
 
   test('a QR payload with only dead endpoints reports unreachable', () async {
     final a = _Side('a');

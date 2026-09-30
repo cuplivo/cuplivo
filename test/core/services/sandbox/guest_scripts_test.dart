@@ -83,6 +83,9 @@ void main() {
   for (final distro in ['ubuntu', 'debian']) {
     test(
       '$distro mirror replaces the legacy list and preserves other sources',
+      // The generated script only ever runs in a Linux guest: it is executed
+      // through /bin/sh, which does not exist on Windows.
+      skip: !(Platform.isMacOS || Platform.isLinux),
       () async {
         final dir = await Directory.systemTemp.createTemp(
           'kelivo_apt_sources_',
@@ -126,6 +129,8 @@ void main() {
 
   test(
     'source replacement writes official content even with an old backup',
+    // See above: the script is applied by /bin/sh.
+    skip: !(Platform.isMacOS || Platform.isLinux),
     () async {
       final dir = await Directory.systemTemp.createTemp('kelivo_source_');
       addTearDown(() => dir.delete(recursive: true));

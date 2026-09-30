@@ -162,7 +162,7 @@ void main() {
 
     final found = await tools.glob('**/*.dart', cwd: cwd);
     expect(found.paths.length, 1);
-    expect(found.paths.single, endsWith('src/a.dart'));
+    expect(found.paths.single, endsWith(p.join('src', 'a.dart')));
 
     for (var i = 0; i < 510; i++) {
       File(p.join(cwd, 'g$i.dart')).writeAsStringSync('x');

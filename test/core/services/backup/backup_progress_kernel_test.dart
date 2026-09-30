@@ -236,7 +236,12 @@ void main() {
           '${Directory.systemTemp.path}/kelivo_backup_timeout_${identityHashCode(token)}.hb',
         );
         addTearDown(() async {
-          if (await heartbeat.exists()) await heartbeat.delete();
+          try {
+            if (await heartbeat.exists()) await heartbeat.delete();
+          } on FileSystemException {
+            // The stuck isolate still holds the heartbeat; the OS temp
+            // sweeper reclaims it once the process exits.
+          }
         });
 
         await expectLater(
@@ -362,8 +367,14 @@ void main() {
         if (closedMarker.existsSync()) closedMarker.deleteSync();
         final resumedMarker = File('${closedMarker.path}.resumed');
         addTearDown(() {
-          if (closedMarker.existsSync()) closedMarker.deleteSync();
-          if (resumedMarker.existsSync()) resumedMarker.deleteSync();
+          // debugSkipBackupIsolateKill leaves the isolate alive holding both
+          // markers, so deleting them is best effort on Windows.
+          try {
+            if (closedMarker.existsSync()) closedMarker.deleteSync();
+            if (resumedMarker.existsSync()) resumedMarker.deleteSync();
+          } on FileSystemException {
+            // Left to the OS temp sweeper, as above.
+          }
         });
 
         debugOnInterruptSqliteHandle = (_) {};

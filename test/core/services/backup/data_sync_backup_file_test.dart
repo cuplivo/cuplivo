@@ -701,7 +701,11 @@ void main() {
         final preserved = root
             .listSync(recursive: true, followLinks: false)
             .whereType<File>()
-            .where((f) => f.path.endsWith('/previous/preserved.txt'))
+            .where(
+              (f) => f.path
+                  .replaceAll(r'\', '/')
+                  .endsWith('/previous/preserved.txt'),
+            )
             .single;
         expect(await preserved.readAsString(), 'previous data evidence');
         expect(
@@ -5276,7 +5280,10 @@ void main() {
       expect(before.parts.whereType<ImagePart>().single.uri, uri);
 
       final resolved = SandboxPathResolver.fix(uri);
-      expect(resolved, '${rootB.path}/upload/pic.png');
+      expect(
+        p.equals(resolved, p.join(rootB.path, 'upload', 'pic.png')),
+        isTrue,
+      );
       expect(File(resolved).existsSync(), isTrue);
 
       // Path-migration pass with the production rewriteUri must leave URI intact.

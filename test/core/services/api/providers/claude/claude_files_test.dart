@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
@@ -228,7 +229,7 @@ void main() {
       expect(second!.uri, first!.uri);
       final stored = Directory(
         '${tempDir.path}/upload',
-      ).listSync().map((entity) => entity.path.split('/').last).toList();
+      ).listSync().map((entity) => p.basename(entity.path)).toList();
       // The streamed copy took a numbered name while it was being written and
       // must not survive next to the original.
       expect(stored, ['chart.png']);
@@ -259,7 +260,7 @@ void main() {
         );
         List<String> stored() => Directory(
           '${tempDir.path}/upload',
-        ).listSync().map((entity) => entity.path.split('/').last).toList();
+        ).listSync().map((entity) => p.basename(entity.path)).toList();
 
         // A file nobody else has goes with the cancelled turn.
         final own = await download();

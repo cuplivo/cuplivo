@@ -25,6 +25,9 @@ void main() {
 
     test(
       'reacquires after a previous isolate left its descriptor open',
+      // Windows LockFileEx is handle-scoped: the leaked descriptor from the
+      // finished isolate still blocks the lock, unlike a POSIX process lock.
+      skip: Platform.isWindows,
       () async {
         final leakedPath = lockFile.path;
         // A descriptor is not closed when its isolate goes away, which is what a

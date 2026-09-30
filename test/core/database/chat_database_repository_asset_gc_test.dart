@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
@@ -127,7 +128,7 @@ void main() {
     });
     SandboxPathResolver.debugSetDirs(docsDir: root.path);
 
-    final absPath = '${root.path}/images/gen.png';
+    final absPath = p.join(root.path, 'images', 'gen.png');
     Directory('${root.path}/images').createSync(recursive: true);
     File(absPath).writeAsBytesSync(const [1, 2, 3]);
     const canonical = 'kelivo-file:///images/gen.png';

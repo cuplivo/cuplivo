@@ -18,11 +18,16 @@ All three must pass before committing:
 
 ```bash
 dart format lib test                        # format changed files
-dart analyze --fatal-infos lib test         # zero warnings, zero infos
+dart analyze --fatal-infos lib test integration_test   # zero warnings, zero infos
 flutter test                                # all unit tests green
 ```
 
-CI (`pr-check.yml`) enforces the same gates on every PR.
+CI (`pr-check.yml`) enforces the same gates on every PR. It formats with the Dart SDK bundled in
+the Flutter version its workflow pins (`FLUTTER_VERSION`, currently 3.44.9 -> Dart 3.12.2). A newer
+local SDK lays the same code out differently, so `dart format` with the local SDK both reformats
+files CI would leave alone and leaves files CI wants changed — either way turning the PR check red.
+Format with that pinned Dart whenever the local one differs, and confirm with
+`--output=none --set-exit-if-changed` before pushing.
 
 ## Releases
 

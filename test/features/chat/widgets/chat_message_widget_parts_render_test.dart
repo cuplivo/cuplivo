@@ -820,6 +820,16 @@ void main() {
       expect(image.image, isA<ResizeImage>());
       expect(find.byType(ImageViewerPage), findsNothing);
 
+      // Decode the image for real first: while `_image` is null the inline
+      // image lays out as a full-width, zero-height box, so the tap below lands
+      // on its top edge and never reaches the gesture detector.
+      await tester.runAsync(
+        () => precacheImage(
+          image.image,
+          tester.element(find.byType(Image).first),
+        ),
+      );
+      await tester.pump();
       await tester.tap(
         find.byKey(const ValueKey('assistant-inline-image:image-ordinal:0')),
       );

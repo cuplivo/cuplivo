@@ -12,6 +12,7 @@ import '../../providers/settings_provider.dart';
 import '../network/dio_http_client.dart';
 import 'codex_request.dart';
 import 'claude_oauth_request.dart';
+import 'http_header_map.dart';
 import 'oauth_cancellation.dart';
 import 'provider_oauth_adapter.dart';
 
@@ -551,16 +552,11 @@ class _ProviderOAuthHttpClient extends http.BaseClient {
       ).headers(config.oauthCredentials!);
       final existingBeta = result.headers['anthropic-beta'];
       final existingContentType = result.headers['content-type'];
-      for (final name in authHeaders.keys) {
-        result.headers.removeWhere(
-          (key, _) => key.toLowerCase() == name.toLowerCase(),
-        );
+      for (final entry in authHeaders.entries) {
+        setHeaderCaseInsensitive(result.headers, entry.key, entry.value);
       }
-      result.headers.addAll(authHeaders);
       if (isClaude) {
-        result.headers.removeWhere(
-          (key, _) => key.toLowerCase() == 'x-api-key',
-        );
+        removeHeaderCaseInsensitive(result.headers, 'x-api-key');
         setClaudeOAuthHeader(
           result.headers,
           'anthropic-beta',

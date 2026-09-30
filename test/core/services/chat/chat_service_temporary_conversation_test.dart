@@ -2,6 +2,7 @@ import 'package:Cuplivo/core/models/message_part.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -412,8 +413,11 @@ void main() {
       final corrupt = sqlite.sqlite3.open(databasePath);
       late final String originalAssetId;
       const secret = '/private/attachment-metadata';
-      final malformedPayload =
-          '{"uri":"${upload.path}","name":"live.txt","mime":["$secret"]}';
+      final malformedPayload = jsonEncode({
+        'uri': upload.path,
+        'name': 'live.txt',
+        'mime': [secret],
+      });
       try {
         originalAssetId =
             corrupt.select(

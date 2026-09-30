@@ -27,6 +27,7 @@ import 'package:Cuplivo/features/home/controllers/scroll_controller.dart';
 import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
 import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import '../../../support/temp_directory_cleanup.dart';
 
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.path);
@@ -197,7 +198,7 @@ void main() {
     try {
       await repository.close().timeout(const Duration(seconds: 10));
     } catch (_) {}
-    if (await directory.exists()) await directory.delete(recursive: true);
+    await deleteDirectoryWhenReleased(directory, keepLockedLeftovers: true);
   });
 
   Future<HomePageController> pumpHarness(
@@ -322,6 +323,10 @@ void main() {
       );
     });
     expect(tester.takeException(), isNull);
+    // Unmount before the temp directory goes away: the controller closes its
+    // database asynchronously in dispose, and Windows refuses to unlink it
+    // until then.
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('single-flight cancel hides loading before slow teardown', (

@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'sync_local_addresses.dart';
+
 /// Raised when a scanned string is not a usable Cuplivo pairing QR.
 ///
 /// [code] is a stable identifier the UI maps to a localized message:
@@ -58,7 +60,9 @@ class SyncPairQrPayload {
   Map<String, dynamic> _toJson() => {
     'd': deviceId,
     'n': name,
-    'e': [for (final (host, port) in endpoints) '$host:$port'],
+    // Bracketed for an IPv6 literal, so the port stays unambiguous to a parser
+    // (this payload splits on the last colon) and to a person reading it.
+    'e': [for (final (host, port) in endpoints) formatHostPort(host, port)],
     'pin': pin,
   };
 
@@ -109,7 +113,9 @@ class SyncPairQrPayload {
         throw const SyncPairQrException('malformed');
       }
       final port = int.tryParse(item.substring(split + 1));
-      final host = item.substring(0, split);
+      // Stored bare: the wire form brackets an IPv6 literal, the layers that
+      // dial and compare endpoints do not.
+      final host = normalizeHost(item.substring(0, split));
       if (host.isEmpty || port == null || port < 1 || port > 65535) {
         throw const SyncPairQrException('malformed');
       }

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart' as crypto;
 
 import 'sync_identity.dart';
+import 'sync_local_addresses.dart';
 import 'sync_models.dart';
 import 'sync_server.dart';
 import 'sync_store.dart';
@@ -40,6 +41,12 @@ const Duration kSyncBlobDeadline = Duration(minutes: 15);
 /// reachable instead of an `await` that never settles.
 const Duration kSyncPairDeadline = Duration(seconds: 60);
 
+/// Budget for one TCP connect attempt towards a candidate address. The probe
+/// layer has already established that a reached candidate answers, so this only
+/// has to cover the address dying between the probe and the dial: ten seconds
+/// of LAN timeout would only make a black-holed address feel slower.
+const Duration kSyncDialConnectTimeout = Duration(seconds: 3);
+
 /// The result of a hello: either the peer's hello or its refusal.
 class SyncHelloOutcome {
   final SyncHello? hello;
@@ -65,6 +72,10 @@ class SyncClient {
   /// [listenPort] is this device's own sync listener port, advertised so the
   /// responder can store a usable endpoint for the return direction.
   ///
+  /// [candidateHosts] is this device's own advertised addresses: the responder
+  /// remembers them beside the address this connection came from, so a peer
+  /// that later roams is still reachable on a network it was never paired on.
+  ///
   /// [expectedDeviceId] is the QR path: the certificate fingerprint scanned
   /// out-of-band. When set, the TLS callback itself refuses any other
   /// certificate, so the request body — the PIN included — never leaves this
@@ -77,6 +88,7 @@ class SyncClient {
     required String pin,
     int? listenPort,
     String? expectedDeviceId,
+    List<String> candidateHosts = const [],
   }) async {
     X509Certificate? presented;
     final client = HttpClient(context: identity.buildContext())
@@ -88,10 +100,10 @@ class SyncClient {
         }
         return true; // first contact: trust happens below, bound to this cert
       }
-      ..connectionTimeout = const Duration(seconds: 10);
+      ..connectionTimeout = kSyncDialConnectTimeout;
     try {
       final request = await client.postUrl(
-        Uri.parse('https://$host:$port/pair'),
+        Uri.parse('https://${uriHost(host)}:$port/pair'),
       );
       _writeJson(request, {
         'pin': pin,
@@ -100,6 +112,7 @@ class SyncClient {
         'platform': _platformTag(),
         'certPem': identity.certPem,
         if (listenPort != null) 'listenPort': listenPort,
+        if (candidateHosts.isNotEmpty) 'candidateHosts': candidateHosts,
       });
       final response = await request.close().timeout(kSyncPairDeadline);
       final body = await _readJson(response).timeout(kSyncPairDeadline);
@@ -127,9 +140,10 @@ class SyncClient {
       }
       return (answer: answer, certPem: answer.certPem);
     } on HandshakeException {
-      // Only the QR path refuses a certificate inside the callback, and such
-      // a refusal must not surface as "unreachable" (HandshakeException
-      // extends SocketException).
+      // Only the QR path refuses a certificate inside the callback, and such a
+      // refusal must not surface as "unreachable": a `HandshakeException`
+      // implements `TlsException`, **not** `SocketException`, so a caller that
+      // catches the socket type alone never sees this one.
       if (expectedDeviceId != null) {
         throw const SyncClientException('pair_fingerprint_mismatch');
       }
@@ -152,7 +166,7 @@ class SyncClient {
   }) {
     return SyncClientSession(
       _httpForPeer(peer),
-      'https://$host:$port',
+      'https://${uriHost(host)}:$port',
       deviceId: identity.deviceId,
       token: peer.secret,
       helloDeadline: helloDeadline,
@@ -163,7 +177,7 @@ class SyncClient {
 
   HttpClient _httpForPeer(SyncPeerRecord peer) {
     final client = HttpClient(context: identity.buildContext())
-      ..connectionTimeout = const Duration(seconds: 10)
+      ..connectionTimeout = kSyncDialConnectTimeout
       // Pinning the listener's certificate is the whole server-side
       // authentication: nothing else can answer as this peer.
       ..badCertificateCallback = (cert, _, _) =>
@@ -184,7 +198,7 @@ class SyncClient {
     final client = _httpForPeer(peer)..connectionTimeout = _revokeTimeout;
     try {
       final request = await client.postUrl(
-        Uri.parse('https://$host:$port/sync/revoke'),
+        Uri.parse('https://${uriHost(host)}:$port/sync/revoke'),
       );
       request.headers.set(SyncServer.deviceHeader, identity.deviceId);
       request.headers.set(SyncServer.tokenHeader, peer.secret);

@@ -3,6 +3,7 @@ import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:Cuplivo/features/sync/sync_messages.dart';
 import 'package:Cuplivo/l10n/app_localizations_en.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 
 /// The LAN sync surface's wording is a pure mapping, so it is tested as text.
 /// What these cases pin is that the panel renders a localized reason and never
@@ -109,6 +110,61 @@ void main() {
       ),
       isNull,
     );
+  });
+
+  test('a peer with no address asks for one, not for a retry', () {
+    const report = SyncSessionReport(
+      success: false,
+      summary: 'no_endpoint',
+      failure: SyncFailureReason.noEndpoint,
+    );
+    expect(syncReportMessage(l10n, report), l10n.lanSyncReportNoEndpoint);
+    // The two "nothing answered" shapes must not read as one thing: one is fixed
+    // by an address, the other by turning the other device on.
+    expect(
+      syncReportMessage(l10n, report),
+      isNot(syncFailureMessage(l10n, SyncFailureReason.unreachable)),
+    );
+
+    // The card shows the persisted record after a restart, so the wire value has
+    // to survive the round trip — and it must not come back as `unreachable`,
+    // which is what a record of this shape used to say.
+    final persisted = SyncPeerReport.fromJson(report.toPeerReport().toJson());
+    expect(persisted.failure, SyncFailureReason.noEndpoint);
+    expect(
+      syncPeerReportMessage(l10n, persisted),
+      l10n.lanSyncReportNoEndpoint,
+    );
+  });
+
+  test('a recent session reads as how long ago, not as a timestamp', () {
+    final now = DateTime(2026, 3, 4, 12);
+    String ago(Duration elapsed) =>
+        syncLastSyncedLabel(l10n, now.subtract(elapsed), now: now);
+
+    expect(ago(const Duration(seconds: 20)), l10n.lanSyncJustSynced);
+    expect(
+      ago(const Duration(minutes: 3)),
+      l10n.lanSyncLastSyncedAt('3 min ago'),
+    );
+    expect(ago(const Duration(hours: 5)), l10n.lanSyncLastSyncedAt('5 h ago'));
+    expect(ago(const Duration(days: 3)), l10n.lanSyncLastSyncedAt('3 d ago'));
+
+    // Past a week the date is the more useful fact, and the line falls back to
+    // the stamp this label used to be.
+    expect(
+      ago(const Duration(days: 9)),
+      l10n.lanSyncLastSyncedAt(
+        DateFormat(
+          'yyyy-MM-dd HH:mm',
+        ).format(now.subtract(const Duration(days: 9))),
+      ),
+    );
+
+    // A stamp in the future is a clock that disagreed, not a countdown: the card
+    // is about the past and must not read "in 4 minutes".
+    expect(ago(const Duration(minutes: -4)), l10n.lanSyncJustSynced);
+    expect(syncLastSyncedLabel(l10n, null), l10n.lanSyncNeverSynced);
   });
 
   test('a refusal is the message even beside a failure reason', () {

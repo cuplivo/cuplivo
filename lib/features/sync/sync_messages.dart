@@ -103,6 +103,8 @@ String syncRefusalMessage(AppLocalizations l10n, SyncRefusalReason reason) {
 /// back to the generic line, with the detail left in the logs.
 String syncFailureMessage(AppLocalizations l10n, SyncFailureReason? reason) {
   switch (reason) {
+    case SyncFailureReason.noEndpoint:
+      return l10n.lanSyncReportNoEndpoint;
     case SyncFailureReason.unreachable:
       return l10n.lanSyncReportUnreachable;
     case SyncFailureReason.timeout:
@@ -210,9 +212,42 @@ String _syncCountsMessage(
   return parts.join(' · ');
 }
 
-String syncLastSyncedLabel(AppLocalizations l10n, DateTime? at) {
+/// "Last synced …" for a peer card.
+///
+/// How long ago, not a timestamp: the question this line answers is "is this
+/// current?", and a date makes the reader do the subtraction. Past a week the
+/// absolute stamp is what it shows — "12 days ago" is not more useful than the
+/// day it happened — and the exact time stays one hover away either way.
+String syncLastSyncedLabel(
+  AppLocalizations l10n,
+  DateTime? at, {
+  DateTime? now,
+}) {
   if (at == null) return l10n.lanSyncNeverSynced;
-  return l10n.lanSyncLastSyncedAt(
-    DateFormat('yyyy-MM-dd HH:mm').format(at.toLocal()),
-  );
+  final elapsed = (now ?? DateTime.now()).difference(at.toLocal());
+  // A stamp in the future — a peer whose clock ran ahead, or a clock that moved
+  // backwards — reads as "just now" rather than as a countdown on a line about
+  // the past.
+  if (elapsed.isNegative || elapsed.inMinutes < 1) {
+    return l10n.lanSyncJustSynced;
+  }
+  if (elapsed.inDays >= 7) return syncAbsoluteLastSyncedLabel(l10n, at);
+  return l10n.lanSyncLastSyncedAt(_relativeSyncTime(l10n, elapsed));
+}
+
+/// The same line as a plain stamp, for the tooltip and for anything older than a
+/// week.
+String syncAbsoluteLastSyncedLabel(AppLocalizations l10n, DateTime at) => l10n
+    .lanSyncLastSyncedAt(DateFormat('yyyy-MM-dd HH:mm').format(at.toLocal()));
+
+/// The elapsed time in the largest unit that still says something: minutes,
+/// then hours, then days.
+///
+/// The units are ARB strings rather than a formatter: `intl` dropped
+/// `RelativeDateTimeFormatter` in 0.20, and four locales need two words each
+/// rather than a dependency.
+String _relativeSyncTime(AppLocalizations l10n, Duration elapsed) {
+  if (elapsed.inHours < 1) return l10n.lanSyncMinutesAgo(elapsed.inMinutes);
+  if (elapsed.inDays < 1) return l10n.lanSyncHoursAgo(elapsed.inHours);
+  return l10n.lanSyncDaysAgo(elapsed.inDays);
 }

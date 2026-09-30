@@ -31,13 +31,22 @@ class SyncPairOutcome {
   final String? errorCode;
   final String? errorDetail;
 
-  const SyncPairOutcome.success()
+  /// The device that was paired, on success: the record's own name and id, so a
+  /// caller can announce *which* device it just paired with. The engine returns
+  /// the record it wrote, so this is the same name that device's card shows —
+  /// not a second spelling assembled from the request.
+  final String? peerName;
+  final String? peerDeviceId;
+
+  const SyncPairOutcome.success({this.peerName, this.peerDeviceId})
     : success = true,
       errorCode = null,
       errorDetail = null;
 
   const SyncPairOutcome.failure(this.errorCode, [this.errorDetail])
-    : success = false;
+    : success = false,
+      peerName = null,
+      peerDeviceId = null;
 }
 
 /// Result of pairing from a scanned QR: the pair outcome plus whether the
@@ -76,6 +85,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     required BusinessPreferences businessPreferences,
     required BusinessStateReloader reloader,
     required Future<Directory> Function() syncDirectory,
+    Future<List<LanAddress>> Function()? addressSource,
   }) : // Public injection names intentionally omit the private-field prefix
        // (same convention as ChatService's own dependencies).
        // ignore: prefer_initializing_formals
@@ -89,7 +99,9 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
        // ignore: prefer_initializing_formals
        _reloader = reloader,
        // ignore: prefer_initializing_formals
-       _syncDirectory = syncDirectory;
+       _syncDirectory = syncDirectory,
+       // ignore: prefer_initializing_formals
+       _addressSource = addressSource;
 
   final ChatService _chatService;
   final ChatDatabaseRepository _repository;
@@ -98,16 +110,39 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   final BusinessStateReloader _reloader;
   final Future<Directory> Function() _syncDirectory;
 
+  /// Where [refreshLocalAddresses] enumerates interfaces from. Null means the
+  /// real [listLanAddresses]; a test injects a fixed device instead, so it can
+  /// move between networks without a NIC.
+  final Future<List<LanAddress>> Function()? _addressSource;
+
   SyncEngine? _engine;
   SyncStore? _store;
   Future<void>? _startFuture;
   bool _stopRequested = false;
+  bool _disposed = false;
+
+  /// Notifies the listeners, unless this provider is already disposed.
+  ///
+  /// Several paths start work that finishes after the widget tree is gone: the
+  /// firewall's `netsh` child process, the interface enumeration, a session
+  /// that outlives the screen it was started from. Each of them ends in a
+  /// notification, and `ChangeNotifier` asserts on a notification after
+  /// `dispose` — an assertion that surfaces as an *unhandled* async error, so
+  /// it is reported against whatever test (or frame) happens to be running
+  /// when it lands rather than against the code that disposed the provider.
+  void _notify() {
+    if (_disposed) return;
+    notifyListeners();
+  }
 
   bool started = false;
   bool starting = false;
   String? startError;
   int? port;
-  List<String> localIps = const [];
+
+  /// This device's candidate addresses, in interface order. The pairing QR, the
+  /// pairing dialog and the "this device" card all read exactly this list.
+  List<LanAddress> localAddresses = const [];
   List<SyncPeerRecord> peers = const [];
   final Set<String> busyDeviceIds = {};
   SyncSessionReport? lastReport;
@@ -119,6 +154,12 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// The bound port, or the preferred one while starting.
   int? get effectivePort =>
       port ?? (starting ? SyncEngine.kPreferredPort : null);
+
+  /// The engine this provider drives, for tests that have to observe what was
+  /// pushed *into* it (the address list the dial orders candidates by) — the
+  /// panels and the pairing flow read the provider instead.
+  @visibleForTesting
+  SyncEngine? get engine => _engine;
 
   bool get isPairingOpen => _engine?.isPairingOpen ?? false;
   String? get pairingPin => _engine?.pairingPin;
@@ -147,7 +188,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _start() async {
     starting = true;
     startError = null;
-    notifyListeners();
+    _notify();
     try {
       final directory = await _syncDirectory();
       final directoryPath = directory.path;
@@ -185,12 +226,11 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       port = boundPort;
       started = true;
       peers = await store.listPeers();
-      unawaited(_refreshLocalIps());
       unawaited(_ensureFirewallRule());
       // Foreground rounds: one right after start ("opened the app" is the
       // pickup journey), then one per resume, throttled by [autoSyncInterval].
       WidgetsBinding.instance.addObserver(this);
-      unawaited(autoSyncRound());
+      unawaited(_refreshAddressesThenRound());
       // Desktop graceful exit: stop the listener and drop the ephemeral-port
       // firewall rule (the preferred-port rule stays for next launch).
       AppExitFlush.register(stop);
@@ -198,7 +238,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       startError = '$error';
     } finally {
       starting = false;
-      notifyListeners();
+      _notify();
     }
   }
 
@@ -216,14 +256,14 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         boundPort != SyncEngine.kPreferredPort) {
       unawaited(WindowsFirewall.tryDeleteRule(boundPort));
     }
-    notifyListeners();
+    _notify();
   }
 
   Future<void> refreshPeers() async {
     final store = _store;
     if (store == null) return;
     peers = await store.listPeers();
-    notifyListeners();
+    _notify();
   }
 
   // ---- pairing ----
@@ -249,14 +289,18 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       return const SyncPairOutcome.failure('no_listener');
     }
     try {
-      await engine.pairWith(
+      final record = await engine.pairWith(
         host: host,
         port: port,
         pin: pin,
         expectedDeviceId: expectedDeviceId,
+        advertisedAddresses: _advertisedAddresses,
       );
       await refreshPeers();
-      return const SyncPairOutcome.success();
+      return SyncPairOutcome.success(
+        peerName: record.name,
+        peerDeviceId: record.deviceId,
+      );
     } on SyncClientException catch (error) {
       return _mapPairError(error);
     } on SocketException catch (error) {
@@ -268,11 +312,12 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  /// Pairs from a scanned QR payload: tries the payload's endpoints in
-  /// order, hard-pinning the scanned fingerprint. A dead endpoint (refused
-  /// connection, timeout) moves on to the next candidate; an *answering*
-  /// endpoint that is wrong (bad PIN, wrong certificate, identity mismatch)
-  /// stops immediately — the same answer awaits on every candidate.
+  /// Pairs from a scanned QR payload: the engine probes the payload's
+  /// endpoints, dials them hard-pinned to the scanned fingerprint, and walks
+  /// past an address that answers as another device — the pin refused it before
+  /// the PIN was sent, so only that address is disqualified. A verdict from the
+  /// scanned device itself (a refused PIN, an identity mismatch) ends the
+  /// attempt; see [SyncEngine.pairWithCandidates] for the whole taxonomy.
   Future<SyncPairQrOutcome> pairWithQr(SyncPairQrPayload payload) async {
     final engine = _engine;
     if (engine == null) {
@@ -290,34 +335,39 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         wasKnownPeer,
       );
     }
-    Object? lastConnectivityDetail;
-    for (final (host, endpointPort) in payload.endpoints) {
-      try {
-        await engine.pairWith(
-          host: host,
-          port: endpointPort,
-          pin: payload.pin,
-          expectedDeviceId: payload.deviceId,
-        );
-        await refreshPeers();
-        return SyncPairQrOutcome(const SyncPairOutcome.success(), wasKnownPeer);
-      } on SyncClientException catch (error) {
-        return SyncPairQrOutcome(_mapPairError(error), wasKnownPeer);
-      } on SocketException catch (error) {
-        lastConnectivityDetail = error.message;
-      } on TimeoutException catch (error) {
-        lastConnectivityDetail = error.message;
-      } catch (error) {
-        return SyncPairQrOutcome(
-          SyncPairOutcome.failure('unknown', '$error'),
-          wasKnownPeer,
-        );
-      }
+    try {
+      final record = await engine.pairWithCandidates(
+        endpoints: payload.endpoints,
+        pin: payload.pin,
+        expectedDeviceId: payload.deviceId,
+        advertisedAddresses: _advertisedAddresses,
+      );
+      await refreshPeers();
+      return SyncPairQrOutcome(
+        SyncPairOutcome.success(
+          peerName: record.name,
+          peerDeviceId: record.deviceId,
+        ),
+        wasKnownPeer,
+      );
+    } on SyncClientException catch (error) {
+      return SyncPairQrOutcome(_mapPairError(error), wasKnownPeer);
+    } on SocketException catch (error) {
+      return SyncPairQrOutcome(
+        SyncPairOutcome.failure('unreachable', error.message),
+        wasKnownPeer,
+      );
+    } on TimeoutException catch (error) {
+      return SyncPairQrOutcome(
+        SyncPairOutcome.failure('unreachable', error.message),
+        wasKnownPeer,
+      );
+    } catch (error) {
+      return SyncPairQrOutcome(
+        SyncPairOutcome.failure('unknown', '$error'),
+        wasKnownPeer,
+      );
     }
-    return SyncPairQrOutcome(
-      SyncPairOutcome.failure('unreachable', '$lastConnectivityDetail'),
-      wasKnownPeer,
-    );
   }
 
   static SyncPairOutcome _mapPairError(SyncClientException error) {
@@ -360,8 +410,9 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     final store = _store;
     final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
     if (store == null || peer == null) return;
-    peer.lastHost = host.trim();
-    peer.lastPort = port;
+    // Manual repair replaces the whole set: the automatic memory is what failed
+    // (or the user would not be typing), so keeping the rest keeps the problem.
+    peer.replaceEndpoints(host.trim(), port);
     await store.savePeer(peer);
     await refreshPeers();
   }
@@ -379,7 +430,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
     if (peer == null) return null;
     busyDeviceIds.add(deviceId);
-    notifyListeners();
+    _notify();
     try {
       final report = await engine.syncWithPeer(peer);
       lastReport = report;
@@ -400,8 +451,21 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     // Desktop fires `resumed` on every window focus gain too; the global
     // throttle in [shouldAutoSyncNow] is what keeps that cheap.
     if (state == AppLifecycleState.resumed) {
-      unawaited(autoSyncRound());
+      unawaited(_refreshAddressesThenRound());
     }
+  }
+
+  /// A foreground round, on an address list that is already fresh.
+  ///
+  /// The enumeration and the round used to be fired side by side, which leaves
+  /// the round racing a platform call: the list has to land first, or the round
+  /// computes its dial order from an empty one and the same-subnet preference
+  /// the probing exists for is simply absent — on the round right after a
+  /// launch, which is the pickup journey. Awaiting it costs the enumeration's
+  /// own latency and buys a round that dials the network this device stands on.
+  Future<void> _refreshAddressesThenRound() async {
+    await refreshLocalAddresses();
+    await autoSyncRound();
   }
 
   /// One quiet round over every paired peer that has an endpoint: no
@@ -416,7 +480,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     _autoRoundRunning = true;
     try {
       for (final peer in List.of(peers)) {
-        if (peer.lastHost == null || peer.lastPort == null) continue;
+        if (peer.primaryEndpoint == null) continue;
         if (busyDeviceIds.contains(peer.deviceId)) continue;
         try {
           await syncNow(peer.deviceId);
@@ -437,7 +501,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (boundPort == null) return false;
     final ok = await WindowsFirewall.addRuleElevated(boundPort);
     firewallNeedsElevation = !ok;
-    notifyListeners();
+    _notify();
     return ok;
   }
 
@@ -448,12 +512,27 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (await WindowsFirewall.ruleExists(boundPort)) return;
     final added = await WindowsFirewall.tryAddRule(boundPort);
     firewallNeedsElevation = !added;
-    notifyListeners();
+    _notify();
   }
 
-  Future<void> _refreshLocalIps() async {
-    localIps = await listLocalIpv4s();
-    notifyListeners();
+  /// This device's own addresses as sent to a peer while pairing, so the
+  /// responder remembers more than the single address the pairing arrived from.
+  List<String> get _advertisedAddresses => [
+    for (final address in localAddresses) address.address,
+  ];
+
+  /// Re-enumerates this device's addresses. Called on start, on every resume and
+  /// whenever the pairing dialog opens: a laptop changes networks without
+  /// relaunching the app — and on a desktop, pulling a cable or joining Wi-Fi
+  /// fires no lifecycle event at all — while the pairing QR and the typed
+  /// endpoint list are only ever as good as the list this refreshes.
+  Future<void> refreshLocalAddresses() async {
+    final source = _addressSource ?? listLanAddresses;
+    localAddresses = selectLanCandidates(await source());
+    // The engine orders dial candidates by which network they sit on, so it
+    // reads the same list the pairing screen shows.
+    _engine?.localAddresses = localAddresses;
+    _notify();
   }
 
   void _onEngineStateChanged() {
@@ -464,6 +543,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _disposed = true;
     WidgetsBinding.instance.removeObserver(this);
     AppExitFlush.unregister(stop);
     super.dispose();

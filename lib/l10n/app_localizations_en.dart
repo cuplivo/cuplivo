@@ -12517,6 +12517,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lanSyncNeverSynced => 'Never synced';
 
   @override
+  String get lanSyncJustSynced => 'Just synced';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n min ago';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n h ago';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n d ago';
+  }
+
+  @override
   String get lanSyncSyncNow => 'Sync now';
 
   @override
@@ -12530,6 +12548,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lanSyncEditAddress => 'Edit address';
+
+  @override
+  String get lanSyncAddressCopied => 'Address copied';
 
   @override
   String get lanSyncUnpair => 'Unpair';
@@ -12615,7 +12636,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lanSyncReportUnreachable =>
-      'Sync failed: the other device could not be reached.';
+      'Sync failed: the other device could not be reached. It may be offline or on another network — rescan its QR code, or edit its address on the card.';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      'Sync failed: no address is stored for the other device. Rescan its QR code, or enter the address on its card.';
 
   @override
   String get lanSyncReportTimeout =>

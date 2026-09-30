@@ -6,6 +6,7 @@ import 'package:basic_utils/basic_utils.dart';
 import 'package:crypto/crypto.dart' as crypto;
 
 import 'sync_identity.dart';
+import 'sync_local_addresses.dart';
 import 'sync_models.dart';
 import 'sync_store.dart';
 
@@ -74,6 +75,12 @@ class SyncPairRequest {
   /// usable endpoint (its remote address is known from the connection).
   final int? listenPort;
 
+  /// The initiator's own candidate addresses, so the responder remembers more
+  /// than the one address this connection came from: a device that roams would
+  /// otherwise be reachable only at the network it paired on. Additive and
+  /// optional — a peer that does not send it pairs exactly as it did before.
+  final List<String> candidateHosts;
+
   const SyncPairRequest({
     required this.pin,
     required this.deviceId,
@@ -81,6 +88,7 @@ class SyncPairRequest {
     required this.platform,
     required this.certPem,
     this.listenPort,
+    this.candidateHosts = const [],
   });
 
   static SyncPairRequest fromJson(Map<String, dynamic> json) => SyncPairRequest(
@@ -90,6 +98,10 @@ class SyncPairRequest {
     platform: (json['platform'] as String?) ?? '',
     certPem: json['certPem'] as String,
     listenPort: (json['listenPort'] as num?)?.toInt(),
+    candidateHosts: [
+      for (final host in (json['candidateHosts'] as List?) ?? const [])
+        if (host is String && host.isNotEmpty) host,
+    ],
   );
 }
 
@@ -182,7 +194,15 @@ class SyncServer {
     _peerSecrets.remove(deviceId);
   }
 
-  Future<int> start({String address = '0.0.0.0', int requestedPort = 0}) async {
+  /// The IPv6 any-address, which a dual-stack stack also accepts IPv4 callers
+  /// on (they arrive mapped, see [_remoteHost]).
+  static const anyIpv6 = '::';
+
+  /// The IPv4 any-address this listener used before it went dual-stack, kept as
+  /// the fallback for a machine where the IPv6 bind cannot succeed.
+  static const anyIpv4 = '0.0.0.0';
+
+  Future<int> start({String address = anyIpv6, int requestedPort = 0}) async {
     await stop();
     _peerSecrets
       ..clear()
@@ -191,17 +211,54 @@ class SyncServer {
           (peer) => MapEntry(peer.deviceId, peer.secret),
         ),
       );
-    final server = await HttpServer.bindSecure(
-      address,
-      requestedPort,
-      identity.buildContext(),
-      // Never request a client certificate: see the class comment. Peers are
-      // authenticated per request by their pairing-established secret.
-      requestClientCertificate: false,
-    );
+    final server = await _bind(address, requestedPort);
     _server = server;
     unawaited(_serve(server));
     return server.port;
+  }
+
+  /// Binds [address], falling back to IPv4 when the IPv6 any-address is
+  /// refused.
+  ///
+  /// `::` is the dual-stack bind: measured on Windows, a listener on it accepts
+  /// IPv4 callers as well (they appear as `::ffff:a.b.c.d`), and the test suite
+  /// dials IPv4 loopback against an `::` listener on every platform it runs on.
+  /// A machine with IPv6 disabled refuses the bind, and that refusal is what the
+  /// fallback is for: the IPv4 any-address is exactly what this listener was
+  /// before, so no configuration ends up worse off than the previous release.
+  ///
+  /// Known limit: a host configured with `bindv6only=1` (a Linux sysctl)
+  /// *accepts* the `::` bind and then serves IPv6 only — nothing here notices,
+  /// and IPv4 peers cannot reach this device. Detecting it needs a self-connect
+  /// probe against the bound port, which is an untestable branch on every
+  /// machine without that sysctl; the default is dual-stack on each platform
+  /// this app ships to, so the limit is written down rather than worked around.
+  ///
+  /// A port already in use fails both attempts; the original error is rethrown
+  /// then, and the caller's ephemeral-port fallback handles it either way.
+  Future<HttpServer> _bind(String address, int port) async {
+    try {
+      return await HttpServer.bindSecure(
+        address,
+        port,
+        identity.buildContext(),
+        // Never request a client certificate: see the class comment. Peers are
+        // authenticated per request by their pairing-established secret.
+        requestClientCertificate: false,
+      );
+    } on SocketException catch (error) {
+      if (address != anyIpv6) rethrow;
+      try {
+        return await HttpServer.bindSecure(
+          anyIpv4,
+          port,
+          identity.buildContext(),
+          requestClientCertificate: false,
+        );
+      } on SocketException {
+        throw error;
+      }
+    }
   }
 
   Future<void> stop() async {
@@ -317,6 +374,17 @@ class SyncServer {
     return difference == 0;
   }
 
+  /// The caller's address, in the canonical form the engine stores.
+  ///
+  /// On a dual-stack listener an IPv4 caller arrives as `::ffff:a.b.c.d`, and
+  /// that mapped form is a valid address to a socket but not to a URI or to a
+  /// human: stored as-is it would become an endpoint that cannot be dialed
+  /// back and would double every IPv4 peer under two names.
+  String? _remoteHost(HttpRequest request) {
+    final address = request.connectionInfo?.remoteAddress.address;
+    return address == null ? null : normalizeHost(address);
+  }
+
   Future<void> _handlePair(HttpRequest request) async {
     if (request.method != 'POST') {
       _safeRespond(request, HttpStatus.methodNotAllowed, {
@@ -368,10 +436,7 @@ class SyncServer {
       _safeRespond(request, HttpStatus.forbidden, {'error': 'id_mismatch'});
       return;
     }
-    final answer = await handler.handlePair(
-      pairRequest,
-      request.connectionInfo?.remoteAddress.address,
-    );
+    final answer = await handler.handlePair(pairRequest, _remoteHost(request));
     if (answer == null) {
       _safeRespond(request, HttpStatus.forbidden, {'error': 'invalid_pin'});
       return;
@@ -394,7 +459,7 @@ class SyncServer {
     final result = await handler.handleHello(
       peerDeviceId,
       SyncHello.fromJson(body),
-      remoteAddress: request.connectionInfo?.remoteAddress.address,
+      remoteAddress: _remoteHost(request),
     );
     if (result is SyncHelloRefusal) {
       _respondJson(request, HttpStatus.conflict, result.toJson());

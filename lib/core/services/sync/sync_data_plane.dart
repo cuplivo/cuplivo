@@ -161,6 +161,10 @@ class SyncDataPlane {
   /// chat caches once. Returns per-conversation outcomes keyed by id so the
   /// caller can advance checkpoints precisely (deferred conversations keep
   /// their previous entry).
+  ///
+  /// The conversations that actually changed ride along with the reload: they
+  /// are what tells an open window to rebuild, instead of leaving the user
+  /// reading pre-sync content until they switch conversations and back.
   Future<Map<String, SyncSubtreeApplyOutcome>> applySubtrees(
     List<SyncSubtreePayload> subtrees, {
     required String myDeviceId,
@@ -168,7 +172,7 @@ class SyncDataPlane {
     required Map<String, Map<String, int>> checkpointRowsByConversation,
   }) async {
     final outcomes = <String, SyncSubtreeApplyOutcome>{};
-    var changed = false;
+    final touched = <String>{};
     for (final subtree in subtrees) {
       final conversationId = subtree.conversation['id'] as String;
       final outcome = await repository.syncApplySubtree(
@@ -182,11 +186,18 @@ class SyncDataPlane {
       if (!outcome.deferred &&
           (outcome.upsertedMessages > 0 ||
               outcome.deletedMessages > 0 ||
-              outcome.conversationRowChanged)) {
-        changed = true;
+              outcome.conversationRowChanged ||
+              // A repaired order is a change to what the user reads while every
+              // counter stays at zero, so it admits the conversation here too.
+              outcome.reordered)) {
+        touched.add(conversationId);
       }
     }
-    if (changed) await chatService.reloadAfterExternalChange();
+    if (touched.isNotEmpty) {
+      await chatService.reloadAfterExternalChange(
+        touchedConversations: touched,
+      );
+    }
     return outcomes;
   }
 

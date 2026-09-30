@@ -215,7 +215,7 @@ void main() {
         (id: 'm2', order: 1000001, timestampUs: 3000000),
       ]);
 
-      await apply(
+      final outcome = await apply(
         payloadOf([
           (id: 'm1', order: 1000000, timestampUs: 1000000),
           (id: 'm2', order: 1000001, timestampUs: 1500000),
@@ -223,6 +223,12 @@ void main() {
       );
 
       expect(await storedOrder(), [(id: 'm1', order: 0), (id: 'm2', order: 1)]);
+      // The repair is the only change, so it is also the only thing that can
+      // tell a caller to reload: the counters are all zero by construction.
+      expect(outcome.upsertedMessages, 0);
+      expect(outcome.deletedMessages, 0);
+      expect(outcome.conversationRowChanged, isFalse);
+      expect(outcome.reordered, isTrue);
     },
   );
 

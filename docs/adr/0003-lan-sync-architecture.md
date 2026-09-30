@@ -211,6 +211,9 @@ What the implementation settled:
   refused or timed out → try the next candidate. Wrong PIN, wrong certificate or identity
   mismatch → stop, because the same answer awaits on every candidate, and a certificate mismatch
   is either a spoof or a recycled address the user can fix by hand.
+  *Superseded for the certificate case by slice 10*: a failed handshake is the *address* being
+  wrong, not the device answering, so it now disqualifies that address and the walk continues. A
+  refused PIN or an identity mismatch — the device itself — still ends the attempt.
 - **Re-pairing is the repair action for a drifted endpoint.** Scanning a paired device again
   overwrites its address and rotates the secret (the old one is dead on the responder). This is
   why discovery can be deferred without stranding a user whose peer moved, and why the UI says
@@ -530,6 +533,283 @@ not; and the crafted-row defect is reachable as a re-home and as a cross-convers
 the unique-slot collision the review also described, because the order re-derivation compacts slots
 before writing.
 
+## Amendment (2026-09, slice 9): advertised candidates, a remembered endpoint set, the rebuilt window
+
+Three defects from field use of 4.0, none of them in the merge: a device that advertised no
+address at all, a peer record that could hold only one address, and an open conversation that
+kept showing pre-sync content.
+
+- **The candidate filter excluded the addresses that work.** The list was restricted to RFC1918 —
+  the reasoning was that a human types it. A campus network that hands out globally routable IPv4
+  directly then had nothing left to advertise: no endpoint in the QR, "no LAN address" in the
+  panel, while a peer on the same segment could reach it. The rule is now every unicast IPv4, with
+  loopback, link-local, multicast and the reserved blocks dropped (the enumeration excludes
+  loopback and link-local itself).
+- **The same filter kept the addresses that do not work.** Virtual adapters live in the private
+  ranges, so VMware's host-only network was advertised — and two machines running the same
+  hypervisor carry the same default clone subnet, so a joiner trying that candidate reaches
+  *itself* and fails the pin. Interfaces are now filtered by name (stems `vmware`, `virtualbox`,
+  `vethernet`, `docker`, `wsl`, the tunnel and VPN families, and `rmnet`/`clat`/`pdp_ip` on
+  phones): excluded rather than demoted, because a demoted candidate keeps that failure reachable.
+  Names a tethered peer must dial are deliberately kept — `bridge*` (an iPhone's personal
+  hotspot), Windows' "Local Area Connection* N" (the mobile hotspot adapter) and `swlan*` (Android
+  soft AP) — and the advertised list is capped at four addresses so the QR stays scannable.
+- **An address is a (device, network) fact, not a device fact.** The peer record stored one
+  `lastHost`/`lastPort`, so every move between home, office and a phone hotspot became a re-scan.
+  It now holds up to six endpoints, best first: a session promotes the endpoint that answered and
+  keeps the rest behind it as hints, which is what makes roaming back to a known network heal in
+  one round. Only "could not be reached at all" falls through to the next candidate — a refusal is
+  the peer's verdict on *all* of its addresses — and a handshake mismatch counts as unreachable,
+  because the pin refuses inside the handshake before any request byte. That is what makes trying
+  the next address free.
+- **Both sides start with a set.** Pairing keeps the QR's other candidates as hints, and the joiner
+  advertises its own addresses in the pair request (`candidateHosts`, additive: a 4.0 peer ignores
+  the field, so no protocol bump) so the responder remembers more than the single address the
+  pairing arrived from. Manual repair replaces the whole set — the automatic memory is what failed,
+  or the user would not be typing.
+- **4.0 records are upgraded on read.** The stored pair becomes a one-element set seeded with
+  `lastSyncedAt`, and the next save writes the new shape. The peer store is plain JSON per peer, so
+  there is no database migration; letting every paired device re-pair on update was not an
+  acceptable cost for a feature whose whole point is durable pairing.
+- **An open conversation is rebuilt, not left behind.** The apply already reloaded the caches, but
+  the controller's only reaction to that notification was "does the conversation still exist?", so
+  a conversation the peer had just written into kept showing pre-sync content until the user left
+  it and came back — the take-the-phone-and-keep-chatting journey ended on a stale screen. The
+  apply now names the conversations it changed, and the controller compares a per-conversation
+  external-write counter against the one its window was built from: it rebuilds the window
+  (tail-following at the bottom, anchored on the first loaded row above it) and refreshes the row
+  the page renders outside the window. A write that lands while a local generation owns the window
+  is held back and applied when the stream releases it; every other notification costs one integer
+  comparison. *Rejected: a targeted partial cache reload* — the shared persisted caches are the
+  trap it opens, and the full reload is what the apply has always run, so the counter alone buys
+  the user-visible fix. *Rejected: live-reloading open editor pages* — a form rewritten under the
+  user's hands is worse than a snapshot, and the row-level LWW rule plus the report's lost-row
+  counter already covers the outcome.
+
+## Amendment (2026-09, slice 10): candidates are probed first, and one address is not the pairing
+
+Slice 9 made a peer record hold every address a peer was known at. That turned a single dial into a
+sequence of dials, and the sequence inherited two rules that only made sense for one address: a
+failed attempt cost a full dial budget, and an answer that was not the peer stopped everything.
+
+- **Candidates are probed in parallel, then dialed in order.** Every candidate is first reached with
+  a bare TCP connect, all at once, under a two-second budget; the addresses that answered are dialed
+  in sequence under a three-second connect budget (ten seconds before — a LAN host answers a SYN in
+  milliseconds, so the only thing ten seconds bought was a slower failure). The cost of unreachable
+  addresses becomes the maximum instead of the sum: a peer remembered at six addresses across three
+  networks used to cost up to a minute of a background round before the live one was tried. A probe
+  loser is appended rather than dropped — a probe is one SYN, and losing one is not evidence that the
+  serial dial could not reach the address — and a single candidate skips the probe entirely, where
+  the dial already is one. The probe classifies the address only: identity is still the certificate
+  pin, checked at dial time. *Rejected: full RFC 8305 racing* — the pairing PIN is one-shot, so two
+  concurrent `/pair` requests would race for one window instead of one of them simply being tried
+  second, and with at most six candidates the serial TLS leg costs nothing worth that.
+- **The remembered order is a history of networks; the subnet says where this device is.** Given
+  equal reachability, candidates sharing an IPv4 /24 with one of this device's own addresses are
+  dialed first. A laptop arriving home still has the office address at the head of its set from last
+  night, and that head is exactly what the round needs to skip. The preference is applied *inside*
+  each of the probe's two groups, so topology can never promote an address that did not answer above
+  one that did.
+- **An address that answers with the wrong certificate no longer ends a pairing.** Slice 4's rule
+  ("an endpoint that answers wrongly stops the attempt, because the same answer awaits on every
+  candidate") conflated two different verdicts. A refused PIN or an identity mismatch *is* the
+  scanned device answering, and it would answer the same way on every address it holds — still
+  terminal. A failed handshake is not an answer from the device at all: the pin refused that address
+  before any request byte left, which is what the slice-4 security argument already rested on. Such
+  an address is now disqualified and the loop continues, so a QR whose first address is a recycled
+  lease or a machine that happens to answer on the sync port still pairs on the address behind it.
+  When *every* address answered as something else, that is the reported failure
+  (`fingerprint_mismatch`): no retry helps, a fresh code does. *Rejected: reporting the mismatch as
+  unreachable* — "nothing answered" and "something answered and it was not your peer" need different
+  repairs.
+- **The address list is re-enumerated, not remembered from startup.** It used to be computed once
+  per launch, so a device that changed networks kept advertising the one it had left: a QR pointing
+  at a dead address, and a dial ordered by a network the device was no longer on. It is now refreshed
+  when the app resumes and when the pairing dialog opens — on a desktop, changing networks fires no
+  lifecycle event at all — and the same list is pushed into the engine so the screen and the dial
+  cannot disagree. The QR follows it too: the image was encoded once at open while the list beside it
+  was read live, so the two could show different networks. It is re-encoded when, and only when, its
+  endpoints changed, which keeps the once-a-second countdown tick from rebuilding it.
+
+## Amendment (2026-09, slice 11): the dual stack
+
+Slice 9 fixed what a device *advertises*; this one fixes what it *listens on and stores*. Both were
+IPv4-shaped, so a network that hands out IPv6 only — and every peer reaching this device over IPv6 —
+had nothing to pair with.
+
+- **One listener, both stacks.** `HttpServer.bindSecure` now binds the IPv6 any-address. Measured on
+  Windows: a listener on `::` answers `127.0.0.1`, and the caller arrives as `::ffff:127.0.0.1`; and
+  `::` is a genuinely exclusive wildcard — it refuses to bind while another socket holds `0.0.0.0` on
+  that port, and the reverse fails too, so there is no window in which two listeners both serve it. A
+  machine with IPv6 disabled falls back to the IPv4 wildcard, which is exactly what the listener was
+  before: no bind that *fails* ends up worse off than 4.0. (A host whose `bindv6only=1` does not fail
+  the bind — see the known limits below, and the slice 13 correction.)
+  *Rejected: a second listener per family* — it would need its own port, its own firewall rule and its
+  own peer memory for a socket flag the platform already provides.
+- **Storage is bare, everything that faces a URI or a human is bracketed.** The mapped form a
+  dual-stack listener reports for an IPv4 caller is a valid address to a socket but not to
+  `Uri.parse` and not to a person: stored as-is, every IPv4 peer would live under two names and the
+  stored one could not be dialed back. `normalizeHost` (strip brackets, reduce a mapped literal to
+  IPv4), `uriHost` and `formatHostPort` are the entire boundary, and the storage layer, the dial, the
+  QR payload, the peer label and the typed address all route through them. The QR wire format is
+  unchanged for IPv4 — a payload from a 4.0 peer round-trips identically — and the payload's
+  last-colon split needs no change for IPv6 because the literal travels bracketed.
+- **Both families are advertised, under one cap.** Kept: global unicast (`2000::/3`) and unique local
+  (`fd00::/8`) — the two ranges an interface actually holds and a peer on the same network reaches.
+  Dropped: link-local (`fe80::/10`, whose zone id is a property of *this* device's interface and
+  means nothing to a peer), multicast, the unspecified address, the reserved `fc00::/8` half, and the
+  IPv4-mapped and IPv4-compatible forms, which are an IPv4 address wearing an IPv6 shape and are
+  enumerated as IPv4 instead. The four-address cap counts both families together: a machine with an
+  address of each keeps the four its interfaces reported first. *Rejected: a per-family quota* — a
+  typical machine holds one or two global addresses per family, so a quota would add a selection rule
+  to defend against a shape that does not occur, and the probe layer already handles any mix.
+- **The pairing QR was resized for the payload it now carries.** Four IPv4 endpoints already encoded
+  to ~280 characters — version 12 at error correction M, under 2.8 px per module in the 180 px square
+  — while an IPv6 endpoint is ~45 characters where an IPv4 one is 19, which would have crossed into
+  version 14 and ~2.4 px per module. The square is now 220 px and the correction level L, putting the
+  worst case (four IPv6 endpoints, ~380 characters) at version 13 and ~3.2 px per module: better than
+  what shipped for IPv4 alone. *Rejected: keeping M at 220 px* — the same worst case lands on version
+  15 and ~2.9 px, and at these payload sizes a version step costs more scannability than the extra
+  correction buys for a code read at close range off a clean screen.
+- **Known limits, recorded rather than papered over.** A Linux host with `bindv6only=1` binds `::`
+  successfully but serves only IPv6, so an IPv4 peer's dial to that port cannot land; the fallback
+  above covers only a bind that *fails*, and the sysctl is not visible from the socket, so the
+  listener cannot detect this and correct itself. Windows privacy extensions rotate temporary
+  IPv6 addresses, so an advertised v6 endpoint can go stale — the probe, the endpoint set and the
+  promotion-on-success rule already treat a stale address as an ordinary drift to heal. And an older
+  build reading a peer record that holds an IPv6 endpoint cannot dial it, which is the same
+  downgrade position as slice 9: unsupported, not worked around.
+- **The tests are sensitive to a running app.** The suite's providers prefer port 9527; when the
+  installed app is running, that port is taken, so every provider falls back to an ephemeral port —
+  which has no firewall rule, which is the branch that notifies. That surfaced a pre-existing defect
+  (a notification after `dispose`, reported as an unhandled async error against an unrelated test),
+  now guarded by a `_disposed` flag the provider's notification helper checks.
+
+## Amendment (2026-09, slice 12): the panel says what to do about it
+
+The session layer was already honest about *why* something failed; the panel was not. This slice
+closes the gap between what the engine knows and what the card says.
+
+- **A peer with no address is not an unreachable peer.** The engine recorded "this record remembers
+  nowhere to dial" as `unreachable` — the value a peer that *was* dialed and never answered also gets
+  — so both rendered one sentence, and each one's repair was wrong for the other: turning the other
+  device on does nothing for a record with no address at all. `noEndpoint` is its own reason (wire
+  `no_endpoint`), with a line that asks for an address. *Rejected: carrying the engine's `summary`
+  string on the stored report* — the summary is machine text built for logs, while the reason is the
+  value the panel localizes, and the enum's unknown-value fallback is exactly what makes adding one
+  safe: a value the enum cannot parse renders the generic line rather than nothing, and a record
+  written before this one still holds `unreachable`, which is a reason it can still read.
+- **The failure line names the repair.** The unreachable line stated the fact and stopped, while the
+  code already knew the remedy — a peer that moved is healed by re-scanning its QR or by typing the
+  address on its card (this is the drift rule below, in slice 9) — so the line now names both.
+  *Rejected: a separate guidance line on the card* — "a failure is a reason, not a sentence" is the
+  panel's rule, and a second line would have to be wired into two renderers (the card and the
+  snackbar) to stay in step.
+- **A pairing typed by hand is announced like every other one.** The manual form closed in silence,
+  so the one success the user triggered entirely by hand was the only unreported one. The name does
+  not have to be assembled from the form: the engine returns the record it wrote and the provider was
+  discarding it, so the outcome now carries that record's name and id and every path announces the
+  name the card will show. Known-ness is read from the peer list *before* the call, so re-pairing an
+  already-paired device still reads as an update rather than as a first pairing.
+- **The card's time line answers "is this current?"** How long ago, not a timestamp: a date makes the
+  reader subtract, and the question on that line is recency. Past a week the stamp returns — at nine
+  days old the date *is* the more useful fact — the exact time rides in the tooltip, and a stamp in
+  the future (a peer whose clock ran ahead, or a clock that moved backwards) reads as just synced
+  rather than as a countdown on a line about the past. The units are ARB strings: `intl` dropped
+  `RelativeDateTimeFormatter` in 0.20, so the alternative was a dependency or a formatter that does
+  not exist — and this keeps the wording in the app's own four translations. *Rejected: keeping the
+  absolute timestamp as the line itself* — it is already in the tooltip, so the line would spend its
+  width on the less useful half.
+- **The remembered set is counted, and the address copies.** A peer this device has reached on two
+  networks showed only the address in use, which is indistinguishable from a peer with one address;
+  the count now rides with it ("(+2)"). The address itself copies on tap, with the confirmation every
+  other copy in the app gives: it is the one string on this card that belongs somewhere else — typed
+  into another device, or read out to whoever is on the other end of the call.
+- **A widget test does not join the shared side list.** The pairing-dialog and peer-card tests drive
+  a stub provider over a side that runs no engine; adding such a side to a suite's shared `sides`
+  list made the shared teardown dispose an uninitialised engine, and a teardown that throws never
+  clears the list — so every later test in the file re-disposed the leak. Sixty tests failed that
+  way, none of them about the change under test. Such a side cleans up after itself instead.
+
+## Amendment (2026-09, slice 13): review hardening — the walk keeps walking
+
+A review of slices 9–12 traced three long chains (apply → controller rebuild, enumeration → QR →
+stored endpoint, listener/notify paths) and found five defects in them. Four are the same shape:
+the documented rule was right and the code had a hole in it. Each fix below therefore moves code
+to match language this file and `CONTEXT.md` already carried, and every behavioural fix has a test
+that was red before it went in.
+
+- **A refused certificate is a verdict on the address, not on the session.** `_syncWithPeerAt`
+  documented that a `HandshakeException` is a null "so the next candidate is still a fair attempt",
+  and `CONTEXT.md` says an endpoint answering with the wrong certificate falls through — but the
+  handlers caught `SocketException` and `TimeoutException` only, while a `HandshakeException`
+  implements `TlsException`, **not** `SocketException`. The refusal escaped to the catch-all, which
+  returns a *non-null* report: the walk ended there with the peer never dialed although it was live
+  at the address right behind the stranger, and the session was recorded as `unreachable`. A
+  `TlsException` is now caught beside the socket case. *Rejected: a new `SyncFailureReason` for
+  "every address answered as another device"* — the `unreachable` line already names the repairs
+  that fit it (re-scan the QR, or edit the address), so a fifth value would buy wording rather than
+  an action, and the enum's unknown-value fallback makes the existing one safe to keep.
+- **The address that refused the peer is not promoted as one that worked.** The same path reached
+  `_finish` with its host and port and was stamped by `noteEndpointSuccess`, so the foreign address
+  became the head of the remembered set — and the string the card showed — ahead of the address the
+  last successful session ran over. Fixing the exception class removes the harmful case at its
+  source: what still reaches `_finish` either succeeded, was refused *by the peer* (a refusal proves
+  the address reaches it), or failed after a pin-verified hello.
+- **Probe winners keep their input order.** `orderCandidates` promised that and appended from the
+  probe's completion callback, so the order was a race: the same set of addresses could be dialed
+  in a different order on consecutive rounds, and that order is what the pairing record stores as
+  hints behind the winner. The injected-connect tests could not see it — an immediately-completing
+  fake finishes in the order it was started. Winners and losers are now rebuilt in input order,
+  with a test that gates the probes on completers and finishes them out of order.
+- **A foreground round waits for the addresses it stands on.** The enumeration and the round were
+  both fired unawaited with nothing sequencing them, so the first round after a launch could compute
+  its dial order from an empty list — where `_preferSameSubnet` returns its input untouched,
+  dropping the nearest-subnet rule the probing exists for. The resume path had the identical pair,
+  under a comment claiming the ordering. Both call sites now go through one sequenced helper, and
+  the entering side of pairing re-enumerates too, because the addresses it advertises are the
+  candidates the peer will remember. *Rejected: refreshing inside `autoSyncRound`* — the pairing
+  surface needs the list whether or not a round runs, so the two calls stay distinct and only their
+  order is fixed.
+- **A reorder-only apply is a change.** The repository repairs a stored order that disagrees with
+  the re-derived one and reports `upsertedMessages: 0, deletedMessages: 0,
+  conversationRowChanged: false` — correctly, no row's content changed — while the data plane admits
+  a conversation to the reload set on those counters alone. The order was therefore corrected with
+  no revision bump, no notification and no rebuild, and a window open on that conversation kept
+  rendering the pre-sync order until the user left it and came back. The drift is now its own fact
+  (`SyncSubtreeApplyOutcome.reordered`) instead of a hidden part of the reorder decision, and it
+  admits the conversation to the same reload. *Rejected: counting the repair in
+  `conversationRowChanged`* — that field means the conversation row was written, and overloading it
+  would make the report lie about a different write.
+- **A dialog owns the controllers its fields use.** Found by the repair-dialog test rather than by
+  the review: the card's address and rename dialogs created their controllers as locals and
+  disposed them right after `await showDialog(...)`, which completes when the route *pops*, not when
+  it is gone. The still-mounted field rebuilt against a disposed controller during the exit
+  animation — "A TextEditingController was used after being disposed", with a 99679 px `RenderFlex`
+  overflow as the cascade — and it was timing-dependent, which is why it survived until a test
+  submitted the form. Both dialogs are stateful now, so the state that owns a controller disposes
+  it, as every other dialog in this feature already did.
+- **The repair field stores the host form pairing stores.** `CONTEXT.md` already said an endpoint is
+  stored bare and bracketed only where a human or a URI reads it; the repair field was the one
+  exception, so pasting back the address the card had just copied (bracketed, as its label shows it)
+  stored `[fd00::9]`, and the next dial would have bracketed it a second time inside the request
+  URI. The field now normalizes like the pairing form.
+- **Three untrue claims, corrected.** The local-address header said the enumeration is IPv4-only
+  while it deliberately asks for both families; the `_octetPattern` doc said a padded octet is
+  rejected while the pattern accepted it (the existing `10.x` vs `010.x` cases pass either way,
+  because the two prefixes differ as text — two *padded* forms still matched each other); and the
+  listener comment, `CONTEXT.md` and slice 11's own fallback paragraph said a `bindv6only=1` host
+  "falls back to IPv4", when such a host accepts the `::` bind and serves IPv6 only — a claim slice
+  11's *known limits* bullet thirty lines below already contradicted. All four statements are
+  corrected in place, and the mapped-IPv6 branch in `_isUsableIpv6` was dead as well — its condition
+  requires a zero first byte, which both keeps already reject — so it is gone. *Rejected: a
+  self-connect probe to detect `bindv6only=1`* — it would add an untestable branch (no such sysctl on
+  the machines the suite runs on) and startup traffic, for a host configuration none of this app's
+  platforms defaults to; the limit is written down instead.
+
+Verification: the fixes' red proofs are the pre-fix runs recorded in each commit body; the full
+suite reports the same 77 known failures as this branch's baseline, with none added.
+
 ## Considered options (rejected)
 
 - **Whole-database / backup-zip exchange** — not version-portable; a newer schema on an
@@ -624,12 +904,14 @@ before writing.
   blocks a conversation.
 - Serving a skill body costs one zip build per content hash and launch (cached under
   `<skills>/.sync-blob-cache`), and directory hashing is memoised per launch by fingerprint.
-- A peer whose address drifted reports `unreachable` until the user re-scans its QR or edits the
-  address: without discovery nothing heals an endpoint change on its own, and the panel shows the
-  last attempt rather than an "online" state it cannot verify.
-- A foreground round over an unreachable peer waits out the client's 10-second connect timeout
-  before moving to the next one; the one-minute throttle keeps that from becoming a loop, and
-  nothing blocks the UI.
+- An address a peer has moved away from costs one failed connect before the remembered set moves on
+  to the one that answers; `unreachable` on the panel therefore means *no* remembered address
+  answered — the peer is off, or it is on a network this pair has never met, where re-scanning its
+  QR or typing the address remains the repair. Without discovery nothing anticipates a change, and
+  the panel still shows the last attempt rather than an "online" state it cannot verify.
+- A foreground round over an unreachable peer walks its remembered candidates instead of stopping
+  at the first: the cost is one connect timeout per candidate, bounded by the six-endpoint cap, and
+  the one-minute throttle keeps that from becoming a loop.
 - Scanner availability follows the platform, not the package: `mobile_scanner` has Android and
   iOS implementations wired here, so desktop devices show a QR and pair by typing the code (the
   port field is prefilled with the preferred port). macOS is deliberately excluded even though

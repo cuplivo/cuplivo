@@ -334,8 +334,12 @@ class SyncHelloRefusal {
 /// localizes it, and a raw exception — which carries the peer's address and
 /// port — never reaches the card or a snackbar.
 enum SyncFailureReason {
-  /// The peer could not be reached at all: no endpoint known, a refused
-  /// connection, a dead address.
+  /// The peer record carries no endpoint at all: there is nothing to dial, so
+  /// the fix is a new address (rescan the peer's QR, or edit its card), not a
+  /// retry.
+  noEndpoint('no_endpoint'),
+
+  /// The peer could not be reached: a refused connection, a dead address.
   unreachable('unreachable'),
 
   /// A beat stopped answering mid-session.
@@ -351,6 +355,7 @@ enum SyncFailureReason {
   const SyncFailureReason(this.wire);
 
   static SyncFailureReason? tryParse(String? raw) => switch (raw) {
+    'no_endpoint' => noEndpoint,
     'unreachable' => unreachable,
     'timeout' => timeout,
     'peer_error' => peerError,
@@ -946,6 +951,18 @@ class SyncSubtreeApplyOutcome {
   final int deletedMessages;
   final bool conversationRowChanged;
 
+  /// True when the apply repaired a message order that disagreed with the order
+  /// the re-derivation produced — a conversation an earlier build left shifted,
+  /// or one whose rows arrived out of order.
+  ///
+  /// It rides beside the counters instead of inside them because no row's
+  /// *content* changed: every other field here reports nothing while the
+  /// timeline the user is reading is not the one the database now holds. Without
+  /// this flag such an apply reloads nothing, and a window open on the
+  /// conversation keeps rendering the pre-sync order until the user leaves and
+  /// comes back.
+  final bool reordered;
+
   /// The revisions this apply actually wrote (the incoming rows that survived
   /// the merge). Asset registration keys off this set: a revision that never
   /// landed here (a deferred conversation, a resolved version-group loser)
@@ -960,6 +977,7 @@ class SyncSubtreeApplyOutcome {
     this.upsertedMessages = 0,
     this.deletedMessages = 0,
     this.conversationRowChanged = false,
+    this.reordered = false,
     this.appliedRevisionIds = const {},
   });
 

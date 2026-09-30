@@ -6,9 +6,11 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import 'blob_sync.dart';
+import 'sync_candidate_prober.dart';
 import 'sync_client.dart';
 import 'sync_data_plane.dart';
 import 'sync_identity.dart';
+import 'sync_local_addresses.dart';
 import 'sync_merge.dart';
 import 'sync_models.dart';
 import 'sync_server.dart';
@@ -129,6 +131,12 @@ class SyncEngine implements SyncServerHandler {
   /// progress, peer list) so the UI can rebuild.
   final void Function() onStateChanged;
 
+  /// This device's own candidate addresses, pushed by the provider whenever it
+  /// re-enumerates them. The dial uses them to tell an address on the network
+  /// this device is standing on from a memory of another one; empty until the
+  /// first enumeration lands, which leaves candidate order untouched.
+  List<LanAddress> localAddresses = const [];
+
   late final SyncServer server = SyncServer(
     identity: identity,
     store: store,
@@ -220,11 +228,18 @@ class SyncEngine implements SyncServerHandler {
 
   /// Pairs with a peer showing [pin] at `host:port`. [expectedDeviceId] is
   /// the QR-scanned certificate fingerprint; see [SyncClient.pair].
+  ///
+  /// [knownCandidates] are the other endpoints the QR advertised: only `host`
+  /// has answered, so the rest are remembered as hints behind it.
+  /// [advertisedAddresses] are this device's own addresses, sent so the
+  /// responder remembers more than the one address this connection came from.
   Future<SyncPeerRecord> pairWith({
     required String host,
     required int port,
     required String pin,
     String? expectedDeviceId,
+    List<(String, int)> knownCandidates = const [],
+    List<String> advertisedAddresses = const [],
   }) async {
     final result = await client.pair(
       host: host,
@@ -232,6 +247,7 @@ class SyncEngine implements SyncServerHandler {
       pin: pin,
       listenPort: this.port,
       expectedDeviceId: expectedDeviceId,
+      candidateHosts: advertisedAddresses,
     );
     final answer = result.answer;
     final peer = SyncPeerRecord(
@@ -240,9 +256,9 @@ class SyncEngine implements SyncServerHandler {
       secret: answer.secret,
       name: answer.deviceName.isEmpty ? answer.deviceId : answer.deviceName,
       platform: answer.platform,
-      lastHost: host,
-      lastPort: port,
     );
+    peer.noteEndpointSuccess(host, port);
+    peer.rememberEndpointCandidates(knownCandidates);
     await store.savePeer(peer);
     // This listener must accept the peer too: pairing may have been initiated
     // from this side, in which case the answer (not a request) carried the
@@ -252,18 +268,94 @@ class SyncEngine implements SyncServerHandler {
     return peer;
   }
 
+  /// Pairs with a peer by trying [endpoints] in order until one answers.
+  ///
+  /// The candidates are probed in parallel first (see [orderCandidates]), so a
+  /// black-holed address costs one shared probe instead of a full dial budget
+  /// per candidate.
+  ///
+  /// What a failing candidate means decides whether the next one is tried:
+  ///
+  /// - A dead address (refused connection, timeout, failed handshake) moves on:
+  ///   the next candidate is still a fair attempt. A failed handshake in
+  ///   particular says nothing about the pairing — the pin refuses that address
+  ///   inside the handshake, before any request byte leaves this device — so an
+  ///   address belonging to someone else disqualifies the *address*.
+  /// - A verdict from the scanned device itself (a refused PIN, an identity
+  ///   mismatch) ends the attempt: the device answered, and it would answer the
+  ///   same way on every other address it holds.
+  ///
+  /// When nothing answers, the last connectivity error is rethrown for the
+  /// caller to classify — unless some address answered as a different device,
+  /// which is the more actionable outcome (no retry helps; a fresh code does).
+  /// Neither is ever rendered raw.
+  ///
+  /// Every endpoint this loop does *not* spend the pairing on stays on the
+  /// record as a hint behind the winner: the peer's other addresses are
+  /// exactly what a later roaming round needs when this one stops working.
+  Future<SyncPeerRecord> pairWithCandidates({
+    required List<(String, int)> endpoints,
+    required String pin,
+    String? expectedDeviceId,
+    List<String> advertisedAddresses = const [],
+  }) async {
+    final candidates = await orderCandidates(
+      endpoints,
+      localAddresses: localAddresses,
+    );
+    Object? lastConnectivityError;
+    var sawWrongCertificate = false;
+    for (final (host, port) in candidates) {
+      try {
+        return await pairWith(
+          host: host,
+          port: port,
+          pin: pin,
+          expectedDeviceId: expectedDeviceId,
+          // Probe-ordered rather than as scanned: the addresses that answered
+          // just now are the ones a later roaming round should try first.
+          knownCandidates: candidates,
+          advertisedAddresses: advertisedAddresses,
+        );
+      } on SyncClientException catch (error) {
+        if (error.message != 'pair_fingerprint_mismatch') rethrow;
+        // Not a verdict from the scanned device: this address presented another
+        // certificate, so the pin refused it before the PIN was sent anywhere.
+        // The peer's remaining addresses are still untried.
+        sawWrongCertificate = true;
+      } on SocketException catch (error) {
+        lastConnectivityError = error;
+      } on TimeoutException catch (error) {
+        lastConnectivityError = error;
+      }
+    }
+    if (sawWrongCertificate) {
+      // An address answered and it was not the scanned device. That is more
+      // actionable than silence: the code in hand is wrong or stale, and
+      // retrying the same list changes nothing.
+      throw const SyncClientException('pair_fingerprint_mismatch');
+    }
+    throw lastConnectivityError ??
+        const SocketException('no pairing endpoint answered');
+  }
+
   /// Removes a pairing from this device, and — best effort — tells the peer to
   /// forget us too. The remote call is fire-and-forget with the secret we
   /// still hold: unpairing must not wait on a peer that may be gone, and any
   /// failure leaves the fallback intact (the peer's next session ends as a
   /// localized `not_paired` refusal instead of a raw error).
+  ///
+  /// The notice goes to the best-remembered endpoint only: it is a courtesy
+  /// within a three-second budget, and every candidate it did not reach is
+  /// covered by the fallback above.
   Future<void> unpair(String deviceId) async {
     final peer = await store.findPeer(deviceId);
-    if (peer != null && peer.lastHost != null && peer.lastPort != null) {
-      final host = peer.lastHost!;
-      final port = peer.lastPort!;
+    final endpoint = peer?.primaryEndpoint;
+    if (peer != null && endpoint != null) {
       unawaited(
-        client.revoke(peer: peer, host: host, port: port).catchError((_) {}),
+        client
+            .revoke(peer: peer, host: endpoint.host, port: endpoint.port)
+            .catchError((_) {}),
       );
     }
     await store.deletePeer(deviceId);
@@ -292,6 +384,15 @@ class SyncEngine implements SyncServerHandler {
   /// other advance. The marker is taken before the first await — Dart's single
   /// isolate makes that the whole lock — and a peer initiating at the same
   /// moment is refused instead of interleaved.
+  ///
+  /// The remembered endpoints are probed in parallel and then run in order, and
+  /// the first one that answers runs the session: an address is a hint from a
+  /// network this device may have left — the same laptop sits at a different
+  /// address at home, at work and on a phone hotspot — and the certificate pin
+  /// re-verifies whoever answers. The probe is what keeps a set of stale
+  /// addresses from costing one dial budget each. Only "could not be reached at
+  /// all" falls through to the next candidate; a refusal from the peer is that
+  /// peer's verdict, and its other addresses would only repeat it.
   Future<SyncSessionReport> syncWithPeer(
     SyncPeerRecord peer, {
     String? host,
@@ -306,32 +407,74 @@ class SyncEngine implements SyncServerHandler {
           refusal: SyncRefusalReason.busy,
         ),
         peer: peer,
-        host: host ?? peer.lastHost,
-        port: port ?? peer.lastPort,
       );
     }
-    final endpointHost = host ?? peer.lastHost;
-    final endpointPort = port ?? peer.lastPort;
-    if (endpointHost == null || endpointPort == null) {
-      _initiatorRounds.remove(peer.deviceId);
-      // Recorded on the peer like every other outcome: the card reads
-      // `peer.lastReport`, so an unpersisted failure would leave a stale
-      // success on screen.
+    try {
+      // An explicit endpoint (a repair attempt) is the only candidate; the
+      // remembered set is the default, best first.
+      final candidates = (host != null && port != null)
+          ? <(String, int)>[(host, port)]
+          : [
+              for (final endpoint in peer.endpoints)
+                (endpoint.host, endpoint.port),
+            ];
+      if (candidates.isEmpty) {
+        // Recorded on the peer like every other outcome: the card reads
+        // `peer.lastReport`, so an unpersisted failure would leave a stale
+        // success on screen. `noEndpoint` rather than `unreachable`: nothing
+        // was dialed, so the card must ask for an address instead of a retry.
+        return await _finish(
+          const SyncSessionReport(
+            success: false,
+            summary: 'no_endpoint',
+            failure: SyncFailureReason.noEndpoint,
+          ),
+          peer: peer,
+        );
+      }
+      for (final (candidateHost, candidatePort) in await orderCandidates(
+        candidates,
+        localAddresses: localAddresses,
+      )) {
+        final report = await _syncWithPeerAt(
+          peer,
+          host: candidateHost,
+          port: candidatePort,
+        );
+        if (report != null) return report;
+      }
+      // Nothing answered: the peer is off, or it moved to a network this device
+      // has not learned yet (re-scan its QR, or type the address on its card).
       return await _finish(
         const SyncSessionReport(
           success: false,
-          summary: 'no_endpoint',
+          summary: 'unreachable:no_candidate_answered',
           failure: SyncFailureReason.unreachable,
         ),
         peer: peer,
       );
+    } finally {
+      _initiatorRounds.remove(peer.deviceId);
+      onStateChanged();
     }
+  }
+
+  /// Runs the session body against one fixed endpoint. Returns the report, or
+  /// null when the endpoint never answered — the caller then tries the next
+  /// remembered candidate.
+  ///
+  /// A `TlsException` — a `HandshakeException` among them — is a null too, on
+  /// purpose: it means the address now belongs to another device (a recycled
+  /// lease) or something claims to be the peer. The pin refused it inside the
+  /// handshake, before any request byte, so nothing leaked towards the wrong
+  /// endpoint and the next candidate is still a fair attempt.
+  Future<SyncSessionReport?> _syncWithPeerAt(
+    SyncPeerRecord peer, {
+    required String host,
+    required int port,
+  }) async {
     onStateChanged();
-    final session = client.openSession(
-      peer,
-      host: endpointHost,
-      port: endpointPort,
-    );
+    final session = client.openSession(peer, host: host, port: port);
     try {
       final myManifest = await dataPlane.buildManifest();
       final myClockUs = clockUs();
@@ -340,28 +483,52 @@ class SyncEngine implements SyncServerHandler {
       // that in the hello to tell "never delivered" from "deleted here".
       final previous = await store.loadCheckpoint(peer.deviceId);
       final myEpoch = await store.readDataEpoch();
-      final hello = await session.hello(
-        SyncHello(
-          protocolVersion: kSyncProtocolVersion,
-          schemaVersion: dataPlane.schemaVersion,
-          deviceId: identity.deviceId,
-          deviceName: identity.name,
-          platform: platformTag(),
-          manifest: myManifest,
-          // Advertised so the responder can pull its blobs back over this
-          // device's listener (slice 3). `this.port` on purpose: the method's
-          // own `port` parameter is the peer's endpoint, not ours.
-          listenPort: this.port,
-          clockUs: myClockUs,
-          unappliedConversations: previous.unappliedConversations,
-          unappliedBusiness: previous.unappliedBusiness,
-          // Deletions this device has not seen confirmed by the peer.
-          deletedConversations: _deletionsToAnnounce(previous, myManifest),
-          // This device's data epoch: a bulk replacement since the last session
-          // tells the peer not to read this device's missing rows as deletions.
-          epoch: myEpoch,
-        ),
-      );
+      final SyncHelloOutcome hello;
+      try {
+        hello = await session.hello(
+          SyncHello(
+            protocolVersion: kSyncProtocolVersion,
+            schemaVersion: dataPlane.schemaVersion,
+            deviceId: identity.deviceId,
+            deviceName: identity.name,
+            platform: platformTag(),
+            manifest: myManifest,
+            // Advertised so the responder can pull its blobs back over this
+            // device's listener (slice 3). `this.port` on purpose: the method's
+            // own `port` parameter is the peer's endpoint, not ours.
+            listenPort: this.port,
+            clockUs: myClockUs,
+            unappliedConversations: previous.unappliedConversations,
+            unappliedBusiness: previous.unappliedBusiness,
+            // Deletions this device has not seen confirmed by the peer.
+            deletedConversations: _deletionsToAnnounce(previous, myManifest),
+            // This device's data epoch: a bulk replacement since the last session
+            // tells the peer not to read this device's missing rows as deletions.
+            epoch: myEpoch,
+          ),
+        );
+      } on SocketException catch (error) {
+        // Refused, unroutable: nothing answered at this address. The caller
+        // tries the next one.
+        debugPrint('sync: ${peer.deviceId} unreachable at $host:$port: $error');
+        return null;
+      } on TlsException catch (error) {
+        // The address answered, and the pin refused what answered: a recycled
+        // lease a second install now holds, or an identity that rotated after a
+        // wipe. That is a verdict on the *address*, so the walk continues — the
+        // same reading the pairing walk gives it. A `HandshakeException`
+        // implements `TlsException` (it is **not** a `SocketException`), and the
+        // refusal happens inside the handshake, before any request byte, so
+        // nothing leaked towards the endpoint that answered.
+        debugPrint(
+          'sync: ${peer.deviceId} answered as another device at $host:$port: '
+          '$error',
+        );
+        return null;
+      } on TimeoutException catch (error) {
+        debugPrint('sync: ${peer.deviceId} timed out at $host:$port: $error');
+        return null;
+      }
       if (hello.refusal != null) {
         return await _finish(
           SyncSessionReport(
@@ -370,8 +537,8 @@ class SyncEngine implements SyncServerHandler {
             refusal: hello.refusal!.reason,
           ),
           peer: peer,
-          host: endpointHost,
-          port: endpointPort,
+          host: host,
+          port: port,
         );
       }
       final peerHello = hello.hello!;
@@ -388,8 +555,8 @@ class SyncEngine implements SyncServerHandler {
             refusal: SyncRefusalReason.peerSchemaNewer,
           ),
           peer: peer,
-          host: endpointHost,
-          port: endpointPort,
+          host: host,
+          port: port,
         );
       }
 
@@ -737,8 +904,8 @@ class SyncEngine implements SyncServerHandler {
           clockSkewMs: clockSkewMs,
         ),
         peer: peer,
-        host: endpointHost,
-        port: endpointPort,
+        host: host,
+        port: port,
       );
     } catch (error, stack) {
       // The machine summary stays for the logs; the card and the persisted
@@ -752,12 +919,11 @@ class SyncEngine implements SyncServerHandler {
           failure: _failureReason(error),
         ),
         peer: peer,
-        host: endpointHost,
-        port: endpointPort,
+        host: host,
+        port: port,
       );
     } finally {
       session.close();
-      _initiatorRounds.remove(peer.deviceId);
       onStateChanged();
     }
   }
@@ -1181,6 +1347,14 @@ class SyncEngine implements SyncServerHandler {
     final peer = await store.findPeer(peerDeviceId);
     if (peer != null) {
       peer.lastSyncedAt = DateTime.now();
+      // The session just ran over the caller's address, so that is where this
+      // network reaches it: refresh the memory (and promote it), which is what
+      // lets a peer that roamed keep syncing without a re-scan.
+      final learnedHost = session.initiatorHost;
+      final learnedPort = session.initiatorHello.listenPort;
+      if (learnedHost != null && learnedPort != null) {
+        peer.noteEndpointSuccess(learnedHost, learnedPort);
+      }
       peer.lastReport = _report(
         sent: outgoing.length,
         received: session.outcomes.length,
@@ -1232,12 +1406,19 @@ class SyncEngine implements SyncServerHandler {
       secret: secret,
       name: request.deviceName.isEmpty ? request.deviceId : request.deviceName,
       platform: request.platform,
-      // Endpoint learned from the pairing itself: where the initiator
-      // connected from + the listener port it advertised. Null when the
-      // initiator had no listener running; the address can be fixed by hand.
-      lastHost: initiatorHost,
-      lastPort: request.listenPort,
     );
+    // The endpoint that demonstrably works: where the initiator connected from,
+    // paired with the listener port it advertised. Null when the initiator had
+    // no listener running; the address can be fixed by hand.
+    if (initiatorHost != null && request.listenPort != null) {
+      peer.noteEndpointSuccess(initiatorHost, request.listenPort!);
+    }
+    // Its other addresses are hints only: they have not answered anything here.
+    if (request.listenPort != null) {
+      peer.rememberEndpointCandidates([
+        for (final host in request.candidateHosts) (host, request.listenPort!),
+      ]);
+    }
     await store.savePeer(peer);
     // The pairing request arrived on this listener, so the peer is known here
     // already; the initiator learns the same secret from the answer.
@@ -1906,6 +2087,10 @@ class SyncEngine implements SyncServerHandler {
   /// Completes a session: records the outcome on the peer record and returns
   /// the report. The save is awaited — the caller sees a report only once it is
   /// durable, and nothing is left writing when the session is already over.
+  ///
+  /// [host]/[port] are the endpoint the session ran over. A session that got as
+  /// far as an answer proves that address reaches the peer on this network
+  /// (refusals included), so it is promoted to the front of the remembered set.
   Future<SyncSessionReport> _finish(
     SyncSessionReport report, {
     SyncPeerRecord? peer,
@@ -1916,8 +2101,7 @@ class SyncEngine implements SyncServerHandler {
     if (peer != null) {
       peer.lastSyncedAt = DateTime.now();
       peer.lastReport = report.toPeerReport();
-      if (host != null) peer.lastHost = host;
-      if (port != null) peer.lastPort = port;
+      if (host != null && port != null) peer.noteEndpointSuccess(host, port);
       await store.savePeer(peer);
     }
     onStateChanged();

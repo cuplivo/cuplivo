@@ -19,18 +19,23 @@ import 'package:Cuplivo/core/services/sync/sync_client.dart';
 import 'package:Cuplivo/core/services/sync/sync_data_plane.dart';
 import 'package:Cuplivo/core/services/sync/sync_engine.dart';
 import 'package:Cuplivo/core/services/sync/sync_identity.dart';
+import 'package:Cuplivo/core/services/sync/sync_local_addresses.dart';
 import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:Cuplivo/core/services/sync/sync_pair_qr.dart';
 import 'package:Cuplivo/core/services/sync/sync_server.dart';
 import 'package:Cuplivo/core/services/sync/sync_store.dart';
 import 'package:Cuplivo/features/sync/widgets/sync_pairing_dialogs.dart';
+import 'package:Cuplivo/features/sync/widgets/sync_peer_card.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:provider/provider.dart';
 
 /// End-to-end LAN sync over the real stack: two independent databases, two
@@ -460,8 +465,12 @@ class _Side {
   }
 
   /// Drives this side through the real [SyncProvider] — the layer the QR
-  /// pairing and the foreground round live in.
-  Future<SyncProvider> startProvider() async {
+  /// pairing and the foreground round live in. [addressSource] stands in for
+  /// the machine's interface enumeration, so a test can move this device to
+  /// another network without touching a real NIC.
+  Future<SyncProvider> startProvider({
+    Future<List<LanAddress>> Function()? addressSource,
+  }) async {
     final started = SyncProvider(
       chatService: chatService,
       repository: repository,
@@ -469,6 +478,7 @@ class _Side {
       businessPreferences: businessPreferences,
       reloader: BusinessStateReloader(businessPreferences),
       syncDirectory: () async => dir,
+      addressSource: addressSource,
     );
     provider = started;
     await started.start();
@@ -508,6 +518,68 @@ class _Side {
     platform: 'test',
     manifest: const SyncManifest(<String, SyncManifestEntry>{}),
   );
+}
+
+/// A [SyncProvider] whose pairing verdict is canned, so the pairing dialog's own
+/// behavior — what it announces, and whether it tells a new pairing from an
+/// update — is testable without a listener or a socket.
+class _StubSyncProvider extends SyncProvider {
+  _StubSyncProvider(_Side side)
+    : super(
+        chatService: side.chatService,
+        repository: side.repository,
+        businessRepository: side.businessRepository,
+        businessPreferences: side.businessPreferences,
+        reloader: BusinessStateReloader(side.businessPreferences),
+        syncDirectory: () async => side.dir,
+      );
+
+  /// What [pairWith] answers; set before the dialog submits.
+  SyncPairOutcome outcome = const SyncPairOutcome.success();
+
+  /// The addresses a repair asked this provider to store, so a test can see the
+  /// form that reached it.
+  final repaired = <(String, int)>[];
+
+  @override
+  Future<void> updatePeerEndpoint(
+    String deviceId,
+    String host,
+    int port,
+  ) async {
+    repaired.add((host, port));
+  }
+
+  @override
+  Future<SyncPairOutcome> pairWith({
+    required String host,
+    required int port,
+    required String pin,
+    String? expectedDeviceId,
+  }) async => outcome;
+}
+
+/// A provider whose foreground round records the address list it ran on, so a
+/// test can see whether the round waited for the enumeration.
+class _RoundRecordingProvider extends SyncProvider {
+  _RoundRecordingProvider({
+    required super.chatService,
+    required super.repository,
+    required super.businessRepository,
+    required super.businessPreferences,
+    required super.reloader,
+    required super.syncDirectory,
+    super.addressSource,
+  });
+
+  /// One entry per round that ran — the list the round would have ordered its
+  /// dials by.
+  final rounds = <List<LanAddress>>[];
+
+  @override
+  Future<void> autoSyncRound() async {
+    rounds.add(List.of(localAddresses));
+  }
 }
 
 /// Writes an assistant list the way a provider does: one whole-list rewrite of
@@ -738,14 +810,95 @@ void main() {
     if (await root.exists()) await root.delete(recursive: true);
   });
 
-  Future<(_Side, _Side)> pair({bool newerSchema = false}) async {
+  test('a disposed provider is never notified again', () async {
+    // Deliberately not added to `sides`: this test disposes the provider itself,
+    // and the shared teardown would dispose it a second time (which
+    // ChangeNotifier asserts on). The cleanup below is what teardown would do.
+    final a = _Side('a');
+    await a.start(root, withEngine: false);
+    final provider = await a.startProvider(addressSource: () async => const []);
+
+    await provider.stop();
+    provider.dispose();
+
+    // Every unawaited tail the provider starts ends in a notification: the
+    // interface enumeration, the firewall child process, a session that
+    // outlives the screen. `ChangeNotifier` asserts on a notification after
+    // dispose, and that assertion surfaces as an unhandled async error — it is
+    // reported against whatever test happens to be running when it lands, not
+    // against the one that disposed the provider.
+    await provider.refreshPeers();
+    await provider.refreshLocalAddresses();
+
+    await a.chatService.close();
+    await a.repository.close();
+  });
+
+  test(
+    'a foreground round runs on the addresses the enumeration produced',
+    () async {
+      // Deliberately not added to `sides`: this test starts and disposes its own
+      // provider, and the shared teardown would dispose it a second time.
+      final a = _Side('a');
+      await a.start(root, withEngine: false);
+
+      const addresses = <LanAddress>[(name: 'en0', address: '192.168.1.20')];
+      final gates = <Completer<void>>[];
+      final provider = _RoundRecordingProvider(
+        chatService: a.chatService,
+        repository: a.repository,
+        businessRepository: a.businessRepository,
+        businessPreferences: a.businessPreferences,
+        reloader: BusinessStateReloader(a.businessPreferences),
+        syncDirectory: () async => a.dir,
+        addressSource: () async {
+          final gate = Completer<void>();
+          gates.add(gate);
+          await gate.future;
+          return addresses;
+        },
+      );
+
+      final starting = provider.start();
+      // The enumeration is in flight and blocked here, which is the window the
+      // round used to run in: it must be waiting behind it, not dialing with the
+      // empty list the same-subnet preference cannot read anything from.
+      await _waitUntil(() async => gates.isNotEmpty);
+      expect(provider.rounds, isEmpty);
+
+      gates[0].complete();
+      await starting;
+      await _waitUntil(() async => provider.rounds.isNotEmpty);
+      expect(provider.rounds.single, addresses);
+
+      // Resume goes through the same door, and the race is the same one: the
+      // device may have changed networks while the app was away.
+      provider.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await _waitUntil(() async => gates.length == 2);
+      expect(provider.rounds.length, 1, reason: 'the resumed round waits too');
+
+      gates[1].complete();
+      await _waitUntil(() async => provider.rounds.length == 2);
+      expect(provider.rounds.last, addresses);
+
+      await provider.stop();
+      provider.dispose();
+      await a.chatService.close();
+      await a.repository.close();
+    },
+  );
+
+  Future<(_Side, _Side)> pair({
+    bool newerSchema = false,
+    String host = '127.0.0.1',
+  }) async {
     final a = _Side('a');
     final b = _Side('b', newerSchema: newerSchema);
     await a.start(root);
     await b.start(root);
     sides.addAll([a, b]);
     final pin = b.engine.openPairing();
-    await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await a.engine.pairWith(host: host, port: b.port, pin: pin);
     return (a, b);
   }
 
@@ -759,6 +912,43 @@ void main() {
       pin: pin,
     );
   }
+
+  test('the listener pairs and syncs over IPv6 loopback', () async {
+    final (a, b) = await pair(host: '::1');
+
+    // Stored bare on both sides: the socket wants `::1`, a URI wants `[::1]`,
+    // and the boundary that brackets it is the client's.
+    expect((await a.peer(b)).primaryEndpoint?.host, '::1');
+    expect(
+      (await b.peer(a)).primaryEndpoint?.host,
+      '::1',
+      reason: 'the responder learned the address the caller connected from',
+    );
+
+    await _seedConversation(a, id: 'conv-v6', contents: ['over v6']);
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(await _conversationIds(b), contains('conv-v6'));
+  });
+
+  test('an IPv4 caller is stored as IPv4, not as its mapped form', () async {
+    final (a, b) = await pair();
+
+    // The listener is dual-stack, so an IPv4 caller arrives as
+    // `::ffff:127.0.0.1`. Stored as-is, that endpoint cannot be dialed back —
+    // `Uri.parse` refuses an unbracketed literal — so the server normalizes the
+    // address before the engine ever sees it.
+    final bPeer = await b.peer(a);
+    expect(bPeer.primaryEndpoint?.host, '127.0.0.1');
+    expect(
+      bPeer.endpoints.map((endpoint) => endpoint.host),
+      isNot(contains('::ffff:127.0.0.1')),
+    );
+
+    // The return direction works over that stored host.
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+  });
 
   test(
     'pairing pins both sides and backfills the initiator endpoint',
@@ -777,15 +967,15 @@ void main() {
       expect(b.engine.isPairingOpen, isFalse, reason: 'the PIN is one-shot');
 
       final aPeer = await a.peer(b);
-      expect(aPeer.lastHost, '127.0.0.1');
-      expect(aPeer.lastPort, b.port);
+      expect(aPeer.primaryEndpoint?.host, '127.0.0.1');
+      expect(aPeer.primaryEndpoint?.port, b.port);
       expect(aPeer.certPem, b.identity.certPem, reason: 'pinned certificate');
 
       // The responder learns where the initiator connected from plus the
       // listener port it advertised, so it can start sessions too.
       final bPeer = await b.peer(a);
-      expect(bPeer.lastHost, '127.0.0.1');
-      expect(bPeer.lastPort, a.port);
+      expect(bPeer.primaryEndpoint?.host, '127.0.0.1');
+      expect(bPeer.primaryEndpoint?.port, a.port);
       expect(bPeer.certPem, a.identity.certPem);
     },
   );
@@ -1129,6 +1319,434 @@ void main() {
     expect(provider.isPairingOpen, isFalse);
   });
 
+  testWidgets('closing the pairing code dialog pops only the dialog', (
+    tester,
+  ) async {
+    // Two closers race: the close button cancels the window (the expiry
+    // reads null from then on) and pops, but `mounted` stays true until the
+    // exit animation finishes — a countdown tick landing inside that window
+    // used to see the nulled expiry and pop a second time, taking the page
+    // beneath the dialog with it. The pumps below land a tick 50 ms into the
+    // exit animation, which reproduces the race deterministically.
+    final a = _Side('a');
+    late final SyncProvider provider;
+    late final AppLocalizations l10n;
+    await tester.runAsync(() async {
+      await a.start(root, withEngine: false);
+      sides.add(a);
+      provider = await a.startProvider();
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    });
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SyncProvider>.value(
+        value: provider,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () =>
+                      showSyncPairingDialogs(context: context, showCode: true),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pump(); // Dialog built; the ticker's first tick is due at +1s.
+    // Stop 50 ms short of the tick, so the close below starts its exit
+    // animation with the next tick still ahead of it.
+    await tester.pump(const Duration(milliseconds: 950));
+    expect(find.byType(AlertDialog), findsOneWidget);
+
+    await tester.tap(find.text(l10n.lanSyncClosePairing));
+    // The due tick fires 50 ms into the exit animation, while the dialog's
+    // state is still mounted.
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(provider.isPairingOpen, isFalse);
+    // Exactly one pop: the page that hosted the dialog survived the close.
+    expect(find.text('open'), findsOneWidget);
+  });
+
+  testWidgets('the pairing QR is sized for an IPv6 endpoint', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Center(child: PairingQrImage(data: 'cuplivo-pair:v1:whatever')),
+        ),
+      ),
+    );
+
+    final image = tester.widget<PairingQrImage>(find.byType(PairingQrImage));
+    expect(image.size, kPairingQrEdge);
+    expect(image.errorCorrectLevel, kPairingQrErrorCorrectLevel);
+    expect(kPairingQrErrorCorrectLevel, QrErrorCorrectLevel.L);
+    // The rendered square really is that size — the module size a camera sees
+    // is this number divided by the symbol's module count.
+    expect(tester.getSize(find.byType(PrettyQrView)), const Size(220, 220));
+  });
+
+  testWidgets('the pairing QR follows this device onto another network', (
+    tester,
+  ) async {
+    final a = _Side('a');
+    late final SyncProvider provider;
+    late final AppLocalizations l10n;
+    var source = <LanAddress>[(name: 'wlan0', address: '10.9.0.5')];
+    await tester.runAsync(() async {
+      await a.start(root, withEngine: false);
+      sides.add(a);
+      provider = await a.startProvider(addressSource: () async => source);
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      await pumpEventQueue();
+    });
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SyncProvider>.value(
+        value: provider,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () =>
+                      showSyncPairingDialogs(context: context, showCode: true),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 950));
+
+    // What the image on screen actually encodes, not what the list says.
+    SyncPairQrPayload encoded() => SyncPairQrPayload.parse(
+      tester.widget<PairingQrImage>(find.byType(PairingQrImage)).data,
+    );
+    expect(encoded().endpoints, [('10.9.0.5', provider.port)]);
+
+    // The device joins another network while the dialog is open. The QR used to
+    // be encoded once, at open, so it kept advertising the network this device
+    // had just left while the list below it showed the new one.
+    source = [(name: 'wlan0', address: '192.168.44.9')];
+    await tester.runAsync(() => provider.refreshLocalAddresses());
+    await tester.pump(
+      const Duration(seconds: 1),
+    ); // the countdown tick rebuilds
+
+    expect(encoded().endpoints, [('192.168.44.9', provider.port)]);
+    expect(
+      find.text('192.168.44.9:${provider.port}'),
+      findsOneWidget,
+      reason: 'the image and the list agree',
+    );
+
+    // Close it, so the countdown ticker does not outlive the test.
+    await tester.tap(find.text(l10n.lanSyncClosePairing));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('entering a code re-reads this device addresses first', (
+    tester,
+  ) async {
+    final a = _Side('a');
+    late final SyncProvider provider;
+    var source = <LanAddress>[(name: 'wlan0', address: '10.9.0.5')];
+    await tester.runAsync(() async {
+      await a.start(root, withEngine: false);
+      sides.add(a);
+      provider = await a.startProvider(addressSource: () async => source);
+      await pumpEventQueue();
+    });
+
+    // The device joined another network with the app in the foreground: no
+    // lifecycle event fires, so nothing has re-enumerated yet.
+    source = [(name: 'wlan0', address: '192.168.44.9')];
+    expect(provider.localAddresses.single.address, '10.9.0.5');
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SyncProvider>.value(
+        value: provider,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () =>
+                      showSyncPairingDialogs(context: context, showCode: false),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Opening the entering side is what re-reads them: the addresses this side
+    // advertises ride in the pairing request, and the peer remembers every
+    // candidate it is handed — a hint from the network this device just left is
+    // a dead candidate the peer would keep dialing.
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsNWidgets(3), reason: 'the form opened');
+    expect(provider.localAddresses.single.address, '192.168.44.9');
+
+    // Dismissed, so no route outlives the test.
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a hand-typed code announces the device it paired with', (
+    tester,
+  ) async {
+    // Deliberately not added to `sides`: this side runs no engine of its own —
+    // the dialog's provider is a stub — and the shared teardown disposes either
+    // an engine or a provider started through `startProvider`. The cleanup at
+    // the end of this test is what that teardown would do.
+    final a = _Side('a');
+    late final AppLocalizations l10n;
+    late final _StubSyncProvider provider;
+    await tester.runAsync(() async {
+      await a.start(root, withEngine: false);
+      provider = _StubSyncProvider(a);
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    });
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SyncProvider>.value(
+        value: provider,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () =>
+                      showSyncPairingDialogs(context: context, showCode: false),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Future<void> pairByHand() async {
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).at(0), '192.168.1.7');
+      await tester.enterText(find.byType(TextField).at(1), '9527');
+      // Six digits submits the form, which is the path the phone user takes.
+      await tester.enterText(find.byType(TextField).at(2), '123456');
+      await tester.pumpAndSettle();
+    }
+
+    bool announced(String message) => AppSnackBarManager().activeToasts.any(
+      (toast) => toast.notification.message == message,
+    );
+
+    provider.outcome = const SyncPairOutcome.success(
+      peerName: 'Studio desktop',
+      peerDeviceId: 'abc1234567890def',
+    );
+    await pairByHand();
+
+    // Typing the code by hand used to pop in silence, so the one success the
+    // user had to trigger themselves was the only one with no confirmation.
+    expect(
+      announced(l10n.lanSyncPairSuccess('Studio desktop')),
+      isTrue,
+      reason: 'the manual path names the device it paired with',
+    );
+    expect(find.byType(AlertDialog), findsNothing, reason: 'paired: it closes');
+
+    // A device already in the list is an update rather than a new pairing — the
+    // same distinction the scanned path draws from the peer list.
+    provider.peers = [
+      SyncPeerRecord(
+        deviceId: 'abc1234567890def',
+        certPem: 'pem',
+        secret: 'secret',
+        name: 'Studio desktop',
+        platform: 'test',
+      ),
+    ];
+    await pairByHand();
+    expect(
+      announced(l10n.lanSyncPairUpdatedSnackbar('Studio desktop')),
+      isTrue,
+      reason: 're-pairing an existing device reads as an update',
+    );
+
+    // Let both toasts expire: neither their own timer nor their exit animation
+    // may outlive the test.
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+    expect(AppSnackBarManager().activeToasts, isEmpty);
+
+    provider.dispose();
+    await a.chatService.close();
+    await a.repository.close();
+  });
+
+  testWidgets('a peer card says how long ago, and copies its address', (
+    tester,
+  ) async {
+    // Not added to `sides`, for the same reason as the pairing-dialog test
+    // above: this side runs no engine of its own.
+    final a = _Side('a');
+    late final _StubSyncProvider provider;
+    late final AppLocalizations l10n;
+    await tester.runAsync(() async {
+      await a.start(root, withEngine: false);
+      provider = _StubSyncProvider(a);
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    });
+
+    final copied = <MethodCall>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') copied.add(call);
+        return null;
+      },
+    );
+
+    final peer = SyncPeerRecord(
+      deviceId: 'peer-1',
+      certPem: 'pem',
+      secret: 'secret',
+      name: 'Studio desktop',
+      platform: 'android',
+      endpoints: [
+        SyncPeerEndpoint(host: '192.168.1.5', port: 9527),
+        SyncPeerEndpoint(host: 'fd00::5', port: 9527),
+      ],
+      lastSyncedAt: DateTime.now().subtract(const Duration(minutes: 4)),
+    );
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SyncProvider>.value(
+        value: provider,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: SyncPeerCard(peer: peer)),
+        ),
+      ),
+    );
+
+    // A peer reached on two networks should not look like a peer with one
+    // address: the count is beside the address in use.
+    final subtitle = '${l10n.lanSyncPlatformAndroid} · 192.168.1.5:9527 (+1)';
+    expect(find.text(subtitle), findsOneWidget);
+
+    // How long ago, not a timestamp — the tooltip keeps the exact time.
+    expect(
+      find.text(l10n.lanSyncLastSyncedAt('4 min ago')),
+      findsOneWidget,
+      reason: 'the line answers "is this current?", not "when exactly?"',
+    );
+
+    await tester.tap(find.text(subtitle));
+    await tester.pumpAndSettle();
+
+    expect(
+      (copied.single.arguments as Map)['text'],
+      '192.168.1.5:9527',
+      reason: 'the address in use is what a tap copies',
+    );
+    expect(
+      AppSnackBarManager().activeToasts.any(
+        (toast) => toast.notification.message == l10n.lanSyncAddressCopied,
+      ),
+      isTrue,
+      reason: 'a copy with no feedback is indistinguishable from a dead tap',
+    );
+
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      null,
+    );
+
+    provider.dispose();
+    await a.chatService.close();
+    await a.repository.close();
+  });
+
+  testWidgets('the address repair stores the bare host, like pairing does', (
+    tester,
+  ) async {
+    // Not added to `sides`, for the same reason as the peer-card test above.
+    final a = _Side('a');
+    late final _StubSyncProvider provider;
+    late final AppLocalizations l10n;
+    await tester.runAsync(() async {
+      await a.start(root, withEngine: false);
+      provider = _StubSyncProvider(a);
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    });
+
+    final peer = SyncPeerRecord(
+      deviceId: 'peer-1',
+      certPem: 'pem',
+      secret: 'secret',
+      name: 'Studio desktop',
+      platform: 'linux',
+      endpoints: [SyncPeerEndpoint(host: 'fd00::5', port: 9527)],
+    );
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SyncProvider>.value(
+        value: provider,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: SyncPeerCard(peer: peer)),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text(l10n.lanSyncEditAddress));
+    await tester.pumpAndSettle();
+    // The bracketed literal is what the card itself shows and copies, so pasting
+    // the address back into the repair field is the journey this field exists
+    // for — and storage keeps the bare host, which is what the dial needs.
+    await tester.enterText(find.byType(TextField).at(0), '[fd00::9]');
+    await tester.enterText(find.byType(TextField).at(1), '9528');
+    await tester.tap(find.widgetWithText(FilledButton, 'OK'));
+    await tester.pumpAndSettle();
+
+    expect(provider.repaired.single, ('fd00::9', 9528));
+
+    provider.dispose();
+    await a.chatService.close();
+    await a.repository.close();
+  });
+
   test('a QR-scanned fingerprint pairs without a typed PIN', () async {
     final a = _Side('a');
     final b = _Side('b');
@@ -1146,8 +1764,8 @@ void main() {
 
     final aPeer = await a.peer(b);
     expect(aPeer.deviceId, b.identity.deviceId);
-    expect(aPeer.lastHost, '127.0.0.1');
-    expect(aPeer.lastPort, b.port);
+    expect(aPeer.primaryEndpoint?.host, '127.0.0.1');
+    expect(aPeer.primaryEndpoint?.port, b.port);
     expect(b.engine.isPairingOpen, isFalse, reason: 'the PIN is spent');
   });
 
@@ -1223,11 +1841,10 @@ void main() {
   test('re-pairing repairs the endpoint and rotates the secret', () async {
     final (a, b) = await pair();
 
-    // Pretend the peer moved: A's stored endpoint is stale.
+    // Pretend the peer moved: A's remembered endpoint is stale.
     final drifted = await a.peer(b);
     final staleSecret = drifted.secret;
-    drifted.lastHost = '10.255.255.1';
-    drifted.lastPort = 1;
+    drifted.replaceEndpoints('10.255.255.1', 1);
     await a.store.savePeer(drifted);
 
     final pin = b.engine.openPairing();
@@ -1239,9 +1856,9 @@ void main() {
     );
 
     final refreshed = await a.peer(b);
-    expect(refreshed.lastHost, '127.0.0.1');
+    expect(refreshed.primaryEndpoint?.host, '127.0.0.1');
     expect(
-      refreshed.lastPort,
+      refreshed.primaryEndpoint?.port,
       b.port,
       reason: 'the drifted endpoint is repaired',
     );
@@ -1254,8 +1871,7 @@ void main() {
       secret: staleSecret,
       name: b.label,
       platform: 'test',
-      lastHost: '127.0.0.1',
-      lastPort: b.port,
+      endpoints: [SyncPeerEndpoint(host: '127.0.0.1', port: b.port)],
     );
     final report = await a.engine.syncWithPeer(stale);
     expect(report.success, isFalse);
@@ -1297,9 +1913,20 @@ void main() {
 
       final peer = provider.peers.single;
       expect(peer.deviceId, b.identity.deviceId);
-      expect(peer.lastPort, b.port, reason: 'the live candidate won');
+      expect(
+        peer.primaryEndpoint?.port,
+        b.port,
+        reason: 'the live candidate won',
+      );
+      // The endpoint that lost is remembered behind the winner: it is the
+      // candidate a later round tries when this network goes away.
+      expect(
+        peer.endpoints.map((e) => e.port),
+        contains(deadPort),
+        reason: 'the dead candidate was kept as a hint',
+      );
       // The joiner advertised its own listener, so the responder can dial back.
-      expect((await b.peer(a)).lastPort, provider.port);
+      expect((await b.peer(a)).primaryEndpoint?.port, provider.port);
 
       // Scanning a fresh code for the same device is the drift-repair journey,
       // and the UI says so instead of pretending it is a first pairing.
@@ -1345,6 +1972,263 @@ void main() {
     expect(b.engine.isPairingOpen, isTrue, reason: 'nothing reached the peer');
   });
 
+  test(
+    'a QR pairing moves past an endpoint answering with the wrong certificate',
+    () async {
+      final a = _Side('a');
+      final b = _Side('b');
+      final c = _Side('c'); // a live listener that is not the scanned device
+      await a.start(root, withEngine: false);
+      await b.start(root);
+      await c.start(root);
+      sides.addAll([a, b, c]);
+      final provider = await a.startProvider();
+
+      final pin = b.engine.openPairing();
+      // The scanned code lists another device's address first: a recycled lease,
+      // or a machine that happens to answer on the sync port. The fingerprint in
+      // the code is B's, so that address is refused inside the handshake — and
+      // B's own address is right behind it.
+      final payload = SyncPairQrPayload(
+        deviceId: b.identity.deviceId,
+        name: b.label,
+        endpoints: [('127.0.0.1', c.port), ('127.0.0.1', b.port)],
+        pin: pin,
+      );
+
+      final result = await provider.pairWithQr(payload);
+
+      expect(
+        result.outcome.success,
+        isTrue,
+        reason: result.outcome.errorDetail,
+      );
+      final peer = provider.peers.single;
+      expect(peer.deviceId, b.identity.deviceId);
+      expect(
+        peer.primaryEndpoint?.port,
+        b.port,
+        reason: 'the endpoint that actually presented the scanned certificate',
+      );
+      // A wrong certificate disqualifies the address, not the pairing: the
+      // refusal happened before any request byte, so nothing arrived at C, and
+      // the window B spent is the one this pairing used.
+      expect(await c.store.findPeer(a.identity.deviceId), isNull);
+      expect(b.engine.isPairingOpen, isFalse, reason: 'the PIN was spent on B');
+    },
+  );
+
+  test('a QR payload whose every endpoint answers as another device reports '
+      'fingerprint_mismatch', () async {
+    final a = _Side('a');
+    final b = _Side('b'); // the scanned device, on none of the endpoints
+    final c = _Side('c');
+    final d = _Side('d');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    await c.start(root);
+    await d.start(root);
+    sides.addAll([a, b, c, d]);
+    final provider = await a.startProvider();
+
+    final pin = b.engine.openPairing();
+    final result = await provider.pairWithQr(
+      SyncPairQrPayload(
+        deviceId: b.identity.deviceId,
+        name: b.label,
+        endpoints: [('127.0.0.1', c.port), ('127.0.0.1', d.port)],
+        pin: pin,
+      ),
+    );
+
+    expect(result.outcome.success, isFalse);
+    expect(
+      result.outcome.errorCode,
+      'fingerprint_mismatch',
+      reason:
+          'addresses answered, and none of them was the scanned device — '
+          'a re-scan is the fix, not a retry',
+    );
+    expect(provider.peers, isEmpty);
+    expect(b.engine.isPairingOpen, isTrue, reason: 'nothing reached B');
+  });
+
+  test('a session falls through a stale endpoint to the live one', () async {
+    final (a, b) = await pair();
+
+    // The peer moved: the remembered head is an address this device has left,
+    // and the one it is actually reachable at sits behind it in the set.
+    final drifted = await a.peer(b);
+    drifted.replaceEndpoints('127.0.0.1', await _unusedPort());
+    drifted.rememberEndpointCandidates([('127.0.0.1', b.port)]);
+    await a.store.savePeer(drifted);
+    expect(drifted.endpoints.length, 2);
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+
+    // The candidate that worked is promoted, so the next round starts there
+    // instead of paying for the stale address again.
+    final refreshed = await a.peer(b);
+    expect(refreshed.primaryEndpoint?.port, b.port);
+    expect(
+      refreshed.endpoints.map((e) => e.port),
+      contains(drifted.endpoints.last.port),
+      reason: 'the stale endpoint is kept as a hint, not forgotten',
+    );
+  });
+
+  test(
+    'a session falls through an endpoint answering with the wrong certificate',
+    () async {
+      final (a, b) = await pair();
+      // A live sync listener that is not the peer: a recycled lease a second
+      // install now holds, or a machine that happens to answer on the sync port.
+      final c = _Side('c');
+      await c.start(root);
+      sides.add(c);
+
+      final drifted = await a.peer(b);
+      // The dial order is forced to meet the stranger first without depending on
+      // the prober's ordering: this device stands on 127.0.0.1, so the address
+      // sharing that subnet is dialed before the peer's ::1 one.
+      drifted.replaceEndpoints('::1', b.port);
+      drifted.rememberEndpointCandidates([('127.0.0.1', c.port)]);
+      await a.store.savePeer(drifted);
+      a.engine.localAddresses = [(name: 'en0', address: '127.0.0.1')];
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+
+      // The peer was live right behind the stranger, so the session must have
+      // reached it: a refused certificate is a verdict on the address, not on
+      // the peer. Anything else ends the walk with the peer still untried.
+      expect(
+        report.success,
+        isTrue,
+        reason: '${report.summary} ${report.failure}',
+      );
+
+      // And the address that answered as another device is neither promoted
+      // over the endpoint that reached the peer, nor stamped as one that
+      // worked — nothing there ever answered as the peer.
+      final refreshed = await a.peer(b);
+      expect(refreshed.primaryEndpoint?.host, '::1');
+      expect(refreshed.primaryEndpoint?.port, b.port);
+      final stranger = refreshed.endpoints.firstWhere((e) => e.port == c.port);
+      expect(stranger.lastSuccessAt, isNull);
+    },
+  );
+
+  test('a session whose every address answers as another device reports '
+      'unreachable', () async {
+    final (a, b) = await pair();
+    final c = _Side('c');
+    final d = _Side('d');
+    await c.start(root);
+    await d.start(root);
+    sides.addAll([c, d]);
+
+    // Both remembered addresses are live listeners that are not the peer. The
+    // walk tries both and can then only report that nothing reached the peer;
+    // the addresses stay as hints, because the peer may sit behind one of them
+    // again after the next DHCP lease.
+    final drifted = await a.peer(b);
+    drifted.replaceEndpoints('127.0.0.1', c.port);
+    drifted.rememberEndpointCandidates([('127.0.0.1', d.port)]);
+    await a.store.savePeer(drifted);
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+
+    expect(report.success, isFalse);
+    expect(report.failure, SyncFailureReason.unreachable);
+    expect((await a.peer(b)).endpoints.length, 2);
+  });
+
+  test('a peer that remembers no address asks for one, not for a retry', () async {
+    final (a, b) = await pair();
+
+    // The record is real, its endpoint set is not: a peer paired without an
+    // address at all. Nothing was dialed, so "unreachable" would send the user
+    // to check the other device's power state instead of the missing address —
+    // which is the thing they can actually fix.
+    final record = await a.peer(b);
+    record.endpoints.clear();
+    await a.store.savePeer(record);
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isFalse);
+    expect(report.summary, 'no_endpoint');
+    expect(report.failure, SyncFailureReason.noEndpoint);
+
+    // Persisted like every other outcome: the card renders `lastReport`, so a
+    // failure left out of the record would keep the previous success on screen.
+    final persisted = (await a.store.findPeer(b.identity.deviceId))!;
+    expect(persisted.lastReport?.failure, SyncFailureReason.noEndpoint);
+  });
+
+  test('a hand-typed pairing names the device it paired with', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+    final provider = await a.startProvider();
+
+    final pin = b.engine.openPairing();
+    final outcome = await provider.pairWith(
+      host: '127.0.0.1',
+      port: b.port,
+      pin: pin,
+    );
+    expect(outcome.success, isTrue, reason: outcome.errorCode);
+
+    // The manual form has no payload to read a device name out of, which is why
+    // this path used to announce nothing. The record the pairing wrote carries
+    // the name its card shows, so the announcement names that device.
+    expect(outcome.peerName, b.label);
+    expect(outcome.peerDeviceId, b.identity.deviceId);
+  });
+
+  test('pairing hands the responder the joiner addresses', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+    final provider = await a.startProvider();
+
+    // Deterministic advertisement: the addresses a peer is told about. The
+    // provider's own enumeration is asynchronous, so the machine's real
+    // interface list is not a stable expectation inside a test.
+    provider.localAddresses = [
+      (name: 'wlan0', address: '10.9.8.7'),
+      (name: 'eth0', address: '10.9.8.8'),
+    ];
+
+    final pin = b.engine.openPairing();
+    final result = await provider.pairWithQr(
+      SyncPairQrPayload(
+        deviceId: b.identity.deviceId,
+        name: b.label,
+        endpoints: [('127.0.0.1', b.port)],
+        pin: pin,
+      ),
+    );
+    expect(result.outcome.success, isTrue, reason: result.outcome.errorDetail);
+
+    // The responder remembers the address the pairing came from as the proven
+    // one, then the joiner's own advertised addresses behind it — the network
+    // knowledge that lets a peer which later roams keep syncing.
+    final bPeer = await b.peer(a);
+    expect(bPeer.primaryEndpoint?.host, '127.0.0.1');
+    expect(bPeer.primaryEndpoint?.port, provider.port);
+    expect(
+      bPeer.endpoints.skip(1).map((endpoint) => endpoint.label).toList(),
+      ['10.9.8.7:${provider.port}', '10.9.8.8:${provider.port}'],
+      reason: 'only advertised candidates join the set, after the proven one',
+    );
+  });
+
   test('a foreground round syncs paired peers, then throttles', () async {
     final a = _Side('a');
     final b = _Side('b');
@@ -1381,6 +2265,36 @@ void main() {
     final report = await provider.syncNow(b.identity.deviceId);
     expect(report?.success, isTrue, reason: report?.summary);
     expect(await _conversationIds(a), contains('conv-later'));
+  });
+
+  test('resuming re-enumerates this device addresses', () async {
+    final a = _Side('a');
+    await a.start(root, withEngine: false);
+    sides.add(a);
+    var source = <LanAddress>[(name: 'wlan0', address: '10.9.0.5')];
+    final provider = await a.startProvider(addressSource: () async => source);
+    await pumpEventQueue();
+
+    expect(
+      provider.localAddresses.single.address,
+      '10.9.0.5',
+      reason: 'the address source is read on start',
+    );
+    expect(
+      provider.engine!.localAddresses.single.address,
+      '10.9.0.5',
+      reason: 'the dial orders candidates by the list the screen shows',
+    );
+
+    // The device moved to another network while it was in the background: the
+    // list it advertises — and the list the dial reads — has to describe where
+    // it is now.
+    source = [(name: 'wlan0', address: '192.168.44.9')];
+    provider.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await pumpEventQueue();
+
+    expect(provider.localAddresses.single.address, '192.168.44.9');
+    expect(provider.engine!.localAddresses.single.address, '192.168.44.9');
   });
 
   test(

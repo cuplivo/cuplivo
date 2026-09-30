@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/providers/sync_provider.dart';
+import '../../../core/services/sync/sync_local_addresses.dart';
 import '../../../core/services/sync/sync_store.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
@@ -33,10 +35,20 @@ class SyncPeerCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final provider = context.watch<SyncProvider>();
     final busy = provider.busyDeviceIds.contains(peer.deviceId);
-    final endpoint = (peer.lastHost == null || peer.lastPort == null)
-        ? null
-        : '${peer.lastHost}:${peer.lastPort}';
+    final primary = peer.primaryEndpoint;
+    final endpoint = primary?.label;
     final report = peer.lastReport;
+    // How many addresses are remembered, as a count beside the one in use: a
+    // peer this device has reached on two networks should not look like a peer
+    // with a single address. The count rides with the address rather than being
+    // one more field of the list, so it reads as "and two more like this".
+    final subtitle = [
+      syncPlatformLabel(l10n, peer.platform),
+      if (endpoint != null)
+        peer.endpoints.length > 1
+            ? '$endpoint (+${peer.endpoints.length - 1})'
+            : endpoint,
+    ].join(' · ');
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -66,16 +78,22 @@ class SyncPeerCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      [
-                        syncPlatformLabel(l10n, peer.platform),
-                        if (endpoint != null) endpoint,
-                      ].join(' · '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: cs.onSurface.withValues(alpha: 0.55),
+                    GestureDetector(
+                      // The address is the one string on this card that has
+                      // somewhere else to be — typed into another device, or
+                      // handed to whoever is on the other end of a call. Tapping
+                      // copies it, the way the app copies a path or a code.
+                      onTap: endpoint == null
+                          ? null
+                          : () => _copyAddress(context, endpoint),
+                      child: Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurface.withValues(alpha: 0.55),
+                        ),
                       ),
                     ),
                   ],
@@ -111,11 +129,18 @@ class SyncPeerCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            syncLastSyncedLabel(l10n, peer.lastSyncedAt),
-            style: TextStyle(
-              fontSize: 12,
-              color: cs.onSurface.withValues(alpha: 0.6),
+          Tooltip(
+            // The exact time is one hover away: this line answers "is this
+            // current?", which a bare timestamp makes the reader work out.
+            message: peer.lastSyncedAt == null
+                ? l10n.lanSyncNeverSynced
+                : syncAbsoluteLastSyncedLabel(l10n, peer.lastSyncedAt!),
+            child: Text(
+              syncLastSyncedLabel(l10n, peer.lastSyncedAt),
+              style: TextStyle(
+                fontSize: 12,
+                color: cs.onSurface.withValues(alpha: 0.6),
+              ),
             ),
           ),
           if (report != null) ...[
@@ -165,6 +190,22 @@ class SyncPeerCard extends StatelessWidget {
     );
   }
 
+  Future<void> _copyAddress(BuildContext context, String endpoint) async {
+    final l10n = AppLocalizations.of(context)!;
+    await Clipboard.setData(ClipboardData(text: endpoint));
+    if (!context.mounted) return;
+    try {
+      showAppSnackBar(
+        context,
+        message: l10n.lanSyncAddressCopied,
+        type: NotificationType.success,
+      );
+    } catch (_) {
+      // No overlay above this point (dialog-hosted card); the clipboard already
+      // holds the address, which is what the tap was for.
+    }
+  }
+
   Future<void> _syncNow(BuildContext context, SyncProvider provider) async {
     final l10n = AppLocalizations.of(context)!;
     final report = await provider.syncNow(peer.deviceId);
@@ -186,76 +227,21 @@ class SyncPeerCard extends StatelessWidget {
   }
 
   Future<void> _rename(BuildContext context, SyncProvider provider) async {
-    final l10n = AppLocalizations.of(context)!;
-    final controller = TextEditingController(text: peer.name);
     final name = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.lanSyncRenameTitle),
-        content: IosDialogField(
-          controller: controller,
-          label: l10n.lanSyncRenameTitle,
-          hint: peer.name,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
-            child: Text(MaterialLocalizations.of(context).okButtonLabel),
-          ),
-        ],
-      ),
+      builder: (_) => _RenameDialog(peer: peer),
     );
-    controller.dispose();
     if (name == null) return;
     await provider.renamePeer(peer.deviceId, name);
   }
 
   Future<void> _editAddress(BuildContext context, SyncProvider provider) async {
-    final l10n = AppLocalizations.of(context)!;
-    final host = TextEditingController(text: peer.lastHost ?? '');
-    final port = TextEditingController(text: '${peer.lastPort ?? ''}');
-    final saved = await showDialog<bool>(
+    final saved = await showDialog<({String host, int port})>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.lanSyncEditAddress),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IosDialogField(
-              controller: host,
-              label: l10n.lanSyncHostLabel,
-              hint: '192.168.1.10',
-            ),
-            IosDialogField(
-              controller: port,
-              label: l10n.lanSyncPortLabel,
-              hint: '9527',
-              keyboardType: TextInputType.number,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(MaterialLocalizations.of(context).okButtonLabel),
-          ),
-        ],
-      ),
+      builder: (_) => _EditAddressDialog(peer: peer),
     );
-    final hostText = host.text.trim();
-    final portValue = int.tryParse(port.text.trim());
-    host.dispose();
-    port.dispose();
-    if (saved != true || hostText.isEmpty || portValue == null) return;
-    await provider.updatePeerEndpoint(peer.deviceId, hostText, portValue);
+    if (saved == null) return;
+    await provider.updatePeerEndpoint(peer.deviceId, saved.host, saved.port);
   }
 
   Future<void> _unpair(BuildContext context, SyncProvider provider) async {
@@ -282,5 +268,131 @@ class SyncPeerCard extends StatelessWidget {
     );
     if (confirmed != true) return;
     await provider.unpair(peer.deviceId);
+  }
+}
+
+/// The address repair form.
+///
+/// It owns its controllers, like every other dialog here, because `showDialog`
+/// completes when the route *pops* and not when it is gone: a controller
+/// disposed at that moment is still driving a mounted field, which throws
+/// "A TextEditingController was used after being disposed" while the dialog
+/// plays its exit animation.
+class _EditAddressDialog extends StatefulWidget {
+  const _EditAddressDialog({required this.peer});
+
+  final SyncPeerRecord peer;
+
+  @override
+  State<_EditAddressDialog> createState() => _EditAddressDialogState();
+}
+
+class _EditAddressDialogState extends State<_EditAddressDialog> {
+  late final TextEditingController _host = TextEditingController(
+    text: widget.peer.primaryEndpoint?.host ?? '',
+  );
+  late final TextEditingController _port = TextEditingController(
+    text: '${widget.peer.primaryEndpoint?.port ?? ''}',
+  );
+
+  @override
+  void dispose() {
+    _host.dispose();
+    _port.dispose();
+    super.dispose();
+  }
+
+  /// Stores the same host form the pairing form stores, because the same shapes
+  /// arrive here: the address the card shows and copies is bracketed (an IPv6
+  /// literal in `host:port` form), so pasting it back is the obvious repair —
+  /// and a stored literal that still wears its brackets is bracketed a second
+  /// time at the next dial's URI.
+  void _submit() {
+    final host = normalizeHost(_host.text);
+    final port = int.tryParse(_port.text.trim());
+    // An unusable pair keeps the form open rather than closing it on a change
+    // nobody asked for.
+    if (host.isEmpty || port == null) return;
+    Navigator.of(context).pop((host: host, port: port));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return AlertDialog(
+      title: Text(l10n.lanSyncEditAddress),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IosDialogField(
+            controller: _host,
+            label: l10n.lanSyncHostLabel,
+            hint: '192.168.1.10',
+          ),
+          IosDialogField(
+            controller: _port,
+            label: l10n.lanSyncPortLabel,
+            hint: '9527',
+            keyboardType: TextInputType.number,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: Text(MaterialLocalizations.of(context).okButtonLabel),
+        ),
+      ],
+    );
+  }
+}
+
+/// The rename form, for the same ownership reason: the controller has to outlive
+/// the route's exit animation.
+class _RenameDialog extends StatefulWidget {
+  const _RenameDialog({required this.peer});
+
+  final SyncPeerRecord peer;
+
+  @override
+  State<_RenameDialog> createState() => _RenameDialogState();
+}
+
+class _RenameDialogState extends State<_RenameDialog> {
+  late final TextEditingController _name = TextEditingController(
+    text: widget.peer.name,
+  );
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return AlertDialog(
+      title: Text(l10n.lanSyncRenameTitle),
+      content: IosDialogField(
+        controller: _name,
+        label: l10n.lanSyncRenameTitle,
+        hint: widget.peer.name,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_name.text),
+          child: Text(MaterialLocalizations.of(context).okButtonLabel),
+        ),
+      ],
+    );
   }
 }

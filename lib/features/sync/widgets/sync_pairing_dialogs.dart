@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/providers/sync_provider.dart';
 import '../../../core/services/sync/sync_engine.dart';
+import '../../../core/services/sync/sync_local_addresses.dart';
 import '../../../core/services/sync/sync_pair_qr.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
@@ -40,6 +41,11 @@ Future<void> showSyncPairingDialogs({
 
 Future<void> _showCodeDialog(BuildContext context) async {
   final provider = context.read<SyncProvider>();
+  // Re-enumerate before the window opens, not only on resume: on a desktop the
+  // network can change with the app in the foreground, which fires no lifecycle
+  // event, and a QR showing the network the device just left is worse than no
+  // QR. The dialog follows the list if this lands late (see the state below).
+  unawaited(provider.refreshLocalAddresses());
   final pin = provider.openPairing();
   if (pin == null || !context.mounted) return;
   // The window this dialog opens lives for five minutes and is invisible
@@ -68,9 +74,14 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
   Timer? _ticker;
   Duration _remaining = Duration.zero;
 
-  /// Encoded once: the QR carries pin + port + addresses, none of which
-  /// change per second, so the countdown ticker must not rebuild it.
+  /// Encoded once per *endpoint set*, not once per frame: the fingerprint, the
+  /// PIN and the bound port are fixed for the window, so the once-a-second
+  /// countdown tick must not rebuild the image — but the address list is a live
+  /// fact (the device can join another network while this dialog is open) and
+  /// the list below reads it live. Re-encoding when it changes is what keeps
+  /// the image and the text underneath it from telling two different stories.
   String? _qrData;
+  List<(String, int)> _encodedEndpoints = const [];
 
   @override
   void initState() {
@@ -78,40 +89,63 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
     _remaining = DateTime.now().isBefore(widget.provider.pairingExpiresAt!)
         ? widget.provider.pairingExpiresAt!.difference(DateTime.now())
         : Duration.zero;
-    _qrData = _buildQrData();
+    _encodeQr(_currentEndpoints());
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       final expiresAt = widget.provider.pairingExpiresAt;
       if (!mounted) return;
       if (expiresAt == null) {
-        // `pop`, not `maybePop`: this route refuses route-level pops (the
-        // window must not be dismissible by a gesture), and an expired window
-        // is the one close that is not a user pop.
-        Navigator.of(context).pop();
+        _close();
         return;
       }
       setState(() {
         _remaining = expiresAt.difference(DateTime.now());
       });
       if (!_remaining.isNegative && _remaining == Duration.zero) {
-        Navigator.of(context).pop();
+        _close();
       }
     });
   }
 
-  String? _buildQrData() {
-    final provider = widget.provider;
-    final deviceId = provider.deviceId;
-    final port = provider.port;
-    if (deviceId == null) return null;
-    return SyncPairQrPayload(
-      deviceId: deviceId,
-      name: provider.deviceName ?? '',
-      endpoints: [
-        for (final ip in provider.localIps)
-          if (port != null) (ip, port),
-      ],
-      pin: widget.pin,
-    ).toQrString();
+  /// The endpoints the QR should carry: this device's addresses on the port the
+  /// listener is actually bound to. Empty while the listener is still starting,
+  /// which is a QR with no address — the joiner then types the host by hand.
+  List<(String, int)> _currentEndpoints() {
+    final port = widget.provider.port;
+    if (port == null) return const [];
+    return [
+      for (final address in widget.provider.localAddresses)
+        (address.address, port),
+    ];
+  }
+
+  /// Re-encodes the QR when, and only when, its endpoints changed.
+  void _encodeQr(List<(String, int)> endpoints) {
+    final deviceId = widget.provider.deviceId;
+    _encodedEndpoints = endpoints;
+    _qrData = deviceId == null
+        ? null
+        : SyncPairQrPayload(
+            deviceId: deviceId,
+            name: widget.provider.deviceName ?? '',
+            endpoints: endpoints,
+            pin: widget.pin,
+          ).toQrString();
+  }
+
+  /// Pops this dialog exactly once, disarming the ticker first. `mounted`
+  /// stays true for the whole exit animation, so a tick landing there after
+  /// the close button cancelled the window sees a null expiry and would pop
+  /// a second time — taking the page beneath the dialog with it. The
+  /// `isCurrent` guard covers the mirror order: the ticker closed the dialog
+  /// just before a late tap landed on the already-leaving button.
+  ///
+  /// `pop`, not `maybePop`: this route refuses route-level pops (the window
+  /// must not be dismissible by a gesture).
+  void _close() {
+    _ticker?.cancel();
+    final route = ModalRoute.of(context);
+    if (route == null || !route.isCurrent) return;
+    Navigator.of(context).pop();
   }
 
   @override
@@ -131,8 +165,18 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final provider = widget.provider;
+    // The address list is a live fact: the ticker rebuilds this every second, so
+    // re-encoding whenever it moved is what keeps the image and the text below
+    // it from telling two different stories.
+    final currentEndpoints = _currentEndpoints();
+    if (!listEquals(currentEndpoints, _encodedEndpoints)) {
+      _encodeQr(currentEndpoints);
+    }
     final endpoints = [
-      for (final ip in provider.localIps) '$ip:${provider.port ?? ''}',
+      for (final address in provider.localAddresses)
+        provider.port == null
+            ? uriHost(address.address)
+            : formatHostPort(address.address, provider.port!),
     ];
     // The dialog closes only through its own button (which cancels the
     // window) or the expiry ticker; a system back gesture must not leave the
@@ -147,27 +191,7 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (_qrData != null) ...[
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      // Always white: a QR must stay dark-on-light to scan.
-                      color:
-                          Colors.white, // color-gate: ignore (QR scannability)
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: SizedBox.square(
-                      dimension: 180,
-                      child: PrettyQrView.data(
-                        data: _qrData!,
-                        errorCorrectLevel: QrErrorCorrectLevel.M,
-                        decoration: const PrettyQrDecoration(
-                          shape: PrettyQrSmoothSymbol(roundFactor: 1),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                Center(child: PairingQrImage(data: _qrData!)),
                 const SizedBox(height: 8),
                 Center(
                   child: Text(
@@ -239,7 +263,7 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
           TextButton(
             onPressed: () {
               provider.cancelPairing();
-              Navigator.of(context).pop();
+              _close();
             },
             child: Text(l10n.lanSyncClosePairing),
           ),
@@ -249,7 +273,78 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
   }
 }
 
+/// The side length of the pairing QR's square.
+///
+/// Sized for the worst case the payload can reach, not for yesterday's: with
+/// four IPv4 endpoints the encoded string is already ~280 characters, which at
+/// 180 px left under 2.8 px per module — and an IPv6 endpoint is roughly 45
+/// characters where an IPv4 one is 19, so a mixed code would have dropped to
+/// ~2.4 px. 220 px puts the same worst case back above 3 px.
+const double kPairingQrEdge = 220;
+
+/// Error correction for the pairing QR.
+///
+/// `L` rather than `M`: the two correct about 7% and 15% of the symbol
+/// respectively, while the levels differ by roughly one QR version at these
+/// payload sizes — and a version step costs more scannability than the extra
+/// correction buys, since this code is scanned at close range off a clean
+/// screen rather than printed and handled.
+const int kPairingQrErrorCorrectLevel = QrErrorCorrectLevel.L;
+
+/// The pairing QR image: the encoded payload on the one background that keeps a
+/// code scannable, dark on light.
+///
+/// A named widget rather than a bare `PrettyQrView.data` call because the
+/// library's data view is not exported — this makes the payload that is
+/// actually on screen an assertable input, which is what the pairing window's
+/// tests need.
+class PairingQrImage extends StatelessWidget {
+  const PairingQrImage({
+    super.key,
+    required this.data,
+    this.size = kPairingQrEdge,
+    this.errorCorrectLevel = kPairingQrErrorCorrectLevel,
+  });
+
+  /// The encoded `cuplivo-pair:v1:` payload this image carries.
+  final String data;
+
+  /// Side length of the square the code is drawn into.
+  final double size;
+
+  /// Error correction level, see [kPairingQrErrorCorrectLevel].
+  final int errorCorrectLevel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        // Always white: a QR must stay dark-on-light to scan.
+        color: Colors.white, // color-gate: ignore (QR scannability)
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: SizedBox.square(
+        dimension: size,
+        child: PrettyQrView.data(
+          data: data,
+          errorCorrectLevel: errorCorrectLevel,
+          decoration: const PrettyQrDecoration(
+            shape: PrettyQrSmoothSymbol(roundFactor: 1),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 Future<void> _showEnterCodeDialog(BuildContext context) async {
+  // Re-enumerated for the same reason the showing side does it, in the other
+  // direction: this side advertises its own addresses inside the pairing
+  // request, and the peer remembers every candidate it is handed — so what it
+  // advertises has to be the network it is on now, not the one a launch or an
+  // earlier resume saw.
+  unawaited(context.read<SyncProvider>().refreshLocalAddresses());
   await showDialog<void>(
     context: context,
     builder: (_) => const _EnterCodeDialog(),
@@ -319,10 +414,7 @@ class _EnterCodeDialogState extends State<_EnterCodeDialog> {
     final result = await context.read<SyncProvider>().pairWithQr(payload);
     if (!mounted) return;
     if (result.outcome.success) {
-      final name = payload.name.isEmpty
-          ? payload.deviceId.substring(0, 8)
-          : payload.name;
-      _notifyPaired(l10n, name, result.wasKnownPeer);
+      _notifyPaired(l10n, _pairedName(result.outcome), result.wasKnownPeer);
       Navigator.of(context).pop();
       return;
     }
@@ -330,6 +422,16 @@ class _EnterCodeDialogState extends State<_EnterCodeDialog> {
       _busy = false;
       _error = syncPairErrorMessage(l10n, result.outcome);
     });
+  }
+
+  /// The name to announce a pairing by: the record the pairing wrote, whose name
+  /// is the one its card shows — or the short id of a device that announced no
+  /// name at all.
+  String _pairedName(SyncPairOutcome outcome) {
+    final name = outcome.peerName;
+    if (name != null && name.isNotEmpty) return name;
+    final id = outcome.peerDeviceId ?? '';
+    return id.length > 8 ? id.substring(0, 8) : id;
   }
 
   void _notifyPaired(AppLocalizations l10n, String name, bool wasKnownPeer) {
@@ -348,7 +450,10 @@ class _EnterCodeDialogState extends State<_EnterCodeDialog> {
 
   Future<void> _pair() async {
     final l10n = AppLocalizations.of(context)!;
-    final host = _host.text.trim();
+    // Typed either way: `fd00::1` or `[fd00::1]`. Storage and the dial take the
+    // bare form, so the brackets a URI (or a peer's label) wears are stripped
+    // here rather than becoming part of the address.
+    final host = normalizeHost(_host.text);
     final pin = normalizePairingCode(_pin.text);
     final error = manualPairingFormError(
       l10n: l10n,
@@ -365,27 +470,26 @@ class _EnterCodeDialogState extends State<_EnterCodeDialog> {
       _busy = true;
       _error = null;
     });
-    // Known-ness must be read before pairing refreshes the peer list.
-    final scanned = _scanned;
-    final wasKnown =
-        scanned != null &&
-        context.read<SyncProvider>().peers.any(
-          (p) => p.deviceId == scanned.deviceId,
-        );
-    final outcome = await context.read<SyncProvider>().pairWith(
+    final provider = context.read<SyncProvider>();
+    // Known-ness must be read before pairing refreshes the peer list, and the
+    // outcome carries the paired device's id, so which line to show is decided
+    // against the list as it stood.
+    final knownBefore = {for (final peer in provider.peers) peer.deviceId};
+    final outcome = await provider.pairWith(
       host: host,
       port: port,
       pin: pin,
-      expectedDeviceId: scanned?.deviceId,
+      expectedDeviceId: _scanned?.deviceId,
     );
     if (!mounted) return;
     if (outcome.success) {
-      if (scanned != null) {
-        final name = scanned.name.isEmpty
-            ? scanned.deviceId.substring(0, 8)
-            : scanned.name;
-        _notifyPaired(l10n, name, wasKnown);
-      }
+      // Typing the code by hand used to pop in silence: the one success the user
+      // had to trigger themselves was the only one with no confirmation.
+      _notifyPaired(
+        l10n,
+        _pairedName(outcome),
+        knownBefore.contains(outcome.peerDeviceId),
+      );
       Navigator.of(context).pop();
       return;
     }

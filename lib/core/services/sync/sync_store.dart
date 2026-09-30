@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import 'sync_local_addresses.dart';
 import 'sync_models.dart';
 
 /// File-backed persistence for sync state, all under the app's `sync/`
@@ -232,6 +233,55 @@ class SyncStore {
       File('${root.path}${Platform.pathSeparator}epoch.json');
 }
 
+/// How many endpoints a peer record remembers. Bounded because the set is
+/// learned (the pairing QR's candidates plus the address every session is seen
+/// at) and a stale address only costs one failed connect before the next
+/// candidate is tried, so a long memory buys little and the tail grows forever.
+const kMaxPeerEndpoints = 6;
+
+/// One remembered address of a paired device.
+///
+/// The address is an attribute of the **(device, network)** pair, not of the
+/// device: the same laptop is reachable at a different address at home, at work
+/// and on a phone hotspot. Only the certificate fingerprint identifies a peer —
+/// an address is a hint that every connection re-verifies against the pin, so
+/// remembering several of them can never pair or sync with the wrong device.
+class SyncPeerEndpoint {
+  final String host;
+  final int port;
+
+  /// When a session last succeeded over this endpoint. Orders the set and is
+  /// what the peer card's address line shows.
+  DateTime? lastSuccessAt;
+
+  SyncPeerEndpoint({
+    required this.host,
+    required this.port,
+    this.lastSuccessAt,
+  });
+
+  /// How a human types it: `192.168.1.7:9527`, or `[fd00::1]:9527` for an IPv6
+  /// literal — whose port would otherwise be one more colon in a row.
+  String get label => formatHostPort(host, port);
+
+  Map<String, dynamic> toJson() => {
+    'host': host,
+    'port': port,
+    'lastSuccessAtMs': lastSuccessAt?.millisecondsSinceEpoch,
+  };
+
+  static SyncPeerEndpoint fromJson(Map<String, dynamic> json) {
+    final atMs = json['lastSuccessAtMs'] as num?;
+    return SyncPeerEndpoint(
+      host: json['host'] as String,
+      port: (json['port'] as num).toInt(),
+      lastSuccessAt: atMs == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(atMs.toInt()),
+    );
+  }
+}
+
 /// One paired device as this device knows it.
 class SyncPeerRecord {
   final String deviceId;
@@ -247,8 +297,12 @@ class SyncPeerRecord {
 
   String name;
   String platform;
-  String? lastHost;
-  int? lastPort;
+
+  /// Remembered endpoints, best first: the one a session last succeeded over,
+  /// then the candidates pairing advertised. Empty when the peer was paired
+  /// without an address at all.
+  List<SyncPeerEndpoint> endpoints;
+
   DateTime? lastSyncedAt;
 
   /// Outcome of the most recent session with this peer, as counters so the
@@ -261,11 +315,60 @@ class SyncPeerRecord {
     required this.secret,
     required this.name,
     required this.platform,
-    this.lastHost,
-    this.lastPort,
+    List<SyncPeerEndpoint>? endpoints,
     this.lastSyncedAt,
     this.lastReport,
-  });
+  }) : endpoints = endpoints ?? <SyncPeerEndpoint>[];
+
+  /// The address the card shows and a session tries first, or null when nothing
+  /// is remembered.
+  SyncPeerEndpoint? get primaryEndpoint =>
+      endpoints.isEmpty ? null : endpoints.first;
+
+  /// Records a connection that succeeded over `host:port`: the endpoint is
+  /// promoted to the front and its timestamp refreshed. A session that ran at
+  /// all — including one the peer refused — proves this address reaches the
+  /// peer on this network, which is exactly what the order should track.
+  void noteEndpointSuccess(String host, int port, {DateTime? at}) {
+    endpoints.removeWhere(
+      (endpoint) => endpoint.host == host && endpoint.port == port,
+    );
+    endpoints.insert(
+      0,
+      SyncPeerEndpoint(
+        host: host,
+        port: port,
+        lastSuccessAt: at ?? DateTime.now(),
+      ),
+    );
+    _trimEndpoints();
+  }
+
+  /// Keeps candidates hinted by pairing (the QR's other endpoints, or the
+  /// addresses an initiator advertised) without claiming any of them works:
+  /// they land after the proven endpoint, unstamped, and are tried only once
+  /// the ones ahead of them fail.
+  void rememberEndpointCandidates(Iterable<(String, int)> candidates) {
+    for (final (host, port) in candidates) {
+      if (host.isEmpty || port <= 0) continue;
+      if (endpoints.any((e) => e.host == host && e.port == port)) continue;
+      endpoints.add(SyncPeerEndpoint(host: host, port: port));
+    }
+    _trimEndpoints();
+  }
+
+  /// Manual repair: the entered address replaces the whole set. The automatic
+  /// memory is what failed (or the user would not be typing), so keeping the
+  /// rest would keep the failure.
+  void replaceEndpoints(String host, int port) {
+    endpoints = [SyncPeerEndpoint(host: host, port: port)];
+  }
+
+  void _trimEndpoints() {
+    if (endpoints.length > kMaxPeerEndpoints) {
+      endpoints.removeRange(kMaxPeerEndpoints, endpoints.length);
+    }
+  }
 
   Map<String, dynamic> toJson() => {
     'deviceId': deviceId,
@@ -273,8 +376,7 @@ class SyncPeerRecord {
     'secret': secret,
     'name': name,
     'platform': platform,
-    'lastHost': lastHost,
-    'lastPort': lastPort,
+    'endpoints': [for (final endpoint in endpoints) endpoint.toJson()],
     'lastSyncedAtMs': lastSyncedAt?.millisecondsSinceEpoch,
     'lastReport': lastReport?.toJson(),
   };
@@ -288,8 +390,7 @@ class SyncPeerRecord {
     secret: (json['secret'] as String?) ?? '',
     name: (json['name'] as String?) ?? 'Unknown device',
     platform: (json['platform'] as String?) ?? '',
-    lastHost: json['lastHost'] as String?,
-    lastPort: (json['lastPort'] as num?)?.toInt(),
+    endpoints: _endpointsFromJson(json),
     lastSyncedAt: (json['lastSyncedAtMs'] as num?) == null
         ? null
         : DateTime.fromMillisecondsSinceEpoch(
@@ -301,4 +402,37 @@ class SyncPeerRecord {
             (json['lastReport'] as Map).cast<String, dynamic>(),
           ),
   );
+
+  /// Reads the endpoint set, upgrading a record written before the set existed.
+  ///
+  /// 4.0 shipped with a single `lastHost`/`lastPort` pair, so those files are on
+  /// real devices. The pair becomes a one-element set seeded with
+  /// `lastSyncedAt`; the next save writes the new shape and the old fields are
+  /// gone. A record with an address but no port had no usable endpoint then
+  /// either, and reads as an empty set.
+  static List<SyncPeerEndpoint> _endpointsFromJson(Map<String, dynamic> json) {
+    final raw = json['endpoints'];
+    if (raw is List) {
+      return [
+        for (final entry in raw)
+          if (entry is Map)
+            SyncPeerEndpoint.fromJson(entry.cast<String, dynamic>()),
+      ].take(kMaxPeerEndpoints).toList();
+    }
+    final host = json['lastHost'];
+    final port = (json['lastPort'] as num?)?.toInt();
+    if (host is! String || host.isEmpty || port == null || port <= 0) {
+      return <SyncPeerEndpoint>[];
+    }
+    final atMs = json['lastSyncedAtMs'] as num?;
+    return [
+      SyncPeerEndpoint(
+        host: host,
+        port: port,
+        lastSuccessAt: atMs == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(atMs.toInt()),
+      ),
+    ];
+  }
 }

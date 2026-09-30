@@ -253,24 +253,93 @@ contradicts one of them is a bug, not a preference.
 
 ### Discovery & pairing (发现与配对)
 
-- **Pairing, then nothing automatic about addresses**: the QR image (endpoints + fingerprint +
+- **Pairing, then a learned endpoint set**: the QR image (endpoints + fingerprint +
   PIN) is the recommended path; the PIN dialog is the fallback for a device without a scanner
   (desktop — the phone scans the computer's QR in the primary journey). Both leave a durable peer
-  record, and sync uses the stored endpoint.
+  record, and sync dials the endpoints that record remembers, best first.
+- **An address belongs to the (device, network) pair** (端点集): the same laptop is reachable at
+  an office address, a home address and a phone hotspot, so a peer record holds up to six
+  endpoints instead of one. A session promotes the endpoint it succeeded over to the front and
+  keeps the rest behind it as hints, so roaming back to a known network heals itself in one round.
+  Only the certificate fingerprint identifies a peer — every connection re-verifies it — so
+  remembering several addresses can never reach the wrong device. Manual repair ("edit address")
+  replaces the whole set: the automatic memory is what failed, or the user would not be typing.
+- **Candidates are probed in parallel, then dialed nearest-subnet first** (候选探测): a peer with
+  several remembered addresses costs one bare TCP probe per address, all at once — the wait is the
+  slowest probe, not their sum — and the ones that answered are dialed in sequence under a three
+  second connect budget. A probe loser is kept at the back rather than dropped: one lost SYN is not
+  evidence that the serial dial could not reach the address. Within each of those two groups the
+  candidates sharing an IPv4 /24 with an address this device holds come first, because the
+  remembered order is a history of networks rather than a statement about the one this device is
+  standing on — reachability still outranks proximity. A single candidate is dialed directly, where
+  the dial already is the probe.
+- **Advertised candidates are chosen, not dumped** (候选地址): a device advertises every usable
+  unicast address the OS reports — IPv4 and IPv6 alike — minus the interfaces a peer cannot use —
+  virtual adapters (VMware,
+  VirtualBox, Hyper-V, Docker/WSL), VPN and tunnel interfaces (Tailscale, ZeroTier, WireGuard,
+  `tun`/`tap`/`utun`), and a phone's cellular interfaces (`rmnet`, `clat`, `pdp_ip`). A shared
+  clone subnet is why they are excluded rather than demoted: two machines running the same
+  hypervisor carry the same host-only network, and a joiner trying that candidate reaches itself
+  and fails the pin. Names a tethered peer *must* dial stay in: `bridge*` (iPhone hotspot),
+  Windows' "Local Area Connection* N" (mobile hotspot) and `swlan*` (Android soft AP). The list is
+  capped at four addresses — both families together, in interface order — so the QR stays
+  scannable. A public address is never filtered out: campus networks hand out globally routable
+  addresses directly (in either family), and filtering to RFC1918 alone left those devices
+  advertising nothing at all. IPv6 candidates are global unicast (`2000::/3`) and unique local
+  (`fd00::/8`); link-local is never advertised, because `fe80::1`'s zone id belongs to *this*
+  device's interface and means nothing to a peer. VPN-only users fall back to typing the address.
+- **The listener is one socket on both stacks** (双栈): it binds the IPv6 any-address, which also
+  answers IPv4 callers — they arrive mapped, `::ffff:a.b.c.d`, and are normalized to their IPv4
+  form before storage, since a mapped literal is a valid address to a socket but not to a URI. A
+  machine with IPv6 disabled refuses that bind, and falls back to the IPv4 any-address, which is
+  what every release before this one did. A host configured with `bindv6only=1` is a known limit
+  rather than a covered case: it *accepts* the `::` bind and then serves IPv6 only, so IPv4 peers
+  cannot reach this device and nothing in the listener can notice — the sysctl is not visible from
+  the socket.
+- **An endpoint is stored bare and bracketed only where a human or a URI reads it**: `fd00::1` in
+  the endpoint set and the dial, `[fd00::1]:9527` in the QR payload, the address line and the field
+  a user types into. Anything that keeps a host of its own keeps the bare form, so the same peer is
+  never remembered under two names.
 - **The pairing form names the field that is wrong**: address/port and the pairing code are
   validated and reported separately, so a mistyped address never sends the user to re-check the
   other device. The code is compared with its spaces stripped — the dialog shows it as `123 456`,
   so the space a user copies is not a wrong code.
+- **A pairing is announced by the paired device's own name**: the name comes from the record the
+  pairing wrote — the same name its card will show — so the scanned and the typed paths say the same
+  thing, and re-pairing an already-paired device reads as an update rather than as a first pairing.
+  The manual form used to close in silence, which left the one success the user triggered entirely by
+  hand as the only unreported one.
 - **No LAN discovery is implemented**: mDNS/DNS-SD (`_cuplivo._sync._tcp`) is a *deferred*
   option, not a missing piece — the platform cost (iOS Bonjour declarations and local-network
   permission, Android multicast locks, a Windows inbound UDP 5353 rule) buys endpoint
-  auto-healing that a re-scan repairs in one gesture. The naming is reserved so adding it later
-  is purely additive.
-- **Endpoint drift (端点漂移) is a normal, repairable state**: the DHCP/network change that
-  moves a peer makes "sync now" report `unreachable` until the address is fixed. Two repairs
-  exist and both are ordinary: re-scan the peer's QR (updates the address, rotates the secret),
-  or edit the address on the peer card. A drifted endpoint is a connectivity failure, reported
-  as such — never a discovery failure.
+  auto-healing that the remembered endpoint set already covers for every network the pair has
+  met, and a re-scan covers for the first visit to a new one. The naming is reserved so adding it
+  later is purely additive.
+- **Endpoint drift (端点漂移) is a normal, self-healing state**: the DHCP/network change that
+  moves a peer makes a session walk its remembered endpoints; the one that answers becomes the
+  new head. `unreachable` means *none* of them answered — the peer is off, or it is on a network
+  this device has never met, and the two repairs are re-scanning its QR (which updates the set and
+  rotates the secret) or typing the address on its card. A drifted endpoint is a connectivity
+  failure, reported as such — never a discovery failure. A Windows privacy address that rotated out
+  from under an advertised IPv6 endpoint is the same kind of drift, healed the same way.
+- **Reaching a candidate is not the same as it being the peer**: an endpoint that cannot be
+  connected (refused, timed out) and one that answers with the wrong certificate both fall through
+  to the next candidate — the pin refuses the wrong device inside the handshake, before any request
+  byte, so nothing leaks and the next address is still a fair attempt. Pairing follows the same
+  rule: a QR whose first address belongs to something else still pairs on the address behind it,
+  and when *every* address answered as another device the failure says exactly that
+  (`fingerprint_mismatch` — a re-scan, not a retry). A *refusal* is different: it is that peer's
+  verdict, and its other addresses would only repeat it, so the attempt ends. That covers the
+  pairing code too — a wrong PIN is the scanned device answering.
+- **The advertised address list is a live fact, and the QR follows it**: the list is re-enumerated
+  when the app resumes and when the pairing dialog opens on **either** side — on a desktop, changing
+  networks fires no lifecycle event at all, and the entering side advertises its own addresses in
+  the pairing request, so a stale list there becomes dead hints in the peer's remembered set. It is
+  also the same list the dial orders candidates by, and a foreground round waits for the enumeration
+  rather than racing it: a round that ran first would order its dials from an empty list, which
+  drops the nearest-subnet rule for that round. The QR image is re-encoded whenever, and only when,
+  its endpoints changed, so it can never keep advertising a network the list underneath it has
+  already left.
 - **AP isolation** is likewise a *connectivity* failure: on a network that blocks peer-to-peer
   traffic no pairing path helps, and the report says so.
 - **Unpairing (解除配对) is local-first, then best-effort remote**: this device always drops the
@@ -341,6 +410,22 @@ contradicts one of them is a bug, not a preference.
   and outside the sync face anyway. Restart remains only a crash-recovery fallback.
 - **Apply yields to generation**: applying changes to a conversation is deferred while a
   generation is actively writing to it.
+- **An open conversation is rebuilt, not left behind**: the apply names the conversations it
+  changed, and the chat controller rebuilds the window it is showing when that window's
+  conversation is among them. At the bottom the window follows the tail — the messages that just
+  arrived are what the user picked the device up for — and above the bottom it is rebuilt around
+  the first loaded row, so a reader is not thrown to the end. A write that lands while a local
+  generation owns the window is held back and applied when that generation ends. Every other
+  notification costs one integer comparison (the per-conversation external-write counter), which
+  is what keeps the app's own frequent write traffic from rebuilding windows. A *repaired order*
+  counts as changed even though no row's content did: every counter such an apply reports stays at
+  zero while the timeline on screen is not the one the database now holds, so the order repair
+  rides its own flag into the same reload.
+- **An open editor keeps its snapshot**: settings and entity editor pages load once and save what
+  they show, so a sync apply that lands underneath one is overwritten on save by the row-level LWW
+  rule — and, as everywhere else in the merge, the report counts the local rows it replaced. Live
+  reloading a form the user is typing into would be worse than the staleness; the doctrine is
+  "never silent", not "never stale".
 
 ### Failure policy (故障政策)
 
@@ -379,9 +464,17 @@ contradicts one of them is a bug, not a preference.
   leaves behind — is still rebuilt, which is the heal that keeps a peer deletion from reading as a
   local edit.
 - **A failure is a reason, not a sentence**: a failed session carries a structured reason
-  (unreachable, timeout, peer error, internal) that the panel and the stored record localize. The
-  exception text — which carries the peer's address and port — goes to the log only; it never
-  reaches a card or a snackbar, and an unrecognized or absent reason falls back to a generic line.
+  (no address, unreachable, timeout, peer error, internal) that the panel and the stored record
+  localize. The exception text — which carries the peer's address and port — goes to the log only; it
+  never reaches a card or a snackbar, and an unrecognized or absent reason falls back to a generic
+  line rather than nothing — which is what makes adding a reason safe: a record written before this
+  one still holds the value it was written with, and that value still reads.
+- **No address is not unreachable (无地址≠连不上)**: "this record remembers nowhere to dial" and
+  "every remembered address was tried and none answered" are different states with different
+  repairs. Nothing is dialed in the first, so "the other device could not be reached" would send the
+  user to check a device this app never tried to reach; it carries its own reason (`no_endpoint`) and
+  its own line, which asks for an address. The unreachable line, in turn, names the repairs drift
+  already defines rather than stating the fact alone.
 - **One session per pair (一对设备一个会话)**: a per-peer single-flight lock covers both roles,
   because the responder and the initiator paths write the same checkpoint file from the copy each
   read at its own hello. An initiator round is refused while a session exists for that pair, and a
@@ -407,6 +500,12 @@ contradicts one of them is a bug, not a preference.
 - **No online state**: the card shows the last sync attempt and its outcome, never a presence
   badge. Nothing probes the peer between sessions, so "online" would be a claim the app cannot
   make; a drifted address shows up as a failed attempt, not as an offline device.
+- **The card shows the facts a user acts on**: "last synced" is how long ago, not a timestamp — the
+  question on that line is recency, the exact time rides in the tooltip, and past a week the date
+  returns, because at nine days old the date is the more useful fact. The address in use carries a
+  count of the other remembered ones (`(+2)`), so a peer reached on two networks does not look like a
+  peer with one address. The address itself copies on tap with the usual confirmation: it is the one
+  string on the card that belongs somewhere else.
 - **Listener lifecycle**: the listener runs whenever the app runs, on a preferred port
   (`9527`) that falls back to an ephemeral one when taken, so a peer's stored endpoint and the
   Windows firewall rule stay stable across launches. On Windows the inbound rule is

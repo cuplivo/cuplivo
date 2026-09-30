@@ -22368,6 +22368,30 @@ abstract class AppLocalizations {
   /// **'Never synced'**
   String get lanSyncNeverSynced;
 
+  /// No description provided for @lanSyncJustSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Just synced'**
+  String get lanSyncJustSynced;
+
+  /// No description provided for @lanSyncMinutesAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} min ago'**
+  String lanSyncMinutesAgo(Object n);
+
+  /// No description provided for @lanSyncHoursAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} h ago'**
+  String lanSyncHoursAgo(Object n);
+
+  /// No description provided for @lanSyncDaysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} d ago'**
+  String lanSyncDaysAgo(Object n);
+
   /// No description provided for @lanSyncSyncNow.
   ///
   /// In en, this message translates to:
@@ -22397,6 +22421,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Edit address'**
   String get lanSyncEditAddress;
+
+  /// No description provided for @lanSyncAddressCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Address copied'**
+  String get lanSyncAddressCopied;
 
   /// No description provided for @lanSyncUnpair.
   ///
@@ -22503,8 +22533,14 @@ abstract class AppLocalizations {
   /// No description provided for @lanSyncReportUnreachable.
   ///
   /// In en, this message translates to:
-  /// **'Sync failed: the other device could not be reached.'**
+  /// **'Sync failed: the other device could not be reached. It may be offline or on another network — rescan its QR code, or edit its address on the card.'**
   String get lanSyncReportUnreachable;
+
+  /// No description provided for @lanSyncReportNoEndpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed: no address is stored for the other device. Rescan its QR code, or enter the address on its card.'**
+  String get lanSyncReportNoEndpoint;
 
   /// No description provided for @lanSyncReportTimeout.
   ///

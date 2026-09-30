@@ -11942,6 +11942,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncNeverSynced => '从未同步';
 
   @override
+  String get lanSyncJustSynced => '刚刚同步';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n 分钟前';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n 小时前';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n 天前';
+  }
+
+  @override
   String get lanSyncSyncNow => '立即同步';
 
   @override
@@ -11955,6 +11973,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get lanSyncEditAddress => '修改地址';
+
+  @override
+  String get lanSyncAddressCopied => '地址已复制';
 
   @override
   String get lanSyncUnpair => '取消配对';
@@ -12038,7 +12059,12 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get lanSyncReportUnreachable => '同步失败：无法连接到对方设备。';
+  String get lanSyncReportUnreachable =>
+      '同步失败：无法连接到对方设备。它可能已离线或换了网络——重新扫描它的二维码，或在卡片上修改地址。';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      '同步失败：没有记录对方设备的地址。请重新扫描它的二维码，或在卡片上填写地址。';
 
   @override
   String get lanSyncReportTimeout => '同步失败：对方设备停止响应。';
@@ -23946,6 +23972,24 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncNeverSynced => '从未同步';
 
   @override
+  String get lanSyncJustSynced => '刚刚同步';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n 分钟前';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n 小时前';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n 天前';
+  }
+
+  @override
   String get lanSyncSyncNow => '立即同步';
 
   @override
@@ -23959,6 +24003,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncEditAddress => '修改地址';
+
+  @override
+  String get lanSyncAddressCopied => '地址已复制';
 
   @override
   String get lanSyncUnpair => '取消配对';
@@ -24042,7 +24089,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get lanSyncReportUnreachable => '同步失败：无法连接到对方设备。';
+  String get lanSyncReportUnreachable =>
+      '同步失败：无法连接到对方设备。它可能已离线或换了网络——重新扫描它的二维码，或在卡片上修改地址。';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      '同步失败：没有记录对方设备的地址。请重新扫描它的二维码，或在卡片上填写地址。';
 
   @override
   String get lanSyncReportTimeout => '同步失败：对方设备停止响应。';
@@ -36029,6 +36081,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get lanSyncNeverSynced => '從未同步';
 
   @override
+  String get lanSyncJustSynced => '剛剛同步';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n 分鐘前';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n 小時前';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n 天前';
+  }
+
+  @override
   String get lanSyncSyncNow => '立即同步';
 
   @override
@@ -36042,6 +36112,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncEditAddress => '修改位址';
+
+  @override
+  String get lanSyncAddressCopied => '位址已複製';
 
   @override
   String get lanSyncUnpair => '取消配對';
@@ -36125,7 +36198,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get lanSyncReportUnreachable => '同步失敗：無法連線到對方裝置。';
+  String get lanSyncReportUnreachable =>
+      '同步失敗：無法連線到對方裝置。它可能已離線或換了網路——重新掃描它的二維碼，或在卡片上修改位址。';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      '同步失敗：沒有記錄對方裝置的位址。請重新掃描它的二維碼，或在卡片上填寫位址。';
 
   @override
   String get lanSyncReportTimeout => '同步失敗：對方裝置停止回應。';

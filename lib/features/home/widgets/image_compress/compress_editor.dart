@@ -586,12 +586,12 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
             Expanded(child: content),
           ],
         ),
-        if (_controller.workingIsReduced) ...[
+        if (_controller.budgetReducedSource) ...[
           const SizedBox(height: 4),
           Text(
             l10n.compressEditorWorkingScale(
               sourceDimensions,
-              (_controller.workingLongEdge /
+              (_controller.reachableLongEdge /
                       math.max(1, _controller.sourceLongEdge) *
                       100)
                   .round(),

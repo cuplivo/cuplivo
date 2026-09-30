@@ -15,10 +15,11 @@ const Duration _kEncodeDebounce = Duration(milliseconds: 200);
 
 /// Drives the manual compress editor.
 ///
-/// One working image per (source, target size) pair, one artifact per
-/// parameter set, and never more than one decode/encode in flight: the engine's
-/// decode cannot be cancelled once started, so starting a second one while the
-/// first runs is what would double the peak, not the budget.
+/// One working image per (source, target size) pair, one reference image for the
+/// comparison's original side, one artifact per parameter set, and never more
+/// than one decode/encode in flight: the engine's decode cannot be cancelled once
+/// started, so starting a second one while the first runs is what would double
+/// the peak, not the budget.
 ///
 /// The artifact is not an estimate. It is the exact byte sequence the apply
 /// writes and the right half of the comparison draws, so the size row, the
@@ -68,6 +69,22 @@ class CompressEditorController extends ChangeNotifier {
   Uint8List? _artifact;
   ManualCompressParams? _artifactParams;
   ui.Image? _result;
+
+  /// The left half's image: the source at the largest resolution the working
+  /// budget reaches, decoded once and kept for the session.
+  ///
+  /// Without it the left half would draw [_working], which is decoded at the
+  /// target the user picked: lowering the resolution would then blur 原图 along
+  /// with the result, and the two halves would converge on the encode's own
+  /// artifacts — hiding the loss the slider is actually causing behind a label
+  /// that promises the original.
+  ///
+  /// It stays null while the working image already *is* the source at its
+  /// largest reachable resolution: at that target the two hold the same pixels,
+  /// and a second decode would only cost memory.
+  ui.Image? _reference;
+  bool _referenceInFlight = false;
+  bool _referenceFailed = false;
 
   bool _preparing = true;
   bool _decodeFailed = false;
@@ -127,8 +144,35 @@ class CompressEditorController extends ChangeNotifier {
   /// A decode or encode pass is running.
   bool get encoding => _busy;
 
-  /// The original side: the source at the working (artifact) resolution.
-  ui.Image? get original => _working?.display;
+  /// The original side: the reference once it has been decoded, and the working
+  /// image until then (the same region, at the target resolution).
+  ui.Image? get original => _reference ?? _working?.display;
+
+  /// The reference image's size over the working image's, or 1:1 while there is
+  /// no reference.
+  ///
+  /// The preview's region is expressed in working pixels — the artifact's own
+  /// space — and the two images are different sizes, so the left half maps the
+  /// region through this before drawing it.
+  ui.Size get originalScale {
+    final reference = _reference;
+    final working = _working;
+    if (reference == null ||
+        working == null ||
+        working.width <= 0 ||
+        working.height <= 0) {
+      return const ui.Size(1, 1);
+    }
+    return ui.Size(
+      reference.width / working.width,
+      reference.height / working.height,
+    );
+  }
+
+  /// The working image the preview draws from before the reference lands, which
+  /// is the image a parameter change replaces and retires.
+  @visibleForTesting
+  ui.Image? get debugWorkingDisplay => _working?.display;
 
   /// The result side: the artifact, decoded for display. Null while 原图 is
   /// selected or no artifact exists for the current parameters yet.
@@ -163,9 +207,15 @@ class CompressEditorController extends ChangeNotifier {
   int get workingHeight => _working?.height ?? 0;
   int get workingLongEdge => math.max(workingWidth, workingHeight);
 
-  /// True when the source had to be reduced to fit the budget, so the panel has
-  /// to say that 100% is the working resolution, not the source's.
-  bool get workingIsReduced => _working?.isDownsizedFromSource ?? false;
+  /// True when the source had to be reduced to fit the working budget, so the
+  /// panel has to say that 100% is the resolution this editor can reach, not the
+  /// source's own.
+  ///
+  /// A target the user chose does not count: the slider and the result's
+  /// dimensions already say what was asked for, while the reference side — the
+  /// comparison's original — stays at the reachable edge either way.
+  bool get budgetReducedSource =>
+      reachableLongEdge > 0 && reachableLongEdge < sourceLongEdge;
 
   /// The largest long edge this image can be worked at: the source's own edge,
   /// capped by the working budget. It is also the long-edge slider's maximum, so
@@ -195,6 +245,7 @@ class CompressEditorController extends ChangeNotifier {
     _disposed = true;
     _timer?.cancel();
     _working?.dispose();
+    _reference?.dispose();
     _result?.dispose();
     _disposeRetired();
     super.dispose();
@@ -376,9 +427,10 @@ class CompressEditorController extends ChangeNotifier {
     // runs the first pass itself once it lands, on whatever parameters are
     // current then.
     if (_preparing) return;
-    if (_busy) {
-      // A decode/encode is already running and cannot be cancelled: remember
-      // that the parameters moved and re-run once it finishes.
+    if (_busy || _referenceInFlight) {
+      // A decode/encode — or the reference's own decode — is already running and
+      // cannot be cancelled: remember that the parameters moved and re-run once
+      // it finishes.
       _pending = true;
       return;
     }
@@ -431,6 +483,59 @@ class CompressEditorController extends ChangeNotifier {
         // The frame this notify schedules is the one that stops the preview
         // from referencing the image this pass replaced.
         _flushRetired();
+        if (_pending) {
+          // The newest parameters win, and the pass they start may decode beside
+          // nothing: the reference waits for the parameters to settle instead of
+          // holding up the pass the user is waiting for.
+          _pending = false;
+          unawaited(_rebuild());
+        } else {
+          unawaited(_ensureReference());
+        }
+      }
+    }
+  }
+
+  /// Decodes the reference image, once, as soon as the working image is smaller
+  /// than the source's reachable edge.
+  ///
+  /// At the reachable edge the left half already *is* the source at its largest
+  /// resolution, so nothing is decoded; below it, drawing the working image on
+  /// the left would present a reduced 原图 as the original. Its own decode is a
+  /// second decode of the same source, so it may not run beside a pass — and a
+  /// pass may not run beside it; [_rebuild] records the parameters that arrive
+  /// while it is in flight and re-runs them here.
+  Future<void> _ensureReference() async {
+    if (_disposed || _reference != null || _referenceFailed) return;
+    assert(!_busy, 'the reference decode may not start beside a pass');
+    final working = _working;
+    if (working == null || _workingEdge >= reachableLongEdge) return;
+    _referenceInFlight = true;
+    try {
+      final reference = await decodeReferenceImage(
+        imagePath,
+        budgetPixels: _budgetPixels,
+        budgetBytes: _budgetBytes,
+      );
+      if (_disposed) {
+        reference.dispose();
+        return;
+      }
+      _reference = reference;
+    } on WorkingImageTooLargeException catch (error) {
+      // The gate can refuse the reference at the reachable edge while the
+      // target-sized working image fits. The left half then stays at the target
+      // resolution rather than showing nothing at all.
+      debugPrint('[CompressEditor] Reference refused for $imagePath: $error');
+      _referenceFailed = true;
+    } catch (error, stackTrace) {
+      debugPrint('[CompressEditor] Reference failed for $imagePath: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _referenceFailed = true;
+    } finally {
+      _referenceInFlight = false;
+      if (!_disposed) {
+        notifyListeners();
         if (_pending) {
           _pending = false;
           unawaited(_rebuild());

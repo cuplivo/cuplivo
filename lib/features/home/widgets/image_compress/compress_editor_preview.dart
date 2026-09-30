@@ -10,10 +10,11 @@ import 'compress_editor_controller.dart';
 
 /// The editor body: one image, one draggable divider.
 ///
-/// Both halves are drawn from the *same* region of the same size — the left from
-/// the working image (the source at the artifact's resolution), the right from
-/// the artifact itself — so 1:1 means one artifact pixel per logical pixel and
-/// the comparison shows what the encoder actually did. Nothing is stretched: the
+/// Both halves are drawn over the *same* region of the same framing — the left
+/// from the reference image (the source at the largest resolution the working
+/// budget reaches), the right from the artifact itself — so 1:1 means one
+/// artifact pixel per logical pixel and the comparison shows what the encoder
+/// and the chosen resolution did to the original. Nothing is stretched: the
 /// region is letterboxed inside the preview area at its own aspect ratio.
 class CompressPreview extends StatefulWidget {
   const CompressPreview({
@@ -72,6 +73,7 @@ class _CompressPreviewState extends State<CompressPreview> {
                   CustomPaint(
                     painter: _SplitPreviewPainter(
                       original: _controller.original!,
+                      originalScale: _controller.originalScale,
                       result: _controller.result,
                       source: _controller.visibleSource,
                       destination: dest,
@@ -156,9 +158,15 @@ class _CompressPreviewState extends State<CompressPreview> {
     final start = _gestureStartVisible;
     final dest = _gestureStartDest;
     if (start.isEmpty || dest.isEmpty) return;
+    final aspect = _framingAspect();
+    if (aspect <= 0) return;
     final factor = details.scale <= 0 ? 1.0 : details.scale;
     final width = start.width / factor;
-    final height = start.height / factor;
+    // The height follows the framing's aspect rather than the gesture's own: a
+    // region whose aspect drifts from the framing's is letterboxed into a
+    // narrower strip, and a zoom keeps the aspect it started with, so one drift
+    // would be permanent. See [_framingAspect].
+    final height = width / aspect;
     final rel = Offset(
       (details.localFocalPoint.dx - dest.left) / dest.width,
       (details.localFocalPoint.dy - dest.top) / dest.height,
@@ -233,11 +241,31 @@ class _CompressPreviewState extends State<CompressPreview> {
     );
   }
 
+  /// The aspect ratio every framing keeps: the default view's own.
+  ///
+  /// The window is a contain-fit of the region on screen, so a region whose
+  /// aspect drifts from the framing's is letterboxed into a narrower strip. A
+  /// zoom preserves the aspect it started with, which makes one drift permanent:
+  /// the window could never widen again. Keeping every framing at this ratio is
+  /// what lets a zoom widen the window back to the preview area's edges.
+  double _framingAspect() {
+    final framing = _defaultView();
+    if (framing.isEmpty || framing.height <= 0) return 0;
+    return framing.width / framing.height;
+  }
+
   Rect _clamp(Rect rect) {
     final working = _workingSize;
-    if (working.isEmpty) return rect;
-    final width = rect.width.clamp(1.0, working.width);
-    final height = rect.height.clamp(1.0, working.height);
+    final framing = _defaultView();
+    if (working.isEmpty || framing.isEmpty) return rect;
+    // The framing is the zoom-out floor: a region wider or taller than it would
+    // be drawn as a strip the gestures could never widen again, because they
+    // preserve the aspect they start with. Bounding the width by the framing's
+    // and deriving the height from the same aspect keeps every framing inside
+    // the preview area's edges.
+    final maxWidth = math.min(framing.width, working.width);
+    final width = rect.width.clamp(1.0, maxWidth).toDouble();
+    final height = width / (framing.width / framing.height);
     final maxLeft = math.max(0.0, working.width - width);
     final maxTop = math.max(0.0, working.height - height);
     return Rect.fromLTWH(
@@ -312,6 +340,7 @@ class _PreviewTag extends StatelessWidget {
 class _SplitPreviewPainter extends CustomPainter {
   _SplitPreviewPainter({
     required this.original,
+    required this.originalScale,
     required this.result,
     required this.source,
     required this.destination,
@@ -319,6 +348,11 @@ class _SplitPreviewPainter extends CustomPainter {
   });
 
   final ui.Image original;
+
+  /// [original]'s size over the working image's. [source] is in working pixels —
+  /// the artifact's own space — and the reference is a different size, so the
+  /// left half rescales the region before drawing it.
+  final Size originalScale;
 
   /// The artifact, decoded at its own size. Null while 原图 is selected or the
   /// artifact for the current parameters is not ready: the compressed side then
@@ -332,6 +366,14 @@ class _SplitPreviewPainter extends CustomPainter {
   final Rect destination;
   final double divider;
 
+  /// The same region as [source], in the reference image's own pixels.
+  Rect get _originalSource => Rect.fromLTRB(
+    source.left * originalScale.width,
+    source.top * originalScale.height,
+    source.right * originalScale.width,
+    source.bottom * originalScale.height,
+  );
+
   @override
   void paint(Canvas canvas, Size size) {
     if (source.isEmpty || destination.isEmpty) return;
@@ -342,7 +384,7 @@ class _SplitPreviewPainter extends CustomPainter {
 
     canvas.save();
     canvas.clipRect(destination);
-    canvas.drawImageRect(original, source, destination, paint);
+    canvas.drawImageRect(original, _originalSource, destination, paint);
     canvas.restore();
 
     canvas.save();
@@ -360,7 +402,7 @@ class _SplitPreviewPainter extends CustomPainter {
       // rect describes both sides; its own pixels are the encoding's result.
       canvas.drawImageRect(artifact, source, destination, paint);
     } else {
-      canvas.drawImageRect(original, source, destination, paint);
+      canvas.drawImageRect(original, _originalSource, destination, paint);
     }
     canvas.restore();
 
@@ -381,6 +423,7 @@ class _SplitPreviewPainter extends CustomPainter {
   @override
   bool shouldRepaint(_SplitPreviewPainter old) {
     return old.original != original ||
+        old.originalScale != originalScale ||
         old.result != result ||
         old.source != source ||
         old.destination != destination ||

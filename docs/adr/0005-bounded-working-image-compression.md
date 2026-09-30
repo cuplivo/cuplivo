@@ -50,9 +50,10 @@ orientation 6 reports 200×400 without decoding pixels).
 1. **One working image, decoded at the artifact's own size.** The editor derives the target long edge
    from the source's header dimensions (never from pixels), decodes once through
    `ImageDescriptor.encoded` + `instantiateCodec(targetWidth/targetHeight)`, and treats those pixels
-   as both the comparison's left half and the encoder's input. The source is never materialised at
-   full resolution, so peak memory tracks **the chosen output**, not the file: a 200 MP JPEG worked at
-   a 1568 px long edge costs ~19 MB to decode.
+   as the encoder's input. The source is never materialised at full resolution, so peak memory tracks
+   **the chosen output**, not the file: a 200 MP JPEG worked at a 1568 px long edge costs ~19 MB to
+   decode. (The comparison's left half was originally drawn from these pixels too; decision 13 replaced
+   that with a reference decode.)
 2. **Preview, size row and artifact are one value.** The artifact is encoded from the working pixels
    with `compressDecoded` and no Dart-side resize (the engine already decoded at the target, so a JPEG
    source is resampled once, in the DCT domain), and the right half is *that* byte sequence decoded
@@ -94,7 +95,8 @@ orientation 6 reports 200×400 without decoding pixels).
    two differ only for tall images, which is precisely the failing case: a 1000×8000 screenshot in a
    390 px viewport was drawn 75 px wide. Fitting the width keeps it legible and pans vertically. 1:1
    now means one artifact pixel per logical pixel, which is true because the working image *is* at the
-   artifact's resolution.
+   artifact's resolution; the left half draws the same region from the reference (decision 13), so its
+   own pixels are that much sharper. Decision 14 fixes what the *window* does at every zoom level.
 9. **The automatic pipeline shares the decode and keeps its own rules.** `auto` keeps its attach-time
    presets, its minimum-size guard, its transparency opt-in and its always-JPEG output; what changed is
    that it decodes through the same budgeted working image instead of `Downsize.compress(sourceBytes)`,
@@ -115,13 +117,35 @@ orientation 6 reports 200×400 without decoding pixels).
     disposed image (`Canvas.drawImageRect` asserts on it) once per frame until the owning pass finished,
     which in a debug build is tens of seconds of assertion spam. The replaced image is *retired*
     instead, and disposed in a post-frame callback registered on the notify that publishes the new one:
-    after that frame no painter can still reference it.
+    after that frame no painter can still reference it. The working display still needs this even
+    though the reference now owns the left half: it is what the left half draws until that reference
+    lands.
 12. **The editor waits behind the composer's pass instead of being refused.** A chip whose attach-time
     pass is still running had no tap target at all, and the editor's own guard returned silently, so a
     click on it did nothing whatsoever — for long enough on a slow import to read as a broken button.
     The composer now hands the editor a future that completes when that pass releases the source: the
     dialog opens on the click and says it is preparing, and only then decodes. Decoding *beside* the
     pass is what must not happen, and waiting is how both hold.
+13. **The original side is a reference decode, not the working image.** The left half was drawn from
+    the working image, which is decoded at the *target*: dragging the resolution down re-decoded 原图
+    smaller along with the result, until the two halves differed only by the encoder's own artifacts.
+    The comparison therefore hid the loss the slider was causing, behind a label promising the
+    original. The editor now decodes one *reference* — the source at `reachableLongEdge`, the same edge
+    the slider's 100% means — and draws the left half from it: display-only (no straight-RGBA readback,
+    since nothing is ever encoded from it) and kept for the session. At the reachable edge the working
+    image already holds exactly those pixels, so no reference is decoded at all; it is decoded once the
+    target drops below that edge, which is precisely when the two halves would otherwise converge. It
+    is a second decode of the same source, so it obeys decision 4: it waits for a running pass, a pass
+    waits for it, and the parameters that moved meanwhile re-run when it finishes.
+14. **Every framing keeps the framing's aspect ratio, and the framing is the zoom-out floor.** The
+    window is a contain-fit of the region on screen, so the region's aspect decides how much of the
+    preview area it fills — while a zoom preserved the aspect it started with, and the clamp let the
+    region grow to the whole image's height once its width was pinned to the whole image's width.
+    Zooming out past fit-to-width on a tall image therefore letterboxed the window into a narrow strip,
+    and because the aspect was preserved, *no* zoom could widen it again; only the double-tap reset
+    could. The height is now derived from the width against the framing's aspect, and both are bounded
+    by the framing, so the zoom-out floor is the default framing and the window keeps filling the
+    preview area at every zoom level.
 
 ## Consequences
 
@@ -168,6 +192,18 @@ orientation 6 reports 200×400 without decoding pixels).
   rebuild the page.
 - Retiring holds the replaced working image one frame longer than the swap, not for the whole pass, so a
   re-decode's peak is unchanged — the two images already coexisted while the new one was decoded.
+- **The left half is the reference's pixels, so 原图 has a ceiling of its own**: for a source the budget
+  had to reduce, the reference is at the reachable edge — the same resolution the slider calls 100% —
+  and the panel's "loaded at X%" note now reports that budget-driven reduction rather than the target
+  the user chose, which the slider and the result's dimensions already say. The note and the left half
+  therefore describe one value.
+- Peak memory gains a reference texture of at most `4 bytes × reachable pixels`, and gains nothing at
+  all while the target *is* the reachable edge (the common 100% case), where the working image serves
+  as the reference. The reference is display-only, so it carries no straight-RGBA copy; at a target just
+  below the reachable edge the worst case is reference + working texture + working pixels + result.
+- A zoom can no longer drift the window's shape: the region keeps the framing's aspect ratio and is
+  bounded by the framing, so zooming out on a tall image stops at fit-to-width instead of leaving a
+  strip that no gesture could widen.
 
 ## Not in scope
 

@@ -319,11 +319,6 @@ class WorkingImage {
   int get sourceLongEdge => math.max(sourceWidth, sourceHeight);
   int get longEdge => math.max(width, height);
 
-  /// True when the source had to be reduced to fit the working budget: the panel
-  /// has to say so, because "100%" then no longer means the source resolution.
-  bool get isDownsizedFromSource =>
-      width != sourceWidth || height != sourceHeight;
-
   void dispose() => display.dispose();
 }
 
@@ -366,6 +361,77 @@ Future<WorkingImage> decodeWorkingImageBytes(
   required bool floorAtQuarterOfSource,
   required int budgetPixels,
   required int budgetBytes,
+}) async {
+  final sourceFormat = detectImageSourceFormat(bytes);
+  final decoded = await _decodeAtEdge(
+    bytes,
+    requestedLongEdge: requestedLongEdge,
+    floorAtQuarterOfSource: floorAtQuarterOfSource,
+    budgetPixels: budgetPixels,
+    budgetBytes: budgetBytes,
+    includePixels: true,
+  );
+  final display = decoded.image;
+  try {
+    final raw = decoded.rgba;
+    if (raw == null) throw StateError('image has no readable pixels');
+    return WorkingImage(
+      display: display,
+      rgba: raw,
+      width: display.width,
+      height: display.height,
+      sourceWidth: decoded.sourceWidth,
+      sourceHeight: decoded.sourceHeight,
+      sourceBytes: bytes.length,
+      sourceMayHaveAlpha: sourceFormat != ImageSourceFormat.jpeg,
+    );
+  } catch (_) {
+    display.dispose();
+    rethrow;
+  }
+}
+
+/// Decodes the reference image: the source at the largest long edge the working
+/// budget reaches, for the comparison's left half.
+///
+/// The artifact is encoded from the working image at the size the user chose, so
+/// this side is what that choice is measured against — the untouched 原图, not a
+/// re-decode at the target resolution, which is what would blur both halves
+/// together as the resolution is lowered.
+///
+/// It is display-only: nothing is ever encoded from these pixels, so the straight
+/// RGBA copy the encode path needs is not read back, and the reference costs its
+/// texture and nothing else. It is decoded once per session.
+Future<ui.Image> decodeReferenceImage(
+  String path, {
+  required int budgetPixels,
+  required int budgetBytes,
+}) async {
+  final decoded = await _decodeAtEdge(
+    File(path).readAsBytesSync(),
+    requestedLongEdge: null,
+    floorAtQuarterOfSource: true,
+    budgetPixels: budgetPixels,
+    budgetBytes: budgetBytes,
+    includePixels: false,
+  );
+  return decoded.image;
+}
+
+/// One engine decode of [bytes] at the edge the source and the budget leave
+/// open, plus the facts the header supplied.
+///
+/// [includePixels] reads the straight RGBA copy back as well; only the encode
+/// path needs it — the reference image is display-only, and skipping the readback
+/// keeps a full-resolution pixel copy off the peak.
+Future<({ui.Image image, Uint8List? rgba, int sourceWidth, int sourceHeight})>
+_decodeAtEdge(
+  Uint8List bytes, {
+  required int? requestedLongEdge,
+  required bool floorAtQuarterOfSource,
+  required int budgetPixels,
+  required int budgetBytes,
+  required bool includePixels,
 }) async {
   final sourceFormat = detectImageSourceFormat(bytes);
 
@@ -421,33 +487,32 @@ Future<WorkingImage> decodeWorkingImageBytes(
     );
     final frame = await codec.getNextFrame();
     final display = frame.image;
-    ByteData? raw;
     try {
-      raw = await display.toByteData(
-        format: ui.ImageByteFormat.rawStraightRgba,
-      );
-      if (raw == null) throw StateError('image has no readable pixels');
-      // `ByteData.buffer` is the whole underlying buffer and `asUint8List()`
-      // would start at 0, ignoring the offset; today the engine hands back
-      // `encoded.buffer.asByteData()` (offset 0, exactly the image), so the
-      // contract is stated and asserted rather than assumed — a shifted window
-      // or a pooling buffer would otherwise produce wrong pixels silently.
-      final expected = display.width * display.height * 4;
-      if (raw.lengthInBytes != expected) {
-        throw StateError(
-          'decoded pixels are ${raw.lengthInBytes} bytes, expected $expected '
-          'for ${display.width}x${display.height}',
+      Uint8List? rgba;
+      if (includePixels) {
+        final raw = await display.toByteData(
+          format: ui.ImageByteFormat.rawStraightRgba,
         );
+        if (raw == null) throw StateError('image has no readable pixels');
+        // `ByteData.buffer` is the whole underlying buffer and `asUint8List()`
+        // would start at 0, ignoring the offset; today the engine hands back
+        // `encoded.buffer.asByteData()` (offset 0, exactly the image), so the
+        // contract is stated and asserted rather than assumed — a shifted window
+        // or a pooling buffer would otherwise produce wrong pixels silently.
+        final expected = display.width * display.height * 4;
+        if (raw.lengthInBytes != expected) {
+          throw StateError(
+            'decoded pixels are ${raw.lengthInBytes} bytes, expected $expected '
+            'for ${display.width}x${display.height}',
+          );
+        }
+        rgba = raw.buffer.asUint8List(raw.offsetInBytes, raw.lengthInBytes);
       }
-      return WorkingImage(
-        display: display,
-        rgba: raw.buffer.asUint8List(raw.offsetInBytes, raw.lengthInBytes),
-        width: display.width,
-        height: display.height,
+      return (
+        image: display,
+        rgba: rgba,
         sourceWidth: sourceWidth,
         sourceHeight: sourceHeight,
-        sourceBytes: bytes.length,
-        sourceMayHaveAlpha: sourceFormat != ImageSourceFormat.jpeg,
       );
     } catch (_) {
       display.dispose();

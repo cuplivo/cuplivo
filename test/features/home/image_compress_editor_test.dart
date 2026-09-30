@@ -750,14 +750,14 @@ void main() {
     expect(controller.params.maxLongEdge, 124);
     expect(find.text('124 px'), findsOneWidget);
     // The reduced working resolution is disclosed, not silently applied.
-    expect(controller.workingIsReduced, isTrue);
+    expect(controller.budgetReducedSource, isTrue);
     expect(
       find.text(
         opened.l10n.compressEditorWorkingScale(
           '400×260',
           // The same rounding the panel applies, so the assertion pins the copy
           // rather than re-deriving it differently.
-          (controller.workingLongEdge / controller.sourceLongEdge * 100)
+          (controller.reachableLongEdge / controller.sourceLongEdge * 100)
               .round(),
         ),
       ),
@@ -1018,6 +1018,151 @@ void main() {
     expect(notifications, 1);
   });
 
+  test(
+    'the original side stays at the source resolution, not the target',
+    () async {
+      final path = await writeFixture('reference.png', 400, 260);
+      final controller = CompressEditorController(
+        imagePath: path,
+        initialParams: const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 80,
+          maxLongEdge: 400,
+        ),
+      );
+      addTearDown(controller.dispose);
+
+      await controller.prepare();
+      await _waitFor(() => controller.artifact != null);
+
+      // At the reachable edge the left half *is* the working image: it already
+      // holds the source's own pixels, so a second decode would only cost memory.
+      expect(controller.original, same(controller.debugWorkingDisplay));
+
+      controller.setParams(
+        const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 80,
+          maxLongEdge: 200,
+        ),
+      );
+      await _waitFor(() => controller.artifactParams == controller.params);
+      await _waitFor(
+        () => controller.original != controller.debugWorkingDisplay,
+        timeout: const Duration(seconds: 60),
+      );
+
+      // Below the reachable edge the left half is the untouched source, not a
+      // re-decode at the target: drawing the target there is what made 原图 blur
+      // along with the result until the two halves looked equally bad.
+      final reference = controller.original!;
+      expect(reference.width, 400);
+      expect(reference.height, 260);
+      expect(controller.workingWidth, 200);
+      // The region is described in working pixels, so the left half maps it into
+      // the reference's own space.
+      expect(controller.originalScale, const Size(2, 2));
+
+      // A further target change reuses that reference: the comparison is always
+      // against the original, never against the previous target.
+      controller.setParams(
+        const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 80,
+          maxLongEdge: 100,
+        ),
+      );
+      await _waitFor(() => controller.artifactParams == controller.params);
+      expect(controller.original, same(reference));
+      expect(controller.original!.width, 400);
+    },
+  );
+
+  testWidgets('a zoom never narrows the window into a strip', (tester) async {
+    // A tall image: the default framing fits its width, so the window fills the
+    // preview area — and every zoom has to keep it that way.
+    final opened = await openEditor(
+      tester,
+      width: 600,
+      height: 3000,
+      params: const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 80,
+        maxLongEdge: 3000,
+      ),
+    );
+    final controller = opened.preview.controller;
+    final layout = tester.getSize(find.byType(CompressPreview));
+
+    // Where the preview draws the region: a contain-fit inside the layout, which
+    // is the window the user actually sees.
+    Size windowOf(Rect region) {
+      final scale = math.min(
+        layout.width / region.width,
+        layout.height / region.height,
+      );
+      return Size(region.width * scale, region.height * scale);
+    }
+
+    final framing = controller.visibleSource;
+    expect(
+      windowOf(framing).width,
+      moreOrLessEquals(layout.width, epsilon: 0.5),
+    );
+
+    final center = tester.getCenter(find.byType(CompressPreview));
+
+    // Zoom in first: the framing is the floor, so only a zoom that starts
+    // somewhere else can be told apart from a gesture that never registered.
+    final in1 = await tester.startGesture(center - const Offset(30, 0));
+    final in2 = await tester.startGesture(center + const Offset(30, 0));
+    await in1.moveBy(const Offset(-90, 0));
+    await in2.moveBy(const Offset(90, 0));
+    await tester.pump();
+    final zoomedIn = controller.visibleSource;
+    await in1.up();
+    await in2.up();
+    await tester.pump();
+
+    expect(zoomedIn, isNot(framing), reason: 'the pinch has to register');
+    expect(
+      windowOf(zoomedIn).width,
+      moreOrLessEquals(layout.width, epsilon: 0.5),
+    );
+
+    // Then pinch out well past the fit: two pointers closing in.
+    final out1 = await tester.startGesture(center - const Offset(120, 0));
+    final out2 = await tester.startGesture(center + const Offset(120, 0));
+    await out1.moveBy(const Offset(90, 0));
+    await out2.moveBy(const Offset(-90, 0));
+    await tester.pump();
+    final zoomedOut = controller.visibleSource;
+    await out1.up();
+    await out2.up();
+    await tester.pump();
+
+    expect(
+      zoomedOut.height,
+      greaterThan(zoomedIn.height),
+      reason: 'the pinch has to register',
+    );
+    // The window is a contain-fit of the region, so a region whose aspect drifted
+    // from the framing's is drawn as a narrow strip — and since a zoom keeps the
+    // aspect it starts with, that strip would be permanent. The overshoot lands
+    // on the framing instead of on the whole image's height.
+    expect(zoomedOut.height, moreOrLessEquals(framing.height, epsilon: 0.5));
+    expect(
+      windowOf(zoomedOut).width,
+      moreOrLessEquals(layout.width, epsilon: 0.5),
+      reason:
+          'zooming out stops at the framing instead of narrowing the window',
+    );
+
+    // Every pointer up arms the double-tap recognizer's timeout: let it expire,
+    // so the test does not end with a pending timer.
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+
   testWidgets('a replaced working image outlives the frame publishing it', (
     tester,
   ) async {
@@ -1045,7 +1190,9 @@ void main() {
         .controller;
     await _pumpUntilArtifact(tester, controller);
 
-    final previous = controller.original!;
+    // The working display is what a parameter change replaces and retires: the
+    // reference, once decoded, is never rebuilt away.
+    final previous = controller.debugWorkingDisplay!;
     expect(previous.debugDisposed, isFalse);
 
     // A long-edge change decodes a new working image and replaces this one. The

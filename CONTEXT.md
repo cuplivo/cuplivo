@@ -469,6 +469,13 @@ contradicts one of them is a bug, not a preference.
   drawing it. It is released only after the frame that publishes its replacement has painted, because a
   painter captures the image it draws and an animation repaints it without a rebuild — releasing at the
   swap drew a disposed image once per frame. See ADR-0005 decision 11.
+- **Reference image (参考图)**: the source decoded once at its reachable long edge, kept for the session
+  as the comparison's original side. It exists because the left half used to be drawn from the 工作图,
+  which is decoded at the *target*: lowering the resolution then blurred 原图 along with the result
+  until the two halves differed only by the encoding, hiding the loss the slider was causing. It is
+  display-only — nothing is ever encoded from its pixels — and it is never decoded at all while the
+  target is the reachable edge, because there the 工作图 already holds those exact pixels. See ADR-0005
+  decision 13.
 - **Working budget (工作预算)**: the ceiling on a working image, in pixels, and on a single decode, in
   bytes. The byte ceiling is judged twice, because the risks differ: the raster a decode would allocate
   against the whole budget, and the source file held twice against half of it. A file-inclusive
@@ -492,13 +499,14 @@ contradicts one of them is a bug, not a preference.
   arrow between them. A PNG of a photo can legitimately grow, and the row says so before the apply by
   showing that growth (a `+N%` warning tone) instead of hiding it.
 - **Split compare (分屏对比)**: the editor body's 1:1 comparison — the original on the left of a
-  draggable divider, the artifact on the right, over the region on screen. Both halves are the working
-  image's own pixels, so 1:1 means one artifact pixel per logical pixel and the comparison shows the
-  encoding's real damage rather than a re-encode of a reduced copy. The image is letterboxed inside the
+  draggable divider, the artifact on the right, over the region on screen. The right half is the
+  artifact's own pixels, so 1:1 means one artifact pixel per logical pixel; the left half draws the same
+  region from the 参考图, so 原图 is never a re-decode at the target. The image is letterboxed inside the
   preview area at its own aspect ratio, never stretched or cropped to fill it; the default framing fits
   the viewport's width and never magnifies, so a tall screenshot stays legible instead of shrinking to a
-  strip. Changing a parameter drops the shown artifact immediately, so a stale encode is never
-  presented as the current one.
+  strip, and every framing keeps that aspect ratio and is bounded by it — a zoom cannot leave the window
+  narrower than the preview area. Changing a parameter drops the shown artifact immediately, so a stale
+  encode is never presented as the current one.
 - **Apply to all (应用到全部)**: broadcasts the editor's current parameters to every attached image.
   Only the image the editor was opened for can reuse the editor's artifact; the others run the same
   budgeted pipeline themselves.
@@ -535,6 +543,9 @@ contradicts one of them is a bug, not a preference.
   is a bug, not a preview artifact. The shown artifact belongs to the parameters currently selected.
 - The working image and the artifact are at the same resolution by construction, so a re-encode can
   never exceed the working image's long edge, and 1:1 is always one artifact pixel per logical pixel.
+- The 参考图 sits at the reachable long edge and the 工作图 at the target, so the original side of the
+  分屏对比 stays put while the slider moves: the note that says the source was loaded at a percentage to
+  stay within memory names that same reachable edge, not the target the user chose.
 - Manual compression is one-way: the editor re-encodes from the image's current stored bytes, so
   re-compressing a compressed image loses another generation, and the pristine 原图 is not recoverable
   once a compression has been applied. An applied artifact may differ byte-for-byte from what an older

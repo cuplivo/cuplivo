@@ -641,8 +641,9 @@ had nothing to pair with.
   Windows: a listener on `::` answers `127.0.0.1`, and the caller arrives as `::ffff:127.0.0.1`; and
   `::` is a genuinely exclusive wildcard — it refuses to bind while another socket holds `0.0.0.0` on
   that port, and the reverse fails too, so there is no window in which two listeners both serve it. A
-  machine with IPv6 disabled, or a Linux host with `bindv6only=1`, falls back to the IPv4 wildcard,
-  which is exactly what the listener was before: no configuration ends up worse off than 4.0.
+  machine with IPv6 disabled falls back to the IPv4 wildcard, which is exactly what the listener was
+  before: no bind that *fails* ends up worse off than 4.0. (A host whose `bindv6only=1` does not fail
+  the bind — see the known limits below, and the slice 13 correction.)
   *Rejected: a second listener per family* — it would need its own port, its own firewall rule and its
   own peer memory for a socket flag the platform already provides.
 - **Storage is bare, everything that faces a URI or a human is bracketed.** The mapped form a
@@ -671,8 +672,9 @@ had nothing to pair with.
   15 and ~2.9 px, and at these payload sizes a version step costs more scannability than the extra
   correction buys for a code read at close range off a clean screen.
 - **Known limits, recorded rather than papered over.** A Linux host with `bindv6only=1` binds `::`
-  successfully but serves only IPv6; peers reach it over the IPv4 endpoint they already remember, and
-  the fallback above only covers a bind that *fails*. Windows privacy extensions rotate temporary
+  successfully but serves only IPv6, so an IPv4 peer's dial to that port cannot land; the fallback
+  above covers only a bind that *fails*, and the sysctl is not visible from the socket, so the
+  listener cannot detect this and correct itself. Windows privacy extensions rotate temporary
   IPv6 addresses, so an advertised v6 endpoint can go stale — the probe, the endpoint set and the
   promotion-on-success rule already treat a stale address as an ordinary drift to heal. And an older
   build reading a peer record that holds an IPv6 endpoint cannot dial it, which is the same
@@ -728,6 +730,85 @@ closes the gap between what the engine knows and what the card says.
   list made the shared teardown dispose an uninitialised engine, and a teardown that throws never
   clears the list — so every later test in the file re-disposed the leak. Sixty tests failed that
   way, none of them about the change under test. Such a side cleans up after itself instead.
+
+## Amendment (2026-09, slice 13): review hardening — the walk keeps walking
+
+A review of slices 9–12 traced three long chains (apply → controller rebuild, enumeration → QR →
+stored endpoint, listener/notify paths) and found five defects in them. Four are the same shape:
+the documented rule was right and the code had a hole in it. Each fix below therefore moves code
+to match language this file and `CONTEXT.md` already carried, and every behavioural fix has a test
+that was red before it went in.
+
+- **A refused certificate is a verdict on the address, not on the session.** `_syncWithPeerAt`
+  documented that a `HandshakeException` is a null "so the next candidate is still a fair attempt",
+  and `CONTEXT.md` says an endpoint answering with the wrong certificate falls through — but the
+  handlers caught `SocketException` and `TimeoutException` only, while a `HandshakeException`
+  implements `TlsException`, **not** `SocketException`. The refusal escaped to the catch-all, which
+  returns a *non-null* report: the walk ended there with the peer never dialed although it was live
+  at the address right behind the stranger, and the session was recorded as `unreachable`. A
+  `TlsException` is now caught beside the socket case. *Rejected: a new `SyncFailureReason` for
+  "every address answered as another device"* — the `unreachable` line already names the repairs
+  that fit it (re-scan the QR, or edit the address), so a fifth value would buy wording rather than
+  an action, and the enum's unknown-value fallback makes the existing one safe to keep.
+- **The address that refused the peer is not promoted as one that worked.** The same path reached
+  `_finish` with its host and port and was stamped by `noteEndpointSuccess`, so the foreign address
+  became the head of the remembered set — and the string the card showed — ahead of the address the
+  last successful session ran over. Fixing the exception class removes the harmful case at its
+  source: what still reaches `_finish` either succeeded, was refused *by the peer* (a refusal proves
+  the address reaches it), or failed after a pin-verified hello.
+- **Probe winners keep their input order.** `orderCandidates` promised that and appended from the
+  probe's completion callback, so the order was a race: the same set of addresses could be dialed
+  in a different order on consecutive rounds, and that order is what the pairing record stores as
+  hints behind the winner. The injected-connect tests could not see it — an immediately-completing
+  fake finishes in the order it was started. Winners and losers are now rebuilt in input order,
+  with a test that gates the probes on completers and finishes them out of order.
+- **A foreground round waits for the addresses it stands on.** The enumeration and the round were
+  both fired unawaited with nothing sequencing them, so the first round after a launch could compute
+  its dial order from an empty list — where `_preferSameSubnet` returns its input untouched,
+  dropping the nearest-subnet rule the probing exists for. The resume path had the identical pair,
+  under a comment claiming the ordering. Both call sites now go through one sequenced helper, and
+  the entering side of pairing re-enumerates too, because the addresses it advertises are the
+  candidates the peer will remember. *Rejected: refreshing inside `autoSyncRound`* — the pairing
+  surface needs the list whether or not a round runs, so the two calls stay distinct and only their
+  order is fixed.
+- **A reorder-only apply is a change.** The repository repairs a stored order that disagrees with
+  the re-derived one and reports `upsertedMessages: 0, deletedMessages: 0,
+  conversationRowChanged: false` — correctly, no row's content changed — while the data plane admits
+  a conversation to the reload set on those counters alone. The order was therefore corrected with
+  no revision bump, no notification and no rebuild, and a window open on that conversation kept
+  rendering the pre-sync order until the user left it and came back. The drift is now its own fact
+  (`SyncSubtreeApplyOutcome.reordered`) instead of a hidden part of the reorder decision, and it
+  admits the conversation to the same reload. *Rejected: counting the repair in
+  `conversationRowChanged`* — that field means the conversation row was written, and overloading it
+  would make the report lie about a different write.
+- **A dialog owns the controllers its fields use.** Found by the repair-dialog test rather than by
+  the review: the card's address and rename dialogs created their controllers as locals and
+  disposed them right after `await showDialog(...)`, which completes when the route *pops*, not when
+  it is gone. The still-mounted field rebuilt against a disposed controller during the exit
+  animation — "A TextEditingController was used after being disposed", with a 99679 px `RenderFlex`
+  overflow as the cascade — and it was timing-dependent, which is why it survived until a test
+  submitted the form. Both dialogs are stateful now, so the state that owns a controller disposes
+  it, as every other dialog in this feature already did.
+- **The repair field stores the host form pairing stores.** `CONTEXT.md` already said an endpoint is
+  stored bare and bracketed only where a human or a URI reads it; the repair field was the one
+  exception, so pasting back the address the card had just copied (bracketed, as its label shows it)
+  stored `[fd00::9]`, and the next dial would have bracketed it a second time inside the request
+  URI. The field now normalizes like the pairing form.
+- **Three untrue claims, corrected.** The local-address header said the enumeration is IPv4-only
+  while it deliberately asks for both families; the `_octetPattern` doc said a padded octet is
+  rejected while the pattern accepted it (the existing `10.x` vs `010.x` cases pass either way,
+  because the two prefixes differ as text — two *padded* forms still matched each other); and the
+  listener comment, `CONTEXT.md` and slice 11's own fallback paragraph said a `bindv6only=1` host
+  "falls back to IPv4", when such a host accepts the `::` bind and serves IPv6 only — a claim slice
+  11's *known limits* bullet thirty lines below already contradicted. All four statements are
+  corrected in place, and the mapped-IPv6 branch in `_isUsableIpv6` was dead as well — its condition
+  requires a zero first byte, which both keeps already reject — so it is gone. *Rejected: a
+  self-connect probe to detect `bindv6only=1`* — it would add an untestable branch (no such sysctl on
+  the machines the suite runs on) and startup traffic, for a host configuration none of this app's
+  platforms defaults to; the limit is written down instead.
+
+Verification: the fixes' red proofs are the pre-fix runs recorded in each commit body; the full
+suite reports the same 77 known failures as this branch's baseline, with none added.
 
 ## Considered options (rejected)
 

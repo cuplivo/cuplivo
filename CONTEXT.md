@@ -291,8 +291,11 @@ contradicts one of them is a bug, not a preference.
 - **The listener is one socket on both stacks** (双栈): it binds the IPv6 any-address, which also
   answers IPv4 callers — they arrive mapped, `::ffff:a.b.c.d`, and are normalized to their IPv4
   form before storage, since a mapped literal is a valid address to a socket but not to a URI. A
-  machine where that bind cannot succeed (IPv6 disabled, `bindv6only=1`) serves IPv4 only, which is
-  what every release before this one did.
+  machine with IPv6 disabled refuses that bind, and falls back to the IPv4 any-address, which is
+  what every release before this one did. A host configured with `bindv6only=1` is a known limit
+  rather than a covered case: it *accepts* the `::` bind and then serves IPv6 only, so IPv4 peers
+  cannot reach this device and nothing in the listener can notice — the sysctl is not visible from
+  the socket.
 - **An endpoint is stored bare and bracketed only where a human or a URI reads it**: `fd00::1` in
   the endpoint set and the dial, `[fd00::1]:9527` in the QR payload, the address line and the field
   a user types into. Anything that keeps a host of its own keeps the bare form, so the same peer is
@@ -329,10 +332,14 @@ contradicts one of them is a bug, not a preference.
   verdict, and its other addresses would only repeat it, so the attempt ends. That covers the
   pairing code too — a wrong PIN is the scanned device answering.
 - **The advertised address list is a live fact, and the QR follows it**: the list is re-enumerated
-  when the app resumes and when the pairing dialog opens — on a desktop, changing networks fires no
-  lifecycle event at all — and it is the same list the dial orders candidates by, so the screen and
-  the dial cannot disagree. The QR image is re-encoded whenever, and only when, its endpoints
-  changed, so it can never keep advertising a network the list underneath it has already left.
+  when the app resumes and when the pairing dialog opens on **either** side — on a desktop, changing
+  networks fires no lifecycle event at all, and the entering side advertises its own addresses in
+  the pairing request, so a stale list there becomes dead hints in the peer's remembered set. It is
+  also the same list the dial orders candidates by, and a foreground round waits for the enumeration
+  rather than racing it: a round that ran first would order its dials from an empty list, which
+  drops the nearest-subnet rule for that round. The QR image is re-encoded whenever, and only when,
+  its endpoints changed, so it can never keep advertising a network the list underneath it has
+  already left.
 - **AP isolation** is likewise a *connectivity* failure: on a network that blocks peer-to-peer
   traffic no pairing path helps, and the report says so.
 - **Unpairing (解除配对) is local-first, then best-effort remote**: this device always drops the
@@ -410,7 +417,10 @@ contradicts one of them is a bug, not a preference.
   the first loaded row, so a reader is not thrown to the end. A write that lands while a local
   generation owns the window is held back and applied when that generation ends. Every other
   notification costs one integer comparison (the per-conversation external-write counter), which
-  is what keeps the app's own frequent write traffic from rebuilding windows.
+  is what keeps the app's own frequent write traffic from rebuilding windows. A *repaired order*
+  counts as changed even though no row's content did: every counter such an apply reports stays at
+  zero while the timeline on screen is not the one the database now holds, so the order repair
+  rides its own flag into the same reload.
 - **An open editor keeps its snapshot**: settings and entity editor pages load once and save what
   they show, so a sync apply that lands underneath one is overwritten on save by the row-level LWW
   rule — and, as everywhere else in the merge, the report counts the local rows it replaced. Live

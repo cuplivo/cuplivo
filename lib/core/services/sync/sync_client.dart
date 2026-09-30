@@ -140,9 +140,10 @@ class SyncClient {
       }
       return (answer: answer, certPem: answer.certPem);
     } on HandshakeException {
-      // Only the QR path refuses a certificate inside the callback, and such
-      // a refusal must not surface as "unreachable" (HandshakeException
-      // extends SocketException).
+      // Only the QR path refuses a certificate inside the callback, and such a
+      // refusal must not surface as "unreachable": a `HandshakeException`
+      // implements `TlsException`, **not** `SocketException`, so a caller that
+      // catches the socket type alone never sees this one.
       if (expectedDeviceId != null) {
         throw const SyncClientException('pair_fingerprint_mismatch');
       }

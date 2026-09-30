@@ -4,13 +4,16 @@ import 'dart:io';
 /// shows the `ip:port` endpoints the other device can type, and the pairing QR
 /// carries the same candidates.
 ///
-/// The rule is "every unicast IPv4 the OS reports". Loopback, link-local and
-/// IPv6 never reach here — the enumeration excludes them (`includeLoopback:
-/// false`, `includeLinkLocal: false`, `type: IPv4`) and the filter drops them
-/// again defensively. A *public* address is deliberately **not** excluded: a
-/// campus network hands out globally routable IPv4 addresses directly, with no
-/// NAT in between, and a peer on the same segment reaches them. Restricting the
-/// list to RFC1918 made exactly those devices advertise nothing at all.
+/// The rule is "every unicast address the OS reports, in either family".
+/// Loopback and link-local never reach here (`includeLoopback: false`,
+/// `includeLinkLocal: false`) and the usability predicates drop them again
+/// defensively, along with multicast, the reserved blocks and the IPv4-mapped
+/// forms. The enumeration deliberately asks for no `type`: a dual-stack device
+/// advertises its IPv6 addresses beside its IPv4 ones. A *public* address is
+/// deliberately **not** excluded either — a campus network hands out globally
+/// routable addresses directly, with no NAT in between, and a peer on the same
+/// segment reaches them. Restricting the list to RFC1918 made exactly those
+/// devices advertise nothing at all.
 ///
 /// The interface name travels with each address so candidate selection can tell
 /// a real NIC from a virtual adapter without guessing from the address range —
@@ -52,18 +55,9 @@ bool _isUsableUnicast(InternetAddress address) {
 bool _isUsableIpv6(InternetAddress address) {
   final raw = address.rawAddress;
   if (raw.length != 16) return false;
-  var leadingZero = true;
-  for (var i = 0; i < 10; i++) {
-    if (raw[i] != 0) {
-      leadingZero = false;
-      break;
-    }
-  }
-  if (leadingZero &&
-      ((raw[10] == 0xff && raw[11] == 0xff) ||
-          (raw[10] == 0 && raw[11] == 0))) {
-    return false;
-  }
+  // The keeps below are the whole decision: a mapped or compatible form starts
+  // with a zero byte, which is neither `fd` nor inside `2000::/3`, so it falls
+  // out here rather than being named as a rule of its own.
   final first = raw[0];
   if (first == 0xfd) return true; // unique local (fd00::/8)
   if (first >= 0x20 && first <= 0x3f) return true; // global unicast (2000::/3)
@@ -132,20 +126,22 @@ bool sameIpv4Subnet(String a, String b) {
 }
 
 /// The `a.b.c` prefix of an IPv4 literal, or null when [address] is not one.
-/// Only plain digits are an octet: a padded or signed form (`010.0.0.1`,
-/// `+10.0.0.1`) is not the literal a peer sends, and treating it as equal would
+/// Only a canonical octet counts: a padded or signed form (`010.0.0.1`,
+/// `+10.0.0.1`) is not the literal a peer sends, and reading `010` as `10` would
 /// match two different addresses.
 String? _ipv4Prefix(String address) {
   final parts = address.split('.');
   if (parts.length != 4) return null;
   for (final part in parts) {
     if (!_octetPattern.hasMatch(part)) return null;
-    if (int.parse(part) > 255) return null;
   }
   return '${parts[0]}.${parts[1]}.${parts[2]}';
 }
 
-final RegExp _octetPattern = RegExp(r'^\d{1,3}$');
+/// `0`–`255`, and no leading zero: `010` is a padded form, not the octet `10`.
+final RegExp _octetPattern = RegExp(
+  r'^(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$',
+);
 
 /// The canonical host form every layer stores and dials: surrounding brackets
 /// stripped, and an IPv4-mapped IPv6 literal (`::ffff:a.b.c.d` — what a

@@ -206,6 +206,15 @@ void main() {
     test('a padded octet is not the literal it looks like', () {
       expect(sameIpv4Subnet('10.168.1.5', '010.168.1.5'), isFalse);
       expect(sameIpv4Subnet('10.168.1.5', '+10.168.1.5'), isFalse);
+      // The case the pair above cannot see: two padded forms used to be each
+      // other's subnet, because the padded octet was compared as the text `010`
+      // rather than rejected. A padded octet is not an octet at all.
+      expect(
+        sameIpv4Subnet('010.168.1.5', '010.168.1.9'),
+        isFalse,
+        reason: 'a padded octet is not the literal a peer sends',
+      );
+      expect(sameIpv4Subnet('010.168.1.5', '10.168.1.9'), isFalse);
     });
   });
 

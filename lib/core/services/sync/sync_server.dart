@@ -221,13 +221,21 @@ class SyncServer {
   /// refused.
   ///
   /// `::` is the dual-stack bind: measured on Windows, a listener on it accepts
-  /// IPv4 callers as well (they appear as `::ffff:a.b.c.d`). A machine with IPv6
-  /// disabled, or a Linux host configured with `bindv6only=1`, refuses it or
-  /// would serve only one stack — those fall back to the IPv4 any-address, which
-  /// is exactly what this listener was before, so no configuration ends up worse
-  /// off than the previous release. A port already in use fails both attempts;
-  /// the original error is rethrown then, and the caller's ephemeral-port
-  /// fallback handles it either way.
+  /// IPv4 callers as well (they appear as `::ffff:a.b.c.d`), and the test suite
+  /// dials IPv4 loopback against an `::` listener on every platform it runs on.
+  /// A machine with IPv6 disabled refuses the bind, and that refusal is what the
+  /// fallback is for: the IPv4 any-address is exactly what this listener was
+  /// before, so no configuration ends up worse off than the previous release.
+  ///
+  /// Known limit: a host configured with `bindv6only=1` (a Linux sysctl)
+  /// *accepts* the `::` bind and then serves IPv6 only — nothing here notices,
+  /// and IPv4 peers cannot reach this device. Detecting it needs a self-connect
+  /// probe against the bound port, which is an untestable branch on every
+  /// machine without that sysctl; the default is dual-stack on each platform
+  /// this app ships to, so the limit is written down rather than worked around.
+  ///
+  /// A port already in use fails both attempts; the original error is rethrown
+  /// then, and the caller's ephemeral-port fallback handles it either way.
   Future<HttpServer> _bind(String address, int port) async {
     try {
       return await HttpServer.bindSecure(

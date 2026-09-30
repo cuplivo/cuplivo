@@ -8010,6 +8010,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get compressEditorDecodeFailed => '此图片无法预览，因此无法重新压缩。';
 
   @override
+  String get compressEditorTooLarge => '此图片过大，无法在编辑器中打开，因此无法在这里重新压缩；附件将按原样保留。';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return '源图 $source，为控制内存按 $percent% 载入';
+  }
+
+  @override
   String get compressEditorCancel => '取消';
 
   @override
@@ -20038,6 +20046,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get compressEditorDecodeFailed => '此图片无法预览，因此无法重新压缩。';
+
+  @override
+  String get compressEditorTooLarge => '此图片过大，无法在编辑器中打开，因此无法在这里重新压缩；附件将按原样保留。';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return '源图 $source，为控制内存按 $percent% 载入';
+  }
 
   @override
   String get compressEditorCancel => '取消';
@@ -32143,6 +32159,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get compressEditorDecodeFailed => '此圖片無法預覽，因此無法重新壓縮。';
+
+  @override
+  String get compressEditorTooLarge => '此圖片過大，無法在編輯器中開啟，因此無法在這裡重新壓縮；附件將按原樣保留。';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return '來源圖片 $source，為控制記憶體按 $percent% 載入';
+  }
 
   @override
   String get compressEditorCancel => '取消';

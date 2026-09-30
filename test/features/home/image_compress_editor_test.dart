@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -9,7 +10,7 @@ import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/utils/format_bytes.dart';
 import 'package:Cuplivo/shared/widgets/segmented_tabs.dart';
-import 'package:Cuplivo/utils/image_compressor.dart';
+import 'package:Cuplivo/utils/manual_compress_pipeline.dart';
 import 'package:downsize/downsize.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -41,50 +42,95 @@ void main() {
     return file.path;
   }
 
-  test(
-    'decodes once and tiles the visible region through the pipeline',
-    () async {
-      final path = await writeFixture('big.png', 400, 260);
-      final sourceBytes = await File(path).length();
-      final controller = CompressEditorController(
-        imagePath: path,
-        initialParams: const ManualCompressParams(
+  test('the artifact for the current parameters is produced and reused', () async {
+    final path = await writeFixture('artifact.png', 400, 260);
+    final controller = CompressEditorController(
+      imagePath: path,
+      initialParams: const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 70,
+        maxLongEdge: 200,
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.prepare();
+
+    expect(controller.decodeFailed, isFalse);
+    expect(controller.tooLarge, isFalse);
+    expect(controller.sourceWidth, 400);
+    expect(controller.sourceHeight, 260);
+    // The working image *is* the artifact's pixel set: long edge 200, so
+    // 400x260 arrives as 200x130.
+    expect(controller.workingWidth, 200);
+    expect(controller.workingHeight, 130);
+
+    await _waitFor(() => controller.artifact != null);
+    expect(controller.artifactParams, controller.params);
+    expect(controller.artifactBytes, controller.artifact!.length);
+    // The apply path may reuse exactly these bytes...
+    expect(controller.readyArtifact, same(controller.artifact));
+    // ...and the result side has something to draw.
+    expect(controller.result, isNotNull);
+
+    // Changing a parameter drops the artifact synchronously: not even the frame
+    // before the debounced pass may show the previous encode as the current one.
+    controller.setParams(
+      const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 40,
+        maxLongEdge: 200,
+      ),
+    );
+    expect(controller.artifact, isNull);
+    expect(controller.readyArtifact, isNull);
+    expect(controller.result, isNull);
+
+    await _waitFor(() => controller.artifact != null);
+    expect(controller.artifactParams, controller.params);
+    // A quality-only change keeps the working image: no re-decode.
+    expect(controller.workingWidth, 200);
+  });
+
+  test('never runs two decode/encode passes at once', () async {
+    final path = await writeFixture('burst.png', 400, 260);
+    final controller = CompressEditorController(
+      imagePath: path,
+      initialParams: const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 70,
+        maxLongEdge: 200,
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.prepare();
+    // Five parameter changes in a row, faster than the debounce and faster than
+    // a pass, must coalesce rather than stack up: a running pass cannot be
+    // cancelled, so overlapping ones are what doubles the peak.
+    for (var quality = 72; quality <= 80; quality += 2) {
+      controller.setParams(
+        ManualCompressParams(
           format: DownsizeFormat.jpeg,
-          quality: 70,
+          quality: quality,
           maxLongEdge: 200,
         ),
       );
-      addTearDown(controller.dispose);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
 
-      await controller.prepare();
-
-      expect(controller.decodeFailed, isFalse);
-      expect(controller.preparing, isFalse);
-      expect(controller.sourceWidth, 400);
-      expect(controller.sourceHeight, 260);
-      expect(controller.previewWidth, 400);
-      expect(controller.original, isNotNull);
-
-      const visible = Rect.fromLTWH(0, 0, 400, 260);
-      controller.updateViewport(
-        visible: visible,
-        viewport: const Size(400, 260),
-      );
-      await _waitFor(() => controller.tile != null);
-
-      // The tile is the visible region carried through the same long-edge
-      // reduction the artifact gets: 400 -> 200, so 260 -> 130.
-      expect(controller.tileSource, visible);
-      expect(controller.tile!.width, 200);
-      expect(controller.tile!.height, 130);
-
-      await _waitFor(
-        () => !controller.estimating && controller.estimatedBytes != null,
-      );
-      expect(controller.estimatedBytes, greaterThan(0));
-      expect(controller.estimatedBytes!, lessThan(sourceBytes));
-    },
-  );
+    await _waitFor(() => controller.artifactParams == controller.params);
+    expect(
+      controller.debugMaxConcurrentPasses,
+      1,
+      reason: 'a second overlapping pass is the memory doubling this forbids',
+    );
+    expect(
+      controller.debugPassesStarted,
+      lessThanOrEqualTo(3),
+      reason: 'five rapid changes must coalesce, not run five passes',
+    );
+  });
 
   test('reports a decode failure instead of throwing', () async {
     final file = File(p.join(root.path, 'broken.png'));
@@ -98,8 +144,158 @@ void main() {
     await controller.prepare();
 
     expect(controller.decodeFailed, isTrue);
+    expect(controller.tooLarge, isFalse);
+    expect(controller.artifactBytes, isNull);
     expect(controller.original, isNull);
-    expect(controller.estimatedBytes, isNull);
+  });
+
+  test('an image over the decode budget is gated, not attempted', () async {
+    final path = await writeFixture('gated.png', 400, 260);
+    // A budget no decode of this fixture can fit under: the pipeline has to
+    // refuse before the engine allocates, because an out-of-memory kill inside
+    // a decode cannot be caught from Dart.
+    final controller = CompressEditorController(
+      imagePath: path,
+      initialParams: const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 80,
+        maxLongEdge: 200,
+      ),
+      budgetBytes: 1024,
+    );
+    addTearDown(controller.dispose);
+
+    await controller.prepare();
+
+    expect(controller.tooLarge, isTrue);
+    expect(controller.decodeFailed, isFalse);
+    expect(controller.original, isNull);
+    expect(controller.artifactBytes, isNull);
+    // The refusal must not discard what the header already provided: the panel
+    // needs the source's size to offer a working resolution that would fit.
+    expect(controller.sourceWidth, 400);
+    expect(controller.sourceHeight, 260);
+    expect(controller.sourceBytes, greaterThan(0));
+    expect(controller.reachableLongEdge, 400);
+    // The reached value is normalised into what is reachable, as always.
+    expect(controller.params.maxLongEdge, 200);
+  });
+
+  test('a gated source is admitted once the target is small enough', () async {
+    // A flat fixture on purpose: this measures the raster judgement, and a noisy
+    // PNG would trip the file ceiling first and hide what is being tested.
+    final file = File(p.join(root.path, 'recovered.png'));
+    await file.writeAsBytes(
+      img.encodePng(
+        img.Image(width: 400, height: 260, numChannels: 3)
+          ..clear(img.ColorRgb8(120, 140, 160)),
+      ),
+    );
+    // The file's own bytes must stay far below the ceiling, so the only thing
+    // that can refuse this source is the raster it would decode into.
+    expect(await file.length(), lessThan(150000 ~/ 2));
+
+    // For a source the engine cannot sub-scale (this fixture is a PNG), the
+    // raster is source-proportional, so the threshold is set by the source plus
+    // whatever target is asked for. A budget between the two makes the
+    // difference reachable: the maximum edge is refused, a quarter of it fits.
+    final controller = CompressEditorController(
+      imagePath: file.path,
+      initialParams: const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 80,
+        maxLongEdge: 400,
+      ),
+      budgetBytes: 600000,
+    );
+    addTearDown(controller.dispose);
+
+    await controller.prepare();
+    expect(
+      controller.tooLarge,
+      isTrue,
+      reason: '400x260 decoded to 400x260 is (104k + 104k) * 4 = 832 kB',
+    );
+
+    // The panel can still reach the long edge, so this is a recoverable refusal
+    // rather than a dead end.
+    expect(controller.sourceLongEdge, 400);
+    controller.setParams(
+      const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 80,
+        maxLongEdge: 100,
+      ),
+    );
+    await _waitFor(() => !controller.tooLarge && controller.artifact != null);
+
+    expect(controller.tooLarge, isFalse);
+    expect(controller.decodeFailed, isFalse);
+    expect(controller.workingWidth, 100);
+    expect(controller.workingHeight, 65);
+    expect(controller.artifactBytes, greaterThan(0));
+  });
+
+  testWidgets('a gated image offers no action that would re-compress', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(500, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    late AppLocalizations l10n;
+    late SettingsProvider settings;
+    late String path;
+    await tester.runAsync(() async {
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      final harness = await createBusinessTestHarness();
+      settings = SettingsProvider(harness.preferences);
+      await settings.loaded;
+      // A remembered lossy format, because which controls the panel offers in
+      // the gate state depends on it.
+      await settings.setManualCompressParams(
+        const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 80,
+          maxLongEdge: 200,
+        ),
+      );
+      path = await writeFixture('gated_panel.png', 400, 260);
+    });
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SettingsProvider>.value(
+        value: settings,
+        child: MaterialApp(
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: CompressEditorPage(
+            imagePath: path,
+            totalImageCount: 2,
+            budgetBytes: 1024,
+          ),
+        ),
+      ),
+    );
+    await _pumpUntilFound(tester, find.text(l10n.compressEditorTooLarge));
+
+    expect(find.text(l10n.compressEditorTooLarge), findsOneWidget);
+    // Nothing may try to re-compress what could not be decoded...
+    expect(find.text(l10n.compressEditorApply), findsNothing);
+    expect(find.text(l10n.compressEditorApplyAll), findsNothing);
+    // ...but closing keeps the attachment as it is, so the action reads as
+    // "done", not as a cancel of a failed operation.
+    expect(find.text(l10n.compressEditorDone), findsOneWidget);
+    expect(find.text(l10n.compressEditorCancel), findsNothing);
+    // The refusal is recoverable: the long-edge control is still there, and the
+    // panel says what the source is.
+    expect(find.text(l10n.compressEditorLongEdgeLabel), findsOneWidget);
+    expect(find.text('400×260'), findsOneWidget);
   });
 
   testWidgets('format control drives the panel and the apply action', (
@@ -172,11 +368,13 @@ void main() {
       find.byType(CompressPreview),
     );
 
-    // Fit state maps the whole image, so the painter letterboxes it inside
-    // the preview area instead of stretching it to fill.
+    // The default framing maps the whole working image, so the painter can
+    // letterbox it inside the preview area instead of stretching it to fill.
+    // The working image is the source at the artifact's resolution — the
+    // remembered 200 px long edge — which is what both halves are drawn from.
     expect(
       preview.controller.visibleSource,
-      const Rect.fromLTWH(0, 0, 400, 260),
+      const Rect.fromLTWH(0, 0, 200, 130),
     );
 
     // JPEG is the remembered format, so the lossy control is offered.
@@ -210,6 +408,10 @@ void main() {
     await tester.pump();
     expect(preview.controller.divider, greaterThan(startDivider));
 
+    // The remembered 200 px long edge survives the format round trip: the panel
+    // never normalised it away while the image's size was still unknown.
+    expect(preview.controller.params.maxLongEdge, 200);
+
     // Applying remembers the parameters for the next session.
     await tester.tap(find.text(l10n.compressEditorApply));
     for (var i = 0; i < 10; i++) {
@@ -240,6 +442,7 @@ void main() {
     required int height,
     required ManualCompressParams params,
     int totalImageCount = 1,
+    int? budgetPixels,
     String fixture = 'editor.png',
   }) async {
     tester.view.physicalSize = const Size(500, 900);
@@ -278,6 +481,7 @@ void main() {
                       builder: (_) => CompressEditorPage(
                         imagePath: path,
                         totalImageCount: totalImageCount,
+                        budgetPixels: budgetPixels,
                       ),
                     ),
                   ),
@@ -300,41 +504,46 @@ void main() {
     );
   }
 
-  testWidgets('shows the estimate as two sides with the change above the arrow', (
-    tester,
-  ) async {
-    final opened = await openEditor(
-      tester,
-      width: 400,
-      height: 260,
-      params: const ManualCompressParams(
-        format: DownsizeFormat.jpeg,
-        quality: 60,
-        maxLongEdge: 200,
-      ),
-    );
-    final controller = opened.preview.controller;
-    await _pumpUntilEstimate(tester, controller);
+  testWidgets(
+    'shows the artifact size as two sides with the change above the arrow',
+    (tester) async {
+      final opened = await openEditor(
+        tester,
+        width: 400,
+        height: 260,
+        params: const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 60,
+          maxLongEdge: 200,
+        ),
+      );
+      final controller = opened.preview.controller;
+      await _pumpUntilArtifact(tester, controller);
 
-    final sourceBytes = controller.sourceBytes!;
-    final estimated = controller.estimatedBytes!;
-    final saved = ((sourceBytes - estimated) / sourceBytes * 100).round();
+      final sourceBytes = controller.sourceBytes;
+      final resultBytes = controller.artifactBytes!;
+      final saved = ((sourceBytes - resultBytes) / sourceBytes * 100).round();
 
-    // Left side: the original resolution above its size.
-    expect(find.text('400×260'), findsOneWidget);
-    expect(find.text(formatBytes(sourceBytes)), findsOneWidget);
-    // Right side: the long edge is capped at 200, so 400×260 becomes 200×130.
-    expect(find.text('200×130'), findsOneWidget);
-    expect(find.text(formatBytes(estimated)), findsOneWidget);
-    // The change sits above the arrow, which is an icon rather than a character.
-    expect(
-      saved,
-      greaterThan(0),
-      reason: 'a q60 JPEG of noise must be smaller',
-    );
-    expect(find.text(opened.l10n.compressEditorSavings(saved)), findsOneWidget);
-    expect(find.byIcon(Lucide.ArrowRight), findsOneWidget);
-  });
+      // Left side: the original resolution above its size.
+      expect(find.text('400×260'), findsOneWidget);
+      expect(find.text(formatBytes(sourceBytes)), findsOneWidget);
+      // Right side: the long edge is capped at 200, so the artifact is 200×130 —
+      // the working image's own size, not a projection.
+      expect(find.text('200×130'), findsOneWidget);
+      expect(find.text(formatBytes(resultBytes)), findsOneWidget);
+      // The change sits above the arrow, which is an icon rather than a character.
+      expect(
+        saved,
+        greaterThan(0),
+        reason: 'a q60 JPEG of noise must be smaller',
+      );
+      expect(
+        find.text(opened.l10n.compressEditorSavings(saved)),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Lucide.ArrowRight), findsOneWidget);
+    },
+  );
 
   testWidgets('原图 shows one side and the note instead of an arrow', (
     tester,
@@ -349,7 +558,7 @@ void main() {
         maxLongEdge: 200,
       ),
     );
-    await _pumpUntilEstimate(tester, opened.preview.controller);
+    await _pumpUntilArtifact(tester, opened.preview.controller);
 
     await tester.tap(_formatTab(opened.l10n.compressEditorFormatOriginal));
     await tester.pump();
@@ -463,7 +672,7 @@ void main() {
   });
 
   test(
-    '原图 drops the comparison tile instead of showing the previous encode',
+    '原图 drops the artifact instead of offering the previous encode',
     () async {
       final path = await writeFixture('switch.png', 400, 260);
       final controller = CompressEditorController(
@@ -477,25 +686,22 @@ void main() {
       addTearDown(controller.dispose);
 
       await controller.prepare();
-      const visible = Rect.fromLTWH(0, 0, 400, 260);
-      controller.updateViewport(
-        visible: visible,
-        viewport: const Size(400, 260),
-      );
-      await _waitFor(() => controller.tile != null);
-      expect(controller.tileSource, visible);
+      await _waitFor(() => controller.artifact != null);
+      expect(controller.readyArtifact, isNotNull);
 
       controller.setParams(const ManualCompressParams());
-      // Dropped eagerly: not even the frame before the debounced encode runs may
-      // show the previous encode as if it were 原图's result.
-      expect(controller.tile, isNull);
-      expect(controller.tileSource, isNull);
+      // Dropped eagerly: not even the frame before the debounced pass runs may
+      // offer the previous encode as if it were 原图's result.
+      expect(controller.artifact, isNull);
+      expect(controller.readyArtifact, isNull);
+      expect(controller.result, isNull);
 
-      // The debounced pass must not bring a tile back either.
+      // The debounced pass must not bring one back either.
       await Future<void>.delayed(const Duration(milliseconds: 300));
       expect(controller.params.isNoOp, isTrue);
-      expect(controller.tile, isNull);
-      expect(controller.tileSource, isNull);
+      expect(controller.artifact, isNull);
+      expect(controller.readyArtifact, isNull);
+      expect(controller.result, isNull);
     },
   );
 
@@ -521,19 +727,259 @@ void main() {
     expect(find.text('400 px'), findsOneWidget);
   });
 
-  test('the preview cache is bounded in both dimensions', () {
-    // A 12 MP phone photo: the long-edge cap binds.
-    expect(previewCacheSize(4032, 3024), (width: 2048, height: 1536));
-    // A long screenshot: capped too, and far below the pixel budget.
-    final tall = previewCacheSize(1080, 8000);
-    expect(tall.height, 2048);
-    expect(tall.width * tall.height, lessThan(1000 * 1000));
-    // A square 9 MP image: the pixel budget binds before the long edge.
-    final square = previewCacheSize(3000, 3000);
-    expect(square.width * square.height, lessThanOrEqualTo(4 * 1000 * 1000));
-    // Small images are untouched.
-    expect(previewCacheSize(400, 260), (width: 400, height: 260));
+  testWidgets('the long edge is capped by the working budget, and says so', (
+    tester,
+  ) async {
+    // 10000 working pixels is 124 px on this fixture's long edge, so a
+    // remembered 3000 normalises down to the reachable 124 — the panel can never
+    // promise a resolution the pipeline will not produce.
+    final opened = await openEditor(
+      tester,
+      width: 400,
+      height: 260,
+      budgetPixels: 10000,
+      params: const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 80,
+        maxLongEdge: 3000,
+      ),
+    );
+
+    final controller = opened.preview.controller;
+    expect(controller.reachableLongEdge, 124);
+    expect(controller.params.maxLongEdge, 124);
+    expect(find.text('124 px'), findsOneWidget);
+    // The reduced working resolution is disclosed, not silently applied.
+    expect(controller.budgetReducedSource, isTrue);
+    expect(
+      find.text(
+        opened.l10n.compressEditorWorkingScale(
+          '400×260',
+          // The same rounding the panel applies, so the assertion pins the copy
+          // rather than re-deriving it differently.
+          (controller.reachableLongEdge / controller.sourceLongEdge * 100)
+              .round(),
+        ),
+      ),
+      findsOneWidget,
+    );
   });
+
+  test('the working size is bounded in pixels and never magnifies', () {
+    const mobile = kWorkingPixelsMobile;
+    // A 13 MP attachment is the everyday case: it keeps its full resolution.
+    expect(workingSize(4160, 3120, mobile), (width: 4160, height: 3120));
+    // A 200 MP source is reduced into the budget, aspect preserved.
+    final huge = workingSize(17000, 11765, mobile);
+    final hugePixels = huge.width * huge.height;
+    expect(hugePixels, lessThanOrEqualTo(mobile));
+    expect(hugePixels, greaterThan(mobile ~/ 2));
+    expect(huge.width / huge.height, closeTo(17000 / 11765, 0.001));
+    // A tiny image is untouched: the budget never enlarges.
+    expect(workingSize(400, 260, mobile), (width: 400, height: 260));
+    // A long screenshot is bounded by the pixel budget, not by the old 2048 cap.
+    final tall = workingSize(1000, 8000, mobile);
+    expect(tall.width * tall.height, lessThanOrEqualTo(mobile));
+    expect(tall.height / tall.width, closeTo(8, 0.001));
+  });
+
+  test('the reachable long edge never exceeds the source or the budget', () {
+    // A 13 MP source inside the budget: the source's own edge is reachable.
+    expect(
+      targetLongEdge(
+        sourceWidth: 4160,
+        sourceHeight: 3120,
+        requestedLongEdge: null,
+        budgetPixels: kWorkingPixelsMobile,
+      ),
+      4160,
+    );
+    // A 200 MP source: a remembered 20000 can only reach the budgeted edge.
+    final reachable = targetLongEdge(
+      sourceWidth: 17000,
+      sourceHeight: 11765,
+      requestedLongEdge: 20000,
+      budgetPixels: kWorkingPixelsMobile,
+    );
+    expect(reachable, lessThan(17000));
+    expect(reachable, workingLongEdge(17000, 11765, kWorkingPixelsMobile));
+    // The slider's floor is the 25% preset, so it stays reachable.
+    expect(
+      targetLongEdge(
+        sourceWidth: 400,
+        sourceHeight: 260,
+        requestedLongEdge: 1,
+        budgetPixels: kWorkingPixelsMobile,
+      ),
+      minEditorLongEdge(400),
+    );
+  });
+
+  test('the gate judges the raster, and the file separately', () {
+    const budget = kDecodeBudgetBytesMobile;
+    const target = 1568000;
+    const hugeSource = 17000 * 11765;
+    const hugeTarget = 14 * 1000 * 1000;
+
+    // Measured: the engine sub-scales JPEG at decode (a 200 MP source cost
+    // +19 MB), so its raster does not grow with the source. A *large file* on a
+    // huge JPEG must not change that: this is the case a file-inclusive gate
+    // used to refuse at the maximum edge, despite a measured peak of 19 MB.
+    final jpeg = decodePeakBytes(
+      sourceCanSubScale: true,
+      sourcePixels: hugeSource,
+      targetPixels: hugeTarget,
+      fileBytes: 30 * 1024 * 1024,
+    );
+    expect(
+      jpeg.rasterBytes,
+      lessThan(budget),
+      reason: 'a 200 MP JPEG decodes at 4x its target, not at its size',
+    );
+    expect(
+      jpeg.fileBytesHeld,
+      lessThan(budget ~/ 2),
+      reason: 'a 30 MB file is not itself a reason to refuse',
+    );
+
+    // Measured: PNG allocates the whole source (+768 MB for 200 MP), which is
+    // what has to be refused before the engine tries.
+    final png = decodePeakBytes(
+      sourceCanSubScale: false,
+      sourcePixels: hugeSource,
+      targetPixels: target,
+      fileBytes: 1024 * 1024,
+    );
+    expect(png.rasterBytes, greaterThan(budget));
+
+    // An ordinary screenshot stays far inside it.
+    final screenshot = decodePeakBytes(
+      sourceCanSubScale: false,
+      sourcePixels: 1000 * 8000,
+      targetPixels: 313600,
+      fileBytes: 2 * 1024 * 1024,
+    );
+    expect(screenshot.rasterBytes, lessThan(budget));
+
+    // Small pixels with an enormous file: the raster is cheap, so only the file
+    // judgement can catch it — and it must, or the file is held twice for free.
+    final bloatedFile = decodePeakBytes(
+      sourceCanSubScale: false,
+      sourcePixels: 20 * 1000 * 1000,
+      targetPixels: target,
+      fileBytes: 200 * 1024 * 1024,
+    );
+    expect(bloatedFile.rasterBytes, lessThan(budget));
+    expect(bloatedFile.fileBytesHeld, greaterThan(budget ~/ 2));
+  });
+
+  test('the artwork the pipeline compares is the artwork it encodes', () async {
+    // A JPEG has no alpha, so a JPEG source cannot need flattening; a PNG can.
+    expect(
+      detectImageSourceFormat(img.encodeJpg(_noiseImage(4, 4))),
+      ImageSourceFormat.jpeg,
+    );
+    expect(
+      detectImageSourceFormat(img.encodePng(_noiseImage(4, 4))),
+      ImageSourceFormat.png,
+    );
+
+    final file = File(p.join(root.path, 'tiny.png'));
+    await file.writeAsBytes(img.encodePng(_tinyImage()));
+    final controller = CompressEditorController(
+      imagePath: file.path,
+      initialParams: const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 90,
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.prepare();
+
+    expect(controller.workingWidth, 13);
+    expect(controller.workingHeight, 7);
+    await _waitFor(() => controller.artifact != null);
+    // The artifact is a real JPEG of the working image, produced without a
+    // Dart-side resize (the engine decoded at the artifact's size).
+    final decoded = img.decodeImage(controller.artifact!)!;
+    expect(decoded.width, 13);
+    expect(decoded.height, 7);
+  });
+
+  test('the working pixels survive the engine round trip unmoved', () async {
+    // The encode reads `WorkingImage.rgba` through `img.Image.fromBytes`, which
+    // copies via a byte view and derives its own row stride: a shifted window or
+    // a channel swap would produce wrong pixels without any error. Dimensions
+    // alone cannot catch that, so every pixel is compared.
+    final source = _tinyImage();
+    final file = File(p.join(root.path, 'pixels.png'));
+    await file.writeAsBytes(img.encodePng(source));
+
+    final working = await decodeWorkingImage(
+      file.path,
+      params: const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 90,
+      ),
+      budgetPixels: kWorkingPixelsDesktop,
+      budgetBytes: kDecodeBudgetBytesDesktop,
+    );
+    addTearDown(working.dispose);
+
+    expect(working.width, source.width);
+    expect(working.height, source.height);
+    expect(working.rgba.lengthInBytes, source.width * source.height * 4);
+
+    final rebuilt = img.Image.fromBytes(
+      width: working.width,
+      height: working.height,
+      bytes: working.rgba.buffer,
+      bytesOffset: working.rgba.offsetInBytes,
+      numChannels: 4,
+      order: img.ChannelOrder.rgba,
+    );
+    for (var y = 0; y < source.height; y++) {
+      for (var x = 0; x < source.width; x++) {
+        final expected = source.getPixel(x, y);
+        final actual = rebuilt.getPixel(x, y);
+        expect(
+          [actual.r, actual.g, actual.b, actual.a],
+          [expected.r, expected.g, expected.b, 255],
+          reason: 'pixel ($x,$y) moved, changed channel or lost its alpha',
+        );
+      }
+    }
+  });
+
+  test(
+    'the source dimensions are EXIF-corrected, without decoding pixels',
+    () async {
+      // The whole target computation rests on `ImageDescriptor.width/height`
+      // being the *oriented* size. A 400x200 JPEG tagged orientation 6 is shown
+      // and stored as 200x400, so the panel's long edge must be 400 and not 200.
+      final file = File(p.join(root.path, 'rotated.jpg'));
+      // `encodeJpg` writes whatever `image.exif` holds, so the tag is set there.
+      final rotated = _noiseImage(400, 200);
+      rotated.exif.imageIfd.orientation = 6;
+      await file.writeAsBytes(img.encodeJpg(rotated), flush: true);
+
+      final working = await decodeWorkingImage(
+        file.path,
+        params: const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 80,
+        ),
+        budgetPixels: kWorkingPixelsDesktop,
+        budgetBytes: kDecodeBudgetBytesDesktop,
+      );
+      addTearDown(working.dispose);
+
+      expect(working.sourceWidth, 200);
+      expect(working.sourceHeight, 400);
+      expect(working.longEdge, 400);
+    },
+  );
 
   test('the estimate messages keep their glyphs', () async {
     final l10n = await AppLocalizations.delegate.load(const Locale('en'));
@@ -541,49 +987,401 @@ void main() {
     expect(l10n.compressEditorGrowth(12), '+12%');
   });
 
-  test('decodeForPreview hands back pixels at the right offsets', () {
-    // The cache is rebuilt from `outcome.rgba.buffer`, so a view with a non-zero
-    // offset would shift every pixel of the comparison.
-    final source = img.Image(width: 13, height: 7);
-    for (var y = 0; y < source.height; y++) {
-      for (var x = 0; x < source.width; x++) {
-        source.setPixelRgb(x, y, 1 + x * 3, 2 + y * 5, (x * y) % 251);
-      }
+  test('a viewport change notifies the preview', () async {
+    final path = await writeFixture('viewport.png', 400, 260);
+    final controller = CompressEditorController(
+      imagePath: path,
+      initialParams: const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 70,
+        maxLongEdge: 200,
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.prepare();
+    await _waitFor(() => controller.artifact != null);
+
+    var notifications = 0;
+    controller.addListener(() => notifications++);
+
+    // Panning and zooming only move the region the preview maps onto the
+    // viewport. Nobody is told about it unless this notifies, and then the
+    // gesture is drawn on whatever frame happens to rebuild the page next —
+    // which is what made a drag look frozen until the divider moved.
+    controller.updateViewport(visible: const Rect.fromLTWH(10, 10, 60, 60));
+    expect(controller.visibleSource, const Rect.fromLTWH(10, 10, 60, 60));
+    expect(notifications, 1);
+
+    // The same region again is not a change, and not a repaint.
+    controller.updateViewport(visible: const Rect.fromLTWH(10, 10, 60, 60));
+    expect(notifications, 1);
+  });
+
+  test(
+    'the original side stays at the source resolution, not the target',
+    () async {
+      final path = await writeFixture('reference.png', 400, 260);
+      final controller = CompressEditorController(
+        imagePath: path,
+        initialParams: const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 80,
+          maxLongEdge: 400,
+        ),
+      );
+      addTearDown(controller.dispose);
+
+      await controller.prepare();
+      await _waitFor(() => controller.artifact != null);
+
+      // At the reachable edge the left half *is* the working image: it already
+      // holds the source's own pixels, so a second decode would only cost memory.
+      expect(controller.original, same(controller.debugWorkingDisplay));
+
+      controller.setParams(
+        const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 80,
+          maxLongEdge: 200,
+        ),
+      );
+      await _waitFor(() => controller.artifactParams == controller.params);
+      await _waitFor(
+        () => controller.original != controller.debugWorkingDisplay,
+        timeout: const Duration(seconds: 60),
+      );
+
+      // Below the reachable edge the left half is the untouched source, not a
+      // re-decode at the target: drawing the target there is what made 原图 blur
+      // along with the result until the two halves looked equally bad.
+      final reference = controller.original!;
+      expect(reference.width, 400);
+      expect(reference.height, 260);
+      expect(controller.workingWidth, 200);
+      // The region is described in working pixels, so the left half maps it into
+      // the reference's own space.
+      expect(controller.originalScale, const Size(2, 2));
+
+      // A further target change reuses that reference: the comparison is always
+      // against the original, never against the previous target.
+      controller.setParams(
+        const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 80,
+          maxLongEdge: 100,
+        ),
+      );
+      await _waitFor(() => controller.artifactParams == controller.params);
+      expect(controller.original, same(reference));
+      expect(controller.original!.width, 400);
+    },
+  );
+
+  testWidgets('a zoom never narrows the window into a strip', (tester) async {
+    // A tall image: the default framing fits its width, so the window fills the
+    // preview area — and every zoom has to keep it that way.
+    final opened = await openEditor(
+      tester,
+      width: 600,
+      height: 3000,
+      params: const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 80,
+        maxLongEdge: 3000,
+      ),
+    );
+    final controller = opened.preview.controller;
+    final layout = tester.getSize(find.byType(CompressPreview));
+
+    // Where the preview draws the region: a contain-fit inside the layout, which
+    // is the window the user actually sees.
+    Size windowOf(Rect region) {
+      final scale = math.min(
+        layout.width / region.width,
+        layout.height / region.height,
+      );
+      return Size(region.width * scale, region.height * scale);
     }
 
-    final outcome = decodeForPreview(img.encodePng(source));
-    final rebuilt = img.Image.fromBytes(
-      width: outcome.width,
-      height: outcome.height,
-      bytes: outcome.rgba.buffer,
-      numChannels: 4,
-      order: img.ChannelOrder.rgba,
+    final framing = controller.visibleSource;
+    expect(
+      windowOf(framing).width,
+      moreOrLessEquals(layout.width, epsilon: 0.5),
     );
 
-    for (var y = 0; y < source.height; y++) {
-      for (var x = 0; x < source.width; x++) {
-        final expected = source.getPixel(x, y);
-        final actual = rebuilt.getPixel(x, y);
-        expect(
-          [actual.r, actual.g, actual.b],
-          [expected.r, expected.g, expected.b],
-          reason: 'pixel ($x,$y) shifted',
-        );
+    final center = tester.getCenter(find.byType(CompressPreview));
+
+    // Zoom in first: the framing is the floor, so only a zoom that starts
+    // somewhere else can be told apart from a gesture that never registered.
+    final in1 = await tester.startGesture(center - const Offset(30, 0));
+    final in2 = await tester.startGesture(center + const Offset(30, 0));
+    await in1.moveBy(const Offset(-90, 0));
+    await in2.moveBy(const Offset(90, 0));
+    await tester.pump();
+    final zoomedIn = controller.visibleSource;
+    await in1.up();
+    await in2.up();
+    await tester.pump();
+
+    expect(zoomedIn, isNot(framing), reason: 'the pinch has to register');
+    expect(
+      windowOf(zoomedIn).width,
+      moreOrLessEquals(layout.width, epsilon: 0.5),
+    );
+
+    // Then pinch out well past the fit: two pointers closing in.
+    final out1 = await tester.startGesture(center - const Offset(120, 0));
+    final out2 = await tester.startGesture(center + const Offset(120, 0));
+    await out1.moveBy(const Offset(90, 0));
+    await out2.moveBy(const Offset(-90, 0));
+    await tester.pump();
+    final zoomedOut = controller.visibleSource;
+    await out1.up();
+    await out2.up();
+    await tester.pump();
+
+    expect(
+      zoomedOut.height,
+      greaterThan(zoomedIn.height),
+      reason: 'the pinch has to register',
+    );
+    // The window is a contain-fit of the region, so a region whose aspect drifted
+    // from the framing's is drawn as a narrow strip — and since a zoom keeps the
+    // aspect it starts with, that strip would be permanent. The overshoot lands
+    // on the framing instead of on the whole image's height.
+    expect(zoomedOut.height, moreOrLessEquals(framing.height, epsilon: 0.5));
+    expect(
+      windowOf(zoomedOut).width,
+      moreOrLessEquals(layout.width, epsilon: 0.5),
+      reason:
+          'zooming out stops at the framing instead of narrowing the window',
+    );
+
+    // Every pointer up arms the double-tap recognizer's timeout: let it expire,
+    // so the test does not end with a pending timer.
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+
+  testWidgets('a replaced working image outlives the frame publishing it', (
+    tester,
+  ) async {
+    late SettingsProvider settings;
+    late String path;
+
+    await tester.runAsync(() async {
+      final harness = await createBusinessTestHarness();
+      settings = SettingsProvider(harness.preferences);
+      await settings.loaded;
+      await settings.setManualCompressParams(
+        const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 80,
+          maxLongEdge: 400,
+        ),
+      );
+      path = await writeFixture('retired.png', 1200, 900);
+    });
+
+    await tester.pumpWidget(_editorApp(settings, path));
+    await _pumpUntilFound(tester, find.byType(CompressPreview));
+    final controller = tester
+        .widget<CompressPreview>(find.byType(CompressPreview))
+        .controller;
+    await _pumpUntilArtifact(tester, controller);
+
+    // The working display is what a parameter change replaces and retires: the
+    // reference, once decoded, is never rebuilt away.
+    final previous = controller.debugWorkingDisplay!;
+    expect(previous.debugDisposed, isFalse);
+
+    // A long-edge change decodes a new working image and replaces this one. The
+    // preview's painter holds the old one until the rebuild that publishes the
+    // replacement has painted, so releasing it at the swap hands a disposed
+    // image to the canvas for as long as the pass that follows takes.
+    controller.setParams(
+      const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 80,
+        maxLongEdge: 800,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    final deadline = DateTime.now().add(const Duration(seconds: 90));
+    while (controller.artifactParams != controller.params) {
+      if (DateTime.now().isAfter(deadline)) {
+        fail('the re-decode pass never finished');
       }
+      // No frames: the pass runs in real time, and a frame is the very thing
+      // that would publish the swap and release the old image.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
     }
+
+    expect(
+      previous.debugDisposed,
+      isFalse,
+      reason: 'the painter that captured it has not been rebuilt yet',
+    );
+
+    await tester.pump();
+    expect(
+      previous.debugDisposed,
+      isTrue,
+      reason: 'the publishing frame has painted: nothing can reference it now',
+    );
+  });
+
+  testWidgets('a re-decode pass never draws a disposed working image', (
+    tester,
+  ) async {
+    late SettingsProvider settings;
+    late String path;
+
+    await tester.runAsync(() async {
+      final harness = await createBusinessTestHarness();
+      settings = SettingsProvider(harness.preferences);
+      await settings.loaded;
+      await settings.setManualCompressParams(
+        const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 80,
+          maxLongEdge: 400,
+        ),
+      );
+      // Big enough that the encode stays in flight across several frames: that
+      // window is where the painter used to repaint a released image, once per
+      // frame, which is what the engine asserts on.
+      path = await writeFixture('disposed.png', 1600, 1200);
+    });
+
+    await tester.pumpWidget(_editorApp(settings, path));
+    await _pumpUntilFound(tester, find.byType(CompressPreview));
+    final controller = tester
+        .widget<CompressPreview>(find.byType(CompressPreview))
+        .controller;
+    await _pumpUntilArtifact(tester, controller);
+
+    controller.setParams(
+      const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 80,
+        maxLongEdge: 800,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+
+    // Frames all through the pass: the busy tag's spinner keeps repainting the
+    // preview without rebuilding it, which is exactly how a released image
+    // reached the canvas.
+    final deadline = DateTime.now().add(const Duration(seconds: 90));
+    while (controller.encoding ||
+        controller.artifactParams != controller.params) {
+      if (DateTime.now().isAfter(deadline)) {
+        fail('the re-decode pass never finished');
+      }
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 8)),
+      );
+      await tester.pump(const Duration(milliseconds: 8));
+    }
+
+    await _pumpUntilArtifact(tester, controller);
+    expect(controller.artifactParams, controller.params);
+  });
+
+  testWidgets('the page waits behind the composer pass before decoding', (
+    tester,
+  ) async {
+    late SettingsProvider settings;
+    late AppLocalizations l10n;
+    late String path;
+    final gate = Completer<void>();
+
+    await tester.runAsync(() async {
+      final harness = await createBusinessTestHarness();
+      settings = SettingsProvider(harness.preferences);
+      await settings.loaded;
+      await settings.setManualCompressParams(
+        const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 80,
+          maxLongEdge: 200,
+        ),
+      );
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      path = await writeFixture('gate.png', 400, 260);
+    });
+
+    await tester.pumpWidget(
+      _editorApp(settings, path, processingGate: gate.future),
+    );
+    await tester.pump();
+
+    // The click that opened this page is answered at once, even though the
+    // composer still owns the source: the dialog is up and says it is working.
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+    // Real time goes by — far more than this fixture needs to decode. Nothing
+    // may start: the composer still owns the source, and a decode beside that
+    // pass is the doubling the single-pass rule forbids. A decode that was not
+    // waiting for anything would have landed inside this window.
+    for (var i = 0; i < 25; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 40)),
+      );
+      await tester.pump();
+      expect(
+        find.byType(CompressPreview),
+        findsNothing,
+        reason: 'the pass that owns this image has not released it yet',
+      );
+    }
+
+    // Nothing may be applied before the working image exists — an apply then
+    // has no artifact and lands while the composer still owns the source.
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, l10n.compressEditorApply),
+          )
+          .onPressed,
+      isNull,
+    );
+    // Waiting out a slow import must never trap the user in the dialog.
+    expect(
+      tester
+          .widget<TextButton>(
+            find.widgetWithText(TextButton, l10n.compressEditorCancel),
+          )
+          .onPressed,
+      isNotNull,
+    );
+
+    gate.complete();
+    await _pumpUntilFound(tester, find.byType(CompressPreview));
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, l10n.compressEditorApply),
+          )
+          .onPressed,
+      isNotNull,
+    );
   });
 }
 
-/// Waits for the debounced size estimate to land.
-Future<void> _pumpUntilEstimate(
+/// Waits for the debounced artifact to land.
+Future<void> _pumpUntilArtifact(
   WidgetTester tester,
   CompressEditorController controller, {
   Duration timeout = const Duration(seconds: 30),
 }) async {
   final deadline = DateTime.now().add(timeout);
-  while (controller.estimating || controller.estimatedBytes == null) {
+  while (controller.encoding || controller.artifactBytes == null) {
     if (DateTime.now().isAfter(deadline)) {
-      fail('the size estimate never landed');
+      fail('the artifact never landed');
     }
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 40)),
@@ -591,6 +1389,35 @@ Future<void> _pumpUntilEstimate(
     await tester.pump(const Duration(milliseconds: 40));
   }
   await tester.pump();
+}
+
+/// The editor alone, with the localisation and settings scaffolding it reads.
+///
+/// [processingGate] mirrors the composer opening the editor while its own pass
+/// on the image is still running.
+Widget _editorApp(
+  SettingsProvider settings,
+  String path, {
+  Future<void>? processingGate,
+}) {
+  return ChangeNotifierProvider<SettingsProvider>.value(
+    value: settings,
+    child: MaterialApp(
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: CompressEditorPage(
+        imagePath: path,
+        totalImageCount: 1,
+        desktop: true,
+        processingGate: processingGate,
+      ),
+    ),
+  );
 }
 
 Future<void> _waitFor(
@@ -652,6 +1479,18 @@ img.Image _noiseImage(int width, int height) {
         random.nextInt(256),
         random.nextInt(256),
       );
+    }
+  }
+  return image;
+}
+
+/// A 13×7 image with per-pixel values, for asserting the working pixels survive
+/// the engine round trip without a row offset or a channel swap.
+img.Image _tinyImage() {
+  final image = img.Image(width: 13, height: 7);
+  for (var y = 0; y < image.height; y++) {
+    for (var x = 0; x < image.width; x++) {
+      image.setPixelRgb(x, y, 1 + x * 3, 2 + y * 5, (x * y) % 251);
     }
   }
   return image;

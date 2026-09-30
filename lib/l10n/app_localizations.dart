@@ -15127,6 +15127,18 @@ abstract class AppLocalizations {
   /// **'This image can\'t be previewed, so it can\'t be re-compressed.'**
   String get compressEditorDecodeFailed;
 
+  /// No description provided for @compressEditorTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'This image is too large to open in the editor, so it can\'t be re-compressed here. It will be attached as it is.'**
+  String get compressEditorTooLarge;
+
+  /// Shown when a very large image is worked at a reduced resolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Source {source}, loaded at {percent}% to stay within memory'**
+  String compressEditorWorkingScale(String source, int percent);
+
   /// No description provided for @compressEditorCancel.
   ///
   /// In en, this message translates to:

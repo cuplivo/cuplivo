@@ -48,6 +48,25 @@ void main() {
       expect(ordered, [('a', 1), ('c', 3), ('b', 2), ('d', 4)]);
     });
 
+    test('a winner that answers before another keeps its input rank', () async {
+      // The probes finish out of input order, which is the ordinary case: two
+      // live addresses at different latencies. While the answer's arrival
+      // decided the order, the same set could be ordered differently on
+      // consecutive rounds — and this order is what a peer's record stores as
+      // hints and what the serial dial follows.
+      final gates = {'slow': Completer<void>(), 'fast': Completer<void>()};
+      final pending = orderCandidates(
+        [('slow', 1), ('fast', 2), ('gone', 3)],
+        localAddresses: _nowhere,
+        connect: (host, port, timeout) => gates[host]!.future,
+      );
+
+      gates['fast']!.complete();
+      gates['slow']!.complete();
+
+      expect(await pending, [('slow', 1), ('fast', 2), ('gone', 3)]);
+    });
+
     test('every candidate is probed at once', () async {
       final started = <String>[];
       final gate = Completer<void>();

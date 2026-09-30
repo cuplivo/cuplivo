@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.0.1] - 2026-09-30
+
+### Fixed
+
+- **Manual image compression**: the resolution is shown as soon as the editor opens instead of waiting for the decode to finish, the before/after preview reflects the change more truthfully and reacts immediately, and compressing the same image twice is prevented (#946 by @cup113)
+- **LAN sync**: IPv6 support, refined filtering, multi-IP connection probing and a polished panel make it markedly more usable (#947 by @cup113)
+- Developer experience: contributors to this repository no longer see unrelated Windows-side errors
+
 ## [4.0.0] - 2026-09-28
 
 > Cuplivo 4.0 — a restart

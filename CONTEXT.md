@@ -465,6 +465,10 @@ contradicts one of them is a bug, not a preference.
   resolution the artifact will have, so peak memory follows the chosen output rather than the file.
   It is bounded by the working budget (14 MP mobile / 20 MP desktop), and its long edge is what the
   long-edge slider can reach. See ADR-0005.
+- **Retired working image (已退休工作图)**: a 工作图 a re-decode replaced while the preview may still be
+  drawing it. It is released only after the frame that publishes its replacement has painted, because a
+  painter captures the image it draws and an animation repaints it without a rebuild — releasing at the
+  swap drew a disposed image once per frame. See ADR-0005 decision 11.
 - **Working budget (工作预算)**: the ceiling on a working image, in pixels, and on a single decode, in
   bytes. The byte ceiling is judged twice, because the risks differ: the raster a decode would allocate
   against the whole budget, and the source file held twice against half of it. A file-inclusive
@@ -498,6 +502,10 @@ contradicts one of them is a bug, not a preference.
 - **Apply to all (应用到全部)**: broadcasts the editor's current parameters to every attached image.
   Only the image the editor was opened for can reuse the editor's artifact; the others run the same
   budgeted pipeline themselves.
+- **Processing gate (处理门)**: what the composer hands the editor when the chip it was opened from is
+  still running its attach-time pass. The dialog opens on the click and prepares behind that pass,
+  because decoding beside it is the doubling the single-pass rule forbids. Until a 工作图 exists there is
+  no artifact to write, so the apply actions stay disabled while only closing is offered.
 - **Remembered parameters (记住的参数)**: the last parameters the user confirmed in the editor — 原图
   included — which seed the next editor session. A long edge remembered from a larger image is
   normalised to the image being edited once its size is known, so the panel's readout always equals
@@ -521,7 +529,8 @@ contradicts one of them is a bug, not a preference.
   apply action and says why.
 - The editor is offered only where it can act: an attachment whose bytes cannot be decoded shows no
   apply action, a source that cannot be decoded inside the 工作预算 shows an explanation and no apply
-  action, and a remote or `data:` attachment never opens the editor at all.
+  action, and a remote or `data:` attachment never opens the editor at all. A chip whose pass is still
+  running is waited out through the 处理门 rather than refused: the click is answered at once.
 - The 分屏对比, the size row and the artifact written to disk are one value; a difference between them
   is a bug, not a preview artifact. The shown artifact belongs to the parameters currently selected.
 - The working image and the artifact are at the same resolution by construction, so a re-encode can

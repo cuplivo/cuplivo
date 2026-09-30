@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -985,6 +986,243 @@ void main() {
     expect(l10n.compressEditorSavings(85), '−85%');
     expect(l10n.compressEditorGrowth(12), '+12%');
   });
+
+  test('a viewport change notifies the preview', () async {
+    final path = await writeFixture('viewport.png', 400, 260);
+    final controller = CompressEditorController(
+      imagePath: path,
+      initialParams: const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 70,
+        maxLongEdge: 200,
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.prepare();
+    await _waitFor(() => controller.artifact != null);
+
+    var notifications = 0;
+    controller.addListener(() => notifications++);
+
+    // Panning and zooming only move the region the preview maps onto the
+    // viewport. Nobody is told about it unless this notifies, and then the
+    // gesture is drawn on whatever frame happens to rebuild the page next —
+    // which is what made a drag look frozen until the divider moved.
+    controller.updateViewport(visible: const Rect.fromLTWH(10, 10, 60, 60));
+    expect(controller.visibleSource, const Rect.fromLTWH(10, 10, 60, 60));
+    expect(notifications, 1);
+
+    // The same region again is not a change, and not a repaint.
+    controller.updateViewport(visible: const Rect.fromLTWH(10, 10, 60, 60));
+    expect(notifications, 1);
+  });
+
+  testWidgets('a replaced working image outlives the frame publishing it', (
+    tester,
+  ) async {
+    late SettingsProvider settings;
+    late String path;
+
+    await tester.runAsync(() async {
+      final harness = await createBusinessTestHarness();
+      settings = SettingsProvider(harness.preferences);
+      await settings.loaded;
+      await settings.setManualCompressParams(
+        const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 80,
+          maxLongEdge: 400,
+        ),
+      );
+      path = await writeFixture('retired.png', 1200, 900);
+    });
+
+    await tester.pumpWidget(_editorApp(settings, path));
+    await _pumpUntilFound(tester, find.byType(CompressPreview));
+    final controller = tester
+        .widget<CompressPreview>(find.byType(CompressPreview))
+        .controller;
+    await _pumpUntilArtifact(tester, controller);
+
+    final previous = controller.original!;
+    expect(previous.debugDisposed, isFalse);
+
+    // A long-edge change decodes a new working image and replaces this one. The
+    // preview's painter holds the old one until the rebuild that publishes the
+    // replacement has painted, so releasing it at the swap hands a disposed
+    // image to the canvas for as long as the pass that follows takes.
+    controller.setParams(
+      const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 80,
+        maxLongEdge: 800,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    final deadline = DateTime.now().add(const Duration(seconds: 90));
+    while (controller.artifactParams != controller.params) {
+      if (DateTime.now().isAfter(deadline)) {
+        fail('the re-decode pass never finished');
+      }
+      // No frames: the pass runs in real time, and a frame is the very thing
+      // that would publish the swap and release the old image.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+    }
+
+    expect(
+      previous.debugDisposed,
+      isFalse,
+      reason: 'the painter that captured it has not been rebuilt yet',
+    );
+
+    await tester.pump();
+    expect(
+      previous.debugDisposed,
+      isTrue,
+      reason: 'the publishing frame has painted: nothing can reference it now',
+    );
+  });
+
+  testWidgets('a re-decode pass never draws a disposed working image', (
+    tester,
+  ) async {
+    late SettingsProvider settings;
+    late String path;
+
+    await tester.runAsync(() async {
+      final harness = await createBusinessTestHarness();
+      settings = SettingsProvider(harness.preferences);
+      await settings.loaded;
+      await settings.setManualCompressParams(
+        const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 80,
+          maxLongEdge: 400,
+        ),
+      );
+      // Big enough that the encode stays in flight across several frames: that
+      // window is where the painter used to repaint a released image, once per
+      // frame, which is what the engine asserts on.
+      path = await writeFixture('disposed.png', 1600, 1200);
+    });
+
+    await tester.pumpWidget(_editorApp(settings, path));
+    await _pumpUntilFound(tester, find.byType(CompressPreview));
+    final controller = tester
+        .widget<CompressPreview>(find.byType(CompressPreview))
+        .controller;
+    await _pumpUntilArtifact(tester, controller);
+
+    controller.setParams(
+      const ManualCompressParams(
+        format: DownsizeFormat.jpeg,
+        quality: 80,
+        maxLongEdge: 800,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+
+    // Frames all through the pass: the busy tag's spinner keeps repainting the
+    // preview without rebuilding it, which is exactly how a released image
+    // reached the canvas.
+    final deadline = DateTime.now().add(const Duration(seconds: 90));
+    while (controller.encoding ||
+        controller.artifactParams != controller.params) {
+      if (DateTime.now().isAfter(deadline)) {
+        fail('the re-decode pass never finished');
+      }
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 8)),
+      );
+      await tester.pump(const Duration(milliseconds: 8));
+    }
+
+    await _pumpUntilArtifact(tester, controller);
+    expect(controller.artifactParams, controller.params);
+  });
+
+  testWidgets('the page waits behind the composer pass before decoding', (
+    tester,
+  ) async {
+    late SettingsProvider settings;
+    late AppLocalizations l10n;
+    late String path;
+    final gate = Completer<void>();
+
+    await tester.runAsync(() async {
+      final harness = await createBusinessTestHarness();
+      settings = SettingsProvider(harness.preferences);
+      await settings.loaded;
+      await settings.setManualCompressParams(
+        const ManualCompressParams(
+          format: DownsizeFormat.jpeg,
+          quality: 80,
+          maxLongEdge: 200,
+        ),
+      );
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      path = await writeFixture('gate.png', 400, 260);
+    });
+
+    await tester.pumpWidget(
+      _editorApp(settings, path, processingGate: gate.future),
+    );
+    await tester.pump();
+
+    // The click that opened this page is answered at once, even though the
+    // composer still owns the source: the dialog is up and says it is working.
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+    // Real time goes by — far more than this fixture needs to decode. Nothing
+    // may start: the composer still owns the source, and a decode beside that
+    // pass is the doubling the single-pass rule forbids. A decode that was not
+    // waiting for anything would have landed inside this window.
+    for (var i = 0; i < 25; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 40)),
+      );
+      await tester.pump();
+      expect(
+        find.byType(CompressPreview),
+        findsNothing,
+        reason: 'the pass that owns this image has not released it yet',
+      );
+    }
+
+    // Nothing may be applied before the working image exists — an apply then
+    // has no artifact and lands while the composer still owns the source.
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, l10n.compressEditorApply),
+          )
+          .onPressed,
+      isNull,
+    );
+    // Waiting out a slow import must never trap the user in the dialog.
+    expect(
+      tester
+          .widget<TextButton>(
+            find.widgetWithText(TextButton, l10n.compressEditorCancel),
+          )
+          .onPressed,
+      isNotNull,
+    );
+
+    gate.complete();
+    await _pumpUntilFound(tester, find.byType(CompressPreview));
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, l10n.compressEditorApply),
+          )
+          .onPressed,
+      isNotNull,
+    );
+  });
 }
 
 /// Waits for the debounced artifact to land.
@@ -1004,6 +1242,35 @@ Future<void> _pumpUntilArtifact(
     await tester.pump(const Duration(milliseconds: 40));
   }
   await tester.pump();
+}
+
+/// The editor alone, with the localisation and settings scaffolding it reads.
+///
+/// [processingGate] mirrors the composer opening the editor while its own pass
+/// on the image is still running.
+Widget _editorApp(
+  SettingsProvider settings,
+  String path, {
+  Future<void>? processingGate,
+}) {
+  return ChangeNotifierProvider<SettingsProvider>.value(
+    value: settings,
+    child: MaterialApp(
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: CompressEditorPage(
+        imagePath: path,
+        totalImageCount: 1,
+        desktop: true,
+        processingGate: processingGate,
+      ),
+    ),
+  );
 }
 
 Future<void> _waitFor(

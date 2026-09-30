@@ -108,6 +108,20 @@ orientation 6 reports 200×400 without decoding pixels).
     plus its straight-RGBA bytes, and the encoded artifact is held until it is applied: those are
     bounded by the file size, the working budget and the artifact respectively, and the file term is
     what the second judgement above exists for.
+11. **A replaced working image is released only after the frame that publishes its replacement.** The
+    preview's painter captures the image it draws, and a widget rebuild is not what repaints it: any
+    animation in the same layer — the encode spinner, which runs for the whole pass — re-runs `paint()`
+    on the painter still in the tree. Releasing the old pixels at the swap therefore handed the canvas a
+    disposed image (`Canvas.drawImageRect` asserts on it) once per frame until the owning pass finished,
+    which in a debug build is tens of seconds of assertion spam. The replaced image is *retired*
+    instead, and disposed in a post-frame callback registered on the notify that publishes the new one:
+    after that frame no painter can still reference it.
+12. **The editor waits behind the composer's pass instead of being refused.** A chip whose attach-time
+    pass is still running had no tap target at all, and the editor's own guard returned silently, so a
+    click on it did nothing whatsoever — for long enough on a slow import to read as a broken button.
+    The composer now hands the editor a future that completes when that pass releases the source: the
+    dialog opens on the click and says it is preparing, and only then decodes. Decoding *beside* the
+    pass is what must not happen, and waiting is how both hold.
 
 ## Consequences
 
@@ -146,6 +160,14 @@ orientation 6 reports 200×400 without decoding pixels).
 - The automatic pipeline's decode now happens on the UI isolate through `dart:ui` (which does the work
   off-thread) rather than inside a `compute` isolate, because the engine's decoder needs a UI isolate.
   Only the encode still crosses into an isolate.
+- A click on a chip whose pass is still running is answered immediately: the dialog opens, shows its own
+  progress and offers no apply action until the working image exists, while `Cancel` always works.
+  Parameters chosen while it waits are the ones the first pass then uses.
+- The framing is painted on the frame it changes on: a pan or a zoom notifies the page rather than
+  updating a field quietly and leaving the last gesture to be drawn whenever something else happened to
+  rebuild the page.
+- Retiring holds the replaced working image one frame longer than the swap, not for the whole pass, so a
+  re-decode's peak is unchanged — the two images already coexisted while the new one was decoded.
 
 ## Not in scope
 

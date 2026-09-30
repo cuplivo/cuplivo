@@ -280,6 +280,11 @@ class _ChatInputBarState extends State<ChatInputBar>
       Queue<_ImageProcessingTask>();
   final Set<int> _processingImageIds = <int>{};
   final Set<int> _failedImageIds = <int>{};
+
+  /// One gate per image whose automatic pass is running, completed when that
+  /// pass releases the source. The compress editor opens immediately and waits
+  /// behind it instead of decoding the same image beside that pass.
+  final Map<int, Completer<void>> _processingGates = <int, Completer<void>>{};
   final Set<int> _pendingImagePasteIds = <int>{};
   final Set<int> _pendingTextPasteIds = <int>{};
 
@@ -525,6 +530,10 @@ class _ChatInputBarState extends State<ChatInputBar>
       // source path (or a file that never materialized).
       _scheduleDraftSave();
     }
+    // The pass is over and this draft no longer owns the source, so an editor
+    // that opened while it ran may decode now. A pass whose image was discarded
+    // mid-flight was already released by `_discardImageState`.
+    _finishImageProcessing(task.id);
     _pumpImageProcessingQueue();
   }
 
@@ -563,6 +572,9 @@ class _ChatInputBarState extends State<ChatInputBar>
     _failedImageIds.removeAll(discarded);
     for (final id in discarded) {
       _imageOwnsFile.remove(id);
+      // An image that is gone cannot finish its pass: anything waiting on the
+      // source has to be released here or it waits forever.
+      _finishImageProcessing(id);
     }
     _imageProcessingQueue.removeWhere((task) => discarded.contains(task.id));
     for (final task in discardedQueuedTasks) {
@@ -570,6 +582,19 @@ class _ChatInputBarState extends State<ChatInputBar>
         unawaited(_deleteTemporaryImageSource(task.sourcePath));
       }
     }
+  }
+
+  /// Completes when the automatic pass for [id] has released the source.
+  Future<void> _imageProcessingGate(int id) =>
+      _processingGates.putIfAbsent(id, () => Completer<void>()).future;
+
+  /// [id] is no longer being processed: whatever waits on its source may go
+  /// ahead. Idempotent, because every path that takes an id out of
+  /// [_processingImageIds] calls it and only the first one has a gate to
+  /// complete.
+  void _finishImageProcessing(int id) {
+    final gate = _processingGates.remove(id);
+    if (gate != null && !gate.isCompleted) gate.complete();
   }
 
   void _clearImages() {
@@ -794,14 +819,17 @@ class _ChatInputBarState extends State<ChatInputBar>
     // A remote or data: path has no local bytes to decode, preview or
     // re-encode, so the editor is not offered for it.
     if (isRemoteOrDataUri(image.path)) return;
-    if (_processingImageIds.contains(image.id) ||
-        _failedImageIds.contains(image.id)) {
-      return;
-    }
+    if (_failedImageIds.contains(image.id)) return;
     final result = await showImageCompressEditor(
       context,
       imagePath: image.path,
       totalImageCount: _images.length,
+      // While the automatic pass still owns this image, the editor must not
+      // decode it a second time: the dialog opens now and its own decode waits
+      // for the pass to release the source.
+      processingGate: _processingImageIds.contains(image.id)
+          ? _imageProcessingGate(image.id)
+          : null,
     );
     if (!mounted || result == null) return;
     final artifact = result is CompressEditorApply ? result.artifact : null;
@@ -2903,7 +2931,11 @@ class _ChatInputBarState extends State<ChatInputBar>
         ),
       ],
     );
-    if (!canEdit || processing || failed) return chip;
+    // A processing chip stays tappable: the editor opens and waits out the pass
+    // rather than leaving the click unanswered. A failed one does not — its pass
+    // could not even store a copy, so there is nothing for the editor to work
+    // from.
+    if (!canEdit || failed) return chip;
     return IosCardPress(
       key: ValueKey('chat-input-image-compress:$idx'),
       haptics: false,

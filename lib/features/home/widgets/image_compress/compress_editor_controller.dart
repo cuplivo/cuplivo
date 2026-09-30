@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'dart:ui' show Rect;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../../../../utils/manual_compress_pipeline.dart';
 
@@ -78,6 +79,41 @@ class CompressEditorController extends ChangeNotifier {
   Rect _visible = Rect.zero;
   double _divider = 0.5;
   Timer? _timer;
+
+  /// Working images the preview may still be painting.
+  ///
+  /// A painter built before a swap keeps drawing the image it captured until
+  /// the rebuild that publishes the replacement lands, and an animation
+  /// repaints that painter without rebuilding it. Disposing at the swap
+  /// therefore hands the engine a disposed image — it asserts on it — for as
+  /// long as the pass that follows takes (a whole encode, seconds in a debug
+  /// build). A replaced working image is retired instead, and released once
+  /// the frame that publishes its replacement has been painted.
+  final List<WorkingImage> _retired = [];
+
+  void _retire(WorkingImage image) => _retired.add(image);
+
+  /// Releases retired images at the end of the frame their replacement is
+  /// built and painted in: after that frame no painter can still hold one.
+  void _flushRetired() {
+    if (_retired.isEmpty) return;
+    final retired = List<WorkingImage>.of(_retired);
+    _retired.clear();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      for (final image in retired) {
+        image.dispose();
+      }
+    });
+  }
+
+  /// Releases retired images immediately: only safe once no frame can paint
+  /// them again, which is what tearing the preview down means.
+  void _disposeRetired() {
+    for (final image in _retired) {
+      image.dispose();
+    }
+    _retired.clear();
+  }
 
   bool get preparing => _preparing;
 
@@ -160,6 +196,7 @@ class CompressEditorController extends ChangeNotifier {
     _timer?.cancel();
     _working?.dispose();
     _result?.dispose();
+    _disposeRetired();
     super.dispose();
   }
 
@@ -249,10 +286,13 @@ class CompressEditorController extends ChangeNotifier {
   }
 
   /// Called by the preview whenever the region it maps onto the viewport
-  /// changes. The preview owns the framing; the controller only records what is
-  /// on screen, so panning costs nothing but a repaint.
+  /// changes. The preview owns the framing; the controller records what is on
+  /// screen and notifies, so a pan or a zoom is painted on the frame it happens
+  /// on instead of waiting for whatever rebuilds the page next.
   void updateViewport({required Rect visible}) {
+    if (_visible == visible) return;
     _visible = visible;
+    notifyListeners();
   }
 
   void setDivider(double value) {
@@ -312,7 +352,9 @@ class CompressEditorController extends ChangeNotifier {
         _visible.width * factor,
         _visible.height * factor,
       );
-      previous.dispose();
+      // Retired, not disposed: the preview's painter still holds these pixels
+      // until the pass that follows publishes this replacement.
+      _retire(previous);
     }
     return next;
   }
@@ -328,6 +370,12 @@ class CompressEditorController extends ChangeNotifier {
   }
 
   Future<void> _rebuild() async {
+    // While the first working image is on its way, no pass may start: a
+    // parameter change arriving in that window would decode beside that first
+    // decode, and the same source would be decoded twice at once. `prepare`
+    // runs the first pass itself once it lands, on whatever parameters are
+    // current then.
+    if (_preparing) return;
     if (_busy) {
       // A decode/encode is already running and cannot be cancelled: remember
       // that the parameters moved and re-run once it finishes.
@@ -380,6 +428,9 @@ class CompressEditorController extends ChangeNotifier {
       _busy = false;
       if (!_disposed) {
         notifyListeners();
+        // The frame this notify schedules is the one that stops the preview
+        // from referencing the image this pass replaced.
+        _flushRetired();
         if (_pending) {
           _pending = false;
           unawaited(_rebuild());

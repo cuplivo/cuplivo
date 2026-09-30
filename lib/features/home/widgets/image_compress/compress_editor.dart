@@ -45,10 +45,16 @@ final class CompressEditorApplyAll extends CompressEditorResult {
 
 /// Opens the manual compress editor: a full-screen page on mobile, a dialog on
 /// desktop. Returns null when the user closes without confirming.
+///
+/// [processingGate] is the composer's automatic pass for this image, when one is
+/// running. The page opens right away and waits behind it before decoding: a
+/// second decode of the same source beside that pass is the peak this pipeline
+/// exists to bound.
 Future<CompressEditorResult?> showImageCompressEditor(
   BuildContext context, {
   required String imagePath,
   required int totalImageCount,
+  Future<void>? processingGate,
 }) {
   final platform = Theme.of(context).platform;
   final desktop =
@@ -74,6 +80,7 @@ Future<CompressEditorResult?> showImageCompressEditor(
             imagePath: imagePath,
             totalImageCount: totalImageCount,
             desktop: true,
+            processingGate: processingGate,
           ),
         ),
       ),
@@ -85,6 +92,7 @@ Future<CompressEditorResult?> showImageCompressEditor(
       builder: (_) => CompressEditorPage(
         imagePath: imagePath,
         totalImageCount: totalImageCount,
+        processingGate: processingGate,
       ),
     ),
   );
@@ -98,11 +106,17 @@ class CompressEditorPage extends StatefulWidget {
     this.desktop = false,
     this.budgetPixels,
     this.budgetBytes,
+    this.processingGate,
   });
 
   final String imagePath;
   final int totalImageCount;
   final bool desktop;
+
+  /// Completes when the composer's automatic pass for this image has released
+  /// the source. The page shows its own progress while it waits, so the click
+  /// that opened it is answered immediately.
+  final Future<void>? processingGate;
 
   /// Overrides for the working-image budgets, used by tests to exercise the
   /// clamp and the gate without multi-hundred-megapixel fixtures. Production
@@ -129,7 +143,16 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
       budgetPixels: widget.budgetPixels,
       budgetBytes: widget.budgetBytes,
     );
-    unawaited(_controller.prepare());
+    unawaited(_prepare());
+  }
+
+  /// Waits for the composer's pass on this image, when there is one, before
+  /// touching the source: it is still being read and rewritten over there.
+  Future<void> _prepare() async {
+    final gate = widget.processingGate;
+    if (gate != null) await gate;
+    if (!mounted) return;
+    await _controller.prepare();
   }
 
   @override
@@ -605,6 +628,11 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
         ],
       );
     }
+    // An apply needs the working image: until it lands there is no artifact to
+    // write, and the composer may still own the source, so the parameters would
+    // be dropped without a trace. Closing stays available throughout — waiting
+    // out a slow import must never trap the user in the dialog.
+    final ready = !_controller.preparing;
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -615,13 +643,16 @@ class _CompressEditorPageState extends State<CompressEditorPage> {
         if (widget.totalImageCount > 1 && !_params.isNoOp) ...[
           const SizedBox(width: 8),
           TextButton(
-            onPressed: () => _apply(toAll: true),
+            onPressed: ready ? () => _apply(toAll: true) : null,
             child: Text(l10n.compressEditorApplyAll),
           ),
         ],
         const SizedBox(width: 8),
         FilledButton(
-          onPressed: () => _apply(toAll: false),
+          // 原图 is a close, not an apply: it needs no artifact.
+          onPressed: ready || _params.isNoOp
+              ? () => _apply(toAll: false)
+              : null,
           child: Text(
             _params.isNoOp ? l10n.compressEditorDone : l10n.compressEditorApply,
           ),

@@ -339,6 +339,12 @@ class PairingQrImage extends StatelessWidget {
 }
 
 Future<void> _showEnterCodeDialog(BuildContext context) async {
+  // Re-enumerated for the same reason the showing side does it, in the other
+  // direction: this side advertises its own addresses inside the pairing
+  // request, and the peer remembers every candidate it is handed — so what it
+  // advertises has to be the network it is on now, not the one a launch or an
+  // earlier resume saw.
+  unawaited(context.read<SyncProvider>().refreshLocalAddresses());
   await showDialog<void>(
     context: context,
     builder: (_) => const _EnterCodeDialog(),

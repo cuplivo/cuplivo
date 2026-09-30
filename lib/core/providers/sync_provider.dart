@@ -226,12 +226,11 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       port = boundPort;
       started = true;
       peers = await store.listPeers();
-      unawaited(refreshLocalAddresses());
       unawaited(_ensureFirewallRule());
       // Foreground rounds: one right after start ("opened the app" is the
       // pickup journey), then one per resume, throttled by [autoSyncInterval].
       WidgetsBinding.instance.addObserver(this);
-      unawaited(autoSyncRound());
+      unawaited(_refreshAddressesThenRound());
       // Desktop graceful exit: stop the listener and drop the ephemeral-port
       // firewall rule (the preferred-port rule stays for next launch).
       AppExitFlush.register(stop);
@@ -452,12 +451,21 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     // Desktop fires `resumed` on every window focus gain too; the global
     // throttle in [shouldAutoSyncNow] is what keeps that cheap.
     if (state == AppLifecycleState.resumed) {
-      // The addresses are re-read here for the same reason the round is run:
-      // the device may have changed networks while it was away, and the round
-      // below is worthless if it dials where the peer used to be.
-      unawaited(refreshLocalAddresses());
-      unawaited(autoSyncRound());
+      unawaited(_refreshAddressesThenRound());
     }
+  }
+
+  /// A foreground round, on an address list that is already fresh.
+  ///
+  /// The enumeration and the round used to be fired side by side, which leaves
+  /// the round racing a platform call: the list has to land first, or the round
+  /// computes its dial order from an empty one and the same-subnet preference
+  /// the probing exists for is simply absent — on the round right after a
+  /// launch, which is the pickup journey. Awaiting it costs the enumeration's
+  /// own latency and buys a round that dials the network this device stands on.
+  Future<void> _refreshAddressesThenRound() async {
+    await refreshLocalAddresses();
+    await autoSyncRound();
   }
 
   /// One quiet round over every paired peer that has an endpoint: no

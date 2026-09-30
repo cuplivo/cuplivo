@@ -546,6 +546,29 @@ class _StubSyncProvider extends SyncProvider {
   }) async => outcome;
 }
 
+/// A provider whose foreground round records the address list it ran on, so a
+/// test can see whether the round waited for the enumeration.
+class _RoundRecordingProvider extends SyncProvider {
+  _RoundRecordingProvider({
+    required super.chatService,
+    required super.repository,
+    required super.businessRepository,
+    required super.businessPreferences,
+    required super.reloader,
+    required super.syncDirectory,
+    super.addressSource,
+  });
+
+  /// One entry per round that ran — the list the round would have ordered its
+  /// dials by.
+  final rounds = <List<LanAddress>>[];
+
+  @override
+  Future<void> autoSyncRound() async {
+    rounds.add(List.of(localAddresses));
+  }
+}
+
 /// Writes an assistant list the way a provider does: one whole-list rewrite of
 /// a business entity key, routed into `assistant_rows`.
 Future<void> _setAssistants(
@@ -797,6 +820,60 @@ void main() {
     await a.chatService.close();
     await a.repository.close();
   });
+
+  test(
+    'a foreground round runs on the addresses the enumeration produced',
+    () async {
+      // Deliberately not added to `sides`: this test starts and disposes its own
+      // provider, and the shared teardown would dispose it a second time.
+      final a = _Side('a');
+      await a.start(root, withEngine: false);
+
+      const addresses = <LanAddress>[(name: 'en0', address: '192.168.1.20')];
+      final gates = <Completer<void>>[];
+      final provider = _RoundRecordingProvider(
+        chatService: a.chatService,
+        repository: a.repository,
+        businessRepository: a.businessRepository,
+        businessPreferences: a.businessPreferences,
+        reloader: BusinessStateReloader(a.businessPreferences),
+        syncDirectory: () async => a.dir,
+        addressSource: () async {
+          final gate = Completer<void>();
+          gates.add(gate);
+          await gate.future;
+          return addresses;
+        },
+      );
+
+      final starting = provider.start();
+      // The enumeration is in flight and blocked here, which is the window the
+      // round used to run in: it must be waiting behind it, not dialing with the
+      // empty list the same-subnet preference cannot read anything from.
+      await _waitUntil(() async => gates.isNotEmpty);
+      expect(provider.rounds, isEmpty);
+
+      gates[0].complete();
+      await starting;
+      await _waitUntil(() async => provider.rounds.isNotEmpty);
+      expect(provider.rounds.single, addresses);
+
+      // Resume goes through the same door, and the race is the same one: the
+      // device may have changed networks while the app was away.
+      provider.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await _waitUntil(() async => gates.length == 2);
+      expect(provider.rounds.length, 1, reason: 'the resumed round waits too');
+
+      gates[1].complete();
+      await _waitUntil(() async => provider.rounds.length == 2);
+      expect(provider.rounds.last, addresses);
+
+      await provider.stop();
+      provider.dispose();
+      await a.chatService.close();
+      await a.repository.close();
+    },
+  );
 
   Future<(_Side, _Side)> pair({
     bool newerSchema = false,
@@ -1370,6 +1447,59 @@ void main() {
     await tester.tap(find.text(l10n.lanSyncClosePairing));
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('entering a code re-reads this device addresses first', (
+    tester,
+  ) async {
+    final a = _Side('a');
+    late final SyncProvider provider;
+    var source = <LanAddress>[(name: 'wlan0', address: '10.9.0.5')];
+    await tester.runAsync(() async {
+      await a.start(root, withEngine: false);
+      sides.add(a);
+      provider = await a.startProvider(addressSource: () async => source);
+      await pumpEventQueue();
+    });
+
+    // The device joined another network with the app in the foreground: no
+    // lifecycle event fires, so nothing has re-enumerated yet.
+    source = [(name: 'wlan0', address: '192.168.44.9')];
+    expect(provider.localAddresses.single.address, '10.9.0.5');
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<SyncProvider>.value(
+        value: provider,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () =>
+                      showSyncPairingDialogs(context: context, showCode: false),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Opening the entering side is what re-reads them: the addresses this side
+    // advertises ride in the pairing request, and the peer remembers every
+    // candidate it is handed — a hint from the network this device just left is
+    // a dead candidate the peer would keep dialing.
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsNWidgets(3), reason: 'the form opened');
+    expect(provider.localAddresses.single.address, '192.168.44.9');
+
+    // Dismissed, so no route outlives the test.
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('a hand-typed code announces the device it paired with', (

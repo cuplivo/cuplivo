@@ -25,6 +25,12 @@ class TagProvider extends ChangeNotifier {
     _load();
   }
 
+  /// Re-reads tags after LAN sync wrote them outside this provider.
+  Future<void> reloadAfterExternalChange() async {
+    await _load();
+    notifyListeners();
+  }
+
   Future<void> _load() async {
     await preferences.load();
     final rawTags = preferences.getString(_tagsKey);

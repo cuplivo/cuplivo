@@ -28,6 +28,13 @@ class InstructionInjectionGroupProvider extends ChangeNotifier {
   bool isCollapsed(String groupName) =>
       _collapsed[keyForGroupName(groupName)] ?? false;
 
+  /// Re-reads collapse state after LAN sync wrote business rows outside this
+  /// provider.
+  Future<void> reloadAfterExternalChange() async {
+    await _load();
+    notifyListeners();
+  }
+
   Future<void> _load() async {
     await preferences.load();
     final raw = preferences.getString(_collapsedKey);

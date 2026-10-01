@@ -34,6 +34,7 @@ enum SettingsSearchDestination {
   memory,
   networkProxy,
   backup,
+  lanSync,
   storage,
   scheduledTasks,
   hotkeys,
@@ -78,6 +79,7 @@ extension SettingsSearchDestinationDetails on SettingsSearchDestination {
     SettingsSearchDestination.memory => l.settingsPageMemory,
     SettingsSearchDestination.networkProxy => l.settingsPageNetworkProxy,
     SettingsSearchDestination.backup => l.settingsPageBackup,
+    SettingsSearchDestination.lanSync => l.settingsPageLanSync,
     SettingsSearchDestination.storage => l.settingsPageChatStorage,
     SettingsSearchDestination.scheduledTasks => l.scheduledTasksTitle,
     SettingsSearchDestination.hotkeys => l.settingsPageHotkeys,
@@ -116,6 +118,7 @@ extension SettingsSearchDestinationDetails on SettingsSearchDestination {
     SettingsSearchDestination.memory => LucideIcons.brain,
     SettingsSearchDestination.networkProxy => LucideIcons.ethernetPort,
     SettingsSearchDestination.backup => LucideIcons.database,
+    SettingsSearchDestination.lanSync => LucideIcons.refreshCw,
     SettingsSearchDestination.storage => LucideIcons.hardDrive,
     SettingsSearchDestination.scheduledTasks => LucideIcons.clock,
     SettingsSearchDestination.hotkeys => LucideIcons.keyboard,
@@ -450,6 +453,14 @@ class SettingsSearchIndex {
       page: true,
       keywords:
           'backup restore export import webdav s3 cloud sync 备份 備份 恢复 還原 导入 匯入 导出 匯出 同步 快照',
+    );
+    add(
+      'lanSync',
+      SettingsSearchDestination.lanSync,
+      (l) => l.settingsPageLanSync,
+      page: true,
+      keywords:
+          'lan sync device pair pairing local network 局域网 區域網路 同步 配对 配對 设备 裝置 局域网同步',
     );
     if (!desktop) {
       add(

@@ -98,8 +98,14 @@ class _SuccessBreakdown extends StatelessWidget {
         report.blobsMoved > 0 ||
         report.skillsUpdated > 0;
 
+    // A withheld item is not "up to date": the blob that never arrived and the
+    // conversation this device deferred are data this card does not hold, and
+    // the sentence rows below name them. The chip must not claim currency over
+    // those rows, so it appears only when nothing moved *and* nothing is owed.
+    final withheld = report.deferred > 0 || report.blobsMissing > 0;
+
     final chips = <Widget>[
-      if (!movedAnything)
+      if (!movedAnything && !withheld)
         _ReportChip(
           icon: Lucide.CheckCircle,
           text: l10n.lanSyncUpToDate,

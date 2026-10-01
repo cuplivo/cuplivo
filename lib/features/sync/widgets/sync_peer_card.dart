@@ -107,24 +107,34 @@ class SyncPeerCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              busy
-                  ? _SessionProgress(
-                      label: syncPhaseLabel(
-                        l10n,
-                        progress ??
-                            const SyncSessionProgress(
-                              SyncSessionPhase.connecting,
-                            ),
-                      ),
-                    )
-                  : TextButton.icon(
-                      onPressed: () => _syncNow(context, provider),
-                      icon: Icon(Lucide.RefreshCw, size: 15),
-                      label: Text(l10n.lanSyncSyncNow),
-                    ),
+              if (busy)
+                // The beat's label deliberately stays out of this row: an
+                // address plus a candidate rank is wider than what is left
+                // beside the name, and a Row measures a non-flexible child at
+                // its intrinsic width before the flex children — so a long beat
+                // would take the line and collapse the name to zero. Only the
+                // bounded spinner sits here; the label reads one row below.
+                const _SessionProgress()
+              else
+                TextButton.icon(
+                  onPressed: () => _syncNow(context, provider),
+                  icon: Icon(Lucide.RefreshCw, size: 15),
+                  label: Text(l10n.lanSyncSyncNow),
+                ),
             ],
           ),
           const SizedBox(height: 6),
+          if (busy)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: _SessionProgress(
+                label: syncPhaseLabel(
+                  l10n,
+                  progress ??
+                      const SyncSessionProgress(SyncSessionPhase.connecting),
+                ),
+              ),
+            ),
           Tooltip(
             // The exact time is one hover away: this line answers "is this
             // current?", which a bare timestamp makes the reader work out.
@@ -361,12 +371,18 @@ class _PlatformBadge extends StatelessWidget {
   }
 }
 
-/// What the card shows in place of the sync button while a session runs: a
-/// spinner and the beat it is on, because a first sync can be minutes long.
+/// What the card shows while a session runs: the spinner that says "busy", and
+/// the beat it is on, because a first sync can be minutes long.
+///
+/// The two are separable because they have different widths to live in. The
+/// header row carries only the spinner — 14dp, bounded whatever the beat says —
+/// and the row below carries the label at the card's full width. A label in the
+/// header row would fight the peer's name for the line, and win.
 class _SessionProgress extends StatelessWidget {
-  const _SessionProgress({required this.label});
+  const _SessionProgress({this.label});
 
-  final String label;
+  /// The beat to name, or null for the bare spinner.
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
@@ -379,14 +395,22 @@ class _SessionProgress extends StatelessWidget {
           height: 14,
           child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
         ),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            color: cs.onSurface.withValues(alpha: 0.7),
+        if (label != null) ...[
+          const SizedBox(width: 8),
+          // Flexible so a long beat — an address plus the candidate's rank —
+          // gives way to the row instead of overflowing it.
+          Flexible(
+            child: Text(
+              label!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                color: cs.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

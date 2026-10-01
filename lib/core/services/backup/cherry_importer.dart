@@ -14,6 +14,7 @@ import '../../models/chat_message.dart';
 import '../../models/conversation.dart';
 import '../../models/message_part.dart';
 import '../chat/chat_service.dart';
+import '../sync/sync_store.dart';
 import '../../../utils/app_directories.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import 'backup_cancel_token.dart';
@@ -116,6 +117,14 @@ class CherryImporter {
     final includeFiles = scope.includes(BackupCategory.files);
     if (mode == RestoreMode.overwrite && includeChats) {
       await chatService.clearAllData(deleteUploads: includeFiles);
+      // An overwrite import replaces the whole local history, exactly like a
+      // restore: the per-peer sync checkpoints describe rows this device no
+      // longer has, and a peer reading that absence as a deletion would delete
+      // its own copies. Resetting them and bumping the data epoch makes the
+      // paired devices re-converge from "nothing shared" instead.
+      await SyncStore.resetForBulkReplacement(
+        await AppDirectories.getSyncDirectory(),
+      );
     }
 
     // Materialize stays after the first DB write so overwrite cannot delete

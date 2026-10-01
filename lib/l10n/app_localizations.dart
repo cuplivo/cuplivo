@@ -22152,12 +22152,6 @@ abstract class AppLocalizations {
   /// **'This device'**
   String get lanSyncThisDevice;
 
-  /// No description provided for @lanSyncDeviceIdLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Device ID'**
-  String get lanSyncDeviceIdLabel;
-
   /// No description provided for @lanSyncListenerStarting.
   ///
   /// In en, this message translates to:
@@ -22182,17 +22176,17 @@ abstract class AppLocalizations {
   /// **'Pair a device'**
   String get lanSyncPairSectionTitle;
 
+  /// No description provided for @lanSyncPairIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Two devices on the same LAN: one shows the QR code, the other scans it.'**
+  String get lanSyncPairIntro;
+
   /// No description provided for @lanSyncPairFirstSyncNote.
   ///
   /// In en, this message translates to:
   /// **'After pairing, the first sync starts automatically and can take a while. Keep the desktop app running and this app in the foreground on mobile.'**
   String get lanSyncPairFirstSyncNote;
-
-  /// No description provided for @lanSyncPairIntro.
-  ///
-  /// In en, this message translates to:
-  /// **'Show the QR on one device and scan it with the other. Without a camera, type the code instead. Both devices must be on the same network.'**
-  String get lanSyncPairIntro;
 
   /// No description provided for @lanSyncShowCode.
   ///
@@ -22368,6 +22362,66 @@ abstract class AppLocalizations {
   /// **'Paired devices'**
   String get lanSyncPairedDevices;
 
+  /// No description provided for @lanSyncWorkspaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspaces'**
+  String get lanSyncWorkspaces;
+
+  /// No description provided for @lanSyncWorkspaceTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don\'t sync their files. A workspace\'s record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.'**
+  String get lanSyncWorkspaceTip;
+
+  /// No description provided for @lanSyncWorkspaceSyncing.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} syncing files'**
+  String lanSyncWorkspaceSyncing(Object count);
+
+  /// No description provided for @lanSyncWorkspaceStatusSyncing.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing'**
+  String get lanSyncWorkspaceStatusSyncing;
+
+  /// No description provided for @lanSyncWorkspaceStatusTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Too large'**
+  String get lanSyncWorkspaceStatusTooLarge;
+
+  /// No description provided for @lanSyncWorkspaceStatusUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unreadable'**
+  String get lanSyncWorkspaceStatusUnreadable;
+
+  /// No description provided for @lanSyncWorkspaceStatusOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get lanSyncWorkspaceStatusOff;
+
+  /// No description provided for @lanSyncWorkspaceFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} files'**
+  String lanSyncWorkspaceFiles(Object count);
+
+  /// No description provided for @lanSyncWorkspaceFilesAtLeast.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}+ files'**
+  String lanSyncWorkspaceFilesAtLeast(Object count);
+
+  /// No description provided for @lanSyncWorkspaceSizeAtLeast.
+  ///
+  /// In en, this message translates to:
+  /// **'{size}+'**
+  String lanSyncWorkspaceSizeAtLeast(Object size);
+
   /// No description provided for @lanSyncNoDevices.
   ///
   /// In en, this message translates to:
@@ -22475,12 +22529,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Connecting to {address}…'**
   String lanSyncPhaseConnectingTo(Object address);
-
-  /// No description provided for @lanSyncPhaseConnectingAt.
-  ///
-  /// In en, this message translates to:
-  /// **'Connecting to {address}… ({index}/{total})'**
-  String lanSyncPhaseConnectingAt(Object address, Object index, Object total);
 
   /// No description provided for @lanSyncOffline.
   ///
@@ -22662,6 +22710,48 @@ abstract class AppLocalizations {
   /// **'{n} files missing on the other device'**
   String lanSyncReportBlobsMissing(Object n);
 
+  /// No description provided for @lanSyncReportWorkspaceFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} workspace files'**
+  String lanSyncReportWorkspaceFiles(Object count);
+
+  /// No description provided for @lanSyncReportWorkspaceFilesWithSize.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} workspace files · {size}'**
+  String lanSyncReportWorkspaceFilesWithSize(Object count, Object size);
+
+  /// No description provided for @lanSyncReportWorkspaceRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'-{count} workspace files'**
+  String lanSyncReportWorkspaceRemoved(Object count);
+
+  /// No description provided for @lanSyncReportWorkspaceConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} workspace file edits replaced'**
+  String lanSyncReportWorkspaceConflicts(Object count);
+
+  /// No description provided for @lanSyncReportWorkspaceMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} workspace files could not be applied'**
+  String lanSyncReportWorkspaceMissing(Object count);
+
+  /// No description provided for @lanSyncReportWorkspacesOmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} workspaces not syncing files'**
+  String lanSyncReportWorkspacesOmitted(Object count);
+
+  /// No description provided for @lanSyncReportWorkspacesKept.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} workspace folders kept (switch off)'**
+  String lanSyncReportWorkspacesKept(Object count);
+
   /// No description provided for @lanSyncReportRowsLost.
   ///
   /// In en, this message translates to:
@@ -22673,12 +22763,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clocks differ by ~{n} min — fix the device clock, then sync again'**
   String lanSyncReportClockSkew(Object n);
-
-  /// No description provided for @lanSyncReportPeerOffline.
-  ///
-  /// In en, this message translates to:
-  /// **'Not reachable right now — it may be asleep or on another network. Syncing resumes when both devices are back on the same one.'**
-  String get lanSyncReportPeerOffline;
 
   /// No description provided for @lanSyncReportUnreachable.
   ///
@@ -22764,11 +22848,155 @@ abstract class AppLocalizations {
   /// **'Inbound access allowed.'**
   String get lanSyncFirewallFixed;
 
-  /// No description provided for @lanSyncKnownLimits.
+  /// No description provided for @lanSyncArrivalToast.
   ///
   /// In en, this message translates to:
-  /// **'For now: workspaces stay on the device that created them, and PIN pairing should only be used on networks you trust.'**
-  String get lanSyncKnownLimits;
+  /// **'Synced with {name}'**
+  String lanSyncArrivalToast(Object name);
+
+  /// No description provided for @lanSyncArrivalDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get lanSyncArrivalDetails;
+
+  /// No description provided for @lanSyncNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get lanSyncNever;
+
+  /// No description provided for @lanSyncTemporarilyUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach right now'**
+  String get lanSyncTemporarilyUnreachable;
+
+  /// No description provided for @lanSyncListening.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening'**
+  String get lanSyncListening;
+
+  /// No description provided for @lanSyncCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get lanSyncCopy;
+
+  /// No description provided for @lanSyncMoreActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get lanSyncMoreActions;
+
+  /// No description provided for @lanSyncEndpointTip.
+  ///
+  /// In en, this message translates to:
+  /// **'One tile per address: tap the name to rename it, tap the latency for details — when it was last measured, how many syncs it has carried, when it was added. Edit or delete the address there.'**
+  String get lanSyncEndpointTip;
+
+  /// No description provided for @lanSyncJustNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Just now'**
+  String get lanSyncJustNow;
+
+  /// No description provided for @lanSyncShowAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'Addresses'**
+  String get lanSyncShowAddresses;
+
+  /// No description provided for @lanSyncPairTrustTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a code only on a network you trust: it stops a passive eavesdropper, not a machine in the middle. The QR carries the other device\'s certificate fingerprint, which is why it is the safer half.'**
+  String get lanSyncPairTrustTip;
+
+  /// No description provided for @lanSyncNoAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'No address is remembered for this device.'**
+  String get lanSyncNoAddress;
+
+  /// No description provided for @lanSyncAddAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Add address'**
+  String get lanSyncAddAddress;
+
+  /// No description provided for @lanSyncAddressLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'This device already remembers {count} addresses for that device. Remove one before adding another.'**
+  String lanSyncAddressLimit(Object count);
+
+  /// No description provided for @lanSyncRenameEndpointTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Address name'**
+  String get lanSyncRenameEndpointTitle;
+
+  /// No description provided for @lanSyncRenameEndpointHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Home network'**
+  String get lanSyncRenameEndpointHint;
+
+  /// No description provided for @lanSyncEndpointLatency.
+  ///
+  /// In en, this message translates to:
+  /// **'Latency'**
+  String get lanSyncEndpointLatency;
+
+  /// No description provided for @lanSyncEndpointLastMeasured.
+  ///
+  /// In en, this message translates to:
+  /// **'Last measured'**
+  String get lanSyncEndpointLastMeasured;
+
+  /// No description provided for @lanSyncEndpointLastReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Last connected'**
+  String get lanSyncEndpointLastReached;
+
+  /// No description provided for @lanSyncEndpointSuccessCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncs'**
+  String get lanSyncEndpointSuccessCount;
+
+  /// No description provided for @lanSyncEndpointAddedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Added'**
+  String get lanSyncEndpointAddedAt;
+
+  /// No description provided for @lanSyncEndpointSuccessTimes.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} times'**
+  String lanSyncEndpointSuccessTimes(Object n);
+
+  /// No description provided for @lanSyncDeleteEndpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this address'**
+  String get lanSyncDeleteEndpoint;
+
+  /// No description provided for @lanSyncEndpointUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not reachable'**
+  String get lanSyncEndpointUnreachable;
+
+  /// No description provided for @lanSyncSupersededByPeer.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device is running this sync.'**
+  String get lanSyncSupersededByPeer;
 
   /// Title for the proactive care enable switch
   ///

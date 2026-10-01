@@ -43,6 +43,13 @@ class AssistantProvider extends ChangeNotifier {
 
   late final Future<void> loaded;
 
+  /// Re-reads assistants after LAN sync wrote business rows outside this
+  /// provider's own write path (ADR-0003 apply → reload).
+  Future<void> reloadAfterExternalChange() async {
+    await _load();
+    notifyListeners();
+  }
+
   Future<void> _load() async {
     if (!preferences.isLoaded) {
       await preferences.load();
@@ -63,7 +70,9 @@ class AssistantProvider extends ChangeNotifier {
             av.isNotEmpty &&
             (av.startsWith('/') || av.contains(':')) &&
             !av.startsWith('http')) {
-          final fixed = SandboxPathResolver.fix(av);
+          // Canonicalize legacy absolute paths into kelivo-file URIs (the
+          // portable stored form); an already-canonical URI stays as-is.
+          final fixed = SandboxPathResolver.canonicalStorage(av);
           if (fixed != av) {
             av = fixed;
             changed = true;
@@ -74,7 +83,7 @@ class AssistantProvider extends ChangeNotifier {
             bg.isNotEmpty &&
             (bg.startsWith('/') || bg.contains(':')) &&
             !bg.startsWith('http')) {
-          final fixedBg = SandboxPathResolver.fix(bg);
+          final fixedBg = SandboxPathResolver.canonicalStorage(bg);
           if (fixedBg != bg) {
             bg = fixedBg;
             changed = true;
@@ -216,7 +225,7 @@ class AssistantProvider extends ChangeNotifier {
         '${dir.path}/${prefix}_${newId}_${DateTime.now().millisecondsSinceEpoch}.$ext',
       );
       await src.copy(dest.path);
-      return dest.path;
+      return SandboxPathResolver.canonicalStorage(dest.path);
     } catch (_) {
       return rawPath;
     }
@@ -241,7 +250,9 @@ class AssistantProvider extends ChangeNotifier {
     final managedDir = await directoryAsync();
     final managedRoot = p.normalize(managedDir.absolute.path);
     final sourcePath = p.normalize(src.absolute.path);
-    if (p.isWithin(managedRoot, sourcePath)) return fixed;
+    if (p.isWithin(managedRoot, sourcePath)) {
+      return SandboxPathResolver.canonicalStorage(fixed);
+    }
 
     if (!await managedDir.exists()) {
       await managedDir.create(recursive: true);
@@ -257,7 +268,7 @@ class AssistantProvider extends ChangeNotifier {
       ),
     );
     await src.copy(dest.path);
-    return dest.path;
+    return SandboxPathResolver.canonicalStorage(dest.path);
   }
 
   Future<void> _deleteManagedFileIfOwned(
@@ -270,11 +281,17 @@ class AssistantProvider extends ChangeNotifier {
     try {
       final dir = await directoryAsync();
       final root = p.normalize(dir.absolute.path);
-      final targetFile = File(raw);
+      // The stored value may be a canonical kelivo-file URI or a legacy path.
+      final targetFile = File(SandboxPathResolver.fix(raw));
       final target = p.normalize(targetFile.absolute.path);
       if (!p.isWithin(root, target)) return;
       if (replacementPath != null &&
-          p.equals(target, p.normalize(File(replacementPath).absolute.path))) {
+          p.equals(
+            target,
+            p.normalize(
+              File(SandboxPathResolver.fix(replacementPath)).absolute.path,
+            ),
+          )) {
         return;
       }
       if (await targetFile.exists()) {

@@ -169,6 +169,7 @@ class SyncEngine implements SyncServerHandler {
     required this.store,
     required this.dataPlane,
     required this.onStateChanged,
+    this.onProgressChanged,
     int Function()? clockUs,
   }) : clockUs = clockUs ?? (() => DateTime.now().microsecondsSinceEpoch);
 
@@ -180,9 +181,16 @@ class SyncEngine implements SyncServerHandler {
   /// feeds nothing else — row clocks keep coming from the write path.
   final int Function() clockUs;
 
-  /// Called whenever engine-visible state changes (pairing window, session
-  /// progress, peer list) so the UI can rebuild.
+  /// Called whenever engine-visible state changes (pairing window, peer list,
+  /// session start and end) so the UI can rebuild.
   final void Function() onStateChanged;
+
+  /// Called for the beats *inside* a running session, the file counter above
+  /// all: it advances once per pulled blob. A consumer that reloads peer
+  /// records on [onStateChanged] must not do it here — a beat cannot have
+  /// changed a record, and a first sync pulls hundreds of blobs. Defaults to
+  /// [onStateChanged], which is always correct and only costs that reload.
+  final void Function()? onProgressChanged;
 
   /// This device's own candidate addresses, pushed by the provider whenever it
   /// re-enumerates them. The dial uses them to tell an address on the network
@@ -229,7 +237,7 @@ class SyncEngine implements SyncServerHandler {
       attempt: attempt,
       attempts: attempts,
     );
-    onStateChanged();
+    (onProgressChanged ?? onStateChanged)();
   }
 
   /// What this device published for a manifest, by content hash: files are

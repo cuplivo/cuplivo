@@ -289,6 +289,13 @@ class _Side {
   late final SyncEngine engine;
   late final int port;
 
+  /// How many times the engine reported a record-affecting change, and how many
+  /// progress beats it published. Two channels on purpose: a blob pull fires the
+  /// second once per file and must not fire the first, which is what keeps the
+  /// panel from re-reading every peer record per file.
+  int stateChanges = 0;
+  int progressChanges = 0;
+
   /// This side's managed file root: `kelivo-file:///<rel>` resolves under it.
   /// One test process hosts both peers, so the sandbox resolver's single
   /// global root cannot serve both — each plane gets this instead.
@@ -459,7 +466,8 @@ class _Side {
       identity: identity,
       store: store,
       dataPlane: dataPlane,
-      onStateChanged: () {},
+      onStateChanged: () => stateChanges++,
+      onProgressChanged: () => progressChanges++,
       clockUs: () => DateTime.now().microsecondsSinceEpoch + clockOffsetUs,
     );
     port = await engine.start(preferredPort: 0);
@@ -755,6 +763,26 @@ Future<int> _unusedPort() async {
 
 /// Unpair propagation is fire-and-forget on purpose (unpairing must not wait
 /// on a peer), so a test that asserts the *peer* reacted has to poll for it.
+/// A process-wide stand-in for a machine with a proxy exported: every client the
+/// code under test builds is born with the environment's decision, the way
+/// `findProxyFromEnvironment` would have given it one.
+///
+/// `HttpClient.findProxy` is write-only, so this is the only way to make the
+/// rule observable from inside the process that runs it. The alternative — the
+/// machine's own environment — is not test state, and on CI it decides DIRECT
+/// for every address, which is how a guard becomes decoration.
+class _ProxiedEnvironment extends HttpOverrides {
+  _ProxiedEnvironment(this.environment);
+
+  final Map<String, String> environment;
+
+  @override
+  HttpClient createHttpClient(SecurityContext? context) =>
+      super.createHttpClient(context)
+        ..findProxy = (uri) =>
+            HttpClient.findProxyFromEnvironment(uri, environment: environment);
+}
+
 Future<void> _waitUntil(
   Future<bool> Function() check, {
   Duration timeout = const Duration(seconds: 10),
@@ -4393,6 +4421,56 @@ void main() {
     expect(provider.isPeerOnline('peer-device'), isTrue);
   });
 
+  test('a session with nothing to dial does not leave the dot green', () async {
+    final a = _Side('a');
+    await a.start(root, withEngine: false);
+    sides.add(a);
+
+    // The presence rounds are held open, so nothing but the session's own
+    // bookkeeping can move the dot while this test asserts — that is the state
+    // the peer is left in when the round that would correct it is in flight.
+    final presenceGate = Completer<void>();
+    addTearDown(() {
+      if (!presenceGate.isCompleted) presenceGate.complete();
+    });
+    final provider = await a.startProvider(
+      presenceProbe: (_) async {
+        await presenceGate.future;
+        return false;
+      },
+    );
+
+    // A peer recorded without an address: the state the card exists to let the
+    // user repair, and the one where a session has nothing to dial. No session
+    // has run against it, so no verdict is holding the dot either way.
+    await a.store.savePeer(
+      SyncPeerRecord(
+        deviceId: 'peer-no-address',
+        certPem: 'pem',
+        secret: 'secret',
+        name: 'Studio desktop',
+        platform: 'android',
+      ),
+    );
+    await provider.refreshPeers();
+
+    final report = await provider.syncNow('peer-no-address');
+    expect(report?.failure, SyncFailureReason.noEndpoint);
+
+    // The session marks its peer online on the way in. With nothing dialed there
+    // is no evidence behind that mark, and with no endpoint no probe will ever
+    // supply any — so it must not survive the session that made it.
+    expect(
+      provider.isPeerOnline('peer-no-address'),
+      isFalse,
+      reason: 'a session that dialed nothing proved nothing',
+    );
+    expect(
+      provider.peerPresenceSource('peer-no-address'),
+      PresenceSource.unknown,
+    );
+  });
+
   test('a session that cannot talk outranks a probe that can', () async {
     final a = _Side('a');
     final b = _Side('b');
@@ -4515,34 +4593,69 @@ void main() {
     // Dart's default `findProxy` is `findProxyFromEnvironment`, and the addresses
     // a real pairing remembers — a NAT'd public one, an IPv6 one — are not in a
     // typical NO_PROXY, which lists private ranges only. `HttpClient.findProxy`
-    // is write-only, so the rule cannot be asserted as a value; what *is*
-    // assertable is the behaviour it exists for: every loopback session in this
-    // file connects while the process runs with a proxy exported, and would fail
-    // if the factory ever handed the dial to it. This test pins the one property
-    // the rest of the suite depends on being true, on a host the environment's
-    // NO_PROXY does not list.
+    // is write-only, so the rule cannot be asserted as a value; what is
+    // assertable is the behaviour it exists for, with the environment that would
+    // swallow the dial *installed* instead of hoped for. Relying on the machine
+    // running the test to export a proxy made this pass on CI whether or not the
+    // rule was there, which guards nothing.
     final side = _Side('a');
     sides.add(side);
     await side.start(root);
 
+    final deadProxy = await _unusedPort();
+    final proxyEnvironment = <String, String>{
+      'http_proxy': 'http://127.0.0.1:$deadProxy',
+      'https_proxy': 'http://127.0.0.1:$deadProxy',
+      'all_proxy': 'socks5://127.0.0.1:$deadProxy',
+    };
+    // The environment under test is one the SDK would really dial through, so a
+    // green subject case below cannot be an empty environment in disguise.
+    expect(
+      HttpClient.findProxyFromEnvironment(
+        Uri.parse('https://183.173.213.34:9527/sync/hello'),
+        environment: proxyEnvironment,
+      ),
+      isNot('DIRECT'),
+    );
+
     final socket = await ServerSocket.bind(InternetAddress('127.0.0.2'), 0);
     try {
-      final client = SyncClient.directClient(side.identity.buildContext());
-      final request = await client.getUrl(
-        Uri.parse('http://127.0.0.2:${socket.port}/sync/hello'),
+      final previousOverrides = HttpOverrides.current;
+      HttpOverrides.global = _ProxiedEnvironment(proxyEnvironment);
+      addTearDown(() => HttpOverrides.global = previousOverrides);
+
+      Future<int> dial(HttpClient client) async {
+        final request = await client.getUrl(
+          Uri.parse('http://127.0.0.2:${socket.port}/sync/hello'),
+        );
+        // The request waits for a response, so it is answered by hand below. A
+        // raw socket is the point: what is asserted is *which* endpoint the
+        // bytes reached — a proxied dial connects to the proxy's port instead
+        // and leaves the accept() below to time out.
+        final response = await request.close();
+        return response.statusCode;
+      }
+
+      // The control half, and what makes the subject half mean anything: a client
+      // built the plain way — which is what the code would be if the rule were
+      // dropped — is handed to the proxy and never reaches the listener.
+      final plain = HttpClient();
+      addTearDown(() => plain.close(force: true));
+      await expectLater(
+        dial(plain),
+        throwsA(isA<SocketException>()),
+        reason: 'the installed environment really does swallow a plain dial',
       );
-      // The request waits for a response, so it is answered by hand below. A raw
-      // socket is the point: what is asserted is *which* endpoint the bytes
-      // reached, and a proxied dial would connect to the proxy's port instead,
-      // leaving this accept() to time out.
-      final pending = request.close();
+
+      // The subject: the one factory every peer dial goes through.
+      final direct = SyncClient.directClient(side.identity.buildContext());
+      addTearDown(() => direct.close(force: true));
+      final pending = dial(direct);
       final connection = await socket.first.timeout(const Duration(seconds: 5));
       connection.write('HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n');
       await connection.flush();
-      final response = await pending;
-      expect(response.statusCode, HttpStatus.ok);
+      expect(await pending, HttpStatus.ok);
       connection.destroy();
-      client.close(force: true);
     } finally {
       await socket.close();
     }
@@ -4654,4 +4767,59 @@ void main() {
       reason: 'progress lives exactly as long as the session',
     );
   });
+
+  test(
+    'a file beat is not a record change, however many files it pulls',
+    () async {
+      final (a, b) = await pair();
+
+      // A pulls B's files, so the beat under test is this device's own blob
+      // counter — the one that advances once per pulled blob.
+      await _writeBlob(b, 'images/shot.png', 'first');
+      await _seedConversationWithImage(
+        b,
+        id: 'conv-img',
+        uri: 'kelivo-file:///images/shot.png',
+      );
+
+      final beforeOne = a.stateChanges;
+      final beatsBeforeOne = a.progressChanges;
+      final one = await a.engine.syncWithPeer(await a.peer(b));
+      expect(one.success, isTrue, reason: one.summary);
+      expect(one.blobsMoved, 1);
+      final recordsForOneFile = a.stateChanges - beforeOne;
+      final beatsForOneFile = a.progressChanges - beatsBeforeOne;
+
+      for (var i = 0; i < 4; i++) {
+        await _writeBlob(b, 'images/more$i.png', 'body$i');
+        await _seedConversationWithImage(
+          b,
+          id: 'conv-more$i',
+          uri: 'kelivo-file:///images/more$i.png',
+        );
+      }
+
+      final beforeFour = a.stateChanges;
+      final beatsBeforeFour = a.progressChanges;
+      final four = await a.engine.syncWithPeer(await a.peer(b));
+      expect(four.success, isTrue, reason: four.summary);
+      expect(four.blobsMoved, 4);
+
+      // The beats flowed — one per file and one to close the pull — so the
+      // assertion below is about the channel they flowed on, not about a pull
+      // that never happened.
+      expect(
+        a.progressChanges - beatsBeforeFour,
+        greaterThan(beatsForOneFile + 2),
+        reason: 'the file counter feeds the progress channel',
+      );
+      // The panel reloads every peer record on the record channel, so that channel
+      // must not grow with the file count: four files cost what one file cost.
+      expect(
+        a.stateChanges - beforeFour,
+        recordsForOneFile,
+        reason: 'a beat cannot have changed a peer record',
+      );
+    },
+  );
 }

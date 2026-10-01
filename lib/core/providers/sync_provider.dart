@@ -316,6 +316,9 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
           ),
         ),
         onStateChanged: _onEngineStateChanged,
+        // A beat only repaints the card: it cannot have changed a peer record,
+        // and the blob pull fires one per file.
+        onProgressChanged: _notify,
       );
       _store = store;
       _engine = engine;
@@ -586,12 +589,23 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       case SyncFailureReason.timeout:
         answered = false;
       case SyncFailureReason.noEndpoint:
+        // Nothing was dialed. The session optimistically turned the dot green
+        // on its way in, and a peer with no endpoint gives the presence round no
+        // probe to correct it — so the leak is closed here and not left to the
+        // next refresh, which a round already in flight would not run.
+        onlineDeviceIds.remove(deviceId);
+        _notify();
         return;
       case SyncFailureReason.peerError:
       case SyncFailureReason.internal:
       case null:
         // Success, a refusal, or a failure that needed an answer to happen: the
-        // peer is there.
+        // peer is there. `internal` is the catch-all and covers a failure that
+        // never left this device — a manifest build against a broken database, a
+        // certificate context that will not open — so a local fault can file
+        // "answered" for up to `sessionVerdictTtl`. It is not worth a distinct
+        // signal: a 401 refusal is `internal` too, and only one of the two is an
+        // answer, so the reason alone cannot grade this.
         answered = true;
     }
     _sessionVerdicts[deviceId] = (answered: answered, at: DateTime.now());

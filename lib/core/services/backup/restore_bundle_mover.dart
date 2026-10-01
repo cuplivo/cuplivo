@@ -4,6 +4,8 @@ import 'package:path/path.dart' as p;
 
 import '../../database/app_database.dart';
 import '../../database/chat_database_repository.dart';
+import '../../../utils/app_directories.dart';
+import '../sync/sync_store.dart';
 import 'restore_bundle_staging.dart';
 import 'restore_durability.dart';
 import 'restore_previous_builder.dart';
@@ -26,6 +28,16 @@ final class RestoreBundleMover {
   final Directory candidateDirectory;
   final RestorePreviousStore previousStore;
   final RestoreDurability durability;
+
+  /// Drops the LAN-sync state a database replacement invalidates: every
+  /// per-peer checkpoint describes a history this device no longer holds, and
+  /// the data epoch is bumped so paired devices re-converge from "nothing
+  /// shared" instead of reading the lost rows as deletions (which would delete
+  /// their own copies to match). Runs after the new database is installed and
+  /// verified; idempotent, so an interrupted cutover may repeat it.
+  Future<void> resetSyncState() => SyncStore.resetForBulkReplacement(
+    Directory(p.join(appDataDirectory.path, AppDirectories.syncDirName)),
+  );
 
   /// Moves the selected live objects into the pending previous bundle.
   ///

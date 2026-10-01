@@ -840,8 +840,12 @@ void main() {
   testWidgets(
     'structured image restores viewer, aspect, bubble, and ResizeImage',
     (tester) async {
+      // A real, valid 2x1 RGBA PNG, because the decode below is a real decode:
+      // every chunk CRC and the whole IDAT pixel row have to be correct. A
+      // fixture with bad CRCs and a short pixel row survives libpng's lenient
+      // path but is rejected as invalid image data by stricter decoders.
       const png =
-          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD5N/qhAAAAEklEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR42mP4z8AAQv8BD/kD/Zh51wAAAAAASUVORK5CYII=';
       await tester.pumpWidget(
         _buildHarness(
           child: ChatMessageWidget(

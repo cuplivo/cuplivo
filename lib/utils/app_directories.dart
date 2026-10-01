@@ -72,6 +72,16 @@ class AppDirectories {
   static Future<Directory> getEnvironmentDirectory() =>
       _ensureSubdir('environment');
 
+  /// LAN sync device state: `<appData>/sync` (identity, peers, checkpoints).
+  /// Deliberately outside the backup face — the device private key and the
+  /// per-peer checkpoints are device-local by definition (ADR-0003).
+  static Future<Directory> getSyncDirectory() => _ensureSubdir(syncDirName);
+
+  /// The sync directory's name under the app data root. Exported because the
+  /// restore cutover resets sync state before any provider exists and so
+  /// builds the path itself (see `SyncStore.resetForBulkReplacement`).
+  static const syncDirName = 'sync';
+
   /// Files root for a managed workspace: `<appData>/workspaces/<id>/files`.
   static Future<Directory> workspaceFilesDir(String workspaceId) {
     return _ensurePath('workspaces/$workspaceId/files');

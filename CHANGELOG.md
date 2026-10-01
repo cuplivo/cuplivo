@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **LAN sync stalls on a foreign-key error**: when one device had deleted a message (or regenerated past it) that the other device had generated, every sync session with that peer failed forever with `FOREIGN KEY constraint failed`. Applying the deletion removed the message row but left the generation run that targets it, and that run's deferred foreign key rejected the transaction at commit — so the checkpoint never advanced and each retry repeated the same failure. A deleted revision now takes its generation run with it, exactly as a local deletion does.
+
 ## [4.0.0] - 2026-09-28
 
 > Cuplivo 4.0 — a restart

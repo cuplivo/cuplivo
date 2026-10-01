@@ -2637,6 +2637,42 @@ class ChatService extends ChangeNotifier {
     return report;
   }
 
+  /// Bumped for each conversation an *external* writer (LAN sync's apply)
+  /// changed. A window that has already rendered the row set holds the counter
+  /// it rendered with, so a notification for any other reason never rebuilds
+  /// it, and a rebuild that had to be skipped — a local generation owned the
+  /// window — still happens on the next notification.
+  final Map<String, int> _externalWriteRevisions = <String, int>{};
+
+  /// How many external writes have landed in [conversationId] since launch.
+  int externalWriteRevision(String conversationId) =>
+      _externalWriteRevisions[conversationId] ?? 0;
+
+  /// Re-reads persisted chat state after an external writer changed the
+  /// database — used by LAN sync apply (ADR-0003), which writes rows through
+  /// the repository and then needs the in-memory caches to catch up. Mirrors
+  /// the post-merge tail of [mergeDatabaseSnapshot]; no restart is involved.
+  ///
+  /// [touchedConversations] names what the external writer changed. It does not
+  /// narrow the cache reload — the persisted caches are shared and the reload
+  /// here is the one the apply path has always run — it marks those
+  /// conversations so the open window knows to rebuild itself instead of
+  /// leaving the user on pre-sync content (see [externalWriteRevision]).
+  Future<void> reloadAfterExternalChange({
+    Set<String>? touchedConversations,
+  }) async {
+    if (touchedConversations != null) {
+      for (final conversationId in touchedConversations) {
+        _externalWriteRevisions[conversationId] =
+            (_externalWriteRevisions[conversationId] ?? 0) + 1;
+      }
+    }
+    _clearPersistedMessageCache();
+    await _backfillAssetReferencesForCurrentRoot();
+    await _loadConversationsCache();
+    notifyListeners();
+  }
+
   /// Chats-only merge/restore follow-up for imported conversations.
   Future<int> recomputeImportedAttachmentAvailability({
     required Iterable<String> conversationIds,

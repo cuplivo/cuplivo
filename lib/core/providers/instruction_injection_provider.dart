@@ -78,6 +78,13 @@ class InstructionInjectionProvider with ChangeNotifier {
     }
   }
 
+  /// Re-reads instruction injections after LAN sync wrote them outside this
+  /// provider.
+  Future<void> reloadAfterExternalChange() async {
+    await loadAll();
+    notifyListeners();
+  }
+
   Future<void> loadAll() async {
     try {
       _items = await _store.getAll();

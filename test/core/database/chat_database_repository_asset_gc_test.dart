@@ -565,4 +565,106 @@ void main() {
       expect(parts[2].unavailable, isFalse); // data
     },
   );
+
+  test('an asset-reference replacement is scoped to its conversation', () async {
+    // The sync caller feeds replaceMessageAssetReferences revision ids that
+    // arrive from the wire; a revision id is a global primary key, so the
+    // delete inside must never unlink a same-named message of another
+    // conversation.
+    final root = await Directory.systemTemp.createTemp('asset_scope_');
+    final dbFile = File('${root.path}/assets.sqlite');
+    final repository = ChatDatabaseRepository.open(file: dbFile);
+    addTearDown(() async {
+      await repository.close();
+      await root.delete(recursive: true);
+    });
+    final now = DateTime.utc(2026, 9, 1);
+    final victim = Conversation(
+      id: 'conversation-victim',
+      title: 'Victim',
+      createdAt: now,
+      updatedAt: now,
+      messageIds: const ['revision-shared'],
+    );
+    final attacker = Conversation(
+      id: 'conversation-attacker',
+      title: 'Attacker',
+      createdAt: now,
+      updatedAt: now,
+      messageIds: const ['revision-attacker'],
+    );
+    ChatMessage message(String id, String conversationId) => ChatMessage(
+      id: id,
+      role: 'user',
+      content: 'x',
+      timestamp: now,
+      conversationId: conversationId,
+    );
+    await repository.putMigrationBatch(
+      conversations: [victim, attacker],
+      messages: [
+        (message: message('revision-shared', victim.id), messageOrder: 0),
+        (message: message('revision-attacker', attacker.id), messageOrder: 0),
+      ],
+      toolEventsByMessageId: const {},
+      geminiSignaturesByMessageId: const {},
+    );
+    await repository.registerAsset(
+      id: 'asset-victim',
+      contentHash: List.filled(64, 'v').join(),
+      path: '${root.path}/v.png',
+      byteSize: 1,
+      createdAt: now,
+    );
+    await repository.linkMessageAsset(
+      conversationId: victim.id,
+      revisionId: 'revision-shared',
+      assetId: 'asset-victim',
+      kind: 'image',
+    );
+
+    // The wire scenario: a subtree of the attacker conversation carries a
+    // part whose revision_id names the victim's message. Before the fix the
+    // unscoped delete below unlinked the victim's row (and the asset GC then
+    // quarantined the file); now only the attacker conversation is touched.
+    await repository.registerAsset(
+      id: 'asset-attacker',
+      contentHash: List.filled(64, 'a').join(),
+      path: '${root.path}/a.png',
+      byteSize: 1,
+      createdAt: now,
+    );
+    await repository.replaceMessageAssetReferences(
+      conversationId: attacker.id,
+      revisionId: 'revision-shared',
+      assets: [
+        MessageAssetRegistration(
+          assetId: 'asset-attacker',
+          contentHash: List.filled(64, 'a').join(),
+          path: '${root.path}/a.png',
+          byteSize: 1,
+          kind: 'image',
+        ),
+      ],
+    );
+
+    final raw = sqlite.sqlite3.open(dbFile.path);
+    try {
+      final rows = raw.select(
+        'SELECT conversation_id, revision_id, asset_id FROM message_asset_rows '
+        'ORDER BY conversation_id;',
+      );
+      expect(rows, hasLength(2));
+      expect(rows[0]['conversation_id'], attacker.id);
+      expect(rows[0]['revision_id'], 'revision-shared');
+      expect(rows[0]['asset_id'], 'asset-attacker');
+      expect(rows[1]['conversation_id'], victim.id);
+      expect(rows[1]['revision_id'], 'revision-shared');
+      expect(rows[1]['asset_id'], 'asset-victim');
+    } finally {
+      raw.close();
+    }
+    // Both assets stay referenced, so the sweep claims neither.
+    expect(await repository.scheduleUnreferencedAssetGc(notBefore: now), 0);
+  });
 }

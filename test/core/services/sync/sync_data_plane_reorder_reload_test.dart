@@ -14,10 +14,15 @@ import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-/// The reload tail of an apply whose only change was the *order* of a
-/// conversation's messages: the rows are already here, so every counter the
-/// apply reports stays at zero while the timeline the user reads does not. An
-/// open window has to be told, or it keeps rendering the pre-sync order.
+/// The reload tail of an apply: what the peer sent has to reach a window that
+/// is already open on the conversation, or the user keeps reading pre-sync
+/// content until they switch conversations and back.
+///
+/// The trigger is "the peer sent this conversation", not "a counter moved":
+/// counters cannot express every change a subtree carries — a repaired message
+/// order was the first such case, a written asset reference is another — and a
+/// rule that has to be extended once per newly discovered silent write is a
+/// rule that will be wrong again.
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.path);
 
@@ -176,8 +181,57 @@ void main() {
     expect(again.reordered, isFalse);
     expect(
       chatService.externalWriteRevision(conversationId),
-      settled,
-      reason: 'an apply with nothing to do must not wake the window',
+      greaterThan(settled),
+      reason:
+          'the trigger is "the peer sent it", so an arrived conversation wakes '
+          'the window even when every counter says nothing moved — that is the '
+          'price of not guessing which writes are silent',
     );
   });
+
+  test(
+    'a registered asset reference wakes the window the rows do not',
+    () async {
+      // A write invisible to every message counter: the reference for a file is
+      // registered here (the retry that lands the bytes in a later session), so
+      // the attachment starts resolving while the row it hangs off never moved.
+      await seedShiftedOrder();
+      final before = chatService.externalWriteRevision(conversationId);
+
+      await dataPlane.registerLandedAssets(
+        subtrees: [
+          const SyncSubtreePayload(
+            conversation: {'id': conversationId},
+            messages: [],
+            parts: [
+              {
+                'revision_id': 'm1',
+                'kind': 'image',
+                'payload': '{"path":"kelivo-file:///images/x.png"}',
+              },
+            ],
+          ),
+        ],
+        outcomes: {
+          conversationId: const SyncSubtreeApplyOutcome(
+            appliedRevisionIds: {'m1'},
+          ),
+        },
+        advertisedByUri: const {
+          'kelivo-file:///images/x.png': SyncBlobEntry(
+            kind: SyncBlobEntry.kindFile,
+            key: 'kelivo-file:///images/x.png',
+            contentHash: 'hash',
+            byteSize: 12,
+          ),
+        },
+      );
+
+      expect(
+        chatService.externalWriteRevision(conversationId),
+        greaterThan(before),
+        reason: 'the window has to re-read it, or the file stays invisible',
+      );
+    },
+  );
 }

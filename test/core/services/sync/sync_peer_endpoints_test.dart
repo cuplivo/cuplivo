@@ -123,4 +123,48 @@ void main() {
       expect(restored.primaryEndpoint?.host, '10.0.0.3');
     });
   });
+
+  group('SyncPeerRecord naming', () {
+    test('a manual rename round-trips and wins over the reported name', () {
+      final peer = record();
+      peer.customName = 'Studio';
+      expect(peer.displayName, 'Studio');
+
+      final restored = SyncPeerRecord.fromJson(peer.toJson());
+      expect(restored.displayName, 'Studio');
+      expect(
+        restored.name,
+        'peer',
+        reason: 'the reported name is still tracked beside the override',
+      );
+    });
+
+    test('a record with no override reads as the reported name', () {
+      final restored = SyncPeerRecord.fromJson({
+        'deviceId': 'd' * 64,
+        'certPem': 'pem',
+        'secret': 'secret',
+        'name': 'peer',
+      });
+      expect(restored.customName, isNull);
+      expect(restored.displayName, 'peer');
+    });
+
+    test('a blank override is no override', () {
+      // An empty rename dialog must not blank a card.
+      final restored = SyncPeerRecord.fromJson({
+        'deviceId': 'd' * 64,
+        'certPem': 'pem',
+        'secret': 'secret',
+        'name': 'peer',
+        'customName': '   ',
+      });
+      expect(restored.customName, isNull);
+      expect(restored.displayName, 'peer');
+    });
+
+    test('an override is not written when there is none', () {
+      expect(record().toJson().containsKey('customName'), isFalse);
+    });
+  });
 }

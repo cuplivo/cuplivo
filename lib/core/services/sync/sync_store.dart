@@ -76,7 +76,7 @@ class SyncStore {
         debugPrint('sync store: skipping unreadable peer file: $error');
       }
     }
-    records.sort((a, b) => a.name.compareTo(b.name));
+    records.sort((a, b) => a.displayName.compareTo(b.displayName));
     return records;
   }
 
@@ -295,7 +295,18 @@ class SyncPeerRecord {
   /// [SyncServer]).
   String secret;
 
+  /// The name the peer last reported for itself. Re-pairing refreshes it —
+  /// the QR re-scan is the drift-repair journey, so that happens often.
   String name;
+
+  /// The name this device's user typed over it, or null when the reported name
+  /// was never overridden. A re-pair carries it over: a rename made on this
+  /// card outlives whatever the peer calls itself this week.
+  String? customName;
+
+  /// What every card, dialog and announcement shows.
+  String get displayName => customName ?? name;
+
   String platform;
 
   /// Remembered endpoints, best first: the one a session last succeeded over,
@@ -303,6 +314,9 @@ class SyncPeerRecord {
   /// without an address at all.
   List<SyncPeerEndpoint> endpoints;
 
+  /// When a session last *succeeded* with this peer. Failures keep the stamp:
+  /// the line answers "how fresh is what I see?", which an unreachable peer
+  /// does not change.
   DateTime? lastSyncedAt;
 
   /// Outcome of the most recent session with this peer, as counters so the
@@ -314,6 +328,7 @@ class SyncPeerRecord {
     required this.certPem,
     required this.secret,
     required this.name,
+    this.customName,
     required this.platform,
     List<SyncPeerEndpoint>? endpoints,
     this.lastSyncedAt,
@@ -375,6 +390,7 @@ class SyncPeerRecord {
     'certPem': certPem,
     'secret': secret,
     'name': name,
+    if (customName != null) 'customName': customName,
     'platform': platform,
     'endpoints': [for (final endpoint in endpoints) endpoint.toJson()],
     'lastSyncedAtMs': lastSyncedAt?.millisecondsSinceEpoch,
@@ -389,6 +405,11 @@ class SyncPeerRecord {
     // it is paired again.
     secret: (json['secret'] as String?) ?? '',
     name: (json['name'] as String?) ?? 'Unknown device',
+    // A blank override is no override: an empty rename dialog must not blank
+    // the card, and old files simply have no field to read.
+    customName: ((json['customName'] as String?) ?? '').trim().isEmpty
+        ? null
+        : json['customName'] as String,
     platform: (json['platform'] as String?) ?? '',
     endpoints: _endpointsFromJson(json),
     lastSyncedAt: (json['lastSyncedAtMs'] as num?) == null

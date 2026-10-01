@@ -20,6 +20,25 @@ Future<void> _connectAndDiscard(String host, int port, Duration timeout) async {
   socket.destroy();
 }
 
+/// Whether *any* of [endpoints] answers a bare TCP connect — the panel's
+/// online dot. Same probe, same budget, same "a probe tests the address, never
+/// the peer" contract as [orderCandidates]; empty input is simply offline.
+Future<bool> anyEndpointReachable(
+  List<(String, int)> endpoints, {
+  Duration timeout = kSyncProbeTimeout,
+  CandidateConnect? connect,
+}) async {
+  if (endpoints.isEmpty) return false;
+  final probe = connect ?? _connectAndDiscard;
+  final answers = await Future.wait([
+    for (final (host, port) in endpoints)
+      Future<bool>.sync(
+        () => probe(host, port, timeout).then((_) => true),
+      ).catchError((Object _) => false),
+  ]);
+  return answers.any((answered) => answered);
+}
+
 /// Orders [candidates] for a serial dial.
 ///
 /// With more than one candidate every address is first probed with a bare TCP

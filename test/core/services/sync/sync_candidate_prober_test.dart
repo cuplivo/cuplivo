@@ -195,4 +195,46 @@ void main() {
       expect(ordered, candidates);
     });
   });
+
+  group('anyEndpointReachable', () {
+    test('one answering endpoint is enough', () async {
+      final started = <String>[];
+
+      final online = await anyEndpointReachable([
+        ('dead', 1),
+        ('live', 2),
+      ], connect: _probe({'live': true}, started: started));
+
+      expect(online, isTrue);
+      expect(started, [
+        'dead',
+        'live',
+      ], reason: 'the probe is parallel, like the dial-order probe');
+    });
+
+    test('every endpoint refusing is offline', () async {
+      expect(
+        await anyEndpointReachable([
+          ('a', 1),
+          ('b', 2),
+        ], connect: _probe(const {})),
+        isFalse,
+      );
+    });
+
+    test('a probe that throws is offline, not an error', () async {
+      // The dot must not take a widget rebuild down with it: an unexpected
+      // failure classifies the address exactly like a refused connection.
+      expect(
+        await anyEndpointReachable([
+          ('a', 1),
+        ], connect: (host, port, timeout) => throw StateError('exploded')),
+        isFalse,
+      );
+    });
+
+    test('a peer with no remembered address is offline', () async {
+      expect(await anyEndpointReachable(const []), isFalse);
+    });
+  });
 }

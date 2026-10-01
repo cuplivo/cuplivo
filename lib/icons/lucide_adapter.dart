@@ -133,6 +133,7 @@ class Lucide {
   static const IconData Map = lucide.LucideIcons.map;
   static const IconData MapPin = lucide.LucideIcons.mapPin;
   static const IconData CloudSun = lucide.LucideIcons.cloudSun;
+  static const IconData CloudOff = lucide.LucideIcons.cloudOff;
   static const IconData ListTodo = lucide.LucideIcons.listTodo;
   static const IconData ListPlus = lucide.LucideIcons.listPlus;
   static const IconData SquarePen = lucide.LucideIcons.squarePen;

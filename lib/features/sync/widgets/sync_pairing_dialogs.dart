@@ -14,6 +14,7 @@ import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
+import '../../../theme/app_semantic_colors.dart';
 import '../../scan/pages/qr_scan_page.dart';
 import '../sync_messages.dart';
 
@@ -256,6 +257,11 @@ class _PairingCodeDialogState extends State<_PairingCodeDialog> {
                       ),
                     ),
                   ),
+              const SizedBox(height: 14),
+              // The first sync starts the moment this window is used: it moves
+              // the whole history and needs both apps alive. Saying so here is
+              // the only moment the user is still holding both devices.
+              _FirstSyncNote(text: l10n.lanSyncPairFirstSyncNote),
             ],
           ),
         ),
@@ -338,7 +344,11 @@ class PairingQrImage extends StatelessWidget {
   }
 }
 
-Future<void> _showEnterCodeDialog(BuildContext context) async {
+Future<void> _showEnterCodeDialog(
+  BuildContext context, {
+  String? host,
+  int? port,
+}) async {
   // Re-enumerated for the same reason the showing side does it, in the other
   // direction: this side advertises its own addresses inside the pairing
   // request, and the peer remembers every candidate it is handed — so what it
@@ -347,21 +357,39 @@ Future<void> _showEnterCodeDialog(BuildContext context) async {
   unawaited(context.read<SyncProvider>().refreshLocalAddresses());
   await showDialog<void>(
     context: context,
-    builder: (_) => const _EnterCodeDialog(),
+    builder: (_) => _EnterCodeDialog(host: host, port: port),
   );
 }
 
+/// The "enter the other device's code" dialog, optionally prefilled with the
+/// address this device already remembers for that peer.
+///
+/// The repair a `not_paired` refusal asks for is exactly this dialog, and the
+/// user is looking at the card that knows the address — so the address travels
+/// with the request rather than being retyped from the card above. The code
+/// itself can only come from the other device's screen.
+Future<void> showSyncEnterCodeDialog({
+  required BuildContext context,
+  String? host,
+  int? port,
+}) => _showEnterCodeDialog(context, host: host, port: port);
+
 class _EnterCodeDialog extends StatefulWidget {
-  const _EnterCodeDialog();
+  const _EnterCodeDialog({this.host, this.port});
+
+  final String? host;
+  final int? port;
 
   @override
   State<_EnterCodeDialog> createState() => _EnterCodeDialogState();
 }
 
 class _EnterCodeDialogState extends State<_EnterCodeDialog> {
-  late final TextEditingController _host = TextEditingController();
+  late final TextEditingController _host = TextEditingController(
+    text: widget.host ?? '',
+  );
   late final TextEditingController _port = TextEditingController(
-    text: '${SyncEngine.kPreferredPort}',
+    text: '${widget.port ?? SyncEngine.kPreferredPort}',
   );
   late final TextEditingController _pin = TextEditingController();
   bool _busy = false;
@@ -509,6 +537,8 @@ class _EnterCodeDialogState extends State<_EnterCodeDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            _FirstSyncNote(text: l10n.lanSyncPairFirstSyncNote),
+            const SizedBox(height: 12),
             if (canScanPairingQr) ...[
               SizedBox(
                 width: double.infinity,
@@ -569,6 +599,47 @@ class _EnterCodeDialogState extends State<_EnterCodeDialog> {
           child: Text(_busy ? l10n.lanSyncPairingBusy : l10n.lanSyncPairButton),
         ),
       ],
+    );
+  }
+}
+
+/// The "keep both devices awake for the first sync" advisory both halve of the
+/// pairing surface carry: it is the one fact a user cannot discover from a
+/// spinner, and the first session after pairing is the longest one.
+class _FirstSyncNote extends StatelessWidget {
+  const _FirstSyncNote({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: context.appColors.warning.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Lucide.TriangleAlert,
+            size: 14,
+            color: context.appColors.warning,
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 12,
+                color: cs.onSurface.withValues(alpha: 0.75),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -47,11 +47,11 @@ void main() {
 
     // The persisted record is what the card shows after a restart.
     final persisted = SyncPeerReport.fromJson(report.toPeerReport().toJson());
+    expect(persisted.failure, SyncFailureReason.unreachable);
     expect(
-      syncPeerReportMessage(l10n, persisted),
-      l10n.lanSyncReportUnreachable,
+      syncFailureMessage(l10n, persisted.failure),
+      isNot(contains('192.168')),
     );
-    expect(syncPeerReportMessage(l10n, persisted), isNot(contains('192.168')));
   });
 
   test('a bad address is named as such, not as a bad code', () {
@@ -131,9 +131,51 @@ void main() {
     // which is what a record of this shape used to say.
     final persisted = SyncPeerReport.fromJson(report.toPeerReport().toJson());
     expect(persisted.failure, SyncFailureReason.noEndpoint);
+  });
+
+  test('the dial beat names the address, and which candidate it is', () {
+    // The dial is the one beat that can hang on an address that will never
+    // answer, so the label has to say which one and how many are left — an
+    // unqualified "connecting…" turns a diagnosable wait into a mystery.
     expect(
-      syncPeerReportMessage(l10n, persisted),
-      l10n.lanSyncReportNoEndpoint,
+      syncPhaseLabel(
+        l10n,
+        const SyncSessionProgress(
+          SyncSessionPhase.connecting,
+          address: '192.168.1.5:9527',
+          attempt: 2,
+          attempts: 3,
+        ),
+      ),
+      l10n.lanSyncPhaseConnectingAt('192.168.1.5:9527', 2, 3),
+    );
+    expect(
+      syncPhaseLabel(
+        l10n,
+        const SyncSessionProgress(
+          SyncSessionPhase.connecting,
+          address: '192.168.1.5:9527',
+          attempt: 1,
+          attempts: 1,
+        ),
+      ),
+      l10n.lanSyncPhaseConnectingTo('192.168.1.5:9527'),
+    );
+    // No address yet (the candidate ordering, or a session whose progress has
+    // not landed): the plain label, never the address form with empty parts.
+    expect(
+      syncPhaseLabel(
+        l10n,
+        const SyncSessionProgress(SyncSessionPhase.connecting),
+      ),
+      l10n.lanSyncPhaseConnecting,
+    );
+    expect(
+      syncPhaseLabel(
+        l10n,
+        const SyncSessionProgress(SyncSessionPhase.files, done: 2, total: 7),
+      ),
+      l10n.lanSyncPhaseFiles(2, 7),
     );
   });
 

@@ -12388,6 +12388,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lanSyncPairSectionTitle => 'Pair a device';
 
   @override
+  String get lanSyncPairFirstSyncNote =>
+      'After pairing, the first sync starts automatically and can take a while. Keep the desktop app running and this app in the foreground on mobile.';
+
+  @override
   String get lanSyncPairIntro =>
       'Show the QR on one device and scan it with the other. Without a camera, type the code instead. Both devices must be on the same network.';
 
@@ -12420,6 +12424,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lanSyncPairButton => 'Pair';
+
+  @override
+  String get lanSyncPairAgain => 'Pair again';
 
   @override
   String get lanSyncPairingBusy => 'Pairing…';
@@ -12547,7 +12554,57 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lanSyncSyncNow => 'Sync now';
 
   @override
-  String get lanSyncSyncing => 'Syncing…';
+  String get lanSyncOnline => 'Online';
+
+  @override
+  String get lanSyncOnlineFromSession => 'Online — the last sync connected';
+
+  @override
+  String get lanSyncOfflineFromSession =>
+      'Offline — the last sync could not connect';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return 'Connecting to $address…';
+  }
+
+  @override
+  String lanSyncPhaseConnectingAt(Object address, Object index, Object total) {
+    return 'Connecting to $address… ($index/$total)';
+  }
+
+  @override
+  String get lanSyncOffline => 'Offline';
+
+  @override
+  String get lanSyncUpToDate => 'Up to date';
+
+  @override
+  String get lanSyncPhaseConnecting => 'Connecting…';
+
+  @override
+  String get lanSyncPhaseExchanging => 'Comparing data…';
+
+  @override
+  String get lanSyncPhaseSending => 'Sending changes…';
+
+  @override
+  String get lanSyncPhaseReceiving => 'Receiving changes…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return 'Downloading files… ($done/$total)';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => 'Downloading files…';
+
+  @override
+  String get lanSyncPhaseApplying => 'Applying changes…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      'First sync in progress — keep both devices awake and Cuplivo open (in the foreground on mobile) until it finishes.';
 
   @override
   String get lanSyncRename => 'Rename';
@@ -12614,6 +12671,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n files · $size';
+  }
+
+  @override
   String lanSyncReportBlobs(Object n) {
     return '$n files';
   }
@@ -12644,6 +12706,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get lanSyncReportPeerOffline =>
+      'Not reachable right now — it may be asleep or on another network. Syncing resumes when both devices are back on the same one.';
+
+  @override
   String get lanSyncReportUnreachable =>
       'Sync failed: the other device could not be reached. It may be offline or on another network — rescan its QR code, or edit its address on the card.';
 
@@ -12672,7 +12738,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lanSyncRefusedNotPaired =>
-      'The other device no longer has this one paired. Pair again.';
+      'This device and the other one no longer agree on this pairing — it was unpaired there, or a re-pairing did not finish on both sides. Pair again on both devices.';
 
   @override
   String get lanSyncRefusedIdentityMismatch =>

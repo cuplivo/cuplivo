@@ -91,7 +91,7 @@ class SyncClient {
     List<String> candidateHosts = const [],
   }) async {
     X509Certificate? presented;
-    final client = HttpClient(context: identity.buildContext())
+    final client = SyncClient.directClient(identity.buildContext())
       ..badCertificateCallback = (cert, _, _) {
         presented = cert;
         if (expectedDeviceId != null) {
@@ -176,7 +176,7 @@ class SyncClient {
   }
 
   HttpClient _httpForPeer(SyncPeerRecord peer) {
-    final client = HttpClient(context: identity.buildContext())
+    final client = SyncClient.directClient(identity.buildContext())
       ..connectionTimeout = kSyncDialConnectTimeout
       // Pinning the listener's certificate is the whole server-side
       // authentication: nothing else can answer as this peer.
@@ -184,6 +184,25 @@ class SyncClient {
           crypto.sha256.convert(cert.der).toString() == peer.deviceId;
     return client;
   }
+
+  /// An HTTP client for a peer, always connected **directly**. The one place
+  /// that builds a client for a peer, so the rule cannot be bypassed by a second
+  /// call site, and public so a test can ask what it would do — the rule itself
+  /// is invisible at the call sites.
+  ///
+  /// Dart's default `findProxy` is `findProxyFromEnvironment`, so a proxy in the
+  /// environment (a Clash/v2ray style `HTTP_PROXY`/`ALL_PROXY`, which developers
+  /// and many desktop users run) swallows every dial towards a peer whose
+  /// address its `NO_PROXY` does not list — and that list is usually private
+  /// ranges only, while a peer is remembered at whatever address its network
+  /// handed out: a NAT'd public address, or an IPv6 one. The failure mode is
+  /// nastier than a plain outage: the *probe* that decides the online dot is a
+  /// bare `Socket.connect` and bypasses the proxy, so the card showed a green
+  /// dot next to sessions that could never connect. Sync is a LAN protocol by
+  /// construction; there is no situation in which a proxy can reach a peer this
+  /// device cannot.
+  static HttpClient directClient(SecurityContext context) =>
+      HttpClient(context: context)..findProxy = (_) => 'DIRECT';
 
   /// Unpair propagation (slice 5): tells a still-reachable peer to forget
   /// this device, authenticated by the pairing secret the caller still

@@ -162,9 +162,15 @@ class SyncDataPlane {
   /// caller can advance checkpoints precisely (deferred conversations keep
   /// their previous entry).
   ///
-  /// The conversations that actually changed ride along with the reload: they
-  /// are what tells an open window to rebuild, instead of leaving the user
-  /// reading pre-sync content until they switch conversations and back.
+  /// The conversations the peer sent ride along with the reload: they are what
+  /// tells an open window to rebuild, instead of leaving the user reading
+  /// pre-sync content until they switch conversations and back. "The peer sent
+  /// it" is the trigger rather than "a counter moved", because the counters
+  /// cannot express every change the user sees — a subtree that only carries
+  /// parts or asset references for a revision already here, and a repaired
+  /// message order (which has its own flag for exactly this reason), both
+  /// change what is rendered while every counter stays at zero. A deferred
+  /// conversation stays out: its apply wrote nothing locally.
   Future<Map<String, SyncSubtreeApplyOutcome>> applySubtrees(
     List<SyncSubtreePayload> subtrees, {
     required String myDeviceId,
@@ -183,15 +189,7 @@ class SyncDataPlane {
             checkpointRowsByConversation[conversationId] ?? const {},
       );
       outcomes[conversationId] = outcome;
-      if (!outcome.deferred &&
-          (outcome.upsertedMessages > 0 ||
-              outcome.deletedMessages > 0 ||
-              outcome.conversationRowChanged ||
-              // A repaired order is a change to what the user reads while every
-              // counter stays at zero, so it admits the conversation here too.
-              outcome.reordered)) {
-        touched.add(conversationId);
-      }
+      if (!outcome.deferred) touched.add(conversationId);
     }
     if (touched.isNotEmpty) {
       await chatService.reloadAfterExternalChange(
@@ -478,6 +476,11 @@ class SyncDataPlane {
   /// pull failed still gets its reference now, so the retry that lands it in a
   /// later session — one that carries no subtree for this conversation — is
   /// already protected.
+  ///
+  /// Writing a reference is itself a change the chat window renders (a file
+  /// that had none now resolves), and the message row it hangs off does not
+  /// move, so the touched conversations are published the same way
+  /// [applySubtrees] publishes its own.
   Future<void> registerLandedAssets({
     required List<SyncSubtreePayload> subtrees,
     required Map<String, SyncSubtreeApplyOutcome> outcomes,
@@ -490,6 +493,7 @@ class SyncDataPlane {
           entry.key: entry.value,
     };
     if (allowed.isEmpty) return;
+    final touched = <String>{};
     for (final subtree in subtrees) {
       final conversationId = subtree.conversation['id'];
       if (conversationId is! String) continue;
@@ -527,7 +531,13 @@ class SyncDataPlane {
               ),
           ],
         );
+        touched.add(conversationId);
       }
+    }
+    if (touched.isNotEmpty) {
+      await chatService.reloadAfterExternalChange(
+        touchedConversations: touched,
+      );
     }
   }
 

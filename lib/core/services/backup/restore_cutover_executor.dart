@@ -213,6 +213,13 @@ final class RestoreCutoverExecutor {
               latest: latest,
               preparedReceipt: preparedReceipt,
             );
+            // The new database is installed and proven. A replaced database
+            // invalidates the per-peer sync checkpoints: they describe a
+            // history this device no longer holds, and a peer reading that
+            // history's absence as a deletion would destroy its own copies.
+            if (latest.selectedComponents.contains(RestoreComponent.database)) {
+              await mover.resetSyncState();
+            }
           } catch (error, stackTrace) {
             return _rollbackAfterCutoverFailure(
               latest: latest,

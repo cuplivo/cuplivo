@@ -463,6 +463,14 @@ class McpProvider extends ChangeNotifier {
   bool isOAuthAuthorized(String id) =>
       getById(id)?.oauth?.accessToken.isNotEmpty == true;
 
+  /// Re-reads MCP servers after LAN sync wrote them outside this provider.
+  /// Serialized against server mutations so a reload cannot interleave with a
+  /// tool call editing the same list.
+  Future<void> reloadAfterExternalChange() async {
+    await _serializeServerMutation(_load);
+    notifyListeners();
+  }
+
   Future<void> _load() async {
     await preferences.load();
     final timeoutMs = preferences.getInt(_prefsTimeoutKey);
@@ -1174,7 +1182,10 @@ class McpProvider extends ChangeNotifier {
           !_authorizationIsCurrent(server, state, generation)) {
         return false;
       }
-      return _connect(server.id, retryUnauthorized: false);
+      // Awaited like the attempt above it: this retry is the same call, so a
+      // failure has to land in the same handler (which turns it into a status
+      // and a `false`) instead of escaping as a thrown error.
+      return await _connect(server.id, retryUnauthorized: false);
     } catch (error) {
       if (!_authorizationIsCurrent(server, state, generation)) return false;
       state.status =
@@ -1544,20 +1555,28 @@ class McpProvider extends ChangeNotifier {
       Object effectiveError = error;
       _rememberOAuthChallenge(state, error);
       if (retryUnauthorized && _isHttpUnauthorized(error)) {
+        // The refresh step is what this block isolates: only its failures become
+        // the effective error, and a refresh that did not authorize the caller
+        // falls through to the checks below. The retry itself is attempted
+        // outside the isolated block, so a failure there is handled as the
+        // failure of this connection attempt rather than mistaken for a refresh
+        // error.
+        var refreshed = false;
         try {
-          if (await _refreshOAuthAfterUnauthorized(server, state)) {
-            final latest = getById(id);
-            if (latest == null || state.generation != generation) return false;
-            return _performConnect(
-              id,
-              latest,
-              state,
-              generation,
-              retryUnauthorized: false,
-            );
-          }
+          refreshed = await _refreshOAuthAfterUnauthorized(server, state);
         } catch (refreshError) {
           effectiveError = refreshError;
+        }
+        if (refreshed) {
+          final latest = getById(id);
+          if (latest == null || state.generation != generation) return false;
+          return await _performConnect(
+            id,
+            latest,
+            state,
+            generation,
+            retryUnauthorized: false,
+          );
         }
       }
       if (await _requiresOAuthAuthorization(

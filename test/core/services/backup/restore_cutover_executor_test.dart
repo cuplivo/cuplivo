@@ -42,6 +42,13 @@ void main() {
       await oldUpload.parent.create();
       await oldUpload.writeAsString('old asset', flush: true);
       await Directory(p.join(appData.path, 'images')).create();
+      // Sync state the replacement must invalidate: the checkpoint describes a
+      // history the restored database no longer holds.
+      final staleCheckpoint = File(
+        p.join(appData.path, 'sync', 'checkpoints', 'peer-1.json.gz'),
+      );
+      await staleCheckpoint.parent.create(recursive: true);
+      await staleCheckpoint.writeAsString('stale', flush: true);
       final prepared = await _prepareBundle(
         root: root,
         appData: appData,
@@ -85,6 +92,15 @@ void main() {
         await File(p.join(previous.path, 'settings.json')).exists(),
         isFalse,
       );
+      // The replaced database invalidated the per-peer sync state: an entry
+      // describing rows this device no longer has would make a peer read their
+      // absence as a deletion and destroy its own copies, and the bumped epoch
+      // is what tells it otherwise.
+      expect(await staleCheckpoint.exists(), isFalse);
+      final epoch = jsonDecode(
+        await File(p.join(appData.path, 'sync', 'epoch.json')).readAsString(),
+      );
+      expect((epoch as Map)['epoch'], 1);
     });
 
     test('commits when the previous database was absent', () async {

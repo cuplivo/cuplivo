@@ -11801,6 +11801,385 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get phoneControlEnableAssistant => '允许此助手使用手机控制';
+
+  @override
+  String get settingsPageLanSync => '局域网同步';
+
+  @override
+  String get lanSyncThisDevice => '本设备';
+
+  @override
+  String get lanSyncDeviceIdLabel => '设备 ID';
+
+  @override
+  String get lanSyncListenerStarting => '正在启动监听…';
+
+  @override
+  String get lanSyncListenerNotRunning => '监听未运行';
+
+  @override
+  String lanSyncListenerFailed(Object error) {
+    return '监听启动失败：$error';
+  }
+
+  @override
+  String get lanSyncPairSectionTitle => '配对设备';
+
+  @override
+  String get lanSyncPairFirstSyncNote =>
+      '配对成功后会自动开始首次同步，可能耗时较长。请保持电脑端应用运行，手机端保持在本应用前台。';
+
+  @override
+  String get lanSyncPairIntro => '在一台设备上显示二维码，用另一台扫描；没有摄像头时输入配对码。两台设备需在同一网络。';
+
+  @override
+  String get lanSyncShowCode => '显示配对二维码';
+
+  @override
+  String get lanSyncEnterCode => '扫码或输入配对码';
+
+  @override
+  String get lanSyncPairingCode => '配对码';
+
+  @override
+  String lanSyncPairingExpiresIn(Object time) {
+    return '$time 后失效';
+  }
+
+  @override
+  String get lanSyncPairingEndpointHint => '在另一台设备上输入以下地址';
+
+  @override
+  String get lanSyncPairingNoIpHint => '未找到局域网地址。另一台设备仍可凭本机的 IP 或主机名连接。';
+
+  @override
+  String get lanSyncHostLabel => '地址';
+
+  @override
+  String get lanSyncPortLabel => '端口';
+
+  @override
+  String get lanSyncPairButton => '配对';
+
+  @override
+  String get lanSyncPairAgain => '重新配对';
+
+  @override
+  String get lanSyncPairingBusy => '配对中…';
+
+  @override
+  String lanSyncPairSuccess(Object name) {
+    return '已与 $name 配对';
+  }
+
+  @override
+  String get lanSyncPairErrorInvalidPin => '配对码错误，或对方的配对窗口已关闭。';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress => '请填写对方设备的地址和端口。';
+
+  @override
+  String get lanSyncPairErrorUnreachable => '无法连接到该设备。请检查地址与端口，并确认两台设备在同一网络。';
+
+  @override
+  String get lanSyncPairErrorNoCertificate => '对方未能出示身份，配对已中止。';
+
+  @override
+  String get lanSyncPairErrorIdMismatch => '无法核实对方身份，配对已中止。';
+
+  @override
+  String get lanSyncPairErrorNoListener => '本设备的同步监听尚未启动。';
+
+  @override
+  String lanSyncPairErrorUnknown(Object error) {
+    return '配对失败：$error';
+  }
+
+  @override
+  String get lanSyncScanQr => '扫描配对二维码';
+
+  @override
+  String get lanSyncPairQrCaption => '扫码配对，或在另一台设备输入下方信息';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return '已更新与 $name 的配对';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch => '设备证书与二维码不符，已中止配对。';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr => '二维码中没有可用地址，请在下方输入地址完成配对。';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr => '这不是 Cuplivo 的配对二维码。';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => '配对二维码内容无法解析。';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion => '二维码版本较新，请更新应用后重试。';
+
+  @override
+  String get lanSyncClosePairing => '关闭配对窗口';
+
+  @override
+  String get lanSyncPairedDevices => '已配对设备';
+
+  @override
+  String get lanSyncNoDevices => '还没有已配对的设备。配对后即可开始同步。';
+
+  @override
+  String get lanSyncPlatformAndroid => 'Android';
+
+  @override
+  String get lanSyncPlatformIos => 'iOS';
+
+  @override
+  String get lanSyncPlatformWindows => 'Windows';
+
+  @override
+  String get lanSyncPlatformMacos => 'macOS';
+
+  @override
+  String get lanSyncPlatformLinux => 'Linux';
+
+  @override
+  String get lanSyncPlatformUnknown => '未知设备';
+
+  @override
+  String lanSyncLastSyncedAt(Object time) {
+    return '上次同步 $time';
+  }
+
+  @override
+  String get lanSyncNeverSynced => '从未同步';
+
+  @override
+  String get lanSyncJustSynced => '刚刚同步';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n 分钟前';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n 小时前';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n 天前';
+  }
+
+  @override
+  String get lanSyncSyncNow => '立即同步';
+
+  @override
+  String get lanSyncOnline => '在线';
+
+  @override
+  String get lanSyncOnlineFromSession => '在线——上次同步成功连上';
+
+  @override
+  String get lanSyncOfflineFromSession => '离线——上次同步没能连上';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return '正在连接 $address…';
+  }
+
+  @override
+  String lanSyncPhaseConnectingAt(Object address, Object index, Object total) {
+    return '正在连接 $address…（$index/$total）';
+  }
+
+  @override
+  String get lanSyncOffline => '离线';
+
+  @override
+  String get lanSyncUpToDate => '已是最新';
+
+  @override
+  String get lanSyncPhaseConnecting => '正在连接…';
+
+  @override
+  String get lanSyncPhaseExchanging => '正在对比数据…';
+
+  @override
+  String get lanSyncPhaseSending => '正在发送变更…';
+
+  @override
+  String get lanSyncPhaseReceiving => '正在接收变更…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return '正在下载文件…（$done/$total）';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => '正在下载文件…';
+
+  @override
+  String get lanSyncPhaseApplying => '正在应用变更…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      '首次同步进行中——请保持两台设备唤醒、Cuplivo 保持开启（手机端请保持前台），直到同步完成。';
+
+  @override
+  String get lanSyncRename => '重命名';
+
+  @override
+  String get lanSyncRenameTitle => '设备名称';
+
+  @override
+  String get lanSyncEditAddress => '修改地址';
+
+  @override
+  String get lanSyncAddressCopied => '地址已复制';
+
+  @override
+  String get lanSyncUnpair => '取消配对';
+
+  @override
+  String lanSyncUnpairConfirmTitle(Object name) {
+    return '取消与 $name 的配对？';
+  }
+
+  @override
+  String get lanSyncUnpairConfirmBody => '对话在两台设备上都会保留，只是不再与它同步，直到重新配对。';
+
+  @override
+  String lanSyncReportSent(Object n) {
+    return '发送 $n';
+  }
+
+  @override
+  String lanSyncReportReceived(Object n) {
+    return '接收 $n';
+  }
+
+  @override
+  String lanSyncReportMessagesUpserted(Object n) {
+    return '+$n 条消息';
+  }
+
+  @override
+  String lanSyncReportMessagesDeleted(Object n) {
+    return '-$n 条消息';
+  }
+
+  @override
+  String lanSyncReportConversationsDeleted(Object n) {
+    return '-$n 个对话';
+  }
+
+  @override
+  String lanSyncReportDeferred(Object n) {
+    return '$n 项延后';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n 个实体';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n 项偏好';
+  }
+
+  @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n 个文件 · $size';
+  }
+
+  @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n 个文件';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n 个技能';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n 处技能修改被覆盖';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n 个文件在对方设备上缺失';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n 条本地记录被对端更新的版本覆盖';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return '两台设备的时钟相差约 $n 分钟，请校准设备时钟后重新同步';
+  }
+
+  @override
+  String get lanSyncReportPeerOffline =>
+      '暂时连不上——对方可能已休眠或换了网络；两台设备回到同一网络后会自动同步。';
+
+  @override
+  String get lanSyncReportUnreachable =>
+      '同步失败：无法连接到对方设备。它可能已离线或换了网络——重新扫描它的二维码，或在卡片上修改地址。';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      '同步失败：没有记录对方设备的地址。请重新扫描它的二维码，或在卡片上填写地址。';
+
+  @override
+  String get lanSyncReportTimeout => '同步失败：对方设备停止响应。';
+
+  @override
+  String get lanSyncReportPeerError => '同步失败：对方设备报告了错误。';
+
+  @override
+  String get lanSyncReportInternal => '同步失败，详情见日志。';
+
+  @override
+  String get lanSyncRefusedPeerSchemaNewer => '对方数据库版本较新。请先更新本设备再同步。';
+
+  @override
+  String get lanSyncRefusedProtocolUnknown => '对方使用不同的同步协议。请将两台设备都更新到最新版本。';
+
+  @override
+  String get lanSyncRefusedNotPaired =>
+      '本设备与对方对这次配对的记录已不一致——对方解除了配对，或重新配对没有在两台设备上完成。请在两台设备上重新配对。';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch => '对方设备的身份不一致。请在两台设备上重新配对。';
+
+  @override
+  String get lanSyncRefusedBusy => '另一个同步会话正在进行，请稍后再试。';
+
+  @override
+  String get lanSyncFirewallTitle => 'Windows 防火墙';
+
+  @override
+  String lanSyncFirewallHint(Object port) {
+    return '端口 $port 的入站规则需要一次管理员授权。';
+  }
+
+  @override
+  String get lanSyncFirewallFix => '允许访问（UAC）';
+
+  @override
+  String get lanSyncFirewallFixed => '入站访问已允许。';
+
+  @override
+  String get lanSyncKnownLimits => '目前：工作区仍只留在创建它的设备上；PIN 配对请仅在可信网络中使用。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -23526,6 +23905,385 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get phoneControlEnableAssistant => '允许此助手使用手机控制';
+
+  @override
+  String get settingsPageLanSync => '局域网同步';
+
+  @override
+  String get lanSyncThisDevice => '本设备';
+
+  @override
+  String get lanSyncDeviceIdLabel => '设备 ID';
+
+  @override
+  String get lanSyncListenerStarting => '正在启动监听…';
+
+  @override
+  String get lanSyncListenerNotRunning => '监听未运行';
+
+  @override
+  String lanSyncListenerFailed(Object error) {
+    return '监听启动失败：$error';
+  }
+
+  @override
+  String get lanSyncPairSectionTitle => '配对设备';
+
+  @override
+  String get lanSyncPairFirstSyncNote =>
+      '配对成功后会自动开始首次同步，可能耗时较长。请保持电脑端应用运行，手机端保持在本应用前台。';
+
+  @override
+  String get lanSyncPairIntro => '在一台设备上显示二维码，用另一台扫描；没有摄像头时输入配对码。两台设备需在同一网络。';
+
+  @override
+  String get lanSyncShowCode => '显示配对二维码';
+
+  @override
+  String get lanSyncEnterCode => '扫码或输入配对码';
+
+  @override
+  String get lanSyncPairingCode => '配对码';
+
+  @override
+  String lanSyncPairingExpiresIn(Object time) {
+    return '$time 后失效';
+  }
+
+  @override
+  String get lanSyncPairingEndpointHint => '在另一台设备上输入以下地址';
+
+  @override
+  String get lanSyncPairingNoIpHint => '未找到局域网地址。另一台设备仍可凭本机的 IP 或主机名连接。';
+
+  @override
+  String get lanSyncHostLabel => '地址';
+
+  @override
+  String get lanSyncPortLabel => '端口';
+
+  @override
+  String get lanSyncPairButton => '配对';
+
+  @override
+  String get lanSyncPairAgain => '重新配对';
+
+  @override
+  String get lanSyncPairingBusy => '配对中…';
+
+  @override
+  String lanSyncPairSuccess(Object name) {
+    return '已与 $name 配对';
+  }
+
+  @override
+  String get lanSyncPairErrorInvalidPin => '配对码错误，或对方的配对窗口已关闭。';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress => '请填写对方设备的地址和端口。';
+
+  @override
+  String get lanSyncPairErrorUnreachable => '无法连接到该设备。请检查地址与端口，并确认两台设备在同一网络。';
+
+  @override
+  String get lanSyncPairErrorNoCertificate => '对方未能出示身份，配对已中止。';
+
+  @override
+  String get lanSyncPairErrorIdMismatch => '无法核实对方身份，配对已中止。';
+
+  @override
+  String get lanSyncPairErrorNoListener => '本设备的同步监听尚未启动。';
+
+  @override
+  String lanSyncPairErrorUnknown(Object error) {
+    return '配对失败：$error';
+  }
+
+  @override
+  String get lanSyncScanQr => '扫描配对二维码';
+
+  @override
+  String get lanSyncPairQrCaption => '扫码配对，或在另一台设备输入下方信息';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return '已更新与 $name 的配对';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch => '设备证书与二维码不符，已中止配对。';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr => '二维码中没有可用地址，请在下方输入地址完成配对。';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr => '这不是 Cuplivo 的配对二维码。';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => '配对二维码内容无法解析。';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion => '二维码版本较新，请更新应用后重试。';
+
+  @override
+  String get lanSyncClosePairing => '关闭配对窗口';
+
+  @override
+  String get lanSyncPairedDevices => '已配对设备';
+
+  @override
+  String get lanSyncNoDevices => '还没有已配对的设备。配对后即可开始同步。';
+
+  @override
+  String get lanSyncPlatformAndroid => 'Android';
+
+  @override
+  String get lanSyncPlatformIos => 'iOS';
+
+  @override
+  String get lanSyncPlatformWindows => 'Windows';
+
+  @override
+  String get lanSyncPlatformMacos => 'macOS';
+
+  @override
+  String get lanSyncPlatformLinux => 'Linux';
+
+  @override
+  String get lanSyncPlatformUnknown => '未知设备';
+
+  @override
+  String lanSyncLastSyncedAt(Object time) {
+    return '上次同步 $time';
+  }
+
+  @override
+  String get lanSyncNeverSynced => '从未同步';
+
+  @override
+  String get lanSyncJustSynced => '刚刚同步';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n 分钟前';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n 小时前';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n 天前';
+  }
+
+  @override
+  String get lanSyncSyncNow => '立即同步';
+
+  @override
+  String get lanSyncOnline => '在线';
+
+  @override
+  String get lanSyncOnlineFromSession => '在线——上次同步成功连上';
+
+  @override
+  String get lanSyncOfflineFromSession => '离线——上次同步没能连上';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return '正在连接 $address…';
+  }
+
+  @override
+  String lanSyncPhaseConnectingAt(Object address, Object index, Object total) {
+    return '正在连接 $address…（$index/$total）';
+  }
+
+  @override
+  String get lanSyncOffline => '离线';
+
+  @override
+  String get lanSyncUpToDate => '已是最新';
+
+  @override
+  String get lanSyncPhaseConnecting => '正在连接…';
+
+  @override
+  String get lanSyncPhaseExchanging => '正在对比数据…';
+
+  @override
+  String get lanSyncPhaseSending => '正在发送变更…';
+
+  @override
+  String get lanSyncPhaseReceiving => '正在接收变更…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return '正在下载文件…（$done/$total）';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => '正在下载文件…';
+
+  @override
+  String get lanSyncPhaseApplying => '正在应用变更…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      '首次同步进行中——请保持两台设备唤醒、Cuplivo 保持开启（手机端请保持前台），直到同步完成。';
+
+  @override
+  String get lanSyncRename => '重命名';
+
+  @override
+  String get lanSyncRenameTitle => '设备名称';
+
+  @override
+  String get lanSyncEditAddress => '修改地址';
+
+  @override
+  String get lanSyncAddressCopied => '地址已复制';
+
+  @override
+  String get lanSyncUnpair => '取消配对';
+
+  @override
+  String lanSyncUnpairConfirmTitle(Object name) {
+    return '取消与 $name 的配对？';
+  }
+
+  @override
+  String get lanSyncUnpairConfirmBody => '对话在两台设备上都会保留，只是不再与它同步，直到重新配对。';
+
+  @override
+  String lanSyncReportSent(Object n) {
+    return '发送 $n';
+  }
+
+  @override
+  String lanSyncReportReceived(Object n) {
+    return '接收 $n';
+  }
+
+  @override
+  String lanSyncReportMessagesUpserted(Object n) {
+    return '+$n 条消息';
+  }
+
+  @override
+  String lanSyncReportMessagesDeleted(Object n) {
+    return '-$n 条消息';
+  }
+
+  @override
+  String lanSyncReportConversationsDeleted(Object n) {
+    return '-$n 个对话';
+  }
+
+  @override
+  String lanSyncReportDeferred(Object n) {
+    return '$n 项延后';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n 个实体';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n 项偏好';
+  }
+
+  @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n 个文件 · $size';
+  }
+
+  @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n 个文件';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n 个技能';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n 处技能修改被覆盖';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n 个文件在对方设备上缺失';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n 条本地记录被对端更新的版本覆盖';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return '两台设备的时钟相差约 $n 分钟，请校准设备时钟后重新同步';
+  }
+
+  @override
+  String get lanSyncReportPeerOffline =>
+      '暂时连不上——对方可能已休眠或换了网络；两台设备回到同一网络后会自动同步。';
+
+  @override
+  String get lanSyncReportUnreachable =>
+      '同步失败：无法连接到对方设备。它可能已离线或换了网络——重新扫描它的二维码，或在卡片上修改地址。';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      '同步失败：没有记录对方设备的地址。请重新扫描它的二维码，或在卡片上填写地址。';
+
+  @override
+  String get lanSyncReportTimeout => '同步失败：对方设备停止响应。';
+
+  @override
+  String get lanSyncReportPeerError => '同步失败：对方设备报告了错误。';
+
+  @override
+  String get lanSyncReportInternal => '同步失败，详情见日志。';
+
+  @override
+  String get lanSyncRefusedPeerSchemaNewer => '对方数据库版本较新。请先更新本设备再同步。';
+
+  @override
+  String get lanSyncRefusedProtocolUnknown => '对方使用不同的同步协议。请将两台设备都更新到最新版本。';
+
+  @override
+  String get lanSyncRefusedNotPaired =>
+      '本设备与对方对这次配对的记录已不一致——对方解除了配对，或重新配对没有在两台设备上完成。请在两台设备上重新配对。';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch => '对方设备的身份不一致。请在两台设备上重新配对。';
+
+  @override
+  String get lanSyncRefusedBusy => '另一个同步会话正在进行，请稍后再试。';
+
+  @override
+  String get lanSyncFirewallTitle => 'Windows 防火墙';
+
+  @override
+  String lanSyncFirewallHint(Object port) {
+    return '端口 $port 的入站规则需要一次管理员授权。';
+  }
+
+  @override
+  String get lanSyncFirewallFix => '允许访问（UAC）';
+
+  @override
+  String get lanSyncFirewallFixed => '入站访问已允许。';
+
+  @override
+  String get lanSyncKnownLimits => '目前：工作区仍只留在创建它的设备上；PIN 配对请仅在可信网络中使用。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -35330,4 +36088,383 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get phoneControlEnableAssistant => '允許此助手使用手機控制';
+
+  @override
+  String get settingsPageLanSync => '區域網路同步';
+
+  @override
+  String get lanSyncThisDevice => '本裝置';
+
+  @override
+  String get lanSyncDeviceIdLabel => '裝置 ID';
+
+  @override
+  String get lanSyncListenerStarting => '正在啟動監聽…';
+
+  @override
+  String get lanSyncListenerNotRunning => '監聽未執行';
+
+  @override
+  String lanSyncListenerFailed(Object error) {
+    return '監聽啟動失敗：$error';
+  }
+
+  @override
+  String get lanSyncPairSectionTitle => '配對裝置';
+
+  @override
+  String get lanSyncPairFirstSyncNote =>
+      '配對成功後會自動開始首次同步，可能耗時較長。請保持電腦端應用程式執行，手機端保持在這個應用程式前台。';
+
+  @override
+  String get lanSyncPairIntro => '在一台裝置上顯示二維碼，用另一台掃描；沒有相機時輸入配對碼。兩台裝置需在同一網路。';
+
+  @override
+  String get lanSyncShowCode => '顯示配對二維碼';
+
+  @override
+  String get lanSyncEnterCode => '掃碼或輸入配對碼';
+
+  @override
+  String get lanSyncPairingCode => '配對碼';
+
+  @override
+  String lanSyncPairingExpiresIn(Object time) {
+    return '$time 後失效';
+  }
+
+  @override
+  String get lanSyncPairingEndpointHint => '在另一台裝置上輸入以下位址';
+
+  @override
+  String get lanSyncPairingNoIpHint => '未找到區域網路位址。另一台裝置仍可憑本機的 IP 或主機名稱連線。';
+
+  @override
+  String get lanSyncHostLabel => '位址';
+
+  @override
+  String get lanSyncPortLabel => '連接埠';
+
+  @override
+  String get lanSyncPairButton => '配對';
+
+  @override
+  String get lanSyncPairAgain => '重新配對';
+
+  @override
+  String get lanSyncPairingBusy => '配對中…';
+
+  @override
+  String lanSyncPairSuccess(Object name) {
+    return '已與 $name 配對';
+  }
+
+  @override
+  String get lanSyncPairErrorInvalidPin => '配對碼錯誤，或對方的配對視窗已關閉。';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress => '請填寫對方裝置的位址和連接埠。';
+
+  @override
+  String get lanSyncPairErrorUnreachable => '無法連線到該裝置。請檢查位址與連接埠，並確認兩台裝置在同一網路。';
+
+  @override
+  String get lanSyncPairErrorNoCertificate => '對方未能出示身分，配對已中止。';
+
+  @override
+  String get lanSyncPairErrorIdMismatch => '無法核實對方身分，配對已中止。';
+
+  @override
+  String get lanSyncPairErrorNoListener => '本裝置的同步監聽尚未啟動。';
+
+  @override
+  String lanSyncPairErrorUnknown(Object error) {
+    return '配對失敗：$error';
+  }
+
+  @override
+  String get lanSyncScanQr => '掃描配對二維碼';
+
+  @override
+  String get lanSyncPairQrCaption => '掃碼配對，或在另一台裝置輸入下方資訊';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return '已更新與 $name 的配對';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch => '裝置憑證與二維碼不符，已中止配對。';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr => '二維碼中沒有可用位址，請在下方輸入位址完成配對。';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr => '這不是 Cuplivo 的配對二維碼。';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => '配對二維碼內容無法解析。';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion => '二維碼版本較新，請更新應用後重試。';
+
+  @override
+  String get lanSyncClosePairing => '關閉配對視窗';
+
+  @override
+  String get lanSyncPairedDevices => '已配對裝置';
+
+  @override
+  String get lanSyncNoDevices => '還沒有已配對的裝置。配對後即可開始同步。';
+
+  @override
+  String get lanSyncPlatformAndroid => 'Android';
+
+  @override
+  String get lanSyncPlatformIos => 'iOS';
+
+  @override
+  String get lanSyncPlatformWindows => 'Windows';
+
+  @override
+  String get lanSyncPlatformMacos => 'macOS';
+
+  @override
+  String get lanSyncPlatformLinux => 'Linux';
+
+  @override
+  String get lanSyncPlatformUnknown => '未知裝置';
+
+  @override
+  String lanSyncLastSyncedAt(Object time) {
+    return '上次同步 $time';
+  }
+
+  @override
+  String get lanSyncNeverSynced => '從未同步';
+
+  @override
+  String get lanSyncJustSynced => '剛剛同步';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n 分鐘前';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n 小時前';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n 天前';
+  }
+
+  @override
+  String get lanSyncSyncNow => '立即同步';
+
+  @override
+  String get lanSyncOnline => '線上';
+
+  @override
+  String get lanSyncOnlineFromSession => '線上——上次同步成功連上';
+
+  @override
+  String get lanSyncOfflineFromSession => '離線——上次同步沒能連上';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return '正在連線 $address…';
+  }
+
+  @override
+  String lanSyncPhaseConnectingAt(Object address, Object index, Object total) {
+    return '正在連線 $address…（$index/$total）';
+  }
+
+  @override
+  String get lanSyncOffline => '離線';
+
+  @override
+  String get lanSyncUpToDate => '已是最新';
+
+  @override
+  String get lanSyncPhaseConnecting => '正在連線…';
+
+  @override
+  String get lanSyncPhaseExchanging => '正在比對資料…';
+
+  @override
+  String get lanSyncPhaseSending => '正在傳送變更…';
+
+  @override
+  String get lanSyncPhaseReceiving => '正在接收變更…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return '正在下載檔案…（$done/$total）';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => '正在下載檔案…';
+
+  @override
+  String get lanSyncPhaseApplying => '正在套用變更…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      '首次同步進行中——請保持兩台裝置喚醒、Cuplivo 保持開啟（手機端請保持前台），直到同步完成。';
+
+  @override
+  String get lanSyncRename => '重新命名';
+
+  @override
+  String get lanSyncRenameTitle => '裝置名稱';
+
+  @override
+  String get lanSyncEditAddress => '修改位址';
+
+  @override
+  String get lanSyncAddressCopied => '位址已複製';
+
+  @override
+  String get lanSyncUnpair => '取消配對';
+
+  @override
+  String lanSyncUnpairConfirmTitle(Object name) {
+    return '取消與 $name 的配對？';
+  }
+
+  @override
+  String get lanSyncUnpairConfirmBody => '對話在兩台裝置上都會保留，只是不再與它同步，直到重新配對。';
+
+  @override
+  String lanSyncReportSent(Object n) {
+    return '傳送 $n';
+  }
+
+  @override
+  String lanSyncReportReceived(Object n) {
+    return '接收 $n';
+  }
+
+  @override
+  String lanSyncReportMessagesUpserted(Object n) {
+    return '+$n 條訊息';
+  }
+
+  @override
+  String lanSyncReportMessagesDeleted(Object n) {
+    return '-$n 條訊息';
+  }
+
+  @override
+  String lanSyncReportConversationsDeleted(Object n) {
+    return '-$n 個對話';
+  }
+
+  @override
+  String lanSyncReportDeferred(Object n) {
+    return '$n 項延後';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n 個實體';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n 項偏好';
+  }
+
+  @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n 個檔案 · $size';
+  }
+
+  @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n 個檔案';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n 個技能';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n 處技能修改被覆蓋';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n 個檔案在對方裝置上缺失';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n 條本地記錄被對端更新的版本覆蓋';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return '兩台設備的時鐘相差約 $n 分鐘，請校準設備時鐘後重新同步';
+  }
+
+  @override
+  String get lanSyncReportPeerOffline =>
+      '暫時連不上——對方可能已休眠或換了網路；兩台裝置回到同一網路後會自動同步。';
+
+  @override
+  String get lanSyncReportUnreachable =>
+      '同步失敗：無法連線到對方裝置。它可能已離線或換了網路——重新掃描它的二維碼，或在卡片上修改位址。';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      '同步失敗：沒有記錄對方裝置的位址。請重新掃描它的二維碼，或在卡片上填寫位址。';
+
+  @override
+  String get lanSyncReportTimeout => '同步失敗：對方裝置停止回應。';
+
+  @override
+  String get lanSyncReportPeerError => '同步失敗：對方裝置回報了錯誤。';
+
+  @override
+  String get lanSyncReportInternal => '同步失敗，詳情見日誌。';
+
+  @override
+  String get lanSyncRefusedPeerSchemaNewer => '對方資料庫版本較新。請先更新本裝置再同步。';
+
+  @override
+  String get lanSyncRefusedProtocolUnknown => '對方使用不同的同步協定。請將兩台裝置都更新到最新版本。';
+
+  @override
+  String get lanSyncRefusedNotPaired =>
+      '本裝置與對方對這次配對的記錄已不一致——對方解除了配對，或重新配對沒有在兩台裝置上完成。請在兩台裝置上重新配對。';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch => '對方裝置的身分不一致。請在兩台裝置上重新配對。';
+
+  @override
+  String get lanSyncRefusedBusy => '另一個同步工作階段正在進行，請稍後再試。';
+
+  @override
+  String get lanSyncFirewallTitle => 'Windows 防火牆';
+
+  @override
+  String lanSyncFirewallHint(Object port) {
+    return '連接埠 $port 的入站規則需要一次管理員授權。';
+  }
+
+  @override
+  String get lanSyncFirewallFix => '允許存取（UAC）';
+
+  @override
+  String get lanSyncFirewallFixed => '入站存取已允許。';
+
+  @override
+  String get lanSyncKnownLimits => '目前：工作區仍只留在建立它的裝置上；PIN 配對請僅在可信網路中使用。';
 }

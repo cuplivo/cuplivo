@@ -12363,4 +12363,406 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get phoneControlEnableAssistant =>
       'Allow this assistant to use phone control';
+
+  @override
+  String get settingsPageLanSync => 'LAN Sync';
+
+  @override
+  String get lanSyncThisDevice => 'This device';
+
+  @override
+  String get lanSyncDeviceIdLabel => 'Device ID';
+
+  @override
+  String get lanSyncListenerStarting => 'Starting listener…';
+
+  @override
+  String get lanSyncListenerNotRunning => 'Listener not running';
+
+  @override
+  String lanSyncListenerFailed(Object error) {
+    return 'Listener failed to start: $error';
+  }
+
+  @override
+  String get lanSyncPairSectionTitle => 'Pair a device';
+
+  @override
+  String get lanSyncPairFirstSyncNote =>
+      'After pairing, the first sync starts automatically and can take a while. Keep the desktop app running and this app in the foreground on mobile.';
+
+  @override
+  String get lanSyncPairIntro =>
+      'Show the QR on one device and scan it with the other. Without a camera, type the code instead. Both devices must be on the same network.';
+
+  @override
+  String get lanSyncShowCode => 'Show pairing QR';
+
+  @override
+  String get lanSyncEnterCode => 'Scan or enter code';
+
+  @override
+  String get lanSyncPairingCode => 'Pairing code';
+
+  @override
+  String lanSyncPairingExpiresIn(Object time) {
+    return 'Expires in $time';
+  }
+
+  @override
+  String get lanSyncPairingEndpointHint => 'Enter this on the other device';
+
+  @override
+  String get lanSyncPairingNoIpHint =>
+      'No LAN address was found. The other device can still reach this one by its IP or hostname.';
+
+  @override
+  String get lanSyncHostLabel => 'Address';
+
+  @override
+  String get lanSyncPortLabel => 'Port';
+
+  @override
+  String get lanSyncPairButton => 'Pair';
+
+  @override
+  String get lanSyncPairAgain => 'Pair again';
+
+  @override
+  String get lanSyncPairingBusy => 'Pairing…';
+
+  @override
+  String lanSyncPairSuccess(Object name) {
+    return 'Paired with $name';
+  }
+
+  @override
+  String get lanSyncPairErrorInvalidPin =>
+      'Wrong pairing code, or the other device\'s pairing window is closed.';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress =>
+      'Enter the other device\'s address and port.';
+
+  @override
+  String get lanSyncPairErrorUnreachable =>
+      'Could not reach the device. Check the address and port, and that both devices are on the same network.';
+
+  @override
+  String get lanSyncPairErrorNoCertificate =>
+      'The other device did not identify itself. Pairing aborted.';
+
+  @override
+  String get lanSyncPairErrorIdMismatch =>
+      'The other device\'s identity could not be verified. Pairing aborted.';
+
+  @override
+  String get lanSyncPairErrorNoListener =>
+      'The sync listener on this device is not running yet.';
+
+  @override
+  String lanSyncPairErrorUnknown(Object error) {
+    return 'Pairing failed: $error';
+  }
+
+  @override
+  String get lanSyncScanQr => 'Scan pairing QR';
+
+  @override
+  String get lanSyncPairQrCaption =>
+      'Scan to pair, or enter the details below on the other device';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return 'Pairing with $name updated';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch =>
+      'The device\'s certificate does not match the scanned code. Pairing aborted.';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr =>
+      'The code carries no address. Enter one below to pair.';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr =>
+      'This is not a Cuplivo pairing code.';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => 'The pairing code could not be read.';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion =>
+      'This pairing code is from a newer version. Update the app and try again.';
+
+  @override
+  String get lanSyncClosePairing => 'Close pairing window';
+
+  @override
+  String get lanSyncPairedDevices => 'Paired devices';
+
+  @override
+  String get lanSyncNoDevices =>
+      'No paired devices yet. Pair one to start syncing.';
+
+  @override
+  String get lanSyncPlatformAndroid => 'Android';
+
+  @override
+  String get lanSyncPlatformIos => 'iOS';
+
+  @override
+  String get lanSyncPlatformWindows => 'Windows';
+
+  @override
+  String get lanSyncPlatformMacos => 'macOS';
+
+  @override
+  String get lanSyncPlatformLinux => 'Linux';
+
+  @override
+  String get lanSyncPlatformUnknown => 'Unknown device';
+
+  @override
+  String lanSyncLastSyncedAt(Object time) {
+    return 'Last synced $time';
+  }
+
+  @override
+  String get lanSyncNeverSynced => 'Never synced';
+
+  @override
+  String get lanSyncJustSynced => 'Just synced';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n min ago';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n h ago';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n d ago';
+  }
+
+  @override
+  String get lanSyncSyncNow => 'Sync now';
+
+  @override
+  String get lanSyncOnline => 'Online';
+
+  @override
+  String get lanSyncOnlineFromSession => 'Online — the last sync connected';
+
+  @override
+  String get lanSyncOfflineFromSession =>
+      'Offline — the last sync could not connect';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return 'Connecting to $address…';
+  }
+
+  @override
+  String lanSyncPhaseConnectingAt(Object address, Object index, Object total) {
+    return 'Connecting to $address… ($index/$total)';
+  }
+
+  @override
+  String get lanSyncOffline => 'Offline';
+
+  @override
+  String get lanSyncUpToDate => 'Up to date';
+
+  @override
+  String get lanSyncPhaseConnecting => 'Connecting…';
+
+  @override
+  String get lanSyncPhaseExchanging => 'Comparing data…';
+
+  @override
+  String get lanSyncPhaseSending => 'Sending changes…';
+
+  @override
+  String get lanSyncPhaseReceiving => 'Receiving changes…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return 'Downloading files… ($done/$total)';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => 'Downloading files…';
+
+  @override
+  String get lanSyncPhaseApplying => 'Applying changes…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      'First sync in progress — keep both devices awake and Cuplivo open (in the foreground on mobile) until it finishes.';
+
+  @override
+  String get lanSyncRename => 'Rename';
+
+  @override
+  String get lanSyncRenameTitle => 'Device name';
+
+  @override
+  String get lanSyncEditAddress => 'Edit address';
+
+  @override
+  String get lanSyncAddressCopied => 'Address copied';
+
+  @override
+  String get lanSyncUnpair => 'Unpair';
+
+  @override
+  String lanSyncUnpairConfirmTitle(Object name) {
+    return 'Unpair $name?';
+  }
+
+  @override
+  String get lanSyncUnpairConfirmBody =>
+      'Conversations stay on both devices. Syncing with it stops until you pair again.';
+
+  @override
+  String lanSyncReportSent(Object n) {
+    return '$n sent';
+  }
+
+  @override
+  String lanSyncReportReceived(Object n) {
+    return '$n received';
+  }
+
+  @override
+  String lanSyncReportMessagesUpserted(Object n) {
+    return '+$n messages';
+  }
+
+  @override
+  String lanSyncReportMessagesDeleted(Object n) {
+    return '-$n messages';
+  }
+
+  @override
+  String lanSyncReportConversationsDeleted(Object n) {
+    return '-$n conversations';
+  }
+
+  @override
+  String lanSyncReportDeferred(Object n) {
+    return '$n deferred';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n entities';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n preferences';
+  }
+
+  @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n files · $size';
+  }
+
+  @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n files';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n skills';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n skill edits replaced';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n files missing on the other device';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n local rows replaced by newer versions on the peer';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return 'Clocks differ by ~$n min — fix the device clock, then sync again';
+  }
+
+  @override
+  String get lanSyncReportPeerOffline =>
+      'Not reachable right now — it may be asleep or on another network. Syncing resumes when both devices are back on the same one.';
+
+  @override
+  String get lanSyncReportUnreachable =>
+      'Sync failed: the other device could not be reached. It may be offline or on another network — rescan its QR code, or edit its address on the card.';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      'Sync failed: no address is stored for the other device. Rescan its QR code, or enter the address on its card.';
+
+  @override
+  String get lanSyncReportTimeout =>
+      'Sync failed: the other device stopped responding.';
+
+  @override
+  String get lanSyncReportPeerError =>
+      'Sync failed: the other device reported an error.';
+
+  @override
+  String get lanSyncReportInternal => 'Sync failed. See the logs for details.';
+
+  @override
+  String get lanSyncRefusedPeerSchemaNewer =>
+      'The other device\'s database is newer. Update this device first, then sync again.';
+
+  @override
+  String get lanSyncRefusedProtocolUnknown =>
+      'The other device speaks a different sync protocol. Update the app on both devices.';
+
+  @override
+  String get lanSyncRefusedNotPaired =>
+      'This device and the other one no longer agree on this pairing — it was unpaired there, or a re-pairing did not finish on both sides. Pair again on both devices.';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch =>
+      'The other device presented a mismatched identity. Pair again on both devices.';
+
+  @override
+  String get lanSyncRefusedBusy =>
+      'Another sync session is in progress. Try again shortly.';
+
+  @override
+  String get lanSyncFirewallTitle => 'Windows Firewall';
+
+  @override
+  String lanSyncFirewallHint(Object port) {
+    return 'The inbound rule for port $port needs one-time administrator approval.';
+  }
+
+  @override
+  String get lanSyncFirewallFix => 'Allow access (UAC)';
+
+  @override
+  String get lanSyncFirewallFixed => 'Inbound access allowed.';
+
+  @override
+  String get lanSyncKnownLimits =>
+      'For now: workspaces stay on the device that created them, and PIN pairing should only be used on networks you trust.';
 }

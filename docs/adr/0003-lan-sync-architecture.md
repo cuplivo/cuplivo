@@ -866,7 +866,11 @@ half of the fix; three facts below it are what make it possible.
   skill edits replaced, local rows replaced, files missing on the other device, deferred items,
   clock skew — get a row each; a session that moved nothing reads "up to date" instead of "0 sent ·
   0 received". The engine's machine `summary` stays for the logs, and the one-line form survives
-  only for the snackbar, which has room for one line.
+  only for the snackbar, which has room for one line. The "up to date" chip is additionally gated on
+  nothing being withheld: a session that deferred a conversation, or that never received a blob the
+  peer holds, is not current — the sentence row below says which item is owed, so the chip does not
+  claim otherwise over it. (Skill conflicts, replaced rows and clock skew do not gate it: they are
+  not data this device is missing.)
 - **The window rebuild is triggered by "the peer sent this conversation", not by "a counter moved".**
   Applying a subtree told an open chat window to rebuild only when one of four counters was non-zero
   (upserted/deleted messages, a changed conversation row, a repaired order), and the fourth of those
@@ -889,7 +893,15 @@ half of the fix; three facts below it are what make it possible.
   which outranks the probe for `sessionVerdictTtl` (one minute, so the verdict cannot outlive the
   peer's actual state). The probe itself gained jitter tolerance: one miss is remembered, two in a
   row clear the dot, because a green dot that flickers gray every half minute is worse than one
-  that is half a minute stale. The card's tooltip says which evidence it is reporting.
+  that is half a minute stale. The card's tooltip says which evidence it is reporting. Two edges are
+  known and accepted. `internal` is the catch-all failure reason, so a failure that never left this
+  device — a manifest build against a broken database, a certificate context that will not open —
+  files "answered" for up to the verdict's TTL; separating it from the 401 refusal that shares the
+  reason would need a "did a request leave this device" signal the engine does not publish, and the
+  probe corrects the dot within the minute. And a session that dials nothing (`noEndpoint`) files no
+  verdict, because the probe is the only evidence it could file — but the session marks its peer
+  online on the way in, so that mark is removed again on the way out: with no endpoint there is no
+  probe to correct it.
   *Rejected: upgrading the probe to a pinned TLS handshake* — it would overturn the documented
   "a probe tests the *address*, never the peer" contract, make the 30-second probe carry crypto and
   a new failure surface (self-signed certificates, IPv6 literals), and still be a weaker statement
@@ -902,7 +914,15 @@ half of the fix; three facts below it are what make it possible.
   `connecting` now carries the endpoint and the candidate's rank (`正在连接 13.173.213.34:9527…（2/3）`),
   and `exchanging` is published only once both manifests are in hand. A candidate that will never
   answer is now visibly *the* thing taking the time, and it is bounded: each candidate ends in
-  `unreachable`, which the session verdict turns into a gray dot.
+  `unreachable`, which the session verdict turns into a gray dot. Two things about that label came
+  back from review. It lives in **its own row**, not beside the peer's name: an address plus a rank is
+  wider than the space left in the header row, and a `Row` measures a non-flexible child at its
+  intrinsic width before the flexible children, so the label took the whole line and left the name at
+  zero width — a phone-width card lost the device name for the entire dial. And the beats are
+  published on **their own notification channel** (`onProgressChanged`): the panel reloads every peer
+  record when engine state changes, while the file counter advances once per pulled blob, so a first
+  sync of a history with images re-listed and re-decoded the whole peers directory once per file. A
+  beat cannot have changed a record; the session's end still notifies the record channel once.
 - **A peer dial is always DIRECT.** Dart's `HttpClient` defaults to
   `findProxyFromEnvironment`, so a proxy exported in the environment (the Clash/v2ray-style
   `HTTP_PROXY`/`ALL_PROXY` that desktop users and every developer with a VPN client run) captured every
@@ -912,7 +932,14 @@ half of the fix; three facts below it are what make it possible.
   factory that sets `findProxy = DIRECT`. The symptom that found this is worth keeping: the *probe*
   behind the online dot is a bare `Socket.connect` and never consulted the proxy, so the card showed a
   green dot next to sessions that could never connect — a reminder that when two measurements disagree,
-  the cheaper one is the one that is wrong.
+  the cheaper one is the one that is wrong. The guard needed a second fix of its own: it asserted
+  arrival at a loopback alias while relying on the *ambient* environment to carry a proxy, and an
+  environment with none makes `findProxyFromEnvironment` answer DIRECT for every address — so on CI it
+  passed whether or not the rule was there. It now installs the environment it needs (`HttpOverrides`
+  handing back a client whose `findProxy` consults `findProxyFromEnvironment` with a proxy pointed at a
+  dead port), asserts first that the control case — a client built without the rule — cannot reach the
+  listener, and only then that the factory does. A guard whose premise is the machine it runs on is
+  not a guard.
 - **A `not_paired` refusal comes with the repair gesture.** The refusal is the client's reading of a
   401: the peer's auth gate refused this device's secret, which means the pairing is gone *there* —
   unpaired on the other device, reset there, or a re-pairing that only one side finished (the

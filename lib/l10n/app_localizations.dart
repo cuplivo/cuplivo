@@ -22980,6 +22980,12 @@ abstract class AppLocalizations {
   /// **'Couldn\'t generate the proactive care message. Open the app to check the model settings and network.'**
   String get proactiveCareFailedNotificationBody;
 
+  /// Notification body announcing a due proactive care letter on platforms that announce the arrival and generate the letter at the next app start
+  ///
+  /// In en, this message translates to:
+  /// **'A letter has arrived. Open the app to read it.'**
+  String get proactiveCareLetterArrivalBody;
+
   /// Assistant edit page tab for roleplay features (Their Letter)
   ///
   /// In en, this message translates to:

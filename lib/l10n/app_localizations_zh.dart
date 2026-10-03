@@ -12311,6 +12311,9 @@ class AppLocalizationsZh extends AppLocalizations {
       '主动关怀消息生成失败，请打开应用检查模型配置与网络。';
 
   @override
+  String get proactiveCareLetterArrivalBody => 'Ta的来信已到达，打开应用即可查看。';
+
+  @override
   String get assistantEditPageRoleplayTab => '角色扮演';
 
   @override
@@ -24548,6 +24551,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String get proactiveCareFailedNotificationBody =>
       '主动关怀消息生成失败，请打开应用检查模型配置与网络。';
+
+  @override
+  String get proactiveCareLetterArrivalBody => 'Ta的来信已到达，打开应用即可查看。';
 
   @override
   String get assistantEditPageRoleplayTab => '角色扮演';
@@ -36866,6 +36872,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get proactiveCareFailedNotificationBody =>
       '主動關懷訊息生成失敗，請開啟應用程式檢查模型配置與網路。';
+
+  @override
+  String get proactiveCareLetterArrivalBody => 'Ta的來信已到達，開啟應用程式即可查看。';
 
   @override
   String get assistantEditPageRoleplayTab => '角色扮演';

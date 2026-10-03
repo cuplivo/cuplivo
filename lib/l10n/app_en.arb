@@ -5694,6 +5694,10 @@
   "@proactiveCareFailedNotificationBody": {
     "description": "Notification body when proactive care message generation fails"
   },
+  "proactiveCareLetterArrivalBody": "A letter has arrived. Open the app to read it.",
+  "@proactiveCareLetterArrivalBody": {
+    "description": "Notification body announcing a due proactive care letter on platforms that announce the arrival and generate the letter at the next app start"
+  },
 "assistantEditPageRoleplayTab": "Roleplay",
   "@assistantEditPageRoleplayTab": {
     "description": "Assistant edit page tab for roleplay features (Their Letter)"

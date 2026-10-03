@@ -91,8 +91,6 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
         }
     }
 
-    private fun permitted() = Build.VERSION.SDK_INT < 31 || alarms.canScheduleExactAlarms()
-
     private fun pendingIntent(id: String, dueAt: Long): PendingIntent {
         val intent = Intent(app, ProactiveCareAlarmReceiver::class.java).setAction(FIRE)
             .setData(Uri.Builder().scheme("kelivo-schedule").authority("care").appendPath(id).build())
@@ -107,14 +105,14 @@ class ProactiveCareAlarms(private val app: KelivoApplication) {
     }
 
     private fun arm(id: String, dueAt: Long) {
-        alarms.cancel(pendingIntent(id, 0))
+        ExactAlarmHelper.cancel(alarms, pendingIntent(id, 0))
         due[id] = dueAt
         persist(id, dueAt)
-        if (permitted()) alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, dueAt, pendingIntent(id, dueAt))
+        ExactAlarmHelper.scheduleExact(alarms, dueAt, pendingIntent(id, dueAt))
     }
 
     private fun cancel(id: String) {
-        alarms.cancel(pendingIntent(id, 0))
+        ExactAlarmHelper.cancel(alarms, pendingIntent(id, 0))
         due.remove(id)
         persist(id, null)
     }

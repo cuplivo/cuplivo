@@ -12912,6 +12912,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t generate the proactive care message. Open the app to check the model settings and network.';
 
   @override
+  String get proactiveCareLetterArrivalBody =>
+      'A letter has arrived. Open the app to read it.';
+
+  @override
   String get assistantEditPageRoleplayTab => 'Roleplay';
 
   @override

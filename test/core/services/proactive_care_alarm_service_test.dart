@@ -92,6 +92,10 @@ void main() {
       );
     });
 
+    test('isSupported is true on non-web platforms', () {
+      expect(ProactiveCareAlarmService.isSupported, isTrue);
+    });
+
     test('letter ids share the conversation hash with distinct ids', () {
       final letter = NotificationService.proactiveCareIdFor('conv-1');
       final chat = NotificationService.notificationIdForConversation('conv-1');

@@ -18,6 +18,11 @@ void main() {
       defaultAssistantEditTabIds,
       isNot(contains(assistantEditTabRoleplay)),
     );
+    // Platform default includes roleplay tab across all supported platforms.
+    expect(
+      platformDefaultAssistantEditTabIds(),
+      contains(assistantEditTabRoleplay),
+    );
   });
 
   test(

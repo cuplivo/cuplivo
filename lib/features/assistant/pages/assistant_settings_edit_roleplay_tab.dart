@@ -47,7 +47,9 @@ class _AssistantSettingsEditRoleplayTabState
     _carePromptCtrl = TextEditingController();
     _decisionPromptCtrl = TextEditingController();
     WidgetsBinding.instance.addObserver(this);
-    unawaited(_refreshSettings());
+    if (Platform.isAndroid) {
+      unawaited(_refreshSettings());
+    }
   }
 
   @override
@@ -67,7 +69,7 @@ class _AssistantSettingsEditRoleplayTabState
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed && Platform.isAndroid) {
       unawaited(_refreshSettings());
     }
   }
@@ -512,53 +514,57 @@ class _AssistantSettingsEditRoleplayTabState
                     _conversationRow(context, conversation, now),
                 ],
         ),
-        const SizedBox(height: 12),
-        _RoleplayExpandableCard(
-          key: AssistantSettingsEditRoleplayTab.permissionsSectionKey,
-          icon: Lucide.Shield,
-          title: l10n.assistantEditProactiveCarePermissionsTitle,
-          expanded: _permissionsExpanded,
-          onToggle: () =>
-              setState(() => _permissionsExpanded = !_permissionsExpanded),
-          children: [
-            _permissionRow(
-              context,
-              keyName: 'notifications',
-              icon: Lucide.MessageCircle,
-              title: l10n.assistantEditProactiveCareNotificationsTitle,
-              importance: l10n.assistantEditProactiveCarePermissionRequired,
-              state: _notificationState(),
-              onTap: _handleNotifications,
-            ),
-            _permissionRow(
-              context,
-              keyName: 'exactAlarm',
-              icon: Lucide.Timer,
-              title: l10n.assistantEditProactiveCareExactAlarmTitle,
-              importance: l10n.assistantEditProactiveCarePermissionRequired,
-              state: status?.exactAlarms ?? unknown,
-              onTap: _handleExactAlarm,
-            ),
-            _permissionRow(
-              context,
-              keyName: 'autoStart',
-              icon: Lucide.Smartphone,
-              title: l10n.assistantEditProactiveCareAutoStartTitle,
-              importance: l10n.assistantEditProactiveCarePermissionRecommended,
-              state: status?.autoStart ?? unknown,
-              onTap: _handleAutoStart,
-            ),
-            _permissionRow(
-              context,
-              keyName: 'battery',
-              icon: Lucide.Zap,
-              title: l10n.assistantEditProactiveCareBatteryTitle,
-              importance: l10n.assistantEditProactiveCarePermissionRecommended,
-              state: status?.batteryOptimizationExemption ?? unknown,
-              onTap: _handleBattery,
-            ),
-          ],
-        ),
+        if (Platform.isAndroid) ...[
+          const SizedBox(height: 12),
+          _RoleplayExpandableCard(
+            key: AssistantSettingsEditRoleplayTab.permissionsSectionKey,
+            icon: Lucide.Shield,
+            title: l10n.assistantEditProactiveCarePermissionsTitle,
+            expanded: _permissionsExpanded,
+            onToggle: () =>
+                setState(() => _permissionsExpanded = !_permissionsExpanded),
+            children: [
+              _permissionRow(
+                context,
+                keyName: 'notifications',
+                icon: Lucide.MessageCircle,
+                title: l10n.assistantEditProactiveCareNotificationsTitle,
+                importance: l10n.assistantEditProactiveCarePermissionRequired,
+                state: _notificationState(),
+                onTap: _handleNotifications,
+              ),
+              _permissionRow(
+                context,
+                keyName: 'exactAlarm',
+                icon: Lucide.Timer,
+                title: l10n.assistantEditProactiveCareExactAlarmTitle,
+                importance: l10n.assistantEditProactiveCarePermissionRequired,
+                state: status?.exactAlarms ?? unknown,
+                onTap: _handleExactAlarm,
+              ),
+              _permissionRow(
+                context,
+                keyName: 'autoStart',
+                icon: Lucide.Smartphone,
+                title: l10n.assistantEditProactiveCareAutoStartTitle,
+                importance:
+                    l10n.assistantEditProactiveCarePermissionRecommended,
+                state: status?.autoStart ?? unknown,
+                onTap: _handleAutoStart,
+              ),
+              _permissionRow(
+                context,
+                keyName: 'battery',
+                icon: Lucide.Zap,
+                title: l10n.assistantEditProactiveCareBatteryTitle,
+                importance:
+                    l10n.assistantEditProactiveCarePermissionRecommended,
+                state: status?.batteryOptimizationExemption ?? unknown,
+                onTap: _handleBattery,
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 16),
         Text(
           l10n.assistantEditProactiveCarePromptTitle,

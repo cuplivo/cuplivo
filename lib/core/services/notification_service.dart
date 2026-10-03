@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 typedef ChatCompletionNotificationSender =
@@ -66,7 +66,7 @@ class NotificationService {
   }
 
   static Future<void> ensureInitialized() async {
-    if (!Platform.isAndroid && !Platform.isIOS) return;
+    if (kIsWeb) return;
     if (_inited) return;
     final existing = _initialization;
     if (existing != null) {
@@ -74,7 +74,7 @@ class NotificationService {
       return;
     }
 
-    final initialization = _initializeAndroid();
+    final initialization = _initializeNotifications();
     _initialization = initialization;
     try {
       await initialization;
@@ -85,32 +85,42 @@ class NotificationService {
     }
   }
 
-  static Future<void> _initializeAndroid() async {
-    // Android initialization
+  static Future<void> _initializeNotifications() async {
+    // Platform initialization
     const AndroidInitializationSettings androidInit =
         AndroidInitializationSettings('@drawable/ic_background_generation');
+    const DarwinInitializationSettings darwinInit =
+        DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        );
+    const LinuxInitializationSettings linuxInit = LinuxInitializationSettings(
+      defaultActionName: 'Open notification',
+    );
     const InitializationSettings init = InitializationSettings(
       android: androidInit,
-      iOS: DarwinInitializationSettings(
-        requestAlertPermission: false,
-        requestBadgePermission: false,
-        requestSoundPermission: false,
-      ),
+      iOS: darwinInit,
+      macOS: darwinInit,
+      linux: linuxInit,
     );
-    await _plugin.initialize(
-      init,
-      onDidReceiveNotificationResponse: _handleNotificationResponse,
-    );
+    try {
+      await _plugin.initialize(
+        init,
+        onDidReceiveNotificationResponse: _handleNotificationResponse,
+      );
+    } catch (_) {}
 
-    // Create channel
-    final android = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    if (android != null) {
-      await android.createNotificationChannel(_channel);
-      await android.createNotificationChannel(_proactiveCareChannel);
-      // Runtime notification permission (Android 13+) should be requested by app UI if needed
+    // Create Android channel
+    if (Platform.isAndroid) {
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      if (android != null) {
+        await android.createNotificationChannel(_channel);
+        await android.createNotificationChannel(_proactiveCareChannel);
+      }
     }
     _inited = true;
 
@@ -193,39 +203,49 @@ class NotificationService {
     required String body,
     String? largeIconPath,
   }) async {
-    if (!Platform.isAndroid && !Platform.isIOS) return;
+    if (kIsWeb) return;
     if (conversationId.trim().isEmpty) return;
     await ensureInitialized();
     final style = BigTextStyleInformation(body);
-    await _plugin.show(
-      id ?? proactiveCareIdFor(conversationId),
-      title,
-      body,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          _proactiveCareChannel.id,
-          _proactiveCareChannel.name,
-          channelDescription: _proactiveCareChannel.description,
-          importance: Importance.max,
-          priority: Priority.max,
-          playSound: true,
-          enableVibration: true,
-          category: AndroidNotificationCategory.message,
-          visibility: NotificationVisibility.public,
-          ticker: 'Cuplivo',
-          styleInformation: style,
-          largeIcon: (largeIconPath == null || largeIconPath.isEmpty)
-              ? null
-              : FilePathAndroidBitmap(largeIconPath),
+    try {
+      await _plugin.show(
+        id ?? proactiveCareIdFor(conversationId),
+        title,
+        body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _proactiveCareChannel.id,
+            _proactiveCareChannel.name,
+            channelDescription: _proactiveCareChannel.description,
+            importance: Importance.max,
+            priority: Priority.max,
+            playSound: true,
+            enableVibration: true,
+            category: AndroidNotificationCategory.message,
+            visibility: NotificationVisibility.public,
+            ticker: 'Cuplivo',
+            styleInformation: style,
+            largeIcon: (largeIconPath == null || largeIconPath.isEmpty)
+                ? null
+                : FilePathAndroidBitmap(largeIconPath),
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentSound: true,
+            threadIdentifier: 'cuplivo.proactive-care',
+          ),
+          macOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentSound: true,
+            threadIdentifier: 'cuplivo.proactive-care',
+          ),
+          linux: LinuxNotificationDetails(
+            defaultActionName: 'Open conversation',
+          ),
         ),
-        iOS: const DarwinNotificationDetails(
-          presentAlert: true,
-          presentSound: true,
-          threadIdentifier: 'cuplivo.proactive-care',
-        ),
-      ),
-      payload: '$_proactiveCarePayloadPrefix$conversationId',
-    );
+        payload: '$_proactiveCarePayloadPrefix$conversationId',
+      );
+    } catch (_) {}
   }
 
   static void _handleNotificationResponse(NotificationResponse response) {

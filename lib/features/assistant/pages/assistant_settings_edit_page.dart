@@ -128,13 +128,12 @@ List<_AssistantEditTabSpec> _assistantEditTabSpecs(
       icon: Lucide.Brain,
       child: _MemoryTab(assistantId: assistantId),
     ),
-    if (Platform.isAndroid)
-      _AssistantEditTabSpec(
-        id: assistantEditTabRoleplay,
-        label: l10n.assistantEditPageRoleplayTab,
-        icon: Lucide.HeartPulse,
-        child: AssistantSettingsEditRoleplayTab(assistantId: assistantId),
-      ),
+    _AssistantEditTabSpec(
+      id: assistantEditTabRoleplay,
+      label: l10n.assistantEditPageRoleplayTab,
+      icon: Lucide.HeartPulse,
+      child: AssistantSettingsEditRoleplayTab(assistantId: assistantId),
+    ),
     _AssistantEditTabSpec(
       id: assistantEditTabLocalTools,
       label: l10n.assistantEditPageLocalToolsTab,

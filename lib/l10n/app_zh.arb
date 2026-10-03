@@ -4596,6 +4596,10 @@
   "@proactiveCareFailedNotificationBody": {
     "description": "主动关怀消息生成失败时的通知内容"
   },
+  "proactiveCareLetterArrivalBody": "Ta的来信已到达，打开应用即可查看。",
+  "@proactiveCareLetterArrivalBody": {
+    "description": "在只做到达提醒的平台上，来信到期时通知的内容"
+  },
 "assistantEditPageRoleplayTab": "角色扮演",
   "@assistantEditPageRoleplayTab": {
     "description": "Assistant edit page tab for roleplay features (Their Letter)"

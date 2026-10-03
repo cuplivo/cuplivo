@@ -48,10 +48,7 @@ void main() {
           AndroidProactiveCareSettingState.notApplicable,
         );
         expect(await service.openAppNotificationSettings(), isFalse);
-        expect(
-          await service.openAutoStartSettings(),
-          AndroidAutoStartSettingsDestination.unavailable,
-        );
+        expect(await service.openAutoStartSettings(), isFalse);
         expect(platform.callCount, 0);
       },
     );
@@ -242,17 +239,14 @@ void main() {
           nativeResults: <String, Object?>{
             'openAppNotificationSettings': true,
             'openNotificationChannelSettings': true,
-            'openAutoStartSettings': 'manufacturerSettings',
+            'openAutoStartSettings': true,
           },
         );
         final service = AndroidProactiveCareSettingsService(platform: platform);
 
         expect(await service.openAppNotificationSettings(), isTrue);
         expect(await service.openProactiveCareChannelSettings(), isTrue);
-        expect(
-          await service.openAutoStartSettings(),
-          AndroidAutoStartSettingsDestination.manufacturerSettings,
-        );
+        expect(await service.openAutoStartSettings(), isTrue);
         expect(
           platform.nativeArguments['openNotificationChannelSettings'],
           <String, Object?>{
@@ -263,30 +257,9 @@ void main() {
       },
     );
 
-    test(
-      'auto-start reports application-details fallback without granting',
-      () async {
-        final platform = _FakePlatform(
-          nativeResults: <String, Object?>{
-            'openAutoStartSettings': 'applicationDetails',
-          },
-        );
-        final service = AndroidProactiveCareSettingsService(platform: platform);
-
-        expect(
-          await service.openAutoStartSettings(),
-          AndroidAutoStartSettingsDestination.applicationDetails,
-        );
-        expect(
-          (await service.queryStatus()).autoStart,
-          AndroidProactiveCareSettingState.manual,
-        );
-      },
-    );
-
-    test('invalid or failed native responses report unavailable', () async {
+    test('invalid or failed native responses report false', () async {
       final invalid = _FakePlatform(
-        nativeResults: <String, Object?>{'openAutoStartSettings': true},
+        nativeResults: <String, Object?>{'openAutoStartSettings': 'invalid'},
       );
       final failed = _FakePlatform(
         nativeError: StateError('settings channel dead'),
@@ -296,7 +269,7 @@ void main() {
         await AndroidProactiveCareSettingsService(
           platform: invalid,
         ).openAutoStartSettings(),
-        AndroidAutoStartSettingsDestination.unavailable,
+        isFalse,
       );
       expect(
         await AndroidProactiveCareSettingsService(

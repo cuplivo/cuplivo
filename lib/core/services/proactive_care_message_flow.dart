@@ -1,13 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show File, Platform;
-import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:image/image.dart' as img;
 
 import '../../features/home/utils/model_display_helper.dart';
-import '../../utils/app_directories.dart';
 import '../../utils/assistant_regex.dart';
 import '../../utils/avatar_cache.dart';
 import '../../utils/sandbox_path_resolver.dart';
@@ -237,6 +234,22 @@ class ProactiveCareMessageFlow {
     };
   }
 
+  String _buildPersonaPrompt({
+    required Assistant assistant,
+    required String modelId,
+    required String userNickname,
+    required DateTime now,
+  }) {
+    if (assistant.systemPrompt.trim().isEmpty) return '';
+    final vars = buildPersonaPlaceholders(
+      assistant: assistant,
+      modelId: modelId,
+      userNickname: userNickname,
+      now: now,
+    );
+    return PromptTransformer.replacePlaceholders(assistant.systemPrompt, vars);
+  }
+
   /// Assembles the silent care request: persona system + memories +
   /// instruction injections + world book entries + history + the care
   /// prompt as the final user turn, tail-limited to the assistant's context
@@ -249,104 +262,77 @@ class ProactiveCareMessageFlow {
     required String carePrompt,
     required DateTime now,
   }) async {
+    final systemBlocks = <String>[];
+    final persona = _buildPersonaPrompt(
+      assistant: assistant,
+      modelId: modelId,
+      userNickname: userNickname,
+      now: now,
+    );
+    if (persona.isNotEmpty) systemBlocks.add(persona);
+
+    final store = memoryStore;
+    if (assistant.enableMemory && store != null) {
+      try {
+        final block = ProactiveCareService.buildMemoriesBlock(
+          await store.getForAssistant(assistant.id),
+        );
+        if (block.isNotEmpty) systemBlocks.add(block);
+      } catch (e) {
+        debugPrint('[ProactiveCare] Memory injection failed: $e');
+      }
+    }
+
+    final injectionStore = instructionInjectionStore;
+    if (injectionStore != null) {
+      try {
+        final actives = await injectionStore.getActives(
+          assistantId: assistant.id,
+        );
+        final prompts = actives
+            .map((e) => e.prompt.trim())
+            .where((p) => p.isNotEmpty)
+            .toList(growable: false);
+        if (prompts.isNotEmpty) systemBlocks.add(prompts.join('\n\n'));
+      } catch (e) {
+        debugPrint('[ProactiveCare] Instruction injection failed: $e');
+      }
+    }
+
+    final bookStore = worldBookStore;
+    if (bookStore != null) {
+      try {
+        final books = await bookStore.getAll();
+        final activeIds = await bookStore.getActiveIds(
+          assistantId: assistant.id,
+        );
+        final entries = [
+          for (final b in books)
+            if (activeIds.contains(b.id))
+              for (final e in b.entries)
+                if (e.content.trim().isNotEmpty) e.content.trim(),
+        ];
+        if (entries.isNotEmpty) systemBlocks.add(entries.join('\n'));
+      } catch (e) {
+        debugPrint('[ProactiveCare] World book injection failed: $e');
+      }
+    }
+
     final apiMessages = <Map<String, dynamic>>[
+      if (systemBlocks.isNotEmpty)
+        {'role': 'system', 'content': systemBlocks.join('\n\n')},
       for (final m in history) Map<String, dynamic>.of(m),
-    ];
-
-    apiMessages.add({
-      'role': 'user',
-      'content': ProactiveCareService.buildCareUserMessage(
-        carePrompt: carePrompt,
-        now: now,
-      ),
-    });
-
-    if (assistant.systemPrompt.trim().isNotEmpty) {
-      final vars = buildPersonaPlaceholders(
-        assistant: assistant,
-        modelId: modelId,
-        userNickname: userNickname,
-        now: now,
-      );
-      apiMessages.insert(0, {
-        'role': 'system',
-        'content': PromptTransformer.replacePlaceholders(
-          assistant.systemPrompt,
-          vars,
+      {
+        'role': 'user',
+        'content': ProactiveCareService.buildCareUserMessage(
+          carePrompt: carePrompt,
+          now: now,
         ),
-      });
-    }
-
-    {
-      final store = memoryStore;
-      if (assistant.enableMemory && store != null) {
-        try {
-          final block = ProactiveCareService.buildMemoriesBlock(
-            await store.getForAssistant(assistant.id),
-          );
-          if (block.isNotEmpty) _appendToSystemMessage(apiMessages, block);
-        } catch (e) {
-          debugPrint('[ProactiveCare] Memory injection failed: $e');
-        }
-      }
-    }
-
-    {
-      final store = instructionInjectionStore;
-      if (store != null) {
-        try {
-          final actives = await store.getActives(assistantId: assistant.id);
-          final prompts = actives
-              .map((e) => e.prompt.trim())
-              .where((p) => p.isNotEmpty)
-              .toList(growable: false);
-          if (prompts.isNotEmpty) {
-            _appendToSystemMessage(apiMessages, prompts.join('\n\n'));
-          }
-        } catch (e) {
-          debugPrint('[ProactiveCare] Instruction injection failed: $e');
-        }
-      }
-    }
-
-    {
-      final store = worldBookStore;
-      if (store != null) {
-        try {
-          final books = await store.getAll();
-          final activeIds = await store.getActiveIds(assistantId: assistant.id);
-          final entries = <String>[];
-          for (final book in books) {
-            if (!activeIds.contains(book.id)) continue;
-            for (final entry in book.entries) {
-              final content = entry.content.trim();
-              if (content.isEmpty) continue;
-              entries.add(content);
-            }
-          }
-          if (entries.isNotEmpty) {
-            _appendToSystemMessage(apiMessages, entries.join('\n'));
-          }
-        } catch (e) {
-          debugPrint('[ProactiveCare] World book injection failed: $e');
-        }
-      }
-    }
+      },
+    ];
 
     _applyMessageLimit(apiMessages, assistant);
     return apiMessages;
-  }
-
-  static void _appendToSystemMessage(
-    List<Map<String, dynamic>> apiMessages,
-    String content,
-  ) {
-    if (apiMessages.isNotEmpty && apiMessages.first['role'] == 'system') {
-      apiMessages[0]['content'] =
-          '${(apiMessages[0]['content'] ?? '') as String}\n\n$content';
-    } else {
-      apiMessages.insert(0, {'role': 'system', 'content': content});
-    }
   }
 
   /// Keeps the trailing [Assistant.contextMessageSize] messages; the system
@@ -406,19 +392,12 @@ class ProactiveCareMessageFlow {
     if (history.isEmpty) return null;
     final now = DateTime.now();
 
-    var personaPrompt = '';
-    if (assistant.systemPrompt.trim().isNotEmpty) {
-      final vars = buildPersonaPlaceholders(
-        assistant: assistant,
-        modelId: modelId,
-        userNickname: userNickname,
-        now: now,
-      );
-      personaPrompt = PromptTransformer.replacePlaceholders(
-        assistant.systemPrompt,
-        vars,
-      );
-    }
+    final personaPrompt = _buildPersonaPrompt(
+      assistant: assistant,
+      modelId: modelId,
+      userNickname: userNickname,
+      now: now,
+    );
     String memoriesBlock = '';
     {
       final store = memoryStore;
@@ -768,8 +747,13 @@ class ProactiveCareMessageFlow {
         })
         .toList(growable: false);
 
+    final assistantsById = {for (final a in assistants) a.id: a};
+
     for (final conversation in candidates) {
-      final assistant = _assistantFor(conversation, fallback: assistants);
+      final assistantId = conversation.assistantId;
+      final assistant = assistantId == null
+          ? null
+          : assistantsById[assistantId];
       if (assistant == null) continue;
       if (!ProactiveCareConversationPolicy.isEligible(
         conversation,
@@ -793,15 +777,6 @@ class ProactiveCareMessageFlow {
       }
     }
     return delivered;
-  }
-
-  Assistant? _assistantFor(
-    Conversation conversation, {
-    List<Assistant>? fallback,
-  }) {
-    final id = conversation.assistantId;
-    if (id == null) return null;
-    return fallback?.where((a) => a.id == id).firstOrNull;
   }
 
   /// Atomically consumes the persisted schedule: clears the stored next time
@@ -839,83 +814,27 @@ class ProactiveCareMessageFlow {
   }
 }
 
-/// Resolves the assistant avatar into a circular PNG for the notification
-/// large icon. Returns null for emoji/initial-letter avatars and any I/O or
-/// decode failure (the notification then falls back to no large icon).
+/// Resolves the assistant avatar path for the notification large icon.
+/// Android API 24+ automatically masks notification large icons to circles.
+/// Returns null for emoji/initial-letter avatars or missing files.
 Future<String?> resolveProactiveCareNotificationIconPath(
-  Assistant assistant,
-  int notificationId,
-) async {
+  Assistant assistant, [
+  int? notificationId,
+]) async {
   if (!Platform.isAndroid) return null;
   final avatar = assistant.avatar?.trim() ?? '';
   if (avatar.isEmpty) return null;
 
-  String? sourcePath;
   try {
     if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-      sourcePath = await AvatarCache.getPath(avatar);
+      final cached = await AvatarCache.getPath(avatar);
+      if (cached != null && File(cached).existsSync()) return cached;
     } else if (avatar.startsWith('/') || avatar.contains(':')) {
       final fixed = SandboxPathResolver.fix(avatar);
-      if (File(fixed).existsSync()) sourcePath = fixed;
-    } else {
-      // Emoji or initial-letter avatar: no bitmap to show.
-      return null;
+      if (File(fixed).existsSync()) return fixed;
     }
   } catch (e) {
     debugPrint('[ProactiveCare] Avatar resolve failed: $e');
-    return null;
   }
-  if (sourcePath == null) {
-    debugPrint('[ProactiveCare] Avatar file unavailable for $avatar');
-    return null;
-  }
-
-  try {
-    final bytes = await File(sourcePath).readAsBytes();
-    final png = cropAvatarForNotification(bytes);
-    if (png == null) {
-      debugPrint('[ProactiveCare] Avatar decode failed for $sourcePath');
-      return null;
-    }
-    final dir = await AppDirectories.getCacheDirectory();
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-    final out = File('${dir.path}/proactive_care_icon_$notificationId.png');
-    await out.writeAsBytes(png, flush: true);
-    return out.path;
-  } catch (e) {
-    debugPrint('[ProactiveCare] Avatar crop failed: $e');
-    return null;
-  }
-}
-
-/// Center-crops [bytes] into a circular PNG no larger than [maxSize].
-@visibleForTesting
-Uint8List? cropAvatarForNotification(Uint8List bytes, {int maxSize = 256}) {
-  img.Image? decoded;
-  try {
-    decoded = img.decodeImage(bytes);
-  } catch (_) {
-    return null;
-  }
-  if (decoded == null) return null;
-  final side = math.min(decoded.width, decoded.height);
-  var square = img.copyCrop(
-    decoded,
-    x: (decoded.width - side) ~/ 2,
-    y: (decoded.height - side) ~/ 2,
-    width: side,
-    height: side,
-  );
-  if (side > maxSize) {
-    square = img.copyResize(
-      square,
-      width: maxSize,
-      height: maxSize,
-      interpolation: img.Interpolation.average,
-    );
-  }
-  final circled = img.copyCropCircle(square.convert(numChannels: 4));
-  return img.encodePng(circled);
+  return null;
 }

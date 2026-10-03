@@ -287,29 +287,24 @@ class NotificationService {
     return id.isEmpty ? null : id;
   }
 
+  static int _fnv1aId(String key, int baseId) {
+    var hash = 0x811c9dc5;
+    for (final byte in utf8.encode(key)) {
+      hash = ((hash ^ byte) * 0x01000193) & 0x7fffffff;
+    }
+    return baseId + (hash % (0x7fffffff - baseId));
+  }
+
   /// Stable per-conversation IDs let notifications from different chats
   /// coexist while a later completion in the same chat replaces the old one.
   @visibleForTesting
-  static int notificationIdForConversation(String conversationId) {
-    var hash = 0x811c9dc5;
-    for (final byte in utf8.encode(conversationId)) {
-      hash = ((hash ^ byte) * 0x01000193) & 0x7fffffff;
-    }
-    const firstChatNotificationId = 10000;
-    return firstChatNotificationId +
-        (hash % (0x7fffffff - firstChatNotificationId));
-  }
+  static int notificationIdForConversation(String conversationId) =>
+      _fnv1aId(conversationId, 10000);
 
   /// Stable conversation-owned id for proactive care letters. Kept in a
   /// distinct space from [notificationIdForConversation] so a letter never
   /// replaces (or is replaced by) a chat-completion notification of the
   /// same conversation.
-  static int proactiveCareIdFor(String conversationId) {
-    var hash = 0x811c9dc5;
-    for (final byte in utf8.encode(conversationId)) {
-      hash = ((hash ^ byte) * 0x01000193) & 0x7fffffff;
-    }
-    const firstProactiveCareId = 30000;
-    return firstProactiveCareId + (hash % (0x7fffffff - firstProactiveCareId));
-  }
+  static int proactiveCareIdFor(String conversationId) =>
+      _fnv1aId(conversationId, 30000);
 }

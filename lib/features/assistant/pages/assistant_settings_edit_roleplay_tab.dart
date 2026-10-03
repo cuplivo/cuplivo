@@ -172,36 +172,26 @@ class _AssistantSettingsEditRoleplayTabState
     Assistant assistant,
     DateTime now,
   ) {
-    final indexed = chatService
+    final list = chatService
         .getAllConversations()
-        .where(
-          (conversation) => ProactiveCareConversationPolicy.isEligible(
-            conversation,
-            assistant,
-          ),
-        )
-        .indexed
+        .where((c) => ProactiveCareConversationPolicy.isEligible(c, assistant))
         .toList();
-    int category(Conversation conversation) {
-      final time = conversation.proactiveCareNextMessageAt;
-      if (time == null) return 2;
-      return time.isAfter(now) ? 0 : 1;
+
+    int rank(Conversation c) {
+      final t = c.proactiveCareNextMessageAt;
+      if (t == null) return 2;
+      return t.isAfter(now) ? 0 : 1;
     }
 
-    indexed.sort((left, right) {
-      final leftCategory = category(left.$2);
-      final rightCategory = category(right.$2);
-      final categoryOrder = leftCategory.compareTo(rightCategory);
-      if (categoryOrder != 0) return categoryOrder;
-      if (leftCategory == 0) {
-        final timeOrder = left.$2.proactiveCareNextMessageAt!.compareTo(
-          right.$2.proactiveCareNextMessageAt!,
-        );
-        if (timeOrder != 0) return timeOrder;
-      }
-      return left.$1.compareTo(right.$1);
+    list.sort((a, b) {
+      final diff = rank(a).compareTo(rank(b));
+      if (diff != 0) return diff;
+      final ta = a.proactiveCareNextMessageAt;
+      final tb = b.proactiveCareNextMessageAt;
+      if (ta != null && tb != null) return ta.compareTo(tb);
+      return 0;
     });
-    return indexed.map((entry) => entry.$2).toList();
+    return list;
   }
 
   AndroidProactiveCareSettingState _notificationState() {
@@ -490,27 +480,7 @@ class _AssistantSettingsEditRoleplayTabState
                 detailText:
                     a.proactiveCareDecisionHistoryMessageLimit?.toString() ??
                     l10n.assistantEditParameterDisabled2,
-                onTap: () => _showAssistantMessageLimitSheet(
-                  context,
-                  assistantId: a.id,
-                  title:
-                      l10n.assistantEditProactiveCareDecisionHistoryLimitTitle,
-                  description: l10n
-                      .assistantEditProactiveCareDecisionHistoryLimitDescription,
-                  isEnabled: (assistant) =>
-                      assistant.proactiveCareDecisionHistoryMessageLimit !=
-                      null,
-                  readValue: (assistant) =>
-                      assistant.proactiveCareDecisionHistoryMessageLimit ??
-                      assistant.contextMessageSize,
-                  writeLimit: (assistant, limit) => limit == null
-                      ? assistant.copyWith(
-                          clearProactiveCareDecisionHistoryMessageLimit: true,
-                        )
-                      : assistant.copyWith(
-                          proactiveCareDecisionHistoryMessageLimit: limit,
-                        ),
-                ),
+                onTap: () => _showDecisionHistoryLimitSheet(context, a.id),
               ),
             ),
           ],
@@ -723,15 +693,10 @@ InputDecoration _promptDecoration(BuildContext context, {String? hint}) {
   );
 }
 
-Future<void> _showAssistantMessageLimitSheet(
-  BuildContext context, {
-  required String assistantId,
-  required String title,
-  required String description,
-  required bool Function(Assistant assistant) isEnabled,
-  required int Function(Assistant assistant) readValue,
-  required Assistant Function(Assistant assistant, int? limit) writeLimit,
-}) async {
+Future<void> _showDecisionHistoryLimitSheet(
+  BuildContext context,
+  String assistantId,
+) async {
   final cs = Theme.of(context).colorScheme;
   final l10n = AppLocalizations.of(context)!;
   await showModalBottomSheet<void>(
@@ -752,8 +717,28 @@ Future<void> _showAssistantMessageLimitSheet(
                 assistantId,
               );
               if (assistant == null) return const SizedBox.shrink();
-              final enabled = isEnabled(assistant);
-              final value = _clampContextMessages(readValue(assistant));
+              final enabled =
+                  assistant.proactiveCareDecisionHistoryMessageLimit != null;
+              final value = _clampContextMessages(
+                assistant.proactiveCareDecisionHistoryMessageLimit ??
+                    assistant.contextMessageSize,
+              );
+
+              Future<void> update(int? limit) async {
+                final provider = context.read<AssistantProvider>();
+                final cur = provider.getById(assistantId);
+                if (cur == null) return;
+                await provider.updateAssistant(
+                  limit == null
+                      ? cur.copyWith(
+                          clearProactiveCareDecisionHistoryMessageLimit: true,
+                        )
+                      : cur.copyWith(
+                          proactiveCareDecisionHistoryMessageLimit: limit,
+                        ),
+                );
+              }
+
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -773,7 +758,7 @@ Future<void> _showAssistantMessageLimitSheet(
                     children: [
                       Expanded(
                         child: Text(
-                          title,
+                          l10n.assistantEditProactiveCareDecisionHistoryLimitTitle,
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: AppFontWeights.semibold,
@@ -782,15 +767,10 @@ Future<void> _showAssistantMessageLimitSheet(
                       ),
                       IosSwitch(
                         value: enabled,
-                        onChanged: (nextEnabled) async {
-                          final provider = context.read<AssistantProvider>();
-                          final current = provider.getById(assistantId);
-                          if (current == null) return;
-                          final navigator = Navigator.of(sheetContext);
-                          await provider.updateAssistant(
-                            writeLimit(current, nextEnabled ? value : null),
-                          );
-                          if (navigator.mounted) navigator.pop();
+                        onChanged: (next) async {
+                          final nav = Navigator.of(sheetContext);
+                          await update(next ? value : null);
+                          if (nav.mounted) nav.pop();
                         },
                       ),
                     ],
@@ -817,25 +797,13 @@ Future<void> _showAssistantMessageLimitSheet(
                           initialValue: value,
                         );
                         if (!context.mounted || chosen == null) return;
-                        final provider = context.read<AssistantProvider>();
-                        final current = provider.getById(assistantId);
-                        if (current == null) return;
-                        await provider.updateAssistant(
-                          writeLimit(current, chosen),
-                        );
+                        await update(chosen);
                       },
-                      onChanged: (nextValue) {
-                        final provider = context.read<AssistantProvider>();
-                        final current = provider.getById(assistantId);
-                        if (current == null) return;
-                        provider.updateAssistant(
-                          writeLimit(current, _clampContextMessages(nextValue)),
-                        );
-                      },
+                      onChanged: (v) => update(_clampContextMessages(v)),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      description,
+                      l10n.assistantEditProactiveCareDecisionHistoryLimitDescription,
                       style: TextStyle(
                         fontSize: 12,
                         color: cs.onSurface.withValues(alpha: 0.6),

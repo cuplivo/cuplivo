@@ -12900,14 +12900,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t update conversation proactive care.';
 
   @override
-  String get assistantEditProactiveCareExactAlarmPermissionDenied =>
-      'Exact alarm permission not granted. Proactive care cannot wake the app on time. Please allow \"Alarms & reminders\" in system settings.';
-
-  @override
-  String get assistantEditProactiveCareNotificationPermissionDenied =>
-      'Notification permission not granted. Proactive care messages cannot notify you. Please enable notifications in system settings.';
-
-  @override
   String get defaultModelPageProactiveCareModelTitle =>
       'Ta\'s Letter Decision Model';
 

@@ -4584,14 +4584,6 @@
   "@conversationProactiveCareUpdateFailed": {
     "description": "更新對話主動關懷失敗時的錯誤提示"
   },
-  "assistantEditProactiveCareExactAlarmPermissionDenied": "未授予精確鬧鐘權限，主動關懷無法按時喚醒應用程式，請在系統設定中允許「鬧鐘和提醒」。",
-  "@assistantEditProactiveCareExactAlarmPermissionDenied": {
-    "description": "精確鬧鐘權限被拒絕時的警告"
-  },
-  "assistantEditProactiveCareNotificationPermissionDenied": "未授予通知權限，主動關懷訊息將無法通知你，請在系統設定中開啟通知。",
-  "@assistantEditProactiveCareNotificationPermissionDenied": {
-    "description": "通知權限被拒絕時的警告"
-  },
   "defaultModelPageProactiveCareModelTitle": "Ta的來信決策模型",
   "@defaultModelPageProactiveCareModelTitle": {
     "description": "主動關懷決策模型卡片標題"

@@ -12301,14 +12301,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get conversationProactiveCareUpdateFailed => '无法更新对话主动关怀设置。';
 
   @override
-  String get assistantEditProactiveCareExactAlarmPermissionDenied =>
-      '未授予精确闹钟权限，主动关怀无法按时唤醒应用，请在系统设置中允许「闹钟和提醒」。';
-
-  @override
-  String get assistantEditProactiveCareNotificationPermissionDenied =>
-      '未授予通知权限，主动关怀消息将无法通知你，请在系统设置中开启通知。';
-
-  @override
   String get defaultModelPageProactiveCareModelTitle => 'Ta的来信决策模型';
 
   @override
@@ -24546,14 +24538,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get conversationProactiveCareUpdateFailed => '无法更新对话主动关怀设置。';
-
-  @override
-  String get assistantEditProactiveCareExactAlarmPermissionDenied =>
-      '未授予精确闹钟权限，主动关怀无法按时唤醒应用，请在系统设置中允许「闹钟和提醒」。';
-
-  @override
-  String get assistantEditProactiveCareNotificationPermissionDenied =>
-      '未授予通知权限，主动关怀消息将无法通知你，请在系统设置中开启通知。';
 
   @override
   String get defaultModelPageProactiveCareModelTitle => 'Ta的来信决策模型';
@@ -36872,14 +36856,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get conversationProactiveCareUpdateFailed => '無法更新對話主動關懷設定。';
-
-  @override
-  String get assistantEditProactiveCareExactAlarmPermissionDenied =>
-      '未授予精確鬧鐘權限，主動關懷無法按時喚醒應用程式，請在系統設定中允許「鬧鐘和提醒」。';
-
-  @override
-  String get assistantEditProactiveCareNotificationPermissionDenied =>
-      '未授予通知權限，主動關懷訊息將無法通知你，請在系統設定中開啟通知。';
 
   @override
   String get defaultModelPageProactiveCareModelTitle => 'Ta的來信決策模型';

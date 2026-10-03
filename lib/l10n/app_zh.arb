@@ -4584,14 +4584,6 @@
   "@conversationProactiveCareUpdateFailed": {
     "description": "更新对话主动关怀失败时的错误提示"
   },
-  "assistantEditProactiveCareExactAlarmPermissionDenied": "未授予精确闹钟权限，主动关怀无法按时唤醒应用，请在系统设置中允许「闹钟和提醒」。",
-  "@assistantEditProactiveCareExactAlarmPermissionDenied": {
-    "description": "精确闹钟权限被拒绝时的警告"
-  },
-  "assistantEditProactiveCareNotificationPermissionDenied": "未授予通知权限，主动关怀消息将无法通知你，请在系统设置中开启通知。",
-  "@assistantEditProactiveCareNotificationPermissionDenied": {
-    "description": "通知权限被拒绝时的警告"
-  },
   "defaultModelPageProactiveCareModelTitle": "Ta的来信决策模型",
   "@defaultModelPageProactiveCareModelTitle": {
     "description": "主动关怀决策模型卡片标题"

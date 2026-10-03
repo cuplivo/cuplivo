@@ -22962,18 +22962,6 @@ abstract class AppLocalizations {
   /// **'Couldn\'t update conversation proactive care.'**
   String get conversationProactiveCareUpdateFailed;
 
-  /// Warning when exact alarm permission is denied
-  ///
-  /// In en, this message translates to:
-  /// **'Exact alarm permission not granted. Proactive care cannot wake the app on time. Please allow \"Alarms & reminders\" in system settings.'**
-  String get assistantEditProactiveCareExactAlarmPermissionDenied;
-
-  /// Warning when notification permission is denied
-  ///
-  /// In en, this message translates to:
-  /// **'Notification permission not granted. Proactive care messages cannot notify you. Please enable notifications in system settings.'**
-  String get assistantEditProactiveCareNotificationPermissionDenied;
-
   /// Title for the proactive care decision model card
   ///
   /// In en, this message translates to:

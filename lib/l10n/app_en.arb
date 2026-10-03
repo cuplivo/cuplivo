@@ -5682,14 +5682,6 @@
   "@conversationProactiveCareUpdateFailed": {
     "description": "Error shown when a conversation proactive care update fails"
   },
-  "assistantEditProactiveCareExactAlarmPermissionDenied": "Exact alarm permission not granted. Proactive care cannot wake the app on time. Please allow \"Alarms & reminders\" in system settings.",
-  "@assistantEditProactiveCareExactAlarmPermissionDenied": {
-    "description": "Warning when exact alarm permission is denied"
-  },
-  "assistantEditProactiveCareNotificationPermissionDenied": "Notification permission not granted. Proactive care messages cannot notify you. Please enable notifications in system settings.",
-  "@assistantEditProactiveCareNotificationPermissionDenied": {
-    "description": "Warning when notification permission is denied"
-  },
   "defaultModelPageProactiveCareModelTitle": "Ta's Letter Decision Model",
   "@defaultModelPageProactiveCareModelTitle": {
     "description": "Title for the proactive care decision model card"

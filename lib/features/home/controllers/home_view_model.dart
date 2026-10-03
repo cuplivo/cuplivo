@@ -400,6 +400,21 @@ class HomeViewModel extends ChangeNotifier {
     return pick(l10n);
   }
 
+  String get _proactiveCarePromptFallback =>
+      _proactiveCareL10n(
+        (l10n) => l10n.assistantEditProactiveCarePromptDefault,
+      ) ??
+      '';
+
+  String get _proactiveCareDecisionPromptFallback =>
+      _proactiveCareL10n(
+        (l10n) => l10n.assistantEditProactiveCareDecisionPromptDefault,
+      ) ??
+      '';
+
+  String? get _proactiveCareFailureBody =>
+      _proactiveCareL10n((l10n) => l10n.proactiveCareFailedNotificationBody);
+
   Future<void> _decideProactiveCareFor(String conversationId) async {
     final conversation = _chatService.getConversation(conversationId);
     if (conversation == null) return;
@@ -432,11 +447,7 @@ class HomeViewModel extends ChangeNotifier {
       history: history,
       decisionPrompt: assistant.proactiveCareDecisionPrompt.trim().isNotEmpty
           ? assistant.proactiveCareDecisionPrompt
-          : (_proactiveCareL10n(
-                  (l10n) =>
-                      l10n.assistantEditProactiveCareDecisionPromptDefault,
-                ) ??
-                ''),
+          : _proactiveCareDecisionPromptFallback,
       conversationId: conversationId,
       currentNextCareTime: conversation.proactiveCareNextMessageAt,
     );
@@ -460,15 +471,9 @@ class HomeViewModel extends ChangeNotifier {
       final delivered = await flow.runDueSchedules(
         assistants: _contextProvider.read<AssistantProvider>().assistants,
         userNickname: _contextProvider.read<UserProvider>().name,
-        carePromptFallback: _proactiveCareL10n(
-          (l10n) => l10n.assistantEditProactiveCarePromptDefault,
-        ),
-        decisionPromptFallback: _proactiveCareL10n(
-          (l10n) => l10n.assistantEditProactiveCareDecisionPromptDefault,
-        ),
-        failureNotificationBody: _proactiveCareL10n(
-          (l10n) => l10n.proactiveCareFailedNotificationBody,
-        ),
+        carePromptFallback: _proactiveCarePromptFallback,
+        decisionPromptFallback: _proactiveCareDecisionPromptFallback,
+        failureNotificationBody: _proactiveCareFailureBody,
       );
       await _refreshCurrentConversationAfterCare(
         delivered.map((d) => d.conversationId).toSet(),
@@ -497,15 +502,9 @@ class HomeViewModel extends ChangeNotifier {
         expectedAt: expectedAt,
         assistants: _contextProvider.read<AssistantProvider>().assistants,
         userNickname: _contextProvider.read<UserProvider>().name,
-        carePromptFallback: _proactiveCareL10n(
-          (l10n) => l10n.assistantEditProactiveCarePromptDefault,
-        ),
-        decisionPromptFallback: _proactiveCareL10n(
-          (l10n) => l10n.assistantEditProactiveCareDecisionPromptDefault,
-        ),
-        failureNotificationBody: _proactiveCareL10n(
-          (l10n) => l10n.proactiveCareFailedNotificationBody,
-        ),
+        carePromptFallback: _proactiveCarePromptFallback,
+        decisionPromptFallback: _proactiveCareDecisionPromptFallback,
+        failureNotificationBody: _proactiveCareFailureBody,
         notificationId: NotificationService.proactiveCareIdFor(conversationId),
       );
       if (outcome == null) return false;

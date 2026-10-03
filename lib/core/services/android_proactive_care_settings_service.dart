@@ -37,13 +37,6 @@ class AndroidProactiveCareSettingsStatus {
   final AndroidProactiveCareSettingState autoStart;
 }
 
-/// Destination opened by [AndroidProactiveCareSettingsService.openAutoStartSettings].
-enum AndroidAutoStartSettingsDestination {
-  manufacturerSettings,
-  applicationDetails,
-  unavailable,
-}
-
 /// Narrow platform seam for direct service tests.
 abstract interface class AndroidProactiveCareSettingsPlatform {
   bool get isAndroid;
@@ -150,6 +143,9 @@ class AndroidProactiveCareSettingsService {
   Future<bool> openAppNotificationSettings() =>
       _openBooleanSettings('openAppNotificationSettings');
 
+  Future<bool> openAutoStartSettings() =>
+      _openBooleanSettings('openAutoStartSettings');
+
   Future<bool> openProactiveCareChannelSettings() async {
     if (!isSupported) return false;
     try {
@@ -169,27 +165,6 @@ class AndroidProactiveCareSettingsService {
       _logFailure('open notification channel settings', error);
     }
     return false;
-  }
-
-  Future<AndroidAutoStartSettingsDestination> openAutoStartSettings() async {
-    if (!isSupported) {
-      return AndroidAutoStartSettingsDestination.unavailable;
-    }
-    try {
-      final destination = await _platform.invokeSettingsMethod(
-        'openAutoStartSettings',
-      );
-      return switch (destination) {
-        'manufacturerSettings' =>
-          AndroidAutoStartSettingsDestination.manufacturerSettings,
-        'applicationDetails' =>
-          AndroidAutoStartSettingsDestination.applicationDetails,
-        _ => _invalidAutoStartDestination(destination),
-      };
-    } catch (error) {
-      _logFailure('open auto-start settings', error);
-      return AndroidAutoStartSettingsDestination.unavailable;
-    }
   }
 
   Future<AndroidProactiveCareSettingState> _queryAppNotifications() async {
@@ -293,16 +268,6 @@ class AndroidProactiveCareSettingsService {
       _logFailure(method, error);
     }
     return false;
-  }
-
-  AndroidAutoStartSettingsDestination _invalidAutoStartDestination(
-    Object? destination,
-  ) {
-    _logFailure(
-      'open auto-start settings',
-      StateError('Native bridge returned "$destination".'),
-    );
-    return AndroidAutoStartSettingsDestination.unavailable;
   }
 
   static AndroidProactiveCareSettingState _permissionState(

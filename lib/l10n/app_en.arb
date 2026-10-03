@@ -5530,5 +5530,180 @@
   "lanSyncFirewallHint": "The inbound rule for port {port} needs one-time administrator approval.",
   "lanSyncFirewallFix": "Allow access (UAC)",
   "lanSyncFirewallFixed": "Inbound access allowed.",
-  "lanSyncKnownLimits": "For now: workspaces stay on the device that created them, and PIN pairing should only be used on networks you trust."
+  "lanSyncKnownLimits": "For now: workspaces stay on the device that created them, and PIN pairing should only be used on networks you trust.",
+
+  "assistantEditProactiveCareEnableTitle": "Proactive Care",
+  "@assistantEditProactiveCareEnableTitle": {
+    "description": "Title for the proactive care enable switch"
+  },
+  "assistantEditProactiveCareDefaultDescription": "Default for conversations without an override",
+  "@assistantEditProactiveCareDefaultDescription": {
+    "description": "Explains that the assistant proactive care switch is a conversation default"
+  },
+  "assistantEditProactiveCareDecisionHistoryLimitTitle": "Messages used for time decisions",
+  "@assistantEditProactiveCareDecisionHistoryLimitTitle": {
+    "description": "Title for the proactive-care decision history message limit"
+  },
+  "assistantEditProactiveCareDecisionHistoryLimitDescription": "Maximum number of recent conversation messages sent to the model when deciding the next proactive message time",
+  "@assistantEditProactiveCareDecisionHistoryLimitDescription": {
+    "description": "Description for the proactive-care decision history message limit"
+  },
+  "assistantEditProactiveCareConversationTimesTitle": "Conversation next-letter times",
+  "@assistantEditProactiveCareConversationTimesTitle": {
+    "description": "Title for the expandable conversation proactive care schedule section"
+  },
+  "assistantEditProactiveCareNoEligibleConversations": "No enabled conversations for this assistant",
+  "@assistantEditProactiveCareNoEligibleConversations": {
+    "description": "Empty state for the assistant conversation proactive care schedule list"
+  },
+  "assistantEditProactiveCareConversationTimeFuture": "Future · {time}",
+  "@assistantEditProactiveCareConversationTimeFuture": {
+    "description": "Status for a future conversation proactive care schedule",
+    "placeholders": {"time": {"type": "String"}}
+  },
+  "assistantEditProactiveCareConversationTimeExpired": "Expired · {time}",
+  "@assistantEditProactiveCareConversationTimeExpired": {
+    "description": "Status for an expired conversation proactive care schedule",
+    "placeholders": {"time": {"type": "String"}}
+  },
+  "assistantEditProactiveCareConversationTimeUnset": "Unset",
+  "@assistantEditProactiveCareConversationTimeUnset": {
+    "description": "Status for an enabled conversation without a proactive care schedule"
+  },
+  "assistantEditProactiveCarePermissionsTitle": "Android readiness",
+  "@assistantEditProactiveCarePermissionsTitle": {
+    "description": "Title for the expandable Android proactive care readiness section"
+  },
+  "assistantEditProactiveCareNotificationsTitle": "Notifications",
+  "@assistantEditProactiveCareNotificationsTitle": {
+    "description": "Android app and proactive care notification channel readiness row"
+  },
+  "assistantEditProactiveCareExactAlarmTitle": "Exact alarms",
+  "@assistantEditProactiveCareExactAlarmTitle": {
+    "description": "Android exact alarm readiness row"
+  },
+  "assistantEditProactiveCareAutoStartTitle": "Auto-start",
+  "@assistantEditProactiveCareAutoStartTitle": {
+    "description": "Android auto-start settings row"
+  },
+  "assistantEditProactiveCareBatteryTitle": "Battery optimization exemption",
+  "@assistantEditProactiveCareBatteryTitle": {
+    "description": "Android battery optimization exemption row"
+  },
+  "assistantEditProactiveCarePermissionRequired": "Required",
+  "@assistantEditProactiveCarePermissionRequired": {
+    "description": "Marks an Android proactive care setting as required"
+  },
+  "assistantEditProactiveCarePermissionRecommended": "Recommended",
+  "@assistantEditProactiveCarePermissionRecommended": {
+    "description": "Marks an Android proactive care setting as recommended"
+  },
+  "assistantEditProactiveCarePermissionReady": "Ready",
+  "@assistantEditProactiveCarePermissionReady": {
+    "description": "Android proactive care setting is ready"
+  },
+  "assistantEditProactiveCarePermissionMissing": "Tap to grant",
+  "@assistantEditProactiveCarePermissionMissing": {
+    "description": "Android proactive care setting is missing"
+  },
+  "assistantEditProactiveCarePermissionManual": "Manual",
+  "@assistantEditProactiveCarePermissionManual": {
+    "description": "Android proactive care setting must be checked manually"
+  },
+  "assistantEditProactiveCarePermissionUnknown": "Unknown",
+  "@assistantEditProactiveCarePermissionUnknown": {
+    "description": "Android proactive care setting could not be determined"
+  },
+  "assistantEditProactiveCareNextMessageTimeTitle": "Next proactive message time",
+  "@assistantEditProactiveCareNextMessageTimeTitle": {
+    "description": "Label for the next proactive message time row"
+  },
+  "assistantEditProactiveCareNextMessageTimeUnset": "Not set",
+  "@assistantEditProactiveCareNextMessageTimeUnset": {
+    "description": "Shown when no proactive message time is set"
+  },
+  "assistantEditProactiveCarePromptTitle": "Proactive care prompt",
+  "@assistantEditProactiveCarePromptTitle": {
+    "description": "Title for the proactive care prompt editor"
+  },
+  "assistantEditProactiveCarePromptHint": "Prompt used when the assistant proactively sends a message",
+  "@assistantEditProactiveCarePromptHint": {
+    "description": "Hint text for the proactive care prompt field"
+  },
+  "assistantEditProactiveCarePromptDefault": "Based on the assistant's character settings, conversation context, and the current time, send a message to the user.",
+  "@assistantEditProactiveCarePromptDefault": {
+    "description": "Default proactive care prompt"
+  },
+  "assistantEditProactiveCareDecisionPromptTitle": "Decision time instruction prompt",
+  "@assistantEditProactiveCareDecisionPromptTitle": {
+    "description": "Title for the decision prompt editor"
+  },
+  "assistantEditProactiveCareDecisionPromptDefault": "You are the director of a role-playing scenario, responsible for deciding when the assistant should next proactively message the user.\n\n[Feature description]\n· Proactive messaging: the assistant can send a message to the user at a scheduled time without waiting for the user to speak first.\n· If no proactive message time is set, the assistant cannot send any message while the user is silent.\n· Evaluate the currently scheduled next message time: keep it if no adjustment is needed; otherwise change it.\n\n[Note]\n· Only consider information visible from the assistant's perspective, not the user's.\n\n[Considerations]\n1. The assistant should proactively check in or greet the user after waking up, finishing a task, arriving safely at the dorm, etc.\n2. If the context mentions the assistant missed the user's messages due to sleeping or being busy, schedule a message for when the assistant wakes up or finishes.\n3. If the context mentions the assistant needs to supervise or remind the user at a specific time, schedule the message for that time.\n4. When a topic is unfinished, assume the user never replies after the assistant's last message — decide when the assistant should proactively follow up.\n\n[Examples]\n1. The user messaged at midnight saying they have insomnia and plan to wake at 10:30, but the assistant sleeps normally and wakes at 8:30. Set the proactive message time to the assistant's wake-up time.\n2. The user and assistant are discussing an exam. At 8:30 the last message is a question from the assistant. Per rule 4, assume the user never replies — the assistant should follow up within 10 minutes.",
+  "@assistantEditProactiveCareDecisionPromptDefault": {
+    "description": "Default decision prompt for proactive care timing"
+  },
+  "assistantEditProactiveCareDateTimePickerTitle": "Choose date and time",
+  "@assistantEditProactiveCareDateTimePickerTitle": {
+    "description": "Title for the date/time picker bottom sheet"
+  },
+  "assistantEditProactiveCareTimeMustBeFuture": "Choose a time in the future.",
+  "@assistantEditProactiveCareTimeMustBeFuture": {
+    "description": "Warning when a proactive care time is no longer in the future"
+  },
+  "conversationProactiveCareTitle": "Conversation proactive care",
+  "@conversationProactiveCareTitle": {
+    "description": "Title and input action label for conversation-level proactive care"
+  },
+  "conversationProactiveCareFollowingAssistantOn": "Following assistant setting: On",
+  "@conversationProactiveCareFollowingAssistantOn": {
+    "description": "Status when conversation proactive care inherits an enabled assistant setting"
+  },
+  "conversationProactiveCareFollowingAssistantOff": "Following assistant setting: Off",
+  "@conversationProactiveCareFollowingAssistantOff": {
+    "description": "Status when conversation proactive care inherits a disabled assistant setting"
+  },
+  "conversationProactiveCareExplicitOn": "Conversation setting: On",
+  "@conversationProactiveCareExplicitOn": {
+    "description": "Status when conversation proactive care is explicitly enabled"
+  },
+  "conversationProactiveCareExplicitOff": "Conversation setting: Off",
+  "@conversationProactiveCareExplicitOff": {
+    "description": "Status when conversation proactive care is explicitly disabled"
+  },
+  "conversationProactiveCareRestoreFollowing": "Follow assistant setting",
+  "@conversationProactiveCareRestoreFollowing": {
+    "description": "Action that clears the conversation proactive care override"
+  },
+  "conversationProactiveCareClearTime": "Clear next message time",
+  "@conversationProactiveCareClearTime": {
+    "description": "Action that clears the conversation proactive care time"
+  },
+  "conversationProactiveCareUpdateFailed": "Couldn't update conversation proactive care.",
+  "@conversationProactiveCareUpdateFailed": {
+    "description": "Error shown when a conversation proactive care update fails"
+  },
+  "defaultModelPageProactiveCareModelTitle": "Ta's Letter Decision Model",
+  "@defaultModelPageProactiveCareModelTitle": {
+    "description": "Title for the proactive care decision model card"
+  },
+  "defaultModelPageProactiveCareModelSubtitle": "Model used to decide when the assistant should proactively message",
+  "@defaultModelPageProactiveCareModelSubtitle": {
+    "description": "Subtitle for the proactive care decision model card"
+  },
+  "proactiveCareFailedNotificationBody": "Couldn't generate the proactive care message. Open the app to check the model settings and network.",
+  "@proactiveCareFailedNotificationBody": {
+    "description": "Notification body when proactive care message generation fails"
+  },
+  "proactiveCareLetterArrivalBody": "A letter has arrived. Open the app to read it.",
+  "@proactiveCareLetterArrivalBody": {
+    "description": "Notification body announcing a due proactive care letter on platforms that announce the arrival and generate the letter at the next app start"
+  },
+"assistantEditPageRoleplayTab": "Roleplay",
+  "@assistantEditPageRoleplayTab": {
+    "description": "Assistant edit page tab for roleplay features (Their Letter)"
+  },
+"assistantEditProactiveCareFeatureTitle": "Their Letter",
+  "@assistantEditProactiveCareFeatureTitle": {
+    "description": "Feature header for the proactive care (Their Letter) section"
+  }
 }

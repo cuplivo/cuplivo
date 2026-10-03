@@ -23,9 +23,11 @@ import '../../models/chat_message.dart';
 import '../api/providers/claude/claude_container.dart';
 import '../api/providers/claude/claude_history.dart';
 import '../api/providers/google_gemini.dart';
+import '../../models/assistant.dart';
 import '../../models/message_part.dart';
 import '../../models/conversation.dart';
 import '../../models/workspace_binding.dart';
+import '../proactive_care_alarm_service.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../utils/app_directories.dart';
 import '../../utils/scheduler_idle.dart';
@@ -2018,6 +2020,14 @@ class ChatService extends ChangeNotifier {
     if (_currentConversationId == id) {
       _currentConversationId = null;
     }
+    // A deleted conversation must leave no orphaned letter alarm behind.
+    if (ProactiveCareAlarmService.isSupported) {
+      unawaited(
+        ProactiveCareAlarmService.cancelFor(id).catchError((Object e) {
+          debugPrint('[ProactiveCare] cancel on delete failed: $e');
+        }),
+      );
+    }
     if (bump) {
       _bumpConversationListRevision();
     }
@@ -2449,12 +2459,14 @@ class ChatService extends ChangeNotifier {
     if (overwrite) {
       await _resetAfterOverwriteRestore();
       await _deleteUploadDirectory();
+      _rescheduleProactiveCareAlarms();
       return;
     }
     _clearPersistedMessageCache();
     await _backfillAssetReferencesForCurrentRoot();
     await _loadConversationsCache();
     notifyListeners();
+    _rescheduleProactiveCareAlarms();
   }
 
   Future<void> replaceAllDataFromBackup({
@@ -2484,6 +2496,31 @@ class ChatService extends ChangeNotifier {
     );
 
     await _resetAfterOverwriteRestore();
+    _rescheduleProactiveCareAlarms();
+  }
+
+  /// Re-arms every pending letter alarm after a bulk restore/import replaced
+  /// conversation rows (the extras hook does not run for repo-level writes).
+  void _rescheduleProactiveCareAlarms() {
+    if (!ProactiveCareAlarmService.isSupported) return;
+    final resolver = proactiveCareAssistantResolver;
+    if (resolver == null) return;
+    final conversations = getAllConversations()
+        .where((c) => c.proactiveCareNextMessageAt != null)
+        .toList(growable: false);
+    if (conversations.isEmpty) return;
+    final assistants = <Assistant?>[
+      for (final id in conversations.map((c) => c.assistantId).toSet())
+        id == null ? null : resolver(id),
+    ].whereType<Assistant>().toList(growable: false);
+    unawaited(
+      ProactiveCareAlarmService.rescheduleAll(
+        conversations: conversations,
+        assistants: assistants,
+      ).catchError((Object e) {
+        debugPrint('[ProactiveCare] post-restore reschedule failed: $e');
+      }),
+    );
   }
 
   Future<ChatDatabaseSnapshotInfo> createBackupDatabaseSnapshot(
@@ -2789,22 +2826,68 @@ class ChatService extends ChangeNotifier {
   }
 
   /// Reads extras, applies [update], writes the result, and refreshes the cache.
+  ///
+  /// When the update touches a proactive-care key, the Android alarm for
+  /// the conversation is re-armed (or cancelled) — one central sync point
+  /// for every schedule write (decision flow, letter tab, conversation
+  /// sheet, restore imports).
   Future<void> updateConversationExtras(
     String conversationId,
     Map<String, dynamic> Function(Map<String, dynamic> current) update,
   ) async {
+    var touchedProactiveCare = false;
+    const careKeys = [
+      Conversation.proactiveCareEnabledOverrideKey,
+      Conversation.proactiveCareNextMessageAtKey,
+    ];
+    Map<String, dynamic> applyTracked(Map<String, dynamic> current) {
+      final before = {for (final key in careKeys) key: current[key]};
+      final next = update(Map<String, dynamic>.from(current));
+      final after = {for (final key in careKeys) key: next[key]};
+      touchedProactiveCare = !mapEquals(before, after);
+      return next;
+    }
+
     final draft = _draftConversations[conversationId];
     if (draft != null) {
       _draftConversations[conversationId] = draft.copyWith(
-        extras: update(Map<String, dynamic>.from(draft.extras)),
+        extras: applyTracked(draft.extras),
       );
       notifyListeners();
+      // Drafts have no alarm yet; the schedule arms when the draft is
+      // promoted and the extras survive the first message.
       return;
     }
     if (!_initialized) return;
-    await _repo.updateConversationExtras(conversationId, update);
+    await _repo.updateConversationExtras(conversationId, applyTracked);
     await _refreshConversation(conversationId);
     notifyListeners();
+    if (touchedProactiveCare) _syncProactiveCareAlarm(conversationId);
+  }
+
+  /// Resolves the owner assistant for proactive-care alarm syncing. Wired at
+  /// startup (main.dart) because ChatService has no AssistantProvider.
+  Assistant? Function(String assistantId)? proactiveCareAssistantResolver;
+
+  void _syncProactiveCareAlarm(String conversationId) {
+    if (!ProactiveCareAlarmService.isSupported) return;
+    final conversation = getConversation(conversationId);
+    if (conversation == null) return;
+    final resolver = proactiveCareAssistantResolver;
+    final assistantId = conversation.assistantId;
+    final Assistant? assistant = assistantId == null
+        ? null
+        : resolver?.call(assistantId);
+    // Fire-and-forget: extras writes must not wait on alarm I/O. A missing
+    // assistant (deleted owner, resolver unwired) cancels the alarm.
+    unawaited(
+      ProactiveCareAlarmService.sync(
+        conversation: conversation,
+        assistant: assistant,
+      ).catchError((Object e) {
+        debugPrint('[ProactiveCare] alarm sync failed: $e');
+      }),
+    );
   }
 
   Future<void> updateConversationSuggestions(
@@ -4258,6 +4341,7 @@ class ChatService extends ChangeNotifier {
     for (final id in _temporaryConversationIds) {
       _rememberDiscardedTemporaryConversation(id);
     }
+    final clearedConversationIds = _conversationsCache.keys.toSet();
     _messagesCache.clear();
     _conversationsCache.clear();
     _draftConversations.clear();
@@ -4270,6 +4354,16 @@ class ChatService extends ChangeNotifier {
     _messageOrderIds.clear();
     _firstGroupIndicesCache.clear();
     _currentConversationId = null;
+    // Clearing all data must also clear every letter alarm.
+    if (ProactiveCareAlarmService.isSupported) {
+      for (final id in clearedConversationIds) {
+        unawaited(
+          ProactiveCareAlarmService.cancelFor(id).catchError((Object e) {
+            debugPrint('[ProactiveCare] cancel on clear failed: $e');
+          }),
+        );
+      }
+    }
     if (deleteUploads) await _deleteUploadDirectory();
     _bumpConversationListRevision();
     notifyListeners();

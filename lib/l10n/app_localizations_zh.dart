@@ -12180,6 +12180,144 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get lanSyncKnownLimits => '目前：工作区仍只留在创建它的设备上；PIN 配对请仅在可信网络中使用。';
+
+  @override
+  String get assistantEditProactiveCareEnableTitle => '主动关怀';
+
+  @override
+  String get assistantEditProactiveCareDefaultDescription => '未单独设置的对话默认跟随此开关';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      '时间决策所用消息条数';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      '决定下次主动发消息时间时，最多发送给决策模型的最近历史消息数量';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle => '各对话下次来信时间';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations => '此助手暂无已开启的对话';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return '未来 · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return '已过期 · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => '未设置';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android 运行条件';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => '通知';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => '精确闹钟';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => '自启动';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle => '忽略电池优化';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => '必需';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => '建议';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => '已就绪';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => '点击获取权限';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => '需手动确认';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => '未知';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeTitle => '下次助手主动发消息时间';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeUnset => '未设置';
+
+  @override
+  String get assistantEditProactiveCarePromptTitle => '主动关怀提示词';
+
+  @override
+  String get assistantEditProactiveCarePromptHint => '助手主动发消息时使用的提示词';
+
+  @override
+  String get assistantEditProactiveCarePromptDefault =>
+      '请根据助手的角色设定、上下文、以及目前时间，给用户发一条消息';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptTitle => '决策时间功能说明提示词';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptDefault =>
+      '你是一个角色扮演场景的导演，负责判断助手（assistant）下一次应主动向用户发消息的时间。\n\n【功能说明】\n· 主动发消息：助手可在设定时间主动向用户发送消息，无需用户提问。\n· 若不设置主动发消息的时间，则助手无法在用户不发言的情况下主动发送任何消息。\n· 你需要评估当前设定的下次发消息时间：若认为无需调整，则保持原时间；否则进行修改。\n\n【注意】\n· 只考虑助手的视角看到的信息，不考虑用户的视角。\n\n【考虑角度】\n1. 助手在睡醒、完成某件事、安全回到宿舍等情况下，应主动向用户报备或打招呼。\n2. 若上下文中提到助手因睡着、忙碌等原因未能及时查看用户的消息，则应设定在助手睡醒或忙完后，主动给用户发一条消息。\n3. 若上下文中提到助手需要在某个时间点监督或提醒用户，则设定在该时间点主动发消息。\n4. 当一个话题尚未聊完时，需要假设：用户在助手最后一条消息发出后始终没有回复，那么助手应在什么时间主动发消息？请据此设定时间。\n\n【示例】\n1. 聊天记录中，用户凌晨发消息称自己失眠，预计早上10:30起床，但助手没有失眠，会按正常时间（如8:30）起床。此时应将主动发消息时间设为助手的起床时间。\n2. 聊天记录中，用户与助手正在聊考试话题。你在8:30看到的最后一条消息是助手在8:30发出的一个提问。依据第4条规则，需考虑用户一直未回复的情况，助手应在10分钟之内主动发消息追问。';
+
+  @override
+  String get assistantEditProactiveCareDateTimePickerTitle => '选择日期和时间';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture => '请选择未来的时间。';
+
+  @override
+  String get conversationProactiveCareTitle => '对话主动关怀';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn => '跟随助手设置：已开启';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff => '跟随助手设置：已关闭';
+
+  @override
+  String get conversationProactiveCareExplicitOn => '对话设置：已开启';
+
+  @override
+  String get conversationProactiveCareExplicitOff => '对话设置：已关闭';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing => '跟随助手设置';
+
+  @override
+  String get conversationProactiveCareClearTime => '清除下次发消息时间';
+
+  @override
+  String get conversationProactiveCareUpdateFailed => '无法更新对话主动关怀设置。';
+
+  @override
+  String get defaultModelPageProactiveCareModelTitle => 'Ta的来信决策模型';
+
+  @override
+  String get defaultModelPageProactiveCareModelSubtitle => '用于决定助手何时主动发消息的模型';
+
+  @override
+  String get proactiveCareFailedNotificationBody =>
+      '主动关怀消息生成失败，请打开应用检查模型配置与网络。';
+
+  @override
+  String get proactiveCareLetterArrivalBody => 'Ta的来信已到达，打开应用即可查看。';
+
+  @override
+  String get assistantEditPageRoleplayTab => '角色扮演';
+
+  @override
+  String get assistantEditProactiveCareFeatureTitle => 'Ta的来信';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -24284,6 +24422,144 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncKnownLimits => '目前：工作区仍只留在创建它的设备上；PIN 配对请仅在可信网络中使用。';
+
+  @override
+  String get assistantEditProactiveCareEnableTitle => '主动关怀';
+
+  @override
+  String get assistantEditProactiveCareDefaultDescription => '未单独设置的对话默认跟随此开关';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      '时间决策所用消息条数';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      '决定下次主动发消息时间时，最多发送给决策模型的最近历史消息数量';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle => '各对话下次来信时间';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations => '此助手暂无已开启的对话';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return '未来 · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return '已过期 · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => '未设置';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android 运行条件';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => '通知';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => '精确闹钟';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => '自启动';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle => '忽略电池优化';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => '必需';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => '建议';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => '已就绪';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => '点击获取权限';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => '需手动确认';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => '未知';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeTitle => '下次助手主动发消息时间';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeUnset => '未设置';
+
+  @override
+  String get assistantEditProactiveCarePromptTitle => '主动关怀提示词';
+
+  @override
+  String get assistantEditProactiveCarePromptHint => '助手主动发消息时使用的提示词';
+
+  @override
+  String get assistantEditProactiveCarePromptDefault =>
+      '请根据助手的角色设定、上下文、以及目前时间，给用户发一条消息';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptTitle => '决策时间功能说明提示词';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptDefault =>
+      '你是一个角色扮演场景的导演，负责判断助手（assistant）下一次应主动向用户发消息的时间。\n\n【功能说明】\n· 主动发消息：助手可在设定时间主动向用户发送消息，无需用户提问。\n· 若不设置主动发消息的时间，则助手无法在用户不发言的情况下主动发送任何消息。\n· 你需要评估当前设定的下次发消息时间：若认为无需调整，则保持原时间；否则进行修改。\n\n【注意】\n· 只考虑助手的视角看到的信息，不考虑用户的视角。\n\n【考虑角度】\n1. 助手在睡醒、完成某件事、安全回到宿舍等情况下，应主动向用户报备或打招呼。\n2. 若上下文中提到助手因睡着、忙碌等原因未能及时查看用户的消息，则应设定在助手睡醒或忙完后，主动给用户发一条消息。\n3. 若上下文中提到助手需要在某个时间点监督或提醒用户，则设定在该时间点主动发消息。\n4. 当一个话题尚未聊完时，需要假设：用户在助手最后一条消息发出后始终没有回复，那么助手应在什么时间主动发消息？请据此设定时间。\n\n【示例】\n1. 聊天记录中，用户凌晨发消息称自己失眠，预计早上10:30起床，但助手没有失眠，会按正常时间（如8:30）起床。此时应将主动发消息时间设为助手的起床时间。\n2. 聊天记录中，用户与助手正在聊考试话题。你在8:30看到的最后一条消息是助手在8:30发出的一个提问。依据第4条规则，需考虑用户一直未回复的情况，助手应在10分钟之内主动发消息追问。';
+
+  @override
+  String get assistantEditProactiveCareDateTimePickerTitle => '选择日期和时间';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture => '请选择未来的时间。';
+
+  @override
+  String get conversationProactiveCareTitle => '对话主动关怀';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn => '跟随助手设置：已开启';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff => '跟随助手设置：已关闭';
+
+  @override
+  String get conversationProactiveCareExplicitOn => '对话设置：已开启';
+
+  @override
+  String get conversationProactiveCareExplicitOff => '对话设置：已关闭';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing => '跟随助手设置';
+
+  @override
+  String get conversationProactiveCareClearTime => '清除下次发消息时间';
+
+  @override
+  String get conversationProactiveCareUpdateFailed => '无法更新对话主动关怀设置。';
+
+  @override
+  String get defaultModelPageProactiveCareModelTitle => 'Ta的来信决策模型';
+
+  @override
+  String get defaultModelPageProactiveCareModelSubtitle => '用于决定助手何时主动发消息的模型';
+
+  @override
+  String get proactiveCareFailedNotificationBody =>
+      '主动关怀消息生成失败，请打开应用检查模型配置与网络。';
+
+  @override
+  String get proactiveCareLetterArrivalBody => 'Ta的来信已到达，打开应用即可查看。';
+
+  @override
+  String get assistantEditPageRoleplayTab => '角色扮演';
+
+  @override
+  String get assistantEditProactiveCareFeatureTitle => 'Ta的来信';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -36467,4 +36743,142 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncKnownLimits => '目前：工作區仍只留在建立它的裝置上；PIN 配對請僅在可信網路中使用。';
+
+  @override
+  String get assistantEditProactiveCareEnableTitle => '主動關懷';
+
+  @override
+  String get assistantEditProactiveCareDefaultDescription => '未單獨設定的對話預設跟隨此開關';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      '時間決策所用訊息條數';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      '決定下次主動發訊息時間時，最多傳送給決策模型的最近歷史訊息數量';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle => '各對話下次來信時間';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations => '此助手暫無已開啟的對話';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return '未來 · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return '已過期 · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => '未設定';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android 執行條件';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => '通知';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => '精確鬧鐘';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => '自動啟動';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle => '忽略電池最佳化';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => '必需';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => '建議';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => '已就緒';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => '點擊取得權限';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => '需手動確認';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => '未知';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeTitle => '下次助手主動發訊息時間';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeUnset => '未設定';
+
+  @override
+  String get assistantEditProactiveCarePromptTitle => '主動關懷提示詞';
+
+  @override
+  String get assistantEditProactiveCarePromptHint => '助手主動發訊息時使用的提示詞';
+
+  @override
+  String get assistantEditProactiveCarePromptDefault =>
+      '請根據助手的角色設定、上下文、以及目前時間，給使用者發一條訊息';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptTitle => '決策時間功能說明提示詞';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptDefault =>
+      '你是一個角色扮演場景的導演，負責判斷助手（assistant）下一次應主動向使用者發訊息的時間。\n\n【功能說明】\n· 主動發訊息：助手可在設定時間主動向使用者發送訊息，無需使用者提問。\n· 若不設定主動發訊息的時間，則助手無法在使用者不發言的情況下主動發送任何訊息。\n· 你需要評估當前設定的下次發訊息時間：若認為無需調整，則保持原時間；否則進行修改。\n\n【注意】\n· 只考慮助手的視角看到的資訊，不考慮使用者的視角。\n\n【考慮角度】\n1. 助手在睡醒、完成某件事、安全回到宿舍等情況下，應主動向使用者報備或打招呼。\n2. 若上下文中提到助手因睡著、忙碌等原因未能及時查看使用者的訊息，則應設定在助手睡醒或忙完後，主動給使用者發一條訊息。\n3. 若上下文中提到助手需要在某個時間點監督或提醒使用者，則設定在該時間點主動發訊息。\n4. 當一個話題尚未聊完時，需要假設：使用者在助手最後一條訊息發出後始終沒有回覆，那麼助手應在什麼時間主動發訊息？請據此設定時間。\n\n【示例】\n1. 聊天記錄中，使用者凌晨發訊息稱自己失眠，預計早上10:30起床，但助手沒有失眠，會按正常時間（如8:30）起床。此時應將主動發訊息時間設為助手的起床時間。\n2. 聊天記錄中，使用者與助手正在聊考試話題。你在8:30看到的最後一條訊息是助手在8:30發出的一個提問。依據第4條規則，需考慮使用者一直未回覆的情況，助手應在10分鐘之內主動發訊息追問。';
+
+  @override
+  String get assistantEditProactiveCareDateTimePickerTitle => '選擇日期和時間';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture => '請選擇未來的時間。';
+
+  @override
+  String get conversationProactiveCareTitle => '對話主動關懷';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn => '跟隨助手設定：已開啟';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff => '跟隨助手設定：已關閉';
+
+  @override
+  String get conversationProactiveCareExplicitOn => '對話設定：已開啟';
+
+  @override
+  String get conversationProactiveCareExplicitOff => '對話設定：已關閉';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing => '跟隨助手設定';
+
+  @override
+  String get conversationProactiveCareClearTime => '清除下次發訊息時間';
+
+  @override
+  String get conversationProactiveCareUpdateFailed => '無法更新對話主動關懷設定。';
+
+  @override
+  String get defaultModelPageProactiveCareModelTitle => 'Ta的來信決策模型';
+
+  @override
+  String get defaultModelPageProactiveCareModelSubtitle => '用於決定助手何時主動發訊息的模型';
+
+  @override
+  String get proactiveCareFailedNotificationBody =>
+      '主動關懷訊息生成失敗，請開啟應用程式檢查模型配置與網路。';
+
+  @override
+  String get proactiveCareLetterArrivalBody => 'Ta的來信已到達，開啟應用程式即可查看。';
+
+  @override
+  String get assistantEditPageRoleplayTab => '角色扮演';
+
+  @override
+  String get assistantEditProactiveCareFeatureTitle => 'Ta的來信';
 }

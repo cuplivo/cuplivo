@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show File;
+import 'dart:io' show File, Platform;
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -38,6 +38,9 @@ import '../../../core/providers/memory_provider.dart';
 import '../../../core/providers/memory_provider_v2.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/services/android_proactive_care_settings_service.dart';
+import '../../../core/services/proactive_care_alarm_service.dart';
+import '../../../core/services/proactive_care_conversation_policy.dart';
 import '../../../core/services/memory/memory_gatekeeper.dart';
 import '../../../core/services/memory/memory_pipeline.dart';
 import '../../settings/pages/memory_settings_page.dart';
@@ -52,9 +55,11 @@ import '../../home/services/local_tools_service.dart';
 import '../../../core/models/health_data_type.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../shared/responsive/screen_type_helper.dart';
 import '../../../shared/widgets/emoji_picker_dialog.dart';
 import '../../../shared/widgets/emoji_text.dart';
 import '../../../shared/widgets/ios_form_text_field.dart';
+import '../../../shared/widgets/ios_settings_rows.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
@@ -67,6 +72,7 @@ import '../../../utils/sandbox_path_resolver.dart';
 import '../utils/assistant_edit_tab_layout.dart';
 import 'assistant_regex_tab.dart';
 import 'assistant_settings_edit_skills_tab.dart';
+import '../widgets/proactive_care_datetime_picker.dart';
 import '../widgets/assistant_default_workspace_row.dart';
 import 'health_data_settings_page.dart';
 import '../../settings/pages/phone_control_settings_page.dart';
@@ -78,6 +84,7 @@ part '../widgets/assistant_gradient_settings.dart';
 part 'assistant_settings_edit_prompt_tab.dart';
 part 'assistant_settings_edit_memory_tab.dart';
 part 'assistant_settings_edit_memory_tab_legacy.dart';
+part 'assistant_settings_edit_roleplay_tab.dart';
 part 'assistant_settings_edit_local_tools_tab.dart';
 part 'assistant_settings_edit_mcp_tab.dart';
 part 'assistant_settings_edit_quick_phrase_tab.dart';
@@ -125,6 +132,12 @@ List<_AssistantEditTabSpec> _assistantEditTabSpecs(
       child: _MemoryTab(assistantId: assistantId),
     ),
     _AssistantEditTabSpec(
+      id: assistantEditTabRoleplay,
+      label: l10n.assistantEditPageRoleplayTab,
+      icon: Lucide.HeartPulse,
+      child: AssistantSettingsEditRoleplayTab(assistantId: assistantId),
+    ),
+    _AssistantEditTabSpec(
       id: assistantEditTabLocalTools,
       label: l10n.assistantEditPageLocalToolsTab,
       icon: Lucide.Wrench,
@@ -170,6 +183,7 @@ List<_AssistantEditTabSpec> _orderedAssistantEditTabs(
   final byId = {for (final tab in tabs) tab.id: tab};
   return orderAssistantEditTabIds(
     savedOrder: order,
+    defaultOrder: platformDefaultAssistantEditTabIds(),
   ).map((id) => byId[id]).nonNulls.toList();
 }
 
@@ -185,6 +199,7 @@ List<_AssistantEditTabSpec> _visibleAssistantEditTabs(
   return visibleAssistantEditTabIds(
     savedOrder: settings.mobileAssistantEditTabOrder,
     hiddenIds: settings.hiddenMobileAssistantEditTabs,
+    defaultOrder: platformDefaultAssistantEditTabIds(),
   ).map((id) => byId[id]).nonNulls.toList();
 }
 
@@ -1636,6 +1651,7 @@ enum _AssistantDesktopMenu {
   basic,
   prompts,
   memory,
+  roleplay,
   localTools,
   skills,
   mcp,
@@ -1763,6 +1779,10 @@ class _DesktopAssistantDialogShellState
                         return _PromptTab(assistantId: widget.assistantId);
                       case _AssistantDesktopMenu.memory:
                         return _MemoryTab(assistantId: widget.assistantId);
+                      case _AssistantDesktopMenu.roleplay:
+                        return AssistantSettingsEditRoleplayTab(
+                          assistantId: widget.assistantId,
+                        );
                       case _AssistantDesktopMenu.localTools:
                         return _LocalToolsTab(assistantId: widget.assistantId);
                       case _AssistantDesktopMenu.skills:
@@ -1812,6 +1832,8 @@ class _DesktopAssistantMenuState extends State<_DesktopAssistantMenu> {
       (_AssistantDesktopMenu.basic, l10n.assistantEditPageBasicTab),
       (_AssistantDesktopMenu.prompts, l10n.assistantEditPagePromptsTab),
       (_AssistantDesktopMenu.memory, l10n.assistantEditPageMemoryTab),
+      // Mirrors platformDefaultAssistantEditTabIds() ("角色扮演" after 记忆).
+      (_AssistantDesktopMenu.roleplay, l10n.assistantEditPageRoleplayTab),
       (_AssistantDesktopMenu.localTools, l10n.assistantEditPageLocalToolsTab),
       (_AssistantDesktopMenu.skills, l10n.skillsTab),
       (_AssistantDesktopMenu.mcp, l10n.assistantEditPageMcpTab),

@@ -10,12 +10,14 @@ import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/instruction_injection_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../core/services/haptics.dart';
+import '../../../core/services/proactive_care_alarm_service.dart';
 import '../../../core/services/skills/skills_service.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/world_book_provider.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
+import '../../home/widgets/conversation_proactive_care_sheet.dart';
 import '../../home/widgets/instruction_injection_sheet.dart';
 import '../../home/widgets/world_book_sheet.dart';
 import '../../instruction_injection/pages/instruction_injection_page.dart';
@@ -249,6 +251,27 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
     );
   }
 
+  Future<void> _openProactiveCare() async {
+    Haptics.light();
+    final assistant = _assistant();
+    if (assistant == null) return;
+    final id = await ensureConversationId(
+      context,
+      conversationId: _promptConversationId ?? widget.conversationId,
+      assistantId: widget.assistantId,
+    );
+    if (id == null || !mounted) return;
+    _promptConversationId = id;
+    final chat = context.read<ChatService>();
+    final conversation = chat.getConversation(id);
+    if (conversation == null || conversation.assistantId == null) return;
+    await showConversationProactiveCare(
+      context,
+      conversation: conversation,
+      assistant: assistant,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -412,6 +435,17 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
           },
           trailing: chevron,
         ),
+        if (ProactiveCareAlarmService.isSupported &&
+            _assistant(listen: true) != null) ...[
+          const SizedBox(height: 8),
+          ToolsSheetRow(
+            key: const ValueKey<String>('bottom-tools-proactive-care'),
+            icon: Lucide.HeartPulse,
+            label: l10n.conversationProactiveCareTitle,
+            onTap: () => unawaited(_openProactiveCare()),
+            trailing: chevron,
+          ),
+        ],
       ],
     );
   }

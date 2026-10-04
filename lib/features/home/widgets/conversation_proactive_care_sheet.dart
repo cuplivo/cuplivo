@@ -4,6 +4,7 @@ import '../../../core/models/assistant.dart';
 import '../../../core/models/conversation.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../shared/responsive/screen_type_helper.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
@@ -23,6 +24,25 @@ Future<void> showConversationProactiveCareSheet(
   required ConversationProactiveCareOverrideSetter onOverrideChanged,
   required ConversationProactiveCareTimeSetter onNextMessageAtChanged,
 }) {
+  if (ResponsiveHelper.isDesktop(context)) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: SizedBox(
+          width: 480,
+          child: ConversationProactiveCareSheet(
+            conversation: conversation,
+            assistant: assistant,
+            onOverrideChanged: onOverrideChanged,
+            onNextMessageAtChanged: onNextMessageAtChanged,
+            isDialog: true,
+          ),
+        ),
+      ),
+    );
+  }
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -44,12 +64,14 @@ class ConversationProactiveCareSheet extends StatefulWidget {
     required this.assistant,
     required this.onOverrideChanged,
     required this.onNextMessageAtChanged,
+    this.isDialog = false,
   });
 
   final Conversation conversation;
   final Assistant assistant;
   final ConversationProactiveCareOverrideSetter onOverrideChanged;
   final ConversationProactiveCareTimeSetter onNextMessageAtChanged;
+  final bool isDialog;
 
   @override
   State<ConversationProactiveCareSheet> createState() =>
@@ -190,27 +212,36 @@ class _ConversationProactiveCareSheetState
       color: Colors.transparent,
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomInset),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          widget.isDialog ? 16 : 8,
+          16,
+          16 + bottomInset,
+        ),
         decoration: BoxDecoration(
           color: cs.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+          borderRadius: widget.isDialog
+              ? BorderRadius.circular(16)
+              : const BorderRadius.vertical(top: Radius.circular(22)),
         ),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: cs.onSurface.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(999),
+              if (!widget.isDialog) ...[
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: cs.onSurface.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 8),
+              ],
               Row(
                 children: [
                   const SizedBox(width: 44),

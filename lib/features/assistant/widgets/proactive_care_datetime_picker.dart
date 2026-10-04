@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
+import '../../../shared/responsive/screen_type_helper.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
@@ -20,6 +21,29 @@ Future<DateTime?> showProactiveCareDateTimePicker(
   DateTime? initial,
 }) {
   final resolved = _resolveInitialDateTime(initial);
+  if (ResponsiveHelper.isDesktop(context)) {
+    return showDialog<DateTime>(
+      context: context,
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: _ProactiveCareDateTimePanel(
+              initial: resolved,
+              onCancel: () => Navigator.of(ctx).pop(),
+              onSave: (value) => Navigator.of(ctx).pop(value),
+              isDialog: true,
+            ),
+          ),
+        );
+      },
+    );
+  }
   return showModalBottomSheet<DateTime>(
     context: context,
     isScrollControlled: true,
@@ -48,11 +72,13 @@ class _ProactiveCareDateTimePanel extends StatefulWidget {
     required this.initial,
     required this.onCancel,
     required this.onSave,
+    this.isDialog = false,
   });
 
   final DateTime initial;
   final VoidCallback onCancel;
   final ValueChanged<DateTime> onSave;
+  final bool isDialog;
 
   @override
   State<_ProactiveCareDateTimePanel> createState() =>
@@ -135,9 +161,9 @@ class _ProactiveCareDateTimePanelState
         child: Container(
           width: double.infinity,
           margin: EdgeInsets.only(
-            left: 12,
-            right: 12,
-            bottom: 12 + bottomInset,
+            left: widget.isDialog ? 0 : 12,
+            right: widget.isDialog ? 0 : 12,
+            bottom: widget.isDialog ? 0 : (12 + bottomInset),
           ),
           decoration: BoxDecoration(color: panelColor, borderRadius: radius),
           child: ClipRRect(

@@ -4432,5 +4432,180 @@
   "lanSyncFirewallHint": "連接埠 {port} 的入站規則需要一次管理員授權。",
   "lanSyncFirewallFix": "允許存取（UAC）",
   "lanSyncFirewallFixed": "入站存取已允許。",
-  "lanSyncKnownLimits": "目前：工作區仍只留在建立它的裝置上；PIN 配對請僅在可信網路中使用。"
+  "lanSyncKnownLimits": "目前：工作區仍只留在建立它的裝置上；PIN 配對請僅在可信網路中使用。",
+
+  "assistantEditProactiveCareEnableTitle": "主動關懷",
+  "@assistantEditProactiveCareEnableTitle": {
+    "description": "主動關懷開關標題"
+  },
+  "assistantEditProactiveCareDefaultDescription": "未單獨設定的對話預設跟隨此開關",
+  "@assistantEditProactiveCareDefaultDescription": {
+    "description": "說明助手主動關懷開關只是對話預設值"
+  },
+  "assistantEditProactiveCareDecisionHistoryLimitTitle": "時間決策所用訊息條數",
+  "@assistantEditProactiveCareDecisionHistoryLimitTitle": {
+    "description": "主動關懷時間決策歷史訊息數量限制標題"
+  },
+  "assistantEditProactiveCareDecisionHistoryLimitDescription": "決定下次主動發訊息時間時，最多傳送給決策模型的最近歷史訊息數量",
+  "@assistantEditProactiveCareDecisionHistoryLimitDescription": {
+    "description": "主動關懷時間決策歷史訊息數量限制說明"
+  },
+  "assistantEditProactiveCareConversationTimesTitle": "各對話下次來信時間",
+  "@assistantEditProactiveCareConversationTimesTitle": {
+    "description": "對話主動關懷時間摺疊區域標題"
+  },
+  "assistantEditProactiveCareNoEligibleConversations": "此助手暫無已開啟的對話",
+  "@assistantEditProactiveCareNoEligibleConversations": {
+    "description": "助手對話主動關懷時間列表空狀態"
+  },
+  "assistantEditProactiveCareConversationTimeFuture": "未來 · {time}",
+  "@assistantEditProactiveCareConversationTimeFuture": {
+    "description": "對話主動關懷時間為未來時的狀態",
+    "placeholders": {"time": {"type": "String"}}
+  },
+  "assistantEditProactiveCareConversationTimeExpired": "已過期 · {time}",
+  "@assistantEditProactiveCareConversationTimeExpired": {
+    "description": "對話主動關懷時間已過期時的狀態",
+    "placeholders": {"time": {"type": "String"}}
+  },
+  "assistantEditProactiveCareConversationTimeUnset": "未設定",
+  "@assistantEditProactiveCareConversationTimeUnset": {
+    "description": "已開啟對話未設定主動關懷時間時的狀態"
+  },
+  "assistantEditProactiveCarePermissionsTitle": "Android 執行條件",
+  "@assistantEditProactiveCarePermissionsTitle": {
+    "description": "Android 主動關懷執行條件摺疊區域標題"
+  },
+  "assistantEditProactiveCareNotificationsTitle": "通知",
+  "@assistantEditProactiveCareNotificationsTitle": {
+    "description": "Android 應用程式通知和主動關懷通知頻道狀態列"
+  },
+  "assistantEditProactiveCareExactAlarmTitle": "精確鬧鐘",
+  "@assistantEditProactiveCareExactAlarmTitle": {
+    "description": "Android 精確鬧鐘狀態列"
+  },
+  "assistantEditProactiveCareAutoStartTitle": "自動啟動",
+  "@assistantEditProactiveCareAutoStartTitle": {
+    "description": "Android 自動啟動設定列"
+  },
+  "assistantEditProactiveCareBatteryTitle": "忽略電池最佳化",
+  "@assistantEditProactiveCareBatteryTitle": {
+    "description": "Android 忽略電池最佳化狀態列"
+  },
+  "assistantEditProactiveCarePermissionRequired": "必需",
+  "@assistantEditProactiveCarePermissionRequired": {
+    "description": "標記 Android 主動關懷必需設定"
+  },
+  "assistantEditProactiveCarePermissionRecommended": "建議",
+  "@assistantEditProactiveCarePermissionRecommended": {
+    "description": "標記 Android 主動關懷建議設定"
+  },
+  "assistantEditProactiveCarePermissionReady": "已就緒",
+  "@assistantEditProactiveCarePermissionReady": {
+    "description": "Android 主動關懷設定已就緒"
+  },
+  "assistantEditProactiveCarePermissionMissing": "點擊取得權限",
+  "@assistantEditProactiveCarePermissionMissing": {
+    "description": "Android 主動關懷設定未開啟"
+  },
+  "assistantEditProactiveCarePermissionManual": "需手動確認",
+  "@assistantEditProactiveCarePermissionManual": {
+    "description": "Android 主動關懷設定需手動確認"
+  },
+  "assistantEditProactiveCarePermissionUnknown": "未知",
+  "@assistantEditProactiveCarePermissionUnknown": {
+    "description": "無法確定 Android 主動關懷設定狀態"
+  },
+  "assistantEditProactiveCareNextMessageTimeTitle": "下次助手主動發訊息時間",
+  "@assistantEditProactiveCareNextMessageTimeTitle": {
+    "description": "下次主動發訊息時間標籤"
+  },
+  "assistantEditProactiveCareNextMessageTimeUnset": "未設定",
+  "@assistantEditProactiveCareNextMessageTimeUnset": {
+    "description": "未設定主動發訊息時間時顯示"
+  },
+  "assistantEditProactiveCarePromptTitle": "主動關懷提示詞",
+  "@assistantEditProactiveCarePromptTitle": {
+    "description": "主動關懷提示詞編輯器標題"
+  },
+  "assistantEditProactiveCarePromptHint": "助手主動發訊息時使用的提示詞",
+  "@assistantEditProactiveCarePromptHint": {
+    "description": "主動關懷提示詞輸入框提示"
+  },
+  "assistantEditProactiveCarePromptDefault": "請根據助手的角色設定、上下文、以及目前時間，給使用者發一條訊息",
+  "@assistantEditProactiveCarePromptDefault": {
+    "description": "預設主動關懷提示詞"
+  },
+  "assistantEditProactiveCareDecisionPromptTitle": "決策時間功能說明提示詞",
+  "@assistantEditProactiveCareDecisionPromptTitle": {
+    "description": "決策提示詞編輯器標題"
+  },
+  "assistantEditProactiveCareDecisionPromptDefault": "你是一個角色扮演場景的導演，負責判斷助手（assistant）下一次應主動向使用者發訊息的時間。\n\n【功能說明】\n· 主動發訊息：助手可在設定時間主動向使用者發送訊息，無需使用者提問。\n· 若不設定主動發訊息的時間，則助手無法在使用者不發言的情況下主動發送任何訊息。\n· 你需要評估當前設定的下次發訊息時間：若認為無需調整，則保持原時間；否則進行修改。\n\n【注意】\n· 只考慮助手的視角看到的資訊，不考慮使用者的視角。\n\n【考慮角度】\n1. 助手在睡醒、完成某件事、安全回到宿舍等情況下，應主動向使用者報備或打招呼。\n2. 若上下文中提到助手因睡著、忙碌等原因未能及時查看使用者的訊息，則應設定在助手睡醒或忙完後，主動給使用者發一條訊息。\n3. 若上下文中提到助手需要在某個時間點監督或提醒使用者，則設定在該時間點主動發訊息。\n4. 當一個話題尚未聊完時，需要假設：使用者在助手最後一條訊息發出後始終沒有回覆，那麼助手應在什麼時間主動發訊息？請據此設定時間。\n\n【示例】\n1. 聊天記錄中，使用者凌晨發訊息稱自己失眠，預計早上10:30起床，但助手沒有失眠，會按正常時間（如8:30）起床。此時應將主動發訊息時間設為助手的起床時間。\n2. 聊天記錄中，使用者與助手正在聊考試話題。你在8:30看到的最後一條訊息是助手在8:30發出的一個提問。依據第4條規則，需考慮使用者一直未回覆的情況，助手應在10分鐘之內主動發訊息追問。",
+  "@assistantEditProactiveCareDecisionPromptDefault": {
+    "description": "預設決策時間提示詞"
+  },
+  "assistantEditProactiveCareDateTimePickerTitle": "選擇日期和時間",
+  "@assistantEditProactiveCareDateTimePickerTitle": {
+    "description": "日期時間選擇器標題"
+  },
+  "assistantEditProactiveCareTimeMustBeFuture": "請選擇未來的時間。",
+  "@assistantEditProactiveCareTimeMustBeFuture": {
+    "description": "主動關懷時間已不是未來時間時的提示"
+  },
+  "conversationProactiveCareTitle": "對話主動關懷",
+  "@conversationProactiveCareTitle": {
+    "description": "對話級主動關懷標題和輸入列操作標籤"
+  },
+  "conversationProactiveCareFollowingAssistantOn": "跟隨助手設定：已開啟",
+  "@conversationProactiveCareFollowingAssistantOn": {
+    "description": "對話繼承助手已開啟主動關懷設定時的狀態"
+  },
+  "conversationProactiveCareFollowingAssistantOff": "跟隨助手設定：已關閉",
+  "@conversationProactiveCareFollowingAssistantOff": {
+    "description": "對話繼承助手已關閉主動關懷設定時的狀態"
+  },
+  "conversationProactiveCareExplicitOn": "對話設定：已開啟",
+  "@conversationProactiveCareExplicitOn": {
+    "description": "對話主動關懷已明確開啟時的狀態"
+  },
+  "conversationProactiveCareExplicitOff": "對話設定：已關閉",
+  "@conversationProactiveCareExplicitOff": {
+    "description": "對話主動關懷已明確關閉時的狀態"
+  },
+  "conversationProactiveCareRestoreFollowing": "跟隨助手設定",
+  "@conversationProactiveCareRestoreFollowing": {
+    "description": "清除對話主動關懷覆寫設定的操作"
+  },
+  "conversationProactiveCareClearTime": "清除下次發訊息時間",
+  "@conversationProactiveCareClearTime": {
+    "description": "清除對話主動關懷時間的操作"
+  },
+  "conversationProactiveCareUpdateFailed": "無法更新對話主動關懷設定。",
+  "@conversationProactiveCareUpdateFailed": {
+    "description": "更新對話主動關懷失敗時的錯誤提示"
+  },
+  "defaultModelPageProactiveCareModelTitle": "Ta的來信決策模型",
+  "@defaultModelPageProactiveCareModelTitle": {
+    "description": "主動關懷決策模型卡片標題"
+  },
+  "defaultModelPageProactiveCareModelSubtitle": "用於決定助手何時主動發訊息的模型",
+  "@defaultModelPageProactiveCareModelSubtitle": {
+    "description": "主動關懷決策模型卡片副標題"
+  },
+  "proactiveCareFailedNotificationBody": "主動關懷訊息生成失敗，請開啟應用程式檢查模型配置與網路。",
+  "@proactiveCareFailedNotificationBody": {
+    "description": "主動關懷訊息生成失敗時的通知內容"
+  },
+  "proactiveCareLetterArrivalBody": "Ta的來信已到達，開啟應用程式即可查看。",
+  "@proactiveCareLetterArrivalBody": {
+    "description": "在只做到達提醒的平台上，來信到期時通知的內容"
+  },
+"assistantEditPageRoleplayTab": "角色扮演",
+  "@assistantEditPageRoleplayTab": {
+    "description": "Assistant edit page tab for roleplay features (Their Letter)"
+  },
+"assistantEditProactiveCareFeatureTitle": "Ta的來信",
+  "@assistantEditProactiveCareFeatureTitle": {
+    "description": "Feature header for the proactive care (Their Letter) section"
+  }
 }

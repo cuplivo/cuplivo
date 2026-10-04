@@ -476,7 +476,15 @@ class AssistantProvider extends ChangeNotifier {
     _assistants[idx] = next;
     await _persist();
     notifyListeners();
+    // Proactive care: flipping the master switch changes eligibility for
+    // every owned conversation's schedule; the wiring in main.dart re-arms
+    // (or cancels) their alarms.
+    onAssistantUpdated?.call(next);
   }
+
+  /// Fired after an assistant was persisted (post-avatar handling). Wired in
+  /// main.dart where the ChatService is available.
+  void Function(Assistant assistant)? onAssistantUpdated;
 
   Future<void> setSearchEnabledForCurrentAssistant(bool enabled) async {
     final a = currentAssistant;

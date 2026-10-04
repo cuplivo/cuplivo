@@ -35,6 +35,7 @@ class GenerationForegroundService : Service() {
                     if (runtime.hasScheduledRuns) {
                         app.engine // Shared engine: no second isolate or database owner.
                         app.scheduledTasks.dispatchPending()
+                        app.proactiveCareAlarms.dispatchPending()
                     }
                 }
             }

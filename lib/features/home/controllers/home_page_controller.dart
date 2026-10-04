@@ -33,6 +33,7 @@ import '../../../core/utils/scheduler_idle.dart';
 import '../../../core/services/tts/tts_text_selection.dart';
 import '../../../core/services/haptics.dart';
 import '../../../core/services/notification_service.dart';
+import '../../../core/services/proactive_care_alarm_service.dart';
 import '../../../core/services/mobile_background.dart';
 import '../../../core/services/screen_wakelock.dart';
 import '../../../l10n/app_localizations.dart';
@@ -701,6 +702,9 @@ class HomePageController extends ChangeNotifier {
   ValueNotifier<String?> get processingFilesMessageId =>
       _viewModel.processingFilesMessageId;
 
+  /// Delivers every due proactive care letter (start/resume catch-up).
+  Future<int> deliverDueProactiveCare() => _viewModel.deliverDueProactiveCare();
+
   bool get isTemporaryConversation =>
       _chatService.isTemporaryConversation(currentConversation?.id);
 
@@ -1340,6 +1344,31 @@ class HomePageController extends ChangeNotifier {
               onConversation,
             );
         await ScheduledTasksService.instance.attach(executor);
+      }
+      if (ProactiveCareAlarmService.isSupported) {
+        // Letter alarms: native fires hand off to the provider stack here;
+        // then re-arm everything still pending in the database.
+        await ProactiveCareAlarmService.attach(
+          (conversationId, expectedAt) =>
+              _viewModel.deliverProactiveCareSchedule(
+                conversationId: conversationId,
+                expectedAt: expectedAt,
+              ),
+        );
+        if (!_context.mounted) return;
+        await ProactiveCareAlarmService.rescheduleAll(
+          conversations: _chatService.getAllConversations(),
+          assistants: _context.read<AssistantProvider>().assistants,
+        );
+        // A notification-tap cold start resumed before this point and its
+        // catch-up could only see an empty conversation cache. This is the
+        // first moment it can see a schedule, and the re-arm just ran above,
+        // so kick off the overdue catch-up here. Deliberately not awaited: the
+        // `finally` below has to stay free to open the tapped conversation, and
+        // the letter reloads the window itself the moment it is stored
+        // (`onLetterPersisted`), so waiting here would only freeze the very
+        // screen the user just opened.
+        unawaited(_viewModel.deliverDueProactiveCare());
       }
     } finally {
       _startupConversationPending = false;
@@ -3789,7 +3818,40 @@ class HomePageController extends ChangeNotifier {
     }
     if (state == AppLifecycleState.resumed) {
       ScreenWakelock.reassert();
+      // Unconditional recovery: the re-arm is guarded inside the view model
+      // (an unloaded snapshot must not clear alarms it cannot see), while the
+      // catch-up is idempotent through the atomic claim. Gating the whole call
+      // on `_chatInitialized` used to drop the one delivery a notification-tap
+      // cold start needs: `resumed` arrives before `initChat` filled the
+      // conversation cache, the catch-up found no candidates, and nothing
+      // retried afterwards because the chat was never resumed again.
+      unawaited(_recoverProactiveCareOnResume());
     }
+  }
+
+  /// Proactive care recovery on the way back to the foreground: re-arm what is
+  /// still pending (an alarm lost while the app was away must not wait for the
+  /// next process start), *then* deliver anything the alarms missed while the
+  /// process was dead or frozen (the claim contract prevents doubles).
+  ///
+  /// The order is load-bearing: the re-arm replaces the whole schedule set from
+  /// a snapshot taken now, so a delivery that armed its freshly decided next
+  /// occurrence first would have it cancelled again. Sequenced, everything due
+  /// is claimed by the catch-up and everything later stays armed — no moment is
+  /// left both unarmed and undelivered. No lock is needed beyond that
+  /// sequencing: from the snapshot read to the native `rescheduleAll` call the
+  /// path contains no `await`, so no concurrent delivery can slip an arm in
+  /// between (see ADR-0006).
+  ///
+  /// Called from `resumed` unconditionally; [initChat] runs the same
+  /// `rescheduleAll` → `deliverDueProactiveCare` sequence at the end of
+  /// startup once the conversation cache is loaded, because a cold start
+  /// triggered by tapping the arrival notification resumes before that load
+  /// finishes — the earlier `resumed` call's catch-up can only see an empty
+  /// cache.
+  Future<void> _recoverProactiveCareOnResume() async {
+    await _viewModel.reschedulePendingProactiveCare();
+    await _viewModel.deliverDueProactiveCare();
   }
 
   void onDidPopNext() {

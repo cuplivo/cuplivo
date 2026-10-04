@@ -115,6 +115,83 @@ contradicts one of them is a bug, not a preference.
   with `p.equals` because a restored draft carries separator-normalized paths while the storage
   listing keeps the OS-native form (a raw string comparison never matches on Windows).
 
+## Their Letter / Proactive Care (Ta 的来信)
+
+- **Their Letter (Ta 的来信)** — the feature: an assistant writes to the user first, at a time it
+  schedules itself, without waiting for a message. *Their Letter* is the English name, 「Ta 的来信」
+  the Chinese one; *proactive care* is the family name the code, the settings keys and the
+  notification channel (`cuplivo_proactive_care`) use. The tab that carries it is named **Roleplay**
+  because it is the home for roleplay-facing features, not for this one alone.
+- **Roleplay tab (角色扮演页签)** — an assistant-edit tab, default-ordered between *Memory* and
+  *Local tools*. A user who never reordered tabs sees it in that position; a saved custom order
+  absorbs it by the existing rule (`orderAssistantEditTabIds`: known ids in the saved order, then
+  every remaining id in default order), so no migration and no order reset is involved.
+- **Ownership and the three states (三态归属)** — the assistant's `enableProactiveCare` is the
+  default, and a conversation's `proactiveCare.enabledOverride` is *null to inherit*, or an explicit
+  on/off. Clearing a conversation's override returns it to null rather than writing the assistant's
+  current value: the value it would freeze is the one the user did not choose.
+- **Eligibility (资格)** — a schedule can only exist for a conversation with a fixed owner assistant
+  (a temporary conversation never can), that is effectively enabled, and whose next-letter time lies
+  in the future. Only future times are ever armed or listed: an expired time is state the UI shows,
+  never a pending alarm.
+- **Next letter time (下次来信时间)** — one ISO 8601 instant per conversation, held in that
+  conversation's own `extras` rather than in a per-assistant plan (v3.2.1's move, kept). The picker
+  refuses a past instant and the decision pipeline refuses one too, so the future-only invariant
+  holds on both write paths.
+- **Decision pipeline (决策管线)** — after every completed normal reply, a silent tool-carrying
+  request asks the model to move or keep the time. The model answers *only* by calling
+  `update_care_time` (ISO 8601; a UTC value is converted, and the result must be strictly future) or
+  `keep_care_time`; the first tool call decides, a reply carrying no tool call gets exactly one
+  tool-only retry, and anything invalid, missing or past means keep. The request is bounded by a
+  45 s timeout and never appears in the conversation.
+- **Decision window (决策上下文条数)** — how many recent messages the decision may read, clamped to
+  1–4096 on every write path, or off (null) to decide without history. Stored on the assistant,
+  shared by its conversations.
+- **Decision model (决策模型)** — a model of its own for the decision request, chosen in the
+  default-model settings (*Their Letter Decision Model*); unset falls back to the chat model chain,
+  so the feature works with no configuration at all.
+- **Letter pipeline (来信管线)** — when a time is due, the care prompt is answered on the full Dart
+  stack — persona system prompt, memories, instruction injection, world book, history — and the
+  reply is written straight into the conversation as an ordinary assistant message, followed by a
+  local notification. A generation failure raises a failure notification instead of writing a
+  letter. Both pipelines run in the main isolate with full provider access; v3.2.1 ran the letter
+  inside a background isolate against raw SQLite, which the 4.x background architecture (a shared
+  Flutter engine woken by a native alarm) replaces rather than duplicates.
+- **Atomic claim (认领契约)** — a due schedule is claimed by writing it through
+  `updateConversationExtras` before generation starts, so the foreground path (start/resume
+  catch-up) and the alarm path can never both deliver the same letter. Delivery is at-most-once per
+  schedule by construction, not by timing luck.
+- **Catch-up (补投)** — a letter whose time passed while nothing could run is delivered on the next
+  app start or resume. It is the fallback, not the mechanism: the scheduler is what makes a letter
+  punctual, catch-up is what makes a dropped alarm or a suspended process harmless.
+- **Platform delivery models (平台投递模型)**:
+  - **Android**: one exact alarm per schedule, owned by `ProactiveCareAlarms.kt` with
+    SharedPreferences as the single source of truth. Firing wakes a foreground service that shares
+    the Flutter engine, and a 10-minute watchdog completes a fire that never arrives. While the app
+    is alive the letter is dispatched directly, with no foreground notification flashing.
+  - **Desktop**: an in-process polling scheduler. A native sleep suppresses firing, and a letter
+    whose time fell before the last native wake is *skipped* — a night's sleep does not deliver a
+    queue of stale letters at waking. A clock rollback or a timezone change re-evaluates the set and
+    drops what is now past. The app process has to be alive.
+  - **iOS**: an arrival notification registered through the scheduled-tasks channel
+    (`app.scheduled_notifications`, payload `proactive-care:<conversationId>`, tapped back through
+    flutter_local_notifications' response bridge). iOS cannot run a model on a timer, so the
+    notification only announces the letter; its body is written by the start/resume catch-up.
+- **Re-arm, never backfill (重挂而不补发)** — boot, a timezone change and an alarm-permission grant
+  re-arm the schedules that still lie in the future; an occurrence that has already passed is never
+  re-armed, because delivering it is catch-up's job and doing it here would deliver it twice.
+- **Running conditions (运行条件)** — the Android rows that decide whether an alarm can actually
+  fire: notifications and exact alarms (required), auto-start and battery-optimisation exemption
+  (recommended), each with a live badge and a link to the authorization or vendor settings page.
+  They are conditions, not configuration: the feature works without them exactly as far as the OS
+  permits.
+- **Storage, with no schema change (零迁移)**: the assistant fields ride the existing assistant JSON
+  payload and the conversation state rides the existing conversation `extras`
+  (`proactiveCare.enabledOverride`, `proactiveCare.nextMessageAt`). No Drift schema version moves,
+  and a v3.2.1 backup's own field names are mapped into that extras shape on import.
+- **The alarm follows the data**: deleting a conversation or clearing all data cancels its alarm; a
+  bulk import or a restore re-arms every schedule it brought in.
+
 ## LAN Sync (局域网同步)
 
 - **Device continuity (设备间接续)** — the job LAN sync is hired for: conversations follow the
@@ -125,6 +202,15 @@ contradicts one of them is a bug, not a preference.
   paired, and a paired device is reached at the address it was last seen at.
 - **Device identity**: per-install keypair minted at first pairing use; deviceId = hash of
   the public key; stable across app updates.
+- **A peer dial is always direct (对端直连)**: both clients — pairing and session — are built through
+  one factory that sets `findProxy = DIRECT`, because sync is a LAN protocol by construction: there
+  is no situation in which a proxy reaches a peer this device cannot. This was a real defect rather
+  than a precaution. `HttpClient` defaults to `findProxyFromEnvironment`, so a Clash/v2ray-style
+  proxy exported in the environment swallowed every dial to an endpoint outside `NO_PROXY` — whose
+  private ranges do not cover the NAT'd or IPv6 address a pairing actually remembers — while the
+  presence probe, a bare `Socket.connect`, never consulted the proxy at all. The card therefore
+  showed a green dot beside sessions that could never connect; the two measurements disagreeing was
+  the only visible symptom.
 - **Pairing QR (配对二维码)**: the pairing path — one image shown by the responder carrying its
   candidate endpoints, its certificate fingerprint (= deviceId) and the open window's PIN, so
   scanning pairs in one step with no typing. The fingerprint is what the joiner pins inside the
@@ -497,15 +583,25 @@ contradicts one of them is a bug, not a preference.
   pairing QR on this device, scan or type the code from another) + one card per paired device
   (editable name, platform, endpoint, last sync outcome, sync now, unpair). **Pairing is the
   opt-in** — there is no master switch, and no global chrome (no sync icon outside the panel).
-- **No online state**: the card shows the last sync attempt and its outcome, never a presence
-  badge. Nothing probes the peer between sessions, so "online" would be a claim the app cannot
-  make; a drifted address shows up as a failed attempt, not as an offline device.
+- **Presence is a claim about addresses, never about the peer (在线状态)**: the card draws a
+  green/gray dot on the platform badge from a bare-TCP probe over the remembered endpoints — the
+  dial's own probe, same budget, same "the probe classifies the address" contract — so an asleep
+  peer reads as a calm offline note instead of a failed sync. The evidence is layered, and a session
+  outranks a probe: a finished session files a verdict (answered — success, any refusal, or a
+  failure that needed an answer to happen — or silent, `unreachable`/`timeout`) which outranks the
+  probe for one minute, and the probe itself tolerates one missed beat before the dot clears,
+  because a dot that flickers every half minute is worse than one that is briefly stale. The
+  tooltip names the evidence being reported. The limit is accepted rather than papered over: a probe
+  cannot tell "asleep" from "moved to an unknown network", which is why the repair it offers is
+  re-scanning the QR or typing the address, not a retry.
 - **The card shows the facts a user acts on**: "last synced" is how long ago, not a timestamp — the
   question on that line is recency, the exact time rides in the tooltip, and past a week the date
-  returns, because at nine days old the date is the more useful fact. The address in use carries a
-  count of the other remembered ones (`(+2)`), so a peer reached on two networks does not look like a
-  peer with one address. The address itself copies on tap with the usual confirmation: it is the one
-  string on the card that belongs somewhere else.
+  returns, because at nine days old the date is the more useful fact. That line is success-only: a
+  peer that was switched off must not make it claim the data is current; the outcome line beside it
+  describes the last *attempt*, failures included. The address in use carries a count of the other
+  remembered ones (`(+2)`), so a peer reached on two networks does not look like a peer with one
+  address. The address itself copies on tap with the usual confirmation: it is the one string on
+  the card that belongs somewhere else.
 - **Listener lifecycle**: the listener runs whenever the app runs, on a preferred port
   (`9527`) that falls back to an ephemeral one when taken, so a peer's stored endpoint and the
   Windows firewall rule stay stable across launches. On Windows the inbound rule is

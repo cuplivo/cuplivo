@@ -114,6 +114,7 @@ class MainActivity : FlutterActivity() {
          kelivo.backgroundRuntime.attachActivity(this)
          deviceLocalToolsHandler = kelivo.deviceTools.also { it.attachActivity(this) }
          workspacePlugin = kelivo.workspace.also { it.attachActivity(this) }
+         ProactiveCareSettingsHandler(this).configure(flutterEngine.dartExecutor.binaryMessenger)
         processTextChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, processTextChannelName)
         processTextChannel?.setMethodCallHandler { call, result ->
             when (call.method) {

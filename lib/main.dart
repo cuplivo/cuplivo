@@ -1,4 +1,5 @@
 import 'core/services/scheduled_tasks_service.dart';
+import 'package:Cuplivo/core/services/proactive_care_alarm_service.dart';
 import 'package:Cuplivo/core/services/sandbox/workspace_channel.dart';
 import 'package:Cuplivo/core/providers/external_mounts_provider.dart';
 import 'package:Cuplivo/core/services/sandbox/environment_dependencies.dart';
@@ -185,6 +186,24 @@ void _wireWorkspaceServices(BuildContext ctx) {
         assistant: assistants.getById(assistantId),
         workspaceById: workspaces.byId,
       );
+    };
+    // Proactive care ("Ta的来信"): extras writes re-arm the Android alarm
+    // through ChatService's central hook; it needs the owning assistant.
+    chat.proactiveCareAssistantResolver = assistants.getById;
+    // Platforms that only announce a due letter (iOS) have no letter text yet,
+    // so the arrival notification carries this localized line.
+    ProactiveCareAlarmService.proactiveCareArrivalBodyResolver = () =>
+        AppLocalizations.of(ctx)?.proactiveCareLetterArrivalBody;
+    assistants.onAssistantUpdated = (assistant) {
+      for (final conversation in chat.getAllConversations()) {
+        if (conversation.assistantId != assistant.id) continue;
+        unawaited(
+          ProactiveCareAlarmService.sync(
+            conversation: conversation,
+            assistant: assistant,
+          ),
+        );
+      }
     };
     WorkspaceNavigation.onOpenEnvironmentPage = openEnvironmentPage;
     WorkspaceNavigation.onOpenTerminal = (navContext, {command}) {

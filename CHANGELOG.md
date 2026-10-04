@@ -4,7 +4,7 @@
 
 ### Added
 
-- **Their Letter (Proactive Care) returns, now cross-platform**: the proactive care of v3.2.1 is back, reusing Kelivo v1.3.0's scheduled-tasks infrastructure and broadened from Android to every platform, with a new **Roleplay** tab (#935 by @Pheobe-Southwood)
+- **Their Letter (Proactive Care) returns, now cross-platform**: the proactive care of v3.2.1 is back, reusing Kelivo v1.3.0's scheduled-tasks infrastructure and broadened from Android to every platform, with a new **Roleplay** tab (#935, #976 by @Pheobe-Southwood)
 
 ### Fixed
 

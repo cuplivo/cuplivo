@@ -160,6 +160,7 @@ final class BusinessKeyRegistry {
     'scheduled_task_results_v1',
     'current_assistant_id_v1',
     'orphaned_conversations_assistant_id_v1',
+    'proactive_care_decision_model_v1',
     'selected_model_v1',
     'per_chat_model_enabled_v1',
     'pinned_models_v1',

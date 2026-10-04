@@ -2856,12 +2856,21 @@ class DataSync {
       geminiThoughtSigs[entry.key.toString()] = entry.value as String;
     }
     final conversations = (chats['conversations'] as List).map((entry) {
-      final conversation = Conversation.fromJson(
-        (entry as Map).cast<String, dynamic>(),
-      );
-      return conversation.copyWith(
-        extras: ToolPermissionMode.withoutGrant(conversation.extras),
-      );
+      final raw = (entry as Map).cast<String, dynamic>();
+      final conversation = Conversation.fromJson(raw);
+      // Fork-lineage per-conversation proactive care state rides extras here.
+      final extras = {
+        ...ToolPermissionMode.withoutGrant(conversation.extras),
+      };
+      final careOverride = raw['proactiveCareEnabledOverride'];
+      if (careOverride is bool) {
+        extras[Conversation.proactiveCareEnabledOverrideKey] = careOverride;
+      }
+      final careNextAt = raw['proactiveCareNextMessageAt'];
+      if (careNextAt is String && careNextAt.isNotEmpty) {
+        extras[Conversation.proactiveCareNextMessageAtKey] = careNextAt;
+      }
+      return conversation.copyWith(extras: extras);
     }).toList();
 
     // Import boundary for legacy chats.json: promote marker-bearing content

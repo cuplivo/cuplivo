@@ -3222,6 +3222,10 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     final showModelName = context.select<SettingsProvider, bool>(
       (s) => s.showModelName,
     );
+    // "Use assistant name" is an explicit per-assistant opt-in and stands on
+    // its own: the global "show model name" switch only governs the model name
+    // line, never whether the assistant name replaces it.
+    final showHeaderName = showModelName || widget.useAssistantName;
     final showModelTimestamp = context.select<SettingsProvider, bool>(
       (s) => s.showModelTimestamp,
     );
@@ -3328,7 +3332,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (showModelName)
+                      if (showHeaderName)
                         Text(
                           widget.useAssistantName
                               ? (widget.assistantName?.trim().isNotEmpty == true

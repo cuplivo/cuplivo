@@ -226,6 +226,16 @@ git branch -f master rebase/onto-<new-baseline>
   on that platform: Kelivo has no in-app executor on Android (`ScheduledTasksService.configureDevice`
   returns early there), so care must not add one either
   ([ADR-0006](adr/0006-proactive-care-trigger-contract.md)).
+- **Reusing an upstream channel means reusing its *identifiers*, its *replace-all semantics*, and
+  its *timing*.** `ScheduledTaskNotifications` prefixes `scheduled-task:` in both `schedule` and
+  `cancel`, so callers pass the bare id (`IosProactiveCareScheduler.notificationIdFor`) and
+  `rescheduleAll` must explicitly cancel conversations that dropped out of the pending set; and the
+  catch-up on a notification-tap cold start must run again at the end of `initChat` because
+  `resumed` precedes the conversation cache load. Both mistakes are invisible from a single call
+  site — read the adapter, check replace-all symmetry across platforms, and check when the
+  lifecycle event actually fires. ADR-0006 decisions 11-15 pin them down, and because no workflow
+  compiles `android/app/src/test/` at all, when a unit touches `scheduled/` or `ios/Runner/`, build
+  it and run its Kotlin tests deliberately rather than trusting the PR gates.
 - **Registering a test failure as "known" needs a control run.** Nine Windows failures looked like
   our regression; running the same files in a clean worktree at upstream's own tip reproduced them
   (ten, in fact). Only after that is a failure honestly "upstream's, on this platform".

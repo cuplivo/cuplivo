@@ -5,6 +5,7 @@ import android.os.Build
 import com.cuplivo.cuplivo.background.BackgroundRuntime
 import com.cuplivo.cuplivo.workspace.WorkspacePlugin
 import com.cuplivo.cuplivo.scheduled.ScheduledTasks
+import com.cuplivo.cuplivo.scheduled.ProactiveCareAlarms
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.dart.DartExecutor
 
@@ -12,6 +13,7 @@ import io.flutter.embedding.engine.dart.DartExecutor
 class KelivoApplication : Application() {
     val backgroundRuntime by lazy { BackgroundRuntime(this) }
     val scheduledTasks by lazy { ScheduledTasks(this) }
+    val proactiveCareAlarms by lazy { ProactiveCareAlarms(this) }
     val workspace by lazy { WorkspacePlugin(this) }
     val deviceTools by lazy { DeviceLocalToolsHandler(this) }
 
@@ -29,6 +31,7 @@ class KelivoApplication : Application() {
             val messenger = engine.dartExecutor.binaryMessenger
             backgroundRuntime.configure(messenger)
             scheduledTasks.configure(messenger)
+            proactiveCareAlarms.configure(messenger)
             workspace.configure(messenger)
             deviceTools.configure(messenger)
             engine.dartExecutor.executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault())

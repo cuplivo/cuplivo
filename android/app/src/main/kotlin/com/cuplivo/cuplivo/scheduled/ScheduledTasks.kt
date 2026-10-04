@@ -156,7 +156,7 @@ class ScheduledTasks(private val app: KelivoApplication) {
     }
     private fun arm(task: JSONObject, after: Long = System.currentTimeMillis()) {
         val id = task.getString("id")
-        alarms.cancel(pendingIntent(id, 0))
+        ExactAlarmHelper.cancel(alarms, pendingIntent(id, 0))
         task.put("nextRunAt", JSONObject.NULL)
         val next = next(task, after)
         task.put("exhausted", next == null)
@@ -164,8 +164,8 @@ class ScheduledTasks(private val app: KelivoApplication) {
             task.put("enabled", false)
             return
         }
-        if (!task.getBoolean("enabled") || !permitted()) return
-        alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, pendingIntent(id, next))
+        if (!task.getBoolean("enabled") || !ExactAlarmHelper.isExactAlarmPermitted(alarms)) return
+        ExactAlarmHelper.scheduleExact(alarms, next, pendingIntent(id, next))
         task.put("nextRunAt", next)
     }
     fun rescheduleAll() {

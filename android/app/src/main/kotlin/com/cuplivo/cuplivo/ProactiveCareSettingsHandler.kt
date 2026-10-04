@@ -138,12 +138,12 @@ class ProactiveCareSettingsHandler(private val activity: Activity) {
         this.component = ComponentName(component.packageName, component.className)
       }
       if (tryStart(intent, "${Build.MANUFACTURER} auto-start settings")) {
-        result.success("manufacturerSettings")
+        result.success(true)
         return
       }
     }
     if (openApplicationDetails()) {
-      result.success("applicationDetails")
+      result.success(true)
     } else {
       result.error(
         "settings_unavailable",

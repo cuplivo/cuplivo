@@ -165,4 +165,53 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('showConversationProactiveCareSheet opens dialog on desktop', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final storage = await createBusinessTestHarness();
+    final conversation = Conversation(
+      id: 'c1',
+      title: 'Conversation',
+      assistantId: 'a1',
+    );
+    final assistant = Assistant(
+      id: 'a1',
+      name: 'Assistant',
+      enableProactiveCare: true,
+    );
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => SettingsProvider(storage.preferences),
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showConversationProactiveCareSheet(
+                  context,
+                  conversation: conversation,
+                  assistant: assistant,
+                  onOverrideChanged: (_) async {},
+                  onNextMessageAtChanged: (_) async {},
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.byType(ConversationProactiveCareSheet), findsOneWidget);
+  });
 }

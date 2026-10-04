@@ -424,6 +424,75 @@ void main() {
     expect(messages.where((m) => m.role == 'assistant').length, 1);
   });
 
+  test(
+    'runSchedule claims successfully across UTC and local time representation',
+    () async {
+      final dueAtLocal = DateTime.now().subtract(const Duration(minutes: 5));
+      final dueAtUtc = dueAtLocal.toUtc();
+      final assistant = Assistant(
+        id: 'a2',
+        name: 'A2',
+        chatModelProvider: 'openai',
+        chatModelId: 'gpt-test',
+        enableProactiveCare: true,
+        proactiveCarePrompt: '问候我',
+      );
+      final conversation = await chatService.createConversation(
+        title: 'Care UTC',
+        assistantId: assistant.id,
+      );
+      await chatService.addMessage(
+        conversationId: conversation.id,
+        role: 'user',
+        content: 'Hello',
+      );
+      await chatService.updateConversationExtras(conversation.id, (extras) {
+        extras[Conversation.proactiveCareEnabledOverrideKey] = true;
+        extras[Conversation.proactiveCareNextMessageAtKey] = dueAtUtc
+            .toIso8601String();
+        return extras;
+      });
+
+      final flow = ProactiveCareMessageFlow(
+        chatService: chatService,
+        settings: settings,
+        careSender:
+            ({
+              required config,
+              required modelId,
+              required messages,
+              thinkingBudget,
+              topP,
+              maxTokens,
+              conversationId,
+            }) async => 'letter',
+        decisionSender:
+            ({
+              required config,
+              required modelId,
+              required messages,
+              required tools,
+              onToolCall,
+              thinkingBudget,
+              topP,
+              maxTokens,
+              requestId,
+              conversationId,
+            }) async => null,
+      );
+
+      final delivery = await flow.runSchedule(
+        conversationId: conversation.id,
+        expectedAt: dueAtLocal,
+        assistants: [assistant],
+        userNickname: 'User',
+      );
+
+      expect(delivery, isNotNull);
+      expect(delivery!.successful, isTrue);
+    },
+  );
+
   test('care user message embeds the system time', () {
     final now = DateTime(2026, 8, 4, 9, 30);
     final msg = ProactiveCareService.buildCareUserMessage(

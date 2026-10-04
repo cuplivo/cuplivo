@@ -790,8 +790,10 @@ class ProactiveCareMessageFlow {
     try {
       await chatService.updateConversationExtras(conversationId, (extras) {
         final current = extras[Conversation.proactiveCareNextMessageAtKey];
-        if (current is String &&
-            DateTime.tryParse(current) == expectedAt &&
+        final parsed = current is String ? DateTime.tryParse(current) : null;
+        if (parsed != null &&
+            parsed.millisecondsSinceEpoch ==
+                expectedAt.millisecondsSinceEpoch &&
             claimed == null) {
           claimed = Conversation(
             id: conversationId,

@@ -311,6 +311,38 @@ class DesktopDefaultModelPane extends StatelessWidget {
                     },
                     configAction: () => _showOcrPromptDialog(context),
                   ),
+                  const SizedBox(height: 16),
+                  _ModelCard(
+                    icon: lucide.Lucide.HeartPulse,
+                    title: l10n.defaultModelPageProactiveCareModelTitle,
+                    subtitle: l10n.defaultModelPageProactiveCareModelSubtitle,
+                    modelProvider: settings.proactiveCareDecisionModelProvider,
+                    modelId: settings.proactiveCareDecisionModelId,
+                    fallbackProvider: settings.currentModelProvider,
+                    fallbackModelId: settings.currentModelId,
+                    onReset: () async {
+                      await context
+                          .read<SettingsProvider>()
+                          .resetProactiveCareDecisionModel();
+                    },
+                    onPick: () async {
+                      final settingsProvider = context.read<SettingsProvider>();
+                      final sel =
+                          await showModelSelectorWithCurrentChatFallback(
+                            context,
+                            initialProviderKey:
+                                settings.proactiveCareDecisionModelProvider,
+                            initialModelId:
+                                settings.proactiveCareDecisionModelId,
+                          );
+                      if (sel != null) {
+                        await settingsProvider.setProactiveCareDecisionModel(
+                          sel.providerKey,
+                          sel.modelId,
+                        );
+                      }
+                    },
+                  ),
                 ],
               ),
             ),

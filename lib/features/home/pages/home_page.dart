@@ -767,6 +767,9 @@ class _HomePageState extends State<HomePage>
       _controller.measureInputBar();
       if (!mounted) return;
       context.read<WorldBookProvider>().initialize();
+      // Proactive care catch-up: providers are up post-frame; alarms trigger
+      // on-time delivery, this covers anything they missed.
+      unawaited(_controller.deliverDueProactiveCare());
     });
   }
 
@@ -1599,7 +1602,7 @@ class _HomePageState extends State<HomePage>
                   chatModel.providerKey!,
                   chatModel.modelId!,
                 ),
-            conversationId: _controller.currentConversation?.id,
+            conversation: _controller.currentConversation,
           );
         } else {
           _controller.dismissKeyboard();

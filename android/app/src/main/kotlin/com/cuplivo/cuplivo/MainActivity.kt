@@ -35,6 +35,10 @@ class MainActivity : FlutterActivity() {
     override fun onStart() {
         super.onStart()
         kelivo.backgroundRuntime.setForeground(true)
+        // Letters fired while no foreground service was running have no
+        // channel listener yet; the app owns the foreground again, so hand
+        // them over now instead of leaving them to the deadline.
+        kelivo.proactiveCareAlarms.dispatchPending()
     }
 
     override fun onPostResume() {
@@ -115,6 +119,7 @@ class MainActivity : FlutterActivity() {
          kelivo.backgroundRuntime.attachActivity(this)
          deviceLocalToolsHandler = kelivo.deviceTools.also { it.attachActivity(this) }
          workspacePlugin = kelivo.workspace.also { it.attachActivity(this) }
+         ProactiveCareSettingsHandler(this).configure(flutterEngine.dartExecutor.binaryMessenger)
         processTextChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, processTextChannelName)
         processTextChannel?.setMethodCallHandler { call, result ->
             when (call.method) {

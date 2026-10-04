@@ -1,29 +1,17 @@
 # Changelog
 
-<<<<<<< HEAD
-=======
-## [Unreleased]
-
-### Added
-
-- **Message replies**: a message's ⋯ menu (and a user bubble's long-press or right-click menu) can reply to it, and a selection inside an assistant reply can reply to just that span — the reply shows a one-line citation above the bubble, and the model receives it as a `<reply-to>` prefix frozen with the rest of the turn. Desktop binds `Ctrl/Cmd+Shift+R` to reply with the selection, because a right-click can take the selection away before the toolbar is reached. The citation rides the message row's extras, so it needs no schema change and travels with LAN sync and backups (#1027 by @cup113)
-- **Workspace sync**: a workspace's record now follows your paired devices, and a managed workspace's files do too. Every pair keeps a file table (path + size + modified time), the files are pulled from the device that holds them, and each workspace can be switched off in the LAN Sync panel. Linked workspaces never travel, and a workspace over 2,000 files or 200 MB keeps its record but syncs no content
-- **Per-address endpoints**: a paired device can remember up to twelve addresses, each with its own name, latency and history. Tapping an address's latency opens its details — last measured, last reached, sessions carried, when it was added — and that is also where it is renamed, edited or deleted
-- **A one-way LAN can now be picked up from the other side**: an initiator round that has not been answered yet yields to a hello arriving from the peer, so a pair on a network where only one direction connects still syncs
-- **Per-assistant chat suggestions**: each assistant can switch chat suggestions off on its own, so an assistant used for work no longer spends a request and shows suggestion bubbles after every reply while a role-play one still does. The switch in Default Models stays the master — an assistant's opt-out does nothing while it is off, and every existing assistant stays on, so nothing changes until one is switched off (#1024)
-
-### Changed
-
-- **LAN sync protocol v5**: both devices must be updated — a mismatched pair pauses syncing until they are
-- **The online dot and the connect beat are more honest**: the probe behind the dot is now an authenticated request (reachable *and* still paired), and the dial only tries the addresses that probe reached. A sleeping peer costs one connect attempt instead of one per remembered address, and the "connecting… (2/3)" candidate counter is gone
-- **"Not reachable right now" no longer draws a row on the card**: the subtitle already says the peer is away, so the sentence row is gone; a manual sync still answers with the actionable line
-- **The LAN Sync panel is rebuilt**: this device with no IP on it, a workspace section with per-workspace state and switches, and one card per peer carrying an address grid instead of a single address line
-
-### Fixed
-
 - **LAN sync no longer stops listening when the window is closed to the tray**: with "close to tray" enabled, clicking the window's close button hid it and took port 9527 with it — the process stayed up with no listener, and restoring the window did not bring it back, because the close was answered as a quit. A close that only hides is now answered as a hide on Windows (macOS' Quit is a terminate and still quits; on Linux the window manager intercepts the close before it ever becomes an exit request, so hiding there is unchanged), the listener's graceful stop moved from the exit flush to a real shutdown, and a window that comes back to the foreground or a LAN Sync panel that is opened starts the listener again if it is ever down (#1036 by @cup113)
 
 >>>>>>> ec441209c (fix(sync): a close to the tray no longer stops the LAN sync listener (#1037))
+## [4.3.0] - 2026-10-14
+
+### Fixed
+
+- **A stale "Their Letter" notification on iOS**: `IosProactiveCareScheduler.rescheduleAll` now cancels arrival notifications for conversations that dropped out of the pending set (past-due, disabled, or replaced on restore) and passes the bare conversation id that Kelivo's notification adapter prefixes in both `schedule` and `cancel`, so stale arrival notifications no longer survive re-arming (#1007 by @Pheobe-Southwood)
+- **A letter taking minutes to show up after tapping its notification**: on a cold start `resumed` arrives before the conversation cache is loaded, so the overdue catch-up could only see an empty list; `initChat` now kicks off the catch-up again (`unawaited`) once the data is ready, and `onLetterPersisted` reloads the open window as soon as the letter is stored (#1007 by @Pheobe-Southwood)
+- **A fired letter on Android waiting for the app to come back to the front**: while the process is alive but the UI is not in front, the letter is handed straight to Dart instead of waiting for a foreground-service start or the next `MainActivity.onStart` (it still posts its own notification once stored) (#1007 by @Pheobe-Southwood)
+- **iOS logs when an arrival notification was refused**: a missing notification grant or a full pending queue is logged so it is explicit that the letter then depends on the in-app executor and the catch-up (#1007 by @Pheobe-Southwood)
+
 ## [4.3.0] - 2026-10-14
 
 ### Added

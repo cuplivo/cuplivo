@@ -11,12 +11,22 @@ import '../../../core/models/conversation.dart';
 import '../../../core/services/chat/context_compression_service.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/settings_provider.dart';
+import '../../../core/providers/user_provider.dart';
+import '../../../core/database/business_preferences.dart';
 import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/services/instruction_injection_store.dart';
+import '../../../core/services/memory_store.dart';
 import '../../../core/services/logging/flutter_logger.dart';
 import '../../../core/services/model_spec/model_spec_resolver.dart';
 import '../../../core/services/memory/memory_pipeline.dart';
 import '../../../core/services/memory/memory_trace.dart';
+import '../../../core/services/proactive_care_alarm_service.dart';
+import '../../../core/services/proactive_care_conversation_policy.dart';
+import '../../../core/services/proactive_care_message_flow.dart';
+import '../../../core/services/notification_service.dart';
+import '../../../core/services/world_book_store.dart';
+import '../../../utils/utf16_safe_cut.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../chat/widgets/chat_message_widget.dart' show ToolUIPart;
 import '../services/context_usage_service.dart';
@@ -130,6 +140,7 @@ class HomeViewModel extends ChangeNotifier {
     _chatActions.onMaybeGenerateTitle = _onMaybeGenerateTitle;
     _chatActions.onMaybeGenerateSummary = _onMaybeGenerateSummary;
     _chatActions.onMaybeGenerateSuggestions = _onMaybeGenerateSuggestions;
+    _chatActions.onMaybeUpdateProactiveCare = _onMaybeUpdateProactiveCare;
     _chatActions.onStreamFinished = _onStreamFinished;
     _chatActions.onAssistantMessageFinished = _onAssistantMessageFinished;
     _chatActions.onFileProcessingStarted = _onFileProcessingStarted;
@@ -469,6 +480,231 @@ class HomeViewModel extends ChangeNotifier {
   /// Drops the indicator immediately, ignoring the minimum-visible hold. Used
   /// when the conversation the indicator belonged to is no longer on screen.
   void resetFileProcessingIndicator() => _fileProcessingIndicator.reset();
+
+  // ============================================================================
+  // Proactive care ("Ta的来信")
+  // ============================================================================
+
+  /// After a settled reply, silently ask the decision model whether the
+  /// conversation's next care time should move. Android-only feature.
+  void _onMaybeUpdateProactiveCare(String conversationId) {
+    if (!ProactiveCareAlarmService.isSupported) return;
+    unawaited(
+      _decideProactiveCareFor(conversationId).catchError((Object e, st) {
+        FlutterLogger.log(
+          '[ProactiveCare] decision failed: $e\n$st',
+          tag: 'HomeViewModel',
+        );
+      }),
+    );
+  }
+
+  ProactiveCareMessageFlow _proactiveCareFlow() => ProactiveCareMessageFlow(
+    chatService: _chatService,
+    settings: _contextProvider.read<SettingsProvider>(),
+    memoryStore: MemoryStore(_contextProvider.read<BusinessPreferences>()),
+    instructionInjectionStore: InstructionInjectionStore(
+      _contextProvider.read<BusinessPreferences>(),
+    ),
+    worldBookStore: WorldBookStore(
+      _contextProvider.read<BusinessPreferences>(),
+    ),
+    // A letter is inserted silently, outside the streaming path: reload the
+    // timeline as soon as it is durable, before the next-time decision call.
+    onLetterPersisted: (conversationId) =>
+        _refreshCurrentConversationAfterCare({conversationId}),
+  );
+
+  String? _proactiveCareL10n(String? Function(AppLocalizations) pick) {
+    final l10n = AppLocalizations.of(_contextProvider);
+    if (l10n == null) return null;
+    return pick(l10n);
+  }
+
+  String get _proactiveCarePromptFallback =>
+      _proactiveCareL10n(
+        (l10n) => l10n.assistantEditProactiveCarePromptDefault,
+      ) ??
+      '';
+
+  String get _proactiveCareDecisionPromptFallback =>
+      _proactiveCareL10n(
+        (l10n) => l10n.assistantEditProactiveCareDecisionPromptDefault,
+      ) ??
+      '';
+
+  String? get _proactiveCareFailureBody =>
+      _proactiveCareL10n((l10n) => l10n.proactiveCareFailedNotificationBody);
+
+  Future<void> _decideProactiveCareFor(String conversationId) async {
+    final conversation = _chatService.getConversation(conversationId);
+    if (conversation == null) return;
+    final assistantId = conversation.assistantId;
+    if (assistantId == null) return;
+    final assistant = _contextProvider.read<AssistantProvider>().getById(
+      assistantId,
+    );
+    if (assistant == null) return;
+    if (!ProactiveCareConversationPolicy.isEligible(conversation, assistant)) {
+      debugPrint(
+        '[ProactiveCare] decision skipped: not eligible $conversationId',
+      );
+      return;
+    }
+
+    final flow = _proactiveCareFlow();
+    final model = flow.resolveDecisionModelConfig(
+      assistant,
+      conversation: conversation,
+    );
+    if (model == null) {
+      debugPrint('[ProactiveCare] decision skipped: no decision model');
+      return;
+    }
+    final userNickname = _contextProvider.read<UserProvider>().name;
+    final history = ProactiveCareMessageFlow.historyFromMessages(
+      await _chatService.loadMessages(conversationId),
+    );
+    if (history.isEmpty) return;
+    final nextAt = await flow.decideNextCareTime(
+      config: model.config,
+      modelId: model.modelId,
+      assistant: assistant,
+      userNickname: userNickname,
+      history: history,
+      decisionPrompt: assistant.proactiveCareDecisionPrompt.trim().isNotEmpty
+          ? assistant.proactiveCareDecisionPrompt
+          : _proactiveCareDecisionPromptFallback,
+      conversationId: conversationId,
+      currentNextCareTime: conversation.proactiveCareNextMessageAt,
+    );
+    if (nextAt == null) {
+      // decideNextCareTime returns null for keep / declined / failed / invalid
+      // alike, so this line must not claim the model decided anything.
+      debugPrint(
+        '[ProactiveCare] decision left the next time unchanged '
+        '(kept/declined/failed)',
+      );
+      return;
+    }
+    debugPrint('[ProactiveCare] decision set next time $nextAt');
+    // The extras write re-arms the Android alarm (see ChatService's
+    // proactive-care hook).
+    await _chatService.updateConversationExtras(conversationId, (extras) {
+      extras[Conversation.proactiveCareNextMessageAtKey] = nextAt
+          .toIso8601String();
+      return extras;
+    });
+  }
+
+  /// Re-arms every pending letter after the app came back to the foreground:
+  /// an alarm the system (or our own handoff) lost must not depend on the next
+  /// process start to come back. Mirrors the native `ready` re-arm Kelivo's
+  /// scheduled tasks do.
+  ///
+  /// The re-arm is a replace-all, so an unloaded store has to skip instead of
+  /// arming: an empty snapshot would cancel every alarm it cannot see. A store
+  /// that is genuinely empty has no letter to preserve, and the startup /
+  /// restore / sync paths still own cleaning up stale registry entries.
+  Future<void> reschedulePendingProactiveCare() async {
+    if (!ProactiveCareAlarmService.isSupported) return;
+    final conversations = _chatService.getAllConversations();
+    final assistants = _contextProvider.read<AssistantProvider>().assistants;
+    if (conversations.isEmpty || assistants.isEmpty) {
+      debugPrint('[ProactiveCare] re-arm skipped: stores not ready');
+      return;
+    }
+    try {
+      await ProactiveCareAlarmService.rescheduleAll(
+        conversations: conversations,
+        assistants: assistants,
+      );
+    } catch (e, st) {
+      FlutterLogger.log(
+        '[ProactiveCare] resume re-arm failed: $e\n$st',
+        tag: 'HomeViewModel',
+      );
+    }
+  }
+
+  /// Delivers every due care letter for all eligible conversations (app
+  /// start / resume catch-up; the alarm channel covers on-time delivery).
+  /// Returns the number of letters delivered, excluding failed attempts.
+  Future<int> deliverDueProactiveCare() async {
+    if (!ProactiveCareAlarmService.isSupported) return 0;
+    try {
+      final flow = _proactiveCareFlow();
+      final delivered = await flow.runDueSchedules(
+        assistants: _contextProvider.read<AssistantProvider>().assistants,
+        userNickname: _contextProvider.read<UserProvider>().name,
+        carePromptFallback: _proactiveCarePromptFallback,
+        decisionPromptFallback: _proactiveCareDecisionPromptFallback,
+        failureNotificationBody: _proactiveCareFailureBody,
+      );
+      final succeeded = delivered.where((d) => d.successful).length;
+      if (delivered.isNotEmpty) {
+        debugPrint(
+          '[ProactiveCare] catch-up delivered $succeeded/${delivered.length}',
+        );
+      }
+      // Each letter already reloaded the timeline through onLetterPersisted.
+      return succeeded;
+    } catch (e, st) {
+      FlutterLogger.log(
+        '[ProactiveCare] due delivery failed: $e\n$st',
+        tag: 'HomeViewModel',
+      );
+      return 0;
+    }
+  }
+
+  /// Delivers the one schedule an Android alarm selected. Returns true when
+  /// a letter was generated and persisted.
+  Future<bool> deliverProactiveCareSchedule({
+    required String conversationId,
+    required DateTime expectedAt,
+  }) async {
+    if (!ProactiveCareAlarmService.isSupported) return false;
+    debugPrint('[ProactiveCare] deliver $conversationId @ $expectedAt');
+    try {
+      final flow = _proactiveCareFlow();
+      final outcome = await flow.runSchedule(
+        conversationId: conversationId,
+        expectedAt: expectedAt,
+        assistants: _contextProvider.read<AssistantProvider>().assistants,
+        userNickname: _contextProvider.read<UserProvider>().name,
+        carePromptFallback: _proactiveCarePromptFallback,
+        decisionPromptFallback: _proactiveCareDecisionPromptFallback,
+        failureNotificationBody: _proactiveCareFailureBody,
+        notificationId: NotificationService.proactiveCareIdFor(conversationId),
+      );
+      if (outcome == null) {
+        debugPrint('[ProactiveCare] nothing to deliver for $conversationId');
+        return false;
+      }
+      // A successful letter already reloaded the timeline in the flow.
+      return outcome.successful;
+    } catch (e, st) {
+      FlutterLogger.log(
+        '[ProactiveCare] alarm delivery failed: $e\n$st',
+        tag: 'HomeViewModel',
+      );
+      return false;
+    }
+  }
+
+  Future<void> _refreshCurrentConversationAfterCare(
+    Set<String> conversationIds,
+  ) async {
+    if (conversationIds.isEmpty) return;
+    final currentId = _chatService.currentConversationId;
+    if (currentId == null || !conversationIds.contains(currentId)) return;
+    try {
+      await _chatController.refreshTimelineAfterMutation();
+    } catch (_) {
+      // The next manual navigation re-reads the window anyway.
+    }
+  }
 
   void _onFileProcessingStarted(String messageId) =>
       _fileProcessingIndicator.start(messageId);

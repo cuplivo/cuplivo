@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.1.0] - 2026-10-04
+
+### Added
+
+- **Their Letter (Proactive Care) returns, now cross-platform**: the proactive care of v3.2.1 is back, reusing Kelivo v1.3.0's scheduled-tasks infrastructure and broadened from Android to every platform, with a new **Roleplay** tab (#935 by @Pheobe-Southwood)
+
+### Fixed
+
+- **LAN sync panel**: peer connectivity is now correct in an environment that has a proxy (#952 by @cup113)
+
 ## [4.0.1] - 2026-09-30
 
 ### Fixed

@@ -39,9 +39,9 @@ JNI_LIBS="$REPO_ROOT/android/app/src/main/jniLibs"
 TERMUX_POOL="${TERMUX_POOL:-https://packages.termux.dev/apt/termux-main/pool/main}"
 
 # Rolling Termux versions. Override with env vars if the pool moves again.
-# 5.1.107.92 rolled off the pool in 2026-09; 5.1.107.95 is the current build.
-PROOT_VERSION="${PROOT_VERSION:-5.1.107.95}"
-TALLOC_VERSION="${TALLOC_VERSION:-2.4.3}"
+# 5.1.107.95 rolled off the pool in 2026-10; 5.1.107.96 is the current build.
+PROOT_VERSION="${PROOT_VERSION:-5.1.107.96}"
+TALLOC_VERSION="${TALLOC_VERSION:-2.5.0}"
 SHMEM_VERSION="${SHMEM_VERSION:-0.7}"
 
 # termux-arch:android-abi

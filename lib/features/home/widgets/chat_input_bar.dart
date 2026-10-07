@@ -105,6 +105,7 @@ class _DraftImage {
 
   final int id;
   String path;
+
   /// Keep the picked original for a first crop, avoiding JPEG recompression
   /// before the user makes their edit. Restored drafts use the stored image.
   String? cropSourcePath;
@@ -853,8 +854,8 @@ class _ChatInputBarState extends State<ChatInputBar>
     for (final path in _deferredPreviewTempDeletes.remove(id) ?? <String>[]) {
       unawaited(_deleteTemporaryImageSource(path));
     }
-    for (final path in _deferredPreviewArtifactReleases.remove(id) ??
-        <String>[]) {
+    for (final path
+        in _deferredPreviewArtifactReleases.remove(id) ?? <String>[]) {
       _releaseOwnedArtifact(path);
     }
   }
@@ -866,7 +867,8 @@ class _ChatInputBarState extends State<ChatInputBar>
     final local = !isRemoteOrDataUri(image.path);
     final settings = context.read<SettingsProvider>();
     final canCrop = local && settings.imageCropperEnabled;
-    final canCompress = local &&
+    final canCompress =
+        local &&
         settings.imageCompressionMode == ImageCompressionMode.manual &&
         !_failedImageIds.contains(image.id);
     _previewingImageIds.add(image.id);

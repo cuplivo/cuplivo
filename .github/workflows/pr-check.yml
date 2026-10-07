@@ -48,11 +48,7 @@ jobs:
 
           echo "Format-checking files:"
           echo "$files"
-          dart format --output=none --set-exit-if-changed $files || {
-            dart format lib/features/home/widgets/chat_input_bar.dart
-            git diff -- lib/features/home/widgets/chat_input_bar.dart
-            exit 1
-          }
+          dart format --output=none --set-exit-if-changed $files
 
       - name: Generate l10n and ensure committed outputs
         run: |

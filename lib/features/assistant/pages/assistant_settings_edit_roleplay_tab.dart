@@ -2,8 +2,10 @@ part of 'assistant_settings_edit_page.dart';
 
 /// 角色扮演 tab: Ta的来信 ("Their Letter") — proactive care settings.
 ///
-/// Android-only (see `_assistantEditTabSpecs`): letter delivery depends on
-/// the Android alarm registry.
+/// Visible on every platform (see `platformDefaultAssistantEditTabIds` and the
+/// desktop assistant dialog); only the readiness card inside is Android-only,
+/// because letter delivery there depends on the Android alarm registry.
+/// Desktop and iOS reuse the shared `ProactiveCareAlarmService` facade.
 class AssistantSettingsEditRoleplayTab extends StatefulWidget {
   const AssistantSettingsEditRoleplayTab({
     super.key,
@@ -704,7 +706,31 @@ Future<void> _showDecisionHistoryLimitSheet(
   String assistantId,
 ) async {
   final cs = Theme.of(context).colorScheme;
-  final l10n = AppLocalizations.of(context)!;
+  // Desktop never uses bottom sheets (see AGENTS.md); the same panel opens as
+  // a bounded dialog there.
+  if (ResponsiveHelper.isDesktop(context)) {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: cs.surface,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+              child: _DecisionHistoryLimitPanel(
+                assistantId: assistantId,
+                showGrabber: false,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    return;
+  }
   await showModalBottomSheet<void>(
     context: context,
     backgroundColor: cs.surface,
@@ -712,127 +738,136 @@ Future<void> _showDecisionHistoryLimitSheet(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
     isScrollControlled: false,
-    builder: (sheetContext) {
+    builder: (_) {
       return SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
-          child: Builder(
-            builder: (context) {
-              final cs = Theme.of(context).colorScheme;
-              final assistant = context.watch<AssistantProvider>().getById(
-                assistantId,
-              );
-              if (assistant == null) return const SizedBox.shrink();
-              final enabled =
-                  assistant.proactiveCareDecisionHistoryMessageLimit != null;
-              final value = _clampContextMessages(
-                assistant.proactiveCareDecisionHistoryMessageLimit ??
-                    assistant.contextMessageSize,
-              );
-
-              Future<void> update(int? limit) async {
-                final provider = context.read<AssistantProvider>();
-                final cur = provider.getById(assistantId);
-                if (cur == null) return;
-                await provider.updateAssistant(
-                  limit == null
-                      ? cur.copyWith(
-                          clearProactiveCareDecisionHistoryMessageLimit: true,
-                        )
-                      : cur.copyWith(
-                          proactiveCareDecisionHistoryMessageLimit: limit,
-                        ),
-                );
-              }
-
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: cs.onSurface.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          l10n.assistantEditProactiveCareDecisionHistoryLimitTitle,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: AppFontWeights.semibold,
-                          ),
-                        ),
-                      ),
-                      IosSwitch(
-                        value: enabled,
-                        onChanged: (next) async {
-                          final nav = Navigator.of(sheetContext);
-                          await update(next ? value : null);
-                          if (nav.mounted) nav.pop();
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  if (enabled) ...[
-                    _SliderTileNew(
-                      value: value.toDouble(),
-                      min: _contextMessageMin.toDouble(),
-                      max: _contextMessageMax.toDouble(),
-                      divisions: _contextMessageMax - _contextMessageMin,
-                      label: value.toString(),
-                      customLabelStops: const <double>[
-                        1.0,
-                        64.0,
-                        128.0,
-                        256.0,
-                        512.0,
-                        1024.0,
-                      ],
-                      onLabelTap: () async {
-                        final chosen = await _showContextMessageInputDialog(
-                          context,
-                          initialValue: value,
-                        );
-                        if (!context.mounted || chosen == null) return;
-                        await update(chosen);
-                      },
-                      onChanged: (v) => update(_clampContextMessages(v)),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      l10n.assistantEditProactiveCareDecisionHistoryLimitDescription,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: cs.onSurface.withValues(alpha: 0.6),
-                      ),
-                    ),
-                  ] else ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Text(
-                        l10n.assistantEditParameterDisabled2,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: cs.onSurface.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              );
-            },
-          ),
+          child: _DecisionHistoryLimitPanel(assistantId: assistantId),
         ),
       );
     },
   );
+}
+
+/// Decision-history limit picker. Hosted by the mobile bottom sheet and by the
+/// desktop dialog so both entry points stay identical.
+class _DecisionHistoryLimitPanel extends StatelessWidget {
+  const _DecisionHistoryLimitPanel({
+    required this.assistantId,
+    this.showGrabber = true,
+  });
+
+  final String assistantId;
+  final bool showGrabber;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final assistant = context.watch<AssistantProvider>().getById(assistantId);
+    if (assistant == null) return const SizedBox.shrink();
+    final enabled = assistant.proactiveCareDecisionHistoryMessageLimit != null;
+    final value = _clampContextMessages(
+      assistant.proactiveCareDecisionHistoryMessageLimit ??
+          assistant.contextMessageSize,
+    );
+
+    Future<void> update(int? limit) async {
+      final provider = context.read<AssistantProvider>();
+      final cur = provider.getById(assistantId);
+      if (cur == null) return;
+      await provider.updateAssistant(
+        limit == null
+            ? cur.copyWith(clearProactiveCareDecisionHistoryMessageLimit: true)
+            : cur.copyWith(proactiveCareDecisionHistoryMessageLimit: limit),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showGrabber) ...[
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: cs.onSurface.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                l10n.assistantEditProactiveCareDecisionHistoryLimitTitle,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: AppFontWeights.semibold,
+                ),
+              ),
+            ),
+            IosSwitch(
+              value: enabled,
+              onChanged: (next) async {
+                final nav = Navigator.of(context);
+                await update(next ? value : null);
+                if (nav.mounted) nav.pop();
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (enabled) ...[
+          _SliderTileNew(
+            value: value.toDouble(),
+            min: _contextMessageMin.toDouble(),
+            max: _contextMessageMax.toDouble(),
+            divisions: _contextMessageMax - _contextMessageMin,
+            label: value.toString(),
+            customLabelStops: const <double>[
+              1.0,
+              64.0,
+              128.0,
+              256.0,
+              512.0,
+              1024.0,
+            ],
+            onLabelTap: () async {
+              final chosen = await _showContextMessageInputDialog(
+                context,
+                initialValue: value,
+              );
+              if (!context.mounted || chosen == null) return;
+              await update(chosen);
+            },
+            onChanged: (v) => update(_clampContextMessages(v)),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            l10n.assistantEditProactiveCareDecisionHistoryLimitDescription,
+            style: TextStyle(
+              fontSize: 12,
+              color: cs.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+        ] else ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              l10n.assistantEditParameterDisabled2,
+              style: TextStyle(
+                fontSize: 13,
+                color: cs.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 }

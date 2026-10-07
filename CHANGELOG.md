@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **Their Letter (Proactive Care) on desktop**: Windows, macOS and Linux had no way into the feature. The desktop assistant dialog now offers the **Roleplay** tab (its decision-history picker opens as a dialog, never a bottom sheet), and the desktop chat tools popover gained the per-conversation entry, so letter times can be set outside Android. Windows still shows no system notification for a delivered letter; the letter itself lands in the conversation.
+
 ## [4.1.0] - 2026-10-04
 
 ### Added

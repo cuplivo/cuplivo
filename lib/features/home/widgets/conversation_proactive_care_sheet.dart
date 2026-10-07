@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/models/assistant.dart';
 import '../../../core/models/conversation.dart';
+import '../../../core/services/chat/chat_service.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/responsive/screen_type_helper.dart';
@@ -16,6 +18,43 @@ typedef ConversationProactiveCareOverrideSetter =
     Future<void> Function(bool? value);
 typedef ConversationProactiveCareTimeSetter =
     Future<void> Function(DateTime? value);
+
+/// Opens the per-conversation care surface with the standard persistence
+/// wiring, so mobile (chat ＋ sheet) and desktop (tools popover) entry points
+/// write the same extras keys through one implementation.
+Future<void> showConversationProactiveCare(
+  BuildContext context, {
+  required Conversation conversation,
+  required Assistant assistant,
+}) {
+  final chat = context.read<ChatService>();
+  Future<void> setOverride(bool? value) =>
+      chat.updateConversationExtras(conversation.id, (extras) {
+        if (value == null) {
+          extras.remove(Conversation.proactiveCareEnabledOverrideKey);
+        } else {
+          extras[Conversation.proactiveCareEnabledOverrideKey] = value;
+        }
+        return extras;
+      });
+  Future<void> setNextMessageAt(DateTime? value) =>
+      chat.updateConversationExtras(conversation.id, (extras) {
+        if (value == null) {
+          extras.remove(Conversation.proactiveCareNextMessageAtKey);
+        } else {
+          extras[Conversation.proactiveCareNextMessageAtKey] = value
+              .toIso8601String();
+        }
+        return extras;
+      });
+  return showConversationProactiveCareSheet(
+    context,
+    conversation: conversation,
+    assistant: assistant,
+    onOverrideChanged: setOverride,
+    onNextMessageAtChanged: setNextMessageAt,
+  );
+}
 
 Future<void> showConversationProactiveCareSheet(
   BuildContext context, {

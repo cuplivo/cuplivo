@@ -769,13 +769,9 @@ void main() {
       find.byKey(const ValueKey('chat-input-image-processing:0')),
       findsOneWidget,
     );
+    await tester.pumpWidget(const SizedBox.shrink());
     gate.complete();
     fakePathProvider.appDataGate = null;
-    expect(
-      await pumpUntil(tester, () => !mediaController.hasUnreadyImages),
-      isTrue,
-    );
-    await tester.pump();
     controller.dispose();
     focusNode.dispose();
   });

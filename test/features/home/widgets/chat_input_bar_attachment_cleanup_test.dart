@@ -740,6 +740,46 @@ void main() {
     focusNode.dispose();
   });
 
+  testWidgets('压缩期间保留图片缩略图和轻量进度标识', (tester) async {
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    final gate = Completer<void>();
+    fakePathProvider.appDataGate = gate;
+    final source = await tester.runAsync(
+      () => writeUserImage('processing_preview.png'),
+    );
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+        onSend: (_) async => ChatInputSubmissionResult.rejected,
+      ),
+    );
+    mediaController.enqueueImages([source!.path], _config);
+    await tester.pump();
+    final preview = find.byKey(const ValueKey('chat-input-image-preview:0'));
+    expect(preview, findsOneWidget);
+    expect(
+      find.descendant(of: preview, matching: find.byType(Image)),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('chat-input-image-processing:0')),
+      findsOneWidget,
+    );
+    gate.complete();
+    fakePathProvider.appDataGate = null;
+    expect(
+      await pumpUntil(tester, () => !mediaController.hasUnreadyImages),
+      isTrue,
+    );
+    await tester.pump();
+    controller.dispose();
+    focusNode.dispose();
+  });
+
   testWidgets('退出页面会清理排队中的应用临时图片', (tester) async {
     final controller = TextEditingController();
     final focusNode = FocusNode();

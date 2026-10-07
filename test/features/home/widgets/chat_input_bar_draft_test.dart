@@ -13,6 +13,7 @@ import '../../../support/business_test_harness.dart';
 import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/chat/pages/image_viewer_page.dart';
 import 'package:Cuplivo/features/home/services/input_draft_persistence.dart';
 import 'package:Cuplivo/features/home/utils/model_display_helper.dart';
 import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
@@ -492,5 +493,33 @@ void main() {
     await pumpDebounce(tester);
     expect(controller.text, 'queued then sent', reason: '只清草稿');
     expect(persistedDraft(), isNull);
+  });
+
+  testWidgets('unsent image opens preview before optional compression', (
+    tester,
+  ) async {
+    final dir = Directory.systemTemp.createTempSync('cuplivo_draft_preview');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final image = File(p.join(dir.path, 'preview.png'))
+      ..writeAsBytesSync(_onePixelPng);
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    addTearDown(controller.dispose);
+    addTearDown(focusNode.dispose);
+    await pumpBar(
+      tester,
+      controller: controller,
+      focusNode: focusNode,
+      mediaController: mediaController,
+      onSend: (_) async => ChatInputSubmissionResult.rejected,
+    );
+    mediaController.addImages([image.path]);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('chat-input-image-preview:0')));
+    await tester.pumpAndSettle();
+    expect(find.byType(ImageViewerPage), findsOneWidget);
+    expect(find.byTooltip('Compress Image'), findsOneWidget);
+    expect(find.byTooltip('Crop'), findsNothing);
   });
 }

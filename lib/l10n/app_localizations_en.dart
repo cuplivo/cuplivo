@@ -4685,7 +4685,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get displaySettingsPageEnableImageCropperSubtitle =>
-      'Crop images after selecting from gallery or camera';
+      'Show a Crop action when previewing an unsent image';
+
+  @override
+  String get draftImageCropAction => 'Crop';
+
+  @override
+  String get draftImageCropFailed =>
+      'Could not crop this image. The original is unchanged.';
 
   @override
   String get displaySettingsPageKeepSidebarOpenOnAssistantTapTitle =>
@@ -8244,7 +8251,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get imageSettingsPageModeManualSubtitle =>
-      'Images are attached unchanged; tap an image to compress it yourself';
+      'Images are attached unchanged; open the preview to compress them manually';
 
   @override
   String get imageSettingsPageModeAutoSubtitle =>

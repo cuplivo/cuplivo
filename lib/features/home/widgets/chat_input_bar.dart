@@ -11,6 +11,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../../../l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import '../../chat/pages/image_viewer_page.dart';
 import '../../../utils/file_import_helper.dart';
 import '../../../utils/image_compressor.dart';
 import '../../../utils/upload_dedupe.dart';
@@ -96,11 +98,16 @@ class ChatInputBarController {
   void clearPersistedDraft() => _state?._clearPersistedDraft();
 }
 
+enum _DraftPreviewAction { crop, compress }
+
 class _DraftImage {
-  _DraftImage({required this.id, required this.path});
+  _DraftImage({required this.id, required this.path, this.cropSourcePath});
 
   final int id;
   String path;
+  /// Keep the picked original for a first crop, avoiding JPEG recompression
+  /// before the user makes their edit. Restored drafts use the stored image.
+  String? cropSourcePath;
 }
 
 class _ImageProcessingTask {
@@ -111,12 +118,16 @@ class _ImageProcessingTask {
     this.config,
     this.manualParams,
     this.precomputedArtifact,
+    this.replacePreviousArtifact = false,
   });
 
   final int id;
   final String sourcePath;
   final ImageCompressConfig? config;
   final ManualCompressParams? manualParams;
+
+  /// True when a new crop replaces an existing stored draft image.
+  final bool replacePreviousArtifact;
 
   /// The exact bytes the compress editor already produced and showed the size
   /// of, when it had them ready. Storing them skips a second decode and encode;
@@ -279,6 +290,10 @@ class _ChatInputBarState extends State<ChatInputBar>
   final Queue<_ImageProcessingTask> _imageProcessingQueue =
       Queue<_ImageProcessingTask>();
   final Set<int> _processingImageIds = <int>{};
+  final Set<int> _editingImageIds = <int>{};
+  final Set<int> _previewingImageIds = <int>{};
+  final Map<int, List<String>> _deferredPreviewTempDeletes = {};
+  final Map<int, List<String>> _deferredPreviewArtifactReleases = {};
   final Set<int> _failedImageIds = <int>{};
 
   /// One gate per image whose automatic pass is running, completed when that
@@ -389,6 +404,7 @@ class _ChatInputBarState extends State<ChatInputBar>
   bool get _hasDraftMedia => _images.isNotEmpty || _docs.isNotEmpty;
   bool get _hasUnreadyImages =>
       _processingImageIds.isNotEmpty ||
+      _editingImageIds.isNotEmpty ||
       _failedImageIds.isNotEmpty ||
       _pendingImagePasteIds.isNotEmpty ||
       _pendingTextPasteIds.isNotEmpty;
@@ -414,7 +430,11 @@ class _ChatInputBarState extends State<ChatInputBar>
     if (paths.isEmpty) return;
     setState(() {
       for (final path in paths) {
-        final image = _DraftImage(id: _nextImageId++, path: path);
+        final image = _DraftImage(
+          id: _nextImageId++,
+          path: path,
+          cropSourcePath: path,
+        );
         _images.add(image);
         _processingImageIds.add(image.id);
         _imageProcessingQueue.add(
@@ -475,7 +495,13 @@ class _ChatInputBarState extends State<ChatInputBar>
                 p.normalize(p.absolute(task.sourcePath)),
                 p.normalize(p.absolute(saved.path)),
               ))) {
-        await _deleteTemporaryImageSource(task.sourcePath);
+        if (_previewingImageIds.contains(task.id)) {
+          _deferredPreviewTempDeletes
+              .putIfAbsent(task.id, () => [])
+              .add(task.sourcePath);
+        } else {
+          await _deleteTemporaryImageSource(task.sourcePath);
+        }
       }
       _activeImageTasks--;
     }
@@ -514,13 +540,22 @@ class _ChatInputBarState extends State<ChatInputBar>
           _failedImageIds.add(task.id);
         } else {
           _images[index].path = savedPath;
+          if (task.replacePreviousArtifact) {
+            _images[index].cropSourcePath = null;
+          }
           _imageOwnsFile[task.id] = !(saved?.reused ?? true);
-          // A manual replace supersedes the stored copy it read from: drop it
-          // when this draft owns it and nothing else has resolved to it.
-          if (task.manualParams != null &&
+          // A manual edit or crop supersedes the previous stored copy; never
+          // release a picked source or a path shared with a sent message.
+          if ((task.manualParams != null || task.replacePreviousArtifact) &&
               previousPath != savedPath &&
               ownedPrevious) {
-            _releaseOwnedArtifact(previousPath);
+            if (_previewingImageIds.contains(task.id)) {
+              _deferredPreviewArtifactReleases
+                  .putIfAbsent(task.id, () => [])
+                  .add(previousPath);
+            } else {
+              _releaseOwnedArtifact(previousPath);
+            }
           }
           _pruneImageSizes();
         }
@@ -569,6 +604,7 @@ class _ChatInputBarState extends State<ChatInputBar>
         .where((task) => discarded.contains(task.id))
         .toList(growable: false);
     _processingImageIds.removeAll(discarded);
+    _editingImageIds.removeAll(discarded);
     _failedImageIds.removeAll(discarded);
     for (final id in discarded) {
       _imageOwnsFile.remove(id);
@@ -811,6 +847,128 @@ class _ChatInputBarState extends State<ChatInputBar>
         path,
       ).length().then<int?>((value) => value, onError: (_) => null),
     );
+  }
+
+  void _releasePreviewSources(int id) {
+    for (final path in _deferredPreviewTempDeletes.remove(id) ?? <String>[]) {
+      unawaited(_deleteTemporaryImageSource(path));
+    }
+    for (final path in _deferredPreviewArtifactReleases.remove(id) ??
+        <String>[]) {
+      _releaseOwnedArtifact(path);
+    }
+  }
+
+  Future<void> _openDraftImagePreview(int idx) async {
+    if (idx < 0 || idx >= _images.length) return;
+    final image = _images[idx];
+    if (_editingImageIds.contains(image.id)) return;
+    final local = !isRemoteOrDataUri(image.path);
+    final settings = context.read<SettingsProvider>();
+    final canCrop = local && settings.imageCropperEnabled;
+    final canCompress = local &&
+        settings.imageCompressionMode == ImageCompressionMode.manual &&
+        !_failedImageIds.contains(image.id);
+    _previewingImageIds.add(image.id);
+    final navigator = Navigator.of(context);
+    _DraftPreviewAction? action;
+    try {
+      action = await navigator.push<_DraftPreviewAction>(
+        MaterialPageRoute(
+          builder: (_) => ImageViewerPage(
+            images: [image.path],
+            draftMode: true,
+            onCrop: canCrop
+                ? () => navigator.pop(_DraftPreviewAction.crop)
+                : null,
+            onCompress: canCompress
+                ? () => navigator.pop(_DraftPreviewAction.compress)
+                : null,
+          ),
+        ),
+      );
+    } finally {
+      _previewingImageIds.remove(image.id);
+      _releasePreviewSources(image.id);
+    }
+    if (!mounted) return;
+    final currentIdx = _images.indexWhere((item) => item.id == image.id);
+    if (currentIdx < 0) return;
+    if (action == _DraftPreviewAction.crop) {
+      await _cropDraftImage(image.id);
+    } else if (action == _DraftPreviewAction.compress) {
+      await _openCompressEditor(currentIdx);
+    }
+  }
+
+  Future<void> _cropDraftImage(int id) async {
+    if (_editingImageIds.contains(id)) return;
+    setState(() => _editingImageIds.add(id));
+    CroppedFile? cropped;
+    var enqueued = false;
+    try {
+      // A pending automatic pass may still be reading the picked source.
+      if (_processingImageIds.contains(id)) await _imageProcessingGate(id);
+      if (!mounted) return;
+      final index = _images.indexWhere((item) => item.id == id);
+      if (index < 0) return;
+      final image = _images[index];
+      final original = image.cropSourcePath;
+      final sourcePath = original != null && File(original).existsSync()
+          ? original
+          : image.path;
+      if (isRemoteOrDataUri(sourcePath)) return;
+      final l10n = AppLocalizations.of(context)!;
+      final cs = Theme.of(context).colorScheme;
+      cropped = await ImageCropper().cropImage(
+        sourcePath: sourcePath,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: l10n.draftImageCropAction,
+            toolbarColor: cs.surface,
+            toolbarWidgetColor: cs.onSurface,
+            activeControlsWidgetColor: cs.primary,
+            initAspectRatio: CropAspectRatioPreset.original,
+            lockAspectRatio: false,
+          ),
+          IOSUiSettings(title: l10n.draftImageCropAction),
+        ],
+      );
+      if (cropped == null) return;
+      if (!mounted || !_images.any((item) => item.id == id)) return;
+      final config = context
+          .read<SettingsProvider>()
+          .resolveImageCompressConfig();
+      setState(() {
+        _failedImageIds.remove(id);
+        _processingImageIds.add(id);
+        _imageProcessingQueue.add(
+          _ImageProcessingTask(
+            id: id,
+            sourcePath: cropped!.path,
+            config: config,
+            deleteSourceAfterProcessing: true,
+            replacePreviousArtifact: true,
+          ),
+        );
+      });
+      enqueued = true;
+      _pumpImageProcessingQueue();
+    } catch (error) {
+      debugPrint('[ChatInputBar] Failed to crop draft image: $error');
+      if (mounted) {
+        showAppSnackBar(
+          context,
+          message: AppLocalizations.of(context)!.draftImageCropFailed,
+          type: NotificationType.error,
+        );
+      }
+    } finally {
+      if (cropped != null && !enqueued) {
+        await _deleteTemporaryImageSource(cropped.path);
+      }
+      if (mounted) setState(() => _editingImageIds.remove(id));
+    }
   }
 
   Future<void> _openCompressEditor(int idx) async {
@@ -2748,9 +2906,6 @@ class _ChatInputBarState extends State<ChatInputBar>
     final image = _images[idx];
     final processing = _processingImageIds.contains(image.id);
     final failed = !processing && _failedImageIds.contains(image.id);
-    final canEdit =
-        context.watch<SettingsProvider>().imageCompressionMode ==
-        ImageCompressionMode.manual;
     final chip = Stack(
       clipBehavior: Clip.none,
       children: [
@@ -2761,70 +2916,54 @@ class _ChatInputBarState extends State<ChatInputBar>
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(9),
-            child: processing
-                ? ColoredBox(
-                    color: theme.colorScheme.scrim,
-                    child: const SizedBox(width: 88, height: 88),
-                  )
-                : Image(
-                    image: ResizeImage(
-                      FileImage(File(image.path)),
-                      width: (88 * MediaQuery.devicePixelRatioOf(context))
-                          .ceil(),
-                      height: (88 * MediaQuery.devicePixelRatioOf(context))
-                          .ceil(),
-                      policy: ResizeImagePolicy.fit,
-                    ),
-                    width: 88,
-                    height: 88,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 88,
-                      height: 88,
-                      color: previewFill,
-                      child: Icon(
-                        Icons.broken_image,
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.45,
-                        ),
-                      ),
+            child: Image(
+              image: ResizeImage(
+                FileImage(File(image.path)),
+                width: (88 * MediaQuery.devicePixelRatioOf(context)).ceil(),
+                height: (88 * MediaQuery.devicePixelRatioOf(context)).ceil(),
+                policy: ResizeImagePolicy.fit,
+              ),
+              width: 88,
+              height: 88,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 88,
+                height: 88,
+                color: previewFill,
+                child: Icon(
+                  Icons.broken_image,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (processing)
+          Positioned(
+            left: 4,
+            top: 4,
+            child: IgnorePointer(
+              child: Tooltip(
+                key: ValueKey('chat-input-image-processing:${image.id}'),
+                message: l10n.chatInputBarImageProcessing,
+                child: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.scrim.withValues(alpha: 0.48),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   ),
+                ),
+              ),
+            ),
           ),
-        ),
-        Positioned.fill(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
-            child: processing
-                ? IgnorePointer(
-                    key: ValueKey('chat-input-image-processing:${image.id}'),
-                    child: Tooltip(
-                      message: l10n.chatInputBarImageProcessing,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.scrim.withValues(
-                            alpha: 0.32,
-                          ),
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                        alignment: Alignment.center,
-                        child: const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors
-                                  .white, // color-gate: ignore (on scrim over photo)
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                : const SizedBox.shrink(key: ValueKey('image-idle')),
-          ),
-        ),
         if (failed)
           Positioned(
             left: 4,
@@ -2868,15 +3007,6 @@ class _ChatInputBarState extends State<ChatInputBar>
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (canEdit) ...[
-                      const Icon(
-                        Lucide.ImageDown,
-                        size: 10,
-                        color: Colors
-                            .white, // color-gate: ignore (on scrim over photo)
-                      ),
-                      const SizedBox(width: 3),
-                    ],
                     Flexible(
                       child: FutureBuilder<int?>(
                         future: _imageSizeOf(image.path),
@@ -2931,19 +3061,14 @@ class _ChatInputBarState extends State<ChatInputBar>
         ),
       ],
     );
-    // A processing chip stays tappable: the editor opens and waits out the pass
-    // rather than leaving the click unanswered. A failed one does not — its pass
-    // could not even store a copy, so there is nothing for the editor to work
-    // from.
-    if (!canEdit || failed) return chip;
     return IosCardPress(
-      key: ValueKey('chat-input-image-compress:$idx'),
+      key: ValueKey('chat-input-image-preview:$idx'),
       haptics: false,
       baseColor: Colors.transparent,
       borderRadius: BorderRadius.circular(10),
       padding: EdgeInsets.zero,
       duration: const Duration(milliseconds: 140),
-      onTap: () => _openCompressEditor(idx),
+      onTap: () => _openDraftImagePreview(idx),
       child: chip,
     );
   }

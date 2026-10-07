@@ -105,6 +105,9 @@ Widget _viewerApp({
   required List<String> images,
   int initialIndex = 0,
   Map<String, ImageProvider> imageProviders = const <String, ImageProvider>{},
+  bool draftMode = false,
+  VoidCallback? onCrop,
+  VoidCallback? onCompress,
   Size size = const Size(390, 844),
 }) {
   return MediaQuery(
@@ -116,6 +119,9 @@ Widget _viewerApp({
         images: images,
         initialIndex: initialIndex,
         imageProviders: imageProviders,
+        draftMode: draftMode,
+        onCrop: onCrop,
+        onCompress: onCompress,
       ),
     ),
   );
@@ -182,6 +188,30 @@ Finder _displayTransformFinder(int index) {
 }
 
 void main() {
+  testWidgets('draft preview offers only edit actions when configured', (
+    tester,
+  ) async {
+    var crops = 0;
+    var compresses = 0;
+    await tester.pumpWidget(
+      _viewerApp(
+        images: const [_transparentPngDataUrl],
+        draftMode: true,
+        onCrop: () => crops++,
+        onCompress: () => compresses++,
+      ),
+    );
+    await tester.pump();
+    expect(find.byTooltip('Crop'), findsOneWidget);
+    expect(find.byTooltip('Compress Image'), findsOneWidget);
+    expect(find.byTooltip('Save Image'), findsNothing);
+    expect(find.byTooltip('Rotate Left'), findsNothing);
+    await tester.tap(find.byTooltip('Crop'));
+    await tester.tap(find.byTooltip('Compress Image'));
+    expect(crops, 1);
+    expect(compresses, 1);
+  });
+
   testWidgets('ImageViewerPage uses a preloaded provider for the first frame', (
     tester,
   ) async {

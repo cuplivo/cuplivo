@@ -1759,7 +1759,6 @@ class _MessageListViewState extends State<MessageListView> {
 
             final userScrollAwareList = Listener(
               onPointerDown: (event) {
-                if (_isDesktopPlatform) _keyboardFocusNode.requestFocus();
                 if (event.buttons != 0 &&
                     event.buttons != kSecondaryMouseButton) {
                   _pointerDragInProgress = true;
@@ -1775,11 +1774,19 @@ class _MessageListViewState extends State<MessageListView> {
                   _schedulePointerScrollActivityCheck();
                 }
               },
-              child: Focus(
-                key: const ValueKey('timeline-keyboard-scroll-region'),
-                focusNode: _keyboardFocusNode,
-                onKeyEvent: _handleTimelineKeyEvent,
-                child: historyList,
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                // Focus message list's keyboard but only when clicking unused space, otherwise focus steals selection focus and disables shortcuts like Ctrl+C
+                // Note:  unlike onPointerDown, onTap is not called when selecting text or interacting  with a child control (link, button...)
+                onTap: _isDesktopPlatform
+                    ? _keyboardFocusNode.requestFocus
+                    : null,
+                child: Focus(
+                  key: const ValueKey('timeline-keyboard-scroll-region'),
+                  focusNode: _keyboardFocusNode,
+                  onKeyEvent: _handleTimelineKeyEvent,
+                  child: historyList,
+                ),
               ),
             );
 

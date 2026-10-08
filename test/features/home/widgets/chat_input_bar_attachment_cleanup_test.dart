@@ -1298,14 +1298,21 @@ void main() {
       );
 
       // An app-owned source is released when the image leaves the composer, so
-      // that is the moment a failing deletion has to be diagnosable.
+      // that is the moment a failing deletion has to be diagnosable. The delete
+      // runs from a future, so the frame has to advance with the clock or the
+      // failure is only reported after this test has restored debugPrint.
       const deleteFailureMarker = '[ChatInputBar] Failed to delete';
+      bool loggedDeletionFailure() =>
+          logs.any((line) => line.contains(deleteFailureMarker));
       mediaController.clearImages();
+      for (var i = 0; i < 100 && !loggedDeletionFailure(); i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 20));
+      }
       expect(
-        await pumpUntil(
-          tester,
-          () => logs.any((line) => line.contains(deleteFailureMarker)),
-        ),
+        loggedDeletionFailure(),
         isTrue,
         reason: 'deletion failure must be diagnosable via logs',
       );

@@ -74,6 +74,19 @@ void main() {
       final config = ProviderConfig.defaultsFor('TestProvider').copyWith(
         apiKey: 'user-key',
         baseUrl: 'http://${server.address.address}:${server.port}/v1',
+        models: const ['auto'],
+        // The reasoning controls this test asserts come from the model's
+        // declared spec, so it states that spec itself instead of relying on a
+        // built-in provider's model prefill, which Cuplivo does not ship.
+        modelOverrides: const {
+          'auto': {
+            'type': 'chat',
+            'input': ['text'],
+            'output': ['text'],
+            'abilities': ['tool', 'reasoning'],
+            'reasoning': {'dialect': 'openaiReasoningEffort'},
+          },
+        },
       );
       const tools = [
         {

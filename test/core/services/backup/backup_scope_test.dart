@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -538,7 +539,9 @@ void main() {
       final candidate =
           (await workspace
                   .list(recursive: true)
-                  .where((e) => e is Directory && e.path.endsWith('/candidate'))
+                  .where(
+                    (e) => e is Directory && p.basename(e.path) == 'candidate',
+                  )
                   .toList())
               .single;
       expect(await Directory('${candidate.path}/upload').exists(), isFalse);

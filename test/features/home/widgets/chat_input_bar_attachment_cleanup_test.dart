@@ -740,6 +740,42 @@ void main() {
     focusNode.dispose();
   });
 
+  testWidgets('压缩期间保留图片缩略图和轻量进度标识', (tester) async {
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    final gate = Completer<void>();
+    fakePathProvider.appDataGate = gate;
+    final source = await tester.runAsync(
+      () => writeUserImage('processing_preview.png'),
+    );
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+        onSend: (_) async => ChatInputSubmissionResult.rejected,
+      ),
+    );
+    mediaController.enqueueImages([source!.path], _config);
+    await tester.pump();
+    final preview = find.byKey(const ValueKey('chat-input-image-preview:0'));
+    expect(preview, findsOneWidget);
+    expect(
+      find.descendant(of: preview, matching: find.byType(Image)),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('chat-input-image-processing:0')),
+      findsOneWidget,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    gate.complete();
+    fakePathProvider.appDataGate = null;
+    controller.dispose();
+    focusNode.dispose();
+  });
+
   testWidgets('退出页面会清理排队中的应用临时图片', (tester) async {
     final controller = TextEditingController();
     final focusNode = FocusNode();
@@ -769,7 +805,7 @@ void main() {
       mediaController.enqueueImages(
         sources.map((file) => file.path).toList(),
         _config,
-        deleteSourcesAfterProcessing: true,
+        ownsSourceFile: true,
       );
     });
     expect(
@@ -826,7 +862,7 @@ void main() {
       mediaController.enqueueImages(
         [source.path],
         _config,
-        deleteSourcesAfterProcessing: false,
+        ownsSourceFile: false,
       );
     });
     expect(
@@ -871,7 +907,7 @@ void main() {
       mediaController.enqueueImages(
         [source.path],
         _config,
-        deleteSourcesAfterProcessing: false,
+        ownsSourceFile: false,
       );
     });
     expect(
@@ -913,7 +949,7 @@ void main() {
       mediaController.enqueueImages(
         [source.path],
         _config,
-        deleteSourcesAfterProcessing: false,
+        ownsSourceFile: false,
       );
     });
     expect(
@@ -949,7 +985,7 @@ void main() {
       mediaController.enqueueImages(
         [source.path],
         _config,
-        deleteSourcesAfterProcessing: false,
+        ownsSourceFile: false,
       );
     });
     expect(
@@ -967,7 +1003,7 @@ void main() {
       mediaController.enqueueImages(
         [source.path],
         _config,
-        deleteSourcesAfterProcessing: false,
+        ownsSourceFile: false,
       );
       mediaController.clearImages();
       await Future<void>.delayed(const Duration(seconds: 2));
@@ -1022,7 +1058,7 @@ void main() {
       mediaController.enqueueImages(
         [source.path],
         _config,
-        deleteSourcesAfterProcessing: false,
+        ownsSourceFile: false,
       );
       // Discard synchronously while the task is in flight.
       mediaController.clearImages();
@@ -1042,7 +1078,7 @@ void main() {
     focusNode.dispose();
   });
 
-  testWidgets('应用自有临时源在处理完成后被删除', (tester) async {
+  testWidgets('应用自有临时源保留到图片离开输入栏', (tester) async {
     late File tempSource;
     await tester.runAsync(() async {
       tempSource = await writeUserImage('pasted_temp.png');
@@ -1065,7 +1101,7 @@ void main() {
       mediaController.enqueueImages(
         [tempSource.path],
         _config,
-        deleteSourcesAfterProcessing: true,
+        ownsSourceFile: true,
       );
     });
     expect(
@@ -1073,9 +1109,148 @@ void main() {
       isTrue,
     );
 
-    expect(await fileExists(tester, tempSource), isFalse);
+    // The pass stored its own copy, but the pristine source stays on disk: a
+    // crop opened afterwards still has to read the original.
     expect(await fileExists(tester, product), isTrue);
+    expect(await fileExists(tester, tempSource), isTrue);
 
+    // Only when the image leaves the composer does the draft release it.
+    mediaController.clearImages();
+    expect(
+      await pumpUntil(tester, () => !tempSource.existsSync()),
+      isTrue,
+      reason: 'dropping the image must release the app-owned source',
+    );
+
+    controller.dispose();
+    focusNode.dispose();
+  });
+
+  testWidgets('裁剪读取原始临时源而不是压缩后的副本', (tester) async {
+    const cropperChannel = MethodChannel('plugins.hunghd.vn/image_cropper');
+    final messenger = tester.binding.defaultBinaryMessenger;
+    late File tempSource;
+    late File croppedOutput;
+    String? croppedSourcePath;
+    await tester.runAsync(() async {
+      tempSource = await writeUserImage('pasted_crop.png');
+      croppedOutput = await writeUserImage('cropper_output.png');
+    });
+    messenger.setMockMethodCallHandler(cropperChannel, (call) async {
+      if (call.method != 'cropImage') return null;
+      croppedSourcePath = (call.arguments as Map)['source_path'] as String?;
+      return croppedOutput.path;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(cropperChannel, null));
+
+    final settings = SettingsProvider(createBusinessTestPreferences());
+    await settings.setImageCropperEnabled(true);
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+        settings: settings,
+        onSend: (_) async => ChatInputSubmissionResult.rejected,
+      ),
+    );
+
+    await tester.runAsync(() async {
+      mediaController.enqueueImages(
+        [tempSource.path],
+        _config,
+        ownsSourceFile: true,
+      );
+    });
+    expect(
+      await pumpUntil(tester, () => !mediaController.hasUnreadyImages),
+      isTrue,
+    );
+    final storedCopy = mediaController.snapshotInput('').imagePaths.single;
+    expect(p.equals(storedCopy, tempSource.path), isFalse);
+
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('chat-input-image-preview:0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Crop'));
+    // The crop is dispatched through the platform channel, so let both the
+    // real channel work and the fake clock advance until it is observed.
+    for (var i = 0; i < 200 && croppedSourcePath == null; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+
+    expect(
+      croppedSourcePath,
+      tempSource.path,
+      reason: 'the crop must edit the pristine original, not the stored copy',
+    );
+
+    debugDefaultTargetPlatformOverride = null;
+    controller.dispose();
+    focusNode.dispose();
+  });
+
+  testWidgets('裁剪入口只在支持裁剪的平台上提供', (tester) async {
+    late File source;
+    await tester.runAsync(() async {
+      source = await writeUserImage('gated_crop.png');
+    });
+    final settings = SettingsProvider(createBusinessTestPreferences());
+    await settings.setImageCropperEnabled(true);
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final mediaController = ChatInputBarController();
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+
+    await tester.pumpWidget(
+      buildHarness(
+        controller: controller,
+        focusNode: focusNode,
+        mediaController: mediaController,
+        settings: settings,
+        onSend: (_) async => ChatInputSubmissionResult.rejected,
+      ),
+    );
+
+    await tester.runAsync(() async {
+      mediaController.enqueueImages(
+        [source.path],
+        _config,
+        ownsSourceFile: false,
+      );
+    });
+    expect(
+      await pumpUntil(tester, () => !mediaController.hasUnreadyImages),
+      isTrue,
+    );
+
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('chat-input-image-preview:0')));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Crop'), findsOneWidget);
+
+    navigator.pop();
+    await tester.pumpAndSettle();
+    // image_cropper ships an Android/iOS implementation only, so the desktop
+    // build must not offer an action that could only fail.
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    await tester.tap(find.byKey(const ValueKey('chat-input-image-preview:0')));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Crop'), findsNothing);
+    expect(find.byTooltip('Compress Image'), findsOneWidget);
+
+    navigator.pop();
+    await tester.pumpAndSettle();
+    debugDefaultTargetPlatformOverride = null;
     controller.dispose();
     focusNode.dispose();
   });
@@ -1111,7 +1286,7 @@ void main() {
         mediaController.enqueueImages(
           [source.path],
           _config,
-          deleteSourcesAfterProcessing: true,
+          ownsSourceFile: true,
         );
       });
       addTearDown(() async {
@@ -1122,8 +1297,22 @@ void main() {
         isTrue,
       );
 
+      // An app-owned source is released when the image leaves the composer, so
+      // that is the moment a failing deletion has to be diagnosable. The delete
+      // runs from a future, so the frame has to advance with the clock or the
+      // failure is only reported after this test has restored debugPrint.
+      const deleteFailureMarker = '[ChatInputBar] Failed to delete';
+      bool loggedDeletionFailure() =>
+          logs.any((line) => line.contains(deleteFailureMarker));
+      mediaController.clearImages();
+      for (var i = 0; i < 100 && !loggedDeletionFailure(); i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 20));
+      }
       expect(
-        logs.any((line) => line.contains('[ChatInputBar] Failed to delete')),
+        loggedDeletionFailure(),
         isTrue,
         reason: 'deletion failure must be diagnosable via logs',
       );
@@ -1167,7 +1356,7 @@ void main() {
         mediaController.enqueueImages(
           [source.path],
           _config,
-          deleteSourcesAfterProcessing: false,
+          ownsSourceFile: false,
         );
       });
       expect(

@@ -95,7 +95,6 @@ class ChatController extends ChangeNotifier {
   /// whenever the stream's own end does not happen to notify.
   final Set<String> _deferredExternalReloads = <String>{};
 
-
   /// Selected version per message group (groupId -> selected version index).
   Map<String, int> _versionSelections = <String, int>{};
   Map<String, int> get versionSelections => _versionSelections;

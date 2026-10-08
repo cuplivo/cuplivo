@@ -4,17 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/core/models/reasoning_request.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/reasoning/reasoning_level_options.dart';
-import 'package:Kelivo/core/services/model_spec/model_spec_resolver.dart';
-import 'package:Kelivo/features/chat/widgets/reasoning_level_sheet.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/custom_bottom_sheet.dart';
-import 'package:Kelivo/shared/widgets/effort_slider.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/core/models/reasoning_request.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/reasoning/reasoning_level_options.dart';
+import 'package:Cuplivo/core/services/model_spec/model_spec_resolver.dart';
+import 'package:Cuplivo/features/chat/widgets/reasoning_level_sheet.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/custom_bottom_sheet.dart';
+import 'package:Cuplivo/shared/widgets/effort_slider.dart';
 
 ProviderConfig _effortConfig() {
   return ProviderConfig(

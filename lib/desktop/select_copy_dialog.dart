@@ -5,7 +5,7 @@ import '../icons/lucide_adapter.dart';
 import '../shared/widgets/snackbar.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 Future<void> showSelectCopyDesktopDialog(
   BuildContext context, {

@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:Kelivo/core/models/auto_retry_options.dart';
-import 'package:Kelivo/core/services/api/retry_policy.dart';
+import 'package:Cuplivo/core/models/auto_retry_options.dart';
+import 'package:Cuplivo/core/services/api/retry_policy.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;

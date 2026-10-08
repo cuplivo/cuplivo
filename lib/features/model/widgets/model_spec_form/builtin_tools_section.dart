@@ -8,7 +8,7 @@ import '../../../../core/services/model_spec/model_spec_resolver.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/ios_switch.dart';
 import '../../../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import 'model_spec_form_controller.dart';
 import 'spec_field_header.dart';
 

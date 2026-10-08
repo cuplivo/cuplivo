@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import '../../../core/providers/instruction_injection_provider.dart';
 import '../../../core/models/instruction_injection.dart';
 import '../../../l10n/app_localizations.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 /// Bottom sheet for editing the active instruction injection prompt.
 ///

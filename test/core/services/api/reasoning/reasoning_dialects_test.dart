@@ -1,5 +1,5 @@
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/core/services/api/reasoning/reasoning_dialects.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/core/services/api/reasoning/reasoning_dialects.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _allExplicit = [

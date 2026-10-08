@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/mcp/kelivo_fetch/kelivo_fetch_server.dart';
+import 'package:Cuplivo/core/services/mcp/kelivo_fetch/kelivo_fetch_server.dart';
 
 void main() {
   group('Kelivo fetch MCP', () {

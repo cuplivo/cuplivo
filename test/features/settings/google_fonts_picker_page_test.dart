@@ -4,9 +4,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/services/fonts/google_fonts_service.dart';
-import 'package:Kelivo/features/settings/pages/google_fonts_picker_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/services/fonts/google_fonts_service.dart';
+import 'package:Cuplivo/features/settings/pages/google_fonts_picker_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 class _MemoryFontFile implements File {
   _MemoryFontFile(this.bytes, {this.fail = false});

@@ -403,7 +403,7 @@ abstract class AppLocalizations {
   /// No description provided for @storageSpaceClearDisplacedDatabasesConfirmMessage.
   ///
   /// In en, this message translates to:
-  /// **'Delete these set-aside databases? Kelivo kept them when it rebuilt its database, and they may be the only surviving copy of those chats and settings. This cannot be undone.'**
+  /// **'Delete these set-aside databases? Cuplivo kept them when it rebuilt its database, and they may be the only surviving copy of those chats and settings. This cannot be undone.'**
   String get storageSpaceClearDisplacedDatabasesConfirmMessage;
 
   /// No description provided for @storageSpaceRestoreTracesHint.
@@ -664,6 +664,12 @@ abstract class AppLocalizations {
   /// **'Confirm deletion'**
   String get storageSpaceDeleteConfirmTitle;
 
+  /// Storage delete guardrail: the selection is still referenced by the unsent input draft
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of them are still referenced by your unsaved draft'**
+  String storageSpaceDeleteDraftWarning(int count);
+
   /// No description provided for @storageSpaceDeleteUploadsConfirmMessage.
   ///
   /// In en, this message translates to:
@@ -897,18 +903,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'App Launches'**
   String get statsPageLaunchCount;
-
-  /// No description provided for @statsPageCost.
-  ///
-  /// In en, this message translates to:
-  /// **'Cost ({currency})'**
-  String statsPageCost(String currency);
-
-  /// No description provided for @statsPageModelsWithoutPricing.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, one{{count} model without pricing} other{{count} models without pricing}}'**
-  String statsPageModelsWithoutPricing(int count);
 
   /// No description provided for @statsPageUsageTrendTitle.
   ///
@@ -1486,6 +1480,12 @@ abstract class AppLocalizations {
   /// **'Please select a model first'**
   String get homePagePleaseSelectModel;
 
+  /// No description provided for @homePageAudioAttachmentUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'The current model does not support audio attachments. Switch to a model that supports audio input or remove the audio file and try again.'**
+  String get homePageAudioAttachmentUnsupported;
+
   /// No description provided for @homePagePleaseSetupTranslateModel.
   ///
   /// In en, this message translates to:
@@ -1939,20 +1939,8 @@ abstract class AppLocalizations {
   /// No description provided for @assistantEditThinkingBudgetTitle.
   ///
   /// In en, this message translates to:
-  /// **'Thinking'**
+  /// **'Thinking Budget'**
   String get assistantEditThinkingBudgetTitle;
-
-  /// No description provided for @assistantEditReasoningFollowDefault.
-  ///
-  /// In en, this message translates to:
-  /// **'Follow model default'**
-  String get assistantEditReasoningFollowDefault;
-
-  /// No description provided for @assistantEditReasoningClampedSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'The actual level is clamped to what each model supports'**
-  String get assistantEditReasoningClampedSubtitle;
 
   /// No description provided for @assistantEditConfigureButton.
   ///
@@ -3175,19 +3163,19 @@ abstract class AppLocalizations {
   /// No description provided for @backupPageRestartContent.
   ///
   /// In en, this message translates to:
-  /// **'Import successful. Restart Kelivo to apply it safely.'**
+  /// **'Import successful. Restart Cuplivo to apply it safely.'**
   String get backupPageRestartContent;
 
   /// No description provided for @backupPageRestartContentWithSkipped.
   ///
   /// In en, this message translates to:
-  /// **'Import completed, but {count} conversations with invalid message ordering were skipped. Restart Kelivo to apply the imported data safely.'**
+  /// **'Import completed, but {count} conversations with invalid message ordering were skipped. Restart Cuplivo to apply the imported data safely.'**
   String backupPageRestartContentWithSkipped(int count);
 
   /// No description provided for @restartAppFailedMessage.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo could not restart automatically. Fully close it, then open it again.'**
+  /// **'Cuplivo could not restart automatically. Fully close it, then open it again.'**
   String get restartAppFailedMessage;
 
   /// No description provided for @backupRestoreRolledBackTitle.
@@ -3199,7 +3187,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupRestoreRolledBackContent.
   ///
   /// In en, this message translates to:
-  /// **'The restore could not be completed. Kelivo verified and kept your previous data.'**
+  /// **'The restore could not be completed. Cuplivo verified and kept your previous data.'**
   String get backupRestoreRolledBackContent;
 
   /// No description provided for @backupRestoreFailureTitle.
@@ -3211,19 +3199,19 @@ abstract class AppLocalizations {
   /// No description provided for @backupRestoreFailureContent.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo could not verify a complete old or new data set, so chat data was not opened. Close Kelivo and try again. If this repeats, keep the diagnostic code for support.'**
+  /// **'Cuplivo could not verify a complete old or new data set, so chat data was not opened. Close Cuplivo and try again. If this repeats, keep the diagnostic code for support.'**
   String get backupRestoreFailureContent;
 
   /// No description provided for @backupRestoreBusinessLeaseUnavailableTitle.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo is already running'**
+  /// **'Cuplivo is already running'**
   String get backupRestoreBusinessLeaseUnavailableTitle;
 
   /// No description provided for @backupRestoreBusinessLeaseUnavailableContent.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo\'s data is still in use by another app process. Close any other Kelivo window, then restart. Your chat data has not been opened by this process.'**
+  /// **'Cuplivo\'s data is still in use by another app process. Close any other Cuplivo window, then restart. Your chat data has not been opened by this process.'**
   String get backupRestoreBusinessLeaseUnavailableContent;
 
   /// No description provided for @restoreProgressTitle.
@@ -3235,7 +3223,7 @@ abstract class AppLocalizations {
   /// No description provided for @restoreProgressWarning.
   ///
   /// In en, this message translates to:
-  /// **'Keep Kelivo open until this finishes. If you close it now, the next launch starts this over.'**
+  /// **'Keep Cuplivo open until this finishes. If you close it now, the next launch starts this over.'**
   String get restoreProgressWarning;
 
   /// No description provided for @restoreProgressStageCheckingBackup.
@@ -3277,7 +3265,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupRestoreFailureRestartButton.
   ///
   /// In en, this message translates to:
-  /// **'Restart Kelivo'**
+  /// **'Restart Cuplivo'**
   String get backupRestoreFailureRestartButton;
 
   /// No description provided for @backupRestoreFailureCopyButton.
@@ -3349,7 +3337,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoveryResetFailed.
   ///
   /// In en, this message translates to:
-  /// **'Reset failed. Fully close Kelivo, then open it again.'**
+  /// **'Reset failed. Fully close Cuplivo, then open it again.'**
   String get startupRecoveryResetFailed;
 
   /// No description provided for @startupRecoveryResetDialogTitle.
@@ -3361,7 +3349,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoveryResetDialogContent.
   ///
   /// In en, this message translates to:
-  /// **'This permanently deletes Kelivo\'s database on this device and starts fresh. If you might need this data, export a copy first. This cannot be undone.'**
+  /// **'This permanently deletes Cuplivo\'s database on this device and starts fresh. If you might need this data, export a copy first. This cannot be undone.'**
   String get startupRecoveryResetDialogContent;
 
   /// No description provided for @startupRecoveryResetDialogConfirm.
@@ -3559,7 +3547,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoveryDangerBody.
   ///
   /// In en, this message translates to:
-  /// **'Resetting permanently deletes Kelivo\'s database on this device. Export a copy of your data first — a reset also destroys the evidence needed to fix the underlying problem.'**
+  /// **'Resetting permanently deletes Cuplivo\'s database on this device. Export a copy of your data first — a reset also destroys the evidence needed to fix the underlying problem.'**
   String get startupRecoveryDangerBody;
 
   /// No description provided for @startupRecoveryResetAcknowledge.
@@ -3571,13 +3559,13 @@ abstract class AppLocalizations {
   /// No description provided for @startupDatabaseUpdateRequiredTitle.
   ///
   /// In en, this message translates to:
-  /// **'Update Kelivo to continue'**
+  /// **'Update Cuplivo to continue'**
   String get startupDatabaseUpdateRequiredTitle;
 
   /// No description provided for @startupDatabaseUpdateRequiredContent.
   ///
   /// In en, this message translates to:
-  /// **'The chat database on this device was created by a newer version of Kelivo and cannot be opened by this version. Your data has not been changed. Install the latest version of Kelivo, then open it again.'**
+  /// **'The chat database on this device was created by a newer version of Cuplivo and cannot be opened by this version. Your data has not been changed. Install the latest version of Cuplivo, then open it again.'**
   String get startupDatabaseUpdateRequiredContent;
 
   /// No description provided for @startupDatabaseUpdateRequiredDowngradeTitle.
@@ -3595,7 +3583,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupDatabaseUpdateRequiredDowngradeStep1.
   ///
   /// In en, this message translates to:
-  /// **'Install and open the latest Kelivo, then export a backup from Settings → Backup.'**
+  /// **'Install and open the latest Cuplivo, then export a backup from Settings → Backup.'**
   String get startupDatabaseUpdateRequiredDowngradeStep1;
 
   /// No description provided for @startupDatabaseUpdateRequiredDowngradeStep2.
@@ -3661,7 +3649,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupPageOverwriteModeDescription.
   ///
   /// In en, this message translates to:
-  /// **'Replace the selected components; keep unselected components and unrelated local settings. Replacing chats also clears local unsent drafts.'**
+  /// **'Replace the selected components; keep unselected components and unrelated local settings'**
   String get backupPageOverwriteModeDescription;
 
   /// No description provided for @backupPageMergeMode.
@@ -3691,7 +3679,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupPageForwardCompatBody.
   ///
   /// In en, this message translates to:
-  /// **'This backup was created by a newer version of Kelivo (data format {backupVersion}; this version supports {currentVersion}), and it does not say whether older versions can read it.\n\nYou can continue: anything this version does not recognise will be skipped, and the backup file itself is not modified. But if the newer version changed how existing data is stored, some content may be imported incorrectly.\n\nUpdating Kelivo first is the safer choice.'**
+  /// **'This backup was created by a newer version of Cuplivo (data format {backupVersion}; this version supports {currentVersion}), and it does not say whether older versions can read it.\n\nYou can continue: anything this version does not recognise will be skipped, and the backup file itself is not modified. But if the newer version changed how existing data is stored, some content may be imported incorrectly.\n\nUpdating Cuplivo first is the safer choice.'**
   String backupPageForwardCompatBody(int backupVersion, int currentVersion);
 
   /// No description provided for @backupPageForwardCompatContinue.
@@ -3709,7 +3697,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupPageSchemaTooNewMessage.
   ///
   /// In en, this message translates to:
-  /// **'This backup was created by a newer version of Kelivo and cannot be read by this version. Please update Kelivo and try again.'**
+  /// **'This backup was created by a newer version of Cuplivo and cannot be read by this version. Please update Cuplivo and try again.'**
   String get backupPageSchemaTooNewMessage;
 
   /// No description provided for @backupPageBackupUploaded.
@@ -3741,30 +3729,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancelled'**
   String get backupProgressCancelled;
-
-  /// No description provided for @backupProgressFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Operation failed'**
-  String get backupProgressFailed;
-
-  /// No description provided for @backupProgressFailedAt.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed during: {phase}'**
-  String backupProgressFailedAt(String phase);
-
-  /// No description provided for @backupProgressCopyError.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy error'**
-  String get backupProgressCopyError;
-
-  /// No description provided for @backupProgressErrorCopied.
-  ///
-  /// In en, this message translates to:
-  /// **'Error copied'**
-  String get backupProgressErrorCopied;
 
   /// No description provided for @backupProgressPreparing.
   ///
@@ -4063,7 +4027,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupPageCherryStudioUnsupportedBackupVersion.
   ///
   /// In en, this message translates to:
-  /// **'This backup uses Cherry Studio format version {version}, which Kelivo cannot import yet. Export from Cherry Studio v1 instead, or wait for a Kelivo update that supports Cherry Studio v2 backups.'**
+  /// **'This backup uses Cherry Studio format version {version}, which Cuplivo cannot import yet. Export from Cherry Studio v1 instead, or wait for a Cuplivo update that supports Cherry Studio v2 backups.'**
   String backupPageCherryStudioUnsupportedBackupVersion(String version);
 
   /// No description provided for @backupPageImportFromChatbox.
@@ -4654,179 +4618,107 @@ abstract class AppLocalizations {
   /// **'Delete All Versions'**
   String get messageMoreSheetDeleteAllVersions;
 
+  /// No description provided for @reasoningBudgetSheetOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get reasoningBudgetSheetOff;
+
+  /// No description provided for @reasoningBudgetSheetAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get reasoningBudgetSheetAuto;
+
+  /// No description provided for @reasoningBudgetSheetLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light Reasoning'**
+  String get reasoningBudgetSheetLight;
+
+  /// No description provided for @reasoningBudgetSheetMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium Reasoning'**
+  String get reasoningBudgetSheetMedium;
+
+  /// No description provided for @reasoningBudgetSheetHeavy.
+  ///
+  /// In en, this message translates to:
+  /// **'Heavy Reasoning'**
+  String get reasoningBudgetSheetHeavy;
+
+  /// No description provided for @reasoningBudgetSheetXhigh.
+  ///
+  /// In en, this message translates to:
+  /// **'Extreme Reasoning'**
+  String get reasoningBudgetSheetXhigh;
+
+  /// No description provided for @reasoningBudgetSheetMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum Reasoning'**
+  String get reasoningBudgetSheetMax;
+
   /// No description provided for @reasoningBudgetSheetTitle.
   ///
   /// In en, this message translates to:
   /// **'Reasoning Chain Strength'**
   String get reasoningBudgetSheetTitle;
 
-  /// No description provided for @reasoningLevelSheetTitle.
+  /// No description provided for @reasoningBudgetSheetCurrentLevel.
   ///
   /// In en, this message translates to:
-  /// **'Reasoning'**
-  String get reasoningLevelSheetTitle;
+  /// **'Current Level: {level}'**
+  String reasoningBudgetSheetCurrentLevel(String level);
 
-  /// No description provided for @reasoningLevelAuto.
+  /// No description provided for @reasoningBudgetSheetOffSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Auto'**
-  String get reasoningLevelAuto;
+  /// **'Turn off reasoning, answer directly'**
+  String get reasoningBudgetSheetOffSubtitle;
 
-  /// No description provided for @reasoningLevelAutoSubtitle.
+  /// No description provided for @reasoningBudgetSheetAutoSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Uses the model or provider default'**
-  String get reasoningLevelAutoSubtitle;
+  /// **'Let the model decide reasoning level automatically'**
+  String get reasoningBudgetSheetAutoSubtitle;
 
-  /// No description provided for @reasoningLevelOff.
-  ///
-  /// In en, this message translates to:
-  /// **'Off'**
-  String get reasoningLevelOff;
-
-  /// No description provided for @reasoningLevelOffSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Turn off reasoning and answer directly'**
-  String get reasoningLevelOffSubtitle;
-
-  /// No description provided for @reasoningLevelMinimal.
-  ///
-  /// In en, this message translates to:
-  /// **'Minimal'**
-  String get reasoningLevelMinimal;
-
-  /// No description provided for @reasoningLevelMinimalSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Use the lightest reasoning to answer questions'**
-  String get reasoningLevelMinimalSubtitle;
-
-  /// No description provided for @reasoningLevelLow.
-  ///
-  /// In en, this message translates to:
-  /// **'Low'**
-  String get reasoningLevelLow;
-
-  /// No description provided for @reasoningLevelLowSubtitle.
+  /// No description provided for @reasoningBudgetSheetLightSubtitle.
   ///
   /// In en, this message translates to:
   /// **'Use light reasoning to answer questions'**
-  String get reasoningLevelLowSubtitle;
+  String get reasoningBudgetSheetLightSubtitle;
 
-  /// No description provided for @reasoningLevelMedium.
-  ///
-  /// In en, this message translates to:
-  /// **'Medium'**
-  String get reasoningLevelMedium;
-
-  /// No description provided for @reasoningLevelMediumSubtitle.
+  /// No description provided for @reasoningBudgetSheetMediumSubtitle.
   ///
   /// In en, this message translates to:
   /// **'Use moderate reasoning to answer questions'**
-  String get reasoningLevelMediumSubtitle;
+  String get reasoningBudgetSheetMediumSubtitle;
 
-  /// No description provided for @reasoningLevelHigh.
-  ///
-  /// In en, this message translates to:
-  /// **'High'**
-  String get reasoningLevelHigh;
-
-  /// No description provided for @reasoningLevelHighSubtitle.
+  /// No description provided for @reasoningBudgetSheetHeavySubtitle.
   ///
   /// In en, this message translates to:
   /// **'Use heavy reasoning for complex questions'**
-  String get reasoningLevelHighSubtitle;
+  String get reasoningBudgetSheetHeavySubtitle;
 
-  /// No description provided for @reasoningLevelXhigh.
-  ///
-  /// In en, this message translates to:
-  /// **'Extra High'**
-  String get reasoningLevelXhigh;
-
-  /// No description provided for @reasoningLevelXhighSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Use very high reasoning depth for harder problems'**
-  String get reasoningLevelXhighSubtitle;
-
-  /// No description provided for @reasoningLevelMax.
-  ///
-  /// In en, this message translates to:
-  /// **'Max'**
-  String get reasoningLevelMax;
-
-  /// No description provided for @reasoningLevelMaxSubtitle.
+  /// No description provided for @reasoningBudgetSheetXhighSubtitle.
   ///
   /// In en, this message translates to:
   /// **'Use maximum reasoning depth for the toughest problems'**
-  String get reasoningLevelMaxSubtitle;
+  String get reasoningBudgetSheetXhighSubtitle;
 
-  /// No description provided for @reasoningLevelFollowModelDefaultSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Use the model\'s default when the assistant doesn\'t set one'**
-  String get reasoningLevelFollowModelDefaultSubtitle;
-
-  /// No description provided for @reasoningLevelNoReasoning.
-  ///
-  /// In en, this message translates to:
-  /// **'This model does not support reasoning'**
-  String get reasoningLevelNoReasoning;
-
-  /// No description provided for @reasoningLevelCustomBudget.
+  /// No description provided for @reasoningBudgetSheetCustomLabel.
   ///
   /// In en, this message translates to:
   /// **'Custom Reasoning Budget'**
-  String get reasoningLevelCustomBudget;
+  String get reasoningBudgetSheetCustomLabel;
 
-  /// No description provided for @reasoningLevelCustomBudgetHint.
+  /// No description provided for @reasoningBudgetSheetCustomHint.
   ///
   /// In en, this message translates to:
-  /// **'Token budget, e.g. 2048'**
-  String get reasoningLevelCustomBudgetHint;
-
-  /// No description provided for @reasoningLevelCompactMin.
-  ///
-  /// In en, this message translates to:
-  /// **'min'**
-  String get reasoningLevelCompactMin;
-
-  /// No description provided for @reasoningLevelCompactLow.
-  ///
-  /// In en, this message translates to:
-  /// **'low'**
-  String get reasoningLevelCompactLow;
-
-  /// No description provided for @reasoningLevelCompactMid.
-  ///
-  /// In en, this message translates to:
-  /// **'mid'**
-  String get reasoningLevelCompactMid;
-
-  /// No description provided for @reasoningLevelCompactHigh.
-  ///
-  /// In en, this message translates to:
-  /// **'high'**
-  String get reasoningLevelCompactHigh;
-
-  /// No description provided for @reasoningLevelCompactXhigh.
-  ///
-  /// In en, this message translates to:
-  /// **'xhigh'**
-  String get reasoningLevelCompactXhigh;
-
-  /// No description provided for @reasoningLevelCompactMax.
-  ///
-  /// In en, this message translates to:
-  /// **'max'**
-  String get reasoningLevelCompactMax;
-
-  /// No description provided for @reasoningLevelBudgetTokens.
-  ///
-  /// In en, this message translates to:
-  /// **'{budget} tokens'**
-  String reasoningLevelBudgetTokens(String budget);
+  /// **'e.g. 2048 (-1 auto, 0 off)'**
+  String get reasoningBudgetSheetCustomHint;
 
   /// No description provided for @chatMessageWidgetFileNotFound.
   ///
@@ -4995,12 +4887,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Web Search: {query}'**
   String chatMessageWidgetWebSearch(String query);
-
-  /// No description provided for @chatMessageWidgetWebFetch.
-  ///
-  /// In en, this message translates to:
-  /// **'Read page: {target}'**
-  String chatMessageWidgetWebFetch(String target);
 
   /// No description provided for @chatMessageWidgetBuiltinSearch.
   ///
@@ -5950,42 +5836,6 @@ abstract class AppLocalizations {
   /// **'Recognizing…'**
   String get chatInputBarVoiceTranscribing;
 
-  /// No description provided for @chatInputBarVoiceAttachAudioTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Stop and attach as audio'**
-  String get chatInputBarVoiceAttachAudioTooltip;
-
-  /// No description provided for @chatInputBarVoiceSendAudioTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Send recording'**
-  String get chatInputBarVoiceSendAudioTooltip;
-
-  /// No description provided for @chatInputBarVoiceSavingAudio.
-  ///
-  /// In en, this message translates to:
-  /// **'Saving audio…'**
-  String get chatInputBarVoiceSavingAudio;
-
-  /// No description provided for @audioClipPlayTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Play audio'**
-  String get audioClipPlayTooltip;
-
-  /// No description provided for @audioClipPauseTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Pause'**
-  String get audioClipPauseTooltip;
-
-  /// No description provided for @audioClipPlaybackFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Couldn\'t play this audio'**
-  String get audioClipPlaybackFailed;
-
   /// No description provided for @chatInputBarImageProcessing.
   ///
   /// In en, this message translates to:
@@ -6033,156 +5883,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Collapse'**
   String get chatInputBarCollapse;
-
-  /// No description provided for @contextUsageTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Context window'**
-  String get contextUsageTitle;
-
-  /// No description provided for @contextUsageStateExact.
-  ///
-  /// In en, this message translates to:
-  /// **'Exact (from last response)'**
-  String get contextUsageStateExact;
-
-  /// No description provided for @contextUsageStateExactCalibrated.
-  ///
-  /// In en, this message translates to:
-  /// **'Exact (breakdown scaled from estimate)'**
-  String get contextUsageStateExactCalibrated;
-
-  /// No description provided for @contextUsageStateEstimated.
-  ///
-  /// In en, this message translates to:
-  /// **'Estimated'**
-  String get contextUsageStateEstimated;
-
-  /// No description provided for @contextUsageStateStale.
-  ///
-  /// In en, this message translates to:
-  /// **'Stale, updating…'**
-  String get contextUsageStateStale;
-
-  /// No description provided for @contextUsageStateComputing.
-  ///
-  /// In en, this message translates to:
-  /// **'Computing…'**
-  String get contextUsageStateComputing;
-
-  /// No description provided for @contextUsageStateNone.
-  ///
-  /// In en, this message translates to:
-  /// **'No data yet'**
-  String get contextUsageStateNone;
-
-  /// No description provided for @contextUsageBucketSystem.
-  ///
-  /// In en, this message translates to:
-  /// **'System prompt'**
-  String get contextUsageBucketSystem;
-
-  /// No description provided for @contextUsageBucketInjections.
-  ///
-  /// In en, this message translates to:
-  /// **'Instruction injections'**
-  String get contextUsageBucketInjections;
-
-  /// No description provided for @contextUsageBucketHistory.
-  ///
-  /// In en, this message translates to:
-  /// **'Messages'**
-  String get contextUsageBucketHistory;
-
-  /// No description provided for @contextUsageBucketTools.
-  ///
-  /// In en, this message translates to:
-  /// **'Built-in tools'**
-  String get contextUsageBucketTools;
-
-  /// No description provided for @contextUsageBucketMemory.
-  ///
-  /// In en, this message translates to:
-  /// **'Memory'**
-  String get contextUsageBucketMemory;
-
-  /// No description provided for @contextUsageBucketWorldBook.
-  ///
-  /// In en, this message translates to:
-  /// **'World books'**
-  String get contextUsageBucketWorldBook;
-
-  /// No description provided for @contextUsageBucketSkills.
-  ///
-  /// In en, this message translates to:
-  /// **'Skills'**
-  String get contextUsageBucketSkills;
-
-  /// No description provided for @contextUsageBucketWorkspace.
-  ///
-  /// In en, this message translates to:
-  /// **'Workspace'**
-  String get contextUsageBucketWorkspace;
-
-  /// No description provided for @contextUsageBucketSearch.
-  ///
-  /// In en, this message translates to:
-  /// **'Search prompt'**
-  String get contextUsageBucketSearch;
-
-  /// No description provided for @contextUsageBucketMcpTools.
-  ///
-  /// In en, this message translates to:
-  /// **'MCP tools'**
-  String get contextUsageBucketMcpTools;
-
-  /// No description provided for @contextUsageBucketAttachments.
-  ///
-  /// In en, this message translates to:
-  /// **'Attachments'**
-  String get contextUsageBucketAttachments;
-
-  /// No description provided for @contextUsageBucketDraft.
-  ///
-  /// In en, this message translates to:
-  /// **'Draft'**
-  String get contextUsageBucketDraft;
-
-  /// No description provided for @contextUsageBucketUsed.
-  ///
-  /// In en, this message translates to:
-  /// **'Used'**
-  String get contextUsageBucketUsed;
-
-  /// No description provided for @contextUsageFreeSpace.
-  ///
-  /// In en, this message translates to:
-  /// **'Free space'**
-  String get contextUsageFreeSpace;
-
-  /// Context usage summary: used tokens, window size, and percent
-  ///
-  /// In en, this message translates to:
-  /// **'{used} / {window} ({percent}%)'**
-  String contextUsageUsedWindow(String used, String window, int percent);
-
-  /// No description provided for @contextUsageNoWindow.
-  ///
-  /// In en, this message translates to:
-  /// **'No context window'**
-  String get contextUsageNoWindow;
-
-  /// No description provided for @contextUsageSetWindow.
-  ///
-  /// In en, this message translates to:
-  /// **'Set context window'**
-  String get contextUsageSetWindow;
-
-  /// No description provided for @contextUsageRefresh.
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh'**
-  String get contextUsageRefresh;
 
   /// No description provided for @mcpPageBackTooltip.
   ///
@@ -6835,6 +6535,12 @@ abstract class AppLocalizations {
   /// **'Required, suggest lowercase/digits/hyphens'**
   String get modelDetailSheetModelIdHint;
 
+  /// No description provided for @modelDetailSheetModelIdDisabledHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{modelId}'**
+  String modelDetailSheetModelIdDisabledHint(String modelId);
+
   /// No description provided for @modelDetailSheetModelNameLabel.
   ///
   /// In en, this message translates to:
@@ -6942,6 +6648,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Built-in tools depend on the provider and API mode.'**
   String get modelDetailSheetBuiltinToolsDescription;
+
+  /// No description provided for @modelDetailSheetSearchTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get modelDetailSheetSearchTool;
+
+  /// No description provided for @modelDetailSheetSearchToolDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Google Search integration'**
+  String get modelDetailSheetSearchToolDescription;
 
   /// No description provided for @modelDetailSheetUrlContextTool.
   ///
@@ -7069,6 +6787,12 @@ abstract class AppLocalizations {
   /// **'Please enter a valid model ID (>=2 chars)'**
   String get modelDetailSheetInvalidIdError;
 
+  /// No description provided for @modelDetailSheetModelIdExistsError.
+  ///
+  /// In en, this message translates to:
+  /// **'Model ID already exists'**
+  String get modelDetailSheetModelIdExistsError;
+
   /// No description provided for @modelDetailSheetHeaderKeyHint.
   ///
   /// In en, this message translates to:
@@ -7092,552 +6816,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Body JSON'**
   String get modelDetailSheetBodyJsonHint;
-
-  /// No description provided for @modelSpecFormSourceCustom.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom'**
-  String get modelSpecFormSourceCustom;
-
-  /// No description provided for @modelSpecFormSourceCatalog.
-  ///
-  /// In en, this message translates to:
-  /// **'Catalog'**
-  String get modelSpecFormSourceCatalog;
-
-  /// No description provided for @modelSpecFormSourceInferred.
-  ///
-  /// In en, this message translates to:
-  /// **'Inferred'**
-  String get modelSpecFormSourceInferred;
-
-  /// No description provided for @modelSpecFormSourceDefault.
-  ///
-  /// In en, this message translates to:
-  /// **'Default'**
-  String get modelSpecFormSourceDefault;
-
-  /// No description provided for @modelSpecFormReset.
-  ///
-  /// In en, this message translates to:
-  /// **'Reset to default'**
-  String get modelSpecFormReset;
-
-  /// No description provided for @modelSpecFormModalitiesSection.
-  ///
-  /// In en, this message translates to:
-  /// **'Modalities & abilities'**
-  String get modelSpecFormModalitiesSection;
-
-  /// No description provided for @modelSpecFormImageType.
-  ///
-  /// In en, this message translates to:
-  /// **'Image'**
-  String get modelSpecFormImageType;
-
-  /// No description provided for @modelSpecFormAudioMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Audio'**
-  String get modelSpecFormAudioMode;
-
-  /// No description provided for @modelSpecFormVideoMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Video'**
-  String get modelSpecFormVideoMode;
-
-  /// No description provided for @modelSpecFormPdfMode.
-  ///
-  /// In en, this message translates to:
-  /// **'PDF'**
-  String get modelSpecFormPdfMode;
-
-  /// No description provided for @modelSpecFormStructuredOutputAbility.
-  ///
-  /// In en, this message translates to:
-  /// **'Structured Output'**
-  String get modelSpecFormStructuredOutputAbility;
-
-  /// No description provided for @modelSpecFormReasoningSection.
-  ///
-  /// In en, this message translates to:
-  /// **'Reasoning'**
-  String get modelSpecFormReasoningSection;
-
-  /// No description provided for @modelSpecFormDialect.
-  ///
-  /// In en, this message translates to:
-  /// **'Dialect'**
-  String get modelSpecFormDialect;
-
-  /// No description provided for @modelSpecFormDialectNone.
-  ///
-  /// In en, this message translates to:
-  /// **'None'**
-  String get modelSpecFormDialectNone;
-
-  /// No description provided for @modelSpecFormDialectNoneSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'No reasoning fields'**
-  String get modelSpecFormDialectNoneSubtitle;
-
-  /// No description provided for @modelSpecFormDialectOpenaiReasoningEffort.
-  ///
-  /// In en, this message translates to:
-  /// **'OpenAI reasoning effort'**
-  String get modelSpecFormDialectOpenaiReasoningEffort;
-
-  /// No description provided for @modelSpecFormDialectOpenaiReasoningEffortSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'reasoning_effort'**
-  String get modelSpecFormDialectOpenaiReasoningEffortSubtitle;
-
-  /// No description provided for @modelSpecFormDialectOpenaiResponsesReasoning.
-  ///
-  /// In en, this message translates to:
-  /// **'OpenAI Responses reasoning'**
-  String get modelSpecFormDialectOpenaiResponsesReasoning;
-
-  /// No description provided for @modelSpecFormDialectOpenaiResponsesReasoningSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'reasoning.effort'**
-  String get modelSpecFormDialectOpenaiResponsesReasoningSubtitle;
-
-  /// No description provided for @modelSpecFormDialectOpenrouterReasoning.
-  ///
-  /// In en, this message translates to:
-  /// **'OpenRouter reasoning'**
-  String get modelSpecFormDialectOpenrouterReasoning;
-
-  /// No description provided for @modelSpecFormDialectOpenrouterReasoningSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'reasoning'**
-  String get modelSpecFormDialectOpenrouterReasoningSubtitle;
-
-  /// No description provided for @modelSpecFormDialectAnthropicBudget.
-  ///
-  /// In en, this message translates to:
-  /// **'Anthropic budget'**
-  String get modelSpecFormDialectAnthropicBudget;
-
-  /// No description provided for @modelSpecFormDialectAnthropicBudgetSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'thinking.budget_tokens'**
-  String get modelSpecFormDialectAnthropicBudgetSubtitle;
-
-  /// No description provided for @modelSpecFormDialectAnthropicAdaptiveEffort.
-  ///
-  /// In en, this message translates to:
-  /// **'Anthropic adaptive effort'**
-  String get modelSpecFormDialectAnthropicAdaptiveEffort;
-
-  /// No description provided for @modelSpecFormDialectAnthropicAdaptiveEffortSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'thinking + output_config.effort'**
-  String get modelSpecFormDialectAnthropicAdaptiveEffortSubtitle;
-
-  /// No description provided for @modelSpecFormDialectAnthropicEffort.
-  ///
-  /// In en, this message translates to:
-  /// **'Anthropic effort'**
-  String get modelSpecFormDialectAnthropicEffort;
-
-  /// No description provided for @modelSpecFormDialectAnthropicEffortSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'thinking + output_config.effort'**
-  String get modelSpecFormDialectAnthropicEffortSubtitle;
-
-  /// No description provided for @modelSpecFormDialectGeminiThinkingBudget.
-  ///
-  /// In en, this message translates to:
-  /// **'Gemini thinking budget'**
-  String get modelSpecFormDialectGeminiThinkingBudget;
-
-  /// No description provided for @modelSpecFormDialectGeminiThinkingBudgetSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'thinkingConfig.thinkingBudget'**
-  String get modelSpecFormDialectGeminiThinkingBudgetSubtitle;
-
-  /// No description provided for @modelSpecFormDialectGeminiThinkingLevel.
-  ///
-  /// In en, this message translates to:
-  /// **'Gemini thinking level'**
-  String get modelSpecFormDialectGeminiThinkingLevel;
-
-  /// No description provided for @modelSpecFormDialectGeminiThinkingLevelSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'thinkingConfig.thinkingLevel'**
-  String get modelSpecFormDialectGeminiThinkingLevelSubtitle;
-
-  /// No description provided for @modelSpecFormDialectQwenEnableThinking.
-  ///
-  /// In en, this message translates to:
-  /// **'Qwen enable thinking'**
-  String get modelSpecFormDialectQwenEnableThinking;
-
-  /// No description provided for @modelSpecFormDialectQwenEnableThinkingSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'enable_thinking'**
-  String get modelSpecFormDialectQwenEnableThinkingSubtitle;
-
-  /// No description provided for @modelSpecFormDialectThinkingType.
-  ///
-  /// In en, this message translates to:
-  /// **'Thinking type'**
-  String get modelSpecFormDialectThinkingType;
-
-  /// No description provided for @modelSpecFormDialectThinkingTypeSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'thinking.type'**
-  String get modelSpecFormDialectThinkingTypeSubtitle;
-
-  /// No description provided for @modelSpecFormDialectSiliconflowEnableThinking.
-  ///
-  /// In en, this message translates to:
-  /// **'SiliconFlow enable thinking'**
-  String get modelSpecFormDialectSiliconflowEnableThinking;
-
-  /// No description provided for @modelSpecFormDialectSiliconflowEnableThinkingSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'enable_thinking'**
-  String get modelSpecFormDialectSiliconflowEnableThinkingSubtitle;
-
-  /// No description provided for @modelSpecFormDialectInternThinkingMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Intern thinking mode'**
-  String get modelSpecFormDialectInternThinkingMode;
-
-  /// No description provided for @modelSpecFormDialectInternThinkingModeSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'thinking_mode'**
-  String get modelSpecFormDialectInternThinkingModeSubtitle;
-
-  /// No description provided for @modelSpecFormDialectChatTemplateKwargs.
-  ///
-  /// In en, this message translates to:
-  /// **'Chat template kwargs'**
-  String get modelSpecFormDialectChatTemplateKwargs;
-
-  /// No description provided for @modelSpecFormDialectChatTemplateKwargsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'chat_template_kwargs.enable_thinking'**
-  String get modelSpecFormDialectChatTemplateKwargsSubtitle;
-
-  /// No description provided for @modelSpecFormDialectKimiThinking.
-  ///
-  /// In en, this message translates to:
-  /// **'Kimi thinking'**
-  String get modelSpecFormDialectKimiThinking;
-
-  /// No description provided for @modelSpecFormDialectKimiThinkingSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'thinking'**
-  String get modelSpecFormDialectKimiThinkingSubtitle;
-
-  /// No description provided for @modelSpecFormDialectCustom.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom JSON'**
-  String get modelSpecFormDialectCustom;
-
-  /// No description provided for @modelSpecFormDialectCustomSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Per-level JSON patch'**
-  String get modelSpecFormDialectCustomSubtitle;
-
-  /// No description provided for @modelSpecFormLevels.
-  ///
-  /// In en, this message translates to:
-  /// **'Supported levels'**
-  String get modelSpecFormLevels;
-
-  /// No description provided for @modelSpecFormCanDisable.
-  ///
-  /// In en, this message translates to:
-  /// **'Allow disabling'**
-  String get modelSpecFormCanDisable;
-
-  /// No description provided for @modelSpecFormDefaultLevel.
-  ///
-  /// In en, this message translates to:
-  /// **'Default level'**
-  String get modelSpecFormDefaultLevel;
-
-  /// No description provided for @modelSpecFormBudgets.
-  ///
-  /// In en, this message translates to:
-  /// **'Token budgets'**
-  String get modelSpecFormBudgets;
-
-  /// No description provided for @modelSpecFormBudgetPlaceholder.
-  ///
-  /// In en, this message translates to:
-  /// **'{tokens}'**
-  String modelSpecFormBudgetPlaceholder(String tokens);
-
-  /// No description provided for @modelSpecFormCustomPatch.
-  ///
-  /// In en, this message translates to:
-  /// **'JSON patch ({level})'**
-  String modelSpecFormCustomPatch(String level);
-
-  /// No description provided for @modelSpecFormCustomPatchHint.
-  ///
-  /// In en, this message translates to:
-  /// **'e.g. reasoning_effort: high'**
-  String get modelSpecFormCustomPatchHint;
-
-  /// No description provided for @modelSpecFormInvalidJson.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom reasoning patch must be a valid JSON object'**
-  String get modelSpecFormInvalidJson;
-
-  /// No description provided for @modelSpecFormInvalidNumber.
-  ///
-  /// In en, this message translates to:
-  /// **'Please enter a valid number'**
-  String get modelSpecFormInvalidNumber;
-
-  /// No description provided for @modelSpecFormStrategySection.
-  ///
-  /// In en, this message translates to:
-  /// **'Strategy'**
-  String get modelSpecFormStrategySection;
-
-  /// No description provided for @modelSpecFormSampling.
-  ///
-  /// In en, this message translates to:
-  /// **'Sampling'**
-  String get modelSpecFormSampling;
-
-  /// No description provided for @modelSpecFormRequestQuirks.
-  ///
-  /// In en, this message translates to:
-  /// **'Request compatibility'**
-  String get modelSpecFormRequestQuirks;
-
-  /// No description provided for @modelSpecFormDynamicWebSearch.
-  ///
-  /// In en, this message translates to:
-  /// **'Dynamic filtering search tools'**
-  String get modelSpecFormDynamicWebSearch;
-
-  /// No description provided for @modelSpecFormDynamicWebSearchSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'When dynamic filtering is on, send the 2026-03-18 web search and fetch tools'**
-  String get modelSpecFormDynamicWebSearchSubtitle;
-
-  /// No description provided for @modelSpecFormRemoteImageUrls.
-  ///
-  /// In en, this message translates to:
-  /// **'Remote image links'**
-  String get modelSpecFormRemoteImageUrls;
-
-  /// No description provided for @modelSpecFormRemoteImageUrlsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Send http(s) image links as-is; when off, remote links are dropped and only local images are sent'**
-  String get modelSpecFormRemoteImageUrlsSubtitle;
-
-  /// No description provided for @modelSpecFormPromptCacheControl.
-  ///
-  /// In en, this message translates to:
-  /// **'Prompt cache marker'**
-  String get modelSpecFormPromptCacheControl;
-
-  /// No description provided for @modelSpecFormPromptCacheControlSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'When prompt caching is on, add cache_control to OpenRouter requests'**
-  String get modelSpecFormPromptCacheControlSubtitle;
-
-  /// No description provided for @modelSpecFormSamplingAlways.
-  ///
-  /// In en, this message translates to:
-  /// **'Always'**
-  String get modelSpecFormSamplingAlways;
-
-  /// No description provided for @modelSpecFormSamplingAlwaysSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Keep temperature and other sampling fields'**
-  String get modelSpecFormSamplingAlwaysSubtitle;
-
-  /// No description provided for @modelSpecFormSamplingOnlyWhenReasoningOff.
-  ///
-  /// In en, this message translates to:
-  /// **'Only when reasoning is off'**
-  String get modelSpecFormSamplingOnlyWhenReasoningOff;
-
-  /// No description provided for @modelSpecFormSamplingOnlyWhenReasoningOffSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Strip sampling fields while the model is thinking'**
-  String get modelSpecFormSamplingOnlyWhenReasoningOffSubtitle;
-
-  /// No description provided for @modelSpecFormSamplingNever.
-  ///
-  /// In en, this message translates to:
-  /// **'Never'**
-  String get modelSpecFormSamplingNever;
-
-  /// No description provided for @modelSpecFormSamplingNeverSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Always strip sampling fields'**
-  String get modelSpecFormSamplingNeverSubtitle;
-
-  /// No description provided for @modelSpecFormReplay.
-  ///
-  /// In en, this message translates to:
-  /// **'Reasoning replay'**
-  String get modelSpecFormReplay;
-
-  /// No description provided for @modelSpecFormReplayNone.
-  ///
-  /// In en, this message translates to:
-  /// **'None'**
-  String get modelSpecFormReplayNone;
-
-  /// No description provided for @modelSpecFormReplayNoneSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Do not send prior reasoning back to the model'**
-  String get modelSpecFormReplayNoneSubtitle;
-
-  /// No description provided for @modelSpecFormReplayToolTurns.
-  ///
-  /// In en, this message translates to:
-  /// **'Tool turns'**
-  String get modelSpecFormReplayToolTurns;
-
-  /// No description provided for @modelSpecFormReplayToolTurnsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Replay reasoning on tool-call turns'**
-  String get modelSpecFormReplayToolTurnsSubtitle;
-
-  /// No description provided for @modelSpecFormReplayAll.
-  ///
-  /// In en, this message translates to:
-  /// **'All'**
-  String get modelSpecFormReplayAll;
-
-  /// No description provided for @modelSpecFormReplayAllSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Replay reasoning on every follow-up turn'**
-  String get modelSpecFormReplayAllSubtitle;
-
-  /// No description provided for @modelSpecFormReplayField.
-  ///
-  /// In en, this message translates to:
-  /// **'Replay field'**
-  String get modelSpecFormReplayField;
-
-  /// No description provided for @modelSpecFormReplayFieldReasoningContent.
-  ///
-  /// In en, this message translates to:
-  /// **'reasoning_content'**
-  String get modelSpecFormReplayFieldReasoningContent;
-
-  /// No description provided for @modelSpecFormReplayFieldReasoning.
-  ///
-  /// In en, this message translates to:
-  /// **'reasoning'**
-  String get modelSpecFormReplayFieldReasoning;
-
-  /// No description provided for @modelSpecFormReplayFieldReasoningDetails.
-  ///
-  /// In en, this message translates to:
-  /// **'reasoning_details'**
-  String get modelSpecFormReplayFieldReasoningDetails;
-
-  /// No description provided for @modelSpecFormLimitsSection.
-  ///
-  /// In en, this message translates to:
-  /// **'Limits'**
-  String get modelSpecFormLimitsSection;
-
-  /// No description provided for @modelSpecFormLimitsPricingSection.
-  ///
-  /// In en, this message translates to:
-  /// **'Limits & pricing'**
-  String get modelSpecFormLimitsPricingSection;
-
-  /// No description provided for @modelSpecFormContextWindow.
-  ///
-  /// In en, this message translates to:
-  /// **'Context window'**
-  String get modelSpecFormContextWindow;
-
-  /// No description provided for @modelSpecFormMaxOutput.
-  ///
-  /// In en, this message translates to:
-  /// **'Max output'**
-  String get modelSpecFormMaxOutput;
-
-  /// No description provided for @modelSpecFormPricingSection.
-  ///
-  /// In en, this message translates to:
-  /// **'Pricing / 1M'**
-  String get modelSpecFormPricingSection;
-
-  /// No description provided for @modelSpecFormPricingInput.
-  ///
-  /// In en, this message translates to:
-  /// **'Input'**
-  String get modelSpecFormPricingInput;
-
-  /// No description provided for @modelSpecFormPricingOutput.
-  ///
-  /// In en, this message translates to:
-  /// **'Output'**
-  String get modelSpecFormPricingOutput;
-
-  /// No description provided for @modelSpecFormPricingCacheRead.
-  ///
-  /// In en, this message translates to:
-  /// **'Cache read'**
-  String get modelSpecFormPricingCacheRead;
-
-  /// No description provided for @modelSpecFormPricingCacheWrite.
-  ///
-  /// In en, this message translates to:
-  /// **'Cache write'**
-  String get modelSpecFormPricingCacheWrite;
-
-  /// No description provided for @modelSpecFormCurrency.
-  ///
-  /// In en, this message translates to:
-  /// **'Currency'**
-  String get modelSpecFormCurrency;
-
-  /// No description provided for @modelSpecFormAdvancedSection.
-  ///
-  /// In en, this message translates to:
-  /// **'Request'**
-  String get modelSpecFormAdvancedSection;
 
   /// No description provided for @modelSelectSheetSearchHint.
   ///
@@ -7794,18 +6972,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Response API (/responses)'**
   String get providerDetailPageResponseApiTitle;
-
-  /// No description provided for @providerDetailPagePromptCacheKeyTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Send Conversation Cache Key'**
-  String get providerDetailPagePromptCacheKeyTitle;
-
-  /// No description provided for @providerDetailPagePromptCacheKeyHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Adds a stable prompt_cache_key for each conversation to OpenAI-compatible requests. Enable only if your provider supports it. Custom Body values take precedence; cache hits are not guaranteed.'**
-  String get providerDetailPagePromptCacheKeyHelp;
 
   /// No description provided for @providerDetailPageAihubmixAppCodeLabel.
   ///
@@ -8166,60 +7332,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Provider added'**
   String get providersPageProviderAddedSnackbar;
-
-  /// No description provided for @modelCatalogTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Model catalog'**
-  String get modelCatalogTitle;
-
-  /// No description provided for @modelCatalogSourceBundled.
-  ///
-  /// In en, this message translates to:
-  /// **'Bundled snapshot · {date}'**
-  String modelCatalogSourceBundled(String date);
-
-  /// No description provided for @modelCatalogSourceRemote.
-  ///
-  /// In en, this message translates to:
-  /// **'models.dev · updated {date}'**
-  String modelCatalogSourceRemote(String date);
-
-  /// No description provided for @modelCatalogAutoUpdate.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-update every 24 hours'**
-  String get modelCatalogAutoUpdate;
-
-  /// No description provided for @modelCatalogRefresh.
-  ///
-  /// In en, this message translates to:
-  /// **'Update now'**
-  String get modelCatalogRefresh;
-
-  /// No description provided for @modelCatalogUpdated.
-  ///
-  /// In en, this message translates to:
-  /// **'Model catalog updated'**
-  String get modelCatalogUpdated;
-
-  /// No description provided for @modelCatalogRefreshFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Update failed: {error}'**
-  String modelCatalogRefreshFailed(String error);
-
-  /// No description provided for @modelCatalogProviderCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} providers'**
-  String modelCatalogProviderCount(int count);
-
-  /// No description provided for @modelCatalogModelCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} models'**
-  String modelCatalogModelCount(int count);
 
   /// No description provided for @providerGroupsGroupLabel.
   ///
@@ -8647,78 +7759,6 @@ abstract class AppLocalizations {
   /// **'Auto-test connections on launch'**
   String get searchServicesPageAutoTestTitle;
 
-  /// No description provided for @searchServicesPageWebFetchSection.
-  ///
-  /// In en, this message translates to:
-  /// **'Web page reading'**
-  String get searchServicesPageWebFetchSection;
-
-  /// No description provided for @searchServicesPageWebFetchModeTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Read pages with'**
-  String get searchServicesPageWebFetchModeTitle;
-
-  /// No description provided for @searchServicesPageWebFetchFollow.
-  ///
-  /// In en, this message translates to:
-  /// **'Follow search service'**
-  String get searchServicesPageWebFetchFollow;
-
-  /// No description provided for @searchServicesPageWebFetchFollowValue.
-  ///
-  /// In en, this message translates to:
-  /// **'Follow search · {name}'**
-  String searchServicesPageWebFetchFollowValue(String name);
-
-  /// No description provided for @searchServicesPageWebFetchFollowSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Currently {name}'**
-  String searchServicesPageWebFetchFollowSubtitle(String name);
-
-  /// No description provided for @searchServicesPageWebFetchLocal.
-  ///
-  /// In en, this message translates to:
-  /// **'Local'**
-  String get searchServicesPageWebFetchLocal;
-
-  /// No description provided for @searchServicesPageWebFetchLocalSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Free. This device requests the page directly.'**
-  String get searchServicesPageWebFetchLocalSubtitle;
-
-  /// No description provided for @searchServicesPageWebFetchProviderSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Uses this service\'s API key and quota'**
-  String get searchServicesPageWebFetchProviderSubtitle;
-
-  /// No description provided for @searchServicesPageWebFetchOff.
-  ///
-  /// In en, this message translates to:
-  /// **'Off'**
-  String get searchServicesPageWebFetchOff;
-
-  /// No description provided for @searchServicesPageWebFetchOffSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Search only, without reading pages'**
-  String get searchServicesPageWebFetchOffSubtitle;
-
-  /// No description provided for @searchServicesPageWebFetchFooter.
-  ///
-  /// In en, this message translates to:
-  /// **'With web search on, the model can also read full pages. When the search service can\'t read pages, local reading is used, which can\'t handle pages that need JavaScript or block bots.'**
-  String get searchServicesPageWebFetchFooter;
-
-  /// No description provided for @searchServicesPageWebFetchSupported.
-  ///
-  /// In en, this message translates to:
-  /// **'Can read web pages'**
-  String get searchServicesPageWebFetchSupported;
-
   /// No description provided for @searchServicesPageMaxResults.
   ///
   /// In en, this message translates to:
@@ -8874,12 +7914,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'API Key'**
   String get searchServicesDialogApiKey;
-
-  /// No description provided for @searchServicesDialogApiKeyOptional.
-  ///
-  /// In en, this message translates to:
-  /// **'API Key (optional)'**
-  String get searchServicesDialogApiKeyOptional;
 
   /// No description provided for @searchServicesDialogModel.
   ///
@@ -9163,48 +8197,6 @@ abstract class AppLocalizations {
   /// **'Search failed: {message}'**
   String searchServiceEditorTestFailed(String message);
 
-  /// No description provided for @searchServiceEditorTestModeSearch.
-  ///
-  /// In en, this message translates to:
-  /// **'Search'**
-  String get searchServiceEditorTestModeSearch;
-
-  /// No description provided for @searchServiceEditorTestModeFetch.
-  ///
-  /// In en, this message translates to:
-  /// **'Read page'**
-  String get searchServiceEditorTestModeFetch;
-
-  /// No description provided for @searchServiceEditorTestUrlHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter a URL'**
-  String get searchServiceEditorTestUrlHint;
-
-  /// No description provided for @searchServiceEditorTestFetchRun.
-  ///
-  /// In en, this message translates to:
-  /// **'Run test fetch'**
-  String get searchServiceEditorTestFetchRun;
-
-  /// No description provided for @searchServiceEditorTestFetchRunning.
-  ///
-  /// In en, this message translates to:
-  /// **'Reading…'**
-  String get searchServiceEditorTestFetchRunning;
-
-  /// No description provided for @searchServiceEditorTestFetchFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Fetch failed: {message}'**
-  String searchServiceEditorTestFetchFailed(String message);
-
-  /// No description provided for @searchServiceEditorTestFetchStats.
-  ///
-  /// In en, this message translates to:
-  /// **'{characters} characters · {seconds}s'**
-  String searchServiceEditorTestFetchStats(String characters, String seconds);
-
   /// No description provided for @searchServiceEditorResultOpenTooltip.
   ///
   /// In en, this message translates to:
@@ -9325,22 +8317,22 @@ abstract class AppLocalizations {
   /// **'Nice!'**
   String get aboutPageEasterEggButton;
 
-  /// No description provided for @aboutPageKelivoSearchUnlocked.
+  /// No description provided for @aboutPageCuplivoSearchUnlocked.
   ///
   /// In en, this message translates to:
   /// **'An unnamed door opened a crack. You might find it in Settings.'**
-  String get aboutPageKelivoSearchUnlocked;
+  String get aboutPageCuplivoSearchUnlocked;
 
-  /// No description provided for @aboutPageKelivoSearchAlreadyUnlocked.
+  /// No description provided for @aboutPageCuplivoSearchAlreadyUnlocked.
   ///
   /// In en, this message translates to:
   /// **'You\'ve already been through this door.'**
-  String get aboutPageKelivoSearchAlreadyUnlocked;
+  String get aboutPageCuplivoSearchAlreadyUnlocked;
 
   /// No description provided for @aboutPageAppName.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo'**
+  /// **'Cuplivo'**
   String get aboutPageAppName;
 
   /// No description provided for @aboutPageAppDescription.
@@ -9445,23 +8437,11 @@ abstract class AppLocalizations {
   /// **'Join our QQ Group'**
   String get aboutPageJoinQQGroup;
 
-  /// No description provided for @aboutPageQQGroupOne.
+  /// No description provided for @aboutPageQQGroup.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo Group 1'**
-  String get aboutPageQQGroupOne;
-
-  /// No description provided for @aboutPageQQGroupTwo.
-  ///
-  /// In en, this message translates to:
-  /// **'Kelivo Group 2'**
-  String get aboutPageQQGroupTwo;
-
-  /// No description provided for @aboutPageQQGroupThree.
-  ///
-  /// In en, this message translates to:
-  /// **'Kelivo Group 3'**
-  String get aboutPageQQGroupThree;
+  /// **'Cuplivo Group'**
+  String get aboutPageQQGroup;
 
   /// No description provided for @aboutPageJoinDiscord.
   ///
@@ -9571,18 +8551,6 @@ abstract class AppLocalizations {
   /// **'Show Token & Context Stats'**
   String get displaySettingsPageShowTokenStatsTitle;
 
-  /// No description provided for @displaySettingsPageShowTotalTokensTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Show tokens for the entire turn'**
-  String get displaySettingsPageShowTotalTokensTitle;
-
-  /// No description provided for @displaySettingsPageShowTotalTokensSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Sum usage across all API requests in a reply. When off, show only the final request. Statistics always include all requests.'**
-  String get displaySettingsPageShowTotalTokensSubtitle;
-
   /// No description provided for @displaySettingsPageShowTokenStatsSubtitle.
   ///
   /// In en, this message translates to:
@@ -9612,18 +8580,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'When off, tool-use cards are hidden in chat.'**
   String get displaySettingsPageShowToolCardsSubtitle;
-
-  /// No description provided for @displaySettingsShowReasoningLevelBadge.
-  ///
-  /// In en, this message translates to:
-  /// **'Show reasoning level on the button'**
-  String get displaySettingsShowReasoningLevelBadge;
-
-  /// No description provided for @displaySettingsShowReasoningLevelBadgeSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Show the current level next to the reasoning icon in the input bar'**
-  String get displaySettingsShowReasoningLevelBadgeSubtitle;
 
   /// No description provided for @displaySettingsPageAutoCollapseThinkingTitle.
   ///
@@ -9736,8 +8692,20 @@ abstract class AppLocalizations {
   /// No description provided for @displaySettingsPageEnableImageCropperSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Crop images after selecting from gallery or camera'**
+  /// **'Show a Crop action when previewing an unsent image'**
   String get displaySettingsPageEnableImageCropperSubtitle;
+
+  /// No description provided for @draftImageCropAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop'**
+  String get draftImageCropAction;
+
+  /// No description provided for @draftImageCropFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not crop this image. The original is unchanged.'**
+  String get draftImageCropFailed;
 
   /// No description provided for @displaySettingsPageKeepSidebarOpenOnAssistantTapTitle.
   ///
@@ -11374,7 +10342,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsShare.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo - Open Source AI Assistant'**
+  /// **'Cuplivo - Open Source AI Assistant'**
   String get settingsShare;
 
   /// No description provided for @searchProviderBingLocalDescription.
@@ -11400,12 +10368,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Neural search with semantic understanding. Great for research and finding specific content.'**
   String get searchProviderExaDescription;
-
-  /// No description provided for @searchProviderExaMcpDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Exa search via MCP. An API key is optional for limited free usage.'**
-  String get searchProviderExaMcpDescription;
 
   /// No description provided for @searchProviderLinkUpDescription.
   ///
@@ -11472,12 +10434,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Exa'**
   String get searchServiceNameExa;
-
-  /// No description provided for @searchServiceNameExaMcp.
-  ///
-  /// In en, this message translates to:
-  /// **'Exa MCP'**
-  String get searchServiceNameExaMcp;
 
   /// No description provided for @searchServiceNameZhipu.
   ///
@@ -11737,11 +10693,11 @@ abstract class AppLocalizations {
   /// **'Maximum tokens must be between 1024 and 32768.'**
   String get searchServicesDialogMaximumTokensInvalid;
 
-  /// No description provided for @searchServiceNameKelivo.
+  /// No description provided for @searchServiceNameCuplivo.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo'**
-  String get searchServiceNameKelivo;
+  /// **'Cuplivo'**
+  String get searchServiceNameCuplivo;
 
   /// No description provided for @searchServicesDialogCountryOptional.
   ///
@@ -12262,7 +11218,7 @@ abstract class AppLocalizations {
   /// No description provided for @healthDataSettingsDescription.
   ///
   /// In en, this message translates to:
-  /// **'HealthKit signals available to the current assistant in daily conversation. Switches control what Kelivo may try to read; iOS still manages actual Health access.'**
+  /// **'HealthKit signals available to the current assistant in daily conversation. Switches control what Cuplivo may try to read; iOS still manages actual Health access.'**
   String get healthDataSettingsDescription;
 
   /// No description provided for @healthDataSettingsBadge.
@@ -14692,7 +13648,7 @@ abstract class AppLocalizations {
   /// No description provided for @legacyMemoryExportTitle.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo legacy memory export'**
+  /// **'Cuplivo legacy memory export'**
   String get legacyMemoryExportTitle;
 
   /// No description provided for @legacyMemoryAssistantHeader.
@@ -15445,12 +14401,6 @@ abstract class AppLocalizations {
   /// **'At depth'**
   String get worldBookInjectionPositionAtDepth;
 
-  /// No description provided for @worldBookImportUnsupportedEntries.
-  ///
-  /// In en, this message translates to:
-  /// **'Imported. {count} entries use unsupported SillyTavern features (such as macros, regex, timing, filters, or insertion rules). Their content was kept and they were disabled. Review them before enabling.'**
-  String worldBookImportUnsupportedEntries(int count);
-
   /// No description provided for @worldBookInjectionRoleUser.
   ///
   /// In en, this message translates to:
@@ -15589,35 +14539,11 @@ abstract class AppLocalizations {
   /// **'{value}s'**
   String tokenDetailDuration(String value);
 
-  /// No description provided for @tokenDetailFirstToken.
-  ///
-  /// In en, this message translates to:
-  /// **'{value}s (first token)'**
-  String tokenDetailFirstToken(String value);
-
   /// No description provided for @tokenDetailTotalTokens.
   ///
   /// In en, this message translates to:
   /// **'{count} tokens'**
   String tokenDetailTotalTokens(int count);
-
-  /// No description provided for @tokenDetailReasoningTokens.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} tokens'**
-  String tokenDetailReasoningTokens(int count);
-
-  /// No description provided for @tokenDetailCacheWriteTokens.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} cache write tokens'**
-  String tokenDetailCacheWriteTokens(int count);
-
-  /// No description provided for @tokenDetailCost.
-  ///
-  /// In en, this message translates to:
-  /// **'{amount}'**
-  String tokenDetailCost(String amount);
 
   /// No description provided for @debugPageTitle.
   ///
@@ -15748,13 +14674,13 @@ abstract class AppLocalizations {
   /// No description provided for @migrationIntroSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo is moving chat history to a faster SQLite database. The upgrade runs before the app opens so your data stays consistent.'**
+  /// **'Cuplivo is moving chat history to a faster SQLite database. The upgrade runs before the app opens so your data stays consistent.'**
   String get migrationIntroSubtitle;
 
   /// No description provided for @migrationBackupNote.
   ///
   /// In en, this message translates to:
-  /// **'Before migration starts, Kelivo exports a ZIP backup with settings, chat history, and local files.'**
+  /// **'Before migration starts, Cuplivo exports a ZIP backup with settings, chat history, and local files.'**
   String get migrationBackupNote;
 
   /// No description provided for @migrationPerformanceNote.
@@ -15826,7 +14752,7 @@ abstract class AppLocalizations {
   /// No description provided for @migrationBackingUpSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Exporting settings, chat history, uploaded files, images, and fonts. Keep Kelivo open until this finishes.'**
+  /// **'Exporting settings, chat history, uploaded files, images, and fonts. Keep Cuplivo open until this finishes.'**
   String get migrationBackingUpSubtitle;
 
   /// No description provided for @migrationMigratingTitle.
@@ -15838,7 +14764,7 @@ abstract class AppLocalizations {
   /// No description provided for @migrationMigratingSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Writing conversations and messages in batches so large histories do not overload memory. Keep Kelivo in the foreground until migration finishes.'**
+  /// **'Writing conversations and messages in batches so large histories do not overload memory. Keep Cuplivo in the foreground until migration finishes.'**
   String get migrationMigratingSubtitle;
 
   /// No description provided for @migrationBackingUpDetail.
@@ -15946,7 +14872,7 @@ abstract class AppLocalizations {
   /// No description provided for @migrationCompleteSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Your chat history is now stored in SQLite. Restart Kelivo to enter the upgraded app.'**
+  /// **'Your chat history is now stored in SQLite. Restart Cuplivo to enter the upgraded app.'**
   String get migrationCompleteSubtitle;
 
   /// No description provided for @migrationConversationCount.
@@ -15982,7 +14908,7 @@ abstract class AppLocalizations {
   /// No description provided for @migrationRestartButton.
   ///
   /// In en, this message translates to:
-  /// **'Restart Kelivo'**
+  /// **'Restart Cuplivo'**
   String get migrationRestartButton;
 
   /// No description provided for @migrationFailedTitle.
@@ -16030,7 +14956,7 @@ abstract class AppLocalizations {
   /// No description provided for @migrationSkipDialogMessage.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo will start with an empty chat database. Your old chat history stays on disk (renamed with a .retired suffix) but will NOT be migrated and will not appear in the app. Use your backup ZIP if you need to recover it later.'**
+  /// **'Cuplivo will start with an empty chat database. Your old chat history stays on disk (renamed with a .retired suffix) but will NOT be migrated and will not appear in the app. Use your backup ZIP if you need to recover it later.'**
   String get migrationSkipDialogMessage;
 
   /// No description provided for @migrationSkipDialogCancel.
@@ -16086,6 +15012,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upload Image Quality'**
   String get imageSettingsPageQualitySectionTitle;
+
+  /// No description provided for @imageSettingsPageModeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression Mode'**
+  String get imageSettingsPageModeTitle;
+
+  /// No description provided for @imageSettingsPageModeManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get imageSettingsPageModeManual;
+
+  /// No description provided for @imageSettingsPageModeAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get imageSettingsPageModeAuto;
+
+  /// No description provided for @imageSettingsPageModeOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get imageSettingsPageModeOff;
+
+  /// No description provided for @imageSettingsPageModeManualSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Images are attached unchanged; open the preview to compress them manually'**
+  String get imageSettingsPageModeManualSubtitle;
+
+  /// No description provided for @imageSettingsPageModeAutoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Images are re-encoded when attached, using the preset below'**
+  String get imageSettingsPageModeAutoSubtitle;
+
+  /// No description provided for @imageSettingsPageModeOffSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Images are never compressed'**
+  String get imageSettingsPageModeOffSubtitle;
 
   /// No description provided for @imageSettingsPageQualityOriginal.
   ///
@@ -16170,6 +15138,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Compression happens when images are added. Previously saved or sent images are not affected. Compressed images are sent as JPEG files.'**
   String get imageSettingsPageFooter;
+
+  /// No description provided for @compressEditorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Compress Image'**
+  String get compressEditorTitle;
+
+  /// No description provided for @compressEditorFormatJpeg.
+  ///
+  /// In en, this message translates to:
+  /// **'JPEG'**
+  String get compressEditorFormatJpeg;
+
+  /// No description provided for @compressEditorFormatPng.
+  ///
+  /// In en, this message translates to:
+  /// **'PNG'**
+  String get compressEditorFormatPng;
+
+  /// No description provided for @compressEditorFormatOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Original'**
+  String get compressEditorFormatOriginal;
+
+  /// No description provided for @compressEditorLongEdgeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Long edge'**
+  String get compressEditorLongEdgeLabel;
+
+  /// No description provided for @compressEditorLongEdgeFull.
+  ///
+  /// In en, this message translates to:
+  /// **'100%'**
+  String get compressEditorLongEdgeFull;
+
+  /// No description provided for @compressEditorLongEdgeHalf.
+  ///
+  /// In en, this message translates to:
+  /// **'50%'**
+  String get compressEditorLongEdgeHalf;
+
+  /// No description provided for @compressEditorLongEdgeQuarter.
+  ///
+  /// In en, this message translates to:
+  /// **'25%'**
+  String get compressEditorLongEdgeQuarter;
+
+  /// No description provided for @compressEditorQualityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality'**
+  String get compressEditorQualityLabel;
+
+  /// No description provided for @compressEditorOriginalSide.
+  ///
+  /// In en, this message translates to:
+  /// **'Original'**
+  String get compressEditorOriginalSide;
+
+  /// No description provided for @compressEditorEstimating.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimating size…'**
+  String get compressEditorEstimating;
+
+  /// No description provided for @compressEditorEstimateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Size estimate unavailable'**
+  String get compressEditorEstimateFailed;
+
+  /// No description provided for @compressEditorSavings.
+  ///
+  /// In en, this message translates to:
+  /// **'−{percent}%'**
+  String compressEditorSavings(int percent);
+
+  /// No description provided for @compressEditorGrowth.
+  ///
+  /// In en, this message translates to:
+  /// **'+{percent}%'**
+  String compressEditorGrowth(int percent);
+
+  /// No description provided for @compressEditorNoReencode.
+  ///
+  /// In en, this message translates to:
+  /// **'no re-encode'**
+  String get compressEditorNoReencode;
+
+  /// No description provided for @compressEditorDecodeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'This image can\'t be previewed, so it can\'t be re-compressed.'**
+  String get compressEditorDecodeFailed;
+
+  /// No description provided for @compressEditorTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'This image is too large to open in the editor, so it can\'t be re-compressed here. It will be attached as it is.'**
+  String get compressEditorTooLarge;
+
+  /// Shown when a very large image is worked at a reduced resolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Source {source}, loaded at {percent}% to stay within memory'**
+  String compressEditorWorkingScale(String source, int percent);
+
+  /// No description provided for @compressEditorCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get compressEditorCancel;
+
+  /// No description provided for @compressEditorApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get compressEditorApply;
+
+  /// No description provided for @compressEditorApplyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to all'**
+  String get compressEditorApplyAll;
+
+  /// No description provided for @compressEditorDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get compressEditorDone;
 
   /// No description provided for @imageSettingsPageSendSectionTitle.
   ///
@@ -16810,7 +15910,7 @@ abstract class AppLocalizations {
   /// No description provided for @localSnapshotEnabledSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo periodically saves a copy of its database on this device, so it is never the only one.'**
+  /// **'Cuplivo periodically saves a copy of its database on this device, so it is never the only one.'**
   String get localSnapshotEnabledSubtitle;
 
   /// No description provided for @localSnapshotIntervalTitle.
@@ -16966,7 +16066,7 @@ abstract class AppLocalizations {
   /// No description provided for @localSnapshotCopiesScopeNote.
   ///
   /// In en, this message translates to:
-  /// **'Local copies live on this device only. They protect against damage to your data inside the app, not against losing the device or uninstalling Kelivo — use WebDAV or S3 backup for that.'**
+  /// **'Local copies live on this device only. They protect against damage to your data inside the app, not against losing the device or uninstalling Cuplivo — use WebDAV or S3 backup for that.'**
   String get localSnapshotCopiesScopeNote;
 
   /// No description provided for @localSnapshotOriginAutomatic.
@@ -17050,7 +16150,7 @@ abstract class AppLocalizations {
   /// No description provided for @localSnapshotRestoreMessage.
   ///
   /// In en, this message translates to:
-  /// **'Your current chats and settings will be replaced by this copy from {when}. A copy of the current chats and settings is saved first. Unsent drafts are excluded from copies and will be cleared.'**
+  /// **'Your current chats and settings will be replaced by this copy from {when}. A copy of what you have now is saved first, so this can be undone.'**
   String localSnapshotRestoreMessage(String when);
 
   /// No description provided for @localSnapshotRestorePreparing.
@@ -17971,12 +17071,6 @@ abstract class AppLocalizations {
   /// **'Read file'**
   String get workspaceToolTitleReadFile;
 
-  /// No description provided for @workspaceToolTitleViewImage.
-  ///
-  /// In en, this message translates to:
-  /// **'View image'**
-  String get workspaceToolTitleViewImage;
-
   /// No description provided for @workspaceToolTitleWriteFile.
   ///
   /// In en, this message translates to:
@@ -18208,7 +17302,7 @@ abstract class AppLocalizations {
   /// No description provided for @workspaceEnvRestartBanner.
   ///
   /// In en, this message translates to:
-  /// **'Restart Kelivo to finish'**
+  /// **'Restart Cuplivo to finish'**
   String get workspaceEnvRestartBanner;
 
   /// No description provided for @workspaceEnvDetectingMirrors.
@@ -18376,7 +17470,7 @@ abstract class AppLocalizations {
   /// No description provided for @workspaceEnvNativeExplanation.
   ///
   /// In en, this message translates to:
-  /// **'On desktop, Kelivo uses your system shell instead of a Linux sandbox.'**
+  /// **'On desktop, Cuplivo uses your system shell instead of a Linux sandbox.'**
   String get workspaceEnvNativeExplanation;
 
   /// No description provided for @workspaceEnvNativeShellPath.
@@ -20052,7 +19146,7 @@ abstract class AppLocalizations {
   /// No description provided for @workspaceDesktopManagedHint.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo creates and manages a folder for this project.'**
+  /// **'Cuplivo creates and manages a folder for this project.'**
   String get workspaceDesktopManagedHint;
 
   /// No description provided for @workspaceDesktopHostHint.
@@ -20270,12 +19364,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Read files with line numbers and paging.'**
   String get workspaceToolHelpRead;
-
-  /// No description provided for @workspaceToolHelpViewImage.
-  ///
-  /// In en, this message translates to:
-  /// **'Let the model inspect an image from the workspace.'**
-  String get workspaceToolHelpViewImage;
 
   /// No description provided for @workspaceToolHelpWrite.
   ///
@@ -20496,7 +19584,7 @@ abstract class AppLocalizations {
   /// No description provided for @workspaceExternalStorageMessage.
   ///
   /// In en, this message translates to:
-  /// **'To read and write external folders in the workspace and Shell, allow Kelivo to manage files in Android settings. On Android 11 or later, enable All files access. Then select an on-device folder to mount.'**
+  /// **'To read and write external folders in the workspace and Shell, allow Cuplivo to manage files in Android settings. On Android 11 or later, enable All files access. Then select an on-device folder to mount.'**
   String get workspaceExternalStorageMessage;
 
   /// No description provided for @workspaceExternalGrantAccess.
@@ -20757,6 +19845,36 @@ abstract class AppLocalizations {
   /// **'Show files created or modified by tools below replies.'**
   String get displaySettingsPageShowProducedFilesSubtitle;
 
+  /// No description provided for @reasoningBudgetSliderLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get reasoningBudgetSliderLow;
+
+  /// No description provided for @reasoningBudgetSliderMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get reasoningBudgetSliderMedium;
+
+  /// No description provided for @reasoningBudgetSliderHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get reasoningBudgetSliderHigh;
+
+  /// No description provided for @reasoningBudgetSliderXhigh.
+  ///
+  /// In en, this message translates to:
+  /// **'XHigh'**
+  String get reasoningBudgetSliderXhigh;
+
+  /// No description provided for @reasoningBudgetSliderMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Max'**
+  String get reasoningBudgetSliderMax;
+
   /// No description provided for @defaultModelPagePerChatModelTitle.
   ///
   /// In en, this message translates to:
@@ -20898,7 +20016,7 @@ abstract class AppLocalizations {
   /// No description provided for @backgroundTaskTitle.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo task'**
+  /// **'Cuplivo task'**
   String get backgroundTaskTitle;
 
   /// No description provided for @backgroundCompleted.
@@ -21144,7 +20262,7 @@ abstract class AppLocalizations {
   /// No description provided for @backgroundIconDefault.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo icon'**
+  /// **'Cuplivo icon'**
   String get backgroundIconDefault;
 
   /// No description provided for @backgroundIconImage.
@@ -21552,7 +20670,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoverySnapshotBody.
   ///
   /// In en, this message translates to:
-  /// **'Choose a snapshot on this device to recover your chats and settings, even when the database cannot open. Do not uninstall Kelivo: uninstalling also removes these snapshots.'**
+  /// **'Choose a snapshot on this device to recover your chats and settings, even when the database cannot open. Do not uninstall Cuplivo: uninstalling also removes these snapshots.'**
   String get startupRecoverySnapshotBody;
 
   /// No description provided for @startupRecoverySnapshotEmpty.
@@ -21570,7 +20688,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoverySnapshotConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Restore chats and settings from {when}? Changes made after this snapshot will not be included. Existing attachment files and the snapshot will be kept. Kelivo will restart to complete the restore.'**
+  /// **'Restore chats and settings from {when}? Changes made after this snapshot will not be included. Existing attachment files and the snapshot will be kept. Cuplivo will restart to complete the restore.'**
   String startupRecoverySnapshotConfirm(String when);
 
   /// No description provided for @startupRecoverySnapshotFailed.
@@ -21582,7 +20700,7 @@ abstract class AppLocalizations {
   /// No description provided for @startupRecoverySnapshotReady.
   ///
   /// In en, this message translates to:
-  /// **'The snapshot is ready. Restart Kelivo to complete the restore.'**
+  /// **'The snapshot is ready. Restart Cuplivo to complete the restore.'**
   String get startupRecoverySnapshotReady;
 
   /// No description provided for @scheduledTasksTitle.
@@ -21720,7 +20838,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksReliability.
   ///
   /// In en, this message translates to:
-  /// **'Keep Kelivo unrestricted in battery settings for more reliable execution. Force stopping the app cancels alarms until you reopen it. Missed runs are skipped; tasks follow the device time zone.'**
+  /// **'Keep Cuplivo unrestricted in battery settings for more reliable execution. Force stopping the app cancels alarms until you reopen it. Missed runs are skipped; tasks follow the device time zone.'**
   String get scheduledTasksReliability;
 
   /// No description provided for @scheduledTasksExecutionDetail.
@@ -22062,7 +21180,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksDesktopReliability.
   ///
   /// In en, this message translates to:
-  /// **'Tasks run only while Kelivo is running, including when minimized or in the system tray. Missed times are skipped after quitting or computer sleep. Kelivo will not start automatically.'**
+  /// **'Tasks run only while Cuplivo is running, including when minimized or in the system tray. Missed times are skipped after quitting or computer sleep. Cuplivo will not start automatically.'**
   String get scheduledTasksDesktopReliability;
 
   /// No description provided for @scheduledTasksDesktopExecutionDetail.
@@ -22461,12 +21579,6 @@ abstract class AppLocalizations {
   /// **'Resets {time}'**
   String oauthResetsAt(String time);
 
-  /// No description provided for @oauthUsedValue.
-  ///
-  /// In en, this message translates to:
-  /// **'Used {value}'**
-  String oauthUsedValue(String value);
-
   /// No description provided for @oauthNetworkError.
   ///
   /// In en, this message translates to:
@@ -22602,7 +21714,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksIOSDetail.
   ///
   /// In en, this message translates to:
-  /// **'iOS background limits prevent Kelivo from waking at a set time to run a model. Instead, content is prepared while the app can run, and the system shows a notification at the scheduled time. Only the next occurrence is prepared. Preparation may not finish after leaving the app; reopen Kelivo to prepare subsequent occurrences.'**
+  /// **'iOS background limits prevent Cuplivo from waking at a set time to run a model. Instead, content is prepared while the app can run, and the system shows a notification at the scheduled time. Only the next occurrence is prepared. Preparation may not finish after leaving the app; reopen Cuplivo to prepare subsequent occurrences.'**
   String get scheduledTasksIOSDetail;
 
   /// No description provided for @scheduledTasksContextPolicy.
@@ -22728,7 +21840,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksReminderBody.
   ///
   /// In en, this message translates to:
-  /// **'Your scheduled task is due. Open Kelivo to continue.'**
+  /// **'Your scheduled task is due. Open Cuplivo to continue.'**
   String get scheduledTasksReminderBody;
 
   /// No description provided for @scheduledTasksResultBody.
@@ -22752,7 +21864,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksAllowPreparationTip.
   ///
   /// In en, this message translates to:
-  /// **'Generate the next result before its scheduled time, while Kelivo can run. The result stays out of the chat until it is due. Preparation uses text only, without tools, attachments or custom request bodies. It may incur model charges.'**
+  /// **'Generate the next result before its scheduled time, while Cuplivo can run. The result stays out of the chat until it is due. Preparation uses text only, without tools, attachments or custom request bodies. It may incur model charges.'**
   String get scheduledTasksAllowPreparationTip;
 
   /// No description provided for @scheduledTasksContextPolicyTip.
@@ -22764,7 +21876,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksPreparationWindowTip.
   ///
   /// In en, this message translates to:
-  /// **'How far ahead of the scheduled time preparation may begin, up to 24 hours. For example, opening Kelivo at noon can prepare the next morning’s reminder. A larger window gives more chances to prepare, but the result may be less current. It does not change the scheduled time or guarantee background execution. Prepare now bypasses this automatic waiting period and all attempt limits.'**
+  /// **'How far ahead of the scheduled time preparation may begin, up to 24 hours. For example, opening Cuplivo at noon can prepare the next morning’s reminder. A larger window gives more chances to prepare, but the result may be less current. It does not change the scheduled time or guarantee background execution. Prepare now bypasses this automatic waiting period and all attempt limits.'**
   String get scheduledTasksPreparationWindowTip;
 
   /// No description provided for @scheduledTasksPreparationAttemptsTip.
@@ -22782,7 +21894,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTasksUnavailableTip.
   ///
   /// In en, this message translates to:
-  /// **'If no prepared result is available and the task cannot run when due, send a reminder or skip the occurrence. A reminder contains no generated answer and requires notifications to be enabled. If Kelivo is open when the task is due, it can run the task then.'**
+  /// **'If no prepared result is available and the task cannot run when due, send a reminder or skip the occurrence. A reminder contains no generated answer and requires notifications to be enabled. If Cuplivo is open when the task is due, it can run the task then.'**
   String get scheduledTasksUnavailableTip;
 
   /// No description provided for @scheduledTasksNotifyTip.
@@ -23085,7 +22197,7 @@ abstract class AppLocalizations {
   /// No description provided for @phoneControlAssistantHint.
   ///
   /// In en, this message translates to:
-  /// **'Both permissions are required: enable Kelivo phone control in system Accessibility settings, then enable Phone Control under your assistant’s Local Tools (also available in the chat tools menu). Each assistant is configured separately. Keep the phone unlocked while running a task.'**
+  /// **'Both permissions are required: enable Cuplivo phone control in system Accessibility settings, then enable Phone Control under your assistant’s Local Tools (also available in the chat tools menu). Each assistant is configured separately. Keep the phone unlocked while running a task.'**
   String get phoneControlAssistantHint;
 
   /// No description provided for @phoneControlRestrictedTitle.
@@ -23097,7 +22209,7 @@ abstract class AppLocalizations {
   /// No description provided for @phoneControlRestrictedHint.
   ///
   /// In en, this message translates to:
-  /// **'For some downloaded APKs, Android requires “Allow restricted settings” in the app info menu first. Tap to open Kelivo’s app info, then return to Accessibility settings.'**
+  /// **'For some downloaded APKs, Android requires “Allow restricted settings” in the app info menu first. Tap to open Cuplivo’s app info, then return to Accessibility settings.'**
   String get phoneControlRestrictedHint;
 
   /// No description provided for @phoneControlEnableAssistant.
@@ -23105,6 +22217,2118 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Allow this assistant to use phone control'**
   String get phoneControlEnableAssistant;
+
+  /// No description provided for @settingsPageLanSync.
+  ///
+  /// In en, this message translates to:
+  /// **'LAN Sync'**
+  String get settingsPageLanSync;
+
+  /// No description provided for @lanSyncThisDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'This device'**
+  String get lanSyncThisDevice;
+
+  /// No description provided for @lanSyncDeviceIdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Device ID'**
+  String get lanSyncDeviceIdLabel;
+
+  /// No description provided for @lanSyncListenerStarting.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting listener…'**
+  String get lanSyncListenerStarting;
+
+  /// No description provided for @lanSyncListenerNotRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Listener not running'**
+  String get lanSyncListenerNotRunning;
+
+  /// No description provided for @lanSyncListenerFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Listener failed to start: {error}'**
+  String lanSyncListenerFailed(Object error);
+
+  /// No description provided for @lanSyncPairSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair a device'**
+  String get lanSyncPairSectionTitle;
+
+  /// No description provided for @lanSyncPairFirstSyncNote.
+  ///
+  /// In en, this message translates to:
+  /// **'After pairing, the first sync starts automatically and can take a while. Keep the desktop app running and this app in the foreground on mobile.'**
+  String get lanSyncPairFirstSyncNote;
+
+  /// No description provided for @lanSyncPairIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the QR on one device and scan it with the other. Without a camera, type the code instead. Both devices must be on the same network.'**
+  String get lanSyncPairIntro;
+
+  /// No description provided for @lanSyncShowCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Show pairing QR'**
+  String get lanSyncShowCode;
+
+  /// No description provided for @lanSyncEnterCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan or enter code'**
+  String get lanSyncEnterCode;
+
+  /// No description provided for @lanSyncPairingCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing code'**
+  String get lanSyncPairingCode;
+
+  /// No description provided for @lanSyncPairingExpiresIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires in {time}'**
+  String lanSyncPairingExpiresIn(Object time);
+
+  /// No description provided for @lanSyncPairingEndpointHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter this on the other device'**
+  String get lanSyncPairingEndpointHint;
+
+  /// No description provided for @lanSyncPairingNoIpHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No LAN address was found. The other device can still reach this one by its IP or hostname.'**
+  String get lanSyncPairingNoIpHint;
+
+  /// No description provided for @lanSyncHostLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get lanSyncHostLabel;
+
+  /// No description provided for @lanSyncPortLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Port'**
+  String get lanSyncPortLabel;
+
+  /// No description provided for @lanSyncPairButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair'**
+  String get lanSyncPairButton;
+
+  /// No description provided for @lanSyncPairAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair again'**
+  String get lanSyncPairAgain;
+
+  /// No description provided for @lanSyncPairingBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing…'**
+  String get lanSyncPairingBusy;
+
+  /// No description provided for @lanSyncPairSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Paired with {name}'**
+  String lanSyncPairSuccess(Object name);
+
+  /// No description provided for @lanSyncPairErrorInvalidPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong pairing code, or the other device\'s pairing window is closed.'**
+  String get lanSyncPairErrorInvalidPin;
+
+  /// No description provided for @lanSyncPairErrorInvalidAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the other device\'s address and port.'**
+  String get lanSyncPairErrorInvalidAddress;
+
+  /// No description provided for @lanSyncPairErrorUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the device. Check the address and port, and that both devices are on the same network.'**
+  String get lanSyncPairErrorUnreachable;
+
+  /// No description provided for @lanSyncPairErrorNoCertificate.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device did not identify itself. Pairing aborted.'**
+  String get lanSyncPairErrorNoCertificate;
+
+  /// No description provided for @lanSyncPairErrorIdMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device\'s identity could not be verified. Pairing aborted.'**
+  String get lanSyncPairErrorIdMismatch;
+
+  /// No description provided for @lanSyncPairErrorNoListener.
+  ///
+  /// In en, this message translates to:
+  /// **'The sync listener on this device is not running yet.'**
+  String get lanSyncPairErrorNoListener;
+
+  /// No description provided for @lanSyncPairErrorUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing failed: {error}'**
+  String lanSyncPairErrorUnknown(Object error);
+
+  /// No description provided for @lanSyncScanQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan pairing QR'**
+  String get lanSyncScanQr;
+
+  /// No description provided for @lanSyncPairQrCaption.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan to pair, or enter the details below on the other device'**
+  String get lanSyncPairQrCaption;
+
+  /// No description provided for @lanSyncPairUpdatedSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing with {name} updated'**
+  String lanSyncPairUpdatedSnackbar(Object name);
+
+  /// No description provided for @lanSyncPairErrorFingerprintMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The device\'s certificate does not match the scanned code. Pairing aborted.'**
+  String get lanSyncPairErrorFingerprintMismatch;
+
+  /// No description provided for @lanSyncPairErrorNoEndpointInQr.
+  ///
+  /// In en, this message translates to:
+  /// **'The code carries no address. Enter one below to pair.'**
+  String get lanSyncPairErrorNoEndpointInQr;
+
+  /// No description provided for @lanSyncPairErrorNotPairingQr.
+  ///
+  /// In en, this message translates to:
+  /// **'This is not a Cuplivo pairing code.'**
+  String get lanSyncPairErrorNotPairingQr;
+
+  /// No description provided for @lanSyncPairErrorInvalidQr.
+  ///
+  /// In en, this message translates to:
+  /// **'The pairing code could not be read.'**
+  String get lanSyncPairErrorInvalidQr;
+
+  /// No description provided for @lanSyncPairErrorQrBadVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'This pairing code is from a newer version. Update the app and try again.'**
+  String get lanSyncPairErrorQrBadVersion;
+
+  /// No description provided for @lanSyncClosePairing.
+  ///
+  /// In en, this message translates to:
+  /// **'Close pairing window'**
+  String get lanSyncClosePairing;
+
+  /// No description provided for @lanSyncPairedDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Paired devices'**
+  String get lanSyncPairedDevices;
+
+  /// No description provided for @lanSyncNoDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'No paired devices yet. Pair one to start syncing.'**
+  String get lanSyncNoDevices;
+
+  /// No description provided for @lanSyncPlatformAndroid.
+  ///
+  /// In en, this message translates to:
+  /// **'Android'**
+  String get lanSyncPlatformAndroid;
+
+  /// No description provided for @lanSyncPlatformIos.
+  ///
+  /// In en, this message translates to:
+  /// **'iOS'**
+  String get lanSyncPlatformIos;
+
+  /// No description provided for @lanSyncPlatformWindows.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows'**
+  String get lanSyncPlatformWindows;
+
+  /// No description provided for @lanSyncPlatformMacos.
+  ///
+  /// In en, this message translates to:
+  /// **'macOS'**
+  String get lanSyncPlatformMacos;
+
+  /// No description provided for @lanSyncPlatformLinux.
+  ///
+  /// In en, this message translates to:
+  /// **'Linux'**
+  String get lanSyncPlatformLinux;
+
+  /// No description provided for @lanSyncPlatformUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown device'**
+  String get lanSyncPlatformUnknown;
+
+  /// No description provided for @lanSyncLastSyncedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Last synced {time}'**
+  String lanSyncLastSyncedAt(Object time);
+
+  /// No description provided for @lanSyncNeverSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Never synced'**
+  String get lanSyncNeverSynced;
+
+  /// No description provided for @lanSyncJustSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Just synced'**
+  String get lanSyncJustSynced;
+
+  /// No description provided for @lanSyncMinutesAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} min ago'**
+  String lanSyncMinutesAgo(Object n);
+
+  /// No description provided for @lanSyncHoursAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} h ago'**
+  String lanSyncHoursAgo(Object n);
+
+  /// No description provided for @lanSyncDaysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} d ago'**
+  String lanSyncDaysAgo(Object n);
+
+  /// No description provided for @lanSyncSyncNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync now'**
+  String get lanSyncSyncNow;
+
+  /// No description provided for @lanSyncOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'Online'**
+  String get lanSyncOnline;
+
+  /// No description provided for @lanSyncOnlineFromSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Online — the last sync connected'**
+  String get lanSyncOnlineFromSession;
+
+  /// No description provided for @lanSyncOfflineFromSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline — the last sync could not connect'**
+  String get lanSyncOfflineFromSession;
+
+  /// No description provided for @lanSyncPhaseConnectingTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to {address}…'**
+  String lanSyncPhaseConnectingTo(Object address);
+
+  /// No description provided for @lanSyncPhaseConnectingAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to {address}… ({index}/{total})'**
+  String lanSyncPhaseConnectingAt(Object address, Object index, Object total);
+
+  /// No description provided for @lanSyncOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get lanSyncOffline;
+
+  /// No description provided for @lanSyncUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date'**
+  String get lanSyncUpToDate;
+
+  /// No description provided for @lanSyncPhaseConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get lanSyncPhaseConnecting;
+
+  /// No description provided for @lanSyncPhaseExchanging.
+  ///
+  /// In en, this message translates to:
+  /// **'Comparing data…'**
+  String get lanSyncPhaseExchanging;
+
+  /// No description provided for @lanSyncPhaseSending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending changes…'**
+  String get lanSyncPhaseSending;
+
+  /// No description provided for @lanSyncPhaseReceiving.
+  ///
+  /// In en, this message translates to:
+  /// **'Receiving changes…'**
+  String get lanSyncPhaseReceiving;
+
+  /// No description provided for @lanSyncPhaseFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading files… ({done}/{total})'**
+  String lanSyncPhaseFiles(Object done, Object total);
+
+  /// No description provided for @lanSyncPhaseFilesNoTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading files…'**
+  String get lanSyncPhaseFilesNoTotal;
+
+  /// No description provided for @lanSyncPhaseApplying.
+  ///
+  /// In en, this message translates to:
+  /// **'Applying changes…'**
+  String get lanSyncPhaseApplying;
+
+  /// No description provided for @lanSyncFirstSyncHint.
+  ///
+  /// In en, this message translates to:
+  /// **'First sync in progress — keep both devices awake and Cuplivo open (in the foreground on mobile) until it finishes.'**
+  String get lanSyncFirstSyncHint;
+
+  /// No description provided for @lanSyncRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get lanSyncRename;
+
+  /// No description provided for @lanSyncRenameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Device name'**
+  String get lanSyncRenameTitle;
+
+  /// No description provided for @lanSyncEditAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit address'**
+  String get lanSyncEditAddress;
+
+  /// No description provided for @lanSyncAddressCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Address copied'**
+  String get lanSyncAddressCopied;
+
+  /// No description provided for @lanSyncUnpair.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpair'**
+  String get lanSyncUnpair;
+
+  /// No description provided for @lanSyncUnpairConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpair {name}?'**
+  String lanSyncUnpairConfirmTitle(Object name);
+
+  /// No description provided for @lanSyncUnpairConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations stay on both devices. Syncing with it stops until you pair again.'**
+  String get lanSyncUnpairConfirmBody;
+
+  /// No description provided for @lanSyncReportSent.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} sent'**
+  String lanSyncReportSent(Object n);
+
+  /// No description provided for @lanSyncReportReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} received'**
+  String lanSyncReportReceived(Object n);
+
+  /// No description provided for @lanSyncReportMessagesUpserted.
+  ///
+  /// In en, this message translates to:
+  /// **'+{n} messages'**
+  String lanSyncReportMessagesUpserted(Object n);
+
+  /// No description provided for @lanSyncReportMessagesDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'-{n} messages'**
+  String lanSyncReportMessagesDeleted(Object n);
+
+  /// No description provided for @lanSyncReportConversationsDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'-{n} conversations'**
+  String lanSyncReportConversationsDeleted(Object n);
+
+  /// No description provided for @lanSyncReportDeferred.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} deferred'**
+  String lanSyncReportDeferred(Object n);
+
+  /// No description provided for @lanSyncReportEntities.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} entities'**
+  String lanSyncReportEntities(Object n);
+
+  /// No description provided for @lanSyncReportPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} preferences'**
+  String lanSyncReportPreferences(Object n);
+
+  /// No description provided for @lanSyncReportBlobsWithSize.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} files · {size}'**
+  String lanSyncReportBlobsWithSize(Object n, Object size);
+
+  /// No description provided for @lanSyncReportBlobs.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} files'**
+  String lanSyncReportBlobs(Object n);
+
+  /// No description provided for @lanSyncReportSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} skills'**
+  String lanSyncReportSkills(Object n);
+
+  /// No description provided for @lanSyncReportSkillConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} skill edits replaced'**
+  String lanSyncReportSkillConflicts(Object n);
+
+  /// No description provided for @lanSyncReportBlobsMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} files missing on the other device'**
+  String lanSyncReportBlobsMissing(Object n);
+
+  /// No description provided for @lanSyncReportRowsLost.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} local rows replaced by newer versions on the peer'**
+  String lanSyncReportRowsLost(Object n);
+
+  /// No description provided for @lanSyncReportClockSkew.
+  ///
+  /// In en, this message translates to:
+  /// **'Clocks differ by ~{n} min — fix the device clock, then sync again'**
+  String lanSyncReportClockSkew(Object n);
+
+  /// No description provided for @lanSyncReportPeerOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Not reachable right now — it may be asleep or on another network. Syncing resumes when both devices are back on the same one.'**
+  String get lanSyncReportPeerOffline;
+
+  /// No description provided for @lanSyncReportUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed: the other device could not be reached. It may be offline or on another network — rescan its QR code, or edit its address on the card.'**
+  String get lanSyncReportUnreachable;
+
+  /// No description provided for @lanSyncReportNoEndpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed: no address is stored for the other device. Rescan its QR code, or enter the address on its card.'**
+  String get lanSyncReportNoEndpoint;
+
+  /// No description provided for @lanSyncReportTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed: the other device stopped responding.'**
+  String get lanSyncReportTimeout;
+
+  /// No description provided for @lanSyncReportPeerError.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed: the other device reported an error.'**
+  String get lanSyncReportPeerError;
+
+  /// No description provided for @lanSyncReportInternal.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed. See the logs for details.'**
+  String get lanSyncReportInternal;
+
+  /// No description provided for @lanSyncRefusedPeerSchemaNewer.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device\'s database is newer. Update this device first, then sync again.'**
+  String get lanSyncRefusedPeerSchemaNewer;
+
+  /// No description provided for @lanSyncRefusedProtocolUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device speaks a different sync protocol. Update the app on both devices.'**
+  String get lanSyncRefusedProtocolUnknown;
+
+  /// No description provided for @lanSyncRefusedNotPaired.
+  ///
+  /// In en, this message translates to:
+  /// **'This device and the other one no longer agree on this pairing — it was unpaired there, or a re-pairing did not finish on both sides. Pair again on both devices.'**
+  String get lanSyncRefusedNotPaired;
+
+  /// No description provided for @lanSyncRefusedIdentityMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device presented a mismatched identity. Pair again on both devices.'**
+  String get lanSyncRefusedIdentityMismatch;
+
+  /// No description provided for @lanSyncRefusedBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Another sync session is in progress. Try again shortly.'**
+  String get lanSyncRefusedBusy;
+
+  /// No description provided for @lanSyncFirewallTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows Firewall'**
+  String get lanSyncFirewallTitle;
+
+  /// No description provided for @lanSyncFirewallHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The inbound rule for port {port} needs one-time administrator approval.'**
+  String lanSyncFirewallHint(Object port);
+
+  /// No description provided for @lanSyncFirewallFix.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow access (UAC)'**
+  String get lanSyncFirewallFix;
+
+  /// No description provided for @lanSyncFirewallFixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Inbound access allowed.'**
+  String get lanSyncFirewallFixed;
+
+  /// No description provided for @lanSyncKnownLimits.
+  ///
+  /// In en, this message translates to:
+  /// **'For now: workspaces stay on the device that created them, and PIN pairing should only be used on networks you trust.'**
+  String get lanSyncKnownLimits;
+
+  /// Title for the proactive care enable switch
+  ///
+  /// In en, this message translates to:
+  /// **'Proactive Care'**
+  String get assistantEditProactiveCareEnableTitle;
+
+  /// Explains that the assistant proactive care switch is a conversation default
+  ///
+  /// In en, this message translates to:
+  /// **'Default for conversations without an override'**
+  String get assistantEditProactiveCareDefaultDescription;
+
+  /// Title for the proactive-care decision history message limit
+  ///
+  /// In en, this message translates to:
+  /// **'Messages used for time decisions'**
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle;
+
+  /// Description for the proactive-care decision history message limit
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum number of recent conversation messages sent to the model when deciding the next proactive message time'**
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription;
+
+  /// Title for the expandable conversation proactive care schedule section
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation next-letter times'**
+  String get assistantEditProactiveCareConversationTimesTitle;
+
+  /// Empty state for the assistant conversation proactive care schedule list
+  ///
+  /// In en, this message translates to:
+  /// **'No enabled conversations for this assistant'**
+  String get assistantEditProactiveCareNoEligibleConversations;
+
+  /// Status for a future conversation proactive care schedule
+  ///
+  /// In en, this message translates to:
+  /// **'Future · {time}'**
+  String assistantEditProactiveCareConversationTimeFuture(String time);
+
+  /// Status for an expired conversation proactive care schedule
+  ///
+  /// In en, this message translates to:
+  /// **'Expired · {time}'**
+  String assistantEditProactiveCareConversationTimeExpired(String time);
+
+  /// Status for an enabled conversation without a proactive care schedule
+  ///
+  /// In en, this message translates to:
+  /// **'Unset'**
+  String get assistantEditProactiveCareConversationTimeUnset;
+
+  /// Title for the expandable Android proactive care readiness section
+  ///
+  /// In en, this message translates to:
+  /// **'Android readiness'**
+  String get assistantEditProactiveCarePermissionsTitle;
+
+  /// Android app and proactive care notification channel readiness row
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get assistantEditProactiveCareNotificationsTitle;
+
+  /// Android exact alarm readiness row
+  ///
+  /// In en, this message translates to:
+  /// **'Exact alarms'**
+  String get assistantEditProactiveCareExactAlarmTitle;
+
+  /// Android auto-start settings row
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-start'**
+  String get assistantEditProactiveCareAutoStartTitle;
+
+  /// Android battery optimization exemption row
+  ///
+  /// In en, this message translates to:
+  /// **'Battery optimization exemption'**
+  String get assistantEditProactiveCareBatteryTitle;
+
+  /// Marks an Android proactive care setting as required
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get assistantEditProactiveCarePermissionRequired;
+
+  /// Marks an Android proactive care setting as recommended
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get assistantEditProactiveCarePermissionRecommended;
+
+  /// Android proactive care setting is ready
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get assistantEditProactiveCarePermissionReady;
+
+  /// Android proactive care setting is missing
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to grant'**
+  String get assistantEditProactiveCarePermissionMissing;
+
+  /// Android proactive care setting must be checked manually
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get assistantEditProactiveCarePermissionManual;
+
+  /// Android proactive care setting could not be determined
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get assistantEditProactiveCarePermissionUnknown;
+
+  /// Label for the next proactive message time row
+  ///
+  /// In en, this message translates to:
+  /// **'Next proactive message time'**
+  String get assistantEditProactiveCareNextMessageTimeTitle;
+
+  /// Shown when no proactive message time is set
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get assistantEditProactiveCareNextMessageTimeUnset;
+
+  /// Title for the proactive care prompt editor
+  ///
+  /// In en, this message translates to:
+  /// **'Proactive care prompt'**
+  String get assistantEditProactiveCarePromptTitle;
+
+  /// Hint text for the proactive care prompt field
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt used when the assistant proactively sends a message'**
+  String get assistantEditProactiveCarePromptHint;
+
+  /// Default proactive care prompt
+  ///
+  /// In en, this message translates to:
+  /// **'Based on the assistant\'s character settings, conversation context, and the current time, send a message to the user.'**
+  String get assistantEditProactiveCarePromptDefault;
+
+  /// Title for the decision prompt editor
+  ///
+  /// In en, this message translates to:
+  /// **'Decision time instruction prompt'**
+  String get assistantEditProactiveCareDecisionPromptTitle;
+
+  /// Default decision prompt for proactive care timing
+  ///
+  /// In en, this message translates to:
+  /// **'You are the director of a role-playing scenario, responsible for deciding when the assistant should next proactively message the user.\n\n[Feature description]\n· Proactive messaging: the assistant can send a message to the user at a scheduled time without waiting for the user to speak first.\n· If no proactive message time is set, the assistant cannot send any message while the user is silent.\n· Evaluate the currently scheduled next message time: keep it if no adjustment is needed; otherwise change it.\n\n[Note]\n· Only consider information visible from the assistant\'s perspective, not the user\'s.\n\n[Considerations]\n1. The assistant should proactively check in or greet the user after waking up, finishing a task, arriving safely at the dorm, etc.\n2. If the context mentions the assistant missed the user\'s messages due to sleeping or being busy, schedule a message for when the assistant wakes up or finishes.\n3. If the context mentions the assistant needs to supervise or remind the user at a specific time, schedule the message for that time.\n4. When a topic is unfinished, assume the user never replies after the assistant\'s last message — decide when the assistant should proactively follow up.\n\n[Examples]\n1. The user messaged at midnight saying they have insomnia and plan to wake at 10:30, but the assistant sleeps normally and wakes at 8:30. Set the proactive message time to the assistant\'s wake-up time.\n2. The user and assistant are discussing an exam. At 8:30 the last message is a question from the assistant. Per rule 4, assume the user never replies — the assistant should follow up within 10 minutes.'**
+  String get assistantEditProactiveCareDecisionPromptDefault;
+
+  /// Title for the date/time picker bottom sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Choose date and time'**
+  String get assistantEditProactiveCareDateTimePickerTitle;
+
+  /// Warning when a proactive care time is no longer in the future
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a time in the future.'**
+  String get assistantEditProactiveCareTimeMustBeFuture;
+
+  /// Title and input action label for conversation-level proactive care
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation proactive care'**
+  String get conversationProactiveCareTitle;
+
+  /// Status when conversation proactive care inherits an enabled assistant setting
+  ///
+  /// In en, this message translates to:
+  /// **'Following assistant setting: On'**
+  String get conversationProactiveCareFollowingAssistantOn;
+
+  /// Status when conversation proactive care inherits a disabled assistant setting
+  ///
+  /// In en, this message translates to:
+  /// **'Following assistant setting: Off'**
+  String get conversationProactiveCareFollowingAssistantOff;
+
+  /// Status when conversation proactive care is explicitly enabled
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation setting: On'**
+  String get conversationProactiveCareExplicitOn;
+
+  /// Status when conversation proactive care is explicitly disabled
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation setting: Off'**
+  String get conversationProactiveCareExplicitOff;
+
+  /// Action that clears the conversation proactive care override
+  ///
+  /// In en, this message translates to:
+  /// **'Follow assistant setting'**
+  String get conversationProactiveCareRestoreFollowing;
+
+  /// Action that clears the conversation proactive care time
+  ///
+  /// In en, this message translates to:
+  /// **'Clear next message time'**
+  String get conversationProactiveCareClearTime;
+
+  /// Error shown when a conversation proactive care update fails
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update conversation proactive care.'**
+  String get conversationProactiveCareUpdateFailed;
+
+  /// Title for the proactive care decision model card
+  ///
+  /// In en, this message translates to:
+  /// **'Ta\'s Letter Decision Model'**
+  String get defaultModelPageProactiveCareModelTitle;
+
+  /// Subtitle for the proactive care decision model card
+  ///
+  /// In en, this message translates to:
+  /// **'Model used to decide when the assistant should proactively message'**
+  String get defaultModelPageProactiveCareModelSubtitle;
+
+  /// Notification body when proactive care message generation fails
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t generate the proactive care message. Open the app to check the model settings and network.'**
+  String get proactiveCareFailedNotificationBody;
+
+  /// Notification body announcing a due proactive care letter on platforms that announce the arrival and generate the letter at the next app start
+  ///
+  /// In en, this message translates to:
+  /// **'A letter has arrived. Open the app to read it.'**
+  String get proactiveCareLetterArrivalBody;
+
+  /// Assistant edit page tab for roleplay features (Their Letter)
+  ///
+  /// In en, this message translates to:
+  /// **'Roleplay'**
+  String get assistantEditPageRoleplayTab;
+
+  /// Feature header for the proactive care (Their Letter) section
+  ///
+  /// In en, this message translates to:
+  /// **'Their Letter'**
+  String get assistantEditProactiveCareFeatureTitle;
+
+  /// No description provided for @statsPageCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost ({currency})'**
+  String statsPageCost(String currency);
+
+  /// No description provided for @statsPageModelsWithoutPricing.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} model without pricing} other{{count} models without pricing}}'**
+  String statsPageModelsWithoutPricing(int count);
+
+  /// No description provided for @assistantEditReasoningFollowDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow model default'**
+  String get assistantEditReasoningFollowDefault;
+
+  /// No description provided for @assistantEditReasoningClampedSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The actual level is clamped to what each model supports'**
+  String get assistantEditReasoningClampedSubtitle;
+
+  /// No description provided for @backupProgressFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation failed'**
+  String get backupProgressFailed;
+
+  /// No description provided for @backupProgressFailedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed during: {phase}'**
+  String backupProgressFailedAt(String phase);
+
+  /// No description provided for @backupProgressCopyError.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy error'**
+  String get backupProgressCopyError;
+
+  /// No description provided for @backupProgressErrorCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Error copied'**
+  String get backupProgressErrorCopied;
+
+  /// No description provided for @reasoningLevelSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning'**
+  String get reasoningLevelSheetTitle;
+
+  /// No description provided for @reasoningLevelAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get reasoningLevelAuto;
+
+  /// No description provided for @reasoningLevelAutoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Uses the model or provider default'**
+  String get reasoningLevelAutoSubtitle;
+
+  /// No description provided for @reasoningLevelOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get reasoningLevelOff;
+
+  /// No description provided for @reasoningLevelOffSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off reasoning and answer directly'**
+  String get reasoningLevelOffSubtitle;
+
+  /// No description provided for @reasoningLevelMinimal.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimal'**
+  String get reasoningLevelMinimal;
+
+  /// No description provided for @reasoningLevelMinimalSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the lightest reasoning to answer questions'**
+  String get reasoningLevelMinimalSubtitle;
+
+  /// No description provided for @reasoningLevelLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get reasoningLevelLow;
+
+  /// No description provided for @reasoningLevelLowSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use light reasoning to answer questions'**
+  String get reasoningLevelLowSubtitle;
+
+  /// No description provided for @reasoningLevelMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get reasoningLevelMedium;
+
+  /// No description provided for @reasoningLevelMediumSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use moderate reasoning to answer questions'**
+  String get reasoningLevelMediumSubtitle;
+
+  /// No description provided for @reasoningLevelHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get reasoningLevelHigh;
+
+  /// No description provided for @reasoningLevelHighSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use heavy reasoning for complex questions'**
+  String get reasoningLevelHighSubtitle;
+
+  /// No description provided for @reasoningLevelXhigh.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra High'**
+  String get reasoningLevelXhigh;
+
+  /// No description provided for @reasoningLevelXhighSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use very high reasoning depth for harder problems'**
+  String get reasoningLevelXhighSubtitle;
+
+  /// No description provided for @reasoningLevelMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Max'**
+  String get reasoningLevelMax;
+
+  /// No description provided for @reasoningLevelMaxSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use maximum reasoning depth for the toughest problems'**
+  String get reasoningLevelMaxSubtitle;
+
+  /// No description provided for @reasoningLevelFollowModelDefaultSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the model\'s default when the assistant doesn\'t set one'**
+  String get reasoningLevelFollowModelDefaultSubtitle;
+
+  /// No description provided for @reasoningLevelNoReasoning.
+  ///
+  /// In en, this message translates to:
+  /// **'This model does not support reasoning'**
+  String get reasoningLevelNoReasoning;
+
+  /// No description provided for @reasoningLevelCustomBudget.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Reasoning Budget'**
+  String get reasoningLevelCustomBudget;
+
+  /// No description provided for @reasoningLevelCustomBudgetHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Token budget, e.g. 2048'**
+  String get reasoningLevelCustomBudgetHint;
+
+  /// No description provided for @reasoningLevelCompactMin.
+  ///
+  /// In en, this message translates to:
+  /// **'min'**
+  String get reasoningLevelCompactMin;
+
+  /// No description provided for @reasoningLevelCompactLow.
+  ///
+  /// In en, this message translates to:
+  /// **'low'**
+  String get reasoningLevelCompactLow;
+
+  /// No description provided for @reasoningLevelCompactMid.
+  ///
+  /// In en, this message translates to:
+  /// **'mid'**
+  String get reasoningLevelCompactMid;
+
+  /// No description provided for @reasoningLevelCompactHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'high'**
+  String get reasoningLevelCompactHigh;
+
+  /// No description provided for @reasoningLevelCompactXhigh.
+  ///
+  /// In en, this message translates to:
+  /// **'xhigh'**
+  String get reasoningLevelCompactXhigh;
+
+  /// No description provided for @reasoningLevelCompactMax.
+  ///
+  /// In en, this message translates to:
+  /// **'max'**
+  String get reasoningLevelCompactMax;
+
+  /// No description provided for @reasoningLevelBudgetTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'{budget} tokens'**
+  String reasoningLevelBudgetTokens(String budget);
+
+  /// No description provided for @chatMessageWidgetWebFetch.
+  ///
+  /// In en, this message translates to:
+  /// **'Read page: {target}'**
+  String chatMessageWidgetWebFetch(String target);
+
+  /// No description provided for @chatInputBarVoiceAttachAudioTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop and attach as audio'**
+  String get chatInputBarVoiceAttachAudioTooltip;
+
+  /// No description provided for @chatInputBarVoiceSendAudioTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Send recording'**
+  String get chatInputBarVoiceSendAudioTooltip;
+
+  /// No description provided for @chatInputBarVoiceSavingAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving audio…'**
+  String get chatInputBarVoiceSavingAudio;
+
+  /// No description provided for @audioClipPlayTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Play audio'**
+  String get audioClipPlayTooltip;
+
+  /// No description provided for @audioClipPauseTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get audioClipPauseTooltip;
+
+  /// No description provided for @audioClipPlaybackFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t play this audio'**
+  String get audioClipPlaybackFailed;
+
+  /// No description provided for @contextUsageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Context window'**
+  String get contextUsageTitle;
+
+  /// No description provided for @contextUsageStateExact.
+  ///
+  /// In en, this message translates to:
+  /// **'Exact (from last response)'**
+  String get contextUsageStateExact;
+
+  /// No description provided for @contextUsageStateExactCalibrated.
+  ///
+  /// In en, this message translates to:
+  /// **'Exact (breakdown scaled from estimate)'**
+  String get contextUsageStateExactCalibrated;
+
+  /// No description provided for @contextUsageStateEstimated.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated'**
+  String get contextUsageStateEstimated;
+
+  /// No description provided for @contextUsageStateStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Stale, updating…'**
+  String get contextUsageStateStale;
+
+  /// No description provided for @contextUsageStateComputing.
+  ///
+  /// In en, this message translates to:
+  /// **'Computing…'**
+  String get contextUsageStateComputing;
+
+  /// No description provided for @contextUsageStateNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No data yet'**
+  String get contextUsageStateNone;
+
+  /// No description provided for @contextUsageBucketSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System prompt'**
+  String get contextUsageBucketSystem;
+
+  /// No description provided for @contextUsageBucketInjections.
+  ///
+  /// In en, this message translates to:
+  /// **'Instruction injections'**
+  String get contextUsageBucketInjections;
+
+  /// No description provided for @contextUsageBucketHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages'**
+  String get contextUsageBucketHistory;
+
+  /// No description provided for @contextUsageBucketTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in tools'**
+  String get contextUsageBucketTools;
+
+  /// No description provided for @contextUsageBucketMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory'**
+  String get contextUsageBucketMemory;
+
+  /// No description provided for @contextUsageBucketWorldBook.
+  ///
+  /// In en, this message translates to:
+  /// **'World books'**
+  String get contextUsageBucketWorldBook;
+
+  /// No description provided for @contextUsageBucketSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills'**
+  String get contextUsageBucketSkills;
+
+  /// No description provided for @contextUsageBucketWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace'**
+  String get contextUsageBucketWorkspace;
+
+  /// No description provided for @contextUsageBucketSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search prompt'**
+  String get contextUsageBucketSearch;
+
+  /// No description provided for @contextUsageBucketMcpTools.
+  ///
+  /// In en, this message translates to:
+  /// **'MCP tools'**
+  String get contextUsageBucketMcpTools;
+
+  /// No description provided for @contextUsageBucketAttachments.
+  ///
+  /// In en, this message translates to:
+  /// **'Attachments'**
+  String get contextUsageBucketAttachments;
+
+  /// No description provided for @contextUsageBucketDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft'**
+  String get contextUsageBucketDraft;
+
+  /// No description provided for @contextUsageBucketUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Used'**
+  String get contextUsageBucketUsed;
+
+  /// No description provided for @contextUsageFreeSpace.
+  ///
+  /// In en, this message translates to:
+  /// **'Free space'**
+  String get contextUsageFreeSpace;
+
+  /// Context usage summary: used tokens, window size, and percent
+  ///
+  /// In en, this message translates to:
+  /// **'{used} / {window} ({percent}%)'**
+  String contextUsageUsedWindow(String used, String window, int percent);
+
+  /// No description provided for @contextUsageNoWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'No context window'**
+  String get contextUsageNoWindow;
+
+  /// No description provided for @contextUsageSetWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Set context window'**
+  String get contextUsageSetWindow;
+
+  /// No description provided for @contextUsageRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get contextUsageRefresh;
+
+  /// No description provided for @modelSpecFormSourceCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get modelSpecFormSourceCustom;
+
+  /// No description provided for @modelSpecFormSourceCatalog.
+  ///
+  /// In en, this message translates to:
+  /// **'Catalog'**
+  String get modelSpecFormSourceCatalog;
+
+  /// No description provided for @modelSpecFormSourceInferred.
+  ///
+  /// In en, this message translates to:
+  /// **'Inferred'**
+  String get modelSpecFormSourceInferred;
+
+  /// No description provided for @modelSpecFormSourceDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get modelSpecFormSourceDefault;
+
+  /// No description provided for @modelSpecFormReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to default'**
+  String get modelSpecFormReset;
+
+  /// No description provided for @modelSpecFormModalitiesSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Modalities & abilities'**
+  String get modelSpecFormModalitiesSection;
+
+  /// No description provided for @modelSpecFormImageType.
+  ///
+  /// In en, this message translates to:
+  /// **'Image'**
+  String get modelSpecFormImageType;
+
+  /// No description provided for @modelSpecFormAudioMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get modelSpecFormAudioMode;
+
+  /// No description provided for @modelSpecFormVideoMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Video'**
+  String get modelSpecFormVideoMode;
+
+  /// No description provided for @modelSpecFormPdfMode.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF'**
+  String get modelSpecFormPdfMode;
+
+  /// No description provided for @modelSpecFormStructuredOutputAbility.
+  ///
+  /// In en, this message translates to:
+  /// **'Structured Output'**
+  String get modelSpecFormStructuredOutputAbility;
+
+  /// No description provided for @modelSpecFormReasoningSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning'**
+  String get modelSpecFormReasoningSection;
+
+  /// No description provided for @modelSpecFormDialect.
+  ///
+  /// In en, this message translates to:
+  /// **'Dialect'**
+  String get modelSpecFormDialect;
+
+  /// No description provided for @modelSpecFormDialectNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get modelSpecFormDialectNone;
+
+  /// No description provided for @modelSpecFormDialectNoneSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No reasoning fields'**
+  String get modelSpecFormDialectNoneSubtitle;
+
+  /// No description provided for @modelSpecFormDialectOpenaiReasoningEffort.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenAI reasoning effort'**
+  String get modelSpecFormDialectOpenaiReasoningEffort;
+
+  /// No description provided for @modelSpecFormDialectOpenaiReasoningEffortSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'reasoning_effort'**
+  String get modelSpecFormDialectOpenaiReasoningEffortSubtitle;
+
+  /// No description provided for @modelSpecFormDialectOpenaiResponsesReasoning.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenAI Responses reasoning'**
+  String get modelSpecFormDialectOpenaiResponsesReasoning;
+
+  /// No description provided for @modelSpecFormDialectOpenaiResponsesReasoningSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'reasoning.effort'**
+  String get modelSpecFormDialectOpenaiResponsesReasoningSubtitle;
+
+  /// No description provided for @modelSpecFormDialectOpenrouterReasoning.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenRouter reasoning'**
+  String get modelSpecFormDialectOpenrouterReasoning;
+
+  /// No description provided for @modelSpecFormDialectOpenrouterReasoningSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'reasoning'**
+  String get modelSpecFormDialectOpenrouterReasoningSubtitle;
+
+  /// No description provided for @modelSpecFormDialectAnthropicBudget.
+  ///
+  /// In en, this message translates to:
+  /// **'Anthropic budget'**
+  String get modelSpecFormDialectAnthropicBudget;
+
+  /// No description provided for @modelSpecFormDialectAnthropicBudgetSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'thinking.budget_tokens'**
+  String get modelSpecFormDialectAnthropicBudgetSubtitle;
+
+  /// No description provided for @modelSpecFormDialectAnthropicAdaptiveEffort.
+  ///
+  /// In en, this message translates to:
+  /// **'Anthropic adaptive effort'**
+  String get modelSpecFormDialectAnthropicAdaptiveEffort;
+
+  /// No description provided for @modelSpecFormDialectAnthropicAdaptiveEffortSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'thinking + output_config.effort'**
+  String get modelSpecFormDialectAnthropicAdaptiveEffortSubtitle;
+
+  /// No description provided for @modelSpecFormDialectAnthropicEffort.
+  ///
+  /// In en, this message translates to:
+  /// **'Anthropic effort'**
+  String get modelSpecFormDialectAnthropicEffort;
+
+  /// No description provided for @modelSpecFormDialectAnthropicEffortSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'thinking + output_config.effort'**
+  String get modelSpecFormDialectAnthropicEffortSubtitle;
+
+  /// No description provided for @modelSpecFormDialectGeminiThinkingBudget.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemini thinking budget'**
+  String get modelSpecFormDialectGeminiThinkingBudget;
+
+  /// No description provided for @modelSpecFormDialectGeminiThinkingBudgetSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'thinkingConfig.thinkingBudget'**
+  String get modelSpecFormDialectGeminiThinkingBudgetSubtitle;
+
+  /// No description provided for @modelSpecFormDialectGeminiThinkingLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemini thinking level'**
+  String get modelSpecFormDialectGeminiThinkingLevel;
+
+  /// No description provided for @modelSpecFormDialectGeminiThinkingLevelSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'thinkingConfig.thinkingLevel'**
+  String get modelSpecFormDialectGeminiThinkingLevelSubtitle;
+
+  /// No description provided for @modelSpecFormDialectQwenEnableThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Qwen enable thinking'**
+  String get modelSpecFormDialectQwenEnableThinking;
+
+  /// No description provided for @modelSpecFormDialectQwenEnableThinkingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'enable_thinking'**
+  String get modelSpecFormDialectQwenEnableThinkingSubtitle;
+
+  /// No description provided for @modelSpecFormDialectThinkingType.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking type'**
+  String get modelSpecFormDialectThinkingType;
+
+  /// No description provided for @modelSpecFormDialectThinkingTypeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'thinking.type'**
+  String get modelSpecFormDialectThinkingTypeSubtitle;
+
+  /// No description provided for @modelSpecFormDialectSiliconflowEnableThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'SiliconFlow enable thinking'**
+  String get modelSpecFormDialectSiliconflowEnableThinking;
+
+  /// No description provided for @modelSpecFormDialectSiliconflowEnableThinkingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'enable_thinking'**
+  String get modelSpecFormDialectSiliconflowEnableThinkingSubtitle;
+
+  /// No description provided for @modelSpecFormDialectInternThinkingMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Intern thinking mode'**
+  String get modelSpecFormDialectInternThinkingMode;
+
+  /// No description provided for @modelSpecFormDialectInternThinkingModeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'thinking_mode'**
+  String get modelSpecFormDialectInternThinkingModeSubtitle;
+
+  /// No description provided for @modelSpecFormDialectChatTemplateKwargs.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat template kwargs'**
+  String get modelSpecFormDialectChatTemplateKwargs;
+
+  /// No description provided for @modelSpecFormDialectChatTemplateKwargsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'chat_template_kwargs.enable_thinking'**
+  String get modelSpecFormDialectChatTemplateKwargsSubtitle;
+
+  /// No description provided for @modelSpecFormDialectKimiThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Kimi thinking'**
+  String get modelSpecFormDialectKimiThinking;
+
+  /// No description provided for @modelSpecFormDialectKimiThinkingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'thinking'**
+  String get modelSpecFormDialectKimiThinkingSubtitle;
+
+  /// No description provided for @modelSpecFormDialectCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom JSON'**
+  String get modelSpecFormDialectCustom;
+
+  /// No description provided for @modelSpecFormDialectCustomSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Per-level JSON patch'**
+  String get modelSpecFormDialectCustomSubtitle;
+
+  /// No description provided for @modelSpecFormLevels.
+  ///
+  /// In en, this message translates to:
+  /// **'Supported levels'**
+  String get modelSpecFormLevels;
+
+  /// No description provided for @modelSpecFormCanDisable.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow disabling'**
+  String get modelSpecFormCanDisable;
+
+  /// No description provided for @modelSpecFormDefaultLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Default level'**
+  String get modelSpecFormDefaultLevel;
+
+  /// No description provided for @modelSpecFormBudgets.
+  ///
+  /// In en, this message translates to:
+  /// **'Token budgets'**
+  String get modelSpecFormBudgets;
+
+  /// No description provided for @modelSpecFormBudgetPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'{tokens}'**
+  String modelSpecFormBudgetPlaceholder(String tokens);
+
+  /// No description provided for @modelSpecFormCustomPatch.
+  ///
+  /// In en, this message translates to:
+  /// **'JSON patch ({level})'**
+  String modelSpecFormCustomPatch(String level);
+
+  /// No description provided for @modelSpecFormCustomPatchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. reasoning_effort: high'**
+  String get modelSpecFormCustomPatchHint;
+
+  /// No description provided for @modelSpecFormInvalidJson.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom reasoning patch must be a valid JSON object'**
+  String get modelSpecFormInvalidJson;
+
+  /// No description provided for @modelSpecFormInvalidNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a valid number'**
+  String get modelSpecFormInvalidNumber;
+
+  /// No description provided for @modelSpecFormStrategySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Strategy'**
+  String get modelSpecFormStrategySection;
+
+  /// No description provided for @modelSpecFormSampling.
+  ///
+  /// In en, this message translates to:
+  /// **'Sampling'**
+  String get modelSpecFormSampling;
+
+  /// No description provided for @modelSpecFormRequestQuirks.
+  ///
+  /// In en, this message translates to:
+  /// **'Request compatibility'**
+  String get modelSpecFormRequestQuirks;
+
+  /// No description provided for @modelSpecFormDynamicWebSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Dynamic filtering search tools'**
+  String get modelSpecFormDynamicWebSearch;
+
+  /// No description provided for @modelSpecFormDynamicWebSearchSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'When dynamic filtering is on, send the 2026-03-18 web search and fetch tools'**
+  String get modelSpecFormDynamicWebSearchSubtitle;
+
+  /// No description provided for @modelSpecFormRemoteImageUrls.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote image links'**
+  String get modelSpecFormRemoteImageUrls;
+
+  /// No description provided for @modelSpecFormRemoteImageUrlsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send http(s) image links as-is; when off, remote links are dropped and only local images are sent'**
+  String get modelSpecFormRemoteImageUrlsSubtitle;
+
+  /// No description provided for @modelSpecFormPromptCacheControl.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt cache marker'**
+  String get modelSpecFormPromptCacheControl;
+
+  /// No description provided for @modelSpecFormPromptCacheControlSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'When prompt caching is on, add cache_control to OpenRouter requests'**
+  String get modelSpecFormPromptCacheControlSubtitle;
+
+  /// No description provided for @modelSpecFormSamplingAlways.
+  ///
+  /// In en, this message translates to:
+  /// **'Always'**
+  String get modelSpecFormSamplingAlways;
+
+  /// No description provided for @modelSpecFormSamplingAlwaysSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep temperature and other sampling fields'**
+  String get modelSpecFormSamplingAlwaysSubtitle;
+
+  /// No description provided for @modelSpecFormSamplingOnlyWhenReasoningOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Only when reasoning is off'**
+  String get modelSpecFormSamplingOnlyWhenReasoningOff;
+
+  /// No description provided for @modelSpecFormSamplingOnlyWhenReasoningOffSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Strip sampling fields while the model is thinking'**
+  String get modelSpecFormSamplingOnlyWhenReasoningOffSubtitle;
+
+  /// No description provided for @modelSpecFormSamplingNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get modelSpecFormSamplingNever;
+
+  /// No description provided for @modelSpecFormSamplingNeverSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Always strip sampling fields'**
+  String get modelSpecFormSamplingNeverSubtitle;
+
+  /// No description provided for @modelSpecFormReplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning replay'**
+  String get modelSpecFormReplay;
+
+  /// No description provided for @modelSpecFormReplayNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get modelSpecFormReplayNone;
+
+  /// No description provided for @modelSpecFormReplayNoneSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Do not send prior reasoning back to the model'**
+  String get modelSpecFormReplayNoneSubtitle;
+
+  /// No description provided for @modelSpecFormReplayToolTurns.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool turns'**
+  String get modelSpecFormReplayToolTurns;
+
+  /// No description provided for @modelSpecFormReplayToolTurnsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replay reasoning on tool-call turns'**
+  String get modelSpecFormReplayToolTurnsSubtitle;
+
+  /// No description provided for @modelSpecFormReplayAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get modelSpecFormReplayAll;
+
+  /// No description provided for @modelSpecFormReplayAllSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replay reasoning on every follow-up turn'**
+  String get modelSpecFormReplayAllSubtitle;
+
+  /// No description provided for @modelSpecFormReplayField.
+  ///
+  /// In en, this message translates to:
+  /// **'Replay field'**
+  String get modelSpecFormReplayField;
+
+  /// No description provided for @modelSpecFormReplayFieldReasoningContent.
+  ///
+  /// In en, this message translates to:
+  /// **'reasoning_content'**
+  String get modelSpecFormReplayFieldReasoningContent;
+
+  /// No description provided for @modelSpecFormReplayFieldReasoning.
+  ///
+  /// In en, this message translates to:
+  /// **'reasoning'**
+  String get modelSpecFormReplayFieldReasoning;
+
+  /// No description provided for @modelSpecFormReplayFieldReasoningDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'reasoning_details'**
+  String get modelSpecFormReplayFieldReasoningDetails;
+
+  /// No description provided for @modelSpecFormLimitsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Limits'**
+  String get modelSpecFormLimitsSection;
+
+  /// No description provided for @modelSpecFormLimitsPricingSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Limits & pricing'**
+  String get modelSpecFormLimitsPricingSection;
+
+  /// No description provided for @modelSpecFormContextWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Context window'**
+  String get modelSpecFormContextWindow;
+
+  /// No description provided for @modelSpecFormMaxOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Max output'**
+  String get modelSpecFormMaxOutput;
+
+  /// No description provided for @modelSpecFormPricingSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Pricing / 1M'**
+  String get modelSpecFormPricingSection;
+
+  /// No description provided for @modelSpecFormPricingInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Input'**
+  String get modelSpecFormPricingInput;
+
+  /// No description provided for @modelSpecFormPricingOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Output'**
+  String get modelSpecFormPricingOutput;
+
+  /// No description provided for @modelSpecFormPricingCacheRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache read'**
+  String get modelSpecFormPricingCacheRead;
+
+  /// No description provided for @modelSpecFormPricingCacheWrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache write'**
+  String get modelSpecFormPricingCacheWrite;
+
+  /// No description provided for @modelSpecFormCurrency.
+  ///
+  /// In en, this message translates to:
+  /// **'Currency'**
+  String get modelSpecFormCurrency;
+
+  /// No description provided for @modelSpecFormAdvancedSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Request'**
+  String get modelSpecFormAdvancedSection;
+
+  /// No description provided for @providerDetailPagePromptCacheKeyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Conversation Cache Key'**
+  String get providerDetailPagePromptCacheKeyTitle;
+
+  /// No description provided for @providerDetailPagePromptCacheKeyHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds a stable prompt_cache_key for each conversation to OpenAI-compatible requests. Enable only if your provider supports it. Custom Body values take precedence; cache hits are not guaranteed.'**
+  String get providerDetailPagePromptCacheKeyHelp;
+
+  /// No description provided for @modelCatalogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Model catalog'**
+  String get modelCatalogTitle;
+
+  /// No description provided for @modelCatalogSourceBundled.
+  ///
+  /// In en, this message translates to:
+  /// **'Bundled snapshot · {date}'**
+  String modelCatalogSourceBundled(String date);
+
+  /// No description provided for @modelCatalogSourceRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'models.dev · updated {date}'**
+  String modelCatalogSourceRemote(String date);
+
+  /// No description provided for @modelCatalogAutoUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-update every 24 hours'**
+  String get modelCatalogAutoUpdate;
+
+  /// No description provided for @modelCatalogRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Update now'**
+  String get modelCatalogRefresh;
+
+  /// No description provided for @modelCatalogUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Model catalog updated'**
+  String get modelCatalogUpdated;
+
+  /// No description provided for @modelCatalogRefreshFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Update failed: {error}'**
+  String modelCatalogRefreshFailed(String error);
+
+  /// No description provided for @modelCatalogProviderCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} providers'**
+  String modelCatalogProviderCount(int count);
+
+  /// No description provided for @modelCatalogModelCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} models'**
+  String modelCatalogModelCount(int count);
+
+  /// No description provided for @searchServicesPageWebFetchSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Web page reading'**
+  String get searchServicesPageWebFetchSection;
+
+  /// No description provided for @searchServicesPageWebFetchModeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Read pages with'**
+  String get searchServicesPageWebFetchModeTitle;
+
+  /// No description provided for @searchServicesPageWebFetchFollow.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow search service'**
+  String get searchServicesPageWebFetchFollow;
+
+  /// No description provided for @searchServicesPageWebFetchFollowValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow search · {name}'**
+  String searchServicesPageWebFetchFollowValue(String name);
+
+  /// No description provided for @searchServicesPageWebFetchFollowSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently {name}'**
+  String searchServicesPageWebFetchFollowSubtitle(String name);
+
+  /// No description provided for @searchServicesPageWebFetchLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Local'**
+  String get searchServicesPageWebFetchLocal;
+
+  /// No description provided for @searchServicesPageWebFetchLocalSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Free. This device requests the page directly.'**
+  String get searchServicesPageWebFetchLocalSubtitle;
+
+  /// No description provided for @searchServicesPageWebFetchProviderSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Uses this service\'s API key and quota'**
+  String get searchServicesPageWebFetchProviderSubtitle;
+
+  /// No description provided for @searchServicesPageWebFetchOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get searchServicesPageWebFetchOff;
+
+  /// No description provided for @searchServicesPageWebFetchOffSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search only, without reading pages'**
+  String get searchServicesPageWebFetchOffSubtitle;
+
+  /// No description provided for @searchServicesPageWebFetchFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'With web search on, the model can also read full pages. When the search service can\'t read pages, local reading is used, which can\'t handle pages that need JavaScript or block bots.'**
+  String get searchServicesPageWebFetchFooter;
+
+  /// No description provided for @searchServicesPageWebFetchSupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Can read web pages'**
+  String get searchServicesPageWebFetchSupported;
+
+  /// No description provided for @searchServicesDialogApiKeyOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'API Key (optional)'**
+  String get searchServicesDialogApiKeyOptional;
+
+  /// No description provided for @searchServiceEditorTestModeSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get searchServiceEditorTestModeSearch;
+
+  /// No description provided for @searchServiceEditorTestModeFetch.
+  ///
+  /// In en, this message translates to:
+  /// **'Read page'**
+  String get searchServiceEditorTestModeFetch;
+
+  /// No description provided for @searchServiceEditorTestUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a URL'**
+  String get searchServiceEditorTestUrlHint;
+
+  /// No description provided for @searchServiceEditorTestFetchRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Run test fetch'**
+  String get searchServiceEditorTestFetchRun;
+
+  /// No description provided for @searchServiceEditorTestFetchRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading…'**
+  String get searchServiceEditorTestFetchRunning;
+
+  /// No description provided for @searchServiceEditorTestFetchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch failed: {message}'**
+  String searchServiceEditorTestFetchFailed(String message);
+
+  /// No description provided for @searchServiceEditorTestFetchStats.
+  ///
+  /// In en, this message translates to:
+  /// **'{characters} characters · {seconds}s'**
+  String searchServiceEditorTestFetchStats(String characters, String seconds);
+
+  /// No description provided for @displaySettingsPageShowTotalTokensTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show tokens for the entire turn'**
+  String get displaySettingsPageShowTotalTokensTitle;
+
+  /// No description provided for @displaySettingsPageShowTotalTokensSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sum usage across all API requests in a reply. When off, show only the final request. Statistics always include all requests.'**
+  String get displaySettingsPageShowTotalTokensSubtitle;
+
+  /// No description provided for @displaySettingsShowReasoningLevelBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Show reasoning level on the button'**
+  String get displaySettingsShowReasoningLevelBadge;
+
+  /// No description provided for @displaySettingsShowReasoningLevelBadgeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the current level next to the reasoning icon in the input bar'**
+  String get displaySettingsShowReasoningLevelBadgeSubtitle;
+
+  /// No description provided for @searchProviderExaMcpDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Exa search via MCP. An API key is optional for limited free usage.'**
+  String get searchProviderExaMcpDescription;
+
+  /// No description provided for @searchServiceNameExaMcp.
+  ///
+  /// In en, this message translates to:
+  /// **'Exa MCP'**
+  String get searchServiceNameExaMcp;
+
+  /// No description provided for @worldBookImportUnsupportedEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported. {count} entries use unsupported SillyTavern features (such as macros, regex, timing, filters, or insertion rules). Their content was kept and they were disabled. Review them before enabling.'**
+  String worldBookImportUnsupportedEntries(int count);
+
+  /// No description provided for @tokenDetailFirstToken.
+  ///
+  /// In en, this message translates to:
+  /// **'{value}s (first token)'**
+  String tokenDetailFirstToken(String value);
+
+  /// No description provided for @tokenDetailReasoningTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tokens'**
+  String tokenDetailReasoningTokens(int count);
+
+  /// No description provided for @tokenDetailCacheWriteTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} cache write tokens'**
+  String tokenDetailCacheWriteTokens(int count);
+
+  /// No description provided for @tokenDetailCost.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount}'**
+  String tokenDetailCost(String amount);
+
+  /// No description provided for @workspaceToolTitleViewImage.
+  ///
+  /// In en, this message translates to:
+  /// **'View image'**
+  String get workspaceToolTitleViewImage;
+
+  /// No description provided for @workspaceToolHelpViewImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Let the model inspect an image from the workspace.'**
+  String get workspaceToolHelpViewImage;
+
+  /// No description provided for @oauthUsedValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Used {value}'**
+  String oauthUsedValue(String value);
 
   /// No description provided for @composerDraftLabel.
   ///

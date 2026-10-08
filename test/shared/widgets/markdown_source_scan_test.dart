@@ -1,4 +1,4 @@
-import 'package:Kelivo/shared/widgets/markdown_source_scan.dart';
+import 'package:Cuplivo/shared/widgets/markdown_source_scan.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

@@ -7,7 +7,7 @@ import '../../l10n/app_localizations.dart';
 import '../../core/models/quick_phrase.dart';
 import '../../core/providers/quick_phrase_provider.dart';
 import '../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class DesktopQuickPhrasesPane extends StatefulWidget {
   const DesktopQuickPhrasesPane({super.key});

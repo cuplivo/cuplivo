@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/services/mcp/workspace_stdio_command.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/core/services/mcp/workspace_stdio_command.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
 import '../../../support/fake_workspace_runtime.dart';
 
 void main() {

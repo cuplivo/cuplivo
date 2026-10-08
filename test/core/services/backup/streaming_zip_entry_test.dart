@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:archive/archive_io.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/services/backup/streaming_zip_entry.dart';
+import 'package:Cuplivo/core/services/backup/streaming_zip_entry.dart';
 
 final class _CountingOutput extends OutputMemoryStream {
   _CountingOutput(this.onWrite);

@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/features/chat/widgets/weather_tool_ui.dart';
+import 'package:Cuplivo/features/chat/widgets/weather_tool_ui.dart';
 
 void main() {
   test('parses weather payload and keeps WeatherKit attribution', () {

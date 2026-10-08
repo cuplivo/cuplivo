@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'package:Kelivo/shared/widgets/ios_time_picker.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/shared/widgets/ios_time_picker.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -35,8 +35,8 @@ import '../forward_compat_consent_dialog.dart';
 import '../backup_restart_dialog.dart';
 import '../widgets/backup_reminder_helpers.dart';
 import '../widgets/backup_scope_tile.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 import '../../../core/database/startup_failure_report.dart' show formatBytes;
 
 // File size formatter (B, KB, MB, GB)

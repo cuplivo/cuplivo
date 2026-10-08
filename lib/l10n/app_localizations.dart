@@ -8596,8 +8596,20 @@ abstract class AppLocalizations {
   /// No description provided for @displaySettingsPageEnableImageCropperSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Crop images after selecting from gallery or camera'**
+  /// **'Show a Crop action when previewing an unsent image'**
   String get displaySettingsPageEnableImageCropperSubtitle;
+
+  /// No description provided for @draftImageCropAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop'**
+  String get draftImageCropAction;
+
+  /// No description provided for @draftImageCropFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not crop this image. The original is unchanged.'**
+  String get draftImageCropFailed;
 
   /// No description provided for @displaySettingsPageKeepSidebarOpenOnAssistantTapTitle.
   ///
@@ -14932,7 +14944,7 @@ abstract class AppLocalizations {
   /// No description provided for @imageSettingsPageModeManualSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Images are attached unchanged; tap an image to compress it yourself'**
+  /// **'Images are attached unchanged; open the preview to compress them manually'**
   String get imageSettingsPageModeManualSubtitle;
 
   /// No description provided for @imageSettingsPageModeAutoSubtitle.

@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -27,7 +26,6 @@ class FileUploadService {
   FileUploadService({
     required this.getContext,
     required this.mediaController,
-    required this.isImageCropperEnabled,
     required this.getImageCompressConfig,
     this.hasWorkspace,
   });
@@ -37,7 +35,6 @@ class FileUploadService {
 
   /// Context provider callback to avoid storing stale context
   final BuildContext Function() getContext;
-  final bool Function() isImageCropperEnabled;
   final ImageCompressConfig Function() getImageCompressConfig;
   final bool Function()? hasWorkspace;
 
@@ -162,18 +159,14 @@ class FileUploadService {
           }
         }
         if (toCopy.isEmpty) return;
-        final croppedFiles = await _maybeCropImages(toCopy);
-        if (croppedFiles.isEmpty) return;
-        _enqueuePickedImages(croppedFiles);
+        _enqueuePickedImages(toCopy);
         return;
       }
 
       final picker = ImagePicker();
       final files = await picker.pickMultiImage();
       if (files.isEmpty) return;
-      final croppedFiles = await _maybeCropImages(files);
-      if (croppedFiles.isEmpty) return;
-      _enqueuePickedImages(croppedFiles);
+      _enqueuePickedImages(files);
     } catch (_) {}
   }
 
@@ -210,10 +203,8 @@ class FileUploadService {
       final picker = ImagePicker();
       final file = await picker.pickImage(source: ImageSource.camera);
       if (file == null) return;
-      final croppedFiles = await _maybeCropImages([file]);
-      if (croppedFiles.isEmpty) return;
       if (!context.mounted) return;
-      _enqueuePickedImages(croppedFiles);
+      _enqueuePickedImages([file]);
     } catch (e) {
       try {
         if (!context.mounted) return;
@@ -226,44 +217,6 @@ class FileUploadService {
         );
       } catch (_) {}
     }
-  }
-
-  Future<List<XFile>> _maybeCropImages(List<XFile> files) async {
-    if (!isImageCropperEnabled()) return files;
-
-    final context = getContext();
-    if (!context.mounted) return files;
-    final l10n = AppLocalizations.of(context)!;
-    final cs = Theme.of(context).colorScheme;
-    final croppedFiles = <XFile>[];
-
-    for (final file in files) {
-      try {
-        final croppedFile = await ImageCropper().cropImage(
-          sourcePath: file.path,
-          uiSettings: [
-            AndroidUiSettings(
-              toolbarTitle: l10n.displaySettingsPageEnableImageCropperTitle,
-              toolbarColor: cs.surface,
-              toolbarWidgetColor: cs.onSurface,
-              activeControlsWidgetColor: cs.primary,
-              initAspectRatio: CropAspectRatioPreset.original,
-              lockAspectRatio: false,
-            ),
-            IOSUiSettings(
-              title: l10n.displaySettingsPageEnableImageCropperTitle,
-            ),
-          ],
-        );
-        if (croppedFile != null) {
-          croppedFiles.add(XFile(croppedFile.path));
-        }
-      } catch (_) {
-        croppedFiles.add(file);
-      }
-    }
-
-    return croppedFiles;
   }
 
   /// 根据文件扩展名推断 MIME 类型

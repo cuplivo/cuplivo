@@ -285,11 +285,19 @@ class ImageViewerPage extends StatefulWidget {
     required this.images,
     this.initialIndex = 0,
     this.imageProviders = const <String, ImageProvider>{},
+    this.draftMode = false,
+    this.onCrop,
+    this.onCompress,
   });
 
   final List<String> images; // local paths, http urls, or data urls
   final int initialIndex;
   final Map<String, ImageProvider> imageProviders;
+
+  /// Draft actions return to the composer; display-only transforms are hidden.
+  final bool draftMode;
+  final VoidCallback? onCrop;
+  final VoidCallback? onCompress;
 
   @override
   State<ImageViewerPage> createState() => _ImageViewerPageState();
@@ -1681,49 +1689,69 @@ class _ImageViewerPageState extends State<ImageViewerPage>
     required double bottomInset,
     required double opacity,
   }) {
-    if (!_hasImages) return const SizedBox.shrink();
+    if (!_hasImages ||
+        (widget.draftMode &&
+            widget.onCrop == null &&
+            widget.onCompress == null)) {
+      return const SizedBox.shrink();
+    }
     final l10n = AppLocalizations.of(context)!;
     final actions = <Widget>[
-      _GlassCircleButton(
-        label: l10n.imageViewerPageSaveButton,
-        icon: Lucide.Download,
-        loading: _saving,
-        onTap: _saving ? null : _saveCurrent,
-      ),
-      if (_isDesktop)
+      if (widget.draftMode) ...[
+        if (widget.onCrop != null)
+          _GlassCircleButton(
+            label: l10n.draftImageCropAction,
+            icon: Lucide.Crop,
+            onTap: widget.onCrop,
+          ),
+        if (widget.onCompress != null)
+          _GlassCircleButton(
+            label: l10n.compressEditorTitle,
+            icon: Lucide.ImageDown,
+            onTap: widget.onCompress,
+          ),
+      ] else ...[
         _GlassCircleButton(
-          label: l10n.imageViewerPageCopyButton,
-          icon: Lucide.Copy,
-          loading: _copying,
-          onTap: _copying ? null : _copyCurrent,
+          label: l10n.imageViewerPageSaveButton,
+          icon: Lucide.Download,
+          loading: _saving,
+          onTap: _saving ? null : _saveCurrent,
         ),
-      _GlassCircleButton(
-        label: l10n.imageViewerPageShareButton,
-        icon: Lucide.Share2,
-        loading: _sharing,
-        onTap: _sharing ? null : _shareCurrent,
-      ),
-      const _GlassDivider(),
-      _GlassCircleButton(
-        label: l10n.imageViewerPageFlipHorizontalButton,
-        icon: Lucide.FlipHorizontal2,
-        onTap: _flipCurrentHorizontally,
-      ),
-      _GlassCircleButton(
-        label: l10n.imageViewerPageFlipVerticalButton,
-        icon: Lucide.FlipVertical2,
-        onTap: _flipCurrentVertically,
-      ),
-      _GlassCircleButton(
-        label: l10n.imageViewerPageRotateLeftButton,
-        icon: Lucide.RotateCcw,
-        onTap: _rotateCurrentLeft,
-      ),
-      _GlassCircleButton(
-        label: l10n.imageViewerPageRotateRightButton,
-        icon: Lucide.RotateCw,
-        onTap: _rotateCurrentRight,
-      ),
+        if (_isDesktop)
+          _GlassCircleButton(
+            label: l10n.imageViewerPageCopyButton,
+            icon: Lucide.Copy,
+            loading: _copying,
+            onTap: _copying ? null : _copyCurrent,
+          ),
+        _GlassCircleButton(
+          label: l10n.imageViewerPageShareButton,
+          icon: Lucide.Share2,
+          loading: _sharing,
+          onTap: _sharing ? null : _shareCurrent,
+        ),
+        const _GlassDivider(),
+        _GlassCircleButton(
+          label: l10n.imageViewerPageFlipHorizontalButton,
+          icon: Lucide.FlipHorizontal2,
+          onTap: _flipCurrentHorizontally,
+        ),
+        _GlassCircleButton(
+          label: l10n.imageViewerPageFlipVerticalButton,
+          icon: Lucide.FlipVertical2,
+          onTap: _flipCurrentVertically,
+        ),
+        _GlassCircleButton(
+          label: l10n.imageViewerPageRotateLeftButton,
+          icon: Lucide.RotateCcw,
+          onTap: _rotateCurrentLeft,
+        ),
+        _GlassCircleButton(
+          label: l10n.imageViewerPageRotateRightButton,
+          icon: Lucide.RotateCw,
+          onTap: _rotateCurrentRight,
+        ),
+      ],
       if (!compact) ...[
         const _GlassDivider(),
         _GlassCircleButton(

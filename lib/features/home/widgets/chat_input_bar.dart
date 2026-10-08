@@ -39,6 +39,7 @@ import '../../../utils/sandbox_path_resolver.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../utils/app_directories.dart';
+import '../../../utils/platform_utils.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import '../../../desktop/desktop_context_menu.dart';
 import 'package:Cuplivo/theme/app_font_weights.dart';
@@ -75,15 +76,16 @@ class ChatInputBarController {
   }
 
   void addImages(List<String> paths) => _state?._addImages(paths);
+
+  /// [ownsSourceFile] marks an app-owned temporary (a clipboard paste or an
+  /// incoming-share copy): the composer keeps it as the draft's crop source and
+  /// deletes it once the image leaves the composer. A file the user picked is
+  /// never flagged, because it does not belong to the app.
   void enqueueImages(
     List<String> paths,
     ImageCompressConfig config, {
-    bool deleteSourcesAfterProcessing = false,
-  }) => _state?._enqueueImages(
-    paths,
-    config,
-    deleteSourcesAfterProcessing: deleteSourcesAfterProcessing,
-  );
+    bool ownsSourceFile = false,
+  }) => _state?._enqueueImages(paths, config, ownsSourceFile: ownsSourceFile);
   void clearImages() => _state?._clearImages();
   void addFiles(List<DocumentAttachment> docs) => _state?._addFiles(docs);
   void clearFiles() => _state?._clearFiles();
@@ -106,8 +108,11 @@ class _DraftImage {
   final int id;
   String path;
 
-  /// Keep the picked original for a first crop, avoiding JPEG recompression
-  /// before the user makes their edit. Restored drafts use the stored image.
+  /// The pristine file a first crop reads, so the edit never starts from an
+  /// already re-encoded copy. A picked image points at the user's own file; an
+  /// app-owned temporary stays on disk for exactly this reason and is released
+  /// when the image leaves the composer. A restored draft, whose original is
+  /// long gone, falls back to the stored image.
   String? cropSourcePath;
 }
 
@@ -135,8 +140,9 @@ class _ImageProcessingTask {
   /// a null simply means the pipeline runs here instead.
   final Uint8List? precomputedArtifact;
 
-  /// Only ever true for app-owned temp sources (clipboard paste temps);
-  /// user-picked files must never be flagged for deletion.
+  /// True only for a crop's own temporary, which nothing needs once the pass
+  /// has stored it. An imported source outlives its pass instead (see
+  /// [_retainedImageSources]); a user-picked file is never flagged.
   final bool deleteSourceAfterProcessing;
 }
 
@@ -293,8 +299,12 @@ class _ChatInputBarState extends State<ChatInputBar>
   final Set<int> _processingImageIds = <int>{};
   final Set<int> _editingImageIds = <int>{};
   final Set<int> _previewingImageIds = <int>{};
-  final Map<int, List<String>> _deferredPreviewTempDeletes = {};
   final Map<int, List<String>> _deferredPreviewArtifactReleases = {};
+
+  /// App-owned temporary sources the draft still needs: a crop reads the
+  /// pristine original, so the file outlives its processing pass and is released
+  /// only when the image leaves the composer.
+  final Map<int, String> _retainedImageSources = <int, String>{};
   final Set<int> _failedImageIds = <int>{};
 
   /// One gate per image whose automatic pass is running, completed when that
@@ -426,7 +436,7 @@ class _ChatInputBarState extends State<ChatInputBar>
   void _enqueueImages(
     List<String> paths,
     ImageCompressConfig config, {
-    required bool deleteSourcesAfterProcessing,
+    required bool ownsSourceFile,
   }) {
     if (paths.isEmpty) return;
     setState(() {
@@ -438,12 +448,15 @@ class _ChatInputBarState extends State<ChatInputBar>
         );
         _images.add(image);
         _processingImageIds.add(image.id);
+        // An app-owned temporary is the draft's crop source until the image
+        // leaves the composer, so the pass must not delete it.
+        if (ownsSourceFile) _retainedImageSources[image.id] = path;
         _imageProcessingQueue.add(
           _ImageProcessingTask(
             id: image.id,
             sourcePath: path,
             config: config,
-            deleteSourceAfterProcessing: deleteSourcesAfterProcessing,
+            deleteSourceAfterProcessing: false,
           ),
         );
       }
@@ -490,19 +503,24 @@ class _ChatInputBarState extends State<ChatInputBar>
     } catch (_) {
       saved = null;
     } finally {
+      // Only a crop's own temporary is transient. An imported source belongs
+      // to the draft ([_retainedImageSources]) and is released when the image
+      // leaves the composer, because a later crop still has to read it.
       if (task.deleteSourceAfterProcessing &&
           (saved == null ||
               !p.equals(
                 p.normalize(p.absolute(task.sourcePath)),
                 p.normalize(p.absolute(saved.path)),
               ))) {
-        if (_previewingImageIds.contains(task.id)) {
-          _deferredPreviewTempDeletes
-              .putIfAbsent(task.id, () => [])
-              .add(task.sourcePath);
-        } else {
-          await _deleteTemporaryImageSource(task.sourcePath);
-        }
+        await _deleteTemporaryImageSource(task.sourcePath);
+      }
+      // A live image keeps its source for a later crop, so only a draft that no
+      // longer holds this image reaches the end of the pass still owing it a
+      // deletion. This is also the first moment the file is demonstrably no
+      // longer being read by this pass.
+      if (!task.deleteSourceAfterProcessing &&
+          !_processingImageIds.contains(task.id)) {
+        _releaseRetainedSource(task.id);
       }
       _activeImageTasks--;
     }
@@ -580,6 +598,13 @@ class _ChatInputBarState extends State<ChatInputBar>
     unawaited(UploadDedupe.deleteIfUnshared(path));
   }
 
+  /// Drops the pristine source a draft image was keeping, deleting the file the
+  /// draft owned. Safe when there is nothing to release, or when it is gone.
+  void _releaseRetainedSource(int id) {
+    final path = _retainedImageSources.remove(id);
+    if (path != null) unawaited(_deleteTemporaryImageSource(path));
+  }
+
   /// Drops the copies this draft created for [images]. Only the paths where
   /// the attachment never left the composer are released: the submit paths
   /// deliberately keep their files, which the persisted message references.
@@ -604,10 +629,19 @@ class _ChatInputBarState extends State<ChatInputBar>
     final discardedQueuedTasks = _imageProcessingQueue
         .where((task) => discarded.contains(task.id))
         .toList(growable: false);
+    final queuedIds = discardedQueuedTasks.map((task) => task.id).toSet();
+    // A task that started has already left the queue, so anything else still in
+    // [_processingImageIds] is a pass actually running: it is still reading the
+    // source it kept alive and releases it itself when it sees the image gone.
+    final running = discarded
+        .where((id) => _processingImageIds.contains(id))
+        .where((id) => !queuedIds.contains(id))
+        .toSet();
     _processingImageIds.removeAll(discarded);
     _editingImageIds.removeAll(discarded);
     _failedImageIds.removeAll(discarded);
     for (final id in discarded) {
+      if (!running.contains(id)) _releaseRetainedSource(id);
       _imageOwnsFile.remove(id);
       // An image that is gone cannot finish its pass: anything waiting on the
       // source has to be released here or it waits forever.
@@ -850,14 +884,28 @@ class _ChatInputBarState extends State<ChatInputBar>
     );
   }
 
+  /// Releases what a finishing pass deferred while a preview was open: the copy
+  /// it replaced, never the image the preview is showing.
   void _releasePreviewSources(int id) {
-    for (final path in _deferredPreviewTempDeletes.remove(id) ?? <String>[]) {
-      unawaited(_deleteTemporaryImageSource(path));
-    }
     for (final path
         in _deferredPreviewArtifactReleases.remove(id) ?? <String>[]) {
       _releaseOwnedArtifact(path);
     }
+  }
+
+  /// The file a crop should read: the pristine original while the draft still
+  /// has it, otherwise the image the draft currently stores. Null when neither
+  /// is a local file that exists, so the action is never offered for work it
+  /// could not do.
+  String? _cropSourceOf(_DraftImage image) {
+    final original = image.cropSourcePath;
+    if (original != null &&
+        !isRemoteOrDataUri(original) &&
+        File(original).existsSync()) {
+      return original;
+    }
+    if (isRemoteOrDataUri(image.path)) return null;
+    return File(image.path).existsSync() ? image.path : null;
   }
 
   Future<void> _openDraftImagePreview(int idx) async {
@@ -866,7 +914,12 @@ class _ChatInputBarState extends State<ChatInputBar>
     if (_editingImageIds.contains(image.id)) return;
     final local = !isRemoteOrDataUri(image.path);
     final settings = context.read<SettingsProvider>();
-    final canCrop = local && settings.imageCropperEnabled;
+    // image_cropper ships an Android and an iOS implementation only, so on
+    // desktop the action could do nothing but fail: it is not offered at all.
+    final canCrop =
+        PlatformUtils.isMobileTarget &&
+        settings.imageCropperEnabled &&
+        _cropSourceOf(image) != null;
     final canCompress =
         local &&
         settings.imageCompressionMode == ImageCompressionMode.manual &&
@@ -915,11 +968,10 @@ class _ChatInputBarState extends State<ChatInputBar>
       final index = _images.indexWhere((item) => item.id == id);
       if (index < 0) return;
       final image = _images[index];
-      final original = image.cropSourcePath;
-      final sourcePath = original != null && File(original).existsSync()
-          ? original
-          : image.path;
-      if (isRemoteOrDataUri(sourcePath)) return;
+      // Resolved again here: the pass may have replaced the stored copy since
+      // the preview was opened, and the pristine original may be gone.
+      final sourcePath = _cropSourceOf(image);
+      if (sourcePath == null) return;
       final l10n = AppLocalizations.of(context)!;
       final cs = Theme.of(context).colorScheme;
       cropped = await ImageCropper().cropImage(
@@ -1495,7 +1547,12 @@ class _ChatInputBarState extends State<ChatInputBar>
       if (!mounted || submitSerial != _submitSerial) return;
       if (result == ChatInputSubmissionResult.sent ||
           result == ChatInputSubmissionResult.queued) {
-        if (_draftReplacementRevision != submittedDraftRevision) return;
+        if (_draftReplacementRevision != submittedDraftRevision) {
+          // The composer moved on while this send was in flight, so nothing
+          // restores these attachments: release what they still held here.
+          _discardImageState(submittedImageIds);
+          return;
+        }
         if (result == ChatInputSubmissionResult.sent) {
           // The content is durable in the conversation — drop the safety copy
           // so a process death right after sending cannot resurrect it
@@ -1521,6 +1578,10 @@ class _ChatInputBarState extends State<ChatInputBar>
             submittedDocuments,
           ),
         );
+      } else {
+        // Rejected into a draft that no longer exists: the attachments are
+        // never restored, so the composer stops holding their sources.
+        _discardImageState(submittedImageIds);
       }
     } catch (_) {
       if (mounted &&
@@ -1964,11 +2025,7 @@ class _ChatInputBarState extends State<ChatInputBar>
         .read<SettingsProvider>()
         .resolveImageCompressConfig();
     _pendingImagePasteIds.remove(pasteId);
-    _enqueueImages(
-      [savedPath],
-      compressConfig,
-      deleteSourcesAfterProcessing: true,
-    );
+    _enqueueImages([savedPath], compressConfig, ownsSourceFile: true);
   }
 
   Future<void> _handlePasteFromClipboard() async {
@@ -2064,11 +2121,7 @@ class _ChatInputBarState extends State<ChatInputBar>
             return;
           }
           if (savedPath != null) {
-            _enqueueImages(
-              [savedPath],
-              compressConfig,
-              deleteSourcesAfterProcessing: true,
-            );
+            _enqueueImages([savedPath], compressConfig, ownsSourceFile: true);
             return;
           }
         }
@@ -2109,19 +2162,11 @@ class _ChatInputBarState extends State<ChatInputBar>
               otherPaths.add(src);
             }
           }
-          _enqueueImages(
-            imagePaths,
-            compressConfig,
-            deleteSourcesAfterProcessing: false,
-          );
+          _enqueueImages(imagePaths, compressConfig, ownsSourceFile: false);
 
           final saved = await _copyFilesToUpload(otherPaths);
           if (saved.images.isNotEmpty) {
-            _enqueueImages(
-              saved.images,
-              compressConfig,
-              deleteSourcesAfterProcessing: false,
-            );
+            _enqueueImages(saved.images, compressConfig, ownsSourceFile: false);
           }
           if (saved.docs.isNotEmpty) _addFiles(saved.docs);
           handledFiles =
@@ -2843,11 +2888,7 @@ class _ChatInputBarState extends State<ChatInputBar>
         }
       }
       _addImages(ready);
-      _enqueueImages(
-        temporary,
-        compressConfig,
-        deleteSourcesAfterProcessing: true,
-      );
+      _enqueueImages(temporary, compressConfig, ownsSourceFile: true);
     } catch (_) {}
   }
 

@@ -1,5 +1,29 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **Their Letter (Proactive Care) on desktop**: Windows, macOS and Linux had no way into the feature. The desktop assistant dialog now offers the **Roleplay** tab (its decision-history picker opens as a dialog, never a bottom sheet), and the desktop chat tools popover gained the per-conversation entry, so letter times can be set outside Android. Windows still shows no system notification for a delivered letter; the letter itself lands in the conversation.
+
+## [4.1.0] - 2026-10-04
+
+### Added
+
+- **Their Letter (Proactive Care) returns, now cross-platform**: the proactive care of v3.2.1 is back, reusing Kelivo v1.3.0's scheduled-tasks infrastructure and broadened from Android to every platform, with a new **Roleplay** tab (#935, #976 by @Pheobe-Southwood)
+
+### Fixed
+
+- **LAN sync panel**: peer connectivity is now correct in an environment that has a proxy (#952 by @cup113)
+
+## [4.0.1] - 2026-09-30
+
+### Fixed
+
+- **Manual image compression**: the resolution is shown as soon as the editor opens instead of waiting for the decode to finish, the before/after preview reflects the change more truthfully and reacts immediately, and compressing the same image twice is prevented (#946 by @cup113)
+- **LAN sync**: IPv6 support, refined filtering, multi-IP connection probing and a polished panel make it markedly more usable (#947 by @cup113)
+- Developer experience: contributors to this repository no longer see unrelated Windows-side errors
+
 ## [4.0.0] - 2026-09-28
 
 > Cuplivo 4.0 — a restart

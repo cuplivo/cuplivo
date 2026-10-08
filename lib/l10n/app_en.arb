@@ -135,15 +135,6 @@
   "storageSpaceClearLegacyChatDataConfirmMessage": "Clear the retained old chat files? Your current SQLite chat records will remain available.",
   "storageSpaceViewLogsButton": "View Logs",
   "storageSpaceDeleteConfirmTitle": "Confirm deletion",
-  "storageSpaceDeleteDraftWarning": "{count} of them are still referenced by your unsaved draft",
-  "@storageSpaceDeleteDraftWarning": {
-    "description": "Storage delete guardrail: the selection is still referenced by the unsent input draft",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "storageSpaceDeleteUploadsConfirmMessage": "Delete {count} items and their associated conversation attachment copies? These attachments will no longer be available in chat history.",
   "@storageSpaceDeleteUploadsConfirmMessage": {
     "placeholders": {
@@ -331,7 +322,6 @@
   "displaySettingsPageLanguageChineseLabel": "Simplified Chinese",
   "displaySettingsPageLanguageEnglishLabel": "English",
   "homePagePleaseSelectModel": "Please select a model first",
-  "homePageAudioAttachmentUnsupported": "The current model does not support audio attachments. Switch to a model that supports audio input or remove the audio file and try again.",
   "homePagePleaseSetupTranslateModel": "Please set a translation model first",
   "homePageTranslating": "Translating...",
   "homePageTranslateFailed": "Translation failed: {error}",
@@ -1026,13 +1016,6 @@
   "messageMoreSheetCreateBranch": "Create Branch",
   "messageMoreSheetDelete": "Delete This Version",
   "messageMoreSheetDeleteAllVersions": "Delete All Versions",
-  "reasoningBudgetSheetOff": "Off",
-  "reasoningBudgetSheetAuto": "Auto",
-  "reasoningBudgetSheetLight": "Light Reasoning",
-  "reasoningBudgetSheetMedium": "Medium Reasoning",
-  "reasoningBudgetSheetHeavy": "Heavy Reasoning",
-  "reasoningBudgetSheetXhigh": "Extreme Reasoning",
-  "reasoningBudgetSheetMax": "Maximum Reasoning",
   "reasoningBudgetSheetTitle": "Reasoning Chain Strength",
   "reasoningBudgetSheetCurrentLevel": "Current Level: {level}",
   "@reasoningBudgetSheetCurrentLevel": {
@@ -1042,14 +1025,6 @@
       }
     }
   },
-  "reasoningBudgetSheetOffSubtitle": "Turn off reasoning, answer directly",
-  "reasoningBudgetSheetAutoSubtitle": "Let the model decide reasoning level automatically",
-  "reasoningBudgetSheetLightSubtitle": "Use light reasoning to answer questions",
-  "reasoningBudgetSheetMediumSubtitle": "Use moderate reasoning to answer questions",
-  "reasoningBudgetSheetHeavySubtitle": "Use heavy reasoning for complex questions",
-  "reasoningBudgetSheetXhighSubtitle": "Use maximum reasoning depth for the toughest problems",
-  "reasoningBudgetSheetCustomLabel": "Custom Reasoning Budget",
-  "reasoningBudgetSheetCustomHint": "e.g. 2048 (-1 auto, 0 off)",
   "chatMessageWidgetFileNotFound": "File not found: {fileName}",
   "@chatMessageWidgetFileNotFound": {
     "placeholders": {
@@ -5036,11 +5011,6 @@
   "workspaceToolFilesTruncated": "Only some files are listed.",
   "displaySettingsPageShowProducedFilesTitle": "Show Files Below Replies",
   "displaySettingsPageShowProducedFilesSubtitle": "Show files created or modified by tools below replies.",
-  "reasoningBudgetSliderLow": "Low",
-  "reasoningBudgetSliderMedium": "Medium",
-  "reasoningBudgetSliderHigh": "High",
-  "reasoningBudgetSliderXhigh": "XHigh",
-  "reasoningBudgetSliderMax": "Max",
   "defaultModelPagePerChatModelTitle": "Per-Chat Model",
   "defaultModelPagePerChatModelSubtitle": "On: picking a model in a chat applies to that chat only. Off: it becomes the current assistant's model, so every chat using that assistant follows it.",
   "googleFontsTitle": "Google Fonts",

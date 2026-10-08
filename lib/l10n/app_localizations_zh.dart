@@ -311,11 +311,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get storageSpaceDeleteConfirmTitle => '确认删除';
 
   @override
-  String storageSpaceDeleteDraftWarning(int count) {
-    return '其中 $count 个文件仍被未发送的草稿引用';
-  }
-
-  @override
   String storageSpaceDeleteUploadsConfirmMessage(int count) {
     return '删除 $count 个项目及其对应的会话附件副本？删除后，聊天记录中的这些附件将无法使用。';
   }
@@ -735,10 +730,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get homePagePleaseSelectModel => '请先选择模型';
-
-  @override
-  String get homePageAudioAttachmentUnsupported =>
-      '当前模型不支持音频附件，请切换到支持音频输入的模型或移除音频文件后重试。';
 
   @override
   String get homePagePleaseSetupTranslateModel => '请先设置翻译模型';
@@ -2329,57 +2320,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageMoreSheetDeleteAllVersions => '删除全部版本';
 
   @override
-  String get reasoningBudgetSheetOff => '关闭';
-
-  @override
-  String get reasoningBudgetSheetAuto => '自动';
-
-  @override
-  String get reasoningBudgetSheetLight => '轻度推理';
-
-  @override
-  String get reasoningBudgetSheetMedium => '中度推理';
-
-  @override
-  String get reasoningBudgetSheetHeavy => '重度推理';
-
-  @override
-  String get reasoningBudgetSheetXhigh => '极限推理';
-
-  @override
-  String get reasoningBudgetSheetMax => '全力推理';
-
-  @override
   String get reasoningBudgetSheetTitle => '思维链强度';
 
   @override
   String reasoningBudgetSheetCurrentLevel(String level) {
     return '当前档位：$level';
   }
-
-  @override
-  String get reasoningBudgetSheetOffSubtitle => '关闭推理功能，直接回答';
-
-  @override
-  String get reasoningBudgetSheetAutoSubtitle => '由模型自动决定推理级别';
-
-  @override
-  String get reasoningBudgetSheetLightSubtitle => '使用少量推理来回答问题';
-
-  @override
-  String get reasoningBudgetSheetMediumSubtitle => '使用较多推理来回答问题';
-
-  @override
-  String get reasoningBudgetSheetHeavySubtitle => '使用大量推理来回答问题，适合复杂问题';
-
-  @override
-  String get reasoningBudgetSheetXhighSubtitle => '使用最大推理深度，适合最复杂的问题';
-
-  @override
-  String get reasoningBudgetSheetCustomLabel => '自定义推理预算';
-
-  @override
-  String get reasoningBudgetSheetCustomHint => '例如：2048 (-1 自动，0 关闭)';
 
   @override
   String chatMessageWidgetFileNotFound(String fileName) {
@@ -10538,21 +10484,6 @@ class AppLocalizationsZh extends AppLocalizations {
       '在回复底部显示工具创建或修改的文件。';
 
   @override
-  String get reasoningBudgetSliderLow => 'Low';
-
-  @override
-  String get reasoningBudgetSliderMedium => 'Medium';
-
-  @override
-  String get reasoningBudgetSliderHigh => 'High';
-
-  @override
-  String get reasoningBudgetSliderXhigh => 'XHigh';
-
-  @override
-  String get reasoningBudgetSliderMax => 'Max';
-
-  @override
   String get defaultModelPagePerChatModelTitle => '每个对话独立模型';
 
   @override
@@ -13403,11 +13334,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get storageSpaceDeleteConfirmTitle => '确认删除';
 
   @override
-  String storageSpaceDeleteDraftWarning(int count) {
-    return '其中 $count 个文件仍被未发送的草稿引用';
-  }
-
-  @override
   String storageSpaceDeleteUploadsConfirmMessage(int count) {
     return '删除 $count 个项目及其对应的会话附件副本？删除后，聊天记录中的这些附件将无法使用。';
   }
@@ -13827,10 +13753,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get homePagePleaseSelectModel => '请先选择模型';
-
-  @override
-  String get homePageAudioAttachmentUnsupported =>
-      '当前模型不支持音频附件，请切换到支持音频输入的模型或移除音频文件后重试。';
 
   @override
   String get homePagePleaseSetupTranslateModel => '请先设置翻译模型';
@@ -15421,57 +15343,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageMoreSheetDeleteAllVersions => '删除全部版本';
 
   @override
-  String get reasoningBudgetSheetOff => '关闭';
-
-  @override
-  String get reasoningBudgetSheetAuto => '自动';
-
-  @override
-  String get reasoningBudgetSheetLight => '轻度推理';
-
-  @override
-  String get reasoningBudgetSheetMedium => '中度推理';
-
-  @override
-  String get reasoningBudgetSheetHeavy => '重度推理';
-
-  @override
-  String get reasoningBudgetSheetXhigh => '极限推理';
-
-  @override
-  String get reasoningBudgetSheetMax => '全力推理';
-
-  @override
   String get reasoningBudgetSheetTitle => '思维链强度';
 
   @override
   String reasoningBudgetSheetCurrentLevel(String level) {
     return '当前档位：$level';
   }
-
-  @override
-  String get reasoningBudgetSheetOffSubtitle => '关闭推理功能，直接回答';
-
-  @override
-  String get reasoningBudgetSheetAutoSubtitle => '由模型自动决定推理级别';
-
-  @override
-  String get reasoningBudgetSheetLightSubtitle => '使用少量推理来回答问题';
-
-  @override
-  String get reasoningBudgetSheetMediumSubtitle => '使用较多推理来回答问题';
-
-  @override
-  String get reasoningBudgetSheetHeavySubtitle => '使用大量推理来回答问题，适合复杂问题';
-
-  @override
-  String get reasoningBudgetSheetXhighSubtitle => '使用最大推理深度，适合最复杂的问题';
-
-  @override
-  String get reasoningBudgetSheetCustomLabel => '自定义推理预算';
-
-  @override
-  String get reasoningBudgetSheetCustomHint => '例如：2048 (-1 自动，0 关闭)';
 
   @override
   String chatMessageWidgetFileNotFound(String fileName) {
@@ -23556,21 +23433,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       '在回复底部显示工具创建或修改的文件。';
 
   @override
-  String get reasoningBudgetSliderLow => 'Low';
-
-  @override
-  String get reasoningBudgetSliderMedium => 'Medium';
-
-  @override
-  String get reasoningBudgetSliderHigh => 'High';
-
-  @override
-  String get reasoningBudgetSliderXhigh => 'XHigh';
-
-  @override
-  String get reasoningBudgetSliderMax => 'Max';
-
-  @override
   String get defaultModelPagePerChatModelTitle => '每个对话独立模型';
 
   @override
@@ -26421,11 +26283,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get storageSpaceDeleteConfirmTitle => '確認刪除';
 
   @override
-  String storageSpaceDeleteDraftWarning(int count) {
-    return '其中 $count 個檔案仍被未發送的草稿引用';
-  }
-
-  @override
   String storageSpaceDeleteUploadsConfirmMessage(int count) {
     return '刪除 $count 個項目及其對應的對話附件副本？刪除後，聊天記錄中的這些附件將無法使用。';
   }
@@ -26845,10 +26702,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get homePagePleaseSelectModel => '請先選擇模型';
-
-  @override
-  String get homePageAudioAttachmentUnsupported =>
-      '目前模型不支援音訊附件，請切換到支援音訊輸入的模型或移除音訊檔案後再試。';
 
   @override
   String get homePagePleaseSetupTranslateModel => '請先設定翻譯模型';
@@ -28439,57 +28292,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get messageMoreSheetDeleteAllVersions => '刪除全部版本';
 
   @override
-  String get reasoningBudgetSheetOff => '關閉';
-
-  @override
-  String get reasoningBudgetSheetAuto => '自動';
-
-  @override
-  String get reasoningBudgetSheetLight => '輕度推理';
-
-  @override
-  String get reasoningBudgetSheetMedium => '中度推理';
-
-  @override
-  String get reasoningBudgetSheetHeavy => '重度推理';
-
-  @override
-  String get reasoningBudgetSheetXhigh => '極限推理';
-
-  @override
-  String get reasoningBudgetSheetMax => '全力推理';
-
-  @override
   String get reasoningBudgetSheetTitle => '思維鏈強度';
 
   @override
   String reasoningBudgetSheetCurrentLevel(String level) {
     return '目前檔位：$level';
   }
-
-  @override
-  String get reasoningBudgetSheetOffSubtitle => '關閉推理功能，直接回答';
-
-  @override
-  String get reasoningBudgetSheetAutoSubtitle => '由模型自動決定推理級別';
-
-  @override
-  String get reasoningBudgetSheetLightSubtitle => '使用少量推理來回答問題';
-
-  @override
-  String get reasoningBudgetSheetMediumSubtitle => '使用較多推理來回答問題';
-
-  @override
-  String get reasoningBudgetSheetHeavySubtitle => '使用大量推理來回答問題，適合複雜問題';
-
-  @override
-  String get reasoningBudgetSheetXhighSubtitle => '使用最大推理深度，適合最複雜的問題';
-
-  @override
-  String get reasoningBudgetSheetCustomLabel => '自訂推理預算';
-
-  @override
-  String get reasoningBudgetSheetCustomHint => '例如：2048 (-1 自動，0 關閉)';
 
   @override
   String chatMessageWidgetFileNotFound(String fileName) {
@@ -36649,21 +36457,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get displaySettingsPageShowProducedFilesSubtitle =>
       '在回覆底部顯示工具建立或修改的檔案。';
-
-  @override
-  String get reasoningBudgetSliderLow => 'Low';
-
-  @override
-  String get reasoningBudgetSliderMedium => 'Medium';
-
-  @override
-  String get reasoningBudgetSliderHigh => 'High';
-
-  @override
-  String get reasoningBudgetSliderXhigh => 'XHigh';
-
-  @override
-  String get reasoningBudgetSliderMax => 'Max';
 
   @override
   String get defaultModelPagePerChatModelTitle => '每個對話獨立模型';

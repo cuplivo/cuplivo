@@ -327,11 +327,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get storageSpaceDeleteConfirmTitle => 'Confirm deletion';
 
   @override
-  String storageSpaceDeleteDraftWarning(int count) {
-    return '$count of them are still referenced by your unsaved draft';
-  }
-
-  @override
   String storageSpaceDeleteUploadsConfirmMessage(int count) {
     return 'Delete $count items and their associated conversation attachment copies? These attachments will no longer be available in chat history.';
   }
@@ -755,10 +750,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homePagePleaseSelectModel => 'Please select a model first';
-
-  @override
-  String get homePageAudioAttachmentUnsupported =>
-      'The current model does not support audio attachments. Switch to a model that supports audio input or remove the audio file and try again.';
 
   @override
   String get homePagePleaseSetupTranslateModel =>
@@ -2405,63 +2396,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageMoreSheetDeleteAllVersions => 'Delete All Versions';
 
   @override
-  String get reasoningBudgetSheetOff => 'Off';
-
-  @override
-  String get reasoningBudgetSheetAuto => 'Auto';
-
-  @override
-  String get reasoningBudgetSheetLight => 'Light Reasoning';
-
-  @override
-  String get reasoningBudgetSheetMedium => 'Medium Reasoning';
-
-  @override
-  String get reasoningBudgetSheetHeavy => 'Heavy Reasoning';
-
-  @override
-  String get reasoningBudgetSheetXhigh => 'Extreme Reasoning';
-
-  @override
-  String get reasoningBudgetSheetMax => 'Maximum Reasoning';
-
-  @override
   String get reasoningBudgetSheetTitle => 'Reasoning Chain Strength';
 
   @override
   String reasoningBudgetSheetCurrentLevel(String level) {
     return 'Current Level: $level';
   }
-
-  @override
-  String get reasoningBudgetSheetOffSubtitle =>
-      'Turn off reasoning, answer directly';
-
-  @override
-  String get reasoningBudgetSheetAutoSubtitle =>
-      'Let the model decide reasoning level automatically';
-
-  @override
-  String get reasoningBudgetSheetLightSubtitle =>
-      'Use light reasoning to answer questions';
-
-  @override
-  String get reasoningBudgetSheetMediumSubtitle =>
-      'Use moderate reasoning to answer questions';
-
-  @override
-  String get reasoningBudgetSheetHeavySubtitle =>
-      'Use heavy reasoning for complex questions';
-
-  @override
-  String get reasoningBudgetSheetXhighSubtitle =>
-      'Use maximum reasoning depth for the toughest problems';
-
-  @override
-  String get reasoningBudgetSheetCustomLabel => 'Custom Reasoning Budget';
-
-  @override
-  String get reasoningBudgetSheetCustomHint => 'e.g. 2048 (-1 auto, 0 off)';
 
   @override
   String chatMessageWidgetFileNotFound(String fileName) {
@@ -11013,21 +10953,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get displaySettingsPageShowProducedFilesSubtitle =>
       'Show files created or modified by tools below replies.';
-
-  @override
-  String get reasoningBudgetSliderLow => 'Low';
-
-  @override
-  String get reasoningBudgetSliderMedium => 'Medium';
-
-  @override
-  String get reasoningBudgetSliderHigh => 'High';
-
-  @override
-  String get reasoningBudgetSliderXhigh => 'XHigh';
-
-  @override
-  String get reasoningBudgetSliderMax => 'Max';
 
   @override
   String get defaultModelPagePerChatModelTitle => 'Per-Chat Model';

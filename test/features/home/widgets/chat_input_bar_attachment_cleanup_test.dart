@@ -1297,8 +1297,15 @@ void main() {
         isTrue,
       );
 
+      // An app-owned source is released when the image leaves the composer, so
+      // that is the moment a failing deletion has to be diagnosable.
+      const deleteFailureMarker = '[ChatInputBar] Failed to delete';
+      mediaController.clearImages();
       expect(
-        logs.any((line) => line.contains('[ChatInputBar] Failed to delete')),
+        await pumpUntil(
+          tester,
+          () => logs.any((line) => line.contains(deleteFailureMarker)),
+        ),
         isTrue,
         reason: 'deletion failure must be diagnosable via logs',
       );

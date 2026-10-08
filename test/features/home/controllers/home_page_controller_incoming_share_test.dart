@@ -93,10 +93,10 @@ class _Media extends ChatInputBarController {
   void enqueueImages(
     List<String> paths,
     ImageCompressConfig config, {
-    bool deleteSourcesAfterProcessing = false,
+    bool ownsSourceFile = false,
   }) {
     images.addAll(paths);
-    deletesOwnedSources = deleteSourcesAfterProcessing;
+    deletesOwnedSources = ownsSourceFile;
   }
 }
 

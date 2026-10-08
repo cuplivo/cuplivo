@@ -723,8 +723,6 @@ class HomePageController extends ChangeNotifier {
     _fileUploadService = FileUploadService(
       getContext: () => _context,
       mediaController: _mediaController,
-      isImageCropperEnabled: () =>
-          _context.read<SettingsProvider>().imageCropperEnabled,
       getImageCompressConfig: () =>
           _context.read<SettingsProvider>().resolveImageCompressConfig(),
       hasWorkspace: () => hasWorkspace,
@@ -3161,7 +3159,7 @@ class HomePageController extends ChangeNotifier {
     _mediaController.enqueueImages(
       input.imagePaths,
       _context.read<SettingsProvider>().resolveImageCompressConfig(),
-      deleteSourcesAfterProcessing: true,
+      ownsSourceFile: true,
     );
     _mediaController.sharedDraftAction.value = () =>
         unawaited(moveSharedDraft());

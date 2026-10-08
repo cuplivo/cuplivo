@@ -12,6 +12,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../../../l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import '../../chat/pages/image_viewer_page.dart';
 import '../../../utils/file_import_helper.dart';
 import '../../../utils/image_compressor.dart';
 import '../../../utils/upload_dedupe.dart';
@@ -43,6 +45,7 @@ import '../../../shared/widgets/interactive_drawer.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../utils/app_directories.dart';
+import '../../../utils/platform_utils.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:re_editor/re_editor.dart' show CodeEditorTapRegion;
 import '../../../desktop/desktop_context_menu.dart';
@@ -204,16 +207,20 @@ class ChatInputBarController {
     }
   }
 
+  /// [ownsSourceFile] marks an app-owned temporary (a clipboard paste or an
+  /// incoming-share copy): the composer keeps it as the draft's crop source and
+  /// deletes it once the image leaves the composer. A file the user picked is
+  /// never flagged, because it does not belong to the app.
   void enqueueImages(
     List<String> paths,
     ImageCompressConfig config, {
-    bool deleteSourcesAfterProcessing = false,
+    bool ownsSourceFile = false,
   }) {
     if (_currentTarget) {
       _root._state?._enqueueImages(
         paths,
         config,
-        deleteSourcesAfterProcessing: deleteSourcesAfterProcessing,
+        ownsSourceFile: ownsSourceFile,
       );
     } else {
       _mutate(
@@ -224,9 +231,7 @@ class ChatInputBarController {
           ],
         ),
       );
-      unawaited(
-        _processCapturedImages(paths, config, deleteSourcesAfterProcessing),
-      );
+      unawaited(_processCapturedImages(paths, config, ownsSourceFile));
     }
   }
 
@@ -330,11 +335,20 @@ class ChatInputBarController {
   }
 }
 
+enum _DraftPreviewAction { crop, compress }
+
 class _DraftImage {
-  _DraftImage({required this.id, required this.path});
+  _DraftImage({required this.id, required this.path, this.cropSourcePath});
 
   final int id;
   String path;
+
+  /// The pristine file a first crop reads, so the edit never starts from an
+  /// already re-encoded copy. A picked image points at the user's own file; an
+  /// app-owned temporary stays on disk for exactly this reason and is released
+  /// when the image leaves the composer. A restored draft, whose original is
+  /// long gone, falls back to the stored image.
+  String? cropSourcePath;
 }
 
 class _ImageProcessingTask {
@@ -346,6 +360,7 @@ class _ImageProcessingTask {
     this.manualParams,
     this.precomputedArtifact,
     this.target,
+    this.replacePreviousArtifact = false,
   });
 
   final int id;
@@ -356,6 +371,9 @@ class _ImageProcessingTask {
   final ImageCompressConfig? config;
   final ManualCompressParams? manualParams;
 
+  /// True when a new crop replaces an existing stored draft image.
+  final bool replacePreviousArtifact;
+
   /// The exact bytes the compress editor already produced and showed the size
   /// of, when it had them ready. Storing them skips a second decode and encode;
   /// a null simply means the pipeline runs here instead.
@@ -364,8 +382,9 @@ class _ImageProcessingTask {
   /// The composer this pass was started for; null when it has no owner.
   final ChatInputBarController? target;
 
-  /// Only ever true for app-owned temp sources (clipboard paste temps);
-  /// user-picked files must never be flagged for deletion.
+  /// True only for a crop's own temporary, which nothing needs once the pass
+  /// has stored it. An imported source outlives its pass instead (see
+  /// [_retainedImageSources]); a user-picked file is never flagged.
   final bool deleteSourceAfterProcessing;
 }
 
@@ -559,6 +578,14 @@ class _ChatInputBarState extends State<ChatInputBar>
   final Queue<_ImageProcessingTask> _imageProcessingQueue =
       Queue<_ImageProcessingTask>();
   final Set<int> _processingImageIds = <int>{};
+  final Set<int> _editingImageIds = <int>{};
+  final Set<int> _previewingImageIds = <int>{};
+  final Map<int, List<String>> _deferredPreviewArtifactReleases = {};
+
+  /// App-owned temporary sources the draft still needs: a crop reads the
+  /// pristine original, so the file outlives its processing pass and is released
+  /// only when the image leaves the composer.
+  final Map<int, String> _retainedImageSources = <int, String>{};
   final Set<int> _failedImageIds = <int>{};
 
   /// One gate per image whose automatic pass is running, completed when that
@@ -678,6 +705,7 @@ class _ChatInputBarState extends State<ChatInputBar>
   bool get _hasDraftMedia => _images.isNotEmpty || _docs.isNotEmpty;
   bool get _hasUnreadyImages =>
       _processingImageIds.isNotEmpty ||
+      _editingImageIds.isNotEmpty ||
       _failedImageIds.isNotEmpty ||
       _pendingImagePasteIds.isNotEmpty ||
       _pendingTextPasteIds.isNotEmpty;
@@ -711,20 +739,27 @@ class _ChatInputBarState extends State<ChatInputBar>
   void _enqueueImages(
     List<String> paths,
     ImageCompressConfig config, {
-    required bool deleteSourcesAfterProcessing,
+    required bool ownsSourceFile,
   }) {
     if (paths.isEmpty) return;
     setState(() {
       for (final path in paths) {
-        final image = _DraftImage(id: _nextImageId++, path: path);
+        final image = _DraftImage(
+          id: _nextImageId++,
+          path: path,
+          cropSourcePath: path,
+        );
         _images.add(image);
         _processingImageIds.add(image.id);
+        // An app-owned temporary is the draft's crop source until the image
+        // leaves the composer, so the pass must not delete it.
+        if (ownsSourceFile) _retainedImageSources[image.id] = path;
         _imageProcessingQueue.add(
           _ImageProcessingTask(
             id: image.id,
             sourcePath: path,
             config: config,
-            deleteSourceAfterProcessing: deleteSourcesAfterProcessing,
+            deleteSourceAfterProcessing: false,
             target: widget.mediaController?.capture(),
           ),
         );
@@ -774,6 +809,9 @@ class _ChatInputBarState extends State<ChatInputBar>
     } catch (_) {
       saved = null;
     } finally {
+      // Only a crop's own temporary is transient. An imported source belongs
+      // to the draft ([_retainedImageSources]) and is released when the image
+      // leaves the composer, because a later crop still has to read it.
       if (task.deleteSourceAfterProcessing &&
           widget.mediaController?.draftStore == null &&
           (saved == null ||
@@ -782,6 +820,14 @@ class _ChatInputBarState extends State<ChatInputBar>
                 p.normalize(p.absolute(saved.path)),
               ))) {
         await _deleteTemporaryImageSource(task.sourcePath);
+      }
+      // A live image keeps its source for a later crop, so only a draft that no
+      // longer holds this image reaches the end of the pass still owing it a
+      // deletion. This is also the first moment the file is demonstrably no
+      // longer being read by this pass.
+      if (!task.deleteSourceAfterProcessing &&
+          !_processingImageIds.contains(task.id)) {
+        _releaseRetainedSource(task.id);
       }
       _activeImageTasks--;
     }
@@ -831,13 +877,22 @@ class _ChatInputBarState extends State<ChatInputBar>
           _failedImageIds.add(task.id);
         } else {
           _images[index].path = savedPath;
+          if (task.replacePreviousArtifact) {
+            _images[index].cropSourcePath = null;
+          }
           _imageOwnsFile[task.id] = !(saved?.reused ?? true);
-          // A manual replace supersedes the stored copy it read from: drop it
-          // when this draft owns it and nothing else has resolved to it.
-          if (task.manualParams != null &&
+          // A manual edit or crop supersedes the previous stored copy; never
+          // release a picked source or a path shared with a sent message.
+          if ((task.manualParams != null || task.replacePreviousArtifact) &&
               previousPath != savedPath &&
               ownedPrevious) {
-            _releaseOwnedArtifact(previousPath);
+            if (_previewingImageIds.contains(task.id)) {
+              _deferredPreviewArtifactReleases
+                  .putIfAbsent(task.id, () => [])
+                  .add(previousPath);
+            } else {
+              _releaseOwnedArtifact(previousPath);
+            }
           }
           _pruneImageSizes();
         }
@@ -855,6 +910,13 @@ class _ChatInputBarState extends State<ChatInputBar>
   /// to the same path.
   void _releaseOwnedArtifact(String path) {
     unawaited(UploadDedupe.deleteIfUnshared(path));
+  }
+
+  /// Drops the pristine source a draft image was keeping, deleting the file the
+  /// draft owned. Safe when there is nothing to release, or when it is gone.
+  void _releaseRetainedSource(int id) {
+    final path = _retainedImageSources.remove(id);
+    if (path != null) unawaited(_deleteTemporaryImageSource(path));
   }
 
   /// Drops the copies this draft created for [images]. Only the paths where
@@ -881,9 +943,19 @@ class _ChatInputBarState extends State<ChatInputBar>
     final discardedQueuedTasks = _imageProcessingQueue
         .where((task) => discarded.contains(task.id))
         .toList(growable: false);
+    final queuedIds = discardedQueuedTasks.map((task) => task.id).toSet();
+    // A task that started has already left the queue, so anything else still in
+    // [_processingImageIds] is a pass actually running: it is still reading the
+    // source it kept alive and releases it itself when it sees the image gone.
+    final running = discarded
+        .where((id) => _processingImageIds.contains(id))
+        .where((id) => !queuedIds.contains(id))
+        .toSet();
     _processingImageIds.removeAll(discarded);
+    _editingImageIds.removeAll(discarded);
     _failedImageIds.removeAll(discarded);
     for (final id in discarded) {
+      if (!running.contains(id)) _releaseRetainedSource(id);
       _imageOwnsFile.remove(id);
       // An image that is gone cannot finish its pass: anything waiting on the
       // source has to be released here or it waits forever.
@@ -1087,6 +1159,147 @@ class _ChatInputBarState extends State<ChatInputBar>
         path,
       ).length().then<int?>((value) => value, onError: (_) => null),
     );
+  }
+
+  /// Releases what a finishing pass deferred while a preview was open: the copy
+  /// it replaced, never the image the preview is showing.
+  void _releasePreviewSources(int id) {
+    for (final path
+        in _deferredPreviewArtifactReleases.remove(id) ?? <String>[]) {
+      _releaseOwnedArtifact(path);
+    }
+  }
+
+  /// The file a crop should read: the pristine original while the draft still
+  /// has it, otherwise the image the draft currently stores. Null when neither
+  /// is a local file that exists, so the action is never offered for work it
+  /// could not do.
+  String? _cropSourceOf(_DraftImage image) {
+    final original = image.cropSourcePath;
+    if (original != null &&
+        !isRemoteOrDataUri(original) &&
+        File(original).existsSync()) {
+      return original;
+    }
+    if (isRemoteOrDataUri(image.path)) return null;
+    return File(image.path).existsSync() ? image.path : null;
+  }
+
+  Future<void> _openDraftImagePreview(int idx) async {
+    if (idx < 0 || idx >= _images.length) return;
+    final image = _images[idx];
+    if (_editingImageIds.contains(image.id)) return;
+    final local = !isRemoteOrDataUri(image.path);
+    final settings = context.read<SettingsProvider>();
+    // image_cropper ships an Android and an iOS implementation only, so on
+    // desktop the action could do nothing but fail: it is not offered at all.
+    final canCrop =
+        PlatformUtils.isMobileTarget &&
+        settings.imageCropperEnabled &&
+        _cropSourceOf(image) != null;
+    final canCompress =
+        local &&
+        settings.imageCompressionMode == ImageCompressionMode.manual &&
+        !_failedImageIds.contains(image.id);
+    _previewingImageIds.add(image.id);
+    final navigator = Navigator.of(context);
+    _DraftPreviewAction? action;
+    try {
+      action = await navigator.push<_DraftPreviewAction>(
+        MaterialPageRoute(
+          builder: (_) => ImageViewerPage(
+            images: [image.path],
+            draftMode: true,
+            onCrop: canCrop
+                ? () => navigator.pop(_DraftPreviewAction.crop)
+                : null,
+            onCompress: canCompress
+                ? () => navigator.pop(_DraftPreviewAction.compress)
+                : null,
+          ),
+        ),
+      );
+    } finally {
+      _previewingImageIds.remove(image.id);
+      _releasePreviewSources(image.id);
+    }
+    if (!mounted) return;
+    final currentIdx = _images.indexWhere((item) => item.id == image.id);
+    if (currentIdx < 0) return;
+    if (action == _DraftPreviewAction.crop) {
+      await _cropDraftImage(image.id);
+    } else if (action == _DraftPreviewAction.compress) {
+      await _openCompressEditor(currentIdx);
+    }
+  }
+
+  Future<void> _cropDraftImage(int id) async {
+    if (_editingImageIds.contains(id)) return;
+    setState(() => _editingImageIds.add(id));
+    CroppedFile? cropped;
+    var enqueued = false;
+    try {
+      // A pending automatic pass may still be reading the picked source.
+      if (_processingImageIds.contains(id)) await _imageProcessingGate(id);
+      if (!mounted) return;
+      final index = _images.indexWhere((item) => item.id == id);
+      if (index < 0) return;
+      final image = _images[index];
+      // Resolved again here: the pass may have replaced the stored copy since
+      // the preview was opened, and the pristine original may be gone.
+      final sourcePath = _cropSourceOf(image);
+      if (sourcePath == null) return;
+      final l10n = AppLocalizations.of(context)!;
+      final cs = Theme.of(context).colorScheme;
+      cropped = await ImageCropper().cropImage(
+        sourcePath: sourcePath,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: l10n.draftImageCropAction,
+            toolbarColor: cs.surface,
+            toolbarWidgetColor: cs.onSurface,
+            activeControlsWidgetColor: cs.primary,
+            initAspectRatio: CropAspectRatioPreset.original,
+            lockAspectRatio: false,
+          ),
+          IOSUiSettings(title: l10n.draftImageCropAction),
+        ],
+      );
+      if (cropped == null) return;
+      if (!mounted || !_images.any((item) => item.id == id)) return;
+      final config = context
+          .read<SettingsProvider>()
+          .resolveImageCompressConfig();
+      setState(() {
+        _failedImageIds.remove(id);
+        _processingImageIds.add(id);
+        _imageProcessingQueue.add(
+          _ImageProcessingTask(
+            id: id,
+            sourcePath: cropped!.path,
+            config: config,
+            deleteSourceAfterProcessing: true,
+            replacePreviousArtifact: true,
+          ),
+        );
+      });
+      enqueued = true;
+      _pumpImageProcessingQueue();
+    } catch (error) {
+      debugPrint('[ChatInputBar] Failed to crop draft image: $error');
+      if (mounted) {
+        showAppSnackBar(
+          context,
+          message: AppLocalizations.of(context)!.draftImageCropFailed,
+          type: NotificationType.error,
+        );
+      }
+    } finally {
+      if (cropped != null && !enqueued) {
+        await _deleteTemporaryImageSource(cropped.path);
+      }
+      if (mounted) setState(() => _editingImageIds.remove(id));
+    }
   }
 
   Future<void> _openCompressEditor(int idx) async {
@@ -1922,7 +2135,12 @@ class _ChatInputBarState extends State<ChatInputBar>
       if (!mounted || submitSerial != _submitSerial) return;
       if (result == ChatInputSubmissionResult.sent ||
           result == ChatInputSubmissionResult.queued) {
-        if (_draftReplacementRevision != submittedDraftRevision) return;
+        if (_draftReplacementRevision != submittedDraftRevision) {
+          // The composer moved on while this send was in flight, so nothing
+          // restores these attachments: release what they still held here.
+          _discardImageState(submittedImageIds);
+          return;
+        }
         widget.mediaController?.sharedDraftAction.value = null;
         _discardImageState(submittedImageIds);
         setState(() {});
@@ -1949,6 +2167,10 @@ class _ChatInputBarState extends State<ChatInputBar>
             submittedDocuments,
           ),
         );
+      } else {
+        // Rejected into a draft that no longer exists: the attachments are
+        // never restored, so the composer stops holding their sources.
+        _discardImageState(submittedImageIds);
       }
     } catch (_) {
       if (!persistentSubmission &&
@@ -2431,7 +2653,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     (target?.enqueueImages ?? _enqueueImages)(
       [savedPath],
       compressConfig,
-      deleteSourcesAfterProcessing: true,
+      ownsSourceFile: true,
     );
   }
 
@@ -2537,7 +2759,7 @@ class _ChatInputBarState extends State<ChatInputBar>
             (target?.enqueueImages ?? _enqueueImages)(
               [savedPath],
               compressConfig,
-              deleteSourcesAfterProcessing: true,
+              ownsSourceFile: true,
             );
             return;
           }
@@ -2563,7 +2785,7 @@ class _ChatInputBarState extends State<ChatInputBar>
         target.enqueueImages(
           imageTempPaths,
           compressConfig,
-          deleteSourcesAfterProcessing: true,
+          ownsSourceFile: true,
         );
       } else {
         await _enqueueClipboardImages(imageTempPaths);
@@ -2590,7 +2812,7 @@ class _ChatInputBarState extends State<ChatInputBar>
           (target?.enqueueImages ?? _enqueueImages)(
             imagePaths,
             compressConfig,
-            deleteSourcesAfterProcessing: false,
+            ownsSourceFile: false,
           );
 
           final saved = await _copyFilesToUpload(otherPaths, target: target);
@@ -2598,7 +2820,7 @@ class _ChatInputBarState extends State<ChatInputBar>
             (target?.enqueueImages ?? _enqueueImages)(
               saved.images,
               compressConfig,
-              deleteSourcesAfterProcessing: false,
+              ownsSourceFile: false,
             );
           }
           if (saved.docs.isNotEmpty) {
@@ -3362,11 +3584,7 @@ class _ChatInputBarState extends State<ChatInputBar>
         }
       }
       _addImages(ready);
-      _enqueueImages(
-        temporary,
-        compressConfig,
-        deleteSourcesAfterProcessing: true,
-      );
+      _enqueueImages(temporary, compressConfig, ownsSourceFile: true);
     } catch (_) {}
   }
 
@@ -3427,9 +3645,6 @@ class _ChatInputBarState extends State<ChatInputBar>
     final image = _images[idx];
     final processing = _processingImageIds.contains(image.id);
     final failed = !processing && _failedImageIds.contains(image.id);
-    final canEdit =
-        context.watch<SettingsProvider>().imageCompressionMode ==
-        ImageCompressionMode.manual;
     final chip = Stack(
       clipBehavior: Clip.none,
       children: [
@@ -3440,70 +3655,54 @@ class _ChatInputBarState extends State<ChatInputBar>
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(9),
-            child: processing
-                ? ColoredBox(
-                    color: theme.colorScheme.scrim,
-                    child: const SizedBox(width: 88, height: 88),
-                  )
-                : Image(
-                    image: ResizeImage(
-                      FileImage(File(image.path)),
-                      width: (88 * MediaQuery.devicePixelRatioOf(context))
-                          .ceil(),
-                      height: (88 * MediaQuery.devicePixelRatioOf(context))
-                          .ceil(),
-                      policy: ResizeImagePolicy.fit,
-                    ),
-                    width: 88,
-                    height: 88,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 88,
-                      height: 88,
-                      color: previewFill,
-                      child: Icon(
-                        Icons.broken_image,
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.45,
-                        ),
-                      ),
+            child: Image(
+              image: ResizeImage(
+                FileImage(File(image.path)),
+                width: (88 * MediaQuery.devicePixelRatioOf(context)).ceil(),
+                height: (88 * MediaQuery.devicePixelRatioOf(context)).ceil(),
+                policy: ResizeImagePolicy.fit,
+              ),
+              width: 88,
+              height: 88,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 88,
+                height: 88,
+                color: previewFill,
+                child: Icon(
+                  Icons.broken_image,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (processing)
+          Positioned(
+            left: 4,
+            top: 4,
+            child: IgnorePointer(
+              child: Tooltip(
+                key: ValueKey('chat-input-image-processing:${image.id}'),
+                message: l10n.chatInputBarImageProcessing,
+                child: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.scrim.withValues(alpha: 0.48),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   ),
+                ),
+              ),
+            ),
           ),
-        ),
-        Positioned.fill(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
-            child: processing
-                ? IgnorePointer(
-                    key: ValueKey('chat-input-image-processing:${image.id}'),
-                    child: Tooltip(
-                      message: l10n.chatInputBarImageProcessing,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.scrim.withValues(
-                            alpha: 0.32,
-                          ),
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                        alignment: Alignment.center,
-                        child: const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors
-                                  .white, // color-gate: ignore (on scrim over photo)
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                : const SizedBox.shrink(key: ValueKey('image-idle')),
-          ),
-        ),
         if (failed)
           Positioned(
             left: 4,
@@ -3547,15 +3746,6 @@ class _ChatInputBarState extends State<ChatInputBar>
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (canEdit) ...[
-                      const Icon(
-                        Lucide.ImageDown,
-                        size: 10,
-                        color: Colors
-                            .white, // color-gate: ignore (on scrim over photo)
-                      ),
-                      const SizedBox(width: 3),
-                    ],
                     Flexible(
                       child: FutureBuilder<int?>(
                         future: _imageSizeOf(image.path),
@@ -3610,19 +3800,14 @@ class _ChatInputBarState extends State<ChatInputBar>
         ),
       ],
     );
-    // A processing chip stays tappable: the editor opens and waits out the pass
-    // rather than leaving the click unanswered. A failed one does not — its pass
-    // could not even store a copy, so there is nothing for the editor to work
-    // from.
-    if (!canEdit || failed) return chip;
     return IosCardPress(
-      key: ValueKey('chat-input-image-compress:$idx'),
+      key: ValueKey('chat-input-image-preview:$idx'),
       haptics: false,
       baseColor: Colors.transparent,
       borderRadius: BorderRadius.circular(10),
       padding: EdgeInsets.zero,
       duration: const Duration(milliseconds: 140),
-      onTap: () => _openCompressEditor(idx),
+      onTap: () => _openDraftImagePreview(idx),
       child: chip,
     );
   }

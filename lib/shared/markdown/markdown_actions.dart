@@ -11,14 +11,14 @@ import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:markstream/markstream.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:path/path.dart' as p;
-import 'package:Kelivo/desktop/html_preview_dialog.dart';
-import 'package:Kelivo/features/chat/pages/html_preview_page.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
-import 'package:Kelivo/utils/clipboard_images.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/desktop/html_preview_dialog.dart';
+import 'package:Cuplivo/features/chat/pages/html_preview_page.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/utils/clipboard_images.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 Widget markdownActionButton(BuildContext context, MarkstreamAction action) {
   if (action.kind == MarkstreamActionKind.showMore) {

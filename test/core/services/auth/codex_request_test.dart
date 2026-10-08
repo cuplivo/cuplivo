@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:Kelivo/core/services/auth/codex_request.dart';
+import 'package:Cuplivo/core/services/auth/codex_request.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 

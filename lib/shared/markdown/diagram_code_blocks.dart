@@ -8,16 +8,16 @@ import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:markstream/markstream.dart';
-import 'package:Kelivo/features/chat/pages/image_viewer_page.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/shared/widgets/mermaid_bridge.dart';
-import 'package:Kelivo/shared/widgets/mermaid_image_cache.dart';
-import 'package:Kelivo/shared/widgets/export_capture_scope.dart';
-import 'package:Kelivo/shared/widgets/diagram_exporter.dart';
+import 'package:Cuplivo/features/chat/pages/image_viewer_page.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/shared/widgets/mermaid_bridge.dart';
+import 'package:Cuplivo/shared/widgets/mermaid_image_cache.dart';
+import 'package:Cuplivo/shared/widgets/export_capture_scope.dart';
+import 'package:Cuplivo/shared/widgets/diagram_exporter.dart';
 import 'highlight_adapter.dart';
 
 enum MermaidBitmapRenderStatus { success, failed, unsupported }

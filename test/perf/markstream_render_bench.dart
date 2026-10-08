@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/markdown/markdown_with_code_highlight.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/markdown/markdown_with_code_highlight.dart';
 import 'package:flutter/material.dart';
-import 'package:Kelivo/shared/widgets/app_selection_area.dart';
+import 'package:Cuplivo/shared/widgets/app_selection_area.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';

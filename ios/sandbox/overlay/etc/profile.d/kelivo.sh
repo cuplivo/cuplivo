@@ -1,4 +1,4 @@
-# Kelivo Workspace shell configuration
+# Cuplivo Workspace shell configuration
 # Loaded by /etc/profile via the profile.d mechanism.
 
 export HOME="${HOME-/root}"

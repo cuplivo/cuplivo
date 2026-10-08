@@ -24,7 +24,7 @@ import '../../model/widgets/ocr_prompt_sheet.dart';
 import '../../workspace/pages/skills_page.dart';
 import '../../workspace/widgets/skills/conversation_skills_sheet.dart';
 import '../utils/ensure_conversation.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import '../../../shared/widgets/section_card.dart';
 import '../../../theme/app_font_weights.dart';
 import 'tools_sheet_row.dart';

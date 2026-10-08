@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import 'emoji_text.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 /// A reusable emoji picker dialog used by both mobile and desktop.
 /// Returns the chosen emoji (single grapheme) or null if cancelled.

@@ -1,6 +1,6 @@
 import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/shared/text_input/compact_edit.dart';
+import 'package:Cuplivo/shared/text_input/compact_edit.dart';
 
 void main() {
   test(

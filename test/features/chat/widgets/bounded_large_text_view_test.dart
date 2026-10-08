@@ -1,7 +1,7 @@
 import 'dart:ui' show Tristate;
 
-import 'package:Kelivo/features/chat/widgets/bounded_large_text_view.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/chat/widgets/bounded_large_text_view.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:markstream/markstream.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/theme/theme_factory.dart' show getPlatformFontFallback;
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/theme_factory.dart' show getPlatformFontFallback;
 
 MarkstreamTheme mapMarkdownTheme(
   BuildContext context,

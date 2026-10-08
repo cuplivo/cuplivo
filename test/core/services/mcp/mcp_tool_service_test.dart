@@ -7,14 +7,14 @@ import 'package:mcp_client/mcp_client.dart' as mcp;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/core/services/mcp/mcp_tool_service.dart';
-import 'package:Kelivo/core/services/api/tool_result_content.dart';
-import 'package:Kelivo/core/services/tool_image.dart';
-import 'package:Kelivo/features/chat/widgets/timeline_visibility.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_tool_service.dart';
+import 'package:Cuplivo/core/services/api/tool_result_content.dart';
+import 'package:Cuplivo/core/services/tool_image.dart';
+import 'package:Cuplivo/features/chat/widgets/timeline_visibility.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 
 import '../../../support/business_test_harness.dart';
 import '../../../support/claude_test_api.dart' show FakePathProviderPlatform;

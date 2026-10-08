@@ -11,16 +11,16 @@ import 'package:sqlite3/sqlite3.dart'
     as sqlite
     show sqlite3, OpenMode, SqliteException;
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/database/business_repository.dart';
-import 'package:Kelivo/core/database/extension_entity_store.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/services/backup/backup_cancel_token.dart';
-import 'package:Kelivo/core/services/backup/backup_task_progress.dart';
-import 'package:Kelivo/core/services/backup/backup_isolate_runner.dart';
-import 'package:Kelivo/core/services/backup/restore_bundle_staging.dart';
-import 'package:Kelivo/core/services/backup/restore_workspace_lock.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/services/backup/backup_cancel_token.dart';
+import 'package:Cuplivo/core/services/backup/backup_task_progress.dart';
+import 'package:Cuplivo/core/services/backup/backup_isolate_runner.dart';
+import 'package:Cuplivo/core/services/backup/restore_bundle_staging.dart';
+import 'package:Cuplivo/core/services/backup/restore_workspace_lock.dart';
 
 import '../../database/generated_schema/schema_v1.dart' as v1;
 

@@ -3,16 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markstream/markstream.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/markdown/citation_syntax.dart';
-import 'package:Kelivo/shared/markdown/highlight_adapter.dart';
-import 'package:Kelivo/shared/markdown/link_image_handlers.dart';
-import 'package:Kelivo/shared/markdown/markdown_with_code_highlight.dart';
-import 'package:Kelivo/shared/markdown/math_adapter.dart';
-import 'package:Kelivo/shared/widgets/export_capture_scope.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/markdown/citation_syntax.dart';
+import 'package:Cuplivo/shared/markdown/highlight_adapter.dart';
+import 'package:Cuplivo/shared/markdown/link_image_handlers.dart';
+import 'package:Cuplivo/shared/markdown/markdown_with_code_highlight.dart';
+import 'package:Cuplivo/shared/markdown/math_adapter.dart';
+import 'package:Cuplivo/shared/widgets/export_capture_scope.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 import '../../support/business_test_harness.dart';
 

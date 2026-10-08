@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:Kelivo/features/settings/search/settings_search_index.dart';
-import 'package:Kelivo/features/settings/widgets/settings_search_view.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/theme/palettes.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/features/settings/search/settings_search_index.dart';
+import 'package:Cuplivo/features/settings/widgets/settings_search_view.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/theme/palettes.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'
     show debugDefaultTargetPlatformOverride;

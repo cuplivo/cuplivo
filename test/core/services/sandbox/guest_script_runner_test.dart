@@ -2,8 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/sandbox/guest_script_runner.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/core/services/sandbox/guest_script_runner.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
 
 import '../../../support/fake_workspace_runtime.dart';
 

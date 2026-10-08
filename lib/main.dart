@@ -1,8 +1,8 @@
 import 'core/services/scheduled_tasks_service.dart';
 import 'core/services/auth/provider_oauth_service.dart';
-import 'package:Kelivo/core/services/sandbox/workspace_channel.dart';
-import 'package:Kelivo/core/providers/external_mounts_provider.dart';
-import 'package:Kelivo/core/services/sandbox/environment_dependencies.dart';
+import 'package:Cuplivo/core/services/sandbox/workspace_channel.dart';
+import 'package:Cuplivo/core/providers/external_mounts_provider.dart';
+import 'package:Cuplivo/core/services/sandbox/environment_dependencies.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'
     show debugPrint, kIsWeb, defaultTargetPlatform, TargetPlatform;
@@ -475,7 +475,7 @@ Future<void> _initRestoreFailureWindow() async {
       return;
     }
     await windowManager.waitUntilReadyToShow(
-      const WindowOptions(title: 'Kelivo'),
+      const WindowOptions(title: 'Cuplivo'),
       () async {
         await windowManager.show();
         await windowManager.focus();
@@ -500,7 +500,7 @@ class _RestoreProgressApp extends StatelessWidget {
     final palette = ThemePalettes.defaultPalette;
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Kelivo',
+      title: 'Cuplivo',
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       theme: buildLightThemeForScheme(palette.light),
@@ -526,7 +526,7 @@ class _RestoreFailureApp extends StatelessWidget {
     final palette = ThemePalettes.defaultPalette;
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Kelivo',
+      title: 'Cuplivo',
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       theme: buildLightThemeForScheme(palette.light),
@@ -558,7 +558,7 @@ Future<void> _initDesktopWindow() async {
             false);
     // Initialize and show desktop window with persisted size/position
     await DesktopWindowController.instance.initializeAndShow(
-      title: 'Kelivo',
+      title: 'Cuplivo',
       linuxHideTitleBar: linuxHideTitleBar,
     );
   } catch (_) {
@@ -627,7 +627,7 @@ class MigrationApp extends StatelessWidget {
     final palette = ThemePalettes.defaultPalette;
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Kelivo',
+      title: 'Cuplivo',
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       theme: buildLightThemeForScheme(palette.light),
@@ -696,13 +696,8 @@ class MyApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider(
-          create: (ctx) {
-            final assistants = ctx.read<AssistantProvider>();
-            final settings = SettingsProvider(
-              businessPreferences,
-              onProviderModelsRetired:
-                  assistants.clearModelSelectionsForProvider,
-            );
+          create: (_) {
+            final settings = SettingsProvider(businessPreferences);
             unawaited(
               settings.loaded.then((_) => settings.incrementAppLaunchCount()),
             );
@@ -1060,7 +1055,7 @@ class MyApp extends StatelessWidget {
               // debugPrint('[Theme/App] Dark scaffoldBg=${dark.colorScheme.surface.value.toRadixString(16)} card≈${dark.colorScheme.surface.value.toRadixString(16)} shadow=${dark.colorScheme.shadow.value.toRadixString(16)}');
               return MaterialApp(
                 debugShowCheckedModeBanner: false,
-                title: 'Kelivo',
+                title: 'Cuplivo',
                 navigatorKey: rootNavigatorKey,
                 // App UI language; null = follow system (respects iOS per-app language)
                 locale: settings.appLocaleForMaterialApp,

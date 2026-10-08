@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/workspace/edit_matchers.dart';
+import 'package:Cuplivo/core/services/workspace/edit_matchers.dart';
 
 void main() {
   group('exact', () {

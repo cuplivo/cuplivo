@@ -418,7 +418,7 @@ final class StartupFailureReport {
   /// disk. Everything a support conversation needs is in here.
   String toText() {
     final buffer = StringBuffer()
-      ..writeln('Kelivo startup failure report')
+      ..writeln('Cuplivo startup failure report')
       ..writeln('captured: ${capturedAt.toIso8601String()}')
       ..writeln('stage: ${stage.code}')
       ..writeln('step: ${step ?? 'unknown'}')

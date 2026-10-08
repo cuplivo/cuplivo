@@ -94,7 +94,7 @@ class DesktopTrayController with TrayListener, WindowListener {
       } else if (platform == TargetPlatform.macOS) {
         await trayManager.setIcon('assets/icon_mac.png', isTemplate: true);
       } else {
-        await trayManager.setIcon('assets/icons/kelivo.png');
+        await trayManager.setIcon('assets/app_icon_about.png');
       }
     } catch (_) {}
 
@@ -102,7 +102,7 @@ class DesktopTrayController with TrayListener, WindowListener {
     // consistent with Gopeed and skip it there.
     if (platform != TargetPlatform.linux) {
       try {
-        await trayManager.setToolTip('Kelivo');
+        await trayManager.setToolTip('Cuplivo');
       } catch (_) {}
     }
     try {

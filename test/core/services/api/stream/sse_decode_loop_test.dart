@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:Kelivo/core/services/api/providers/openai/chat_completions_decoder.dart';
-import 'package:Kelivo/core/services/api/providers/openai/responses_decoder.dart';
-import 'package:Kelivo/core/services/api/stream/sse_decode_loop.dart';
-import 'package:Kelivo/core/services/api/stream/sse_event.dart';
-import 'package:Kelivo/core/services/api/stream/sse_framing.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk_handler.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/chat_completions_decoder.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/responses_decoder.dart';
+import 'package:Cuplivo/core/services/api/stream/sse_decode_loop.dart';
+import 'package:Cuplivo/core/services/api/stream/sse_event.dart';
+import 'package:Cuplivo/core/services/api/stream/sse_framing.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk_handler.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 SseEvent _json(Map<String, dynamic> data) => SseEvent(data: jsonEncode(data));

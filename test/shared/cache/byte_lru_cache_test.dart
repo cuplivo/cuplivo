@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:Kelivo/shared/cache/byte_lru_cache.dart';
-import 'package:Kelivo/shared/widgets/mermaid_image_cache.dart';
+import 'package:Cuplivo/shared/cache/byte_lru_cache.dart';
+import 'package:Cuplivo/shared/widgets/mermaid_image_cache.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

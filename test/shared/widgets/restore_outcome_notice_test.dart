@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/backup/restore_receipt.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/restore_outcome_notice.dart';
+import 'package:Cuplivo/core/services/backup/restore_receipt.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/restore_outcome_notice.dart';
 
 Widget _testApp(RestoreReceiptState? outcome) {
   return MaterialApp(
@@ -27,7 +27,7 @@ void main() {
     expect(find.text('Restore was rolled back'), findsOneWidget);
     expect(
       find.text(
-        'The restore could not be completed. Kelivo verified and kept your previous data.',
+        'The restore could not be completed. Cuplivo verified and kept your previous data.',
       ),
       findsOneWidget,
     );

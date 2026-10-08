@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/services/network/dio_http_client.dart';
-import 'package:Kelivo/core/services/network/request_logger.dart';
+import 'package:Cuplivo/core/services/network/dio_http_client.dart';
+import 'package:Cuplivo/core/services/network/request_logger.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 // ignore: depend_on_referenced_packages

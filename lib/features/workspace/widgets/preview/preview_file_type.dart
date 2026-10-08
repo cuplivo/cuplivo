@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:Kelivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
 
 /// Visual identity for a file extension (icon + tint used by the binary card).
 class PreviewFileTypeStyle {

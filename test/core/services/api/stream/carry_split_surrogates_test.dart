@@ -1,5 +1,5 @@
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk_emit.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk_emit.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void expectValidUtf16(String value) {

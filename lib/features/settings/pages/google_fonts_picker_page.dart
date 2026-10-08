@@ -70,7 +70,7 @@ class _GoogleFontsPickerPageState extends State<GoogleFontsPickerPage> {
     if (cached != null) return cached;
     return _previewLoads.putIfAbsent(font.url, () async {
       try {
-        final family = 'kelivo_font_preview_${_nextPreviewFontId++}';
+        final family = 'cuplivo_font_preview_${_nextPreviewFontId++}';
         final bytes = await download.file.readAsBytes();
         final loader = FontLoader(family)
           ..addFont(Future.value(bytes.buffer.asByteData()));

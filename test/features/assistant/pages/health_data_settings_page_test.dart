@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/health_data_type.dart';
-import 'package:Kelivo/features/assistant/widgets/health_data_settings_view.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/core/models/health_data_type.dart';
+import 'package:Cuplivo/features/assistant/widgets/health_data_settings_view.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 
 void main() {
   testWidgets('category pills switch the visible type list', (tester) async {

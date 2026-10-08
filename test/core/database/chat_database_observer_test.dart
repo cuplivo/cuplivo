@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/database/chat_database_observer.dart';
+import 'package:Cuplivo/core/database/chat_database_observer.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 

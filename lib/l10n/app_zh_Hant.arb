@@ -49,7 +49,7 @@
   "storageSpaceCategoryRestoreTraces": "還原痕跡",
   "storageSpaceCategoryDisplacedDatabases": "保留的舊資料庫",
   "storageSpaceSubDisplacedDatabases": "自動重建前保留的資料庫",
-  "storageSpaceClearDisplacedDatabasesConfirmMessage": "確定刪除這些保留的舊資料庫嗎？它們是 Kelivo 重建資料庫時留下的，可能是那些聊天記錄和設定僅存的一份。刪除後無法復原。",
+  "storageSpaceClearDisplacedDatabasesConfirmMessage": "確定刪除這些保留的舊資料庫嗎？它們是 Cuplivo 重建資料庫時留下的，可能是那些聊天記錄和設定僅存的一份。刪除後無法復原。",
   "storageSpaceRestoreTracesHint": "還原完成後保留的舊資料快照。清理不會影響目前的應用程式資料。",
   "storageSpaceClearRestoreTracesButton": "清理還原痕跡",
   "storageSpaceClearDisplacedDatabasesButton": "刪除保留的舊資料庫",
@@ -93,6 +93,7 @@
   "storageSpaceClearLegacyChatDataConfirmMessage": "確定清理保留的舊聊天檔案嗎？目前的 SQLite 聊天記錄不會受到影響。",
   "storageSpaceViewLogsButton": "查看日誌",
   "storageSpaceDeleteConfirmTitle": "確認刪除",
+  "storageSpaceDeleteDraftWarning": "其中 {count} 個檔案仍被未發送的草稿引用",
   "storageSpaceDeleteUploadsConfirmMessage": "刪除 {count} 個項目及其對應的對話附件副本？刪除後，聊天記錄中的這些附件將無法使用。",
   "storageSpaceDeletedUploadsDone": "已刪除 {count} 個項目",
   "storageSpaceNoUploads": "暫無內容",
@@ -132,8 +133,6 @@
   "statsPageOutputTokens": "輸出 Tokens",
   "statsPageCachedTokens": "快取 Tokens",
   "statsPageLaunchCount": "應用啟動次數",
-  "statsPageCost": "費用 ({currency})",
-  "statsPageModelsWithoutPricing": "{count} 個模型無定價",
   "statsPageUsageTrendTitle": "用量趨勢",
   "statsPageModelUsageTitle": "模型使用率",
   "statsPageAssistantUsageTitle": "助手使用率",
@@ -251,9 +250,7 @@
   "assistantEditContextMessagesDescription": "多少歷史訊息會被當作上下文傳送給模型，超過數量會忽略，只保留最近 N 條",
   "assistantEditStreamOutputTitle": "串流輸出",
   "assistantEditStreamOutputDescription": "是否啟用訊息的串流輸出",
-  "assistantEditThinkingBudgetTitle": "思考",
-  "assistantEditReasoningFollowDefault": "跟隨模型預設",
-  "assistantEditReasoningClampedSubtitle": "實際檔位會依各模型的能力收斂",
+  "assistantEditThinkingBudgetTitle": "思考預算",
   "assistantEditConfigureButton": "設定",
   "assistantEditMaxTokensTitle": "最大 Token 數",
   "assistantEditMaxTokensDescription": "留空表示無限制",
@@ -489,6 +486,7 @@
   "displaySettingsPageLanguageChineseLabel": "简体中文",
   "displaySettingsPageLanguageEnglishLabel": "English",
   "homePagePleaseSelectModel": "請先選擇模型",
+  "homePageAudioAttachmentUnsupported": "目前模型不支援音訊附件，請切換到支援音訊輸入的模型或移除音訊檔案後再試。",
   "homePagePleaseSetupTranslateModel": "請先設定翻譯模型",
   "homePageTranslating": "翻譯中...",
   "homePageTranslateFailed": "翻譯失敗: {error}",
@@ -517,8 +515,8 @@
   "backupPageTestDone": "測試完成",
   "backupPageTestConnection": "測試連線",
   "backupPageRestartRequired": "需要重啟應用程式",
-  "backupPageRestartContent": "匯入成功。重新啟動 Kelivo 後將安全套用。",
-  "backupPageRestartContentWithSkipped": "匯入已完成，但已略過 {count} 個訊息順序無效的會話。重新啟動 Kelivo 後將安全套用已匯入的資料。",
+  "backupPageRestartContent": "匯入成功。重新啟動 Cuplivo 後將安全套用。",
+  "backupPageRestartContentWithSkipped": "匯入已完成，但已略過 {count} 個訊息順序無效的會話。重新啟動 Cuplivo 後將安全套用已匯入的資料。",
   "@backupPageRestartContentWithSkipped": {
     "placeholders": {
       "count": {
@@ -526,22 +524,22 @@
       }
     }
   },
-  "restartAppFailedMessage": "Kelivo 無法自動重新啟動，請完全關閉後再重新開啟。",
+  "restartAppFailedMessage": "Cuplivo 無法自動重新啟動，請完全關閉後再重新開啟。",
   "backupRestoreRolledBackTitle": "已保留原有資料",
-  "backupRestoreRolledBackContent": "還原未能完成。Kelivo 已驗證並保留先前的資料。",
+  "backupRestoreRolledBackContent": "還原未能完成。Cuplivo 已驗證並保留先前的資料。",
   "backupRestoreFailureTitle": "還原需要處理",
-  "backupRestoreFailureContent": "Kelivo 無法驗證完整的原有或新資料，因此未開啟聊天資料。請關閉 Kelivo 後重試；若問題持續發生，請保留診斷碼以供支援人員排查。",
-  "backupRestoreBusinessLeaseUnavailableTitle": "Kelivo 已在執行",
-  "backupRestoreBusinessLeaseUnavailableContent": "Kelivo 的資料仍由另一個應用程式程序使用。請關閉其他 Kelivo 視窗後重新啟動；目前程序尚未開啟聊天資料。",
+  "backupRestoreFailureContent": "Cuplivo 無法驗證完整的原有或新資料，因此未開啟聊天資料。請關閉 Cuplivo 後重試；若問題持續發生，請保留診斷碼以供支援人員排查。",
+  "backupRestoreBusinessLeaseUnavailableTitle": "Cuplivo 已在執行",
+  "backupRestoreBusinessLeaseUnavailableContent": "Cuplivo 的資料仍由另一個應用程式程序使用。請關閉其他 Cuplivo 視窗後重新啟動；目前程序尚未開啟聊天資料。",
   "restoreProgressTitle": "正在還原備份",
-  "restoreProgressWarning": "請保持 Kelivo 開啟直到完成。此時關閉應用程式，下次啟動會從頭再來一次。",
+  "restoreProgressWarning": "請保持 Cuplivo 開啟直到完成。此時關閉應用程式，下次啟動會從頭再來一次。",
   "restoreProgressStageCheckingBackup": "正在驗證備份",
   "restoreProgressStagePreservingCurrentData": "正在保留目前資料",
   "restoreProgressStageInstallingBackup": "正在寫入備份",
   "restoreProgressStageVerifying": "正在驗證",
   "restoreProgressStageRollingBack": "正在還原原有資料",
   "restoreProgressStageFinishing": "即將完成",
-  "backupRestoreFailureRestartButton": "重新啟動 Kelivo",
+  "backupRestoreFailureRestartButton": "重新啟動 Cuplivo",
   "backupRestoreFailureCopyButton": "複製診斷碼",
   "backupRestoreFailureCopied": "已複製診斷碼",
   "backupRestoreFailureDiagnostic": "診斷碼：{code}",
@@ -560,9 +558,9 @@
   "startupRecoveryExportSucceeded": "已儲存一份資料副本。",
   "startupRecoveryExportFailed": "無法匯出資料副本。",
   "startupRecoveryRepairFailed": "修復未能解決問題。請先匯出資料副本，然後重設。",
-  "startupRecoveryResetFailed": "重設失敗。請完全關閉 Kelivo 後再重新開啟。",
+  "startupRecoveryResetFailed": "重設失敗。請完全關閉 Cuplivo 後再重新開啟。",
   "startupRecoveryResetDialogTitle": "重設全部資料？",
-  "startupRecoveryResetDialogContent": "這會永久刪除本裝置上 Kelivo 的資料庫並重新開始。如果之後可能還需要這些資料，請先匯出一份副本。此操作無法復原。",
+  "startupRecoveryResetDialogContent": "這會永久刪除本裝置上 Cuplivo 的資料庫並重新開始。如果之後可能還需要這些資料，請先匯出一份副本。此操作無法復原。",
   "startupRecoveryResetDialogConfirm": "重設並重新啟動",
   "startupRecoveryResetDialogCancel": "取消",
   "startupRecoveryWhatFailed": "失敗原因",
@@ -595,13 +593,13 @@
   "startupRecoveryIntegrityMissing": "資料目錄中找不到資料庫檔案。",
   "startupRecoveryIntegrityFailed": "完整性檢查無法執行。",
   "startupRecoveryDangerZone": "危險操作",
-  "startupRecoveryDangerBody": "重設會永久刪除本裝置上 Kelivo 的資料庫。請先匯出資料副本——重設同時會銷毀排查根本問題所需的證據。",
+  "startupRecoveryDangerBody": "重設會永久刪除本裝置上 Cuplivo 的資料庫。請先匯出資料副本——重設同時會銷毀排查根本問題所需的證據。",
   "startupRecoveryResetAcknowledge": "我已匯出副本，或不需要這些資料。",
-  "startupDatabaseUpdateRequiredTitle": "請更新 Kelivo 以繼續",
-  "startupDatabaseUpdateRequiredContent": "本裝置上的聊天資料庫由更新版本的 Kelivo 建立，目前版本無法開啟。資料未被改動。請安裝最新版 Kelivo 後重新開啟。",
+  "startupDatabaseUpdateRequiredTitle": "請更新 Cuplivo 以繼續",
+  "startupDatabaseUpdateRequiredContent": "本裝置上的聊天資料庫由更新版本的 Cuplivo 建立，目前版本無法開啟。資料未被改動。請安裝最新版 Cuplivo 後重新開啟。",
   "startupDatabaseUpdateRequiredDowngradeTitle": "若要改用舊版",
   "startupDatabaseUpdateRequiredDowngradeIntro": "目前版本無法開啟本機這份資料庫。若你必須留在舊版，請依下列步驟處理；在備份完成之前，不要刪除或覆蓋這裡的資料。",
-  "startupDatabaseUpdateRequiredDowngradeStep1": "先安裝並開啟最新版 Kelivo，在「設定 → 資料備份」匯出一份備份檔。",
+  "startupDatabaseUpdateRequiredDowngradeStep1": "先安裝並開啟最新版 Cuplivo，在「設定 → 資料備份」匯出一份備份檔。",
   "startupDatabaseUpdateRequiredDowngradeStep2": "打開 {url}，把備份轉換成你打算使用的舊版格式。",
   "@startupDatabaseUpdateRequiredDowngradeStep2": {
     "placeholders": {
@@ -619,31 +617,31 @@
   "backupPageSelectImportMode": "選擇匯入模式",
   "backupPageSelectImportModeDescription": "請選擇還原方式。聊天與檔案開關決定本次還原的元件。",
   "backupPageOverwriteMode": "完全覆蓋",
-  "backupPageOverwriteModeDescription": "取代所選內容，保留未選內容及其他本機設定。取代聊天時，也會清除本機未傳送的草稿。",
+  "backupPageOverwriteModeDescription": "僅替換已選元件；保留未選元件及無關的本機設定",
   "backupPageMergeMode": "合併",
   "backupPageMergeModeDescription": "保留本機資料並加入備份資料；相同對話會略過，衝突對話會重新分配 ID。",
   "backupPageRestore": "還原",
   "backupPageForwardCompatTitle": "備份來自更新的版本",
-  "backupPageForwardCompatBody": "這份備份由更新版本的 Kelivo 建立（資料格式 {backupVersion}，目前版本支援 {currentVersion}），且未聲明舊版本能否讀取。\n\n你可以繼續匯入：目前版本不認識的內容會被略過，備份檔案本身不會被修改。但如果新版本改變了既有資料的儲存方式，部分內容可能會被錯誤匯入。\n\n更穩妥的做法是先升級 Kelivo。",
+  "backupPageForwardCompatBody": "這份備份由更新版本的 Cuplivo 建立（資料格式 {backupVersion}，目前版本支援 {currentVersion}），且未聲明舊版本能否讀取。\n\n你可以繼續匯入：目前版本不認識的內容會被略過，備份檔案本身不會被修改。但如果新版本改變了既有資料的儲存方式，部分內容可能會被錯誤匯入。\n\n更穩妥的做法是先升級 Cuplivo。",
   "@backupPageForwardCompatBody": {
     "placeholders": {
-      "backupVersion": { "type": "int" },
-      "currentVersion": { "type": "int" }
+      "backupVersion": {
+        "type": "int"
+      },
+      "currentVersion": {
+        "type": "int"
+      }
     }
   },
   "backupPageForwardCompatContinue": "仍然匯入",
   "backupPageForwardCompatCancel": "取消",
-  "backupPageSchemaTooNewMessage": "這份備份由更新版本的 Kelivo 建立，目前版本無法讀取。請先升級 Kelivo 後重試。",
+  "backupPageSchemaTooNewMessage": "這份備份由更新版本的 Cuplivo 建立，目前版本無法讀取。請先升級 Cuplivo 後重試。",
   "backupPageBackupUploaded": "已上傳備份",
   "backupPageBackup": "立即備份",
   "backupPageExportToFile": "匯出為檔案",
   "backupPageExporting": "正在匯出...",
   "backupProgressCancel": "取消",
   "backupProgressCancelled": "已取消",
-  "backupProgressFailed": "操作失敗",
-  "backupProgressFailedAt": "失敗階段：{phase}",
-  "backupProgressCopyError": "複製錯誤",
-  "backupProgressErrorCopied": "錯誤已複製",
   "backupProgressPreparing": "準備中",
   "backupProgressSnapshotting": "正在建立資料庫快照",
   "backupProgressPacking": "正在打包",
@@ -710,7 +708,7 @@
   "backupPageBackupNow": "立即備份",
   "backupPageLocalBackup": "本機備份",
   "backupPageImportFromCherryStudio": "從 Cherry Studio 匯入",
-  "backupPageCherryStudioUnsupportedBackupVersion": "此備份使用 Cherry Studio 格式版本 {version}，Kelivo 目前尚無法匯入。請改用 Cherry Studio v1 匯出備份，或等待後續版本支援 Cherry Studio v2。",
+  "backupPageCherryStudioUnsupportedBackupVersion": "此備份使用 Cherry Studio 格式版本 {version}，Cuplivo 目前尚無法匯入。請改用 Cherry Studio v1 匯出備份，或等待後續版本支援 Cherry Studio v2。",
   "backupPageImportFromChatbox": "從 Chatbox 匯入",
   "backupReminderSectionTitle": "備份提醒",
   "backupReminderEnableTitle": "定期提醒我備份",
@@ -849,42 +847,23 @@
   "messageMoreSheetCreateBranch": "建立分支",
   "messageMoreSheetDelete": "刪除本版本",
   "messageMoreSheetDeleteAllVersions": "刪除全部版本",
+  "reasoningBudgetSheetOff": "關閉",
+  "reasoningBudgetSheetAuto": "自動",
+  "reasoningBudgetSheetLight": "輕度推理",
+  "reasoningBudgetSheetMedium": "中度推理",
+  "reasoningBudgetSheetHeavy": "重度推理",
+  "reasoningBudgetSheetXhigh": "極限推理",
+  "reasoningBudgetSheetMax": "全力推理",
   "reasoningBudgetSheetTitle": "思維鏈強度",
-  "reasoningLevelSheetTitle": "推理",
-  "reasoningLevelAuto": "自動",
-  "reasoningLevelAutoSubtitle": "使用模型或供應商的預設設定",
-  "reasoningLevelOff": "關閉",
-  "reasoningLevelOffSubtitle": "關閉推理，直接回答",
-  "reasoningLevelMinimal": "最低",
-  "reasoningLevelMinimalSubtitle": "使用極少推理來回答問題",
-  "reasoningLevelLow": "低",
-  "reasoningLevelLowSubtitle": "使用少量推理來回答問題",
-  "reasoningLevelMedium": "中",
-  "reasoningLevelMediumSubtitle": "使用較多推理來回答問題",
-  "reasoningLevelHigh": "高",
-  "reasoningLevelHighSubtitle": "使用大量推理來回答問題，適合複雜問題",
-  "reasoningLevelXhigh": "極高",
-  "reasoningLevelXhighSubtitle": "使用很高推理深度，適合更複雜的問題",
-  "reasoningLevelMax": "最大",
-  "reasoningLevelMaxSubtitle": "使用最大推理深度，適合最複雜的問題",
-  "reasoningLevelFollowModelDefaultSubtitle": "使用模型或助手未設定時的預設檔位",
-  "reasoningLevelNoReasoning": "此模型不支援推理",
-  "reasoningLevelCustomBudget": "自訂推理預算",
-  "reasoningLevelCustomBudgetHint": "例如：2048",
-  "reasoningLevelCompactMin": "min",
-  "reasoningLevelCompactLow": "low",
-  "reasoningLevelCompactMid": "mid",
-  "reasoningLevelCompactHigh": "high",
-  "reasoningLevelCompactXhigh": "xhigh",
-  "reasoningLevelCompactMax": "max",
-  "reasoningLevelBudgetTokens": "{budget} tokens",
-  "@reasoningLevelBudgetTokens": {
-    "placeholders": {
-      "budget": {
-        "type": "String"
-      }
-    }
-  },
+  "reasoningBudgetSheetCurrentLevel": "目前檔位：{level}",
+  "reasoningBudgetSheetOffSubtitle": "關閉推理功能，直接回答",
+  "reasoningBudgetSheetAutoSubtitle": "由模型自動決定推理級別",
+  "reasoningBudgetSheetLightSubtitle": "使用少量推理來回答問題",
+  "reasoningBudgetSheetMediumSubtitle": "使用較多推理來回答問題",
+  "reasoningBudgetSheetHeavySubtitle": "使用大量推理來回答問題，適合複雜問題",
+  "reasoningBudgetSheetXhighSubtitle": "使用最大推理深度，適合最複雜的問題",
+  "reasoningBudgetSheetCustomLabel": "自訂推理預算",
+  "reasoningBudgetSheetCustomHint": "例如：2048 (-1 自動，0 關閉)",
   "chatMessageWidgetFileNotFound": "檔案不存在: {fileName}",
   "chatMessageWidgetCannotOpenFile": "無法開啟檔案: {message}",
   "chatMessageWidgetOpenFileError": "開啟檔案失敗: {error}",
@@ -913,12 +892,6 @@
   "chatMessageWidgetBuiltinSearchHideNote": "隱藏內建搜尋工具卡片",
   "chatMessageWidgetDeepThinking": "深度思考",
   "chatMessageWidgetWebSearch": "聯網檢索: {query}",
-  "chatMessageWidgetWebFetch": "讀取網頁: {target}",
-  "@chatMessageWidgetWebFetch": {
-    "placeholders": {
-      "target": { "type": "String" }
-    }
-  },
   "chatMessageWidgetBuiltinSearch": "模型內建搜尋",
   "chatMessageWidgetReadClipboard": "讀取剪貼簿",
   "chatMessageWidgetWriteClipboard": "寫入剪貼簿",
@@ -1099,12 +1072,6 @@
   "chatInputBarVoiceStopTooltip": "停止並轉為文字",
   "chatInputBarVoiceSendTooltip": "轉文字並發送",
   "chatInputBarVoiceTranscribing": "正在辨識…",
-  "chatInputBarVoiceAttachAudioTooltip": "停止並存為音訊",
-  "chatInputBarVoiceSendAudioTooltip": "直接發送錄音",
-  "chatInputBarVoiceSavingAudio": "正在儲存錄音…",
-  "audioClipPlayTooltip": "播放音訊",
-  "audioClipPauseTooltip": "暫停",
-  "audioClipPlaybackFailed": "無法播放此音訊",
   "chatInputBarImageProcessing": "正在處理圖片",
   "chatInputBarImageMode": "繪圖模式",
   "chatInputBarDisableImageModeTooltip": "關閉繪圖模式",
@@ -1113,31 +1080,6 @@
   "chatInputBarInsertNewline": "換行",
   "chatInputBarExpand": "展開",
   "chatInputBarCollapse": "收起",
-  "contextUsageTitle": "上下文視窗",
-  "contextUsageStateExact": "精確（來自上次回應）",
-  "contextUsageStateExactCalibrated": "精確（分項按估算比例）",
-  "contextUsageStateEstimated": "估算",
-  "contextUsageStateStale": "已過時，正在更新…",
-  "contextUsageStateComputing": "計算中…",
-  "contextUsageStateNone": "暫無資料",
-  "contextUsageBucketSystem": "系統提示詞",
-  "contextUsageBucketInjections": "指令注入",
-  "contextUsageBucketHistory": "歷史訊息",
-  "contextUsageBucketTools": "內建工具",
-  "contextUsageBucketMemory": "記憶",
-  "contextUsageBucketWorldBook": "世界書",
-  "contextUsageBucketSkills": "技能",
-  "contextUsageBucketWorkspace": "工作區",
-  "contextUsageBucketSearch": "搜尋提示",
-  "contextUsageBucketMcpTools": "MCP 工具",
-  "contextUsageBucketAttachments": "附件",
-  "contextUsageBucketDraft": "草稿",
-  "contextUsageBucketUsed": "已用",
-  "contextUsageFreeSpace": "剩餘空間",
-  "contextUsageUsedWindow": "{used} / {window} ({percent}%)",
-  "contextUsageNoWindow": "未設定上下文視窗",
-  "contextUsageSetWindow": "設定上下文視窗",
-  "contextUsageRefresh": "重新整理",
   "mcpPageBackTooltip": "返回",
   "mcpPageAddMcpTooltip": "新增 MCP",
   "mcpPageNoServers": "暫無 MCP 伺服器",
@@ -1222,8 +1164,12 @@
   "backgroundTaskFailed": "{task}失敗：{error}",
   "@backgroundTaskFailed": {
     "placeholders": {
-      "task": {"type": "String"},
-      "error": {"type": "String"}
+      "task": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
   "defaultModelPageOcrModelSubtitle": "用於對圖片執行文字辨識的模型",
@@ -1259,6 +1205,7 @@
   "modelDetailSheetBuiltinToolsTab": "內建工具",
   "modelDetailSheetModelIdLabel": "模型 ID",
   "modelDetailSheetModelIdHint": "必填，建議小寫字母、數字、連字號",
+  "modelDetailSheetModelIdDisabledHint": "{modelId}",
   "modelDetailSheetModelNameLabel": "模型名稱",
   "modelDetailSheetModelTypeLabel": "模型類型",
   "modelDetailSheetChatType": "聊天",
@@ -1275,6 +1222,8 @@
   "modelDetailSheetCustomBodyTitle": "自訂 Body",
   "modelDetailSheetAddBody": "新增 Body",
   "modelDetailSheetBuiltinToolsDescription": "內建工具取決於供應商和 API 模式。",
+  "modelDetailSheetSearchTool": "搜尋",
+  "modelDetailSheetSearchToolDescription": "啟用 Google 搜尋整合",
   "modelDetailSheetUrlContextTool": "URL 上下文",
   "modelDetailSheetUrlContextToolDescription": "啟用 URL 內容處理",
   "modelDetailSheetCodeExecutionTool": "程式碼執行",
@@ -1296,101 +1245,11 @@
   "modelDetailSheetAddButton": "新增",
   "modelDetailSheetConfirmButton": "確認",
   "modelDetailSheetInvalidIdError": "請輸入有效的模型 ID（不少於2個字元）",
+  "modelDetailSheetModelIdExistsError": "模型 ID 已存在",
   "modelDetailSheetHeaderKeyHint": "Header Key",
   "modelDetailSheetHeaderValueHint": "Header Value",
   "modelDetailSheetBodyKeyHint": "Body Key",
   "modelDetailSheetBodyJsonHint": "Body JSON",
-  "modelSpecFormSourceCustom": "自訂",
-  "modelSpecFormSourceCatalog": "目錄",
-  "modelSpecFormSourceInferred": "推斷",
-  "modelSpecFormSourceDefault": "預設",
-  "modelSpecFormReset": "重設為預設",
-  "modelSpecFormModalitiesSection": "模態與能力",
-  "modelSpecFormImageType": "圖像",
-  "modelSpecFormAudioMode": "音訊",
-  "modelSpecFormVideoMode": "影片",
-  "modelSpecFormPdfMode": "PDF",
-  "modelSpecFormStructuredOutputAbility": "結構化輸出",
-  "modelSpecFormReasoningSection": "推理",
-  "modelSpecFormDialect": "推理方言",
-  "modelSpecFormDialectNone": "無",
-  "modelSpecFormDialectNoneSubtitle": "不寫入推理欄位",
-  "modelSpecFormDialectOpenaiReasoningEffort": "OpenAI reasoning effort",
-  "modelSpecFormDialectOpenaiReasoningEffortSubtitle": "reasoning_effort",
-  "modelSpecFormDialectOpenaiResponsesReasoning": "OpenAI Responses reasoning",
-  "modelSpecFormDialectOpenaiResponsesReasoningSubtitle": "reasoning.effort",
-  "modelSpecFormDialectOpenrouterReasoning": "OpenRouter reasoning",
-  "modelSpecFormDialectOpenrouterReasoningSubtitle": "reasoning",
-  "modelSpecFormDialectAnthropicBudget": "Anthropic budget",
-  "modelSpecFormDialectAnthropicBudgetSubtitle": "thinking.budget_tokens",
-  "modelSpecFormDialectAnthropicAdaptiveEffort": "Anthropic adaptive effort",
-  "modelSpecFormDialectAnthropicAdaptiveEffortSubtitle": "thinking + output_config.effort",
-  "modelSpecFormDialectAnthropicEffort": "Anthropic effort",
-  "modelSpecFormDialectAnthropicEffortSubtitle": "thinking + output_config.effort",
-  "modelSpecFormDialectGeminiThinkingBudget": "Gemini thinking budget",
-  "modelSpecFormDialectGeminiThinkingBudgetSubtitle": "thinkingConfig.thinkingBudget",
-  "modelSpecFormDialectGeminiThinkingLevel": "Gemini thinking level",
-  "modelSpecFormDialectGeminiThinkingLevelSubtitle": "thinkingConfig.thinkingLevel",
-  "modelSpecFormDialectQwenEnableThinking": "Qwen enable thinking",
-  "modelSpecFormDialectQwenEnableThinkingSubtitle": "enable_thinking",
-  "modelSpecFormDialectThinkingType": "Thinking type",
-  "modelSpecFormDialectThinkingTypeSubtitle": "thinking.type",
-  "modelSpecFormDialectSiliconflowEnableThinking": "SiliconFlow enable thinking",
-  "modelSpecFormDialectSiliconflowEnableThinkingSubtitle": "enable_thinking",
-  "modelSpecFormDialectInternThinkingMode": "Intern thinking mode",
-  "modelSpecFormDialectInternThinkingModeSubtitle": "thinking_mode",
-  "modelSpecFormDialectChatTemplateKwargs": "Chat template kwargs",
-  "modelSpecFormDialectChatTemplateKwargsSubtitle": "chat_template_kwargs.enable_thinking",
-  "modelSpecFormDialectKimiThinking": "Kimi thinking",
-  "modelSpecFormDialectKimiThinkingSubtitle": "thinking",
-  "modelSpecFormDialectCustom": "自訂 JSON",
-  "modelSpecFormDialectCustomSubtitle": "依級別寫入 JSON 補丁",
-  "modelSpecFormLevels": "支援的級別",
-  "modelSpecFormCanDisable": "允許關閉",
-  "modelSpecFormDefaultLevel": "預設級別",
-  "modelSpecFormBudgets": "Token 預算",
-  "modelSpecFormBudgetPlaceholder": "{tokens}",
-  "modelSpecFormCustomPatch": "JSON 補丁（{level}）",
-  "modelSpecFormCustomPatchHint": "例如 reasoning_effort: high",
-  "modelSpecFormInvalidJson": "自訂推理補丁必須是有效的 JSON 物件",
-  "modelSpecFormInvalidNumber": "請輸入有效數字",
-  "modelSpecFormStrategySection": "策略",
-  "modelSpecFormSampling": "取樣",
-  "modelSpecFormRequestQuirks": "請求相容",
-  "modelSpecFormDynamicWebSearch": "動態過濾搜尋工具",
-  "modelSpecFormDynamicWebSearchSubtitle": "開啟動態過濾時，使用 2026-03-18 版網頁搜尋與擷取工具",
-  "modelSpecFormRemoteImageUrls": "遠端圖片連結",
-  "modelSpecFormRemoteImageUrlsSubtitle": "直接傳送 http(s) 圖片連結；關閉後捨棄遠端連結，只傳送本機圖片",
-  "modelSpecFormPromptCacheControl": "提示快取標記",
-  "modelSpecFormPromptCacheControlSubtitle": "開啟提示快取時，在 OpenRouter 請求中加入 cache_control",
-  "modelSpecFormSamplingAlways": "始終保留",
-  "modelSpecFormSamplingAlwaysSubtitle": "保留 temperature 等取樣欄位",
-  "modelSpecFormSamplingOnlyWhenReasoningOff": "僅在關閉推理時",
-  "modelSpecFormSamplingOnlyWhenReasoningOffSubtitle": "模型思考時移除取樣欄位",
-  "modelSpecFormSamplingNever": "從不",
-  "modelSpecFormSamplingNeverSubtitle": "始終移除取樣欄位",
-  "modelSpecFormReplay": "推理回放",
-  "modelSpecFormReplayNone": "無",
-  "modelSpecFormReplayNoneSubtitle": "不把先前推理傳回模型",
-  "modelSpecFormReplayToolTurns": "工具輪次",
-  "modelSpecFormReplayToolTurnsSubtitle": "僅在工具呼叫輪次回放推理",
-  "modelSpecFormReplayAll": "全部",
-  "modelSpecFormReplayAllSubtitle": "每一輪後續請求都回放推理",
-  "modelSpecFormReplayField": "回放欄位",
-  "modelSpecFormReplayFieldReasoningContent": "reasoning_content",
-  "modelSpecFormReplayFieldReasoning": "reasoning",
-  "modelSpecFormReplayFieldReasoningDetails": "reasoning_details",
-  "modelSpecFormLimitsSection": "限額",
-  "modelSpecFormLimitsPricingSection": "限額與定價",
-  "modelSpecFormContextWindow": "上下文視窗",
-  "modelSpecFormMaxOutput": "最大輸出",
-  "modelSpecFormPricingSection": "定價 / 1M",
-  "modelSpecFormPricingInput": "輸入",
-  "modelSpecFormPricingOutput": "輸出",
-  "modelSpecFormPricingCacheRead": "快取讀取",
-  "modelSpecFormPricingCacheWrite": "快取寫入",
-  "modelSpecFormCurrency": "貨幣",
-  "modelSpecFormAdvancedSection": "請求",
   "modelSelectSheetSearchHint": "搜尋模型或供應商",
   "modelSelectSheetFavoritesSection": "收藏",
   "modelSelectSheetFollowAssistant": "跟隨助手",
@@ -1417,8 +1276,6 @@
   "providerDetailPageShowTooltip": "顯示",
   "providerDetailPageApiPathLabel": "API 路徑",
   "providerDetailPageResponseApiTitle": "Response API (/responses)",
-  "providerDetailPagePromptCacheKeyTitle": "傳送對話快取鍵",
-  "providerDetailPagePromptCacheKeyHelp": "為 OpenAI 相容請求附加穩定的對話級 prompt_cache_key。僅在供應商支援時開啟，自訂 Body 優先，不保證快取命中。",
   "providerDetailPageAihubmixAppCodeLabel": "應用 Code（享 10% 優惠）",
   "providerDetailPageAihubmixAppCodeHelp": "為請求附加 APP-Code，可享 10% 優惠，僅對 AIhubmix 生效。",
   "providerDetailPageClaudePromptCachingTitle": "Claude Prompt Caching",
@@ -1493,15 +1350,6 @@
   "providersPageAddTooltip": "新增",
   "providersPageSearchHint": "搜尋供應商或分組",
   "providersPageProviderAddedSnackbar": "已新增供應商",
-  "modelCatalogTitle": "模型目錄",
-  "modelCatalogSourceBundled": "內建快照 · {date}",
-  "modelCatalogSourceRemote": "models.dev · 更新於 {date}",
-  "modelCatalogAutoUpdate": "每 24 小時自動更新",
-  "modelCatalogRefresh": "立即更新",
-  "modelCatalogUpdated": "模型目錄已更新",
-  "modelCatalogRefreshFailed": "更新失敗：{error}",
-  "modelCatalogProviderCount": "{count} 個供應商",
-  "modelCatalogModelCount": "{count} 個模型",
   "providerGroupsGroupLabel": "分組",
   "providerGroupsOther": "其他",
   "providerGroupsOtherUngroupedOption": "其他（未分組）",
@@ -1573,28 +1421,6 @@
   "searchServicesPageSearchProviders": "搜尋提供商",
   "searchServicesPageGeneralOptions": "通用選項",
   "searchServicesPageAutoTestTitle": "啟動時自動測試連線",
-  "searchServicesPageWebFetchSection": "網頁抓取",
-  "searchServicesPageWebFetchModeTitle": "抓取方式",
-  "searchServicesPageWebFetchFollow": "跟隨搜尋服務",
-  "searchServicesPageWebFetchFollowValue": "跟隨搜尋 · {name}",
-  "@searchServicesPageWebFetchFollowValue": {
-    "placeholders": {
-      "name": { "type": "String" }
-    }
-  },
-  "searchServicesPageWebFetchFollowSubtitle": "目前：{name}",
-  "@searchServicesPageWebFetchFollowSubtitle": {
-    "placeholders": {
-      "name": { "type": "String" }
-    }
-  },
-  "searchServicesPageWebFetchLocal": "本機抓取",
-  "searchServicesPageWebFetchLocalSubtitle": "免費，由本機直接請求網頁",
-  "searchServicesPageWebFetchProviderSubtitle": "使用該服務商的 API Key 與額度",
-  "searchServicesPageWebFetchOff": "關閉",
-  "searchServicesPageWebFetchOffSubtitle": "連網時只搜尋，不讀取網頁",
-  "searchServicesPageWebFetchFooter": "開啟連網搜尋後，模型還可以讀取網頁全文。搜尋服務不支援抓取時會改用本機抓取，本機抓取無法處理需要 JavaScript 渲染或有反爬限制的頁面。",
-  "searchServicesPageWebFetchSupported": "支援網頁抓取",
   "searchServicesPageMaxResults": "最大結果數",
   "searchServicesPageTimeoutSeconds": "超時時間（秒）",
   "searchServicesPageAtLeastOneServiceRequired": "至少需要一個搜尋服務",
@@ -1616,7 +1442,6 @@
   "searchServicesAddDialogApiKeyRequired": "API Key 必填",
   "searchServicesFieldCustomUrlOptional": "自訂 URL（可選）",
   "searchServicesDialogApiKey": "API Key",
-  "searchServicesDialogApiKeyOptional": "API Key（選填）",
   "searchServicesDialogModel": "模型",
   "searchServicesDialogSystemPrompt": "系統提示詞",
   "searchServicesAddDialogInstanceUrl": "實例 URL",
@@ -1644,14 +1469,12 @@
   "searchServiceEditorMultiKeyTitle": "多 Key 輪詢",
   "searchServiceEditorMultiKeyNone": "未設定",
   "searchApiKeysPageDescription": "列表中的 Key 依序輪詢使用，第一個為主 Key；不查額度，以防觸發服務商風控。",
-
   "searchApiKeysPagePrimaryBadge": "主",
   "searchApiKeysPageBatchHint": "可一次貼上多個 Key：每行一個，或以逗號分隔",
   "searchApiKeysPageBatchResult": "已新增 {added} 個，略過 {skipped} 個重複",
   "searchApiKeysPageAdd": "新增",
   "searchApiKeysPageEmpty": "尚未設定任何 Key。",
   "searchServiceEditorMultiKeyCount": "共 {count} 個 Key",
-
   "searchServiceEditorUsageTitle": "帳戶用量",
   "searchServiceEditorUsageNotQueried": "尚未查詢用量。",
   "searchServiceEditorUsageQuery": "查詢用量",
@@ -1659,26 +1482,36 @@
   "searchServiceEditorUsageRemaining": "剩餘 {remaining} 額度",
   "@searchServiceEditorUsageRemaining": {
     "placeholders": {
-      "remaining": { "type": "String" }
+      "remaining": {
+        "type": "String"
+      }
     }
   },
   "searchServiceEditorUsageBalance": "餘額 {balance}",
   "@searchServiceEditorUsageBalance": {
     "placeholders": {
-      "balance": { "type": "String" }
+      "balance": {
+        "type": "String"
+      }
     }
   },
   "searchServiceEditorUsageUsed": "已使用 {used} / {limit} 額度",
   "@searchServiceEditorUsageUsed": {
     "placeholders": {
-      "used": { "type": "String" },
-      "limit": { "type": "String" }
+      "used": {
+        "type": "String"
+      },
+      "limit": {
+        "type": "String"
+      }
     }
   },
   "searchServiceEditorUsageFailed": "用量查詢失敗：{message}",
   "@searchServiceEditorUsageFailed": {
     "placeholders": {
-      "message": { "type": "String" }
+      "message": {
+        "type": "String"
+      }
     }
   },
   "searchServiceEditorTestTitle": "測試搜尋",
@@ -1689,25 +1522,9 @@
   "searchServiceEditorTestFailed": "搜尋失敗：{message}",
   "@searchServiceEditorTestFailed": {
     "placeholders": {
-      "message": { "type": "String" }
-    }
-  },
-  "searchServiceEditorTestModeSearch": "搜尋",
-  "searchServiceEditorTestModeFetch": "抓取",
-  "searchServiceEditorTestUrlHint": "輸入測試網址",
-  "searchServiceEditorTestFetchRun": "執行抓取測試",
-  "searchServiceEditorTestFetchRunning": "抓取中…",
-  "searchServiceEditorTestFetchFailed": "抓取失敗：{message}",
-  "@searchServiceEditorTestFetchFailed": {
-    "placeholders": {
-      "message": { "type": "String" }
-    }
-  },
-  "searchServiceEditorTestFetchStats": "{characters} 字元 · {seconds} 秒",
-  "@searchServiceEditorTestFetchStats": {
-    "placeholders": {
-      "characters": { "type": "String" },
-      "seconds": { "type": "String" }
+      "message": {
+        "type": "String"
+      }
     }
   },
   "searchServiceEditorResultOpenTooltip": "開啟結果",
@@ -1716,7 +1533,9 @@
   "searchServiceEditorDeleteMessage": "確定刪除 {provider} 嗎？此操作無法復原。",
   "@searchServiceEditorDeleteMessage": {
     "placeholders": {
-      "provider": { "type": "String" }
+      "provider": {
+        "type": "String"
+      }
     }
   },
   "searchServiceEditorDeleteConfirm": "刪除",
@@ -1735,9 +1554,9 @@
   "searchSettingsSheetNoServicesMessage": "暫無可用服務，請先在\"搜尋服務\"中新增",
   "aboutPageEasterEggMessage": "\n（好吧現在還沒彩蛋）",
   "aboutPageEasterEggButton": "好的",
-  "aboutPageKelivoSearchUnlocked": "有扇沒有名字的門開了一條縫。去設定裡找找看。",
-  "aboutPageKelivoSearchAlreadyUnlocked": "這扇門你已經推開過了。",
-  "aboutPageAppName": "Kelivo",
+  "aboutPageCuplivoSearchUnlocked": "有扇沒有名字的門開了一條縫。去設定裡找找看。",
+  "aboutPageCuplivoSearchAlreadyUnlocked": "這扇門你已經推開過了。",
+  "aboutPageAppName": "Cuplivo",
   "aboutPageAppDescription": "開源 AI 助理",
   "aboutPageNoQQGroup": "暫無QQ群",
   "aboutPageVersion": "版本",
@@ -1772,9 +1591,7 @@
   "aboutPageGithub": "GitHub",
   "aboutPageLicense": "授權",
   "aboutPageJoinQQGroup": "加入 QQ 群",
-  "aboutPageQQGroupOne": "Kelivo 一群",
-  "aboutPageQQGroupTwo": "Kelivo 二群",
-  "aboutPageQQGroupThree": "Kelivo 三群",
+  "aboutPageQQGroup": "Cuplivo 群",
   "aboutPageJoinDiscord": "加入我們的 Discord",
   "displaySettingsPageShowUserAvatarTitle": "顯示使用者頭像",
   "displaySettingsPageShowUserAvatarSubtitle": "是否在聊天訊息中顯示使用者頭像",
@@ -1793,15 +1610,11 @@
   "displaySettingsPageChatModelIconTitle": "聊天列表模型圖示",
   "displaySettingsPageChatModelIconSubtitle": "是否在聊天訊息中顯示模型圖示",
   "displaySettingsPageShowTokenStatsTitle": "顯示Token和上下文統計",
-  "displaySettingsPageShowTotalTokensTitle": "顯示整輪累計 Token",
-  "displaySettingsPageShowTotalTokensSubtitle": "累計顯示本次回覆中所有 API 請求的用量。關閉時僅顯示最後一次請求；統計頁面始終包含所有請求。",
   "displaySettingsPageShowTokenStatsSubtitle": "顯示 token 用量與訊息數量",
   "displaySettingsPageShowThinkingCardsTitle": "顯示思考卡片",
   "displaySettingsPageShowThinkingCardsSubtitle": "關閉後，聊天中不再顯示思考過程卡片",
   "displaySettingsPageShowToolCardsTitle": "顯示工具卡片",
   "displaySettingsPageShowToolCardsSubtitle": "關閉後，聊天中不再顯示工具呼叫卡片",
-  "displaySettingsShowReasoningLevelBadge": "在推理按鈕上顯示檔位",
-  "displaySettingsShowReasoningLevelBadgeSubtitle": "在輸入欄的推理圖示旁顯示目前檔位",
   "displaySettingsPageAutoCollapseThinkingTitle": "自動折疊思考",
   "displaySettingsPageAutoCollapseThinkingSubtitle": "思考完成後自動折疊，保持介面簡潔",
   "displaySettingsPageCollapseThinkingStepsTitle": "折疊思考步驟",
@@ -2123,12 +1936,11 @@
       }
     }
   },
-  "settingsShare": "Kelivo - 開源AI助理",
+  "settingsShare": "Cuplivo - 開源AI助理",
   "searchProviderBingLocalDescription": "使用網路抓取工具取得 Bing 搜尋結果。無需 API 金鑰，但可能不夠穩定。",
   "searchProviderDuckDuckGoDescription": "基於 DDGS 的 DuckDuckGo 隱私搜尋，無需 API 金鑰，支援設定地區。",
   "searchProviderBraveDescription": "Brave 獨立搜尋引擎。注重隱私，無追蹤或建立個人檔案。",
   "searchProviderExaDescription": "具備語義理解的神經搜尋引擎。適合研究與查找特定內容。",
-  "searchProviderExaMcpDescription": "透過 MCP 使用 Exa 搜尋。不填 API Key 可在免費限額內使用。",
   "searchProviderLinkUpDescription": "提供來源可追溯答案的搜尋 API，同時提供搜尋結果與 AI 摘要。",
   "modelFetchInvertTooltip": "反選",
   "modelDetailSheetSaveFailedMessage": "保存失敗，請重試",
@@ -2142,7 +1954,6 @@
   "searchServiceNameDuckDuckGo": "DuckDuckGo",
   "searchServiceNameTavily": "Tavily",
   "searchServiceNameExa": "Exa",
-  "searchServiceNameExaMcp": "Exa MCP",
   "searchServiceNameZhipu": "Zhipu（智譜）",
   "searchServiceNameSearXNG": "SearXNG",
   "searchServiceNameLinkUp": "LinkUp",
@@ -2186,7 +1997,7 @@
   "searchServicesDialogLlmContext": "LLM Context",
   "searchServicesDialogMaximumTokens": "最大 token 數",
   "searchServicesDialogMaximumTokensInvalid": "最大 token 數必須介於 1024 和 32768 之間。",
-  "searchServiceNameKelivo": "Kelivo",
+  "searchServiceNameCuplivo": "Cuplivo",
   "searchServicesDialogCountryOptional": "國家/地區（可選）",
   "searchServicesDialogLanguageOptional": "語言（可選）",
   "searchServicesDialogTimeFilterOptional": "時間過濾（可選）",
@@ -2219,7 +2030,9 @@
   "displaySettingsPageEnableAssistantMarkdownTitle": "助手訊息 Markdown 渲染",
   "displaySettingsPageEnableMathSubtitle": "渲染 LaTeX 數學公式（行內與區塊）",
   "displaySettingsPageEnableImageCropperTitle": "啟用圖片裁剪",
-  "displaySettingsPageEnableImageCropperSubtitle": "從相簿或相機選擇圖片後，允許裁剪圖片",
+  "displaySettingsPageEnableImageCropperSubtitle": "預覽未發送圖片時可主動裁剪",
+  "draftImageCropAction": "裁剪",
+  "draftImageCropFailed": "裁剪失敗，原圖保持不變。",
   "displaySettingsPageMobileCodeBlockWrapTitle": "行動端程式碼區塊自動換行",
   "displaySettingsPageAutoCollapseCodeBlockTitle": "自動摺疊程式碼區塊",
   "displaySettingsPageAutoCollapseCodeBlockLinesTitle": "超過多少行自動摺疊",
@@ -2288,14 +2101,14 @@
   "assistantEditLocalToolAskUserSubtitle": "允許助手提出簡短問題，並在你回答後繼續生成。",
   "assistantEditLocalToolCalculateTitle": "計算機",
   "assistantEditLocalToolCalculateSubtitle": "計算數學表達式，支援加減乘除冪運算 sqrt sin cos 等。",
-   "assistantEditLocalToolScreenTimeTitle": "螢幕使用時間",
-   "assistantEditLocalToolScreenTimeSubtitle": "查詢本裝置的應用使用時長，需要授予使用情況存取權限。",
-   "chatMessageWidgetScreenTimeTotal": "總螢幕使用時間",
-   "chatMessageWidgetScreenTimePermissionRequired": "未授予使用記錄存取權限，請在系統設定中開啟後重試。",
-   "assistantEditLocalToolCalendarQueryTitle": "查詢日曆",
-   "assistantEditLocalToolCalendarQuerySubtitle": "讀取本裝置上的日曆行程，需要授予日曆權限。",
-   "assistantEditLocalToolCalendarCreateTitle": "建立行程",
-   "assistantEditLocalToolCalendarCreateSubtitle": "在你確認後於本裝置建立日曆行程，需要授予日曆權限。",
+  "assistantEditLocalToolScreenTimeTitle": "螢幕使用時間",
+  "assistantEditLocalToolScreenTimeSubtitle": "查詢本裝置的應用使用時長，需要授予使用情況存取權限。",
+  "chatMessageWidgetScreenTimeTotal": "總螢幕使用時間",
+  "chatMessageWidgetScreenTimePermissionRequired": "未授予使用記錄存取權限，請在系統設定中開啟後重試。",
+  "assistantEditLocalToolCalendarQueryTitle": "查詢日曆",
+  "assistantEditLocalToolCalendarQuerySubtitle": "讀取本裝置上的日曆行程，需要授予日曆權限。",
+  "assistantEditLocalToolCalendarCreateTitle": "建立行程",
+  "assistantEditLocalToolCalendarCreateSubtitle": "在你確認後於本裝置建立日曆行程，需要授予日曆權限。",
   "assistantEditLocalToolLocationTitle": "目前位置",
   "assistantEditLocalToolLocationSubtitle": "讀取本裝置的一次性位置，需要授予定位權限。",
   "assistantEditLocalToolWeatherTitle": "天氣",
@@ -2304,7 +2117,7 @@
   "assistantEditLocalToolHealthSubtitle": "讀取本裝置的健康活動摘要，需要授予健康資料讀取權限。",
   "assistantEditLocalToolHealthSelectedCount": "已選擇 {selected}/{total} 項",
   "healthDataSettingsTitle": "健康資料",
-  "healthDataSettingsDescription": "目前助手在日常對話中可使用的 HealthKit 訊號。開關表示 Kelivo 可以嘗試讀取該範圍，實際授權仍由 iOS 管理。",
+  "healthDataSettingsDescription": "目前助手在日常對話中可使用的 HealthKit 訊號。開關表示 Cuplivo 可以嘗試讀取該範圍，實際授權仍由 iOS 管理。",
   "healthDataSettingsBadge": "{selected}/{total} 開啟",
   "healthDataSettingsIosReadTitle": "iOS 健康讀取",
   "healthDataSettingsIosReadSubtitle": "裝置可用，讀取範圍由 iOS 管理",
@@ -2639,7 +2452,9 @@
   "memorySettingsInjectionMaxItemsOption": "{n}",
   "@memorySettingsInjectionMaxItemsOption": {
     "placeholders": {
-      "n": {"type": "int"}
+      "n": {
+        "type": "int"
+      }
     }
   },
   "memorySettingsInjectionMaxItemsCustomButton": "自訂",
@@ -2690,7 +2505,9 @@
   "memoryEntryScopeAssistantNamed": "{name}",
   "@memoryEntryScopeAssistantNamed": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "memoryEntrySourceManual": "手動",
@@ -2702,7 +2519,9 @@
   "memoryEntryUpdatedAt": "更新於 {date}",
   "@memoryEntryUpdatedAt": {
     "placeholders": {
-      "date": {"type": "String"}
+      "date": {
+        "type": "String"
+      }
     }
   },
   "memoryEntryActionEdit": "編輯",
@@ -2717,7 +2536,9 @@
   "memoryEntryBatchDeleteConfirmTitle": "刪除 {count} 條記憶？",
   "@memoryEntryBatchDeleteConfirmTitle": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "memoryEntryBatchDeleteConfirmContent": "所選記憶將被永久刪除。",
@@ -2744,7 +2565,9 @@
   "memoryOrphanBanner": "有 {count} 條孤兒助手記憶（助手已刪除）",
   "@memoryOrphanBanner": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "memoryOrphanCleanupButton": "清理",
@@ -2752,7 +2575,9 @@
   "memoryOrphanConfirmContent": "將永久刪除 {count} 條所屬助手已不存在的記憶。",
   "@memoryOrphanConfirmContent": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "memoryOrganizeButton": "整理記憶",
@@ -2762,26 +2587,34 @@
   "memoryOrganizeStatusLast": "上次整理：{when}",
   "@memoryOrganizeStatusLast": {
     "placeholders": {
-      "when": {"type": "String"}
+      "when": {
+        "type": "String"
+      }
     }
   },
   "memoryOrganizeStatusExtracted": "擷取 {count} 條",
   "@memoryOrganizeStatusExtracted": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "memoryOrganizeStatusSkipped": "無需記憶",
   "memoryOrganizeStatusFailed": "失敗：{reason}",
   "@memoryOrganizeStatusFailed": {
     "placeholders": {
-      "reason": {"type": "String"}
+      "reason": {
+        "type": "String"
+      }
     }
   },
   "memoryOrganizeStatusSkippedReason": "已跳過：{reason}",
   "@memoryOrganizeStatusSkippedReason": {
     "placeholders": {
-      "reason": {"type": "String"}
+      "reason": {
+        "type": "String"
+      }
     }
   },
   "memoryOutcomeTemporaryConversation": "臨時對話不會寫入記憶",
@@ -2813,19 +2646,25 @@
   "memoryOrganizeMinutesAgo": "{n} 分鐘前",
   "@memoryOrganizeMinutesAgo": {
     "placeholders": {
-      "n": {"type": "int"}
+      "n": {
+        "type": "int"
+      }
     }
   },
   "memoryOrganizeHoursAgo": "{n} 小時前",
   "@memoryOrganizeHoursAgo": {
     "placeholders": {
-      "n": {"type": "int"}
+      "n": {
+        "type": "int"
+      }
     }
   },
   "memoryOrganizeDaysAgo": "{n} 天前",
   "@memoryOrganizeDaysAgo": {
     "placeholders": {
-      "n": {"type": "int"}
+      "n": {
+        "type": "int"
+      }
     }
   },
   "memoryModelMissingNotice": "需要先在 設定 → 記憶 中選擇記憶處理模型。",
@@ -2854,11 +2693,13 @@
   "legacyMemoryCopy": "複製",
   "legacyMemoryCopied": "已複製",
   "legacyMemoryExport": "匯出",
-  "legacyMemoryExportTitle": "Kelivo 舊版記憶匯出",
+  "legacyMemoryExportTitle": "Cuplivo 舊版記憶匯出",
   "legacyMemoryAssistantHeader": "助手：{name}",
   "@legacyMemoryAssistantHeader": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "legacyMemorySearchHint": "搜尋舊版記憶",
@@ -2867,7 +2708,9 @@
   "legacyMemoryMigrationSubtitle": "使用模型整理並分類 {count} 條舊版記憶，原資料不會改變。",
   "@legacyMemoryMigrationSubtitle": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "legacyMemoryMigrationModel": "遷移模型",
@@ -2885,16 +2728,24 @@
   "legacyMemoryMigrationProgress": "{current} / {total}",
   "@legacyMemoryMigrationProgress": {
     "placeholders": {
-      "current": {"type": "int"},
-      "total": {"type": "int"}
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "legacyMemoryMigrationComplete": "遷移完成",
   "legacyMemoryMigrationResult": "已遷移 {created} 條 · 略過已有 {skipped} 條",
   "@legacyMemoryMigrationResult": {
     "placeholders": {
-      "created": {"type": "int"},
-      "skipped": {"type": "int"}
+      "created": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
     }
   },
   "legacyMemoryMigrationFailed": "遷移已停止。可以重試，已儲存的記憶會自動略過。",
@@ -2909,9 +2760,15 @@
   "legacyMemoryMigrationPartial": "已遷移 {created} · 略過 {skipped} · 失敗 {failed}",
   "@legacyMemoryMigrationPartial": {
     "placeholders": {
-      "created": {"type": "int"},
-      "skipped": {"type": "int"},
-      "failed": {"type": "int"}
+      "created": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
     }
   },
   "legacyMemoryMigrationContinue": "繼續遷移",
@@ -2921,7 +2778,9 @@
   "legacyMemoryMigrationErrorOther": "遷移失敗：{message}",
   "@legacyMemoryMigrationErrorOther": {
     "placeholders": {
-      "message": {"type": "String"}
+      "message": {
+        "type": "String"
+      }
     }
   },
   "legacyMemoryModeTitle": "使用舊版記憶",
@@ -2966,7 +2825,9 @@
   "assistantEditOrganizeFrequencyOption": "每 {n} 輪",
   "@assistantEditOrganizeFrequencyOption": {
     "placeholders": {
-      "n": {"type": "int"}
+      "n": {
+        "type": "int"
+      }
     }
   },
   "assistantEditOrganizeFrequencyCustomButton": "自訂",
@@ -3040,7 +2901,6 @@
   "worldBookInjectionPositionTopOfChat": "對話頂部",
   "worldBookInjectionPositionBottomOfChat": "對話底部",
   "worldBookInjectionPositionAtDepth": "指定深度",
-  "worldBookImportUnsupportedEntries": "匯入完成。{count} 個條目使用了暫不支援的酒館功能（如巨集、正則、時效、篩選或插入規則），已保留內容並停用，請檢查後再啟用。",
   "worldBookInjectionRoleUser": "使用者",
   "worldBookInjectionRoleAssistant": "助手",
   "mcpToolNeedsApproval": "需要審批",
@@ -3064,11 +2924,7 @@
   "tokenDetailCompletionTokens": "{count} tokens",
   "tokenDetailSpeed": "{value} tok/s",
   "tokenDetailDuration": "{value}s",
-  "tokenDetailFirstToken": "{value}s（首字）",
   "tokenDetailTotalTokens": "{count} tokens",
-  "tokenDetailReasoningTokens": "{count} tokens",
-  "tokenDetailCacheWriteTokens": "{count} 快取寫入 tokens",
-  "tokenDetailCost": "{amount}",
   "debugPageTitle": "Debug",
   "debugPageConversationToolsTitle": "對話工具",
   "debugPageCreateOversizedConversationButton": "建立超大對話（30 MB）",
@@ -3142,7 +2998,7 @@
     }
   },
   "migrationIntroTitle": "升級聊天記錄儲存",
-  "migrationIntroSubtitle": "Kelivo 將聊天記錄遷移到更快的 SQLite 資料庫。升級會在應用程式開啟前完成，避免新舊資料同時寫入。",
+  "migrationIntroSubtitle": "Cuplivo 將聊天記錄遷移到更快的 SQLite 資料庫。升級會在應用程式開啟前完成，避免新舊資料同時寫入。",
   "migrationBackupNote": "遷移開始前，會先匯出包含設定、聊天記錄和本地檔案的 ZIP 備份。",
   "migrationPerformanceNote": "遷移後，啟動、歷史載入和搜尋都會使用 SQLite 索引，長對話會更流暢。",
   "migrationSourceDatabaseLabel": "Hive",
@@ -3155,9 +3011,9 @@
   "migrationSkipBackupOption": "跳過本次備份",
   "migrationSkipBackupDescription": "僅在已有並確認備份可用時選擇，之後將立即開始遷移。",
   "migrationBackingUpTitle": "正在備份",
-  "migrationBackingUpSubtitle": "正在匯出設定、聊天記錄、上傳檔案、圖片和字體。請保持 Kelivo 開啟，等待備份完成。",
+  "migrationBackingUpSubtitle": "正在匯出設定、聊天記錄、上傳檔案、圖片和字體。請保持 Cuplivo 開啟，等待備份完成。",
   "migrationMigratingTitle": "正在遷移到 SQLite",
-  "migrationMigratingSubtitle": "正在分批寫入對話和訊息，避免超大聊天記錄占滿記憶體。請保持 Kelivo 在前台，等待遷移完成。",
+  "migrationMigratingSubtitle": "正在分批寫入對話和訊息，避免超大聊天記錄占滿記憶體。請保持 Cuplivo 在前台，等待遷移完成。",
   "migrationBackingUpDetail": "正在備份 {fileName}",
   "@migrationBackingUpDetail": {
     "placeholders": {
@@ -3189,13 +3045,13 @@
   "migrationStepMigrate": "遷移",
   "migrationStepComplete": "完成",
   "migrationCompleteTitle": "升級完成",
-  "migrationCompleteSubtitle": "你的聊天記錄已遷移到 SQLite。請重啟 Kelivo 進入升級後的應用程式。",
+  "migrationCompleteSubtitle": "你的聊天記錄已遷移到 SQLite。請重啟 Cuplivo 進入升級後的應用程式。",
   "migrationConversationCount": "對話",
   "migrationMessageCount": "訊息",
   "migrationConvertedCount": "已轉換",
   "migrationMalformedCount": "格式異常",
   "migrationMissingFilesCount": "缺失檔案",
-  "migrationRestartButton": "重啟 Kelivo",
+  "migrationRestartButton": "重啟 Cuplivo",
   "migrationFailedTitle": "遷移失敗",
   "migrationFailedSubtitle": "原始 Hive 資料仍然保留；如果備份已經完成，備份檔案也不會被修改。查看下方原因後可以重試。",
   "migrationUnknownError": "未知遷移錯誤。",
@@ -3203,17 +3059,30 @@
   "migrationRetryButton": "重試遷移",
   "migrationSkipButton": "跳過遷移並全新開始",
   "migrationSkipDialogTitle": "跳過遷移？",
-  "migrationSkipDialogMessage": "Kelivo 將以空的聊天資料庫啟動。舊的聊天記錄會保留在磁碟上（重新命名為 .retired 後綴），但不會被遷移，也不會在應用程式中顯示。之後如需找回，請使用已儲存的備份 ZIP。",
+  "migrationSkipDialogMessage": "Cuplivo 將以空的聊天資料庫啟動。舊的聊天記錄會保留在磁碟上（重新命名為 .retired 後綴），但不會被遷移，也不會在應用程式中顯示。之後如需找回，請使用已儲存的備份 ZIP。",
   "migrationSkipDialogCancel": "取消",
   "migrationSkipDialogConfirm": "跳過並全新開始",
   "migrationChatsExportDegradedNote": "chats.json 匯出因出錯而被跳過。備份 ZIP 仍包含原始 Hive 檔案，完整聊天記錄未遺失。",
   "timelineJumpToLatest": "跳到最新",
   "largeContentShowMore": "再顯示 {count} 項",
-  "@largeContentShowMore": {"placeholders": {"count": {"type": "int"}}},
+  "@largeContentShowMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "largeContentCollapse": "收起",
   "imageSettingsPageTitle": "圖片處理",
   "imageSettingsPageEditSectionTitle": "編輯",
   "imageSettingsPageQualitySectionTitle": "上傳圖片品質",
+  "imageSettingsPageModeTitle": "壓縮模式",
+  "imageSettingsPageModeManual": "手動",
+  "imageSettingsPageModeAuto": "自動",
+  "imageSettingsPageModeOff": "關閉",
+  "imageSettingsPageModeManualSubtitle": "圖片按原樣附加，在預覽中可手動壓縮",
+  "imageSettingsPageModeAutoSubtitle": "附加圖片時按下方預設自動壓縮",
+  "imageSettingsPageModeOffSubtitle": "圖片從不壓縮",
   "imageSettingsPageQualityOriginal": "原圖",
   "imageSettingsPageQualityOriginalSubtitle": "不壓縮，原樣上傳",
   "imageSettingsPageQualityHigh": "高品質",
@@ -3228,6 +3097,28 @@
   "imageSettingsPageCompressTransparentTitle": "壓縮透明及動態圖片",
   "imageSettingsPageCompressTransparentSubtitle": "開啟後將壓縮透明 PNG、GIF 等格式；透明區域填充為白色，動圖僅保留第一幀。",
   "imageSettingsPageFooter": "壓縮會在加入圖片時進行，已儲存或已傳送的圖片不受影響；壓縮後圖片會以 JPEG 格式隨訊息傳送。",
+  "compressEditorTitle": "壓縮圖片",
+  "compressEditorFormatJpeg": "JPEG",
+  "compressEditorFormatPng": "PNG",
+  "compressEditorFormatOriginal": "原圖",
+  "compressEditorLongEdgeLabel": "長邊",
+  "compressEditorLongEdgeFull": "100%",
+  "compressEditorLongEdgeHalf": "50%",
+  "compressEditorLongEdgeQuarter": "25%",
+  "compressEditorQualityLabel": "品質",
+  "compressEditorOriginalSide": "原圖",
+  "compressEditorEstimating": "正在估算體積…",
+  "compressEditorEstimateFailed": "無法估算體積",
+  "compressEditorSavings": "−{percent}%",
+  "compressEditorGrowth": "+{percent}%",
+  "compressEditorNoReencode": "不做重編碼",
+  "compressEditorDecodeFailed": "此圖片無法預覽，因此無法重新壓縮。",
+  "compressEditorTooLarge": "此圖片過大，無法在編輯器中開啟，因此無法在這裡重新壓縮；附件將按原樣保留。",
+  "compressEditorWorkingScale": "來源圖片 {source}，為控制記憶體按 {percent}% 載入",
+  "compressEditorCancel": "取消",
+  "compressEditorApply": "套用",
+  "compressEditorApplyAll": "套用到全部",
+  "compressEditorDone": "完成",
   "imageSettingsPageSendSectionTitle": "傳送",
   "imageSettingsPageMarkdownImageLinksTitle": "將 Markdown 圖片連結作為圖片傳送",
   "imageSettingsPageMarkdownImageLinksSubtitle": "開啟後，訊息文字中的 ![alt](url) 會作為圖片傳送給視覺模型；關閉後僅以純文字傳送。手動加入的圖片附件不受影響。",
@@ -3298,13 +3189,43 @@
   "memoryTraceAfter": "變更後",
   "memoryTraceEmptyValue": "（空）",
   "memoryTraceStepsCount": "{count} 個步驟",
-  "@memoryTraceStepsCount": {"placeholders": {"count": {"type": "int"}}},
+  "@memoryTraceStepsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "memoryTraceMutationsCount": "{count} 項變更",
-  "@memoryTraceMutationsCount": {"placeholders": {"count": {"type": "int"}}},
+  "@memoryTraceMutationsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "memoryTraceRepeatCount": "重複 {count} 次",
-  "@memoryTraceRepeatCount": {"placeholders": {"count": {"type": "int"}}},
+  "@memoryTraceRepeatCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "memoryTraceWindowValue": "{size} 則訊息 · #{start}–#{end}",
-  "@memoryTraceWindowValue": {"placeholders": {"size": {"type": "int"}, "start": {"type": "int"}, "end": {"type": "int"}}},
+  "@memoryTraceWindowValue": {
+    "placeholders": {
+      "size": {
+        "type": "int"
+      },
+      "start": {
+        "type": "int"
+      },
+      "end": {
+        "type": "int"
+      }
+    }
+  },
   "memoryTraceShowMore": "展開全文",
   "memoryTraceShowLess": "收合",
   "messageStyleSettingsPageTitle": "訊息樣式",
@@ -3338,7 +3259,7 @@
   "messageStyleSettingsPageRoleAssistantHint": "助手設定同時作用於思考、工具呼叫和翻譯卡片。",
   "localSnapshotSectionTitle": "本機副本",
   "localSnapshotEnabledTitle": "保留本機副本",
-  "localSnapshotEnabledSubtitle": "Kelivo 會定期在本機存一份資料庫副本，讓資料不只有一份。",
+  "localSnapshotEnabledSubtitle": "Cuplivo 會定期在本機存一份資料庫副本，讓資料不只有一份。",
   "localSnapshotIntervalTitle": "備份頻率",
   "localSnapshotIntervalAutomatic": "自動",
   "localSnapshotIntervalAutomaticDetail": "每天一次，資料庫越大間隔越長",
@@ -3378,7 +3299,7 @@
   "localSnapshotActionPin": "保留這份",
   "localSnapshotActionUnpin": "取消保留",
   "localSnapshotRestoreTitle": "還原這份副本？",
-  "localSnapshotRestoreMessage": "目前聊天和設定將取代為 {when} 的副本。取代前會儲存目前聊天和設定的副本。未傳送的草稿不包含在副本中，此次還原會清除這些草稿。",
+  "localSnapshotRestoreMessage": "目前的對話和設定會被 {when} 的這份副本替換。系統會先把現在的資料存一份，所以這一步可以復原。",
   "localSnapshotRestorePreparing": "正在準備副本",
   "localSnapshotDeleteTitle": "刪除這份副本？",
   "localSnapshotDeleteMessage": "這份副本會從裝置上永久刪除。它裡面有、而目前資料庫裡沒有的資料將無法找回。",
@@ -3532,7 +3453,6 @@
   "workspaceToolClose": "關閉",
   "workspaceToolTitleShell": "執行命令",
   "workspaceToolTitleReadFile": "讀取檔案",
-  "workspaceToolTitleViewImage": "檢視圖片",
   "workspaceToolTitleWriteFile": "寫入檔案",
   "workspaceToolTitleEditFile": "編輯檔案",
   "workspaceToolTitleListDir": "列出目錄",
@@ -3571,7 +3491,7 @@
   "workspaceEnvUpdate": "更新",
   "workspaceEnvAvailableVersion": "新版本 {version} 可用",
   "workspaceEnvUpToDate": "已是最新",
-  "workspaceEnvRestartBanner": "請重新啟動 Kelivo 以完成安裝",
+  "workspaceEnvRestartBanner": "請重新啟動 Cuplivo 以完成安裝",
   "workspaceEnvDetectingMirrors": "正在偵測最快鏡像…",
   "workspaceEnvApplyingMirror": "正在套用 {category} 鏡像…",
   "@workspaceEnvApplyingMirror": {
@@ -3606,7 +3526,7 @@
   "workspaceEnvChipInstallingIndeterminate": "正在安裝…",
   "workspaceEnvChipError": "沙箱錯誤",
   "workspaceEnvChipRestart": "需要重新啟動",
-  "workspaceEnvNativeExplanation": "在桌面端，Kelivo 使用系統終端機，而不是 Linux 沙箱。",
+  "workspaceEnvNativeExplanation": "在桌面端，Cuplivo 使用系統終端機，而不是 Linux 沙箱。",
   "workspaceEnvNativeShellPath": "終端機：{path}",
   "workspaceEnvNativeShellApproval": "除非此工作階段允許全部工具，否則 shell 工具需要核准。",
   "workspaceEnvDownloadProgress": "{downloaded} / {total} MB ({percent}%)",
@@ -3978,7 +3898,7 @@
   "storageSessionFilesCleanOrphansHint": "刪除已無對應對話的會話目錄。可回收 {size}。",
   "workspaceDesktopFolderPath": "資料夾路徑",
   "workspaceDesktopFolderMissing": "請選擇已存在的資料夾，或輸入它的絕對路徑。",
-  "workspaceDesktopManagedHint": "由 Kelivo 為此專案建立並管理資料夾。",
+  "workspaceDesktopManagedHint": "由 Cuplivo 為此專案建立並管理資料夾。",
   "workspaceDesktopHostHint": "在本機存取檔案和執行命令。",
   "workspaceDesktopSearch": "搜尋工作區",
   "workspaceDesktopNoResults": "沒有符合的工作區",
@@ -4015,7 +3935,6 @@
   "workspaceToolsDescription": "選擇此工作區的對話可以使用哪些工具，修改後自動儲存。",
   "workspaceToolHelpShell": "在工作區環境中執行命令。",
   "workspaceToolHelpRead": "按行讀取檔案內容，支援分頁。",
-  "workspaceToolHelpViewImage": "讓模型檢視工作區中的圖片內容。",
   "workspaceToolHelpWrite": "建立檔案或覆寫檔案內容。",
   "workspaceToolHelpEdit": "取代現有檔案中的指定文字。",
   "workspaceToolHelpList": "瀏覽目錄及其中的檔案。",
@@ -4052,7 +3971,7 @@
   "workspaceExternalMount": "掛載外部資料夾",
   "workspaceExternalMountSubtitle": "所選資料夾掛載至 /mounts/<name>，供各工作區的 AI 工具、Shell 和檔案瀏覽器存取。最多掛載 10 個資料夾。",
   "workspaceExternalStorageTitle": "允許存取檔案",
-  "workspaceExternalStorageMessage": "工作區和 Shell 需要直接讀寫外部資料夾，請在 Android 系統設定中允許 Kelivo 存取檔案。Android 11 及以上需開啟「所有檔案存取權限」，然後選擇要掛載的本機資料夾。",
+  "workspaceExternalStorageMessage": "工作區和 Shell 需要直接讀寫外部資料夾，請在 Android 系統設定中允許 Cuplivo 存取檔案。Android 11 及以上需開啟「所有檔案存取權限」，然後選擇要掛載的本機資料夾。",
   "workspaceExternalGrantAccess": "前往授權",
   "workspaceExternalLocalOnly": "Android 僅支援掛載本機資料夾，此檔案提供者沒有可供 Shell 存取的本機目錄。",
   "workspaceExternalUnavailable": "外部資料夾無法使用。請檢查儲存裝置連線及存取權限，重新選擇資料夾以恢復存取。",
@@ -4096,6 +4015,11 @@
   "workspaceToolFilesTruncated": "僅列出部分檔案。",
   "displaySettingsPageShowProducedFilesTitle": "顯示回覆底部檔案卡片",
   "displaySettingsPageShowProducedFilesSubtitle": "在回覆底部顯示工具建立或修改的檔案。",
+  "reasoningBudgetSliderLow": "Low",
+  "reasoningBudgetSliderMedium": "Medium",
+  "reasoningBudgetSliderHigh": "High",
+  "reasoningBudgetSliderXhigh": "XHigh",
+  "reasoningBudgetSliderMax": "Max",
   "defaultModelPagePerChatModelTitle": "每個對話獨立模型",
   "defaultModelPagePerChatModelSubtitle": "開啟後，在對話中切換模型只影響目前對話；關閉後會直接修改目前助手的模型，使用該助手的所有對話都會跟隨。",
   "googleFontsTitle": "Google Fonts",
@@ -4119,7 +4043,7 @@
   "assistantEditGradientPreview": "預覽",
   "assistantEditGradientNextFrame": "換一幀",
   "backgroundSettingsTitle": "背景任務",
-  "backgroundTaskTitle": "Kelivo 任務",
+  "backgroundTaskTitle": "Cuplivo 任務",
   "backgroundCompleted": "生成完成",
   "backgroundFailed": "生成失敗，請開啟對話查看詳情。",
   "backgroundCancelled": "生成已取消",
@@ -4160,7 +4084,7 @@
   "backgroundFinishUntilForeground": "回到應用程式時收起",
   "backgroundFinishVisibilityDetail": "用於 Android 懸浮視窗和 iOS 鎖定畫面完成卡片。回到應用程式時清理完成狀態，最長保留 15 分鐘；取消任務立即收起。",
   "backgroundOverlayIcon": "懸浮視窗圖示",
-  "backgroundIconDefault": "Kelivo 圖示",
+  "backgroundIconDefault": "Cuplivo 圖示",
   "backgroundIconImage": "選擇圖片",
   "backgroundIconEmoji": "選擇 Emoji",
   "backgroundPermissionsTitle": "權限與系統設定",
@@ -4228,12 +4152,12 @@
   "mcpImportPreview": "預覽",
   "mcpImportConfirm": "匯入",
   "startupRecoverySnapshotTitle": "從資料庫快照還原",
-  "startupRecoverySnapshotBody": "即使資料庫無法開啟，也可以選擇本機快照還原聊天和設定。請勿解除安裝 Kelivo，解除安裝會一併刪除這些快照。",
+  "startupRecoverySnapshotBody": "即使資料庫無法開啟，也可以選擇本機快照還原聊天和設定。請勿解除安裝 Cuplivo，解除安裝會一併刪除這些快照。",
   "startupRecoverySnapshotEmpty": "未在本機找到資料庫快照。請先匯出資料，再嘗試其他還原操作。",
   "startupRecoverySnapshotButton": "選擇快照還原",
-  "startupRecoverySnapshotConfirm": "將聊天和設定還原到 {when} 的快照？快照之後的變更不會包含在內。現有附件檔案和快照會保留，Kelivo 將重新啟動以完成還原。",
+  "startupRecoverySnapshotConfirm": "將聊天和設定還原到 {when} 的快照？快照之後的變更不會包含在內。現有附件檔案和快照會保留，Cuplivo 將重新啟動以完成還原。",
   "startupRecoverySnapshotFailed": "無法準備快照還原：{reason}",
-  "startupRecoverySnapshotReady": "快照已準備好，請重新啟動 Kelivo 完成還原。",
+  "startupRecoverySnapshotReady": "快照已準備好，請重新啟動 Cuplivo 完成還原。",
   "@startupRecoverySnapshotConfirm": {
     "placeholders": {
       "when": {
@@ -4270,7 +4194,7 @@
   "scheduledTasksPermission": "鬧鐘和提醒",
   "scheduledTasksPermissionDetail": "允許設定鬧鐘，才能按指定時間執行。未授權時，已啟用的任務會等待授權。",
   "scheduledTasksPermissionAction": "前往授權",
-  "scheduledTasksReliability": "建議在電池設定中允許 Kelivo 背景執行。強制停止後需重新開啟應用程式。錯過的任務不會補跑，執行時間跟隨裝置時區。",
+  "scheduledTasksReliability": "建議在電池設定中允許 Cuplivo 背景執行。強制停止後需重新開啟應用程式。錯過的任務不會補跑，執行時間跟隨裝置時區。",
   "scheduledTasksExecutionDetail": "結果儲存在對話中，完成後會傳送回覆預覽通知，點擊可開啟對話。單次最多執行 10 分鐘；需要使用者回答或工具確認時會停止。",
   "scheduledTasksRunNow": "立即執行",
   "scheduledTasksHistory": "執行紀錄",
@@ -4327,7 +4251,7 @@
   "scheduledTasksMessageMissing": "所選問題已不存在，請重新選擇。",
   "scheduledTasksChatBusy": "此聊天正在產生回答，本次任務已略過。",
   "scheduledTasksDesktopEmpty": "尚無排程任務",
-  "scheduledTasksDesktopReliability": "僅在 Kelivo 執行時運作，最小化或常駐系統匣時也會繼續。結束或電腦休眠期間錯過的任務不會補執行，也不會自動啟動應用程式。",
+  "scheduledTasksDesktopReliability": "僅在 Cuplivo 執行時運作，最小化或常駐系統匣時也會繼續。結束或電腦休眠期間錯過的任務不會補執行，也不會自動啟動應用程式。",
   "scheduledTasksDesktopExecutionDetail": "結果儲存在對話中，可從任務的執行記錄開啟。單次最多執行 10 分鐘；需要使用者回答或工具確認時會停止。",
   "worldBookStickyLabel": "黏滯（訊息數）",
   "worldBookStickyHint": "觸發後在後續 N 則訊息中保持啟用，重複命中不延長。0 表示關閉。",
@@ -4404,7 +4328,6 @@
   "oauthDays": "{count} 天視窗",
   "oauthWindow": "用量視窗",
   "oauthResetsAt": "重設於 {time}",
-  "oauthUsedValue": "已用 {value}",
   "oauthNetworkError": "連線失敗，請檢查網路後重試。",
   "oauthInvalidResponse": "授權未完成，請重試。",
   "oauthTimeout": "授權逾時，請重試。",
@@ -4427,7 +4350,7 @@
   "scheduledTasksPreparation": "執行與通知",
   "scheduledTasksAllowPreparation": "允許提前準備",
   "scheduledTasksPreparationDetail": "提前準備適合不依賴即時資訊的文字任務，不會使用工具、附件或執行外部操作。",
-  "scheduledTasksIOSDetail": "受 iOS 背景限制，Kelivo 不能在指定時間自動喚醒並執行模型。此功能會在 App 可執行時提前準備內容，由系統到點顯示通知。每次僅準備下一次結果；離開 App 後不保證準備完成，後續任務需再次開啟 Kelivo 才能補充。",
+  "scheduledTasksIOSDetail": "受 iOS 背景限制，Cuplivo 不能在指定時間自動喚醒並執行模型。此功能會在 App 可執行時提前準備內容，由系統到點顯示通知。每次僅準備下一次結果；離開 App 後不保證準備完成，後續任務需再次開啟 Cuplivo 才能補充。",
   "scheduledTasksContextPolicy": "對話上下文",
   "scheduledTasksContextLatest": "跟隨最新對話",
   "scheduledTasksContextSnapshot": "使用準備時的快照",
@@ -4448,16 +4371,16 @@
   "scheduledTasksReminded": "已到期 · 僅提醒",
   "scheduledTasksSkipped": "已略過",
   "scheduledTasksCancelled": "已取消",
-  "scheduledTasksReminderBody": "定時任務已到期，開啟 Kelivo 繼續。",
+  "scheduledTasksReminderBody": "定時任務已到期，開啟 Cuplivo 繼續。",
   "scheduledTasksResultBody": "定時任務結果已準備好。",
   "scheduledTasksNotificationPermission": "允許任務通知",
   "scheduledTasksPreparationCost": "提前準備會呼叫模型，可能產生額外費用。選擇「跟隨最新對話」時，到期前的新訊息可能使已準備內容失效。即使結果未使用或請求被取消，仍可能計費；重新準備會再次呼叫模型。",
-  "scheduledTasksAllowPreparationTip": "在 Kelivo 可執行時，提前產生下一次任務的結果，到期前不會顯示在聊天中。僅使用文字，不使用工具、附件或自訂請求內容；呼叫模型可能產生費用。",
+  "scheduledTasksAllowPreparationTip": "在 Cuplivo 可執行時，提前產生下一次任務的結果，到期前不會顯示在聊天中。僅使用文字，不使用工具、附件或自訂請求內容；呼叫模型可能產生費用。",
   "scheduledTasksContextPolicyTip": "跟隨最新對話：到期前傳送新訊息、編輯訊息或切換訊息版本後，已準備內容會失效；重新準備會占用次數，並可能增加費用。到期後，已儲存的通知結果會原樣補入對話。\n\n使用準備時的快照：對話變化後仍保留已準備結果，內容不會包含後續聊天。",
-  "scheduledTasksPreparationWindowTip": "允許在任務到期前多久開始準備，最長 24 小時。例如第二天早上提醒，前一天中午開啟 Kelivo 時就有機會準備。時間越長，準備機會越多，但內容也可能更早過時。不會改變任務時間，也不代表能在背景定時執行。「立刻準備」不受這項自動等待和準備次數上限限制。",
+  "scheduledTasksPreparationWindowTip": "允許在任務到期前多久開始準備，最長 24 小時。例如第二天早上提醒，前一天中午開啟 Cuplivo 時就有機會準備。時間越長，準備機會越多，但內容也可能更早過時。不會改變任務時間，也不代表能在背景定時執行。「立刻準備」不受這項自動等待和準備次數上限限制。",
   "scheduledTasksPreparationAttemptsTip": "本次累計嘗試達到上限後，自動準備會暫停。首次、失敗、取消和手動準備都計入嘗試記錄；「立刻準備」不受此上限限制。嘗試越多，可能產生的模型費用越多，這不是費用上限。",
   "scheduledTasksPreparationCooldownTip": "同一次任務兩次開始準備之間，至少間隔多少分鐘。間隔越長，重複請求越少。重試仍需 App 有執行機會，不是在背景設定一個計時器。「立刻準備」不受這項自動等待和準備次數上限限制。",
-  "scheduledTasksUnavailableTip": "到期時沒有可用結果、也無法執行任務，就傳送提醒或略過本次。提醒不包含模型產生的回答，且需要開啟通知。如果到期時 Kelivo 正在開啟執行，可直接執行任務。",
+  "scheduledTasksUnavailableTip": "到期時沒有可用結果、也無法執行任務，就傳送提醒或略過本次。提醒不包含模型產生的回答，且需要開啟通知。如果到期時 Cuplivo 正在開啟執行，可直接執行任務。",
   "scheduledTasksNotifyTip": "允許傳送結果通知和無法執行時的提醒。關閉後仍會執行任務、呼叫模型，提前準備也仍可能產生費用。還需要允許系統通知權限。",
   "scheduledTasksShowPreviewTip": "在通知中顯示已產生的結果，系統設定允許時也會顯示在鎖定畫面上。關閉後只顯示一般提示，完整結果仍可在聊天中查看；同時遵循全域通知隱私設定。",
   "scheduledTasksHours": "{count} 小時",
@@ -4507,10 +4430,546 @@
   "phoneControlUsageTitle": "使用說明",
   "phoneControlDisclosure": "在對話中發起手機控制任務後，助手可以讀取目前畫面、點擊、輸入、滑動、導覽和開啟應用程式。畫面內容會傳送給目前對話設定的模型服務商，並儲存在對話的工具結果中。密碼欄位會隱藏，服務不會持續記錄畫面內容。你可以隨時關閉助手的此項工具，或在系統設定中停用服務。",
   "phoneControlAssistantTitle": "還需開啟助手工具",
-  "phoneControlAssistantHint": "需要同時完成兩項設定：在系統無障礙設定中啟用「Kelivo 手機控制」，並在要使用的助手 → 本地工具中開啟「手機控制」（也可從對話工具選單開啟）。每個助手單獨設定，執行任務時請保持手機解鎖。",
+  "phoneControlAssistantHint": "需要同時完成兩項設定：在系統無障礙設定中啟用「Cuplivo 手機控制」，並在要使用的助手 → 本地工具中開啟「手機控制」（也可從對話工具選單開啟）。每個助手單獨設定，執行任務時請保持手機解鎖。",
   "phoneControlRestrictedTitle": "無法開啟無障礙？",
-  "phoneControlRestrictedHint": "部分下載的 APK 需要先在應用程式資訊右上角選單中選擇「允許受限制的設定」。點擊開啟 Kelivo 應用程式資訊，完成後再返回無障礙設定。",
+  "phoneControlRestrictedHint": "部分下載的 APK 需要先在應用程式資訊右上角選單中選擇「允許受限制的設定」。點擊開啟 Cuplivo 應用程式資訊，完成後再返回無障礙設定。",
   "phoneControlEnableAssistant": "允許此助手使用手機控制",
+  "settingsPageLanSync": "區域網路同步",
+  "lanSyncThisDevice": "本裝置",
+  "lanSyncDeviceIdLabel": "裝置 ID",
+  "lanSyncListenerStarting": "正在啟動監聽…",
+  "lanSyncListenerNotRunning": "監聽未執行",
+  "lanSyncListenerFailed": "監聽啟動失敗：{error}",
+  "lanSyncPairSectionTitle": "配對裝置",
+  "lanSyncPairFirstSyncNote": "配對成功後會自動開始首次同步，可能耗時較長。請保持電腦端應用程式執行，手機端保持在這個應用程式前台。",
+  "lanSyncPairIntro": "在一台裝置上顯示二維碼，用另一台掃描；沒有相機時輸入配對碼。兩台裝置需在同一網路。",
+  "lanSyncShowCode": "顯示配對二維碼",
+  "lanSyncEnterCode": "掃碼或輸入配對碼",
+  "lanSyncPairingCode": "配對碼",
+  "lanSyncPairingExpiresIn": "{time} 後失效",
+  "lanSyncPairingEndpointHint": "在另一台裝置上輸入以下位址",
+  "lanSyncPairingNoIpHint": "未找到區域網路位址。另一台裝置仍可憑本機的 IP 或主機名稱連線。",
+  "lanSyncHostLabel": "位址",
+  "lanSyncPortLabel": "連接埠",
+  "lanSyncPairButton": "配對",
+  "lanSyncPairAgain": "重新配對",
+  "lanSyncPairingBusy": "配對中…",
+  "lanSyncPairSuccess": "已與 {name} 配對",
+  "lanSyncPairErrorInvalidPin": "配對碼錯誤，或對方的配對視窗已關閉。",
+  "lanSyncPairErrorInvalidAddress": "請填寫對方裝置的位址和連接埠。",
+  "lanSyncPairErrorUnreachable": "無法連線到該裝置。請檢查位址與連接埠，並確認兩台裝置在同一網路。",
+  "lanSyncPairErrorNoCertificate": "對方未能出示身分，配對已中止。",
+  "lanSyncPairErrorIdMismatch": "無法核實對方身分，配對已中止。",
+  "lanSyncPairErrorNoListener": "本裝置的同步監聽尚未啟動。",
+  "lanSyncPairErrorUnknown": "配對失敗：{error}",
+  "lanSyncScanQr": "掃描配對二維碼",
+  "lanSyncPairQrCaption": "掃碼配對，或在另一台裝置輸入下方資訊",
+  "lanSyncPairUpdatedSnackbar": "已更新與 {name} 的配對",
+  "lanSyncPairErrorFingerprintMismatch": "裝置憑證與二維碼不符，已中止配對。",
+  "lanSyncPairErrorNoEndpointInQr": "二維碼中沒有可用位址，請在下方輸入位址完成配對。",
+  "lanSyncPairErrorNotPairingQr": "這不是 Cuplivo 的配對二維碼。",
+  "lanSyncPairErrorInvalidQr": "配對二維碼內容無法解析。",
+  "lanSyncPairErrorQrBadVersion": "二維碼版本較新，請更新應用後重試。",
+  "lanSyncClosePairing": "關閉配對視窗",
+  "lanSyncPairedDevices": "已配對裝置",
+  "lanSyncNoDevices": "還沒有已配對的裝置。配對後即可開始同步。",
+  "lanSyncPlatformAndroid": "Android",
+  "lanSyncPlatformIos": "iOS",
+  "lanSyncPlatformWindows": "Windows",
+  "lanSyncPlatformMacos": "macOS",
+  "lanSyncPlatformLinux": "Linux",
+  "lanSyncPlatformUnknown": "未知裝置",
+  "lanSyncLastSyncedAt": "上次同步 {time}",
+  "lanSyncNeverSynced": "從未同步",
+  "lanSyncJustSynced": "剛剛同步",
+  "lanSyncMinutesAgo": "{n} 分鐘前",
+  "lanSyncHoursAgo": "{n} 小時前",
+  "lanSyncDaysAgo": "{n} 天前",
+  "lanSyncSyncNow": "立即同步",
+  "lanSyncOnline": "線上",
+  "lanSyncOnlineFromSession": "線上——上次同步成功連上",
+  "lanSyncOfflineFromSession": "離線——上次同步沒能連上",
+  "lanSyncPhaseConnectingTo": "正在連線 {address}…",
+  "lanSyncPhaseConnectingAt": "正在連線 {address}…（{index}/{total}）",
+  "lanSyncOffline": "離線",
+  "lanSyncUpToDate": "已是最新",
+  "lanSyncPhaseConnecting": "正在連線…",
+  "lanSyncPhaseExchanging": "正在比對資料…",
+  "lanSyncPhaseSending": "正在傳送變更…",
+  "lanSyncPhaseReceiving": "正在接收變更…",
+  "lanSyncPhaseFiles": "正在下載檔案…（{done}/{total}）",
+  "lanSyncPhaseFilesNoTotal": "正在下載檔案…",
+  "lanSyncPhaseApplying": "正在套用變更…",
+  "lanSyncFirstSyncHint": "首次同步進行中——請保持兩台裝置喚醒、Cuplivo 保持開啟（手機端請保持前台），直到同步完成。",
+  "lanSyncRename": "重新命名",
+  "lanSyncRenameTitle": "裝置名稱",
+  "lanSyncEditAddress": "修改位址",
+  "lanSyncAddressCopied": "位址已複製",
+  "lanSyncUnpair": "取消配對",
+  "lanSyncUnpairConfirmTitle": "取消與 {name} 的配對？",
+  "lanSyncUnpairConfirmBody": "對話在兩台裝置上都會保留，只是不再與它同步，直到重新配對。",
+  "lanSyncReportSent": "傳送 {n}",
+  "lanSyncReportReceived": "接收 {n}",
+  "lanSyncReportMessagesUpserted": "+{n} 條訊息",
+  "lanSyncReportMessagesDeleted": "-{n} 條訊息",
+  "lanSyncReportConversationsDeleted": "-{n} 個對話",
+  "lanSyncReportDeferred": "{n} 項延後",
+  "lanSyncReportEntities": "{n} 個實體",
+  "lanSyncReportPreferences": "{n} 項偏好",
+  "lanSyncReportBlobsWithSize": "{n} 個檔案 · {size}",
+  "lanSyncReportBlobs": "{n} 個檔案",
+  "lanSyncReportSkills": "{n} 個技能",
+  "lanSyncReportSkillConflicts": "{n} 處技能修改被覆蓋",
+  "lanSyncReportBlobsMissing": "{n} 個檔案在對方裝置上缺失",
+  "lanSyncReportRowsLost": "{n} 條本地記錄被對端更新的版本覆蓋",
+  "lanSyncReportClockSkew": "兩台設備的時鐘相差約 {n} 分鐘，請校準設備時鐘後重新同步",
+  "lanSyncReportPeerOffline": "暫時連不上——對方可能已休眠或換了網路；兩台裝置回到同一網路後會自動同步。",
+  "lanSyncReportUnreachable": "同步失敗：無法連線到對方裝置。它可能已離線或換了網路——重新掃描它的二維碼，或在卡片上修改位址。",
+  "lanSyncReportNoEndpoint": "同步失敗：沒有記錄對方裝置的位址。請重新掃描它的二維碼，或在卡片上填寫位址。",
+  "lanSyncReportTimeout": "同步失敗：對方裝置停止回應。",
+  "lanSyncReportPeerError": "同步失敗：對方裝置回報了錯誤。",
+  "lanSyncReportInternal": "同步失敗，詳情見日誌。",
+  "lanSyncRefusedPeerSchemaNewer": "對方資料庫版本較新。請先更新本裝置再同步。",
+  "lanSyncRefusedProtocolUnknown": "對方使用不同的同步協定。請將兩台裝置都更新到最新版本。",
+  "lanSyncRefusedNotPaired": "本裝置與對方對這次配對的記錄已不一致——對方解除了配對，或重新配對沒有在兩台裝置上完成。請在兩台裝置上重新配對。",
+  "lanSyncRefusedIdentityMismatch": "對方裝置的身分不一致。請在兩台裝置上重新配對。",
+  "lanSyncRefusedBusy": "另一個同步工作階段正在進行，請稍後再試。",
+  "lanSyncFirewallTitle": "Windows 防火牆",
+  "lanSyncFirewallHint": "連接埠 {port} 的入站規則需要一次管理員授權。",
+  "lanSyncFirewallFix": "允許存取（UAC）",
+  "lanSyncFirewallFixed": "入站存取已允許。",
+  "lanSyncKnownLimits": "目前：工作區仍只留在建立它的裝置上；PIN 配對請僅在可信網路中使用。",
+  "assistantEditProactiveCareEnableTitle": "主動關懷",
+  "@assistantEditProactiveCareEnableTitle": {
+    "description": "主動關懷開關標題"
+  },
+  "assistantEditProactiveCareDefaultDescription": "未單獨設定的對話預設跟隨此開關",
+  "@assistantEditProactiveCareDefaultDescription": {
+    "description": "說明助手主動關懷開關只是對話預設值"
+  },
+  "assistantEditProactiveCareDecisionHistoryLimitTitle": "時間決策所用訊息條數",
+  "@assistantEditProactiveCareDecisionHistoryLimitTitle": {
+    "description": "主動關懷時間決策歷史訊息數量限制標題"
+  },
+  "assistantEditProactiveCareDecisionHistoryLimitDescription": "決定下次主動發訊息時間時，最多傳送給決策模型的最近歷史訊息數量",
+  "@assistantEditProactiveCareDecisionHistoryLimitDescription": {
+    "description": "主動關懷時間決策歷史訊息數量限制說明"
+  },
+  "assistantEditProactiveCareConversationTimesTitle": "各對話下次來信時間",
+  "@assistantEditProactiveCareConversationTimesTitle": {
+    "description": "對話主動關懷時間摺疊區域標題"
+  },
+  "assistantEditProactiveCareNoEligibleConversations": "此助手暫無已開啟的對話",
+  "@assistantEditProactiveCareNoEligibleConversations": {
+    "description": "助手對話主動關懷時間列表空狀態"
+  },
+  "assistantEditProactiveCareConversationTimeFuture": "未來 · {time}",
+  "@assistantEditProactiveCareConversationTimeFuture": {
+    "description": "對話主動關懷時間為未來時的狀態",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "assistantEditProactiveCareConversationTimeExpired": "已過期 · {time}",
+  "@assistantEditProactiveCareConversationTimeExpired": {
+    "description": "對話主動關懷時間已過期時的狀態",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "assistantEditProactiveCareConversationTimeUnset": "未設定",
+  "@assistantEditProactiveCareConversationTimeUnset": {
+    "description": "已開啟對話未設定主動關懷時間時的狀態"
+  },
+  "assistantEditProactiveCarePermissionsTitle": "Android 執行條件",
+  "@assistantEditProactiveCarePermissionsTitle": {
+    "description": "Android 主動關懷執行條件摺疊區域標題"
+  },
+  "assistantEditProactiveCareNotificationsTitle": "通知",
+  "@assistantEditProactiveCareNotificationsTitle": {
+    "description": "Android 應用程式通知和主動關懷通知頻道狀態列"
+  },
+  "assistantEditProactiveCareExactAlarmTitle": "精確鬧鐘",
+  "@assistantEditProactiveCareExactAlarmTitle": {
+    "description": "Android 精確鬧鐘狀態列"
+  },
+  "assistantEditProactiveCareAutoStartTitle": "自動啟動",
+  "@assistantEditProactiveCareAutoStartTitle": {
+    "description": "Android 自動啟動設定列"
+  },
+  "assistantEditProactiveCareBatteryTitle": "忽略電池最佳化",
+  "@assistantEditProactiveCareBatteryTitle": {
+    "description": "Android 忽略電池最佳化狀態列"
+  },
+  "assistantEditProactiveCarePermissionRequired": "必需",
+  "@assistantEditProactiveCarePermissionRequired": {
+    "description": "標記 Android 主動關懷必需設定"
+  },
+  "assistantEditProactiveCarePermissionRecommended": "建議",
+  "@assistantEditProactiveCarePermissionRecommended": {
+    "description": "標記 Android 主動關懷建議設定"
+  },
+  "assistantEditProactiveCarePermissionReady": "已就緒",
+  "@assistantEditProactiveCarePermissionReady": {
+    "description": "Android 主動關懷設定已就緒"
+  },
+  "assistantEditProactiveCarePermissionMissing": "點擊取得權限",
+  "@assistantEditProactiveCarePermissionMissing": {
+    "description": "Android 主動關懷設定未開啟"
+  },
+  "assistantEditProactiveCarePermissionManual": "需手動確認",
+  "@assistantEditProactiveCarePermissionManual": {
+    "description": "Android 主動關懷設定需手動確認"
+  },
+  "assistantEditProactiveCarePermissionUnknown": "未知",
+  "@assistantEditProactiveCarePermissionUnknown": {
+    "description": "無法確定 Android 主動關懷設定狀態"
+  },
+  "assistantEditProactiveCareNextMessageTimeTitle": "下次助手主動發訊息時間",
+  "@assistantEditProactiveCareNextMessageTimeTitle": {
+    "description": "下次主動發訊息時間標籤"
+  },
+  "assistantEditProactiveCareNextMessageTimeUnset": "未設定",
+  "@assistantEditProactiveCareNextMessageTimeUnset": {
+    "description": "未設定主動發訊息時間時顯示"
+  },
+  "assistantEditProactiveCarePromptTitle": "主動關懷提示詞",
+  "@assistantEditProactiveCarePromptTitle": {
+    "description": "主動關懷提示詞編輯器標題"
+  },
+  "assistantEditProactiveCarePromptHint": "助手主動發訊息時使用的提示詞",
+  "@assistantEditProactiveCarePromptHint": {
+    "description": "主動關懷提示詞輸入框提示"
+  },
+  "assistantEditProactiveCarePromptDefault": "請根據助手的角色設定、上下文、以及目前時間，給使用者發一條訊息",
+  "@assistantEditProactiveCarePromptDefault": {
+    "description": "預設主動關懷提示詞"
+  },
+  "assistantEditProactiveCareDecisionPromptTitle": "決策時間功能說明提示詞",
+  "@assistantEditProactiveCareDecisionPromptTitle": {
+    "description": "決策提示詞編輯器標題"
+  },
+  "assistantEditProactiveCareDecisionPromptDefault": "你是一個角色扮演場景的導演，負責判斷助手（assistant）下一次應主動向使用者發訊息的時間。\n\n【功能說明】\n· 主動發訊息：助手可在設定時間主動向使用者發送訊息，無需使用者提問。\n· 若不設定主動發訊息的時間，則助手無法在使用者不發言的情況下主動發送任何訊息。\n· 你需要評估當前設定的下次發訊息時間：若認為無需調整，則保持原時間；否則進行修改。\n\n【注意】\n· 只考慮助手的視角看到的資訊，不考慮使用者的視角。\n\n【考慮角度】\n1. 助手在睡醒、完成某件事、安全回到宿舍等情況下，應主動向使用者報備或打招呼。\n2. 若上下文中提到助手因睡著、忙碌等原因未能及時查看使用者的訊息，則應設定在助手睡醒或忙完後，主動給使用者發一條訊息。\n3. 若上下文中提到助手需要在某個時間點監督或提醒使用者，則設定在該時間點主動發訊息。\n4. 當一個話題尚未聊完時，需要假設：使用者在助手最後一條訊息發出後始終沒有回覆，那麼助手應在什麼時間主動發訊息？請據此設定時間。\n\n【示例】\n1. 聊天記錄中，使用者凌晨發訊息稱自己失眠，預計早上10:30起床，但助手沒有失眠，會按正常時間（如8:30）起床。此時應將主動發訊息時間設為助手的起床時間。\n2. 聊天記錄中，使用者與助手正在聊考試話題。你在8:30看到的最後一條訊息是助手在8:30發出的一個提問。依據第4條規則，需考慮使用者一直未回覆的情況，助手應在10分鐘之內主動發訊息追問。",
+  "@assistantEditProactiveCareDecisionPromptDefault": {
+    "description": "預設決策時間提示詞"
+  },
+  "assistantEditProactiveCareDateTimePickerTitle": "選擇日期和時間",
+  "@assistantEditProactiveCareDateTimePickerTitle": {
+    "description": "日期時間選擇器標題"
+  },
+  "assistantEditProactiveCareTimeMustBeFuture": "請選擇未來的時間。",
+  "@assistantEditProactiveCareTimeMustBeFuture": {
+    "description": "主動關懷時間已不是未來時間時的提示"
+  },
+  "conversationProactiveCareTitle": "對話主動關懷",
+  "@conversationProactiveCareTitle": {
+    "description": "對話級主動關懷標題和輸入列操作標籤"
+  },
+  "conversationProactiveCareFollowingAssistantOn": "跟隨助手設定：已開啟",
+  "@conversationProactiveCareFollowingAssistantOn": {
+    "description": "對話繼承助手已開啟主動關懷設定時的狀態"
+  },
+  "conversationProactiveCareFollowingAssistantOff": "跟隨助手設定：已關閉",
+  "@conversationProactiveCareFollowingAssistantOff": {
+    "description": "對話繼承助手已關閉主動關懷設定時的狀態"
+  },
+  "conversationProactiveCareExplicitOn": "對話設定：已開啟",
+  "@conversationProactiveCareExplicitOn": {
+    "description": "對話主動關懷已明確開啟時的狀態"
+  },
+  "conversationProactiveCareExplicitOff": "對話設定：已關閉",
+  "@conversationProactiveCareExplicitOff": {
+    "description": "對話主動關懷已明確關閉時的狀態"
+  },
+  "conversationProactiveCareRestoreFollowing": "跟隨助手設定",
+  "@conversationProactiveCareRestoreFollowing": {
+    "description": "清除對話主動關懷覆寫設定的操作"
+  },
+  "conversationProactiveCareClearTime": "清除下次發訊息時間",
+  "@conversationProactiveCareClearTime": {
+    "description": "清除對話主動關懷時間的操作"
+  },
+  "conversationProactiveCareUpdateFailed": "無法更新對話主動關懷設定。",
+  "@conversationProactiveCareUpdateFailed": {
+    "description": "更新對話主動關懷失敗時的錯誤提示"
+  },
+  "defaultModelPageProactiveCareModelTitle": "Ta的來信決策模型",
+  "@defaultModelPageProactiveCareModelTitle": {
+    "description": "主動關懷決策模型卡片標題"
+  },
+  "defaultModelPageProactiveCareModelSubtitle": "用於決定助手何時主動發訊息的模型",
+  "@defaultModelPageProactiveCareModelSubtitle": {
+    "description": "主動關懷決策模型卡片副標題"
+  },
+  "proactiveCareFailedNotificationBody": "主動關懷訊息生成失敗，請開啟應用程式檢查模型配置與網路。",
+  "@proactiveCareFailedNotificationBody": {
+    "description": "主動關懷訊息生成失敗時的通知內容"
+  },
+  "proactiveCareLetterArrivalBody": "Ta的來信已到達，開啟應用程式即可查看。",
+  "@proactiveCareLetterArrivalBody": {
+    "description": "在只做到達提醒的平台上，來信到期時通知的內容"
+  },
+  "assistantEditPageRoleplayTab": "角色扮演",
+  "@assistantEditPageRoleplayTab": {
+    "description": "Assistant edit page tab for roleplay features (Their Letter)"
+  },
+  "assistantEditProactiveCareFeatureTitle": "Ta的來信",
+  "@assistantEditProactiveCareFeatureTitle": {
+    "description": "Feature header for the proactive care (Their Letter) section"
+  },
+  "statsPageCost": "費用 ({currency})",
+  "statsPageModelsWithoutPricing": "{count} 個模型無定價",
+  "assistantEditReasoningFollowDefault": "跟隨模型預設",
+  "assistantEditReasoningClampedSubtitle": "實際檔位會依各模型的能力收斂",
+  "backupProgressFailed": "操作失敗",
+  "backupProgressFailedAt": "失敗階段：{phase}",
+  "backupProgressCopyError": "複製錯誤",
+  "backupProgressErrorCopied": "錯誤已複製",
+  "reasoningLevelSheetTitle": "推理",
+  "reasoningLevelAuto": "自動",
+  "reasoningLevelAutoSubtitle": "使用模型或供應商的預設設定",
+  "reasoningLevelOff": "關閉",
+  "reasoningLevelOffSubtitle": "關閉推理，直接回答",
+  "reasoningLevelMinimal": "最低",
+  "reasoningLevelMinimalSubtitle": "使用極少推理來回答問題",
+  "reasoningLevelLow": "低",
+  "reasoningLevelLowSubtitle": "使用少量推理來回答問題",
+  "reasoningLevelMedium": "中",
+  "reasoningLevelMediumSubtitle": "使用較多推理來回答問題",
+  "reasoningLevelHigh": "高",
+  "reasoningLevelHighSubtitle": "使用大量推理來回答問題，適合複雜問題",
+  "reasoningLevelXhigh": "極高",
+  "reasoningLevelXhighSubtitle": "使用很高推理深度，適合更複雜的問題",
+  "reasoningLevelMax": "最大",
+  "reasoningLevelMaxSubtitle": "使用最大推理深度，適合最複雜的問題",
+  "reasoningLevelFollowModelDefaultSubtitle": "使用模型或助手未設定時的預設檔位",
+  "reasoningLevelNoReasoning": "此模型不支援推理",
+  "reasoningLevelCustomBudget": "自訂推理預算",
+  "reasoningLevelCustomBudgetHint": "例如：2048",
+  "reasoningLevelCompactMin": "min",
+  "reasoningLevelCompactLow": "low",
+  "reasoningLevelCompactMid": "mid",
+  "reasoningLevelCompactHigh": "high",
+  "reasoningLevelCompactXhigh": "xhigh",
+  "reasoningLevelCompactMax": "max",
+  "reasoningLevelBudgetTokens": "{budget} tokens",
+  "@reasoningLevelBudgetTokens": {
+    "placeholders": {
+      "budget": {
+        "type": "String"
+      }
+    }
+  },
+  "chatMessageWidgetWebFetch": "讀取網頁: {target}",
+  "@chatMessageWidgetWebFetch": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "chatInputBarVoiceAttachAudioTooltip": "停止並存為音訊",
+  "chatInputBarVoiceSendAudioTooltip": "直接發送錄音",
+  "chatInputBarVoiceSavingAudio": "正在儲存錄音…",
+  "audioClipPlayTooltip": "播放音訊",
+  "audioClipPauseTooltip": "暫停",
+  "audioClipPlaybackFailed": "無法播放此音訊",
+  "contextUsageTitle": "上下文視窗",
+  "contextUsageStateExact": "精確（來自上次回應）",
+  "contextUsageStateExactCalibrated": "精確（分項按估算比例）",
+  "contextUsageStateEstimated": "估算",
+  "contextUsageStateStale": "已過時，正在更新…",
+  "contextUsageStateComputing": "計算中…",
+  "contextUsageStateNone": "暫無資料",
+  "contextUsageBucketSystem": "系統提示詞",
+  "contextUsageBucketInjections": "指令注入",
+  "contextUsageBucketHistory": "歷史訊息",
+  "contextUsageBucketTools": "內建工具",
+  "contextUsageBucketMemory": "記憶",
+  "contextUsageBucketWorldBook": "世界書",
+  "contextUsageBucketSkills": "技能",
+  "contextUsageBucketWorkspace": "工作區",
+  "contextUsageBucketSearch": "搜尋提示",
+  "contextUsageBucketMcpTools": "MCP 工具",
+  "contextUsageBucketAttachments": "附件",
+  "contextUsageBucketDraft": "草稿",
+  "contextUsageBucketUsed": "已用",
+  "contextUsageFreeSpace": "剩餘空間",
+  "contextUsageUsedWindow": "{used} / {window} ({percent}%)",
+  "contextUsageNoWindow": "未設定上下文視窗",
+  "contextUsageSetWindow": "設定上下文視窗",
+  "contextUsageRefresh": "重新整理",
+  "modelSpecFormSourceCustom": "自訂",
+  "modelSpecFormSourceCatalog": "目錄",
+  "modelSpecFormSourceInferred": "推斷",
+  "modelSpecFormSourceDefault": "預設",
+  "modelSpecFormReset": "重設為預設",
+  "modelSpecFormModalitiesSection": "模態與能力",
+  "modelSpecFormImageType": "圖像",
+  "modelSpecFormAudioMode": "音訊",
+  "modelSpecFormVideoMode": "影片",
+  "modelSpecFormPdfMode": "PDF",
+  "modelSpecFormStructuredOutputAbility": "結構化輸出",
+  "modelSpecFormReasoningSection": "推理",
+  "modelSpecFormDialect": "推理方言",
+  "modelSpecFormDialectNone": "無",
+  "modelSpecFormDialectNoneSubtitle": "不寫入推理欄位",
+  "modelSpecFormDialectOpenaiReasoningEffort": "OpenAI reasoning effort",
+  "modelSpecFormDialectOpenaiReasoningEffortSubtitle": "reasoning_effort",
+  "modelSpecFormDialectOpenaiResponsesReasoning": "OpenAI Responses reasoning",
+  "modelSpecFormDialectOpenaiResponsesReasoningSubtitle": "reasoning.effort",
+  "modelSpecFormDialectOpenrouterReasoning": "OpenRouter reasoning",
+  "modelSpecFormDialectOpenrouterReasoningSubtitle": "reasoning",
+  "modelSpecFormDialectAnthropicBudget": "Anthropic budget",
+  "modelSpecFormDialectAnthropicBudgetSubtitle": "thinking.budget_tokens",
+  "modelSpecFormDialectAnthropicAdaptiveEffort": "Anthropic adaptive effort",
+  "modelSpecFormDialectAnthropicAdaptiveEffortSubtitle": "thinking + output_config.effort",
+  "modelSpecFormDialectAnthropicEffort": "Anthropic effort",
+  "modelSpecFormDialectAnthropicEffortSubtitle": "thinking + output_config.effort",
+  "modelSpecFormDialectGeminiThinkingBudget": "Gemini thinking budget",
+  "modelSpecFormDialectGeminiThinkingBudgetSubtitle": "thinkingConfig.thinkingBudget",
+  "modelSpecFormDialectGeminiThinkingLevel": "Gemini thinking level",
+  "modelSpecFormDialectGeminiThinkingLevelSubtitle": "thinkingConfig.thinkingLevel",
+  "modelSpecFormDialectQwenEnableThinking": "Qwen enable thinking",
+  "modelSpecFormDialectQwenEnableThinkingSubtitle": "enable_thinking",
+  "modelSpecFormDialectThinkingType": "Thinking type",
+  "modelSpecFormDialectThinkingTypeSubtitle": "thinking.type",
+  "modelSpecFormDialectSiliconflowEnableThinking": "SiliconFlow enable thinking",
+  "modelSpecFormDialectSiliconflowEnableThinkingSubtitle": "enable_thinking",
+  "modelSpecFormDialectInternThinkingMode": "Intern thinking mode",
+  "modelSpecFormDialectInternThinkingModeSubtitle": "thinking_mode",
+  "modelSpecFormDialectChatTemplateKwargs": "Chat template kwargs",
+  "modelSpecFormDialectChatTemplateKwargsSubtitle": "chat_template_kwargs.enable_thinking",
+  "modelSpecFormDialectKimiThinking": "Kimi thinking",
+  "modelSpecFormDialectKimiThinkingSubtitle": "thinking",
+  "modelSpecFormDialectCustom": "自訂 JSON",
+  "modelSpecFormDialectCustomSubtitle": "依級別寫入 JSON 補丁",
+  "modelSpecFormLevels": "支援的級別",
+  "modelSpecFormCanDisable": "允許關閉",
+  "modelSpecFormDefaultLevel": "預設級別",
+  "modelSpecFormBudgets": "Token 預算",
+  "modelSpecFormBudgetPlaceholder": "{tokens}",
+  "modelSpecFormCustomPatch": "JSON 補丁（{level}）",
+  "modelSpecFormCustomPatchHint": "例如 reasoning_effort: high",
+  "modelSpecFormInvalidJson": "自訂推理補丁必須是有效的 JSON 物件",
+  "modelSpecFormInvalidNumber": "請輸入有效數字",
+  "modelSpecFormStrategySection": "策略",
+  "modelSpecFormSampling": "取樣",
+  "modelSpecFormRequestQuirks": "請求相容",
+  "modelSpecFormDynamicWebSearch": "動態過濾搜尋工具",
+  "modelSpecFormDynamicWebSearchSubtitle": "開啟動態過濾時，使用 2026-03-18 版網頁搜尋與擷取工具",
+  "modelSpecFormRemoteImageUrls": "遠端圖片連結",
+  "modelSpecFormRemoteImageUrlsSubtitle": "直接傳送 http(s) 圖片連結；關閉後捨棄遠端連結，只傳送本機圖片",
+  "modelSpecFormPromptCacheControl": "提示快取標記",
+  "modelSpecFormPromptCacheControlSubtitle": "開啟提示快取時，在 OpenRouter 請求中加入 cache_control",
+  "modelSpecFormSamplingAlways": "始終保留",
+  "modelSpecFormSamplingAlwaysSubtitle": "保留 temperature 等取樣欄位",
+  "modelSpecFormSamplingOnlyWhenReasoningOff": "僅在關閉推理時",
+  "modelSpecFormSamplingOnlyWhenReasoningOffSubtitle": "模型思考時移除取樣欄位",
+  "modelSpecFormSamplingNever": "從不",
+  "modelSpecFormSamplingNeverSubtitle": "始終移除取樣欄位",
+  "modelSpecFormReplay": "推理回放",
+  "modelSpecFormReplayNone": "無",
+  "modelSpecFormReplayNoneSubtitle": "不把先前推理傳回模型",
+  "modelSpecFormReplayToolTurns": "工具輪次",
+  "modelSpecFormReplayToolTurnsSubtitle": "僅在工具呼叫輪次回放推理",
+  "modelSpecFormReplayAll": "全部",
+  "modelSpecFormReplayAllSubtitle": "每一輪後續請求都回放推理",
+  "modelSpecFormReplayField": "回放欄位",
+  "modelSpecFormReplayFieldReasoningContent": "reasoning_content",
+  "modelSpecFormReplayFieldReasoning": "reasoning",
+  "modelSpecFormReplayFieldReasoningDetails": "reasoning_details",
+  "modelSpecFormLimitsSection": "限額",
+  "modelSpecFormLimitsPricingSection": "限額與定價",
+  "modelSpecFormContextWindow": "上下文視窗",
+  "modelSpecFormMaxOutput": "最大輸出",
+  "modelSpecFormPricingSection": "定價 / 1M",
+  "modelSpecFormPricingInput": "輸入",
+  "modelSpecFormPricingOutput": "輸出",
+  "modelSpecFormPricingCacheRead": "快取讀取",
+  "modelSpecFormPricingCacheWrite": "快取寫入",
+  "modelSpecFormCurrency": "貨幣",
+  "modelSpecFormAdvancedSection": "請求",
+  "providerDetailPagePromptCacheKeyTitle": "傳送對話快取鍵",
+  "providerDetailPagePromptCacheKeyHelp": "為 OpenAI 相容請求附加穩定的對話級 prompt_cache_key。僅在供應商支援時開啟，自訂 Body 優先，不保證快取命中。",
+  "modelCatalogTitle": "模型目錄",
+  "modelCatalogSourceBundled": "內建快照 · {date}",
+  "modelCatalogSourceRemote": "models.dev · 更新於 {date}",
+  "modelCatalogAutoUpdate": "每 24 小時自動更新",
+  "modelCatalogRefresh": "立即更新",
+  "modelCatalogUpdated": "模型目錄已更新",
+  "modelCatalogRefreshFailed": "更新失敗：{error}",
+  "modelCatalogProviderCount": "{count} 個供應商",
+  "modelCatalogModelCount": "{count} 個模型",
+  "searchServicesPageWebFetchSection": "網頁抓取",
+  "searchServicesPageWebFetchModeTitle": "抓取方式",
+  "searchServicesPageWebFetchFollow": "跟隨搜尋服務",
+  "searchServicesPageWebFetchFollowValue": "跟隨搜尋 · {name}",
+  "@searchServicesPageWebFetchFollowValue": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "searchServicesPageWebFetchFollowSubtitle": "目前：{name}",
+  "@searchServicesPageWebFetchFollowSubtitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "searchServicesPageWebFetchLocal": "本機抓取",
+  "searchServicesPageWebFetchLocalSubtitle": "免費，由本機直接請求網頁",
+  "searchServicesPageWebFetchProviderSubtitle": "使用該服務商的 API Key 與額度",
+  "searchServicesPageWebFetchOff": "關閉",
+  "searchServicesPageWebFetchOffSubtitle": "連網時只搜尋，不讀取網頁",
+  "searchServicesPageWebFetchFooter": "開啟連網搜尋後，模型還可以讀取網頁全文。搜尋服務不支援抓取時會改用本機抓取，本機抓取無法處理需要 JavaScript 渲染或有反爬限制的頁面。",
+  "searchServicesPageWebFetchSupported": "支援網頁抓取",
+  "searchServicesDialogApiKeyOptional": "API Key（選填）",
+  "searchServiceEditorTestModeSearch": "搜尋",
+  "searchServiceEditorTestModeFetch": "抓取",
+  "searchServiceEditorTestUrlHint": "輸入測試網址",
+  "searchServiceEditorTestFetchRun": "執行抓取測試",
+  "searchServiceEditorTestFetchRunning": "抓取中…",
+  "searchServiceEditorTestFetchFailed": "抓取失敗：{message}",
+  "@searchServiceEditorTestFetchFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "searchServiceEditorTestFetchStats": "{characters} 字元 · {seconds} 秒",
+  "@searchServiceEditorTestFetchStats": {
+    "placeholders": {
+      "characters": {
+        "type": "String"
+      },
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "displaySettingsPageShowTotalTokensTitle": "顯示整輪累計 Token",
+  "displaySettingsPageShowTotalTokensSubtitle": "累計顯示本次回覆中所有 API 請求的用量。關閉時僅顯示最後一次請求；統計頁面始終包含所有請求。",
+  "displaySettingsShowReasoningLevelBadge": "在推理按鈕上顯示檔位",
+  "displaySettingsShowReasoningLevelBadgeSubtitle": "在輸入欄的推理圖示旁顯示目前檔位",
+  "searchProviderExaMcpDescription": "透過 MCP 使用 Exa 搜尋。不填 API Key 可在免費限額內使用。",
+  "searchServiceNameExaMcp": "Exa MCP",
+  "worldBookImportUnsupportedEntries": "匯入完成。{count} 個條目使用了暫不支援的酒館功能（如巨集、正則、時效、篩選或插入規則），已保留內容並停用，請檢查後再啟用。",
+  "tokenDetailFirstToken": "{value}s（首字）",
+  "tokenDetailReasoningTokens": "{count} tokens",
+  "tokenDetailCacheWriteTokens": "{count} 快取寫入 tokens",
+  "tokenDetailCost": "{amount}",
+  "workspaceToolTitleViewImage": "檢視圖片",
+  "workspaceToolHelpViewImage": "讓模型檢視工作區中的圖片內容。",
+  "oauthUsedValue": "已用 {value}",
   "composerDraftLabel": "草稿",
   "composerDraftRecovered": "已還原一則尚未傳送的內容。",
   "composerDraftRestore": "繼續編輯",

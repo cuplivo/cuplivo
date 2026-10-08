@@ -9,7 +9,7 @@ import '../services/api_key_manager.dart';
 import '../services/api/provider_request_headers.dart';
 import '../services/model_override_payload_parser.dart';
 import '../services/custom_request_merger.dart';
-import 'package:Kelivo/secrets/fallback.dart';
+import 'package:Cuplivo/secrets/fallback.dart';
 import '../services/api/embedding/embedding_api_service.dart';
 import '../services/api/google_service_account_auth.dart';
 import '../models/model_spec.dart';

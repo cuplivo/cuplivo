@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:Kelivo/core/services/auth/oauth_callback_io.dart';
-import 'package:Kelivo/core/services/auth/oauth_callback_types.dart';
+import 'package:Cuplivo/core/services/auth/oauth_callback_io.dart';
+import 'package:Cuplivo/core/services/auth/oauth_callback_types.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _BrowserCallback implements OAuthCallback {
   @override
-  final redirectUri = Uri.parse('psyche.kelivo:/oauth/callback/test');
+  final redirectUri = Uri.parse('com.cuplivo.cuplivo:/oauth/callback/test');
   late Future<Uri> Function(Uri) open;
   final cancelled = Completer<Uri>();
   int closes = 0;

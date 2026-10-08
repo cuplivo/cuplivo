@@ -2,7 +2,7 @@
 //  KelivoISHKernel.h
 //  Runner
 //
-//  Objective-C wrapper around the embedded iSH-ARM64 kernel for the Kelivo
+//  Objective-C wrapper around the embedded iSH-ARM64 kernel for the Cuplivo
 //  Workspace sandbox. Boots exactly once per app process (become_first_process
 //  is irreversible). Command roots use per-process fakefs path contexts.
 //

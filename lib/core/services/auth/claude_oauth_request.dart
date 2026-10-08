@@ -8,6 +8,7 @@ import 'package:hashlib/hashlib.dart' show XXHash64;
 
 import '../../models/provider_oauth.dart';
 import '../../providers/settings_provider.dart';
+import 'http_header_map.dart';
 
 // OMP 2282226655, providers/claude-code-fingerprint.ts and anthropic.ts.
 const defaultClaudeCodeVersion = '2.1.280';
@@ -143,8 +144,7 @@ void setClaudeOAuthHeader(
   String name,
   String value,
 ) {
-  headers.removeWhere((key, _) => key.toLowerCase() == name.toLowerCase());
-  headers[name] = value;
+  setHeaderCaseInsensitive(headers, name, value);
 }
 
 // OMP fingerprints the first text block of the first user turn.

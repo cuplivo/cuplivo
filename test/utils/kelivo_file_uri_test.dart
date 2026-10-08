@@ -1,4 +1,4 @@
-import 'package:Kelivo/utils/kelivo_file_uri.dart';
+import 'package:Cuplivo/utils/kelivo_file_uri.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -145,6 +145,29 @@ void main() {
         ),
         'kelivo-file:///upload/legacy.pdf',
       );
+      // Cuplivo lineage: own BINARY_NAME folder and vendor prefix.
+      expect(
+        KelivoFileUri.tryEncodeLegacyAbsolutePath(
+          'C:/Users/me/AppData/Roaming/cuplivo/avatars/a.png',
+          allowGenericFallback: false,
+        ),
+        'kelivo-file:///avatars/a.png',
+      );
+      expect(
+        KelivoFileUri.tryEncodeLegacyAbsolutePath(
+          r'C:\Users\old-user\AppData\Roaming\com.cup11\cuplivo\upload\legacy.pdf',
+          allowGenericFallback: false,
+        ),
+        'kelivo-file:///upload/legacy.pdf',
+      );
+      // Cuplivo 4.0 lineage: `CompanyName`/`ProductName` pair.
+      expect(
+        KelivoFileUri.tryEncodeLegacyAbsolutePath(
+          r'C:\Users\me\AppData\Roaming\com.cuplivo\cuplivo\fonts\a.ttf',
+          allowGenericFallback: false,
+        ),
+        'kelivo-file:///fonts/a.ttf',
+      );
       // Bare .../Kelivo/images without AppData must not match.
       expect(
         KelivoFileUri.tryEncodeLegacyAbsolutePath(
@@ -179,6 +202,20 @@ void main() {
             allowGenericFallback: false,
           ),
           'kelivo-file:///upload/doc.pdf',
+        );
+        expect(
+          KelivoFileUri.tryEncodeLegacyAbsolutePath(
+            '/data/user/0/com.cup11.cuplivo/app_flutter/fonts/a.ttf',
+            allowGenericFallback: false,
+          ),
+          'kelivo-file:///fonts/a.ttf',
+        );
+        expect(
+          KelivoFileUri.tryEncodeLegacyAbsolutePath(
+            '/data/user/0/com.cuplivo.cuplivo/app_flutter/fonts/a.ttf',
+            allowGenericFallback: false,
+          ),
+          'kelivo-file:///fonts/a.ttf',
         );
         // Non-kelivo package must not be claimed without generic fallback.
         expect(
@@ -309,13 +346,20 @@ void main() {
     });
 
     test('encodes macOS Application Support kelivo bundle paths', () {
-      expect(
-        KelivoFileUri.tryEncodeLegacyAbsolutePath(
-          '/Users/alice/Library/Application Support/com.psyche.kelivo/images/a.png',
-          allowGenericFallback: false,
-        ),
-        'kelivo-file:///images/a.png',
-      );
+      for (final bundleId in const [
+        'com.psyche.kelivo',
+        'com.cup11.cuplivo',
+        'com.cuplivo.cuplivo',
+      ]) {
+        expect(
+          KelivoFileUri.tryEncodeLegacyAbsolutePath(
+            '/Users/alice/Library/Application Support/$bundleId/images/a.png',
+            allowGenericFallback: false,
+          ),
+          'kelivo-file:///images/a.png',
+          reason: bundleId,
+        );
+      }
     });
 
     test('uses generic managed-subdir fallback', () {

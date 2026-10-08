@@ -74,7 +74,7 @@ class IncomingShareHandlerTests: XCTestCase {
     let messenger = IncomingShareTestMessenger()
     let handler = IosIncomingShareHandler()
     handler.register(messenger: messenger)
-    for url in ["kelivo://oauth-return", "kelivo://conversation/chat", "https://share", "kelivo://share/file"] {
+    for url in ["cuplivo://oauth-return", "cuplivo://conversation/chat", "https://share", "cuplivo://share/file"] {
       XCTAssertFalse(handler.receive(URL(string: url)!))
     }
     XCTAssertTrue(messenger.calls.isEmpty)
@@ -210,8 +210,8 @@ class RunnerTests: XCTestCase {
   @MainActor
   func testActivityConversationLinkIsBufferedForColdStartAndConsumedOnce() async {
     let handler = MobileBackgroundHandler()
-    XCTAssertFalse(handler.receive(URL(string: "kelivo://unrelated/chat")!))
-    XCTAssertTrue(handler.receive(URL(string: "kelivo://conversation/chat-123")!))
+    XCTAssertFalse(handler.receive(URL(string: "cuplivo://unrelated/chat")!))
+    XCTAssertTrue(handler.receive(URL(string: "cuplivo://conversation/chat-123")!))
     let pending = await backgroundCall(handler, "takePendingConversation")
     XCTAssertEqual(pending as? String, "chat-123")
     let again = await backgroundCall(handler, "takePendingConversation")

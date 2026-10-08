@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import 'package:Kelivo/utils/app_directories.dart';
+import 'package:Cuplivo/utils/app_directories.dart';
 
 /// Bytes and file count from a recursive directory walk.
 typedef DirectoryUsage = ({int bytes, int fileCount});

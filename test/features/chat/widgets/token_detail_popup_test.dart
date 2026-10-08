@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/chat/widgets/token_detail_popup.dart';
-import 'package:Kelivo/features/chat/widgets/token_display_widget.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/chat/widgets/token_detail_popup.dart';
+import 'package:Cuplivo/features/chat/widgets/token_display_widget.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 class _PricedSettings extends SettingsProvider {
   _PricedSettings() : super(createBusinessTestPreferences());

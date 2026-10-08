@@ -1,5 +1,5 @@
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/core/services/model_spec/model_defaults_guesser.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/core/services/model_spec/model_defaults_guesser.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 ModelGuess _guess(String id) => ModelDefaultsGuesser.guess(id);

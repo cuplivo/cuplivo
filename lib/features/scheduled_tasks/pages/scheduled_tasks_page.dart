@@ -38,7 +38,7 @@ String _repeatLabel(ScheduledTask task, AppLocalizations l) {
 String _date(DateTime date, AppLocalizations l) =>
     DateFormat.Md(l.localeName).add_Hm().format(date);
 
-/// Controls use Kelivo's shared iOS/R3 components on mobile and desktop.
+/// Controls use Cuplivo's shared iOS/R3 components on mobile and desktop.
 class ScheduledTasksPage extends StatefulWidget {
   const ScheduledTasksPage({
     super.key,

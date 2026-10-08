@@ -1,17 +1,17 @@
 import '../../../support/business_test_harness.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/token_usage.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/tts_provider.dart';
-import 'package:Kelivo/features/chat/pages/image_viewer_page.dart';
-import 'package:Kelivo/features/chat/widgets/chat_message_widget.dart';
-import 'package:Kelivo/features/chat/widgets/timeline_projection.dart';
-import 'package:Kelivo/features/chat/widgets/token_display_widget.dart';
-import 'package:Kelivo/features/home/controllers/stream_controller.dart';
-import 'package:Kelivo/features/home/services/ask_user_interaction_service.dart';
-import 'package:Kelivo/features/home/services/tool_approval_service.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/token_usage.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/tts_provider.dart';
+import 'package:Cuplivo/features/chat/pages/image_viewer_page.dart';
+import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart';
+import 'package:Cuplivo/features/chat/widgets/timeline_projection.dart';
+import 'package:Cuplivo/features/chat/widgets/token_display_widget.dart';
+import 'package:Cuplivo/features/home/controllers/stream_controller.dart';
+import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
+import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -873,6 +873,16 @@ void main() {
       expect(image.image, isA<ResizeImage>());
       expect(find.byType(ImageViewerPage), findsNothing);
 
+      // Decode the image for real first: while `_image` is null the inline
+      // image lays out as a full-width, zero-height box, so the tap below lands
+      // on its top edge and never reaches the gesture detector.
+      await tester.runAsync(
+        () => precacheImage(
+          image.image,
+          tester.element(find.byType(Image).first),
+        ),
+      );
+      await tester.pump();
       await tester.tap(
         find.byKey(const ValueKey('assistant-inline-image:image-ordinal:0')),
       );

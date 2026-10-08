@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../models/provider_oauth.dart';
+import 'http_header_map.dart';
 
 /// Codex full Responses contract, matching OMP's request transformer and wire
 /// headers. Kept here so custom overrides and every tool round pass through it.
@@ -9,7 +10,7 @@ void applyCodexRequest(
   Map<String, String> headers,
   String accessToken,
 ) {
-  headers.remove('x-api-key');
+  removeHeaderCaseInsensitive(headers, 'x-api-key');
   final auth = oauthTokenClaims(accessToken)['https://api.openai.com/auth'];
   if (auth is Map) {
     for (final name in [

@@ -166,7 +166,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get storageSpaceClearDisplacedDatabasesConfirmMessage =>
-      '确定删除这些保留的旧数据库吗？它们是 Kelivo 重建数据库时留下的，可能是那些聊天记录和设置仅存的一份。删除后无法恢复。';
+      '确定删除这些保留的旧数据库吗？它们是 Cuplivo 重建数据库时留下的，可能是那些聊天记录和设置仅存的一份。删除后无法恢复。';
 
   @override
   String get storageSpaceRestoreTracesHint => '恢复完成后保留的旧数据快照。清理不会影响当前应用数据。';
@@ -311,6 +311,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get storageSpaceDeleteConfirmTitle => '确认删除';
 
   @override
+  String storageSpaceDeleteDraftWarning(int count) {
+    return '其中 $count 个文件仍被未发送的草稿引用';
+  }
+
+  @override
   String storageSpaceDeleteUploadsConfirmMessage(int count) {
     return '删除 $count 个项目及其对应的会话附件副本？删除后，聊天记录中的这些附件将无法使用。';
   }
@@ -434,16 +439,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get statsPageLaunchCount => '应用启动次数';
-
-  @override
-  String statsPageCost(String currency) {
-    return '费用 ($currency)';
-  }
-
-  @override
-  String statsPageModelsWithoutPricing(int count) {
-    return '$count 个模型无定价';
-  }
 
   @override
   String get statsPageUsageTrendTitle => '用量趋势';
@@ -742,6 +737,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homePagePleaseSelectModel => '请先选择模型';
 
   @override
+  String get homePageAudioAttachmentUnsupported =>
+      '当前模型不支持音频附件，请切换到支持音频输入的模型或移除音频文件后重试。';
+
+  @override
   String get homePagePleaseSetupTranslateModel => '请先设置翻译模型';
 
   @override
@@ -972,13 +971,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assistantEditStreamOutputDescription => '是否启用消息的流式输出';
 
   @override
-  String get assistantEditThinkingBudgetTitle => '思考';
-
-  @override
-  String get assistantEditReasoningFollowDefault => '跟随模型默认';
-
-  @override
-  String get assistantEditReasoningClampedSubtitle => '实际档位会按各模型的能力收敛';
+  String get assistantEditThinkingBudgetTitle => '思考预算';
 
   @override
   String get assistantEditConfigureButton => '配置';
@@ -1556,41 +1549,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupPageRestartRequired => '需要重启应用';
 
   @override
-  String get backupPageRestartContent => '导入成功。重启 Kelivo 后将安全应用。';
+  String get backupPageRestartContent => '导入成功。重启 Cuplivo 后将安全应用。';
 
   @override
   String backupPageRestartContentWithSkipped(int count) {
-    return '导入已完成，但已跳过 $count 个消息顺序非法的会话。重启 Kelivo 后将安全应用已导入的数据。';
+    return '导入已完成，但已跳过 $count 个消息顺序非法的会话。重启 Cuplivo 后将安全应用已导入的数据。';
   }
 
   @override
-  String get restartAppFailedMessage => 'Kelivo 无法自动重启，请完全关闭后重新打开。';
+  String get restartAppFailedMessage => 'Cuplivo 无法自动重启，请完全关闭后重新打开。';
 
   @override
   String get backupRestoreRolledBackTitle => '恢复已回滚';
 
   @override
-  String get backupRestoreRolledBackContent => '恢复未能完成。Kelivo 已验证并保留原有数据。';
+  String get backupRestoreRolledBackContent => '恢复未能完成。Cuplivo 已验证并保留原有数据。';
 
   @override
   String get backupRestoreFailureTitle => '恢复需要处理';
 
   @override
   String get backupRestoreFailureContent =>
-      'Kelivo 无法验证完整的原有或新数据，因此未打开聊天数据。请关闭 Kelivo 后重试；若问题反复出现，请保留诊断码以便支持人员排查。';
+      'Cuplivo 无法验证完整的原有或新数据，因此未打开聊天数据。请关闭 Cuplivo 后重试；若问题反复出现，请保留诊断码以便支持人员排查。';
 
   @override
-  String get backupRestoreBusinessLeaseUnavailableTitle => 'Kelivo 已在运行';
+  String get backupRestoreBusinessLeaseUnavailableTitle => 'Cuplivo 已在运行';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableContent =>
-      'Kelivo 的数据仍被另一个应用进程占用。请关闭其他 Kelivo 窗口后重新启动；当前进程尚未打开聊天数据。';
+      'Cuplivo 的数据仍被另一个应用进程占用。请关闭其他 Cuplivo 窗口后重新启动；当前进程尚未打开聊天数据。';
 
   @override
   String get restoreProgressTitle => '正在恢复备份';
 
   @override
-  String get restoreProgressWarning => '请保持 Kelivo 开启直到完成。此时关闭应用，下次启动会从头再来一次。';
+  String get restoreProgressWarning => '请保持 Cuplivo 开启直到完成。此时关闭应用，下次启动会从头再来一次。';
 
   @override
   String get restoreProgressStageCheckingBackup => '正在校验备份';
@@ -1611,7 +1604,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get restoreProgressStageFinishing => '即将完成';
 
   @override
-  String get backupRestoreFailureRestartButton => '重启 Kelivo';
+  String get backupRestoreFailureRestartButton => '重启 Cuplivo';
 
   @override
   String get backupRestoreFailureCopyButton => '复制诊断码';
@@ -1649,14 +1642,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get startupRecoveryRepairFailed => '修复未能解决问题。请先导出数据副本，然后重置。';
 
   @override
-  String get startupRecoveryResetFailed => '重置失败。请彻底关闭 Kelivo 后重新打开。';
+  String get startupRecoveryResetFailed => '重置失败。请彻底关闭 Cuplivo 后重新打开。';
 
   @override
   String get startupRecoveryResetDialogTitle => '重置全部数据？';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      '这将永久删除本设备上 Kelivo 的数据库并重新开始。如果之后可能还需要这些数据，请先导出一份副本。此操作无法撤销。';
+      '这将永久删除本设备上 Cuplivo 的数据库并重新开始。如果之后可能还需要这些数据，请先导出一份副本。此操作无法撤销。';
 
   @override
   String get startupRecoveryResetDialogConfirm => '重置并重启';
@@ -1768,17 +1761,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get startupRecoveryDangerBody =>
-      '重置会永久删除本设备上 Kelivo 的数据库。请先导出数据副本——重置同时会销毁排查根本问题所需的证据。';
+      '重置会永久删除本设备上 Cuplivo 的数据库。请先导出数据副本——重置同时会销毁排查根本问题所需的证据。';
 
   @override
   String get startupRecoveryResetAcknowledge => '我已导出副本，或不需要这些数据。';
 
   @override
-  String get startupDatabaseUpdateRequiredTitle => '请更新 Kelivo 以继续';
+  String get startupDatabaseUpdateRequiredTitle => '请更新 Cuplivo 以继续';
 
   @override
   String get startupDatabaseUpdateRequiredContent =>
-      '本设备上的聊天数据库由更新版本的 Kelivo 创建，当前版本无法打开。数据未被改动。请安装最新版 Kelivo 后重新打开。';
+      '本设备上的聊天数据库由更新版本的 Cuplivo 创建，当前版本无法打开。数据未被改动。请安装最新版 Cuplivo 后重新打开。';
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeTitle => '若要改用旧版';
@@ -1789,7 +1782,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeStep1 =>
-      '先安装并打开最新版 Kelivo，在「设置 → 数据备份」导出一份备份文件。';
+      '先安装并打开最新版 Cuplivo，在「设置 → 数据备份」导出一份备份文件。';
 
   @override
   String startupDatabaseUpdateRequiredDowngradeStep2(String url) {
@@ -1830,8 +1823,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupPageOverwriteMode => '完全覆盖';
 
   @override
-  String get backupPageOverwriteModeDescription =>
-      '替换所选内容，保留未选内容及其他本机设置。替换聊天时，也会清除本机未发送的草稿。';
+  String get backupPageOverwriteModeDescription => '仅替换已选组件；保留未选组件及无关本地设置';
 
   @override
   String get backupPageMergeMode => '合并';
@@ -1848,7 +1840,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String backupPageForwardCompatBody(int backupVersion, int currentVersion) {
-    return '这份备份由更新版本的 Kelivo 创建（数据格式 $backupVersion，当前版本支持 $currentVersion），且未声明旧版本能否读取。\n\n你可以继续导入：当前版本不认识的内容会被跳过，备份文件本身不会被修改。但如果新版本改变了已有数据的存储方式，部分内容可能会被错误导入。\n\n更稳妥的做法是先升级 Kelivo。';
+    return '这份备份由更新版本的 Cuplivo 创建（数据格式 $backupVersion，当前版本支持 $currentVersion），且未声明旧版本能否读取。\n\n你可以继续导入：当前版本不认识的内容会被跳过，备份文件本身不会被修改。但如果新版本改变了已有数据的存储方式，部分内容可能会被错误导入。\n\n更稳妥的做法是先升级 Cuplivo。';
   }
 
   @override
@@ -1859,7 +1851,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupPageSchemaTooNewMessage =>
-      '这份备份由更新版本的 Kelivo 创建，当前版本无法读取。请先升级 Kelivo 后重试。';
+      '这份备份由更新版本的 Cuplivo 创建，当前版本无法读取。请先升级 Cuplivo 后重试。';
 
   @override
   String get backupPageBackupUploaded => '已上传备份';
@@ -1875,20 +1867,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupProgressCancelled => '已取消';
-
-  @override
-  String get backupProgressFailed => '操作失败';
-
-  @override
-  String backupProgressFailedAt(String phase) {
-    return '失败阶段：$phase';
-  }
-
-  @override
-  String get backupProgressCopyError => '复制错误';
-
-  @override
-  String get backupProgressErrorCopied => '错误已复制';
 
   @override
   String get backupProgressPreparing => '准备中';
@@ -2045,7 +2023,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return '此备份使用 Cherry Studio 格式版本 $version，Kelivo 目前尚无法导入。请改用 Cherry Studio v1 导出备份，或等待后续版本支持 Cherry Studio v2。';
+    return '此备份使用 Cherry Studio 格式版本 $version，Cuplivo 目前尚无法导入。请改用 Cherry Studio v1 导出备份，或等待后续版本支持 Cherry Studio v2。';
   }
 
   @override
@@ -2351,93 +2329,57 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageMoreSheetDeleteAllVersions => '删除全部版本';
 
   @override
+  String get reasoningBudgetSheetOff => '关闭';
+
+  @override
+  String get reasoningBudgetSheetAuto => '自动';
+
+  @override
+  String get reasoningBudgetSheetLight => '轻度推理';
+
+  @override
+  String get reasoningBudgetSheetMedium => '中度推理';
+
+  @override
+  String get reasoningBudgetSheetHeavy => '重度推理';
+
+  @override
+  String get reasoningBudgetSheetXhigh => '极限推理';
+
+  @override
+  String get reasoningBudgetSheetMax => '全力推理';
+
+  @override
   String get reasoningBudgetSheetTitle => '思维链强度';
 
   @override
-  String get reasoningLevelSheetTitle => '推理';
-
-  @override
-  String get reasoningLevelAuto => '自动';
-
-  @override
-  String get reasoningLevelAutoSubtitle => '使用模型或供应商的默认设置';
-
-  @override
-  String get reasoningLevelOff => '关闭';
-
-  @override
-  String get reasoningLevelOffSubtitle => '关闭推理，直接回答';
-
-  @override
-  String get reasoningLevelMinimal => '最低';
-
-  @override
-  String get reasoningLevelMinimalSubtitle => '使用极少推理来回答问题';
-
-  @override
-  String get reasoningLevelLow => '低';
-
-  @override
-  String get reasoningLevelLowSubtitle => '使用少量推理来回答问题';
-
-  @override
-  String get reasoningLevelMedium => '中';
-
-  @override
-  String get reasoningLevelMediumSubtitle => '使用较多推理来回答问题';
-
-  @override
-  String get reasoningLevelHigh => '高';
-
-  @override
-  String get reasoningLevelHighSubtitle => '使用大量推理来回答问题，适合复杂问题';
-
-  @override
-  String get reasoningLevelXhigh => '极高';
-
-  @override
-  String get reasoningLevelXhighSubtitle => '使用很高推理深度，适合更复杂的问题';
-
-  @override
-  String get reasoningLevelMax => '最大';
-
-  @override
-  String get reasoningLevelMaxSubtitle => '使用最大推理深度，适合最复杂的问题';
-
-  @override
-  String get reasoningLevelFollowModelDefaultSubtitle => '使用模型或助手未设置时的默认档位';
-
-  @override
-  String get reasoningLevelNoReasoning => '此模型不支持推理';
-
-  @override
-  String get reasoningLevelCustomBudget => '自定义推理预算';
-
-  @override
-  String get reasoningLevelCustomBudgetHint => '例如：2048';
-
-  @override
-  String get reasoningLevelCompactMin => 'min';
-
-  @override
-  String get reasoningLevelCompactLow => 'low';
-
-  @override
-  String get reasoningLevelCompactMid => 'mid';
-
-  @override
-  String get reasoningLevelCompactHigh => 'high';
-
-  @override
-  String get reasoningLevelCompactXhigh => 'xhigh';
-
-  @override
-  String get reasoningLevelCompactMax => 'max';
-
-  @override
-  String reasoningLevelBudgetTokens(String budget) {
-    return '$budget tokens';
+  String reasoningBudgetSheetCurrentLevel(String level) {
+    return '当前档位：$level';
   }
+
+  @override
+  String get reasoningBudgetSheetOffSubtitle => '关闭推理功能，直接回答';
+
+  @override
+  String get reasoningBudgetSheetAutoSubtitle => '由模型自动决定推理级别';
+
+  @override
+  String get reasoningBudgetSheetLightSubtitle => '使用少量推理来回答问题';
+
+  @override
+  String get reasoningBudgetSheetMediumSubtitle => '使用较多推理来回答问题';
+
+  @override
+  String get reasoningBudgetSheetHeavySubtitle => '使用大量推理来回答问题，适合复杂问题';
+
+  @override
+  String get reasoningBudgetSheetXhighSubtitle => '使用最大推理深度，适合最复杂的问题';
+
+  @override
+  String get reasoningBudgetSheetCustomLabel => '自定义推理预算';
+
+  @override
+  String get reasoningBudgetSheetCustomHint => '例如：2048 (-1 自动，0 关闭)';
 
   @override
   String chatMessageWidgetFileNotFound(String fileName) {
@@ -2535,11 +2477,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String chatMessageWidgetWebSearch(String query) {
     return '联网检索: $query';
-  }
-
-  @override
-  String chatMessageWidgetWebFetch(String target) {
-    return '读取网页: $target';
   }
 
   @override
@@ -3060,24 +2997,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatInputBarVoiceTranscribing => '正在识别…';
 
   @override
-  String get chatInputBarVoiceAttachAudioTooltip => '停止并存为音频';
-
-  @override
-  String get chatInputBarVoiceSendAudioTooltip => '直接发送录音';
-
-  @override
-  String get chatInputBarVoiceSavingAudio => '正在保存录音…';
-
-  @override
-  String get audioClipPlayTooltip => '播放音频';
-
-  @override
-  String get audioClipPauseTooltip => '暂停';
-
-  @override
-  String get audioClipPlaybackFailed => '无法播放此音频';
-
-  @override
   String get chatInputBarImageProcessing => '正在处理图片';
 
   @override
@@ -3100,83 +3019,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatInputBarCollapse => '收起';
-
-  @override
-  String get contextUsageTitle => '上下文窗口';
-
-  @override
-  String get contextUsageStateExact => '精确（来自上次响应）';
-
-  @override
-  String get contextUsageStateExactCalibrated => '精确（分项按估算比例）';
-
-  @override
-  String get contextUsageStateEstimated => '估算';
-
-  @override
-  String get contextUsageStateStale => '已过时，正在更新…';
-
-  @override
-  String get contextUsageStateComputing => '计算中…';
-
-  @override
-  String get contextUsageStateNone => '暂无数据';
-
-  @override
-  String get contextUsageBucketSystem => '系统提示词';
-
-  @override
-  String get contextUsageBucketInjections => '指令注入';
-
-  @override
-  String get contextUsageBucketHistory => '历史消息';
-
-  @override
-  String get contextUsageBucketTools => '内置工具';
-
-  @override
-  String get contextUsageBucketMemory => '记忆';
-
-  @override
-  String get contextUsageBucketWorldBook => '世界书';
-
-  @override
-  String get contextUsageBucketSkills => '技能';
-
-  @override
-  String get contextUsageBucketWorkspace => '工作区';
-
-  @override
-  String get contextUsageBucketSearch => '搜索提示';
-
-  @override
-  String get contextUsageBucketMcpTools => 'MCP 工具';
-
-  @override
-  String get contextUsageBucketAttachments => '附件';
-
-  @override
-  String get contextUsageBucketDraft => '草稿';
-
-  @override
-  String get contextUsageBucketUsed => '已用';
-
-  @override
-  String get contextUsageFreeSpace => '剩余空间';
-
-  @override
-  String contextUsageUsedWindow(String used, String window, int percent) {
-    return '$used / $window ($percent%)';
-  }
-
-  @override
-  String get contextUsageNoWindow => '未设置上下文窗口';
-
-  @override
-  String get contextUsageSetWindow => '设置上下文窗口';
-
-  @override
-  String get contextUsageRefresh => '刷新';
 
   @override
   String get mcpPageBackTooltip => '返回';
@@ -3532,6 +3374,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelDetailSheetModelIdHint => '必填，建议小写字母、数字、连字符';
 
   @override
+  String modelDetailSheetModelIdDisabledHint(String modelId) {
+    return '$modelId';
+  }
+
+  @override
   String get modelDetailSheetModelNameLabel => '模型名称';
 
   @override
@@ -3584,6 +3431,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get modelDetailSheetBuiltinToolsDescription => '内置工具取决于供应商和 API 模式。';
+
+  @override
+  String get modelDetailSheetSearchTool => '搜索';
+
+  @override
+  String get modelDetailSheetSearchToolDescription => '启用 Google 搜索集成';
 
   @override
   String get modelDetailSheetUrlContextTool => 'URL 上下文';
@@ -3656,6 +3509,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelDetailSheetInvalidIdError => '请输入有效的模型 ID（不少于2个字符）';
 
   @override
+  String get modelDetailSheetModelIdExistsError => '模型 ID 已存在';
+
+  @override
   String get modelDetailSheetHeaderKeyHint => 'Header Key';
 
   @override
@@ -3666,301 +3522,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get modelDetailSheetBodyJsonHint => 'Body JSON';
-
-  @override
-  String get modelSpecFormSourceCustom => '自定义';
-
-  @override
-  String get modelSpecFormSourceCatalog => '目录';
-
-  @override
-  String get modelSpecFormSourceInferred => '推断';
-
-  @override
-  String get modelSpecFormSourceDefault => '默认';
-
-  @override
-  String get modelSpecFormReset => '重置为默认';
-
-  @override
-  String get modelSpecFormModalitiesSection => '模态与能力';
-
-  @override
-  String get modelSpecFormImageType => '图像';
-
-  @override
-  String get modelSpecFormAudioMode => '音频';
-
-  @override
-  String get modelSpecFormVideoMode => '视频';
-
-  @override
-  String get modelSpecFormPdfMode => 'PDF';
-
-  @override
-  String get modelSpecFormStructuredOutputAbility => '结构化输出';
-
-  @override
-  String get modelSpecFormReasoningSection => '推理';
-
-  @override
-  String get modelSpecFormDialect => '推理方言';
-
-  @override
-  String get modelSpecFormDialectNone => '无';
-
-  @override
-  String get modelSpecFormDialectNoneSubtitle => '不写入推理字段';
-
-  @override
-  String get modelSpecFormDialectOpenaiReasoningEffort =>
-      'OpenAI reasoning effort';
-
-  @override
-  String get modelSpecFormDialectOpenaiReasoningEffortSubtitle =>
-      'reasoning_effort';
-
-  @override
-  String get modelSpecFormDialectOpenaiResponsesReasoning =>
-      'OpenAI Responses reasoning';
-
-  @override
-  String get modelSpecFormDialectOpenaiResponsesReasoningSubtitle =>
-      'reasoning.effort';
-
-  @override
-  String get modelSpecFormDialectOpenrouterReasoning => 'OpenRouter reasoning';
-
-  @override
-  String get modelSpecFormDialectOpenrouterReasoningSubtitle => 'reasoning';
-
-  @override
-  String get modelSpecFormDialectAnthropicBudget => 'Anthropic budget';
-
-  @override
-  String get modelSpecFormDialectAnthropicBudgetSubtitle =>
-      'thinking.budget_tokens';
-
-  @override
-  String get modelSpecFormDialectAnthropicAdaptiveEffort =>
-      'Anthropic adaptive effort';
-
-  @override
-  String get modelSpecFormDialectAnthropicAdaptiveEffortSubtitle =>
-      'thinking + output_config.effort';
-
-  @override
-  String get modelSpecFormDialectAnthropicEffort => 'Anthropic effort';
-
-  @override
-  String get modelSpecFormDialectAnthropicEffortSubtitle =>
-      'thinking + output_config.effort';
-
-  @override
-  String get modelSpecFormDialectGeminiThinkingBudget =>
-      'Gemini thinking budget';
-
-  @override
-  String get modelSpecFormDialectGeminiThinkingBudgetSubtitle =>
-      'thinkingConfig.thinkingBudget';
-
-  @override
-  String get modelSpecFormDialectGeminiThinkingLevel => 'Gemini thinking level';
-
-  @override
-  String get modelSpecFormDialectGeminiThinkingLevelSubtitle =>
-      'thinkingConfig.thinkingLevel';
-
-  @override
-  String get modelSpecFormDialectQwenEnableThinking => 'Qwen enable thinking';
-
-  @override
-  String get modelSpecFormDialectQwenEnableThinkingSubtitle =>
-      'enable_thinking';
-
-  @override
-  String get modelSpecFormDialectThinkingType => 'Thinking type';
-
-  @override
-  String get modelSpecFormDialectThinkingTypeSubtitle => 'thinking.type';
-
-  @override
-  String get modelSpecFormDialectSiliconflowEnableThinking =>
-      'SiliconFlow enable thinking';
-
-  @override
-  String get modelSpecFormDialectSiliconflowEnableThinkingSubtitle =>
-      'enable_thinking';
-
-  @override
-  String get modelSpecFormDialectInternThinkingMode => 'Intern thinking mode';
-
-  @override
-  String get modelSpecFormDialectInternThinkingModeSubtitle => 'thinking_mode';
-
-  @override
-  String get modelSpecFormDialectChatTemplateKwargs => 'Chat template kwargs';
-
-  @override
-  String get modelSpecFormDialectChatTemplateKwargsSubtitle =>
-      'chat_template_kwargs.enable_thinking';
-
-  @override
-  String get modelSpecFormDialectKimiThinking => 'Kimi thinking';
-
-  @override
-  String get modelSpecFormDialectKimiThinkingSubtitle => 'thinking';
-
-  @override
-  String get modelSpecFormDialectCustom => '自定义 JSON';
-
-  @override
-  String get modelSpecFormDialectCustomSubtitle => '按级别写入 JSON 补丁';
-
-  @override
-  String get modelSpecFormLevels => '支持的级别';
-
-  @override
-  String get modelSpecFormCanDisable => '允许关闭';
-
-  @override
-  String get modelSpecFormDefaultLevel => '默认级别';
-
-  @override
-  String get modelSpecFormBudgets => 'Token 预算';
-
-  @override
-  String modelSpecFormBudgetPlaceholder(String tokens) {
-    return '$tokens';
-  }
-
-  @override
-  String modelSpecFormCustomPatch(String level) {
-    return 'JSON 补丁（$level）';
-  }
-
-  @override
-  String get modelSpecFormCustomPatchHint => '例如 reasoning_effort: high';
-
-  @override
-  String get modelSpecFormInvalidJson => '自定义推理补丁必须是有效的 JSON 对象';
-
-  @override
-  String get modelSpecFormInvalidNumber => '请输入有效数字';
-
-  @override
-  String get modelSpecFormStrategySection => '策略';
-
-  @override
-  String get modelSpecFormSampling => '采样';
-
-  @override
-  String get modelSpecFormRequestQuirks => '请求兼容';
-
-  @override
-  String get modelSpecFormDynamicWebSearch => '动态过滤搜索工具';
-
-  @override
-  String get modelSpecFormDynamicWebSearchSubtitle =>
-      '开启动态过滤时，使用 2026-03-18 版网页搜索与抓取工具';
-
-  @override
-  String get modelSpecFormRemoteImageUrls => '远程图片链接';
-
-  @override
-  String get modelSpecFormRemoteImageUrlsSubtitle =>
-      '直接发送 http(s) 图片链接；关闭后丢弃远程链接，只发送本地图片';
-
-  @override
-  String get modelSpecFormPromptCacheControl => '提示缓存标记';
-
-  @override
-  String get modelSpecFormPromptCacheControlSubtitle =>
-      '开启提示缓存时，在 OpenRouter 请求中加入 cache_control';
-
-  @override
-  String get modelSpecFormSamplingAlways => '始终保留';
-
-  @override
-  String get modelSpecFormSamplingAlwaysSubtitle => '保留 temperature 等采样字段';
-
-  @override
-  String get modelSpecFormSamplingOnlyWhenReasoningOff => '仅在关闭推理时';
-
-  @override
-  String get modelSpecFormSamplingOnlyWhenReasoningOffSubtitle => '模型思考时移除采样字段';
-
-  @override
-  String get modelSpecFormSamplingNever => '从不';
-
-  @override
-  String get modelSpecFormSamplingNeverSubtitle => '始终移除采样字段';
-
-  @override
-  String get modelSpecFormReplay => '推理回放';
-
-  @override
-  String get modelSpecFormReplayNone => '无';
-
-  @override
-  String get modelSpecFormReplayNoneSubtitle => '不把先前推理发回模型';
-
-  @override
-  String get modelSpecFormReplayToolTurns => '工具轮次';
-
-  @override
-  String get modelSpecFormReplayToolTurnsSubtitle => '仅在工具调用轮次回放推理';
-
-  @override
-  String get modelSpecFormReplayAll => '全部';
-
-  @override
-  String get modelSpecFormReplayAllSubtitle => '每一轮后续请求都回放推理';
-
-  @override
-  String get modelSpecFormReplayField => '回放字段';
-
-  @override
-  String get modelSpecFormReplayFieldReasoningContent => 'reasoning_content';
-
-  @override
-  String get modelSpecFormReplayFieldReasoning => 'reasoning';
-
-  @override
-  String get modelSpecFormReplayFieldReasoningDetails => 'reasoning_details';
-
-  @override
-  String get modelSpecFormLimitsSection => '限额';
-
-  @override
-  String get modelSpecFormLimitsPricingSection => '限额与定价';
-
-  @override
-  String get modelSpecFormContextWindow => '上下文窗口';
-
-  @override
-  String get modelSpecFormMaxOutput => '最大输出';
-
-  @override
-  String get modelSpecFormPricingSection => '定价 / 1M';
-
-  @override
-  String get modelSpecFormPricingInput => '输入';
-
-  @override
-  String get modelSpecFormPricingOutput => '输出';
-
-  @override
-  String get modelSpecFormPricingCacheRead => '缓存读取';
-
-  @override
-  String get modelSpecFormPricingCacheWrite => '缓存写入';
-
-  @override
-  String get modelSpecFormCurrency => '货币';
-
-  @override
-  String get modelSpecFormAdvancedSection => '请求';
 
   @override
   String get modelSelectSheetSearchHint => '搜索模型或服务商';
@@ -4040,13 +3601,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get providerDetailPageResponseApiTitle => 'Response API (/responses)';
-
-  @override
-  String get providerDetailPagePromptCacheKeyTitle => '发送会话缓存键';
-
-  @override
-  String get providerDetailPagePromptCacheKeyHelp =>
-      '为 OpenAI 兼容请求附加稳定的会话级 prompt_cache_key。仅在供应商支持时开启，自定义 Body 优先，不保证缓存命中。';
 
   @override
   String get providerDetailPageAihubmixAppCodeLabel => '应用 Code（享 10% 优惠）';
@@ -4235,43 +3789,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get providersPageProviderAddedSnackbar => '已添加供应商';
-
-  @override
-  String get modelCatalogTitle => '模型目录';
-
-  @override
-  String modelCatalogSourceBundled(String date) {
-    return '内置快照 · $date';
-  }
-
-  @override
-  String modelCatalogSourceRemote(String date) {
-    return 'models.dev · 更新于 $date';
-  }
-
-  @override
-  String get modelCatalogAutoUpdate => '每 24 小时自动更新';
-
-  @override
-  String get modelCatalogRefresh => '立即更新';
-
-  @override
-  String get modelCatalogUpdated => '模型目录已更新';
-
-  @override
-  String modelCatalogRefreshFailed(String error) {
-    return '更新失败：$error';
-  }
-
-  @override
-  String modelCatalogProviderCount(int count) {
-    return '$count 个供应商';
-  }
-
-  @override
-  String modelCatalogModelCount(int count) {
-    return '$count 个模型';
-  }
 
   @override
   String get providerGroupsGroupLabel => '分组';
@@ -4493,48 +4010,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get searchServicesPageAutoTestTitle => '启动时自动测试连接';
 
   @override
-  String get searchServicesPageWebFetchSection => '网页抓取';
-
-  @override
-  String get searchServicesPageWebFetchModeTitle => '抓取方式';
-
-  @override
-  String get searchServicesPageWebFetchFollow => '跟随搜索服务';
-
-  @override
-  String searchServicesPageWebFetchFollowValue(String name) {
-    return '跟随搜索 · $name';
-  }
-
-  @override
-  String searchServicesPageWebFetchFollowSubtitle(String name) {
-    return '当前：$name';
-  }
-
-  @override
-  String get searchServicesPageWebFetchLocal => '本地抓取';
-
-  @override
-  String get searchServicesPageWebFetchLocalSubtitle => '免费，由本机直接请求网页';
-
-  @override
-  String get searchServicesPageWebFetchProviderSubtitle =>
-      '使用该服务商的 API Key 和额度';
-
-  @override
-  String get searchServicesPageWebFetchOff => '关闭';
-
-  @override
-  String get searchServicesPageWebFetchOffSubtitle => '联网时只搜索，不读取网页';
-
-  @override
-  String get searchServicesPageWebFetchFooter =>
-      '开启联网搜索后，模型还可以读取网页全文。搜索服务不支持抓取时会改用本地抓取，本地抓取无法处理需要 JavaScript 渲染或有反爬限制的页面。';
-
-  @override
-  String get searchServicesPageWebFetchSupported => '支持网页抓取';
-
-  @override
   String get searchServicesPageMaxResults => '最大结果数';
 
   @override
@@ -4613,9 +4088,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get searchServicesDialogApiKey => 'API Key';
-
-  @override
-  String get searchServicesDialogApiKeyOptional => 'API Key（可选）';
 
   @override
   String get searchServicesDialogModel => '模型';
@@ -4774,31 +4246,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get searchServiceEditorTestModeSearch => '搜索';
-
-  @override
-  String get searchServiceEditorTestModeFetch => '抓取';
-
-  @override
-  String get searchServiceEditorTestUrlHint => '输入测试网址';
-
-  @override
-  String get searchServiceEditorTestFetchRun => '运行抓取测试';
-
-  @override
-  String get searchServiceEditorTestFetchRunning => '抓取中…';
-
-  @override
-  String searchServiceEditorTestFetchFailed(String message) {
-    return '抓取失败：$message';
-  }
-
-  @override
-  String searchServiceEditorTestFetchStats(String characters, String seconds) {
-    return '$characters 字符 · $seconds 秒';
-  }
-
-  @override
   String get searchServiceEditorResultOpenTooltip => '打开结果';
 
   @override
@@ -4862,13 +4309,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutPageEasterEggButton => '好的';
 
   @override
-  String get aboutPageKelivoSearchUnlocked => '有扇没有名字的门开了一条缝。去设置里找找看。';
+  String get aboutPageCuplivoSearchUnlocked => '有扇没有名字的门开了一条缝。去设置里找找看。';
 
   @override
-  String get aboutPageKelivoSearchAlreadyUnlocked => '这扇门你已经推开过了。';
+  String get aboutPageCuplivoSearchAlreadyUnlocked => '这扇门你已经推开过了。';
 
   @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Cuplivo';
 
   @override
   String get aboutPageAppDescription => '开源AI 助手';
@@ -4926,13 +4373,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutPageJoinQQGroup => '加入QQ群';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo 一群';
-
-  @override
-  String get aboutPageQQGroupTwo => 'Kelivo 二群';
-
-  @override
-  String get aboutPageQQGroupThree => 'Kelivo 三群';
+  String get aboutPageQQGroup => 'Cuplivo 群';
 
   @override
   String get aboutPageJoinDiscord => '在 Discord 中加入我们';
@@ -4993,13 +4434,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get displaySettingsPageShowTokenStatsTitle => '显示Token和上下文统计';
 
   @override
-  String get displaySettingsPageShowTotalTokensTitle => '显示整轮累计 Token';
-
-  @override
-  String get displaySettingsPageShowTotalTokensSubtitle =>
-      '累计显示本次回复中所有 API 请求的用量。关闭时仅显示最后一次请求；统计页面始终包含所有请求。';
-
-  @override
   String get displaySettingsPageShowTokenStatsSubtitle => '显示 token 用量与消息数量';
 
   @override
@@ -5014,13 +4448,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get displaySettingsPageShowToolCardsSubtitle => '关闭后，聊天中不再显示工具调用卡片';
-
-  @override
-  String get displaySettingsShowReasoningLevelBadge => '在推理按钮上显示档位';
-
-  @override
-  String get displaySettingsShowReasoningLevelBadgeSubtitle =>
-      '在输入栏的推理图标旁显示当前档位';
 
   @override
   String get displaySettingsPageAutoCollapseThinkingTitle => '自动折叠思考';
@@ -5085,8 +4512,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get displaySettingsPageEnableImageCropperTitle => '启用图片裁剪';
 
   @override
-  String get displaySettingsPageEnableImageCropperSubtitle =>
-      '从相册或相机选择图片后，允许裁剪图片';
+  String get displaySettingsPageEnableImageCropperSubtitle => '预览未发送图片时可主动裁剪';
+
+  @override
+  String get draftImageCropAction => '裁剪';
+
+  @override
+  String get draftImageCropFailed => '裁剪失败，原图保持不变。';
 
   @override
   String get displaySettingsPageKeepSidebarOpenOnAssistantTapTitle =>
@@ -5937,7 +5369,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get settingsShare => 'Kelivo - 开源AI助手';
+  String get settingsShare => 'Cuplivo - 开源AI助手';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -5952,10 +5384,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get searchProviderExaDescription => '具备语义理解的神经搜索引擎。适合研究与查找特定内容。';
-
-  @override
-  String get searchProviderExaMcpDescription =>
-      '通过 MCP 使用 Exa 搜索。不填 API Key 可在免费限额内使用。';
 
   @override
   String get searchProviderLinkUpDescription =>
@@ -5993,9 +5421,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get searchServiceNameExa => 'Exa';
-
-  @override
-  String get searchServiceNameExaMcp => 'Exa MCP';
 
   @override
   String get searchServiceNameZhipu => '智谱';
@@ -6140,7 +5565,7 @@ class AppLocalizationsZh extends AppLocalizations {
       '最大 token 数必须介于 1024 和 32768 之间。';
 
   @override
-  String get searchServiceNameKelivo => 'Kelivo';
+  String get searchServiceNameCuplivo => 'Cuplivo';
 
   @override
   String get searchServicesDialogCountryOptional => '国家/地区（可选）';
@@ -6416,7 +5841,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get healthDataSettingsDescription =>
-      '当前助手在日常对话中可使用的 HealthKit 信号。开关表示 Kelivo 可以尝试读取该范围，实际授权仍由 iOS 管理。';
+      '当前助手在日常对话中可使用的 HealthKit 信号。开关表示 Cuplivo 可以尝试读取该范围，实际授权仍由 iOS 管理。';
 
   @override
   String healthDataSettingsBadge(int selected, int total) {
@@ -7706,7 +7131,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get legacyMemoryExport => '导出';
 
   @override
-  String get legacyMemoryExportTitle => 'Kelivo 旧版记忆导出';
+  String get legacyMemoryExportTitle => 'Cuplivo 旧版记忆导出';
 
   @override
   String legacyMemoryAssistantHeader(String name) {
@@ -8113,11 +7538,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get worldBookInjectionPositionAtDepth => '指定深度';
 
   @override
-  String worldBookImportUnsupportedEntries(int count) {
-    return '导入完成。$count 个条目使用了暂不支持的酒馆功能（如宏、正则、时效、筛选或插入规则），已保留内容并停用，请检查后再启用。';
-  }
-
-  @override
   String get worldBookInjectionRoleUser => '用户';
 
   @override
@@ -8206,28 +7626,8 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String tokenDetailFirstToken(String value) {
-    return '${value}s（首字）';
-  }
-
-  @override
   String tokenDetailTotalTokens(int count) {
     return '$count tokens';
-  }
-
-  @override
-  String tokenDetailReasoningTokens(int count) {
-    return '$count tokens';
-  }
-
-  @override
-  String tokenDetailCacheWriteTokens(int count) {
-    return '$count 缓存写入 tokens';
-  }
-
-  @override
-  String tokenDetailCost(String amount) {
-    return '$amount';
   }
 
   @override
@@ -8313,7 +7713,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get migrationIntroSubtitle =>
-      'Kelivo 将聊天记录迁移到更快的 SQLite 数据库。升级会在应用打开前完成，避免新旧数据同时写入。';
+      'Cuplivo 将聊天记录迁移到更快的 SQLite 数据库。升级会在应用打开前完成，避免新旧数据同时写入。';
 
   @override
   String get migrationBackupNote => '迁移开始前，会先导出包含设置、聊天记录和本地文件的 ZIP 备份。';
@@ -8355,14 +7755,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get migrationBackingUpSubtitle =>
-      '正在导出设置、聊天记录、上传文件、图片和字体。请保持 Kelivo 开启，等待备份完成。';
+      '正在导出设置、聊天记录、上传文件、图片和字体。请保持 Cuplivo 开启，等待备份完成。';
 
   @override
   String get migrationMigratingTitle => '正在迁移到 SQLite';
 
   @override
   String get migrationMigratingSubtitle =>
-      '正在分批写入会话和消息，避免超大聊天记录占满内存。请保持 Kelivo 在前台，等待迁移完成。';
+      '正在分批写入会话和消息，避免超大聊天记录占满内存。请保持 Cuplivo 在前台，等待迁移完成。';
 
   @override
   String migrationBackingUpDetail(String fileName) {
@@ -8421,7 +7821,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get migrationCompleteSubtitle =>
-      '你的聊天记录已迁移到 SQLite。请重启 Kelivo 进入升级后的应用。';
+      '你的聊天记录已迁移到 SQLite。请重启 Cuplivo 进入升级后的应用。';
 
   @override
   String get migrationConversationCount => '对话';
@@ -8439,7 +7839,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get migrationMissingFilesCount => '缺失文件';
 
   @override
-  String get migrationRestartButton => '重启 Kelivo';
+  String get migrationRestartButton => '重启 Cuplivo';
 
   @override
   String get migrationFailedTitle => '迁移失败';
@@ -8465,7 +7865,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get migrationSkipDialogMessage =>
-      'Kelivo 将以空的聊天数据库启动。旧的聊天记录会保留在磁盘上（重命名为 .retired 后缀），但不会被迁移，也不会在应用中显示。之后如需找回，请使用已保存的备份 ZIP。';
+      'Cuplivo 将以空的聊天数据库启动。旧的聊天记录会保留在磁盘上（重命名为 .retired 后缀），但不会被迁移，也不会在应用中显示。之后如需找回，请使用已保存的备份 ZIP。';
 
   @override
   String get migrationSkipDialogCancel => '取消';
@@ -8496,6 +7896,27 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get imageSettingsPageQualitySectionTitle => '上传图片质量';
+
+  @override
+  String get imageSettingsPageModeTitle => '压缩模式';
+
+  @override
+  String get imageSettingsPageModeManual => '手动';
+
+  @override
+  String get imageSettingsPageModeAuto => '自动';
+
+  @override
+  String get imageSettingsPageModeOff => '关闭';
+
+  @override
+  String get imageSettingsPageModeManualSubtitle => '图片按原样附加，在预览中可手动压缩';
+
+  @override
+  String get imageSettingsPageModeAutoSubtitle => '附加图片时按下方预设自动压缩';
+
+  @override
+  String get imageSettingsPageModeOffSubtitle => '图片从不压缩';
 
   @override
   String get imageSettingsPageQualityOriginal => '原图';
@@ -8540,6 +7961,78 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get imageSettingsPageFooter =>
       '压缩在添加图片时进行，已保存或已发送的图片不受影响；压缩后图片以 JPEG 格式随消息发送。';
+
+  @override
+  String get compressEditorTitle => '压缩图片';
+
+  @override
+  String get compressEditorFormatJpeg => 'JPEG';
+
+  @override
+  String get compressEditorFormatPng => 'PNG';
+
+  @override
+  String get compressEditorFormatOriginal => '原图';
+
+  @override
+  String get compressEditorLongEdgeLabel => '长边';
+
+  @override
+  String get compressEditorLongEdgeFull => '100%';
+
+  @override
+  String get compressEditorLongEdgeHalf => '50%';
+
+  @override
+  String get compressEditorLongEdgeQuarter => '25%';
+
+  @override
+  String get compressEditorQualityLabel => '质量';
+
+  @override
+  String get compressEditorOriginalSide => '原图';
+
+  @override
+  String get compressEditorEstimating => '正在估算体积…';
+
+  @override
+  String get compressEditorEstimateFailed => '无法估算体积';
+
+  @override
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
+  }
+
+  @override
+  String get compressEditorNoReencode => '不做重编码';
+
+  @override
+  String get compressEditorDecodeFailed => '此图片无法预览，因此无法重新压缩。';
+
+  @override
+  String get compressEditorTooLarge => '此图片过大，无法在编辑器中打开，因此无法在这里重新压缩；附件将按原样保留。';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return '源图 $source，为控制内存按 $percent% 载入';
+  }
+
+  @override
+  String get compressEditorCancel => '取消';
+
+  @override
+  String get compressEditorApply => '应用';
+
+  @override
+  String get compressEditorApplyAll => '应用到全部';
+
+  @override
+  String get compressEditorDone => '完成';
 
   @override
   String get imageSettingsPageSendSectionTitle => '发送';
@@ -8873,7 +8366,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localSnapshotEnabledTitle => '保留本地副本';
 
   @override
-  String get localSnapshotEnabledSubtitle => 'Kelivo 会定期在本机存一份数据库副本，让数据不只有一份。';
+  String get localSnapshotEnabledSubtitle => 'Cuplivo 会定期在本机存一份数据库副本，让数据不只有一份。';
 
   @override
   String get localSnapshotIntervalTitle => '备份频率';
@@ -9034,7 +8527,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String localSnapshotRestoreMessage(String when) {
-    return '当前聊天和设置将替换为 $when 的副本。替换前会保存当前聊天和设置的副本。未发送的草稿不包含在副本中，此次恢复会清除这些草稿。';
+    return '当前的对话和设置会被 $when 的这份副本替换。系统会先把现在的数据存一份，所以这一步可以撤销。';
   }
 
   @override
@@ -9530,9 +9023,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get workspaceToolTitleReadFile => '读取文件';
 
   @override
-  String get workspaceToolTitleViewImage => '查看图片';
-
-  @override
   String get workspaceToolTitleWriteFile => '写入文件';
 
   @override
@@ -9670,7 +9160,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get workspaceEnvUpToDate => '已是最新';
 
   @override
-  String get workspaceEnvRestartBanner => '请重启 Kelivo 以完成安装';
+  String get workspaceEnvRestartBanner => '请重启 Cuplivo 以完成安装';
 
   @override
   String get workspaceEnvDetectingMirrors => '正在检测最快镜像…';
@@ -9766,7 +9256,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get workspaceEnvNativeExplanation =>
-      '在桌面端，Kelivo 使用系统终端，而不是 Linux 沙箱。';
+      '在桌面端，Cuplivo 使用系统终端，而不是 Linux 沙箱。';
 
   @override
   String workspaceEnvNativeShellPath(String path) {
@@ -10675,7 +10165,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get workspaceDesktopFolderMissing => '请选择已存在的文件夹，或输入它的绝对路径。';
 
   @override
-  String get workspaceDesktopManagedHint => '由 Kelivo 为此项目创建并管理文件夹。';
+  String get workspaceDesktopManagedHint => '由 Cuplivo 为此项目创建并管理文件夹。';
 
   @override
   String get workspaceDesktopHostHint => '在本机访问文件和执行命令。';
@@ -10787,9 +10277,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get workspaceToolHelpRead => '按行读取文件内容，支持分页。';
-
-  @override
-  String get workspaceToolHelpViewImage => '让模型查看工作区中的图片内容。';
 
   @override
   String get workspaceToolHelpWrite => '创建文件或覆盖文件内容。';
@@ -10908,7 +10395,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get workspaceExternalStorageMessage =>
-      '工作区和 Shell 需要直接读写外部文件夹，请在 Android 系统设置中允许 Kelivo 访问文件。Android 11 及以上需开启“所有文件访问权限”，然后选择要挂载的本地文件夹。';
+      '工作区和 Shell 需要直接读写外部文件夹，请在 Android 系统设置中允许 Cuplivo 访问文件。Android 11 及以上需开启“所有文件访问权限”，然后选择要挂载的本地文件夹。';
 
   @override
   String get workspaceExternalGrantAccess => '前往授权';
@@ -11051,6 +10538,21 @@ class AppLocalizationsZh extends AppLocalizations {
       '在回复底部显示工具创建或修改的文件。';
 
   @override
+  String get reasoningBudgetSliderLow => 'Low';
+
+  @override
+  String get reasoningBudgetSliderMedium => 'Medium';
+
+  @override
+  String get reasoningBudgetSliderHigh => 'High';
+
+  @override
+  String get reasoningBudgetSliderXhigh => 'XHigh';
+
+  @override
+  String get reasoningBudgetSliderMax => 'Max';
+
+  @override
   String get defaultModelPagePerChatModelTitle => '每个对话独立模型';
 
   @override
@@ -11124,7 +10626,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backgroundSettingsTitle => '后台任务';
 
   @override
-  String get backgroundTaskTitle => 'Kelivo 任务';
+  String get backgroundTaskTitle => 'Cuplivo 任务';
 
   @override
   String get backgroundCompleted => '生成完成';
@@ -11253,7 +10755,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backgroundOverlayIcon => '悬浮窗图标';
 
   @override
-  String get backgroundIconDefault => 'Kelivo 图标';
+  String get backgroundIconDefault => 'Cuplivo 图标';
 
   @override
   String get backgroundIconImage => '选择图片';
@@ -11462,7 +10964,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get startupRecoverySnapshotBody =>
-      '即使数据库无法打开，也可以选择本机快照恢复聊天和设置。请勿卸载 Kelivo，卸载会一并删除这些快照。';
+      '即使数据库无法打开，也可以选择本机快照恢复聊天和设置。请勿卸载 Cuplivo，卸载会一并删除这些快照。';
 
   @override
   String get startupRecoverySnapshotEmpty => '未在本机找到数据库快照。请先导出数据，再尝试其他恢复操作。';
@@ -11472,7 +10974,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
-    return '将聊天和设置恢复到 $when 的快照？快照之后的更改不会包含在内。现有附件文件和快照会保留，Kelivo 将重启以完成恢复。';
+    return '将聊天和设置恢复到 $when 的快照？快照之后的更改不会包含在内。现有附件文件和快照会保留，Cuplivo 将重启以完成恢复。';
   }
 
   @override
@@ -11481,7 +10983,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get startupRecoverySnapshotReady => '快照已准备好，请重启 Kelivo 完成恢复。';
+  String get startupRecoverySnapshotReady => '快照已准备好，请重启 Cuplivo 完成恢复。';
 
   @override
   String get scheduledTasksTitle => '定时任务';
@@ -11552,7 +11054,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksReliability =>
-      '建议在电池设置中允许 Kelivo 后台运行。强行停止后需重新打开应用。错过的任务不会补跑，执行时间跟随设备时区。';
+      '建议在电池设置中允许 Cuplivo 后台运行。强行停止后需重新打开应用。错过的任务不会补跑，执行时间跟随设备时区。';
 
   @override
   String get scheduledTasksExecutionDetail =>
@@ -11729,7 +11231,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksDesktopReliability =>
-      '仅在 Kelivo 运行时执行，最小化或驻留托盘时也会继续。退出或电脑休眠期间错过的任务不会补运行，也不会自动启动应用。';
+      '仅在 Cuplivo 运行时执行，最小化或驻留托盘时也会继续。退出或电脑休眠期间错过的任务不会补运行，也不会自动启动应用。';
 
   @override
   String get scheduledTasksDesktopExecutionDetail =>
@@ -11949,11 +11451,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String oauthUsedValue(String value) {
-    return '已用 $value';
-  }
-
-  @override
   String get oauthNetworkError => '连接失败，请检查网络后重试。';
 
   @override
@@ -12024,7 +11521,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksIOSDetail =>
-      '受 iOS 后台限制，Kelivo 不能在指定时间自动唤醒并运行模型。此功能会在 App 可运行时提前准备内容，由系统到点展示通知。每次仅准备下一次结果；离开 App 后不保证准备完成，后续任务需再次打开 Kelivo 才能补充。';
+      '受 iOS 后台限制，Cuplivo 不能在指定时间自动唤醒并运行模型。此功能会在 App 可运行时提前准备内容，由系统到点展示通知。每次仅准备下一次结果；离开 App 后不保证准备完成，后续任务需再次打开 Cuplivo 才能补充。';
 
   @override
   String get scheduledTasksContextPolicy => '对话上下文';
@@ -12088,7 +11585,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scheduledTasksCancelled => '已取消';
 
   @override
-  String get scheduledTasksReminderBody => '定时任务已到期，打开 Kelivo 继续。';
+  String get scheduledTasksReminderBody => '定时任务已到期，打开 Cuplivo 继续。';
 
   @override
   String get scheduledTasksResultBody => '定时任务结果已准备好。';
@@ -12102,7 +11599,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksAllowPreparationTip =>
-      '在 Kelivo 可运行时，提前生成下一次任务的结果，到期前不会显示在聊天中。仅使用文字，不使用工具、附件或自定义请求体；调用模型可能产生费用。';
+      '在 Cuplivo 可运行时，提前生成下一次任务的结果，到期前不会显示在聊天中。仅使用文字，不使用工具、附件或自定义请求体；调用模型可能产生费用。';
 
   @override
   String get scheduledTasksContextPolicyTip =>
@@ -12110,7 +11607,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksPreparationWindowTip =>
-      '允许在任务到期前多久开始准备，最长 24 小时。例如第二天早上提醒，前一天中午打开 Kelivo 时就有机会准备。时间越长，准备机会越多，但内容也可能更早过时。不会改变任务时间，也不代表能在后台定时运行。「立刻准备」不受这项自动等待和准备次数上限限制。';
+      '允许在任务到期前多久开始准备，最长 24 小时。例如第二天早上提醒，前一天中午打开 Cuplivo 时就有机会准备。时间越长，准备机会越多，但内容也可能更早过时。不会改变任务时间，也不代表能在后台定时运行。「立刻准备」不受这项自动等待和准备次数上限限制。';
 
   @override
   String get scheduledTasksPreparationAttemptsTip =>
@@ -12122,7 +11619,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksUnavailableTip =>
-      '到期时没有可用结果、也无法运行任务，就发送提醒或跳过本次。提醒不包含模型生成的回答，且需要开启通知。如果到期时 Kelivo 正在打开运行，可直接执行任务。';
+      '到期时没有可用结果、也无法运行任务，就发送提醒或跳过本次。提醒不包含模型生成的回答，且需要开启通知。如果到期时 Cuplivo 正在打开运行，可直接执行任务。';
 
   @override
   String get scheduledTasksNotifyTip =>
@@ -12298,17 +11795,1216 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get phoneControlAssistantHint =>
-      '需要同时完成两项设置：在系统无障碍设置中启用“Kelivo 手机控制”，并在要使用的助手 → 本地工具中开启“手机控制”（也可从对话工具菜单开启）。每个助手单独配置，执行任务时请保持手机解锁。';
+      '需要同时完成两项设置：在系统无障碍设置中启用“Cuplivo 手机控制”，并在要使用的助手 → 本地工具中开启“手机控制”（也可从对话工具菜单开启）。每个助手单独配置，执行任务时请保持手机解锁。';
 
   @override
   String get phoneControlRestrictedTitle => '无法开启无障碍？';
 
   @override
   String get phoneControlRestrictedHint =>
-      '部分下载的 APK 需要先在应用信息右上角菜单中选择“允许受限制的设置”。点击打开 Kelivo 应用信息，完成后再返回无障碍设置。';
+      '部分下载的 APK 需要先在应用信息右上角菜单中选择“允许受限制的设置”。点击打开 Cuplivo 应用信息，完成后再返回无障碍设置。';
 
   @override
   String get phoneControlEnableAssistant => '允许此助手使用手机控制';
+
+  @override
+  String get settingsPageLanSync => '局域网同步';
+
+  @override
+  String get lanSyncThisDevice => '本设备';
+
+  @override
+  String get lanSyncDeviceIdLabel => '设备 ID';
+
+  @override
+  String get lanSyncListenerStarting => '正在启动监听…';
+
+  @override
+  String get lanSyncListenerNotRunning => '监听未运行';
+
+  @override
+  String lanSyncListenerFailed(Object error) {
+    return '监听启动失败：$error';
+  }
+
+  @override
+  String get lanSyncPairSectionTitle => '配对设备';
+
+  @override
+  String get lanSyncPairFirstSyncNote =>
+      '配对成功后会自动开始首次同步，可能耗时较长。请保持电脑端应用运行，手机端保持在本应用前台。';
+
+  @override
+  String get lanSyncPairIntro => '在一台设备上显示二维码，用另一台扫描；没有摄像头时输入配对码。两台设备需在同一网络。';
+
+  @override
+  String get lanSyncShowCode => '显示配对二维码';
+
+  @override
+  String get lanSyncEnterCode => '扫码或输入配对码';
+
+  @override
+  String get lanSyncPairingCode => '配对码';
+
+  @override
+  String lanSyncPairingExpiresIn(Object time) {
+    return '$time 后失效';
+  }
+
+  @override
+  String get lanSyncPairingEndpointHint => '在另一台设备上输入以下地址';
+
+  @override
+  String get lanSyncPairingNoIpHint => '未找到局域网地址。另一台设备仍可凭本机的 IP 或主机名连接。';
+
+  @override
+  String get lanSyncHostLabel => '地址';
+
+  @override
+  String get lanSyncPortLabel => '端口';
+
+  @override
+  String get lanSyncPairButton => '配对';
+
+  @override
+  String get lanSyncPairAgain => '重新配对';
+
+  @override
+  String get lanSyncPairingBusy => '配对中…';
+
+  @override
+  String lanSyncPairSuccess(Object name) {
+    return '已与 $name 配对';
+  }
+
+  @override
+  String get lanSyncPairErrorInvalidPin => '配对码错误，或对方的配对窗口已关闭。';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress => '请填写对方设备的地址和端口。';
+
+  @override
+  String get lanSyncPairErrorUnreachable => '无法连接到该设备。请检查地址与端口，并确认两台设备在同一网络。';
+
+  @override
+  String get lanSyncPairErrorNoCertificate => '对方未能出示身份，配对已中止。';
+
+  @override
+  String get lanSyncPairErrorIdMismatch => '无法核实对方身份，配对已中止。';
+
+  @override
+  String get lanSyncPairErrorNoListener => '本设备的同步监听尚未启动。';
+
+  @override
+  String lanSyncPairErrorUnknown(Object error) {
+    return '配对失败：$error';
+  }
+
+  @override
+  String get lanSyncScanQr => '扫描配对二维码';
+
+  @override
+  String get lanSyncPairQrCaption => '扫码配对，或在另一台设备输入下方信息';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return '已更新与 $name 的配对';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch => '设备证书与二维码不符，已中止配对。';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr => '二维码中没有可用地址，请在下方输入地址完成配对。';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr => '这不是 Cuplivo 的配对二维码。';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => '配对二维码内容无法解析。';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion => '二维码版本较新，请更新应用后重试。';
+
+  @override
+  String get lanSyncClosePairing => '关闭配对窗口';
+
+  @override
+  String get lanSyncPairedDevices => '已配对设备';
+
+  @override
+  String get lanSyncNoDevices => '还没有已配对的设备。配对后即可开始同步。';
+
+  @override
+  String get lanSyncPlatformAndroid => 'Android';
+
+  @override
+  String get lanSyncPlatformIos => 'iOS';
+
+  @override
+  String get lanSyncPlatformWindows => 'Windows';
+
+  @override
+  String get lanSyncPlatformMacos => 'macOS';
+
+  @override
+  String get lanSyncPlatformLinux => 'Linux';
+
+  @override
+  String get lanSyncPlatformUnknown => '未知设备';
+
+  @override
+  String lanSyncLastSyncedAt(Object time) {
+    return '上次同步 $time';
+  }
+
+  @override
+  String get lanSyncNeverSynced => '从未同步';
+
+  @override
+  String get lanSyncJustSynced => '刚刚同步';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n 分钟前';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n 小时前';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n 天前';
+  }
+
+  @override
+  String get lanSyncSyncNow => '立即同步';
+
+  @override
+  String get lanSyncOnline => '在线';
+
+  @override
+  String get lanSyncOnlineFromSession => '在线——上次同步成功连上';
+
+  @override
+  String get lanSyncOfflineFromSession => '离线——上次同步没能连上';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return '正在连接 $address…';
+  }
+
+  @override
+  String lanSyncPhaseConnectingAt(Object address, Object index, Object total) {
+    return '正在连接 $address…（$index/$total）';
+  }
+
+  @override
+  String get lanSyncOffline => '离线';
+
+  @override
+  String get lanSyncUpToDate => '已是最新';
+
+  @override
+  String get lanSyncPhaseConnecting => '正在连接…';
+
+  @override
+  String get lanSyncPhaseExchanging => '正在对比数据…';
+
+  @override
+  String get lanSyncPhaseSending => '正在发送变更…';
+
+  @override
+  String get lanSyncPhaseReceiving => '正在接收变更…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return '正在下载文件…（$done/$total）';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => '正在下载文件…';
+
+  @override
+  String get lanSyncPhaseApplying => '正在应用变更…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      '首次同步进行中——请保持两台设备唤醒、Cuplivo 保持开启（手机端请保持前台），直到同步完成。';
+
+  @override
+  String get lanSyncRename => '重命名';
+
+  @override
+  String get lanSyncRenameTitle => '设备名称';
+
+  @override
+  String get lanSyncEditAddress => '修改地址';
+
+  @override
+  String get lanSyncAddressCopied => '地址已复制';
+
+  @override
+  String get lanSyncUnpair => '取消配对';
+
+  @override
+  String lanSyncUnpairConfirmTitle(Object name) {
+    return '取消与 $name 的配对？';
+  }
+
+  @override
+  String get lanSyncUnpairConfirmBody => '对话在两台设备上都会保留，只是不再与它同步，直到重新配对。';
+
+  @override
+  String lanSyncReportSent(Object n) {
+    return '发送 $n';
+  }
+
+  @override
+  String lanSyncReportReceived(Object n) {
+    return '接收 $n';
+  }
+
+  @override
+  String lanSyncReportMessagesUpserted(Object n) {
+    return '+$n 条消息';
+  }
+
+  @override
+  String lanSyncReportMessagesDeleted(Object n) {
+    return '-$n 条消息';
+  }
+
+  @override
+  String lanSyncReportConversationsDeleted(Object n) {
+    return '-$n 个对话';
+  }
+
+  @override
+  String lanSyncReportDeferred(Object n) {
+    return '$n 项延后';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n 个实体';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n 项偏好';
+  }
+
+  @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n 个文件 · $size';
+  }
+
+  @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n 个文件';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n 个技能';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n 处技能修改被覆盖';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n 个文件在对方设备上缺失';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n 条本地记录被对端更新的版本覆盖';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return '两台设备的时钟相差约 $n 分钟，请校准设备时钟后重新同步';
+  }
+
+  @override
+  String get lanSyncReportPeerOffline =>
+      '暂时连不上——对方可能已休眠或换了网络；两台设备回到同一网络后会自动同步。';
+
+  @override
+  String get lanSyncReportUnreachable =>
+      '同步失败：无法连接到对方设备。它可能已离线或换了网络——重新扫描它的二维码，或在卡片上修改地址。';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      '同步失败：没有记录对方设备的地址。请重新扫描它的二维码，或在卡片上填写地址。';
+
+  @override
+  String get lanSyncReportTimeout => '同步失败：对方设备停止响应。';
+
+  @override
+  String get lanSyncReportPeerError => '同步失败：对方设备报告了错误。';
+
+  @override
+  String get lanSyncReportInternal => '同步失败，详情见日志。';
+
+  @override
+  String get lanSyncRefusedPeerSchemaNewer => '对方数据库版本较新。请先更新本设备再同步。';
+
+  @override
+  String get lanSyncRefusedProtocolUnknown => '对方使用不同的同步协议。请将两台设备都更新到最新版本。';
+
+  @override
+  String get lanSyncRefusedNotPaired =>
+      '本设备与对方对这次配对的记录已不一致——对方解除了配对，或重新配对没有在两台设备上完成。请在两台设备上重新配对。';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch => '对方设备的身份不一致。请在两台设备上重新配对。';
+
+  @override
+  String get lanSyncRefusedBusy => '另一个同步会话正在进行，请稍后再试。';
+
+  @override
+  String get lanSyncFirewallTitle => 'Windows 防火墙';
+
+  @override
+  String lanSyncFirewallHint(Object port) {
+    return '端口 $port 的入站规则需要一次管理员授权。';
+  }
+
+  @override
+  String get lanSyncFirewallFix => '允许访问（UAC）';
+
+  @override
+  String get lanSyncFirewallFixed => '入站访问已允许。';
+
+  @override
+  String get lanSyncKnownLimits => '目前：工作区仍只留在创建它的设备上；PIN 配对请仅在可信网络中使用。';
+
+  @override
+  String get assistantEditProactiveCareEnableTitle => '主动关怀';
+
+  @override
+  String get assistantEditProactiveCareDefaultDescription => '未单独设置的对话默认跟随此开关';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      '时间决策所用消息条数';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      '决定下次主动发消息时间时，最多发送给决策模型的最近历史消息数量';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle => '各对话下次来信时间';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations => '此助手暂无已开启的对话';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return '未来 · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return '已过期 · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => '未设置';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android 运行条件';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => '通知';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => '精确闹钟';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => '自启动';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle => '忽略电池优化';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => '必需';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => '建议';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => '已就绪';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => '点击获取权限';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => '需手动确认';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => '未知';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeTitle => '下次助手主动发消息时间';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeUnset => '未设置';
+
+  @override
+  String get assistantEditProactiveCarePromptTitle => '主动关怀提示词';
+
+  @override
+  String get assistantEditProactiveCarePromptHint => '助手主动发消息时使用的提示词';
+
+  @override
+  String get assistantEditProactiveCarePromptDefault =>
+      '请根据助手的角色设定、上下文、以及目前时间，给用户发一条消息';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptTitle => '决策时间功能说明提示词';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptDefault =>
+      '你是一个角色扮演场景的导演，负责判断助手（assistant）下一次应主动向用户发消息的时间。\n\n【功能说明】\n· 主动发消息：助手可在设定时间主动向用户发送消息，无需用户提问。\n· 若不设置主动发消息的时间，则助手无法在用户不发言的情况下主动发送任何消息。\n· 你需要评估当前设定的下次发消息时间：若认为无需调整，则保持原时间；否则进行修改。\n\n【注意】\n· 只考虑助手的视角看到的信息，不考虑用户的视角。\n\n【考虑角度】\n1. 助手在睡醒、完成某件事、安全回到宿舍等情况下，应主动向用户报备或打招呼。\n2. 若上下文中提到助手因睡着、忙碌等原因未能及时查看用户的消息，则应设定在助手睡醒或忙完后，主动给用户发一条消息。\n3. 若上下文中提到助手需要在某个时间点监督或提醒用户，则设定在该时间点主动发消息。\n4. 当一个话题尚未聊完时，需要假设：用户在助手最后一条消息发出后始终没有回复，那么助手应在什么时间主动发消息？请据此设定时间。\n\n【示例】\n1. 聊天记录中，用户凌晨发消息称自己失眠，预计早上10:30起床，但助手没有失眠，会按正常时间（如8:30）起床。此时应将主动发消息时间设为助手的起床时间。\n2. 聊天记录中，用户与助手正在聊考试话题。你在8:30看到的最后一条消息是助手在8:30发出的一个提问。依据第4条规则，需考虑用户一直未回复的情况，助手应在10分钟之内主动发消息追问。';
+
+  @override
+  String get assistantEditProactiveCareDateTimePickerTitle => '选择日期和时间';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture => '请选择未来的时间。';
+
+  @override
+  String get conversationProactiveCareTitle => '对话主动关怀';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn => '跟随助手设置：已开启';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff => '跟随助手设置：已关闭';
+
+  @override
+  String get conversationProactiveCareExplicitOn => '对话设置：已开启';
+
+  @override
+  String get conversationProactiveCareExplicitOff => '对话设置：已关闭';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing => '跟随助手设置';
+
+  @override
+  String get conversationProactiveCareClearTime => '清除下次发消息时间';
+
+  @override
+  String get conversationProactiveCareUpdateFailed => '无法更新对话主动关怀设置。';
+
+  @override
+  String get defaultModelPageProactiveCareModelTitle => 'Ta的来信决策模型';
+
+  @override
+  String get defaultModelPageProactiveCareModelSubtitle => '用于决定助手何时主动发消息的模型';
+
+  @override
+  String get proactiveCareFailedNotificationBody =>
+      '主动关怀消息生成失败，请打开应用检查模型配置与网络。';
+
+  @override
+  String get proactiveCareLetterArrivalBody => 'Ta的来信已到达，打开应用即可查看。';
+
+  @override
+  String get assistantEditPageRoleplayTab => '角色扮演';
+
+  @override
+  String get assistantEditProactiveCareFeatureTitle => 'Ta的来信';
+
+  @override
+  String statsPageCost(String currency) {
+    return '费用 ($currency)';
+  }
+
+  @override
+  String statsPageModelsWithoutPricing(int count) {
+    return '$count 个模型无定价';
+  }
+
+  @override
+  String get assistantEditReasoningFollowDefault => '跟随模型默认';
+
+  @override
+  String get assistantEditReasoningClampedSubtitle => '实际档位会按各模型的能力收敛';
+
+  @override
+  String get backupProgressFailed => '操作失败';
+
+  @override
+  String backupProgressFailedAt(String phase) {
+    return '失败阶段：$phase';
+  }
+
+  @override
+  String get backupProgressCopyError => '复制错误';
+
+  @override
+  String get backupProgressErrorCopied => '错误已复制';
+
+  @override
+  String get reasoningLevelSheetTitle => '推理';
+
+  @override
+  String get reasoningLevelAuto => '自动';
+
+  @override
+  String get reasoningLevelAutoSubtitle => '使用模型或供应商的默认设置';
+
+  @override
+  String get reasoningLevelOff => '关闭';
+
+  @override
+  String get reasoningLevelOffSubtitle => '关闭推理，直接回答';
+
+  @override
+  String get reasoningLevelMinimal => '最低';
+
+  @override
+  String get reasoningLevelMinimalSubtitle => '使用极少推理来回答问题';
+
+  @override
+  String get reasoningLevelLow => '低';
+
+  @override
+  String get reasoningLevelLowSubtitle => '使用少量推理来回答问题';
+
+  @override
+  String get reasoningLevelMedium => '中';
+
+  @override
+  String get reasoningLevelMediumSubtitle => '使用较多推理来回答问题';
+
+  @override
+  String get reasoningLevelHigh => '高';
+
+  @override
+  String get reasoningLevelHighSubtitle => '使用大量推理来回答问题，适合复杂问题';
+
+  @override
+  String get reasoningLevelXhigh => '极高';
+
+  @override
+  String get reasoningLevelXhighSubtitle => '使用很高推理深度，适合更复杂的问题';
+
+  @override
+  String get reasoningLevelMax => '最大';
+
+  @override
+  String get reasoningLevelMaxSubtitle => '使用最大推理深度，适合最复杂的问题';
+
+  @override
+  String get reasoningLevelFollowModelDefaultSubtitle => '使用模型或助手未设置时的默认档位';
+
+  @override
+  String get reasoningLevelNoReasoning => '此模型不支持推理';
+
+  @override
+  String get reasoningLevelCustomBudget => '自定义推理预算';
+
+  @override
+  String get reasoningLevelCustomBudgetHint => '例如：2048';
+
+  @override
+  String get reasoningLevelCompactMin => 'min';
+
+  @override
+  String get reasoningLevelCompactLow => 'low';
+
+  @override
+  String get reasoningLevelCompactMid => 'mid';
+
+  @override
+  String get reasoningLevelCompactHigh => 'high';
+
+  @override
+  String get reasoningLevelCompactXhigh => 'xhigh';
+
+  @override
+  String get reasoningLevelCompactMax => 'max';
+
+  @override
+  String reasoningLevelBudgetTokens(String budget) {
+    return '$budget tokens';
+  }
+
+  @override
+  String chatMessageWidgetWebFetch(String target) {
+    return '读取网页: $target';
+  }
+
+  @override
+  String get chatInputBarVoiceAttachAudioTooltip => '停止并存为音频';
+
+  @override
+  String get chatInputBarVoiceSendAudioTooltip => '直接发送录音';
+
+  @override
+  String get chatInputBarVoiceSavingAudio => '正在保存录音…';
+
+  @override
+  String get audioClipPlayTooltip => '播放音频';
+
+  @override
+  String get audioClipPauseTooltip => '暂停';
+
+  @override
+  String get audioClipPlaybackFailed => '无法播放此音频';
+
+  @override
+  String get contextUsageTitle => '上下文窗口';
+
+  @override
+  String get contextUsageStateExact => '精确（来自上次响应）';
+
+  @override
+  String get contextUsageStateExactCalibrated => '精确（分项按估算比例）';
+
+  @override
+  String get contextUsageStateEstimated => '估算';
+
+  @override
+  String get contextUsageStateStale => '已过时，正在更新…';
+
+  @override
+  String get contextUsageStateComputing => '计算中…';
+
+  @override
+  String get contextUsageStateNone => '暂无数据';
+
+  @override
+  String get contextUsageBucketSystem => '系统提示词';
+
+  @override
+  String get contextUsageBucketInjections => '指令注入';
+
+  @override
+  String get contextUsageBucketHistory => '历史消息';
+
+  @override
+  String get contextUsageBucketTools => '内置工具';
+
+  @override
+  String get contextUsageBucketMemory => '记忆';
+
+  @override
+  String get contextUsageBucketWorldBook => '世界书';
+
+  @override
+  String get contextUsageBucketSkills => '技能';
+
+  @override
+  String get contextUsageBucketWorkspace => '工作区';
+
+  @override
+  String get contextUsageBucketSearch => '搜索提示';
+
+  @override
+  String get contextUsageBucketMcpTools => 'MCP 工具';
+
+  @override
+  String get contextUsageBucketAttachments => '附件';
+
+  @override
+  String get contextUsageBucketDraft => '草稿';
+
+  @override
+  String get contextUsageBucketUsed => '已用';
+
+  @override
+  String get contextUsageFreeSpace => '剩余空间';
+
+  @override
+  String contextUsageUsedWindow(String used, String window, int percent) {
+    return '$used / $window ($percent%)';
+  }
+
+  @override
+  String get contextUsageNoWindow => '未设置上下文窗口';
+
+  @override
+  String get contextUsageSetWindow => '设置上下文窗口';
+
+  @override
+  String get contextUsageRefresh => '刷新';
+
+  @override
+  String get modelSpecFormSourceCustom => '自定义';
+
+  @override
+  String get modelSpecFormSourceCatalog => '目录';
+
+  @override
+  String get modelSpecFormSourceInferred => '推断';
+
+  @override
+  String get modelSpecFormSourceDefault => '默认';
+
+  @override
+  String get modelSpecFormReset => '重置为默认';
+
+  @override
+  String get modelSpecFormModalitiesSection => '模态与能力';
+
+  @override
+  String get modelSpecFormImageType => '图像';
+
+  @override
+  String get modelSpecFormAudioMode => '音频';
+
+  @override
+  String get modelSpecFormVideoMode => '视频';
+
+  @override
+  String get modelSpecFormPdfMode => 'PDF';
+
+  @override
+  String get modelSpecFormStructuredOutputAbility => '结构化输出';
+
+  @override
+  String get modelSpecFormReasoningSection => '推理';
+
+  @override
+  String get modelSpecFormDialect => '推理方言';
+
+  @override
+  String get modelSpecFormDialectNone => '无';
+
+  @override
+  String get modelSpecFormDialectNoneSubtitle => '不写入推理字段';
+
+  @override
+  String get modelSpecFormDialectOpenaiReasoningEffort =>
+      'OpenAI reasoning effort';
+
+  @override
+  String get modelSpecFormDialectOpenaiReasoningEffortSubtitle =>
+      'reasoning_effort';
+
+  @override
+  String get modelSpecFormDialectOpenaiResponsesReasoning =>
+      'OpenAI Responses reasoning';
+
+  @override
+  String get modelSpecFormDialectOpenaiResponsesReasoningSubtitle =>
+      'reasoning.effort';
+
+  @override
+  String get modelSpecFormDialectOpenrouterReasoning => 'OpenRouter reasoning';
+
+  @override
+  String get modelSpecFormDialectOpenrouterReasoningSubtitle => 'reasoning';
+
+  @override
+  String get modelSpecFormDialectAnthropicBudget => 'Anthropic budget';
+
+  @override
+  String get modelSpecFormDialectAnthropicBudgetSubtitle =>
+      'thinking.budget_tokens';
+
+  @override
+  String get modelSpecFormDialectAnthropicAdaptiveEffort =>
+      'Anthropic adaptive effort';
+
+  @override
+  String get modelSpecFormDialectAnthropicAdaptiveEffortSubtitle =>
+      'thinking + output_config.effort';
+
+  @override
+  String get modelSpecFormDialectAnthropicEffort => 'Anthropic effort';
+
+  @override
+  String get modelSpecFormDialectAnthropicEffortSubtitle =>
+      'thinking + output_config.effort';
+
+  @override
+  String get modelSpecFormDialectGeminiThinkingBudget =>
+      'Gemini thinking budget';
+
+  @override
+  String get modelSpecFormDialectGeminiThinkingBudgetSubtitle =>
+      'thinkingConfig.thinkingBudget';
+
+  @override
+  String get modelSpecFormDialectGeminiThinkingLevel => 'Gemini thinking level';
+
+  @override
+  String get modelSpecFormDialectGeminiThinkingLevelSubtitle =>
+      'thinkingConfig.thinkingLevel';
+
+  @override
+  String get modelSpecFormDialectQwenEnableThinking => 'Qwen enable thinking';
+
+  @override
+  String get modelSpecFormDialectQwenEnableThinkingSubtitle =>
+      'enable_thinking';
+
+  @override
+  String get modelSpecFormDialectThinkingType => 'Thinking type';
+
+  @override
+  String get modelSpecFormDialectThinkingTypeSubtitle => 'thinking.type';
+
+  @override
+  String get modelSpecFormDialectSiliconflowEnableThinking =>
+      'SiliconFlow enable thinking';
+
+  @override
+  String get modelSpecFormDialectSiliconflowEnableThinkingSubtitle =>
+      'enable_thinking';
+
+  @override
+  String get modelSpecFormDialectInternThinkingMode => 'Intern thinking mode';
+
+  @override
+  String get modelSpecFormDialectInternThinkingModeSubtitle => 'thinking_mode';
+
+  @override
+  String get modelSpecFormDialectChatTemplateKwargs => 'Chat template kwargs';
+
+  @override
+  String get modelSpecFormDialectChatTemplateKwargsSubtitle =>
+      'chat_template_kwargs.enable_thinking';
+
+  @override
+  String get modelSpecFormDialectKimiThinking => 'Kimi thinking';
+
+  @override
+  String get modelSpecFormDialectKimiThinkingSubtitle => 'thinking';
+
+  @override
+  String get modelSpecFormDialectCustom => '自定义 JSON';
+
+  @override
+  String get modelSpecFormDialectCustomSubtitle => '按级别写入 JSON 补丁';
+
+  @override
+  String get modelSpecFormLevels => '支持的级别';
+
+  @override
+  String get modelSpecFormCanDisable => '允许关闭';
+
+  @override
+  String get modelSpecFormDefaultLevel => '默认级别';
+
+  @override
+  String get modelSpecFormBudgets => 'Token 预算';
+
+  @override
+  String modelSpecFormBudgetPlaceholder(String tokens) {
+    return '$tokens';
+  }
+
+  @override
+  String modelSpecFormCustomPatch(String level) {
+    return 'JSON 补丁（$level）';
+  }
+
+  @override
+  String get modelSpecFormCustomPatchHint => '例如 reasoning_effort: high';
+
+  @override
+  String get modelSpecFormInvalidJson => '自定义推理补丁必须是有效的 JSON 对象';
+
+  @override
+  String get modelSpecFormInvalidNumber => '请输入有效数字';
+
+  @override
+  String get modelSpecFormStrategySection => '策略';
+
+  @override
+  String get modelSpecFormSampling => '采样';
+
+  @override
+  String get modelSpecFormRequestQuirks => '请求兼容';
+
+  @override
+  String get modelSpecFormDynamicWebSearch => '动态过滤搜索工具';
+
+  @override
+  String get modelSpecFormDynamicWebSearchSubtitle =>
+      '开启动态过滤时，使用 2026-03-18 版网页搜索与抓取工具';
+
+  @override
+  String get modelSpecFormRemoteImageUrls => '远程图片链接';
+
+  @override
+  String get modelSpecFormRemoteImageUrlsSubtitle =>
+      '直接发送 http(s) 图片链接；关闭后丢弃远程链接，只发送本地图片';
+
+  @override
+  String get modelSpecFormPromptCacheControl => '提示缓存标记';
+
+  @override
+  String get modelSpecFormPromptCacheControlSubtitle =>
+      '开启提示缓存时，在 OpenRouter 请求中加入 cache_control';
+
+  @override
+  String get modelSpecFormSamplingAlways => '始终保留';
+
+  @override
+  String get modelSpecFormSamplingAlwaysSubtitle => '保留 temperature 等采样字段';
+
+  @override
+  String get modelSpecFormSamplingOnlyWhenReasoningOff => '仅在关闭推理时';
+
+  @override
+  String get modelSpecFormSamplingOnlyWhenReasoningOffSubtitle => '模型思考时移除采样字段';
+
+  @override
+  String get modelSpecFormSamplingNever => '从不';
+
+  @override
+  String get modelSpecFormSamplingNeverSubtitle => '始终移除采样字段';
+
+  @override
+  String get modelSpecFormReplay => '推理回放';
+
+  @override
+  String get modelSpecFormReplayNone => '无';
+
+  @override
+  String get modelSpecFormReplayNoneSubtitle => '不把先前推理发回模型';
+
+  @override
+  String get modelSpecFormReplayToolTurns => '工具轮次';
+
+  @override
+  String get modelSpecFormReplayToolTurnsSubtitle => '仅在工具调用轮次回放推理';
+
+  @override
+  String get modelSpecFormReplayAll => '全部';
+
+  @override
+  String get modelSpecFormReplayAllSubtitle => '每一轮后续请求都回放推理';
+
+  @override
+  String get modelSpecFormReplayField => '回放字段';
+
+  @override
+  String get modelSpecFormReplayFieldReasoningContent => 'reasoning_content';
+
+  @override
+  String get modelSpecFormReplayFieldReasoning => 'reasoning';
+
+  @override
+  String get modelSpecFormReplayFieldReasoningDetails => 'reasoning_details';
+
+  @override
+  String get modelSpecFormLimitsSection => '限额';
+
+  @override
+  String get modelSpecFormLimitsPricingSection => '限额与定价';
+
+  @override
+  String get modelSpecFormContextWindow => '上下文窗口';
+
+  @override
+  String get modelSpecFormMaxOutput => '最大输出';
+
+  @override
+  String get modelSpecFormPricingSection => '定价 / 1M';
+
+  @override
+  String get modelSpecFormPricingInput => '输入';
+
+  @override
+  String get modelSpecFormPricingOutput => '输出';
+
+  @override
+  String get modelSpecFormPricingCacheRead => '缓存读取';
+
+  @override
+  String get modelSpecFormPricingCacheWrite => '缓存写入';
+
+  @override
+  String get modelSpecFormCurrency => '货币';
+
+  @override
+  String get modelSpecFormAdvancedSection => '请求';
+
+  @override
+  String get providerDetailPagePromptCacheKeyTitle => '发送会话缓存键';
+
+  @override
+  String get providerDetailPagePromptCacheKeyHelp =>
+      '为 OpenAI 兼容请求附加稳定的会话级 prompt_cache_key。仅在供应商支持时开启，自定义 Body 优先，不保证缓存命中。';
+
+  @override
+  String get modelCatalogTitle => '模型目录';
+
+  @override
+  String modelCatalogSourceBundled(String date) {
+    return '内置快照 · $date';
+  }
+
+  @override
+  String modelCatalogSourceRemote(String date) {
+    return 'models.dev · 更新于 $date';
+  }
+
+  @override
+  String get modelCatalogAutoUpdate => '每 24 小时自动更新';
+
+  @override
+  String get modelCatalogRefresh => '立即更新';
+
+  @override
+  String get modelCatalogUpdated => '模型目录已更新';
+
+  @override
+  String modelCatalogRefreshFailed(String error) {
+    return '更新失败：$error';
+  }
+
+  @override
+  String modelCatalogProviderCount(int count) {
+    return '$count 个供应商';
+  }
+
+  @override
+  String modelCatalogModelCount(int count) {
+    return '$count 个模型';
+  }
+
+  @override
+  String get searchServicesPageWebFetchSection => '网页抓取';
+
+  @override
+  String get searchServicesPageWebFetchModeTitle => '抓取方式';
+
+  @override
+  String get searchServicesPageWebFetchFollow => '跟随搜索服务';
+
+  @override
+  String searchServicesPageWebFetchFollowValue(String name) {
+    return '跟随搜索 · $name';
+  }
+
+  @override
+  String searchServicesPageWebFetchFollowSubtitle(String name) {
+    return '当前：$name';
+  }
+
+  @override
+  String get searchServicesPageWebFetchLocal => '本地抓取';
+
+  @override
+  String get searchServicesPageWebFetchLocalSubtitle => '免费，由本机直接请求网页';
+
+  @override
+  String get searchServicesPageWebFetchProviderSubtitle =>
+      '使用该服务商的 API Key 和额度';
+
+  @override
+  String get searchServicesPageWebFetchOff => '关闭';
+
+  @override
+  String get searchServicesPageWebFetchOffSubtitle => '联网时只搜索，不读取网页';
+
+  @override
+  String get searchServicesPageWebFetchFooter =>
+      '开启联网搜索后，模型还可以读取网页全文。搜索服务不支持抓取时会改用本地抓取，本地抓取无法处理需要 JavaScript 渲染或有反爬限制的页面。';
+
+  @override
+  String get searchServicesPageWebFetchSupported => '支持网页抓取';
+
+  @override
+  String get searchServicesDialogApiKeyOptional => 'API Key（可选）';
+
+  @override
+  String get searchServiceEditorTestModeSearch => '搜索';
+
+  @override
+  String get searchServiceEditorTestModeFetch => '抓取';
+
+  @override
+  String get searchServiceEditorTestUrlHint => '输入测试网址';
+
+  @override
+  String get searchServiceEditorTestFetchRun => '运行抓取测试';
+
+  @override
+  String get searchServiceEditorTestFetchRunning => '抓取中…';
+
+  @override
+  String searchServiceEditorTestFetchFailed(String message) {
+    return '抓取失败：$message';
+  }
+
+  @override
+  String searchServiceEditorTestFetchStats(String characters, String seconds) {
+    return '$characters 字符 · $seconds 秒';
+  }
+
+  @override
+  String get displaySettingsPageShowTotalTokensTitle => '显示整轮累计 Token';
+
+  @override
+  String get displaySettingsPageShowTotalTokensSubtitle =>
+      '累计显示本次回复中所有 API 请求的用量。关闭时仅显示最后一次请求；统计页面始终包含所有请求。';
+
+  @override
+  String get displaySettingsShowReasoningLevelBadge => '在推理按钮上显示档位';
+
+  @override
+  String get displaySettingsShowReasoningLevelBadgeSubtitle =>
+      '在输入栏的推理图标旁显示当前档位';
+
+  @override
+  String get searchProviderExaMcpDescription =>
+      '通过 MCP 使用 Exa 搜索。不填 API Key 可在免费限额内使用。';
+
+  @override
+  String get searchServiceNameExaMcp => 'Exa MCP';
+
+  @override
+  String worldBookImportUnsupportedEntries(int count) {
+    return '导入完成。$count 个条目使用了暂不支持的酒馆功能（如宏、正则、时效、筛选或插入规则），已保留内容并停用，请检查后再启用。';
+  }
+
+  @override
+  String tokenDetailFirstToken(String value) {
+    return '${value}s（首字）';
+  }
+
+  @override
+  String tokenDetailReasoningTokens(int count) {
+    return '$count tokens';
+  }
+
+  @override
+  String tokenDetailCacheWriteTokens(int count) {
+    return '$count 缓存写入 tokens';
+  }
+
+  @override
+  String tokenDetailCost(String amount) {
+    return '$amount';
+  }
+
+  @override
+  String get workspaceToolTitleViewImage => '查看图片';
+
+  @override
+  String get workspaceToolHelpViewImage => '让模型查看工作区中的图片内容。';
+
+  @override
+  String oauthUsedValue(String value) {
+    return '已用 $value';
+  }
 
   @override
   String get composerDraftLabel => '草稿';
@@ -12562,7 +13258,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get storageSpaceClearDisplacedDatabasesConfirmMessage =>
-      '确定删除这些保留的旧数据库吗？它们是 Kelivo 重建数据库时留下的，可能是那些聊天记录和设置仅存的一份。删除后无法恢复。';
+      '确定删除这些保留的旧数据库吗？它们是 Cuplivo 重建数据库时留下的，可能是那些聊天记录和设置仅存的一份。删除后无法恢复。';
 
   @override
   String get storageSpaceRestoreTracesHint => '恢复完成后保留的旧数据快照。清理不会影响当前应用数据。';
@@ -12707,6 +13403,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get storageSpaceDeleteConfirmTitle => '确认删除';
 
   @override
+  String storageSpaceDeleteDraftWarning(int count) {
+    return '其中 $count 个文件仍被未发送的草稿引用';
+  }
+
+  @override
   String storageSpaceDeleteUploadsConfirmMessage(int count) {
     return '删除 $count 个项目及其对应的会话附件副本？删除后，聊天记录中的这些附件将无法使用。';
   }
@@ -12830,16 +13531,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get statsPageLaunchCount => '应用启动次数';
-
-  @override
-  String statsPageCost(String currency) {
-    return '费用 ($currency)';
-  }
-
-  @override
-  String statsPageModelsWithoutPricing(int count) {
-    return '$count 个模型无定价';
-  }
 
   @override
   String get statsPageUsageTrendTitle => '用量趋势';
@@ -13138,6 +13829,10 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get homePagePleaseSelectModel => '请先选择模型';
 
   @override
+  String get homePageAudioAttachmentUnsupported =>
+      '当前模型不支持音频附件，请切换到支持音频输入的模型或移除音频文件后重试。';
+
+  @override
   String get homePagePleaseSetupTranslateModel => '请先设置翻译模型';
 
   @override
@@ -13368,13 +14063,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get assistantEditStreamOutputDescription => '是否启用消息的流式输出';
 
   @override
-  String get assistantEditThinkingBudgetTitle => '思考';
-
-  @override
-  String get assistantEditReasoningFollowDefault => '跟随模型默认';
-
-  @override
-  String get assistantEditReasoningClampedSubtitle => '实际档位会按各模型的能力收敛';
+  String get assistantEditThinkingBudgetTitle => '思考预算';
 
   @override
   String get assistantEditConfigureButton => '配置';
@@ -13952,41 +14641,41 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupPageRestartRequired => '需要重启应用';
 
   @override
-  String get backupPageRestartContent => '导入成功。重启 Kelivo 后将安全应用。';
+  String get backupPageRestartContent => '导入成功。重启 Cuplivo 后将安全应用。';
 
   @override
   String backupPageRestartContentWithSkipped(int count) {
-    return '导入已完成，但已跳过 $count 个消息顺序非法的会话。重启 Kelivo 后将安全应用已导入的数据。';
+    return '导入已完成，但已跳过 $count 个消息顺序非法的会话。重启 Cuplivo 后将安全应用已导入的数据。';
   }
 
   @override
-  String get restartAppFailedMessage => 'Kelivo 无法自动重启，请完全关闭后重新打开。';
+  String get restartAppFailedMessage => 'Cuplivo 无法自动重启，请完全关闭后重新打开。';
 
   @override
   String get backupRestoreRolledBackTitle => '恢复已回滚';
 
   @override
-  String get backupRestoreRolledBackContent => '恢复未能完成。Kelivo 已验证并保留原有数据。';
+  String get backupRestoreRolledBackContent => '恢复未能完成。Cuplivo 已验证并保留原有数据。';
 
   @override
   String get backupRestoreFailureTitle => '恢复需要处理';
 
   @override
   String get backupRestoreFailureContent =>
-      'Kelivo 无法验证完整的原有或新数据，因此未打开聊天数据。请关闭 Kelivo 后重试；若问题反复出现，请保留诊断码以便支持人员排查。';
+      'Cuplivo 无法验证完整的原有或新数据，因此未打开聊天数据。请关闭 Cuplivo 后重试；若问题反复出现，请保留诊断码以便支持人员排查。';
 
   @override
-  String get backupRestoreBusinessLeaseUnavailableTitle => 'Kelivo 已在运行';
+  String get backupRestoreBusinessLeaseUnavailableTitle => 'Cuplivo 已在运行';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableContent =>
-      'Kelivo 的数据仍被另一个应用进程占用。请关闭其他 Kelivo 窗口后重新启动；当前进程尚未打开聊天数据。';
+      'Cuplivo 的数据仍被另一个应用进程占用。请关闭其他 Cuplivo 窗口后重新启动；当前进程尚未打开聊天数据。';
 
   @override
   String get restoreProgressTitle => '正在恢复备份';
 
   @override
-  String get restoreProgressWarning => '请保持 Kelivo 开启直到完成。此时关闭应用，下次启动会从头再来一次。';
+  String get restoreProgressWarning => '请保持 Cuplivo 开启直到完成。此时关闭应用，下次启动会从头再来一次。';
 
   @override
   String get restoreProgressStageCheckingBackup => '正在校验备份';
@@ -14007,7 +14696,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get restoreProgressStageFinishing => '即将完成';
 
   @override
-  String get backupRestoreFailureRestartButton => '重启 Kelivo';
+  String get backupRestoreFailureRestartButton => '重启 Cuplivo';
 
   @override
   String get backupRestoreFailureCopyButton => '复制诊断码';
@@ -14045,14 +14734,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get startupRecoveryRepairFailed => '修复未能解决问题。请先导出数据副本，然后重置。';
 
   @override
-  String get startupRecoveryResetFailed => '重置失败。请彻底关闭 Kelivo 后重新打开。';
+  String get startupRecoveryResetFailed => '重置失败。请彻底关闭 Cuplivo 后重新打开。';
 
   @override
   String get startupRecoveryResetDialogTitle => '重置全部数据？';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      '这将永久删除本设备上 Kelivo 的数据库并重新开始。如果之后可能还需要这些数据，请先导出一份副本。此操作无法撤销。';
+      '这将永久删除本设备上 Cuplivo 的数据库并重新开始。如果之后可能还需要这些数据，请先导出一份副本。此操作无法撤销。';
 
   @override
   String get startupRecoveryResetDialogConfirm => '重置并重启';
@@ -14164,17 +14853,17 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get startupRecoveryDangerBody =>
-      '重置会永久删除本设备上 Kelivo 的数据库。请先导出数据副本——重置同时会销毁排查根本问题所需的证据。';
+      '重置会永久删除本设备上 Cuplivo 的数据库。请先导出数据副本——重置同时会销毁排查根本问题所需的证据。';
 
   @override
   String get startupRecoveryResetAcknowledge => '我已导出副本，或不需要这些数据。';
 
   @override
-  String get startupDatabaseUpdateRequiredTitle => '请更新 Kelivo 以继续';
+  String get startupDatabaseUpdateRequiredTitle => '请更新 Cuplivo 以继续';
 
   @override
   String get startupDatabaseUpdateRequiredContent =>
-      '本设备上的聊天数据库由更新版本的 Kelivo 创建，当前版本无法打开。数据未被改动。请安装最新版 Kelivo 后重新打开。';
+      '本设备上的聊天数据库由更新版本的 Cuplivo 创建，当前版本无法打开。数据未被改动。请安装最新版 Cuplivo 后重新打开。';
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeTitle => '若要改用旧版';
@@ -14185,7 +14874,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeStep1 =>
-      '先安装并打开最新版 Kelivo，在「设置 → 数据备份」导出一份备份文件。';
+      '先安装并打开最新版 Cuplivo，在「设置 → 数据备份」导出一份备份文件。';
 
   @override
   String startupDatabaseUpdateRequiredDowngradeStep2(String url) {
@@ -14226,8 +14915,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupPageOverwriteMode => '完全覆盖';
 
   @override
-  String get backupPageOverwriteModeDescription =>
-      '替换所选内容，保留未选内容及其他本机设置。替换聊天时，也会清除本机未发送的草稿。';
+  String get backupPageOverwriteModeDescription => '仅替换已选组件；保留未选组件及无关本地设置';
 
   @override
   String get backupPageMergeMode => '合并';
@@ -14244,7 +14932,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String backupPageForwardCompatBody(int backupVersion, int currentVersion) {
-    return '这份备份由更新版本的 Kelivo 创建（数据格式 $backupVersion，当前版本支持 $currentVersion），且未声明旧版本能否读取。\n\n你可以继续导入：当前版本不认识的内容会被跳过，备份文件本身不会被修改。但如果新版本改变了已有数据的存储方式，部分内容可能会被错误导入。\n\n更稳妥的做法是先升级 Kelivo。';
+    return '这份备份由更新版本的 Cuplivo 创建（数据格式 $backupVersion，当前版本支持 $currentVersion），且未声明旧版本能否读取。\n\n你可以继续导入：当前版本不认识的内容会被跳过，备份文件本身不会被修改。但如果新版本改变了已有数据的存储方式，部分内容可能会被错误导入。\n\n更稳妥的做法是先升级 Cuplivo。';
   }
 
   @override
@@ -14255,7 +14943,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupPageSchemaTooNewMessage =>
-      '这份备份由更新版本的 Kelivo 创建，当前版本无法读取。请先升级 Kelivo 后重试。';
+      '这份备份由更新版本的 Cuplivo 创建，当前版本无法读取。请先升级 Cuplivo 后重试。';
 
   @override
   String get backupPageBackupUploaded => '已上传备份';
@@ -14271,20 +14959,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupProgressCancelled => '已取消';
-
-  @override
-  String get backupProgressFailed => '操作失败';
-
-  @override
-  String backupProgressFailedAt(String phase) {
-    return '失败阶段：$phase';
-  }
-
-  @override
-  String get backupProgressCopyError => '复制错误';
-
-  @override
-  String get backupProgressErrorCopied => '错误已复制';
 
   @override
   String get backupProgressPreparing => '准备中';
@@ -14441,7 +15115,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return '此备份使用 Cherry Studio 格式版本 $version，Kelivo 目前尚无法导入。请改用 Cherry Studio v1 导出备份，或等待后续版本支持 Cherry Studio v2。';
+    return '此备份使用 Cherry Studio 格式版本 $version，Cuplivo 目前尚无法导入。请改用 Cherry Studio v1 导出备份，或等待后续版本支持 Cherry Studio v2。';
   }
 
   @override
@@ -14747,93 +15421,57 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageMoreSheetDeleteAllVersions => '删除全部版本';
 
   @override
+  String get reasoningBudgetSheetOff => '关闭';
+
+  @override
+  String get reasoningBudgetSheetAuto => '自动';
+
+  @override
+  String get reasoningBudgetSheetLight => '轻度推理';
+
+  @override
+  String get reasoningBudgetSheetMedium => '中度推理';
+
+  @override
+  String get reasoningBudgetSheetHeavy => '重度推理';
+
+  @override
+  String get reasoningBudgetSheetXhigh => '极限推理';
+
+  @override
+  String get reasoningBudgetSheetMax => '全力推理';
+
+  @override
   String get reasoningBudgetSheetTitle => '思维链强度';
 
   @override
-  String get reasoningLevelSheetTitle => '推理';
-
-  @override
-  String get reasoningLevelAuto => '自动';
-
-  @override
-  String get reasoningLevelAutoSubtitle => '使用模型或供应商的默认设置';
-
-  @override
-  String get reasoningLevelOff => '关闭';
-
-  @override
-  String get reasoningLevelOffSubtitle => '关闭推理，直接回答';
-
-  @override
-  String get reasoningLevelMinimal => '最低';
-
-  @override
-  String get reasoningLevelMinimalSubtitle => '使用极少推理来回答问题';
-
-  @override
-  String get reasoningLevelLow => '低';
-
-  @override
-  String get reasoningLevelLowSubtitle => '使用少量推理来回答问题';
-
-  @override
-  String get reasoningLevelMedium => '中';
-
-  @override
-  String get reasoningLevelMediumSubtitle => '使用较多推理来回答问题';
-
-  @override
-  String get reasoningLevelHigh => '高';
-
-  @override
-  String get reasoningLevelHighSubtitle => '使用大量推理来回答问题，适合复杂问题';
-
-  @override
-  String get reasoningLevelXhigh => '极高';
-
-  @override
-  String get reasoningLevelXhighSubtitle => '使用很高推理深度，适合更复杂的问题';
-
-  @override
-  String get reasoningLevelMax => '最大';
-
-  @override
-  String get reasoningLevelMaxSubtitle => '使用最大推理深度，适合最复杂的问题';
-
-  @override
-  String get reasoningLevelFollowModelDefaultSubtitle => '使用模型或助手未设置时的默认档位';
-
-  @override
-  String get reasoningLevelNoReasoning => '此模型不支持推理';
-
-  @override
-  String get reasoningLevelCustomBudget => '自定义推理预算';
-
-  @override
-  String get reasoningLevelCustomBudgetHint => '例如：2048';
-
-  @override
-  String get reasoningLevelCompactMin => 'min';
-
-  @override
-  String get reasoningLevelCompactLow => 'low';
-
-  @override
-  String get reasoningLevelCompactMid => 'mid';
-
-  @override
-  String get reasoningLevelCompactHigh => 'high';
-
-  @override
-  String get reasoningLevelCompactXhigh => 'xhigh';
-
-  @override
-  String get reasoningLevelCompactMax => 'max';
-
-  @override
-  String reasoningLevelBudgetTokens(String budget) {
-    return '$budget tokens';
+  String reasoningBudgetSheetCurrentLevel(String level) {
+    return '当前档位：$level';
   }
+
+  @override
+  String get reasoningBudgetSheetOffSubtitle => '关闭推理功能，直接回答';
+
+  @override
+  String get reasoningBudgetSheetAutoSubtitle => '由模型自动决定推理级别';
+
+  @override
+  String get reasoningBudgetSheetLightSubtitle => '使用少量推理来回答问题';
+
+  @override
+  String get reasoningBudgetSheetMediumSubtitle => '使用较多推理来回答问题';
+
+  @override
+  String get reasoningBudgetSheetHeavySubtitle => '使用大量推理来回答问题，适合复杂问题';
+
+  @override
+  String get reasoningBudgetSheetXhighSubtitle => '使用最大推理深度，适合最复杂的问题';
+
+  @override
+  String get reasoningBudgetSheetCustomLabel => '自定义推理预算';
+
+  @override
+  String get reasoningBudgetSheetCustomHint => '例如：2048 (-1 自动，0 关闭)';
 
   @override
   String chatMessageWidgetFileNotFound(String fileName) {
@@ -14931,11 +15569,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String chatMessageWidgetWebSearch(String query) {
     return '联网检索: $query';
-  }
-
-  @override
-  String chatMessageWidgetWebFetch(String target) {
-    return '读取网页: $target';
   }
 
   @override
@@ -15456,24 +16089,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get chatInputBarVoiceTranscribing => '正在识别…';
 
   @override
-  String get chatInputBarVoiceAttachAudioTooltip => '停止并存为音频';
-
-  @override
-  String get chatInputBarVoiceSendAudioTooltip => '直接发送录音';
-
-  @override
-  String get chatInputBarVoiceSavingAudio => '正在保存录音…';
-
-  @override
-  String get audioClipPlayTooltip => '播放音频';
-
-  @override
-  String get audioClipPauseTooltip => '暂停';
-
-  @override
-  String get audioClipPlaybackFailed => '无法播放此音频';
-
-  @override
   String get chatInputBarImageProcessing => '正在处理图片';
 
   @override
@@ -15496,83 +16111,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get chatInputBarCollapse => '收起';
-
-  @override
-  String get contextUsageTitle => '上下文窗口';
-
-  @override
-  String get contextUsageStateExact => '精确（来自上次响应）';
-
-  @override
-  String get contextUsageStateExactCalibrated => '精确（分项按估算比例）';
-
-  @override
-  String get contextUsageStateEstimated => '估算';
-
-  @override
-  String get contextUsageStateStale => '已过时，正在更新…';
-
-  @override
-  String get contextUsageStateComputing => '计算中…';
-
-  @override
-  String get contextUsageStateNone => '暂无数据';
-
-  @override
-  String get contextUsageBucketSystem => '系统提示词';
-
-  @override
-  String get contextUsageBucketInjections => '指令注入';
-
-  @override
-  String get contextUsageBucketHistory => '历史消息';
-
-  @override
-  String get contextUsageBucketTools => '内置工具';
-
-  @override
-  String get contextUsageBucketMemory => '记忆';
-
-  @override
-  String get contextUsageBucketWorldBook => '世界书';
-
-  @override
-  String get contextUsageBucketSkills => '技能';
-
-  @override
-  String get contextUsageBucketWorkspace => '工作区';
-
-  @override
-  String get contextUsageBucketSearch => '搜索提示';
-
-  @override
-  String get contextUsageBucketMcpTools => 'MCP 工具';
-
-  @override
-  String get contextUsageBucketAttachments => '附件';
-
-  @override
-  String get contextUsageBucketDraft => '草稿';
-
-  @override
-  String get contextUsageBucketUsed => '已用';
-
-  @override
-  String get contextUsageFreeSpace => '剩余空间';
-
-  @override
-  String contextUsageUsedWindow(String used, String window, int percent) {
-    return '$used / $window ($percent%)';
-  }
-
-  @override
-  String get contextUsageNoWindow => '未设置上下文窗口';
-
-  @override
-  String get contextUsageSetWindow => '设置上下文窗口';
-
-  @override
-  String get contextUsageRefresh => '刷新';
 
   @override
   String get mcpPageBackTooltip => '返回';
@@ -15928,6 +16466,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get modelDetailSheetModelIdHint => '必填，建议小写字母、数字、连字符';
 
   @override
+  String modelDetailSheetModelIdDisabledHint(String modelId) {
+    return '$modelId';
+  }
+
+  @override
   String get modelDetailSheetModelNameLabel => '模型名称';
 
   @override
@@ -15980,6 +16523,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get modelDetailSheetBuiltinToolsDescription => '内置工具取决于供应商和 API 模式。';
+
+  @override
+  String get modelDetailSheetSearchTool => '搜索';
+
+  @override
+  String get modelDetailSheetSearchToolDescription => '启用 Google 搜索集成';
 
   @override
   String get modelDetailSheetUrlContextTool => 'URL 上下文';
@@ -16052,6 +16601,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get modelDetailSheetInvalidIdError => '请输入有效的模型 ID（不少于2个字符）';
 
   @override
+  String get modelDetailSheetModelIdExistsError => '模型 ID 已存在';
+
+  @override
   String get modelDetailSheetHeaderKeyHint => 'Header Key';
 
   @override
@@ -16062,301 +16614,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get modelDetailSheetBodyJsonHint => 'Body JSON';
-
-  @override
-  String get modelSpecFormSourceCustom => '自定义';
-
-  @override
-  String get modelSpecFormSourceCatalog => '目录';
-
-  @override
-  String get modelSpecFormSourceInferred => '推断';
-
-  @override
-  String get modelSpecFormSourceDefault => '默认';
-
-  @override
-  String get modelSpecFormReset => '重置为默认';
-
-  @override
-  String get modelSpecFormModalitiesSection => '模态与能力';
-
-  @override
-  String get modelSpecFormImageType => '图像';
-
-  @override
-  String get modelSpecFormAudioMode => '音频';
-
-  @override
-  String get modelSpecFormVideoMode => '视频';
-
-  @override
-  String get modelSpecFormPdfMode => 'PDF';
-
-  @override
-  String get modelSpecFormStructuredOutputAbility => '结构化输出';
-
-  @override
-  String get modelSpecFormReasoningSection => '推理';
-
-  @override
-  String get modelSpecFormDialect => '推理方言';
-
-  @override
-  String get modelSpecFormDialectNone => '无';
-
-  @override
-  String get modelSpecFormDialectNoneSubtitle => '不写入推理字段';
-
-  @override
-  String get modelSpecFormDialectOpenaiReasoningEffort =>
-      'OpenAI reasoning effort';
-
-  @override
-  String get modelSpecFormDialectOpenaiReasoningEffortSubtitle =>
-      'reasoning_effort';
-
-  @override
-  String get modelSpecFormDialectOpenaiResponsesReasoning =>
-      'OpenAI Responses reasoning';
-
-  @override
-  String get modelSpecFormDialectOpenaiResponsesReasoningSubtitle =>
-      'reasoning.effort';
-
-  @override
-  String get modelSpecFormDialectOpenrouterReasoning => 'OpenRouter reasoning';
-
-  @override
-  String get modelSpecFormDialectOpenrouterReasoningSubtitle => 'reasoning';
-
-  @override
-  String get modelSpecFormDialectAnthropicBudget => 'Anthropic budget';
-
-  @override
-  String get modelSpecFormDialectAnthropicBudgetSubtitle =>
-      'thinking.budget_tokens';
-
-  @override
-  String get modelSpecFormDialectAnthropicAdaptiveEffort =>
-      'Anthropic adaptive effort';
-
-  @override
-  String get modelSpecFormDialectAnthropicAdaptiveEffortSubtitle =>
-      'thinking + output_config.effort';
-
-  @override
-  String get modelSpecFormDialectAnthropicEffort => 'Anthropic effort';
-
-  @override
-  String get modelSpecFormDialectAnthropicEffortSubtitle =>
-      'thinking + output_config.effort';
-
-  @override
-  String get modelSpecFormDialectGeminiThinkingBudget =>
-      'Gemini thinking budget';
-
-  @override
-  String get modelSpecFormDialectGeminiThinkingBudgetSubtitle =>
-      'thinkingConfig.thinkingBudget';
-
-  @override
-  String get modelSpecFormDialectGeminiThinkingLevel => 'Gemini thinking level';
-
-  @override
-  String get modelSpecFormDialectGeminiThinkingLevelSubtitle =>
-      'thinkingConfig.thinkingLevel';
-
-  @override
-  String get modelSpecFormDialectQwenEnableThinking => 'Qwen enable thinking';
-
-  @override
-  String get modelSpecFormDialectQwenEnableThinkingSubtitle =>
-      'enable_thinking';
-
-  @override
-  String get modelSpecFormDialectThinkingType => 'Thinking type';
-
-  @override
-  String get modelSpecFormDialectThinkingTypeSubtitle => 'thinking.type';
-
-  @override
-  String get modelSpecFormDialectSiliconflowEnableThinking =>
-      'SiliconFlow enable thinking';
-
-  @override
-  String get modelSpecFormDialectSiliconflowEnableThinkingSubtitle =>
-      'enable_thinking';
-
-  @override
-  String get modelSpecFormDialectInternThinkingMode => 'Intern thinking mode';
-
-  @override
-  String get modelSpecFormDialectInternThinkingModeSubtitle => 'thinking_mode';
-
-  @override
-  String get modelSpecFormDialectChatTemplateKwargs => 'Chat template kwargs';
-
-  @override
-  String get modelSpecFormDialectChatTemplateKwargsSubtitle =>
-      'chat_template_kwargs.enable_thinking';
-
-  @override
-  String get modelSpecFormDialectKimiThinking => 'Kimi thinking';
-
-  @override
-  String get modelSpecFormDialectKimiThinkingSubtitle => 'thinking';
-
-  @override
-  String get modelSpecFormDialectCustom => '自定义 JSON';
-
-  @override
-  String get modelSpecFormDialectCustomSubtitle => '按级别写入 JSON 补丁';
-
-  @override
-  String get modelSpecFormLevels => '支持的级别';
-
-  @override
-  String get modelSpecFormCanDisable => '允许关闭';
-
-  @override
-  String get modelSpecFormDefaultLevel => '默认级别';
-
-  @override
-  String get modelSpecFormBudgets => 'Token 预算';
-
-  @override
-  String modelSpecFormBudgetPlaceholder(String tokens) {
-    return '$tokens';
-  }
-
-  @override
-  String modelSpecFormCustomPatch(String level) {
-    return 'JSON 补丁（$level）';
-  }
-
-  @override
-  String get modelSpecFormCustomPatchHint => '例如 reasoning_effort: high';
-
-  @override
-  String get modelSpecFormInvalidJson => '自定义推理补丁必须是有效的 JSON 对象';
-
-  @override
-  String get modelSpecFormInvalidNumber => '请输入有效数字';
-
-  @override
-  String get modelSpecFormStrategySection => '策略';
-
-  @override
-  String get modelSpecFormSampling => '采样';
-
-  @override
-  String get modelSpecFormRequestQuirks => '请求兼容';
-
-  @override
-  String get modelSpecFormDynamicWebSearch => '动态过滤搜索工具';
-
-  @override
-  String get modelSpecFormDynamicWebSearchSubtitle =>
-      '开启动态过滤时，使用 2026-03-18 版网页搜索与抓取工具';
-
-  @override
-  String get modelSpecFormRemoteImageUrls => '远程图片链接';
-
-  @override
-  String get modelSpecFormRemoteImageUrlsSubtitle =>
-      '直接发送 http(s) 图片链接；关闭后丢弃远程链接，只发送本地图片';
-
-  @override
-  String get modelSpecFormPromptCacheControl => '提示缓存标记';
-
-  @override
-  String get modelSpecFormPromptCacheControlSubtitle =>
-      '开启提示缓存时，在 OpenRouter 请求中加入 cache_control';
-
-  @override
-  String get modelSpecFormSamplingAlways => '始终保留';
-
-  @override
-  String get modelSpecFormSamplingAlwaysSubtitle => '保留 temperature 等采样字段';
-
-  @override
-  String get modelSpecFormSamplingOnlyWhenReasoningOff => '仅在关闭推理时';
-
-  @override
-  String get modelSpecFormSamplingOnlyWhenReasoningOffSubtitle => '模型思考时移除采样字段';
-
-  @override
-  String get modelSpecFormSamplingNever => '从不';
-
-  @override
-  String get modelSpecFormSamplingNeverSubtitle => '始终移除采样字段';
-
-  @override
-  String get modelSpecFormReplay => '推理回放';
-
-  @override
-  String get modelSpecFormReplayNone => '无';
-
-  @override
-  String get modelSpecFormReplayNoneSubtitle => '不把先前推理发回模型';
-
-  @override
-  String get modelSpecFormReplayToolTurns => '工具轮次';
-
-  @override
-  String get modelSpecFormReplayToolTurnsSubtitle => '仅在工具调用轮次回放推理';
-
-  @override
-  String get modelSpecFormReplayAll => '全部';
-
-  @override
-  String get modelSpecFormReplayAllSubtitle => '每一轮后续请求都回放推理';
-
-  @override
-  String get modelSpecFormReplayField => '回放字段';
-
-  @override
-  String get modelSpecFormReplayFieldReasoningContent => 'reasoning_content';
-
-  @override
-  String get modelSpecFormReplayFieldReasoning => 'reasoning';
-
-  @override
-  String get modelSpecFormReplayFieldReasoningDetails => 'reasoning_details';
-
-  @override
-  String get modelSpecFormLimitsSection => '限额';
-
-  @override
-  String get modelSpecFormLimitsPricingSection => '限额与定价';
-
-  @override
-  String get modelSpecFormContextWindow => '上下文窗口';
-
-  @override
-  String get modelSpecFormMaxOutput => '最大输出';
-
-  @override
-  String get modelSpecFormPricingSection => '定价 / 1M';
-
-  @override
-  String get modelSpecFormPricingInput => '输入';
-
-  @override
-  String get modelSpecFormPricingOutput => '输出';
-
-  @override
-  String get modelSpecFormPricingCacheRead => '缓存读取';
-
-  @override
-  String get modelSpecFormPricingCacheWrite => '缓存写入';
-
-  @override
-  String get modelSpecFormCurrency => '货币';
-
-  @override
-  String get modelSpecFormAdvancedSection => '请求';
 
   @override
   String get modelSelectSheetSearchHint => '搜索模型或服务商';
@@ -16436,13 +16693,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get providerDetailPageResponseApiTitle => 'Response API (/responses)';
-
-  @override
-  String get providerDetailPagePromptCacheKeyTitle => '发送会话缓存键';
-
-  @override
-  String get providerDetailPagePromptCacheKeyHelp =>
-      '为 OpenAI 兼容请求附加稳定的会话级 prompt_cache_key。仅在供应商支持时开启，自定义 Body 优先，不保证缓存命中。';
 
   @override
   String get providerDetailPageAihubmixAppCodeLabel => '应用 Code（享 10% 优惠）';
@@ -16631,43 +16881,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get providersPageProviderAddedSnackbar => '已添加供应商';
-
-  @override
-  String get modelCatalogTitle => '模型目录';
-
-  @override
-  String modelCatalogSourceBundled(String date) {
-    return '内置快照 · $date';
-  }
-
-  @override
-  String modelCatalogSourceRemote(String date) {
-    return 'models.dev · 更新于 $date';
-  }
-
-  @override
-  String get modelCatalogAutoUpdate => '每 24 小时自动更新';
-
-  @override
-  String get modelCatalogRefresh => '立即更新';
-
-  @override
-  String get modelCatalogUpdated => '模型目录已更新';
-
-  @override
-  String modelCatalogRefreshFailed(String error) {
-    return '更新失败：$error';
-  }
-
-  @override
-  String modelCatalogProviderCount(int count) {
-    return '$count 个供应商';
-  }
-
-  @override
-  String modelCatalogModelCount(int count) {
-    return '$count 个模型';
-  }
 
   @override
   String get providerGroupsGroupLabel => '分组';
@@ -16889,48 +17102,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get searchServicesPageAutoTestTitle => '启动时自动测试连接';
 
   @override
-  String get searchServicesPageWebFetchSection => '网页抓取';
-
-  @override
-  String get searchServicesPageWebFetchModeTitle => '抓取方式';
-
-  @override
-  String get searchServicesPageWebFetchFollow => '跟随搜索服务';
-
-  @override
-  String searchServicesPageWebFetchFollowValue(String name) {
-    return '跟随搜索 · $name';
-  }
-
-  @override
-  String searchServicesPageWebFetchFollowSubtitle(String name) {
-    return '当前：$name';
-  }
-
-  @override
-  String get searchServicesPageWebFetchLocal => '本地抓取';
-
-  @override
-  String get searchServicesPageWebFetchLocalSubtitle => '免费，由本机直接请求网页';
-
-  @override
-  String get searchServicesPageWebFetchProviderSubtitle =>
-      '使用该服务商的 API Key 和额度';
-
-  @override
-  String get searchServicesPageWebFetchOff => '关闭';
-
-  @override
-  String get searchServicesPageWebFetchOffSubtitle => '联网时只搜索，不读取网页';
-
-  @override
-  String get searchServicesPageWebFetchFooter =>
-      '开启联网搜索后，模型还可以读取网页全文。搜索服务不支持抓取时会改用本地抓取，本地抓取无法处理需要 JavaScript 渲染或有反爬限制的页面。';
-
-  @override
-  String get searchServicesPageWebFetchSupported => '支持网页抓取';
-
-  @override
   String get searchServicesPageMaxResults => '最大结果数';
 
   @override
@@ -17009,9 +17180,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get searchServicesDialogApiKey => 'API Key';
-
-  @override
-  String get searchServicesDialogApiKeyOptional => 'API Key（可选）';
 
   @override
   String get searchServicesDialogModel => '模型';
@@ -17170,31 +17338,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get searchServiceEditorTestModeSearch => '搜索';
-
-  @override
-  String get searchServiceEditorTestModeFetch => '抓取';
-
-  @override
-  String get searchServiceEditorTestUrlHint => '输入测试网址';
-
-  @override
-  String get searchServiceEditorTestFetchRun => '运行抓取测试';
-
-  @override
-  String get searchServiceEditorTestFetchRunning => '抓取中…';
-
-  @override
-  String searchServiceEditorTestFetchFailed(String message) {
-    return '抓取失败：$message';
-  }
-
-  @override
-  String searchServiceEditorTestFetchStats(String characters, String seconds) {
-    return '$characters 字符 · $seconds 秒';
-  }
-
-  @override
   String get searchServiceEditorResultOpenTooltip => '打开结果';
 
   @override
@@ -17258,13 +17401,13 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get aboutPageEasterEggButton => '好的';
 
   @override
-  String get aboutPageKelivoSearchUnlocked => '有扇没有名字的门开了一条缝。去设置里找找看。';
+  String get aboutPageCuplivoSearchUnlocked => '有扇没有名字的门开了一条缝。去设置里找找看。';
 
   @override
-  String get aboutPageKelivoSearchAlreadyUnlocked => '这扇门你已经推开过了。';
+  String get aboutPageCuplivoSearchAlreadyUnlocked => '这扇门你已经推开过了。';
 
   @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Cuplivo';
 
   @override
   String get aboutPageAppDescription => '开源 AI 助手';
@@ -17322,13 +17465,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get aboutPageJoinQQGroup => '加入QQ群';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo 一群';
-
-  @override
-  String get aboutPageQQGroupTwo => 'Kelivo 二群';
-
-  @override
-  String get aboutPageQQGroupThree => 'Kelivo 三群';
+  String get aboutPageQQGroup => 'Cuplivo 群';
 
   @override
   String get aboutPageJoinDiscord => '在 Discord 中加入我们';
@@ -17389,13 +17526,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get displaySettingsPageShowTokenStatsTitle => '显示Token和上下文统计';
 
   @override
-  String get displaySettingsPageShowTotalTokensTitle => '显示整轮累计 Token';
-
-  @override
-  String get displaySettingsPageShowTotalTokensSubtitle =>
-      '累计显示本次回复中所有 API 请求的用量。关闭时仅显示最后一次请求；统计页面始终包含所有请求。';
-
-  @override
   String get displaySettingsPageShowTokenStatsSubtitle => '显示 token 用量与消息数量';
 
   @override
@@ -17410,13 +17540,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get displaySettingsPageShowToolCardsSubtitle => '关闭后，聊天中不再显示工具调用卡片';
-
-  @override
-  String get displaySettingsShowReasoningLevelBadge => '在推理按钮上显示档位';
-
-  @override
-  String get displaySettingsShowReasoningLevelBadgeSubtitle =>
-      '在输入栏的推理图标旁显示当前档位';
 
   @override
   String get displaySettingsPageAutoCollapseThinkingTitle => '自动折叠思考';
@@ -17481,8 +17604,13 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get displaySettingsPageEnableImageCropperTitle => '启用图片裁剪';
 
   @override
-  String get displaySettingsPageEnableImageCropperSubtitle =>
-      '从相册或相机选择图片后，允许裁剪图片';
+  String get displaySettingsPageEnableImageCropperSubtitle => '预览未发送图片时可主动裁剪';
+
+  @override
+  String get draftImageCropAction => '裁剪';
+
+  @override
+  String get draftImageCropFailed => '裁剪失败，原图保持不变。';
 
   @override
   String get displaySettingsPageKeepSidebarOpenOnAssistantTapTitle =>
@@ -18259,7 +18387,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get settingsShare => 'Kelivo - 开源AI助手';
+  String get settingsShare => 'Cuplivo - 开源AI助手';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -18274,10 +18402,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get searchProviderExaDescription => '具备语义理解的神经搜索引擎。适合研究与查找特定内容。';
-
-  @override
-  String get searchProviderExaMcpDescription =>
-      '通过 MCP 使用 Exa 搜索。不填 API Key 可在免费限额内使用。';
 
   @override
   String get searchProviderLinkUpDescription =>
@@ -18315,9 +18439,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get searchServiceNameExa => 'Exa';
-
-  @override
-  String get searchServiceNameExaMcp => 'Exa MCP';
 
   @override
   String get searchServiceNameZhipu => '智谱';
@@ -18462,7 +18583,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       '最大 token 数必须介于 1024 和 32768 之间。';
 
   @override
-  String get searchServiceNameKelivo => 'Kelivo';
+  String get searchServiceNameCuplivo => 'Cuplivo';
 
   @override
   String get searchServicesDialogCountryOptional => '国家/地区（可选）';
@@ -18738,7 +18859,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get healthDataSettingsDescription =>
-      '当前助手在日常对话中可使用的 HealthKit 信号。开关表示 Kelivo 可以尝试读取该范围，实际授权仍由 iOS 管理。';
+      '当前助手在日常对话中可使用的 HealthKit 信号。开关表示 Cuplivo 可以尝试读取该范围，实际授权仍由 iOS 管理。';
 
   @override
   String healthDataSettingsBadge(int selected, int total) {
@@ -20028,7 +20149,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get legacyMemoryExport => '导出';
 
   @override
-  String get legacyMemoryExportTitle => 'Kelivo 旧版记忆导出';
+  String get legacyMemoryExportTitle => 'Cuplivo 旧版记忆导出';
 
   @override
   String legacyMemoryAssistantHeader(String name) {
@@ -20435,11 +20556,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get worldBookInjectionPositionAtDepth => '指定深度';
 
   @override
-  String worldBookImportUnsupportedEntries(int count) {
-    return '导入完成。$count 个条目使用了暂不支持的酒馆功能（如宏、正则、时效、筛选或插入规则），已保留内容并停用，请检查后再启用。';
-  }
-
-  @override
   String get worldBookInjectionRoleUser => '用户';
 
   @override
@@ -20528,28 +20644,8 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String tokenDetailFirstToken(String value) {
-    return '${value}s（首字）';
-  }
-
-  @override
   String tokenDetailTotalTokens(int count) {
     return '$count tokens';
-  }
-
-  @override
-  String tokenDetailReasoningTokens(int count) {
-    return '$count tokens';
-  }
-
-  @override
-  String tokenDetailCacheWriteTokens(int count) {
-    return '$count 缓存写入 tokens';
-  }
-
-  @override
-  String tokenDetailCost(String amount) {
-    return '$amount';
   }
 
   @override
@@ -20635,7 +20731,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get migrationIntroSubtitle =>
-      'Kelivo 将聊天记录迁移到更快的 SQLite 数据库。升级会在应用打开前完成，避免新旧数据同时写入。';
+      'Cuplivo 将聊天记录迁移到更快的 SQLite 数据库。升级会在应用打开前完成，避免新旧数据同时写入。';
 
   @override
   String get migrationBackupNote => '迁移开始前，会先导出包含设置、聊天记录和本地文件的 ZIP 备份。';
@@ -20677,14 +20773,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get migrationBackingUpSubtitle =>
-      '正在导出设置、聊天记录、上传文件、图片和字体。请保持 Kelivo 开启，等待备份完成。';
+      '正在导出设置、聊天记录、上传文件、图片和字体。请保持 Cuplivo 开启，等待备份完成。';
 
   @override
   String get migrationMigratingTitle => '正在迁移到 SQLite';
 
   @override
   String get migrationMigratingSubtitle =>
-      '正在分批写入会话和消息，避免超大聊天记录占满内存。请保持 Kelivo 在前台，等待迁移完成。';
+      '正在分批写入会话和消息，避免超大聊天记录占满内存。请保持 Cuplivo 在前台，等待迁移完成。';
 
   @override
   String migrationBackingUpDetail(String fileName) {
@@ -20743,7 +20839,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get migrationCompleteSubtitle =>
-      '你的聊天记录已迁移到 SQLite。请重启 Kelivo 进入升级后的应用。';
+      '你的聊天记录已迁移到 SQLite。请重启 Cuplivo 进入升级后的应用。';
 
   @override
   String get migrationConversationCount => '对话';
@@ -20761,7 +20857,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get migrationMissingFilesCount => '缺失文件';
 
   @override
-  String get migrationRestartButton => '重启 Kelivo';
+  String get migrationRestartButton => '重启 Cuplivo';
 
   @override
   String get migrationFailedTitle => '迁移失败';
@@ -20787,7 +20883,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get migrationSkipDialogMessage =>
-      'Kelivo 将以空的聊天数据库启动。旧的聊天记录会保留在磁盘上（重命名为 .retired 后缀），但不会被迁移，也不会在应用中显示。之后如需找回，请使用已保存的备份 ZIP。';
+      'Cuplivo 将以空的聊天数据库启动。旧的聊天记录会保留在磁盘上（重命名为 .retired 后缀），但不会被迁移，也不会在应用中显示。之后如需找回，请使用已保存的备份 ZIP。';
 
   @override
   String get migrationSkipDialogCancel => '取消';
@@ -20818,6 +20914,27 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get imageSettingsPageQualitySectionTitle => '上传图片质量';
+
+  @override
+  String get imageSettingsPageModeTitle => '压缩模式';
+
+  @override
+  String get imageSettingsPageModeManual => '手动';
+
+  @override
+  String get imageSettingsPageModeAuto => '自动';
+
+  @override
+  String get imageSettingsPageModeOff => '关闭';
+
+  @override
+  String get imageSettingsPageModeManualSubtitle => '图片按原样附加，在预览中可手动压缩';
+
+  @override
+  String get imageSettingsPageModeAutoSubtitle => '附加图片时按下方预设自动压缩';
+
+  @override
+  String get imageSettingsPageModeOffSubtitle => '图片从不压缩';
 
   @override
   String get imageSettingsPageQualityOriginal => '原图';
@@ -20862,6 +20979,78 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String get imageSettingsPageFooter =>
       '压缩在添加图片时进行，已保存或已发送的图片不受影响；压缩后图片以 JPEG 格式随消息发送。';
+
+  @override
+  String get compressEditorTitle => '压缩图片';
+
+  @override
+  String get compressEditorFormatJpeg => 'JPEG';
+
+  @override
+  String get compressEditorFormatPng => 'PNG';
+
+  @override
+  String get compressEditorFormatOriginal => '原图';
+
+  @override
+  String get compressEditorLongEdgeLabel => '长边';
+
+  @override
+  String get compressEditorLongEdgeFull => '100%';
+
+  @override
+  String get compressEditorLongEdgeHalf => '50%';
+
+  @override
+  String get compressEditorLongEdgeQuarter => '25%';
+
+  @override
+  String get compressEditorQualityLabel => '质量';
+
+  @override
+  String get compressEditorOriginalSide => '原图';
+
+  @override
+  String get compressEditorEstimating => '正在估算体积…';
+
+  @override
+  String get compressEditorEstimateFailed => '无法估算体积';
+
+  @override
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
+  }
+
+  @override
+  String get compressEditorNoReencode => '不做重编码';
+
+  @override
+  String get compressEditorDecodeFailed => '此图片无法预览，因此无法重新压缩。';
+
+  @override
+  String get compressEditorTooLarge => '此图片过大，无法在编辑器中打开，因此无法在这里重新压缩；附件将按原样保留。';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return '源图 $source，为控制内存按 $percent% 载入';
+  }
+
+  @override
+  String get compressEditorCancel => '取消';
+
+  @override
+  String get compressEditorApply => '应用';
+
+  @override
+  String get compressEditorApplyAll => '应用到全部';
+
+  @override
+  String get compressEditorDone => '完成';
 
   @override
   String get imageSettingsPageSendSectionTitle => '发送';
@@ -21195,7 +21384,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get localSnapshotEnabledTitle => '保留本地副本';
 
   @override
-  String get localSnapshotEnabledSubtitle => 'Kelivo 会定期在本机存一份数据库副本，让数据不只有一份。';
+  String get localSnapshotEnabledSubtitle => 'Cuplivo 会定期在本机存一份数据库副本，让数据不只有一份。';
 
   @override
   String get localSnapshotIntervalTitle => '备份频率';
@@ -21356,7 +21545,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String localSnapshotRestoreMessage(String when) {
-    return '当前聊天和设置将替换为 $when 的副本。替换前会保存当前聊天和设置的副本。未发送的草稿不包含在副本中，此次恢复会清除这些草稿。';
+    return '当前的对话和设置会被 $when 的这份副本替换。系统会先把现在的数据存一份，所以这一步可以撤销。';
   }
 
   @override
@@ -21852,9 +22041,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get workspaceToolTitleReadFile => '读取文件';
 
   @override
-  String get workspaceToolTitleViewImage => '查看图片';
-
-  @override
   String get workspaceToolTitleWriteFile => '写入文件';
 
   @override
@@ -21992,7 +22178,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get workspaceEnvUpToDate => '已是最新';
 
   @override
-  String get workspaceEnvRestartBanner => '请重启 Kelivo 以完成安装';
+  String get workspaceEnvRestartBanner => '请重启 Cuplivo 以完成安装';
 
   @override
   String get workspaceEnvDetectingMirrors => '正在检测最快镜像…';
@@ -22088,7 +22274,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get workspaceEnvNativeExplanation =>
-      '在桌面端，Kelivo 使用系统终端，而不是 Linux 沙箱。';
+      '在桌面端，Cuplivo 使用系统终端，而不是 Linux 沙箱。';
 
   @override
   String workspaceEnvNativeShellPath(String path) {
@@ -22997,7 +23183,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get workspaceDesktopFolderMissing => '请选择已存在的文件夹，或输入它的绝对路径。';
 
   @override
-  String get workspaceDesktopManagedHint => '由 Kelivo 为此项目创建并管理文件夹。';
+  String get workspaceDesktopManagedHint => '由 Cuplivo 为此项目创建并管理文件夹。';
 
   @override
   String get workspaceDesktopHostHint => '在本机访问文件和执行命令。';
@@ -23109,9 +23295,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get workspaceToolHelpRead => '按行读取文件内容，支持分页。';
-
-  @override
-  String get workspaceToolHelpViewImage => '让模型查看工作区中的图片内容。';
 
   @override
   String get workspaceToolHelpWrite => '创建文件或覆盖文件内容。';
@@ -23230,7 +23413,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get workspaceExternalStorageMessage =>
-      '工作区和 Shell 需要直接读写外部文件夹，请在 Android 系统设置中允许 Kelivo 访问文件。Android 11 及以上需开启“所有文件访问权限”，然后选择要挂载的本地文件夹。';
+      '工作区和 Shell 需要直接读写外部文件夹，请在 Android 系统设置中允许 Cuplivo 访问文件。Android 11 及以上需开启“所有文件访问权限”，然后选择要挂载的本地文件夹。';
 
   @override
   String get workspaceExternalGrantAccess => '前往授权';
@@ -23373,6 +23556,21 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       '在回复底部显示工具创建或修改的文件。';
 
   @override
+  String get reasoningBudgetSliderLow => 'Low';
+
+  @override
+  String get reasoningBudgetSliderMedium => 'Medium';
+
+  @override
+  String get reasoningBudgetSliderHigh => 'High';
+
+  @override
+  String get reasoningBudgetSliderXhigh => 'XHigh';
+
+  @override
+  String get reasoningBudgetSliderMax => 'Max';
+
+  @override
   String get defaultModelPagePerChatModelTitle => '每个对话独立模型';
 
   @override
@@ -23446,7 +23644,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backgroundSettingsTitle => '后台任务';
 
   @override
-  String get backgroundTaskTitle => 'Kelivo 任务';
+  String get backgroundTaskTitle => 'Cuplivo 任务';
 
   @override
   String get backgroundCompleted => '生成完成';
@@ -23575,7 +23773,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backgroundOverlayIcon => '悬浮窗图标';
 
   @override
-  String get backgroundIconDefault => 'Kelivo 图标';
+  String get backgroundIconDefault => 'Cuplivo 图标';
 
   @override
   String get backgroundIconImage => '选择图片';
@@ -23784,7 +23982,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get startupRecoverySnapshotBody =>
-      '即使数据库无法打开，也可以选择本机快照恢复聊天和设置。请勿卸载 Kelivo，卸载会一并删除这些快照。';
+      '即使数据库无法打开，也可以选择本机快照恢复聊天和设置。请勿卸载 Cuplivo，卸载会一并删除这些快照。';
 
   @override
   String get startupRecoverySnapshotEmpty => '未在本机找到数据库快照。请先导出数据，再尝试其他恢复操作。';
@@ -23794,7 +23992,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
-    return '将聊天和设置恢复到 $when 的快照？快照之后的更改不会包含在内。现有附件文件和快照会保留，Kelivo 将重启以完成恢复。';
+    return '将聊天和设置恢复到 $when 的快照？快照之后的更改不会包含在内。现有附件文件和快照会保留，Cuplivo 将重启以完成恢复。';
   }
 
   @override
@@ -23803,7 +24001,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get startupRecoverySnapshotReady => '快照已准备好，请重启 Kelivo 完成恢复。';
+  String get startupRecoverySnapshotReady => '快照已准备好，请重启 Cuplivo 完成恢复。';
 
   @override
   String get scheduledTasksTitle => '定时任务';
@@ -23874,7 +24072,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksReliability =>
-      '建议在电池设置中允许 Kelivo 后台运行。强行停止后需重新打开应用。错过的任务不会补跑，执行时间跟随设备时区。';
+      '建议在电池设置中允许 Cuplivo 后台运行。强行停止后需重新打开应用。错过的任务不会补跑，执行时间跟随设备时区。';
 
   @override
   String get scheduledTasksExecutionDetail =>
@@ -24051,7 +24249,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksDesktopReliability =>
-      '仅在 Kelivo 运行时执行，最小化或驻留托盘时也会继续。退出或电脑休眠期间错过的任务不会补运行，也不会自动启动应用。';
+      '仅在 Cuplivo 运行时执行，最小化或驻留托盘时也会继续。退出或电脑休眠期间错过的任务不会补运行，也不会自动启动应用。';
 
   @override
   String get scheduledTasksDesktopExecutionDetail =>
@@ -24271,11 +24469,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String oauthUsedValue(String value) {
-    return '已用 $value';
-  }
-
-  @override
   String get oauthNetworkError => '连接失败，请检查网络后重试。';
 
   @override
@@ -24346,7 +24539,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksIOSDetail =>
-      '受 iOS 后台限制，Kelivo 不能在指定时间自动唤醒并运行模型。此功能会在 App 可运行时提前准备内容，由系统到点展示通知。每次仅准备下一次结果；离开 App 后不保证准备完成，后续任务需再次打开 Kelivo 才能补充。';
+      '受 iOS 后台限制，Cuplivo 不能在指定时间自动唤醒并运行模型。此功能会在 App 可运行时提前准备内容，由系统到点展示通知。每次仅准备下一次结果；离开 App 后不保证准备完成，后续任务需再次打开 Cuplivo 才能补充。';
 
   @override
   String get scheduledTasksContextPolicy => '对话上下文';
@@ -24410,7 +24603,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get scheduledTasksCancelled => '已取消';
 
   @override
-  String get scheduledTasksReminderBody => '定时任务已到期，打开 Kelivo 继续。';
+  String get scheduledTasksReminderBody => '定时任务已到期，打开 Cuplivo 继续。';
 
   @override
   String get scheduledTasksResultBody => '定时任务结果已准备好。';
@@ -24424,7 +24617,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksAllowPreparationTip =>
-      '在 Kelivo 可运行时，提前生成下一次任务的结果，到期前不会显示在聊天中。仅使用文字，不使用工具、附件或自定义请求体；调用模型可能产生费用。';
+      '在 Cuplivo 可运行时，提前生成下一次任务的结果，到期前不会显示在聊天中。仅使用文字，不使用工具、附件或自定义请求体；调用模型可能产生费用。';
 
   @override
   String get scheduledTasksContextPolicyTip =>
@@ -24432,7 +24625,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksPreparationWindowTip =>
-      '允许在任务到期前多久开始准备，最长 24 小时。例如第二天早上提醒，前一天中午打开 Kelivo 时就有机会准备。时间越长，准备机会越多，但内容也可能更早过时。不会改变任务时间，也不代表能在后台定时运行。「立刻准备」不受这项自动等待和准备次数上限限制。';
+      '允许在任务到期前多久开始准备，最长 24 小时。例如第二天早上提醒，前一天中午打开 Cuplivo 时就有机会准备。时间越长，准备机会越多，但内容也可能更早过时。不会改变任务时间，也不代表能在后台定时运行。「立刻准备」不受这项自动等待和准备次数上限限制。';
 
   @override
   String get scheduledTasksPreparationAttemptsTip =>
@@ -24444,7 +24637,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksUnavailableTip =>
-      '到期时没有可用结果、也无法运行任务，就发送提醒或跳过本次。提醒不包含模型生成的回答，且需要开启通知。如果到期时 Kelivo 正在打开运行，可直接执行任务。';
+      '到期时没有可用结果、也无法运行任务，就发送提醒或跳过本次。提醒不包含模型生成的回答，且需要开启通知。如果到期时 Cuplivo 正在打开运行，可直接执行任务。';
 
   @override
   String get scheduledTasksNotifyTip =>
@@ -24620,17 +24813,1216 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get phoneControlAssistantHint =>
-      '需要同时完成两项设置：在系统无障碍设置中启用“Kelivo 手机控制”，并在要使用的助手 → 本地工具中开启“手机控制”（也可从对话工具菜单开启）。每个助手单独配置，执行任务时请保持手机解锁。';
+      '需要同时完成两项设置：在系统无障碍设置中启用“Cuplivo 手机控制”，并在要使用的助手 → 本地工具中开启“手机控制”（也可从对话工具菜单开启）。每个助手单独配置，执行任务时请保持手机解锁。';
 
   @override
   String get phoneControlRestrictedTitle => '无法开启无障碍？';
 
   @override
   String get phoneControlRestrictedHint =>
-      '部分下载的 APK 需要先在应用信息右上角菜单中选择“允许受限制的设置”。点击打开 Kelivo 应用信息，完成后再返回无障碍设置。';
+      '部分下载的 APK 需要先在应用信息右上角菜单中选择“允许受限制的设置”。点击打开 Cuplivo 应用信息，完成后再返回无障碍设置。';
 
   @override
   String get phoneControlEnableAssistant => '允许此助手使用手机控制';
+
+  @override
+  String get settingsPageLanSync => '局域网同步';
+
+  @override
+  String get lanSyncThisDevice => '本设备';
+
+  @override
+  String get lanSyncDeviceIdLabel => '设备 ID';
+
+  @override
+  String get lanSyncListenerStarting => '正在启动监听…';
+
+  @override
+  String get lanSyncListenerNotRunning => '监听未运行';
+
+  @override
+  String lanSyncListenerFailed(Object error) {
+    return '监听启动失败：$error';
+  }
+
+  @override
+  String get lanSyncPairSectionTitle => '配对设备';
+
+  @override
+  String get lanSyncPairFirstSyncNote =>
+      '配对成功后会自动开始首次同步，可能耗时较长。请保持电脑端应用运行，手机端保持在本应用前台。';
+
+  @override
+  String get lanSyncPairIntro => '在一台设备上显示二维码，用另一台扫描；没有摄像头时输入配对码。两台设备需在同一网络。';
+
+  @override
+  String get lanSyncShowCode => '显示配对二维码';
+
+  @override
+  String get lanSyncEnterCode => '扫码或输入配对码';
+
+  @override
+  String get lanSyncPairingCode => '配对码';
+
+  @override
+  String lanSyncPairingExpiresIn(Object time) {
+    return '$time 后失效';
+  }
+
+  @override
+  String get lanSyncPairingEndpointHint => '在另一台设备上输入以下地址';
+
+  @override
+  String get lanSyncPairingNoIpHint => '未找到局域网地址。另一台设备仍可凭本机的 IP 或主机名连接。';
+
+  @override
+  String get lanSyncHostLabel => '地址';
+
+  @override
+  String get lanSyncPortLabel => '端口';
+
+  @override
+  String get lanSyncPairButton => '配对';
+
+  @override
+  String get lanSyncPairAgain => '重新配对';
+
+  @override
+  String get lanSyncPairingBusy => '配对中…';
+
+  @override
+  String lanSyncPairSuccess(Object name) {
+    return '已与 $name 配对';
+  }
+
+  @override
+  String get lanSyncPairErrorInvalidPin => '配对码错误，或对方的配对窗口已关闭。';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress => '请填写对方设备的地址和端口。';
+
+  @override
+  String get lanSyncPairErrorUnreachable => '无法连接到该设备。请检查地址与端口，并确认两台设备在同一网络。';
+
+  @override
+  String get lanSyncPairErrorNoCertificate => '对方未能出示身份，配对已中止。';
+
+  @override
+  String get lanSyncPairErrorIdMismatch => '无法核实对方身份，配对已中止。';
+
+  @override
+  String get lanSyncPairErrorNoListener => '本设备的同步监听尚未启动。';
+
+  @override
+  String lanSyncPairErrorUnknown(Object error) {
+    return '配对失败：$error';
+  }
+
+  @override
+  String get lanSyncScanQr => '扫描配对二维码';
+
+  @override
+  String get lanSyncPairQrCaption => '扫码配对，或在另一台设备输入下方信息';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return '已更新与 $name 的配对';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch => '设备证书与二维码不符，已中止配对。';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr => '二维码中没有可用地址，请在下方输入地址完成配对。';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr => '这不是 Cuplivo 的配对二维码。';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => '配对二维码内容无法解析。';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion => '二维码版本较新，请更新应用后重试。';
+
+  @override
+  String get lanSyncClosePairing => '关闭配对窗口';
+
+  @override
+  String get lanSyncPairedDevices => '已配对设备';
+
+  @override
+  String get lanSyncNoDevices => '还没有已配对的设备。配对后即可开始同步。';
+
+  @override
+  String get lanSyncPlatformAndroid => 'Android';
+
+  @override
+  String get lanSyncPlatformIos => 'iOS';
+
+  @override
+  String get lanSyncPlatformWindows => 'Windows';
+
+  @override
+  String get lanSyncPlatformMacos => 'macOS';
+
+  @override
+  String get lanSyncPlatformLinux => 'Linux';
+
+  @override
+  String get lanSyncPlatformUnknown => '未知设备';
+
+  @override
+  String lanSyncLastSyncedAt(Object time) {
+    return '上次同步 $time';
+  }
+
+  @override
+  String get lanSyncNeverSynced => '从未同步';
+
+  @override
+  String get lanSyncJustSynced => '刚刚同步';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n 分钟前';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n 小时前';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n 天前';
+  }
+
+  @override
+  String get lanSyncSyncNow => '立即同步';
+
+  @override
+  String get lanSyncOnline => '在线';
+
+  @override
+  String get lanSyncOnlineFromSession => '在线——上次同步成功连上';
+
+  @override
+  String get lanSyncOfflineFromSession => '离线——上次同步没能连上';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return '正在连接 $address…';
+  }
+
+  @override
+  String lanSyncPhaseConnectingAt(Object address, Object index, Object total) {
+    return '正在连接 $address…（$index/$total）';
+  }
+
+  @override
+  String get lanSyncOffline => '离线';
+
+  @override
+  String get lanSyncUpToDate => '已是最新';
+
+  @override
+  String get lanSyncPhaseConnecting => '正在连接…';
+
+  @override
+  String get lanSyncPhaseExchanging => '正在对比数据…';
+
+  @override
+  String get lanSyncPhaseSending => '正在发送变更…';
+
+  @override
+  String get lanSyncPhaseReceiving => '正在接收变更…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return '正在下载文件…（$done/$total）';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => '正在下载文件…';
+
+  @override
+  String get lanSyncPhaseApplying => '正在应用变更…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      '首次同步进行中——请保持两台设备唤醒、Cuplivo 保持开启（手机端请保持前台），直到同步完成。';
+
+  @override
+  String get lanSyncRename => '重命名';
+
+  @override
+  String get lanSyncRenameTitle => '设备名称';
+
+  @override
+  String get lanSyncEditAddress => '修改地址';
+
+  @override
+  String get lanSyncAddressCopied => '地址已复制';
+
+  @override
+  String get lanSyncUnpair => '取消配对';
+
+  @override
+  String lanSyncUnpairConfirmTitle(Object name) {
+    return '取消与 $name 的配对？';
+  }
+
+  @override
+  String get lanSyncUnpairConfirmBody => '对话在两台设备上都会保留，只是不再与它同步，直到重新配对。';
+
+  @override
+  String lanSyncReportSent(Object n) {
+    return '发送 $n';
+  }
+
+  @override
+  String lanSyncReportReceived(Object n) {
+    return '接收 $n';
+  }
+
+  @override
+  String lanSyncReportMessagesUpserted(Object n) {
+    return '+$n 条消息';
+  }
+
+  @override
+  String lanSyncReportMessagesDeleted(Object n) {
+    return '-$n 条消息';
+  }
+
+  @override
+  String lanSyncReportConversationsDeleted(Object n) {
+    return '-$n 个对话';
+  }
+
+  @override
+  String lanSyncReportDeferred(Object n) {
+    return '$n 项延后';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n 个实体';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n 项偏好';
+  }
+
+  @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n 个文件 · $size';
+  }
+
+  @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n 个文件';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n 个技能';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n 处技能修改被覆盖';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n 个文件在对方设备上缺失';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n 条本地记录被对端更新的版本覆盖';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return '两台设备的时钟相差约 $n 分钟，请校准设备时钟后重新同步';
+  }
+
+  @override
+  String get lanSyncReportPeerOffline =>
+      '暂时连不上——对方可能已休眠或换了网络；两台设备回到同一网络后会自动同步。';
+
+  @override
+  String get lanSyncReportUnreachable =>
+      '同步失败：无法连接到对方设备。它可能已离线或换了网络——重新扫描它的二维码，或在卡片上修改地址。';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      '同步失败：没有记录对方设备的地址。请重新扫描它的二维码，或在卡片上填写地址。';
+
+  @override
+  String get lanSyncReportTimeout => '同步失败：对方设备停止响应。';
+
+  @override
+  String get lanSyncReportPeerError => '同步失败：对方设备报告了错误。';
+
+  @override
+  String get lanSyncReportInternal => '同步失败，详情见日志。';
+
+  @override
+  String get lanSyncRefusedPeerSchemaNewer => '对方数据库版本较新。请先更新本设备再同步。';
+
+  @override
+  String get lanSyncRefusedProtocolUnknown => '对方使用不同的同步协议。请将两台设备都更新到最新版本。';
+
+  @override
+  String get lanSyncRefusedNotPaired =>
+      '本设备与对方对这次配对的记录已不一致——对方解除了配对，或重新配对没有在两台设备上完成。请在两台设备上重新配对。';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch => '对方设备的身份不一致。请在两台设备上重新配对。';
+
+  @override
+  String get lanSyncRefusedBusy => '另一个同步会话正在进行，请稍后再试。';
+
+  @override
+  String get lanSyncFirewallTitle => 'Windows 防火墙';
+
+  @override
+  String lanSyncFirewallHint(Object port) {
+    return '端口 $port 的入站规则需要一次管理员授权。';
+  }
+
+  @override
+  String get lanSyncFirewallFix => '允许访问（UAC）';
+
+  @override
+  String get lanSyncFirewallFixed => '入站访问已允许。';
+
+  @override
+  String get lanSyncKnownLimits => '目前：工作区仍只留在创建它的设备上；PIN 配对请仅在可信网络中使用。';
+
+  @override
+  String get assistantEditProactiveCareEnableTitle => '主动关怀';
+
+  @override
+  String get assistantEditProactiveCareDefaultDescription => '未单独设置的对话默认跟随此开关';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      '时间决策所用消息条数';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      '决定下次主动发消息时间时，最多发送给决策模型的最近历史消息数量';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle => '各对话下次来信时间';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations => '此助手暂无已开启的对话';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return '未来 · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return '已过期 · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => '未设置';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android 运行条件';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => '通知';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => '精确闹钟';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => '自启动';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle => '忽略电池优化';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => '必需';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => '建议';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => '已就绪';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => '点击获取权限';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => '需手动确认';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => '未知';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeTitle => '下次助手主动发消息时间';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeUnset => '未设置';
+
+  @override
+  String get assistantEditProactiveCarePromptTitle => '主动关怀提示词';
+
+  @override
+  String get assistantEditProactiveCarePromptHint => '助手主动发消息时使用的提示词';
+
+  @override
+  String get assistantEditProactiveCarePromptDefault =>
+      '请根据助手的角色设定、上下文、以及目前时间，给用户发一条消息';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptTitle => '决策时间功能说明提示词';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptDefault =>
+      '你是一个角色扮演场景的导演，负责判断助手（assistant）下一次应主动向用户发消息的时间。\n\n【功能说明】\n· 主动发消息：助手可在设定时间主动向用户发送消息，无需用户提问。\n· 若不设置主动发消息的时间，则助手无法在用户不发言的情况下主动发送任何消息。\n· 你需要评估当前设定的下次发消息时间：若认为无需调整，则保持原时间；否则进行修改。\n\n【注意】\n· 只考虑助手的视角看到的信息，不考虑用户的视角。\n\n【考虑角度】\n1. 助手在睡醒、完成某件事、安全回到宿舍等情况下，应主动向用户报备或打招呼。\n2. 若上下文中提到助手因睡着、忙碌等原因未能及时查看用户的消息，则应设定在助手睡醒或忙完后，主动给用户发一条消息。\n3. 若上下文中提到助手需要在某个时间点监督或提醒用户，则设定在该时间点主动发消息。\n4. 当一个话题尚未聊完时，需要假设：用户在助手最后一条消息发出后始终没有回复，那么助手应在什么时间主动发消息？请据此设定时间。\n\n【示例】\n1. 聊天记录中，用户凌晨发消息称自己失眠，预计早上10:30起床，但助手没有失眠，会按正常时间（如8:30）起床。此时应将主动发消息时间设为助手的起床时间。\n2. 聊天记录中，用户与助手正在聊考试话题。你在8:30看到的最后一条消息是助手在8:30发出的一个提问。依据第4条规则，需考虑用户一直未回复的情况，助手应在10分钟之内主动发消息追问。';
+
+  @override
+  String get assistantEditProactiveCareDateTimePickerTitle => '选择日期和时间';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture => '请选择未来的时间。';
+
+  @override
+  String get conversationProactiveCareTitle => '对话主动关怀';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn => '跟随助手设置：已开启';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff => '跟随助手设置：已关闭';
+
+  @override
+  String get conversationProactiveCareExplicitOn => '对话设置：已开启';
+
+  @override
+  String get conversationProactiveCareExplicitOff => '对话设置：已关闭';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing => '跟随助手设置';
+
+  @override
+  String get conversationProactiveCareClearTime => '清除下次发消息时间';
+
+  @override
+  String get conversationProactiveCareUpdateFailed => '无法更新对话主动关怀设置。';
+
+  @override
+  String get defaultModelPageProactiveCareModelTitle => 'Ta的来信决策模型';
+
+  @override
+  String get defaultModelPageProactiveCareModelSubtitle => '用于决定助手何时主动发消息的模型';
+
+  @override
+  String get proactiveCareFailedNotificationBody =>
+      '主动关怀消息生成失败，请打开应用检查模型配置与网络。';
+
+  @override
+  String get proactiveCareLetterArrivalBody => 'Ta的来信已到达，打开应用即可查看。';
+
+  @override
+  String get assistantEditPageRoleplayTab => '角色扮演';
+
+  @override
+  String get assistantEditProactiveCareFeatureTitle => 'Ta的来信';
+
+  @override
+  String statsPageCost(String currency) {
+    return '费用 ($currency)';
+  }
+
+  @override
+  String statsPageModelsWithoutPricing(int count) {
+    return '$count 个模型无定价';
+  }
+
+  @override
+  String get assistantEditReasoningFollowDefault => '跟随模型默认';
+
+  @override
+  String get assistantEditReasoningClampedSubtitle => '实际档位会按各模型的能力收敛';
+
+  @override
+  String get backupProgressFailed => '操作失败';
+
+  @override
+  String backupProgressFailedAt(String phase) {
+    return '失败阶段：$phase';
+  }
+
+  @override
+  String get backupProgressCopyError => '复制错误';
+
+  @override
+  String get backupProgressErrorCopied => '错误已复制';
+
+  @override
+  String get reasoningLevelSheetTitle => '推理';
+
+  @override
+  String get reasoningLevelAuto => '自动';
+
+  @override
+  String get reasoningLevelAutoSubtitle => '使用模型或供应商的默认设置';
+
+  @override
+  String get reasoningLevelOff => '关闭';
+
+  @override
+  String get reasoningLevelOffSubtitle => '关闭推理，直接回答';
+
+  @override
+  String get reasoningLevelMinimal => '最低';
+
+  @override
+  String get reasoningLevelMinimalSubtitle => '使用极少推理来回答问题';
+
+  @override
+  String get reasoningLevelLow => '低';
+
+  @override
+  String get reasoningLevelLowSubtitle => '使用少量推理来回答问题';
+
+  @override
+  String get reasoningLevelMedium => '中';
+
+  @override
+  String get reasoningLevelMediumSubtitle => '使用较多推理来回答问题';
+
+  @override
+  String get reasoningLevelHigh => '高';
+
+  @override
+  String get reasoningLevelHighSubtitle => '使用大量推理来回答问题，适合复杂问题';
+
+  @override
+  String get reasoningLevelXhigh => '极高';
+
+  @override
+  String get reasoningLevelXhighSubtitle => '使用很高推理深度，适合更复杂的问题';
+
+  @override
+  String get reasoningLevelMax => '最大';
+
+  @override
+  String get reasoningLevelMaxSubtitle => '使用最大推理深度，适合最复杂的问题';
+
+  @override
+  String get reasoningLevelFollowModelDefaultSubtitle => '使用模型或助手未设置时的默认档位';
+
+  @override
+  String get reasoningLevelNoReasoning => '此模型不支持推理';
+
+  @override
+  String get reasoningLevelCustomBudget => '自定义推理预算';
+
+  @override
+  String get reasoningLevelCustomBudgetHint => '例如：2048';
+
+  @override
+  String get reasoningLevelCompactMin => 'min';
+
+  @override
+  String get reasoningLevelCompactLow => 'low';
+
+  @override
+  String get reasoningLevelCompactMid => 'mid';
+
+  @override
+  String get reasoningLevelCompactHigh => 'high';
+
+  @override
+  String get reasoningLevelCompactXhigh => 'xhigh';
+
+  @override
+  String get reasoningLevelCompactMax => 'max';
+
+  @override
+  String reasoningLevelBudgetTokens(String budget) {
+    return '$budget tokens';
+  }
+
+  @override
+  String chatMessageWidgetWebFetch(String target) {
+    return '读取网页: $target';
+  }
+
+  @override
+  String get chatInputBarVoiceAttachAudioTooltip => '停止并存为音频';
+
+  @override
+  String get chatInputBarVoiceSendAudioTooltip => '直接发送录音';
+
+  @override
+  String get chatInputBarVoiceSavingAudio => '正在保存录音…';
+
+  @override
+  String get audioClipPlayTooltip => '播放音频';
+
+  @override
+  String get audioClipPauseTooltip => '暂停';
+
+  @override
+  String get audioClipPlaybackFailed => '无法播放此音频';
+
+  @override
+  String get contextUsageTitle => '上下文窗口';
+
+  @override
+  String get contextUsageStateExact => '精确（来自上次响应）';
+
+  @override
+  String get contextUsageStateExactCalibrated => '精确（分项按估算比例）';
+
+  @override
+  String get contextUsageStateEstimated => '估算';
+
+  @override
+  String get contextUsageStateStale => '已过时，正在更新…';
+
+  @override
+  String get contextUsageStateComputing => '计算中…';
+
+  @override
+  String get contextUsageStateNone => '暂无数据';
+
+  @override
+  String get contextUsageBucketSystem => '系统提示词';
+
+  @override
+  String get contextUsageBucketInjections => '指令注入';
+
+  @override
+  String get contextUsageBucketHistory => '历史消息';
+
+  @override
+  String get contextUsageBucketTools => '内置工具';
+
+  @override
+  String get contextUsageBucketMemory => '记忆';
+
+  @override
+  String get contextUsageBucketWorldBook => '世界书';
+
+  @override
+  String get contextUsageBucketSkills => '技能';
+
+  @override
+  String get contextUsageBucketWorkspace => '工作区';
+
+  @override
+  String get contextUsageBucketSearch => '搜索提示';
+
+  @override
+  String get contextUsageBucketMcpTools => 'MCP 工具';
+
+  @override
+  String get contextUsageBucketAttachments => '附件';
+
+  @override
+  String get contextUsageBucketDraft => '草稿';
+
+  @override
+  String get contextUsageBucketUsed => '已用';
+
+  @override
+  String get contextUsageFreeSpace => '剩余空间';
+
+  @override
+  String contextUsageUsedWindow(String used, String window, int percent) {
+    return '$used / $window ($percent%)';
+  }
+
+  @override
+  String get contextUsageNoWindow => '未设置上下文窗口';
+
+  @override
+  String get contextUsageSetWindow => '设置上下文窗口';
+
+  @override
+  String get contextUsageRefresh => '刷新';
+
+  @override
+  String get modelSpecFormSourceCustom => '自定义';
+
+  @override
+  String get modelSpecFormSourceCatalog => '目录';
+
+  @override
+  String get modelSpecFormSourceInferred => '推断';
+
+  @override
+  String get modelSpecFormSourceDefault => '默认';
+
+  @override
+  String get modelSpecFormReset => '重置为默认';
+
+  @override
+  String get modelSpecFormModalitiesSection => '模态与能力';
+
+  @override
+  String get modelSpecFormImageType => '图像';
+
+  @override
+  String get modelSpecFormAudioMode => '音频';
+
+  @override
+  String get modelSpecFormVideoMode => '视频';
+
+  @override
+  String get modelSpecFormPdfMode => 'PDF';
+
+  @override
+  String get modelSpecFormStructuredOutputAbility => '结构化输出';
+
+  @override
+  String get modelSpecFormReasoningSection => '推理';
+
+  @override
+  String get modelSpecFormDialect => '推理方言';
+
+  @override
+  String get modelSpecFormDialectNone => '无';
+
+  @override
+  String get modelSpecFormDialectNoneSubtitle => '不写入推理字段';
+
+  @override
+  String get modelSpecFormDialectOpenaiReasoningEffort =>
+      'OpenAI reasoning effort';
+
+  @override
+  String get modelSpecFormDialectOpenaiReasoningEffortSubtitle =>
+      'reasoning_effort';
+
+  @override
+  String get modelSpecFormDialectOpenaiResponsesReasoning =>
+      'OpenAI Responses reasoning';
+
+  @override
+  String get modelSpecFormDialectOpenaiResponsesReasoningSubtitle =>
+      'reasoning.effort';
+
+  @override
+  String get modelSpecFormDialectOpenrouterReasoning => 'OpenRouter reasoning';
+
+  @override
+  String get modelSpecFormDialectOpenrouterReasoningSubtitle => 'reasoning';
+
+  @override
+  String get modelSpecFormDialectAnthropicBudget => 'Anthropic budget';
+
+  @override
+  String get modelSpecFormDialectAnthropicBudgetSubtitle =>
+      'thinking.budget_tokens';
+
+  @override
+  String get modelSpecFormDialectAnthropicAdaptiveEffort =>
+      'Anthropic adaptive effort';
+
+  @override
+  String get modelSpecFormDialectAnthropicAdaptiveEffortSubtitle =>
+      'thinking + output_config.effort';
+
+  @override
+  String get modelSpecFormDialectAnthropicEffort => 'Anthropic effort';
+
+  @override
+  String get modelSpecFormDialectAnthropicEffortSubtitle =>
+      'thinking + output_config.effort';
+
+  @override
+  String get modelSpecFormDialectGeminiThinkingBudget =>
+      'Gemini thinking budget';
+
+  @override
+  String get modelSpecFormDialectGeminiThinkingBudgetSubtitle =>
+      'thinkingConfig.thinkingBudget';
+
+  @override
+  String get modelSpecFormDialectGeminiThinkingLevel => 'Gemini thinking level';
+
+  @override
+  String get modelSpecFormDialectGeminiThinkingLevelSubtitle =>
+      'thinkingConfig.thinkingLevel';
+
+  @override
+  String get modelSpecFormDialectQwenEnableThinking => 'Qwen enable thinking';
+
+  @override
+  String get modelSpecFormDialectQwenEnableThinkingSubtitle =>
+      'enable_thinking';
+
+  @override
+  String get modelSpecFormDialectThinkingType => 'Thinking type';
+
+  @override
+  String get modelSpecFormDialectThinkingTypeSubtitle => 'thinking.type';
+
+  @override
+  String get modelSpecFormDialectSiliconflowEnableThinking =>
+      'SiliconFlow enable thinking';
+
+  @override
+  String get modelSpecFormDialectSiliconflowEnableThinkingSubtitle =>
+      'enable_thinking';
+
+  @override
+  String get modelSpecFormDialectInternThinkingMode => 'Intern thinking mode';
+
+  @override
+  String get modelSpecFormDialectInternThinkingModeSubtitle => 'thinking_mode';
+
+  @override
+  String get modelSpecFormDialectChatTemplateKwargs => 'Chat template kwargs';
+
+  @override
+  String get modelSpecFormDialectChatTemplateKwargsSubtitle =>
+      'chat_template_kwargs.enable_thinking';
+
+  @override
+  String get modelSpecFormDialectKimiThinking => 'Kimi thinking';
+
+  @override
+  String get modelSpecFormDialectKimiThinkingSubtitle => 'thinking';
+
+  @override
+  String get modelSpecFormDialectCustom => '自定义 JSON';
+
+  @override
+  String get modelSpecFormDialectCustomSubtitle => '按级别写入 JSON 补丁';
+
+  @override
+  String get modelSpecFormLevels => '支持的级别';
+
+  @override
+  String get modelSpecFormCanDisable => '允许关闭';
+
+  @override
+  String get modelSpecFormDefaultLevel => '默认级别';
+
+  @override
+  String get modelSpecFormBudgets => 'Token 预算';
+
+  @override
+  String modelSpecFormBudgetPlaceholder(String tokens) {
+    return '$tokens';
+  }
+
+  @override
+  String modelSpecFormCustomPatch(String level) {
+    return 'JSON 补丁（$level）';
+  }
+
+  @override
+  String get modelSpecFormCustomPatchHint => '例如 reasoning_effort: high';
+
+  @override
+  String get modelSpecFormInvalidJson => '自定义推理补丁必须是有效的 JSON 对象';
+
+  @override
+  String get modelSpecFormInvalidNumber => '请输入有效数字';
+
+  @override
+  String get modelSpecFormStrategySection => '策略';
+
+  @override
+  String get modelSpecFormSampling => '采样';
+
+  @override
+  String get modelSpecFormRequestQuirks => '请求兼容';
+
+  @override
+  String get modelSpecFormDynamicWebSearch => '动态过滤搜索工具';
+
+  @override
+  String get modelSpecFormDynamicWebSearchSubtitle =>
+      '开启动态过滤时，使用 2026-03-18 版网页搜索与抓取工具';
+
+  @override
+  String get modelSpecFormRemoteImageUrls => '远程图片链接';
+
+  @override
+  String get modelSpecFormRemoteImageUrlsSubtitle =>
+      '直接发送 http(s) 图片链接；关闭后丢弃远程链接，只发送本地图片';
+
+  @override
+  String get modelSpecFormPromptCacheControl => '提示缓存标记';
+
+  @override
+  String get modelSpecFormPromptCacheControlSubtitle =>
+      '开启提示缓存时，在 OpenRouter 请求中加入 cache_control';
+
+  @override
+  String get modelSpecFormSamplingAlways => '始终保留';
+
+  @override
+  String get modelSpecFormSamplingAlwaysSubtitle => '保留 temperature 等采样字段';
+
+  @override
+  String get modelSpecFormSamplingOnlyWhenReasoningOff => '仅在关闭推理时';
+
+  @override
+  String get modelSpecFormSamplingOnlyWhenReasoningOffSubtitle => '模型思考时移除采样字段';
+
+  @override
+  String get modelSpecFormSamplingNever => '从不';
+
+  @override
+  String get modelSpecFormSamplingNeverSubtitle => '始终移除采样字段';
+
+  @override
+  String get modelSpecFormReplay => '推理回放';
+
+  @override
+  String get modelSpecFormReplayNone => '无';
+
+  @override
+  String get modelSpecFormReplayNoneSubtitle => '不把先前推理发回模型';
+
+  @override
+  String get modelSpecFormReplayToolTurns => '工具轮次';
+
+  @override
+  String get modelSpecFormReplayToolTurnsSubtitle => '仅在工具调用轮次回放推理';
+
+  @override
+  String get modelSpecFormReplayAll => '全部';
+
+  @override
+  String get modelSpecFormReplayAllSubtitle => '每一轮后续请求都回放推理';
+
+  @override
+  String get modelSpecFormReplayField => '回放字段';
+
+  @override
+  String get modelSpecFormReplayFieldReasoningContent => 'reasoning_content';
+
+  @override
+  String get modelSpecFormReplayFieldReasoning => 'reasoning';
+
+  @override
+  String get modelSpecFormReplayFieldReasoningDetails => 'reasoning_details';
+
+  @override
+  String get modelSpecFormLimitsSection => '限额';
+
+  @override
+  String get modelSpecFormLimitsPricingSection => '限额与定价';
+
+  @override
+  String get modelSpecFormContextWindow => '上下文窗口';
+
+  @override
+  String get modelSpecFormMaxOutput => '最大输出';
+
+  @override
+  String get modelSpecFormPricingSection => '定价 / 1M';
+
+  @override
+  String get modelSpecFormPricingInput => '输入';
+
+  @override
+  String get modelSpecFormPricingOutput => '输出';
+
+  @override
+  String get modelSpecFormPricingCacheRead => '缓存读取';
+
+  @override
+  String get modelSpecFormPricingCacheWrite => '缓存写入';
+
+  @override
+  String get modelSpecFormCurrency => '货币';
+
+  @override
+  String get modelSpecFormAdvancedSection => '请求';
+
+  @override
+  String get providerDetailPagePromptCacheKeyTitle => '发送会话缓存键';
+
+  @override
+  String get providerDetailPagePromptCacheKeyHelp =>
+      '为 OpenAI 兼容请求附加稳定的会话级 prompt_cache_key。仅在供应商支持时开启，自定义 Body 优先，不保证缓存命中。';
+
+  @override
+  String get modelCatalogTitle => '模型目录';
+
+  @override
+  String modelCatalogSourceBundled(String date) {
+    return '内置快照 · $date';
+  }
+
+  @override
+  String modelCatalogSourceRemote(String date) {
+    return 'models.dev · 更新于 $date';
+  }
+
+  @override
+  String get modelCatalogAutoUpdate => '每 24 小时自动更新';
+
+  @override
+  String get modelCatalogRefresh => '立即更新';
+
+  @override
+  String get modelCatalogUpdated => '模型目录已更新';
+
+  @override
+  String modelCatalogRefreshFailed(String error) {
+    return '更新失败：$error';
+  }
+
+  @override
+  String modelCatalogProviderCount(int count) {
+    return '$count 个供应商';
+  }
+
+  @override
+  String modelCatalogModelCount(int count) {
+    return '$count 个模型';
+  }
+
+  @override
+  String get searchServicesPageWebFetchSection => '网页抓取';
+
+  @override
+  String get searchServicesPageWebFetchModeTitle => '抓取方式';
+
+  @override
+  String get searchServicesPageWebFetchFollow => '跟随搜索服务';
+
+  @override
+  String searchServicesPageWebFetchFollowValue(String name) {
+    return '跟随搜索 · $name';
+  }
+
+  @override
+  String searchServicesPageWebFetchFollowSubtitle(String name) {
+    return '当前：$name';
+  }
+
+  @override
+  String get searchServicesPageWebFetchLocal => '本地抓取';
+
+  @override
+  String get searchServicesPageWebFetchLocalSubtitle => '免费，由本机直接请求网页';
+
+  @override
+  String get searchServicesPageWebFetchProviderSubtitle =>
+      '使用该服务商的 API Key 和额度';
+
+  @override
+  String get searchServicesPageWebFetchOff => '关闭';
+
+  @override
+  String get searchServicesPageWebFetchOffSubtitle => '联网时只搜索，不读取网页';
+
+  @override
+  String get searchServicesPageWebFetchFooter =>
+      '开启联网搜索后，模型还可以读取网页全文。搜索服务不支持抓取时会改用本地抓取，本地抓取无法处理需要 JavaScript 渲染或有反爬限制的页面。';
+
+  @override
+  String get searchServicesPageWebFetchSupported => '支持网页抓取';
+
+  @override
+  String get searchServicesDialogApiKeyOptional => 'API Key（可选）';
+
+  @override
+  String get searchServiceEditorTestModeSearch => '搜索';
+
+  @override
+  String get searchServiceEditorTestModeFetch => '抓取';
+
+  @override
+  String get searchServiceEditorTestUrlHint => '输入测试网址';
+
+  @override
+  String get searchServiceEditorTestFetchRun => '运行抓取测试';
+
+  @override
+  String get searchServiceEditorTestFetchRunning => '抓取中…';
+
+  @override
+  String searchServiceEditorTestFetchFailed(String message) {
+    return '抓取失败：$message';
+  }
+
+  @override
+  String searchServiceEditorTestFetchStats(String characters, String seconds) {
+    return '$characters 字符 · $seconds 秒';
+  }
+
+  @override
+  String get displaySettingsPageShowTotalTokensTitle => '显示整轮累计 Token';
+
+  @override
+  String get displaySettingsPageShowTotalTokensSubtitle =>
+      '累计显示本次回复中所有 API 请求的用量。关闭时仅显示最后一次请求；统计页面始终包含所有请求。';
+
+  @override
+  String get displaySettingsShowReasoningLevelBadge => '在推理按钮上显示档位';
+
+  @override
+  String get displaySettingsShowReasoningLevelBadgeSubtitle =>
+      '在输入栏的推理图标旁显示当前档位';
+
+  @override
+  String get searchProviderExaMcpDescription =>
+      '通过 MCP 使用 Exa 搜索。不填 API Key 可在免费限额内使用。';
+
+  @override
+  String get searchServiceNameExaMcp => 'Exa MCP';
+
+  @override
+  String worldBookImportUnsupportedEntries(int count) {
+    return '导入完成。$count 个条目使用了暂不支持的酒馆功能（如宏、正则、时效、筛选或插入规则），已保留内容并停用，请检查后再启用。';
+  }
+
+  @override
+  String tokenDetailFirstToken(String value) {
+    return '${value}s（首字）';
+  }
+
+  @override
+  String tokenDetailReasoningTokens(int count) {
+    return '$count tokens';
+  }
+
+  @override
+  String tokenDetailCacheWriteTokens(int count) {
+    return '$count 缓存写入 tokens';
+  }
+
+  @override
+  String tokenDetailCost(String amount) {
+    return '$amount';
+  }
+
+  @override
+  String get workspaceToolTitleViewImage => '查看图片';
+
+  @override
+  String get workspaceToolHelpViewImage => '让模型查看工作区中的图片内容。';
+
+  @override
+  String oauthUsedValue(String value) {
+    return '已用 $value';
+  }
 
   @override
   String get composerDraftLabel => '草稿';
@@ -24884,7 +26276,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get storageSpaceClearDisplacedDatabasesConfirmMessage =>
-      '確定刪除這些保留的舊資料庫嗎？它們是 Kelivo 重建資料庫時留下的，可能是那些聊天記錄和設定僅存的一份。刪除後無法復原。';
+      '確定刪除這些保留的舊資料庫嗎？它們是 Cuplivo 重建資料庫時留下的，可能是那些聊天記錄和設定僅存的一份。刪除後無法復原。';
 
   @override
   String get storageSpaceRestoreTracesHint => '還原完成後保留的舊資料快照。清理不會影響目前的應用程式資料。';
@@ -25029,6 +26421,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get storageSpaceDeleteConfirmTitle => '確認刪除';
 
   @override
+  String storageSpaceDeleteDraftWarning(int count) {
+    return '其中 $count 個檔案仍被未發送的草稿引用';
+  }
+
+  @override
   String storageSpaceDeleteUploadsConfirmMessage(int count) {
     return '刪除 $count 個項目及其對應的對話附件副本？刪除後，聊天記錄中的這些附件將無法使用。';
   }
@@ -25152,16 +26549,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get statsPageLaunchCount => '應用啟動次數';
-
-  @override
-  String statsPageCost(String currency) {
-    return '費用 ($currency)';
-  }
-
-  @override
-  String statsPageModelsWithoutPricing(int count) {
-    return '$count 個模型無定價';
-  }
 
   @override
   String get statsPageUsageTrendTitle => '用量趨勢';
@@ -25460,6 +26847,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get homePagePleaseSelectModel => '請先選擇模型';
 
   @override
+  String get homePageAudioAttachmentUnsupported =>
+      '目前模型不支援音訊附件，請切換到支援音訊輸入的模型或移除音訊檔案後再試。';
+
+  @override
   String get homePagePleaseSetupTranslateModel => '請先設定翻譯模型';
 
   @override
@@ -25690,13 +27081,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get assistantEditStreamOutputDescription => '是否啟用訊息的串流輸出';
 
   @override
-  String get assistantEditThinkingBudgetTitle => '思考';
-
-  @override
-  String get assistantEditReasoningFollowDefault => '跟隨模型預設';
-
-  @override
-  String get assistantEditReasoningClampedSubtitle => '實際檔位會依各模型的能力收斂';
+  String get assistantEditThinkingBudgetTitle => '思考預算';
 
   @override
   String get assistantEditConfigureButton => '設定';
@@ -26274,42 +27659,42 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupPageRestartRequired => '需要重啟應用程式';
 
   @override
-  String get backupPageRestartContent => '匯入成功。重新啟動 Kelivo 後將安全套用。';
+  String get backupPageRestartContent => '匯入成功。重新啟動 Cuplivo 後將安全套用。';
 
   @override
   String backupPageRestartContentWithSkipped(int count) {
-    return '匯入已完成，但已略過 $count 個訊息順序無效的會話。重新啟動 Kelivo 後將安全套用已匯入的資料。';
+    return '匯入已完成，但已略過 $count 個訊息順序無效的會話。重新啟動 Cuplivo 後將安全套用已匯入的資料。';
   }
 
   @override
-  String get restartAppFailedMessage => 'Kelivo 無法自動重新啟動，請完全關閉後再重新開啟。';
+  String get restartAppFailedMessage => 'Cuplivo 無法自動重新啟動，請完全關閉後再重新開啟。';
 
   @override
   String get backupRestoreRolledBackTitle => '已保留原有資料';
 
   @override
-  String get backupRestoreRolledBackContent => '還原未能完成。Kelivo 已驗證並保留先前的資料。';
+  String get backupRestoreRolledBackContent => '還原未能完成。Cuplivo 已驗證並保留先前的資料。';
 
   @override
   String get backupRestoreFailureTitle => '還原需要處理';
 
   @override
   String get backupRestoreFailureContent =>
-      'Kelivo 無法驗證完整的原有或新資料，因此未開啟聊天資料。請關閉 Kelivo 後重試；若問題持續發生，請保留診斷碼以供支援人員排查。';
+      'Cuplivo 無法驗證完整的原有或新資料，因此未開啟聊天資料。請關閉 Cuplivo 後重試；若問題持續發生，請保留診斷碼以供支援人員排查。';
 
   @override
-  String get backupRestoreBusinessLeaseUnavailableTitle => 'Kelivo 已在執行';
+  String get backupRestoreBusinessLeaseUnavailableTitle => 'Cuplivo 已在執行';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableContent =>
-      'Kelivo 的資料仍由另一個應用程式程序使用。請關閉其他 Kelivo 視窗後重新啟動；目前程序尚未開啟聊天資料。';
+      'Cuplivo 的資料仍由另一個應用程式程序使用。請關閉其他 Cuplivo 視窗後重新啟動；目前程序尚未開啟聊天資料。';
 
   @override
   String get restoreProgressTitle => '正在還原備份';
 
   @override
   String get restoreProgressWarning =>
-      '請保持 Kelivo 開啟直到完成。此時關閉應用程式，下次啟動會從頭再來一次。';
+      '請保持 Cuplivo 開啟直到完成。此時關閉應用程式，下次啟動會從頭再來一次。';
 
   @override
   String get restoreProgressStageCheckingBackup => '正在驗證備份';
@@ -26330,7 +27715,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get restoreProgressStageFinishing => '即將完成';
 
   @override
-  String get backupRestoreFailureRestartButton => '重新啟動 Kelivo';
+  String get backupRestoreFailureRestartButton => '重新啟動 Cuplivo';
 
   @override
   String get backupRestoreFailureCopyButton => '複製診斷碼';
@@ -26368,14 +27753,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get startupRecoveryRepairFailed => '修復未能解決問題。請先匯出資料副本，然後重設。';
 
   @override
-  String get startupRecoveryResetFailed => '重設失敗。請完全關閉 Kelivo 後再重新開啟。';
+  String get startupRecoveryResetFailed => '重設失敗。請完全關閉 Cuplivo 後再重新開啟。';
 
   @override
   String get startupRecoveryResetDialogTitle => '重設全部資料？';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      '這會永久刪除本裝置上 Kelivo 的資料庫並重新開始。如果之後可能還需要這些資料，請先匯出一份副本。此操作無法復原。';
+      '這會永久刪除本裝置上 Cuplivo 的資料庫並重新開始。如果之後可能還需要這些資料，請先匯出一份副本。此操作無法復原。';
 
   @override
   String get startupRecoveryResetDialogConfirm => '重設並重新啟動';
@@ -26487,17 +27872,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get startupRecoveryDangerBody =>
-      '重設會永久刪除本裝置上 Kelivo 的資料庫。請先匯出資料副本——重設同時會銷毀排查根本問題所需的證據。';
+      '重設會永久刪除本裝置上 Cuplivo 的資料庫。請先匯出資料副本——重設同時會銷毀排查根本問題所需的證據。';
 
   @override
   String get startupRecoveryResetAcknowledge => '我已匯出副本，或不需要這些資料。';
 
   @override
-  String get startupDatabaseUpdateRequiredTitle => '請更新 Kelivo 以繼續';
+  String get startupDatabaseUpdateRequiredTitle => '請更新 Cuplivo 以繼續';
 
   @override
   String get startupDatabaseUpdateRequiredContent =>
-      '本裝置上的聊天資料庫由更新版本的 Kelivo 建立，目前版本無法開啟。資料未被改動。請安裝最新版 Kelivo 後重新開啟。';
+      '本裝置上的聊天資料庫由更新版本的 Cuplivo 建立，目前版本無法開啟。資料未被改動。請安裝最新版 Cuplivo 後重新開啟。';
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeTitle => '若要改用舊版';
@@ -26508,7 +27893,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeStep1 =>
-      '先安裝並開啟最新版 Kelivo，在「設定 → 資料備份」匯出一份備份檔。';
+      '先安裝並開啟最新版 Cuplivo，在「設定 → 資料備份」匯出一份備份檔。';
 
   @override
   String startupDatabaseUpdateRequiredDowngradeStep2(String url) {
@@ -26549,8 +27934,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupPageOverwriteMode => '完全覆蓋';
 
   @override
-  String get backupPageOverwriteModeDescription =>
-      '取代所選內容，保留未選內容及其他本機設定。取代聊天時，也會清除本機未傳送的草稿。';
+  String get backupPageOverwriteModeDescription => '僅替換已選元件；保留未選元件及無關的本機設定';
 
   @override
   String get backupPageMergeMode => '合併';
@@ -26567,7 +27951,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String backupPageForwardCompatBody(int backupVersion, int currentVersion) {
-    return '這份備份由更新版本的 Kelivo 建立（資料格式 $backupVersion，目前版本支援 $currentVersion），且未聲明舊版本能否讀取。\n\n你可以繼續匯入：目前版本不認識的內容會被略過，備份檔案本身不會被修改。但如果新版本改變了既有資料的儲存方式，部分內容可能會被錯誤匯入。\n\n更穩妥的做法是先升級 Kelivo。';
+    return '這份備份由更新版本的 Cuplivo 建立（資料格式 $backupVersion，目前版本支援 $currentVersion），且未聲明舊版本能否讀取。\n\n你可以繼續匯入：目前版本不認識的內容會被略過，備份檔案本身不會被修改。但如果新版本改變了既有資料的儲存方式，部分內容可能會被錯誤匯入。\n\n更穩妥的做法是先升級 Cuplivo。';
   }
 
   @override
@@ -26578,7 +27962,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupPageSchemaTooNewMessage =>
-      '這份備份由更新版本的 Kelivo 建立，目前版本無法讀取。請先升級 Kelivo 後重試。';
+      '這份備份由更新版本的 Cuplivo 建立，目前版本無法讀取。請先升級 Cuplivo 後重試。';
 
   @override
   String get backupPageBackupUploaded => '已上傳備份';
@@ -26594,20 +27978,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupProgressCancelled => '已取消';
-
-  @override
-  String get backupProgressFailed => '操作失敗';
-
-  @override
-  String backupProgressFailedAt(String phase) {
-    return '失敗階段：$phase';
-  }
-
-  @override
-  String get backupProgressCopyError => '複製錯誤';
-
-  @override
-  String get backupProgressErrorCopied => '錯誤已複製';
 
   @override
   String get backupProgressPreparing => '準備中';
@@ -26764,7 +28134,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return '此備份使用 Cherry Studio 格式版本 $version，Kelivo 目前尚無法匯入。請改用 Cherry Studio v1 匯出備份，或等待後續版本支援 Cherry Studio v2。';
+    return '此備份使用 Cherry Studio 格式版本 $version，Cuplivo 目前尚無法匯入。請改用 Cherry Studio v1 匯出備份，或等待後續版本支援 Cherry Studio v2。';
   }
 
   @override
@@ -27069,93 +28439,57 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get messageMoreSheetDeleteAllVersions => '刪除全部版本';
 
   @override
+  String get reasoningBudgetSheetOff => '關閉';
+
+  @override
+  String get reasoningBudgetSheetAuto => '自動';
+
+  @override
+  String get reasoningBudgetSheetLight => '輕度推理';
+
+  @override
+  String get reasoningBudgetSheetMedium => '中度推理';
+
+  @override
+  String get reasoningBudgetSheetHeavy => '重度推理';
+
+  @override
+  String get reasoningBudgetSheetXhigh => '極限推理';
+
+  @override
+  String get reasoningBudgetSheetMax => '全力推理';
+
+  @override
   String get reasoningBudgetSheetTitle => '思維鏈強度';
 
   @override
-  String get reasoningLevelSheetTitle => '推理';
-
-  @override
-  String get reasoningLevelAuto => '自動';
-
-  @override
-  String get reasoningLevelAutoSubtitle => '使用模型或供應商的預設設定';
-
-  @override
-  String get reasoningLevelOff => '關閉';
-
-  @override
-  String get reasoningLevelOffSubtitle => '關閉推理，直接回答';
-
-  @override
-  String get reasoningLevelMinimal => '最低';
-
-  @override
-  String get reasoningLevelMinimalSubtitle => '使用極少推理來回答問題';
-
-  @override
-  String get reasoningLevelLow => '低';
-
-  @override
-  String get reasoningLevelLowSubtitle => '使用少量推理來回答問題';
-
-  @override
-  String get reasoningLevelMedium => '中';
-
-  @override
-  String get reasoningLevelMediumSubtitle => '使用較多推理來回答問題';
-
-  @override
-  String get reasoningLevelHigh => '高';
-
-  @override
-  String get reasoningLevelHighSubtitle => '使用大量推理來回答問題，適合複雜問題';
-
-  @override
-  String get reasoningLevelXhigh => '極高';
-
-  @override
-  String get reasoningLevelXhighSubtitle => '使用很高推理深度，適合更複雜的問題';
-
-  @override
-  String get reasoningLevelMax => '最大';
-
-  @override
-  String get reasoningLevelMaxSubtitle => '使用最大推理深度，適合最複雜的問題';
-
-  @override
-  String get reasoningLevelFollowModelDefaultSubtitle => '使用模型或助手未設定時的預設檔位';
-
-  @override
-  String get reasoningLevelNoReasoning => '此模型不支援推理';
-
-  @override
-  String get reasoningLevelCustomBudget => '自訂推理預算';
-
-  @override
-  String get reasoningLevelCustomBudgetHint => '例如：2048';
-
-  @override
-  String get reasoningLevelCompactMin => 'min';
-
-  @override
-  String get reasoningLevelCompactLow => 'low';
-
-  @override
-  String get reasoningLevelCompactMid => 'mid';
-
-  @override
-  String get reasoningLevelCompactHigh => 'high';
-
-  @override
-  String get reasoningLevelCompactXhigh => 'xhigh';
-
-  @override
-  String get reasoningLevelCompactMax => 'max';
-
-  @override
-  String reasoningLevelBudgetTokens(String budget) {
-    return '$budget tokens';
+  String reasoningBudgetSheetCurrentLevel(String level) {
+    return '目前檔位：$level';
   }
+
+  @override
+  String get reasoningBudgetSheetOffSubtitle => '關閉推理功能，直接回答';
+
+  @override
+  String get reasoningBudgetSheetAutoSubtitle => '由模型自動決定推理級別';
+
+  @override
+  String get reasoningBudgetSheetLightSubtitle => '使用少量推理來回答問題';
+
+  @override
+  String get reasoningBudgetSheetMediumSubtitle => '使用較多推理來回答問題';
+
+  @override
+  String get reasoningBudgetSheetHeavySubtitle => '使用大量推理來回答問題，適合複雜問題';
+
+  @override
+  String get reasoningBudgetSheetXhighSubtitle => '使用最大推理深度，適合最複雜的問題';
+
+  @override
+  String get reasoningBudgetSheetCustomLabel => '自訂推理預算';
+
+  @override
+  String get reasoningBudgetSheetCustomHint => '例如：2048 (-1 自動，0 關閉)';
 
   @override
   String chatMessageWidgetFileNotFound(String fileName) {
@@ -27253,11 +28587,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String chatMessageWidgetWebSearch(String query) {
     return '聯網檢索: $query';
-  }
-
-  @override
-  String chatMessageWidgetWebFetch(String target) {
-    return '讀取網頁: $target';
   }
 
   @override
@@ -27778,24 +29107,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get chatInputBarVoiceTranscribing => '正在辨識…';
 
   @override
-  String get chatInputBarVoiceAttachAudioTooltip => '停止並存為音訊';
-
-  @override
-  String get chatInputBarVoiceSendAudioTooltip => '直接發送錄音';
-
-  @override
-  String get chatInputBarVoiceSavingAudio => '正在儲存錄音…';
-
-  @override
-  String get audioClipPlayTooltip => '播放音訊';
-
-  @override
-  String get audioClipPauseTooltip => '暫停';
-
-  @override
-  String get audioClipPlaybackFailed => '無法播放此音訊';
-
-  @override
   String get chatInputBarImageProcessing => '正在處理圖片';
 
   @override
@@ -27818,83 +29129,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get chatInputBarCollapse => '收起';
-
-  @override
-  String get contextUsageTitle => '上下文視窗';
-
-  @override
-  String get contextUsageStateExact => '精確（來自上次回應）';
-
-  @override
-  String get contextUsageStateExactCalibrated => '精確（分項按估算比例）';
-
-  @override
-  String get contextUsageStateEstimated => '估算';
-
-  @override
-  String get contextUsageStateStale => '已過時，正在更新…';
-
-  @override
-  String get contextUsageStateComputing => '計算中…';
-
-  @override
-  String get contextUsageStateNone => '暫無資料';
-
-  @override
-  String get contextUsageBucketSystem => '系統提示詞';
-
-  @override
-  String get contextUsageBucketInjections => '指令注入';
-
-  @override
-  String get contextUsageBucketHistory => '歷史訊息';
-
-  @override
-  String get contextUsageBucketTools => '內建工具';
-
-  @override
-  String get contextUsageBucketMemory => '記憶';
-
-  @override
-  String get contextUsageBucketWorldBook => '世界書';
-
-  @override
-  String get contextUsageBucketSkills => '技能';
-
-  @override
-  String get contextUsageBucketWorkspace => '工作區';
-
-  @override
-  String get contextUsageBucketSearch => '搜尋提示';
-
-  @override
-  String get contextUsageBucketMcpTools => 'MCP 工具';
-
-  @override
-  String get contextUsageBucketAttachments => '附件';
-
-  @override
-  String get contextUsageBucketDraft => '草稿';
-
-  @override
-  String get contextUsageBucketUsed => '已用';
-
-  @override
-  String get contextUsageFreeSpace => '剩餘空間';
-
-  @override
-  String contextUsageUsedWindow(String used, String window, int percent) {
-    return '$used / $window ($percent%)';
-  }
-
-  @override
-  String get contextUsageNoWindow => '未設定上下文視窗';
-
-  @override
-  String get contextUsageSetWindow => '設定上下文視窗';
-
-  @override
-  String get contextUsageRefresh => '重新整理';
 
   @override
   String get mcpPageBackTooltip => '返回';
@@ -28250,6 +29484,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get modelDetailSheetModelIdHint => '必填，建議小寫字母、數字、連字號';
 
   @override
+  String modelDetailSheetModelIdDisabledHint(String modelId) {
+    return '$modelId';
+  }
+
+  @override
   String get modelDetailSheetModelNameLabel => '模型名稱';
 
   @override
@@ -28302,6 +29541,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get modelDetailSheetBuiltinToolsDescription => '內建工具取決於供應商和 API 模式。';
+
+  @override
+  String get modelDetailSheetSearchTool => '搜尋';
+
+  @override
+  String get modelDetailSheetSearchToolDescription => '啟用 Google 搜尋整合';
 
   @override
   String get modelDetailSheetUrlContextTool => 'URL 上下文';
@@ -28374,6 +29619,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get modelDetailSheetInvalidIdError => '請輸入有效的模型 ID（不少於2個字元）';
 
   @override
+  String get modelDetailSheetModelIdExistsError => '模型 ID 已存在';
+
+  @override
   String get modelDetailSheetHeaderKeyHint => 'Header Key';
 
   @override
@@ -28384,301 +29632,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get modelDetailSheetBodyJsonHint => 'Body JSON';
-
-  @override
-  String get modelSpecFormSourceCustom => '自訂';
-
-  @override
-  String get modelSpecFormSourceCatalog => '目錄';
-
-  @override
-  String get modelSpecFormSourceInferred => '推斷';
-
-  @override
-  String get modelSpecFormSourceDefault => '預設';
-
-  @override
-  String get modelSpecFormReset => '重設為預設';
-
-  @override
-  String get modelSpecFormModalitiesSection => '模態與能力';
-
-  @override
-  String get modelSpecFormImageType => '圖像';
-
-  @override
-  String get modelSpecFormAudioMode => '音訊';
-
-  @override
-  String get modelSpecFormVideoMode => '影片';
-
-  @override
-  String get modelSpecFormPdfMode => 'PDF';
-
-  @override
-  String get modelSpecFormStructuredOutputAbility => '結構化輸出';
-
-  @override
-  String get modelSpecFormReasoningSection => '推理';
-
-  @override
-  String get modelSpecFormDialect => '推理方言';
-
-  @override
-  String get modelSpecFormDialectNone => '無';
-
-  @override
-  String get modelSpecFormDialectNoneSubtitle => '不寫入推理欄位';
-
-  @override
-  String get modelSpecFormDialectOpenaiReasoningEffort =>
-      'OpenAI reasoning effort';
-
-  @override
-  String get modelSpecFormDialectOpenaiReasoningEffortSubtitle =>
-      'reasoning_effort';
-
-  @override
-  String get modelSpecFormDialectOpenaiResponsesReasoning =>
-      'OpenAI Responses reasoning';
-
-  @override
-  String get modelSpecFormDialectOpenaiResponsesReasoningSubtitle =>
-      'reasoning.effort';
-
-  @override
-  String get modelSpecFormDialectOpenrouterReasoning => 'OpenRouter reasoning';
-
-  @override
-  String get modelSpecFormDialectOpenrouterReasoningSubtitle => 'reasoning';
-
-  @override
-  String get modelSpecFormDialectAnthropicBudget => 'Anthropic budget';
-
-  @override
-  String get modelSpecFormDialectAnthropicBudgetSubtitle =>
-      'thinking.budget_tokens';
-
-  @override
-  String get modelSpecFormDialectAnthropicAdaptiveEffort =>
-      'Anthropic adaptive effort';
-
-  @override
-  String get modelSpecFormDialectAnthropicAdaptiveEffortSubtitle =>
-      'thinking + output_config.effort';
-
-  @override
-  String get modelSpecFormDialectAnthropicEffort => 'Anthropic effort';
-
-  @override
-  String get modelSpecFormDialectAnthropicEffortSubtitle =>
-      'thinking + output_config.effort';
-
-  @override
-  String get modelSpecFormDialectGeminiThinkingBudget =>
-      'Gemini thinking budget';
-
-  @override
-  String get modelSpecFormDialectGeminiThinkingBudgetSubtitle =>
-      'thinkingConfig.thinkingBudget';
-
-  @override
-  String get modelSpecFormDialectGeminiThinkingLevel => 'Gemini thinking level';
-
-  @override
-  String get modelSpecFormDialectGeminiThinkingLevelSubtitle =>
-      'thinkingConfig.thinkingLevel';
-
-  @override
-  String get modelSpecFormDialectQwenEnableThinking => 'Qwen enable thinking';
-
-  @override
-  String get modelSpecFormDialectQwenEnableThinkingSubtitle =>
-      'enable_thinking';
-
-  @override
-  String get modelSpecFormDialectThinkingType => 'Thinking type';
-
-  @override
-  String get modelSpecFormDialectThinkingTypeSubtitle => 'thinking.type';
-
-  @override
-  String get modelSpecFormDialectSiliconflowEnableThinking =>
-      'SiliconFlow enable thinking';
-
-  @override
-  String get modelSpecFormDialectSiliconflowEnableThinkingSubtitle =>
-      'enable_thinking';
-
-  @override
-  String get modelSpecFormDialectInternThinkingMode => 'Intern thinking mode';
-
-  @override
-  String get modelSpecFormDialectInternThinkingModeSubtitle => 'thinking_mode';
-
-  @override
-  String get modelSpecFormDialectChatTemplateKwargs => 'Chat template kwargs';
-
-  @override
-  String get modelSpecFormDialectChatTemplateKwargsSubtitle =>
-      'chat_template_kwargs.enable_thinking';
-
-  @override
-  String get modelSpecFormDialectKimiThinking => 'Kimi thinking';
-
-  @override
-  String get modelSpecFormDialectKimiThinkingSubtitle => 'thinking';
-
-  @override
-  String get modelSpecFormDialectCustom => '自訂 JSON';
-
-  @override
-  String get modelSpecFormDialectCustomSubtitle => '依級別寫入 JSON 補丁';
-
-  @override
-  String get modelSpecFormLevels => '支援的級別';
-
-  @override
-  String get modelSpecFormCanDisable => '允許關閉';
-
-  @override
-  String get modelSpecFormDefaultLevel => '預設級別';
-
-  @override
-  String get modelSpecFormBudgets => 'Token 預算';
-
-  @override
-  String modelSpecFormBudgetPlaceholder(String tokens) {
-    return '$tokens';
-  }
-
-  @override
-  String modelSpecFormCustomPatch(String level) {
-    return 'JSON 補丁（$level）';
-  }
-
-  @override
-  String get modelSpecFormCustomPatchHint => '例如 reasoning_effort: high';
-
-  @override
-  String get modelSpecFormInvalidJson => '自訂推理補丁必須是有效的 JSON 物件';
-
-  @override
-  String get modelSpecFormInvalidNumber => '請輸入有效數字';
-
-  @override
-  String get modelSpecFormStrategySection => '策略';
-
-  @override
-  String get modelSpecFormSampling => '取樣';
-
-  @override
-  String get modelSpecFormRequestQuirks => '請求相容';
-
-  @override
-  String get modelSpecFormDynamicWebSearch => '動態過濾搜尋工具';
-
-  @override
-  String get modelSpecFormDynamicWebSearchSubtitle =>
-      '開啟動態過濾時，使用 2026-03-18 版網頁搜尋與擷取工具';
-
-  @override
-  String get modelSpecFormRemoteImageUrls => '遠端圖片連結';
-
-  @override
-  String get modelSpecFormRemoteImageUrlsSubtitle =>
-      '直接傳送 http(s) 圖片連結；關閉後捨棄遠端連結，只傳送本機圖片';
-
-  @override
-  String get modelSpecFormPromptCacheControl => '提示快取標記';
-
-  @override
-  String get modelSpecFormPromptCacheControlSubtitle =>
-      '開啟提示快取時，在 OpenRouter 請求中加入 cache_control';
-
-  @override
-  String get modelSpecFormSamplingAlways => '始終保留';
-
-  @override
-  String get modelSpecFormSamplingAlwaysSubtitle => '保留 temperature 等取樣欄位';
-
-  @override
-  String get modelSpecFormSamplingOnlyWhenReasoningOff => '僅在關閉推理時';
-
-  @override
-  String get modelSpecFormSamplingOnlyWhenReasoningOffSubtitle => '模型思考時移除取樣欄位';
-
-  @override
-  String get modelSpecFormSamplingNever => '從不';
-
-  @override
-  String get modelSpecFormSamplingNeverSubtitle => '始終移除取樣欄位';
-
-  @override
-  String get modelSpecFormReplay => '推理回放';
-
-  @override
-  String get modelSpecFormReplayNone => '無';
-
-  @override
-  String get modelSpecFormReplayNoneSubtitle => '不把先前推理傳回模型';
-
-  @override
-  String get modelSpecFormReplayToolTurns => '工具輪次';
-
-  @override
-  String get modelSpecFormReplayToolTurnsSubtitle => '僅在工具呼叫輪次回放推理';
-
-  @override
-  String get modelSpecFormReplayAll => '全部';
-
-  @override
-  String get modelSpecFormReplayAllSubtitle => '每一輪後續請求都回放推理';
-
-  @override
-  String get modelSpecFormReplayField => '回放欄位';
-
-  @override
-  String get modelSpecFormReplayFieldReasoningContent => 'reasoning_content';
-
-  @override
-  String get modelSpecFormReplayFieldReasoning => 'reasoning';
-
-  @override
-  String get modelSpecFormReplayFieldReasoningDetails => 'reasoning_details';
-
-  @override
-  String get modelSpecFormLimitsSection => '限額';
-
-  @override
-  String get modelSpecFormLimitsPricingSection => '限額與定價';
-
-  @override
-  String get modelSpecFormContextWindow => '上下文視窗';
-
-  @override
-  String get modelSpecFormMaxOutput => '最大輸出';
-
-  @override
-  String get modelSpecFormPricingSection => '定價 / 1M';
-
-  @override
-  String get modelSpecFormPricingInput => '輸入';
-
-  @override
-  String get modelSpecFormPricingOutput => '輸出';
-
-  @override
-  String get modelSpecFormPricingCacheRead => '快取讀取';
-
-  @override
-  String get modelSpecFormPricingCacheWrite => '快取寫入';
-
-  @override
-  String get modelSpecFormCurrency => '貨幣';
-
-  @override
-  String get modelSpecFormAdvancedSection => '請求';
 
   @override
   String get modelSelectSheetSearchHint => '搜尋模型或供應商';
@@ -28758,13 +29711,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get providerDetailPageResponseApiTitle => 'Response API (/responses)';
-
-  @override
-  String get providerDetailPagePromptCacheKeyTitle => '傳送對話快取鍵';
-
-  @override
-  String get providerDetailPagePromptCacheKeyHelp =>
-      '為 OpenAI 相容請求附加穩定的對話級 prompt_cache_key。僅在供應商支援時開啟，自訂 Body 優先，不保證快取命中。';
 
   @override
   String get providerDetailPageAihubmixAppCodeLabel => '應用 Code（享 10% 優惠）';
@@ -28953,43 +29899,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get providersPageProviderAddedSnackbar => '已新增供應商';
-
-  @override
-  String get modelCatalogTitle => '模型目錄';
-
-  @override
-  String modelCatalogSourceBundled(String date) {
-    return '內建快照 · $date';
-  }
-
-  @override
-  String modelCatalogSourceRemote(String date) {
-    return 'models.dev · 更新於 $date';
-  }
-
-  @override
-  String get modelCatalogAutoUpdate => '每 24 小時自動更新';
-
-  @override
-  String get modelCatalogRefresh => '立即更新';
-
-  @override
-  String get modelCatalogUpdated => '模型目錄已更新';
-
-  @override
-  String modelCatalogRefreshFailed(String error) {
-    return '更新失敗：$error';
-  }
-
-  @override
-  String modelCatalogProviderCount(int count) {
-    return '$count 個供應商';
-  }
-
-  @override
-  String modelCatalogModelCount(int count) {
-    return '$count 個模型';
-  }
 
   @override
   String get providerGroupsGroupLabel => '分組';
@@ -29210,48 +30119,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get searchServicesPageAutoTestTitle => '啟動時自動測試連線';
 
   @override
-  String get searchServicesPageWebFetchSection => '網頁抓取';
-
-  @override
-  String get searchServicesPageWebFetchModeTitle => '抓取方式';
-
-  @override
-  String get searchServicesPageWebFetchFollow => '跟隨搜尋服務';
-
-  @override
-  String searchServicesPageWebFetchFollowValue(String name) {
-    return '跟隨搜尋 · $name';
-  }
-
-  @override
-  String searchServicesPageWebFetchFollowSubtitle(String name) {
-    return '目前：$name';
-  }
-
-  @override
-  String get searchServicesPageWebFetchLocal => '本機抓取';
-
-  @override
-  String get searchServicesPageWebFetchLocalSubtitle => '免費，由本機直接請求網頁';
-
-  @override
-  String get searchServicesPageWebFetchProviderSubtitle =>
-      '使用該服務商的 API Key 與額度';
-
-  @override
-  String get searchServicesPageWebFetchOff => '關閉';
-
-  @override
-  String get searchServicesPageWebFetchOffSubtitle => '連網時只搜尋，不讀取網頁';
-
-  @override
-  String get searchServicesPageWebFetchFooter =>
-      '開啟連網搜尋後，模型還可以讀取網頁全文。搜尋服務不支援抓取時會改用本機抓取，本機抓取無法處理需要 JavaScript 渲染或有反爬限制的頁面。';
-
-  @override
-  String get searchServicesPageWebFetchSupported => '支援網頁抓取';
-
-  @override
   String get searchServicesPageMaxResults => '最大結果數';
 
   @override
@@ -29330,9 +30197,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get searchServicesDialogApiKey => 'API Key';
-
-  @override
-  String get searchServicesDialogApiKeyOptional => 'API Key（選填）';
 
   @override
   String get searchServicesDialogModel => '模型';
@@ -29491,31 +30355,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get searchServiceEditorTestModeSearch => '搜尋';
-
-  @override
-  String get searchServiceEditorTestModeFetch => '抓取';
-
-  @override
-  String get searchServiceEditorTestUrlHint => '輸入測試網址';
-
-  @override
-  String get searchServiceEditorTestFetchRun => '執行抓取測試';
-
-  @override
-  String get searchServiceEditorTestFetchRunning => '抓取中…';
-
-  @override
-  String searchServiceEditorTestFetchFailed(String message) {
-    return '抓取失敗：$message';
-  }
-
-  @override
-  String searchServiceEditorTestFetchStats(String characters, String seconds) {
-    return '$characters 字元 · $seconds 秒';
-  }
-
-  @override
   String get searchServiceEditorResultOpenTooltip => '開啟結果';
 
   @override
@@ -29579,13 +30418,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get aboutPageEasterEggButton => '好的';
 
   @override
-  String get aboutPageKelivoSearchUnlocked => '有扇沒有名字的門開了一條縫。去設定裡找找看。';
+  String get aboutPageCuplivoSearchUnlocked => '有扇沒有名字的門開了一條縫。去設定裡找找看。';
 
   @override
-  String get aboutPageKelivoSearchAlreadyUnlocked => '這扇門你已經推開過了。';
+  String get aboutPageCuplivoSearchAlreadyUnlocked => '這扇門你已經推開過了。';
 
   @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Cuplivo';
 
   @override
   String get aboutPageAppDescription => '開源 AI 助理';
@@ -29643,13 +30482,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get aboutPageJoinQQGroup => '加入 QQ 群';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo 一群';
-
-  @override
-  String get aboutPageQQGroupTwo => 'Kelivo 二群';
-
-  @override
-  String get aboutPageQQGroupThree => 'Kelivo 三群';
+  String get aboutPageQQGroup => 'Cuplivo 群';
 
   @override
   String get aboutPageJoinDiscord => '加入我們的 Discord';
@@ -29710,13 +30543,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get displaySettingsPageShowTokenStatsTitle => '顯示Token和上下文統計';
 
   @override
-  String get displaySettingsPageShowTotalTokensTitle => '顯示整輪累計 Token';
-
-  @override
-  String get displaySettingsPageShowTotalTokensSubtitle =>
-      '累計顯示本次回覆中所有 API 請求的用量。關閉時僅顯示最後一次請求；統計頁面始終包含所有請求。';
-
-  @override
   String get displaySettingsPageShowTokenStatsSubtitle => '顯示 token 用量與訊息數量';
 
   @override
@@ -29731,13 +30557,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get displaySettingsPageShowToolCardsSubtitle => '關閉後，聊天中不再顯示工具呼叫卡片';
-
-  @override
-  String get displaySettingsShowReasoningLevelBadge => '在推理按鈕上顯示檔位';
-
-  @override
-  String get displaySettingsShowReasoningLevelBadgeSubtitle =>
-      '在輸入欄的推理圖示旁顯示目前檔位';
 
   @override
   String get displaySettingsPageAutoCollapseThinkingTitle => '自動折疊思考';
@@ -29802,8 +30621,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get displaySettingsPageEnableImageCropperTitle => '啟用圖片裁剪';
 
   @override
-  String get displaySettingsPageEnableImageCropperSubtitle =>
-      '從相簿或相機選擇圖片後，允許裁剪圖片';
+  String get displaySettingsPageEnableImageCropperSubtitle => '預覽未發送圖片時可主動裁剪';
+
+  @override
+  String get draftImageCropAction => '裁剪';
+
+  @override
+  String get draftImageCropFailed => '裁剪失敗，原圖保持不變。';
 
   @override
   String get displaySettingsPageKeepSidebarOpenOnAssistantTapTitle =>
@@ -30654,7 +31478,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get settingsShare => 'Kelivo - 開源AI助理';
+  String get settingsShare => 'Cuplivo - 開源AI助理';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -30669,10 +31493,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get searchProviderExaDescription => '具備語義理解的神經搜尋引擎。適合研究與查找特定內容。';
-
-  @override
-  String get searchProviderExaMcpDescription =>
-      '透過 MCP 使用 Exa 搜尋。不填 API Key 可在免費限額內使用。';
 
   @override
   String get searchProviderLinkUpDescription =>
@@ -30711,9 +31531,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get searchServiceNameExa => 'Exa';
-
-  @override
-  String get searchServiceNameExaMcp => 'Exa MCP';
 
   @override
   String get searchServiceNameZhipu => 'Zhipu（智譜）';
@@ -30858,7 +31675,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '最大 token 數必須介於 1024 和 32768 之間。';
 
   @override
-  String get searchServiceNameKelivo => 'Kelivo';
+  String get searchServiceNameCuplivo => 'Cuplivo';
 
   @override
   String get searchServicesDialogCountryOptional => '國家/地區（可選）';
@@ -31135,7 +31952,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get healthDataSettingsDescription =>
-      '目前助手在日常對話中可使用的 HealthKit 訊號。開關表示 Kelivo 可以嘗試讀取該範圍，實際授權仍由 iOS 管理。';
+      '目前助手在日常對話中可使用的 HealthKit 訊號。開關表示 Cuplivo 可以嘗試讀取該範圍，實際授權仍由 iOS 管理。';
 
   @override
   String healthDataSettingsBadge(int selected, int total) {
@@ -32425,7 +33242,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get legacyMemoryExport => '匯出';
 
   @override
-  String get legacyMemoryExportTitle => 'Kelivo 舊版記憶匯出';
+  String get legacyMemoryExportTitle => 'Cuplivo 舊版記憶匯出';
 
   @override
   String legacyMemoryAssistantHeader(String name) {
@@ -32832,11 +33649,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get worldBookInjectionPositionAtDepth => '指定深度';
 
   @override
-  String worldBookImportUnsupportedEntries(int count) {
-    return '匯入完成。$count 個條目使用了暫不支援的酒館功能（如巨集、正則、時效、篩選或插入規則），已保留內容並停用，請檢查後再啟用。';
-  }
-
-  @override
   String get worldBookInjectionRoleUser => '使用者';
 
   @override
@@ -32925,28 +33737,8 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String tokenDetailFirstToken(String value) {
-    return '${value}s（首字）';
-  }
-
-  @override
   String tokenDetailTotalTokens(int count) {
     return '$count tokens';
-  }
-
-  @override
-  String tokenDetailReasoningTokens(int count) {
-    return '$count tokens';
-  }
-
-  @override
-  String tokenDetailCacheWriteTokens(int count) {
-    return '$count 快取寫入 tokens';
-  }
-
-  @override
-  String tokenDetailCost(String amount) {
-    return '$amount';
   }
 
   @override
@@ -33032,7 +33824,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get migrationIntroSubtitle =>
-      'Kelivo 將聊天記錄遷移到更快的 SQLite 資料庫。升級會在應用程式開啟前完成，避免新舊資料同時寫入。';
+      'Cuplivo 將聊天記錄遷移到更快的 SQLite 資料庫。升級會在應用程式開啟前完成，避免新舊資料同時寫入。';
 
   @override
   String get migrationBackupNote => '遷移開始前，會先匯出包含設定、聊天記錄和本地檔案的 ZIP 備份。';
@@ -33074,14 +33866,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get migrationBackingUpSubtitle =>
-      '正在匯出設定、聊天記錄、上傳檔案、圖片和字體。請保持 Kelivo 開啟，等待備份完成。';
+      '正在匯出設定、聊天記錄、上傳檔案、圖片和字體。請保持 Cuplivo 開啟，等待備份完成。';
 
   @override
   String get migrationMigratingTitle => '正在遷移到 SQLite';
 
   @override
   String get migrationMigratingSubtitle =>
-      '正在分批寫入對話和訊息，避免超大聊天記錄占滿記憶體。請保持 Kelivo 在前台，等待遷移完成。';
+      '正在分批寫入對話和訊息，避免超大聊天記錄占滿記憶體。請保持 Cuplivo 在前台，等待遷移完成。';
 
   @override
   String migrationBackingUpDetail(String fileName) {
@@ -33140,7 +33932,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get migrationCompleteSubtitle =>
-      '你的聊天記錄已遷移到 SQLite。請重啟 Kelivo 進入升級後的應用程式。';
+      '你的聊天記錄已遷移到 SQLite。請重啟 Cuplivo 進入升級後的應用程式。';
 
   @override
   String get migrationConversationCount => '對話';
@@ -33158,7 +33950,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get migrationMissingFilesCount => '缺失檔案';
 
   @override
-  String get migrationRestartButton => '重啟 Kelivo';
+  String get migrationRestartButton => '重啟 Cuplivo';
 
   @override
   String get migrationFailedTitle => '遷移失敗';
@@ -33184,7 +33976,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get migrationSkipDialogMessage =>
-      'Kelivo 將以空的聊天資料庫啟動。舊的聊天記錄會保留在磁碟上（重新命名為 .retired 後綴），但不會被遷移，也不會在應用程式中顯示。之後如需找回，請使用已儲存的備份 ZIP。';
+      'Cuplivo 將以空的聊天資料庫啟動。舊的聊天記錄會保留在磁碟上（重新命名為 .retired 後綴），但不會被遷移，也不會在應用程式中顯示。之後如需找回，請使用已儲存的備份 ZIP。';
 
   @override
   String get migrationSkipDialogCancel => '取消';
@@ -33215,6 +34007,27 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get imageSettingsPageQualitySectionTitle => '上傳圖片品質';
+
+  @override
+  String get imageSettingsPageModeTitle => '壓縮模式';
+
+  @override
+  String get imageSettingsPageModeManual => '手動';
+
+  @override
+  String get imageSettingsPageModeAuto => '自動';
+
+  @override
+  String get imageSettingsPageModeOff => '關閉';
+
+  @override
+  String get imageSettingsPageModeManualSubtitle => '圖片按原樣附加，在預覽中可手動壓縮';
+
+  @override
+  String get imageSettingsPageModeAutoSubtitle => '附加圖片時按下方預設自動壓縮';
+
+  @override
+  String get imageSettingsPageModeOffSubtitle => '圖片從不壓縮';
 
   @override
   String get imageSettingsPageQualityOriginal => '原圖';
@@ -33259,6 +34072,78 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get imageSettingsPageFooter =>
       '壓縮會在加入圖片時進行，已儲存或已傳送的圖片不受影響；壓縮後圖片會以 JPEG 格式隨訊息傳送。';
+
+  @override
+  String get compressEditorTitle => '壓縮圖片';
+
+  @override
+  String get compressEditorFormatJpeg => 'JPEG';
+
+  @override
+  String get compressEditorFormatPng => 'PNG';
+
+  @override
+  String get compressEditorFormatOriginal => '原圖';
+
+  @override
+  String get compressEditorLongEdgeLabel => '長邊';
+
+  @override
+  String get compressEditorLongEdgeFull => '100%';
+
+  @override
+  String get compressEditorLongEdgeHalf => '50%';
+
+  @override
+  String get compressEditorLongEdgeQuarter => '25%';
+
+  @override
+  String get compressEditorQualityLabel => '品質';
+
+  @override
+  String get compressEditorOriginalSide => '原圖';
+
+  @override
+  String get compressEditorEstimating => '正在估算體積…';
+
+  @override
+  String get compressEditorEstimateFailed => '無法估算體積';
+
+  @override
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
+  }
+
+  @override
+  String get compressEditorNoReencode => '不做重編碼';
+
+  @override
+  String get compressEditorDecodeFailed => '此圖片無法預覽，因此無法重新壓縮。';
+
+  @override
+  String get compressEditorTooLarge => '此圖片過大，無法在編輯器中開啟，因此無法在這裡重新壓縮；附件將按原樣保留。';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return '來源圖片 $source，為控制記憶體按 $percent% 載入';
+  }
+
+  @override
+  String get compressEditorCancel => '取消';
+
+  @override
+  String get compressEditorApply => '套用';
+
+  @override
+  String get compressEditorApplyAll => '套用到全部';
+
+  @override
+  String get compressEditorDone => '完成';
 
   @override
   String get imageSettingsPageSendSectionTitle => '傳送';
@@ -33592,7 +34477,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get localSnapshotEnabledTitle => '保留本機副本';
 
   @override
-  String get localSnapshotEnabledSubtitle => 'Kelivo 會定期在本機存一份資料庫副本，讓資料不只有一份。';
+  String get localSnapshotEnabledSubtitle => 'Cuplivo 會定期在本機存一份資料庫副本，讓資料不只有一份。';
 
   @override
   String get localSnapshotIntervalTitle => '備份頻率';
@@ -33753,7 +34638,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String localSnapshotRestoreMessage(String when) {
-    return '目前聊天和設定將取代為 $when 的副本。取代前會儲存目前聊天和設定的副本。未傳送的草稿不包含在副本中，此次還原會清除這些草稿。';
+    return '目前的對話和設定會被 $when 的這份副本替換。系統會先把現在的資料存一份，所以這一步可以復原。';
   }
 
   @override
@@ -34249,9 +35134,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get workspaceToolTitleReadFile => '讀取檔案';
 
   @override
-  String get workspaceToolTitleViewImage => '檢視圖片';
-
-  @override
   String get workspaceToolTitleWriteFile => '寫入檔案';
 
   @override
@@ -34389,7 +35271,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get workspaceEnvUpToDate => '已是最新';
 
   @override
-  String get workspaceEnvRestartBanner => '請重新啟動 Kelivo 以完成安裝';
+  String get workspaceEnvRestartBanner => '請重新啟動 Cuplivo 以完成安裝';
 
   @override
   String get workspaceEnvDetectingMirrors => '正在偵測最快鏡像…';
@@ -34485,7 +35367,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get workspaceEnvNativeExplanation =>
-      '在桌面端，Kelivo 使用系統終端機，而不是 Linux 沙箱。';
+      '在桌面端，Cuplivo 使用系統終端機，而不是 Linux 沙箱。';
 
   @override
   String workspaceEnvNativeShellPath(String path) {
@@ -35395,7 +36277,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get workspaceDesktopFolderMissing => '請選擇已存在的資料夾，或輸入它的絕對路徑。';
 
   @override
-  String get workspaceDesktopManagedHint => '由 Kelivo 為此專案建立並管理資料夾。';
+  String get workspaceDesktopManagedHint => '由 Cuplivo 為此專案建立並管理資料夾。';
 
   @override
   String get workspaceDesktopHostHint => '在本機存取檔案和執行命令。';
@@ -35508,9 +36390,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get workspaceToolHelpRead => '按行讀取檔案內容，支援分頁。';
-
-  @override
-  String get workspaceToolHelpViewImage => '讓模型檢視工作區中的圖片內容。';
 
   @override
   String get workspaceToolHelpWrite => '建立檔案或覆寫檔案內容。';
@@ -35629,7 +36508,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get workspaceExternalStorageMessage =>
-      '工作區和 Shell 需要直接讀寫外部資料夾，請在 Android 系統設定中允許 Kelivo 存取檔案。Android 11 及以上需開啟「所有檔案存取權限」，然後選擇要掛載的本機資料夾。';
+      '工作區和 Shell 需要直接讀寫外部資料夾，請在 Android 系統設定中允許 Cuplivo 存取檔案。Android 11 及以上需開啟「所有檔案存取權限」，然後選擇要掛載的本機資料夾。';
 
   @override
   String get workspaceExternalGrantAccess => '前往授權';
@@ -35772,6 +36651,21 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '在回覆底部顯示工具建立或修改的檔案。';
 
   @override
+  String get reasoningBudgetSliderLow => 'Low';
+
+  @override
+  String get reasoningBudgetSliderMedium => 'Medium';
+
+  @override
+  String get reasoningBudgetSliderHigh => 'High';
+
+  @override
+  String get reasoningBudgetSliderXhigh => 'XHigh';
+
+  @override
+  String get reasoningBudgetSliderMax => 'Max';
+
+  @override
   String get defaultModelPagePerChatModelTitle => '每個對話獨立模型';
 
   @override
@@ -35845,7 +36739,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backgroundSettingsTitle => '背景任務';
 
   @override
-  String get backgroundTaskTitle => 'Kelivo 任務';
+  String get backgroundTaskTitle => 'Cuplivo 任務';
 
   @override
   String get backgroundCompleted => '生成完成';
@@ -35976,7 +36870,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backgroundOverlayIcon => '懸浮視窗圖示';
 
   @override
-  String get backgroundIconDefault => 'Kelivo 圖示';
+  String get backgroundIconDefault => 'Cuplivo 圖示';
 
   @override
   String get backgroundIconImage => '選擇圖片';
@@ -36185,7 +37079,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get startupRecoverySnapshotBody =>
-      '即使資料庫無法開啟，也可以選擇本機快照還原聊天和設定。請勿解除安裝 Kelivo，解除安裝會一併刪除這些快照。';
+      '即使資料庫無法開啟，也可以選擇本機快照還原聊天和設定。請勿解除安裝 Cuplivo，解除安裝會一併刪除這些快照。';
 
   @override
   String get startupRecoverySnapshotEmpty => '未在本機找到資料庫快照。請先匯出資料，再嘗試其他還原操作。';
@@ -36195,7 +37089,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
-    return '將聊天和設定還原到 $when 的快照？快照之後的變更不會包含在內。現有附件檔案和快照會保留，Kelivo 將重新啟動以完成還原。';
+    return '將聊天和設定還原到 $when 的快照？快照之後的變更不會包含在內。現有附件檔案和快照會保留，Cuplivo 將重新啟動以完成還原。';
   }
 
   @override
@@ -36204,7 +37098,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get startupRecoverySnapshotReady => '快照已準備好，請重新啟動 Kelivo 完成還原。';
+  String get startupRecoverySnapshotReady => '快照已準備好，請重新啟動 Cuplivo 完成還原。';
 
   @override
   String get scheduledTasksTitle => '定時任務';
@@ -36275,7 +37169,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksReliability =>
-      '建議在電池設定中允許 Kelivo 背景執行。強制停止後需重新開啟應用程式。錯過的任務不會補跑，執行時間跟隨裝置時區。';
+      '建議在電池設定中允許 Cuplivo 背景執行。強制停止後需重新開啟應用程式。錯過的任務不會補跑，執行時間跟隨裝置時區。';
 
   @override
   String get scheduledTasksExecutionDetail =>
@@ -36452,7 +37346,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksDesktopReliability =>
-      '僅在 Kelivo 執行時運作，最小化或常駐系統匣時也會繼續。結束或電腦休眠期間錯過的任務不會補執行，也不會自動啟動應用程式。';
+      '僅在 Cuplivo 執行時運作，最小化或常駐系統匣時也會繼續。結束或電腦休眠期間錯過的任務不會補執行，也不會自動啟動應用程式。';
 
   @override
   String get scheduledTasksDesktopExecutionDetail =>
@@ -36672,11 +37566,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String oauthUsedValue(String value) {
-    return '已用 $value';
-  }
-
-  @override
   String get oauthNetworkError => '連線失敗，請檢查網路後重試。';
 
   @override
@@ -36747,7 +37636,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksIOSDetail =>
-      '受 iOS 背景限制，Kelivo 不能在指定時間自動喚醒並執行模型。此功能會在 App 可執行時提前準備內容，由系統到點顯示通知。每次僅準備下一次結果；離開 App 後不保證準備完成，後續任務需再次開啟 Kelivo 才能補充。';
+      '受 iOS 背景限制，Cuplivo 不能在指定時間自動喚醒並執行模型。此功能會在 App 可執行時提前準備內容，由系統到點顯示通知。每次僅準備下一次結果；離開 App 後不保證準備完成，後續任務需再次開啟 Cuplivo 才能補充。';
 
   @override
   String get scheduledTasksContextPolicy => '對話上下文';
@@ -36811,7 +37700,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get scheduledTasksCancelled => '已取消';
 
   @override
-  String get scheduledTasksReminderBody => '定時任務已到期，開啟 Kelivo 繼續。';
+  String get scheduledTasksReminderBody => '定時任務已到期，開啟 Cuplivo 繼續。';
 
   @override
   String get scheduledTasksResultBody => '定時任務結果已準備好。';
@@ -36825,7 +37714,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksAllowPreparationTip =>
-      '在 Kelivo 可執行時，提前產生下一次任務的結果，到期前不會顯示在聊天中。僅使用文字，不使用工具、附件或自訂請求內容；呼叫模型可能產生費用。';
+      '在 Cuplivo 可執行時，提前產生下一次任務的結果，到期前不會顯示在聊天中。僅使用文字，不使用工具、附件或自訂請求內容；呼叫模型可能產生費用。';
 
   @override
   String get scheduledTasksContextPolicyTip =>
@@ -36833,7 +37722,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksPreparationWindowTip =>
-      '允許在任務到期前多久開始準備，最長 24 小時。例如第二天早上提醒，前一天中午開啟 Kelivo 時就有機會準備。時間越長，準備機會越多，但內容也可能更早過時。不會改變任務時間，也不代表能在背景定時執行。「立刻準備」不受這項自動等待和準備次數上限限制。';
+      '允許在任務到期前多久開始準備，最長 24 小時。例如第二天早上提醒，前一天中午開啟 Cuplivo 時就有機會準備。時間越長，準備機會越多，但內容也可能更早過時。不會改變任務時間，也不代表能在背景定時執行。「立刻準備」不受這項自動等待和準備次數上限限制。';
 
   @override
   String get scheduledTasksPreparationAttemptsTip =>
@@ -36845,7 +37734,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksUnavailableTip =>
-      '到期時沒有可用結果、也無法執行任務，就傳送提醒或略過本次。提醒不包含模型產生的回答，且需要開啟通知。如果到期時 Kelivo 正在開啟執行，可直接執行任務。';
+      '到期時沒有可用結果、也無法執行任務，就傳送提醒或略過本次。提醒不包含模型產生的回答，且需要開啟通知。如果到期時 Cuplivo 正在開啟執行，可直接執行任務。';
 
   @override
   String get scheduledTasksNotifyTip =>
@@ -37021,17 +37910,1216 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get phoneControlAssistantHint =>
-      '需要同時完成兩項設定：在系統無障礙設定中啟用「Kelivo 手機控制」，並在要使用的助手 → 本地工具中開啟「手機控制」（也可從對話工具選單開啟）。每個助手單獨設定，執行任務時請保持手機解鎖。';
+      '需要同時完成兩項設定：在系統無障礙設定中啟用「Cuplivo 手機控制」，並在要使用的助手 → 本地工具中開啟「手機控制」（也可從對話工具選單開啟）。每個助手單獨設定，執行任務時請保持手機解鎖。';
 
   @override
   String get phoneControlRestrictedTitle => '無法開啟無障礙？';
 
   @override
   String get phoneControlRestrictedHint =>
-      '部分下載的 APK 需要先在應用程式資訊右上角選單中選擇「允許受限制的設定」。點擊開啟 Kelivo 應用程式資訊，完成後再返回無障礙設定。';
+      '部分下載的 APK 需要先在應用程式資訊右上角選單中選擇「允許受限制的設定」。點擊開啟 Cuplivo 應用程式資訊，完成後再返回無障礙設定。';
 
   @override
   String get phoneControlEnableAssistant => '允許此助手使用手機控制';
+
+  @override
+  String get settingsPageLanSync => '區域網路同步';
+
+  @override
+  String get lanSyncThisDevice => '本裝置';
+
+  @override
+  String get lanSyncDeviceIdLabel => '裝置 ID';
+
+  @override
+  String get lanSyncListenerStarting => '正在啟動監聽…';
+
+  @override
+  String get lanSyncListenerNotRunning => '監聽未執行';
+
+  @override
+  String lanSyncListenerFailed(Object error) {
+    return '監聽啟動失敗：$error';
+  }
+
+  @override
+  String get lanSyncPairSectionTitle => '配對裝置';
+
+  @override
+  String get lanSyncPairFirstSyncNote =>
+      '配對成功後會自動開始首次同步，可能耗時較長。請保持電腦端應用程式執行，手機端保持在這個應用程式前台。';
+
+  @override
+  String get lanSyncPairIntro => '在一台裝置上顯示二維碼，用另一台掃描；沒有相機時輸入配對碼。兩台裝置需在同一網路。';
+
+  @override
+  String get lanSyncShowCode => '顯示配對二維碼';
+
+  @override
+  String get lanSyncEnterCode => '掃碼或輸入配對碼';
+
+  @override
+  String get lanSyncPairingCode => '配對碼';
+
+  @override
+  String lanSyncPairingExpiresIn(Object time) {
+    return '$time 後失效';
+  }
+
+  @override
+  String get lanSyncPairingEndpointHint => '在另一台裝置上輸入以下位址';
+
+  @override
+  String get lanSyncPairingNoIpHint => '未找到區域網路位址。另一台裝置仍可憑本機的 IP 或主機名稱連線。';
+
+  @override
+  String get lanSyncHostLabel => '位址';
+
+  @override
+  String get lanSyncPortLabel => '連接埠';
+
+  @override
+  String get lanSyncPairButton => '配對';
+
+  @override
+  String get lanSyncPairAgain => '重新配對';
+
+  @override
+  String get lanSyncPairingBusy => '配對中…';
+
+  @override
+  String lanSyncPairSuccess(Object name) {
+    return '已與 $name 配對';
+  }
+
+  @override
+  String get lanSyncPairErrorInvalidPin => '配對碼錯誤，或對方的配對視窗已關閉。';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress => '請填寫對方裝置的位址和連接埠。';
+
+  @override
+  String get lanSyncPairErrorUnreachable => '無法連線到該裝置。請檢查位址與連接埠，並確認兩台裝置在同一網路。';
+
+  @override
+  String get lanSyncPairErrorNoCertificate => '對方未能出示身分，配對已中止。';
+
+  @override
+  String get lanSyncPairErrorIdMismatch => '無法核實對方身分，配對已中止。';
+
+  @override
+  String get lanSyncPairErrorNoListener => '本裝置的同步監聽尚未啟動。';
+
+  @override
+  String lanSyncPairErrorUnknown(Object error) {
+    return '配對失敗：$error';
+  }
+
+  @override
+  String get lanSyncScanQr => '掃描配對二維碼';
+
+  @override
+  String get lanSyncPairQrCaption => '掃碼配對，或在另一台裝置輸入下方資訊';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return '已更新與 $name 的配對';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch => '裝置憑證與二維碼不符，已中止配對。';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr => '二維碼中沒有可用位址，請在下方輸入位址完成配對。';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr => '這不是 Cuplivo 的配對二維碼。';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => '配對二維碼內容無法解析。';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion => '二維碼版本較新，請更新應用後重試。';
+
+  @override
+  String get lanSyncClosePairing => '關閉配對視窗';
+
+  @override
+  String get lanSyncPairedDevices => '已配對裝置';
+
+  @override
+  String get lanSyncNoDevices => '還沒有已配對的裝置。配對後即可開始同步。';
+
+  @override
+  String get lanSyncPlatformAndroid => 'Android';
+
+  @override
+  String get lanSyncPlatformIos => 'iOS';
+
+  @override
+  String get lanSyncPlatformWindows => 'Windows';
+
+  @override
+  String get lanSyncPlatformMacos => 'macOS';
+
+  @override
+  String get lanSyncPlatformLinux => 'Linux';
+
+  @override
+  String get lanSyncPlatformUnknown => '未知裝置';
+
+  @override
+  String lanSyncLastSyncedAt(Object time) {
+    return '上次同步 $time';
+  }
+
+  @override
+  String get lanSyncNeverSynced => '從未同步';
+
+  @override
+  String get lanSyncJustSynced => '剛剛同步';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n 分鐘前';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n 小時前';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n 天前';
+  }
+
+  @override
+  String get lanSyncSyncNow => '立即同步';
+
+  @override
+  String get lanSyncOnline => '線上';
+
+  @override
+  String get lanSyncOnlineFromSession => '線上——上次同步成功連上';
+
+  @override
+  String get lanSyncOfflineFromSession => '離線——上次同步沒能連上';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return '正在連線 $address…';
+  }
+
+  @override
+  String lanSyncPhaseConnectingAt(Object address, Object index, Object total) {
+    return '正在連線 $address…（$index/$total）';
+  }
+
+  @override
+  String get lanSyncOffline => '離線';
+
+  @override
+  String get lanSyncUpToDate => '已是最新';
+
+  @override
+  String get lanSyncPhaseConnecting => '正在連線…';
+
+  @override
+  String get lanSyncPhaseExchanging => '正在比對資料…';
+
+  @override
+  String get lanSyncPhaseSending => '正在傳送變更…';
+
+  @override
+  String get lanSyncPhaseReceiving => '正在接收變更…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return '正在下載檔案…（$done/$total）';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => '正在下載檔案…';
+
+  @override
+  String get lanSyncPhaseApplying => '正在套用變更…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      '首次同步進行中——請保持兩台裝置喚醒、Cuplivo 保持開啟（手機端請保持前台），直到同步完成。';
+
+  @override
+  String get lanSyncRename => '重新命名';
+
+  @override
+  String get lanSyncRenameTitle => '裝置名稱';
+
+  @override
+  String get lanSyncEditAddress => '修改位址';
+
+  @override
+  String get lanSyncAddressCopied => '位址已複製';
+
+  @override
+  String get lanSyncUnpair => '取消配對';
+
+  @override
+  String lanSyncUnpairConfirmTitle(Object name) {
+    return '取消與 $name 的配對？';
+  }
+
+  @override
+  String get lanSyncUnpairConfirmBody => '對話在兩台裝置上都會保留，只是不再與它同步，直到重新配對。';
+
+  @override
+  String lanSyncReportSent(Object n) {
+    return '傳送 $n';
+  }
+
+  @override
+  String lanSyncReportReceived(Object n) {
+    return '接收 $n';
+  }
+
+  @override
+  String lanSyncReportMessagesUpserted(Object n) {
+    return '+$n 條訊息';
+  }
+
+  @override
+  String lanSyncReportMessagesDeleted(Object n) {
+    return '-$n 條訊息';
+  }
+
+  @override
+  String lanSyncReportConversationsDeleted(Object n) {
+    return '-$n 個對話';
+  }
+
+  @override
+  String lanSyncReportDeferred(Object n) {
+    return '$n 項延後';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n 個實體';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n 項偏好';
+  }
+
+  @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n 個檔案 · $size';
+  }
+
+  @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n 個檔案';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n 個技能';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n 處技能修改被覆蓋';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n 個檔案在對方裝置上缺失';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n 條本地記錄被對端更新的版本覆蓋';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return '兩台設備的時鐘相差約 $n 分鐘，請校準設備時鐘後重新同步';
+  }
+
+  @override
+  String get lanSyncReportPeerOffline =>
+      '暫時連不上——對方可能已休眠或換了網路；兩台裝置回到同一網路後會自動同步。';
+
+  @override
+  String get lanSyncReportUnreachable =>
+      '同步失敗：無法連線到對方裝置。它可能已離線或換了網路——重新掃描它的二維碼，或在卡片上修改位址。';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      '同步失敗：沒有記錄對方裝置的位址。請重新掃描它的二維碼，或在卡片上填寫位址。';
+
+  @override
+  String get lanSyncReportTimeout => '同步失敗：對方裝置停止回應。';
+
+  @override
+  String get lanSyncReportPeerError => '同步失敗：對方裝置回報了錯誤。';
+
+  @override
+  String get lanSyncReportInternal => '同步失敗，詳情見日誌。';
+
+  @override
+  String get lanSyncRefusedPeerSchemaNewer => '對方資料庫版本較新。請先更新本裝置再同步。';
+
+  @override
+  String get lanSyncRefusedProtocolUnknown => '對方使用不同的同步協定。請將兩台裝置都更新到最新版本。';
+
+  @override
+  String get lanSyncRefusedNotPaired =>
+      '本裝置與對方對這次配對的記錄已不一致——對方解除了配對，或重新配對沒有在兩台裝置上完成。請在兩台裝置上重新配對。';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch => '對方裝置的身分不一致。請在兩台裝置上重新配對。';
+
+  @override
+  String get lanSyncRefusedBusy => '另一個同步工作階段正在進行，請稍後再試。';
+
+  @override
+  String get lanSyncFirewallTitle => 'Windows 防火牆';
+
+  @override
+  String lanSyncFirewallHint(Object port) {
+    return '連接埠 $port 的入站規則需要一次管理員授權。';
+  }
+
+  @override
+  String get lanSyncFirewallFix => '允許存取（UAC）';
+
+  @override
+  String get lanSyncFirewallFixed => '入站存取已允許。';
+
+  @override
+  String get lanSyncKnownLimits => '目前：工作區仍只留在建立它的裝置上；PIN 配對請僅在可信網路中使用。';
+
+  @override
+  String get assistantEditProactiveCareEnableTitle => '主動關懷';
+
+  @override
+  String get assistantEditProactiveCareDefaultDescription => '未單獨設定的對話預設跟隨此開關';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      '時間決策所用訊息條數';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      '決定下次主動發訊息時間時，最多傳送給決策模型的最近歷史訊息數量';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle => '各對話下次來信時間';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations => '此助手暫無已開啟的對話';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return '未來 · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return '已過期 · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => '未設定';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android 執行條件';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => '通知';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => '精確鬧鐘';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => '自動啟動';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle => '忽略電池最佳化';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => '必需';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => '建議';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => '已就緒';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => '點擊取得權限';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => '需手動確認';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => '未知';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeTitle => '下次助手主動發訊息時間';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeUnset => '未設定';
+
+  @override
+  String get assistantEditProactiveCarePromptTitle => '主動關懷提示詞';
+
+  @override
+  String get assistantEditProactiveCarePromptHint => '助手主動發訊息時使用的提示詞';
+
+  @override
+  String get assistantEditProactiveCarePromptDefault =>
+      '請根據助手的角色設定、上下文、以及目前時間，給使用者發一條訊息';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptTitle => '決策時間功能說明提示詞';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptDefault =>
+      '你是一個角色扮演場景的導演，負責判斷助手（assistant）下一次應主動向使用者發訊息的時間。\n\n【功能說明】\n· 主動發訊息：助手可在設定時間主動向使用者發送訊息，無需使用者提問。\n· 若不設定主動發訊息的時間，則助手無法在使用者不發言的情況下主動發送任何訊息。\n· 你需要評估當前設定的下次發訊息時間：若認為無需調整，則保持原時間；否則進行修改。\n\n【注意】\n· 只考慮助手的視角看到的資訊，不考慮使用者的視角。\n\n【考慮角度】\n1. 助手在睡醒、完成某件事、安全回到宿舍等情況下，應主動向使用者報備或打招呼。\n2. 若上下文中提到助手因睡著、忙碌等原因未能及時查看使用者的訊息，則應設定在助手睡醒或忙完後，主動給使用者發一條訊息。\n3. 若上下文中提到助手需要在某個時間點監督或提醒使用者，則設定在該時間點主動發訊息。\n4. 當一個話題尚未聊完時，需要假設：使用者在助手最後一條訊息發出後始終沒有回覆，那麼助手應在什麼時間主動發訊息？請據此設定時間。\n\n【示例】\n1. 聊天記錄中，使用者凌晨發訊息稱自己失眠，預計早上10:30起床，但助手沒有失眠，會按正常時間（如8:30）起床。此時應將主動發訊息時間設為助手的起床時間。\n2. 聊天記錄中，使用者與助手正在聊考試話題。你在8:30看到的最後一條訊息是助手在8:30發出的一個提問。依據第4條規則，需考慮使用者一直未回覆的情況，助手應在10分鐘之內主動發訊息追問。';
+
+  @override
+  String get assistantEditProactiveCareDateTimePickerTitle => '選擇日期和時間';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture => '請選擇未來的時間。';
+
+  @override
+  String get conversationProactiveCareTitle => '對話主動關懷';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn => '跟隨助手設定：已開啟';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff => '跟隨助手設定：已關閉';
+
+  @override
+  String get conversationProactiveCareExplicitOn => '對話設定：已開啟';
+
+  @override
+  String get conversationProactiveCareExplicitOff => '對話設定：已關閉';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing => '跟隨助手設定';
+
+  @override
+  String get conversationProactiveCareClearTime => '清除下次發訊息時間';
+
+  @override
+  String get conversationProactiveCareUpdateFailed => '無法更新對話主動關懷設定。';
+
+  @override
+  String get defaultModelPageProactiveCareModelTitle => 'Ta的來信決策模型';
+
+  @override
+  String get defaultModelPageProactiveCareModelSubtitle => '用於決定助手何時主動發訊息的模型';
+
+  @override
+  String get proactiveCareFailedNotificationBody =>
+      '主動關懷訊息生成失敗，請開啟應用程式檢查模型配置與網路。';
+
+  @override
+  String get proactiveCareLetterArrivalBody => 'Ta的來信已到達，開啟應用程式即可查看。';
+
+  @override
+  String get assistantEditPageRoleplayTab => '角色扮演';
+
+  @override
+  String get assistantEditProactiveCareFeatureTitle => 'Ta的來信';
+
+  @override
+  String statsPageCost(String currency) {
+    return '費用 ($currency)';
+  }
+
+  @override
+  String statsPageModelsWithoutPricing(int count) {
+    return '$count 個模型無定價';
+  }
+
+  @override
+  String get assistantEditReasoningFollowDefault => '跟隨模型預設';
+
+  @override
+  String get assistantEditReasoningClampedSubtitle => '實際檔位會依各模型的能力收斂';
+
+  @override
+  String get backupProgressFailed => '操作失敗';
+
+  @override
+  String backupProgressFailedAt(String phase) {
+    return '失敗階段：$phase';
+  }
+
+  @override
+  String get backupProgressCopyError => '複製錯誤';
+
+  @override
+  String get backupProgressErrorCopied => '錯誤已複製';
+
+  @override
+  String get reasoningLevelSheetTitle => '推理';
+
+  @override
+  String get reasoningLevelAuto => '自動';
+
+  @override
+  String get reasoningLevelAutoSubtitle => '使用模型或供應商的預設設定';
+
+  @override
+  String get reasoningLevelOff => '關閉';
+
+  @override
+  String get reasoningLevelOffSubtitle => '關閉推理，直接回答';
+
+  @override
+  String get reasoningLevelMinimal => '最低';
+
+  @override
+  String get reasoningLevelMinimalSubtitle => '使用極少推理來回答問題';
+
+  @override
+  String get reasoningLevelLow => '低';
+
+  @override
+  String get reasoningLevelLowSubtitle => '使用少量推理來回答問題';
+
+  @override
+  String get reasoningLevelMedium => '中';
+
+  @override
+  String get reasoningLevelMediumSubtitle => '使用較多推理來回答問題';
+
+  @override
+  String get reasoningLevelHigh => '高';
+
+  @override
+  String get reasoningLevelHighSubtitle => '使用大量推理來回答問題，適合複雜問題';
+
+  @override
+  String get reasoningLevelXhigh => '極高';
+
+  @override
+  String get reasoningLevelXhighSubtitle => '使用很高推理深度，適合更複雜的問題';
+
+  @override
+  String get reasoningLevelMax => '最大';
+
+  @override
+  String get reasoningLevelMaxSubtitle => '使用最大推理深度，適合最複雜的問題';
+
+  @override
+  String get reasoningLevelFollowModelDefaultSubtitle => '使用模型或助手未設定時的預設檔位';
+
+  @override
+  String get reasoningLevelNoReasoning => '此模型不支援推理';
+
+  @override
+  String get reasoningLevelCustomBudget => '自訂推理預算';
+
+  @override
+  String get reasoningLevelCustomBudgetHint => '例如：2048';
+
+  @override
+  String get reasoningLevelCompactMin => 'min';
+
+  @override
+  String get reasoningLevelCompactLow => 'low';
+
+  @override
+  String get reasoningLevelCompactMid => 'mid';
+
+  @override
+  String get reasoningLevelCompactHigh => 'high';
+
+  @override
+  String get reasoningLevelCompactXhigh => 'xhigh';
+
+  @override
+  String get reasoningLevelCompactMax => 'max';
+
+  @override
+  String reasoningLevelBudgetTokens(String budget) {
+    return '$budget tokens';
+  }
+
+  @override
+  String chatMessageWidgetWebFetch(String target) {
+    return '讀取網頁: $target';
+  }
+
+  @override
+  String get chatInputBarVoiceAttachAudioTooltip => '停止並存為音訊';
+
+  @override
+  String get chatInputBarVoiceSendAudioTooltip => '直接發送錄音';
+
+  @override
+  String get chatInputBarVoiceSavingAudio => '正在儲存錄音…';
+
+  @override
+  String get audioClipPlayTooltip => '播放音訊';
+
+  @override
+  String get audioClipPauseTooltip => '暫停';
+
+  @override
+  String get audioClipPlaybackFailed => '無法播放此音訊';
+
+  @override
+  String get contextUsageTitle => '上下文視窗';
+
+  @override
+  String get contextUsageStateExact => '精確（來自上次回應）';
+
+  @override
+  String get contextUsageStateExactCalibrated => '精確（分項按估算比例）';
+
+  @override
+  String get contextUsageStateEstimated => '估算';
+
+  @override
+  String get contextUsageStateStale => '已過時，正在更新…';
+
+  @override
+  String get contextUsageStateComputing => '計算中…';
+
+  @override
+  String get contextUsageStateNone => '暫無資料';
+
+  @override
+  String get contextUsageBucketSystem => '系統提示詞';
+
+  @override
+  String get contextUsageBucketInjections => '指令注入';
+
+  @override
+  String get contextUsageBucketHistory => '歷史訊息';
+
+  @override
+  String get contextUsageBucketTools => '內建工具';
+
+  @override
+  String get contextUsageBucketMemory => '記憶';
+
+  @override
+  String get contextUsageBucketWorldBook => '世界書';
+
+  @override
+  String get contextUsageBucketSkills => '技能';
+
+  @override
+  String get contextUsageBucketWorkspace => '工作區';
+
+  @override
+  String get contextUsageBucketSearch => '搜尋提示';
+
+  @override
+  String get contextUsageBucketMcpTools => 'MCP 工具';
+
+  @override
+  String get contextUsageBucketAttachments => '附件';
+
+  @override
+  String get contextUsageBucketDraft => '草稿';
+
+  @override
+  String get contextUsageBucketUsed => '已用';
+
+  @override
+  String get contextUsageFreeSpace => '剩餘空間';
+
+  @override
+  String contextUsageUsedWindow(String used, String window, int percent) {
+    return '$used / $window ($percent%)';
+  }
+
+  @override
+  String get contextUsageNoWindow => '未設定上下文視窗';
+
+  @override
+  String get contextUsageSetWindow => '設定上下文視窗';
+
+  @override
+  String get contextUsageRefresh => '重新整理';
+
+  @override
+  String get modelSpecFormSourceCustom => '自訂';
+
+  @override
+  String get modelSpecFormSourceCatalog => '目錄';
+
+  @override
+  String get modelSpecFormSourceInferred => '推斷';
+
+  @override
+  String get modelSpecFormSourceDefault => '預設';
+
+  @override
+  String get modelSpecFormReset => '重設為預設';
+
+  @override
+  String get modelSpecFormModalitiesSection => '模態與能力';
+
+  @override
+  String get modelSpecFormImageType => '圖像';
+
+  @override
+  String get modelSpecFormAudioMode => '音訊';
+
+  @override
+  String get modelSpecFormVideoMode => '影片';
+
+  @override
+  String get modelSpecFormPdfMode => 'PDF';
+
+  @override
+  String get modelSpecFormStructuredOutputAbility => '結構化輸出';
+
+  @override
+  String get modelSpecFormReasoningSection => '推理';
+
+  @override
+  String get modelSpecFormDialect => '推理方言';
+
+  @override
+  String get modelSpecFormDialectNone => '無';
+
+  @override
+  String get modelSpecFormDialectNoneSubtitle => '不寫入推理欄位';
+
+  @override
+  String get modelSpecFormDialectOpenaiReasoningEffort =>
+      'OpenAI reasoning effort';
+
+  @override
+  String get modelSpecFormDialectOpenaiReasoningEffortSubtitle =>
+      'reasoning_effort';
+
+  @override
+  String get modelSpecFormDialectOpenaiResponsesReasoning =>
+      'OpenAI Responses reasoning';
+
+  @override
+  String get modelSpecFormDialectOpenaiResponsesReasoningSubtitle =>
+      'reasoning.effort';
+
+  @override
+  String get modelSpecFormDialectOpenrouterReasoning => 'OpenRouter reasoning';
+
+  @override
+  String get modelSpecFormDialectOpenrouterReasoningSubtitle => 'reasoning';
+
+  @override
+  String get modelSpecFormDialectAnthropicBudget => 'Anthropic budget';
+
+  @override
+  String get modelSpecFormDialectAnthropicBudgetSubtitle =>
+      'thinking.budget_tokens';
+
+  @override
+  String get modelSpecFormDialectAnthropicAdaptiveEffort =>
+      'Anthropic adaptive effort';
+
+  @override
+  String get modelSpecFormDialectAnthropicAdaptiveEffortSubtitle =>
+      'thinking + output_config.effort';
+
+  @override
+  String get modelSpecFormDialectAnthropicEffort => 'Anthropic effort';
+
+  @override
+  String get modelSpecFormDialectAnthropicEffortSubtitle =>
+      'thinking + output_config.effort';
+
+  @override
+  String get modelSpecFormDialectGeminiThinkingBudget =>
+      'Gemini thinking budget';
+
+  @override
+  String get modelSpecFormDialectGeminiThinkingBudgetSubtitle =>
+      'thinkingConfig.thinkingBudget';
+
+  @override
+  String get modelSpecFormDialectGeminiThinkingLevel => 'Gemini thinking level';
+
+  @override
+  String get modelSpecFormDialectGeminiThinkingLevelSubtitle =>
+      'thinkingConfig.thinkingLevel';
+
+  @override
+  String get modelSpecFormDialectQwenEnableThinking => 'Qwen enable thinking';
+
+  @override
+  String get modelSpecFormDialectQwenEnableThinkingSubtitle =>
+      'enable_thinking';
+
+  @override
+  String get modelSpecFormDialectThinkingType => 'Thinking type';
+
+  @override
+  String get modelSpecFormDialectThinkingTypeSubtitle => 'thinking.type';
+
+  @override
+  String get modelSpecFormDialectSiliconflowEnableThinking =>
+      'SiliconFlow enable thinking';
+
+  @override
+  String get modelSpecFormDialectSiliconflowEnableThinkingSubtitle =>
+      'enable_thinking';
+
+  @override
+  String get modelSpecFormDialectInternThinkingMode => 'Intern thinking mode';
+
+  @override
+  String get modelSpecFormDialectInternThinkingModeSubtitle => 'thinking_mode';
+
+  @override
+  String get modelSpecFormDialectChatTemplateKwargs => 'Chat template kwargs';
+
+  @override
+  String get modelSpecFormDialectChatTemplateKwargsSubtitle =>
+      'chat_template_kwargs.enable_thinking';
+
+  @override
+  String get modelSpecFormDialectKimiThinking => 'Kimi thinking';
+
+  @override
+  String get modelSpecFormDialectKimiThinkingSubtitle => 'thinking';
+
+  @override
+  String get modelSpecFormDialectCustom => '自訂 JSON';
+
+  @override
+  String get modelSpecFormDialectCustomSubtitle => '依級別寫入 JSON 補丁';
+
+  @override
+  String get modelSpecFormLevels => '支援的級別';
+
+  @override
+  String get modelSpecFormCanDisable => '允許關閉';
+
+  @override
+  String get modelSpecFormDefaultLevel => '預設級別';
+
+  @override
+  String get modelSpecFormBudgets => 'Token 預算';
+
+  @override
+  String modelSpecFormBudgetPlaceholder(String tokens) {
+    return '$tokens';
+  }
+
+  @override
+  String modelSpecFormCustomPatch(String level) {
+    return 'JSON 補丁（$level）';
+  }
+
+  @override
+  String get modelSpecFormCustomPatchHint => '例如 reasoning_effort: high';
+
+  @override
+  String get modelSpecFormInvalidJson => '自訂推理補丁必須是有效的 JSON 物件';
+
+  @override
+  String get modelSpecFormInvalidNumber => '請輸入有效數字';
+
+  @override
+  String get modelSpecFormStrategySection => '策略';
+
+  @override
+  String get modelSpecFormSampling => '取樣';
+
+  @override
+  String get modelSpecFormRequestQuirks => '請求相容';
+
+  @override
+  String get modelSpecFormDynamicWebSearch => '動態過濾搜尋工具';
+
+  @override
+  String get modelSpecFormDynamicWebSearchSubtitle =>
+      '開啟動態過濾時，使用 2026-03-18 版網頁搜尋與擷取工具';
+
+  @override
+  String get modelSpecFormRemoteImageUrls => '遠端圖片連結';
+
+  @override
+  String get modelSpecFormRemoteImageUrlsSubtitle =>
+      '直接傳送 http(s) 圖片連結；關閉後捨棄遠端連結，只傳送本機圖片';
+
+  @override
+  String get modelSpecFormPromptCacheControl => '提示快取標記';
+
+  @override
+  String get modelSpecFormPromptCacheControlSubtitle =>
+      '開啟提示快取時，在 OpenRouter 請求中加入 cache_control';
+
+  @override
+  String get modelSpecFormSamplingAlways => '始終保留';
+
+  @override
+  String get modelSpecFormSamplingAlwaysSubtitle => '保留 temperature 等取樣欄位';
+
+  @override
+  String get modelSpecFormSamplingOnlyWhenReasoningOff => '僅在關閉推理時';
+
+  @override
+  String get modelSpecFormSamplingOnlyWhenReasoningOffSubtitle => '模型思考時移除取樣欄位';
+
+  @override
+  String get modelSpecFormSamplingNever => '從不';
+
+  @override
+  String get modelSpecFormSamplingNeverSubtitle => '始終移除取樣欄位';
+
+  @override
+  String get modelSpecFormReplay => '推理回放';
+
+  @override
+  String get modelSpecFormReplayNone => '無';
+
+  @override
+  String get modelSpecFormReplayNoneSubtitle => '不把先前推理傳回模型';
+
+  @override
+  String get modelSpecFormReplayToolTurns => '工具輪次';
+
+  @override
+  String get modelSpecFormReplayToolTurnsSubtitle => '僅在工具呼叫輪次回放推理';
+
+  @override
+  String get modelSpecFormReplayAll => '全部';
+
+  @override
+  String get modelSpecFormReplayAllSubtitle => '每一輪後續請求都回放推理';
+
+  @override
+  String get modelSpecFormReplayField => '回放欄位';
+
+  @override
+  String get modelSpecFormReplayFieldReasoningContent => 'reasoning_content';
+
+  @override
+  String get modelSpecFormReplayFieldReasoning => 'reasoning';
+
+  @override
+  String get modelSpecFormReplayFieldReasoningDetails => 'reasoning_details';
+
+  @override
+  String get modelSpecFormLimitsSection => '限額';
+
+  @override
+  String get modelSpecFormLimitsPricingSection => '限額與定價';
+
+  @override
+  String get modelSpecFormContextWindow => '上下文視窗';
+
+  @override
+  String get modelSpecFormMaxOutput => '最大輸出';
+
+  @override
+  String get modelSpecFormPricingSection => '定價 / 1M';
+
+  @override
+  String get modelSpecFormPricingInput => '輸入';
+
+  @override
+  String get modelSpecFormPricingOutput => '輸出';
+
+  @override
+  String get modelSpecFormPricingCacheRead => '快取讀取';
+
+  @override
+  String get modelSpecFormPricingCacheWrite => '快取寫入';
+
+  @override
+  String get modelSpecFormCurrency => '貨幣';
+
+  @override
+  String get modelSpecFormAdvancedSection => '請求';
+
+  @override
+  String get providerDetailPagePromptCacheKeyTitle => '傳送對話快取鍵';
+
+  @override
+  String get providerDetailPagePromptCacheKeyHelp =>
+      '為 OpenAI 相容請求附加穩定的對話級 prompt_cache_key。僅在供應商支援時開啟，自訂 Body 優先，不保證快取命中。';
+
+  @override
+  String get modelCatalogTitle => '模型目錄';
+
+  @override
+  String modelCatalogSourceBundled(String date) {
+    return '內建快照 · $date';
+  }
+
+  @override
+  String modelCatalogSourceRemote(String date) {
+    return 'models.dev · 更新於 $date';
+  }
+
+  @override
+  String get modelCatalogAutoUpdate => '每 24 小時自動更新';
+
+  @override
+  String get modelCatalogRefresh => '立即更新';
+
+  @override
+  String get modelCatalogUpdated => '模型目錄已更新';
+
+  @override
+  String modelCatalogRefreshFailed(String error) {
+    return '更新失敗：$error';
+  }
+
+  @override
+  String modelCatalogProviderCount(int count) {
+    return '$count 個供應商';
+  }
+
+  @override
+  String modelCatalogModelCount(int count) {
+    return '$count 個模型';
+  }
+
+  @override
+  String get searchServicesPageWebFetchSection => '網頁抓取';
+
+  @override
+  String get searchServicesPageWebFetchModeTitle => '抓取方式';
+
+  @override
+  String get searchServicesPageWebFetchFollow => '跟隨搜尋服務';
+
+  @override
+  String searchServicesPageWebFetchFollowValue(String name) {
+    return '跟隨搜尋 · $name';
+  }
+
+  @override
+  String searchServicesPageWebFetchFollowSubtitle(String name) {
+    return '目前：$name';
+  }
+
+  @override
+  String get searchServicesPageWebFetchLocal => '本機抓取';
+
+  @override
+  String get searchServicesPageWebFetchLocalSubtitle => '免費，由本機直接請求網頁';
+
+  @override
+  String get searchServicesPageWebFetchProviderSubtitle =>
+      '使用該服務商的 API Key 與額度';
+
+  @override
+  String get searchServicesPageWebFetchOff => '關閉';
+
+  @override
+  String get searchServicesPageWebFetchOffSubtitle => '連網時只搜尋，不讀取網頁';
+
+  @override
+  String get searchServicesPageWebFetchFooter =>
+      '開啟連網搜尋後，模型還可以讀取網頁全文。搜尋服務不支援抓取時會改用本機抓取，本機抓取無法處理需要 JavaScript 渲染或有反爬限制的頁面。';
+
+  @override
+  String get searchServicesPageWebFetchSupported => '支援網頁抓取';
+
+  @override
+  String get searchServicesDialogApiKeyOptional => 'API Key（選填）';
+
+  @override
+  String get searchServiceEditorTestModeSearch => '搜尋';
+
+  @override
+  String get searchServiceEditorTestModeFetch => '抓取';
+
+  @override
+  String get searchServiceEditorTestUrlHint => '輸入測試網址';
+
+  @override
+  String get searchServiceEditorTestFetchRun => '執行抓取測試';
+
+  @override
+  String get searchServiceEditorTestFetchRunning => '抓取中…';
+
+  @override
+  String searchServiceEditorTestFetchFailed(String message) {
+    return '抓取失敗：$message';
+  }
+
+  @override
+  String searchServiceEditorTestFetchStats(String characters, String seconds) {
+    return '$characters 字元 · $seconds 秒';
+  }
+
+  @override
+  String get displaySettingsPageShowTotalTokensTitle => '顯示整輪累計 Token';
+
+  @override
+  String get displaySettingsPageShowTotalTokensSubtitle =>
+      '累計顯示本次回覆中所有 API 請求的用量。關閉時僅顯示最後一次請求；統計頁面始終包含所有請求。';
+
+  @override
+  String get displaySettingsShowReasoningLevelBadge => '在推理按鈕上顯示檔位';
+
+  @override
+  String get displaySettingsShowReasoningLevelBadgeSubtitle =>
+      '在輸入欄的推理圖示旁顯示目前檔位';
+
+  @override
+  String get searchProviderExaMcpDescription =>
+      '透過 MCP 使用 Exa 搜尋。不填 API Key 可在免費限額內使用。';
+
+  @override
+  String get searchServiceNameExaMcp => 'Exa MCP';
+
+  @override
+  String worldBookImportUnsupportedEntries(int count) {
+    return '匯入完成。$count 個條目使用了暫不支援的酒館功能（如巨集、正則、時效、篩選或插入規則），已保留內容並停用，請檢查後再啟用。';
+  }
+
+  @override
+  String tokenDetailFirstToken(String value) {
+    return '${value}s（首字）';
+  }
+
+  @override
+  String tokenDetailReasoningTokens(int count) {
+    return '$count tokens';
+  }
+
+  @override
+  String tokenDetailCacheWriteTokens(int count) {
+    return '$count 快取寫入 tokens';
+  }
+
+  @override
+  String tokenDetailCost(String amount) {
+    return '$amount';
+  }
+
+  @override
+  String get workspaceToolTitleViewImage => '檢視圖片';
+
+  @override
+  String get workspaceToolHelpViewImage => '讓模型檢視工作區中的圖片內容。';
+
+  @override
+  String oauthUsedValue(String value) {
+    return '已用 $value';
+  }
 
   @override
   String get composerDraftLabel => '草稿';

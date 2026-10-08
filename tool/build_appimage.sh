@@ -17,7 +17,7 @@ case "$arch" in
 esac
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-output="$PWD/Kelivo-${version}-${arch}.AppImage"
+output="$PWD/Cuplivo-${version}-${arch}.AppImage"
 work_dir="$(mktemp -d)"
 trap 'rm -rf "$work_dir"' EXIT
 app_dir="$work_dir/AppDir"
@@ -29,15 +29,15 @@ cp -a "$bundle_dir/." "$app_dir/usr/bin/"
 mv "$app_dir/usr/bin/lib" "$app_dir/usr/lib"
 ln -s ../lib "$app_dir/usr/bin/lib"
 
-cat > "$work_dir/kelivo.desktop" <<'DESKTOP'
+cat > "$work_dir/cuplivo.desktop" <<'DESKTOP'
 [Desktop Entry]
-Name=Kelivo
-Exec=kelivo
-Icon=kelivo
+Name=Cuplivo
+Exec=cuplivo
+Icon=cuplivo
 Type=Application
 Categories=Utility;
 DESKTOP
-cp "$repo_root/assets/app_icon.png" "$work_dir/kelivo.png"
+cp "$repo_root/assets/app_icon.png" "$work_dir/cuplivo.png"
 
 curl -fL --retry 3 -o "$work_dir/linuxdeploy.AppImage" \
   "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${arch}.AppImage"
@@ -59,8 +59,8 @@ export VERSION="$version"
 # assets. The plugin also bundles GStreamer's dynamically loaded codecs and
 # gst-plugin-scanner, and installs the AppRun hook that selects those copies.
 "$work_dir/linuxdeploy.AppImage" --appdir "$app_dir" \
-  --desktop-file "$work_dir/kelivo.desktop" \
-  --icon-file "$work_dir/kelivo.png" \
+  --desktop-file "$work_dir/cuplivo.desktop" \
+  --icon-file "$work_dir/cuplivo.png" \
   --plugin gstreamer
 
 # The GStreamer plugin copies its helper executables after its own dependency

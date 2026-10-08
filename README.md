@@ -36,6 +36,10 @@ Cuplivo goes beyond chat. Models can search the web, call MCP servers, follow sk
 
 Conversations, settings and files are stored locally. Cuplivo has no account system of its own; back up to WebDAV or S3-compatible storage whenever you choose.
 
+## ✨ What's new in 4.1
+
+- **Their Letter (Proactive Care)** — the assistant can write to you first. A **Roleplay** tab in assistant settings turns it on and holds both prompts and each conversation's next letter time; after every reply a silent request to the decision model fixes when the next letter is due, and when that time arrives the letter is composed from the persona, memories, world book and history and saved as an ordinary assistant message. Delivery follows what each platform can do: Android wakes the app with an exact alarm, desktop sends while the app is running, and iOS posts an arrival notification whose body is written the next time the app opens.
+
 ## ✨ What's new in 4.0
 
 Cuplivo 4.0 moves the whole code base onto the **Kelivo v1.3.0** baseline and re-implements Cuplivo's own features on top of it. From here on the repository re-bases on every Kelivo release instead of diverging permanently, so upstream's work keeps arriving.
@@ -134,6 +138,7 @@ The [User Guide](https://kelivo.psycheas.top/guide) (Chinese) covers providers, 
 - **World books**: entries triggered by keywords or regular expressions, injected at a configurable position, role and depth.
 - **Instruction injection**: reusable prompt cards, such as the built-in Learning Mode, applied before you send a message.
 - **Conversation tools**: context compression into a new chat, branches, response versions, temporary chats that are never saved, follow-up suggestions, and a per-chat model and system prompt. The descriptions of built-in tools can also be edited.
+- **Their Letter (Proactive Care)**: each assistant has a **Roleplay** tab between *Memory* and *Local tools*, where proactive care is configured — a master switch that its conversations follow unless they override it, both prompts, how many recent messages the time decision may read, and each conversation's next letter time. Letters are composed with the persona, memories, world book and history and saved as ordinary assistant messages: Android delivers them through an exact alarm that wakes the app, desktop while the app is running, and iOS as an arrival notification whose body is written the next time the app opens. A separate decision model can be chosen, or the chat model chain is used.
 
 ### 🔍 Search, Voice and Vision
 

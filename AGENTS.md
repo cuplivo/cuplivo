@@ -23,7 +23,7 @@ flutter test                                # all unit tests green
 ```
 
 CI (`pr-check.yml`) enforces the same gates on every PR. It formats with the Dart SDK bundled in
-the Flutter version its workflow pins (`FLUTTER_VERSION`, currently 3.44.9 -> Dart 3.12.2). A newer
+the Flutter version its workflow pins (`FLUTTER_VERSION`, currently 3.47.6 -> Dart 3.13.0). A newer
 local SDK lays the same code out differently, so `dart format` with the local SDK both reformats
 files CI would leave alone and leaves files CI wants changed — either way turning the PR check red.
 Format with that pinned Dart whenever the local one differs, and confirm with
@@ -38,7 +38,7 @@ Format with that pinned Dart whenever the local one differs, and confirm with
 - **Changelog**: `CHANGELOG.md` (English) and `CHANGELOG_CN.md` (Chinese) carry the same entries,
   newest first, with keep-a-changelog headings (`Added` / `Changed` / `Removed` / `Fixed`). Update
   both in the version-bump commit.
-- **Build**: `.github/workflows/release.yml` is the only build workflow (Flutter 3.44;
+- **Build**: `.github/workflows/release.yml` is the only build workflow (Flutter 3.47.6;
   `workflow_dispatch` with `publish_release` + `release_tag`; artifacts `Cuplivo_<platform>_*`). It
   is the workflow that uploads to a GitHub Release — do not re-add per-Flutter-version copies.
 - **Release body**: the Chinese block first, then the English one, taken from the two changelogs.

@@ -5,11 +5,29 @@ import 'package:provider/provider.dart';
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/features/home/widgets/conversation_proactive_care_sheet.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/widgets/ios_switch.dart';
 
 import '../../../support/business_test_harness.dart';
+
+/// Records the extras writes performed by the shared care opener.
+class _RecordingChatService extends ChatService {
+  _RecordingChatService(this.extras);
+
+  Map<String, dynamic> extras;
+  final List<Map<String, dynamic>> writes = <Map<String, dynamic>>[];
+
+  @override
+  Future<void> updateConversationExtras(
+    String conversationId,
+    Map<String, dynamic> Function(Map<String, dynamic> current) update,
+  ) async {
+    extras = update(Map<String, dynamic>.from(extras));
+    writes.add(Map<String, dynamic>.from(extras));
+  }
+}
 
 void main() {
   Future<void> pumpSheet(
@@ -213,5 +231,80 @@ void main() {
 
     expect(find.byType(Dialog), findsOneWidget);
     expect(find.byType(ConversationProactiveCareSheet), findsOneWidget);
+  });
+
+  testWidgets('shared opener writes both care keys through ChatService', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final storage = await createBusinessTestHarness();
+    final nextAt = DateTime.now().add(const Duration(hours: 2));
+    final chat = _RecordingChatService(<String, dynamic>{
+      Conversation.proactiveCareNextMessageAtKey: nextAt.toIso8601String(),
+    });
+    final conversation = Conversation(
+      id: 'c1',
+      title: 'Conversation',
+      assistantId: 'a1',
+      extras: {
+        Conversation.proactiveCareNextMessageAtKey: nextAt.toIso8601String(),
+      },
+    );
+    final assistant = Assistant(
+      id: 'a1',
+      name: 'Assistant',
+      enableProactiveCare: false,
+    );
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(
+            create: (_) => SettingsProvider(storage.preferences),
+          ),
+          ChangeNotifierProvider<ChatService>.value(value: chat),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showConversationProactiveCare(
+                  context,
+                  conversation: conversation,
+                  assistant: assistant,
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('conversation-proactive-care-switch')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      chat.writes.last[Conversation.proactiveCareEnabledOverrideKey],
+      isTrue,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('conversation-proactive-care-clear-time')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      chat.writes.last.containsKey(Conversation.proactiveCareNextMessageAtKey),
+      isFalse,
+    );
   });
 }

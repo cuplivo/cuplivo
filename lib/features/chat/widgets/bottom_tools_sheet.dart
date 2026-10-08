@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/assistant.dart';
-import '../../../core/models/conversation.dart';
 import '../../../core/models/skills_binding.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/instruction_injection_provider.dart';
@@ -266,29 +265,10 @@ class _LearningAndClearSectionState extends State<_LearningAndClearSection> {
     final chat = context.read<ChatService>();
     final conversation = chat.getConversation(id);
     if (conversation == null || conversation.assistantId == null) return;
-    await showConversationProactiveCareSheet(
+    await showConversationProactiveCare(
       context,
       conversation: conversation,
       assistant: assistant,
-      onOverrideChanged: (value) =>
-          chat.updateConversationExtras(conversation.id, (extras) {
-            if (value == null) {
-              extras.remove(Conversation.proactiveCareEnabledOverrideKey);
-            } else {
-              extras[Conversation.proactiveCareEnabledOverrideKey] = value;
-            }
-            return extras;
-          }),
-      onNextMessageAtChanged: (value) =>
-          chat.updateConversationExtras(conversation.id, (extras) {
-            if (value == null) {
-              extras.remove(Conversation.proactiveCareNextMessageAtKey);
-            } else {
-              extras[Conversation.proactiveCareNextMessageAtKey] = value
-                  .toIso8601String();
-            }
-            return extras;
-          }),
     );
   }
 

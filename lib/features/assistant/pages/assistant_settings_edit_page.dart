@@ -53,6 +53,7 @@ import '../../home/services/local_tools_service.dart';
 import '../../../core/models/health_data_type.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../shared/responsive/screen_type_helper.dart';
 import '../../../shared/widgets/emoji_picker_dialog.dart';
 import '../../../shared/widgets/emoji_text.dart';
 import '../../../shared/widgets/ios_form_text_field.dart';
@@ -1648,6 +1649,7 @@ enum _AssistantDesktopMenu {
   basic,
   prompts,
   memory,
+  roleplay,
   localTools,
   skills,
   mcp,
@@ -1775,6 +1777,10 @@ class _DesktopAssistantDialogShellState
                         return _PromptTab(assistantId: widget.assistantId);
                       case _AssistantDesktopMenu.memory:
                         return _MemoryTab(assistantId: widget.assistantId);
+                      case _AssistantDesktopMenu.roleplay:
+                        return AssistantSettingsEditRoleplayTab(
+                          assistantId: widget.assistantId,
+                        );
                       case _AssistantDesktopMenu.localTools:
                         return _LocalToolsTab(assistantId: widget.assistantId);
                       case _AssistantDesktopMenu.skills:
@@ -1824,6 +1830,8 @@ class _DesktopAssistantMenuState extends State<_DesktopAssistantMenu> {
       (_AssistantDesktopMenu.basic, l10n.assistantEditPageBasicTab),
       (_AssistantDesktopMenu.prompts, l10n.assistantEditPagePromptsTab),
       (_AssistantDesktopMenu.memory, l10n.assistantEditPageMemoryTab),
+      // Mirrors platformDefaultAssistantEditTabIds() ("角色扮演" after 记忆).
+      (_AssistantDesktopMenu.roleplay, l10n.assistantEditPageRoleplayTab),
       (_AssistantDesktopMenu.localTools, l10n.assistantEditPageLocalToolsTab),
       (_AssistantDesktopMenu.skills, l10n.skillsTab),
       (_AssistantDesktopMenu.mcp, l10n.assistantEditPageMcpTab),

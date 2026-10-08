@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:Kelivo/core/services/mcp/mcp_oauth_service.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_oauth_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';

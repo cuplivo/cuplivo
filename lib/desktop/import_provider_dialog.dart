@@ -5,7 +5,7 @@ import '../features/provider/widgets/import_provider_sheet.dart'
 import '../icons/lucide_adapter.dart';
 import '../l10n/app_localizations.dart';
 import '../shared/widgets/snackbar.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import 'widgets/desktop_form_dialog.dart';
 
 /// Returns the keys of the imported providers, or null when cancelled.

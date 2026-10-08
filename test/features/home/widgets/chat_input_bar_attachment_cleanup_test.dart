@@ -4,14 +4,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/models/chat_input_data.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/desktop/windows_paste_fix.dart';
-import 'package:Kelivo/features/home/widgets/chat_input_bar.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/utils/image_compressor.dart';
+import 'package:Cuplivo/core/models/chat_input_data.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/desktop/windows_paste_fix.dart';
+import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/utils/image_compressor.dart';
+import 'package:path/path.dart' as p;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -794,7 +795,9 @@ void main() {
     await tester.runAsync(() async {
       source = await writeUserImage('user_photo.png');
     });
-    final product = File('${appSupportDir.path}/upload/user_photo.png');
+    final product = File(
+      p.join(appSupportDir.path, 'upload', 'user_photo.png'),
+    );
     final controller = TextEditingController(text: 'with image');
     final focusNode = FocusNode();
     final mediaController = ChatInputBarController();
@@ -830,7 +833,9 @@ void main() {
     await tester.tap(find.byIcon(Lucide.ArrowUp));
     await tester.pumpAndSettle();
 
-    expect(submitted?.imagePaths.single, product.path);
+    expect(submitted, isNotNull);
+    // The stored copy path mixes separators, so compare it as a path.
+    expect(p.equals(submitted!.imagePaths.single, product.path), isTrue);
     expect(await fileExists(tester, source), isTrue);
 
     controller.dispose();
@@ -990,13 +995,13 @@ void main() {
       );
       final uploadDir = Directory('${appSupportDir.path}/upload');
       await uploadDir.create(recursive: true);
-      final product = File('${uploadDir.path}/inflight_user.png');
+      final product = File(p.join(uploadDir.path, 'inflight_user.png'));
       var sawProductCreated = false;
       final productDeleted = Completer<void>();
       final subscription = uploadDir
           .watch(events: FileSystemEvent.create | FileSystemEvent.delete)
           .listen((event) {
-            if (event.path != product.path) return;
+            if (!p.equals(event.path, product.path)) return;
             if (event.type == FileSystemEvent.create) {
               sawProductCreated = true;
             } else if (event.type == FileSystemEvent.delete &&

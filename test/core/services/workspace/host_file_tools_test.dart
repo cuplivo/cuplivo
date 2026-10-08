@@ -5,8 +5,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:Kelivo/core/services/workspace/host_file_tools.dart';
-import 'package:Kelivo/core/services/workspace/workspace_paths.dart';
+import 'package:Cuplivo/core/services/workspace/host_file_tools.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_paths.dart';
 
 void main() {
   late Directory tmp;
@@ -162,7 +162,7 @@ void main() {
 
     final found = await tools.glob('**/*.dart', cwd: cwd);
     expect(found.paths.length, 1);
-    expect(found.paths.single, endsWith('src/a.dart'));
+    expect(found.paths.single, endsWith(p.join('src', 'a.dart')));
 
     for (var i = 0; i < 510; i++) {
       File(p.join(cwd, 'g$i.dart')).writeAsStringSync('x');

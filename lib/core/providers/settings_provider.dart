@@ -85,7 +85,6 @@ class SettingsProvider extends ChangeNotifier {
     'Gemini',
     'OpenRouter',
     'Vercel',
-    'KelivoIN',
     'Tensdaq',
     'DeepSeek',
     'AIhubmix',
@@ -647,18 +646,16 @@ class SettingsProvider extends ChangeNotifier {
   int _appLaunchCount = 0;
   int get appLaunchCount => _appLaunchCount;
 
-  SettingsProvider(this._preferences, {this.onProviderModelsRetired}) {
+  SettingsProvider(this._preferences) {
     ProviderOAuthService.instance.bind(this);
     _appLocaleTag = _readAppLocaleTag(_preferences);
     _loaded = _load();
   }
 
   SettingsProvider._withoutLoad(this._preferences)
-    : onProviderModelsRetired = null,
-      _loaded = Future<void>.value();
+    : _loaded = Future<void>.value();
 
   final BusinessPreferences _preferences;
-  final Future<void> Function(String providerKey)? onProviderModelsRetired;
   late final Future<void> _loaded;
   Future<void> get loaded => _loaded;
 
@@ -1458,7 +1455,6 @@ class SettingsProvider extends ChangeNotifier {
     if (_providerConfigs.isEmpty) {
       // Seed a couple of sensible defaults on first launch, but do not recreate
       // providers implicitly during later reads (e.g., when switching chats).
-      ensureProviderConfig('KelivoIN', defaultName: 'KelivoIN');
       ensureProviderConfig('Tensdaq', defaultName: 'Tensdaq');
       ensureProviderConfig('SiliconFlow', defaultName: 'SiliconFlow');
       ensureProviderConfig('AIhubmix', defaultName: 'AIhubmix');
@@ -1466,23 +1462,6 @@ class SettingsProvider extends ChangeNotifier {
         (key, config) => MapEntry(key, config.toJson()),
       );
       await prefs.setString(_providerConfigsKey, jsonEncode(seededConfigs));
-    }
-
-    final kelivo = _providerConfigs['KelivoIN'];
-    final kelivoHost = Uri.tryParse(kelivo?.baseUrl ?? '')?.host.toLowerCase();
-    if (kelivo != null &&
-        (kelivoHost == 'pollinations.ai' ||
-            (kelivoHost?.endsWith('.pollinations.ai') ?? false))) {
-      // The retired service cannot be used anymore. Drop its saved credentials,
-      // models and selections before installing the current built-in provider.
-      await onProviderModelsRetired?.call('KelivoIN');
-      await removeProviderConfig('KelivoIN');
-      await setProviderConfig(
-        'KelivoIN',
-        ProviderConfig.defaultsFor(
-          'KelivoIN',
-        ).copyWith(enabled: kelivo.enabled),
-      );
     }
 
     // kick off a one-time connectivity test for services (exclude local Bing)
@@ -2195,7 +2174,7 @@ class SettingsProvider extends ChangeNotifier {
     final services = List<SearchServiceOptions>.from(_searchServices);
     final common = _searchCommonOptions;
     for (final s in services) {
-      if (s is BingLocalOptions || s is KelivoOptions) {
+      if (s is BingLocalOptions) {
         _searchConnection[s.id] = null;
         continue;
       }
@@ -5578,16 +5557,6 @@ Requirements:
     RequestLogger.cleanupLogs(autoDeleteDays: _logAutoDeleteDays, maxSizeMB: v);
   }
 
-  // Search service settings
-  Future<bool> unlockKelivoSearch() async {
-    if (_searchServices.any((s) => s is KelivoOptions)) return false;
-    await setSearchServices([
-      ..._searchServices,
-      KelivoOptions(id: KelivoOptions.builtInId),
-    ]);
-    return true;
-  }
-
   Future<void> setSearchServices(List<SearchServiceOptions> services) async {
     _searchServices = List.from(services);
     final nextFetchMode = WebFetchService.effectiveMode(
@@ -6466,7 +6435,6 @@ class ProviderConfig {
   static String _defaultBase(String key) {
     final k = key.toLowerCase();
     if (k.contains('tensdaq')) return 'https://tensdaq-api.x-aio.com/v1';
-    if (k.contains('kelivoin')) return 'https://api.psycheas.top/v1';
     if (k.contains('openrouter')) return 'https://openrouter.ai/api/v1';
     if (k.contains('vercel')) return 'https://ai-gateway.vercel.sh/v1';
     if (k.contains('aihubmix')) return 'https://aihubmix.com/v1';
@@ -6508,7 +6476,6 @@ class ProviderConfig {
       if (s.contains('gemini') || s.contains('google')) return true;
       if (s.contains('silicon')) return true;
       if (s.contains('openrouter')) return true;
-      if (s.contains('kelivoin')) return true;
       return false; // others disabled by default
     }
 
@@ -6568,62 +6535,6 @@ class ProviderConfig {
           claudePromptCachingEnabled: false,
         );
       case ProviderKind.openai:
-        // Special-case KelivoIN default models and overrides
-        if (lowerKey.contains('kelivoin')) {
-          return ProviderConfig(
-            id: key,
-            enabled: defaultEnabled(key),
-            name: displayName ?? key,
-            apiKey: '',
-            baseUrl: _defaultBase(key),
-            providerType: ProviderKind.openai,
-            chatPath: '/chat/completions',
-            useResponseApi: false,
-            models: const [
-              'Qwen/Qwen3-8B',
-              'Qwen/Qwen3.5-4B',
-              'THUDM/GLM-4-9B-0414',
-              'auto',
-            ],
-            modelOverrides: const {
-              'Qwen/Qwen3-8B': {
-                'type': 'chat',
-                'input': ['text'],
-                'output': ['text'],
-                'abilities': ['tool', 'reasoning'],
-              },
-              'Qwen/Qwen3.5-4B': {
-                'abilities': ['tool', 'reasoning'],
-              },
-              'THUDM/GLM-4-9B-0414': {
-                'type': 'chat',
-                'input': ['text'],
-                'output': ['text'],
-                'abilities': ['tool'],
-              },
-              'auto': {
-                'type': 'chat',
-                'input': ['text'],
-                'output': ['text'],
-                'abilities': ['tool', 'reasoning'],
-                'reasoning': {'dialect': 'openaiReasoningEffort'},
-              },
-            },
-            proxyEnabled: false,
-            proxyHost: '',
-            proxyPort: '8080',
-            proxyUsername: '',
-            proxyPassword: '',
-            multiKeyEnabled: false,
-            apiKeys: const [],
-            keyManagement: const KeyManagementConfig(),
-            aihubmixAppCodeEnabled: false,
-            balanceEnabled: false,
-            balanceApiPath: _defaultBalanceApiPath(key),
-            balanceResultPath: _defaultBalanceResultPath(key),
-            claudePromptCachingEnabled: false,
-          );
-        }
         return ProviderConfig(
           id: key,
           enabled: defaultEnabled(key),

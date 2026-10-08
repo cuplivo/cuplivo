@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../icons/lucide_adapter.dart';
 import '../../shared/widgets/ios_tactile.dart';
 import '../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 /// Shared desktop form-dialog chrome used by model spec editing.
 ///

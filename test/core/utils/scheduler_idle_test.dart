@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:Kelivo/core/utils/scheduler_idle.dart';
+import 'package:Cuplivo/core/utils/scheduler_idle.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 

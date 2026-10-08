@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/memory/memory_tokenizer.dart';
+import 'package:Cuplivo/core/services/memory/memory_tokenizer.dart';
 
 void main() {
   group('MemoryTokenizer.tokenize', () {

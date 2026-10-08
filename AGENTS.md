@@ -1,8 +1,8 @@
-# AFENTS.md
+# AGENTS.md
 
 ## Project overview
 
-Kelivo is a cross-platform LLM chat client built with Flutter, targeting iOS, Android, macOS, Windows, and Linux. Package name is `Kelivo` — imports use `package:Kelivo/...`.
+Cuplivo is a cross-platform LLM chat client built with Flutter, targeting iOS, Android, macOS, Windows, and Linux. Package name is `Cuplivo` — imports use `package:Cuplivo/...`. It is a community fork of Kelivo, re-baselined on Kelivo v1.3.0; from 4.0 on, every version re-bases on the latest Kelivo stable and re-does Cuplivo's own features as cherry-picks on that baseline.
 
 ## Architecture
 
@@ -18,11 +18,37 @@ All three must pass before committing:
 
 ```bash
 dart format lib test                        # format changed files
-dart analyze --fatal-infos lib test         # zero warnings, zero infos
+dart analyze --fatal-infos lib test integration_test   # zero warnings, zero infos
 flutter test                                # all unit tests green
 ```
 
-CI (`pr-check.yml`) enforces the same gates on every PR.
+CI (`pr-check.yml`) enforces the same gates on every PR. It formats with the Dart SDK bundled in
+the Flutter version its workflow pins (`FLUTTER_VERSION`, currently 3.44.9 -> Dart 3.12.2). A newer
+local SDK lays the same code out differently, so `dart format` with the local SDK both reformats
+files CI would leave alone and leaves files CI wants changed — either way turning the PR check red.
+Format with that pinned Dart whenever the local one differs, and confirm with
+`--output=none --set-exit-if-changed` before pushing.
+
+## Releases
+
+- **Version**: `pubspec.yaml` only (`version: X.Y.Z+N`); the release tag is `vX.Y.Z`.
+- **Rebases**: master is rewritten whenever the line re-bases on a new Kelivo stable. Re-create the
+  release tag on the new tip and re-dispatch `release.yml` for it, so the published assets match the
+  rewritten tree.
+- **Changelog**: `CHANGELOG.md` (English) and `CHANGELOG_CN.md` (Chinese) carry the same entries,
+  newest first, with keep-a-changelog headings (`Added` / `Changed` / `Removed` / `Fixed`). Update
+  both in the version-bump commit.
+- **Build**: `.github/workflows/release.yml` is the only build workflow (Flutter 3.44;
+  `workflow_dispatch` with `publish_release` + `release_tag`; artifacts `Cuplivo_<platform>_*`). It
+  is the workflow that uploads to a GitHub Release — do not re-add per-Flutter-version copies.
+- **Release body**: the Chinese block first, then the English one, taken from the two changelogs.
+
+## Upstream policy
+
+Cuplivo follows upstream: a new version re-bases the code base on the latest Kelivo stable and
+re-does Cuplivo's own features on that baseline instead of porting the fork forward. Never let the
+fork diverge permanently — the 3.x line ended because hand-syncing every upstream change became
+unmaintainable. See `docs/adr/0004-follow-upstream-rebase.md`.
 
 ## Benchmarks are not tests
 

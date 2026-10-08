@@ -1,4 +1,4 @@
-import 'package:Kelivo/shared/widgets/streaming_code_fence.dart';
+import 'package:Cuplivo/shared/widgets/streaming_code_fence.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

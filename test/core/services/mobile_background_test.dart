@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:Kelivo/core/models/mobile_background_settings.dart';
-import 'package:Kelivo/core/services/mobile_background.dart';
-import 'package:Kelivo/core/services/notification_service.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/mobile_background_settings.dart';
+import 'package:Cuplivo/core/services/mobile_background.dart';
+import 'package:Cuplivo/core/services/notification_service.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';

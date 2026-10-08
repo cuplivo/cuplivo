@@ -1,4 +1,4 @@
-name: Kelivo
+name: Cuplivo
 description: "An LLM chat client."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.3.1+80
+version: 4.0.0+1
 
 environment:
   sdk: ^3.12.1
@@ -66,6 +66,7 @@ dependencies:
   hive_flutter: ^1.1.0
   url_launcher: ^6.3.2
   package_info_plus: ^8.3.1
+  device_info_plus: ^11.5.0
   gpt_markdown: #^1.1.7
     path: ./dependencies/gpt_markdown
   uuid: ^4.5.0
@@ -183,7 +184,9 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/icons/
-    - assets/app_icon.png
+    # UI mark (256px). `assets/app_icon.png` stays on disk for launcher icons,
+    # splash and packaging scripts — the 1024px source is never bundled.
+    - assets/app_icon_about.png
     - assets/app_icon.ico
     - assets/icon_mac.png
     - assets/mermaid.min.js
@@ -222,14 +225,6 @@ flutter:
 #    - family: JetBrainsMono
 #      fonts:
 #        - asset: assets/fonts/JetBrainsMono-Regular.ttf
-
-flutter_launcher_icons:
-  android: true
-  ios: true
-  image_path: assets/app_icon_foreground.png
-  adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: assets/app_icon_foreground.png
-  remove_alpha_ios: true
 
 flutter_native_splash:
   # Apply to both platforms

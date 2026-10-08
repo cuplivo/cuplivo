@@ -2,13 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 
 void main() {
   test(
@@ -127,7 +128,7 @@ void main() {
     });
     SandboxPathResolver.debugSetDirs(docsDir: root.path);
 
-    final absPath = '${root.path}/images/gen.png';
+    final absPath = p.join(root.path, 'images', 'gen.png');
     Directory('${root.path}/images').createSync(recursive: true);
     File(absPath).writeAsBytesSync(const [1, 2, 3]);
     const canonical = 'kelivo-file:///images/gen.png';

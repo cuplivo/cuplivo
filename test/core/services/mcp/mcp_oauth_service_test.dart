@@ -2,12 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/core/services/auth/oauth_callback.dart';
-import 'package:Kelivo/core/services/mcp/mcp_oauth_http_client.dart';
-import 'package:Kelivo/core/services/mcp/mcp_oauth_http_client_io.dart'
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/services/auth/oauth_callback.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_oauth_http_client.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_oauth_http_client_io.dart'
     show isPublicMcpOAuthAddress;
-import 'package:Kelivo/core/services/mcp/mcp_oauth_service.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_oauth_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';

@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/services/backup/local_snapshot_retention.dart';
+import 'package:Cuplivo/core/services/backup/local_snapshot_retention.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

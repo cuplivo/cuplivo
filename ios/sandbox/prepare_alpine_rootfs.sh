@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ============================================================================
-# Alpine Linux aarch64 rootfs for the Kelivo iOS Workspace (iSH fakefs)
+# Alpine Linux aarch64 rootfs for the Cuplivo iOS Workspace (iSH fakefs)
 # ============================================================================
 # Downloads Alpine minirootfs (aarch64), installs packages with apk inside
 # the host iSH CLI (including its database and install scripts),
@@ -339,7 +339,7 @@ clean() {
 main() {
     echo ""
     echo "============================================================"
-    echo "  Kelivo Alpine aarch64 fakefs rootfs"
+    echo "  Cuplivo Alpine aarch64 fakefs rootfs"
     echo "  Series: ${ALPINE_SERIES}.x (${ALPINE_ARCH})"
     echo "============================================================"
     echo ""

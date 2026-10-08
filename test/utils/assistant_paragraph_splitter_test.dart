@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/chat/utils/assistant_paragraph_splitter.dart';
+import 'package:Cuplivo/features/chat/utils/assistant_paragraph_splitter.dart';
 
 void main() {
   test('splits on blank lines', () {

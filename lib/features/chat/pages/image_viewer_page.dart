@@ -20,7 +20,7 @@ import '../../../utils/safe_resize_image.dart';
 import '../../../utils/clipboard_images.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../l10n/app_localizations.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 @visibleForTesting
 const int kMaxViewerDecodeEdge = 4096;
@@ -984,7 +984,7 @@ class _ImageViewerPageState extends State<ImageViewerPage>
         return;
       }
 
-      final name = 'kelivo-${DateTime.now().millisecondsSinceEpoch}';
+      final name = 'cuplivo-${DateTime.now().millisecondsSinceEpoch}';
       final result = await ImageGallerySaverPlus.saveImage(
         bytes,
         quality: 100,
@@ -1065,7 +1065,7 @@ class _ImageViewerPageState extends State<ImageViewerPage>
           temp = await File(
             p.join(
               tmp.path,
-              'kelivo_${DateTime.now().millisecondsSinceEpoch}.png',
+              'cuplivo_${DateTime.now().millisecondsSinceEpoch}.png',
             ),
           ).create(recursive: true);
           await temp.writeAsBytes(bytes);
@@ -1080,7 +1080,7 @@ class _ImageViewerPageState extends State<ImageViewerPage>
           temp = await File(
             p.join(
               tmp.path,
-              'kelivo_${DateTime.now().millisecondsSinceEpoch}${ext.isNotEmpty ? ext : '.jpg'}',
+              'cuplivo_${DateTime.now().millisecondsSinceEpoch}${ext.isNotEmpty ? ext : '.jpg'}',
             ),
           ).create(recursive: true);
           await temp.writeAsBytes(resp.bodyBytes);
@@ -1267,7 +1267,7 @@ class _ImageViewerPageState extends State<ImageViewerPage>
           final ext = payload.format == 'jpeg' ? '.jpg' : '.${payload.format}';
           path = p.join(
             dir.path,
-            'kelivo_clip_${DateTime.now().millisecondsSinceEpoch}$ext',
+            'cuplivo_clip_${DateTime.now().millisecondsSinceEpoch}$ext',
           );
           await File(path).writeAsBytes(payload.bytes);
         }
@@ -1853,7 +1853,8 @@ class _ImageViewerPageState extends State<ImageViewerPage>
         return;
       }
 
-      final defaultName = 'kelivo-${DateTime.now().millisecondsSinceEpoch}$ext';
+      final defaultName =
+          'cuplivo-${DateTime.now().millisecondsSinceEpoch}$ext';
       final allowed = [ext.replaceFirst('.', '').toLowerCase()];
       String? savePath = await FilePicker.platform.saveFile(
         dialogTitle: l10n.imageViewerPageSaveButton,

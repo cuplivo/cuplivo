@@ -1,10 +1,10 @@
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/chat/models/message_edit_result.dart';
-import 'package:Kelivo/features/chat/pages/message_edit_page.dart';
-import 'package:Kelivo/features/chat/widgets/message_edit_sheet.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/long_message_editor.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/chat/models/message_edit_result.dart';
+import 'package:Cuplivo/features/chat/pages/message_edit_page.dart';
+import 'package:Cuplivo/features/chat/widgets/message_edit_sheet.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/long_message_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:re_editor/re_editor.dart';

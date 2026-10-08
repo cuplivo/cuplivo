@@ -2,11 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
-import 'package:Kelivo/core/services/sandbox/mirror_service.dart';
+import 'package:Cuplivo/core/services/sandbox/mirror_service.dart';
 
-import 'package:Kelivo/core/models/environment_state.dart';
-import 'package:Kelivo/core/providers/environment_provider.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/core/models/environment_state.dart';
+import 'package:Cuplivo/core/providers/environment_provider.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
 
 enum EnvironmentDependency { python, node, git, ssh, network, archive }
 

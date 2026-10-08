@@ -1,7 +1,7 @@
-import 'package:Kelivo/core/services/api/native_input_attachments.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/core/services/api/providers/openai/chat_completions_api.dart';
+import 'package:Cuplivo/core/services/api/native_input_attachments.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/chat_completions_api.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final _nativeInputs = NativeInputAttachments(

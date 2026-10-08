@@ -65,7 +65,7 @@ Future<OAuthCallback> createMobileLoopbackOAuthCallbackForTesting(
 final class _AndroidOAuthCallback implements OAuthCallback {
   _AndroidOAuthCallback(Uri authorizationServer, {this.completionOnly = false})
     : redirectUri = Uri(
-        scheme: 'psyche.kelivo',
+        scheme: 'com.cuplivo.cuplivo',
         // A stable route can be listed in a Client ID Metadata Document.
         // Each attempt is bound to its own random OAuth state and session ID.
         host: 'mcp-oauth-callback',
@@ -123,7 +123,7 @@ final class _AndroidOAuthCallback implements OAuthCallback {
 final class _IosOAuthCallback implements OAuthCallback {
   _IosOAuthCallback(Uri authorizationServer)
     : redirectUri = Uri(
-        scheme: 'psyche.kelivo',
+        scheme: 'com.cuplivo.cuplivo',
         path: '/oauth/callback/authorize',
       );
 

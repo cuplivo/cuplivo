@@ -1241,7 +1241,7 @@ class McpProvider extends ChangeNotifier {
           !_authorizationIsCurrent(server, state, generation)) {
         return false;
       }
-      return session.wait(_connect(server.id, retryUnauthorized: false));
+      return await session.wait(_connect(server.id, retryUnauthorized: false));
     } on McpOAuthCancelled {
       if (_authorizationIsCurrent(server, state, generation)) {
         state.status = McpStatus.needsAuthorization;
@@ -1669,20 +1669,28 @@ class McpProvider extends ChangeNotifier {
       Object effectiveError = error;
       _rememberOAuthChallenge(state, error);
       if (retryUnauthorized && _isHttpUnauthorized(error)) {
+        // The refresh step is what this block isolates: only its failures become
+        // the effective error, and a refresh that did not authorize the caller
+        // falls through to the checks below. The retry itself is attempted
+        // outside the isolated block, so a failure there is handled as the
+        // failure of this connection attempt rather than mistaken for a refresh
+        // error.
+        var refreshed = false;
         try {
-          if (await _refreshOAuthAfterUnauthorized(server, state)) {
-            final latest = getById(id);
-            if (latest == null || state.generation != generation) return false;
-            return _performConnect(
-              id,
-              latest,
-              state,
-              generation,
-              retryUnauthorized: false,
-            );
-          }
+          refreshed = await _refreshOAuthAfterUnauthorized(server, state);
         } catch (refreshError) {
           effectiveError = refreshError;
+        }
+        if (refreshed) {
+          final latest = getById(id);
+          if (latest == null || state.generation != generation) return false;
+          return await _performConnect(
+            id,
+            latest,
+            state,
+            generation,
+            retryUnauthorized: false,
+          );
         }
       }
       if (await _requiresOAuthAuthorization(

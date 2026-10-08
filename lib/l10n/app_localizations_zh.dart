@@ -4512,8 +4512,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get displaySettingsPageEnableImageCropperTitle => '启用图片裁剪';
 
   @override
-  String get displaySettingsPageEnableImageCropperSubtitle =>
-      '从相册或相机选择图片后，允许裁剪图片';
+  String get displaySettingsPageEnableImageCropperSubtitle => '预览未发送图片时可主动裁剪';
+
+  @override
+  String get draftImageCropAction => '裁剪';
+
+  @override
+  String get draftImageCropFailed => '裁剪失败，原图保持不变。';
 
   @override
   String get displaySettingsPageKeepSidebarOpenOnAssistantTapTitle =>
@@ -7905,7 +7910,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get imageSettingsPageModeOff => '关闭';
 
   @override
-  String get imageSettingsPageModeManualSubtitle => '图片按原样附加，点按图片自行压缩';
+  String get imageSettingsPageModeManualSubtitle => '图片按原样附加，在预览中可手动压缩';
 
   @override
   String get imageSettingsPageModeAutoSubtitle => '附加图片时按下方预设自动压缩';
@@ -16828,8 +16833,13 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get displaySettingsPageEnableImageCropperTitle => '启用图片裁剪';
 
   @override
-  String get displaySettingsPageEnableImageCropperSubtitle =>
-      '从相册或相机选择图片后，允许裁剪图片';
+  String get displaySettingsPageEnableImageCropperSubtitle => '预览未发送图片时可主动裁剪';
+
+  @override
+  String get draftImageCropAction => '裁剪';
+
+  @override
+  String get draftImageCropFailed => '裁剪失败，原图保持不变。';
 
   @override
   String get displaySettingsPageKeepSidebarOpenOnAssistantTapTitle =>
@@ -20147,7 +20157,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get imageSettingsPageModeOff => '关闭';
 
   @override
-  String get imageSettingsPageModeManualSubtitle => '图片按原样附加，点按图片自行压缩';
+  String get imageSettingsPageModeManualSubtitle => '图片按原样附加，在预览中可手动压缩';
 
   @override
   String get imageSettingsPageModeAutoSubtitle => '附加图片时按下方预设自动压缩';
@@ -29069,8 +29079,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get displaySettingsPageEnableImageCropperTitle => '啟用圖片裁剪';
 
   @override
-  String get displaySettingsPageEnableImageCropperSubtitle =>
-      '從相簿或相機選擇圖片後，允許裁剪圖片';
+  String get displaySettingsPageEnableImageCropperSubtitle => '預覽未發送圖片時可主動裁剪';
+
+  @override
+  String get draftImageCropAction => '裁剪';
+
+  @override
+  String get draftImageCropFailed => '裁剪失敗，原圖保持不變。';
 
   @override
   String get displaySettingsPageKeepSidebarOpenOnAssistantTapTitle =>
@@ -32464,7 +32479,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get imageSettingsPageModeOff => '關閉';
 
   @override
-  String get imageSettingsPageModeManualSubtitle => '圖片按原樣附加，點按圖片自行壓縮';
+  String get imageSettingsPageModeManualSubtitle => '圖片按原樣附加，在預覽中可手動壓縮';
 
   @override
   String get imageSettingsPageModeAutoSubtitle => '附加圖片時按下方預設自動壓縮';

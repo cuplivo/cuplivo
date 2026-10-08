@@ -41,7 +41,6 @@ void main() {
       final service = FileUploadService(
         getContext: () => throw StateError('Cancelled picker needs no UI'),
         mediaController: ChatInputBarController(),
-        isImageCropperEnabled: () => false,
         getImageCompressConfig: () => throw StateError('No images selected'),
         hasWorkspace: () => bound,
       );

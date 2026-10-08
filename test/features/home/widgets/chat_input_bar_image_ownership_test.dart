@@ -126,7 +126,7 @@ void main() {
       mediaController.enqueueImages(
         [source.path],
         _config,
-        deleteSourcesAfterProcessing: false,
+        ownsSourceFile: false,
       );
     });
     expect(
@@ -171,7 +171,7 @@ void main() {
       mediaController.enqueueImages(
         [source.path],
         _config,
-        deleteSourcesAfterProcessing: false,
+        ownsSourceFile: false,
       );
     });
     expect(

@@ -31,6 +31,8 @@ re-baseline that is then left to drift reproduces exactly the condition that end
   fork-only architecture — the features listed under *Removed* in `CHANGELOG*.md` are the first
   payment, and returning one to the product means re-implementing it on the current baseline.
 - This supersedes the archived line's terminal-release stance ("v3.2.1 is the last major update").
+- The replay itself is recorded in [`docs/rebase-runbook.md`](../rebase-runbook.md): the commit
+  units to cherry-pick, in order, and the rules that keep the re-base a replay rather than a port.
 - ADR-0001's *Not in scope* item "rebranding the GitHub issue templates / FUNDING" is superseded for
   the issue templates, the repository description and the release identity; `FUNDING.yml` still
   points at upstream's sponsor image on purpose.

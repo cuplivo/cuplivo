@@ -247,7 +247,7 @@ flutter test
 
 ## ⚠️ 说明
 
-Cuplivo 是 [Kelivo](https://github.com/Chevey339/kelivo) 的社区分支，基于 Kelivo v1.3.0 重新起线，且自 4.0 起随 Kelivo 的版本更新持续 rebase。对外身份统一为 Cuplivo；属于协议、持久化数据或上游基础设施的名称（`kelivo://` 内容链接、`kelivo-file://` URI、`kelivo_*` MCP 工具名、`kelivo.db` 等）为兼容已导入的对话与已记录的工具调用而有意保留。社区入口：QQ 群 `1101061750`、[Discord](https://discord.gg/kaTf8CXG4)。
+Cuplivo 是 [Kelivo](https://github.com/Chevey339/kelivo) 的社区分支，基于 Kelivo v1.3.1 重新起线，且自 4.0 起随 Kelivo 的版本更新持续 rebase。对外身份统一为 Cuplivo；属于协议、持久化数据或上游基础设施的名称（`kelivo://` 内容链接、`kelivo-file://` URI、`kelivo_*` MCP 工具名、`kelivo.db` 等）为兼容已导入的对话与已记录的工具调用而有意保留。社区入口：QQ 群 `1101061750`、[Discord](https://discord.gg/kaTf8CXG4)。
 
 ## 📄 许可证
 

@@ -2,9 +2,31 @@
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-10-09
+
+> Cuplivo 4.2 re-bases on Kelivo **v1.3.1**. As with every re-base, Cuplivo's own features are re-implemented on the new baseline rather than ported forward from the old one, so this release also carries every upstream change since Kelivo v1.3.0.
+>
+> Worth repeating as well: Cuplivo v4 and v3 have different package names, so both can be installed side by side — and data has to be migrated by hand.
+
+### Changed
+
+- Re-based on **Kelivo v1.3.1** (Flutter 3.47.6). The upstream changes this brings in are mainly:
+  - A **context indicator bar**
+  - **Queued sending** for the composer button
+  - Native **audio, video and PDF input**
+  - DeepSeek can return its thinking on turns without a tool call
+  - Ctrl+C on desktop copies directly instead of requiring a right-click
+  - MCP tool schemas are persisted, so API requests no longer break once an MCP tool's state changes
+  - Per-conversation draft persistence (QQ-style; it absorbs and improves on the Cuplivo feature)
+  - A better Bing search experience
+  - Improved OAuth request and callback compatibility
+  - Fine-grained scope selection for backup / import
+  - Fewer cases where a restore leaves the app locked
+- **Unsent image preview and cropping**: clicking an image draft in the composer now opens a preview whether or not manual compression is on, with manual compression and cropping moved into its toolbar — so on mobile, users who enable the crop setting no longer land in the cropper automatically after choosing or taking a photo (#992 by @hstate, @cup113)
+
 ### Fixed
 
-- **Their Letter (Proactive Care) on desktop**: Windows, macOS and Linux had no way into the feature. The desktop assistant dialog now offers the **Roleplay** tab (its decision-history picker opens as a dialog, never a bottom sheet), and the desktop chat tools popover gained the per-conversation entry, so letter times can be set outside Android. Windows still shows no system notification for a delivered letter; the letter itself lands in the conversation.
+- **Their Letter (Proactive Care) on desktop**: Windows, macOS and Linux now have an entry point, in the **Roleplay** tab of the assistant settings dialog. Windows still shows no system notification for a delivered letter; the letter itself lands in the conversation (#996 by @Pheobe-Southwood)
 
 ## [4.1.0] - 2026-10-04
 

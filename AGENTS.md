@@ -2,7 +2,7 @@
 
 ## Project overview
 
-Cuplivo is a cross-platform LLM chat client built with Flutter, targeting iOS, Android, macOS, Windows, and Linux. Package name is `Cuplivo` — imports use `package:Cuplivo/...`. It is a community fork of Kelivo, re-baselined on Kelivo v1.3.0; from 4.0 on, every version re-bases on the latest Kelivo stable and re-does Cuplivo's own features as cherry-picks on that baseline.
+Cuplivo is a cross-platform LLM chat client built with Flutter, targeting iOS, Android, macOS, Windows, and Linux. Package name is `Cuplivo` — imports use `package:Cuplivo/...`. It is a community fork of Kelivo, re-baselined on Kelivo v1.3.1; from 4.0 on, every version re-bases on the latest Kelivo stable and re-does Cuplivo's own features as cherry-picks on that baseline.
 
 ## Architecture
 

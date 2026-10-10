@@ -34,9 +34,8 @@ class _FakePathProviderPlatform extends PathProviderPlatform {
   Future<String?> getApplicationCachePath() async => '$path/cache';
 }
 
-/// The panel body needs no engine to mount; what this test observes is which
-/// viewer calls reached the provider, so they are recorded rather than
-/// counted.
+/// The panel body needs no engine to mount; what these tests observe is which
+/// viewer calls reached the provider, so they are recorded rather than counted.
 class _PanelCountingProvider extends SyncProvider {
   _PanelCountingProvider({
     required super.chatService,
@@ -57,52 +56,64 @@ class _PanelCountingProvider extends SyncProvider {
   void panelClosed() => closedPanels++;
 }
 
+/// One test's world: the panel's provider and the services that outlive it.
+typedef _Harness = ({
+  _PanelCountingProvider provider,
+  Widget Function(Widget home) app,
+});
+
+/// Builds the harness. Everything that touches the real world happens inside
+/// [WidgetTester.runAsync]: `testWidgets` runs its body in a fake-async zone,
+/// where an I/O future never completes.
+Future<_Harness> _harness(WidgetTester tester) async {
+  late final Directory root;
+  late final ChatService chatService;
+  late final ChatDatabaseRepository repository;
+  late final _PanelCountingProvider provider;
+
+  await tester.runAsync(() async {
+    root = await Directory.systemTemp.createTemp('sync-panel-body');
+    PathProviderPlatform.instance = _FakePathProviderPlatform(root.path);
+    final database = AppDatabase(NativeDatabase.memory());
+    repository = ChatDatabaseRepository(database);
+    final businessRepository = BusinessRepository(database);
+    final businessPreferences = BusinessPreferences(businessRepository);
+    chatService = ChatService(existingRepository: repository);
+    await repository.ensureReady();
+    await chatService.init();
+    await businessPreferences.load();
+    provider = _PanelCountingProvider(
+      chatService: chatService,
+      repository: repository,
+      businessRepository: businessRepository,
+      businessPreferences: businessPreferences,
+      reloader: BusinessStateReloader(businessPreferences),
+      syncDirectory: () async => root,
+    );
+  });
+  addTearDown(() async {
+    provider.dispose();
+    await chatService.close();
+    await repository.close();
+    await root.delete(recursive: true);
+  });
+
+  Widget app(Widget home) => ChangeNotifierProvider<SyncProvider>.value(
+    value: provider,
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: home,
+    ),
+  );
+  return (provider: provider, app: app);
+}
+
 void main() {
   testWidgets('leaving the page releases the viewer, not an ancestor lookup', (
     tester,
   ) async {
-    late final Directory root;
-    late final ChatService chatService;
-    late final ChatDatabaseRepository repository;
-    late final _PanelCountingProvider provider;
-
-    // Everything that touches the real world happens here: `testWidgets` runs
-    // its body in a fake-async zone, where an I/O future never completes.
-    await tester.runAsync(() async {
-      root = await Directory.systemTemp.createTemp('sync-panel-body');
-      PathProviderPlatform.instance = _FakePathProviderPlatform(root.path);
-      final database = AppDatabase(NativeDatabase.memory());
-      repository = ChatDatabaseRepository(database);
-      final businessRepository = BusinessRepository(database);
-      final businessPreferences = BusinessPreferences(businessRepository);
-      chatService = ChatService(existingRepository: repository);
-      await repository.ensureReady();
-      await chatService.init();
-      await businessPreferences.load();
-      provider = _PanelCountingProvider(
-        chatService: chatService,
-        repository: repository,
-        businessRepository: businessRepository,
-        businessPreferences: businessPreferences,
-        reloader: BusinessStateReloader(businessPreferences),
-        syncDirectory: () async => root,
-      );
-    });
-    addTearDown(() async {
-      provider.dispose();
-      await chatService.close();
-      await repository.close();
-      await root.delete(recursive: true);
-    });
-
-    Widget app(Widget home) => ChangeNotifierProvider<SyncProvider>.value(
-      value: provider,
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: home,
-      ),
-    );
+    final (:provider, :app) = await _harness(tester);
 
     await tester.pumpWidget(app(const Scaffold(body: SyncPanelBody())));
     await tester.pumpAndSettle();
@@ -116,5 +127,56 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(provider.closedPanels, 1, reason: 'the viewer is released');
+  });
+
+  testWidgets('a panel left mounted but offstage releases its viewer', (
+    tester,
+  ) async {
+    final (:provider, :app) = await _harness(tester);
+
+    // The desktop home page's own shape: the settings page — and, inside it,
+    // the LAN sync pane the user selected — is a permanent `IndexedStack`
+    // child, because the tabs are kept alive ("so ongoing chat streams are not
+    // canceled when switching tabs", desktop_home_page.dart). Switching tabs
+    // there stops painting the panel without unmounting it, so a viewer mark
+    // tied to mount state would mute every arrival for the rest of the launch.
+    Widget shell(int tab) => app(
+      Scaffold(
+        body: IndexedStack(
+          index: tab,
+          children: const [
+            Center(child: Text('chat tab')),
+            SyncPanelBody(),
+          ],
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(shell(1));
+    await tester.pumpAndSettle();
+    expect(provider.openedPanels, 1, reason: 'the LAN sync pane is on screen');
+    expect(provider.closedPanels, 0);
+
+    // Back to the chat tab: the panel is offstage but still in the element
+    // tree, so `dispose` never runs.
+    await tester.pumpWidget(shell(0));
+    await tester.pumpAndSettle();
+    expect(
+      find.byType(SyncPanelBody, skipOffstage: false),
+      findsOneWidget,
+      reason: 'IndexedStack keeps the non-selected children mounted',
+    );
+    expect(find.byType(SyncPanelBody), findsNothing);
+    expect(
+      provider.closedPanels,
+      1,
+      reason: 'the cards are not on screen, so arrivals must be announced',
+    );
+
+    // And it counts again once the pane is back in front of the user.
+    await tester.pumpWidget(shell(1));
+    await tester.pumpAndSettle();
+    expect(provider.openedPanels, 2);
+    expect(provider.closedPanels, 1);
   });
 }

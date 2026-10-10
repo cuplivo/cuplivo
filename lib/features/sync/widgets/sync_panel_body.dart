@@ -18,10 +18,10 @@ import 'sync_peer_card.dart';
 /// limits that are true of this slice. Each host owns its own chrome (Scaffold
 /// and AppBar on mobile, pane container on desktop) and scroll view.
 ///
-/// Stateful for one reason: while it is mounted, the user is looking at the
-/// cards, so [SyncProvider.panelOpened]/[panelClosed] gate the app-level
-/// arrival announcements — a toast over a panel that shows the same news would
-/// be noise.
+/// Stateful for one reason: the user is looking at the cards, so
+/// [SyncProvider.panelOpened]/[panelClosed] gate the app-level arrival
+/// announcements — a toast over a panel that shows the same news would be
+/// noise.
 class SyncPanelBody extends StatefulWidget {
   const SyncPanelBody({super.key});
 
@@ -37,21 +37,37 @@ class _SyncPanelBodyState extends State<SyncPanelBody> {
   /// own advice: save it in `didChangeDependencies`).
   SyncProvider? _provider;
 
-  @override
-  void initState() {
-    super.initState();
-    context.read<SyncProvider>().panelOpened();
-  }
+  /// Whether this panel currently counts as a viewer of the cards.
+  bool _isViewer = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _provider ??= context.read<SyncProvider>();
+    // Visibility, not mount state: the desktop home page keeps its tabs alive
+    // in an `IndexedStack`, so once the user has opened Settings → LAN Sync the
+    // panel stays mounted — and would keep counting — after they switch back to
+    // the chat tab, muting every arrival for the rest of the launch. Every
+    // `IndexedStack` child carries a visibility scope, so this is the signal
+    // that follows the user rather than the element tree.
+    // `didChangeDependencies` re-runs when it changes, which is where the
+    // transition belongs.
+    _setViewer(Visibility.of(context));
+  }
+
+  void _setViewer(bool visible) {
+    if (visible == _isViewer) return;
+    _isViewer = visible;
+    if (visible) {
+      _provider!.panelOpened();
+    } else {
+      _provider!.panelClosed();
+    }
   }
 
   @override
   void dispose() {
-    _provider?.panelClosed();
+    if (_isViewer) _provider?.panelClosed();
     super.dispose();
   }
 

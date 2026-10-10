@@ -4543,6 +4543,8 @@
   "lanSyncFirewallFix": "允許存取（UAC）",
   "lanSyncFirewallFixed": "入站存取已允許。",
   "lanSyncKnownLimits": "目前：工作區仍只留在建立它的裝置上；PIN 配對請僅在可信網路中使用。",
+  "lanSyncArrivalToast": "已與 {name} 同步",
+  "lanSyncArrivalDetails": "詳情",
   "assistantEditProactiveCareEnableTitle": "主動關懷",
   "@assistantEditProactiveCareEnableTitle": {
     "description": "主動關懷開關標題"

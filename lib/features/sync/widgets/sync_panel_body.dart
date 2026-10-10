@@ -17,8 +17,33 @@ import 'sync_peer_card.dart';
 /// pane: this device, the pairing entry, one card per paired device, and the
 /// limits that are true of this slice. Each host owns its own chrome (Scaffold
 /// and AppBar on mobile, pane container on desktop) and scroll view.
-class SyncPanelBody extends StatelessWidget {
+///
+/// Stateful for one reason: while it is mounted, the user is looking at the
+/// cards, so [SyncProvider.panelOpened]/[panelClosed] gate the app-level
+/// arrival announcements — a toast over a panel that shows the same news would
+/// be noise.
+class SyncPanelBody extends StatefulWidget {
   const SyncPanelBody({super.key});
+
+  @override
+  State<SyncPanelBody> createState() => _SyncPanelBodyState();
+}
+
+class _SyncPanelBodyState extends State<SyncPanelBody> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<SyncProvider>().panelOpened();
+  }
+
+  @override
+  void dispose() {
+    // `read` (not `watch`) is the documented pattern for a teardown lookup;
+    // neither half notifies, so a provider that is already disposed cannot
+    // assert on it.
+    context.read<SyncProvider>().panelClosed();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

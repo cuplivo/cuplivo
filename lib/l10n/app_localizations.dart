@@ -22716,6 +22716,18 @@ abstract class AppLocalizations {
   /// **'For now: workspaces stay on the device that created them, and PIN pairing should only be used on networks you trust.'**
   String get lanSyncKnownLimits;
 
+  /// No description provided for @lanSyncArrivalToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Synced with {name}'**
+  String lanSyncArrivalToast(Object name);
+
+  /// No description provided for @lanSyncArrivalDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get lanSyncArrivalDetails;
+
   /// Title for the proactive care enable switch
   ///
   /// In en, this message translates to:

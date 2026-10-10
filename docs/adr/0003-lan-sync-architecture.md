@@ -840,7 +840,10 @@ half of the fix; three facts below it are what make it possible.
   `anyEndpointReachable` reuses the dial's own bare-TCP probe over the remembered endpoints — the
   same probe, budget and "the probe classifies the address, never the peer" contract as the
   candidate ordering — and the provider re-runs it on start, on resume, on a 30-second timer while
-  the app is visible, and after every session; a session in flight counts as its own proof. The card
+  the app is visible, and after every session; a session in flight counts as its own proof.
+  *Superseded in part by slice 15*: only a session **past its dial** is proof — a round that
+  has merely started proves nothing, and the optimistic green it painted was exactly the
+  flicker an automatic round showed against a sleeping peer. The card
   draws it as a green/gray dot on the platform badge, and an `unreachable` outcome renders as a calm
   "not reachable right now" note rather than a failure banner: a peer that is asleep is routine, and
   it syncs again by itself when both devices are back on one network. The durable-socket gap (the
@@ -901,7 +904,8 @@ half of the fix; three facts below it are what make it possible.
   probe corrects the dot within the minute. And a session that dials nothing (`noEndpoint`) files no
   verdict, because the probe is the only evidence it could file — but the session marks its peer
   online on the way in, so that mark is removed again on the way out: with no endpoint there is no
-  probe to correct it.
+  probe to correct it. *Superseded by slice 15*: the optimistic mark on the way in is gone
+  altogether, so a no-endpoint session has nothing to undo and files nothing.
   *Rejected: upgrading the probe to a pinned TLS handshake* — it would overturn the documented
   "a probe tests the *address*, never the peer" contract, make the 30-second probe carry crypto and
   a new failure surface (self-signed certificates, IPv6 literals), and still be a weaker statement
@@ -947,6 +951,31 @@ half of the fix; three facts below it are what make it possible.
   initiator holding the old one). Nothing this device can do on its own repairs it, so the card's
   refusal banner now carries a "pair again" button that opens the pairing dialog prefilled with the
   address the card already knows (the code still comes from the other device's screen).
+
+## Amendment (2026-10, slice 15): the dot reports answers, not attempts
+
+Field use of the online dot found it lying in the most routine case there is: an automatic
+round against a sleeping peer turned the dot green the moment the round started —
+`syncNow` marked the peer online on its way in, and the presence round answered `true` for
+any busy peer ("a session in flight counts as its own proof") — so every launch and resume
+showed a green dot for exactly the seconds the dial then spent failing, then gray again.
+Trying to reach a peer is not reaching it.
+
+- **Three kinds of evidence, and an attempt is none of them.** The dot may say online from
+  a probe that reached a remembered endpoint, a finished session that got an answer (a
+  refusal included — that has not changed), or a running session **past its dial**: any
+  beat from `exchanging` on means both hello manifests are in hand, i.e. the peer
+  demonstrably answered while the session is still running. That last source is what keeps
+  a minutes-long first sync green while it actually runs — the honest half of the rule the
+  optimistic mark was reaching for.
+- **A busy peer is neither probed nor assumed.** The presence round skips peers with a
+  session in flight and leaves their current evidence untouched (they still count as known,
+  so unpairing cannot leave a stale dot); the session's own verdict settles the dot when it
+  lands. Previously the round answered `true` for a busy peer outright, which is the same
+  conflation from the probe's side.
+- *Rejected: keeping the optimistic mark for manual syncs only.* The button already shows
+  the session's beats, a manual dial against an offline peer is the same lie, and the
+  verdict lands seconds later anyway — "who started it" is not evidence either.
 
 ## Considered options (rejected)
 

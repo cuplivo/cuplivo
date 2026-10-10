@@ -2549,7 +2549,7 @@ void main() {
   );
 
   test(
-    'the probe is asked about the card addresses, and a busy peer is online',
+    'the probe is asked about the card addresses, and a busy peer is left alone',
     () async {
       final a = _Side('a');
       final b = _Side('b');
@@ -2575,14 +2575,99 @@ void main() {
         ('127.0.0.1', b.port),
       ], reason: 'the dot is about the addresses the card shows and dials');
 
-      // A session in flight answers for the peer: there is nothing left to probe.
+      // A peer mid-session is not probed again: the session files its own
+      // verdict when it lands, so the probe has nothing to add while it runs.
       reachable = false;
       provider.busyDeviceIds.add(b.identity.deviceId);
+      final probesBefore = probed.length;
       await provider.refreshPresence();
+      expect(probed.length, probesBefore, reason: 'nothing left to probe');
+
+      // The dot stays green here — but because the pairing session answered
+      // seconds ago and its verdict is fresh, not because a round is running.
+      // The busy flag itself is not evidence; the test below proves that.
+      expect(provider.isPeerOnline(b.identity.deviceId), isTrue);
+    },
+  );
+
+  test('a round in flight is an attempt, not an answer', () async {
+    final a = _Side('a');
+    await a.start(root, withEngine: false);
+    sides.add(a);
+
+    final probed = <List<(String, int)>>[];
+    final provider = await a.startProvider(
+      presenceProbe: (endpoints) async {
+        probed.add(endpoints);
+        return false;
+      },
+    );
+
+    // A peer with no session history, so no verdict holds the dot either way:
+    // exactly what an automatic round sees first.
+    await a.store.savePeer(
+      SyncPeerRecord(
+        deviceId: 'peer-busy',
+        certPem: 'pem',
+        secret: 'secret',
+        name: 'Studio desktop',
+        platform: 'android',
+        endpoints: [SyncPeerEndpoint(host: '10.0.0.9', port: 9527)],
+      ),
+    );
+    await provider.refreshPeers();
+
+    provider.busyDeviceIds.add('peer-busy');
+    await provider.refreshPresence();
+    expect(probed, isEmpty, reason: 'a mid-session peer is not probed');
+    expect(
+      provider.isPeerOnline('peer-busy'),
+      isFalse,
+      reason:
+          'the old rule painted this green: a running round "was" proof, '
+          'but its dial had not reached anything yet',
+    );
+  });
+
+  test(
+    'an automatic round does not paint the dot green while it dials',
+    () async {
+      final a = _Side('a');
+      await a.start(root, withEngine: false);
+      sides.add(a);
+
+      final provider = await a.startProvider(presenceProbe: (_) async => false);
+      // A loopback port nothing listens on, so the dial fails fast instead of
+      // spending its whole budget — the assertion that matters runs before it.
+      final deadPort = await _unusedPort();
+      await a.store.savePeer(
+        SyncPeerRecord(
+          deviceId: 'peer-dead',
+          certPem: 'pem',
+          secret: 'secret',
+          name: 'Studio desktop',
+          platform: 'android',
+          endpoints: [SyncPeerEndpoint(host: '127.0.0.1', port: deadPort)],
+        ),
+      );
+      await provider.refreshPeers();
+
+      final session = provider.syncNow('peer-dead');
+      // `syncNow` runs to its first await synchronously, so this is the moment
+      // the round starts — the exact point the optimistic green used to appear.
+      expect(provider.busyDeviceIds.contains('peer-dead'), isTrue);
       expect(
-        provider.isPeerOnline(b.identity.deviceId),
-        isTrue,
-        reason: 'a running session is itself proof the peer is there',
+        provider.isPeerOnline('peer-dead'),
+        isFalse,
+        reason: 'a round that has merely started has reached nothing',
+      );
+
+      final report = await session;
+      expect(report?.failure, SyncFailureReason.unreachable);
+      expect(
+        provider.isPeerOnline('peer-dead'),
+        isFalse,
+        reason: 'and the failed dial leaves no evidence behind',
       );
     },
   );
@@ -4450,9 +4535,9 @@ void main() {
     final report = await provider.syncNow('peer-no-address');
     expect(report?.failure, SyncFailureReason.noEndpoint);
 
-    // The session marks its peer online on the way in. With nothing dialed there
-    // is no evidence behind that mark, and with no endpoint no probe will ever
-    // supply any — so it must not survive the session that made it.
+    // A session that dialed nothing proved nothing, and the dot must not say
+    // otherwise: no beat past a dial ever happened, and with no endpoint no
+    // probe will ever supply evidence either.
     expect(
       provider.isPeerOnline('peer-no-address'),
       isFalse,
@@ -4463,6 +4548,47 @@ void main() {
       PresenceSource.unknown,
     );
   });
+
+  test(
+    'the beat past the dial is what marks a running session online',
+    () async {
+      final a = _Side('a');
+      await a.start(root, withEngine: false);
+      sides.add(a);
+
+      // The probe never finds anything, so any green below can only come from
+      // the beat.
+      final provider = await a.startProvider(presenceProbe: (_) async => false);
+      final engine = provider.engine!;
+      provider.busyDeviceIds.add('peer-live');
+
+      // Seed the engine's live progress map and fire the callback a real
+      // `_setProgress` would — a loopback session crosses these beats in
+      // microseconds, so racing it with a polling wait would only ever observe
+      // the verdict that follows. The dial beat alone must not mark the peer:
+      engine.initiatorProgress['peer-live'] = const SyncSessionProgress(
+        SyncSessionPhase.connecting,
+        address: '10.0.0.9:9527',
+        attempt: 1,
+        attempts: 1,
+      );
+      engine.onProgressChanged!();
+      expect(
+        provider.isPeerOnline('peer-live'),
+        isFalse,
+        reason: 'still dialing — nothing has answered yet',
+      );
+
+      // ...while `exchanging` means both hello manifests came back: the peer
+      // answered, bytes flowed, and the dot can say so while the session runs.
+      engine.initiatorProgress['peer-live'] = const SyncSessionProgress(
+        SyncSessionPhase.exchanging,
+      );
+      engine.onProgressChanged!();
+      expect(provider.isPeerOnline('peer-live'), isTrue);
+      expect(provider.peerPresenceSource('peer-live'), PresenceSource.probe);
+    },
+  );
 
   test('a session that cannot talk outranks a probe that can', () async {
     final a = _Side('a');

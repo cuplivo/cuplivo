@@ -442,9 +442,15 @@ contradicts one of them is a bug, not a preference.
   pairing QR on this device, scan or type the code from another) + one card per paired device
   (editable name, platform, endpoint, last sync outcome, sync now, unpair). **Pairing is the
   opt-in** — there is no master switch, and no global chrome (no sync icon outside the panel).
-- **No online state**: the card shows the last sync attempt and its outcome, never a presence
-  badge. Nothing probes the peer between sessions, so "online" would be a claim the app cannot
-  make; a drifted address shows up as a failed attempt, not as an offline device.
+- **The online dot reports answers, never attempts (在线点只报答案)**: a green dot means
+  something answered — a remembered endpoint accepted the 30-second probe, a finished session
+  got a reply (a refusal is an answer too), or a running session has passed its dial and is
+  exchanging bytes right now. A round merely *starting* proves nothing: the dot used to turn
+  green on a session's way in, so every automatic round against a sleeping peer showed green
+  for exactly the seconds its dial spent failing — trying is not reaching. A fresh session
+  verdict outranks the probe for one minute (an address can accept a connection and never
+  complete a session), one probe miss is forgiven (a dot that flickers gray every half minute
+  is worse than one slightly stale), and the tooltip says which evidence the dot is reporting.
 - **The card shows the facts a user acts on**: "last synced" is how long ago, not a timestamp — the
   question on that line is recency, the exact time rides in the tooltip, and past a week the date
   returns, because at nine days old the date is the more useful fact. The address in use carries a

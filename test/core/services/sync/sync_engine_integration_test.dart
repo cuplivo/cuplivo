@@ -2649,6 +2649,62 @@ void main() {
   });
 
   test(
+    'a session the peer ran against this device announces its arrival',
+    () async {
+      final a = _Side('a');
+      final b = _Side('b');
+      await a.start(root, withEngine: false);
+      await b.start(root);
+      sides.addAll([a, b]);
+
+      final provider = await a.startProvider();
+      final pin = b.engine.openPairing();
+      await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+      await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+
+      final arrivals = <SyncArrival>[];
+      final subscription = provider.autoSyncArrivals.listen(arrivals.add);
+      addTearDown(subscription.cancel);
+
+      // The phone's own address is what it remembers of this device; pin it to
+      // the loopback this test dials on, so the inbound session is about the
+      // announcement, not about address discovery.
+      final inbound = await b.peer(a);
+      inbound.replaceEndpoints('127.0.0.1', a.port);
+      await b.store.savePeer(inbound);
+
+      // Nothing new on either side: the peer runs its session, this device
+      // answers, and a session that brought nothing here still says nothing.
+      await b.engine.syncWithPeer(inbound);
+      expect(arrivals, isEmpty, reason: 'nothing arrived, nothing to announce');
+
+      // New data on the peer — and the *peer* runs the session this time. This
+      // device starts nothing, the data lands on it anyway, and the user is away
+      // from the panel: without the responder announcing too, the most common
+      // arrival of all (the phone's round landing on the desktop) was silent.
+      await _seedConversation(b, id: 'conv-inbound', contents: ['in']);
+      await b.engine.syncWithPeer(inbound);
+      expect(await _conversationIds(a), contains('conv-inbound'));
+      expect(arrivals, hasLength(1));
+      expect(arrivals.single.peerName, b.identity.name);
+      expect(arrivals.single.report.conversationsReceived, 1);
+
+      // The panel gate covers inbound arrivals too: a mounted panel is already
+      // showing the same news on its cards.
+      provider.panelOpened();
+      await _seedConversation(b, id: 'conv-muted', contents: ['muted']);
+      await b.engine.syncWithPeer(inbound);
+      expect(await _conversationIds(a), contains('conv-muted'));
+      expect(
+        arrivals,
+        hasLength(1),
+        reason: 'the mounted panel shows it already',
+      );
+      provider.panelClosed();
+    },
+  );
+
+  test(
     'pairing starts the first session instead of waiting for a round',
     () async {
       final a = _Side('a');

@@ -370,6 +370,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         // beat cannot have changed a peer record, and the blob pull fires one
         // per file.
         onProgressChanged: _onEngineProgressChanged,
+        // The answered half of a session is a session this device never
+        // started, so its arrival reaches the user only if the engine hands
+        // it over (see [_onEngineResponderSession]).
+        onResponderSession: _onEngineResponderSession,
       );
       _store = store;
       _engine = engine;
@@ -881,6 +885,20 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       }
     }
     _notify();
+  }
+
+  /// A session some peer ran against this device's listener just finished —
+  /// the arrival [syncNow] never sees, because this device started nothing:
+  /// the phone's round that lands while the desktop sits here quietly. The
+  /// gates are the arrival's own: the session must have brought data here
+  /// ([syncBroughtDataHere]), and no sync panel may be mounted showing the
+  /// same news on its cards.
+  void _onEngineResponderSession(
+    SyncPeerRecord peer,
+    SyncSessionReport report,
+  ) {
+    if (_panelViewers > 0 || !syncBroughtDataHere(report)) return;
+    _arrivals.add(SyncArrival(peer.displayName, report));
   }
 
   @override

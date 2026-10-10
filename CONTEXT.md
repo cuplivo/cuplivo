@@ -312,14 +312,16 @@ contradicts one of them is a bug, not a preference.
   minute; (2) a manual "sync now" in settings, never throttled. No polling, no background
   daemon, and — without discovery — no "peer appeared" trigger: the round is what "picked the
   device up" means.
-- **A quiet round that brings data says so (带来数据才吭声)**: an automatic session that
-  delivered something to this device — conversations, message edits or deletions, business
-  rows, files, skills — announces itself with one toast wherever the user is, one tap from
-  the full report dialog. A round that moved nothing stays quiet (a toast per resume would
-  be noise), so does one that only sent (the news is on the other device), and so do
-  failures and refusals (routine on a LAN; the card carries them). While the sync panel is
-  mounted the toast is suppressed — the cards are showing the same news — and a manual
-  "sync now" keeps its own snackbar from the card.
+- **A quiet round that brings data says so (带来数据才吭声)**: a session that delivered
+  something to this device announces itself with one toast wherever the user is, one tap from
+  the full report dialog — whichever side ran it. The rounds this device starts announce only
+  when automatic (a manual press already talks through its card); the rounds a *peer* starts
+  that land here through the listener announce too, because this device started nothing and
+  would otherwise never hear that the phone's day just arrived. A session that moved nothing
+  stays quiet (a toast per resume would be noise), so does one that only sent (the news is on
+  the other device), and so do failures and refusals (routine on a LAN; the card carries
+  them). While the sync panel is mounted the toast is suppressed — the cards are showing the
+  same news.
 - **Symmetric version gate (对称拒绝)**: at hello each side refuses a peer whose database
   schema version is newer than its own ("upgrade this device to sync"). Same or older is
   accepted — an older peer's rows merely fill column defaults. Sessions therefore only run

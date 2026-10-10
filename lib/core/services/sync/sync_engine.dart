@@ -170,6 +170,7 @@ class SyncEngine implements SyncServerHandler {
     required this.dataPlane,
     required this.onStateChanged,
     this.onProgressChanged,
+    this.onResponderSession,
     int Function()? clockUs,
   }) : clockUs = clockUs ?? (() => DateTime.now().microsecondsSinceEpoch);
 
@@ -191,6 +192,15 @@ class SyncEngine implements SyncServerHandler {
   /// changed a record, and a first sync pulls hundreds of blobs. Defaults to
   /// [onStateChanged], which is always correct and only costs that reload.
   final void Function()? onProgressChanged;
+
+  /// Called when a session this device *answered* completes, with the peer as
+  /// this engine last saved it and the report of what that session moved —
+  /// the responder's counterpart to the report [syncWithPeer] returns. This
+  /// device started nothing, so nothing else can tell the consumer the data
+  /// arrived; whether that deserves a user-facing announcement is the
+  /// consumer's decision, not the engine's.
+  final void Function(SyncPeerRecord peer, SyncSessionReport report)?
+  onResponderSession;
 
   /// This device's own candidate addresses, pushed by the provider whenever it
   /// re-enumerates them. The dial uses them to tell an address on the network
@@ -1472,6 +1482,20 @@ class SyncEngine implements SyncServerHandler {
       ),
     );
     final peer = await store.findPeer(peerDeviceId);
+    final report = _report(
+      sent: outgoing.length,
+      received: session.outcomes.length,
+      outcomes: session.outcomes.values,
+      deferred: skipped.length + missing.length,
+      deletedLocally: deleted.length,
+      business: businessRead.payload,
+      receivedBusiness: session.receivedBusiness,
+      appliedBusiness: session.businessOutcome,
+      blobPull: session.blobPull,
+      skillConflicts: session.skillConflicts.length,
+      deferredSkills: session.deferredSkills.length,
+      clockSkewMs: session.clockSkewMs,
+    );
     if (peer != null) {
       peer.lastSyncedAt = DateTime.now();
       // The session just ran over the caller's address, so that is where this
@@ -1482,24 +1506,14 @@ class SyncEngine implements SyncServerHandler {
       if (learnedHost != null && learnedPort != null) {
         peer.noteEndpointSuccess(learnedHost, learnedPort);
       }
-      peer.lastReport = _report(
-        sent: outgoing.length,
-        received: session.outcomes.length,
-        outcomes: session.outcomes.values,
-        deferred: skipped.length + missing.length,
-        deletedLocally: deleted.length,
-        business: businessRead.payload,
-        receivedBusiness: session.receivedBusiness,
-        appliedBusiness: session.businessOutcome,
-        blobPull: session.blobPull,
-        skillConflicts: session.skillConflicts.length,
-        deferredSkills: session.deferredSkills.length,
-        clockSkewMs: session.clockSkewMs,
-      ).toPeerReport();
+      peer.lastReport = report.toPeerReport();
       await store.savePeer(peer);
     }
     _sessions.remove(peerDeviceId);
     onStateChanged();
+    if (peer != null) {
+      onResponderSession?.call(peer, report);
+    }
     return responseBatch;
   }
 

@@ -2511,6 +2511,86 @@ void main() {
   });
 
   test(
+    'an arrival is announced for an automatic session that brought data',
+    () async {
+      final a = _Side('a');
+      final b = _Side('b');
+      await a.start(root, withEngine: false);
+      await b.start(root);
+      sides.addAll([a, b]);
+
+      await _seedConversation(b, id: 'conv-seed', contents: ['seed']);
+      final provider = await a.startProvider();
+      final arrivals = <SyncArrival>[];
+      final subscription = provider.autoSyncArrivals.listen(arrivals.add);
+      addTearDown(subscription.cancel);
+
+      // Pairing kicks the first session, which carries the seed over —
+      // silently: the kick is not a quiet round, and the user is mid-pairing.
+      final pin = b.engine.openPairing();
+      await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+      await _waitUntil(
+        () async => (await _conversationIds(a)).contains('conv-seed'),
+      );
+      await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+      expect(arrivals, isEmpty, reason: 'the pairing kick is not announced');
+
+      // Converged devices: an automatic round that brings nothing says nothing —
+      // a toast per quiet round would train the user to dismiss toasts.
+      await provider.syncNow(b.identity.deviceId, automatic: true);
+      expect(arrivals, isEmpty, reason: 'nothing arrived, nothing to announce');
+
+      // New data on the peer: the same round announces exactly one arrival.
+      await _seedConversation(b, id: 'conv-new', contents: ['new']);
+      final report = await provider.syncNow(
+        b.identity.deviceId,
+        automatic: true,
+      );
+      expect(report?.success, isTrue, reason: report?.summary);
+      expect(arrivals, hasLength(1));
+      expect(arrivals.single.peerName, b.identity.name);
+      expect(arrivals.single.report.conversationsReceived, 1);
+
+      // A manual sync that brings data does not announce: the card already
+      // snackbar'd it, and its user is on the panel.
+      await _seedConversation(b, id: 'conv-manual', contents: ['manual']);
+      await provider.syncNow(b.identity.deviceId);
+      expect(arrivals, hasLength(1), reason: 'the manual press owns its toast');
+    },
+  );
+
+  test('a mounted sync panel silences the arrival announcement', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+
+    final provider = await a.startProvider();
+    final pin = b.engine.openPairing();
+    await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+
+    final arrivals = <SyncArrival>[];
+    final subscription = provider.autoSyncArrivals.listen(arrivals.add);
+    addTearDown(subscription.cancel);
+
+    provider.panelOpened();
+    await _seedConversation(b, id: 'conv-panel', contents: ['panel']);
+    await provider.syncNow(b.identity.deviceId, automatic: true);
+    expect(
+      arrivals,
+      isEmpty,
+      reason: 'the panel shows the same news on its card',
+    );
+
+    provider.panelClosed();
+    await _seedConversation(b, id: 'conv-away', contents: ['away']);
+    await provider.syncNow(b.identity.deviceId, automatic: true);
+    expect(arrivals, hasLength(1));
+  });
+
+  test(
     'pairing starts the first session instead of waiting for a round',
     () async {
       final a = _Side('a');

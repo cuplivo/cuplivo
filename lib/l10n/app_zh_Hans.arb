@@ -4519,6 +4519,8 @@
   "lanSyncFirewallFix": "允许访问（UAC）",
   "lanSyncFirewallFixed": "入站访问已允许。",
   "lanSyncKnownLimits": "目前：工作区仍只留在创建它的设备上；PIN 配对请仅在可信网络中使用。",
+  "lanSyncArrivalToast": "已与 {name} 同步",
+  "lanSyncArrivalDetails": "详情",
   "assistantEditProactiveCareEnableTitle": "主动关怀",
   "@assistantEditProactiveCareEnableTitle": {
     "description": "主动关怀开关标题"

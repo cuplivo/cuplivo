@@ -977,6 +977,33 @@ Trying to reach a peer is not reaching it.
   the session's beats, a manual dial against an offline peer is the same lie, and the
   verdict lands seconds later anyway — "who started it" is not evidence either.
 
+## Amendment (2026-10, slice 16): a quiet round that brings data says so
+
+Slice 4's cadence made every automatic round silent — right when the feature was new and a
+toast per resume would have been noise, but field use found the other failure: a phone
+picked up at the office receives the whole day's messages and says nothing, so the user
+cannot tell sync happened without walking to the settings page.
+
+- **Arrivals are announced, attempts are not.** An automatic session that *brought data to
+  this device* (received conversations, applied message edits or deletions, business rows,
+  blobs, skills) emits one arrival event; a root-mounted announcer turns it into a toast —
+  "Synced with <peer>", five seconds, one "Details" action opening the card's own report
+  breakdown in a dialog over the root navigator. A session that moved nothing, or only sent
+  (the peer got the news), announces nothing; failures and refusals never announce — a
+  sleeping peer is routine, and the card already carries the outcome. The gate is one pure
+  predicate on the report, so the "what counts as an arrival" rule is testable without a
+  toast.
+- **The panel is the suppressor.** The mobile page and the desktop pane render one shared
+  panel body, and it marks itself mounted on the provider: while it is, the cards are
+  showing the same news and the toast would be noise. A manual "sync now" keeps the
+  snackbar its card already shows; the pairing kick is likewise not an announcement. The
+  provider decides *whether* (a counter, so an odd dispose order cannot silence a live
+  panel); the announcer widget decides only *what it looks like*, and is a pass-through
+  wrapper at the app root so it is alive wherever the user is.
+- *Rejected: announcing every successful round.* "Synced · up to date" on every launch and
+  resume is a toast nobody needs twice, and it trains the user to dismiss toasts — which is
+  exactly the reflex the arrival toast must not build.
+
 ## Considered options (rejected)
 
 - **Whole-database / backup-zip exchange** — not version-portable; a newer schema on an

@@ -12169,6 +12169,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncKnownLimits => '目前：工作区仍只留在创建它的设备上；PIN 配对请仅在可信网络中使用。';
 
   @override
+  String lanSyncArrivalToast(Object name) {
+    return '已与 $name 同步';
+  }
+
+  @override
+  String get lanSyncArrivalDetails => '详情';
+
+  @override
   String get assistantEditProactiveCareEnableTitle => '主动关怀';
 
   @override
@@ -25167,6 +25175,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncKnownLimits => '目前：工作区仍只留在创建它的设备上；PIN 配对请仅在可信网络中使用。';
+
+  @override
+  String lanSyncArrivalToast(Object name) {
+    return '已与 $name 同步';
+  }
+
+  @override
+  String get lanSyncArrivalDetails => '详情';
 
   @override
   String get assistantEditProactiveCareEnableTitle => '主动关怀';
@@ -38246,6 +38262,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncKnownLimits => '目前：工作區仍只留在建立它的裝置上；PIN 配對請僅在可信網路中使用。';
+
+  @override
+  String lanSyncArrivalToast(Object name) {
+    return '已與 $name 同步';
+  }
+
+  @override
+  String get lanSyncArrivalDetails => '詳情';
 
   @override
   String get assistantEditProactiveCareEnableTitle => '主動關懷';

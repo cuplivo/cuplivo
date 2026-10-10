@@ -95,6 +95,32 @@ enum PresenceSource {
   probe,
 }
 
+/// One successful automatic-round session that brought data to this device —
+/// what the app-level announcer turns into a toast the user sees away from
+/// the sync panel. The peer's name rides along because the record (and its
+/// possible rename) is read at emit time.
+class SyncArrival {
+  const SyncArrival(this.peerName, this.report);
+
+  final String peerName;
+  final SyncSessionReport report;
+}
+
+/// Whether a session changed what this device shows: anything that arrived
+/// here — conversations, message edits or deletions, business rows, files,
+/// skills. A session that only sent (the peer got the news) or moved nothing
+/// is not an arrival; announcing it would train the user to dismiss toasts.
+bool syncBroughtDataHere(SyncSessionReport report) {
+  return report.conversationsReceived > 0 ||
+      report.messagesUpserted > 0 ||
+      report.messagesDeleted > 0 ||
+      report.conversationsDeletedLocally > 0 ||
+      report.entityRows > 0 ||
+      report.preferenceRows > 0 ||
+      report.blobsMoved > 0 ||
+      report.skillsUpdated > 0;
+}
+
 /// The auto-round cadence decision, pure so tests can cover it: run when
 /// there is no previous round, or when the interval has fully elapsed.
 bool shouldAutoSyncNow(DateTime now, DateTime? lastRoundAt) {
@@ -214,6 +240,29 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   Timer? _presenceTimer;
   bool _presenceRunning = false;
+
+  /// Successful automatic-round arrivals, for the app-level announcer. The
+  /// provider emits; the announcer decides what a toast looks like. Broadcast,
+  /// because several listeners may exist.
+  final StreamController<SyncArrival> _arrivals =
+      StreamController<SyncArrival>.broadcast();
+
+  Stream<SyncArrival> get autoSyncArrivals => _arrivals.stream;
+
+  /// How many sync panels are mounted (the mobile page and the desktop pane
+  /// render the same body). While one is, the user is looking at the cards,
+  /// which say everything a toast would; arrivals are not announced.
+  int _panelViewers = 0;
+
+  /// Called by the panel body on mount/teardown. The counter (not a bool) is
+  /// what keeps an odd dispose order from silencing a still-mounted panel.
+  void panelOpened() {
+    _panelViewers++;
+  }
+
+  void panelClosed() {
+    if (_panelViewers > 0) _panelViewers--;
+  }
 
   /// Live progress of this device's initiator session with [deviceId], or null
   /// when none is running. Read straight from the engine's map, which lives
@@ -553,7 +602,18 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     await refreshPeers();
   }
 
-  Future<SyncSessionReport?> syncNow(String deviceId) async {
+  /// Runs one session with [deviceId].
+  ///
+  /// [automatic] marks a session this device started on its own (a foreground
+  /// round) rather than one the user pressed for: a manual press already gets
+  /// its snackbar from the card, and its user is on the panel — so only an
+  /// automatic session that *brought data here* is announced on
+  /// [autoSyncArrivals], and only while no panel is mounted to show the same
+  /// news on its card.
+  Future<SyncSessionReport?> syncNow(
+    String deviceId, {
+    bool automatic = false,
+  }) async {
     final engine = _engine;
     if (engine == null || busyDeviceIds.contains(deviceId)) return null;
     final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
@@ -570,6 +630,12 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       final report = await engine.syncWithPeer(peer);
       lastReport = report;
       _recordSessionVerdict(deviceId, report);
+      if (automatic &&
+          report.success &&
+          _panelViewers == 0 &&
+          syncBroughtDataHere(report)) {
+        _arrivals.add(SyncArrival(peer.displayName, report));
+      }
       return report;
     } finally {
       busyDeviceIds.remove(deviceId);
@@ -736,7 +802,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         if (peer.primaryEndpoint == null) continue;
         if (busyDeviceIds.contains(peer.deviceId)) continue;
         try {
-          await syncNow(peer.deviceId);
+          await syncNow(peer.deviceId, automatic: true);
         } catch (_) {
           // A failed round already shows on the peer card; the round moves on.
         }
@@ -821,6 +887,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   void dispose() {
     _disposed = true;
     _stopPresenceTimer();
+    _arrivals.close();
     WidgetsBinding.instance.removeObserver(this);
     AppExitFlush.unregister(stop);
     super.dispose();

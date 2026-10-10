@@ -94,6 +94,7 @@ import 'utils/platform_utils.dart';
 import 'utils/sandbox_path_resolver.dart';
 import 'shared/widgets/app_overlays.dart';
 import 'shared/widgets/snackbar.dart';
+import 'features/sync/widgets/sync_arrival_announcer.dart';
 import 'shared/widgets/restore_failure_screen.dart';
 import 'shared/widgets/restore_progress_screen.dart';
 import 'shared/widgets/restore_outcome_notice.dart';
@@ -1272,7 +1273,12 @@ class MyApp extends StatelessWidget {
                         : mq,
                     child: LocalSnapshotScheduler(
                       child: AppOverlays(
-                        child: child ?? const SizedBox.shrink(),
+                        // An automatic LAN sync that brings data announces
+                        // itself wherever the user is; the announcer renders
+                        // nothing of its own.
+                        child: SyncArrivalAnnouncer(
+                          child: child ?? const SizedBox.shrink(),
+                        ),
                       ),
                     ),
                   );

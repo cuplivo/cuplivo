@@ -5667,6 +5667,8 @@
   "lanSyncFirewallFix": "Allow access (UAC)",
   "lanSyncFirewallFixed": "Inbound access allowed.",
   "lanSyncKnownLimits": "For now: workspaces stay on the device that created them, and PIN pairing should only be used on networks you trust.",
+  "lanSyncArrivalToast": "Synced with {name}",
+  "lanSyncArrivalDetails": "Details",
   "assistantEditProactiveCareEnableTitle": "Proactive Care",
   "@assistantEditProactiveCareEnableTitle": {
     "description": "Title for the proactive care enable switch"

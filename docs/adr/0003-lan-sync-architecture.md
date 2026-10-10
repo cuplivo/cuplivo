@@ -984,7 +984,7 @@ toast per resume would have been noise, but field use found the other failure: a
 picked up at the office receives the whole day's messages and says nothing, so the user
 cannot tell sync happened without walking to the settings page.
 
-- **Arrivals are announced, attempts are not.** An automatic session that *brought data to
+- **Arrivals are announced, attempts are not.** A session that *brought data to
   this device* (received conversations, applied message edits or deletions, business rows,
   blobs, skills) emits one arrival event; a root-mounted announcer turns it into a toast —
   "Synced with <peer>", five seconds, one "Details" action opening the card's own report
@@ -993,6 +993,16 @@ cannot tell sync happened without walking to the settings page.
   sleeping peer is routine, and the card already carries the outcome. The gate is one pure
   predicate on the report, so the "what counts as an arrival" rule is testable without a
   toast.
+- **Both halves of a session can be the arrival.** `syncWithPeer` announced only the rounds
+  this device starts; the round a *peer* starts lands here through the responder path, which
+  this device never chose and never sees — and that is the direction field use actually
+  exercises (the phone picked up at the office pushes its day to the desktop; the desktop,
+  sitting in the foreground, starts nothing). The engine hands the responder's own report to
+  the provider when the answered session ends, under the same gates — data arrived here, no
+  panel mounted — so a device hears about every arrival, whichever side ran the session. The
+  "manual sync is not announced" rule is per-device: unannounced on the device whose user
+  pressed, because its card is already talking; the peer that data was *pushed to* may still
+  announce, because there the data landed unbidden.
 - **The panel is the suppressor.** The mobile page and the desktop pane render one shared
   panel body, and it marks itself mounted on the provider: while it is, the cards are
   showing the same news and the toast would be noise. A manual "sync now" keeps the

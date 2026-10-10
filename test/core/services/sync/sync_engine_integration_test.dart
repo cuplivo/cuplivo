@@ -897,6 +897,46 @@ void main() {
     await a.repository.close();
   });
 
+  test('an arrival that lands after teardown is dropped, not thrown', () async {
+    // Deliberately not added to `sides`: this test disposes its own provider
+    // while the engine keeps listening (that is the race), and the shared
+    // teardown would dispose it a second time — which ChangeNotifier asserts
+    // on. The cleanup below is what teardown would do. Only `b` joins `sides`.
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.add(b);
+
+    final provider = await a.startProvider();
+    final pin = b.engine.openPairing();
+    await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+
+    // The provider is torn down; its listener is not. `dispose` closes the
+    // arrival stream, and an unanswered `add` on a closed controller throws
+    // into whatever is running — here the peer's request, which the server
+    // answers as a 500 after the data has already been applied.
+    provider.dispose();
+
+    final inbound = await b.peer(a);
+    inbound.replaceEndpoints('127.0.0.1', a.port);
+    await b.store.savePeer(inbound);
+    await _seedConversation(b, id: 'conv-late', contents: ['after teardown']);
+    final report = await b.engine.syncWithPeer(inbound);
+
+    expect(
+      report.success,
+      isTrue,
+      reason: 'the peer must not be answered with an error: ${report.summary}',
+    );
+    expect(await _conversationIds(a), contains('conv-late'));
+
+    await provider.stop();
+    await a.chatService.close();
+    await a.repository.close();
+  });
+
   test(
     'a foreground round runs on the addresses the enumeration produced',
     () async {
@@ -2703,6 +2743,56 @@ void main() {
       provider.panelClosed();
     },
   );
+
+  test('a round that only pushes business rows does not announce', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+
+    final provider = await a.startProvider();
+    final pin = b.engine.openPairing();
+    await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+
+    final arrivals = <SyncArrival>[];
+    final subscription = provider.autoSyncArrivals.listen(arrivals.add);
+    addTearDown(subscription.cancel);
+
+    // A synced preference this device just wrote: the peer owes nothing back,
+    // so the session moves rows in one direction only — out. The report still
+    // carries them (the card's "moved" chip counts both directions, which is
+    // right for a chip and wrong for an arrival), so the gate must not read
+    // that aggregate: nothing arrived here, and a toast would say otherwise.
+    await a.businessPreferences.setString('user_name', 'Alice');
+    final sent = await provider.syncNow(b.identity.deviceId, automatic: true);
+    expect(sent?.success, isTrue, reason: sent?.summary);
+    expect(
+      sent!.entityRows + sent.preferenceRows,
+      greaterThan(0),
+      reason: 'rows went out, so the report is not empty',
+    );
+    expect(
+      arrivals,
+      isEmpty,
+      reason: 'a session that only sent announces nothing',
+    );
+
+    // The mirror is the case the announcement exists for: the same kind of row
+    // arriving *here* — the peer's round landing a new assistant — is an
+    // arrival, and must survive the gate tightening.
+    final inbound = await b.peer(a);
+    inbound.replaceEndpoints('127.0.0.1', a.port);
+    await b.store.savePeer(inbound);
+    await _setAssistants(b, [(id: 'assistant-b', name: 'From the phone')]);
+    final received = await b.engine.syncWithPeer(inbound);
+    expect(received.success, isTrue, reason: received.summary);
+    expect(await _assistantsOf(a), contains('assistant-b'));
+    expect(arrivals, hasLength(1));
+    expect(arrivals.single.peerName, b.identity.name);
+    expect(arrivals.single.report.entityRows, greaterThan(0));
+  });
 
   test(
     'pairing starts the first session instead of waiting for a round',

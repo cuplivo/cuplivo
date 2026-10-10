@@ -110,13 +110,18 @@ class SyncArrival {
 /// here — conversations, message edits or deletions, business rows, files,
 /// skills. A session that only sent (the peer got the news) or moved nothing
 /// is not an arrival; announcing it would train the user to dismiss toasts.
+///
+/// Every counter read here is the *incoming* half of its pair. Business rows
+/// are the trap: [SyncSessionReport.entityRows]/`preferenceRows` add both
+/// directions, because the card's "moved" chip wants the total, so only the
+/// received counters may be consulted here.
 bool syncBroughtDataHere(SyncSessionReport report) {
   return report.conversationsReceived > 0 ||
       report.messagesUpserted > 0 ||
       report.messagesDeleted > 0 ||
       report.conversationsDeletedLocally > 0 ||
-      report.entityRows > 0 ||
-      report.preferenceRows > 0 ||
+      report.entityRowsReceived > 0 ||
+      report.preferenceRowsReceived > 0 ||
       report.blobsMoved > 0 ||
       report.skillsUpdated > 0;
 }
@@ -249,13 +254,15 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   Stream<SyncArrival> get autoSyncArrivals => _arrivals.stream;
 
-  /// How many sync panels are mounted (the mobile page and the desktop pane
+  /// How many sync panels are *visible* (the mobile page and the desktop pane
   /// render the same body). While one is, the user is looking at the cards,
   /// which say everything a toast would; arrivals are not announced.
   int _panelViewers = 0;
 
-  /// Called by the panel body on mount/teardown. The counter (not a bool) is
-  /// what keeps an odd dispose order from silencing a still-mounted panel.
+  /// Called by the panel body when it becomes visible and hidden again — not on
+  /// mount: the desktop pane stays mounted in the home page's `IndexedStack`
+  /// after the user leaves the settings tab. The counter (not a bool) is what
+  /// keeps an odd dispose order from silencing a live panel.
   void panelOpened() {
     _panelViewers++;
   }
@@ -638,7 +645,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
           report.success &&
           _panelViewers == 0 &&
           syncBroughtDataHere(report)) {
-        _arrivals.add(SyncArrival(peer.displayName, report));
+        _announce(SyncArrival(peer.displayName, report));
       }
       return report;
     } finally {
@@ -887,18 +894,29 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     _notify();
   }
 
+  /// Publishes one arrival, unless this provider is already disposed — the same
+  /// rule [_notify] follows, and for the same reason: a session can outlive the
+  /// tree that started it, and the listener keeps answering after `dispose`
+  /// closed this stream. `add` on a closed controller throws, and on the
+  /// responder path that throw reaches the peer as a 500 *after* the data was
+  /// applied — a failed round reported for a session that actually worked.
+  void _announce(SyncArrival arrival) {
+    if (_disposed) return;
+    _arrivals.add(arrival);
+  }
+
   /// A session some peer ran against this device's listener just finished —
   /// the arrival [syncNow] never sees, because this device started nothing:
   /// the phone's round that lands while the desktop sits here quietly. The
   /// gates are the arrival's own: the session must have brought data here
-  /// ([syncBroughtDataHere]), and no sync panel may be mounted showing the
-  /// same news on its cards.
+  /// ([syncBroughtDataHere]), and no sync panel may be showing the same news
+  /// on its cards.
   void _onEngineResponderSession(
     SyncPeerRecord peer,
     SyncSessionReport report,
   ) {
     if (_panelViewers > 0 || !syncBroughtDataHere(report)) return;
-    _arrivals.add(SyncArrival(peer.displayName, report));
+    _announce(SyncArrival(peer.displayName, report));
   }
 
   @override

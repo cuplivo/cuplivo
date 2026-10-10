@@ -30,6 +30,13 @@ class SyncPanelBody extends StatefulWidget {
 }
 
 class _SyncPanelBodyState extends State<SyncPanelBody> {
+  /// The provider as resolved while this element was still active. `dispose`
+  /// runs after the element has left the tree, where even a `read` is an
+  /// ancestor lookup on an inactive element — one the framework forbids — so
+  /// the reference `panelClosed` needs is kept here instead (the framework's
+  /// own advice: save it in `didChangeDependencies`).
+  SyncProvider? _provider;
+
   @override
   void initState() {
     super.initState();
@@ -37,11 +44,14 @@ class _SyncPanelBodyState extends State<SyncPanelBody> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _provider ??= context.read<SyncProvider>();
+  }
+
+  @override
   void dispose() {
-    // `read` (not `watch`) is the documented pattern for a teardown lookup;
-    // neither half notifies, so a provider that is already disposed cannot
-    // assert on it.
-    context.read<SyncProvider>().panelClosed();
+    _provider?.panelClosed();
     super.dispose();
   }
 

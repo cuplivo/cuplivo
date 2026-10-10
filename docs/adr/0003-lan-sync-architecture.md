@@ -1043,6 +1043,42 @@ re-scan at every switch, which is precisely the journey the endpoint set exists 
   set the code can bound by itself (six entries, trimmed in order), and the probe makes a
   stale entry cost one parallel SYN rather than a dial budget.
 
+## Amendment (2026-10, slice 16 follow-up): the gate reads only what arrived
+
+Field use of the slice-16 announcement — and a read of it against the desktop shell — found
+three holes in the launch version. None changes the intent above; all three change what the
+gate and the suppressor may read.
+
+- **The viewer follows the user, not the element tree.** The panel marked itself a viewer on
+  mount and released it on teardown, which is the same thing only while a panel is unmounted
+  when it leaves the screen. On desktop it is not: the home page keeps its tabs alive in an
+  `IndexedStack` ("so ongoing chat streams are not canceled when switching tabs"), so after
+  one visit to Settings → LAN Sync — the journey the pairing QR forces — the panel stays
+  mounted, the release never runs, and *every* arrival is suppressed for the rest of the
+  launch. Every `IndexedStack` child carries a visibility scope, so the mark now follows
+  `Visibility.of(context)`, re-evaluated in `didChangeDependencies`: shown, hidden and shown
+  again release and re-take the viewer. The provider still counts (not a bool), and the
+  reference `dispose` needs is still kept while the element is alive.
+- **Only what arrived counts.** `entityRows`/`preferenceRows` on the report add both
+  directions, because the card's "moved" chip wants the total; the gate was reading them, so
+  a session that only *pushed* a synced preference or a new assistant — a routine quiet round
+  — announced "Synced with `peer`" over a device where nothing had changed. The report gains
+  received-only counters (`entityRowsReceived`, `preferenceRowsReceived`, filled from the
+  incoming payload alone) and the gate reads those. Every other counter it reads was already
+  one-directional; business rows were the only pair whose card meaning and gate meaning
+  differ, so the aggregate stays as the card wants it.
+- **An arrival that lands after teardown is dropped, not thrown.** `dispose` closes the
+  arrival stream but does not stop the engine, which is deliberate (the listener is the app's,
+  and the graceful stop is the exit flush's job). A session that finished in that window
+  answered the peer with a 500 — *after* applying its data — because `add` on a closed
+  controller throws into the request handler. Announcements now go through one guarded sink
+  (`_announce`), the same rule `_notify` already followed for exactly this class of late tail.
+- *Rejected: having the desktop host pass a "my tab is selected" flag down.* It would have to
+  be threaded through the pane and page, would not cover a future offstage host, and the
+  visibility scope every `IndexedStack`/`Visibility` child already carries says the same thing.
+- *Rejected: gating on `TickerMode`.* `IndexedStack` does not mute tickers for its non-selected
+  children; the signal that actually travels is the visibility scope.
+
 ## Considered options (rejected)
 
 - **Whole-database / backup-zip exchange** — not version-portable; a newer schema on an

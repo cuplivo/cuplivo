@@ -92,6 +92,13 @@ class SyncSessionReport {
   final int entityRows;
   final int preferenceRows;
 
+  /// Business rows this device *received* — the incoming half alone, where
+  /// [entityRows]/[preferenceRows] add both directions because "how much moved"
+  /// is what a card wants to say. An arrival gate must not read the aggregate:
+  /// a session that only pushed rows to the peer changed nothing here.
+  final int entityRowsReceived;
+  final int preferenceRowsReceived;
+
   /// Blobs this device received and landed (slice 3), the bytes they carried,
   /// skill bodies that converged, skills whose local content lost the
   /// deterministic conflict rule, and blobs that could not be fetched.
@@ -123,6 +130,8 @@ class SyncSessionReport {
     this.conversationsDeletedLocally = 0,
     this.entityRows = 0,
     this.preferenceRows = 0,
+    this.entityRowsReceived = 0,
+    this.preferenceRowsReceived = 0,
     this.blobsMoved = 0,
     this.blobBytes = 0,
     this.skillsUpdated = 0,
@@ -2173,6 +2182,10 @@ class SyncEngine implements SyncServerHandler {
         _entityRowCount(business) + _entityRowCount(receivedBusiness);
     final preferenceRows =
         business.preferences.length + receivedBusiness.preferences.length;
+    // The incoming half on its own, for the arrival gate: it cannot use the
+    // aggregates above, which are deliberately bidirectional.
+    final entityRowsReceived = _entityRowCount(receivedBusiness);
+    final preferenceRowsReceived = receivedBusiness.preferences.length;
     final blobsMoved = blobPull?.landedCount ?? 0;
     final blobBytes = blobPull?.bytes ?? 0;
     final skillsUpdated = blobPull?.landedSkillIds.length ?? 0;
@@ -2212,6 +2225,8 @@ class SyncEngine implements SyncServerHandler {
       conversationsDeletedLocally: deletedLocally,
       entityRows: entityRows,
       preferenceRows: preferenceRows,
+      entityRowsReceived: entityRowsReceived,
+      preferenceRowsReceived: preferenceRowsReceived,
       blobsMoved: blobsMoved,
       blobBytes: blobBytes,
       skillsUpdated: skillsUpdated,
@@ -2298,18 +2313,17 @@ class SyncEngine implements SyncServerHandler {
 
   /// Carries the facts a re-pair must not lose from [existing] onto [peer].
   ///
-  /// Pairing rebuilds the record (new certificate pin, rotated secret, fresh
-  /// address set) — but a re-pair is the *drift-repair journey*, not a new
-  /// relationship, so three fields of the old record are still true: the
-  /// manual rename (a fact about this device's user, not about the peer), and
-  /// the last-sync stamp and report (the sessions that produced them happened,
-  /// and the checkpoint they advanced survives the re-pair untouched — it is
-  /// keyed by deviceId, which pairing does not change).
-  /// Carries what survives a re-pair from the record it replaces: the rename
-  /// override, the last successful stamp and the last report. Endpoints are
-  /// deliberately *not* here — they have to land behind the address this
-  /// pairing just proved and the candidates it advertised, so each caller
-  /// appends the old set after its own endpoint writes
+  /// Pairing rebuilds the record — a new certificate pin, a rotated secret, a
+  /// fresh address set — but a re-pair is the *drift-repair journey*, not a new
+  /// relationship, so three fields of the old record are still true: the manual
+  /// rename (a fact about this device's user, not about the peer), and the
+  /// last-sync stamp and report (the sessions that produced them happened, and
+  /// the checkpoint they advanced survives the re-pair untouched — it is keyed
+  /// by deviceId, which pairing does not change).
+  ///
+  /// Endpoints are deliberately *not* here: they have to land behind the
+  /// address this pairing just proved and the candidates it advertised, so each
+  /// caller appends the old set after its own endpoint writes
   /// ([SyncPeerRecord.rememberEndpointHistory]).
   static void _carryPairingFacts(
     SyncPeerRecord peer,

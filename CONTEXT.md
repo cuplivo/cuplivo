@@ -317,11 +317,14 @@ contradicts one of them is a bug, not a preference.
   the full report dialog — whichever side ran it. The rounds this device starts announce only
   when automatic (a manual press already talks through its card); the rounds a *peer* starts
   that land here through the listener announce too, because this device started nothing and
-  would otherwise never hear that the phone's day just arrived. A session that moved nothing
-  stays quiet (a toast per resume would be noise), so does one that only sent (the news is on
-  the other device), and so do failures and refusals (routine on a LAN; the card carries
-  them). While the sync panel is mounted the toast is suppressed — the cards are showing the
-  same news.
+  would otherwise never hear that the phone's day just arrived. What counts is what *arrived*:
+  a session that moved nothing stays quiet (a toast per resume would be noise), and so does one
+  that only sent — the news is on the other device, even when the rows that went out were
+  business rows, whose report counters deliberately add both directions for the card. Failures
+  and refusals stay quiet too (routine on a LAN; the card carries them). While the sync panel
+  is *visible* the toast is suppressed — the cards are showing the same news — and visible
+  means the user can see it, not that its element is still mounted: the desktop tabs stay
+  alive, so a panel left behind on the settings tab stops suppressing.
 - **Symmetric version gate (对称拒绝)**: at hello each side refuses a peer whose database
   schema version is newer than its own ("upgrade this device to sync"). Same or older is
   accepted — an older peer's rows merely fill column defaults. Sessions therefore only run

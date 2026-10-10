@@ -12750,6 +12750,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'For now: workspaces stay on the device that created them, and PIN pairing should only be used on networks you trust.';
 
   @override
+  String lanSyncArrivalToast(Object name) {
+    return 'Synced with $name';
+  }
+
+  @override
+  String get lanSyncArrivalDetails => 'Details';
+
+  @override
   String get assistantEditProactiveCareEnableTitle => 'Proactive Care';
 
   @override

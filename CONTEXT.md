@@ -206,9 +206,12 @@ contradicts one of them is a bug, not a preference.
   an office address, a home address and a phone hotspot, so a peer record holds up to six
   endpoints instead of one. A session promotes the endpoint it succeeded over to the front and
   keeps the rest behind it as hints, so roaming back to a known network heals itself in one round.
-  Only the certificate fingerprint identifies a peer — every connection re-verifies it — so
-  remembering several addresses can never reach the wrong device. Manual repair ("edit address")
-  replaces the whole set: the automatic memory is what failed, or the user would not be typing.
+  A re-pair carries the old set over behind the address it just proved (and the candidates the QR
+  advertised): the repair gesture for a moved peer must not forget the networks the pair has
+  already met, or alternating two places costs a re-scan every time. Only the certificate
+  fingerprint identifies a peer — every connection re-verifies it — so remembering several
+  addresses can never reach the wrong device. Manual repair ("edit address") replaces the whole
+  set: the automatic memory is what failed, or the user would not be typing.
 - **Candidates are probed in parallel, then dialed nearest-subnet first** (候选探测): a peer with
   several remembered addresses costs one bare TCP probe per address, all at once — the wait is the
   slowest probe, not their sum — and the ones that answered are dialed in sequence under a three
@@ -309,6 +312,19 @@ contradicts one of them is a bug, not a preference.
   minute; (2) a manual "sync now" in settings, never throttled. No polling, no background
   daemon, and — without discovery — no "peer appeared" trigger: the round is what "picked the
   device up" means.
+- **A quiet round that brings data says so (带来数据才吭声)**: a session that delivered
+  something to this device announces itself with one toast wherever the user is, one tap from
+  the full report dialog — whichever side ran it. The rounds this device starts announce only
+  when automatic (a manual press already talks through its card); the rounds a *peer* starts
+  that land here through the listener announce too, because this device started nothing and
+  would otherwise never hear that the phone's day just arrived. What counts is what *arrived*:
+  a session that moved nothing stays quiet (a toast per resume would be noise), and so does one
+  that only sent — the news is on the other device, even when the rows that went out were
+  business rows, whose report counters deliberately add both directions for the card. Failures
+  and refusals stay quiet too (routine on a LAN; the card carries them). While the sync panel
+  is *visible* the toast is suppressed — the cards are showing the same news — and visible
+  means the user can see it, not that its element is still mounted: the desktop tabs stay
+  alive, so a panel left behind on the settings tab stops suppressing.
 - **Symmetric version gate (对称拒绝)**: at hello each side refuses a peer whose database
   schema version is newer than its own ("upgrade this device to sync"). Same or older is
   accepted — an older peer's rows merely fill column defaults. Sessions therefore only run
@@ -442,9 +458,15 @@ contradicts one of them is a bug, not a preference.
   pairing QR on this device, scan or type the code from another) + one card per paired device
   (editable name, platform, endpoint, last sync outcome, sync now, unpair). **Pairing is the
   opt-in** — there is no master switch, and no global chrome (no sync icon outside the panel).
-- **No online state**: the card shows the last sync attempt and its outcome, never a presence
-  badge. Nothing probes the peer between sessions, so "online" would be a claim the app cannot
-  make; a drifted address shows up as a failed attempt, not as an offline device.
+- **The online dot reports answers, never attempts (在线点只报答案)**: a green dot means
+  something answered — a remembered endpoint accepted the 30-second probe, a finished session
+  got a reply (a refusal is an answer too), or a running session has passed its dial and is
+  exchanging bytes right now. A round merely *starting* proves nothing: the dot used to turn
+  green on a session's way in, so every automatic round against a sleeping peer showed green
+  for exactly the seconds its dial spent failing — trying is not reaching. A fresh session
+  verdict outranks the probe for one minute (an address can accept a connection and never
+  complete a session), one probe miss is forgiven (a dot that flickers gray every half minute
+  is worse than one slightly stale), and the tooltip says which evidence the dot is reporting.
 - **The card shows the facts a user acts on**: "last synced" is how long ago, not a timestamp — the
   question on that line is recency, the exact time rides in the tooltip, and past a week the date
   returns, because at nine days old the date is the more useful fact. The address in use carries a

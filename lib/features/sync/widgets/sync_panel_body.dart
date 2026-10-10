@@ -17,8 +17,59 @@ import 'sync_peer_card.dart';
 /// pane: this device, the pairing entry, one card per paired device, and the
 /// limits that are true of this slice. Each host owns its own chrome (Scaffold
 /// and AppBar on mobile, pane container on desktop) and scroll view.
-class SyncPanelBody extends StatelessWidget {
+///
+/// Stateful for one reason: the user is looking at the cards, so
+/// [SyncProvider.panelOpened]/[panelClosed] gate the app-level arrival
+/// announcements — a toast over a panel that shows the same news would be
+/// noise.
+class SyncPanelBody extends StatefulWidget {
   const SyncPanelBody({super.key});
+
+  @override
+  State<SyncPanelBody> createState() => _SyncPanelBodyState();
+}
+
+class _SyncPanelBodyState extends State<SyncPanelBody> {
+  /// The provider as resolved while this element was still active. `dispose`
+  /// runs after the element has left the tree, where even a `read` is an
+  /// ancestor lookup on an inactive element — one the framework forbids — so
+  /// the reference `panelClosed` needs is kept here instead (the framework's
+  /// own advice: save it in `didChangeDependencies`).
+  SyncProvider? _provider;
+
+  /// Whether this panel currently counts as a viewer of the cards.
+  bool _isViewer = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _provider ??= context.read<SyncProvider>();
+    // Visibility, not mount state: the desktop home page keeps its tabs alive
+    // in an `IndexedStack`, so once the user has opened Settings → LAN Sync the
+    // panel stays mounted — and would keep counting — after they switch back to
+    // the chat tab, muting every arrival for the rest of the launch. Every
+    // `IndexedStack` child carries a visibility scope, so this is the signal
+    // that follows the user rather than the element tree.
+    // `didChangeDependencies` re-runs when it changes, which is where the
+    // transition belongs.
+    _setViewer(Visibility.of(context));
+  }
+
+  void _setViewer(bool visible) {
+    if (visible == _isViewer) return;
+    _isViewer = visible;
+    if (visible) {
+      _provider!.panelOpened();
+    } else {
+      _provider!.panelClosed();
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_isViewer) _provider?.panelClosed();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

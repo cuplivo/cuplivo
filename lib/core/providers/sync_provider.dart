@@ -95,6 +95,37 @@ enum PresenceSource {
   probe,
 }
 
+/// One successful automatic-round session that brought data to this device —
+/// what the app-level announcer turns into a toast the user sees away from
+/// the sync panel. The peer's name rides along because the record (and its
+/// possible rename) is read at emit time.
+class SyncArrival {
+  const SyncArrival(this.peerName, this.report);
+
+  final String peerName;
+  final SyncSessionReport report;
+}
+
+/// Whether a session changed what this device shows: anything that arrived
+/// here — conversations, message edits or deletions, business rows, files,
+/// skills. A session that only sent (the peer got the news) or moved nothing
+/// is not an arrival; announcing it would train the user to dismiss toasts.
+///
+/// Every counter read here is the *incoming* half of its pair. Business rows
+/// are the trap: [SyncSessionReport.entityRows]/`preferenceRows` add both
+/// directions, because the card's "moved" chip wants the total, so only the
+/// received counters may be consulted here.
+bool syncBroughtDataHere(SyncSessionReport report) {
+  return report.conversationsReceived > 0 ||
+      report.messagesUpserted > 0 ||
+      report.messagesDeleted > 0 ||
+      report.conversationsDeletedLocally > 0 ||
+      report.entityRowsReceived > 0 ||
+      report.preferenceRowsReceived > 0 ||
+      report.blobsMoved > 0 ||
+      report.skillsUpdated > 0;
+}
+
 /// The auto-round cadence decision, pure so tests can cover it: run when
 /// there is no previous round, or when the interval has fully elapsed.
 bool shouldAutoSyncNow(DateTime now, DateTime? lastRoundAt) {
@@ -188,10 +219,11 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   final Set<String> busyDeviceIds = {};
   SyncSessionReport? lastReport;
 
-  /// Peers whose remembered endpoints answered the last presence probe. Absent
-  /// means offline-or-not-yet-checked; the card renders both as a gray dot
-  /// until a probe lands. Refreshed on start, on resume, on a timer while the
-  /// app is visible, and after every session.
+  /// Peers the current evidence says are online: a probe that reached a
+  /// remembered endpoint, a session verdict that got an answer, or a running
+  /// session past its dial. Absent means offline-or-not-yet-checked; the card
+  /// renders both as a gray dot until evidence lands. Never fed by an attempt
+  /// alone — a dial in flight proves nothing.
   final Set<String> onlineDeviceIds = {};
 
   /// Peers whose probe failed most recently. A single miss does not clear the
@@ -213,6 +245,31 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   Timer? _presenceTimer;
   bool _presenceRunning = false;
+
+  /// Successful automatic-round arrivals, for the app-level announcer. The
+  /// provider emits; the announcer decides what a toast looks like. Broadcast,
+  /// because several listeners may exist.
+  final StreamController<SyncArrival> _arrivals =
+      StreamController<SyncArrival>.broadcast();
+
+  Stream<SyncArrival> get autoSyncArrivals => _arrivals.stream;
+
+  /// How many sync panels are *visible* (the mobile page and the desktop pane
+  /// render the same body). While one is, the user is looking at the cards,
+  /// which say everything a toast would; arrivals are not announced.
+  int _panelViewers = 0;
+
+  /// Called by the panel body when it becomes visible and hidden again — not on
+  /// mount: the desktop pane stays mounted in the home page's `IndexedStack`
+  /// after the user leaves the settings tab. The counter (not a bool) is what
+  /// keeps an odd dispose order from silencing a live panel.
+  void panelOpened() {
+    _panelViewers++;
+  }
+
+  void panelClosed() {
+    if (_panelViewers > 0) _panelViewers--;
+  }
 
   /// Live progress of this device's initiator session with [deviceId], or null
   /// when none is running. Read straight from the engine's map, which lives
@@ -316,9 +373,14 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
           ),
         ),
         onStateChanged: _onEngineStateChanged,
-        // A beat only repaints the card: it cannot have changed a peer record,
-        // and the blob pull fires one per file.
-        onProgressChanged: _notify,
+        // A beat can mark a peer online (see [_onEngineProgressChanged]); a
+        // beat cannot have changed a peer record, and the blob pull fires one
+        // per file.
+        onProgressChanged: _onEngineProgressChanged,
+        // The answered half of a session is a session this device never
+        // started, so its arrival reaches the user only if the engine hands
+        // it over (see [_onEngineResponderSession]).
+        onResponderSession: _onEngineResponderSession,
       );
       _store = store;
       _engine = engine;
@@ -551,18 +613,40 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     await refreshPeers();
   }
 
-  Future<SyncSessionReport?> syncNow(String deviceId) async {
+  /// Runs one session with [deviceId].
+  ///
+  /// [automatic] marks a session this device started on its own (a foreground
+  /// round) rather than one the user pressed for: a manual press already gets
+  /// its snackbar from the card, and its user is on the panel — so only an
+  /// automatic session that *brought data here* is announced on
+  /// [autoSyncArrivals], and only while no panel is mounted to show the same
+  /// news on its card.
+  Future<SyncSessionReport?> syncNow(
+    String deviceId, {
+    bool automatic = false,
+  }) async {
     final engine = _engine;
     if (engine == null || busyDeviceIds.contains(deviceId)) return null;
     final peer = peers.where((p) => p.deviceId == deviceId).firstOrNull;
     if (peer == null) return null;
     busyDeviceIds.add(deviceId);
-    onlineDeviceIds.add(deviceId);
+    // No online mark here: a round that has merely started has proved
+    // nothing — trying to reach a peer is not reaching it, and an automatic
+    // round against a sleeping peer used to paint the dot green for exactly
+    // the seconds its dial spent failing. The dot follows evidence: the beat
+    // past the dial ([_onEngineProgressChanged]) or the session's verdict
+    // ([_recordSessionVerdict]).
     _notify();
     try {
       final report = await engine.syncWithPeer(peer);
       lastReport = report;
       _recordSessionVerdict(deviceId, report);
+      if (automatic &&
+          report.success &&
+          _panelViewers == 0 &&
+          syncBroughtDataHere(report)) {
+        _announce(SyncArrival(peer.displayName, report));
+      }
       return report;
     } finally {
       busyDeviceIds.remove(deviceId);
@@ -589,12 +673,9 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       case SyncFailureReason.timeout:
         answered = false;
       case SyncFailureReason.noEndpoint:
-        // Nothing was dialed. The session optimistically turned the dot green
-        // on its way in, and a peer with no endpoint gives the presence round no
-        // probe to correct it — so the leak is closed here and not left to the
-        // next refresh, which a round already in flight would not run.
-        onlineDeviceIds.remove(deviceId);
-        _notify();
+        // Nothing was dialed, so nothing was proved either way. No verdict is
+        // filed and no set is touched: the probe remains the only evidence,
+        // and nothing here outranks it.
         return;
       case SyncFailureReason.peerError:
       case SyncFailureReason.internal:
@@ -621,27 +702,34 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   // ---- presence (the online dots) ----
 
   /// Probes every paired peer's remembered endpoints in parallel and republishes
-  /// the online set. A peer mid-session is online by definition — the session
-  /// itself is the proof — so busy peers keep their dot whatever the probe says,
-  /// and a single failed probe is remembered rather than acted on (see
-  /// [_probeMisses]).
+  /// the online set. A peer mid-session is neither probed nor assumed: the
+  /// session files its own verdict when it lands, and until one side answers,
+  /// "a round is running" is not evidence the peer is there — the beat past the
+  /// dial ([_onEngineProgressChanged]) is what marks a live session's peer
+  /// online, the moment it actually exchanges bytes. A single failed probe is
+  /// remembered rather than acted on (see [_probeMisses]).
   Future<void> refreshPresence() async {
     if (!started || _presenceRunning) return;
     _presenceRunning = true;
     try {
       final probe = _presenceProbe ?? anyEndpointReachable;
-      final targets = [
-        for (final peer in peers)
-          if (peer.endpoints.isNotEmpty) peer,
-      ];
+      // Every peer with an endpoint is *known* (its dot must not survive
+      // unpairing or a replaced endpoint set); only the non-busy ones are
+      // probed — a busy peer keeps the evidence it already has until its
+      // session settles it.
+      final known = <String>{};
+      final targets = <SyncPeerRecord>[];
+      for (final peer in peers) {
+        if (peer.endpoints.isEmpty) continue;
+        known.add(peer.deviceId);
+        if (!busyDeviceIds.contains(peer.deviceId)) targets.add(peer);
+      }
       final answers = await Future.wait([
         for (final peer in targets)
-          busyDeviceIds.contains(peer.deviceId)
-              ? Future.value(true)
-              : probe([
-                  for (final endpoint in peer.endpoints)
-                    (endpoint.host, endpoint.port),
-                ]),
+          probe([
+            for (final endpoint in peer.endpoints)
+              (endpoint.host, endpoint.port),
+          ]),
       ]);
       for (var i = 0; i < targets.length; i++) {
         final deviceId = targets[i].deviceId;
@@ -655,7 +743,6 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       }
       // A peer whose record changed since the last round (unpaired, or its
       // endpoints replaced) must not keep a dot from the previous set.
-      final known = {for (final peer in targets) peer.deviceId};
       onlineDeviceIds.removeWhere((id) => !known.contains(id));
       _probeMisses.removeWhere((id) => !known.contains(id));
       _sessionVerdicts.removeWhere((id, _) => !known.contains(id));
@@ -726,7 +813,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         if (peer.primaryEndpoint == null) continue;
         if (busyDeviceIds.contains(peer.deviceId)) continue;
         try {
-          await syncNow(peer.deviceId);
+          await syncNow(peer.deviceId, automatic: true);
         } catch (_) {
           // A failed round already shows on the peer card; the round moves on.
         }
@@ -787,10 +874,56 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     unawaited(refreshPeers());
   }
 
+  /// A beat inside a running initiator session.
+  ///
+  /// Any beat past the dial means the peer answered — `exchanging` is published
+  /// only once both hello manifests are in hand — so it is online evidence of
+  /// the strongest kind: bytes are flowing right now. This is what keeps a
+  /// minutes-long first sync green while it runs, without extending that green
+  /// to the dial itself (the seconds an automatic round spends failing against
+  /// a sleeping peer). The session's own verdict settles the dot when it ends.
+  void _onEngineProgressChanged() {
+    final progress = _engine?.initiatorProgress;
+    if (progress != null) {
+      for (final entry in progress.entries) {
+        if (entry.value.phase == SyncSessionPhase.connecting) continue;
+        onlineDeviceIds.add(entry.key);
+        _probeMisses.remove(entry.key);
+      }
+    }
+    _notify();
+  }
+
+  /// Publishes one arrival, unless this provider is already disposed — the same
+  /// rule [_notify] follows, and for the same reason: a session can outlive the
+  /// tree that started it, and the listener keeps answering after `dispose`
+  /// closed this stream. `add` on a closed controller throws, and on the
+  /// responder path that throw reaches the peer as a 500 *after* the data was
+  /// applied — a failed round reported for a session that actually worked.
+  void _announce(SyncArrival arrival) {
+    if (_disposed) return;
+    _arrivals.add(arrival);
+  }
+
+  /// A session some peer ran against this device's listener just finished —
+  /// the arrival [syncNow] never sees, because this device started nothing:
+  /// the phone's round that lands while the desktop sits here quietly. The
+  /// gates are the arrival's own: the session must have brought data here
+  /// ([syncBroughtDataHere]), and no sync panel may be showing the same news
+  /// on its cards.
+  void _onEngineResponderSession(
+    SyncPeerRecord peer,
+    SyncSessionReport report,
+  ) {
+    if (_panelViewers > 0 || !syncBroughtDataHere(report)) return;
+    _announce(SyncArrival(peer.displayName, report));
+  }
+
   @override
   void dispose() {
     _disposed = true;
     _stopPresenceTimer();
+    _arrivals.close();
     WidgetsBinding.instance.removeObserver(this);
     AppExitFlush.unregister(stop);
     super.dispose();

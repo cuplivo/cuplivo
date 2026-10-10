@@ -897,6 +897,46 @@ void main() {
     await a.repository.close();
   });
 
+  test('an arrival that lands after teardown is dropped, not thrown', () async {
+    // Deliberately not added to `sides`: this test disposes its own provider
+    // while the engine keeps listening (that is the race), and the shared
+    // teardown would dispose it a second time — which ChangeNotifier asserts
+    // on. The cleanup below is what teardown would do. Only `b` joins `sides`.
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.add(b);
+
+    final provider = await a.startProvider();
+    final pin = b.engine.openPairing();
+    await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+
+    // The provider is torn down; its listener is not. `dispose` closes the
+    // arrival stream, and an unanswered `add` on a closed controller throws
+    // into whatever is running — here the peer's request, which the server
+    // answers as a 500 after the data has already been applied.
+    provider.dispose();
+
+    final inbound = await b.peer(a);
+    inbound.replaceEndpoints('127.0.0.1', a.port);
+    await b.store.savePeer(inbound);
+    await _seedConversation(b, id: 'conv-late', contents: ['after teardown']);
+    final report = await b.engine.syncWithPeer(inbound);
+
+    expect(
+      report.success,
+      isTrue,
+      reason: 'the peer must not be answered with an error: ${report.summary}',
+    );
+    expect(await _conversationIds(a), contains('conv-late'));
+
+    await provider.stop();
+    await a.chatService.close();
+    await a.repository.close();
+  });
+
   test(
     'a foreground round runs on the addresses the enumeration produced',
     () async {
@@ -2123,6 +2163,64 @@ void main() {
     expect(persisted.lastReport?.refusal, SyncRefusalReason.notPaired);
   });
 
+  test('a re-pair remembers the network the pair left', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+
+    final provider = await a.startProvider();
+    final pin = b.engine.openPairing();
+    await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+    expect((await a.peer(b)).endpoints.map((e) => e.port), [b.port]);
+
+    // The pair moves: nothing answers at the addresses both sides remember —
+    // the drift-repair journey's opening state. The address each side holds for
+    // the other stands in for the network they left.
+    final leftBehindOnA = await _unusedPort();
+    final movedA = await a.peer(b);
+    movedA.replaceEndpoints('127.0.0.1', leftBehindOnA);
+    await a.store.savePeer(movedA);
+    final leftBehindOnB = await _unusedPort();
+    final movedB = await b.peer(a);
+    movedB.replaceEndpoints('127.0.0.1', leftBehindOnB);
+    await b.store.savePeer(movedB);
+
+    // The repair gesture: pair again at the address that works now.
+    final secondPin = b.engine.openPairing();
+    await provider.pairWith(host: '127.0.0.1', port: b.port, pin: secondPin);
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+
+    final repaired = await a.peer(b);
+    expect(
+      repaired.primaryEndpoint?.port,
+      b.port,
+      reason: 'the address the pairing proved is the head',
+    );
+    expect(
+      repaired.endpoints.map((e) => e.port),
+      contains(leftBehindOnA),
+      reason:
+          'the network the pair left is still remembered as a hint behind '
+          'the new one — otherwise alternating two networks costs a re-scan '
+          'every time',
+    );
+    expect(
+      repaired.endpoints.where((e) => e.port == leftBehindOnA).length,
+      1,
+      reason: 'carried once, not duplicated',
+    );
+    // The responder keeps its own half of the memory: where this device last
+    // reached it.
+    expect(
+      (await b.peer(a)).endpoints.map((e) => e.port),
+      contains(leftBehindOnB),
+      reason: 'both sides of a pairing keep the networks they met',
+    );
+  });
+
   test('a QR payload skips a dead endpoint and pairs on the live one', () async {
     final a = _Side('a');
     final b = _Side('b');
@@ -2511,6 +2609,192 @@ void main() {
   });
 
   test(
+    'an arrival is announced for an automatic session that brought data',
+    () async {
+      final a = _Side('a');
+      final b = _Side('b');
+      await a.start(root, withEngine: false);
+      await b.start(root);
+      sides.addAll([a, b]);
+
+      await _seedConversation(b, id: 'conv-seed', contents: ['seed']);
+      final provider = await a.startProvider();
+      final arrivals = <SyncArrival>[];
+      final subscription = provider.autoSyncArrivals.listen(arrivals.add);
+      addTearDown(subscription.cancel);
+
+      // Pairing kicks the first session, which carries the seed over —
+      // silently: the kick is not a quiet round, and the user is mid-pairing.
+      final pin = b.engine.openPairing();
+      await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+      await _waitUntil(
+        () async => (await _conversationIds(a)).contains('conv-seed'),
+      );
+      await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+      expect(arrivals, isEmpty, reason: 'the pairing kick is not announced');
+
+      // Converged devices: an automatic round that brings nothing says nothing —
+      // a toast per quiet round would train the user to dismiss toasts.
+      await provider.syncNow(b.identity.deviceId, automatic: true);
+      expect(arrivals, isEmpty, reason: 'nothing arrived, nothing to announce');
+
+      // New data on the peer: the same round announces exactly one arrival.
+      await _seedConversation(b, id: 'conv-new', contents: ['new']);
+      final report = await provider.syncNow(
+        b.identity.deviceId,
+        automatic: true,
+      );
+      expect(report?.success, isTrue, reason: report?.summary);
+      expect(arrivals, hasLength(1));
+      expect(arrivals.single.peerName, b.identity.name);
+      expect(arrivals.single.report.conversationsReceived, 1);
+
+      // A manual sync that brings data does not announce: the card already
+      // snackbar'd it, and its user is on the panel.
+      await _seedConversation(b, id: 'conv-manual', contents: ['manual']);
+      await provider.syncNow(b.identity.deviceId);
+      expect(arrivals, hasLength(1), reason: 'the manual press owns its toast');
+    },
+  );
+
+  test('a mounted sync panel silences the arrival announcement', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+
+    final provider = await a.startProvider();
+    final pin = b.engine.openPairing();
+    await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+
+    final arrivals = <SyncArrival>[];
+    final subscription = provider.autoSyncArrivals.listen(arrivals.add);
+    addTearDown(subscription.cancel);
+
+    provider.panelOpened();
+    await _seedConversation(b, id: 'conv-panel', contents: ['panel']);
+    await provider.syncNow(b.identity.deviceId, automatic: true);
+    expect(
+      arrivals,
+      isEmpty,
+      reason: 'the panel shows the same news on its card',
+    );
+
+    provider.panelClosed();
+    await _seedConversation(b, id: 'conv-away', contents: ['away']);
+    await provider.syncNow(b.identity.deviceId, automatic: true);
+    expect(arrivals, hasLength(1));
+  });
+
+  test(
+    'a session the peer ran against this device announces its arrival',
+    () async {
+      final a = _Side('a');
+      final b = _Side('b');
+      await a.start(root, withEngine: false);
+      await b.start(root);
+      sides.addAll([a, b]);
+
+      final provider = await a.startProvider();
+      final pin = b.engine.openPairing();
+      await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+      await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+
+      final arrivals = <SyncArrival>[];
+      final subscription = provider.autoSyncArrivals.listen(arrivals.add);
+      addTearDown(subscription.cancel);
+
+      // The phone's own address is what it remembers of this device; pin it to
+      // the loopback this test dials on, so the inbound session is about the
+      // announcement, not about address discovery.
+      final inbound = await b.peer(a);
+      inbound.replaceEndpoints('127.0.0.1', a.port);
+      await b.store.savePeer(inbound);
+
+      // Nothing new on either side: the peer runs its session, this device
+      // answers, and a session that brought nothing here still says nothing.
+      await b.engine.syncWithPeer(inbound);
+      expect(arrivals, isEmpty, reason: 'nothing arrived, nothing to announce');
+
+      // New data on the peer — and the *peer* runs the session this time. This
+      // device starts nothing, the data lands on it anyway, and the user is away
+      // from the panel: without the responder announcing too, the most common
+      // arrival of all (the phone's round landing on the desktop) was silent.
+      await _seedConversation(b, id: 'conv-inbound', contents: ['in']);
+      await b.engine.syncWithPeer(inbound);
+      expect(await _conversationIds(a), contains('conv-inbound'));
+      expect(arrivals, hasLength(1));
+      expect(arrivals.single.peerName, b.identity.name);
+      expect(arrivals.single.report.conversationsReceived, 1);
+
+      // The panel gate covers inbound arrivals too: a mounted panel is already
+      // showing the same news on its cards.
+      provider.panelOpened();
+      await _seedConversation(b, id: 'conv-muted', contents: ['muted']);
+      await b.engine.syncWithPeer(inbound);
+      expect(await _conversationIds(a), contains('conv-muted'));
+      expect(
+        arrivals,
+        hasLength(1),
+        reason: 'the mounted panel shows it already',
+      );
+      provider.panelClosed();
+    },
+  );
+
+  test('a round that only pushes business rows does not announce', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+
+    final provider = await a.startProvider();
+    final pin = b.engine.openPairing();
+    await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+
+    final arrivals = <SyncArrival>[];
+    final subscription = provider.autoSyncArrivals.listen(arrivals.add);
+    addTearDown(subscription.cancel);
+
+    // A synced preference this device just wrote: the peer owes nothing back,
+    // so the session moves rows in one direction only — out. The report still
+    // carries them (the card's "moved" chip counts both directions, which is
+    // right for a chip and wrong for an arrival), so the gate must not read
+    // that aggregate: nothing arrived here, and a toast would say otherwise.
+    await a.businessPreferences.setString('user_name', 'Alice');
+    final sent = await provider.syncNow(b.identity.deviceId, automatic: true);
+    expect(sent?.success, isTrue, reason: sent?.summary);
+    expect(
+      sent!.entityRows + sent.preferenceRows,
+      greaterThan(0),
+      reason: 'rows went out, so the report is not empty',
+    );
+    expect(
+      arrivals,
+      isEmpty,
+      reason: 'a session that only sent announces nothing',
+    );
+
+    // The mirror is the case the announcement exists for: the same kind of row
+    // arriving *here* — the peer's round landing a new assistant — is an
+    // arrival, and must survive the gate tightening.
+    final inbound = await b.peer(a);
+    inbound.replaceEndpoints('127.0.0.1', a.port);
+    await b.store.savePeer(inbound);
+    await _setAssistants(b, [(id: 'assistant-b', name: 'From the phone')]);
+    final received = await b.engine.syncWithPeer(inbound);
+    expect(received.success, isTrue, reason: received.summary);
+    expect(await _assistantsOf(a), contains('assistant-b'));
+    expect(arrivals, hasLength(1));
+    expect(arrivals.single.peerName, b.identity.name);
+    expect(arrivals.single.report.entityRows, greaterThan(0));
+  });
+
+  test(
     'pairing starts the first session instead of waiting for a round',
     () async {
       final a = _Side('a');
@@ -2549,7 +2833,7 @@ void main() {
   );
 
   test(
-    'the probe is asked about the card addresses, and a busy peer is online',
+    'the probe is asked about the card addresses, and a busy peer is left alone',
     () async {
       final a = _Side('a');
       final b = _Side('b');
@@ -2575,14 +2859,99 @@ void main() {
         ('127.0.0.1', b.port),
       ], reason: 'the dot is about the addresses the card shows and dials');
 
-      // A session in flight answers for the peer: there is nothing left to probe.
+      // A peer mid-session is not probed again: the session files its own
+      // verdict when it lands, so the probe has nothing to add while it runs.
       reachable = false;
       provider.busyDeviceIds.add(b.identity.deviceId);
+      final probesBefore = probed.length;
       await provider.refreshPresence();
+      expect(probed.length, probesBefore, reason: 'nothing left to probe');
+
+      // The dot stays green here — but because the pairing session answered
+      // seconds ago and its verdict is fresh, not because a round is running.
+      // The busy flag itself is not evidence; the test below proves that.
+      expect(provider.isPeerOnline(b.identity.deviceId), isTrue);
+    },
+  );
+
+  test('a round in flight is an attempt, not an answer', () async {
+    final a = _Side('a');
+    await a.start(root, withEngine: false);
+    sides.add(a);
+
+    final probed = <List<(String, int)>>[];
+    final provider = await a.startProvider(
+      presenceProbe: (endpoints) async {
+        probed.add(endpoints);
+        return false;
+      },
+    );
+
+    // A peer with no session history, so no verdict holds the dot either way:
+    // exactly what an automatic round sees first.
+    await a.store.savePeer(
+      SyncPeerRecord(
+        deviceId: 'peer-busy',
+        certPem: 'pem',
+        secret: 'secret',
+        name: 'Studio desktop',
+        platform: 'android',
+        endpoints: [SyncPeerEndpoint(host: '10.0.0.9', port: 9527)],
+      ),
+    );
+    await provider.refreshPeers();
+
+    provider.busyDeviceIds.add('peer-busy');
+    await provider.refreshPresence();
+    expect(probed, isEmpty, reason: 'a mid-session peer is not probed');
+    expect(
+      provider.isPeerOnline('peer-busy'),
+      isFalse,
+      reason:
+          'the old rule painted this green: a running round "was" proof, '
+          'but its dial had not reached anything yet',
+    );
+  });
+
+  test(
+    'an automatic round does not paint the dot green while it dials',
+    () async {
+      final a = _Side('a');
+      await a.start(root, withEngine: false);
+      sides.add(a);
+
+      final provider = await a.startProvider(presenceProbe: (_) async => false);
+      // A loopback port nothing listens on, so the dial fails fast instead of
+      // spending its whole budget — the assertion that matters runs before it.
+      final deadPort = await _unusedPort();
+      await a.store.savePeer(
+        SyncPeerRecord(
+          deviceId: 'peer-dead',
+          certPem: 'pem',
+          secret: 'secret',
+          name: 'Studio desktop',
+          platform: 'android',
+          endpoints: [SyncPeerEndpoint(host: '127.0.0.1', port: deadPort)],
+        ),
+      );
+      await provider.refreshPeers();
+
+      final session = provider.syncNow('peer-dead');
+      // `syncNow` runs to its first await synchronously, so this is the moment
+      // the round starts — the exact point the optimistic green used to appear.
+      expect(provider.busyDeviceIds.contains('peer-dead'), isTrue);
       expect(
-        provider.isPeerOnline(b.identity.deviceId),
-        isTrue,
-        reason: 'a running session is itself proof the peer is there',
+        provider.isPeerOnline('peer-dead'),
+        isFalse,
+        reason: 'a round that has merely started has reached nothing',
+      );
+
+      final report = await session;
+      expect(report?.failure, SyncFailureReason.unreachable);
+      expect(
+        provider.isPeerOnline('peer-dead'),
+        isFalse,
+        reason: 'and the failed dial leaves no evidence behind',
       );
     },
   );
@@ -4450,9 +4819,9 @@ void main() {
     final report = await provider.syncNow('peer-no-address');
     expect(report?.failure, SyncFailureReason.noEndpoint);
 
-    // The session marks its peer online on the way in. With nothing dialed there
-    // is no evidence behind that mark, and with no endpoint no probe will ever
-    // supply any — so it must not survive the session that made it.
+    // A session that dialed nothing proved nothing, and the dot must not say
+    // otherwise: no beat past a dial ever happened, and with no endpoint no
+    // probe will ever supply evidence either.
     expect(
       provider.isPeerOnline('peer-no-address'),
       isFalse,
@@ -4463,6 +4832,47 @@ void main() {
       PresenceSource.unknown,
     );
   });
+
+  test(
+    'the beat past the dial is what marks a running session online',
+    () async {
+      final a = _Side('a');
+      await a.start(root, withEngine: false);
+      sides.add(a);
+
+      // The probe never finds anything, so any green below can only come from
+      // the beat.
+      final provider = await a.startProvider(presenceProbe: (_) async => false);
+      final engine = provider.engine!;
+      provider.busyDeviceIds.add('peer-live');
+
+      // Seed the engine's live progress map and fire the callback a real
+      // `_setProgress` would — a loopback session crosses these beats in
+      // microseconds, so racing it with a polling wait would only ever observe
+      // the verdict that follows. The dial beat alone must not mark the peer:
+      engine.initiatorProgress['peer-live'] = const SyncSessionProgress(
+        SyncSessionPhase.connecting,
+        address: '10.0.0.9:9527',
+        attempt: 1,
+        attempts: 1,
+      );
+      engine.onProgressChanged!();
+      expect(
+        provider.isPeerOnline('peer-live'),
+        isFalse,
+        reason: 'still dialing — nothing has answered yet',
+      );
+
+      // ...while `exchanging` means both hello manifests came back: the peer
+      // answered, bytes flowed, and the dot can say so while the session runs.
+      engine.initiatorProgress['peer-live'] = const SyncSessionProgress(
+        SyncSessionPhase.exchanging,
+      );
+      engine.onProgressChanged!();
+      expect(provider.isPeerOnline('peer-live'), isTrue);
+      expect(provider.peerPresenceSource('peer-live'), PresenceSource.probe);
+    },
+  );
 
   test('a session that cannot talk outranks a probe that can', () async {
     final a = _Side('a');

@@ -92,6 +92,13 @@ class SyncSessionReport {
   final int entityRows;
   final int preferenceRows;
 
+  /// Business rows this device *received* — the incoming half alone, where
+  /// [entityRows]/[preferenceRows] add both directions because "how much moved"
+  /// is what a card wants to say. An arrival gate must not read the aggregate:
+  /// a session that only pushed rows to the peer changed nothing here.
+  final int entityRowsReceived;
+  final int preferenceRowsReceived;
+
   /// Blobs this device received and landed (slice 3), the bytes they carried,
   /// skill bodies that converged, skills whose local content lost the
   /// deterministic conflict rule, and blobs that could not be fetched.
@@ -123,6 +130,8 @@ class SyncSessionReport {
     this.conversationsDeletedLocally = 0,
     this.entityRows = 0,
     this.preferenceRows = 0,
+    this.entityRowsReceived = 0,
+    this.preferenceRowsReceived = 0,
     this.blobsMoved = 0,
     this.blobBytes = 0,
     this.skillsUpdated = 0,
@@ -170,6 +179,7 @@ class SyncEngine implements SyncServerHandler {
     required this.dataPlane,
     required this.onStateChanged,
     this.onProgressChanged,
+    this.onResponderSession,
     int Function()? clockUs,
   }) : clockUs = clockUs ?? (() => DateTime.now().microsecondsSinceEpoch);
 
@@ -191,6 +201,15 @@ class SyncEngine implements SyncServerHandler {
   /// changed a record, and a first sync pulls hundreds of blobs. Defaults to
   /// [onStateChanged], which is always correct and only costs that reload.
   final void Function()? onProgressChanged;
+
+  /// Called when a session this device *answered* completes, with the peer as
+  /// this engine last saved it and the report of what that session moved —
+  /// the responder's counterpart to the report [syncWithPeer] returns. This
+  /// device started nothing, so nothing else can tell the consumer the data
+  /// arrived; whether that deserves a user-facing announcement is the
+  /// consumer's decision, not the engine's.
+  final void Function(SyncPeerRecord peer, SyncSessionReport report)?
+  onResponderSession;
 
   /// This device's own candidate addresses, pushed by the provider whenever it
   /// re-enumerates them. The dial uses them to tell an address on the network
@@ -345,9 +364,14 @@ class SyncEngine implements SyncServerHandler {
       name: answer.deviceName.isEmpty ? answer.deviceId : answer.deviceName,
       platform: answer.platform,
     );
-    _carryPairingFacts(peer, await store.findPeer(answer.deviceId));
+    final existing = await store.findPeer(answer.deviceId);
+    _carryPairingFacts(peer, existing);
     peer.noteEndpointSuccess(host, port);
     peer.rememberEndpointCandidates(knownCandidates);
+    // And behind both, the networks the pair has already met: re-pairing is the
+    // drift-repair journey, so forgetting them here is what made alternating
+    // home and office cost a re-scan every time.
+    if (existing != null) peer.rememberEndpointHistory(existing.endpoints);
     await store.savePeer(peer);
     // This listener must accept the peer too: pairing may have been initiated
     // from this side, in which case the answer (not a request) carried the
@@ -1467,6 +1491,20 @@ class SyncEngine implements SyncServerHandler {
       ),
     );
     final peer = await store.findPeer(peerDeviceId);
+    final report = _report(
+      sent: outgoing.length,
+      received: session.outcomes.length,
+      outcomes: session.outcomes.values,
+      deferred: skipped.length + missing.length,
+      deletedLocally: deleted.length,
+      business: businessRead.payload,
+      receivedBusiness: session.receivedBusiness,
+      appliedBusiness: session.businessOutcome,
+      blobPull: session.blobPull,
+      skillConflicts: session.skillConflicts.length,
+      deferredSkills: session.deferredSkills.length,
+      clockSkewMs: session.clockSkewMs,
+    );
     if (peer != null) {
       peer.lastSyncedAt = DateTime.now();
       // The session just ran over the caller's address, so that is where this
@@ -1477,24 +1515,14 @@ class SyncEngine implements SyncServerHandler {
       if (learnedHost != null && learnedPort != null) {
         peer.noteEndpointSuccess(learnedHost, learnedPort);
       }
-      peer.lastReport = _report(
-        sent: outgoing.length,
-        received: session.outcomes.length,
-        outcomes: session.outcomes.values,
-        deferred: skipped.length + missing.length,
-        deletedLocally: deleted.length,
-        business: businessRead.payload,
-        receivedBusiness: session.receivedBusiness,
-        appliedBusiness: session.businessOutcome,
-        blobPull: session.blobPull,
-        skillConflicts: session.skillConflicts.length,
-        deferredSkills: session.deferredSkills.length,
-        clockSkewMs: session.clockSkewMs,
-      ).toPeerReport();
+      peer.lastReport = report.toPeerReport();
       await store.savePeer(peer);
     }
     _sessions.remove(peerDeviceId);
     onStateChanged();
+    if (peer != null) {
+      onResponderSession?.call(peer, report);
+    }
     return responseBatch;
   }
 
@@ -1531,7 +1559,8 @@ class SyncEngine implements SyncServerHandler {
     );
     // Same carry-over as the initiator's side: this responder may hold the
     // older (and richer) record of the pair.
-    _carryPairingFacts(peer, await store.findPeer(request.deviceId));
+    final existing = await store.findPeer(request.deviceId);
+    _carryPairingFacts(peer, existing);
     // The endpoint that demonstrably works: where the initiator connected from,
     // paired with the listener port it advertised. Null when the initiator had
     // no listener running; the address can be fixed by hand.
@@ -1544,6 +1573,9 @@ class SyncEngine implements SyncServerHandler {
         for (final host in request.candidateHosts) (host, request.listenPort!),
       ]);
     }
+    // And the networks this pair already met, behind the fresh ones — the
+    // responder's half of the memory the initiator keeps (see [pairWith]).
+    if (existing != null) peer.rememberEndpointHistory(existing.endpoints);
     await store.savePeer(peer);
     // The pairing request arrived on this listener, so the peer is known here
     // already; the initiator learns the same secret from the answer.
@@ -2150,6 +2182,10 @@ class SyncEngine implements SyncServerHandler {
         _entityRowCount(business) + _entityRowCount(receivedBusiness);
     final preferenceRows =
         business.preferences.length + receivedBusiness.preferences.length;
+    // The incoming half on its own, for the arrival gate: it cannot use the
+    // aggregates above, which are deliberately bidirectional.
+    final entityRowsReceived = _entityRowCount(receivedBusiness);
+    final preferenceRowsReceived = receivedBusiness.preferences.length;
     final blobsMoved = blobPull?.landedCount ?? 0;
     final blobBytes = blobPull?.bytes ?? 0;
     final skillsUpdated = blobPull?.landedSkillIds.length ?? 0;
@@ -2189,6 +2225,8 @@ class SyncEngine implements SyncServerHandler {
       conversationsDeletedLocally: deletedLocally,
       entityRows: entityRows,
       preferenceRows: preferenceRows,
+      entityRowsReceived: entityRowsReceived,
+      preferenceRowsReceived: preferenceRowsReceived,
       blobsMoved: blobsMoved,
       blobBytes: blobBytes,
       skillsUpdated: skillsUpdated,
@@ -2275,13 +2313,18 @@ class SyncEngine implements SyncServerHandler {
 
   /// Carries the facts a re-pair must not lose from [existing] onto [peer].
   ///
-  /// Pairing rebuilds the record (new certificate pin, rotated secret, fresh
-  /// address set) — but a re-pair is the *drift-repair journey*, not a new
-  /// relationship, so three fields of the old record are still true: the
-  /// manual rename (a fact about this device's user, not about the peer), and
-  /// the last-sync stamp and report (the sessions that produced them happened,
-  /// and the checkpoint they advanced survives the re-pair untouched — it is
-  /// keyed by deviceId, which pairing does not change).
+  /// Pairing rebuilds the record — a new certificate pin, a rotated secret, a
+  /// fresh address set — but a re-pair is the *drift-repair journey*, not a new
+  /// relationship, so three fields of the old record are still true: the manual
+  /// rename (a fact about this device's user, not about the peer), and the
+  /// last-sync stamp and report (the sessions that produced them happened, and
+  /// the checkpoint they advanced survives the re-pair untouched — it is keyed
+  /// by deviceId, which pairing does not change).
+  ///
+  /// Endpoints are deliberately *not* here: they have to land behind the
+  /// address this pairing just proved and the candidates it advertised, so each
+  /// caller appends the old set after its own endpoint writes
+  /// ([SyncPeerRecord.rememberEndpointHistory]).
   static void _carryPairingFacts(
     SyncPeerRecord peer,
     SyncPeerRecord? existing,

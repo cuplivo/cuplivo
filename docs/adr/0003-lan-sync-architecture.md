@@ -840,7 +840,10 @@ half of the fix; three facts below it are what make it possible.
   `anyEndpointReachable` reuses the dial's own bare-TCP probe over the remembered endpoints — the
   same probe, budget and "the probe classifies the address, never the peer" contract as the
   candidate ordering — and the provider re-runs it on start, on resume, on a 30-second timer while
-  the app is visible, and after every session; a session in flight counts as its own proof. The card
+  the app is visible, and after every session; a session in flight counts as its own proof.
+  *Superseded in part by slice 15*: only a session **past its dial** is proof — a round that
+  has merely started proves nothing, and the optimistic green it painted was exactly the
+  flicker an automatic round showed against a sleeping peer. The card
   draws it as a green/gray dot on the platform badge, and an `unreachable` outcome renders as a calm
   "not reachable right now" note rather than a failure banner: a peer that is asleep is routine, and
   it syncs again by itself when both devices are back on one network. The durable-socket gap (the
@@ -901,7 +904,8 @@ half of the fix; three facts below it are what make it possible.
   probe corrects the dot within the minute. And a session that dials nothing (`noEndpoint`) files no
   verdict, because the probe is the only evidence it could file — but the session marks its peer
   online on the way in, so that mark is removed again on the way out: with no endpoint there is no
-  probe to correct it.
+  probe to correct it. *Superseded by slice 15*: the optimistic mark on the way in is gone
+  altogether, so a no-endpoint session has nothing to undo and files nothing.
   *Rejected: upgrading the probe to a pinned TLS handshake* — it would overturn the documented
   "a probe tests the *address*, never the peer" contract, make the 30-second probe carry crypto and
   a new failure surface (self-signed certificates, IPv6 literals), and still be a weaker statement
@@ -947,6 +951,133 @@ half of the fix; three facts below it are what make it possible.
   initiator holding the old one). Nothing this device can do on its own repairs it, so the card's
   refusal banner now carries a "pair again" button that opens the pairing dialog prefilled with the
   address the card already knows (the code still comes from the other device's screen).
+
+## Amendment (2026-10, slice 15): the dot reports answers, not attempts
+
+Field use of the online dot found it lying in the most routine case there is: an automatic
+round against a sleeping peer turned the dot green the moment the round started —
+`syncNow` marked the peer online on its way in, and the presence round answered `true` for
+any busy peer ("a session in flight counts as its own proof") — so every launch and resume
+showed a green dot for exactly the seconds the dial then spent failing, then gray again.
+Trying to reach a peer is not reaching it.
+
+- **Three kinds of evidence, and an attempt is none of them.** The dot may say online from
+  a probe that reached a remembered endpoint, a finished session that got an answer (a
+  refusal included — that has not changed), or a running session **past its dial**: any
+  beat from `exchanging` on means both hello manifests are in hand, i.e. the peer
+  demonstrably answered while the session is still running. That last source is what keeps
+  a minutes-long first sync green while it actually runs — the honest half of the rule the
+  optimistic mark was reaching for.
+- **A busy peer is neither probed nor assumed.** The presence round skips peers with a
+  session in flight and leaves their current evidence untouched (they still count as known,
+  so unpairing cannot leave a stale dot); the session's own verdict settles the dot when it
+  lands. Previously the round answered `true` for a busy peer outright, which is the same
+  conflation from the probe's side.
+- *Rejected: keeping the optimistic mark for manual syncs only.* The button already shows
+  the session's beats, a manual dial against an offline peer is the same lie, and the
+  verdict lands seconds later anyway — "who started it" is not evidence either.
+
+## Amendment (2026-10, slice 16): a quiet round that brings data says so
+
+Slice 4's cadence made every automatic round silent — right when the feature was new and a
+toast per resume would have been noise, but field use found the other failure: a phone
+picked up at the office receives the whole day's messages and says nothing, so the user
+cannot tell sync happened without walking to the settings page.
+
+- **Arrivals are announced, attempts are not.** A session that *brought data to
+  this device* (received conversations, applied message edits or deletions, business rows,
+  blobs, skills) emits one arrival event; a root-mounted announcer turns it into a toast —
+  "Synced with <peer>", five seconds, one "Details" action opening the card's own report
+  breakdown in a dialog over the root navigator. A session that moved nothing, or only sent
+  (the peer got the news), announces nothing; failures and refusals never announce — a
+  sleeping peer is routine, and the card already carries the outcome. The gate is one pure
+  predicate on the report, so the "what counts as an arrival" rule is testable without a
+  toast.
+- **Both halves of a session can be the arrival.** `syncWithPeer` announced only the rounds
+  this device starts; the round a *peer* starts lands here through the responder path, which
+  this device never chose and never sees — and that is the direction field use actually
+  exercises (the phone picked up at the office pushes its day to the desktop; the desktop,
+  sitting in the foreground, starts nothing). The engine hands the responder's own report to
+  the provider when the answered session ends, under the same gates — data arrived here, no
+  panel mounted — so a device hears about every arrival, whichever side ran the session. The
+  "manual sync is not announced" rule is per-device: unannounced on the device whose user
+  pressed, because its card is already talking; the peer that data was *pushed to* may still
+  announce, because there the data landed unbidden.
+- **The panel is the suppressor.** The mobile page and the desktop pane render one shared
+  panel body, and it marks itself mounted on the provider: while it is, the cards are
+  showing the same news and the toast would be noise. A manual "sync now" keeps the
+  snackbar its card already shows; the pairing kick is likewise not an announcement. The
+  provider decides *whether* (a counter, so an odd dispose order cannot silence a live
+  panel); the announcer widget decides only *what it looks like*, and is a pass-through
+  wrapper at the app root so it is alive wherever the user is.
+- *Rejected: announcing every successful round.* "Synced · up to date" on every launch and
+  resume is a toast nobody needs twice, and it trains the user to dismiss toasts — which is
+  exactly the reflex the arrival toast must not build.
+
+## Amendment (2026-10, slice 17): a re-pair keeps the networks it has met
+
+Slice 9 made a peer record hold every address a peer was known at, but left the pairing paths
+building a *fresh* record: `_carryPairingFacts` moved the rename, the last-sync stamp and the
+last report across, and the endpoint set was rebuilt from the address the pairing ran over
+plus the candidates that QR advertised. Both sides, every time. So the remembered set only
+ever described the network the last pairing happened on, and the multi-network story it was
+built for did not hold: pair at home, repair once at the office, and home is gone from both
+records — pairing again at home forgets the office in turn. Alternating two places cost a
+re-scan at every switch, which is precisely the journey the endpoint set exists to spare.
+
+- **A re-pair carries the old endpoints over, behind the fresh ones.** After the address the
+  pairing proved (the new head) and the candidates the QR or the pair request advertised
+  (current-network hints), the previous record's endpoints are appended with their own
+  `lastSuccessAt` stamps, deduplicated and inside the same six-endpoint cap
+  (`SyncPeerRecord.rememberEndpointHistory`). Both pairing sides do it, because both hold a
+  memory of where the other was.
+- **Manual repair still replaces the whole set.** That wipe is deliberate and unchanged
+  (slice 9): the user typed an address because the automatic memory failed, so keeping the
+  rest would keep the failure. The distinction is which gesture is being performed — a
+  re-scan says "the peer moved", typing says "what you know is wrong".
+- *Rejected: carrying the old endpoints in `_carryPairingFacts`.* The order would then be
+  history-first, so a stale address from another network would be dialed ahead of the
+  current network's hints; the carry has to happen after the pairing's own endpoint writes,
+  and the doc comment on `_carryPairingFacts` now says why endpoints are not in it.
+- *Rejected: a separate "forget other networks" action.* It would ask the user to maintain a
+  set the code can bound by itself (six entries, trimmed in order), and the probe makes a
+  stale entry cost one parallel SYN rather than a dial budget.
+
+## Amendment (2026-10, slice 16 follow-up): the gate reads only what arrived
+
+Field use of the slice-16 announcement — and a read of it against the desktop shell — found
+three holes in the launch version. None changes the intent above; all three change what the
+gate and the suppressor may read.
+
+- **The viewer follows the user, not the element tree.** The panel marked itself a viewer on
+  mount and released it on teardown, which is the same thing only while a panel is unmounted
+  when it leaves the screen. On desktop it is not: the home page keeps its tabs alive in an
+  `IndexedStack` ("so ongoing chat streams are not canceled when switching tabs"), so after
+  one visit to Settings → LAN Sync — the journey the pairing QR forces — the panel stays
+  mounted, the release never runs, and *every* arrival is suppressed for the rest of the
+  launch. Every `IndexedStack` child carries a visibility scope, so the mark now follows
+  `Visibility.of(context)`, re-evaluated in `didChangeDependencies`: shown, hidden and shown
+  again release and re-take the viewer. The provider still counts (not a bool), and the
+  reference `dispose` needs is still kept while the element is alive.
+- **Only what arrived counts.** `entityRows`/`preferenceRows` on the report add both
+  directions, because the card's "moved" chip wants the total; the gate was reading them, so
+  a session that only *pushed* a synced preference or a new assistant — a routine quiet round
+  — announced "Synced with `peer`" over a device where nothing had changed. The report gains
+  received-only counters (`entityRowsReceived`, `preferenceRowsReceived`, filled from the
+  incoming payload alone) and the gate reads those. Every other counter it reads was already
+  one-directional; business rows were the only pair whose card meaning and gate meaning
+  differ, so the aggregate stays as the card wants it.
+- **An arrival that lands after teardown is dropped, not thrown.** `dispose` closes the
+  arrival stream but does not stop the engine, which is deliberate (the listener is the app's,
+  and the graceful stop is the exit flush's job). A session that finished in that window
+  answered the peer with a 500 — *after* applying its data — because `add` on a closed
+  controller throws into the request handler. Announcements now go through one guarded sink
+  (`_announce`), the same rule `_notify` already followed for exactly this class of late tail.
+- *Rejected: having the desktop host pass a "my tab is selected" flag down.* It would have to
+  be threaded through the pane and page, would not cover a future offstage host, and the
+  visibility scope every `IndexedStack`/`Visibility` child already carries says the same thing.
+- *Rejected: gating on `TickerMode`.* `IndexedStack` does not mute tickers for its non-selected
+  children; the signal that actually travels is the visibility scope.
 
 ## Considered options (rejected)
 

@@ -2123,6 +2123,64 @@ void main() {
     expect(persisted.lastReport?.refusal, SyncRefusalReason.notPaired);
   });
 
+  test('a re-pair remembers the network the pair left', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, withEngine: false);
+    await b.start(root);
+    sides.addAll([a, b]);
+
+    final provider = await a.startProvider();
+    final pin = b.engine.openPairing();
+    await provider.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+    expect((await a.peer(b)).endpoints.map((e) => e.port), [b.port]);
+
+    // The pair moves: nothing answers at the addresses both sides remember —
+    // the drift-repair journey's opening state. The address each side holds for
+    // the other stands in for the network they left.
+    final leftBehindOnA = await _unusedPort();
+    final movedA = await a.peer(b);
+    movedA.replaceEndpoints('127.0.0.1', leftBehindOnA);
+    await a.store.savePeer(movedA);
+    final leftBehindOnB = await _unusedPort();
+    final movedB = await b.peer(a);
+    movedB.replaceEndpoints('127.0.0.1', leftBehindOnB);
+    await b.store.savePeer(movedB);
+
+    // The repair gesture: pair again at the address that works now.
+    final secondPin = b.engine.openPairing();
+    await provider.pairWith(host: '127.0.0.1', port: b.port, pin: secondPin);
+    await _waitUntil(() async => provider.busyDeviceIds.isEmpty);
+
+    final repaired = await a.peer(b);
+    expect(
+      repaired.primaryEndpoint?.port,
+      b.port,
+      reason: 'the address the pairing proved is the head',
+    );
+    expect(
+      repaired.endpoints.map((e) => e.port),
+      contains(leftBehindOnA),
+      reason:
+          'the network the pair left is still remembered as a hint behind '
+          'the new one — otherwise alternating two networks costs a re-scan '
+          'every time',
+    );
+    expect(
+      repaired.endpoints.where((e) => e.port == leftBehindOnA).length,
+      1,
+      reason: 'carried once, not duplicated',
+    );
+    // The responder keeps its own half of the memory: where this device last
+    // reached it.
+    expect(
+      (await b.peer(a)).endpoints.map((e) => e.port),
+      contains(leftBehindOnB),
+      reason: 'both sides of a pairing keep the networks they met',
+    );
+  });
+
   test('a QR payload skips a dead endpoint and pairs on the live one', () async {
     final a = _Side('a');
     final b = _Side('b');

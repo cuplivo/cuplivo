@@ -99,9 +99,10 @@ void main() {
       await root.delete(recursive: true);
     });
 
-    // The dialog rides the root navigator (see the announcer) and the toast is
-    // drawn by the app's own overlay, so the test app carries both — without
-    // `AppSnackBarOverlay` the manager would hold an entry nobody renders.
+    // The announcer rides the app's own builder — above the navigator, where
+    // `Navigator.maybeOf` finds nothing and the toast falls back to
+    // `rootNavigatorKey.currentState` (the branch production actually takes) —
+    // and under `AppSnackBarOverlay`, which is what renders the entry.
     await tester.pumpWidget(
       ChangeNotifierProvider<SyncProvider>.value(
         value: provider,
@@ -109,11 +110,12 @@ void main() {
           navigatorKey: rootNavigatorKey,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          builder: (context, child) =>
-              AppSnackBarOverlay(child: child ?? const SizedBox.shrink()),
-          home: const Scaffold(
-            body: SyncArrivalAnnouncer(child: Center(child: Text('shell'))),
+          builder: (context, child) => AppSnackBarOverlay(
+            child: SyncArrivalAnnouncer(
+              child: child ?? const SizedBox.shrink(),
+            ),
           ),
+          home: const Scaffold(body: Center(child: Text('shell'))),
         ),
       ),
     );

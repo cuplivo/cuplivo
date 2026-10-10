@@ -1004,6 +1004,35 @@ cannot tell sync happened without walking to the settings page.
   resume is a toast nobody needs twice, and it trains the user to dismiss toasts — which is
   exactly the reflex the arrival toast must not build.
 
+## Amendment (2026-10, slice 17): a re-pair keeps the networks it has met
+
+Slice 9 made a peer record hold every address a peer was known at, but left the pairing paths
+building a *fresh* record: `_carryPairingFacts` moved the rename, the last-sync stamp and the
+last report across, and the endpoint set was rebuilt from the address the pairing ran over
+plus the candidates that QR advertised. Both sides, every time. So the remembered set only
+ever described the network the last pairing happened on, and the multi-network story it was
+built for did not hold: pair at home, repair once at the office, and home is gone from both
+records — pairing again at home forgets the office in turn. Alternating two places cost a
+re-scan at every switch, which is precisely the journey the endpoint set exists to spare.
+
+- **A re-pair carries the old endpoints over, behind the fresh ones.** After the address the
+  pairing proved (the new head) and the candidates the QR or the pair request advertised
+  (current-network hints), the previous record's endpoints are appended with their own
+  `lastSuccessAt` stamps, deduplicated and inside the same six-endpoint cap
+  (`SyncPeerRecord.rememberEndpointHistory`). Both pairing sides do it, because both hold a
+  memory of where the other was.
+- **Manual repair still replaces the whole set.** That wipe is deliberate and unchanged
+  (slice 9): the user typed an address because the automatic memory failed, so keeping the
+  rest would keep the failure. The distinction is which gesture is being performed — a
+  re-scan says "the peer moved", typing says "what you know is wrong".
+- *Rejected: carrying the old endpoints in `_carryPairingFacts`.* The order would then be
+  history-first, so a stale address from another network would be dialed ahead of the
+  current network's hints; the carry has to happen after the pairing's own endpoint writes,
+  and the doc comment on `_carryPairingFacts` now says why endpoints are not in it.
+- *Rejected: a separate "forget other networks" action.* It would ask the user to maintain a
+  set the code can bound by itself (six entries, trimmed in order), and the probe makes a
+  stale entry cost one parallel SYN rather than a dial budget.
+
 ## Considered options (rejected)
 
 - **Whole-database / backup-zip exchange** — not version-portable; a newer schema on an

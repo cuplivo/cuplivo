@@ -58,6 +58,64 @@ void main() {
       expect(peer.primaryEndpoint?.label, '172.20.10.1:9527');
     });
 
+    test('a re-pair keeps the networks it left behind the fresh ones', () {
+      // A record that last synced on the office network.
+      final previous = record();
+      previous.noteEndpointSuccess('10.0.0.3', 9527);
+      previous.rememberEndpointCandidates([('10.0.0.9', 9527)]);
+
+      // The pair moves home: the pairing proves the new address, the QR
+      // advertises the peer's current candidates, and the old network is
+      // carried over behind them instead of being forgotten.
+      final peer = record();
+      peer.noteEndpointSuccess('192.168.1.7', 9527);
+      peer.rememberEndpointCandidates([('192.168.1.9', 9527)]);
+      peer.rememberEndpointHistory(previous.endpoints);
+
+      expect(peer.endpoints.map((e) => e.host).toList(), [
+        '192.168.1.7',
+        '192.168.1.9',
+        '10.0.0.3',
+        '10.0.0.9',
+      ]);
+      expect(
+        peer.endpoints.last.lastSuccessAt,
+        isNull,
+        reason: 'a carried hint is not re-stamped as a success',
+      );
+      expect(
+        peer.endpoints[2].lastSuccessAt,
+        isNotNull,
+        reason: 'the office address keeps the stamp it earned there',
+      );
+    });
+
+    test('carrying history neither duplicates nor outgrows the set', () {
+      final previous = record();
+      previous.noteEndpointSuccess('10.0.0.3', 9527);
+      for (var i = 0; i < kMaxPeerEndpoints + 2; i++) {
+        previous.rememberEndpointCandidates([('10.0.1.$i', 9527)]);
+      }
+
+      final peer = record();
+      // The address the pairing proved is also in the old set: it must not be
+      // remembered twice.
+      peer.noteEndpointSuccess('10.0.0.3', 9527);
+      peer.rememberEndpointHistory(previous.endpoints);
+
+      expect(
+        peer.endpoints.where((e) => e.host == '10.0.0.3').length,
+        1,
+        reason: 'the proven address is not duplicated by its own history',
+      );
+      expect(peer.endpoints.length, kMaxPeerEndpoints);
+      expect(
+        peer.primaryEndpoint?.host,
+        '10.0.0.3',
+        reason: 'carried history never displaces the address that answered',
+      );
+    });
+
     test('round-trips through JSON', () {
       final peer = record();
       peer.noteEndpointSuccess('192.168.1.7', 9527);

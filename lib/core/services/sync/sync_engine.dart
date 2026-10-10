@@ -345,9 +345,14 @@ class SyncEngine implements SyncServerHandler {
       name: answer.deviceName.isEmpty ? answer.deviceId : answer.deviceName,
       platform: answer.platform,
     );
-    _carryPairingFacts(peer, await store.findPeer(answer.deviceId));
+    final existing = await store.findPeer(answer.deviceId);
+    _carryPairingFacts(peer, existing);
     peer.noteEndpointSuccess(host, port);
     peer.rememberEndpointCandidates(knownCandidates);
+    // And behind both, the networks the pair has already met: re-pairing is the
+    // drift-repair journey, so forgetting them here is what made alternating
+    // home and office cost a re-scan every time.
+    if (existing != null) peer.rememberEndpointHistory(existing.endpoints);
     await store.savePeer(peer);
     // This listener must accept the peer too: pairing may have been initiated
     // from this side, in which case the answer (not a request) carried the
@@ -1531,7 +1536,8 @@ class SyncEngine implements SyncServerHandler {
     );
     // Same carry-over as the initiator's side: this responder may hold the
     // older (and richer) record of the pair.
-    _carryPairingFacts(peer, await store.findPeer(request.deviceId));
+    final existing = await store.findPeer(request.deviceId);
+    _carryPairingFacts(peer, existing);
     // The endpoint that demonstrably works: where the initiator connected from,
     // paired with the listener port it advertised. Null when the initiator had
     // no listener running; the address can be fixed by hand.
@@ -1544,6 +1550,9 @@ class SyncEngine implements SyncServerHandler {
         for (final host in request.candidateHosts) (host, request.listenPort!),
       ]);
     }
+    // And the networks this pair already met, behind the fresh ones — the
+    // responder's half of the memory the initiator keeps (see [pairWith]).
+    if (existing != null) peer.rememberEndpointHistory(existing.endpoints);
     await store.savePeer(peer);
     // The pairing request arrived on this listener, so the peer is known here
     // already; the initiator learns the same secret from the answer.
@@ -2282,6 +2291,12 @@ class SyncEngine implements SyncServerHandler {
   /// the last-sync stamp and report (the sessions that produced them happened,
   /// and the checkpoint they advanced survives the re-pair untouched — it is
   /// keyed by deviceId, which pairing does not change).
+  /// Carries what survives a re-pair from the record it replaces: the rename
+  /// override, the last successful stamp and the last report. Endpoints are
+  /// deliberately *not* here — they have to land behind the address this
+  /// pairing just proved and the candidates it advertised, so each caller
+  /// appends the old set after its own endpoint writes
+  /// ([SyncPeerRecord.rememberEndpointHistory]).
   static void _carryPairingFacts(
     SyncPeerRecord peer,
     SyncPeerRecord? existing,

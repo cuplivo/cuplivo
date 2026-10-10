@@ -206,9 +206,12 @@ contradicts one of them is a bug, not a preference.
   an office address, a home address and a phone hotspot, so a peer record holds up to six
   endpoints instead of one. A session promotes the endpoint it succeeded over to the front and
   keeps the rest behind it as hints, so roaming back to a known network heals itself in one round.
-  Only the certificate fingerprint identifies a peer — every connection re-verifies it — so
-  remembering several addresses can never reach the wrong device. Manual repair ("edit address")
-  replaces the whole set: the automatic memory is what failed, or the user would not be typing.
+  A re-pair carries the old set over behind the address it just proved (and the candidates the QR
+  advertised): the repair gesture for a moved peer must not forget the networks the pair has
+  already met, or alternating two places costs a re-scan every time. Only the certificate
+  fingerprint identifies a peer — every connection re-verifies it — so remembering several
+  addresses can never reach the wrong device. Manual repair ("edit address") replaces the whole
+  set: the automatic memory is what failed, or the user would not be typing.
 - **Candidates are probed in parallel, then dialed nearest-subnet first** (候选探测): a peer with
   several remembered addresses costs one bare TCP probe per address, all at once — the wait is the
   slowest probe, not their sum — and the ones that answered are dialed in sequence under a three

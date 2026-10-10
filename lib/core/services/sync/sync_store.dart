@@ -372,6 +372,26 @@ class SyncPeerRecord {
     _trimEndpoints();
   }
 
+  /// Keeps the endpoints a *previous* record held, behind everything this
+  /// pairing just proved or advertised, with their own stamps intact: an
+  /// address is a (device, network) fact, so the re-pair that repairs a drifted
+  /// endpoint — the journey this feature expects whenever a peer moves — must
+  /// not forget the networks the pair has already met. The pairing address is
+  /// the new head, the QR's current candidates come next, and this is the memory
+  /// behind both: tried only once the fresher ones fail.
+  void rememberEndpointHistory(Iterable<SyncPeerEndpoint> previous) {
+    for (final endpoint in previous) {
+      if (endpoint.host.isEmpty || endpoint.port <= 0) continue;
+      if (endpoints.any(
+        (e) => e.host == endpoint.host && e.port == endpoint.port,
+      )) {
+        continue;
+      }
+      endpoints.add(endpoint);
+    }
+    _trimEndpoints();
+  }
+
   /// Manual repair: the entered address replaces the whole set. The automatic
   /// memory is what failed (or the user would not be typing), so keeping the
   /// rest would keep the failure.
